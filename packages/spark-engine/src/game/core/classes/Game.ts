@@ -1602,10 +1602,13 @@ export class Game<T extends M = {}> {
       //
       // Per-module residue audit for this branch (the abandoned run's state
       // survives the rewind — what of it is CORRECT to keep?):
-      //   interpreter — the beat FIFO is the one true hazard: unflushed beats
+      //   interpreter — the beat FIFO is the first hazard: unflushed beats
       //     from the abandoned run sit at the queue's head and would render
-      //     FIRST in the replay. Cleared below; the replay re-queues from the
-      //     start path. (`_matcherCache`/name maps are pure derivations.)
+      //     FIRST in the replay. The routing the run remembered for a glued
+      //     continuation is the second: a beat of the replay would inherit
+      //     a cue from a beat that is no longer going to run. Both are
+      //     cleared below by `clearQueuedBeats`; the replay re-queues from
+      //     the start path. (`_matcherCache`/name maps are pure derivations.)
       //   audio — `_channelsCurrentlyPlaying` and `_state.channels` MIRROR
       //     the renderer, whose players are untouched by a story rewind:
       //     clearing them would break `replace`-behavior stops and channel-

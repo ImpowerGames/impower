@@ -950,12 +950,16 @@ function lexicalRouting(
 
 // Sibling node names that sit between two display constructs without being
 // content themselves — skipped when looking back for the preceding construct.
+// A `//` comment line is among them: it shows nothing, so a `..` reaches
+// across it at run time, and the line after it is the continuation of the
+// line before it.
 const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "Whitespace",
   "ExtraWhitespace",
   "OptionalWhitespace",
   "RequiredWhitespace",
+  "SparkdownLineComment",
 ]);
 
 // True when the immediately-preceding top-level sibling construct ends with a

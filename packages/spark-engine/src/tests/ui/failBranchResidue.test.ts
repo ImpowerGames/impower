@@ -41,13 +41,20 @@ describe("fail-branch replay discards the abandoned run's queued beats", () => {
     expect(stream).toContain("Fresh line.");
   });
 
-  test("clearQueuedBeats empties only the FIFO", async () => {
+  test("clearQueuedBeats empties the FIFO and the run's remembered routing", async () => {
     const h = createHarness(SOURCE);
     await h.ready;
     const interpreter: any = h.game.module.interpreter;
     interpreter._state.buffer = [{ text: {}, end: 1 }];
+    // What a glued continuation of the abandoned run would inherit from.
+    interpreter._state.routing = {
+      target: "dialogue",
+      character: "STALE",
+      group: "inmemory:///main.sd#1",
+    };
     interpreter.clearQueuedBeats();
     expect(interpreter._state.buffer).toEqual([]);
+    expect(interpreter._state.routing).toBeUndefined();
     expect(interpreter.shouldFlush()).toBe(false);
   });
 });

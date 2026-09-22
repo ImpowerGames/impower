@@ -7,6 +7,7 @@ import { describe, expect, test } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { findClosestPath } from "../../game/core/utils/findClosestPath";
 import {
+  compileUI,
   createHarness,
   flushMicrotasks,
   MAIN_URI,
@@ -152,35 +153,116 @@ describe("spaced `>` break", () => {
     expect(cue(after)).toBe("HERO");
   });
 
+  test("an inherited beat and a newer continuation can share a step", async () => {
+    // `.. C > D ..` holds the next line open, so the step that shows `D`
+    // also carries the continuation for `F`. The beat inherits by the group
+    // that asked to inherit, while the step is remembered by the group whose
+    // break produces the next beat; every beat here joined HERO.
+    const harness = createHarness(
+      `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B\n  .. C > D ..\n  E > F\nend\n`,
+    );
+    await harness.ready;
+    harness.jumpTo("start");
+    const beats = [
+      harness.nextBeat(),
+      harness.nextBeat(),
+      harness.nextBeat(),
+    ];
+    expect(beats.map(typed)).toEqual(["A B C", "D E", "F"]);
+    expect(beats.map(cue)).toEqual(["HERO", "HERO", "HERO"]);
+  });
+
+  test("a comment between a line and its continuation keeps the cue", async () => {
+    // A `//` line shows nothing, so the `..` reaches across it at run time;
+    // the line after it continues the line before it, and the beat after its
+    // break keeps that line's cue.
+    for (const body of [
+      `  HERO: A ..\n  // note\n  B > C`,
+      `  HERO: A\n  // note\n  .. B > C`,
+    ]) {
+      const harness = createHarness(story(body));
+      await harness.ready;
+      harness.jumpTo("start");
+      const joined = harness.nextBeat();
+      expect(typed(joined)).toBe("A B");
+      const after = harness.nextBeat();
+      expect(typed(after)).toBe("C");
+      expect(cue(after)).toBe("HERO");
+    }
+  });
+
   test("routing a continuation remembers does not outlive its run", async () => {
     // The beats of an abandoned run are not this run's, so the beat a
-    // continuation would inherit from is gone with them. `clearQueuedBeats`
-    // is what every abandoning path calls.
-    const source = story(`  HERO: A.\n  .. joined > After.`);
-    const harness = createHarness(source);
+    // continuation would inherit from is gone with them. The continuation is
+    // reached by a divert from HERO but is written under VILLAIN, so the two
+    // answers differ: after the run is dropped, the beat takes the cue its
+    // own line reads.
+    const source = `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B\n  .. joined > After.\nend\n`;
+    const line = source.split("\n").findIndex((l) => l.includes("joined"));
+    const primed = async () => {
+      const harness = createHarness(source);
+      await harness.ready;
+      harness.jumpTo("start");
+      // The joined beat remembers HERO for the continuation.
+      expect(cue(harness.nextBeat())).toBe("HERO");
+      return harness;
+    };
+    const lastBeatOf = (harness: any) =>
+      findClosestPath(
+        { file: MAIN_URI, line },
+        harness.game.program.pathLocations,
+        Object.keys(harness.game.program.scripts),
+        "last",
+      )!;
+
+    // The run is abandoned, which is what every abandoning path does.
+    const abandoned = await primed();
+    abandoned.game.module.interpreter.clearQueuedBeats();
+    abandoned.jumpTo(lastBeatOf(abandoned));
+    const afterAbandon = abandoned.nextBeat();
+    expect(typed(afterAbandon)).toBe("After.");
+    expect(cue(afterAbandon)).toBe("VILLAIN");
+
+    // The program is replaced, which an edit does. The source is the same
+    // length, so the continuation keeps its name.
+    const updated = await primed();
+    updated.game.updateProgram(compileUI(source).program as any);
+    updated.jumpTo(lastBeatOf(updated));
+    const afterUpdate = updated.nextBeat();
+    expect(typed(afterUpdate)).toBe("After.");
+    expect(cue(afterUpdate)).toBe("VILLAIN");
+  });
+
+  test("a beat never inherits from a continuation of another file", async () => {
+    // Source offsets start again in every script, so both continuations
+    // begin at the same offset in their own file. Priming the first file's
+    // continuation and then jumping straight into the second must not carry
+    // the first file's cue across.
+    const INCLUDE = "inmemory:///evil.sd";
+    const main = `${DEFS}\ninclude evil.sd\n\n-> start\n\nscene start\n  HERO: A.\n  .. joined > After.\nend\n`;
+    const head = `scene evil\n  EVIL: `;
+    const evil = `${head}${"B".repeat(
+      main.indexOf("  .. joined") - head.length - 2,
+    )}.\n  .. joined > After.\nend\n`;
+    // The continuations of the two files start at the same offset.
+    expect(evil.indexOf("  .. joined")).toBe(main.indexOf("  .. joined"));
+    const harness = createHarness(main, 0, { scripts: { [INCLUDE]: evil } });
     await harness.ready;
     harness.jumpTo("start");
     expect(cue(harness.nextBeat())).toBe("HERO");
 
-    const interpreter: any = harness.game.module.interpreter;
-    expect(interpreter._state.routing).toBeTruthy();
-    interpreter.clearQueuedBeats();
-    expect(interpreter._state.routing).toBeUndefined();
-
-    const line = source.split("\n").findIndex((l) => l.includes("joined"));
+    const line = evil.split("\n").findIndex((l) => l.includes("joined"));
     const path = findClosestPath(
-      { file: MAIN_URI, line },
+      { file: INCLUDE, line },
       harness.game.program.pathLocations,
       Object.keys(harness.game.program.scripts),
       "last",
     );
+    expect(path).toBeTruthy();
     harness.jumpTo(path!);
-    // Nothing joined the continuation in this run, so the beat names the
-    // line its own source reads, which is the same cue here; what matters is
-    // that it is read from the table and not from the run that was dropped.
     const beat = harness.nextBeat();
     expect(typed(beat)).toBe("After.");
-    expect(cue(beat)).toBe("HERO");
+    expect(cue(beat)).toBe("EVIL");
   });
 
   test("a picture line ending in `>` shows the picture and waits", async () => {

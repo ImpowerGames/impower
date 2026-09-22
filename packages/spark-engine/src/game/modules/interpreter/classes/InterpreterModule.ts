@@ -396,7 +396,8 @@ export class InterpreterModule extends Module<
    * cue (`character`) are table fields resolved at compile time.
    *
    * Table shape: `{ target?: string, character?: string, text: string,
-   * pause?: boolean, tags?: table }`, or `{ load: string }` for a `load` line,
+   * pause?: boolean, inherit?: boolean, group?: string, tags?: table }`, or
+   * `{ load: string }` for a `load` line,
    * whose whitespace-separated names queue a load beat of their own. `pause`
    * marks a beat a `>` break ends, which waits for a click even when it has no
    * text. `group` names a glued continuation, and `inherit` marks its beats
@@ -467,23 +468,29 @@ export class InterpreterModule extends Module<
       const target = read(table, "target");
       return typeof target === "string" && target;
     });
-    // Glue can hold several continuations open in one step, and the beat
-    // after a break belongs to the LAST of them, so that is the one this
-    // step is remembered by.
-    const group = tables
-      .map((table) => read(table, "group"))
-      .filter((value): value is string => typeof value === "string")
-      .at(-1);
+    // Two different continuations can meet in one step: the beat after one
+    // continuation's break, and a newer continuation the glue holds open for
+    // the beat after this one. So the continuation this beat inherits from
+    // and the one the NEXT beat will inherit from are read apart: the beat
+    // inherits by the group of the table that asks to (`inherit`), and the
+    // step is remembered by the last group in it, which is the continuation
+    // whose break produces the next beat.
+    const groupOf = (table: ObjectValue | undefined): string | undefined => {
+      const group = read(table, "group");
+      return typeof group === "string" ? group : undefined;
+    };
+    const inheritGroup = groupOf(
+      tables.find((table) => read(table, "inherit") === true),
+    );
+    const group = tables.map(groupOf).filter((value) => value != null).at(-1);
     // A glued continuation's beat after one of its breaks takes the routing
     // of the beat the run joined the continuation to — but only when that
-    // beat is the one just queued, which is what `group` establishes. A run
+    // beat is the one just queued, which is what the group establishes. A run
     // that jumped straight to this beat routes by the table instead, which
     // carries the line the source reads before the continuation.
     const remembered = this._state.routing;
     const inherits =
-      group != null &&
-      remembered?.group === group &&
-      tables.some((table) => read(table, "inherit") === true);
+      inheritGroup != null && remembered?.group === inheritGroup;
     let routing: { target: string; character?: string } = { target: "" };
     if (inherits) {
       routing = { target: remembered!.target };
