@@ -15,6 +15,8 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { StoryJournal } from "../../compiler/classes/StoryJournal";
+import { activation } from "../../inkjs/engine/StoryActivation";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const URI = "inmemory:///main.sd";
@@ -440,6 +442,76 @@ describe("a story kept across later compiles", () => {
       expect(serialized(story)).toBe(cold(storyText).json);
     }
     expect(foreign).toEqual([]);
+  });
+
+  it("takes back what an aborted compile wrote when only an older story is kept", () => {
+    const journal = new StoryJournal();
+    const A = { name: "A" };
+    const B = { name: "B" };
+    journal.beginCompile();
+    const carried: any = { _birth: activation.generation, parent: "in A" };
+    journal.endCompile(A);
+    journal.keep(A);
+    // B carries the object and is the newest story, not kept.
+    journal.beginCompile();
+    journal.recordParent(carried);
+    carried.parent = "in B";
+    journal.endCompile(B);
+    // A compile that moves it and then produces no story.
+    journal.beginCompile();
+    journal.recordParent(carried);
+    carried.parent = "in a discarded half-compile";
+    journal.abortCompile();
+    expect(journal.active).toBe(B);
+    expect(carried.parent).toBe("in B");
+    journal.activate(A);
+    expect(carried.parent).toBe("in A");
+    journal.activate(B);
+    expect(carried.parent).toBe("in B");
+  });
+
+  it("records no debug metadata that only a parsed object holds", () => {
+    // Stored declarations and scenes whose identifiers' metadata the compiler
+    // restamps on every compile, though no runtime object holds it.
+    const stores = Array.from({ length: 100 }, (_, n) => `store x${n} = ${n}`).join("\n");
+    let text = [
+      stores,
+      ``,
+      `scene first\n= INT. ROOM - DAY\n:\n  First scene.\n-> second\nend\n`,
+      `scene second\n= EXT. YARD - NIGHT\n:\n  Second scene.\n-> first\nend\n`,
+    ].join("\n");
+    const c = compilerFor(text);
+    const journal = (c.compiler as any)._storyJournal;
+    const original = c.compile().story!;
+    c.compiler.keepStory(original);
+    for (let n = 0; n < 4; n++) {
+      const find = n % 2 === 0 ? "  First scene" : "  Second scene";
+      const next = change(text, find, `${find}, edit ${n}`);
+      c.edit(next.contentChanges);
+      text = next.after;
+      c.compile();
+    }
+    c.compiler.activateStory(original);
+    const own = new Set<object>();
+    const visit = (obj: any) => {
+      if (own.has(obj)) {
+        return;
+      }
+      own.add(obj);
+      if (obj.ownDebugMetadata) {
+        own.add(obj.ownDebugMetadata);
+      }
+      for (const child of obj.content ?? []) {
+        visit(child);
+      }
+      for (const [, child] of obj.namedContent ?? []) {
+        visit(child);
+      }
+    };
+    visit(original.mainContentContainer);
+    const entries = journal._tables.get(original).entries as Map<object, unknown>;
+    const foreign = [...entries.keys()].filter((obj) => !own.has(obj));
+    expect(foreign.length).toBe(0);
   });
 
   it("holds nothing for the stories it no longer keeps", () => {

@@ -3,6 +3,8 @@ import { activation } from "./StoryActivation";
 export class DebugMetadata {
   /** The compile generation this metadata was created in (`activation`). */
   public readonly _birth: number = activation.generation;
+  /** A runtime object has held this metadata, so a story can hold it. */
+  public _heldAtRuntime = false;
   public startLineNumber: number = 0;
   public endLineNumber: number = 0;
   public startCharacterNumber: number = 0;

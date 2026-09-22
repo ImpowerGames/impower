@@ -73,13 +73,18 @@ const fieldsOf = (obj: object): readonly string[] | undefined => {
  * cached through the old parents is resolved again. Activation copies nothing
  * between stories' tables.
  *
- * Only a compile records, and only into a table of a story that holds the
- * object. A compile carries only what the newest story holds, and a story
+ * Only a compile records, and it records a runtime object only into the table
+ * of a story that holds it. A compile carries only what the newest story
+ * holds, and a story
  * holds an object the newest one holds exactly when the object was created no
  * later than the compile that produced it (`activation.generation`), since an
  * object leaves the chain of stories once a compile does not carry it. An entry
  * for any other object would be unused, and its recorded parent would keep a
- * discarded story alive.
+ * discarded story alive. Debug metadata is recorded only once a runtime object
+ * holds it, since metadata only a parsed object holds is part of no story; a
+ * kept story's record can still hold the metadata of a runtime object that an
+ * earlier compile replaced while a parsed chunk kept the metadata, which costs
+ * an entry and restores nothing it does not hold.
  *
  * Recording costs one entry per carried object per kept story, taken once, and
  * activation costs one assignment per entry of the story it leaves and of the
@@ -176,13 +181,15 @@ export class StoryJournal {
     if (this._latest) {
       this.activate(this._latest);
     }
-    const recording: Table[] = [];
-    for (const [story, table] of this._tables) {
+    // Any kept story needs the compile recorded; the newest story's table is
+    // then recorded too, kept or not, so an aborted compile can be taken back.
+    let needed = false;
+    for (const story of this._tables.keys()) {
       if (story !== this._latest || this._kept.has(story)) {
-        recording.push(table);
+        needed = true;
       }
     }
-    this._recording = recording.length > 0 ? recording : null;
+    this._recording = needed ? [...this._tables.values()] : null;
   }
 
   /** Whether the compile in progress records carried objects. */
@@ -226,10 +233,11 @@ export class StoryJournal {
   }
 
   /** Record a chunk's debug metadata before this compile restamps its
-   *  source position. */
+   *  source position, when a runtime object holds it: metadata only a parsed
+   *  object holds is part of no story. */
   recordDebugMetadata(metadata: DebugMetadata): void {
     const recording = this._recording;
-    if (recording) {
+    if (recording && metadata._heldAtRuntime) {
       StoryJournal.remember(recording, metadata, DEBUG_METADATA_FIELDS);
     }
   }
@@ -254,7 +262,8 @@ export class StoryJournal {
 
   /** The compile produced no story, and the newest story stays the newest.
    *  What the compile wrote into its carried objects is taken back from the
-   *  newest story's record when it is kept. */
+   *  newest story's record, which a compile records whenever any story is
+   *  kept. */
   abortCompile(): void {
     this._recording = null;
     activation.generation += 1;

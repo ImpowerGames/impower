@@ -29,6 +29,9 @@ export class InkObject {
     if (activation.reparent !== null && value !== this._debugMetadata) {
       activation.reparent(this);
     }
+    if (value) {
+      value._heldAtRuntime = true;
+    }
     this._debugMetadata = value;
   }
 
