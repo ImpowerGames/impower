@@ -110,7 +110,6 @@ export interface UIHarness {
 export function compileUI(
   source: string,
   opts?: {
-    experimentalDisplayCalls?: boolean;
     seedBuiltinsIntoStory?: boolean;
     /** Asset files (images, audio, fonts, video) the fixture references. */
     assets?: File[];
@@ -119,7 +118,6 @@ export function compileUI(
   const compiler = new SparkdownCompiler();
   compiler.configure({
     useBuiltinsPrelude: true,
-    experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? false,
     // The engine sources defines from the live runtime __def tables, so every
     // Game-feeding compile must seed the builtins prelude into the story VM
     // (the production player does the same). Default on.
@@ -193,7 +191,6 @@ export function createHarness(
      *  way to reach it from a test — `_reactive` is set unconditionally, so
      *  the render path is chosen by the program's shape, not by a flag. */
     staticFallback?: boolean;
-    experimentalDisplayCalls?: boolean;
     /** Load a saved checkpoint BEFORE connecting — reproduces the editor's
      *  scrub/restore flow (`game.load(checkpoint)` then `connectGame()` →
      *  onConnected + onRestore). Lets a test verify that restore re-mounts the
@@ -219,12 +216,6 @@ export function createHarness(
   },
 ): UIHarness {
   const { program } = compileUI(source, {
-    // Display goldens guard the PRODUCTION path, which renders via display()
-    // (the player worker enables `experimentalDisplayCalls` on the compiler
-    // that feeds the Game). Default on here so the characterization net tracks
-    // production; a test can still pass `false` to exercise the legacy
-    // routing-tag path (e.g. displayCallParity).
-    experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? true,
     // `compileUI` seeds the builtins prelude by default (the engine sources
     // defines from the live runtime __def tables).
     assets: opts?.assets,
@@ -345,25 +336,13 @@ export function createHarness(
         story.ContinueAsync();
         if (story.asyncContinueComplete) {
           const choices = story.currentChoices.map((c: any) => c.text);
-          // Mirror Game's continue loop: a step that called `display(<table>)`
-          // goes to queueInstructions with the step's ordered text as the
-          // body; a step with no table takes the queue() path.
-          const displayInstructions = story.currentDisplayInstructions;
-          if (displayInstructions.length > 0) {
-            interpreter.queueInstructions(
-              displayInstructions,
-              choices,
-              story.currentText || "",
-              story.currentTags || [],
-            );
-          } else {
-            interpreter.queue(
-              story.currentText || "",
-              choices,
-              // Pass the beat's routing tags, exactly as Game's continue loop does.
-              story.currentTags || [],
-            );
-          }
+          // Mirror Game's continue loop: the step's tables, choices and ordered
+          // text make its beat.
+          interpreter.queue(
+            story.currentDisplayInstructions,
+            choices,
+            story.currentText || "",
+          );
         }
         guard++;
       }

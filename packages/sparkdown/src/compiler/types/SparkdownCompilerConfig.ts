@@ -23,9 +23,6 @@ export interface SparkdownCompilerConfig {
   // the pure-LSP diagnostics path leaves it off; any compile feeding a Game must
   // turn it on — the player worker and the test harnesses do).
   seedBuiltinsIntoStory?: boolean;
-  // Accepted and ignored: visible text always lowers to `display(<table>)`
-  // calls.
-  experimentalDisplayCalls?: boolean;
   /**
    * Omit the inlined SVG source (`data`) from image structs in
    * `program.context`. Hosts that serve `/file:/` through a service worker

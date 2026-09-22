@@ -490,14 +490,13 @@ export class StoryState {
   }
   private _currentTags: string[] | null = null;
 
-  /** SPIKE (display-as-Luau-call transport): the live instruction tables a
-   *  `display(<table>)` stdlib call pushed onto the output stream this beat.
-   *  Walks the stream collecting top-level `ObjectValue`s (skipping anything
-   *  inside a BeginTag…EndTag span, so routing tags don't leak in). Empty for
-   *  every beat that called neither `display()` nor `print()`. The engine
-   *  reads this alongside `currentText` after each Continue: the first table
-   *  that names a target routes the beat, and `currentText` (which includes
-   *  every table's `text`) is the body the interpreter parses. */
+  /** The live instruction tables the `display(<table>)` stdlib function
+   *  pushed onto the output stream this beat. Walks the stream collecting
+   *  top-level `ObjectValue`s, skipping the content of BeginTag…EndTag spans.
+   *  Empty for every beat that called neither `display()` nor `print()`. The
+   *  engine reads this alongside `currentText` after each Continue: the first
+   *  table that names a target routes the beat, and `currentText` (which
+   *  includes every table's `text`) is the body the interpreter parses. */
   get currentDisplayInstructions(): ObjectValue[] {
     const result: ObjectValue[] = [];
     let inTag = false;
@@ -1224,12 +1223,11 @@ export class StoryState {
   get outputStreamContainsContent() {
     for (let content of this.outputStream) {
       if (content instanceof StringValue) return true;
-      // SPIKE (display-as-Luau-call transport): a `display(<table>)` call
-      // emits its live instruction table as an ObjectValue (no text). That IS
-      // beat content — without counting it, the trailing boundary newline is
-      // dropped as a spurious leading newline and the beat never closes. In
-      // normal flow ObjectValues never reach the content output stream, so
-      // this only affects display beats.
+      // A `display(<table>)` call emits its live instruction table as an
+      // ObjectValue (no text). That IS beat content — without counting it, the
+      // trailing boundary newline is dropped as a spurious leading newline and
+      // the beat never closes. Only `display()` and `print()` put an
+      // ObjectValue on the content output stream.
       if (content instanceof ObjectValue) return true;
     }
     return false;

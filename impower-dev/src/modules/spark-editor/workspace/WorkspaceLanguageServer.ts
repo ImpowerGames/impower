@@ -269,15 +269,6 @@ export default class WorkspaceLanguageServer {
       initializationOptions: {
         settings: Workspace.configuration.settings,
         files,
-        // Production renders display statements via native `display(<table>)`
-        // Luau calls — the player worker sets this on its own compiler (the
-        // one that feeds the Game; see spark-web-player's workspace.worker.ts).
-        // Mirror it here so this LSP compiler's diagnostics and pathLocations
-        // describe the lowering that actually runs. Render + pathLocation
-        // parity with the legacy routing-tag form is proven by the
-        // characterization net; the compiler default stays off so the ink-core
-        // conformance suite keeps observing the flat-text representation.
-        experimentalDisplayCalls: true,
         definitions: {
           // builtins now come from the implicitly-imported builtins prelude
           // (useBuiltinsPrelude is the compiler default); only the LSP-side

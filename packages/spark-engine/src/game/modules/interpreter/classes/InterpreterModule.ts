@@ -1,5 +1,4 @@
 import { getCharacterIdentifier } from "@impower/sparkdown/src/compiler/utils/getCharacterIdentifier";
-import { parseDisplayRoutingTag } from "@impower/sparkdown/src/compiler/utils/displayRoutingTag";
 import { ObjectValue } from "@impower/sparkdown/src/inkjs/engine/Value";
 import { Module } from "../../../core/classes/Module";
 import type {
@@ -89,9 +88,9 @@ export class InterpreterModule extends Module<
   WHITESPACE_REGEX = /[ \t\r\n]+/;
 
   // Maps a directive marker → its target name (e.g. `"^" → "title"`), plus the
-  // empty-key default-target entry (`"" → "action"`). Display routing no longer
-  // matches markers in the visible text (that's the routing tag's job now); this
-  // map is retained only to resolve the DEFAULT target (`_targetPrefixMap[""]`).
+  // empty-key default-target entry (`"" → "action"`). A beat's routing comes
+  // from its `display()` tables, so this map only resolves the DEFAULT target
+  // (`_targetPrefixMap[""]`).
   protected _targetPrefixMap: Record<string, string> = {};
 
   protected _characterNameMap: Record<string, string> = {};
@@ -250,85 +249,11 @@ export class InterpreterModule extends Module<
   }
 
   /**
-   * Parse content and choices into sequences of instructions
-   * and queue these instructions to be executed later.
-   * @param content current text to queue
-   * @param choices choices to queue
-   * @param tags the just-completed beat's `story.currentTags` — carries the
-   *   per-beat ROUTING TAG the compiler emits (`displayRoutingTag.ts`). The
-   *   beat is routed by that tag (line type + cue identifier) rather than by
-   *   re-deriving a `<prefix>:` from the visible text. Author `# tag`
-   *   annotations also live here and are ignored by routing.
-   */
-  queue(content: string, choices: string[], tags: string[] = []): void {
-    this._state.buffer ??= [];
-    // Trim away indent.
-    content = content.trimStart();
-
-    if (content.startsWith("load ")) {
-      const args = content.split(this.WHITESPACE_REGEX).slice(1);
-      const loadInstructions: LoadInstruction[] = args
-        .map((name) => ({ name }))
-        .filter((a) => Boolean(a.name));
-      // Always its own beat: the loading layout must never open over the
-      // line before it, and the beat advances by itself once loading is done.
-      this._state.buffer.push({ load: loadInstructions, end: 0 });
-      return;
-    }
-
-    // Determine the default target (when there's no routing tag at all).
-    const defaultTarget = this._targetPrefixMap?.[""] || "";
-
-    // The compiler stamps each non-glued display beat with a reserved ROUTING
-    // TAG (`displayRoutingTag.ts`). Locate it among `tags` (author `# tag`
-    // annotations also land in `currentTags`, so DON'T assume index 0 — select
-    // by the reserved sentinel). A glued continuation line (`..`) emits NO
-    // routing tag, so the beat falls back to the default target and merges into
-    // the previous textbox below.
-    let routing: ReturnType<typeof parseDisplayRoutingTag> = null;
-    for (const tag of tags) {
-      const parsed = parseDisplayRoutingTag(tag);
-      if (parsed) {
-        routing = parsed;
-        break;
-      }
-    }
-
-    let target = defaultTarget;
-    let characterDeclaration: string | undefined = undefined;
-    if (routing) {
-      const { lineType, identifier } = routing;
-      if (lineType === "write") {
-        // The routing tag's identifier is the bare layer name (no leading `@`,
-        // unlike the old visible `@layer:` prefix). Empty → default target.
-        target = identifier.trim() || defaultTarget;
-      } else if (lineType === "dialogue") {
-        target = "dialogue";
-        // The identifier is the full character cue (name + optional
-        // parenthetical + optional `<`/`>` position); resolved in appendBeat.
-        characterDeclaration = identifier || undefined;
-      } else {
-        // title / heading / transitional / action (and any unknown line type):
-        // the line type IS the target name (matches the directives config,
-        // where the directive key — e.g. `heading` — names the target). An
-        // empty / unknown type falls back to the default target.
-        target = lineType || defaultTarget;
-      }
-    }
-    this.appendBeat(target, characterDeclaration, content, choices);
-  }
-
-  /**
    * Build a beat's instructions from an already-resolved target + optional
-   * dialogue cue + a final body string, and append them to the buffer. Shared
-   * by {@link queue} (routing resolved from the line-type tag) and
-   * {@link queueInstructions} (routing carried in the step's first
-   * `display(<table>)` table that names a target); the body is the step's
-   * `currentText` for both,
-   * so BOTH transports produce byte-identical
-   * instructions: the cue resolution (name / parenthetical / position via
-   * `CHARACTER_REGEX`), the `>` box split, the per-character `parse()`, the cue
-   * prefixing, and the empty-textbox fold are all the same code path.
+   * dialogue cue + a final body string, and append them to the buffer: the
+   * cue resolution (name / parenthetical / position via `CHARACTER_REGEX`),
+   * the `>` box split, the per-character `parse()`, the cue prefixing, and
+   * the empty-textbox fold. Called by {@link queue}.
    */
   protected appendBeat(
     target: string,
@@ -455,14 +380,10 @@ export class InterpreterModule extends Module<
   }
 
   /**
-   * Queue the beat of a step that called `display(<table>)` — one
-   * {@link ObjectValue} table per call the runtime made this step (collected via
-   * `story.currentDisplayInstructions`). The structured-transport counterpart to
-   * {@link queue}: routing (`target`) and the dialogue cue (`character`) arrive
-   * as table FIELDS resolved at compile time instead of a line-type tag. Both
-   * paths converge on {@link appendBeat}, so the cue resolution, `>` box split,
-   * per-character `parse()`, cue prefixing and buffer fold are byte-identical —
-   * only the source of the routing differs.
+   * Queue the beat of one story step: the step's `display(<table>)` tables,
+   * one {@link ObjectValue} per call the runtime made (collected via
+   * `story.currentDisplayInstructions`). Routing (`target`) and the dialogue
+   * cue (`character`) are table fields resolved at compile time.
    *
    * Table shape: `{ target?: string, character?: string, text: string,
    * tags?: table }`, or `{ load: string }` for a `load` line, whose
@@ -473,19 +394,13 @@ export class InterpreterModule extends Module<
    * table's `text` and any flat string, in stream order. The first table that
    * names a target supplies the routing. Tables without one (a glued
    * continuation, an echoed choice, `print()`, an asset line) take the routing
-   * of the line they join. A step whose tables name no target renders on the
-   * default target, unless a line joined into it reached the stream as flat
-   * text with a routing tag, which {@link queue} routes.
+   * of the line they join. A step whose tables name no target, or that has
+   * flat text and no table at all, renders on the default target with no
+   * speaker.
    *
    * @param content the step's `story.currentText`.
-   * @param tags the step's `story.currentTags`.
    */
-  queueInstructions(
-    tables: ObjectValue[],
-    choices: string[],
-    content: string,
-    tags: string[],
-  ): void {
+  queue(tables: ObjectValue[], choices: string[], content: string): void {
     const read = (table: ObjectValue | undefined, key: string): unknown =>
       (table?.value?.get(key) as { value?: unknown } | undefined)?.value;
     if (tables.some((table) => typeof read(table, "load") === "string")) {
@@ -506,7 +421,7 @@ export class InterpreterModule extends Module<
       const flush = () => {
         const text = before.map(tableText).join("");
         if (load === null) {
-          if (before.length > 0) this.queueInstructions(before, [], text, tags);
+          if (before.length > 0) this.queue(before, [], text);
         } else {
           const loadInstructions: LoadInstruction[] = `${load}${text}`
             .split(this.WHITESPACE_REGEX)
@@ -536,11 +451,7 @@ export class InterpreterModule extends Module<
       return typeof target === "string" && target;
     });
     if (!routed) {
-      if (tags.some((tag) => parseDisplayRoutingTag(tag))) {
-        this.queue(content, choices, tags);
-      } else {
-        this.appendBeat("", undefined, content, choices);
-      }
+      this.appendBeat("", undefined, content, choices);
       return;
     }
     const characterRaw = read(routed, "character");

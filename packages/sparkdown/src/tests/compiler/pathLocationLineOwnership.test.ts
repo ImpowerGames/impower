@@ -14,10 +14,9 @@
 // and the lowerer's own 0-based stamps give -1. Both mean the range stops at or
 // before `endLine`'s first column, so both are pulled back.
 //
-// Compiled the way the player compiles: the builtins prelude plus
-// `experimentalDisplayCalls`, which is the lowering that produces the
-// next-line-touching ranges. The flat-text lowering keeps each beat's range on
-// its own lines already, so a compile without it cannot see this defect.
+// Compiled the way the player compiles, with the builtins prelude. Each line
+// lowers to a `display()` call, and its call's range is what touches the next
+// line.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -49,7 +48,6 @@ function compile(text: string) {
   c.configure({
     useBuiltinsPrelude: true,
     seedBuiltinsIntoStory: true,
-    experimentalDisplayCalls: true,
     files: [fileOf(text)],
   } as never);
   return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
@@ -209,9 +207,7 @@ describe("path locations own only their own lines (#490)", () => {
     // The pull-back runs before the tuple is stored and before it is captured
     // into the per-flow location cache, and `spliceCachedFlowLocations` shifts a
     // cached tuple's lines without touching its columns. So a reused flow has to
-    // come back with the pulled-back range, not the raw one. The existing
-    // incremental-equivalence net compiles without `experimentalDisplayCalls`,
-    // which is the lowering this defect lives in, so it does not cover this.
+    // come back with the pulled-back range, not the raw one.
     const before = FLAT;
     const find = "With an indignant pivot, Raffles glides briskly ahead.";
     const replace = "With an indignant pivot, Raffles glides briskly away.\n\nHe does not look back.";
@@ -236,7 +232,6 @@ describe("path locations own only their own lines (#490)", () => {
     incremental.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
-      experimentalDisplayCalls: true,
       files: [fileOf(before)],
     } as never);
     incremental.compile({ textDocument: { uri: URI } } as never);

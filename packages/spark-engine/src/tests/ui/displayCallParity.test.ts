@@ -1,10 +1,9 @@
 // What each display statement renders through `display(<table>)`: per beat,
 // each target's text (as runs of one style, so emphasis shows), the image
 // directives and the load names. A dialogue beat's speaker is its
-// `character_name` text. The expected beats were captured from the flat-text
-// lowering that `display()` replaced (commit ffd59219a, the option
-// `experimentalDisplayCalls` off), so each script renders what it rendered
-// there.
+// `character_name` text. The expected beats were captured at commit
+// ffd59219a from the flat-text lowering that `display()` replaced, so each
+// script renders what it rendered there.
 
 import { describe, expect, test } from "vitest";
 import type { Instructions } from "../../game/core/types/Instructions";

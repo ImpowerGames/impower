@@ -1765,8 +1765,8 @@ export class Game<T extends M = {}> {
         // one written by a failed serialization, which stores an empty story —
         // with the current line torn in half and no replacement for it. The
         // next continue would then resume from the middle of that line,
-        // dropping the text and the routing tag that decide how the beat is
-        // displayed.
+        // dropping the text and the `display()` table that decide how the
+        // beat is displayed.
         this.discardOpenStoryLine();
         this._story.state.LoadJson(saveData.story);
         this.restoreReactiveTracking();
@@ -2074,33 +2074,15 @@ export class Game<T extends M = {}> {
         if (this._story.asyncContinueComplete) {
           const currentText = this._story.currentText || "";
           const currentChoices = this._story.currentChoices.map((c) => c.text);
-          // `currentTags` is snapshot-scoped to the just-completed Continue
-          // (computed from this beat's outputStream in StoryState). It carries
-          // the compiler's per-beat ROUTING TAG (plus any author `# tag`s); the
-          // interpreter routes the beat by that tag rather than by regex over
-          // the visible text.
-          const currentTags = this._story.currentTags || [];
-          // A step that called `display(<table>)` takes its routing from the
-          // first table that names a target (see `queueInstructions`). Its
-          // body is `currentText`, the step's ordered visible
-          // text, so a table and flat text sharing a step (a glued chain whose
-          // lines reached the stream in both forms) render every word. A step
-          // with no table takes the routing-tag path.
-          const displayInstructions = this._story.currentDisplayInstructions;
-          if (displayInstructions.length > 0) {
-            this.module.interpreter.queueInstructions(
-              displayInstructions,
-              currentChoices,
-              currentText,
-              currentTags,
-            );
-          } else {
-            this.module.interpreter.queue(
-              currentText,
-              currentChoices,
-              currentTags,
-            );
-          }
+          // The step's beat takes its routing from the first
+          // `display(<table>)` table that names a target (see
+          // `InterpreterModule.queue`). Its body is `currentText`, the step's
+          // ordered visible text.
+          this.module.interpreter.queue(
+            this._story.currentDisplayInstructions,
+            currentChoices,
+            currentText,
+          );
         }
 
         if (this._simulation !== "simulating") {

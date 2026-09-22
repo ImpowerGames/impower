@@ -2,8 +2,8 @@
 // click-to-line routing needs every display line to map to a path, and no
 // spurious extra lines. Each synthesized display() FunctionCall is stamped with
 // its source range in `buildDisplayCall`. The expected SET of covered source
-// lines (0-based) of each fixture was captured from the flat-text lowering the
-// calls replaced (commit ffd59219a, the option `experimentalDisplayCalls` off).
+// lines (0-based) of each fixture was captured at commit ffd59219a from the
+// flat-text lowering the calls replaced.
 
 import { describe, expect, test, vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

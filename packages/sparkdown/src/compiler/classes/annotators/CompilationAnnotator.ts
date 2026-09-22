@@ -70,8 +70,6 @@ export interface CompilationConfig {
       };
     };
   };
-  /** Accepted and ignored; see `SparkdownCompilerConfig`. */
-  experimentalDisplayCalls?: boolean;
 }
 
 export class CompilationAnnotator extends SparkdownAnnotator<

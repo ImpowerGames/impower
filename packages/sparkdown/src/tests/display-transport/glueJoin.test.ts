@@ -2,8 +2,7 @@
 // `display(<table>)` call, glue markers between the calls hold the step open,
 // and the runtime joins the tables into one step whose `currentText` reads as
 // the flat text of the lowering the tables replaced. Those texts were captured
-// from that lowering (commit ffd59219a, the option `experimentalDisplayCalls`
-// off).
+// from that lowering at commit ffd59219a.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

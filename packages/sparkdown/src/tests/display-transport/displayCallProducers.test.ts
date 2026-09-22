@@ -1,8 +1,7 @@
 // Every producer of visible text lowers to `display(<table>)` calls: no step
 // carries visible words outside a table. The expected text and tags of each
-// step were captured from the flat-text lowering these producers replaced
-// (commit ffd59219a, the option `experimentalDisplayCalls` off), so the tables
-// read as the flat text did.
+// step were captured at commit ffd59219a from the flat-text lowering these
+// producers replaced, so the tables read as the flat text did.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

@@ -732,8 +732,8 @@ export class Story extends InkObject {
     return this.state.currentTags;
   }
 
-  /** SPIKE (display-as-Luau-call transport): the live instruction tables a
-   *  `display(<table>)` call emitted this beat (empty otherwise). See
+  /** The live instruction tables the `display(<table>)` calls emitted this
+   *  beat (empty otherwise). See
    *  {@link StoryState.currentDisplayInstructions}. */
   get currentDisplayInstructions() {
     this.IfAsyncWeCant(

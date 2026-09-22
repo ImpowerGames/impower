@@ -92,6 +92,19 @@ The loop keeps stepping until:
 - `done`/end-of-content is reached,
 - An error occurs.
 
+### 3.1 Display tables
+
+Every piece of visible text reaches the output stream through the `display` stdlib function (`StdLib.ts`), which the compiler calls with a table: `{ target?, character?, text, tags? }`, `{ load }` for a `load` line, or `{ parts }` for a picked choice whose tags sit between its words (`display` joins the parts into `text` and `tags`). `display` pushes the table's tags as `BeginTag` … `EndTag` spans, then the table itself as an `ObjectValue`, then a closing `"\n"` that ends the step.
+
+What a step collected is read two ways:
+
+- `currentText` includes each table's `text`, in stream order, beside any other text on the stream, so text reads the same whether it came from a table or not.
+- `currentDisplayInstructions` returns the step's tables in order. The engine's interpreter (`InterpreterModule.queue` in `spark-engine`) builds the step's beat from them: the first table that names a `target` routes the beat, with its `character` as the dialogue cue, and the body is `currentText`. A step whose tables name no target renders on the default target.
+
+Glue joins lines across tables as it joins text: a glued line's table joins the step the glue holds open, so one step may carry several tables. A table with empty text adds no text, so `CalculateNewlineOutputStateChange` also counts the step's tables to find where a step ends.
+
+A table's `text` is a captured string, evaluated between `BeginString` and `EndString`. A tag cannot end inside one (`EndTag` there is taken for a choice label's tag and goes to the evaluation stack), so a line's tags ride the table's `tags` instead, and an inline-glued alternator arm's tag is a runtime `Tag` object, which `EndString` moves back onto the output stream.
+
 ---
 
 ## 4. The state snapshot — and why it matters
@@ -150,7 +163,7 @@ If you add another opcode that mutates shared state in-place, **mirror this patt
 
 ### 4.3 Lookahead-unsafe escape hatch
 
-There's also a coarser-grained mechanism: `_sawLookaheadUnsafeFunctionAfterNewline`. When set during a lookahead, `RestoreStateSnapshot` skips its normal rewind. External function calls use this when marked `lookAheadSafe: false`. It's appropriate when:
+There's also a coarser-grained mechanism: `_sawLookaheadUnsafeFunctionAfterNewline`. When a lookahead reaches an external function bound with `lookAheadSafe: false`, the call is skipped, the flag is set, and the step that reached it rewinds to the snapshot, evaluation stack included, so the function runs once, on the next `Continue`. That holds in the middle of string evaluation too, which is why such a function may be interpolated into a display line's captured text. It's appropriate when:
 
 - The side effect can't reasonably be undone (e.g. an external function called user-supplied JS code).
 - The operation is rare enough that committing-forward is fine.

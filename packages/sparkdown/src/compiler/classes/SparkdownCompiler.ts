@@ -971,12 +971,6 @@ export class SparkdownCompiler {
       this._config.seedBuiltinsIntoStory = config.seedBuiltinsIntoStory;
     }
     if (
-      config.experimentalDisplayCalls !== undefined &&
-      config.experimentalDisplayCalls !== this._config.experimentalDisplayCalls
-    ) {
-      this._config.experimentalDisplayCalls = config.experimentalDisplayCalls;
-    }
-    if (
       config.stripImageData !== undefined &&
       config.stripImageData !== this._config.stripImageData
     ) {
@@ -1033,7 +1027,6 @@ export class SparkdownCompiler {
         {
           compilations: {
             definitions: this._config.definitions,
-            experimentalDisplayCalls: this._config.experimentalDisplayCalls,
           },
         },
       );
