@@ -83,7 +83,7 @@ try {
     const invalid=structuredClone(plan);invalid.reviews[0].args.splice(-1,0,...extra);assert.throws(()=>validateReviewPlan(invalid));
   }
   for(const feature of ['multi_agent','multi_agent_v2']) {
-    const invalid=structuredClone(plan);invalid.reviews[0].args.splice(invalid.reviews[0].args.indexOf(feature)-1,2);assert.throws(()=>validateReviewPlan(invalid),/disable both/);
+    const invalid=structuredClone(plan);invalid.reviews[0].args.splice(invalid.reviews[0].args.indexOf(feature)-1,2);assert.throws(()=>validateReviewPlan(invalid),new RegExp(`--disable ${feature}(;|$)`));
   }
   const alias=path.join(scratch,'review-alias');fs.symlinkSync(privateDir,alias,process.platform==='win32'?'junction':'dir');
   const aliased=structuredClone(plan);aliased.jobDir=path.join(alias,'job');assert.throws(()=>validateReviewPlan(aliased),/writes must exclude/);
