@@ -1645,8 +1645,8 @@ await check("the server is spawned detached and unreferenced, in the extension d
       return 5;
     },
     closeSync: (fd) => calls.push(["close", fd]),
-    spawn: (cmd, args, opts) => {
-      calls.push(["spawn", cmd, args, opts]);
+    spawnDetached: (cmd, args, opts) => {
+      calls.push(["spawnDetached", cmd, args, opts]);
       return child;
     },
   };
@@ -1655,7 +1655,7 @@ await check("the server is spawned detached and unreferenced, in the extension d
   assert.equal(spawnServer(plan, io), 77);
   assert.deepEqual(calls, [
     ["open", plan.logPath, "a"],
-    ["spawn", process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", 5, 5], windowsHide: true, detached: true }],
+    ["spawnDetached", process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", 5, 5] }],
     ["unref"],
     ["close", 5],
   ]);

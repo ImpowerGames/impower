@@ -28,6 +28,7 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -292,7 +293,7 @@ export async function up(args) {
   const ports = await pickPorts();
   const url = `http://localhost:${ports.editor}`;
 
-  const child = spawn(
+  const child = spawnDetached(
     "npm",
     ["run", mode === "cross-origin" ? "web:dev:cross-origin" : "web:dev"],
     {
@@ -305,8 +306,6 @@ export async function up(args) {
       },
       stdio: "ignore",
       shell: true, // npm is npm.cmd on Windows; Node 23 refuses to spawn .cmd directly
-      windowsHide: true,
-      detached: true,
     },
   );
   observeLauncherExit(child);

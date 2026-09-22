@@ -6,6 +6,7 @@ import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
+import { spawnDetached } from '../../detached-launch.mjs';
 import { z } from 'zod';
 import { alertSchema, readConfig, binding, findEngine, speak } from './alerts.mjs';
 import { PendingAlerts } from './pending.mjs';
@@ -55,8 +56,8 @@ export async function requestBroker(input) {
     if (!['ENOENT', 'ECONNREFUSED'].includes(error.code)) throw error;
     if (request.type === 'stop') return { stopped: true };
   }
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url)], {
-    detached: true, windowsHide: true, stdio: 'ignore', env: process.env,
+  const child = spawnDetached(process.execPath, [fileURLToPath(import.meta.url)], {
+    stdio: 'ignore', env: process.env,
   });
   let startError;
   child.on('error', error => { startError = error; });

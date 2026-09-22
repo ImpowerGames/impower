@@ -22,6 +22,7 @@ jobs:
     with:
       patterns: |
         scripts/agent-notification-alerts/**
+        scripts/detached-launch.mjs
         .github/workflows/agent-notification-tests.yml
         .github/workflows/changed-paths.yml
 

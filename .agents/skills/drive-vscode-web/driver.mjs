@@ -37,6 +37,7 @@ import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import {
   consoleLine,
   partitionConsole,
@@ -913,9 +914,9 @@ function writeProjectSd(project, sdPath) {
 // not always flush into an inherited handle, so the readiness signal is the
 // HTTP poll, never the log. Returns the pid. `io` is the spawn and the log
 // file's open and close.
-export function spawnServer(plan, io = { spawn, openSync: fs.openSync, closeSync: fs.closeSync }) {
+export function spawnServer(plan, io = { spawnDetached, openSync: fs.openSync, closeSync: fs.closeSync }) {
   const logFd = io.openSync(plan.logPath, "a");
-  const child = io.spawn(process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", logFd, logFd], windowsHide: true, detached: true });
+  const child = io.spawnDetached(process.execPath, plan.args, { cwd: plan.cwd, stdio: ["ignore", logFd, logFd] });
   child.unref();
   io.closeSync(logFd);
   return child.pid;

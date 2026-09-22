@@ -3,6 +3,11 @@
 // console child of such a process otherwise opens its own window, which
 // flashes on screen and takes keyboard focus.
 //
+// No process is started with `detached` except through spawnDetached in
+// scripts/detached-launch.mjs, or with `detached: process.platform !== "win32"`. Windows ignores `windowsHide` for a detached
+// process, so the console programs it starts open visible windows; the
+// helper explains how it avoids that.
+//
 // The hook-test CI job runs without installed packages, so this is a lexical
 // scanner rather than a parser. It scans code inside string literals too,
 // because several tests write child scripts from string fixtures. A comment
@@ -17,6 +22,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const NAMES = ["spawn", "spawnSync", "execFile", "execFileSync", "execSync", "exec", "fork"];
 const MARKER = "/* windows-hide: caller */";
+const HELPER = "scripts/detached-launch.mjs";
 const module = String.raw`["'](?:node:)?child_process["']`;
 
 // Replaces comments with spaces, keeping line breaks and the caller marker.
@@ -76,11 +82,11 @@ function closingParen(text, open) {
   return text.length;
 }
 
-// Whether the options argument has its own `windowsHide: true` entry. The
+// Whether the options argument has its own entry matching `entry`. The
 // options argument is the first top-level object literal; every
 // child_process launcher takes at most one. String contents and nested
 // objects do not count.
-function hidesWindow(args) {
+function hasOption(args, entry, except) {
   let depth = 0;
   let parens = 0;
   let quote = null;
@@ -107,11 +113,17 @@ function hidesWindow(args) {
   if (start < 0) return false;
   const end = depths.indexOf(0, start);
   const options = masked.slice(start, end < 0 ? masked.length : end);
-  for (const m of options.matchAll(/(?<![\w$.])windowsHide\s*:\s*true\b/g)) {
-    if (depths[start + m.index] === 1) return true;
+  // `except` reads the unmasked text, since masking blanks string contents.
+  for (const m of options.matchAll(entry)) {
+    if (depths[start + m.index] === 1 && !except?.test(args.slice(start + m.index))) return true;
   }
   return false;
 }
+const HIDES = /(?<![\w$.])windowsHide\s*:\s*true\b/g;
+// Any `detached` entry and the `detached,` shorthand, except one that is off on
+// Windows, which a caller uses to stop a POSIX process group.
+const DETACHES = /(?<![\w$.])detached\s*[:,}]/g;
+const OFF_ON_WINDOWS = /^detached\s*:\s*process\.platform\s*!==\s*(["'])win32\1/;
 
 // Names that refer to child_process functions or to the module itself.
 function bindings(text) {
@@ -158,7 +170,10 @@ export function unhiddenCalls(source) {
     if (!receiver && /^\s*\{/.test(text.slice(close + 1)) && /(?:\bfunction\s*\*?\s*|^\s*(?:async\s+|static\s+)*)$/.test(line)) continue;
     // A call that forwards options built by an already-checked caller carries this marker.
     if (before.trimEnd().endsWith(MARKER)) continue;
-    if (!hidesWindow(text.slice(open + 1, close))) found.push(`${before.split("\n").length}: ${m[1]}(`);
+    const args = text.slice(open + 1, close);
+    const site = `${before.split("\n").length}: ${m[1]}(`;
+    if (!hasOption(args, HIDES)) found.push(site);
+    if (hasOption(args, DETACHES, OFF_ON_WINDOWS)) found.push(`${site} detached`);
   }
   return found;
 }
@@ -173,9 +188,13 @@ const problems = [];
 for (const file of files) {
   const text = fs.readFileSync(path.join(root, file), "utf8");
   if (!/child_process/.test(text)) continue;
-  for (const site of unhiddenCalls(text)) problems.push(`${file}:${site}`);
+  for (const site of unhiddenCalls(text)) {
+    // The helper, and its test's control launch, which shows the defect it prevents.
+    if ((file === HELPER || file === HELPER.replace(/\.mjs$/, ".test.mjs")) && site.endsWith(" detached")) continue;
+    problems.push(`${file}:${site}`);
+  }
 }
-assert.deepEqual(problems, [], "these calls start a process without windowsHide: true");
+assert.deepEqual(problems, [], `these calls start a process without windowsHide: true, or detached outside ${HELPER}'s spawnDetached`);
 
 // The scanner itself.
 const cases = [
@@ -205,6 +224,11 @@ const cases = [
   ['require("node:child_process")["spawn"]("node", [])', ["1: spawn("]],
   ['cp[\'execFileSync\']("git", [], { windowsHide: true })', []],
   ['const m = pattern["exec"](line)', []],
+  ['spawn("npm", [], { windowsHide: true, detached: true })', ["1: spawn( detached"]],
+  ['spawn("npm", [], { detached, windowsHide: true })', ["1: spawn( detached"]],
+  ['spawn("npm", [], { windowsHide: true, detached: process.platform !== "win32" })', []],
+  ['spawn("npm", [], { windowsHide: true, detached: process.platform === "win32" })', ["1: spawn( detached"]],
+  ['spawn("npm", [], { windowsHide: true, env: { detached: "1" } })', []],
 ];
 for (const [source, expected] of cases) assert.deepEqual(unhiddenCalls(source), expected, source);
 console.log(`windows-hide: ${files.length} tooling scripts scanned`);
