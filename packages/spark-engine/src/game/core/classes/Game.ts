@@ -157,20 +157,20 @@ export class Game<T extends M = {}> {
    * mistaking a long scene for a loop.
    *
    * The unit is one iteration of the loop in `stepWithinBudget`, which is not
-   * the same as a display line or a runtime path — replaying a scene built as
-   * a test fixture costs about eight iterations per display line (63,992 at
-   * 8,000 lines, 159,992 at 20,000, 191,992 at 24,000).
+   * the same as a display line or a runtime path. Replaying a scene of plain
+   * display lines, each lowered to a `display()` call as the editor compiles
+   * it, costs about 37 iterations per line (73,961 at 2,000 lines), which puts
+   * a 20,000-line replay near 740,000.
    *
-   * Calibrate against what the EDITOR compiles, never against a fixture. The
-   * editor's program is roughly two and a half times finer-grained, so the
-   * same scene costs proportionally more, putting a 20,000-line editor replay
-   * near 400,000 iterations. That last figure is scaled from the measured
-   * fixture cost rather than measured directly, so the margin below is
-   * deliberately wide. Setting this ceiling from fixture numbers is exactly
-   * what shipped the planner's ceiling several times too small.
+   * Calibrate against what the EDITOR compiles. Setting this ceiling from a
+   * program coarser than the editor's is exactly what shipped the planner's
+   * ceiling several times too small.
    *
-   * Two million is about five times that, so it cannot ration a legitimate
-   * replay. What it costs when it does fire is worth stating plainly rather
+   * Two million is about two and a half times a 20,000-line replay, so a
+   * replay to a line more than about 54,000 lines into one scene is stopped
+   * and reported as a possible infinite loop whether or not it loops: the
+   * ceiling counts work and cannot tell. What it costs when it does fire is
+   * worth stating plainly rather
    * than hand-waving: an iteration runs in about 4 µs for a content-free loop
    * (roughly eight seconds at this ceiling) but around 50 µs for a replay that
    * captures a checkpoint every beat, which is minutes. A replay only diverges

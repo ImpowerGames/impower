@@ -4,44 +4,56 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000dialogue:N"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "Hello "
-        },
-        {
-          "type": "VariableReference",
-          "path": [
-            "name"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "dialogue"
+                    ]
+                  }
+                },
+                {
+                  "key": "character",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "N"
+                    ]
+                  }
+                },
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "Hello ",
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "name"
+                        ]
+                      },
+                      ".\nScore is ",
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "score"
+                        ]
+                      },
+                      "."
+                    ]
+                  }
+                }
+              ]
+            }
           ]
-        },
-        {
-          "type": "Text",
-          "text": ".\nScore is "
-        },
-        {
-          "type": "VariableReference",
-          "path": [
-            "score"
-          ]
-        },
-        {
-          "type": "Text",
-          "text": "."
-        },
-        {
-          "type": "Text",
-          "text": "\n"
         }
       ]
     }

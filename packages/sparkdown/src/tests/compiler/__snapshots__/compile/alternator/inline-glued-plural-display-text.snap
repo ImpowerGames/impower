@@ -33,102 +33,44 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000action"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "You have "
-        },
-        {
-          "type": "VariableReference",
-          "path": [
-            "n"
-          ]
-        },
-        {
-          "type": "Text",
-          "text": " "
-        },
-        {
-          "type": "Weave",
-          "content": [
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
             {
-              "type": "Conditional",
-              "init": {
-                "type": "FunctionCall",
-                "name": "plural.category",
-                "args": [
-                  {
-                    "type": "VariableReference",
-                    "path": [
-                      "n"
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "action"
                     ]
                   }
-                ]
-              },
-              "branches": [
-                {
-                  "type": "ConditionalSingleBranch",
-                  "isElse": false,
-                  "cond": {
-                    "type": "StringExpression",
-                    "content": [
-                      "one"
-                    ]
-                  },
-                  "body": [
-                    {
-                      "type": "Weave",
-                      "content": [
-                        {
-                          "type": "Text",
-                          "text": "apple"
-                        }
-                      ]
-                    }
-                  ]
                 },
                 {
-                  "type": "ConditionalSingleBranch",
-                  "isElse": false,
-                  "cond": {
+                  "key": "text",
+                  "value": {
                     "type": "StringExpression",
                     "content": [
-                      "other"
+                      "You have ",
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "n"
+                        ]
+                      },
+                      " ",
+                      {
+                        "type": "Weave"
+                      },
+                      " in the basket."
                     ]
-                  },
-                  "body": [
-                    {
-                      "type": "Weave",
-                      "content": [
-                        {
-                          "type": "Text",
-                          "text": "apples"
-                        }
-                      ]
-                    }
-                  ]
+                  }
                 }
               ]
             }
           ]
-        },
-        {
-          "type": "Text",
-          "text": " in the basket."
-        },
-        {
-          "type": "Text",
-          "text": "\n"
         }
       ]
     }

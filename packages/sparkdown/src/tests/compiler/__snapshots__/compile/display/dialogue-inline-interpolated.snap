@@ -4,44 +4,56 @@
       "type": "Weave",
       "content": [
         {
-          "type": "Tag",
-          "start": true
-        },
-        {
-          "type": "Text",
-          "text": "\u0000dialogue:N"
-        },
-        {
-          "type": "Tag",
-          "start": false
-        },
-        {
-          "type": "Text",
-          "text": "Hi "
-        },
-        {
-          "type": "VariableReference",
-          "path": [
-            "name"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "target",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "dialogue"
+                    ]
+                  }
+                },
+                {
+                  "key": "character",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "N"
+                    ]
+                  }
+                },
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      "Hi ",
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "name"
+                        ]
+                      },
+                      ", you have ",
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "count"
+                        ]
+                      },
+                      " messages."
+                    ]
+                  }
+                }
+              ]
+            }
           ]
-        },
-        {
-          "type": "Text",
-          "text": ", you have "
-        },
-        {
-          "type": "VariableReference",
-          "path": [
-            "count"
-          ]
-        },
-        {
-          "type": "Text",
-          "text": " messages."
-        },
-        {
-          "type": "Text",
-          "text": "\n"
         }
       ]
     }

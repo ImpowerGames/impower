@@ -26,8 +26,8 @@ function story(body: string) {
   return `${SCREEN}\n-> start\n\nscene start\n${body}\nend\n`;
 }
 
-async function beats(body: string, experimentalDisplayCalls: boolean) {
-  const harness = createHarness(story(body), 0, { experimentalDisplayCalls });
+async function beats(body: string) {
+  const harness = createHarness(story(body));
   await harness.ready;
   harness.jumpTo("start");
   harness.reset();
@@ -52,20 +52,14 @@ const NESTED = `  You see a
 
 describe("display() glue join", () => {
   test("a continuation inside an if branch keeps its text", async () => {
-    expect(await beats(NESTED, true)).toEqual([
-      { target: "action", text: "You see a red door." },
-    ]);
-  });
-
-  test("the option-off stream reads the same", async () => {
-    expect(await beats(NESTED, false)).toEqual([
+    expect(await beats(NESTED)).toEqual([
       { target: "action", text: "You see a red door." },
     ]);
   });
 
   test("a line after a glued pair is its own beat", async () => {
     expect(
-      await beats(`  You see a ..\n  red door.\n  It is locked.`, true),
+      await beats(`  You see a ..\n  red door.\n  It is locked.`),
     ).toEqual([
       { target: "action", text: "You see a red door." },
       { target: "action", text: "It is locked." },
@@ -73,7 +67,7 @@ describe("display() glue join", () => {
   });
 
   test("the first routing wins in a joined dialogue beat", async () => {
-    const result = await beats(`  HERO: Wait ..\n  right there.`, true);
+    const result = await beats(`  HERO: Wait ..\n  right there.`);
     expect(result.find((b) => b.target === "dialogue")?.text).toBe(
       "Wait right there.",
     );

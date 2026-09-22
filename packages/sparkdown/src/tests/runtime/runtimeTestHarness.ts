@@ -186,7 +186,10 @@ function runCompiledStory(
         const raw = (diag as { message?: unknown }).message;
         if (typeof raw === "string") {
           message = raw;
-        } else if (raw && typeof (raw as { value?: unknown }).value === "string") {
+        } else if (
+          raw &&
+          typeof (raw as { value?: unknown }).value === "string"
+        ) {
           message = (raw as { value: string }).value;
         } else {
           message = JSON.stringify(diag);
@@ -259,7 +262,9 @@ export function collectDiagnostics(
     ],
   });
   const result = compiler.compile({ textDocument: { uri } });
-  for (const docDiagnostics of Object.values(result.program.diagnostics ?? {})) {
+  for (const docDiagnostics of Object.values(
+    result.program.diagnostics ?? {},
+  )) {
     for (const diag of docDiagnostics) {
       let message: string;
       if (typeof diag === "string") {
@@ -284,4 +289,21 @@ export function collectDiagnostics(
 // Mirrors inkjs's `story.ContinueMaximally()` flow used in their specs.
 export function runToEnd(story: RuntimeStory): string {
   return story.ContinueMaximally();
+}
+
+/** The routing of each `display(<table>)` call the last step made, in order:
+ *  the table's `target` and dialogue `character`, each present only when the
+ *  table names it. */
+export function displayRouting(
+  story: RuntimeStory,
+): { target?: string; character?: string }[] {
+  return story.currentDisplayInstructions.map((table) => {
+    const routing: { target?: string; character?: string } = {};
+    for (const key of ["target", "character"] as const) {
+      const value = (table.value?.get(key) as { value?: unknown } | undefined)
+        ?.value;
+      if (typeof value === "string") routing[key] = value;
+    }
+    return routing;
+  });
 }

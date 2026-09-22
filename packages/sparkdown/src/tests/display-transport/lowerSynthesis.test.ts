@@ -1,24 +1,17 @@
-// Lowerer synthesis for the display-as-Luau-call transport: with the
-// `experimentalDisplayCalls` flag on, a SIMPLE display statement (plain text,
-// no cue/interpolation) lowers to a native `display({ target, text })` call
-// instead of the legacy routing-tag + visible-text form. Authors write ordinary
-// prose; the compiler synthesizes the call. Verified by running the compiled
-// story and reading `currentDisplayInstructions` (structured) beside
-// `currentText` (the step's visible text under either form).
-//
-// The flag is OFF by default, so the legacy path — and every existing golden —
-// is unchanged; only opted-in compiles take the new path, and only for content
-// the minimal table can represent (everything else falls back).
+// Lowerer synthesis for the display-as-Luau-call transport: a display
+// statement lowers to a native `display({ target, text })` call. Authors write
+// ordinary prose; the compiler synthesizes the call. Verified by running the
+// compiled story and reading `currentDisplayInstructions` (structured) beside
+// `currentText` (the step's visible text).
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../inkjs/engine/Value";
 
-function run(source: string, opts?: { experimentalDisplayCalls?: boolean }) {
+function run(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    experimentalDisplayCalls: opts?.experimentalDisplayCalls ?? false,
     files: [
       {
         uri: "inmemory:///main.sd",
@@ -51,10 +44,8 @@ function field(obj: ObjectValue, key: string): unknown {
 }
 
 describe("lowerer synthesis: display() from authored prose", () => {
-  test("a plain action line lowers to a display() call when the flag is on", () => {
-    const { story, errors } = run(`The room is quiet.\ndone\n`, {
-      experimentalDisplayCalls: true,
-    });
+  test("a plain action line lowers to a display() call", () => {
+    const { story, errors } = run(`The room is quiet.\ndone\n`);
     expect(errors).toEqual([]);
     // Structured, no re-parse: the body arrived as a display instruction table.
     const instructions = story.currentDisplayInstructions;
@@ -65,21 +56,12 @@ describe("lowerer synthesis: display() from authored prose", () => {
     expect((story.currentText ?? "").trim()).toBe("The room is quiet.");
   });
 
-  test("without the flag the same line takes the legacy text path", () => {
-    const { story, errors } = run(`The room is quiet.\ndone\n`);
-    expect(errors).toEqual([]);
-    // Legacy: visible text in currentText, no display instructions.
-    expect(story.currentDisplayInstructions).toHaveLength(0);
-    expect((story.currentText ?? "").trim()).toBe("The room is quiet.");
-  });
-
   test("interpolation rides the table as a live-value string", () => {
     // `{score}` is evaluated at call time and concatenated into the table's
     // `text` (a StringExpression over the body), so the table carries the final
     // string — no flat-string re-parse, value carried live (we beat Ren'Py).
     const { story, errors } = run(
       `store score = 5\nYou have {score} gold.\ndone\n`,
-      { experimentalDisplayCalls: true },
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
@@ -90,9 +72,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
   });
 
   test("a dialogue line carries target=dialogue + the character cue", () => {
-    const { story, errors } = run(`HERO: Hello there.\ndone\n`, {
-      experimentalDisplayCalls: true,
-    });
+    const { story, errors } = run(`HERO: Hello there.\ndone\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
@@ -108,7 +88,6 @@ describe("lowerer synthesis: display() from authored prose", () => {
     // with two boxes (parse()'s BREAK_BOX_REGEX), covered by the parity suite.
     const { story, errors } = run(
       `HERO:\n  First part. >\n  Second part.\ndone\n`,
-      { experimentalDisplayCalls: true },
     );
     expect(errors).toEqual([]);
     // Beat 1.
@@ -128,7 +107,6 @@ describe("lowerer synthesis: display() from authored prose", () => {
   test("an inline conditional rides the table (evaluated at call time)", () => {
     const { story, errors } = run(
       `You feel {if 2 > 1 then "great" else "bad"} today.\ndone\n`,
-      { experimentalDisplayCalls: true },
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
@@ -140,10 +118,9 @@ describe("lowerer synthesis: display() from authored prose", () => {
   test("an inline [[asset]] directive rides as text in the table", () => {
     // `[[show backdrop BG]]` is not a structural injection — it stays literal in
     // the body, so it takes the display() path and the engine's parse() extracts
-    // the image directive from the table's text (same as legacy).
+    // the image directive from the table's text.
     const { story, errors } = run(
       `define BG as image with\n  src = "x"\nend\nThe sun rises. [[show backdrop BG]]\ndone\n`,
-      { experimentalDisplayCalls: true },
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
@@ -157,9 +134,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
     // A `# tag` is metadata: it rides the table's `tags`, evaluated after the
     // text, and `display` puts it on the stream so it lands in the same
     // step's `currentTags`.
-    const { story, errors } = run(`The bell rings. # ominous\ndone\n`, {
-      experimentalDisplayCalls: true,
-    });
+    const { story, errors } = run(`The bell rings. # ominous\ndone\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
@@ -170,29 +145,22 @@ describe("lowerer synthesis: display() from authored prose", () => {
   test("emphasis markers ride as literal text in the table", () => {
     // `**`/`*` are not structured at compile time — they stay literal chars in
     // the table's `text` and the engine's parse() turns them into styled spans
-    // at render (same as legacy).
-    const { story, errors } = run(`This is **bold** here.\ndone\n`, {
-      experimentalDisplayCalls: true,
-    });
+    // at render.
+    const { story, errors } = run(`This is **bold** here.\ndone\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
     expect(field(instructions[0]!, "text")).toBe("This is **bold** here.");
   });
 
-  // The line types below had PARITY coverage but no "actually took the new
-  // path" assertion — so a lowerer change that silently widened the legacy
-  // fallback for them would have kept every suite green while production
-  // quietly ran a different transport (#370). Each pins the routed target.
+  // Each line type below pins its routed target.
   for (const [label, marker, target] of [
     ["a title line", "^:", "title"],
     ["a scene heading", "$:", "heading"],
     ["a transition", "%:", "transitional"],
   ] as const) {
     test(`${label} takes the display() path with target=${target}`, () => {
-      const { story, errors } = run(`${marker} SOME CONTENT\ndone\n`, {
-        experimentalDisplayCalls: true,
-      });
+      const { story, errors } = run(`${marker} SOME CONTENT\ndone\n`);
       expect(errors).toEqual([]);
       const instructions = story.currentDisplayInstructions;
       expect(instructions).toHaveLength(1);
@@ -202,9 +170,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
   }
 
   test("block dialogue takes the display() path with the cue", () => {
-    const { story, errors } = run(`HERO:\n  A block line.\ndone\n`, {
-      experimentalDisplayCalls: true,
-    });
+    const { story, errors } = run(`HERO:\n  A block line.\ndone\n`);
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;
     expect(instructions).toHaveLength(1);
@@ -216,7 +182,6 @@ describe("lowerer synthesis: display() from authored prose", () => {
   test("an inline sequence alternator rides the table (first pass captured)", () => {
     const { story, errors } = run(
       `The light {queue|"flickers"|"steadies"} now.\ndone\n`,
-      { experimentalDisplayCalls: true },
     );
     expect(errors).toEqual([]);
     const instructions = story.currentDisplayInstructions;

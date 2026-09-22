@@ -70,9 +70,7 @@ export interface CompilationConfig {
       };
     };
   };
-  /** Transitional: emit simple display statements as native `display(<table>)`
-   *  Luau calls instead of the legacy flat ink text + routing tag. See
-   *  `SparkdownCompilerConfig.experimentalDisplayCalls` and `lowerDisplay`. */
+  /** Accepted and ignored; see `SparkdownCompilerConfig`. */
   experimentalDisplayCalls?: boolean;
 }
 

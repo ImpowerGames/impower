@@ -129,9 +129,10 @@ export function lowerChoice(
   const divertNode = getDescendent("Divert", nodeRef.node);
   const divertObjects = divertNode ? buildDivert(divertNode, ctx) : [];
   // What follows the chosen text: the arrow's objects, or the newline that
-  // ends the line. With display calls on, the text becomes a `display()` call
-  // ahead of these.
+  // ends the line. The text becomes a `display()` call ahead of these.
   const chosenTail: ParsedObject[] = [];
+  const endsFlow =
+    !divertNode && nextSignificantSiblingIsTerminator(nodeRef.node);
   if (divertObjects.length > 0) {
     // For an inline divert like `* hello -> world`, preserve the
     // whitespace between the choice text and the `->` so the chosen
@@ -173,7 +174,7 @@ export function lowerChoice(
     // old inline `-> DONE` / `-> END` forms, and matching the inline
     // form's "no trailing newline" semantics keeps `* "X"\n  fin`
     // producing the same chosen output as the old `* "X" -> END`.
-    if (!nextSignificantSiblingIsTerminator(nodeRef.node)) {
+    if (!endsFlow) {
       chosenTail.push(new Text("\n"));
     }
   }
@@ -182,23 +183,22 @@ export function lowerChoice(
   // becomes an `isInvisibleDefault` fallback whose loose-end gets
   // resolved by inkjs's `Weave.AddRuntimeForGather` to the next gather.
 
-  const echo = ctx.config?.experimentalDisplayCalls
-    ? chosenTextAsDisplayCall(
-        startContent,
-        innerContent,
-        chosenTail,
-        () => {
-          const fresh = new ContentList();
-          if (bracketed) {
-            appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh);
-          } else if (unbracketed) {
-            appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh);
-          }
-          return fresh;
-        },
-        ctx,
-      )
-    : null;
+  const echo = chosenTextAsDisplayCall(
+    startContent,
+    innerContent,
+    chosenTail,
+    () => {
+      const fresh = new ContentList();
+      if (bracketed) {
+        appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh);
+      } else if (unbracketed) {
+        appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh);
+      }
+      return fresh;
+    },
+    endsFlow,
+    ctx,
+  );
   if (echo) {
     innerContent = new ContentList();
     for (const obj of echo.inner) innerContent.AddContent(obj);
@@ -306,10 +306,10 @@ export function lowerChoice(
   return block;
 }
 
-// With display calls on, the words a chosen choice prints (its start content
-// repeated, then its inner text) become one `display({ text })` call on the
-// default target, followed by the arrow's objects. A plain arrow is held on the
-// line by glue, so the target's first line joins it as it joins flat text.
+// The words a chosen choice prints (its start content repeated, then its inner
+// text) become one `display({ text })` call on the default target, followed by
+// the arrow's objects. A plain arrow is held on the line by glue, so the
+// target's first line joins the choice's beat.
 // Returns null when there are no words to print.
 //
 // The start content repeats by jumping into the container the choice label
@@ -322,6 +322,7 @@ function chosenTextAsDisplayCall(
   inner: ContentList,
   tail: ParsedObject[],
   relowerStart: () => ContentList,
+  endsFlow: boolean,
   ctx: LowerContext,
 ): {
   inner: ParsedObject[];
@@ -345,6 +346,9 @@ function chosenTextAsDisplayCall(
     call = buildDisplayCall(undefined, undefined, body, null, ctx);
   }
   const out: ParsedObject[] = [call];
+  // A choice whose flow ends after it keeps no newline, so glue trims the
+  // one the call closes its line with.
+  if (endsFlow) out.push(new ParsedGlue(new RuntimeGlue()));
   // The call's own newline ends the line, so a bare newline tail is dropped.
   const arrow = tail.filter((obj) => !(obj instanceof Text && obj.text === "\n"));
   if (arrow.length > 0) {

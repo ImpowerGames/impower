@@ -44,9 +44,34 @@
       "type": "Weave",
       "content": [
         {
-          "type": "VariableReference",
-          "path": [
-            "x"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "x"
+                        ]
+                      },
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "y"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
           ]
         }
       ]
@@ -54,22 +79,4 @@
   ]
 }
 
-{
-  "content": [
-    {
-      "type": "Weave",
-      "content": [
-        {
-          "type": "VariableReference",
-          "path": [
-            "y"
-          ]
-        },
-        {
-          "type": "Text",
-          "text": "\n"
-        }
-      ]
-    }
-  ]
-}
+{}

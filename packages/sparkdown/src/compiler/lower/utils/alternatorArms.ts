@@ -4,11 +4,15 @@ import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Di
 import { lowerDivertPath } from "./lowerDivertPath";
 import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
+import {
+  LegacyTag,
+  Tag,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
+import { Tag as RuntimeTag } from "../../../inkjs/engine/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
@@ -69,28 +73,22 @@ export function lowerArms(
       // Punctuation children) and / or `ArmTag` annotations
       // (`# tag content`). We walk the children: text-shaped children
       // accumulate into a single `Text` ParsedObject (preserving
-      // whitespace between words), and `ArmTag` children emit a
-      // `Tag(start)` + `Text(tagContent)` + `Tag(end)` triplet so the
-      // runtime collects them into `currentTags` when the arm runs.
-      // For the single-line block form we also append a trailing
-      // `"\n"` so each visit ends a display line — matching the
+      // whitespace between words), and `ArmTag` children emit a tag the
+      // runtime collects into `currentTags` when the arm runs (see
+      // `lowerArmContent`).
+      // For the single-line block form the arm's text is a `display()`
+      // call, so each visit is a display line of its own, matching the
       // multi-line block-form arm shape (which routes through
-      // `ImplicitAction` → display line + newline); with display calls on,
-      // the arm's text is a `display()` call instead. The inline-glued
-      // form is spliced into surrounding text and doesn't want a
-      // trailing newline; the caller's display lowerer handles line
-      // breaks.
+      // `ImplicitAction`). The inline-glued form is spliced into
+      // surrounding text; the caller's display lowerer handles line breaks.
       const armContent = findChildByName(child, `${child.name}_content`);
       if (armContent) {
         if (child.name !== "LuauSparkdownAlternatorArm") {
-          lowerArmContent(armContent, current.body, ctx);
-        } else if (ctx.config?.experimentalDisplayCalls) {
+          lowerArmContent(armContent, current.body, ctx, true);
+        } else {
           const parts: ParsedObject[] = [];
           lowerArmContent(armContent, parts, ctx);
           current.body.push(...armLineAsDisplayCall(parts, ctx));
-        } else {
-          lowerArmContent(armContent, current.body, ctx);
-          current.body.push(new Text("\n"));
         }
       }
     } else if (current) {
@@ -181,7 +179,9 @@ function armLineAsDisplayCall(
     out.push(buildDisplayCall(undefined, undefined, text, null, ctx, tags));
     const joins =
       tail.length > 0 &&
-      tail.every((obj) => obj instanceof Divert || obj instanceof TunnelOnwards);
+      tail.every(
+        (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
+      );
     if (joins) out.push(new ParsedGlue(new RuntimeGlue()));
   }
   if (text.length === 0 || tail.length > 0) {
@@ -212,11 +212,17 @@ export function findChildByName(
 //     the trailing content).
 //   - `ArmTag` nodes emit `Tag(true)` + `Text(tagContent)` +
 //     `Tag(false)` so the runtime collects them into `currentTags`
-//     via the `BeginTag` / `EndTag` control-command pair.
+//     via the `BeginTag` / `EndTag` control-command pair. An inline-glued
+//     arm runs inside the captured string of its line's `display()` call,
+//     where an `EndTag` is taken for a choice label's tag, so with
+//     `inString` its tag is instead a runtime `Tag` object: the string's
+//     `EndString` moves it out to the output stream, where it lands in the
+//     step's `currentTags`.
 function lowerArmContent(
   armContent: SyntaxNode,
   out: ParsedObject[],
   ctx: LowerContext,
+  inString = false,
 ): void {
   let textBuf = "";
   const flushText = (trim: boolean): void => {
@@ -239,7 +245,9 @@ function lowerArmContent(
       const raw = tagContent
         ? ctx.read(tagContent.from, tagContent.to).trim()
         : "";
-      if (raw.length > 0) {
+      if (raw.length > 0 && inString) {
+        out.push(new LegacyTag(new RuntimeTag(raw)));
+      } else if (raw.length > 0) {
         out.push(new Tag(true));
         out.push(new Text(raw));
         out.push(new Tag(false));

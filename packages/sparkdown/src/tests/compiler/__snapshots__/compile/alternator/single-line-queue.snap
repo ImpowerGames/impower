@@ -11,12 +11,24 @@
               "type": "Weave",
               "content": [
                 {
-                  "type": "Text",
-                  "text": "apple"
-                },
-                {
-                  "type": "Text",
-                  "text": "\n"
+                  "type": "FunctionCall",
+                  "name": "display",
+                  "args": [
+                    {
+                      "type": "ObjectExpression",
+                      "entries": [
+                        {
+                          "key": "text",
+                          "value": {
+                            "type": "StringExpression",
+                            "content": [
+                              "apple"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             },
@@ -24,12 +36,24 @@
               "type": "Weave",
               "content": [
                 {
-                  "type": "Text",
-                  "text": "banana"
-                },
-                {
-                  "type": "Text",
-                  "text": "\n"
+                  "type": "FunctionCall",
+                  "name": "display",
+                  "args": [
+                    {
+                      "type": "ObjectExpression",
+                      "entries": [
+                        {
+                          "key": "text",
+                          "value": {
+                            "type": "StringExpression",
+                            "content": [
+                              "banana"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             },
@@ -37,12 +61,24 @@
               "type": "Weave",
               "content": [
                 {
-                  "type": "Text",
-                  "text": "cherry"
-                },
-                {
-                  "type": "Text",
-                  "text": "\n"
+                  "type": "FunctionCall",
+                  "name": "display",
+                  "args": [
+                    {
+                      "type": "ObjectExpression",
+                      "entries": [
+                        {
+                          "key": "text",
+                          "value": {
+                            "type": "StringExpression",
+                            "content": [
+                              "cherry"
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  ]
                 }
               ]
             }

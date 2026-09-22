@@ -24,14 +24,29 @@
       "type": "Weave",
       "content": [
         {
-          "type": "VariableReference",
-          "path": [
-            "x"
+          "type": "FunctionCall",
+          "name": "display",
+          "args": [
+            {
+              "type": "ObjectExpression",
+              "entries": [
+                {
+                  "key": "text",
+                  "value": {
+                    "type": "StringExpression",
+                    "content": [
+                      {
+                        "type": "VariableReference",
+                        "path": [
+                          "x"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
           ]
-        },
-        {
-          "type": "Text",
-          "text": "\n"
         }
       ]
     }

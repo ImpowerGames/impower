@@ -83,20 +83,16 @@ function Fn()
 end
 `;
 
-function compile(text: string, options: { experimentalDisplayCalls?: boolean } = {}) {
+function compile(text: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [script(text), ...ASSETS],
-    ...options,
   });
   return compiler.compile({ textDocument: { uri: URI } }).program;
 }
 
-describe.each([
-  { experimentalDisplayCalls: false },
-  { experimentalDisplayCalls: true },
-])("program.sceneAssets (%o)", (options) => {
-  const program = compile(FIXTURE, options);
+describe("program.sceneAssets", () => {
+  const program = compile(FIXTURE);
   const sceneAssets = program.sceneAssets!;
 
   it("has an entry per top-level flow, including root content and functions", () => {
