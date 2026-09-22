@@ -48,6 +48,21 @@ export function validateReviewRecovery(config) {
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
 }
 
+const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization"];
+
+// Checks the fields the chain reads only later, so a malformed plan is refused
+// before any lock, journal, slot or child exists.
+export function validatePlanShape(config) {
+  if (!Number.isSafeInteger(config.pr) || config.pr < 1) throw new Error("Supply the top-level pr as a positive integer PR number");
+  if (!config.steps || typeof config.steps !== "object" || Array.isArray(config.steps) || !Object.keys(config.steps).length) throw new Error("Supply steps as an object of named steps");
+  if (typeof config.first !== "string" || !config.first) throw new Error("Supply the top-level first as the name of a step");
+  if (!Object.hasOwn(config.steps, config.first)) throw new Error(`Unknown step: ${config.first}`);
+  for (const [name, step] of Object.entries(config.steps)) {
+    const misplaced = planFields.filter((field) => Object.hasOwn(step ?? {}, field));
+    if (misplaced.length) throw new Error(`Move ${misplaced.join(", ")} from step ${name} to the top level of the plan; only round, not completedReviewRound, belongs on a review step`);
+  }
+}
+
 export function validateNativeReviewArgs(review) {
   if(!['default','acceptEdits','plan','dontAsk'].includes(review.permissions))throw new Error('Unsupported native reviewer permission mode');
   const values=new Set(['--model','-m','--effort','--permission-mode','--output-format','--allowedTools','--disallowedTools','--tools']);
@@ -65,6 +80,7 @@ export function validateNativeReviewArgs(review) {
 export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob } = {}) {
   const config = read(configFile);
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
+  validatePlanShape(config);
   const cwd = fs.realpathSync.native(config.worktree);
   const journal = path.resolve(config.journal);
   const relative = path.relative(cwd, journal);
@@ -73,7 +89,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
   if (selection.resolved) for (const [name, step] of Object.entries(config.steps)) if (step.role === "review") config.steps[name] = applyResolvedReviewer(step, selection);
-  const reviewerRow = selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {};
+  const reviewerRow = selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, rowWriterEffort: selection.rowWriterEffort, matchedOn: selection.matchedOn, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {};
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
   validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");

@@ -56,13 +56,33 @@ export function validateCodexReviewer(review,plan) {
       config.set(match[1],parsed);
     } else {if(values.has(flag))throw new Error('Duplicate Codex reviewer flag');values.set(flag,value);}
   }
-  const permission=review.permissions;
-  if(config.get('windows.sandbox')!=='elevated')throw new Error('Explicit elevated Windows sandbox backend required');
-  if(!values.get('--ignore-user-config')||!values.get('--ignore-rules')||!values.get('--strict-config')||config.get('model_provider')!=='openai'||JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))!=='[]'||config.get('sandbox_workspace_write.exclude_tmpdir_env_var')!==true||config.get('sandbox_workspace_write.exclude_slash_tmp')!==true)throw new Error('Codex reviewer requires isolated effective configuration and explicit writable roots');
-  if(disabled.size!==2)throw new Error('Codex reviewer must disable both native multi-agent features');
-  if(values.get('--model')!==plan.reviewer||config.get('model_reasoning_effort')!==review.effort||!['low','medium','high','xhigh','max','ultra'].includes(review.effort))throw new Error('Codex reviewer model/effort mismatch');
-  if(permission?.sandbox!=='workspace-write'||permission.approvalPolicy!=='never'||permission.networkAccess!==true||permission.artifactWrites!=='handoff-directory'||values.get('--sandbox')!==permission.sandbox||config.get('approval_policy')!==permission.approvalPolicy||config.get('sandbox_workspace_write.network_access')!==permission.networkAccess)throw new Error('Explicit Codex private-artifact and posting permissions required');
-  if(!values.get('--json')||!values.get('--skip-git-repo-check')||!path.isAbsolute(permission.cwd??'')||values.get('--cd')!==permission.cwd)throw new Error('Codex reviewer private working directory required');
+  const permission=review.permissions??{};
+  // Every requirement is checked before refusing, so one refusal names each
+  // missing or mismatched argument and step field together.
+  const missing=[];
+  const need=(ok,label)=>{if(!ok)missing.push(label);};
+  need(config.get('windows.sandbox')==='elevated','-c windows.sandbox="elevated"');
+  for(const flag of ['--ignore-user-config','--ignore-rules','--strict-config','--json','--skip-git-repo-check'])need(values.get(flag),flag);
+  need(config.get('model_provider')==='openai','-c model_provider="openai"');
+  need(JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))==='[]','-c sandbox_workspace_write.writable_roots=[]');
+  need(config.get('sandbox_workspace_write.exclude_tmpdir_env_var')===true,'-c sandbox_workspace_write.exclude_tmpdir_env_var=true');
+  need(config.get('sandbox_workspace_write.exclude_slash_tmp')===true,'-c sandbox_workspace_write.exclude_slash_tmp=true');
+  for(const feature of ['multi_agent','multi_agent_v2'])need(disabled.has(feature),`--disable ${feature}`);
+  const effortValid=['low','medium','high','xhigh','max','ultra'].includes(review.effort);
+  need(values.get('--model')===plan.reviewer,`--model ${plan.reviewer}`);
+  need(effortValid,'step effort (low, medium, high, xhigh, max or ultra) on a step with an explicit reviewer');
+  need(effortValid&&config.get('model_reasoning_effort')===review.effort,`-c model_reasoning_effort="${effortValid?review.effort:'<step effort>'}"`);
+  need(permission.sandbox==='workspace-write','step permissions.sandbox "workspace-write"');
+  need(permission.approvalPolicy==='never','step permissions.approvalPolicy "never"');
+  need(permission.networkAccess===true,'step permissions.networkAccess true');
+  need(permission.artifactWrites==='handoff-directory','step permissions.artifactWrites "handoff-directory"');
+  need(values.get('--sandbox')==='workspace-write'&&values.get('--sandbox')===permission.sandbox,'--sandbox workspace-write');
+  need(config.get('approval_policy')==='never'&&config.get('approval_policy')===permission.approvalPolicy,'-c approval_policy="never"');
+  need(config.get('sandbox_workspace_write.network_access')===true&&config.get('sandbox_workspace_write.network_access')===permission.networkAccess,'-c sandbox_workspace_write.network_access=true');
+  need(path.isAbsolute(permission.cwd??''),'step permissions.cwd as an absolute private directory');
+  need(values.has('--cd')&&values.get('--cd')===permission.cwd,'--cd <step permissions.cwd>');
+  need(values.has('--output-last-message'),'--output-last-message <fresh report in step permissions.cwd>');
+  if(missing.length)throw new Error(`Codex reviewer step lacks its isolated effective configuration; supply: ${missing.join('; ')}`);
   const root=fs.realpathSync.native(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
   const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
   if(contains(root,worktree)||contains(worktree,root)||contains(root,job)||contains(job,root)||contains(root,common)||contains(common,root))throw new Error('Codex reviewer writes must exclude repository and supervisor state');
