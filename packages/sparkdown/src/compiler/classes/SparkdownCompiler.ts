@@ -1225,6 +1225,36 @@ export class SparkdownCompiler {
     this._storyJournal.activate(story);
   }
 
+  /**
+   * The whole compiled program of `story`, the newest story or a kept one,
+   * whose compile produced `program`, for a host that runs it once, such as
+   * the player's PLAY. The newest compile's program is serialized through the
+   * incremental caches and keeps its serialization, as a no-change compile
+   * that asks for emission does. A kept earlier story is written afresh into a
+   * copy of its program, and the caches, which describe the newest story, are
+   * left alone. Leaves `story` the active one.
+   */
+  emitCompiledProgramOf(story: RuntimeStory, program: SparkProgram): SparkProgram {
+    this._storyJournal.activate(story);
+    if (program.compiled || program.compiledBuffer) {
+      return program;
+    }
+    const cached = this._lastCompileResult;
+    if (
+      story === this._storyJournal.latest &&
+      cached?.story === story &&
+      cached.program === program
+    ) {
+      this.serializeCompiledProgram(story, program, program.uri);
+      return program;
+    }
+    profile("start", this._profilerId, "ink/json", program.uri);
+    const writer = new SimpleJson.Writer();
+    story.ToJson(writer);
+    profile("end", this._profilerId, "ink/json", program.uri);
+    return { ...program, compiled: writer.toObject() ?? undefined };
+  }
+
   selectDocument(params: SelectCompilerDocumentParams) {
     if (
       this._previewedSinceCanonical &&

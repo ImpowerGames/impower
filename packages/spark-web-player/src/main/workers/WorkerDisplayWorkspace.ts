@@ -1,4 +1,4 @@
-import type { CompiledProgramParams } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import type { ProgramForPlayResult } from "./messages/ProgramForPlayMessage";
 import type { WorkerGameLink } from "./WorkerGameLink";
 
 /** What the player's workspace offers the controller for a preview displayed
@@ -9,7 +9,11 @@ export interface WorkerDisplayWorkspace {
   workerDisplaysPreview: boolean;
   /** The page's end of the worker's game. */
   gameLink: WorkerGameLink;
-  /** The whole program at the selection, for PLAY's page-resident game, with
-   *  the route the worker replayed to it. */
-  compileForPlay(uri: string): Promise<CompiledProgramParams>;
+  /** The whole program the page holds the summary of, named by
+   *  `programIdentity`, for PLAY's page-resident game, with the route the
+   *  worker replayed to `startFrom`. */
+  programForPlay(
+    program: string,
+    startFrom: { file: string; line: number } | undefined,
+  ): Promise<ProgramForPlayResult>;
 }

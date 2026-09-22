@@ -29,6 +29,7 @@ import UIManager from "../../app/managers/UIManager";
 import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
 import { ConfigurePlayerWorkerMessage } from "../../main/workers/messages/ConfigurePlayerWorkerMessage";
+import { ProgramForPlayMessage } from "../../main/workers/messages/ProgramForPlayMessage";
 import { WorkerGameLink } from "../../main/workers/WorkerGameLink";
 import {
   createFakeImage,
@@ -154,13 +155,12 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         }),
       );
     },
-    compileForPlay: async () =>
+    programForPlay: async (
+      program: string,
+      startFrom: { file: string; line: number } | undefined,
+    ) =>
       decode(
-        await page.sendRequest(CompileProgramMessage.type, {
-          textDocument: { uri: MAIN_URI },
-          startFrom: selected,
-          emitCompiledProgram: true,
-        }),
+        await page.sendRequest(ProgramForPlayMessage.type, { program, startFrom }),
       ),
     compileTextDocument: async () => {},
     selectTextDocument: async () => {},

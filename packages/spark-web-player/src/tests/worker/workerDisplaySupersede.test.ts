@@ -2,8 +2,12 @@
 // before it writes the beat (#680). When a newer selection takes the screen
 // over while it waits, the older beat never paints, even once its picture
 // arrives: the worker's game lets the older preview go, and the page drops
-// whatever the older stream still sends.
+// whatever the older stream still sends. A compile that gives the game a new
+// program while the beat waits takes the screen over the same way.
+import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
+import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
+import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `define SPRITE_A as image with
@@ -66,6 +70,87 @@ describe("a preview displayed from the worker's game", () => {
       expect(painted.some((text) => text.includes("The beat that waits for its picture."))).toBe(false);
       expect(h.overlay.textContent).toContain("The beat that takes over.");
       expect(h.controller.getGameState().position).toEqual({ uri: MAIN_URI, line: TAKING_OVER });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("never paints when a compile takes over while it waits for its picture", async () => {
+    let releaseA!: () => void;
+    const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+      holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
+    });
+    try {
+      await h.compile();
+      const painted: string[] = [];
+      const Observer = (h.overlay.ownerDocument.defaultView as any).MutationObserver;
+      const observer = new Observer(() => painted.push(h.overlay.textContent ?? ""));
+      observer.observe(h.overlay, { subtree: true, childList: true, characterData: true });
+
+      // The page asks for the waiting beat, which holds on a.png.
+      const display = h.link.request(DisplayPreviewMessage.type, {
+        program: programIdentity(h.controller._program)!,
+        file: MAIN_URI,
+        line: WAITING,
+        speculative: false,
+      });
+      await settle(40);
+      expect(h.overlay.textContent).not.toContain("The beat that waits for its picture.");
+
+      // An edit compiles while it waits, and gives the worker's game the new
+      // program, which cancels the preview under way.
+      const edited = SOURCE.replace("The beat that takes over.", "The beat, edited.");
+      const lines = SOURCE.split("\n");
+      await h.edit([
+        {
+          range: {
+            start: { line: 0, character: 0 },
+            end: { line: lines.length - 1, character: lines.at(-1)!.length },
+          },
+          text: edited,
+        },
+      ]);
+      await h.page.sendRequest(CompileProgramMessage.type, {
+        textDocument: { uri: MAIN_URI },
+      });
+      releaseA();
+      const result = await display;
+      await settle(40);
+      observer.disconnect();
+
+      expect(result.displayed).toBe(false);
+      expect(painted.some((text) => text.includes("The beat that waits for its picture."))).toBe(false);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("stops hearing the worker's game when the preview detaches and when the player goes", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+    });
+    try {
+      const listening = () => {
+        let count = 0;
+        for (const set of (h.link as any)._listeners.values()) count += set.size;
+        return count;
+      };
+      await h.compile();
+      expect(listening()).toBeGreaterThan(0);
+      // PLAY and STOP detach the preview first.
+      await h.controller.detachWorkerPreview();
+      expect(listening()).toBe(0);
+      // The next preview hears the game again.
+      await h.select(WAITING);
+      expect(listening()).toBeGreaterThan(0);
+      h.controller.dispose();
+      expect(listening()).toBe(0);
     } finally {
       h.dispose();
     }

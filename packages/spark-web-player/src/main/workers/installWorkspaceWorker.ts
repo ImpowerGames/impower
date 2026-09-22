@@ -17,10 +17,12 @@ import {
   planPreviewHint,
   type PreviewHintState,
 } from "../utils/previewHint";
-import type { CompiledProgramParams } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
-import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { ConfigurePlayerWorkerMessage } from "./messages/ConfigurePlayerWorkerMessage";
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
+import {
+  ProgramForPlayMessage,
+  type ProgramForPlayResult,
+} from "./messages/ProgramForPlayMessage";
 import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
 import { WorkerGameLink } from "./WorkerGameLink";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
@@ -83,20 +85,18 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       return super.initialize(params);
     }
 
-    /** The whole program at the selection, compiled for PLAY, with the
-     *  route the worker replayed to it. */
-    async compileForPlay(uri: string): Promise<CompiledProgramParams> {
+    async programForPlay(
+      program: string,
+      startFrom: { file: string; line: number } | undefined,
+    ): Promise<ProgramForPlayResult> {
       await this.compilerReady();
-      const root = this.getMainScriptUri(uri) ?? uri;
       const result = await this._compilerChannelConnection.sendRequest(
-        CompileProgramMessage.type,
-        {
-          textDocument: { uri: root },
-          startFrom: this._documentSelected,
-          emitCompiledProgram: true,
-        },
+        ProgramForPlayMessage.type,
+        { program, startFrom },
       );
-      this._programTransport.decode(result.program);
+      if (result.program) {
+        this._programTransport.decode(result.program);
+      }
       return result;
     }
 

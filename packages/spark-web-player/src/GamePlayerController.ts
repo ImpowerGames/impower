@@ -376,6 +376,8 @@ export class GamePlayerController {
     this._launchState = null;
     this.publishGameState();
     this._protocols.dispose();
+    this._stopListeningToWorker?.();
+    this._stopListeningToWorker = undefined;
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
     window.removeEventListener("resize", this.handleResize);
@@ -1385,7 +1387,8 @@ export class GamePlayerController {
   };
 
   /** Ask the worker's game, while it displays the preview and no game runs on
-   *  this page. Answers undefined otherwise, or when it has no game. */
+   *  this page; answers undefined otherwise. A request the worker fails
+   *  rejects, as a failing call to a game on this page throws. */
   protected async askWorkerGame<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
@@ -1393,11 +1396,7 @@ export class GamePlayerController {
     if (this._game || !this.workerDisplays || !workspace?.gameLink) {
       return undefined;
     }
-    try {
-      return await workspace.gameLink.request(type, params);
-    } catch {
-      return undefined;
-    }
+    return workspace.gameLink.request(type, params);
   }
 
   protected handleSetGameBreakpoints = async (
@@ -1810,16 +1809,22 @@ export class GamePlayerController {
       programId: this._simulatedProgramId,
       failure: this._simulationFailure,
     };
-    if (program.summary && workspace?.compileForPlay) {
+    if (program.summary && workspace?.programForPlay) {
       // The page holds only the program's summary: PLAY's game is built from
-      // the whole program, compiled once for it, with the route the worker
-      // replayed to the start point.
+      // that program, the last one that compiled and ran, which the worker
+      // writes out whole for it, with the route it replayed to the start
+      // point.
       this._startingPlay = true;
       try {
         await this.detachWorkerPreview();
-        const result = await workspace.compileForPlay(
-          this._options.startFrom?.file ?? program.uri,
+        const result = await workspace.programForPlay(
+          programIdentity(program)!,
+          this._options.startFrom ?? undefined,
         );
+        if (!result.program) {
+          console.error("The worker no longer holds the program to play");
+          return false;
+        }
         program = result.program;
         route = {
           checkpoint: result.checkpoint,
@@ -1864,6 +1869,8 @@ export class GamePlayerController {
   /** Stop showing what the worker's game displays: its application goes, and
    *  whatever it still sends is heard by nothing. */
   async detachWorkerPreview() {
+    this._stopListeningToWorker?.();
+    this._stopListeningToWorker = undefined;
     if (!this._workerGame) {
       return;
     }

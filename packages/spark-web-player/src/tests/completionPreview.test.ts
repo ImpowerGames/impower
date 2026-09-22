@@ -58,7 +58,7 @@ const edit = (text: string) => [
 function harness() {
   const REAL = program("real");
   // What PLAY builds its game from: the real program, which with the worker
-  // displaying is compiled whole for it.
+  // displaying the worker writes out whole for it.
   const playable = MODE.worker
     ? { uri: URI, version: 1, compiled: {}, scripts: { [URI]: 1 }, name: "real, whole" }
     : REAL;
@@ -73,7 +73,7 @@ function harness() {
     compileTextDocument: async () => {},
     workerDisplaysPreview: MODE.worker,
     gameLink: MODE.worker ? { detach() {}, addListener: () => () => {} } : undefined,
-    compileForPlay: async () => ({ program: playable, checkpoint: "REAL SAVE" }),
+    programForPlay: async () => ({ program: playable, checkpoint: "REAL SAVE" }),
   };
   setWorkspace(workspace as any);
   const controller: any = new GamePlayerController(

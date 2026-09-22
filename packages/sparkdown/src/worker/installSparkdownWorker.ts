@@ -28,12 +28,17 @@ export function installSparkdownWorker(
 ) {
   console.log("running sparkdown-compiler v1.0");
 
-  const state = { compiler: new SparkdownCompiler() };
   // Pairs with the decoder in the SparkdownWorkspace on the other end of this
   // connection. Programs are encoded as their responses are sent, which is the
   // order the workspace receives and decodes them. A summary is not encoded,
-  // and the workspace does not decode one.
+  // and the workspace does not decode one. `encodeProgram` is for a response
+  // sent on this connection that carries a whole program the compiler did not
+  // answer itself.
   const transport = new ProgramTransportEncoder();
+  const state = {
+    compiler: new SparkdownCompiler(),
+    encodeProgram: (program: SparkProgram) => transport.encode(program),
+  };
   // Whether the compile being answered produced a story, which a summary
   // reports in place of the compiled program.
   let producedStory = false;
@@ -56,7 +61,7 @@ export function installSparkdownWorker(
         program: programSummary(result.program, producedStory),
       } as R;
     }
-    return { ...result, program: transport.encode(result.program) };
+    return { ...result, program: state.encodeProgram(result.program) };
   };
 
   connection.addEventListener("message", (e: MessageEvent) => {

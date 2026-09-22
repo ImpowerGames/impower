@@ -1,0 +1,81 @@
+// PLAY runs the program the preview shows, which is the last one that compiled
+// and ran, in either switch position (#680): the page holds that program whole
+// with the switch off, and its summary with the switch on, from which the
+// worker writes the same program out whole. A later edit that does not compile
+// leaves both where they were.
+import { describe, expect, it } from "vitest";
+import { programIdentity } from "../../utils/programIdentity";
+import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+
+const SOURCE = `-> start
+
+scene start
+  HERO:
+    The first line.
+
+  HERO:
+    The line PLAY starts from.
+end
+`;
+
+const LINE = SOURCE.split("\n").findIndex((l) => l.includes("The line PLAY starts from."));
+
+for (const workerDisplays of [false, true]) {
+  describe(`with the switch ${workerDisplays ? "on" : "off"}`, () => {
+    it("PLAY runs the last program that compiled when a later edit does not", async () => {
+      const h = await createPlayerHarness({
+        workerDisplays,
+        files: [{ uri: MAIN_URI, text: SOURCE }],
+        startFrom: { file: MAIN_URI, line: LINE },
+      });
+      try {
+        const good = await h.compile();
+        expect(good.program.summary === true).toBe(workerDisplays);
+        await h.select(LINE);
+        const goodId = programIdentity(good.program);
+
+        // The author edits, and the compile of the edit fails inside the
+        // compiler: it answers, but with nothing that runs.
+        const first = SOURCE.split("\n").findIndex((l) => l.includes("The first line."));
+        await h.edit([
+          {
+            range: { start: { line: first, character: 4 }, end: { line: first, character: 19 } },
+            text: "The first line, edited.",
+          },
+        ]);
+        const compiler = h.workerState.compilerState.compiler as any;
+        const parseIncrementally = compiler.parseIncrementally;
+        compiler.parseIncrementally = () => {
+          compiler.parseIncrementally = parseIncrementally;
+          throw new Error("A compile that fails partway");
+        };
+        const realError = console.error;
+        console.error = () => {};
+        try {
+          await h.compile();
+        } finally {
+          console.error = realError;
+        }
+        expect(h.controller._canonicalInvalid).toBe(true);
+        expect(programIdentity(h.controller._program)).toBe(goodId);
+
+        const played: any[] = [];
+        const buildGame = h.controller.buildGame.bind(h.controller);
+        h.controller.buildGame = async (program: any, restarted?: boolean) => {
+          played.push(program);
+          return buildGame(program, restarted);
+        };
+        const started = await h.controller.startGameAndApp();
+        await settle();
+        expect(started).toBe(true);
+        expect(played).toHaveLength(1);
+        expect(programIdentity(played[0])).toBe(goodId);
+        expect(played[0].summary).toBeUndefined();
+        expect(played[0].compiled ?? played[0].compiledBuffer).toBeTruthy();
+        await h.controller.destroyGameAndApp();
+      } finally {
+        h.dispose();
+      }
+    }, 120_000);
+  });
+}

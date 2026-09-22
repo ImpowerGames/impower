@@ -39,7 +39,7 @@ describe("the stories the worker keeps", () => {
       const journal = (h.workerState.compilerState.compiler as any)._storyJournal;
       const recorded = () => {
         let entries = 0;
-        for (const table of journal._tables.values()) entries += table.size;
+        for (const table of journal._tables.values()) entries += table.entries.size;
         return entries;
       };
       const lineText = TEXT.split("\n")[LINE]!;

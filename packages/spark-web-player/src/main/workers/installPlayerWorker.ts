@@ -23,6 +23,11 @@ import {
   type DisplayPreviewResult,
 } from "./messages/DisplayPreviewMessage";
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
+import {
+  ProgramForPlayMessage,
+  type ProgramForPlayParams,
+  type ProgramForPlayResult,
+} from "./messages/ProgramForPlayMessage";
 import { planRouteForSelection } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
@@ -152,6 +157,22 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
   };
 
+  // Counts the programs the game has been given in place. Giving it one cancels
+  // whatever it was previewing, so a display under way is superseded by it
+  // however it came: a compile, a suggestion, a return to the real program, or
+  // PLAY taking the program.
+  let gameUpdates = 0;
+  const updateGameProgram = (
+    game: Game,
+    program: SparkProgram,
+    story: RuntimeStory,
+  ) => {
+    gameUpdates += 1;
+    profile("start", compiler.profilerId + " " + "game/update");
+    game.updateProgram(program, story);
+    profile("end", compiler.profilerId + " " + "game/update");
+  };
+
   const createOrUpdateGame = (program: SparkProgram, story: RuntimeStory) => {
     const profilerId = compiler.profilerId;
     if (!gameState.game) {
@@ -174,9 +195,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       });
       profile("end", profilerId + " " + "game/create");
     } else {
-      profile("start", profilerId + " " + "game/update");
-      gameState.game.updateProgram(program, story);
-      profile("end", profilerId + " " + "game/update");
+      updateGameProgram(gameState.game, program, story);
     }
     return gameState.game;
   };
@@ -409,7 +428,12 @@ export function installPlayerWorker(connection: MessageConnection) {
       }
       entry.route = { startFrom: point, path: toPath, log };
     }
-    const report: { checkpoint?: string; simulationFailure?: any } = {};
+    const report: {
+      checkpoint?: string;
+      simulatedPath?: string | null;
+      simulatedProgramId?: string;
+      simulationFailure?: any;
+    } = {};
     entry.route!.log.report(report, entry.route!.path);
     return report;
   };
@@ -429,10 +453,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     compiler.activateStory(entry.story);
     const programChanged = displayedId !== entry.id || game.program !== entry.program;
     if (game.program !== entry.program) {
-      profile("start", compiler.profilerId + " " + "game/update");
-      game.updateProgram(entry.program, entry.story);
-      profile("end", compiler.profilerId + " " + "game/update");
+      updateGameProgram(game, entry.program, entry.story);
     }
+    const updates = gameUpdates;
     const route = routeTo(game, entry, { file: params.file, line: params.line });
     displayedId = entry.id;
     const displayed = await displayPreviewFrom(game, {
@@ -444,9 +467,39 @@ export function installPlayerWorker(connection: MessageConnection) {
       checkpoint: route.checkpoint,
       simulationFailure: route.simulationFailure,
       send: sendToPage,
-      superseded: () => display !== displays || gameState.game !== game,
+      superseded: () =>
+        display !== displays ||
+        gameState.game !== game ||
+        gameUpdates !== updates,
     });
     return { displayed };
+  };
+
+  /** The whole program the page names, for PLAY, with the route to where
+   *  PLAY starts. Taking the program supersedes a display under way. */
+  const programForPlay = (
+    params: ProgramForPlayParams,
+  ): ProgramForPlayResult => {
+    displays += 1;
+    const entry = displayable.get(params.program);
+    const game = gameState.game;
+    if (!entry || !game) {
+      return {};
+    }
+    const program = compiler.emitCompiledProgramOf(entry.story, entry.program);
+    if (game.program !== entry.program) {
+      updateGameProgram(game, entry.program, entry.story);
+    }
+    const route = params.startFrom
+      ? routeTo(game, entry, params.startFrom)
+      : {};
+    return {
+      ...route,
+      program: compilerState.encodeProgram({
+        ...program,
+        startFrom: params.startFrom,
+      }),
+    };
   };
 
   connection.addEventListener("message", (e: MessageEvent) => {
@@ -465,6 +518,10 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (DisplayPreviewMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => display(message.params));
+      return;
+    }
+    if (ProgramForPlayMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => programForPlay(message.params));
       return;
     }
   });
