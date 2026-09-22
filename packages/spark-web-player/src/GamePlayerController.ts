@@ -2469,7 +2469,12 @@ export class GamePlayerController {
       console.error(e);
       return false;
     }
-    if (result.displayed) {
+    if (result.displayed && detaches === this._workerDetaches) {
+      // The frame reached the application this display was for. A detach
+      // since then built another one, which holds nothing the game sent, so
+      // this answer says nothing about it: its own first display connects in
+      // full, and without that its adopted nodes keep the observations the
+      // old application's teardown removed, leaving a shown button dead.
       this._workerAppFresh = false;
     }
     if (overtaken() || !result.displayed) {

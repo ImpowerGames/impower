@@ -421,6 +421,61 @@ describe("a preview displayed from the worker's game", () => {
     }
   }, 120_000);
 
+  it("connects the application a detach built when an older display answers late", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: TAKING_OVER },
+    });
+    try {
+      await h.compile();
+
+      // Every connect the worker's game makes: a display that reuses what the
+      // application already holds skips it, and one for a new application
+      // must not.
+      const game = h.workerState.gameState.game!;
+      const connect = game.connect.bind(game);
+      let connects = 0;
+      game.connect = (send: any) => {
+        connects += 1;
+        return connect(send);
+      };
+
+      // A display whose answer has not reached the page yet.
+      let deliver!: () => void;
+      const held = new Promise<void>((resolve) => (deliver = resolve));
+      const request = h.link.request.bind(h.link);
+      let heldOnce = false;
+      (h.link as any).request = async (type: any, params: any) => {
+        const answer = await request(type, params);
+        if (type.method === DisplayPreviewMessage.type.method && !heldOnce) {
+          heldOnce = true;
+          await held;
+        }
+        return answer;
+      };
+      const waiting = await h.selectWithoutWaiting(WAITING);
+      await settle(40);
+
+      // The preview goes, and another takes its place at the same point, so
+      // the display it sends is the same one the held answer was for.
+      await h.controller.detachWorkerPreview();
+      const replaced = await h.selectWithoutWaiting(WAITING);
+      const before = connects;
+      deliver();
+      await Promise.all([waiting.previewed, replaced.previewed]);
+      await settle(60);
+
+      // The new application holds nothing the game sent, so its display
+      // connected in full rather than repeating the point; without that its
+      // adopted nodes keep listeners the old application's teardown removed.
+      expect(connects).toBeGreaterThan(before);
+      expect(h.overlay.textContent).toContain("The beat that waits for its picture.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
   it("paints once its picture arrives when nothing takes over", async () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
