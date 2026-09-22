@@ -24,11 +24,6 @@ const compile = (source: string) => {
 const createGame = () =>
   new Game({
     program: compile("A beat.\n"),
-    now: () => 0,
-    setTimeout: (handler: Function) => {
-      handler();
-      return 0;
-    },
   } as never);
 
 describe("Game debugging", () => {
