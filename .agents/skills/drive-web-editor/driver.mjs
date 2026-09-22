@@ -26,36 +26,21 @@ import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import net from "node:net";
-import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
+import { SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
-// Which agent session is running this command. Every command is its own
-// process, so the identity comes from the environment: IMPOWER_DRIVER_SESSION
-// when set, otherwise the session variable a known runner exports. Without
-// one, every such command shares the "shared" slot below.
-export const SESSION_VARIABLES = ["IMPOWER_DRIVER_SESSION", "CLAUDE_CODE_SESSION_ID", "CODEX_THREAD_ID"];
-export function driverSession(env = process.env) {
-  for (const name of SESSION_VARIABLES) if (env[name]) return env[name];
-  return null;
-}
-const shortHash = (text) => crypto.createHash("sha256").update(text).digest("hex").slice(0, 12);
-
 // Each session keeps its own server record and Chromium profile, in a
 // directory keyed by checkout and session under a short root outside the
-// checkout (IMPOWER_DRIVER_HOME overrides the root). Two sessions in one
-// checkout therefore never stop each other's servers or write into each
-// other's OPFS, and the profile path stays short however long the worktree
-// name is (see profilePathProblem).
-export function sessionDir({ root = REPO_ROOT, session = driverSession(), env = process.env } = {}) {
-  const home = env.IMPOWER_DRIVER_HOME || path.join(env.LOCALAPPDATA || os.tmpdir(), "impower-driver");
-  return path.join(home, shortHash(path.resolve(root)), session ? shortHash(session) : "shared");
-}
+// checkout (session-dir.mjs). Two sessions in one checkout therefore never
+// stop each other's servers or write into each other's OPFS, and the profile
+// path stays short however long the worktree name is (see profilePathProblem).
+export { SESSION_VARIABLES, driverSession, sessionDir, checkoutStateFiles };
 const SESSION = driverSession();
-const SESSION_DIR = sessionDir();
+const SESSION_DIR = sessionDir({ root: REPO_ROOT });
 const STATE_FILE = path.join(SESSION_DIR, "state.json");
 // Servers launched by a driver that kept its record beside the script (under
 // this skill or its former resolve-issue location) are still found, so `down`
@@ -110,23 +95,32 @@ export function profilePathProblem(dir, platform = process.platform) {
 // working on, so the launch is refused; an older claim is taken over.
 export const PROFILE_CLAIM_MS = 30 * 60_000;
 export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
-export function profileClaimConflict(claim, session = SESSION, now = Date.now()) {
+export function profileClaimConflict(claim, session = SESSION, now = Date.now(), dir = PROFILE_DIR) {
   if (!claim || typeof claim.at !== "number") return null;
   if ((claim.session ?? null) === (session ?? null)) return null;
   if (now - claim.at > PROFILE_CLAIM_MS) return null;
   const minutes = Math.max(0, Math.round((now - claim.at) / 60_000));
-  return `browser profile ${PROFILE_DIR} was opened ${minutes} min ago by another session (${claim.session ?? "no session identity"}), and its OPFS project may be that session's work. Use your own profile: set IMPOWER_DRIVER_SESSION or pass --profile <dir>; the claim lapses after ${PROFILE_CLAIM_MS / 60_000} min`;
+  return `browser profile ${dir} was opened ${minutes} min ago by another session (${claim.session ?? "no session identity"}), and its OPFS project may be that session's work. Use your own profile: set IMPOWER_DRIVER_SESSION or pass --profile <dir>; the claim lapses after ${PROFILE_CLAIM_MS / 60_000} min`;
 }
-function claimProfile(dir = PROFILE_DIR) {
+// A claim that is there but does not parse counts as another session's
+// fresh claim, so a damaged file refuses the launch rather than clearing the
+// guard; the claim is renamed into place so no reader sees a partial file.
+export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now() } = {}) {
   const file = path.join(dir, PROFILE_CLAIM_FILE);
   let claim = null;
-  try {
-    claim = JSON.parse(fs.readFileSync(file, "utf8"));
-  } catch {}
-  const conflict = profileClaimConflict(claim);
+  if (fs.existsSync(file)) {
+    try {
+      claim = JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {
+      throw new Error(`profile claim ${file} cannot be read, so whether another session is using ${dir} is unknown; delete the file once no other session is driving this profile`);
+    }
+  }
+  const conflict = profileClaimConflict(claim, session, now, dir);
   if (conflict) throw new Error(conflict);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(file, JSON.stringify({ session: SESSION, at: Date.now() }));
+  const tmp = file + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify({ session, at: now }));
+  fs.renameSync(tmp, file);
 }
 
 // A record names the session that launched its servers. `down` in another
@@ -432,7 +426,8 @@ async function isUp(url) {
 // Names the state file it read, because with the fallback above there are two
 // places it can come from, and an unreadable file is reported as itself rather
 // than as absence. Exits 0 only when the recorded URL answers.
-async function status() {
+async function status(args = []) {
+  if (args.includes("--all")) return statusAll();
   const file = stateFile();
   process.exitCode = 1;
   if (stateUnreadable()) {
@@ -444,6 +439,35 @@ async function status() {
   const alive = await isUp(s.url);
   log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  session=${s.session ?? "none"}  state=${file}`);
   if (alive) process.exitCode = 0;
+}
+
+// `status --all` reports every session's record for this checkout, and any
+// record beside the driver, for a caller that must know whether anyone's
+// servers use the tree (clean-worktrees). Answering records come first, so
+// the first line a reader matches says UP whenever any server answers; an
+// unreadable record comes next and replaces the DOWN lines, since it may name
+// a live server. Exits 0 only when some record answers.
+async function statusAll() {
+  const legacy = hereOrPrevious(".state.json");
+  const files = [...new Set([...checkoutStateFiles(REPO_ROOT), ...(fs.existsSync(legacy) ? [legacy] : [])])];
+  const up = [];
+  const unreadable = [];
+  const down = [];
+  for (const file of files) {
+    let s = null;
+    try {
+      s = JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {}
+    if (!s?.url) {
+      unreadable.push(`unknown (state file unreadable: ${file}; \`down\` in its session removes it)`);
+      continue;
+    }
+    const line = `url=${s.url}  pid=${s.pid}  mode=${s.mode}  session=${s.session ?? "none"}  state=${file}`;
+    ((await isUp(s.url)) ? up : down).push(line);
+  }
+  const lines = [...up.map((l) => `UP  ${l}`), ...unreadable, ...(unreadable.length ? [] : down.map((l) => `DOWN  ${l}`))];
+  log(lines.length ? lines.join("\n") : "down (no state file)");
+  process.exitCode = up.length ? 0 : 1;
 }
 
 // Read kernel identities rather than command text or rounded wall-clock dates.
@@ -697,13 +721,16 @@ async function importPlaywright() {
   }
 }
 
-async function launchEditorBrowser({ headless }) {
-  const { chromium } = await importPlaywright();
-  const executablePath = resolveChromiumExecutablePath(chromium);
-  const tooDeep = profilePathProblem(PROFILE_DIR);
+// The profile is checked and claimed before Playwright is loaded, so a
+// refused profile never opens a browser. `dir`, `platform` and `playwright`
+// are parameters so state-path.test.mjs can pin that without a browser.
+export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright }) {
+  const tooDeep = profilePathProblem(dir, platform);
   if (tooDeep) throw new Error(tooDeep);
-  claimProfile();
-  return chromium.launchPersistentContext(PROFILE_DIR, {
+  claimProfile(dir);
+  const { chromium } = await playwright();
+  const executablePath = resolveChromiumExecutablePath(chromium);
+  return chromium.launchPersistentContext(dir, {
     headless,
     viewport: { width: 1600, height: 1000 },
     args: ["--autoplay-policy=no-user-gesture-required"],
@@ -3720,7 +3747,7 @@ switch (cmd) {
     await down(rest);
     break;
   case "status":
-    await status();
+    await status(rest);
     break;
   case "verify":
     await verify(rest);
@@ -3763,7 +3790,7 @@ switch (cmd) {
         "",
         "  preflight             check disk headroom, playwright, gh auth BEFORE doing work",
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
-        "  status                is it up? prints the editor URL",
+        "  status [--all]        is it up? prints the editor URL (--all: every session's servers for this checkout)",
         "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",

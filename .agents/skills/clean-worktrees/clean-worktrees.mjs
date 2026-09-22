@@ -64,6 +64,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkoutStateFiles } from "../drive-web-editor/session-dir.mjs";
 
 // Windows paths compare without case, and git prints them with forward slashes.
 const norm = (p) => {
@@ -343,9 +344,10 @@ const gitOrDie = (deps, args, cwd) => {
 // it keeps its state file, in the order it looks: the web editor driver
 // reads the file beside itself and otherwise the one under `resolve-issue/`,
 // where it lived in older worktrees and where a server launched from there
-// is still recorded.
+// is still recorded. Its `sessions` records live outside the worktree, one
+// per agent session, and `status --all` reports every one of them.
 const DRIVERS = [
-  { driver: ".agents/skills/drive-web-editor/driver.mjs", states: [".agents/skills/drive-web-editor/.state.json", ".agents/skills/resolve-issue/.state.json", ".claude/skills/drive-web-editor/.state.json", ".claude/skills/resolve-issue/.state.json"] },
+  { driver: ".agents/skills/drive-web-editor/driver.mjs", sessions: true, states: [".agents/skills/drive-web-editor/.state.json", ".agents/skills/resolve-issue/.state.json", ".claude/skills/drive-web-editor/.state.json", ".claude/skills/resolve-issue/.state.json"] },
   { driver: ".agents/skills/drive-vscode-web/driver.mjs", states: [".agents/skills/drive-vscode-web/.state.json", ".claude/skills/drive-vscode-web/.state.json"] },
   { driver: ".agents/skills/resolve-issue/driver.mjs", states: [".agents/skills/resolve-issue/.state.json"] },
 ];
@@ -379,9 +381,9 @@ export function probeServers(worktree, deps) {
     return true;
   });
   return drivers.map((d) => {
-    const r = deps.exec(process.execPath, [path.join(worktree, d.driver), "status"], worktree, 60_000);
+    const r = deps.exec(process.execPath, [path.join(worktree, d.driver), "status", ...(d.sessions ? ["--all"] : [])], worktree, 60_000);
     const answer = serversFrom(`${r.out}\n${r.err}`, deps.pidAlive);
-    const judged = answer.state === "unknown" ? recordedServer(stateFileOf(worktree, d, deps.exists), deps, answer.detail) : answer;
+    const judged = answer.state === "unknown" ? recordedServers([stateFileOf(worktree, d, deps.exists), ...(d.sessions ? (deps.sessionStates ?? checkoutStateFiles)(worktree) : [])], deps, answer.detail) : answer;
     return { ...judged, driver: path.basename(path.dirname(d.driver)) };
   });
 }
@@ -404,6 +406,16 @@ export function recordedServer(stateFile, deps, detail) {
   if (!record?.url || record.pid == null) return { state: "unknown", detail: `${detail}; its state file names no server` };
   if (!deps.pidAlive(record.pid)) return { state: "down", detail, url: record.url, pid: record.pid };
   return { state: "recorded", url: record.url, pid: record.pid, detail };
+}
+
+// The web editor driver keeps one record per agent session, outside the
+// worktree (drive-web-editor/session-dir.mjs), as well as any record beside
+// itself. A driver that could not answer is judged by all of them: the first
+// that may name a live server decides, and otherwise the first file's answer
+// stands.
+export function recordedServers(stateFiles, deps, detail) {
+  const judged = stateFiles.map((file) => recordedServer(file, deps, detail));
+  return judged.find((j) => j.state !== "down") ?? judged[0];
 }
 
 // The answers that become rows: every driver's answer but a definite

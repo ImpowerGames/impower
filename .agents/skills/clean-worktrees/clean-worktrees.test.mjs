@@ -277,6 +277,32 @@ await check("probeServers asks every driver the worktree has, in order, names ea
   assert.deepEqual(read, [beside, stateFile]);
 });
 
+await check("the web editor driver is asked for every session's servers, and a crashed one is judged by every session's record", () => {
+  const wt = path.join("C:", "wt");
+  const driver = path.join(wt, ".agents", "skills", "drive-web-editor", "driver.mjs");
+  const mine = path.join("C:", "home", "abc", "mine", "state.json");
+  const theirs = path.join("C:", "home", "abc", "theirs", "state.json");
+  const files = { [mine]: '{"url":"http://localhost:5","pid":6}', [theirs]: '{"url":"http://localhost:7","pid":7}' };
+  let output = "DOWN  url=http://localhost:5  pid=6  mode=same-origin";
+  const ran = [];
+  const deps = {
+    exists: (p) => p === driver || Object.hasOwn(files, p),
+    readFile: (p) => files[p],
+    exec: (cmd, args) => {
+      ran.push(args.slice(1));
+      return { status: 0, out: output, err: "" };
+    },
+    pidAlive: (pid) => pid === 7,
+    sessionStates: (root) => (root === wt ? [mine, theirs] : []),
+  };
+  probeServers(wt, deps);
+  assert.deepEqual(ran, [["status", "--all"]]);
+  output = "file:///x/driver.mjs:1\nSyntaxError: bad";
+  assert.deepEqual(probeServers(wt, deps), [{ state: "recorded", url: "http://localhost:7", pid: 7, detail: "SyntaxError: bad", driver: "drive-web-editor" }], "another session's live record keeps the tree");
+  delete files[theirs];
+  assert.deepEqual(probeServers(wt, deps), [{ state: "down", detail: "SyntaxError: bad", driver: "drive-web-editor" }], "with only dead records the first file's answer stands");
+});
+
 await check("a worktree whose path a running process names is kept, and one whose processes could not be listed", () => {
   kept(entry(), facts({ users: [{ pid: 4012, name: "node.exe" }] }), "its path is on the command line of pid 4012 (node.exe)");
   kept(entry(), facts({ users: [{ pid: 1, name: "a" }, { pid: 2, name: "b" }, { pid: 3, name: "c" }] }), "its path is on the command line of pid 1 (a), pid 2 (b) and 1 more");
@@ -1133,7 +1159,9 @@ const source = fs.readFileSync(SCRIPT, "utf8");
 const controls = fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-controls-"));
 const control = async (label, cuts, names) => {
   await check(`control: ${label}`, async () => {
-    let text = source;
+    // The copy runs from another directory, so its one relative import is
+    // pointed at the module beside this check.
+    let text = source.replace('"../drive-web-editor/session-dir.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "drive-web-editor", "session-dir.mjs")).href));
     for (const [needle, replacement] of cuts) {
       assert.ok(text.includes(needle), `the fixture was not built: the script no longer contains ${JSON.stringify(needle)}`);
       text = text.replace(needle, () => replacement);
@@ -1195,7 +1223,7 @@ try {
   await control("the web editor driver's older state file location is not looked at", [['states: [".agents/skills/drive-web-editor/.state.json", ".agents/skills/resolve-issue/.state.json", ".claude/skills/drive-web-editor/.state.json", ".claude/skills/resolve-issue/.state.json"]', 'states: [".agents/skills/drive-web-editor/.state.json"]']], ["fix/51-web-old-state: expected keep, got remove"]);
   await control("only one live server is reported", [['  return results.filter((s) => s.state !== "down");', '  return results.filter((s) => s.state !== "down").slice(0, 1);']], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
   await control("a driver that cannot answer loses its row to another driver's down", [['  return results.filter((s) => s.state !== "down");', '  return results.some((s) => s.state === "down") ? [] : results.filter((s) => s.state !== "down");']], ["fix/49-recorded-server: expected keep, got remove", "fix/50-unknown-state: expected keep, got remove"]);
-  await control("a driver that cannot answer is not judged by its state file", [['    const judged = answer.state === "unknown" ? recordedServer(stateFileOf(worktree, d, deps.exists), deps, answer.detail) : answer;', "    const judged = answer;"]], ["fix/48-crashed-driver: expected remove, got keep", "row for fix/49-recorded-server does not say", "row for fix/51-web-old-state does not say"]);
+  await control("a driver that cannot answer is not judged by its state file", [['    const judged = answer.state === "unknown" ? recordedServers([stateFileOf(worktree, d, deps.exists), ...(d.sessions ? (deps.sessionStates ?? checkoutStateFiles)(worktree) : [])], deps, answer.detail) : answer;', "    const judged = answer;"]], ["fix/48-crashed-driver: expected remove, got keep", "row for fix/49-recorded-server does not say", "row for fix/51-web-old-state does not say"]);
   await control("a worktree git cannot answer for stops the run", [["      verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };", "      throw err;"]], ["the dry run classifies every worktree and removes nothing"]);
   await control("a worktree git no longer sees, or whose directory is gone, is asked for its status", [["if (facts.isMain || facts.isDefault || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;", "if (facts.isMain || facts.isDefault || entry.detached || facts.unborn) return facts;"]], ["row for fix/19-broken does not say", "row for fix/20-missing does not say"]);
   await control("a link leading outside the tree is not refused", [["if (out.length) return `", "if (false) return `"]], ["fix/44-link-out: expected keep, got remove"]);

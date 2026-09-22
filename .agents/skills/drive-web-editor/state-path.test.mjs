@@ -50,6 +50,8 @@ import {
   profileClaimConflict,
   profilePathProblem,
   sessionDir,
+  launchEditorBrowser,
+  PROFILE_CLAIM_FILE,
   stopLinuxTree,
 } from "./driver.mjs";
 
@@ -355,6 +357,34 @@ await check("the session's own record wins over one beside the driver, which is 
   assert.equal(chooseStateFile(own, legacy, () => true), own);
 });
 
+await check("the browser launch refuses a too-deep or claimed profile before Playwright loads, and claims a free one", async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "launch-"));
+  try {
+    let loaded = 0;
+    const playwright = async () => {
+      loaded++;
+      return { chromium: { executablePath: () => process.execPath, launchPersistentContext: async (dir) => ({ dir }) } };
+    };
+    const deep = path.join(base, "d".repeat(WINDOWS_PATH_LIMIT));
+    await assert.rejects(launchEditorBrowser({ headless: true, dir: deep, platform: "win32", playwright }), /too deep/);
+    assert.equal(fs.existsSync(deep), false, "a refused profile was created");
+    const dir = path.join(base, "p");
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, PROFILE_CLAIM_FILE), JSON.stringify({ session: "someone-else", at: Date.now() }));
+    await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /another session \(someone-else\)/);
+    fs.writeFileSync(path.join(dir, PROFILE_CLAIM_FILE), '{"session":');
+    await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /cannot be read/);
+    assert.equal(loaded, 0, "Playwright loaded for a refused profile");
+    fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
+    assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
+    const claim = JSON.parse(fs.readFileSync(path.join(dir, PROFILE_CLAIM_FILE), "utf8"));
+    assert.equal(typeof claim.at, "number");
+    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE + ".tmp")), false);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
 // ------------------------------------------------------------ the commands ---
 //
 // A copy of the driver laid out as `.agents/skills/drive-web-editor/` under a
@@ -368,7 +398,7 @@ console.log(`scratch repository: ${path.join(scratch, "repo")}`);
 const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-editor");
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
-for (const name of ["driver.mjs", "redgreen.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
+for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
 const copy = path.join(copyDir, "driver.mjs");
 // The copy keeps its records under a home inside the scratch directory, as
 // the session this check names; every command below inherits both.
@@ -618,7 +648,8 @@ try {
     } finally {
       stop(child);
       stop(up);
-      assert.ok(await untilGone(up.pid), "up coordinator did not exit");      const launched = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+      assert.ok(await untilGone(up.pid), "up coordinator did not exit");
+      const launched = JSON.parse(fs.readFileSync(stateFile, "utf8"));
       if (pidAlive(launched.pid)) {
         const d = run("down");
         assert.equal(d.status, 0, d.out);
