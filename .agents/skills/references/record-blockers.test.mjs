@@ -16,6 +16,13 @@ assert.deepEqual(statedBlockers("Split from #1.\r\nBlocked by #2.\r\n"), [2]);
 // A soft-wrapped sentence keeps its later blockers; a paragraph break ends it.
 assert.deepEqual(statedBlockers("Blocked by #721 and\n#722."), [721, 722]);
 assert.deepEqual(statedBlockers("Blocked by #721\r\n\r\n#722 is related."), [721]);
+// A list item, heading, quote or table row starts its own block.
+assert.deepEqual(statedBlockers("- Blocked by #721\n- #722 is related"), [721]);
+assert.deepEqual(statedBlockers("1. Blocked by #721\n2) #722 is related"), [721]);
+assert.deepEqual(statedBlockers("> Blocked by #721\n## #722 notes"), [721]);
+// "Blocked by" counts only at the start of a sentence.
+assert.deepEqual(statedBlockers("This Task is not Blocked by #5. Blocked by #6."), [6]);
+assert.deepEqual(statedBlockers("Dependencies: Blocked by #7."), [7]);
 // A full stop followed by a capital letter ends the sentence even without a space.
 assert.deepEqual(statedBlockers("Blocked by #721.Related note mentions #999."), [721]);
 // References and full stops inside code spans do not count.

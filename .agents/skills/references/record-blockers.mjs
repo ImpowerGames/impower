@@ -22,9 +22,11 @@ const REPO = "ImpowerGames/impower";
 export function statedBlockers(body) {
   const numbers = [];
   let fence = null;
-  // Paragraphs of prose: a soft-wrapped sentence reads as one line, as Markdown
-  // renders it, and fenced code and blank lines separate paragraphs.
+  // Blocks of prose: a soft-wrapped sentence reads as one line, as Markdown
+  // renders it. Fenced code and blank lines separate blocks, and a list item,
+  // heading, quote or table row starts one, with its marker dropped.
   const paragraphs = [[]];
+  const blockStart = /^\s*(?:[-*+]\s+|\d+[.)]\s+|#{1,6}\s+|>\s*|\|)/;
   for (const line of body.replace(/\r\n/g, "\n").split("\n")) {
     const mark = /^ {0,3}(`{3,}|~{3,})/.exec(line);
     if (mark) {
@@ -34,13 +36,17 @@ export function statedBlockers(body) {
       continue;
     }
     if (fence) continue;
+    const marker = blockStart.exec(line);
     if (line.trim() === "") paragraphs.push([]);
+    else if (marker) paragraphs.push([line.slice(marker[0].length).trim()]);
     else paragraphs.at(-1).push(line.trim());
   }
   for (const lines of paragraphs) {
     // Code spans are blanked, so neither a reference nor a full stop inside one counts.
     const text = lines.join(" ").replace(/(`+)[^`]*?\1/g, (span) => " ".repeat(span.length));
-    const pattern = /\bBlocked by\b/g;
+    // "Blocked by" counts only where a sentence starts: at the start of the
+    // block, or after a full stop, question mark, exclamation mark or colon.
+    const pattern = /(?<=^\s*|[.!?:]\s+)Blocked by\b/g;
     let match;
     while ((match = pattern.exec(text))) {
       // The sentence runs to the first full stop outside parentheses that is
