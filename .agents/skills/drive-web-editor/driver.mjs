@@ -490,7 +490,13 @@ async function down() {
 // a near-full C: silently corrupts a fresh worktree's node_modules, a missing
 // Playwright browser only surfaces after the 5-minute dev-server build, and a
 // logged-out gh only surfaces when you try to open the PR at the very end.
-async function preflight() {
+// `--tooling-only` is for a worktree with nothing to boot and no install: it
+// keeps the disk, gh and git checks and reports the browser and install
+// probes as skipped rather than failing on a dependency that is absent by design.
+async function preflight(args = []) {
+  const unknown = args.filter((arg) => arg !== "--tooling-only");
+  if (unknown.length) die(`preflight takes only --tooling-only; got ${unknown.join(" ")}`);
+  const toolingOnly = args.includes("--tooling-only");
   let ok = true;
   const say = (good, label, detail) => {
     if (!good) ok = false;
@@ -504,7 +510,8 @@ async function preflight() {
     free == null ? "could not measure" : `${(free / 1e9).toFixed(1)} GB free (need ~6 GB for a fresh worktree install)`,
   );
 
-  try {
+  if (toolingOnly) console.log("SKIP  playwright chromium  — --tooling-only: nothing to boot");
+  else try {
     const { chromium } = await importPlaywright();
     const executablePath = resolveChromiumExecutablePath(chromium);
     const b = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
@@ -517,8 +524,11 @@ async function preflight() {
   say(await cmdOk("gh", ["auth", "status"]), "gh auth", "needed to read the issue and open the PR");
   say(await cmdOk("git", ["rev-parse", "--git-dir"]), "git repo", REPO_ROOT);
 
-  const install = await installHealth();
-  say(install.ok, "node_modules", install.detail);
+  if (toolingOnly) console.log("SKIP  node_modules  — --tooling-only: no install needed");
+  else {
+    const install = await installHealth();
+    say(install.ok, "node_modules", install.detail);
+  }
 
   process.exitCode = ok ? 0 : 1;
 }
@@ -3618,7 +3628,7 @@ switch (cmd) {
   case "__imported__":
     break;
   case "preflight":
-    await preflight();
+    await preflight(rest);
     break;
   case "up":
     await up(rest).catch((error) => die(error.message));
@@ -3668,7 +3678,7 @@ switch (cmd) {
       [
         "usage: node .agents/skills/drive-web-editor/driver.mjs <command>",
         "",
-        "  preflight             check disk headroom, playwright, gh auth BEFORE doing work",
+        "  preflight [--tooling-only]  check disk headroom, playwright, gh auth BEFORE doing work; --tooling-only skips the browser and install probes",
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
         "  status                is it up? prints the editor URL",
         "  down                  kill the server tree",

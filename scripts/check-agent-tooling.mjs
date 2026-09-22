@@ -3,8 +3,18 @@ import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { testShell } from "../.agents/skills/drive-web-editor/redgreen.mjs";
+import { toolDirectories } from "./link-agent-skills.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+// Several checks read the skills through the discovery links, which the root
+// postinstall creates. A checkout that skipped the install has none, and those
+// checks would fail late for a reason unrelated to the change under test.
+const skillsSource = fs.realpathSync(path.join(root, ".agents", "skills"));
+const unlinked = toolDirectories.map((tool) => `${tool}/skills`).filter((link) => {
+  try { return fs.realpathSync(path.join(root, link)) !== skillsSource; }
+  catch (error) { if (error.code === "ENOENT") return true; throw error; }
+});
+if (unlinked.length) throw new Error(`Skill discovery links missing or foreign: ${unlinked.join(", ")}; run node scripts/link-agent-skills.mjs from this checkout, then rerun`);
 // The notifier installs npm dependencies in its own Windows/Linux test workflow.
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8", windowsHide: true }).split("\0").filter(Boolean).filter((f) => !f.startsWith("scripts/agent-notification-alerts/"));
 // Derived from the tracked runnable set. Update this count when adding checks;
@@ -43,7 +53,12 @@ for (const file of candidates) {
     const hint = /\.(?:json|snap|md|txt)$/i.test(file) ? "; data fixture extensions must be lowercase (.json, .snap, .md, .txt)" : "";
     console.error(`FAILED: unsupported or missing check ${file}${hint}`); failed++; continue;
   }
-  console.log(`CHECK: ${file}`);
+  // A check whose honest run time is close to the default declares its own
+  // bound in its first lines, so machine load does not turn a pass into a timeout.
+  const declared = fs.readFileSync(path.join(root, file), "utf8").split(/\r?\n/, 10).join("\n").match(/^(?:\/\/|#) agent-tooling-timeout-ms: (\d+)$/m);
+  const checkTimeoutMs = declared ? Number(declared[1]) : timeoutMs;
+  if (!Number.isSafeInteger(checkTimeoutMs) || checkTimeoutMs < 100 || checkTimeoutMs > 3600000) { console.error(`FAILED: ${file}: declared agent-tooling-timeout-ms must be an integer from 100 to 3600000`); failed++; continue; }
+  console.log(`CHECK: ${file}${declared ? `; declared timeout: ${checkTimeoutMs} ms` : ""}`);
   const started = Date.now();
   let output = "";
   const child = spawn(file.endsWith(".sh") ? bash : process.execPath, [file], { cwd: root, stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32", env });
@@ -67,7 +82,7 @@ for (const file of candidates) {
         child.stdout.destroy(); child.stderr.destroy(); child.unref();
         finish({ error: "process exit could not be confirmed", cleanupUnconfirmed: true });
       }, 10000);
-    }, timeoutMs);
+    }, checkTimeoutMs);
     child.once("error", (error) => finish({ error: error.message }));
     child.once("close", (status, signal) => finish({ status, signal }));
   });

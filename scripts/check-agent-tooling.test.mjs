@@ -9,13 +9,28 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-check-discovery-"));
 console.log(`Scratch repository: ${scratch}`);
 spawnSync("git", ["init", scratch], { windowsHide: true });
-for (const file of ["scripts/check-agent-tooling.mjs", ".agents/skills/drive-web-editor/redgreen.mjs"]) {
+for (const file of ["scripts/check-agent-tooling.mjs", "scripts/link-agent-skills.mjs", ".agents/skills/drive-web-editor/redgreen.mjs"]) {
   fs.mkdirSync(path.dirname(path.join(scratch, file)), { recursive: true });
   fs.copyFileSync(path.join(root, file), path.join(scratch, file));
 }
 const put = (name, content) => { fs.mkdirSync(path.dirname(path.join(scratch, name)), { recursive: true }); fs.writeFileSync(path.join(scratch, name), content); };
+put(".gitignore", ".claude/skills\n.codex/skills\n.github/skills\n");
 const summaryPath = path.join(scratch, "summary.md");
 const run = (extraEnv = {}) => spawnSync(process.execPath, ["scripts/check-agent-tooling.mjs"], { cwd: scratch, encoding: "utf8", windowsHide: true, timeout: 45000, env: { ...process.env, GITHUB_STEP_SUMMARY: summaryPath, ...extraEnv } });
+const unlinked = run();
+assert.notEqual(unlinked.status, 0, "missing discovery links must refuse");
+assert.match(unlinked.stderr, /Skill discovery links missing or foreign: \.claude\/skills, \.codex\/skills, \.github\/skills; run node scripts\/link-agent-skills\.mjs/);
+assert.doesNotMatch(unlinked.stdout, /^(?:Discovered|CHECK:)/m, "the refusal comes before discovery and before any check runs");
+const linked = spawnSync(process.execPath, ["scripts/link-agent-skills.mjs"], { cwd: scratch, encoding: "utf8", windowsHide: true });
+assert.equal(linked.status, 0, linked.stderr);
+// A real directory in place of one link is foreign: it does not resolve to the shared skills.
+fs.unlinkSync(path.join(scratch, ".codex", "skills"));
+put(".codex/skills/local.md", "local");
+const foreign = run();
+assert.notEqual(foreign.status, 0, "a foreign discovery link must refuse");
+assert.match(foreign.stderr, /Skill discovery links missing or foreign: \.codex\/skills; run node scripts\/link-agent-skills\.mjs/);
+fs.rmSync(path.join(scratch, ".codex", "skills"), { recursive: true });
+assert.equal(spawnSync(process.execPath, ["scripts/link-agent-skills.mjs"], { cwd: scratch, windowsHide: true }).status, 0);
 assert.notEqual(run().status, 0, "empty discovery must fail");
 for (const file of [".agents/skills/a test.test.mjs", ".agents/hooks/policy.test.mjs", ".claude/hooks/hook.test.mjs", "scripts/link-agent-skills.test.mjs"]) put(file, 'console.log("fixture passed");');
 const expected = Number(fs.readFileSync(path.join(root, "scripts/check-agent-tooling.mjs"), "utf8").match(/EXPECTED_CHECKS = (\d+)/)[1]);
@@ -60,6 +75,16 @@ assert.match(github.stdout, /DONE: .github\/scripts\/fixture.test.mjs: passed/);
 put(".github/scripts/fixture.test.mjs", 'process.exitCode = 1;');
 assert.notEqual(run().status, 0, "GitHub script failure reaches the aggregate");
 put(".github/scripts/fixture.test.mjs", 'console.log("github coverage");');
+put(".agents/skills/coverage-4.test.mjs", '// agent-tooling-timeout-ms: 30000\nsetTimeout(() => console.log("slow passed"), 4000);');
+const slow = run({ AGENT_TOOLING_TIMEOUT_MS: "2000" });
+assert.equal(slow.status, 0, slow.stderr);
+assert.match(slow.stdout, /CHECK: .agents\/skills\/coverage-4.test.mjs; declared timeout: 30000 ms/);
+assert.match(slow.stdout, /DONE: .agents\/skills\/coverage-4.test.mjs: passed/);
+put(".agents/skills/coverage-4.test.mjs", '// agent-tooling-timeout-ms: 99\nconsole.log("fixture passed");');
+const badBound = run();
+assert.notEqual(badBound.status, 0, "an out-of-range declared bound fails");
+assert.match(badBound.stderr, /FAILED: .agents\/skills\/coverage-4.test.mjs: declared agent-tooling-timeout-ms must be an integer from 100 to 3600000/);
+put(".agents/skills/coverage-4.test.mjs", 'console.log("fixture passed");');
 const hungFile = ".agents/hooks/policy.test.mjs";
 put(".agents/skills/after-abort.test.py", "pass");
 spawnSync("git", ["add", ".agents/skills/after-abort.test.py"], { cwd: scratch, windowsHide: true });
