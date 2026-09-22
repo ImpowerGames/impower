@@ -1,0 +1,46 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`spaced \`>\` break > a lone \`>\` shows an empty box and waits for a click 1`] = `
+[
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-1",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-1",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-2",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [],
+      "target": "action",
+    },
+  },
+]
+`;
