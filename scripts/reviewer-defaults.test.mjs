@@ -29,6 +29,34 @@ assert.equal(pick({ writer: "claude-opus-5", writerEffort: "xhigh", ticketEffort
 assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "medium", reviewerIndex: 1 }), /reviewerIndex must be from 0 through 0/);
 assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "medium", reviewerIndex: null }), /reviewerIndex must be from 0 through 0/, "a null index is refused rather than read as the first reviewer");
 assert.throws(() => pick({ writer: "claude-opus-5" }), /writerEffort/, "the writer's effort remains a required input");
+// Every writer in the table resolves at every effort its runner accepts.
+for (const writer of new Set(defaults.rows.map((row) => row.writer))) {
+  for (const writerEffort of writer.startsWith("claude-") ? ["low", "medium", "high", "xhigh", "max"] : ["low", "medium", "high", "xhigh", "max", "ultra"]) {
+    const tiers = defaults.rows.filter((row) => row.writer === writer && row.writerEffort === writerEffort).map((row) => row.ticketEffort);
+    assert.ok(tiers.length, `${writer} at ${writerEffort} has a row`);
+    assert.doesNotThrow(() => pick({ writer, writerEffort, ticketEffort: tiers[0] }), `${writer} at ${writerEffort}`);
+  }
+}
+assert.equal(pick({ writer: "claude-opus-5", writerEffort: "max" }), "gpt-6-astra/xhigh");
+assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max" }), "gpt-6-astra/xhigh");
+// A ticket tier with no row at the writer's effort falls back to that tier's
+// row at the nearest writer effort, and the selection says so.
+const tierMatch = resolveReviewer({ writer: "claude-opus-5", writerEffort: "low", ticketEffort: "medium" }, root);
+assert.deepEqual([tierMatch.reviewer, tierMatch.rowWriterEffort, tierMatch.matchedOn], ["gpt-5.6-sol", "medium", "ticketEffort"]);
+assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium" }, root).matchedOn, "writerEffort");
+// Two rows of the tier equally near the session effort: the higher one wins.
+const tieRoot = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-tie-"));
+fs.mkdirSync(path.join(tieRoot, ".claude"));
+fs.writeFileSync(path.join(tieRoot, ".claude", "reviewer-models.json"), JSON.stringify([{ name: "reviewer-t", model: "claude-t" }]));
+const tieRow = (writerEffort, ticketEffort, effort) => ({ ticketEffort, writer: "claude-w", writerEffort, primary: [{ route: "gpt-t", effort }], fallback: [{ route: "claude-t", effort }] });
+fs.writeFileSync(path.join(tieRoot, ".claude", "reviewer-defaults.json"), JSON.stringify({ codexModels: ["gpt-t"], rows: [
+  ...["low", "medium", "high", "xhigh", "max"].map((writerEffort) => tieRow(writerEffort, "medium", "medium")),
+  tieRow("low", "high", "low"), tieRow("high", "high", "high"),
+] }));
+const tie = resolveReviewer({ writer: "claude-w", writerEffort: "medium", ticketEffort: "high" }, tieRoot);
+assert.deepEqual([tie.reviewerEffort, tie.rowWriterEffort, tie.matchedOn], ["high", "high", "ticketEffort"], "a tie between low and high resolves to the high row");
+fs.rmSync(tieRoot, { recursive: true, force: true });
+assert.throws(() => pick({ writer: "gpt-5.6-terra", writerEffort: "medium", ticketEffort: "correctness-critical" }), /No reviewer default for gpt-5.6-terra at medium effort for a correctness-critical ticket/);
 assert.throws(() => pick({ writer: "claude-haiku-4-5", writerEffort: "medium" }), /No reviewer default/);
 assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "claude-opus-4-6" }, root).reviewer, "claude-opus-4-6", "an explicit reviewer bypasses the table");
 for (const writerEffort of [undefined, "bogus"]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort, reviewer: "gpt-5.6-sol" }, root), /writerEffort/, "an explicit reviewer still requires a valid writer effort");
@@ -40,7 +68,14 @@ for (const selector of [{ reviewerEffort: "high" }, { reviewerFallback: true }, 
 // Schema refusals.
 const models = [{ name: "reviewer-a", model: "claude-a" }];
 const row = (extra) => ({ ticketEffort: "medium", writer: "claude-w", writerEffort: "medium", primary: [{ route: "gpt-1-x", effort: "high" }], fallback: [{ route: "claude-a", effort: "high" }], ...extra });
-assert.doesNotThrow(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [row()] }, models));
+const covered = (writer, efforts, extra) => efforts.map((writerEffort) => row({ writer, writerEffort, ...extra }));
+const claudeEfforts = ["low", "medium", "high", "xhigh", "max"];
+assert.doesNotThrow(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: covered("claude-w", claudeEfforts) }, models));
+assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: covered("claude-w", claudeEfforts.slice(0, 4)) }, models), /No reviewer default row for claude-w at max effort/);
+const codexRow = { primary: [{ route: "claude-a", effort: "high" }], fallback: [{ route: "gpt-1-x", effort: "high" }] };
+assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x", "gpt-1-w"], rows: [...covered("claude-w", claudeEfforts), ...covered("gpt-1-w", claudeEfforts, codexRow)] }, models), /No reviewer default row for gpt-1-w at ultra effort/);
+assert.doesNotThrow(() => validateReviewerDefaults({ codexModels: ["gpt-1-x", "gpt-1-w"], rows: [...covered("claude-w", claudeEfforts), ...covered("gpt-1-w", [...claudeEfforts, "ultra"], codexRow)] }, models));
+assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [...covered("claude-w", claudeEfforts), row({ writerEffort: "ultra", ticketEffort: "high" })] }, models), /unsupported writer or ticket effort/, "a Claude writer row cannot use ultra");
 assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [row({ writer: "claude-a" })] }, models), /names the writer as its own reviewer/);
 assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [row({ primary: [{ route: "claude-unregistered", effort: "high" }] })] }, models), /neither a registered reviewer definition/);
 assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [row({ fallback: [{ route: "gpt-1-x", effort: "high" }] })] }, models), /fallback must stay with the writer's vendor/);
@@ -69,8 +104,8 @@ const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "u
 const table = {
   codexModels: ["gpt-fixture-writer", "gpt-fixture-reviewer"],
   rows: [
-    { ticketEffort: "medium", writer: "claude-fixture-writer", writerEffort: "medium", primary: [{ route: "gpt-fixture-reviewer", effort: "high" }], fallback: [{ route: "claude-fixture-reviewer", effort: "xhigh" }] },
-    { ticketEffort: "medium", writer: "gpt-fixture-writer", writerEffort: "medium", primary: [{ route: "claude-fixture-reviewer", effort: "high" }], fallback: [{ route: "gpt-fixture-reviewer", effort: "medium" }] },
+    ...claudeEfforts.map((writerEffort) => ({ ticketEffort: "medium", writer: "claude-fixture-writer", writerEffort, primary: [{ route: "gpt-fixture-reviewer", effort: "high" }], fallback: [{ route: "claude-fixture-reviewer", effort: "xhigh" }] })),
+    ...[...claudeEfforts, "ultra"].map((writerEffort) => ({ ticketEffort: "medium", writer: "gpt-fixture-writer", writerEffort, primary: [{ route: "claude-fixture-reviewer", effort: "high" }], fallback: [{ route: "gpt-fixture-reviewer", effort: "medium" }] })),
   ],
 };
 const commitConfig = () => {
@@ -102,7 +137,7 @@ let result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "me
 assert.match(result.error.message, /posted comment IDs/, "the resolved reviewer launches before the fixture's empty report is rejected");
 assert.equal(result.launching.model, "claude-fixture-reviewer");
 assert.equal(result.launching.reviewerEffort, "high");
-assert.deepEqual(result.launching.reviewerResolved, { writerEffort: "medium", ticketEffort: "medium", fallback: false, index: 0 });
+assert.deepEqual(result.launching.reviewerResolved, { writerEffort: "medium", rowWriterEffort: "medium", matchedOn: "writerEffort", ticketEffort: "medium", fallback: false, index: 0 });
 assert.deepEqual(result.launching.args, [child, "--agent", "reviewer-fixture", "--effort", "high"]);
 
 // Claude writer, fallback column: the same-vendor reviewer is selected.
@@ -124,13 +159,13 @@ assert.equal(result.launching.reviewerResolved, undefined);
 const printedPlan = path.join(scratch, "printed-plan.json");
 fs.writeFileSync(printedPlan, JSON.stringify(plan({ writer: "gpt-fixture-writer", writerEffort: "medium" })));
 const printed = execFileSync(process.execPath, [path.join(root, "scripts", "reviewer-defaults.mjs"), printedPlan], { encoding: "utf8", windowsHide: true });
-assert.deepEqual(JSON.parse(printed), { reviewer: "claude-fixture-reviewer", reviewerEffort: "high", agent: "reviewer-fixture", ticketEffort: "medium", fallback: false, index: 0 });
+assert.deepEqual(JSON.parse(printed), { reviewer: "claude-fixture-reviewer", reviewerEffort: "high", agent: "reviewer-fixture", ticketEffort: "medium", rowWriterEffort: "medium", matchedOn: "writerEffort", fallback: false, index: 0 });
 
 // Refusals happen before any journal or process exists.
 for (const [fields, step, pattern] of [
   [{ writer: "gpt-fixture-writer" }, {}, /writerEffort/],
   [{ writer: "gpt-fixture-writer", reviewer: "explicit-reviewer" }, { model: "explicit-reviewer", args: [child, "--model", "explicit-reviewer"] }, /writerEffort/],
-  [{ writer: "gpt-fixture-writer", writerEffort: "low" }, {}, /No reviewer default/],
+  [{ writer: "gpt-unlisted-writer", writerEffort: "low" }, {}, /No reviewer default/],
   [{ writer: "gpt-fixture-writer", writerEffort: "medium" }, { model: "claude-fixture-reviewer" }, /must not declare its own model/],
   [{ writer: "gpt-fixture-writer", writerEffort: "medium" }, { args: [child, "--effort", "low"] }, /must not select its own model or effort/],
   [{ writer: "claude-fixture-writer", writerEffort: "medium" }, {}, /needs a Codex exec reviewer step/],
