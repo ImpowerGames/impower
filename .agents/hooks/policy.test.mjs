@@ -24,6 +24,16 @@ const writeHazards = [
   [event("Bash", { command: `[IO.File]::WriteAllText('C:${bs}w${bs}a.ts', $t); [IO.File]::ReadAllText("/tmp/a")` }), false],
   [event("Bash", { command: `$w = "C:/w"; [System.IO.File]::WriteAllText("$w/a.ts", $t); [IO.File]::ReadAllText((Join-Path $PWD 'a'))` }), false],
   [event("Bash", { command: `Get-ChildItem | % { [IO.File]::ReadAllText($_.FullName) }` }), false],
+  // Review round 1 (PR #754): expression arguments, text that only looks like a call, variable roots.
+  [event("Bash", { command: `[IO.File]::WriteAllText((Join-Path 'packages' 'a.ts'), $t)` }), true],
+  [event("Bash", { command: `[IO.File]::WriteAllText(('packages/a.ts'), $t)` }), true],
+  [event("Bash", { command: "[IO.File]::WriteAllText( `\n  'packages/a.ts', $t)" }), true],
+  [event("Bash", { command: `# [IO.File]::ReadAllText('a.ts')\ngit status` }), false],
+  [event("Bash", { command: `$body = @"\n[IO.File]::WriteAllText('a.ts', $t)\n"@\nSet-Content -Path (Join-Path $PWD 'notes.md') -Value $body` }), false],
+  [event("Bash", { command: `Write-Output '[IO.File]::WriteAllText(''rel.ts'', $t)'` }), false],
+  [event("Bash", { command: `$w = "$env:TEMP/x.ts"; [IO.File]::WriteAllText($w, $t)` }), false],
+  [event("Bash", { command: `$r = "C:/w"; $w = "$r/a.ts"; [IO.File]::WriteAllText($w, $t)` }), false],
+  [event("Bash", { command: `$r = "src"; $w = "$r/a.ts"; [IO.File]::WriteAllText($w, $t)` }), true],
 ];
 const checks = [
   [event("Bash", { command: "git stash pop" }), true],
