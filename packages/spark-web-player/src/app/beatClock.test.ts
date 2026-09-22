@@ -71,13 +71,15 @@ const makePage = (outputLatency: number) => {
   };
 };
 
+/** A start shaped as the game sends a line's voice: no `now`, so it would
+ *  wait for a cue on a player that has one. */
 const updateAudio = (
   time: number,
   update: Partial<AudioPlayerUpdate> = {},
 ) =>
   UpdateAudioPlayersMessage.type.request({
     channel: "voice",
-    updates: [{ control: "start", key: "line", now: true, ...update }],
+    updates: [{ control: "start", key: "line", ...update }],
     time,
   });
 
@@ -224,6 +226,16 @@ describe("a stamped audio update handled late", () => {
     expect(offset).toBe(0.5);
   });
 
+  it("starts a late `now` start that far into its sound too", async () => {
+    const page = makePage(0);
+    const stamp = page.now() + 10;
+    page.advance(50);
+    await page.audio.onReceiveRequest(updateAudio(stamp, { now: true }));
+    const [when, , , offset] = page.player.start.mock.calls[0]!;
+    expect(when).toBeCloseTo(page.context.currentTime, 9);
+    expect(offset).toBeCloseTo(0.04, 9);
+  });
+
   it("adds the lateness past a delayed start to the sound's own offset", async () => {
     const page = makePage(0);
     const stamp = page.now() + 10;
@@ -243,7 +255,7 @@ describe("a stamped audio update handled late", () => {
     page.player.getNextCueTime = cueFrom;
     const stamp = page.now() + 10;
     page.advance(50);
-    await page.audio.onReceiveRequest(updateAudio(stamp, { now: false }));
+    await page.audio.onReceiveRequest(updateAudio(stamp));
     const [when, , , offset] = page.player.start.mock.calls[0]!;
     expect(cueFrom).toHaveBeenCalledWith(page.context.currentTime);
     expect(when).toBeCloseTo(page.context.currentTime + 0.25, 9);

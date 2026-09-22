@@ -297,13 +297,14 @@ export default class AudioManager extends Manager {
   ) {
     const updateTime = startTime + (update.after ?? 0);
     const lateness = Math.max(0, currentTime - updateTime);
-    const when = update.now
-      ? updateTime + lateness
-      : audioPlayer.getNextCueTime(updateTime + lateness);
+    const due = updateTime + lateness;
+    const when = update.now ? due : audioPlayer.getNextCueTime(due);
     const over = update.over;
     const gain = update.to;
+    // A start that plays when it is due, rather than at a later cue, is that
+    // far into its sound.
     const at =
-      update.now && lateness > 0 ? (update.at ?? 0) + lateness : update.at;
+      lateness > 0 && when === due ? (update.at ?? 0) + lateness : update.at;
     if (update.loop != null) {
       audioPlayer.loop = update.loop;
     }
