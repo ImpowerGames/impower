@@ -52,6 +52,7 @@ import {
   sessionDir,
   launchEditorBrowser,
   PROFILE_CLAIM_FILE,
+  PROFILE_LOCK_STALE_MS,
   stopLinuxTree,
 } from "./driver.mjs";
 
@@ -379,7 +380,20 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
     const claim = JSON.parse(fs.readFileSync(path.join(dir, PROFILE_CLAIM_FILE), "utf8"));
     assert.equal(typeof claim.at, "number");
-    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE + ".tmp")), false);
+    assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE], "the claim left a temporary or lock file behind");
+    // A launch that finds another's lock is refused, whatever the claim says,
+    // so two launches at once cannot both pass the check; a stale lock is
+    // taken over.
+    fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
+    const lock = path.join(dir, PROFILE_CLAIM_FILE + ".lock");
+    fs.writeFileSync(lock, "");
+    await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /another launch is claiming/);
+    assert.ok(fs.existsSync(lock), "a refused launch removed another launch's lock");
+    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false, "a refused launch wrote a claim");
+    const old = (Date.now() - PROFILE_LOCK_STALE_MS - 5_000) / 1000;
+    fs.utimesSync(lock, old, old);
+    assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
+    assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE]);
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
   }

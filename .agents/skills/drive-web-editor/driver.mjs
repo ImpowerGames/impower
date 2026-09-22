@@ -105,22 +105,47 @@ export function profileClaimConflict(claim, session = SESSION, now = Date.now(),
 // A claim that is there but does not parse counts as another session's
 // fresh claim, so a damaged file refuses the launch rather than clearing the
 // guard; the claim is renamed into place so no reader sees a partial file.
+// Reading, checking and writing the claim happen while holding a lock file
+// created exclusively, so two launches at once cannot both pass the check:
+// the one that finds the lock taken is refused. A lock older than
+// PROFILE_LOCK_STALE_MS is left by a launch that died mid-claim (the claim
+// itself takes milliseconds) and is taken over.
+export const PROFILE_LOCK_STALE_MS = 30_000;
 export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now() } = {}) {
   const file = path.join(dir, PROFILE_CLAIM_FILE);
-  let claim = null;
-  if (fs.existsSync(file)) {
-    try {
-      claim = JSON.parse(fs.readFileSync(file, "utf8"));
-    } catch {
-      throw new Error(`profile claim ${file} cannot be read, so whether another session is using ${dir} is unknown; delete the file once no other session is driving this profile`);
-    }
-  }
-  const conflict = profileClaimConflict(claim, session, now, dir);
-  if (conflict) throw new Error(conflict);
+  const lock = file + ".lock";
   fs.mkdirSync(dir, { recursive: true });
-  const tmp = file + ".tmp";
-  fs.writeFileSync(tmp, JSON.stringify({ session, at: now }));
-  fs.renameSync(tmp, file);
+  let fd;
+  try {
+    fd = fs.openSync(lock, "wx");
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    let age = 0;
+    try {
+      age = now - fs.statSync(lock).mtimeMs;
+    } catch {}
+    if (age <= PROFILE_LOCK_STALE_MS) throw new Error(`another launch is claiming browser profile ${dir} right now (${lock} exists); use your own profile, or retry once it has finished`);
+    fs.rmSync(lock, { force: true });
+    fd = fs.openSync(lock, "wx");
+  }
+  try {
+    let claim = null;
+    if (fs.existsSync(file)) {
+      try {
+        claim = JSON.parse(fs.readFileSync(file, "utf8"));
+      } catch {
+        throw new Error(`profile claim ${file} cannot be read, so whether another session is using ${dir} is unknown; delete the file once no other session is driving this profile`);
+      }
+    }
+    const conflict = profileClaimConflict(claim, session, now, dir);
+    if (conflict) throw new Error(conflict);
+    const tmp = `${file}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ session, at: now }));
+    fs.renameSync(tmp, file);
+  } finally {
+    fs.closeSync(fd);
+    fs.rmSync(lock, { force: true });
+  }
 }
 
 // A record names the session that launched its servers. `down` in another
