@@ -43,7 +43,7 @@ assert.notEqual(aggregate({ files: [file, "unfinished.test.ts"], attempts: [
 ] }).status, "passed");
 console.log("PASS: durable runner rejects incomplete suite and exit-zero partial evidence");
 
-const { acquire, reservationState, processIdentity, read, atomic, windowsVitestProcesses } = await import("./test-suite-process.mjs");
+const { acquire, reservationState, processIdentity, read, atomic, windowsVitestProcesses, vitestProcesses } = await import("./test-suite-process.mjs");
 const { execute, status } = await import("./test-suite.mjs");
 const { fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } = await import("./test-suite-identity.mjs");
 assert.equal(isWithinDirectory("C:\\repo\\.git","D:\\journal",path.win32),false,"cross-volume journals are outside the Git directory");
@@ -58,6 +58,9 @@ assert.deepEqual(windowsVitestProcesses('[]'),[]);
 assert.deepEqual(windowsVitestProcesses(''),[]);
 assert.deepEqual(windowsVitestProcesses('[{"ProcessId":123,"CommandLine":null}]',124),[123]);
 assert.throws(()=>windowsVitestProcesses('{"ProcessId":123}'),/Malformed/);
+const mixedCensus='[{"ProcessId":1,"CommandLine":"node vitest C:\\\\Scratch\\\\run"},{"ProcessId":2,"CommandLine":"node vitest D:\\\\other"},{"ProcessId":3,"CommandLine":null}]';
+assert.deepEqual(windowsVitestProcesses(mixedCensus,9,{within:"c:\\scratch"}),[1]);
+assert.deepEqual(windowsVitestProcesses(mixedCensus,9),[1,2,3]);
 const owner = { pid: 42, start: "first" }, child = { pid: 43, start: "second" };
 assert.equal(reservationState({ owner, phase: "running", child }, pid => pid === 43 ? child : null), "running");
 assert.equal(reservationState({ owner, phase: "launching" }, () => null), "unknown");
@@ -324,8 +327,10 @@ else {
   realGit(["add","."]);
   fs.writeFileSync(path.join(real,"src","untracked.test.ts"),testSource);
   const realDirectory=path.join(real,".git","run");
-  // Real children use the production machine reservation. Only the expensive
-  // full-install identity scan is replaced; dirty/dependency identity is tested above.
+  // Real children run under a scratch reservation, and the census sees only
+  // processes naming this scratch repository, so other sessions' suites on the
+  // same machine cannot fail the fixture. The expensive full-install identity
+  // scan is replaced; dirty/dependency identity is tested above.
   // Model a package that provides Vitest but no unrelated hoisted glob library.
   // Vitest's own declared dependencies remain available through their importers.
   const isolatedEngine=path.join(real,".git","isolated-engine.mjs");
@@ -338,7 +343,7 @@ Module._resolveFilename=function(request,parent,...rest) {
   return resolve.call(this,request,parent,...rest);
 };
 await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href)});`);
-  const realOptions={directory:realDirectory,packageRoot:real,enginePath:isolatedEngine,fingerprint:()=>"fixed fixture inputs"};
+  const realOptions={directory:realDirectory,packageRoot:real,enginePath:isolatedEngine,root:path.join(real,".git","reservation"),census:()=>vitestProcesses({within:real}),fingerprint:()=>"fixed fixture inputs"};
   const result=await execute(realOptions);
   assert.equal(result.status,"passed",JSON.stringify(result));
   assert.equal(result.expected,3);

@@ -308,9 +308,29 @@ export function preview(plan) {
   });
 }
 
-function summaryText(plan, marker, rows, filed, applied, removed, observations = '') {
+function summaryText(plan, marker, rows, filed, applied, removed, observations = '', elsewhere = []) {
   const history = [...historicalTargets(plan.body, rows)];
-  return `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${rows.some(row => row.status === 'open') ? ` Deferred: ${rows.filter(row => row.status === 'open').map(row => `${literalDisplay(rowKey(row))} (${reportCount(row)})`).join('; ')}.` : ''}${observations ? `\n\nApplied unclassified observations: ${literalDisplay(observations)}` : ''}${history.length ? `\n<!-- skill-feedback-history:v1 ${Buffer.from(JSON.stringify(history)).toString('base64')} -->` : ''}`;
+  return `${marker}\nFolded ${plan.comments.length} intake comments (${plan.comments.map(c => c.id).join(', ') || 'none'}); filed or linked ${filed.join(', ') || 'none'}; applied ${applied.join(', ') || 'none'}; removed ${removed.map(literalDisplay).join('; ') || 'none'}; left unparsed comments ${(plan.ignored || []).map(c => c.id).join(', ') || 'none'} intact (reasons in the plan); left marker-prefixed comments ${(plan.skipped || []).map(c => c.id).join(', ') || 'none'} intact (inspect skipped IDs and bodies in the plan).${elsewhere.length ? ` Left under another parent: ${elsewhere.join(', ')}.` : ''}${rows.some(row => row.status === 'open') ? ` Deferred: ${rows.filter(row => row.status === 'open').map(row => `${literalDisplay(rowKey(row))} (${reportCount(row)})`).join('; ')}.` : ''}${observations ? `\n\nApplied unclassified observations: ${literalDisplay(observations)}` : ''}${history.length ? `\n<!-- skill-feedback-history:v1 ${Buffer.from(JSON.stringify(history)).toString('base64')} -->` : ''}`;
+}
+
+// Attaches every open Task the table points at to the inbox, then confirms the inbox's sub-issue list.
+// An issue can have one parent, so an issue under another parent stays there and is reported instead of moved.
+async function attachToInbox(api, rows) {
+  const numbers = [...new Set(rows.filter(row => row.status.startsWith('ticketed')).map(row => Number(row.status.match(/#(\d+)/)[1])))];
+  const listed = async () => new Set((await api.subIssues()).map(issue => issue.number));
+  const attached = await listed();
+  const elsewhere = new Map();
+  for (const number of numbers) {
+    if (attached.has(number)) continue;
+    const issue = await api.issue(number);
+    const parent = issue.parent_issue_url?.match(/\/repos\/([^/]+\/[^/]+)\/issues\/(\d+)$/);
+    if (issue.parent_issue_url && !(parent?.[1] === REPO && Number(parent[2]) === INBOX)) { elsewhere.set(number, `#${number} (parent ${parent ? `${parent[1]}#${parent[2]}` : issue.parent_issue_url})`); continue; }
+    if (!issue.parent_issue_url) await api.addSubIssue(issue.id);
+  }
+  const confirmed = await listed();
+  const missing = numbers.filter(number => !confirmed.has(number) && !elsewhere.has(number));
+  if (missing.length) throw new Error(`${missing.map(number => `#${number}`).join(', ')} is not listed as a sub-issue of #${INBOX} after attaching; no intake deleted. Inspect the sub-issue list and retry the same plan.`);
+  return [...elsewhere.values()];
 }
 
 // The adapter makes persistence ordering testable without touching GitHub.
@@ -373,7 +393,8 @@ export async function applyPlan(plan, api) {
     const projectedVisible = projectedRows.filter(row => { const number = row.status.match(/#(\d+)/)?.[1]; return !(row.status.startsWith('ticketed') && plan.references?.issues[number]?.state === 'closed') && !(row.status.startsWith('applied') && plan.references?.prs[number]?.merged_at); });
     const projectedBody = renderTable(stripSummaryBlocks(plan.body), projectedVisible, projectedRows, liveLedger, true);
     parseTable(Buffer.from(projectedBody, 'utf8').toString('utf8'), projected);
-    const projectedSummary = summaryText(plan, marker, projectedRows, projectedFiled, projectedApplied, projectedRows.map(row => row.problemId ? `${row.problemId} (${row.skill})` : row.skill), description(appliedLegacy));
+    const projectedElsewhere = projectedRows.filter(row => row.status.startsWith('ticketed')).map(() => `#${Number.MAX_SAFE_INTEGER} (parent ${REPO}#${Number.MAX_SAFE_INTEGER})`);
+    const projectedSummary = summaryText(plan, marker, projectedRows, projectedFiled, projectedApplied, projectedRows.map(row => row.problemId ? `${row.problemId} (${row.skill})` : row.skill), description(appliedLegacy), projectedElsewhere);
     // Count every possible removal as an upper bound; actual Task numbers are no longer than MAX_SAFE_INTEGER.
     // 512 covers the compact archive pointer and integrity marker, independently of report/comment counts.
     if (projectedBody.length + projectedSummary.length + 512 > 50000) throw new Error('Inbox table needs consolidation before applying; its projected body exceeds the supported 50,000-character budget. No tickets or intake were changed.');
@@ -427,7 +448,9 @@ export async function applyPlan(plan, api) {
         if (parseTable(plan.body, liveLedger).rows.some(previous => rowKey(previous) === rowKey(row)) || plan.groups.some(group => group.action !== 'defer' && group.keys.includes(rowKey(row)))) removed.push(row.problemId ? `${row.problemId} (${row.skill})` : row.skill);
       } else remaining.push(row);
     }
-    summary = summaryText(plan, marker, rows, filed, applied, removed, description(appliedLegacy));
+    // Attaching before the body is written keeps a failed attachment recoverable by retrying the same plan.
+    const elsewhere = await attachToInbox(api, remaining);
+    summary = summaryText(plan, marker, rows, filed, applied, removed, description(appliedLegacy), elsewhere);
     const prior = stripSummaryBlocks(plan.body).trimEnd();
     const ledger = { ...liveLedger, ...Object.fromEntries(canonicalRows(rows).filter(row => row.problemId).map(row => [row.problemId, row])) };
     const rendered = renderTable(prior, remaining, rows, liveLedger, true);
@@ -474,6 +497,8 @@ function github(scratch) {
     inbox: () => api(`issues/${INBOX}`), comments: () => pages(`issues/${INBOX}/comments?per_page=100`),
     issues: () => pages('issues?state=all&per_page=100'), issue: number => api(`issues/${number}`), pr: number => api(`pulls/${number}`),
     issueComments: number => pages(`issues/${number}/comments?per_page=100`),
+    subIssues: () => pages(`issues/${INBOX}/sub_issues?per_page=100`),
+    addSubIssue: id => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${INBOX}/sub_issues`, '-F', `sub_issue_id=${id}`]),
     postIssueComment: (number, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues/${number}/comments`, '-F', `body=@${bodyFile(body)}`]),
     createTicket: (title, body) => gh(['api', '-X', 'POST', `repos/${REPO}/issues`, '-f', `title=${title}`, '-F', `body=@${bodyFile(body)}`, '-f', 'type=Task', '-f', 'labels[]=workflow: skills']),
     updateBody: body => execFileSync('gh', ['issue', 'edit', String(INBOX), '--repo', REPO, '--body-file', bodyFile(body)], { encoding: 'utf8', windowsHide: true }),

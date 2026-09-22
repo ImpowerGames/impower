@@ -40,6 +40,20 @@ import {
   observeLauncherExit,
   pidAlive,
   recordStands,
+  CACHE_STORAGE_SUFFIX,
+  PROFILE_CLAIM_MS,
+  SESSION_VARIABLES,
+  WINDOWS_PATH_LIMIT,
+  chooseStateFile,
+  driverSession,
+  foreignRecord,
+  profileClaimConflict,
+  profilePathProblem,
+  sessionDir,
+  launchEditorBrowser,
+  claimProfile,
+  PROFILE_CLAIM_FILE,
+  PROFILE_LOCK_STALE_MS,
   stopLinuxTree,
 } from "./driver.mjs";
 
@@ -244,7 +258,7 @@ await check("a record with no startedAt is dated by its file, and stands only wh
 // ---------------------------------------------------------- the live probe ---
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const idle = () => spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", detached: true, windowsHide: true });
+const idle = () => spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore", detached: process.platform !== "win32", windowsHide: true });
 const untilGone = async (pid, ms = 5_000) => {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
@@ -285,10 +299,131 @@ await check("the live probe reports no start for a process that has exited or a 
   }
 });
 
+// ------------------------------------------------------- session storage ---
+
+await check("the session comes from the first variable set, and none means the shared slot", () => {
+  assert.equal(driverSession({}), null);
+  assert.equal(driverSession({ CLAUDE_CODE_SESSION_ID: "b", CODEX_THREAD_ID: "c" }), "b");
+  assert.equal(driverSession({ IMPOWER_DRIVER_SESSION: "a", CLAUDE_CODE_SESSION_ID: "b" }), "a");
+  assert.deepEqual(SESSION_VARIABLES[0], "IMPOWER_DRIVER_SESSION");
+});
+
+await check("two sessions in one checkout get different directories, both short and outside the checkout", () => {
+  const env = { LOCALAPPDATA: "C:\\Users\\someone\\AppData\\Local" };
+  const root = "C:\\Users\\someone\\impower.worktrees\\refactor\\689-690-display-only-lowering";
+  const a = sessionDir({ root, session: "one", env });
+  const b = sessionDir({ root, session: "two", env });
+  const shared = sessionDir({ root, session: null, env });
+  assert.notEqual(a, b);
+  assert.equal(path.basename(shared), "shared");
+  assert.ok(!a.startsWith(root), a);
+  assert.equal(profilePathProblem(path.join(a, "profile"), "win32"), null, a);
+  assert.equal(sessionDir({ root, session: "one", env: { ...env, IMPOWER_DRIVER_HOME: "D:\\h" } }).startsWith("D:\\h"), true);
+});
+
+await check("a profile whose Cache Storage paths pass 259 characters is refused on Windows only", () => {
+  // The profile location #742 measured: 277 characters with the suffix.
+  const deep = "C:\\Users\\Lovelle\\Documents\\GitHub\\impower.worktrees\\refactor\\689-690-display-only-lowering\\.agents\\skills\\drive-web-editor\\.chrome-profile";
+  assert.ok(deep.length + CACHE_STORAGE_SUFFIX > WINDOWS_PATH_LIMIT);
+  assert.match(profilePathProblem(deep, "win32"), /too deep.*past Windows' 259/);
+  assert.equal(profilePathProblem(deep, "linux"), null);
+  const edge = "C:\\" + "p".repeat(WINDOWS_PATH_LIMIT - CACHE_STORAGE_SUFFIX - 3);
+  assert.equal(profilePathProblem(edge, "win32"), null);
+  assert.ok(profilePathProblem(edge + "q", "win32"));
+});
+
+await check("a profile claimed by another session in the last 30 min is refused; its own, an old or no claim is not", () => {
+  const now = 10 * PROFILE_CLAIM_MS;
+  assert.equal(profileClaimConflict(null, "me", now), null);
+  assert.equal(profileClaimConflict({ session: "me", at: now - 1000 }, "me", now), null);
+  assert.equal(profileClaimConflict({ session: "other", at: now - PROFILE_CLAIM_MS - 1 }, "me", now), null);
+  assert.match(profileClaimConflict({ session: "other", at: now - 5 * 60_000 }, "me", now), /opened 5 min ago by another session \(other\)/);
+  assert.match(profileClaimConflict({ session: null, at: now }, "me", now), /no session identity/);
+  assert.equal(profileClaimConflict({ session: null, at: now }, null, now), null);
+});
+
+await check("a record names its session; only a record with a different session is foreign", () => {
+  assert.equal(foreignRecord(null, "me"), false);
+  assert.equal(foreignRecord({ pid: 1 }, "me"), false);
+  assert.equal(foreignRecord({ pid: 1, session: "me" }, "me"), false);
+  assert.equal(foreignRecord({ pid: 1, session: "other" }, "me"), true);
+  assert.equal(foreignRecord({ pid: 1, session: null }, "me"), true);
+  assert.equal(foreignRecord({ pid: 1, session: null }, null), false);
+});
+
+await check("the session's own record wins over one beside the driver, which is used only when it alone exists", () => {
+  const own = "own/state.json";
+  const legacy = () => "legacy/.state.json";
+  assert.equal(chooseStateFile(own, legacy, () => false), own);
+  assert.equal(chooseStateFile(own, legacy, (f) => f === "legacy/.state.json"), "legacy/.state.json");
+  assert.equal(chooseStateFile(own, legacy, () => true), own);
+});
+
+await check("the browser launch refuses a too-deep or claimed profile before Playwright loads, and claims a free one", async () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "launch-"));
+  try {
+    let loaded = 0;
+    const playwright = async () => {
+      loaded++;
+      return { chromium: { executablePath: () => process.execPath, launchPersistentContext: async (dir) => ({ dir }) } };
+    };
+    const deep = path.join(base, "d".repeat(WINDOWS_PATH_LIMIT));
+    await assert.rejects(launchEditorBrowser({ headless: true, dir: deep, platform: "win32", playwright }), /too deep/);
+    assert.equal(fs.existsSync(deep), false, "a refused profile was created");
+    const dir = path.join(base, "p");
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, PROFILE_CLAIM_FILE), JSON.stringify({ session: "someone-else", at: Date.now() }));
+    await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /another session \(someone-else\)/);
+    fs.writeFileSync(path.join(dir, PROFILE_CLAIM_FILE), '{"session":');
+    await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /cannot be read/);
+    assert.equal(loaded, 0, "Playwright loaded for a refused profile");
+    fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
+    assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
+    const claim = JSON.parse(fs.readFileSync(path.join(dir, PROFILE_CLAIM_FILE), "utf8"));
+    assert.equal(typeof claim.at, "number");
+    assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE], "the claim left a temporary or lock file behind");
+    // A launch that finds another's lock is refused, whatever the claim says,
+    // so two launches at once cannot both pass the check; a stale lock is
+    // taken over.
+    fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
+    const lock = path.join(dir, PROFILE_CLAIM_FILE + ".lock");
+    fs.writeFileSync(lock, "");
+    await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /another launch is claiming/);
+    assert.ok(fs.existsSync(lock), "a refused launch removed another launch's lock");
+    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false, "a refused launch wrote a claim");
+    const age = (ms) => {
+      const when = (Date.now() - ms) / 1000;
+      fs.utimesSync(lock, when, when);
+    };
+    fs.writeFileSync(lock, "first-holder");
+    age(PROFILE_LOCK_STALE_MS + 5_000);
+    assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
+    assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE]);
+    // A stale lock another launch replaced between the read and the removal
+    // is not removed, and its new holder is left to finish.
+    fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
+    fs.writeFileSync(lock, "stale-holder");
+    age(PROFILE_LOCK_STALE_MS + 5_000);
+    assert.throws(() => claimProfile(dir, { session: "me", beforeTakeover: () => fs.writeFileSync(lock, "newer-holder") }), /is held/);
+    assert.equal(fs.readFileSync(lock, "utf8"), "newer-holder", "the takeover removed a lock it had not read");
+    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false);
+    // A holder stalled past the takeover window writes nothing: the lock it
+    // reads back belongs to whoever took it over.
+    fs.rmSync(lock);
+    assert.throws(() => claimProfile(dir, { session: "me", beforeWrite: () => fs.writeFileSync(lock, "took-over") }), /is held/);
+    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false, "a holder that lost its lock still wrote a claim");
+    assert.equal(fs.readFileSync(lock, "utf8"), "took-over", "a holder that lost its lock removed the new holder's lock");
+    assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE + ".lock"], "a refused claim left a temporary file behind");
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
 // ------------------------------------------------------------ the commands ---
 //
 // A copy of the driver laid out as `.agents/skills/drive-web-editor/` under a
-// scratch repository root beside an empty `resolve-issue/`. REPO_ROOT resolves
+// scratch repository root beside an empty `resolve-issue/`, with the
+// `scripts/detached-launch.mjs` it imports. REPO_ROOT resolves
 // three directories up from the copy. The final case supplies package.json
 // and exercises the real npm launch path with fixture-only TCP listeners.
 
@@ -298,9 +433,16 @@ console.log(`scratch repository: ${path.join(scratch, "repo")}`);
 const copyDir = path.join(scratch, "repo", ".agents", "skills", "drive-web-editor");
 fs.mkdirSync(copyDir, { recursive: true });
 fs.mkdirSync(path.join(scratch, "repo", ".agents", "skills", "resolve-issue"), { recursive: true });
-for (const name of ["driver.mjs", "redgreen.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
+for (const name of ["driver.mjs", "redgreen.mjs", "session-dir.mjs"]) fs.copyFileSync(path.join(here, name), path.join(copyDir, name));
+fs.mkdirSync(path.join(scratch, "repo", "scripts"));
+fs.copyFileSync(path.join(here, "..", "..", "..", "scripts", "detached-launch.mjs"), path.join(scratch, "repo", "scripts", "detached-launch.mjs"));
 const copy = path.join(copyDir, "driver.mjs");
-const stateFile = path.join(copyDir, ".state.json");
+// The copy keeps its records under a home inside the scratch directory, as
+// the session this check names; every command below inherits both.
+process.env.IMPOWER_DRIVER_HOME = path.join(scratch, "home");
+process.env.IMPOWER_DRIVER_SESSION = "state-path-session";
+const stateFile = path.join(sessionDir({ root: path.join(scratch, "repo"), session: "state-path-session", env: process.env }), "state.json");
+const legacyStateFile = path.join(copyDir, ".state.json");
 const fixture = path.join(scratch, "tree.mjs");
 fs.writeFileSync(fixture, [
   'import fs from "node:fs";',
@@ -314,7 +456,7 @@ fs.writeFileSync(fixture, [
 ].join("\n"));
 const startTree = async () => {
   const file = path.join(scratch, `tree-${Date.now()}.jsonl`);
-  const child = spawn(process.execPath, [fixture, file, "root"], { stdio: "ignore", detached: true, windowsHide: true });
+  const child = spawn(process.execPath, [fixture, file, "root"], { stdio: "ignore", detached: process.platform !== "win32", windowsHide: true });
   let rows = [];
   try {
     for (let i = 0; i < 100; i++) {
@@ -333,9 +475,12 @@ const treeGone = async (rows) => {
   }
   return false;
 };
-const writeRecord = (record) => fs.writeFileSync(stateFile, typeof record === "string" ? record : JSON.stringify(record));
-const run = (cmd) => {
-  const r = spawnSync(process.execPath, [copy, cmd], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
+const writeRecord = (record, file = stateFile) => {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, typeof record === "string" ? record : JSON.stringify(record));
+};
+const run = (cmd, ...args) => {
+  const r = spawnSync(process.execPath, [copy, cmd, ...args], { encoding: "utf8", windowsHide: true, timeout: 60_000 });
   return { status: r.status, out: (r.stdout ?? "") + (r.stderr ?? "") };
 };
 // For a command that must reach a server this process is running: spawnSync
@@ -394,6 +539,24 @@ try {
     assert.equal(r.status, 1, r.out);
   });
 
+  await check("down leaves another session's servers running and keeps its record; --force goes past the refusal", () => {
+    writeRecord({ url: "http://localhost:1", pid: 4, mode: "same-origin", startedAt: Date.now(), session: "someone-else" });
+    const d = run("down");
+    assert.equal(d.status, 1, d.out);
+    assert.match(d.out, /launched by another session \(someone-else\); they keep running/);
+    assert.ok(fs.existsSync(stateFile), "down removed another session's record");
+    const forced = run("down", "--force");
+    assert.doesNotMatch(forced.out, /another session/);
+    assert.equal(fs.existsSync(stateFile), false, forced.out);
+  });
+
+  await check("a record beside the driver, from before session directories, is still found and stopped", () => {
+    writeRecord({ url: "http://localhost:1", pid: 4, mode: "same-origin" }, legacyStateFile);
+    assert.match(run("status").out, /state=.*drive-web-editor[\\/]\.state\.json/);
+    run("down");
+    assert.equal(fs.existsSync(legacyStateFile), false);
+  });
+
   await check("status, up and down on an unreadable state file: reported, refused and left intact, removed", () => {
     writeRecord('{"url":"http://localhost:1","pid":4,"mo');
     const s = run("status");
@@ -415,7 +578,7 @@ try {
     try {
       writeRecord({ url, pid: process.pid, mode: "same-origin", startedAt: Date.now() });
       const s = await runWhileServing("status");
-      assert.match(s.out, new RegExp(`UP  url=${url}  pid=${process.pid}  mode=same-origin  state=.*state\\.json`));
+      assert.match(s.out, new RegExp(`UP  url=${url}  pid=${process.pid}  mode=same-origin  session=none  state=.*state\\.json`));
       assert.equal(s.status, 0, s.out);
       const u = await runWhileServing("up");
       assert.match(u.out, new RegExp(`already up → ${url}`));
@@ -490,7 +653,7 @@ try {
     let launchedRows = [];
     const child = idle();
     writeRecord({ url: "http://localhost:1", pid: child.pid, mode: "same-origin", startedAt: Date.now() });
-    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: true });
+    const up = spawn(process.execPath, [copy, "up"], { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, detached: process.platform !== "win32" });
     let out = "";
     up.stdout.on("data", (d) => (out += d));
     up.stderr.on("data", (d) => (out += d));
@@ -533,7 +696,7 @@ try {
     }
   });
   await check("launcher diagnostics report a real child's observed exit", async () => {
-    const child = spawn(process.execPath, ["-e", "process.exit(23)"], { stdio: "ignore", windowsHide: true, detached: true });
+    const child = spawn(process.execPath, ["-e", "process.exit(23)"], { stdio: "ignore", windowsHide: true, detached: process.platform !== "win32" });
     const messages = [];
     const closed = new Promise((resolve, reject) => {
       child.once("error", reject);

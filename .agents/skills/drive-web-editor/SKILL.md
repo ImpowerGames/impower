@@ -10,7 +10,7 @@ Commands run inside the worktree under test:
 
 ## Start and select the operation
 
-Run `preflight`, then `up` to launch both servers on pinned ports. Use `status` to identify the URL and `down` to stop your recorded servers. For installation, stale state or shutdown failures, read [server setup and recovery](references/server.md). For manual dev-server launch or handshake/OPFS troubleshooting, read [launcher wiring](../references/web-launcher.md).
+Run `preflight`, then `up` to launch both servers on pinned ports. Use `status` to identify the URL and `down` to stop your recorded servers. Servers and the browser profile belong to the session that launched them; `down` leaves another session's servers running, and a new session seeds its own profile. For installation, stale state or shutdown failures, read [server setup and recovery](references/server.md). For manual dev-server launch or handshake/OPFS troubleshooting, read [launcher wiring](../references/web-launcher.md).
 
 Select only the references needed for this run:
 

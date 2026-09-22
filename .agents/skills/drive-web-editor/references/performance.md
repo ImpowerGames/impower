@@ -38,7 +38,7 @@ node .agents/skills/drive-web-editor/driver.mjs measure --project <dir-or-zip> -
 node .agents/skills/drive-web-editor/driver.mjs measure --fixture
 ```
 
-The command seeds the project into a browser profile created for this run and removed afterwards, so another session's `verify --sd` or `--project` against the shared profile cannot replace the project being measured. It puts the preview on the line, deletes `--word` so the completion list offers every candidate, opens the list with Ctrl+Space, and presses ArrowDown once per sample, waiting for each answer before the next key. The first `--warmup` samples (default 2) are discarded, `--samples` (default 10) are kept, and the word is typed back at the end. `--fixture` generates the fixture project described below and measures its target line, so the command runs with no private project present.
+The command seeds the project into a browser profile created for this run and removed afterwards, so no `verify --sd` or `--project` against a session's profile can replace the project being measured. It puts the preview on the line, deletes `--word` so the completion list offers every candidate, opens the list with Ctrl+Space, and presses ArrowDown once per sample, waiting for each answer before the next key. The first `--warmup` samples (default 2) are discarded, `--samples` (default 10) are kept, and the word is typed back at the end. `--fixture` generates the fixture project described below and measures its target line, so the command runs with no private project present.
 
 The report is JSON. Check `lineText` first: it is the measured line as the editor holds it, so a wrong line number is visible there. `restoredMatches` says the line was put back. Per sample:
 

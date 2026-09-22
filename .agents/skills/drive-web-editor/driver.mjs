@@ -19,8 +19,8 @@
 //   node .agents/skills/drive-web-editor/driver.mjs verify --sd repro.sd --shot out.png
 //   node .agents/skills/drive-web-editor/driver.mjs down
 //
-// State (editor URL + launcher pid) lives in .agents/skills/drive-web-editor/.state.json,
-// which is gitignored — every command after `up` reads the URL from there.
+// State (editor URL + launcher pid) lives in this session's directory (see
+// sessionDir) — every command after `up` reads the URL from there.
 
 import { spawn } from "node:child_process";
 import crypto from "node:crypto";
@@ -28,30 +28,168 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
+import { SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
-const STATE_FILE = path.join(SKILL_DIR, ".state.json");
-// The state file and the Chromium profile sit beside this script. A worktree
-// whose servers are still running from this driver's location under the
-// resolve-issue skill keeps both there, so each path resolves to that
-// directory while nothing exists here. The state file migrates: `down` stops
-// those servers and deletes it, and the next `up` writes beside this script.
-// The profile stays wherever it is found, because OPFS is scoped per profile
-// and moving it would lose every project loaded into it. `exists` is a
-// parameter so state-path.test.mjs can pin the choice without touching disk.
+// Each session keeps its own server record and Chromium profile, in a
+// directory keyed by checkout and session under a short root outside the
+// checkout (session-dir.mjs). Two sessions in one checkout therefore never
+// stop each other's servers or write into each other's OPFS, and the profile
+// path stays short however long the worktree name is (see profilePathProblem).
+export { SESSION_VARIABLES, driverSession, sessionDir, checkoutStateFiles };
+const SESSION = driverSession();
+const SESSION_DIR = sessionDir({ root: REPO_ROOT });
+const STATE_FILE = path.join(SESSION_DIR, "state.json");
+// Servers launched by a driver that kept its record beside the script (under
+// this skill or its former resolve-issue location) are still found, so `down`
+// can stop them; the next `up` writes into the session directory. `exists` is
+// a parameter so state-path.test.mjs can pin the choice without touching disk.
 const PREVIOUS_SKILL_DIR = path.resolve(SKILL_DIR, "..", "resolve-issue");
 const hereOrPrevious = (name, exists = fs.existsSync) => {
   const here = path.join(SKILL_DIR, name);
   const candidates = [here, path.join(PREVIOUS_SKILL_DIR, name), path.join(REPO_ROOT, ".claude", "skills", "drive-web-editor", name), path.join(REPO_ROOT, ".claude", "skills", "resolve-issue", name)];
   return candidates.find(exists) ?? here;
 };
-const stateFile = () => hereOrPrevious(".state.json");
-// Persistent Chromium profile. OPFS is scoped per ORIGIN *and* per profile, so
+export function chooseStateFile(own = STATE_FILE, legacy = () => hereOrPrevious(".state.json"), exists = fs.existsSync) {
+  if (exists(own)) return own;
+  const previous = legacy();
+  return exists(previous) ? previous : own;
+}
+const stateFile = () => chooseStateFile();
+
+// Persistent Chromium profile. OPFS is scoped per ORIGIN and per profile, so
 // reusing one profile plus the pinned port (see pickPorts) means a script you
-// loaded stays loaded across driver invocations and across down/up.
-const PROFILE_DIR = hereOrPrevious(".chrome-profile");
+// loaded stays loaded across driver invocations and across down/up. A global
+// `--profile <dir>` or IMPOWER_DRIVER_PROFILE names another one.
+function takeProfileFlag(argv) {
+  const at = argv.indexOf("--profile");
+  if (at < 0) return null;
+  const dir = argv[at + 1];
+  if (!dir || dir.startsWith("--")) {
+    console.error("ERROR: --profile needs a directory");
+    process.exit(1);
+  }
+  argv.splice(at, 2);
+  return path.resolve(dir);
+}
+const PROFILE_DIR = takeProfileFlag(process.argv) ?? (process.env.IMPOWER_DRIVER_PROFILE ? path.resolve(process.env.IMPOWER_DRIVER_PROFILE) : path.join(SESSION_DIR, "profile"));
+
+// Chromium stores service-worker caches at
+// <profile>\Default\Service Worker\CacheStorage\<40-char hash>\<uuid>\index-dir\the-real-index,
+// 139 characters past the profile. Past Windows' 260-character path limit
+// `caches.open` fails, the worker never installs and assets 404 while the
+// game still mounts, so a profile that deep is refused at launch.
+export const CACHE_STORAGE_SUFFIX = 139;
+export const WINDOWS_PATH_LIMIT = 259;
+export function profilePathProblem(dir, platform = process.platform) {
+  if (platform !== "win32") return null;
+  const longest = path.win32.resolve(dir).length + CACHE_STORAGE_SUFFIX;
+  if (longest <= WINDOWS_PATH_LIMIT) return null;
+  return `browser profile ${dir} is too deep: its Cache Storage paths reach about ${longest} characters, past Windows' ${WINDOWS_PATH_LIMIT}, so the service worker cannot install and assets 404. Pass a shorter --profile <dir>, or leave --profile and IMPOWER_DRIVER_PROFILE unset for the short per-session default`;
+}
+
+// A profile records which session last opened it. Another session opening it
+// within PROFILE_CLAIM_MS would write into the OPFS project that session is
+// working on, so the launch is refused; an older claim is taken over.
+export const PROFILE_CLAIM_MS = 30 * 60_000;
+export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
+export function profileClaimConflict(claim, session = SESSION, now = Date.now(), dir = PROFILE_DIR) {
+  if (!claim || typeof claim.at !== "number") return null;
+  if ((claim.session ?? null) === (session ?? null)) return null;
+  if (now - claim.at > PROFILE_CLAIM_MS) return null;
+  const minutes = Math.max(0, Math.round((now - claim.at) / 60_000));
+  return `browser profile ${dir} was opened ${minutes} min ago by another session (${claim.session ?? "no session identity"}), and its OPFS project may be that session's work. Use your own profile: set IMPOWER_DRIVER_SESSION or pass --profile <dir>; the claim lapses after ${PROFILE_CLAIM_MS / 60_000} min`;
+}
+// A claim that is there but does not parse counts as another session's
+// fresh claim, so a damaged file refuses the launch rather than clearing the
+// guard; the claim is renamed into place so no reader sees a partial file.
+// Reading, checking and writing the claim happen while holding a lock file
+// created exclusively, so two launches at once cannot both pass the check:
+// the one that finds the lock taken is refused. A lock older than
+// PROFILE_LOCK_STALE_MS is left by a launch that died mid-claim (the claim
+// itself takes milliseconds) and is taken over.
+// The lock names its holder, and the holder reads it back before writing the
+// claim and before releasing it. A launch stalled past the takeover window
+// therefore writes nothing: the lock it reads back belongs to whoever took it
+// over, and it refuses. Taking a stale lock over replaces exactly the holder
+// that was read, so a lock acquired in between is never removed.
+export const PROFILE_LOCK_STALE_MS = 30_000;
+export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now(), beforeWrite, beforeTakeover } = {}) {
+  const file = path.join(dir, PROFILE_CLAIM_FILE);
+  const lock = file + ".lock";
+  const held = `${process.pid}-${crypto.randomUUID()}`;
+  const taken = () => new Error(`another launch is claiming browser profile ${dir} right now (${lock} is held); use your own profile, or retry once it has finished`);
+  const holder = () => {
+    try {
+      return fs.readFileSync(lock, "utf8");
+    } catch {
+      return null;
+    }
+  };
+  fs.mkdirSync(dir, { recursive: true });
+  const take = () => {
+    const fd = fs.openSync(lock, "wx");
+    fs.writeSync(fd, held);
+    return fd;
+  };
+  let fd;
+  try {
+    fd = take();
+  } catch (error) {
+    if (error.code !== "EEXIST") throw error;
+    const other = holder();
+    let age = 0;
+    try {
+      age = now - fs.statSync(lock).mtimeMs;
+    } catch {}
+    if (age <= PROFILE_LOCK_STALE_MS) throw taken();
+    // Only the holder that was just read is replaced, and only if it is
+    // still there; anything else means another launch got there first.
+    // state-path.test.mjs replaces the lock here to pin that.
+    beforeTakeover?.();
+    if (other == null || holder() !== other) throw taken();
+    try {
+      fs.rmSync(lock, { force: true });
+      fd = take();
+    } catch (again) {
+      if (again.code === "EEXIST") throw taken();
+      throw again;
+    }
+  }
+  try {
+    let claim = null;
+    if (fs.existsSync(file)) {
+      try {
+        claim = JSON.parse(fs.readFileSync(file, "utf8"));
+      } catch {
+        throw new Error(`profile claim ${file} cannot be read, so whether another session is using ${dir} is unknown; delete the file once no other session is driving this profile`);
+      }
+    }
+    const conflict = profileClaimConflict(claim, session, now, dir);
+    if (conflict) throw new Error(conflict);
+    // state-path.test.mjs stalls a claim here to pin that a holder which lost
+    // its lock writes nothing.
+    beforeWrite?.();
+    if (holder() !== held) throw taken();
+    const tmp = `${file}.${held}.tmp`;
+    fs.writeFileSync(tmp, JSON.stringify({ session, at: now }));
+    fs.renameSync(tmp, file);
+  } finally {
+    fs.closeSync(fd);
+    if (holder() === held) fs.rmSync(lock, { force: true });
+  }
+}
+
+// A record names the session that launched its servers. `down` in another
+// session leaves them running unless given --force; a record with no
+// session field predates this rule and stops as before.
+export function foreignRecord(record, session = SESSION) {
+  if (!record || !("session" in record)) return false;
+  return (record.session ?? null) !== (session ?? null);
+}
 
 // Signal 0 delivers nothing and only asks whether the pid exists; EPERM means
 // it exists under another user. `kill` is a parameter so state-path.test.mjs
@@ -155,6 +293,7 @@ function stateUnreadable() {
 // Written beside this script whatever `stateFile()` read, and renamed into
 // place so no reader ever sees a partial file.
 function writeState(record) {
+  fs.mkdirSync(path.dirname(STATE_FILE), { recursive: true });
   const tmp = STATE_FILE + ".tmp";
   fs.writeFileSync(tmp, JSON.stringify(record, null, 2));
   fs.renameSync(tmp, STATE_FILE);
@@ -234,7 +373,7 @@ function portFree(port) {
 // running on the same machine.
 async function pickPorts() {
   let h = 0;
-  for (const ch of REPO_ROOT) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  for (const ch of REPO_ROOT + (SESSION ?? "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
   const base = 38000 + (h % 800) * 4; // 4-port stride: editor, player, hmr, spare
   for (let attempt = 0; attempt < 200; attempt++) {
     const p = base + attempt * 4;
@@ -292,7 +431,7 @@ export async function up(args) {
   const ports = await pickPorts();
   const url = `http://localhost:${ports.editor}`;
 
-  const child = spawn(
+  const child = spawnDetached(
     "npm",
     ["run", mode === "cross-origin" ? "web:dev:cross-origin" : "web:dev"],
     {
@@ -305,14 +444,13 @@ export async function up(args) {
       },
       stdio: "ignore",
       shell: true, // npm is npm.cmd on Windows; Node 23 refuses to spawn .cmd directly
-      windowsHide: true,
-      detached: true,
+      linger: true, // `down` stops this tree with taskkill /T from the pid recorded below
     },
   );
   observeLauncherExit(child);
   child.unref();
 
-  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now() });
+  writeState({ url, pid: child.pid, mode, ports, startedAt: Date.now(), session: SESSION });
 
   log(`launching dev servers (${mode}) pid ${child.pid} → ${url}`);
   await waitReady(url, mode);
@@ -347,7 +485,8 @@ async function isUp(url) {
 // Names the state file it read, because with the fallback above there are two
 // places it can come from, and an unreadable file is reported as itself rather
 // than as absence. Exits 0 only when the recorded URL answers.
-async function status() {
+async function status(args = []) {
+  if (args.includes("--all")) return statusAll();
   const file = stateFile();
   process.exitCode = 1;
   if (stateUnreadable()) {
@@ -357,8 +496,37 @@ async function status() {
   const s = readState();
   if (!s) return log("down (no state file)");
   const alive = await isUp(s.url);
-  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  state=${file}`);
+  log(`${alive ? "UP" : "DOWN"}  url=${s.url}  pid=${s.pid}  mode=${s.mode}  session=${s.session ?? "none"}  state=${file}`);
   if (alive) process.exitCode = 0;
+}
+
+// `status --all` reports every session's record for this checkout, and any
+// record beside the driver, for a caller that must know whether anyone's
+// servers use the tree (clean-worktrees). Answering records come first, so
+// the first line a reader matches says UP whenever any server answers; an
+// unreadable record comes next and replaces the DOWN lines, since it may name
+// a live server. Exits 0 only when some record answers.
+async function statusAll() {
+  const legacy = hereOrPrevious(".state.json");
+  const files = [...new Set([...checkoutStateFiles(REPO_ROOT), ...(fs.existsSync(legacy) ? [legacy] : [])])];
+  const up = [];
+  const unreadable = [];
+  const down = [];
+  for (const file of files) {
+    let s = null;
+    try {
+      s = JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {}
+    if (!s?.url) {
+      unreadable.push(`unknown (state file unreadable: ${file}; \`down\` in its session removes it)`);
+      continue;
+    }
+    const line = `url=${s.url}  pid=${s.pid}  mode=${s.mode}  session=${s.session ?? "none"}  state=${file}`;
+    ((await isUp(s.url)) ? up : down).push(line);
+  }
+  const lines = [...up.map((l) => `UP  ${l}`), ...unreadable, ...(unreadable.length ? [] : down.map((l) => `DOWN  ${l}`))];
+  log(lines.length ? lines.join("\n") : "down (no state file)");
+  process.exitCode = up.length ? 0 : 1;
 }
 
 // Read kernel identities rather than command text or rounded wall-clock dates.
@@ -444,9 +612,14 @@ export async function stopLinuxTree(pid, { read = linuxProcesses, signal = proce
 // stale record's pid may belong to any process by now, so that record is
 // removed and nothing is signalled. The record goes only with a kill that
 // reported success; a refused kill keeps it, so the tree stays stoppable.
-async function down() {
+async function down(args = []) {
   const file = stateFile();
   const s = readState();
+  if (foreignRecord(s) && !args.includes("--force")) {
+    log(`servers pid ${s.pid} in ${file} were launched by another session (${s.session ?? "no session identity"}); they keep running. \`down --force\` stops them anyway`);
+    process.exitCode = 1;
+    return;
+  }
   if (s?.pid == null) {
     if (fs.existsSync(file)) {
       if (!removeStoppedState(file, { remove: removeState, context: "No pid could be identified; no process was stopped" })) return;
@@ -490,7 +663,13 @@ async function down() {
 // a near-full C: silently corrupts a fresh worktree's node_modules, a missing
 // Playwright browser only surfaces after the 5-minute dev-server build, and a
 // logged-out gh only surfaces when you try to open the PR at the very end.
-async function preflight() {
+// `--tooling-only` is for a worktree with nothing to boot and no install: it
+// keeps the disk, gh and git checks and reports the browser and install
+// probes as skipped rather than failing on a dependency that is absent by design.
+async function preflight(args = []) {
+  const unknown = args.filter((arg) => arg !== "--tooling-only");
+  if (unknown.length) die(`preflight takes only --tooling-only; got ${unknown.join(" ")}`);
+  const toolingOnly = args.includes("--tooling-only");
   let ok = true;
   const say = (good, label, detail) => {
     if (!good) ok = false;
@@ -504,7 +683,8 @@ async function preflight() {
     free == null ? "could not measure" : `${(free / 1e9).toFixed(1)} GB free (need ~6 GB for a fresh worktree install)`,
   );
 
-  try {
+  if (toolingOnly) console.log("SKIP  playwright chromium  — --tooling-only: nothing to boot");
+  else try {
     const { chromium } = await importPlaywright();
     const executablePath = resolveChromiumExecutablePath(chromium);
     const b = await chromium.launch({ headless: true, ...(executablePath ? { executablePath } : {}) });
@@ -517,8 +697,11 @@ async function preflight() {
   say(await cmdOk("gh", ["auth", "status"]), "gh auth", "needed to read the issue and open the PR");
   say(await cmdOk("git", ["rev-parse", "--git-dir"]), "git repo", REPO_ROOT);
 
-  const install = await installHealth();
-  say(install.ok, "node_modules", install.detail);
+  if (toolingOnly) console.log("SKIP  node_modules  — --tooling-only: no install needed");
+  else {
+    const install = await installHealth();
+    say(install.ok, "node_modules", install.detail);
+  }
 
   process.exitCode = ok ? 0 : 1;
 }
@@ -607,10 +790,16 @@ async function importPlaywright() {
   }
 }
 
-async function launchEditorBrowser({ headless }) {
-  const { chromium } = await importPlaywright();
+// The profile is checked and claimed before Playwright is loaded, so a
+// refused profile never opens a browser. `dir`, `platform` and `playwright`
+// are parameters so state-path.test.mjs can pin that without a browser.
+export async function launchEditorBrowser({ headless, dir = PROFILE_DIR, platform = process.platform, playwright = importPlaywright }) {
+  const tooDeep = profilePathProblem(dir, platform);
+  if (tooDeep) throw new Error(tooDeep);
+  claimProfile(dir);
+  const { chromium } = await playwright();
   const executablePath = resolveChromiumExecutablePath(chromium);
-  return chromium.launchPersistentContext(PROFILE_DIR, {
+  return chromium.launchPersistentContext(dir, {
     headless,
     viewport: { width: 1600, height: 1000 },
     args: ["--autoplay-policy=no-user-gesture-required"],
@@ -3650,16 +3839,16 @@ switch (cmd) {
   case "__imported__":
     break;
   case "preflight":
-    await preflight();
+    await preflight(rest);
     break;
   case "up":
     await up(rest).catch((error) => die(error.message));
     break;
   case "down":
-    await down();
+    await down(rest);
     break;
   case "status":
-    await status();
+    await status(rest);
     break;
   case "verify":
     await verify(rest);
@@ -3700,10 +3889,10 @@ switch (cmd) {
       [
         "usage: node .agents/skills/drive-web-editor/driver.mjs <command>",
         "",
-        "  preflight             check disk headroom, playwright, gh auth BEFORE doing work",
+        "  preflight [--tooling-only]  check disk headroom, playwright, gh auth BEFORE doing work; --tooling-only skips the browser and install probes",
         "  up [--cross-origin]   boot both dev servers, wait for ready, record the URL",
-        "  status                is it up? prints the editor URL",
-        "  down                  kill the server tree",
+        "  status [--all]        is it up? prints the editor URL (--all: every session's servers for this checkout)",
+        "  down [--force]        kill the server tree this session launched (--force: any session's)",
         "  verify [options]      drive the game preview and print a JSON report",
         "  ui [steps]            drive the editor's own panels and screens; print a JSON report",
         "  seed --project <p>    load a project directory or exported zip into OPFS /local, then reload",

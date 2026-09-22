@@ -1283,7 +1283,15 @@ export class Story extends InkObject {
       try {
         outputStreamEndsInNewline = this.ContinueSingleStep();
       } catch (e) {
-        if (!(e instanceof StoryException)) throw e;
+        if (!(e instanceof StoryException)) {
+          // An engine error leaves this continue for good, so it stops
+          // counting as live. A continue still counted after it has left would
+          // make `CancelAsyncContinue` refuse for the rest of the story's life,
+          // and with it every reset, jump and load (#473). A line an
+          // asynchronous continue had open stays open for the caller to cancel.
+          this._recursiveContinueCount--;
+          throw e;
+        }
 
         this.AddError(e.message, undefined, e.useEndLineNumber);
         break;

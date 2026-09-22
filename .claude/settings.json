@@ -33,6 +33,15 @@
         ]
       },
       {
+        "matcher": "PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=$(cat); case \"$p\" in *[iI][oO].*) f=\"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/dotnet-path-hook.mjs\"; [ -f \"$f\" ] || { printf '%s\\n' \"dotnet-path hook: $f not found; set CLAUDE_PROJECT_DIR to the checkout root\" >&2; exit 2; }; command -v node >/dev/null 2>&1 || { printf '%s\\n' 'dotnet-path hook: node is not on PATH, so the command cannot be checked' >&2; exit 2; }; printf '%s' \"$p\" | node \"$f\" || { printf '%s\\n' 'dotnet-path hook: the check itself failed, so the command is refused' >&2; exit 2; };; esac"
+          }
+        ]
+      },
+      {
         "matcher": "Bash|PowerShell",
         "hooks": [
           {

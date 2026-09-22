@@ -27,19 +27,22 @@ export function atomic(file, value) {
 }
 export const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 
-export function windowsVitestProcesses(raw, ownPid = process.pid) {
+// `within` narrows the census to command lines naming that path, so a fixture
+// can watch its own children without reading other sessions' processes.
+const names = (command, within) => !within || command.toLowerCase().includes(within.toLowerCase());
+export function windowsVitestProcesses(raw, ownPid = process.pid, { within } = {}) {
   const parsed = JSON.parse(raw.trim() || "[]");
   const rows = Array.isArray(parsed) ? parsed : parsed === null ? [] : [parsed];
   if (rows.some(p => !p || !Number.isSafeInteger(p.ProcessId) || p.ProcessId < 1 || (p.CommandLine !== null && typeof p.CommandLine !== "string"))) throw new Error("Malformed Windows process census");
-  return rows.filter(p => p.ProcessId !== ownPid && (!p.CommandLine || /vitest|tinypool/i.test(p.CommandLine))).map(p => p.ProcessId);
+  return rows.filter(p => p.ProcessId !== ownPid && (!p.CommandLine ? !within : /vitest|tinypool/i.test(p.CommandLine) && names(p.CommandLine, within))).map(p => p.ProcessId);
 }
 
 // An unreadable process table is a refusal, never an empty inventory.
-export function vitestProcesses() {
+export function vitestProcesses({ within } = {}) {
   if (process.platform === "win32") {
     const script = "$ErrorActionPreference='Stop'; @(Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object ProcessId,CommandLine) | ConvertTo-Json -Compress";
     const raw = execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", script], { encoding: "utf8", windowsHide: true });
-    return windowsVitestProcesses(raw);
+    return windowsVitestProcesses(raw, process.pid, { within });
   }
   if (process.platform !== "linux") throw new Error("Test suites require Windows or Linux");
   const pids = [];
@@ -49,7 +52,7 @@ export function vitestProcesses() {
       const argv = fs.readFileSync(`/proc/${name}/cmdline`, "utf8").split("\0");
       const command = argv.join(" ");
       const executable = path.basename(argv[0] || "");
-      if (/^(?:node(?:js)?(?:\s|$)|vitest)/i.test(executable) && /vitest|tinypool/i.test(command) && processIdentity(Number(name))) pids.push(Number(name));
+      if (/^(?:node(?:js)?(?:\s|$)|vitest)/i.test(executable) && /vitest|tinypool/i.test(command) && names(command, within) && processIdentity(Number(name))) pids.push(Number(name));
     } catch (error) { if (!["ENOENT", "ESRCH"].includes(error.code)) throw error; }
   }
   return pids;

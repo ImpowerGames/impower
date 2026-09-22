@@ -7,6 +7,7 @@ import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
 import { runHandoff as handoff, checkReviewRound, verifyReviewComment } from "./agent-handoff.mjs";
+import { validateCodexReviewer } from "./native-reviewer.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
@@ -21,7 +22,7 @@ const child = path.join(scratch, "child.mjs");
 fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:process.argv[2]==="first"?"second":null,commentIds:[],summary:"complete"}));`);
 const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
-const config = { worktree, completedReviewRound: 0, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", maxSteps: 2, first: "first", journal: path.join(scratch, "journal.jsonl"), steps: {
+const config = { worktree, pr: 531, completedReviewRound: 0, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", maxSteps: 2, first: "first", journal: path.join(scratch, "journal.jsonl"), steps: {
   first: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, "first", "--model", "writer-test"], prompt, next: ["second"] },
   second: { role: "implement", model: "writer-test", executable: process.execPath, args: [child, "second", "--model", "writer-test"], prompt, next: [null] },
 }};
@@ -35,6 +36,52 @@ await verifyReviewComment(1, 554, "a".repeat(40), worktree, {
 assert.equal(commentReads, 2, "a transient comment mismatch must be read again");
 assert.equal(waits, 1, "a transient comment mismatch waits before retrying");
 await assert.rejects(verifyReviewComment(1, 554, "a".repeat(40), worktree, { readComment: () => ({ issue_url: "wrong", body: "wrong" }), wait: async () => {}, attempts: 2 }), /Comment does not verify/);
+// A malformed plan is refused before the lock, journal or any child exists.
+const launchMarker = path.join(scratch, "malformed-plan-launched");
+const markingChild = path.join(scratch, "marking-child.mjs");
+fs.writeFileSync(markingChild, `import fs from "node:fs"; fs.writeFileSync(${JSON.stringify(launchMarker)}, "launched");`);
+const malformed = [
+  ["missing pr", (plan) => { delete plan.pr; }, /top-level pr/],
+  ["zero pr", (plan) => { plan.pr = 0; }, /top-level pr/],
+  ["string pr", (plan) => { plan.pr = "531"; }, /top-level pr/],
+  ["missing first", (plan) => { delete plan.first; plan.firstStep = "first"; }, /top-level first/],
+  ["empty first", (plan) => { plan.first = ""; }, /top-level first/],
+  ["unknown first", (plan) => { plan.first = "frist"; }, /Unknown step: frist/],
+  ["step-level completedReviewRound", (plan) => { delete plan.completedReviewRound; plan.steps.first.completedReviewRound = 0; }, /Move completedReviewRound from step first to the top level/],
+];
+for (const [label, change, message] of malformed) {
+  const plan = structuredClone(config);
+  plan.journal = path.join(scratch, `malformed-${label.replaceAll(" ", "-")}.jsonl`);
+  for (const step of Object.values(plan.steps)) step.args = [markingChild, "--model", "writer-test"];
+  change(plan);
+  const planFile = path.join(scratch, `malformed-${label.replaceAll(" ", "-")}.json`);
+  fs.writeFileSync(planFile, JSON.stringify(plan));
+  await assert.rejects(runHandoff(planFile), message, label);
+  assert.equal(fs.existsSync(launchMarker), false, `${label} must launch no child`);
+  assert.equal(fs.existsSync(plan.journal), false, `${label} must leave no journal to block the corrected plan`);
+  assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} must not take the lock`);
+}
+
+// A Codex argument array is refused once, naming every missing flag and field.
+const codexDir = path.join(scratch, "codex-private");
+fs.mkdirSync(codexDir);
+const codexPermissions = { sandbox: "workspace-write", approvalPolicy: "never", networkAccess: true, artifactWrites: "handoff-directory", cwd: codexDir };
+const codexPlan = { reviewer: "gpt-test", worktree, jobDir: path.join(scratch, "codex-job") };
+const codexReport = path.join(codexDir, "report.md");
+assert.throws(() => validateCodexReviewer({ args: ["exec", "--cd", codexDir, "--output-last-message", codexReport, "-"], permissions: codexPermissions }, codexPlan), (error) => {
+  for (const flag of ['-c windows.sandbox="elevated"', "--ignore-user-config", "--ignore-rules", "--strict-config", "--json", "--skip-git-repo-check", '-c model_provider="openai"', "-c sandbox_workspace_write.writable_roots=[]", "--disable multi_agent;", "--disable multi_agent_v2", "--model gpt-test", "step effort", "model_reasoning_effort", "--sandbox workspace-write", '-c approval_policy="never"', "-c sandbox_workspace_write.network_access=true"]) assert.ok(error.message.includes(flag), `subset array refusal must name ${flag}: ${error.message}`);
+  return true;
+});
+const fullCodexArgs = ["exec", "-c", 'approval_policy="never"', "--sandbox", "workspace-write", "-c", 'windows.sandbox="elevated"', "-c", "sandbox_workspace_write.network_access=true", "-c", 'model_provider="openai"', "-c", "sandbox_workspace_write.writable_roots=[]", "-c", "sandbox_workspace_write.exclude_tmpdir_env_var=true", "-c", "sandbox_workspace_write.exclude_slash_tmp=true", "--cd", codexDir, "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "--strict-config", "--json", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--output-last-message", codexReport, "-"];
+assert.throws(() => validateCodexReviewer({ args: fullCodexArgs, permissions: codexPermissions }, codexPlan), (error) => {
+  assert.match(error.message, /supply: --model gpt-test; step effort .*; -c model_reasoning_effort="<step effort>"$/, "an explicit route without model and effort must name all three");
+  return true;
+});
+assert.throws(() => validateCodexReviewer({ args: ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', ...fullCodexArgs.slice(1)], effort: "high", permissions: codexPermissions }, codexPlan), (error) => {
+  assert.doesNotMatch(error.message, /supply:/, "a complete array passes the argument preflight");
+  return true;
+}, "the scratch job directory is not a verified sandbox store, so a later check still refuses");
+
 write(); await runHandoff(file);
 const rows = fs.readFileSync(config.journal, "utf8").trim().split("\n").map(JSON.parse);
 assert.equal(rows.at(-1).event, "finished");
@@ -229,7 +276,7 @@ const launch = (i) => {
   execFileSync("git", ["clone", "--quiet", worktree, repo], { windowsHide: true });
   const plan = path.join(scratch, `concurrent-${i}.json`);
   const posted = path.join(scratch, `posted-${i}`);
-  fs.writeFileSync(plan, JSON.stringify({worktree:repo, writer:"writer-test", writerEffort:"medium", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}}}));
+  fs.writeFileSync(plan, JSON.stringify({worktree:repo, pr:531, writer:"writer-test", writerEffort:"medium", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}}}));
   const proc = spawn(process.execPath, [coordinator, plan, pool, i===0?"uncertain":"recorded"], {windowsHide:true,stdio:["ignore","pipe","pipe"]});
   let output=""; proc.stdout.on("data",c=>output+=c); proc.stderr.on("data",c=>output+=c);
   const done = new Promise(resolve=>proc.once("close",code=>resolve({code,output})));
@@ -269,7 +316,7 @@ assert.equal(fs.readdirSync(pool).length,0);
 console.log("PASS: eight simultaneous coordinators reserve exactly four slots and release them on exit");
 
 const slotWorker=path.join(scratch,"slot-worker.mjs");
-fs.writeFileSync(slotWorker,`import fs from 'node:fs'; import {spawn} from 'node:child_process'; import {reserveReviewerSlot,releaseReviewerSlot,processIdentity} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; const slot=reserveReviewerSlot(process.argv[2]);slot.append({phase:'launching'}); const child=spawn(process.execPath,[${JSON.stringify(reviewer)},process.argv[3]+'.posted',process.argv[3]+'.release'],{stdio:'ignore',windowsHide:true,detached:true});child.once('close',()=>releaseReviewerSlot(slot)); const identity=processIdentity(child.pid);if(process.argv[4]!=='uncertain')slot.append({phase:'running',child:identity});fs.writeFileSync(process.argv[3],JSON.stringify({file:slot.file,child:identity}));`);
+fs.writeFileSync(slotWorker,`import fs from 'node:fs'; import {spawnDetached} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/detached-launch.mjs")).href)}; import {reserveReviewerSlot,releaseReviewerSlot,processIdentity} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; const slot=reserveReviewerSlot(process.argv[2]);slot.append({phase:'launching'}); const child=spawnDetached(process.execPath,[${JSON.stringify(reviewer)},process.argv[3]+'.posted',process.argv[3]+'.release'],{stdio:'ignore'});child.once('close',()=>releaseReviewerSlot(slot)); const identity=processIdentity(child.pid);if(process.argv[4]!=='uncertain')slot.append({phase:'running',child:identity});fs.writeFileSync(process.argv[3],JSON.stringify({file:slot.file,child:identity}));`);
 for(const mode of ["recorded","uncertain"]){
   const ready=path.join(scratch,`interrupted-${mode}`);
   const worker=spawn(process.execPath,[slotWorker,path.join(scratch,`pool-${mode}`),ready,mode],{stdio:"ignore",windowsHide:true});

@@ -7,6 +7,7 @@
 // its advice in the same extracted message, and fixtures exercise the scanner.
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -549,6 +550,25 @@ check("a seed reason reported by verify adds the one thing the reason cannot kno
 check("the marked-project error names both ways out", () => {
   const message = interruptedSeedError();
   assert.match(message, /Re-run with --project to seed it again, or empty it with seed --clear\.$/);
+});
+
+check("preflight --tooling-only skips the browser and install probes and refuses other arguments", () => {
+  // The skipped probes must not run at all: a worktree with no install cannot
+  // resolve playwright, and that is the supported state for tooling-only work.
+  const run = (...args) => spawnSync(process.execPath, [DRIVER, "preflight", ...args], { encoding: "utf8", windowsHide: true, timeout: 120000 });
+  const tooling = run("--tooling-only");
+  assert.match(tooling.stdout, /^SKIP  playwright chromium  — --tooling-only/m);
+  assert.match(tooling.stdout, /^SKIP  node_modules  — --tooling-only/m);
+  assert.doesNotMatch(tooling.stdout, /playwright could not be resolved|esbuild and vitest/);
+  assert.match(tooling.stdout, /disk headroom/);
+  assert.match(tooling.stdout, /gh auth/);
+  assert.match(tooling.stdout, /git repo/);
+  // Disk and gh auth legitimately fail on some machines, so the exit status is
+  // pinned to the printed lines: zero exactly when no line is a FAIL.
+  assert.equal(tooling.status === 0, !/^FAIL/m.test(tooling.stdout), tooling.stdout);
+  const refused = run("--tooling");
+  assert.notEqual(refused.status, 0);
+  assert.match(refused.stderr + refused.stdout, /preflight takes only --tooling-only; got --tooling/);
 });
 
 check("an elsewhere scrub names the kind of line that is a playable beat", () => {
