@@ -67,9 +67,9 @@ const alive = (pid) => {
 const rows = () => (fs.existsSync(rowsFile) ? fs.readFileSync(rowsFile, "utf8").trim().split("\n").filter(Boolean).map(JSON.parse) : []);
 
 let failures = 0;
-const check = (name, fn) => {
+const check = async (name, fn) => {
   try {
-    fn();
+    await fn();
     console.log(`PASS: ${name}`);
   } catch (err) {
     failures++;
@@ -90,26 +90,26 @@ try {
   up.kill();
   const tree = rows().map((r) => r.pid);
 
-  check("session B's status does not report session A's servers", () => {
+  await check("session B's status does not report session A's servers", () => {
     const s = run("session-b", "status");
     assert.match(s.out, /down \(no state file\)/, s.out);
   });
 
-  check("session B's down leaves session A's server tree running", () => {
+  await check("session B's down leaves session A's server tree running", async () => {
     run("session-b", "down");
-    spawnSync(process.execPath, ["-e", "setTimeout(() => {}, 1500)"]);
+    await sleep(1500);
     assert.deepEqual(tree.filter((pid) => !alive(pid)), [], "session B's down stopped part of session A's tree");
   });
 
-  check("status --all shows session A's servers to session B", () => {
+  await check("status --all shows session A's servers to session B", () => {
     const s = run("session-b", "status", "--all");
     assert.match(s.out, /session=session-a/, s.out);
   });
 
-  check("session A's down stops its own tree", () => {
+  await check("session A's down stops its own tree", async () => {
     const d = run("session-a", "down");
     assert.equal(d.status, 0, d.out);
-    spawnSync(process.execPath, ["-e", "setTimeout(() => {}, 1500)"]);
+    for (let i = 0; i < 40 && tree.some(alive); i++) await sleep(250);
     assert.deepEqual(tree.filter(alive), [], d.out);
   });
 } catch (err) {
