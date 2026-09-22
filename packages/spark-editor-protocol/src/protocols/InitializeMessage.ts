@@ -38,6 +38,10 @@ export interface InitializationOptions extends Omit<
   slimProgramNotifications?: boolean;
   /** How long the server waits after a change before recompiling, in ms. */
   compileDebounceDelay?: number;
+  /** For the Game Preview's own workspace: its worker displays the stopped
+   *  preview from its own game, and the page holds each program's summary
+   *  until PLAY. An internal switch that an author never sets. */
+  workerDisplaysPreview?: boolean;
 }
 
 export interface InitializeParams extends LSP.InitializeParams {

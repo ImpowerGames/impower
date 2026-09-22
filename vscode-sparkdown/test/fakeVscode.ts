@@ -99,7 +99,7 @@ export const fakeVscode = () => {
     onDidCloseTextDocument: emitters.closeTextDocument.event,
     getWorkspaceFolder: (uri: { outside?: boolean }) =>
       uri.outside ? undefined : { uri },
-    getConfiguration: () => ({}),
+    getConfiguration: () => ({ get: () => undefined }),
   };
   return {
     EventEmitter,
