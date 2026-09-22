@@ -90,7 +90,18 @@ export interface PlayerHarnessOptions {
 }
 
 export async function createPlayerHarness(options: PlayerHarnessOptions) {
-  const { win, overlay } = installJSDOM();
+  const { win, overlay, restore: restoreDOM } = installJSDOM();
+  // The controller dispatches events on the page's elements, and an event is
+  // dispatched only on a target of its own realm.
+  const g = globalThis as any;
+  const { Event, CustomEvent } = g;
+  g.Event = win.Event;
+  g.CustomEvent = win.CustomEvent;
+  const restore = () => {
+    g.Event = Event;
+    g.CustomEvent = CustomEvent;
+    restoreDOM();
+  };
   // Everything the worker sends the page, as the page receives it.
   const toPage: any[] = [];
   const recordMessages = options.recordMessages !== false;
@@ -337,6 +348,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     },
     dispose() {
       setWorkspace(undefined as any);
+      restore();
     },
   };
 }

@@ -159,6 +159,21 @@ function installWAAPIStub(win: any) {
   }
 }
 
+/** The globals `installJSDOM` points at its window. */
+const GLOBALS = [
+  "window",
+  "document",
+  "HTMLElement",
+  "HTMLInputElement",
+  "HTMLSelectElement",
+  "Element",
+  "Node",
+  "Animation",
+  "KeyframeEffect",
+  "FontFace",
+  "CSS",
+];
+
 /** A fresh jsdom, with its globals (document, Animation, KeyframeEffect, …)
  *  bound so the consumer's `document.createElement` and AnimationPlayer
  *  resolve, and the overlay the managers render into. */
@@ -175,6 +190,7 @@ export function installJSDOM() {
   const win = dom.window as any;
   installWAAPIStub(win);
   const g = globalThis as any;
+  const previous = new Map(GLOBALS.map((name) => [name, g[name]]));
   g.window = win;
   g.document = win.document;
   g.HTMLElement = win.HTMLElement;
@@ -190,11 +206,15 @@ export function installJSDOM() {
   g.KeyframeEffect = win.KeyframeEffect;
   g.FontFace = win.FontFace ?? class {};
   g.CSS = win.CSS;
-  // An event is dispatched only on a target of its own realm.
-  g.Event = win.Event;
-  g.CustomEvent = win.CustomEvent;
   const overlay = win.document.getElementById("overlay") as HTMLElement;
-  return { win, overlay };
+  /** Put back every global this replaced, so a later test file run in the
+   *  same process sees its own environment's. */
+  const restore = () => {
+    for (const [name, value] of previous) {
+      g[name] = value;
+    }
+  };
+  return { win, overlay, restore };
 }
 
 /** An image that loads on the next microtask, like a cached response, so the
