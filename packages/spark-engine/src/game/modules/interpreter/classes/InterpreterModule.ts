@@ -77,8 +77,6 @@ export class InterpreterModule extends Module<
   CHAR_REGEX =
     /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 
-  BREAK_BOX_REGEX = /[ \t]+[>][ \t]*$/m;
-
   CHARACTER_REGEX =
     /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)([ \t]*)(.*?)([ \t]*)(\]))?([ \t]*)$/;
 
@@ -252,14 +250,16 @@ export class InterpreterModule extends Module<
    * Build a beat's instructions from an already-resolved target + optional
    * dialogue cue + a final body string, and append them to the buffer: the
    * cue resolution (name / parenthetical / position via `CHARACTER_REGEX`),
-   * the `>` box split, the per-character `parse()`, the cue prefixing, and
-   * the empty-textbox fold. Called by {@link queue}.
+   * the per-character `parse()`, the cue prefixing, and the empty-textbox
+   * fold. A `pause` beat waits for a click even with no text. Called by
+   * {@link queue}.
    */
   protected appendBeat(
     target: string,
     characterDeclaration: string | undefined,
     content: string,
     choices: string[],
+    pause = false,
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
@@ -312,52 +312,54 @@ export class InterpreterModule extends Module<
       }
     }
     // Queue content
-    if (content) {
-      const contentBoxes = content.split(this.BREAK_BOX_REGEX);
-      for (const contentBox of contentBoxes) {
-        const contentInstructions = this.parse(
-          contentBox,
-          target || defaultTarget,
-          options,
-        );
-        if (contentInstructions.text) {
-          if (characterParentheticalInstructions) {
-            // prefix each textbox with character_parenthetical, if specified.
-            this.merge(
-              contentInstructions,
-              characterParentheticalInstructions,
-              true,
-            );
-          }
-          if (characterNameInstructions) {
-            // prefix each textbox with character_name, if specified.
-            this.merge(contentInstructions, characterNameInstructions, true);
-          }
+    if (content || pause) {
+      const contentInstructions = this.parse(
+        content,
+        target || defaultTarget,
+        options,
+      );
+      if (pause && !contentInstructions.text) {
+        // A beat a `>` break ends waits for a click, so it shows its box even
+        // with no text to type.
+        contentInstructions.text = { [target || defaultTarget]: [] };
+      }
+      if (contentInstructions.text) {
+        if (characterParentheticalInstructions) {
+          // prefix each textbox with character_parenthetical, if specified.
+          this.merge(
+            contentInstructions,
+            characterParentheticalInstructions,
+            true,
+          );
         }
-        // A `[[load …]]` is always its own beat: the loading layout must never
-        // open over the line before it, and the beat advances by itself once
-        // loading is done. Whatever else the line carried is queued first.
-        const loads = contentInstructions.load;
-        delete contentInstructions.load;
-        const hasOtherContent =
-          contentInstructions.text ||
-          contentInstructions.image ||
-          contentInstructions.audio ||
-          contentInstructions.layout ||
-          Number(contentInstructions.end) > 0;
-        if (!loads || hasOtherContent) {
-          const lastTextbox = this._state.buffer.at(-1);
-          if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
-            // If previous textbox did not actually contain any text, fold this result into it.
-            this.merge(lastTextbox, contentInstructions);
-          } else {
-            // Otherwise, add this result as a new textbox.
-            this._state.buffer.push(contentInstructions);
-          }
+        if (characterNameInstructions) {
+          // prefix each textbox with character_name, if specified.
+          this.merge(contentInstructions, characterNameInstructions, true);
         }
-        if (loads) {
-          this._state.buffer.push({ load: loads, end: 0 });
+      }
+      // A `[[load …]]` is always its own beat: the loading layout must never
+      // open over the line before it, and the beat advances by itself once
+      // loading is done. Whatever else the line carried is queued first.
+      const loads = contentInstructions.load;
+      delete contentInstructions.load;
+      const hasOtherContent =
+        contentInstructions.text ||
+        contentInstructions.image ||
+        contentInstructions.audio ||
+        contentInstructions.layout ||
+        Number(contentInstructions.end) > 0;
+      if (!loads || hasOtherContent) {
+        const lastTextbox = this._state.buffer.at(-1);
+        if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
+          // If previous textbox did not actually contain any text, fold this result into it.
+          this.merge(lastTextbox, contentInstructions);
+        } else {
+          // Otherwise, add this result as a new textbox.
+          this._state.buffer.push(contentInstructions);
         }
+      }
+      if (loads) {
+        this._state.buffer.push({ load: loads, end: 0 });
       }
     }
     // Show choices after last textbox is done typing.
@@ -386,8 +388,10 @@ export class InterpreterModule extends Module<
    * cue (`character`) are table fields resolved at compile time.
    *
    * Table shape: `{ target?: string, character?: string, text: string,
-   * tags?: table }`, or `{ load: string }` for a `load` line, whose
-   * whitespace-separated names queue a load beat of their own.
+   * pause?: boolean, tags?: table }`, or `{ load: string }` for a `load` line,
+   * whose whitespace-separated names queue a load beat of their own. `pause`
+   * marks a beat a `>` break ends, which waits for a click even when it has no
+   * text.
    *
    * One step makes one beat. Several tables share a step only when glue joined
    * their lines, and the body is the step's ordered visible text: every
@@ -446,12 +450,13 @@ export class InterpreterModule extends Module<
       }
       return;
     }
+    const pause = tables.some((table) => read(table, "pause") === true);
     const routed = tables.find((table) => {
       const target = read(table, "target");
       return typeof target === "string" && target;
     });
     if (!routed) {
-      this.appendBeat("", undefined, content, choices);
+      this.appendBeat("", undefined, content, choices, pause);
       return;
     }
     const characterRaw = read(routed, "character");
@@ -464,6 +469,7 @@ export class InterpreterModule extends Module<
       character,
       content,
       choices,
+      pause,
     );
   }
 

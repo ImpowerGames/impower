@@ -157,7 +157,10 @@ variables:
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
   COMMENT_START: (?:[-][-])
-  BREAK: (?:{{WS}}+[>]{{WS}}*)
+  # A `>` that stands alone between spaces or line edges. `\>`, `->`, `>>`
+  # and `>=` are not breaks, because a non-space touches the `>`.
+  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}))
+  BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
   GLUE: (?<=^|{{WS}})(?:[.][.])(?=$|{{WS}})
 
@@ -2220,6 +2223,8 @@ repository:
       # End-of-line `//` comment after text — must come before Glue/TextChunk
       # so the ` //…` tail is consumed as a comment rather than display text.
       - { include: "#SparkdownInlineComment" }
+      # A spaced `>` anywhere in the line ends the beat before it.
+      - { include: "#Break" }
       - { include: "#Glue" }
       - { include: "#TextChunk" }
 
@@ -2229,7 +2234,7 @@ repository:
     begin: (?=.+)
     patterns:
       - { include: "#DisplayText" }
-    end: (?=$|{{WS}}*{{CHAIN}}(?:$|{{WS}})|{{GLUE}}|{{EOL}}|{{WS}}*[/]{2}(?=$|{{WS}}))
+    end: (?=$|{{WS}}*{{CHAIN}}(?:$|{{WS}})|{{GLUE}}|{{EOL}}|{{WS}}*[/]{2}(?=$|{{WS}})|{{WS}}*{{BREAK_MARK}})
 
   DisplayText:
     patterns:

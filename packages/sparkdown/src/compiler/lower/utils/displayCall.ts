@@ -1,4 +1,5 @@
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import {
   ObjectExpression,
@@ -12,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text })` with `shouldPopReturnedValue` — a
+// `display({ target?, character?, text, pause? })` with `shouldPopReturnedValue` — a
 // synthesized bare-call statement (no author `&` needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
 // live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
@@ -26,6 +27,9 @@ import { stampDebugMetadata } from "./debugMetadata";
 // same step's `currentTags`. A tag cannot sit inside the captured `text`: a tag
 // ending during string evaluation is taken for a choice label's tag.
 //
+// `pause` marks a beat a `>` break ends: it waits for a click even when it
+// shows no text.
+//
 // When `range` is given, the call is stamped with it so its beat surfaces a
 // pathLocation (the screenplay preview's click-to-line routing depends on it).
 export function buildDisplayCall(
@@ -35,6 +39,7 @@ export function buildDisplayCall(
   range: { from: number; to: number } | null,
   ctx: LowerContext,
   tags: ParsedObject[][] = [],
+  options: { pause?: boolean } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
   if (target) {
@@ -54,6 +59,11 @@ export function buildDisplayCall(
     );
   }
   entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
+  if (options.pause) {
+    entries.push(
+      new ObjectExpressionEntry("pause", new NumberExpression(true, "bool")),
+    );
+  }
   return finishCall(entries, tags, range, ctx);
 }
 

@@ -2750,8 +2750,11 @@ export class Game<T extends M = {}> {
 
   /** Run the story to the preview point's beat: from the loaded checkpoint
    *  when the route to it succeeded, else from the start of the flow. */
-  protected runPreview(previewPath: string) {
+  protected runPreview(previewPath: string, routedPath: string | null) {
     if (this._simulation === "success") {
+      if (routedPath && routedPath !== previewPath) {
+        this.advanceUnseenTo(previewPath);
+      }
       this.continue(true);
       return;
     }
@@ -2767,6 +2770,52 @@ export class Game<T extends M = {}> {
     this.jumpToPath(previewPath);
     this.restoreReactiveTracking();
     this.continue();
+  }
+
+  /** Run the story on, showing nothing, until a step executes `path`, and
+   *  queue that step's beat in place of the beats the route left queued. A
+   *  line that `>` breaks holds several beats: the route to the line stops at
+   *  its first, where PLAY from the line starts, and the preview shows its
+   *  last, so the beats between pass unseen as the route's own beats do.
+   *  Every beat between is on the line, so a step that runs nothing there
+   *  ends the walk wherever it is. */
+  protected advanceUnseenTo(path: string): void {
+    const interpreter = this.module.interpreter;
+    const table = this._program.pathLocations;
+    const line = pathLocation(table, path)?.[1];
+    interpreter.clearQueuedBeats();
+    const onExecute = this._story.onExecute;
+    let reached = false;
+    let onLine = false;
+    this._story.onExecute = (executed) => {
+      onExecute?.(executed);
+      if (executed === path) {
+        reached = true;
+      }
+      if (executed && pathLocation(table, executed)?.[1] === line) {
+        onLine = true;
+      }
+    };
+    try {
+      while (!reached && this._story.canContinue) {
+        interpreter.clearQueuedBeats();
+        onLine = false;
+        this._story.ContinueAsync();
+        if (!this._story.asyncContinueComplete) {
+          return;
+        }
+        interpreter.queue(
+          this._story.currentDisplayInstructions,
+          this._story.currentChoices.map((c) => c.text),
+          this._story.currentText || "",
+        );
+        if (!onLine) {
+          return;
+        }
+      }
+    } finally {
+      this._story.onExecute = onExecute;
+    }
   }
 
   /** Whether a preview's beat is running with its flush held back, to be
@@ -2830,6 +2879,7 @@ export class Game<T extends M = {}> {
       { file, line },
       this._program.pathLocations,
       this._scripts,
+      "last",
     );
     if (!previewPath) {
       // A preview call takes over a waiting preview whether or not its
@@ -2869,7 +2919,14 @@ export class Game<T extends M = {}> {
     let held: { instructions: Instructions | null } | null = null;
     try {
       this.observeScene(previewPath);
-      this.runPreview(previewPath);
+      // The route to the line stops at its first beat.
+      const routedPath = findClosestPath(
+        { file, line },
+        this._program.pathLocations,
+        this._scripts,
+        "first",
+      );
+      this.runPreview(previewPath, routedPath);
     } finally {
       this._holdingFlush = false;
       held = this._held;

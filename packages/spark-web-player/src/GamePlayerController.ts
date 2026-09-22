@@ -2146,6 +2146,7 @@ export class GamePlayerController {
       previewFrom,
       program.pathLocations,
       Object.keys(program.scripts),
+      "last",
     );
 
     const programChanged =
@@ -2177,6 +2178,7 @@ export class GamePlayerController {
             validPreviewFrom,
             program.pathLocations,
             Object.keys(program.scripts),
+            "last",
           )
         : this._game?.previewPath;
     // A point that no longer resolves keeps its old path for the skip below,

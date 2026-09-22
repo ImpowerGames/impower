@@ -33,8 +33,16 @@
                   "value": {
                     "type": "StringExpression",
                     "content": [
-                      "one line "
+                      "one line"
                     ]
+                  }
+                },
+                {
+                  "key": "pause",
+                  "value": {
+                    "type": "NumberExpression",
+                    "value": true,
+                    "subtype": "bool"
                   }
                 }
               ]

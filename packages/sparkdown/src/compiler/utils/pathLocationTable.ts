@@ -185,12 +185,19 @@ const searchIndexOf = (table: PathLocationTable, previewableOnly: boolean) => {
  * The row of `scriptIndex` that owns `line`: the first row whose range covers
  * it, or, when no range does, the first row that starts after it. -1 when the
  * script has no row at or after the line.
+ *
+ * A line that `>` breaks holds several beats, each a run of rows sharing its
+ * start. `"first"` answers with the first row that covers the line, where
+ * PLAY from the line starts, and `"last"` with the first row of the last beat
+ * that starts on the line, the beat a preview of the line shows. The two
+ * agree on a line where at most one beat starts.
  */
 export const findPathRow = (
   table: PathLocationTable | undefined,
   scriptIndex: number,
   line: number,
   previewableOnly: boolean,
+  beat: "first" | "last" = "first",
 ) => {
   if (!table || scriptIndex < 0 || line == null) {
     return -1;
@@ -220,6 +227,25 @@ export const findPathRow = (
     }
   }
   const after = lo;
+  // Rows are ordered by start line and then column, so the rows that start
+  // on the line end at `after - 1`. A beat is a run of rows with the same
+  // start, so the last beat begins at the first row of the last run.
+  if (
+    beat === "last" &&
+    after > start &&
+    values[rows[after - 1]! * LOCATION_STRIDE + 1]! === line
+  ) {
+    const column = values[rows[after - 1]! * LOCATION_STRIDE + 2]!;
+    let p = after - 1;
+    while (
+      p > start &&
+      values[rows[p - 1]! * LOCATION_STRIDE + 1]! === line &&
+      values[rows[p - 1]! * LOCATION_STRIDE + 2]! === column
+    ) {
+      p--;
+    }
+    return rows[p]!;
+  }
   if (after > start && maxEndLine[after - 1]! >= line) {
     let a = start;
     let b = after - 1;

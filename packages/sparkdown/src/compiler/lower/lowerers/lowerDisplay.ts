@@ -92,19 +92,19 @@ function buildDisplayContent(
   );
 }
 
-// Build the `display({ target?, character?, text })` calls for a display
+// Build the `display({ target?, character?, text, pause? })` calls for a display
 // statement. The table carries the routing (target + dialogue cue) resolved at
 // compile time plus the body as a STRING-CAPTURE expression: the body's
 // ParsedObjects wrapped in a StringExpression, so ink evaluates them
 // (interpolation → live values, markup preserved) into one string at call
 // time, and the interpreter parses that string.
 //
-// A mid-line `>` BREAK splits the body into beats, one display() call each.
-// Each call is its own Continue() (the engine ends a step at the call's
-// closing newline), so the screenplay preview can route to each beat by its
-// own checkpoint, and each call is stamped with its own source range. A
-// TRAILING break (`>` with nothing after it) is not a split point; see the
-// newline handling below. Author `# tag`s ride the call's `tags`, and a
+// A `>` break splits the body into beats, one display() call each (see
+// `splitBodyRangeAtBreaks`). Each call is its own Continue() (the engine ends
+// a step at the call's closing newline), so the screenplay preview can route
+// to each beat by its own checkpoint, and each call is stamped with its own
+// source range. A beat a break ends carries `pause`, so it waits for a click
+// even when it shows no text. Author `# tag`s ride the call's `tags`, and a
 // mid-line divert follows the call. A `load` action line makes a
 // `display({ load })` call instead.
 //
@@ -144,11 +144,17 @@ function buildDisplayCalls(
     character = undefined;
   }
 
-  // A continuation is never split at breaks.
-  const ranges =
-    lineType === null
-      ? [{ from: bodyStart, to: bodyEnd }]
-      : splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx);
+  // A continuation is never split at breaks: it joins a beat whose routing is
+  // only known at run time, so a beat after its break would have none. Its
+  // mid-line breaks stay literal text.
+  const { ranges, literalBreaks } = splitBodyRangeAtBreaks(
+    parent,
+    bodyStart,
+    bodyEnd,
+    ctx,
+    mode,
+    lineType === null,
+  );
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
     const range = ranges[i]!;
@@ -156,6 +162,7 @@ function buildDisplayCalls(
     const walked = processDisplayBody(parent, range.from, range.to, ctx, mode, {
       ...(i === 0 ? options : {}),
       divertTail,
+      literalBreaks,
     });
     // Author `# tag`s are metadata, not text: they ride the call's `tags`.
     const { tags, rest: body } = separateTags(walked);
@@ -166,13 +173,6 @@ function buildDisplayCalls(
       body.splice(before.length);
     }
     const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
-    // A trailing `>` break ends the body with its own newline Text. Captured
-    // in the table it would sit where no glue can reach it, so a following
-    // `..` line would join after a line break. The newline `display()` pushes
-    // to close the step stands in for it on the output stream, where glue
-    // trims it as it trims any other.
-    const last = body.at(-1);
-    if (last instanceof Text && last.text === "\n") body.pop();
     joinMidBodyGlue(body);
     const loadArgs = lineType === "action" ? stripLoadKeyword(body) : null;
     if (loadArgs) {
@@ -183,7 +183,11 @@ function buildDisplayCalls(
       // body's range sits on the line after it.
       const stamped =
         body.length > 0 ? range : { from: parent.from, to: parent.from };
-      calls.push(buildDisplayCall(target, character, body, stamped, ctx, tags));
+      calls.push(
+        buildDisplayCall(target, character, body, stamped, ctx, tags, {
+          pause: range.pause,
+        }),
+      );
     }
     if (trailingGlue) calls.push(trailingGlue);
     if (divertTail.objects.length > 0) {
@@ -235,38 +239,82 @@ function joinMidBodyGlue(body: ParsedObject[]): void {
   }
 }
 
-// Split a display body's source range into beat sub-ranges at each mid-line
-// `>` BREAK marker (` >` at end of a line that is FOLLOWED by a newline —
-// i.e. there is more content after it). The grammar names this marker as a
-// `Break` node (`{{WS}}+[>]{{WS}}*`), so we read those nodes within the body
-// instead of re-scanning the source for `[ \t]+>[ \t]*\n` (GRAMMAR.md §5).
-// The marker itself and the trailing whitespace before it are dropped (per-
-// segment trimming in `processDisplayBody` would otherwise leave a stray
-// space). A break with no following newline inside the body (a trailing `>`
-// at end of body) is NOT a split point — it's left in-range and handled by
-// `detectTrailingBreak`. When there are no mid-line breaks this returns a
-// single range identical to the input, so non-chained display content is
-// unaffected.
+// Split a display body's source range into beat sub-ranges at its `>` breaks.
+// The grammar names each break as a `Break` node (the `>` with the spaces
+// around it), so we read those nodes instead of re-scanning the source
+// (GRAMMAR.md §5). A split drops the break, and the newline after it when the
+// break ends a block line, so the next range starts where its text does.
+//
+// Every range a break ends is marked `pause`. A break with nothing after it
+// but tags or comments (a trailing `>`) is not a split point: it stays in the
+// last range, which it marks, and contributes no text.
+//
+// A break with no text before it in the same range adds a beat with no text
+// in an inline line (`> Hello`, or a line holding only `>`). In a block the
+// line before has already ended its beat or the block has just begun, so the
+// break only splits the block and adds no beat.
+//
+// A continuation (`noSplit`) keeps one range, and its breaks, other than a
+// trailing one, are returned as `literalBreaks` for the body to keep as text.
 function splitBodyRangeAtBreaks(
   parent: SyntaxNode,
   bodyStart: number,
   bodyEnd: number,
   ctx: LowerContext,
-): { from: number; to: number }[] {
-  const ranges: { from: number; to: number }[] = [];
+  mode: "inline" | "block",
+  noSplit: boolean,
+): {
+  ranges: { from: number; to: number; pause: boolean }[];
+  literalBreaks: ReadonlySet<number>;
+} {
+  const ranges: { from: number; to: number; pause: boolean }[] = [];
+  const literalBreaks = new Set<number>();
   let segStart = bodyStart;
+  let pause = false;
   for (const brk of collectBreaksInRange(parent, bodyStart, bodyEnd)) {
-    // A `Break` is a split point only when a newline immediately follows it
-    // inside the body (content after the break). `Break` consumes the marker
-    // plus its trailing whitespace, so `brk.to` is exactly where the newline
-    // sits; a trailing break has its newline at/after `bodyEnd`.
-    if (brk.to < bodyEnd && ctx.read(brk.to, brk.to + 1) === "\n") {
-      ranges.push({ from: segStart, to: brk.from });
-      segStart = brk.to + 1; // skip the newline
+    if (!hasBodyContent(parent, brk.to, bodyEnd, ctx)) {
+      pause = true;
+      break;
     }
+    if (noSplit) {
+      literalBreaks.add(brk.from);
+      continue;
+    }
+    const empty = !hasBodyContent(parent, segStart, brk.from, ctx);
+    if (!(empty && mode === "block")) {
+      ranges.push({ from: segStart, to: brk.from, pause: true });
+    }
+    segStart = brk.to;
+    if (ctx.read(segStart, segStart + 2) === "\r\n") segStart += 2;
+    else if (ctx.read(segStart, segStart + 1) === "\n") segStart++;
   }
-  ranges.push({ from: segStart, to: bodyEnd });
-  return ranges;
+  ranges.push({ from: segStart, to: bodyEnd, pause });
+  return { ranges, literalBreaks };
+}
+
+// Whether [from, to) of a display body holds anything but whitespace, author
+// tags, comments and breaks.
+function hasBodyContent(
+  parent: SyntaxNode,
+  from: number,
+  to: number,
+  ctx: LowerContext,
+): boolean {
+  let pos = from;
+  for (const injection of collectTopLevelInjections(parent, from, to)) {
+    if (
+      injection.kind !== "tag" &&
+      injection.kind !== "comment" &&
+      injection.kind !== "break"
+    ) {
+      continue;
+    }
+    if (injection.from > pos && ctx.read(pos, injection.from).trim()) {
+      return true;
+    }
+    pos = Math.max(pos, injection.to);
+  }
+  return pos < to && ctx.read(pos, to).trim().length > 0;
 }
 
 // Collect `Break` nodes that fall within [from, to), in source order. Skips
@@ -328,9 +376,17 @@ function processDisplayBody(
     // caller can place them after the line's display() call. `bodyIndex` is
     // the body length when the divert was reached.
     divertTail: { objects: ParsedObject[]; bodyIndex: number };
+    // Breaks kept as text. Every other break in the range contributes none.
+    literalBreaks: ReadonlySet<number>;
   },
 ): ParsedObject[] {
-  let segments = collectBodySegments(parent, bodyStart, bodyEnd, ctx);
+  let segments = collectBodySegments(
+    parent,
+    bodyStart,
+    bodyEnd,
+    ctx,
+    options.literalBreaks,
+  );
 
   // Mode-specific text trimming.
   if (mode === "block") {
@@ -347,10 +403,11 @@ function processDisplayBody(
         // it fuses the words (`The limit is {LIMIT} tonight.` →
         // `The limit is 5tonight.`).
         //
-        // A block body range always begins at a line start
-        // (`extractBlockBodyRange` starts it after the cue's newline, and a
-        // break-split range starts after the break's newline), so the source
-        // character before a line-starting segment is a newline.
+        // A block body range begins at a line start (`extractBlockBodyRange`
+        // starts it after the cue's newline, and a range split at a break
+        // that ends a line starts after the break's newline) or right after
+        // a mid-line break, so the source character before a line-starting
+        // segment is a newline.
         const startsSourceLine =
           seg.start <= 0 || ctx.read(seg.start - 1, seg.start) === "\n";
         seg.raw = seg.raw
@@ -384,15 +441,8 @@ function processDisplayBody(
   for (let i = 0; i < segments.length; i++) {
     const seg = segments[i]!;
     if (seg.kind === "text") {
-      const isLast = i === segments.length - 1;
       const text = applyDisplayEscapes(seg.raw);
-      if (isLast) {
-        const { body, trailingBreak } = detectTrailingBreak(text);
-        if (body.length > 0) out.push(new Text(body));
-        if (trailingBreak) out.push(new Text("\n"));
-      } else {
-        if (text.length > 0) out.push(new Text(text));
-      }
+      if (text.length > 0) out.push(new Text(text));
     } else if (seg.kind === "glue") {
       // A `..` glue marker sitting WITHIN display content (most commonly a
       // TRAILING `text ..` at end of line, but also a mid-body `..`). The
@@ -501,6 +551,7 @@ function collectBodySegments(
   bodyStart: number,
   bodyEnd: number,
   ctx: LowerContext,
+  literalBreaks: ReadonlySet<number>,
 ): BodySegment[] {
   const injections = collectTopLevelInjections(parent, bodyStart, bodyEnd);
   const out: BodySegment[] = [];
@@ -518,6 +569,14 @@ function collectBodySegments(
 
   while (i < bodyEnd) {
     const next = injections[idx];
+    if (next && next.from === i && next.kind === "break") {
+      // A break the beat split already removed from the range, or a trailing
+      // one, contributes no text; a continuation's mid-line break stays text.
+      idx++;
+      if (literalBreaks.has(next.from)) continue;
+      i = next.to;
+      continue;
+    }
     if (next && next.from === i) {
       flush();
       if (next.kind === "expr") {
@@ -563,7 +622,14 @@ function collectBodySegments(
 }
 
 interface BodyInjection {
-  kind: "expr" | "divert" | "inlineGluedAlt" | "tag" | "comment" | "glue";
+  kind:
+    | "expr"
+    | "divert"
+    | "inlineGluedAlt"
+    | "tag"
+    | "comment"
+    | "glue"
+    | "break";
   node: SyntaxNode;
   from: number;
   to: number;
@@ -674,6 +740,14 @@ function collectTopLevelInjections(
         }
         return;
       }
+      // A `>` break with the spaces around it. `splitBodyRangeAtBreaks`
+      // decides where beats split; within a range a break is no text.
+      if (node.name === "Break") {
+        if (node.from >= bodyStart && node.to <= bodyEnd) {
+          out.push({ kind: "break", node, from: node.from, to: node.to });
+        }
+        return;
+      }
     }
     let child = node.firstChild;
     while (child) {
@@ -686,7 +760,7 @@ function collectTopLevelInjections(
   return out;
 }
 
-// ----- Escape / break / newline handling for display text -----
+// ----- Escape / newline handling for display text -----
 
 // Resolves escapes in one raw text segment of a display body:
 //   - `\<space|tab|newline>` → a line break, plus the run of spaces/tabs
@@ -736,17 +810,6 @@ function applyDisplayEscapes(raw: string): string {
     }
   }
   return out;
-}
-
-function detectTrailingBreak(text: string): {
-  body: string;
-  trailingBreak: boolean;
-} {
-  const trimmed = text.replace(/[\s]+$/, "");
-  if (/ >$/.test(trimmed)) {
-    return { body: trimmed.slice(0, -1), trailingBreak: true };
-  }
-  return { body: text, trailingBreak: false };
 }
 
 // ----- Tag annotations on display lines -----
