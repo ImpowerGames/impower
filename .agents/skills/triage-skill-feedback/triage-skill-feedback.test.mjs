@@ -131,6 +131,17 @@ await test('an issue with another parent stays where it is and the summary names
   assert.equal(state.parents.get(701).number, 646);
   assert.match(result.summary, /Left under another parent: #701 \(parent ImpowerGames\/impower#646\)\./);
 });
+await test('an open Task ticketed by an earlier run is attached, and a closed one is not', async () => {
+  const ticketed = body.replace('| open |', '| ticketed #601 |').replace('\n\nFooter', '\n| file-bug, section 2 | Old | Older edit | ticketed #602 |\n\nFooter');
+  const { state, api } = fixture([intake(1, 'write-regression-test, section 3', 'Other')]);
+  state.body = ticketed;
+  state.references.set(601, { number: 601, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  state.references.set(602, { number: 602, state: 'closed', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const plan = makePlan(ticketed, [intake(1, 'write-regression-test, section 3', 'Other')], { prs: {}, issues: { 601: { state: 'open' }, 602: { state: 'closed' } } });
+  await applyPlan(plan, api);
+  assert.deepEqual([...state.subIssueCalls].sort(), [1000600, 1000601]);
+  assert.ok(!state.parents.has(602));
+});
 for (const stage of ['created', 'attached', 'persisted', 'delete', 'summary']) await test(`retry after ${stage} recovers without duplicate tickets or lost intake`, async () => {
   const { state, api, plan } = fixture(); state.fail = stage;
   await assert.rejects(applyPlan(plan, api), /interrupted/);
