@@ -612,10 +612,17 @@ export namespace CallStack {
           if (el.currentPointer.container === null) {
             return throwNullException("el.currentPointer.container");
           }
-          if (el.currentPointer.pathFromEnd) {
+          // Positions count from the START of their container. A program
+          // edited below a saved position keeps every index above the edit,
+          // and loading a save into an edited program is only ever done for
+          // a save taken before the first changed statement (the route
+          // search's resume point and the replay's reused checkpoints both
+          // stop there). Counting from the end would move such a position by
+          // however much the edit grew or shrank its container (#751).
+          if (el.currentPointer.path) {
             writer.WriteProperty(
               "path",
-              el.currentPointer.pathFromEnd.componentsString,
+              el.currentPointer.path.componentsString,
             );
           } else {
             writer.WriteProperty(
@@ -664,7 +671,7 @@ export namespace CallStack {
         }
         writer.WriteProperty(
           "previousContentObject",
-          resolvedPointer.pathFromEnd.toString(),
+          resolvedPointer.path.toString(),
         );
       }
 

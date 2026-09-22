@@ -49,26 +49,6 @@ export class Pointer {
     }
   }
 
-  get pathFromEnd(): Path | null {
-    if (this.isNull) return null;
-
-    if (this.index != null) {
-      let namedChild = asINamedContentOrNull(
-        this.container!.content[this.index],
-      );
-      if (namedChild && namedChild.hasValidName && namedChild.name) {
-        return this.container!.path.PathByAppendingComponent(
-          new Path.Component(namedChild.name),
-        );
-      }
-      return this.container!.path.PathByAppendingComponent(
-        new Path.Component(this.index - this.container!.content.length),
-      );
-    } else {
-      return this.container!.path;
-    }
-  }
-
   public toString(): string {
     if (!this.container) return "Ink Pointer (null)";
 
