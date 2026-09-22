@@ -73,6 +73,10 @@ function valueLength(text) {
   return /^[^\s,)]*/.exec(text)[0].length;
 }
 
+// Join-Path parameters that take a value. Everything else, including the
+// common switches, is read as a switch.
+const VALUE_PARAMETERS = /^(?:ChildPath|AdditionalChildPath|ErrorAction|ErrorVariable|WarningAction|WarningVariable|InformationAction|InformationVariable|OutVariable|OutBuffer|PipelineVariable)$/i;
+
 // Finds the source of Join-Path's -Path value in the text after the command
 // name: the named parameter in either spelling, or else the first positional
 // argument. Other named parameters and their values are skipped.
@@ -86,7 +90,9 @@ function joinPathSource(text) {
       rest = rest.slice(named[0].length);
       const length = valueLength(rest);
       if (/^Path$/i.test(named[1])) return rest.slice(0, length);
-      if (!/^Resolve$/i.test(named[1]) || named[2]) rest = rest.slice(length);
+      // A switch takes no value, and a name this list does not know is read as
+      // one, so an unknown switch cannot swallow the path that follows it.
+      if (named[2] || VALUE_PARAMETERS.test(named[1])) rest = rest.slice(length);
       continue;
     }
     const length = valueLength(rest);
@@ -122,7 +128,8 @@ function relativeArgument(arg, values, depth = 0) {
 function readPowerShell(command) {
   const code = [];
   const starts = new Set();
-  for (const { tokens } of readCommand(command, "powershell").segments) {
+  const { segments, subs } = readCommand(command, "powershell");
+  for (const { tokens } of segments) {
     for (const t of tokens) {
       starts.add(t.start);
       if (!t.quoted) code.push([t.start, t.end]);
@@ -133,12 +140,18 @@ function readPowerShell(command) {
   for (const m of command.matchAll(/\$(\w+)[ \t]*=[ \t]*(['"])(.*?)\2/g)) {
     if (isCode(m.index) || starts.has(m.index)) values.set(m[1].toLowerCase(), m[3]);
   }
-  return { values, isCode };
+  return { values, isCode, subs: subs ?? [] };
 }
 
-export function dotNetRelativePathReason(command) {
-  if (typeof command !== "string" || !/IO\.(?:File|Directory|Path)\]::/i.test(command)) return null;
-  const { values, isCode } = readPowerShell(command);
+export function dotNetRelativePathReason(command, inherited, depth = 0) {
+  if (typeof command !== "string" || !/IO\.(?:File|Directory|Path)\]::/i.test(command) || depth > 3) return null;
+  const { values, isCode, subs } = readPowerShell(command);
+  for (const [name, value] of inherited ?? []) if (!values.has(name)) values.set(name, value);
+  // A $(...) inside a double-quoted string runs, so its text is command text.
+  for (const sub of subs) {
+    const reason = dotNetRelativePathReason(sub, values, depth + 1);
+    if (reason) return reason;
+  }
   for (const m of command.matchAll(DOTNET_CALL)) {
     const [call, type, member] = m;
     if (/^Path$/i.test(type) ? !/^GetFullPath$/i.test(member) : PATH_STRING_MEMBERS.test(member)) continue;
