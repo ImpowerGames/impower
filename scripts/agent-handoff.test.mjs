@@ -6,7 +6,7 @@ import { execFileSync, spawn } from "node:child_process";
 import childProcess from "node:child_process";
 import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
-import { runHandoff as handoff, checkReviewRound, verifyReviewComment } from "./agent-handoff.mjs";
+import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound } from "./agent-handoff.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
@@ -263,6 +263,26 @@ for (const badRound of [undefined, "3", 4]) {
 }
 console.log("PASS: sequential completion, replay refusal, distinct routes, declared transitions, coordinator lock and missing-review refusal");
 
+// A bounded wait never reserves after its deadline, even when the event loop
+// is held past it while a slot frees.
+{
+  const full = path.join(scratch, "deadline-slots");
+  const held = Array.from({length:8}, () => reserveReviewerSlot(full));
+  assert.throws(() => reserveReviewerSlot(full), /All 8 machine-wide reviewer slots/);
+  const waits = [];
+  const blockPast = (ms) => { const end = Date.now() + ms; while (Date.now() < end); };
+  await assert.rejects(reserveWithinBound(full, 1, (occupied) => { waits.push(occupied); releaseReviewerSlot(held.shift()); blockPast(1200); }), /after waiting 1 seconds/, "a slot freed while the loop is held past the deadline is not taken");
+  assert.equal(waits.length, 1, "the wait is reported once");
+  assert.equal(reviewerSlotStatus(full).filter((slot) => slot.reservation).length, 7, "the freed slot stays free");
+  const taken = await reserveWithinBound(full, 5, () => {}, 50);
+  assert.ok(taken.file, "a free slot within the bound is taken");
+  held.push(taken);
+  await assert.rejects(reserveWithinBound(full, 0, () => assert.fail("a zero bound does not wait")), /All 8 machine-wide reviewer slots are unavailable \(/);
+  for (const slot of held) releaseReviewerSlot(slot);
+  assert.equal(fs.readdirSync(full).length, 0);
+}
+console.log("PASS: a bounded slot wait refuses after its deadline, reports the wait once, takes a slot within the bound, and a zero bound does not wait");
+
 // Independent coordinators in distinct repositories race for one machine pool.
 const pool = path.join(scratch, "machine-slots");
 const release = path.join(scratch, "release-reviewers");
@@ -271,12 +291,12 @@ fs.writeFileSync(reviewer, `import fs from 'node:fs'; fs.writeFileSync(process.a
 const coordinator = path.join(scratch, "coordinator.mjs");
 fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
 const launched = [];
-const launch = (i) => {
+const launch = (i, extra = {}) => {
   const repo = path.join(scratch, `concurrent-repo-${i}`);
   execFileSync("git", ["clone", "--quiet", worktree, repo], { windowsHide: true });
   const plan = path.join(scratch, `concurrent-${i}.json`);
   const posted = path.join(scratch, `posted-${i}`);
-  fs.writeFileSync(plan, JSON.stringify({worktree:repo, pr:531, writer:"writer-test", writerEffort:"medium", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}}}));
+  fs.writeFileSync(plan, JSON.stringify({worktree:repo, pr:531, writer:"writer-test", writerEffort:"medium", reviewer:"reviewer-test", completedReviewRound:0, maxSteps:1, first:"review", journal:path.join(scratch,`concurrent-${i}.jsonl`), steps:{review:{role:"review",round:1,model:"reviewer-test",executable:process.execPath,args:[reviewer,posted,release,"--model","reviewer-test"],prompt,next:[null]}},...extra}));
   const proc = spawn(process.execPath, [coordinator, plan, pool, i===0?"uncertain":"recorded"], {windowsHide:true,stdio:["ignore","pipe","pipe"]});
   let output=""; proc.stdout.on("data",c=>output+=c); proc.stderr.on("data",c=>output+=c);
   const done = new Promise(resolve=>proc.once("close",code=>resolve({code,output})));
@@ -285,12 +305,27 @@ const launch = (i) => {
 const bounded = (promise) => new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error("Fixture process did not exit within 60 seconds")),60000);promise.then(value=>{clearTimeout(timer);resolve(value);},error=>{clearTimeout(timer);reject(error);});});
 const until = async (predicate) => { const end=Date.now()+60000; while(!predicate()){ if(Date.now()>end)throw new Error("Timed out waiting for fixture"); await new Promise(r=>setTimeout(r,25)); } };
 try {
-  for(let i=0;i<4;i++)launch(i);
+  for(let i=0;i<8;i++)launch(i);
   await until(()=>launched.every(p=>fs.existsSync(p.posted)));
-  const fifth=launch(4);
-  await until(()=>fs.existsSync(fifth.posted)||fifth.proc.exitCode!==null);
-  assert.equal(fs.existsSync(fifth.posted),false,"a fifth reviewer must not launch while four posted reviewers are still running");
-  assert.match((await bounded(fifth.done)).output,/reviewer slots.*unavailable/i);
+  const ninth=launch(8);
+  await until(()=>fs.existsSync(ninth.posted)||ninth.proc.exitCode!==null);
+  assert.equal(fs.existsSync(ninth.posted),false,"a ninth reviewer must not launch while eight posted reviewers are still running");
+  assert.match((await bounded(ninth.done)).output,/All 8 machine-wide reviewer slots are unavailable/);
+  const expired=launch(9,{slotWaitSeconds:1});
+  const expiredResult=await bounded(expired.done);
+  assert.equal(fs.existsSync(expired.posted),false,"a reviewer whose wait bound expires must not launch");
+  assert.match(expiredResult.output,/All 8 machine-wide reviewer slots are unavailable.*after waiting 1 seconds/);
+  const expiredWaits=fs.readFileSync(path.join(scratch,"concurrent-9.jsonl"),"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="waiting");
+  assert.equal(expiredWaits.length,1,"a bounded wait journals exactly one waiting row");
+  assert.deepEqual(expiredWaits[0].occupied,[0,1,2,3,4,5,6,7],"the waiting row names the occupied slots");
+  const waiter=launch(19,{slotWaitSeconds:120});
+  await until(()=>fs.existsSync(path.join(scratch,"concurrent-19.jsonl"))&&/"waiting"/.test(fs.readFileSync(path.join(scratch,"concurrent-19.jsonl"),"utf8")));
+  assert.equal(fs.existsSync(waiter.posted),false,"a waiting reviewer has not launched");
+  fs.writeFileSync(release,"exit");
+  await until(()=>fs.existsSync(waiter.posted)||waiter.proc.exitCode!==null);
+  assert.equal(fs.existsSync(waiter.posted),true,"a waiting reviewer launches once a slot frees within its bound");
+  const waiterRows=fs.readFileSync(path.join(scratch,"concurrent-19.jsonl"),"utf8").trim().split("\n").map(JSON.parse).map(row=>row.event);
+  assert.deepEqual(waiterRows.filter(event=>event==="waiting"||event==="reserved"),["waiting","reserved"],"one waiting row precedes the reservation");
   assert.match(fs.readFileSync(path.join(scratch,"concurrent-0.jsonl"),"utf8"),/identity-uncertain/,"a real post-spawn registration failure must retain capacity while its child runs");
   const identified=fs.readFileSync(path.join(scratch,"concurrent-1.jsonl"),"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="identified");
   assert.ok(identified.childIdentity.start,"actual OS start identity remains in the journal after slot release");
@@ -299,21 +334,21 @@ try {
   try { await bounded(Promise.all(launched.map(p=>p.done))); }
   catch(error) { for(const item of launched)if(item.proc.exitCode===null)item.proc.kill("SIGKILL"); await bounded(Promise.all(launched.map(p=>p.done)));throw error; }
 }
-console.log("PASS: real concurrent coordinators reject a fifth reviewer after four reports appear and before process exit");
+console.log("PASS: real concurrent coordinators reject a ninth reviewer after eight reports appear and before process exit, block once a slot wait expires, and launch a waiting reviewer when a slot frees");
 assert.equal(fs.readdirSync(pool).length,0,"confirmed exits release every reservation");
 fs.unlinkSync(release);
 const contenders=[];
 try {
-  for(let i=10;i<18;i++)contenders.push(launch(i));
+  for(let i=20;i<32;i++)contenders.push(launch(i));
   await until(()=>contenders.every(item=>fs.existsSync(item.posted)||item.proc.exitCode!==null));
-  assert.equal(contenders.filter(item=>fs.existsSync(item.posted)).length,4,"eight racing coordinators acquire exactly four slots");
+  assert.equal(contenders.filter(item=>fs.existsSync(item.posted)).length,8,"twelve racing coordinators acquire exactly eight slots");
 } finally {
   fs.writeFileSync(release,"exit");
   try { await bounded(Promise.all(contenders.map(item=>item.done))); }
   catch(error) {for(const item of contenders)if(item.proc.exitCode===null)item.proc.kill("SIGKILL");await bounded(Promise.all(contenders.map(item=>item.done)));throw error;}
 }
 assert.equal(fs.readdirSync(pool).length,0);
-console.log("PASS: eight simultaneous coordinators reserve exactly four slots and release them on exit");
+console.log("PASS: twelve simultaneous coordinators reserve exactly eight slots and release them on exit");
 
 const slotWorker=path.join(scratch,"slot-worker.mjs");
 fs.writeFileSync(slotWorker,`import fs from 'node:fs'; import {spawnDetached} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/detached-launch.mjs")).href)}; import {reserveReviewerSlot,releaseReviewerSlot,processIdentity} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/reviewer-slots.mjs")).href)}; const slot=reserveReviewerSlot(process.argv[2]);slot.append({phase:'launching'}); const child=spawnDetached(process.execPath,[${JSON.stringify(reviewer)},process.argv[3]+'.posted',process.argv[3]+'.release'],{stdio:'ignore'});child.once('close',()=>releaseReviewerSlot(slot)); const identity=processIdentity(child.pid);if(process.argv[4]!=='uncertain')slot.append({phase:'running',child:identity});fs.writeFileSync(process.argv[3],JSON.stringify({file:slot.file,child:identity}));`);
