@@ -111,3 +111,35 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
     } };
   });
 }
+
+const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+// Queue behind the machine-wide reservation, then hold it while polling the
+// census, so later reservation-aware runs queue behind this one instead of
+// racing it for the moment other Vitest processes exit. Ambiguous and unknown
+// reservations still refuse at once; only a live owner or a present process waits.
+export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, census = vitestProcesses, onWait = () => {}, ...options } = {}) {
+  const deadline = Date.now() + waitMs;
+  let reservation;
+  for (;;) {
+    try { reservation = acquire(run, { ...options, census: () => [] }); break; }
+    catch (error) {
+      if (!/^Existing suite running/.test(error.message) || Date.now() >= deadline) throw error;
+      onWait({ waiting: "reservation", detail: error.message });
+      await pause(pollMs);
+    }
+  }
+  try { await waitForCensus({ deadline, pollMs, census, onWait }); }
+  catch (error) { reservation.release(); throw error; }
+  return reservation;
+}
+
+export async function waitForCensus({ deadline = Date.now(), pollMs = 2000, census = vitestProcesses, onWait = () => {} } = {}) {
+  for (;;) {
+    const existing = census();
+    if (!existing.length) return;
+    if (Date.now() >= deadline) throw new Error(`Vitest processes still present: ${existing.join(", ")}`);
+    onWait({ waiting: "vitest processes", pids: existing });
+    await pause(pollMs);
+  }
+}

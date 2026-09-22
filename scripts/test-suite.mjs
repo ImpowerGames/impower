@@ -2,9 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { randomUUID, createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "./detached-launch.mjs";
-import { acquire, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
+import { acquireWaiting, waitForCensus, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
 import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 
 const engine = path.join(path.dirname(fileURLToPath(import.meta.url)), "suite-engine.mjs");
@@ -145,10 +146,13 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
   return { attempt, report };
 }
 
-export async function execute({ directory, packageRoot, retry = [], ...dependencies }) {
+const reportWait = value => console.log(JSON.stringify({ status: "waiting", ...value }));
+
+export async function execute({ directory, packageRoot, retry = [], waitMs = 0, ...dependencies }) {
   directory = canonicalPath(directory);
   retry = retry.map(canonicalPath);
-  const reservation = acquire(directory, dependencies);
+  const census = dependencies.census || vitestProcesses;
+  const reservation = await acquireWaiting(directory, { ...dependencies, census, waitMs, onWait: reportWait });
   let run;
   let lastProgress = 0;
   const fingerprint = dependencies.fingerprint || fingerprinter(value => {
@@ -203,8 +207,7 @@ export async function execute({ directory, packageRoot, retry = [], ...dependenc
       const previous = run.attempts.filter(a => a.file === file).at(-1);
       if (previous && (previous.status === "passed" || previous.status === "failed" && !retry.includes(file))) continue;
       if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); throw new Error("Inputs changed during suite; start a new run"); }
-      const existing = (dependencies.census || vitestProcesses)();
-      if (existing.length) throw new Error(`Vitest processes still present: ${existing.join(", ")}`);
+      await waitForCensus({ deadline: Date.now() + waitMs, pollMs: dependencies.pollMs, census, onWait: reportWait });
       await childRun(run, "run", file, reservation, save, dependencies);
     }
     if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); }
@@ -218,6 +221,50 @@ export async function execute({ directory, packageRoot, retry = [], ...dependenc
     reservation.release();
   }
 }
+
+// One worker process with a fresh environment per file. `singleFork` would
+// share one environment across a package's files, which fails jsdom suites
+// for reasons unrelated to the change under test.
+export const vitestArguments = files => ["run", ...files, "--pool=forks",
+  "--poolOptions.forks.minForks=1", "--poolOptions.forks.maxForks=1", "--no-file-parallelism"];
+
+// A direct Vitest run under the machine-wide reservation, so single-file runs
+// and suites queue behind each other instead of racing.
+export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPath, stdio = "inherit", ...dependencies }) {
+  packageRoot = canonicalPath(packageRoot);
+  vitestPath ??= path.join(path.dirname(createRequire(path.join(packageRoot, "package.json")).resolve("vitest/package.json")), "vitest.mjs");
+  const census = dependencies.census || vitestProcesses;
+  const identify = dependencies.identify || processIdentity;
+  const reservation = await acquireWaiting(`vitest run in ${packageRoot}`, { ...dependencies, census, waitMs, onWait: reportWait });
+  let child;
+  reservation.update({ phase: "launching" });
+  // Release only while no child can be running; an unconfirmed exit keeps the
+  // reservation, as the suite coordinator does.
+  try {
+    child = spawn(process.execPath, ["--max-old-space-size=1024", vitestPath, ...vitestArguments(files)],
+      { cwd: packageRoot, env: childEnvironment(), stdio, windowsHide: true });
+  } catch (error) { reservation.update({ phase: "exited" }); reservation.release(); throw error; }
+  const completion = new Promise(resolve => {
+    child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
+    child.once("close", (exit, signal) => resolve({ exit, signal }));
+  });
+  let identity = null;
+  try { identity = child.pid ? identify(child.pid) : null; }
+  catch (error) { console.error(`Child identity unavailable: ${error.message}`); }
+  reservation.update({ phase: identity ? "running" : "launching", child: identity });
+  const result = await completion;
+  reservation.update({ phase: "exited", exit: result.exit, signal: result.signal });
+  reservation.release();
+  return result;
+}
+
+const waitOption = args => {
+  const index = args.indexOf("--wait");
+  if (index < 0) return { args, waitMs: 0 };
+  const seconds = Number(args[index + 1]);
+  if (!Number.isFinite(seconds) || seconds < 0) throw new Error("--wait takes a number of seconds");
+  return { args: [...args.slice(0, index), ...args.slice(index + 2)], waitMs: seconds * 1000 };
+};
 
 export function status(directory, { identify = processIdentity, fingerprint = fingerprinter() } = {}) {
   directory = canonicalPath(directory);
@@ -246,21 +293,29 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
 
 if (process.argv[1] && canonicalPath(process.argv[1]) === canonicalPath(fileURLToPath(import.meta.url))) {
   try {
-    const [command, target, ...args] = process.argv.slice(2);
+    const [command, target, ...rest] = process.argv.slice(2);
+    const { args, waitMs } = waitOption(rest);
     let result;
-    if (command === "start" && target && !args.length) {
+    if (command === "run" && target) {
+      const { exit, signal, launchError } = await runVitest({ packageRoot: target, files: args, waitMs });
+      if (launchError) throw new Error(launchError);
+      process.exitCode = exit ?? 1;
+      if (signal) console.error(`Vitest ended by signal ${signal}`);
+    } else if (command === "start" && target && !args.length) {
       const packageRoot = canonicalPath(target);
       const gitDir = canonicalPath(path.resolve(packageRoot, git(packageRoot, ["rev-parse", "--git-dir"]).trim()));
       const directory = path.join(gitDir, "test-suites", randomUUID());
       console.log(JSON.stringify({ run: directory, status: "starting", coordinator: processIdentity(process.pid) }));
-      result = await execute({ directory, packageRoot });
+      result = await execute({ directory, packageRoot, waitMs });
     } else if (command === "resume" && target) {
       if (args.length && args[0] !== "--retry") throw new Error("Use --retry followed by explicit failed paths");
       const run = read(path.join(target, "run.json"));
-      result = await execute({ directory: target, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
+      result = await execute({ directory: target, waitMs, retry: args.slice(1).map(f => path.resolve(run.packageRoot, f)) });
     } else if (command === "status" && target && !args.length) result = status(target);
-    else throw new Error("Usage: node scripts/test-suite.mjs start <package> | status <run-directory> | resume <run-directory> [--retry <failed-file> ...]");
-    console.log(JSON.stringify(result, null, 2));
-    process.exitCode = result.status === "passed" ? 0 : 1;
+    else throw new Error("Usage: node scripts/test-suite.mjs run <package> [<test-file> ...] [--wait <seconds>] | start <package> [--wait <seconds>] | status <run-directory> | resume <run-directory> [--retry <failed-file> ...] [--wait <seconds>]");
+    if (result) {
+      console.log(JSON.stringify(result, null, 2));
+      process.exitCode = result.status === "passed" ? 0 : 1;
+    }
   } catch (error) { console.error(error.stack); process.exitCode = 1; }
 }

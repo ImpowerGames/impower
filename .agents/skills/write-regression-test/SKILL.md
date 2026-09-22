@@ -20,7 +20,7 @@ Assert the ticket's behavior rather than patch shape. A file already failing who
 
 ## Resource gate
 
-At most one vitest run at a time across worktrees. Every invocation uses at most a 1024 MB heap and one fork. Run only the test file under work locally; the Test Suite workflow runs whole packages for the pushed head. Use the repository suite runner only for a local baseline comparison the workflow cannot give you; it reserves the machine, saves attempts and reconciles interrupted processes. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
+At most one vitest run at a time across worktrees. Run the test file with `node scripts/test-suite.mjs run <package> <test-file> --wait <seconds>`, which sets the heap and worker caps and queues behind other runs. Run only the test file under work locally; the Test Suite workflow runs whole packages for the pushed head. Use the repository suite runner only for a local baseline comparison the workflow cannot give you; it reserves the machine, saves attempts and reconciles interrupted processes. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
 
 ## 2. Prove red/green
 

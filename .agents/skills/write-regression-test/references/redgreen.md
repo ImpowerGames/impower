@@ -11,7 +11,7 @@ Never use the shared Git stash: its stack belongs to the repository, not to this
 Run the whole cycle through the driver, from the repo root, naming the test invocation (under the caps in Running vitest safely) and every changed source file the test exercises:
 
 ```bash
-node .agents/skills/drive-web-editor/driver.mjs redgreen --test "cd packages/sparkdown && NODE_OPTIONS=--max-old-space-size=1024 npx vitest run src/tests/compiler/FilterImageLayers.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1" --files packages/sparkdown/src/compiler/utils/filterImage.ts
+node .agents/skills/drive-web-editor/driver.mjs redgreen --test "node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/FilterImageLayers.test.ts --wait 600" --files packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
 `--test` is the test command, run twice from the repo root (it may `cd` into the package itself); `--files` takes every changed source the test exercises, one path or several, and never the test file; `--base` is the revision the pre-fix content comes from, `HEAD` by default and `origin/main` once the fix is committed.
@@ -23,7 +23,7 @@ It snapshots the files, reverts them to the base revision, runs the test and req
   "ok": true,
   "base": "HEAD",
   "baseCommit": "4538f1319…",
-  "test": "cd packages/sparkdown && …",
+  "test": "node scripts/test-suite.mjs run packages/sparkdown …",
   "snapshotDir": "C:\\...\\Temp\\redgreen-abc123",
   "files": [{ "path": "packages/sparkdown/src/compiler/utils/filterImage.ts", "snapshotPath": "C:\\...\\redgreen-abc123\\01-filterImage.ts", "snapshotSha": "…", "baseSha": "…", "changedDuringRed": false, "restored": true, "matches": true, "restoreError": null }],
   "red": { "exit": 1, "outcome": "failed", "reason": "assertion", "tail": ["…"], "summary": "Test Files  1 failed (1) / Tests  2 failed | 3 passed (5)" },

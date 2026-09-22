@@ -15,7 +15,7 @@ node scripts/test-suite.mjs resume <printed-run-directory> --retry src/tests/exa
 
 `start` prints its run directory and coordinator identity before discovery. It asks the installed Vitest to discover configured includes/excludes using Vitest's own glob semantics, intersects those paths with Git's tracked inventory, rejects an empty manifest, and executes each file separately. Stage new tests first. Supported inputs are single Node test packages containing test/spec TS and TSX files, including files outside `src/tests`. Workspace, browser, typecheck and per-file pool-routing configurations are refused; use the individual package configuration. Configured test semantics remain in force.
 
-Every child runs with a heap capped at 1024 MB, one fork and no file parallelism. A machine-wide reservation coordinates participating worktrees; the runner also checks for other Vitest/tinypool processes before launching. Direct invocations do not acquire that reservation and must never be launched alongside a suite. Process-table access failures and ambiguous reservations block execution. Recovery never kills processes.
+Every child runs with a heap capped at 1024 MB, one fork and no file parallelism. A machine-wide reservation coordinates participating worktrees; the runner also checks for other Vitest/tinypool processes before launching. `run` below takes the same reservation. Process-table access failures and ambiguous reservations block execution. Recovery never kills processes.
 
 Keep the complete command-tool result, including session ID and exit status. If the tool yields a session ID, poll that same session until its exit is confirmed; do not forward only its output text. A yield or missing output is neither a timeout nor a pass. Use `status` from another command to read durable progress. Identity checks can take time on a large installation; execution prints progress while scanning.
 
@@ -29,12 +29,14 @@ Reusable evidence is tied to tracked and untracked working-tree file contents, i
 
 For baseline comparison, start separate runs on the base and fix, confirm identical file manifests, and compare exact failure inventories. Equal failure totals are insufficient. Include actual file/test totals, failure names, skips and incomplete attempts in the PR.
 
-## Single-file red/green reproduction
+## Single-file and reproduction runs
 
-The snapshot/restoration driver still accepts a direct single-file command. Check existing Vitest processes and the suite reservation first, then keep the heap and fork caps:
+Run a test file, several, or a whole package with `run`. Test paths are relative to the package directory:
 
 ```bash
-cd packages/sparkdown && NODE_OPTIONS=--max-old-space-size=1024 npx vitest run src/tests/compiler/constDeclarationValidity.test.ts --pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1
+node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDeclarationValidity.test.ts --wait 600
 ```
 
-On Windows, inspect Node command lines with `Get-CimInstance Win32_Process` and the reservation JSON above. Wait for active runs to exit. Require both `Test Files` and `Tests` summaries and inspect the actual assertion. The redgreen diagnostic classifier's separate no-test issue is tracked by #539; this runner does not repair or substitute for that classifier.
+`run` takes the machine-wide reservation, waits for other Vitest processes to exit while holding it, then runs the package's installed Vitest in the foreground with a 1024 MB heap and `--pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1 --no-file-parallelism`: one worker process with a fresh environment per file, the arrangement the Test Suite workflow uses. `singleFork=true` shares one environment across a package's files and fails jsdom suites such as `packages/spark-web-player` for reasons unrelated to the change under test. The package's own configuration stays in force. Its exit status is Vitest's, and the redgreen driver accepts it as a `--test` command. Require both `Test Files` and `Tests` summaries and inspect the actual assertion. The redgreen diagnostic classifier's separate no-test issue is tracked by #539; this runner does not repair or substitute for that classifier.
+
+`--wait <seconds>` also applies to `start` and `resume`. Without it, a live reservation or another Vitest process refuses at once. With it, a live reservation or a present Vitest process waits up to that bound, and `start` and `resume` wait again before each file; progress prints as `waiting` lines. An ambiguous or unknown reservation still refuses at once. A timeout releases the reservation and names the processes still present. Because single-file runs and suites share one reservation, they queue behind each other; a direct `npx vitest` call bypasses it and can make another session's run wait or refuse.
