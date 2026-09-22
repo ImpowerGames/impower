@@ -6,6 +6,8 @@
 // `player/previewHint`.
 import { describe, expect, it } from "vitest";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
+import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { GetGamePossibleBreakpointLocationsMessage } from "@impower/spark-engine/src/game/core/classes/messages/GetGamePossibleBreakpointLocationsMessage";
 import { planPreviewHint } from "../../main/utils/previewHint";
 import { PreviewHintMessage } from "../../main/workers/messages/PreviewHintMessage";
@@ -86,6 +88,20 @@ async function reads(workerDisplays: boolean) {
       }),
     );
 
+    // Turning debugging on and off from the preview toolbar, and what the
+    // game that displays the preview made of it.
+    const debugging = () =>
+      (workerDisplays ? h.workerState.gameState.game : h.controller._game)?.context
+        ?.system?.debugging;
+    const enabled = await h.controller.handleEnableGameDebug(
+      EnableGameDebugMessage.type.request({}),
+    );
+    const debug = { answer: "error" in enabled, on: debugging() };
+    const disabled = await h.controller.handleDisableGameDebug(
+      DisableGameDebugMessage.type.request({}),
+    );
+    const undebug = { answer: "error" in disabled, on: debugging() };
+
     // The warm-up the worker sent for the selections, and what the page's own
     // hint would have planned from the whole program.
     const prefetches = h.toPage
@@ -94,6 +110,8 @@ async function reads(workerDisplays: boolean) {
     return {
       reached,
       unreached,
+      debug,
+      undebug,
       breakpoints: breakpoints.result,
       prefetches,
       program: compiled.program,
@@ -111,6 +129,8 @@ describe("with the worker displaying the preview", () => {
     expect(on.reached).toEqual(off.reached);
     expect(on.unreached).toEqual(off.unreached);
     expect(on.breakpoints).toEqual(off.breakpoints);
+    expect(on.debug).toEqual(off.debug);
+    expect(on.undebug).toEqual(off.undebug);
 
     // What was compared says something.
     expect(off.reached.executed.at(-1)?.executedLines).toBeTruthy();
@@ -118,6 +138,12 @@ describe("with the worker displaying the preview", () => {
     expect(off.unreached.labels.connection).toContain("🞪");
     expect(off.unreached.labels.executed).toMatch(/main : \d+/);
     expect(off.breakpoints.lines.length).toBeGreaterThan(0);
+    // The toolbar's toggle answered, and the game that displays the preview
+    // entered the mode. Disabling answers too; whether the flag comes back
+    // down is the engine's business, and today it does not (#774), so this
+    // pins only that both positions do the same thing with it.
+    expect(off.debug).toEqual({ answer: false, on: true });
+    expect(off.undebug.answer).toBe(false);
   }, 120_000);
 
   it("sends the scene warm-up the page's own hint would plan", async () => {

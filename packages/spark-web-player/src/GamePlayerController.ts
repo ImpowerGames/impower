@@ -1458,11 +1458,17 @@ export class GamePlayerController {
   protected handleEnableGameDebug = async (
     message: EnableGameDebugMessage.Request,
   ) => {
+    let debugging = false;
     if (this._game) {
       this._game.startDebugging();
+      debugging = true;
+    } else if (await this.askWorkerGame(EnableGameDebugMessage.type, {})) {
+      // The stopped preview the worker's game displays enters the mode too,
+      // so its beat is coloured as the page's own game colours it.
+      debugging = true;
     }
     this.updateLaunchStateIcon();
-    return this._game
+    return debugging
       ? EnableGameDebugMessage.type.response(message.id, {})
       : EnableGameDebugMessage.type.error(message.id, {
           code: 1,
@@ -1473,11 +1479,15 @@ export class GamePlayerController {
   protected handleDisableGameDebug = async (
     message: DisableGameDebugMessage.Request,
   ) => {
+    let stopped = false;
     if (this._game) {
       this._game.stopDebugging();
+      stopped = true;
+    } else if (await this.askWorkerGame(DisableGameDebugMessage.type, {})) {
+      stopped = true;
     }
     this.updateLaunchStateIcon();
-    return this._game
+    return stopped
       ? DisableGameDebugMessage.type.response(message.id, {})
       : DisableGameDebugMessage.type.error(message.id, {
           code: 1,
