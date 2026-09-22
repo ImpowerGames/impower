@@ -302,9 +302,12 @@ export default class AudioManager extends Manager {
     const over = update.over;
     const gain = update.to;
     // A start that plays when it is due, rather than at a later cue, is that
-    // far into its sound.
+    // far into its sound. A looping player's cue rebuilds the due time from
+    // its own arithmetic, so "when it is due" allows a microsecond, far less
+    // than one sample.
+    const playsWhenDue = when - due < 1e-6;
     const at =
-      lateness > 0 && when === due ? (update.at ?? 0) + lateness : update.at;
+      lateness > 0 && playsWhenDue ? (update.at ?? 0) + lateness : update.at;
     if (update.loop != null) {
       audioPlayer.loop = update.loop;
     }

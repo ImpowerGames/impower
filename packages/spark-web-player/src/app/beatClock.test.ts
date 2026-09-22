@@ -226,6 +226,18 @@ describe("a stamped audio update handled late", () => {
     expect(offset).toBe(0.5);
   });
 
+  it("counts a cue that lands on the due time, give or take rounding, as due", async () => {
+    const page = makePage(0);
+    // A looping player's cue rebuilds the due time as start + loops *
+    // duration + offset, which can land a rounding step past it.
+    page.player.getNextCueTime = (t: number) => t + 1e-16 * (1 + t);
+    const stamp = page.now() + 10;
+    page.advance(50);
+    await page.audio.onReceiveRequest(updateAudio(stamp));
+    const [, , , offset] = page.player.start.mock.calls[0]!;
+    expect(offset).toBeCloseTo(0.04, 9);
+  });
+
   it("starts a late `now` start that far into its sound too", async () => {
     const page = makePage(0);
     const stamp = page.now() + 10;
