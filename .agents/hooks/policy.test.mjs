@@ -9,6 +9,22 @@ import { testShell } from "../skills/drive-web-editor/redgreen.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const event = (tool_name, tool_input) => ({ session_id: "policy-test", tool_name, tool_input });
+// Control bytes are built from their code points so that no tool writing this
+// file can decode an escape into the byte itself.
+const nul = String.fromCharCode(0), esc = String.fromCharCode(0x1b), bs = String.fromCharCode(92);
+const writeHazards = [
+  [event("Write", { file_path: "src/key.ts", content: `const SEP = "${nul}";\n` }), true],
+  [event("Edit", { file_path: "src/key.ts", old_string: "a", new_string: `b${esc}[0m` }), true],
+  [event("apply_patch", { command: `*** Begin Patch\n*** Update File: src/key.ts\n@@\n-a\n+const SEP = "${nul}";\n*** End Patch` }), true],
+  [event("Write", { file_path: "src/key.ts", content: `const SEP = "${bs}u0000";\r\n\tx\n` }), false],
+  [event("Bash", { command: `Set-Location C:/w; [IO.File]::WriteAllText("packages/a.ts", $t)` }), true],
+  [event("Bash", { command: `$p = 'packages/a.ts'; $t = [System.IO.File]::ReadAllText($p)` }), true],
+  [event("Bash", { command: `$w = "src"; [IO.File]::WriteAllText("$w/a.ts", $t)` }), true],
+  [event("Bash", { command: `[IO.Path]::GetFullPath('a.ts')` }), true],
+  [event("Bash", { command: `[IO.File]::WriteAllText('C:${bs}w${bs}a.ts', $t); [IO.File]::ReadAllText("/tmp/a")` }), false],
+  [event("Bash", { command: `$w = "C:/w"; [System.IO.File]::WriteAllText("$w/a.ts", $t); [IO.File]::ReadAllText((Join-Path $PWD 'a'))` }), false],
+  [event("Bash", { command: `Get-ChildItem | % { [IO.File]::ReadAllText($_.FullName) }` }), false],
+];
 const checks = [
   [event("Bash", { command: "git stash pop" }), true],
   [event("Bash", { command: "git stash list" }), false],
@@ -21,6 +37,7 @@ const checks = [
   [event("apply_patch", { command: "*** Begin Patch\r\n*** Update File: plain.txt\r\n*** Move to: vscode-sparkdown/language/sparkdown.language-snippets.json\r\n@@\r\n-a\r\n+b\r\n*** End Patch" }), true],
   [event("apply_patch", { command: "*** Begin Patch\n*** Delete File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), true],
   [event("apply_patch", { command: "*** Begin Patch\n*** Add File: docs/example.txt\n+*** Update File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), false],
+  ...writeHazards,
 ];
 const config = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
 const group = config.hooks.PreToolUse[0], hook = group.hooks[0];
@@ -55,5 +72,17 @@ if (process.platform === "win32") {
   const result = spawnSync(shell, ["-NoProfile", "-NonInteractive", "-Command", missingCommand], { cwd: root, input: JSON.stringify(checks[0][0]), encoding: "utf8", windowsHide: true });
   assert.equal(result.status, 2, "a missing Windows runtime must block, not report a non-blocking hook failure");
   assert.match(result.stderr, /Repository hook|node|runtime/i);
+}
+// Claude-only tool shapes: MultiEdit content, the PowerShell dialect, and the
+// PowerShell hook that .claude/settings.json ships, run under bash.
+assert.ok(decide(normalize(event("MultiEdit", { file_path: "src/key.ts", edits: [{ old_string: "a", new_string: "b" }, { old_string: "c", new_string: `d${nul}` }] }), "claude")));
+assert.equal(decide(normalize(event("Bash", { command: `[IO.File]::ReadAllText('a.ts')` }), "claude")), null, "bash has no .NET calls");
+const dotnetHook = settings.hooks.PreToolUse.find((g) => g.matcher === "PowerShell").hooks[0].command;
+for (const [command, blocked] of [[`$p = 'packages/a.ts'; [IO.File]::WriteAllText($p, $t)`, true], [`[IO.File]::WriteAllText('C:/w/a.ts', $t)`, false], ["git status", false]]) {
+  const assertion = decide(normalize(event("PowerShell", { command }), "claude"));
+  assert.equal(Boolean(assertion), blocked, command);
+  const run = spawnSync(bash, ["-c", dotnetHook], { cwd: root, input: JSON.stringify(event("PowerShell", { command })), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8", windowsHide: true });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(/permissionDecision.*deny/.test(run.stdout), blocked, command + " through the shipped hook");
 }
 console.log("PASS: shared policy, complete multi-file patches, native hook configuration, nested cwd and blocking failures");
