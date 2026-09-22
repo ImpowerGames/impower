@@ -2367,6 +2367,10 @@ export class GamePlayerController {
    *  disposed of its application. */
   protected _workerAppSettling?: Promise<void>;
 
+  /** The display the worker is working out, if any: the next one waits for
+   *  it rather than queueing behind it in the worker. */
+  protected _workerDisplaying?: Promise<{ displayed: boolean }>;
+
   /**
    * `updatePreview` with the worker displaying: the page holds a summary of
    * `program`, and the worker's game, holding the program itself, performs
@@ -2444,20 +2448,37 @@ export class GamePlayerController {
         return false;
       }
     }
+    // One display at a time. Working one out is a route replay in the worker,
+    // seconds of it on a long script, so a held arrow key that sent one per
+    // selection would queue them all and leave the screen that far behind the
+    // cursor. The updates that arrive while one is under way wait here, and
+    // all but the newest abandon the screen to it (#680).
+    while (this._workerDisplaying) {
+      await this._workerDisplaying.catch(() => {});
+      if (overtaken()) {
+        return false;
+      }
+    }
     const shown = this._completionShown;
     let result: { displayed: boolean } | undefined;
+    const displaying = link.request(DisplayPreviewMessage.type, {
+      program: programIdentity(program)!,
+      file,
+      line,
+      speculative: Boolean(options?.speculative),
+      keep: shown ? programIdentity(shown.program) : undefined,
+      fresh: this._workerAppFresh,
+    });
+    this._workerDisplaying = displaying;
     try {
-      result = await link.request(DisplayPreviewMessage.type, {
-        program: programIdentity(program)!,
-        file,
-        line,
-        speculative: Boolean(options?.speculative),
-        keep: shown ? programIdentity(shown.program) : undefined,
-        fresh: this._workerAppFresh,
-      });
+      result = await displaying;
     } catch (e) {
       console.error(e);
       return false;
+    } finally {
+      if (this._workerDisplaying === displaying) {
+        this._workerDisplaying = undefined;
+      }
     }
     if (result.displayed) {
       this._workerAppFresh = false;
