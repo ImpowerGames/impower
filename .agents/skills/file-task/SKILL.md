@@ -23,7 +23,7 @@ Read [shared issue-field guidance](../references/issue-fields.md) to estimate th
 
 Discover current repository labels and select applicable area/workflow labels. Create with type `Task` and those labels in the creation call, using an editor-authored body file as required by the publishing rules. For an open match, retain its URL and relevant existing content and metadata instead of creating another ticket or silently changing its type.
 
-Assign the actual Effort organization issue field through the shared procedure; a body estimate alone is insufficient. Read back the published body, type, labels and Effort before reporting completion.
+Assign the actual Effort organization issue field through the shared procedure; a body estimate alone is insufficient. A Task blocked by other tickets states them in one sentence starting "Blocked by" that names each as `#N`; after creation, run `node .agents/skills/references/record-blockers.mjs <task>` to record them as GitHub issue dependencies and read them back, since the sentence alone creates none. Read back the published body, type, labels, Effort and any stated blockers before reporting completion.
 
 If creation or a later write has an uncertain result, inspect the tracker before retrying. Once an issue exists, preserve its URL, intended body and pending metadata. Repair partial publication on that same issue; do not create a duplicate to recover a failed metadata step. If access still prevents verification or repair, report the issue link and the exact incomplete step with the pending estimate instead of claiming it is fully filed.
 
