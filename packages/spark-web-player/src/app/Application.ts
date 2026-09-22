@@ -15,6 +15,8 @@ import "pixi.js/unsafe-eval";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
 import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
+import { AudioClockMessage } from "../../../spark-engine/src/game/modules/audio/classes/messages/AudioClockMessage";
+import { AudioClock } from "./AudioClock";
 import type { IApplication } from "./IApplication";
 import { type AssetCache } from "./assets/AssetCache";
 import { Manager } from "./Manager";
@@ -177,6 +179,19 @@ export class Application implements IApplication {
     return this._audioContext;
   }
 
+  /** Maps the shared clock onto the audio context and document timeline. */
+  protected _audioClock = new AudioClock();
+  get audioClock() {
+    return this._audioClock;
+  }
+
+  /** The context whose state changes re-read the audio clock. */
+  protected _watchedAudioContext?: AudioContext;
+
+  /** When the audio clock was last read and sent to the game (page
+   *  `performance.now()`), or undefined before the game is connected. */
+  protected _audioClockSentAt?: number;
+
   private _resolveInit!: () => void;
 
   private _initializing?: Promise<void>;
@@ -265,6 +280,7 @@ export class Application implements IApplication {
       } else {
         this._clock.syncToClock(this._audioContext);
       }
+      this.watchAudioContext(sharedAudioContext);
     }
 
     this._resizeObserver = new ResizeObserver(([entry]) => {
@@ -327,19 +343,57 @@ export class Application implements IApplication {
     await this._game.connect((msg: Message, _t?: ArrayBuffer[]) => {
       this._router.receive(msg);
     });
+    this.sendAudioClock();
   }
+
+  /**
+   * Reads the audio clock and tells the game. Sent at connect, whenever the
+   * audio context starts, stops or resumes, and once a second while running,
+   * so the reading follows any drift between the two clocks.
+   */
+  protected sendAudioClock() {
+    this._audioClockSentAt = performance.now();
+    this.emit(AudioClockMessage.type.notification(this._audioClock.read()));
+  }
+
+  protected watchAudioContext(audioContext: AudioContext) {
+    if (this._watchedAudioContext === audioContext) {
+      return;
+    }
+    this._watchedAudioContext?.removeEventListener(
+      "statechange",
+      this.onAudioStateChange,
+    );
+    this._watchedAudioContext = audioContext;
+    audioContext.addEventListener("statechange", this.onAudioStateChange);
+    this._audioClock.setContext(audioContext);
+  }
+
+  protected onAudioStateChange = (): void => {
+    const audioContext = this._watchedAudioContext;
+    if (audioContext?.state === "running") {
+      this.setAudioContext(audioContext);
+    }
+    if (this._audioClockSentAt != null && !this._destroyed) {
+      this.sendAudioClock();
+    }
+  };
 
   async initializeManagers() {
     await Promise.all(this._managers.map((manager) => manager.onInit()));
   }
 
   setAudioContext(audioContext: AudioContext) {
+    this.watchAudioContext(audioContext);
     if (audioContext.state === "running") {
       if (this._audioContext === audioContext) {
         return;
       }
       this._audioContext = audioContext;
       this._clock.syncToClock(audioContext);
+      if (this._audioClockSentAt != null) {
+        this.sendAudioClock();
+      }
     }
   }
 
@@ -383,6 +437,12 @@ export class Application implements IApplication {
 
   protected update(time: Clock): void {
     if (!this._destroyed) {
+      if (
+        this._audioClockSentAt != null &&
+        performance.now() - this._audioClockSentAt >= 1000
+      ) {
+        this.sendAudioClock();
+      }
       if (!this._paused) {
         if (this._game) {
           this._game.update(time);
@@ -406,6 +466,10 @@ export class Application implements IApplication {
       await this.initializing;
       this._overlay?.classList.remove("pause-game");
       this._clock.dispose();
+      this._watchedAudioContext?.removeEventListener(
+        "statechange",
+        this.onAudioStateChange,
+      );
       this.unbind();
       this._resizeObserver.disconnect();
       for (const manager of this._managers) {

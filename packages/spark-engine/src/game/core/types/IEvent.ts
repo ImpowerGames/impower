@@ -6,4 +6,9 @@ export interface IEvent<T extends string> {
    * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Event/timeStamp)
    */
   readonly timeStamp: number;
+  /**
+   * When the event happened on the shared clock (`sharedNow`), in
+   * milliseconds.
+   */
+  readonly time: number;
 }

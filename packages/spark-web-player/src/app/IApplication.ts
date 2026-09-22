@@ -1,6 +1,7 @@
 import { type Container, type Renderer } from "pixi.js";
 import { type Message } from "../../../jsonrpc/src/common/types/Message";
 import { type Clock } from "../../../spark-engine/src/game/core/classes/Clock";
+import type { AudioClock } from "./AudioClock";
 import type AssetManager from "./managers/AssetManager";
 import type AudioManager from "./managers/AudioManager";
 import type UIManager from "./managers/UIManager";
@@ -45,6 +46,10 @@ export interface IApplication {
    * The audio context.
    */
   audioContext?: AudioContext;
+  /**
+   * Maps the shared clock onto the audio context and document timeline.
+   */
+  audioClock: AudioClock;
   /**
    * The orbit control used for manipulating the camera (e.g. drag-to-rotate).
    */

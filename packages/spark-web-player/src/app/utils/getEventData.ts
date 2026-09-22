@@ -9,7 +9,20 @@ import type { EventMap } from "../../../../spark-engine/src/game/core/types/Even
 const structuralId = (el: EventTarget | null): string =>
   ((el as any)?.__sdId as string) ?? (el as HTMLElement)?.id;
 
-export const getEventData = <T extends keyof EventMap>(event: Event) => {
+/**
+ * What the engine is told about a DOM event, with the moment it happened on
+ * the shared clock (`sharedNow`). A DOM `timeStamp` counts from this page's
+ * own time origin, which means nothing to a game running on another thread.
+ */
+export const getEventData = <T extends keyof EventMap>(
+  event: Event,
+  timeOrigin: number = performance.timeOrigin,
+): EventMap[T] => ({
+  ...describeEvent<T>(event),
+  time: timeOrigin + event.timeStamp,
+});
+
+const describeEvent = <T extends keyof EventMap>(event: Event) => {
   const mouseEventData = event as MouseEvent;
   if (
     mouseEventData.type === "click" ||

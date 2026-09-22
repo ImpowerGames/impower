@@ -115,6 +115,7 @@ exports[`image > animated (non-instant) show emits per-layer animate 1`] = `
         },
       ],
       "target": "backdrop",
+      "time": 15,
     },
   },
 ]

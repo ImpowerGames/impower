@@ -487,8 +487,10 @@ export class AssetModule extends Module<
   /**
    * Start loading everything a beat shows and return a trigger the
    * Coordinator waits on before displaying it, or null when nothing needs
-   * loading. The pin is released once the trigger fires: by then the images
-   * are on screen, which pins them on the page's side.
+   * loading. The pin is released once the beat's writes have been sent: the
+   * page handles them in order and builds the image layers as soon as it
+   * handles a write, before the beat's reveal starts, and a built layer pins
+   * its images on the page's side.
    */
   prepareBeat(instructions: Instructions): number | null {
     if (this.silent) {
@@ -733,7 +735,8 @@ export class AssetModule extends Module<
     }
   }
 
-  /** Advance the prediction window past the beat that just displayed; in
+  /** Advance the prediction window past the beat whose writes were just
+   *  sent to the page (it shows them at the beat's stamp); in
    *  preview, send the window around the cursor if it moved since the last
    *  one (each scrub declares its cursor before it connects, and a scrub
    *  inside a scene enters no scene). */

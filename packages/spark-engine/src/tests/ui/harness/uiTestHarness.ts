@@ -36,6 +36,7 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { Game } from "../../../game/core/classes/Game";
 import type { Instructions } from "../../../game/core/types/Instructions";
+import { BEAT_LEAD_MS } from "../../../game/core/utils/sharedClock";
 import {
   assetItemKey,
   type AssetItem,
@@ -166,7 +167,7 @@ function resultForMethod(method: string, params?: any): unknown {
     case "ui/animate":
       return [];
     case "audio/load":
-      return { outputLatency: 0 };
+      return params;
     case "audio/update":
       return [];
     case "assets/load": {
@@ -375,6 +376,11 @@ export function createHarness(
       }
       const ui = game.module.ui;
       const audio = game.module.audio;
+      // A played beat is stamped with its start time, as the Coordinator
+      // stamps it: the pinned `now` plus the lead.
+      const time = instant
+        ? undefined
+        : game.context.system.now() + BEAT_LEAD_MS;
       // Mirror Coordinator.display()'s fan-out order. Audio is scheduled, then
       // (once loaded) triggered — `audio/update` only emits on trigger, so we
       // trigger after the loads settle, exactly as the Coordinator's tick does.
@@ -402,14 +408,14 @@ export function createHarness(
       if (instructions.text) {
         await Promise.all(
           Object.entries(instructions.text).map(([target, events]) =>
-            ui.text.write(target, events as any, instant),
+            ui.text.write(target, events as any, instant, time),
           ),
         );
       }
       if (instructions.image) {
         await Promise.all(
           Object.entries(instructions.image).map(([target, events]) =>
-            ui.image.write(target, events as any, instant),
+            ui.image.write(target, events as any, instant, time),
           ),
         );
       }
@@ -429,7 +435,7 @@ export function createHarness(
       // does this from its per-frame tick after `audio.isReady(...)`).
       if (audioTriggerIds.length > 0) {
         await flushMicrotasks(10);
-        audio.triggerAll(audioTriggerIds);
+        audio.triggerAll(audioTriggerIds, time);
       }
     },
     emitEvent(type: string, elementId: string, extra?: Record<string, unknown>) {

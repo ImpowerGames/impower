@@ -34,6 +34,7 @@ import { StepGameMessage } from "../game/core/classes/messages/StepGameMessage";
 import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMessage";
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
 import type { SystemConfiguration } from "../game/core/types/SystemConfiguration";
+import { sharedNow } from "../game/core/utils/sharedClock";
 
 export class NoGameError extends Error implements ResponseError {
   override message = "no game loaded";
@@ -44,7 +45,7 @@ export function installGameWorker(connection: MessageConnection) {
   console.log("running spark-engine v1.0");
 
   const systemConfiguration: SystemConfiguration = {
-    now: () => performance.now(),
+    now: sharedNow,
     setTimeout: self.setTimeout,
     requestFrame: self.requestAnimationFrame,
     resolve: (path: string) => {

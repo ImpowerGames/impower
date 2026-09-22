@@ -2,6 +2,7 @@ import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/Noti
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import type { IKeyboardEvent } from "../types/IKeyboardEvent";
 import type { Instructions } from "../types/Instructions";
+import { BEAT_LEAD_MS } from "../utils/sharedClock";
 import { Clock } from "./Clock";
 import type { Game } from "./Game";
 import { EventMessage } from "./messages/EventMessage";
@@ -172,7 +173,9 @@ export class Coordinator<G extends Game> {
     // Stop typewriter audio on instant reveal and new dialogue line
     game.module.audio.stopChannel("typewriter");
 
-    const updateUI = () => {
+    // `time` is when a played beat starts on the shared clock; an instant or
+    // simulated display has none and shows as soon as the page handles it.
+    const updateUI = (time?: number) => {
       game.module.ui.text.clearAll(transientLayers);
       game.module.ui.image.clearAll(
         transientLayers.filter((layer) => !instructions.image?.[layer]),
@@ -211,14 +214,14 @@ export class Coordinator<G extends Game> {
       // Process text events
       if (instructions.text) {
         Object.entries(instructions.text).forEach(([target, events]) =>
-          game.module.ui.text.write(target, events, instant),
+          game.module.ui.text.write(target, events, instant, time),
         );
       }
 
       // Process images events
       if (instructions.image) {
         Object.entries(instructions.image).forEach(([target, events]) =>
-          game.module.ui.image.write(target, events, instant),
+          game.module.ui.image.write(target, events, instant, time),
         );
       }
 
@@ -292,7 +295,6 @@ export class Coordinator<G extends Game> {
 
     let elapsedMS = 0;
     let ready = false;
-    let displaying = false;
     let finished = false;
     const totalDurationMS = (instructions.end ?? 0) * 1000;
     const handleTick = (deltaMS: number): void => {
@@ -306,24 +308,31 @@ export class Coordinator<G extends Game> {
         if (audioReady && assetsReady && loadReady) {
           ready = true;
           this._startedExecution = true;
-          game.module.audio.triggerAll(audioTriggerIds);
+          // The beat's sound and pictures carry one start time, a little
+          // ahead of now so they reach the page before it. The page plays
+          // the sound at that time and shows the pictures once the sound has
+          // left the speakers, so both line up however the messages arrive.
+          const time = game.context.system.now() + BEAT_LEAD_MS;
+          game.module.audio.triggerAll(audioTriggerIds, time);
           if (assetTriggerId != null) {
             assets.trigger(assetTriggerId);
           }
           if (loadTriggerId != null) {
             assets.trigger(loadTriggerId);
           }
-          game.context.system.setTimeout(() => {
-            // Delay the ui update by the audio outputLatency so that audio and visuals are synced
-            updateUI();
-            displaying = true;
-            // The beat is on screen: move the prediction window past it.
-            assets.onBeatDisplayed();
-          }, game.module.audio.outputLatency * 1000);
+          updateUI(time);
+          // The beat's duration counts from when the page shows it. This
+          // tick's time passed before the stamp was taken, so it does not
+          // count.
+          elapsedMS = -(BEAT_LEAD_MS + game.module.audio.outputLatency * 1000);
+          // The page has the beat and shows it at its stamp: move the
+          // prediction window past it.
+          assets.onBeatDisplayed();
         }
-      }
-      if (ready && displaying && !finished) {
+      } else if (!finished) {
         elapsedMS += deltaMS;
+      }
+      if (ready && !finished) {
         if (elapsedMS >= totalDurationMS) {
           finished = true;
           handleFinished();

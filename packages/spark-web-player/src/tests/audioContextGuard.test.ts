@@ -10,7 +10,13 @@ import { Application } from "../app/Application";
 const setAudioContext = Application.prototype.setAudioContext;
 
 function fakeApp(clock: Clock) {
-  return { _audioContext: undefined as any, _clock: clock };
+  // Watching the context's state is the audio clock's concern, not the
+  // guard's; the game is not connected, so no clock reading is sent.
+  return {
+    _audioContext: undefined as any,
+    _clock: clock,
+    watchAudioContext: () => {},
+  };
 }
 
 function fakeAudioContext(currentTime: number) {
