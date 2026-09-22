@@ -3,6 +3,7 @@ import type { Game } from "../../../core/classes/Game";
 import { applyBuiltinDefaults } from "../../../core/utils/applyBuiltinDefaults";
 import { audioBuiltinDefinitions } from "../audioBuiltinDefinitions";
 import { AudioModule } from "./AudioModule";
+import { AudioClockMessage } from "./messages/AudioClockMessage";
 
 /**
  * A character voice authored as `define x as synth with ... end` reaches the
@@ -160,5 +161,27 @@ describe("AudioModule synth resolution (#268)", () => {
       expect(d.synth).toBeUndefined();
       expect(d.src).toBe("music.mp3");
     });
+  });
+});
+
+describe("AudioModule audio clock (#681)", () => {
+  it("takes its output latency from the page's latest audio clock reading", () => {
+    const module = createModule({});
+    expect(module.outputLatency).toBe(0);
+
+    module.onReceiveNotification(
+      AudioClockMessage.type.notification({
+        time: 1000,
+        contextTime: 2,
+        outputLatency: 0.04,
+      }),
+    );
+    expect(module.outputLatency).toBe(0.04);
+
+    // The page's context stopped: nothing is heard, so nothing is waited for.
+    module.onReceiveNotification(
+      AudioClockMessage.type.notification({ time: 3000, outputLatency: 0 }),
+    );
+    expect(module.outputLatency).toBe(0);
   });
 });

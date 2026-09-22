@@ -1,5 +1,6 @@
 // A glued chain lowers to several `display(<table>)` calls that one engine step
-// joins into one beat: routing comes from the first table and the body is the
+// joins into one beat: routing comes from the first table that names a target
+// and the body is the
 // step's ordered text, so a continuation reached through control flow (an `if`
 // branch, where the base line cannot see it at compile time) keeps its words.
 

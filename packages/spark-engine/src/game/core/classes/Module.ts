@@ -27,7 +27,8 @@ export abstract class Module<
     return this._state as RecursiveReadonly<S>;
   }
 
-  protected _triggerReady: Map<number, boolean | (() => void)> = new Map();
+  protected _triggerReady: Map<number, boolean | ((time?: number) => void)> =
+    new Map();
 
   protected _triggersCreated = 0;
 
@@ -127,7 +128,10 @@ export abstract class Module<
   }
 
   /** Allow the event to be triggered */
-  protected enableTrigger(triggerId: number, callback?: () => void) {
+  protected enableTrigger(
+    triggerId: number,
+    callback?: (time?: number) => void,
+  ) {
     this._triggerReady.set(triggerId, callback ?? true);
   }
 
@@ -136,22 +140,23 @@ export abstract class Module<
     return Boolean(this._triggerReady.has(triggerId));
   }
 
-  /** Triggers the event (does nothing if the trigger is not yet ready) */
-  trigger(triggerId: number) {
+  /** Triggers the event (does nothing if the trigger is not yet ready).
+   *  `time` is when the beat that fires it starts on the shared clock. */
+  trigger(triggerId: number, time?: number) {
     if (this.isReady(triggerId)) {
       const t = this._triggerReady.get(triggerId);
       if (t && typeof t === "function") {
-        t();
+        t(time);
       }
       this._triggerReady.delete(triggerId);
     }
   }
 
   /** Triggers all specified events (does nothing if the triggers are not yet ready) */
-  triggerAll(transitionIds: number[]) {
+  triggerAll(transitionIds: number[], time?: number) {
     if (transitionIds.every((id) => this.isReady(id))) {
       transitionIds.forEach((transitionId) => {
-        this.trigger(transitionId);
+        this.trigger(transitionId, time);
       });
     }
   }

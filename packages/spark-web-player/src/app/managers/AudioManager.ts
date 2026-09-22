@@ -282,20 +282,32 @@ export default class AudioManager extends Manager {
     return undefined;
   }
 
+  /**
+   * Applies `update` `after` seconds past `startTime`. An update whose moment
+   * has already passed by `currentTime` happens at once, and a sound it starts
+   * starts that far in, so it stays in step with the rest of its beat.
+   */
   protected async updateAudioPlayer(
     audioPlayer: AudioPlayer,
     update: AudioPlayerUpdate,
+    startTime: number,
     currentTime: number,
     channel?: string,
     key?: string,
   ) {
-    const updateTime = currentTime + (update.after ?? 0);
-    const when = update.now
-      ? updateTime
-      : audioPlayer.getNextCueTime(updateTime);
+    const updateTime = startTime + (update.after ?? 0);
+    const lateness = Math.max(0, currentTime - updateTime);
+    const due = updateTime + lateness;
+    const when = update.now ? due : audioPlayer.getNextCueTime(due);
     const over = update.over;
     const gain = update.to;
-    const at = update.at;
+    // A start that plays when it is due, rather than at a later cue, is that
+    // far into its sound. A looping player's cue rebuilds the due time from
+    // its own arithmetic, so "when it is due" allows a microsecond, far less
+    // than one sample.
+    const playsWhenDue = when - due < 1e-6;
+    const at =
+      lateness > 0 && playsWhenDue ? (update.at ?? 0) + lateness : update.at;
     if (update.loop != null) {
       audioPlayer.loop = update.loop;
     }
@@ -327,6 +339,12 @@ export default class AudioManager extends Manager {
   protected async onUpdateAudioPlayers(params: UpdateAudioPlayersParams) {
     if (this.app.audioContext) {
       let currentTime = this.app.audioContext.currentTime;
+      // A beat's updates count from the beat's start time, which may already
+      // have passed; updates that follow a queue count from when it ends.
+      let startTime =
+        (params.time != null
+          ? this.app.audioClock.toContextTime(params.time)
+          : undefined) ?? currentTime;
       const audioChannel = this.getAudioChannel(params.channel);
       let queueCreatedAt: number | undefined = undefined;
       for (const update of params.updates) {
@@ -336,6 +354,7 @@ export default class AudioManager extends Manager {
             this.updateAudioPlayer(
               audioPlayer,
               update,
+              startTime,
               currentTime,
               params.channel,
               update.key,
@@ -346,6 +365,7 @@ export default class AudioManager extends Manager {
             this.updateAudioPlayer(
               audioPlayer,
               update,
+              startTime,
               currentTime,
               params.channel,
               key,
@@ -376,6 +396,7 @@ export default class AudioManager extends Manager {
                 break;
               }
               currentTime = this.app.audioContext.currentTime;
+              startTime = currentTime;
             }
           }
         }
@@ -444,15 +465,7 @@ export default class AudioManager extends Manager {
     }
     if (LoadAudioPlayerMessage.type.isRequest(msg)) {
       await this.onLoadAudioPlayer(msg.params);
-      const outputLatency =
-        window.AudioContext && "outputLatency" in window.AudioContext.prototype
-          ? ((this.app.audioContext || this.unsafeAudioContext)
-              ?.outputLatency ?? 0)
-          : 0;
-      return LoadAudioPlayerMessage.type.result({
-        ...msg.params,
-        outputLatency,
-      });
+      return LoadAudioPlayerMessage.type.result(msg.params);
     }
     if (UpdateAudioPlayersMessage.type.isRequest(msg)) {
       await this.onUpdateAudioPlayers(msg.params);

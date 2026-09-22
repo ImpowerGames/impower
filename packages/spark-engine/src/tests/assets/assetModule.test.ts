@@ -4,6 +4,7 @@ import { Clock } from "../../game/core/classes/Clock";
 import { Coordinator } from "../../game/core/classes/Coordinator";
 import { Game } from "../../game/core/classes/Game";
 import { type Instructions } from "../../game/core/types/Instructions";
+import { BEAT_LEAD_MS } from "../../game/core/utils/sharedClock";
 import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";
 
 // The asset module through the real engine: what it asks the page for, when it
@@ -268,7 +269,10 @@ describe("AssetModule", () => {
     h.flushTimers();
     await flushMicrotasks(20);
     expect(ui._mountedLayouts.has("loading")).toBe(false);
+    // Ready now; it shows a lead after its stamp and advances from there.
     coordinator.onUpdate(tick());
+    expect(coordinator.shouldContinue()).toBe(0);
+    coordinator.onUpdate(tick(BEAT_LEAD_MS));
     expect(coordinator.shouldContinue()).toBe(1);
   });
 

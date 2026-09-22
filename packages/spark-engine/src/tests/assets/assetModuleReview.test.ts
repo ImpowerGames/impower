@@ -48,6 +48,9 @@ describe("AssetModule, after review", () => {
     await flushMicrotasks(20);
     coordinator.onUpdate(tick());
     expect(ui._mountedLayouts.has("loading")).toBe(false);
+    // Ready on that tick; the next one runs out the lead to its display.
+    expect(coordinator.shouldContinue()).toBe(0);
+    coordinator.onUpdate(tick());
     expect(coordinator.shouldContinue()).toBe(1);
   });
 

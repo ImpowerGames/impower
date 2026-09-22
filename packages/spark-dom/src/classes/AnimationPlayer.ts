@@ -156,12 +156,38 @@ export default class AnimationPlayer {
     }
   }
 
-  async play(): Promise<void> {
-    const currentTime = document.timeline.currentTime;
+  /**
+   * Milliseconds from the animations' start to the end of the longest one:
+   * where a stage that follows them starts on the same timeline.
+   */
+  get endTime(): number {
+    let end = 0;
+    for (const instance of this._instances) {
+      const effect = instance.animation.effect;
+      end = Math.max(end, Number(effect?.getComputedTiming?.().endTime ?? 0));
+    }
+    return end;
+  }
+
+  /**
+   * Plays every animation from `startTime` on the document timeline, or from
+   * now without one. A start time already past plays them with that much
+   * already elapsed.
+   *
+   * Setting a start time is what starts an animation at it. `play()` would
+   * rewind one whose start time is still ahead (a negative current time) or
+   * whose start is so far past that it has finished, and start it from the
+   * beginning when the page is next ready instead.
+   */
+  async play(startTime?: number): Promise<void> {
     await Promise.allSettled(
       this._instances.map(async (instance) => {
-        instance.animation.startTime = currentTime;
-        instance.animation.play();
+        if (startTime != null) {
+          instance.animation.startTime = startTime;
+        } else {
+          instance.animation.startTime = document.timeline.currentTime;
+          instance.animation.play();
+        }
         await instance.animation.finished;
       }),
     );

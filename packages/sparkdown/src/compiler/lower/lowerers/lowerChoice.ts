@@ -2,12 +2,20 @@ import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
-import { Choice } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import {
+  Choice,
+  ChoiceStartEcho,
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { ContentList } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
+import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
+import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
+import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import type {
 CompiledBlock,
@@ -21,6 +29,10 @@ import {
   divertLoadShapeProblem,
   withDivertLoad,
 } from "../utils/buildDivert";
+import {
+  buildDisplayCall,
+  buildOrderedDisplayCall,
+} from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -79,7 +91,7 @@ export function lowerChoice(
 
   const startContent = new ContentList();
   const choiceOnlyContent = new ContentList();
-  const innerContent = new ContentList();
+  let innerContent = new ContentList();
 
   // Two grammar shapes for the choice body, picked at parse time:
   //   - `ChoiceWithSuppressedText` for `foo[bar]baz -> target`
@@ -116,6 +128,10 @@ export function lowerChoice(
   // handled by `parseIncrementally`'s "closest weave" attachment.
   const divertNode = getDescendent("Divert", nodeRef.node);
   const divertObjects = divertNode ? buildDivert(divertNode, ctx) : [];
+  // What follows the chosen text: the arrow's objects, or the newline that
+  // ends the line. With display calls on, the text becomes a `display()` call
+  // ahead of these.
+  const chosenTail: ParsedObject[] = [];
   if (divertObjects.length > 0) {
     // For an inline divert like `* hello -> world`, preserve the
     // whitespace between the choice text and the `->` so the chosen
@@ -143,11 +159,9 @@ export function lowerChoice(
         innerContent.AddContent(new Text(whitespaceBeforeDivert));
       }
     }
-    for (const obj of withDivertLoad(divertNode!, divertObjects, ctx, {
-      ownLine: false,
-    })) {
-      innerContent.AddContent(obj);
-    }
+    chosenTail.push(
+      ...withDivertLoad(divertNode!, divertObjects, ctx, { ownLine: false }),
+    );
   } else if (!divertNode) {
     // No inline divert. Append a newline so the chosen output ends
     // with `\n` like a regular display line (matches inkjs's
@@ -160,7 +174,7 @@ export function lowerChoice(
     // form's "no trailing newline" semantics keeps `* "X"\n  fin`
     // producing the same chosen output as the old `* "X" -> END`.
     if (!nextSignificantSiblingIsTerminator(nodeRef.node)) {
-      innerContent.AddContent(new Text("\n"));
+      chosenTail.push(new Text("\n"));
     }
   }
   // If `divertNode` was present but `buildDivert` returned undefined
@@ -168,7 +182,33 @@ export function lowerChoice(
   // becomes an `isInvisibleDefault` fallback whose loose-end gets
   // resolved by inkjs's `Weave.AddRuntimeForGather` to the next gather.
 
+  const echo = ctx.config?.experimentalDisplayCalls
+    ? chosenTextAsDisplayCall(
+        startContent,
+        innerContent,
+        chosenTail,
+        () => {
+          const fresh = new ContentList();
+          if (bracketed) {
+            appendTextFromCapture(bracketed, "ChoiceStartText", ctx, fresh);
+          } else if (unbracketed) {
+            appendTextFromCapture(unbracketed, "ChoicePlainText", ctx, fresh);
+          }
+          return fresh;
+        },
+        ctx,
+      )
+    : null;
+  if (echo) {
+    innerContent = new ContentList();
+    for (const obj of echo.inner) innerContent.AddContent(obj);
+  } else {
+    for (const obj of chosenTail) innerContent.AddContent(obj);
+  }
+
   const choice = new Choice(startContent, choiceOnlyContent, innerContent);
+  choice.startEcho = echo?.startEcho ?? null;
+  choice.repeatsStartContent = echo?.repeatsStartContent ?? true;
   choice.onceOnly = onceOnly;
   choice.hasWeaveStyleInlineBrackets = hasWeaveStyleInlineBrackets;
   choice.indentationDepth = depth;
@@ -264,6 +304,60 @@ export function lowerChoice(
     block.diagnostics = diagnostics;
   }
   return block;
+}
+
+// With display calls on, the words a chosen choice prints (its start content
+// repeated, then its inner text) become one `display({ text })` call on the
+// default target, followed by the arrow's objects. A plain arrow is held on the
+// line by glue, so the target's first line joins it as it joins flat text.
+// Returns null when there are no words to print.
+//
+// The start content repeats by jumping into the container the choice label
+// uses, from inside the call's string. A tag cannot run inside a captured
+// string, so when a `# tag` sits among the words, the call instead takes a
+// fresh lowering of the start content (`relowerStart`) and carries the words
+// and tags as ordered `parts`, evaluated in the order written.
+function chosenTextAsDisplayCall(
+  start: ContentList,
+  inner: ContentList,
+  tail: ParsedObject[],
+  relowerStart: () => ContentList,
+  ctx: LowerContext,
+): {
+  inner: ParsedObject[];
+  startEcho: ChoiceStartEcho | null;
+  repeatsStartContent: boolean;
+} | null {
+  const words = inner.content.slice();
+  const hasStart = start.content.length > 0;
+  if (!hasStart && words.length === 0) return null;
+  const tagged = [...start.content, ...words].some(
+    (obj) => obj instanceof Tag,
+  );
+  let call: ParsedObject;
+  let startEcho: ChoiceStartEcho | null = null;
+  if (tagged) {
+    const startWords = hasStart ? relowerStart().content.slice() : [];
+    call = buildOrderedDisplayCall([...startWords, ...words], ctx);
+  } else {
+    startEcho = hasStart ? new ChoiceStartEcho() : null;
+    const body = startEcho ? [startEcho, ...words] : words;
+    call = buildDisplayCall(undefined, undefined, body, null, ctx);
+  }
+  const out: ParsedObject[] = [call];
+  // The call's own newline ends the line, so a bare newline tail is dropped.
+  const arrow = tail.filter((obj) => !(obj instanceof Text && obj.text === "\n"));
+  if (arrow.length > 0) {
+    // A `load` arrow's directive is a step of its own, so nothing holds the
+    // line open for it.
+    if (
+      arrow.every((obj) => obj instanceof Divert || obj instanceof TunnelOnwards)
+    ) {
+      out.push(new ParsedGlue(new RuntimeGlue()));
+    }
+    out.push(...tail);
+  }
+  return { inner: out, startEcho, repeatsStartContent: !tagged };
 }
 
 function makeSource(choiceNode: SyntaxNode, ctx: LowerContext): SourceMetadata {

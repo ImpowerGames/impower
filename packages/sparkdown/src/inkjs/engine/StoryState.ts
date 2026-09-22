@@ -494,10 +494,10 @@ export class StoryState {
    *  `display(<table>)` stdlib call pushed onto the output stream this beat.
    *  Walks the stream collecting top-level `ObjectValue`s (skipping anything
    *  inside a BeginTag…EndTag span, so routing tags don't leak in). Empty for
-   *  every beat that didn't call `display()` — the legacy text path is
-   *  unaffected. The engine reads this alongside `currentText` after each
-   *  Continue: the first table routes the beat, and `currentText` (which
-   *  includes every table's `text`) is the body the interpreter parses. */
+   *  every beat that called neither `display()` nor `print()`. The engine
+   *  reads this alongside `currentText` after each Continue: the first table
+   *  that names a target routes the beat, and `currentText` (which includes
+   *  every table's `text`) is the body the interpreter parses. */
   get currentDisplayInstructions(): ObjectValue[] {
     const result: ObjectValue[] = [];
     let inTag = false;
@@ -1125,9 +1125,23 @@ export class StoryState {
       // The removal looks past a `# tag`'s BeginTag/EndTag pair. A tag is
       // metadata, so a tagged line between the glue and the table leaves the
       // step boundaries where they would be without the tag.
+      // Inside a function, visible words also end the stretch at the
+      // function's start where newlines are dropped, so the newline that
+      // closes a `print()` table's line is kept.
       let tableText = obj.value?.get("text");
       if (!(tableText instanceof StringValue) || tableText.isNonWhitespace) {
         this.RemoveExistingGlue(true);
+        if (tableText instanceof StringValue) {
+          let callStackElements = this.callStack.elements;
+          for (let i = callStackElements.length - 1; i >= 0; i--) {
+            let el = callStackElements[i];
+            if (el!.type == PushPopType.Function) {
+              el!.functionStartInOutputStream = -1;
+            } else {
+              break;
+            }
+          }
+        }
       }
     }
 
@@ -1315,6 +1329,8 @@ export class StoryState {
       let txt = asOrNull(obj, StringValue);
       let cmd = asOrNull(obj, ControlCommand);
 
+      // A display table is content, as visible text is.
+      if (obj instanceof ObjectValue) break;
       if (txt == null) continue;
       if (cmd) break;
 

@@ -28,6 +28,7 @@ import type { Instructions } from "@impower/spark-engine/src/game/core/types/Ins
 import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
 import { AssetCache, type ImageTarget } from "../../app/assets/AssetCache";
+import { AudioClock } from "../../app/AudioClock";
 import { Manager } from "../../app/Manager";
 import { MessageRouter } from "../../app/MessageRouter";
 import AssetManager from "../../app/managers/AssetManager";
@@ -132,7 +133,10 @@ function installWAAPIStub(win: any) {
           (codeUnit >= 0x0001 && codeUnit <= 0x001f) ||
           codeUnit === 0x007f ||
           (index === 0 && codeUnit >= 0x0030 && codeUnit <= 0x0039) ||
-          (index === 1 && codeUnit >= 0x0030 && codeUnit <= 0x0039 && firstCodeUnit === 0x002d)
+          (index === 1 &&
+            codeUnit >= 0x0030 &&
+            codeUnit <= 0x0039 &&
+            firstCodeUnit === 0x002d)
         ) {
           result += "\\" + codeUnit.toString(16) + " ";
         } else if (index === 0 && len === 1 && codeUnit === 0x002d) {
@@ -234,6 +238,9 @@ export function createStubApp(
     overlay,
     emit,
     assetCache: new AssetCache({ createImage }),
+    // The game's clock reads 0 here, so a beat's shared-clock stamp maps to
+    // the start of the document timeline.
+    audioClock: new AudioClock(0, () => 0),
     audio: {
       decodeAudioBuffer: async () => null,
       playingKeys: () => [],
@@ -393,7 +400,7 @@ export function createDOMHarness(
         if (story.asyncContinueComplete) {
           const choices = story.currentChoices.map((c: any) => c.text);
           // Mirror Game's continue loop: a step that called `display(<table>)`
-          // routes from its first table with the step's ordered text as the
+          // goes to queueInstructions with the step's ordered text as the
           // body; a step with no table takes the queue() path.
           const displayInstructions = story.currentDisplayInstructions;
           if (displayInstructions.length > 0) {
@@ -485,8 +492,7 @@ export function serializeDOM(root: HTMLElement): DOMNode {
     }
     return mapped;
   };
-  const normIds = (s: string) =>
-    s.replace(ELEMENT_ID_RE, (m) => mapId(m));
+  const normIds = (s: string) => s.replace(ELEMENT_ID_RE, (m) => mapId(m));
 
   const walk = (el: Element): DOMNode => {
     const node: DOMNode = { tag: el.tagName.toLowerCase() };
@@ -500,7 +506,11 @@ export function serializeDOM(root: HTMLElement): DOMNode {
     }
     const attrs: Record<string, string> = {};
     for (const attr of Array.from(el.attributes)) {
-      if (attr.name === "id" || attr.name === "class" || attr.name === "style") {
+      if (
+        attr.name === "id" ||
+        attr.name === "class" ||
+        attr.name === "style"
+      ) {
         continue;
       }
       attrs[attr.name] = normIds(attr.value);

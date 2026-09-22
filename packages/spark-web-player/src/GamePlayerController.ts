@@ -79,6 +79,7 @@ import { conflate } from "./utils/conflate";
 import { describeSimulationFailure } from "./utils/describeSimulationFailure";
 import { programIdentity } from "./utils/programIdentity";
 import { profile } from "./utils/profile";
+import { sharedNow } from "@impower/spark-engine/src/game/core/utils/sharedClock";
 
 const COMMON_ASPECT_RATIOS = [
   [16, 9],
@@ -1977,7 +1978,7 @@ export class GamePlayerController {
       breakpoints,
       functionBreakpoints,
       dataBreakpoints,
-      now: () => window.performance.now(),
+      now: sharedNow,
       resolve: (path: string) => {
         // TODO: resolve import and load paths to url
         return path;
