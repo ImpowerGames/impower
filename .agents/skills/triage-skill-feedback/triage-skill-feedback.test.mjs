@@ -54,14 +54,24 @@ await test('new feedback reopens an applied section instead of disappearing with
 });
 
 function fixture(comments = [intake(1)]) {
-  const state = { body, comments: structuredClone(comments), issues: [], references: new Map(), discussion: new Map(), bodyWrites: [], events: [], fail: null, nextSummaryId: 999 };
+  const state = { body, comments: structuredClone(comments), issues: [], references: new Map(), discussion: new Map(), parents: new Map(), subIssueCalls: [], bodyWrites: [], events: [], fail: null, nextSummaryId: 999 };
   const checkpoint = name => { state.events.push(name); if (state.fail === name) { state.fail = null; throw new Error(`interrupted ${name}`); } };
+  const databaseId = number => number + 1000000;
   const api = {
     inbox: async () => ({ body: state.body }), comments: async () => structuredClone(state.comments), issues: async () => structuredClone(state.issues),
     issue: async number => {
       const issue = state.issues.find(i => i.number === number) || state.references.get(number);
       if (!issue) throw new Error(`Fixture has no issue #${number}`);
-      return structuredClone(issue);
+      const parent = state.parents.get(number);
+      return { id: databaseId(number), parent_issue_url: parent ? `https://api.github.com/repos/${parent.repo || 'ImpowerGames/impower'}/issues/${parent.number}` : null, ...structuredClone(issue) };
+    },
+    subIssues: async () => [...state.parents].filter(([, parent]) => parent.number === 510 && !parent.repo).map(([number]) => ({ number, id: databaseId(number) })),
+    addSubIssue: async id => {
+      state.subIssueCalls.push(id);
+      const number = id - 1000000;
+      if (state.parents.has(number)) throw new Error(`Fixture issue #${number} already has a parent`);
+      state.parents.set(number, { number: 510 });
+      checkpoint('attached');
     },
     pr: async number => ({ number, state: number === 503 ? 'closed' : 'open', merged_at: number === 503 ? '2026-01-01' : null }),
     issueComments: async number => structuredClone(state.discussion.get(number) || []),
@@ -76,7 +86,7 @@ function fixture(comments = [intake(1)]) {
 await test('successful run persists verified rows before deleting intake and posts one summary', async () => {
   const { state, api, plan } = fixture();
   const result = await applyPlan(plan, api);
-  assert.deepEqual(state.events, ['created', 'persisted', 'delete', 'summary']);
+  assert.deepEqual(state.events, ['created', 'attached', 'persisted', 'delete', 'summary']);
   assert.equal(parseTable(state.body, hydrateReports(state.body, state.comments)).rows[0].status, 'ticketed #600');
   assert.match(state.issues[0].body, /## Acceptance criteria/);
   assert.match(state.issues[0].body, /Feedback group: [a-f0-9]{20}/);
@@ -86,7 +96,53 @@ await test('successful run persists verified rows before deleting intake and pos
   assert.equal(state.issues.length, 1);
   assert.equal(state.comments.length, 1);
 });
-for (const stage of ['created', 'persisted', 'delete', 'summary']) await test(`retry after ${stage} recovers without duplicate tickets or lost intake`, async () => {
+await test('new and existing-group tickets attach to the inbox by database id', async () => {
+  const { state, api, plan } = fixture([intake(1), intake(2, 'write-regression-test, section 3', 'Other')]);
+  state.references.set(701, { number: 701, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const existingKey = plan.groups.find(group => group.keys.includes(keyOf('write-regression-test, section 3'))).keys;
+  plan.groups = [plan.groups.find(group => !group.keys.includes(existingKey[0])), { action: 'existing', number: 701, keys: existingKey }];
+  await applyPlan(plan, api);
+  assert.deepEqual(state.subIssueCalls, [1000600, 1000701]);
+  assert.deepEqual([...state.parents.keys()].sort(), [600, 701]);
+});
+await test('a missing sub-issue on read-back fails before the body is written or intake deleted', async () => {
+  const { state, api, plan } = fixture();
+  api.addSubIssue = async id => { state.subIssueCalls.push(id); };
+  await assert.rejects(applyPlan(plan, api), /#600 is not listed as a sub-issue of #510/);
+  assert.equal(state.bodyWrites.length, 0);
+  assert.equal(state.comments[0].id, 1);
+  assert.ok(!state.events.includes('delete'));
+});
+await test('a retry against an issue already attached to the inbox makes no second attach call', async () => {
+  const { state, api, plan } = fixture(); state.fail = 'attached';
+  await assert.rejects(applyPlan(plan, api), /interrupted attached/);
+  await applyPlan(plan, api);
+  assert.deepEqual(state.subIssueCalls, [1000600]);
+  assert.equal(state.comments.length, 1);
+  assert.match(state.comments[0].body, /Folded 1/);
+});
+await test('an issue with another parent stays where it is and the summary names it', async () => {
+  const { state, api, plan } = fixture();
+  state.references.set(701, { number: 701, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  state.parents.set(701, { number: 646 });
+  plan.groups[0] = { action: 'existing', number: 701, keys: plan.groups[0].keys };
+  const result = await applyPlan(plan, api);
+  assert.deepEqual(state.subIssueCalls, []);
+  assert.equal(state.parents.get(701).number, 646);
+  assert.match(result.summary, /Left under another parent: #701 \(parent ImpowerGames\/impower#646\)\./);
+});
+await test('an open Task ticketed by an earlier run is attached, and a closed one is not', async () => {
+  const ticketed = body.replace('| open |', '| ticketed #601 |').replace('\n\nFooter', '\n| file-bug, section 2 | Old | Older edit | ticketed #602 |\n\nFooter');
+  const { state, api } = fixture([intake(1, 'write-regression-test, section 3', 'Other')]);
+  state.body = ticketed;
+  state.references.set(601, { number: 601, state: 'open', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  state.references.set(602, { number: 602, state: 'closed', type: { name: 'Task' }, labels: [{ name: 'workflow: skills' }] });
+  const plan = makePlan(ticketed, [intake(1, 'write-regression-test, section 3', 'Other')], { prs: {}, issues: { 601: { state: 'open' }, 602: { state: 'closed' } } });
+  await applyPlan(plan, api);
+  assert.deepEqual([...state.subIssueCalls].sort(), [1000600, 1000601]);
+  assert.ok(!state.parents.has(602));
+});
+for (const stage of ['created', 'attached', 'persisted', 'delete', 'summary']) await test(`retry after ${stage} recovers without duplicate tickets or lost intake`, async () => {
   const { state, api, plan } = fixture(); state.fail = stage;
   await assert.rejects(applyPlan(plan, api), /interrupted/);
   await applyPlan(plan, api);
