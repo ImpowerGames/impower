@@ -110,23 +110,53 @@ export function profileClaimConflict(claim, session = SESSION, now = Date.now(),
 // the one that finds the lock taken is refused. A lock older than
 // PROFILE_LOCK_STALE_MS is left by a launch that died mid-claim (the claim
 // itself takes milliseconds) and is taken over.
+// The lock names its holder, and the holder reads it back before writing the
+// claim and before releasing it. A launch stalled past the takeover window
+// therefore writes nothing: the lock it reads back belongs to whoever took it
+// over, and it refuses. Taking a stale lock over replaces exactly the holder
+// that was read, so a lock acquired in between is never removed.
 export const PROFILE_LOCK_STALE_MS = 30_000;
-export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now() } = {}) {
+export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now(), beforeWrite, beforeTakeover } = {}) {
   const file = path.join(dir, PROFILE_CLAIM_FILE);
   const lock = file + ".lock";
+  const held = `${process.pid}-${crypto.randomUUID()}`;
+  const taken = () => new Error(`another launch is claiming browser profile ${dir} right now (${lock} is held); use your own profile, or retry once it has finished`);
+  const holder = () => {
+    try {
+      return fs.readFileSync(lock, "utf8");
+    } catch {
+      return null;
+    }
+  };
   fs.mkdirSync(dir, { recursive: true });
+  const take = () => {
+    const fd = fs.openSync(lock, "wx");
+    fs.writeSync(fd, held);
+    return fd;
+  };
   let fd;
   try {
-    fd = fs.openSync(lock, "wx");
+    fd = take();
   } catch (error) {
     if (error.code !== "EEXIST") throw error;
+    const other = holder();
     let age = 0;
     try {
       age = now - fs.statSync(lock).mtimeMs;
     } catch {}
-    if (age <= PROFILE_LOCK_STALE_MS) throw new Error(`another launch is claiming browser profile ${dir} right now (${lock} exists); use your own profile, or retry once it has finished`);
-    fs.rmSync(lock, { force: true });
-    fd = fs.openSync(lock, "wx");
+    if (age <= PROFILE_LOCK_STALE_MS) throw taken();
+    // Only the holder that was just read is replaced, and only if it is
+    // still there; anything else means another launch got there first.
+    // state-path.test.mjs replaces the lock here to pin that.
+    beforeTakeover?.();
+    if (other == null || holder() !== other) throw taken();
+    try {
+      fs.rmSync(lock, { force: true });
+      fd = take();
+    } catch (again) {
+      if (again.code === "EEXIST") throw taken();
+      throw again;
+    }
   }
   try {
     let claim = null;
@@ -139,12 +169,16 @@ export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.
     }
     const conflict = profileClaimConflict(claim, session, now, dir);
     if (conflict) throw new Error(conflict);
-    const tmp = `${file}.${process.pid}.tmp`;
+    // state-path.test.mjs stalls a claim here to pin that a holder which lost
+    // its lock writes nothing.
+    beforeWrite?.();
+    if (holder() !== held) throw taken();
+    const tmp = `${file}.${held}.tmp`;
     fs.writeFileSync(tmp, JSON.stringify({ session, at: now }));
     fs.renameSync(tmp, file);
   } finally {
     fs.closeSync(fd);
-    fs.rmSync(lock, { force: true });
+    if (holder() === held) fs.rmSync(lock, { force: true });
   }
 }
 

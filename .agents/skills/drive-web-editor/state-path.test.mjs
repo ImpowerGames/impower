@@ -51,6 +51,7 @@ import {
   profilePathProblem,
   sessionDir,
   launchEditorBrowser,
+  claimProfile,
   PROFILE_CLAIM_FILE,
   PROFILE_LOCK_STALE_MS,
   stopLinuxTree,
@@ -390,10 +391,29 @@ await check("the browser launch refuses a too-deep or claimed profile before Pla
     await assert.rejects(launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), /another launch is claiming/);
     assert.ok(fs.existsSync(lock), "a refused launch removed another launch's lock");
     assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false, "a refused launch wrote a claim");
-    const old = (Date.now() - PROFILE_LOCK_STALE_MS - 5_000) / 1000;
-    fs.utimesSync(lock, old, old);
+    const age = (ms) => {
+      const when = (Date.now() - ms) / 1000;
+      fs.utimesSync(lock, when, when);
+    };
+    fs.writeFileSync(lock, "first-holder");
+    age(PROFILE_LOCK_STALE_MS + 5_000);
     assert.deepEqual(await launchEditorBrowser({ headless: true, dir, platform: "linux", playwright }), { dir });
     assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE]);
+    // A stale lock another launch replaced between the read and the removal
+    // is not removed, and its new holder is left to finish.
+    fs.rmSync(path.join(dir, PROFILE_CLAIM_FILE));
+    fs.writeFileSync(lock, "stale-holder");
+    age(PROFILE_LOCK_STALE_MS + 5_000);
+    assert.throws(() => claimProfile(dir, { session: "me", beforeTakeover: () => fs.writeFileSync(lock, "newer-holder") }), /is held/);
+    assert.equal(fs.readFileSync(lock, "utf8"), "newer-holder", "the takeover removed a lock it had not read");
+    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false);
+    // A holder stalled past the takeover window writes nothing: the lock it
+    // reads back belongs to whoever took it over.
+    fs.rmSync(lock);
+    assert.throws(() => claimProfile(dir, { session: "me", beforeWrite: () => fs.writeFileSync(lock, "took-over") }), /is held/);
+    assert.equal(fs.existsSync(path.join(dir, PROFILE_CLAIM_FILE)), false, "a holder that lost its lock still wrote a claim");
+    assert.equal(fs.readFileSync(lock, "utf8"), "took-over", "a holder that lost its lock removed the new holder's lock");
+    assert.deepEqual(fs.readdirSync(dir).sort(), [PROFILE_CLAIM_FILE + ".lock"], "a refused claim left a temporary file behind");
   } finally {
     fs.rmSync(base, { recursive: true, force: true });
   }
