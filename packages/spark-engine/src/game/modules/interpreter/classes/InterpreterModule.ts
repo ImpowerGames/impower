@@ -25,10 +25,6 @@ export interface InterpreterConfig {}
 
 export interface InterpreterState {
   buffer?: Instructions[];
-  /** The routing of the last beat queued, and the glued continuation whose
-   *  table that beat carried (`group`), which is the only continuation whose
-   *  later beats may take this routing as their own. */
-  routing?: { target: string; character?: string; group?: string };
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
@@ -104,6 +100,19 @@ export class InterpreterModule extends Module<
   // correct across live-edits (a changed pattern is a new key, never stale).
   protected _matcherCache = new Map<string, Matcher>();
 
+  /** The routing of the last beat this RUN queued, and the glued continuation
+   *  whose table that beat carried (`group`), which is the only continuation
+   *  whose later beats may take this routing as their own.
+   *
+   *  It belongs to the run rather than to the story, so it is not part of the
+   *  saved state: a checkpoint holds what the story is, and two runs that
+   *  reach the same story position must save the same bytes, which is what
+   *  a resumed route is checked against (`routeResume.test.ts`). A run that
+   *  loads a checkpoint therefore remembers nothing, and a continuation's
+   *  beat reached that way routes by its own table, as one reached by a jump
+   *  does. */
+  protected _routing?: { target: string; character?: string; group?: string };
+
   /** Cached `Matcher` for a pattern; `undefined` for an absent/empty pattern
    *  (matching the previous `pattern ? new Matcher(pattern) : undefined`). */
   protected getMatcher(pattern: string | undefined): Matcher | undefined {
@@ -138,7 +147,7 @@ export class InterpreterModule extends Module<
     // A continuation of the program just replaced is not a continuation of
     // this one, however alike their sources are: an edit that keeps a line's
     // length keeps its offsets too, so the name alone cannot tell them apart.
-    delete this._state.routing;
+    delete this._routing;
   }
 
   setup() {
@@ -488,7 +497,7 @@ export class InterpreterModule extends Module<
     // beat is the one just queued, which is what the group establishes. A run
     // that jumped straight to this beat routes by the table instead, which
     // carries the line the source reads before the continuation.
-    const remembered = this._state.routing;
+    const remembered = this._routing;
     const inherits =
       inheritGroup != null && remembered?.group === inheritGroup;
     let routing: { target: string; character?: string } = { target: "" };
@@ -502,7 +511,7 @@ export class InterpreterModule extends Module<
         routing.character = characterRaw;
       }
     }
-    this._state.routing = group == null ? routing : { ...routing, group };
+    this._routing = group == null ? routing : { ...routing, group };
     this.appendBeat(
       routing.target,
       routing.character,
@@ -551,9 +560,8 @@ export class InterpreterModule extends Module<
   clearQueuedBeats(): void {
     this._state.buffer = [];
     // The run those beats belonged to is over, so the beat a continuation
-    // would have inherited from is not this run's. A resumed checkpoint
-    // brings its own routing back with the rest of the state.
-    delete this._state.routing;
+    // would have inherited from is not this run's.
+    delete this._routing;
   }
 
   protected isWhitespace(part: string | undefined) {
