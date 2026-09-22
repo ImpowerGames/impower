@@ -59,25 +59,39 @@ const GLOB = /[*?[\]{}]/;
 // directory or a PowerShell drive other than a filesystem path.
 const DYNAMIC = /[$%`~]/;
 
-// Vitest options known to take no value. Every other option not glued to its
-// value with `=` is read as taking the next token, so that token never counts
-// as a test file: an option this list misses can only make a call look
-// unconfined, never confined.
+// Vitest 2.1.9's options that take no value, as its own CLI declares them
+// (options whose cac name has no `<value>` or `[value]`); a `--no-` negation
+// takes none either. Every other option not glued to its value with `=` is
+// read as taking the next token, so that token never counts as a test file:
+// an option this list misses, including one whose value is optional, can
+// only make a call look unconfined, never confined.
 const VITEST_FLAGS = new Set([
-  "--run", "--watch", "-w", "--globals", "--no-file-parallelism", "--fileParallelism", "--silent", "--coverage",
-  "--coverage.enabled", "--ui", "--passWithNoTests", "-u", "--update", "--isolate", "--no-isolate", "--allowOnly",
-  "--dom", "--logHeapUsage", "--clearScreen", "--no-color", "--hideSkippedTests", "--expandSnapshotDiff", "--typecheck",
+  "-v", "--version", "-u", "--update", "-w", "--watch", "--ui", "--open", "--api.strictPort", "--silent",
+  "--hideSkippedTests", "--coverage", "--coverage.all", "--coverage.enabled", "--coverage.clean",
+  "--coverage.cleanOnRerun", "--coverage.reportOnFailure", "--coverage.allowExternal", "--coverage.skipFull",
+  "--coverage.thresholds.100", "--coverage.thresholds.perFile", "--coverage.thresholds.autoUpdate", "--isolate",
+  "--globals", "--dom", "--browser.enabled", "--browser.headless", "--browser.api.strictPort", "--browser.isolate",
+  "--browser.ui", "--browser.fileParallelism", "--poolOptions.threads.isolate", "--poolOptions.threads.singleThread",
+  "--poolOptions.threads.useAtomics", "--poolOptions.vmThreads.isolate", "--poolOptions.vmThreads.singleThread",
+  "--poolOptions.vmThreads.useAtomics", "--poolOptions.forks.isolate", "--poolOptions.forks.singleFork",
+  "--poolOptions.vmForks.isolate", "--poolOptions.vmForks.singleFork", "--fileParallelism", "--passWithNoTests",
+  "--logHeapUsage", "--allowOnly", "--dangerouslyIgnoreUnhandledErrors", "--sequence.shuffle",
+  "--sequence.shuffle.files", "--sequence.shuffle.tests", "--sequence.concurrent", "--expandSnapshotDiff",
+  "--disableConsoleIntercept", "--typecheck", "--typecheck.enabled", "--typecheck.only", "--typecheck.allowJs",
+  "--typecheck.ignoreSourceErrors", "--cache", "--expect", "--expect.requireAssertions", "--expect.poll",
+  "--printConsoleTrace", "--run", "--no-color", "--clearScreen", "--standalone", "-h", "--help",
 ]);
+const isVitestFlag = (name) => VITEST_FLAGS.has(name) || name.startsWith("--no-");
 const VITEST_COMMANDS = new Set(["run", "watch", "dev", "related"]);
 
-// Package-manager options before the subcommand that take a value.
-const PM_VALUE_OPTIONS = new Set([
-  "--prefix", "-w", "--workspace", "-C", "--dir", "--filter", "-F", "--cwd", "--loglevel", "--userconfig",
-]);
+// Package-manager options whose value names the package a command runs in.
+const PM_DIRECTORY_OPTIONS = new Set(["--prefix", "-C", "--dir", "--cwd"]);
+const PM_WORKSPACE_OPTIONS = new Set(["-w", "--workspace", "--filter", "-F"]);
 
-const RUN_WORDS = new Set(["run", "run-script", "rum", "urn"]);
-const TEST_WORDS = new Set(["test", "t", "tst"]);
-const isTestScript = (name) => /^test(?::|$)/i.test(name);
+// Package-manager words that run a package's test script: npm's `test` with
+// its aliases and unambiguous abbreviations, the install-then-test commands
+// and their aliases, and a `test` or `test:*` script named to `run`.
+const TEST_COMMAND = /^(?:t|te|tes|test|tst|it|install-test|cit|clean-install-test|install-ci-test|sit|test:.*)$/i;
 
 function isDynamic(text) {
   return DYNAMIC.test(text) || text.startsWith("(");
@@ -156,7 +170,7 @@ function vitestReason(args, dir) {
     if (t.startsWith("-")) {
       const name = t.split("=")[0];
       const glued = t.includes("=");
-      const value = glued ? t.slice(name.length + 1) : VITEST_FLAGS.has(name) ? undefined : texts[++i];
+      const value = glued ? t.slice(name.length + 1) : isVitestFlag(name) ? undefined : texts[++i];
       if (["-r", "--root", "--dir"].includes(name) && value !== undefined) roots.push(follow(dir, value));
       continue;
     }
@@ -174,66 +188,52 @@ function vitestReason(args, dir) {
 }
 
 /**
- * Checks a package-manager call. `args` are the tokens after the program.
+ * Checks a package-manager call (npm, pnpm, yarn, or the npx family, which
+ * runs a package binary). `args` are the tokens after the program.
  * Returns a reason, or null.
  */
 function packageManagerReason(program, args, dir) {
   const texts = args.map((a) => a.text);
-  const state = { at: dir };
-  // Skips the options starting at `i` and returns the index after them,
-  // moving `state.at` to the package a directory or workspace option names.
-  // A workspace given by name rather than path leaves the package unknown.
-  const skip = (i) => {
-    while (i < texts.length && texts[i].startsWith("-") && texts[i] !== "--") {
-      const name = texts[i].split("=")[0];
-      const glued = texts[i].includes("=");
-      const value = glued ? texts[i].slice(name.length + 1) : PM_VALUE_OPTIONS.has(name) ? texts[i + 1] : undefined;
-      if (["--prefix", "-C", "--dir", "--cwd"].includes(name)) state.at = follow(dir, value);
-      if (["-w", "--workspace", "--filter", "-F"].includes(name)) {
-        const pkg = follow(dir, value);
-        state.at = pkg !== null && existsSync(resolve(pkg, "package.json")) ? pkg : null;
-      }
-      i += PM_VALUE_OPTIONS.has(name) && !glued ? 2 : 1;
-    }
-    return i;
+  // Which tokens are option values depends on every option's type, which
+  // this reading does not know, so it does not locate the subcommand by
+  // position: a test word anywhere among the package manager's own tokens
+  // (those before `--`) refuses the call, and a `typecheck` word there is
+  // checked as the script.
+  const end = texts.indexOf("--");
+  const own = end < 0 ? texts : texts.slice(0, end);
+  // A directory or workspace option moves the package the script runs in; a
+  // workspace named by package name rather than path leaves it unknown.
+  let at = dir;
+  const toPackage = (value) => {
+    const pkg = follow(dir, value);
+    return pkg !== null && existsSync(resolve(pkg, "package.json")) ? pkg : null;
   };
-  let i = skip(0);
-  let sub = texts[i]?.toLowerCase();
-  // `yarn workspace <name> <script>` runs the script in that workspace.
-  if (program === "yarn" && sub === "workspace") {
-    i += 2;
-    sub = texts[i]?.toLowerCase();
+  for (let k = 0; k < own.length; k++) {
+    const t = own[k];
+    if (program === "yarn" && t.toLowerCase() === "workspace") at = toPackage(own[k + 1]);
+    if (!t.startsWith("-")) continue;
+    const name = t.split("=")[0];
+    const value = t.includes("=") ? t.slice(name.length + 1) : own[k + 1];
+    if (PM_DIRECTORY_OPTIONS.has(name)) at = follow(dir, value);
+    else if (PM_WORKSPACE_OPTIONS.has(name)) at = toPackage(value);
   }
-  // `npx vitest`, `npm exec vitest`, `pnpm exec vitest`, `pnpm dlx vitest`, `yarn vitest`.
-  if (sub === "exec" || sub === "dlx" || sub === "x") {
-    i++;
-    while (i < texts.length && texts[i].startsWith("-")) i++;
-    if (texts[i] === "--") i++;
-    sub = texts[i]?.toLowerCase();
-  }
-  if (sub === "vitest") return vitestReason(args.slice(i + 1), state.at);
-  if (sub === undefined) return null;
-  let script = null;
-  if (TEST_WORDS.has(sub)) script = "test";
-  else if (RUN_WORDS.has(sub)) {
-    i = skip(i + 1);
-    script = texts[i] ?? null;
-  } else if (program !== "npm") script = texts[i];
-  if (script === null) return null;
-  if (isTestScript(script)) return TEST_REASON;
-  if (script.toLowerCase() === "typecheck") {
-    const rest = texts.slice(i + 1);
-    const dashes = rest.indexOf("--");
-    // npm reads its own options after the script name up to `--`.
-    if (program === "npm") skip(i + 1);
-    const extra = dashes < 0 ? (program === "npm" ? [] : rest) : rest.slice(dashes + 1);
-    if (!unfilteredTypecheck(extra)) return null;
-    if (state.at === null) return null;
-    const own = typecheckScript(state.at);
-    const ownArgs = own === null ? null : scriptTypecheckArgs(own);
-    if (ownArgs !== null && unfilteredTypecheck(ownArgs)) return TYPECHECK_REASON;
-  }
-  return null;
+  // `npx vitest`, `npm exec [--] vitest`, `pnpm exec vitest`, `pnpm dlx vitest`, `yarn vitest`.
+  // A command that installs, removes or describes packages names vitest as a
+  // package, not a run.
+  const manages = own.some((t) => /^(?:i|in|install|add|ci|remove|rm|uninstall|un|update|up|upgrade|view|info|why|ls|list|outdated)$/i.test(t));
+  const vitest = manages ? -1 : texts.findIndex((t) => t.toLowerCase() === "vitest");
+  if (vitest >= 0) return vitestReason(args.slice(vitest + 1), at);
+  if (own.some((t) => !t.startsWith("-") && TEST_COMMAND.test(t))) return TEST_REASON;
+  const script = own.findIndex((t) => t.toLowerCase() === "typecheck");
+  if (script < 0) return null;
+  // npm hands the script only what follows `--`; pnpm and yarn also hand it
+  // the words after the script name.
+  const extra = program === "npm" ? (end < 0 ? [] : texts.slice(end + 1)) : texts.slice(script + 1).filter((t) => t !== "--");
+  if (!unfilteredTypecheck(extra)) return null;
+  if (at === null) return null;
+  const ownScript = typecheckScript(at);
+  const ownArgs = ownScript === null ? null : scriptTypecheckArgs(ownScript);
+  return ownArgs !== null && unfilteredTypecheck(ownArgs) ? TYPECHECK_REASON : null;
 }
 
 const CD = new Set(["cd", "chdir", "pushd", "set-location", "sl", "push-location"]);
@@ -274,33 +274,39 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         dir = target ? follow(dir, target.text) : null;
         continue;
       }
-      // A program that runs the rest of its line as a command: `cmd /c`,
-      // an unquoted `pwsh -Command`, and `corepack <package manager>`.
+      // A program that runs the rest of its line as a command: `cmd /c`
+      // (and `cmd /c call`), `pwsh -Command`, and `corepack <package
+      // manager>`. A tail that is one quoted token is read without its quotes.
       let rest = -1;
-      if (name === "cmd") rest = args.findIndex((a) => /^\/[ck]$/i.test(a.text)) + 1;
-      else if (/^(pwsh|powershell)$/.test(name)) rest = args.findIndex((a) => /^-(?:c|command)$/i.test(a.text)) + 1;
-      else if (name === "corepack") rest = 0;
-      if (rest >= 0 && rest < args.length && (rest > 0 || name === "corepack") && !args[rest].quoted) {
+      if (name === "cmd") {
+        rest = args.findIndex((a) => /^\/[ck]$/i.test(a.text));
+        if (rest >= 0) rest++;
+        while (rest >= 0 && args[rest]?.text.toLowerCase() === "call") rest++;
+      } else if (/^(pwsh|powershell)$/.test(name)) {
+        rest = args.findIndex((a) => /^-(?:c|command)$/i.test(a.text));
+        if (rest >= 0) rest++;
+      } else if (name === "corepack") rest = 0;
+      if (rest >= 0 && rest < args.length) {
         const tail = args.slice(rest);
-        const text = tail.every((a) => Number.isInteger(a.start) && Number.isInteger(a.end))
-          ? command.slice(tail[0].start, tail[tail.length - 1].end)
-          : tail.map((a) => a.text).join(" ");
-        const inner = decide(text, name === "cmd" || name === "corepack" ? undefined : "powershell", dir, depth + 1);
+        const text = tail.length === 1 && tail[0].quoted
+          ? tail[0].text
+          : tail.every((a) => Number.isInteger(a.start) && Number.isInteger(a.end))
+            ? command.slice(tail[0].start, tail[tail.length - 1].end)
+            : tail.map((a) => a.text).join(" ");
+        const inner = decide(text.replace(/^\s*call\s+/i, ""), /^(pwsh|powershell)$/.test(name) ? "powershell" : undefined, dir, depth + 1);
         if (inner) return inner;
         continue;
       }
       let reason = null;
       if (name === "vitest") reason = vitestReason(args, dir);
-      else if (name === "npx" || name === "pnpx" || name === "bunx") {
-        let k = 0;
-        while (k < args.length && args[k].text.startsWith("-")) k += ["-p", "--package"].includes(args[k].text) ? 2 : 1;
-        if (args[k]?.text.toLowerCase() === "vitest") reason = vitestReason(args.slice(k + 1), dir);
-      } else if (name === "npm" || name === "pnpm" || name === "yarn") reason = packageManagerReason(name, args, dir);
+      else if (["npm", "pnpm", "yarn", "npx", "pnpx", "bunx"].includes(name)) reason = packageManagerReason(name, args, dir);
       else if (name === "node") {
         // Node's own options may take separate values, so the script is the
         // first argument naming a guarded entry point, not the first
-        // non-option.
-        const script = args.findIndex((a) => /(?:^|[\\/])(?:typecheck\.mjs|vitest(?:\.mjs)?)$/i.test(a.text));
+        // non-option. With `-e` or `-p` Node runs that code instead, and
+        // every later argument is only data for it.
+        const code = args.findIndex((a) => /^(?:-e|--eval|-p|--print)(?:=|$)/.test(a.text));
+        const script = args.findIndex((a, k) => (code < 0 || k < code) && /(?:^|[\\/])(?:typecheck\.mjs|vitest(?:\.mjs)?)$/i.test(a.text));
         const target = args[script]?.text ?? "";
         if (/(?:^|[\\/])typecheck\.mjs$/i.test(target) && unfilteredTypecheck(args.slice(script + 1).map((a) => a.text))) reason = TYPECHECK_REASON;
         else if (/(?:^|[\\/])vitest(?:\.mjs)?$/i.test(target)) reason = vitestReason(args.slice(script + 1), dir);
