@@ -359,6 +359,28 @@ await assert.rejects(main(["run", scratch, "--wait", "5"], seam), /Name the test
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 
+// A guard held past one transaction's bound is contention while --wait lasts,
+// and a run that never started says so in a form the red/green driver reads.
+const { notRunExit } = await import("./test-suite.mjs");
+fs.writeFileSync(guardFile, "{}");
+const guardWaits = [];
+setTimeout(() => fs.unlinkSync(guardFile), 600);
+const queued = await acquireWaiting("guard contention", { root: lockRoot, waitMs: 5000, pollMs: 50, guardWaitMs: 100, census: () => [], onWait: w => guardWaits.push(w.waiting) });
+assert.ok(guardWaits.includes("guard"), "a held guard is reported as a wait");
+queued.release();
+fs.writeFileSync(guardFile, "{}");
+const guardBegan = Date.now();
+let unstarted;
+await assert.rejects(main(["run", scratch, "a.test.ts", "--wait", "1"], { ...seam, guardWaitMs: 100, pollMs: 50 }),
+  error => (unstarted = error, /Reservation transaction unavailable/.test(error.message) && error.notRun === true));
+assert.ok(Date.now() - guardBegan >= 1000, "the guard is retried until --wait expires");
+fs.unlinkSync(guardFile);
+const printed = [];
+assert.equal(notRunExit(unstarted, line => printed.push(line)), 75, "a run that never started exits 75");
+assert.match(printed.join("\n"), /^test-suite: not run: Reservation transaction unavailable/m);
+assert.equal(notRunExit(new Error("other"), line => printed.push(line)), 1, "other failures keep exit 1");
+console.log("PASS: a held guard is retried within --wait and an unstarted run is reported as not run");
+
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
 await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, census:()=>[], fingerprint:()=>"unchanged"});`);

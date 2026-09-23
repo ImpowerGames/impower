@@ -83,7 +83,9 @@ function guarded(root, action, waitMs = guardWaitMs) {
     try { fd = fs.openSync(guard, "wx"); break; }
     catch (error) {
       if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
-      throw denied(error) || new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`);
+      const refusal = denied(error);
+      if (refusal) throw refusal;
+      throw Object.assign(new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`), { guardHeld: error.code === "EEXIST" });
     }
   }
   try {
@@ -140,15 +142,17 @@ const pause = (ms, deadline) => new Promise(resolve => setTimeout(resolve, Math.
 // Queue behind the machine-wide reservation, then hold it while polling the
 // census, so later reservation-aware runs queue behind this one instead of
 // racing it for the moment other Vitest processes exit. Ambiguous and unknown
-// reservations still refuse at once; only a live owner or a present process waits.
+// reservations still refuse at once; a live owner, a present process or a
+// guard held past one transaction's bound waits.
 export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, census = vitestProcesses, onWait = () => {}, ...options } = {}) {
   const deadline = Date.now() + waitMs;
   let reservation;
   for (;;) {
     try { reservation = acquire(run, { ...options, census: () => [] }); break; }
     catch (error) {
-      if (!/^Existing suite running/.test(error.message) || Date.now() >= deadline) throw error;
-      onWait({ waiting: "reservation", detail: error.message });
+      const waiting = error.guardHeld ? "guard" : /^Existing suite running/.test(error.message) ? "reservation" : null;
+      if (!waiting || Date.now() >= deadline) throw error;
+      onWait({ waiting, detail: error.message });
       await pause(pollMs, deadline);
     }
   }
