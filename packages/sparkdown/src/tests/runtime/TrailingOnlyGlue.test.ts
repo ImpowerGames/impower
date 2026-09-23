@@ -588,8 +588,9 @@ end
     expect(ctx.story.variablesState.$("x")).toBe(2);
   });
 
-  // `pcall` runs its function against an output stream of its own and drops
-  // what it printed, so a `print` inside one shows nothing.
+  // `pcall` runs a function the story defines against an output stream of its
+  // own and drops what it printed, so a `print` inside `aside` shows nothing.
+  // A stdlib callee is called directly: `pcall(print, ...)` shows its text.
   test("runs through calls that show nothing on this run", () => {
     for (const between of [
       `& assert(true)`,
@@ -613,6 +614,30 @@ end
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("Pick.");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One", "Two"]);
+  });
+
+  test("runs through to choices that are all inside a conditional", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `external ring()\n\nchoose\n  Pick.\n  & ring()\n  if true then\n    * One\n  end\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    let rings = 0;
+    ctx.story.BindExternalFunction("ring", () => {
+      rings++;
+    });
+    expect(ctx.story.Continue()).toBe("Pick.");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+    expect(rings).toBe(1);
+  });
+
+  test("ends its step before a stdlib function pcall calls directly", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `choose\n  Pick.\n  & pcall(print, "Aside.")\n  * One\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.\n");
+    expect(ctx.story.Continue()).toBe("Aside.\n");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
   test("ends its step where something shows, and the next continue starts with it", () => {
@@ -691,8 +716,10 @@ end
       const location = pathLocation(program.pathLocations, path);
       if (location) ran.add(location[1]!);
     };
+    const caption = source.split("\n").findIndex((l) => l.includes("Pick."));
     expect(story.Continue()).toBe("Pick.\n");
     expect(ran.has(line)).toBe(false);
+    expect(ran.has(caption)).toBe(true);
     ran = new Set();
     expect(story.Continue()).toBe("Something shows first.\n");
     expect(ran.has(line)).toBe(true);

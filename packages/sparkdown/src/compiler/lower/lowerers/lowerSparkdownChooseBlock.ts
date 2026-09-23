@@ -113,6 +113,13 @@ export function lowerSparkdownChooseBlock(
     //     the previous choice's `innerContent` so `* one\n  foo` works
     //     as expected.
     const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+    // A construct that holds a choice (a conditional whose branches offer
+    // them) holds the block's first choice when no choice came before it, so
+    // the display statements before it are the caption.
+    if (!sawChoice && block?.content?.some(holdsChoice)) {
+      markCaption(weaveContent);
+      sawChoice = true;
+    }
     if (block?.content) {
       for (const obj of block.content) {
         const items =
@@ -166,6 +173,14 @@ function markCaption(items: ParsedObject[]): void {
       return;
     }
   }
+}
+
+// Whether `obj` is a choice or holds one anywhere inside it.
+function holdsChoice(obj: ParsedObject): boolean {
+  return (
+    obj instanceof Choice ||
+    (obj.content ?? []).some((child) => holdsChoice(child))
+  );
 }
 
 function buildGatherFromThenClause(
