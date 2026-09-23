@@ -999,17 +999,16 @@ function reportTouchingBreak(markFrom: number, ctx: LowerContext): void {
   if (markFrom < 2) return;
   const before = ctx.read(markFrom - 2, markFrom);
   if (before[1] !== ">" || /[\s\-\\]/.test(before[0]!)) return;
-  const mark = { from: markFrom };
   ctx.diagnostics?.push({
     message: TOUCHING_BREAK_MESSAGE,
     severity: ErrorType.Warning,
     source: {
       fileName: null,
       filePath: ctx.filePath ?? null,
-      startLineNumber: ctx.lineNumber(mark.from - 1) + 1,
-      endLineNumber: ctx.lineNumber(mark.from) + 1,
-      startCharacterNumber: ctx.characterNumber(mark.from - 1) + 1,
-      endCharacterNumber: ctx.characterNumber(mark.from) + 1,
+      startLineNumber: ctx.lineNumber(markFrom - 1) + 1,
+      endLineNumber: ctx.lineNumber(markFrom) + 1,
+      startCharacterNumber: ctx.characterNumber(markFrom - 1) + 1,
+      endCharacterNumber: ctx.characterNumber(markFrom) + 1,
     },
   });
 }
@@ -1082,17 +1081,13 @@ function lexicalRouting(
   node: SyntaxNode,
   ctx: LowerContext,
 ): { target?: string; character?: string } | null {
-  let sib: SyntaxNode | null = node.prevSibling;
+  let sib = precedingConstruct(node);
   while (sib) {
-    if (GLUE_SKIP_SIBLINGS.has(sib.name)) {
-      sib = sib.prevSibling;
-      continue;
-    }
     const lineType = DISPLAY_LINE_TYPES[sib.name];
     if (!lineType) return null;
     // A continuation routes by what the line IT continues routes by.
     if (isNodePrecededByTrailingGlue(sib, ctx)) {
-      sib = sib.prevSibling;
+      sib = precedingConstruct(sib);
       continue;
     }
     const read = (name: SparkdownNodeName) => {
@@ -1130,23 +1125,61 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "Tags",
 ]);
 
-// True when the immediately-preceding top-level sibling construct ends with a
-// TRAILING `..` glue marker (`text ..<eol>`). A trailing `..` means "join the
-// next line onto this one", so the FOLLOWING display construct (of ANY type —
-// action, dialogue, heading, title, transitional, write) must be lowered as a
-// leading-glue continuation (a table naming no target) — the symmetric twin of
-// the leading-`..` form. A table naming its own target would route the joined
-// beat by this line when it is the first to name one, re-cueing a fresh beat
-// instead of continuing the previous one. Mirroring the leading form keeps the
-// continuation routed to the previous line's target.
+// What begins a branch of an `if` or an arm of an alternator block, before
+// the branch's first statement.
+const BRANCH_OPENERS: ReadonlySet<string> = nodeNameSet([
+  "LuauIfBlockCondition",
+  "LuauElseifBlockCondition",
+  "LuauAlternatorSeparator",
+]);
+
+// The bodies of those branches and arms.
+const BRANCH_BODIES: ReadonlySet<string> = nodeNameSet([
+  "LuauSparkdownIfBlock_content",
+  "LuauSparkdownElseifBlock_content",
+  "LuauSparkdownElseBlock_content",
+  "LuauSparkdownSequentialAlternatorBlock_content",
+  "LuauSparkdownConditionalAlternatorBlock_content",
+]);
+
+const BRANCHING_BLOCKS: ReadonlySet<string> = nodeNameSet([
+  "LuauSparkdownIfBlock",
+  "LuauSparkdownSequentialAlternatorBlock",
+  "LuauSparkdownConditionalAlternatorBlock",
+]);
+
+// The construct the run reaches just before `node`: the sibling before it,
+// past whitespace, comments and tags. The first statement of an `if` branch or
+// an alternator arm runs right after whatever ran before the block (its
+// condition shows nothing), so for that statement it is the construct before
+// the block.
+function precedingConstruct(node: SyntaxNode): SyntaxNode | null {
+  let current = node;
+  for (;;) {
+    let sib = current.prevSibling;
+    while (sib && GLUE_SKIP_SIBLINGS.has(sib.name)) sib = sib.prevSibling;
+    if (sib && !BRANCH_OPENERS.has(sib.name)) return sib;
+    if (!current.parent || !BRANCH_BODIES.has(current.parent.name)) {
+      return null;
+    }
+    let block: SyntaxNode | null = current.parent;
+    while (block && !BRANCHING_BLOCKS.has(block.name)) block = block.parent;
+    if (!block) return null;
+    current = block;
+  }
+}
+
+// True when the construct the run reaches just before `node` ends with a `..`
+// (`text ..<eol>`), so `node` continues that line. Its call names no routing:
+// a table naming its own target would route the joined beat by this line
+// when it is the first to name one, re-cueing a fresh beat instead of
+// continuing the previous one.
 function isNodePrecededByTrailingGlue(
   node: SyntaxNode,
   ctx: LowerContext,
 ): boolean {
-  let sib: SyntaxNode | null = node.prevSibling;
-  while (sib && GLUE_SKIP_SIBLINGS.has(sib.name)) sib = sib.prevSibling;
-  if (!sib) return false;
-  return endsWithTrailingGlue(sib, ctx);
+  const sib = precedingConstruct(node);
+  return sib != null && endsWithTrailingGlue(sib, ctx);
 }
 
 // True when `node`'s last line ends with a `..` glue marker: nothing but

@@ -10,13 +10,15 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
+import { STDLIB } from "../../../inkjs/engine/StdLib";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lower, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
-import { openDisplayCall } from "../utils/displayCall";
+import { isDisplayCall, openDisplayCall } from "../utils/displayCall";
+import { ExternalsExpression } from "../utils/ExternalsExpression";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lowers a `choose ... [then [(label)] ...] end` block — sparkdown's
@@ -78,7 +80,7 @@ export function lowerSparkdownChooseBlock(
     }
     if (child.name === "Choice") {
       if (!sawChoice) {
-        openCaption(weaveContent, externalNames(nodeRef.node, ctx));
+        openCaption(weaveContent);
       }
       sawChoice = true;
       currentChoice = null;
@@ -163,30 +165,39 @@ interface MutableCtx {
 // together; earlier caption lines are steps of their own. Only logic may stand
 // between that line and the first choice: anything that can show something or
 // divert leaves which line shows last unknown here, so the caption then closes
-// its line as usual.
-function openCaption(
-  items: ParsedObject[],
-  externals: ReadonlySet<string>,
-): void {
+// its line as usual. A call that is not to a stdlib function is logic only
+// when it is to an `external`, which the program may declare in any script,
+// so a caption with such calls after it is `open` as far as every one of them
+// is an external.
+function openCaption(items: ParsedObject[]): void {
+  const calls: string[] = [];
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!;
-    if (openDisplayCall(item)) return;
-    if (mayShowOrDivert(item, externals)) return;
+    if (isDisplayCall(item)) {
+      openDisplayCall(
+        item,
+        calls.length > 0 ? new ExternalsExpression(calls) : undefined,
+      );
+      return;
+    }
+    if (mayShowOrDivert(item, calls)) return;
   }
 }
 
 // Whether running `obj` can show anything or move the flow elsewhere: text, a
 // tag, glue, a choice, a divert or a tunnel return anywhere inside it, or a
-// call. `display` and `print` show, and a function the story defines may, so
-// the only call that counts as logic is one to an `external`, which runs host
-// code, with arguments that are logic themselves.
-function mayShowOrDivert(
-  obj: ParsedObject,
-  externals: ReadonlySet<string>,
-): boolean {
+// call that can. A pure stdlib function only computes a value, and the other
+// stdlib functions (`display`, `print`, `pcall` and the rest) can show or
+// move the flow. Any other call is to a function the story defines, which can
+// show, or to an `external`, which runs host code and shows nothing; its name
+// joins `calls`, which are logic only if every one is an external.
+function mayShowOrDivert(obj: ParsedObject, calls: string[]): boolean {
   if (obj instanceof FunctionCall) {
-    if (!externals.has(obj.name)) return true;
-    return obj.args.some((arg) => mayShowOrDivert(arg, externals));
+    if (!STDLIB[obj.name]?.pure) {
+      if (FunctionCall.IsBuiltIn(obj.name)) return true;
+      calls.push(obj.name);
+    }
+    return obj.args.some((arg) => mayShowOrDivert(arg, calls));
   }
   if (obj instanceof Text) return obj.text.trim().length > 0;
   if (obj instanceof Divert) return !obj.isFunctionCall;
@@ -198,20 +209,7 @@ function mayShowOrDivert(
   ) {
     return true;
   }
-  return (obj.content ?? []).some((child) => mayShowOrDivert(child, externals));
-}
-
-// The `external` functions this script declares at its top level.
-function externalNames(node: SyntaxNode, ctx: LowerContext): Set<string> {
-  let root = node;
-  while (root.parent) root = root.parent;
-  const names = new Set<string>();
-  for (let child = root.firstChild; child; child = child.nextSibling) {
-    if (child.name !== "LuauExternalDeclaration") continue;
-    const name = getDescendent("LuauFunctionName", child);
-    if (name) names.add(ctx.read(name.from, name.to).trim());
-  }
-  return names;
+  return (obj.content ?? []).some((child) => mayShowOrDivert(child, calls));
 }
 
 function buildGatherFromThenClause(

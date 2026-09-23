@@ -135,16 +135,23 @@ export function buildOrderedDisplayCall(
   return finishCall(entries, [], null, ctx);
 }
 
-// Mark `call` `open` when it is a `display` call, so the step runs on past it.
-// Returns whether it is one.
-export function openDisplayCall(call: ParsedObject): boolean {
-  if (!(call instanceof FunctionCall) || call.name !== "display") return false;
-  const table = call.args[0];
-  if (!(table instanceof ObjectExpression)) return false;
-  if (!table.entries.some((entry) => entry.key === "open")) {
-    table.addEntry(flagEntry("open"));
-  }
-  return true;
+// Whether `call` is a `display` call whose table can take an `open` entry.
+export function isDisplayCall(call: ParsedObject): call is FunctionCall {
+  return (
+    call instanceof FunctionCall &&
+    call.name === "display" &&
+    call.args[0] instanceof ObjectExpression
+  );
+}
+
+// Mark a `display` call `open`, so the step runs on past it: always, or as
+// far as `open` evaluates to true.
+export function openDisplayCall(call: FunctionCall, open?: Expression): void {
+  const table = call.args[0] as ObjectExpression;
+  if (table.entries.some((entry) => entry.key === "open")) return;
+  table.addEntry(
+    open ? new ObjectExpressionEntry("open", open) : flagEntry("open"),
+  );
 }
 
 function flagEntry(flag: string): ObjectExpressionEntry {

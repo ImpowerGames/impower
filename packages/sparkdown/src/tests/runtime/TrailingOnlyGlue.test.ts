@@ -19,10 +19,13 @@ type Routing = { target?: string; character?: string };
 const LEADING_GLUE_ERROR =
   "A line cannot begin with `..`. End the previous line with `..` to join them.";
 
-// Each step's text and the routing of each of its tables. The text is what
-// its tables say joined, since `Continue()` collapses a run of spaces.
-function steps(story: RuntimeStory): [string, Routing[]][] {
-  const out: [string, Routing[]][] = [];
+// Each step's text and what `read` reports of it. The text is what its tables
+// say joined, since `Continue()` collapses a run of spaces.
+function stepsWith<T>(
+  story: RuntimeStory,
+  read: (story: RuntimeStory) => T,
+): [string, T][] {
+  const out: [string, T][] = [];
   while (story.canContinue) {
     story.Continue();
     const text = story.currentDisplayInstructions
@@ -32,9 +35,14 @@ function steps(story: RuntimeStory): [string, Routing[]][] {
             ?.value ?? "",
       )
       .join("");
-    out.push([`${text}\n`, displayRouting(story)]);
+    out.push([`${text}\n`, read(story)]);
   }
   return out;
+}
+
+// Each step's text and the routing of each of its tables.
+function steps(story: RuntimeStory): [string, Routing[]][] {
+  return stepsWith(story, displayRouting);
 }
 
 function texts(story: RuntimeStory): string[] {
@@ -49,28 +57,33 @@ function flags(story: RuntimeStory, flag: string): boolean[] {
   );
 }
 
-const URI = "inmemory:///main.sd";
+const BASE = "inmemory:///";
+const URI = `${BASE}main.sd`;
 
-function compile(text: string) {
+// Compiles `main.sd` with the other scripts beside it that it includes.
+function compile(text: string, others: Record<string, string> = {}) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
-    files: [
-      {
-        uri: URI,
+    files: Object.entries({ ...others, "main.sd": text }).map(
+      ([path, source]) => ({
+        uri: `${BASE}${path}`,
         type: "script" as const,
-        name: "main",
+        name: path.replace(/\.sd$/, ""),
         ext: "sd",
-        text,
+        text: source,
         version: 1,
         languageId: "sparkdown",
-      },
-    ],
+      }),
+    ),
   });
   return compiler.compile({ textDocument: { uri: URI } }).program;
 }
 
 function errorsOf(text: string) {
-  const program = compile(text) as { diagnostics?: Record<string, any[]> };
+  return errorsIn(compile(text));
+}
+
+function errorsIn(program: { diagnostics?: Record<string, any[]> }) {
   return Object.values(program.diagnostics ?? {})
     .flat()
     .filter((d) => d.severity === 1)
@@ -196,6 +209,23 @@ describe("a trailing `..` joins the next line", () => {
       }
     });
 
+    test(`${label}: a branch's first line keeps the routing of the line it joins`, () => {
+      for (const block of [
+        `if true then\n  B > C\nend`,
+        `if false then\n  X.\nelseif true then\n  B > C\nend`,
+        `if false then\n  X.\nelse\n  B > C\nend`,
+        `if true then\n  if true then\n    B > C\n  end\nend`,
+        `queue\n  | B > C\nend`,
+      ]) {
+        const ctx = makeRuntimeStoryFromSource(`${inline}A ..\n${block}\n`);
+        expect(ctx.errorMessages).toEqual([]);
+        expect(steps(ctx.story)).toEqual([
+          ["A B\n", [routing, {}]],
+          ["C\n", [routing]],
+        ]);
+      }
+    });
+
     test(`${label}: a join after a divert`, () => {
       const ctx = makeRuntimeStoryFromSource(
         `${inline}You go -> outdoors\n\nscene outdoors\n  outside.\nend\n`,
@@ -252,19 +282,9 @@ describe("a trailing `..` joins the next line", () => {
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
-      const out: [string, boolean[]][] = [];
-      while (ctx.story.canContinue) {
-        ctx.story.Continue();
-        const text = ctx.story.currentDisplayInstructions
-          .map(
-            (table) =>
-              (table.value?.get("text") as { value?: unknown } | undefined)
-                ?.value ?? "",
-          )
-          .join("");
-        out.push([`${text}\n`, flags(ctx.story, "pause")]);
-      }
-      expect(out).toEqual(expected);
+      expect(
+        stepsWith(ctx.story, (story) => flags(story, "pause")),
+      ).toEqual(expected);
     }
   });
 
@@ -526,6 +546,42 @@ end
     expect(ctx.story.Continue()).toBe("Pick.");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
     expect(rings).toBe(1);
+  });
+
+  test("runs through an external an included script declares", () => {
+    const program = compile(
+      `include api.sd\n\nchoose\n  Pick.\n  & ring()\n  * One\nend\n`,
+      { "api.sd": `external ring()\n` },
+    );
+    expect(errorsIn(program)).toEqual([]);
+    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    let rings = 0;
+    story.BindExternalFunction("ring", () => {
+      rings++;
+    });
+    expect(story.Continue()).toBe("Pick.");
+    expect(story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+    expect(rings).toBe(1);
+  });
+
+  test("closes its line before a function an included script defines", () => {
+    const program = compile(
+      `include api.sd\n\nchoose\n  Pick.\n  & aside()\n  * One\nend\n`,
+      { "api.sd": `function aside()\n  print("Aside.")\nend\n` },
+    );
+    expect(errorsIn(program)).toEqual([]);
+    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    expect(story.Continue()).toBe("Pick.\n");
+  });
+
+  test("runs through a pure stdlib call", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `store x = -2\nchoose\n  Pick.\n  & x = math.abs(x)\n  * One\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+    expect(ctx.story.variablesState.$("x")).toBe(2);
   });
 
   test("a caption line followed by a call that can show closes its own line", () => {
