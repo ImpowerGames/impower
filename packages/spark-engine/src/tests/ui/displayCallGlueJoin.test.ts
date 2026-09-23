@@ -19,6 +19,10 @@ layout main with
       character_name:
         text
     text
+  choice 0:
+    text
+  choice 1:
+    text
 end
 `;
 
@@ -45,9 +49,9 @@ async function beats(body: string) {
   return out;
 }
 
-const NESTED = `  You see a
+const NESTED = `  You see a ..
   if true then
-    .. red door.
+    red door.
   end`;
 
 describe("display() glue join", () => {
@@ -71,5 +75,41 @@ describe("display() glue join", () => {
     expect(result.find((b) => b.target === "dialogue")?.text).toBe(
       "Wait right there.",
     );
+  });
+
+  test("a touching `..` joins with no space", async () => {
+    expect(await beats(`  Abso..\n  lutely.\n  After.`)).toEqual([
+      { target: "action", text: "Absolutely." },
+      { target: "action", text: "After." },
+    ]);
+  });
+
+  test("a touching `>..` clicks inside the joined beat", async () => {
+    expect(await beats(`  Abso >..\n  lutely.\n  After.`)).toEqual([
+      { target: "action", text: "Absolutely." },
+      { target: "action", text: "After." },
+    ]);
+  });
+
+  test("a choose block's caption shows with its choices", async () => {
+    const harness = createHarness(
+      story(`  choose\n    HERO: Pick one.\n    * One\n    * Two\n  end`),
+    );
+    await harness.ready;
+    harness.jumpTo("start");
+    harness.reset();
+    const beat = harness.nextBeat();
+    expect(beat?.choices).toEqual(["choice 0", "choice 1"]);
+    const text = Object.fromEntries(
+      Object.entries(beat?.text ?? {}).map(([target, instructions]) => [
+        target,
+        instructions.map((t) => t.text).join("").trim(),
+      ]),
+    );
+    expect(text).toMatchObject({
+      dialogue: "Pick one.",
+      "choice 0": "One",
+      "choice 1": "Two",
+    });
   });
 });

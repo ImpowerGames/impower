@@ -210,20 +210,21 @@ describe("Bindings (ported from inkjs)", () => {
     );
   });
 
-  test("lookahead with leading glue (`..` left-glue marker)", () => {
+  test("an external call inside a glued line runs once", () => {
     // Upstream ink fixture uses `<>` (ink's glue marker); sparkdown
-    // uses `..` instead. The lookahead-safe runtime path snapshots
-    // state at the newline before "Two", calls the external
-    // speculatively while peeking past the line, then rewinds when
-    // the glue marker forces a re-evaluation. The bound external is
-    // a no-op; the test pins output ordering: "One\nTwo\n".
+    // uses `..` instead. `One ..` writes no newline, so the step runs
+    // on through the external call to `Two` with nothing to look
+    // ahead past: the call runs once and the line joins.
     const ctx = makeRuntimeStoryFromFile(
       "bindings",
       "lookup-safe-or-not-with-post-glue",
     );
     expect(ctx.errorMessages).toEqual([]);
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    ctx.story.BindExternalFunction("myAction", () => {});
-    expect(ctx.story.ContinueMaximally()).toBe("One\nTwo\n");
+    let calls = 0;
+    ctx.story.BindExternalFunction("myAction", () => {
+      calls++;
+    });
+    expect(ctx.story.ContinueMaximally()).toBe("One Two\n");
+    expect(calls).toBe(1);
   });
 });

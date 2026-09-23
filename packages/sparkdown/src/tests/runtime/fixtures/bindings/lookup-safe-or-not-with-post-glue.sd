@@ -1,6 +1,6 @@
 external myAction()
 
-One
+One ..
 & myAction()
-.. Two
+Two
 done

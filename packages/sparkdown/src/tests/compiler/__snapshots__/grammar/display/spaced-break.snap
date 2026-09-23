@@ -340,8 +340,9 @@ sparkdown [0..140]
          ├─ Newline [112..113]: "\n"
          ├─ BlockLineContinue [113..126]
          │   ├─ BlockLineContinue_begin [113..115]
-         │   │   └─ BlockLineContinue_begin_c1 [113..115]
-         │   │       └─ OptionalWhitespace [113..115]: "  "
+         │   │   ├─ BlockLineContinue_begin_c1 [113..115]
+         │   │   │   └─ OptionalWhitespace [113..115]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 115
          │   ├─ BlockLineContinue_content [115..126]
          │   │   ├─ TextChunk [115..119]
          │   │   │   ├─ TextChunk_begin 115
@@ -364,15 +365,17 @@ sparkdown [0..140]
          │   ├─ BlockLineBreak_c1 [127..129]
          │   │   └─ OptionalWhitespace [127..129]: "  "
          │   ├─ BlockLineBreak_c2 129
-         │   ├─ BlockLineBreak_c3 [129..130]
+         │   ├─ BlockLineBreak_c3 129
+         │   ├─ BlockLineBreak_c4 [129..130]
          │   │   └─ Break [129..130]
          │   │       └─ Break_c1 [129..130]: ">"
-         │   └─ BlockLineBreak_c4 130
+         │   └─ BlockLineBreak_c5 130
          ├─ Newline [130..131]: "\n"
          ├─ BlockLineContinue [131..139]
          │   ├─ BlockLineContinue_begin [131..133]
-         │   │   └─ BlockLineContinue_begin_c1 [131..133]
-         │   │       └─ OptionalWhitespace [131..133]: "  "
+         │   │   ├─ BlockLineContinue_begin_c1 [131..133]
+         │   │   │   └─ OptionalWhitespace [131..133]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 133
          │   ├─ BlockLineContinue_content [133..139]
          │   │   └─ TextChunk [133..139]
          │   │       ├─ TextChunk_begin 133

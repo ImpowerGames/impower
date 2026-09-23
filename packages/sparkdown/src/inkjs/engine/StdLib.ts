@@ -3164,7 +3164,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // non-string object (currentTags skips it).
         story.state.PushToOutputStream(payload);
       }
-      // Close the beat so Continue completes here (mirrors print's `\n`).
+      // Close the beat so Continue completes here (mirrors print's `\n`). A
+      // table marked `open` joins the next display call onto its line, so
+      // the step runs on until a call closes it.
+      const open =
+        payload instanceof ObjectValue ? payload.value?.get("open") : null;
+      if (open instanceof BoolValue && open.value) return;
       story.state.PushToOutputStream(new StringValue("\n"));
     },
   },

@@ -1,9 +1,9 @@
 text.source.sparkdown [0..27]
  ├─ string.display.text.chunk.sd [0..26]
  │   ├─ markup.raw.text.sd [0..1]: "x"
- │   ├─ meta.glue.sd [1..4]
- │   │   ├─ punctuation.whitespace.sd [1..2]: " "
- │   │   └─ keyword.other.glue.sd [2..4]: ".."
+ │   ├─ markup.raw.space.sd [1..2]: " "
+ │   ├─ markup.raw.punctuation.sd [2..3]: "."
+ │   ├─ markup.raw.punctuation.sd [3..4]: "."
  │   ├─ markup.raw.space.sd [4..5]: " "
  │   ├─ markup.raw.text.sd [5..11]: "plural"
  │   ├─ markup.raw.punctuation.sd [11..12]: "."

@@ -10,6 +10,7 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import { lower, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
+import { openLastDisplayCall } from "../utils/displayCall";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lowers a `choose ... [then [(label)] ...] end` block — sparkdown's
@@ -59,6 +60,7 @@ export function lowerSparkdownChooseBlock(
   // already groups them as siblings inside our `_content` wrapper.
   let thenClause: SyntaxNode | null = null;
   let currentChoice: Choice | null = null;
+  let sawChoice = false;
   let child = content?.firstChild ?? null;
   const diagnostics: InkDiagnostic[] = [];
   while (child) {
@@ -69,6 +71,12 @@ export function lowerSparkdownChooseBlock(
       continue;
     }
     if (child.name === "Choice") {
+      // The display statements before the first choice are the block's
+      // caption. The last of them writes no newline, so its step runs on
+      // through the logic between it and the choices and completes with the
+      // caption and the choices together.
+      if (!sawChoice) openLastDisplayCall(weaveContent);
+      sawChoice = true;
       currentChoice = null;
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       if (block?.diagnostics) {

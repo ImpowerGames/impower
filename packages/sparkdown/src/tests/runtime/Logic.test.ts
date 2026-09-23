@@ -34,14 +34,10 @@ end
   });
 
   test("multiline logic with glue", () => {
-    // Ink's `<>` glue maps to sparkdown's `..` glue marker. The grammar's
-    // `Glue` rule recognizes ` .. ` between whitespace boundaries and the
-    // inline-action lowerer emits a runtime `Glue` output-stream marker
-    // before the body, suppressing the leading line-type metadata tag (which
-    // would otherwise sit between the Glue and body text and prevent the
-    // runtime from cleanly consuming the marker). The runtime's output-
-    // stream renderer drops the newline that would otherwise sit between
-    // glued content runs, so `…{"a"}\n.. b\n…` renders as `"a b\n"`.
+    // Ink's `<>` glue maps to sparkdown's `..` glue marker, which ends the
+    // line it joins from: `{"a"} ..` inside the `if` holds the line open, so
+    // the `b` after the block joins it and `…{"a"} ..\nend\nb` renders as
+    // `"a b\n"`.
     //
     // Inkjs's third pattern (`} <> {true: ...}` — glue followed by another
     // conditional on the same line) doesn't have a clean sparkdown

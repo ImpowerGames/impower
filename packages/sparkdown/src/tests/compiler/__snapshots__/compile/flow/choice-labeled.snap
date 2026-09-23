@@ -26,13 +26,18 @@
                               " "
                             ]
                           }
+                        },
+                        {
+                          "key": "open",
+                          "value": {
+                            "type": "NumberExpression",
+                            "value": true,
+                            "subtype": "bool"
+                          }
                         }
                       ]
                     }
                   ]
-                },
-                {
-                  "type": "Glue"
                 },
                 {
                   "type": "Divert",

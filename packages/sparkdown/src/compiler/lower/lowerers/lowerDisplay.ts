@@ -51,34 +51,16 @@ function buildDisplayContent(
   mode: "inline" | "block",
   lineType: string,
   identifier: string | null,
-  options: { leadingGlue?: boolean } = {},
 ): ParsedObject[] {
-  // A glued line is a continuation of the previous one. Two sources:
-  //   1. This line OPENS with `..` (its own leading glue — always an
-  //      `InlineAction` per the grammar). The space AFTER the `..` is the
-  //      word separator, so its leading whitespace is preserved.
-  //   2. The PREVIOUS line ended with a trailing `..` (`isNodePrecededBy
-  //      TrailingGlue`). The separator is the previous line's space BEFORE
-  //      its `..`, so this line's own leading whitespace (e.g. the space
-  //      after a `CHARACTER:` / `$:` routing colon) is trimmed to avoid a
-  //      doubled space.
-  // Both are lowered the same way: a single leading Glue, then a call whose
-  // table names no target, so the runtime joins this line's text onto the
-  // previous line's beat (inheriting its display target) and the pending Glue
-  // is cleanly removed.
-  const ownLeadingGlue = options.leadingGlue ?? false;
-  const continuationGlue =
-    !ownLeadingGlue && isNodePrecededByTrailingGlue(parent, ctx);
-  if (ownLeadingGlue || continuationGlue) {
-    // The continuation is a `display({ text })` call carrying no routing: the
-    // runtime joins it onto the step the glue keeps open, and the beat takes
-    // its routing from the line it continues.
-    return [
-      new ParsedGlue(new RuntimeGlue()),
-      ...buildDisplayCalls(parent, bodyStart, bodyEnd, ctx, mode, null, null, {
-        preserveLeadingWhitespace: ownLeadingGlue,
-      }),
-    ];
+  // A line the previous line ended with `..` is a continuation of it. The
+  // previous line's call is `open`, so it wrote no newline and the step is
+  // still running; this line's call names no routing, so the runtime joins
+  // its text onto that beat and the beat keeps the routing of the line it
+  // continues. The join keeps the spaces written before the `..` and drops
+  // the spaces after it, so this line's own leading whitespace (the space
+  // after a `CHARACTER:` or `$:` routing colon) is trimmed.
+  if (isNodePrecededByTrailingGlue(parent, ctx)) {
+    return buildDisplayCalls(parent, bodyStart, bodyEnd, ctx, mode, null, null);
   }
   return buildDisplayCalls(
     parent,
@@ -107,11 +89,12 @@ function buildDisplayContent(
 // mid-line divert follows the call. A `load` action line makes a
 // `display({ load })` call instead.
 //
-// Glue: a `..` in the middle of a body is joined inside the captured string at
-// compile time (`joinMidBodyGlue`). A TRAILING `..` is lifted out and emitted
-// after the call, so it reaches the output stream and holds the step open for
-// the next line's table. A `null` line type marks a glued continuation: its
-// tables name no routing.
+// Glue: a `..` that ends a body line inside a block joins the next body line
+// inside the captured string at compile time (`joinMidBodyGlue`). A `..` that
+// ends the statement marks its last call `open`, so the call writes no
+// newline and the step runs on into the next line's table. A `>..` ending a
+// line marks the beat its break ends `open` the same way. A `null` line type
+// marks a glued continuation: its tables name no routing.
 function buildDisplayCalls(
   parent: SyntaxNode,
   bodyStart: number,
@@ -120,7 +103,6 @@ function buildDisplayCalls(
   mode: "inline" | "block",
   lineType: string | null,
   identifier: string | null,
-  options: { preserveLeadingWhitespace?: boolean } = {},
 ): ParsedObject[] {
   // Resolve the routing at compile time: dialogue → target "dialogue" + the
   // cue; write → the layer is the target, and a write with no layer names no
@@ -153,7 +135,6 @@ function buildDisplayCalls(
     const range = ranges[i]!;
     const divertTail = { objects: [] as ParsedObject[], bodyIndex: -1 };
     const walked = processDisplayBody(parent, range.from, range.to, ctx, mode, {
-      ...(i === 0 ? options : {}),
       divertTail,
     });
     // Author `# tag`s are metadata, not text: they ride the call's `tags`.
@@ -166,9 +147,28 @@ function buildDisplayCalls(
     }
     const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
     joinMidBodyGlue(body);
+    // A plain divert holds the line open, so the target's first line joins
+    // this one's beat. A `load` arrow's directive is its own step, which the
+    // call's closing newline already starts.
+    const divertJoins =
+      divertTail.objects.length > 0 &&
+      divertTail.objects.every(
+        (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
+      );
     const loadArgs = lineType === "action" ? stripLoadKeyword(body) : null;
     if (loadArgs) {
-      calls.push(buildLoadCall(loadArgs, range, ctx, tags));
+      // Everything after `load` names assets, so a `..` ending the line joins
+      // nothing onto it.
+      if (trailingGlue) {
+        reportLoadGlue(parent, range, ctx);
+        const last = loadArgs.at(-1);
+        if (last instanceof Text) {
+          loadArgs[loadArgs.length - 1] = new Text(last.text.trimEnd());
+        }
+      }
+      calls.push(
+        buildLoadCall(loadArgs, range, ctx, tags, { open: divertJoins }),
+      );
     } else {
       // An empty body still makes a call, so the line keeps its own step. A
       // statement with no body of its own is stamped from its start, since an
@@ -201,19 +201,12 @@ function buildDisplayCalls(
               ? `${ctx.filePath ?? ""}#${parent.from}`
               : undefined,
             inherit: isContinuation && i > 0,
+            open: trailingGlue != null || divertJoins,
           },
         ),
       );
     }
-    if (trailingGlue) calls.push(trailingGlue);
     if (divertTail.objects.length > 0) {
-      // A plain divert holds the line open with glue, so the target's first
-      // line joins this one's beat. A `load` arrow's directive is its own
-      // step, which the call's closing newline already starts.
-      const joins = divertTail.objects.every(
-        (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
-      );
-      if (joins) calls.push(new ParsedGlue(new RuntimeGlue()));
       calls.push(...divertTail.objects);
       // Reached only when a tunnel returns: it ends the joined line.
       calls.push(new Text("\n"));
@@ -233,23 +226,17 @@ function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
   return rest ? [new Text(rest), ...body.slice(1)] : body.slice(1);
 }
 
-// Resolve each mid-body `..` of a display body in place. String evaluation
-// keeps newlines as literal characters, so a Glue object inside the captured
-// `text` string joins nothing; the join happens here. It mirrors what the
-// output stream does for flat text: the newlines before the marker and the
-// whitespace through the last newline after it are removed. Only a Text
-// neighbour holds whitespace; an interpolation or other neighbour is left as
-// it is.
+// Resolve each `..` that ends a body line in place, joining the next body line
+// onto it inside the captured `text` string. The spaces written before the
+// marker stay and all the whitespace after it, the line break included, is
+// dropped. Only a Text neighbour holds whitespace; an interpolation or other
+// neighbour is left as it is.
 function joinMidBodyGlue(body: ParsedObject[]): void {
   for (let i = body.length - 1; i >= 0; i--) {
     if (!(body[i] instanceof ParsedGlue)) continue;
-    const prev = body[i - 1];
     const next = body[i + 1];
-    if (prev instanceof Text) {
-      body[i - 1] = new Text(prev.text.replace(/\n[ \t\n]*$/, ""));
-    }
     if (next instanceof Text) {
-      body[i + 1] = new Text(next.text.replace(/^[ \t\n]*\n/, ""));
+      body[i + 1] = new Text(next.text.replace(/^[ \t\n]+/, ""));
     }
     body.splice(i, 1);
   }
@@ -313,7 +300,8 @@ function splitBodyRangeAtBreaks(
 }
 
 // Whether [from, to) of a display body holds anything but whitespace, author
-// tags, comments and breaks.
+// tags, comments, breaks and `..` marks. A break followed on its line only by
+// a `..` ends that line, so the beat it ends carries the join.
 function hasBodyContent(
   parent: SyntaxNode,
   from: number,
@@ -325,7 +313,9 @@ function hasBodyContent(
     if (
       injection.kind !== "tag" &&
       injection.kind !== "comment" &&
-      injection.kind !== "break"
+      injection.kind !== "break" &&
+      injection.kind !== "glue" &&
+      injection.kind !== "leadingGlue"
     ) {
       continue;
     }
@@ -391,7 +381,6 @@ function processDisplayBody(
   ctx: LowerContext,
   mode: "inline" | "block",
   options: {
-    preserveLeadingWhitespace?: boolean;
     // Receives a mid-line divert's objects instead of the body, so the
     // caller can place them after the line's display() call. `bodyIndex` is
     // the body length when the divert was reached.
@@ -438,7 +427,7 @@ function processDisplayBody(
     }
   } else {
     const first = segments[0];
-    if (first && first.kind === "text" && !options.preserveLeadingWhitespace) {
+    if (first && first.kind === "text") {
       first.raw = first.raw.replace(/^\s+/, "");
     }
     const last = segments[segments.length - 1];
@@ -456,14 +445,10 @@ function processDisplayBody(
       const text = applyDisplayEscapes(seg.raw);
       if (text.length > 0) out.push(new Text(text));
     } else if (seg.kind === "glue") {
-      // A `..` glue marker sitting WITHIN display content (most commonly a
-      // TRAILING `text ..` at end of line, but also a mid-body `..`). The
-      // grammar already produces a `Glue` node (it's even syntax-
-      // highlighted); without this branch `collectBodySegments` would read
-      // its raw `..` characters as literal text and the lines would never
-      // join. Leading `..` is handled separately by the `leadingGlue` path
-      // (the glue is excluded from the body range there), so this only fires
-      // for non-leading glue. Emits the same runtime marker as `lowerGlue`.
+      // A `..` that ends a line of the body. It stays in the body as a
+      // marker: `buildDisplayCalls` marks the call `open` for one that ends
+      // the body, and `joinMidBodyGlue` joins the next body line onto one
+      // that ends an earlier line. Neither reaches the compiled program.
       out.push(new ParsedGlue(new RuntimeGlue()));
     } else if (seg.kind === "inlineGluedAlt") {
       // `Here is text .. queue|A|B|C .. and more` — inline-glued
@@ -582,9 +567,28 @@ function collectBodySegments(
     const next = injections[idx];
     if (next && next.from === i && next.kind === "break") {
       // A break left in a range (a trailing one, or one on a line the split
-      // passed over) contributes no text.
+      // passed over) contributes no text. The spaces written between its `>`
+      // and a `..` that ends the line are the spaces the join keeps.
       idx++;
       i = next.to;
+      const after = injections[idx];
+      if (after && after.kind === "glue" && after.from === next.to) {
+        const written = ctx.read(next.from, next.to);
+        const spaces = written.slice(written.lastIndexOf(">") + 1);
+        if (spaces.length > 0) {
+          if (textBuf.length === 0) textStart = next.to - spaces.length;
+          textBuf += spaces;
+        }
+      }
+      continue;
+    }
+    if (next && next.from === i && next.kind === "leadingGlue") {
+      // A line that begins with `..` is reported and shows its text without
+      // the mark or the spaces after it.
+      reportLeadingGlue(next.node, ctx);
+      idx++;
+      i = next.to;
+      while (i < bodyEnd && /[ \t]/.test(ctx.read(i, i + 1))) i++;
       continue;
     }
     if (next && next.from === i) {
@@ -639,6 +643,7 @@ interface BodyInjection {
     | "tag"
     | "comment"
     | "glue"
+    | "leadingGlue"
     | "break";
   node: SyntaxNode;
   from: number;
@@ -682,28 +687,17 @@ function collectTopLevelInjections(
       if (INLINE_GLUED_ALTERNATOR_NAMES.has(node.name)) {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           // The alternator's `_begin` captures the leading whitespace,
-          // the opening `..`, the keyword, and the optional modifier.
-          // To preserve the visible space before the alternator opens
-          // (`Before .. queue|A|B|C ..` → `Before A`), anchor the
-          // injection's `from` on the opening `..` (Glue inside
-          // `_begin`) rather than on the alternator node's leading edge.
+          // the opening `..`, the keyword, and the optional modifier, and
+          // its `_end` the closing `..`. To preserve the visible space
+          // before the alternator opens (`Before .. queue|A|B|C ..` →
+          // `Before A`), anchor the injection's `from` on the opening `..`
+          // rather than on the alternator node's leading edge.
           const beginNode = findChildByNameDirect(node, `${node.name}_begin`);
           const openingGlue = beginNode
-            ? getDescendent("Glue", beginNode)
+            ? getDescendent("AlternatorGlue", beginNode)
             : null;
           const from = openingGlue ? openingGlue.from : node.from;
-
-          // The closing `..` is a sibling of the alternator's *enclosing*
-          // text-chunk container, not of the alternator itself. Walk up
-          // to the wrapping container (TextChunk_content, TextChunk, or
-          // similar) and look for the next-sibling `Glue` that sits
-          // immediately after — that's the matching closing marker.
-          let to = node.to;
-          const closingGlue = findClosingGlueForAlternator(node);
-          if (closingGlue && closingGlue.to <= bodyEnd) {
-            to = closingGlue.to;
-          }
-          out.push({ kind: "inlineGluedAlt", node, from, to });
+          out.push({ kind: "inlineGluedAlt", node, from, to: node.to });
         }
         return;
       }
@@ -732,21 +726,24 @@ function collectTopLevelInjections(
         }
         return;
       }
-      // A `..` glue marker embedded in display content — a TRAILING
-      // `text ..` (or a mid-body `..`). The `Glue` grammar node spans its
-      // leading whitespace plus the `..` (`(?:ws)*(?:[.][.])`); the `..` is
-      // always the final two characters. Anchor the injection on the `..`
-      // itself (`node.to - 2`) rather than `node.from` so the whitespace
-      // before it stays in the preceding text segment — that single space
-      // is what separates the joined words (`shadows ..` + `and` →
-      // `shadows and`, mirroring the leading-glue form `shadows` + `.. and`).
-      // The opening/closing `..` of an inline-glued alternator are NOT
-      // reached here: the alternator branch above returns before descending,
-      // and its closing `Glue` (consumed into the alternator's range) is
-      // defensively skipped in `collectBodySegments`.
+      // A `..` that ends a line of display content. The `Glue` grammar node
+      // spans any whitespace before it plus the `..`, which is always its
+      // final two characters. Anchor the injection on the `..` itself
+      // (`node.to - 2`) so the whitespace before it stays in the preceding
+      // text segment: the spaces written before the mark are the ones the
+      // join keeps (`shadows ..` + `and` → `shadows and`). The `..` marks of
+      // an inline-glued alternator are `AlternatorGlue` nodes inside the
+      // alternator, which the branch above does not descend into.
       if (node.name === "Glue") {
         if (node.from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "glue", node, from: node.to - 2, to: node.to });
+        }
+        return;
+      }
+      // A block body line that begins with `..`.
+      if (node.name === "LeadingGlue") {
+        if (node.from >= bodyStart && node.to <= bodyEnd) {
+          out.push({ kind: "leadingGlue", node, from: node.from, to: node.to });
         }
         return;
       }
@@ -876,15 +873,85 @@ function extractInlineBodyRange(nodeRef: SparkdownSyntaxNodeRef): {
     nodeRef.node,
   );
   if (colon) return { from: colon.to, to: nodeRef.to };
-  // When the inline action is introduced by a `..` glue marker (no colon),
-  // skip past it so the literal `..` doesn't bleed into the body text.
-  const glue = getDescendent("Glue", nodeRef.node);
+  // A line that begins with `..` shows its text without the mark.
+  const glue = leadingGlue(nodeRef.node);
   if (glue) return { from: glue.to, to: nodeRef.to };
   return { from: nodeRef.from, to: nodeRef.to };
 }
 
-function hasLeadingGlue(nodeRef: SparkdownSyntaxNodeRef): boolean {
-  return getDescendent("Glue", nodeRef.node) != null;
+// The `..` an inline action line begins with, if it begins with one.
+function leadingGlue(node: SyntaxNode): SyntaxNode | null {
+  const begin = findChildByNameDirect(node, `${node.name}_begin`);
+  return (begin && getDescendent("LeadingGlue", begin)) ?? null;
+}
+
+// Whether nothing but whitespace stands before `node` on its source line. The
+// grammar reads a `..` after a top-level interpolation (`{x} ..`) as an inline
+// action that begins with `..`; with the interpolation before it on the line,
+// that `..` ends the line instead.
+function startsItsLine(node: SyntaxNode, ctx: LowerContext): boolean {
+  const column = ctx.characterNumber(node.from);
+  return !ctx.read(node.from - column, node.from).trim();
+}
+
+// An inline action that is only a `..` ending a line that something else began
+// (`{x} ..`).
+function isTrailingGlueAction(node: SyntaxNode, ctx: LowerContext): boolean {
+  if (node.name !== "InlineAction") return false;
+  const glue = leadingGlue(node);
+  return (
+    glue != null &&
+    !startsItsLine(node, ctx) &&
+    !ctx.read(glue.to, node.to).trim()
+  );
+}
+
+const LEADING_GLUE_MESSAGE =
+  "A line cannot begin with `..`. End the previous line with `..` to join them.";
+
+const LOAD_GLUE_MESSAGE =
+  "A `load` line cannot end with `..`. Name every asset it loads on the line.";
+
+// Report the `..` that ends a `load` line, on the mark's range.
+function reportLoadGlue(
+  parent: SyntaxNode,
+  range: { from: number; to: number },
+  ctx: LowerContext,
+): void {
+  const mark = collectTopLevelInjections(parent, range.from, range.to)
+    .filter((injection) => injection.kind === "glue")
+    .at(-1);
+  if (!mark) return;
+  ctx.diagnostics?.push({
+    message: LOAD_GLUE_MESSAGE,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(mark.from) + 1,
+      endLineNumber: ctx.lineNumber(mark.to) + 1,
+      startCharacterNumber: ctx.characterNumber(mark.from) + 1,
+      endCharacterNumber: ctx.characterNumber(mark.to) + 1,
+    },
+  });
+}
+
+// A `..` that begins a line joins nothing: the line after a newline has
+// already ended, and only a `..` that ends a line joins the next one. The
+// error names that fix, on the mark's range.
+export function reportLeadingGlue(mark: SyntaxNode, ctx: LowerContext): void {
+  ctx.diagnostics?.push({
+    message: LEADING_GLUE_MESSAGE,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(mark.from) + 1,
+      endLineNumber: ctx.lineNumber(mark.to) + 1,
+      startCharacterNumber: ctx.characterNumber(mark.from) + 1,
+      endCharacterNumber: ctx.characterNumber(mark.to) + 1,
+    },
+  });
 }
 
 // The display line each statement kind routes by.
@@ -921,12 +988,8 @@ function lexicalRouting(
     }
     const lineType = DISPLAY_LINE_TYPES[sib.name];
     if (!lineType) return null;
-    // A continuation routes by what the line IT continues routes by, in both
-    // spellings: a line that opens with `..`, and a line the line before it
-    // held open with a trailing `..`.
-    const glue = getDescendent("Glue", sib);
-    const opensWithGlue = glue != null && !ctx.read(sib.from, glue.from).trim();
-    if (opensWithGlue || isNodePrecededByTrailingGlue(sib, ctx)) {
+    // A continuation routes by what the line IT continues routes by.
+    if (isNodePrecededByTrailingGlue(sib, ctx)) {
       sib = sib.prevSibling;
       continue;
     }
@@ -959,6 +1022,7 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "ExtraWhitespace",
   "OptionalWhitespace",
   "RequiredWhitespace",
+  "TrailingWhitespace",
   "SparkdownLineComment",
 ]);
 
@@ -985,7 +1049,16 @@ function isNodePrecededByTrailingGlue(
 // right-most `Glue` descendant ends exactly at the node's trailing-whitespace-
 // trimmed end. Mid-construct glues (followed by more text) don't count.
 function endsWithTrailingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
+  if (isTrailingGlueAction(node, ctx)) return true;
   const text = ctx.read(node.from, node.to);
+  // A `..` ending a `load` line is reported, and the line after it stands on
+  // its own.
+  if (
+    (node.name === "ImplicitAction" || node.name === "InlineAction") &&
+    /^\s*(?::\s+)?load\s/.test(text)
+  ) {
+    return false;
+  }
   const trimmed = text.replace(/\s+$/, "");
   // Fast reject before the subtree walk: a trailing glue's last visible
   // characters are always `..`. Most display lines don't end that way, so this
@@ -1110,6 +1183,17 @@ export function lowerLuauInterpolatedStringExpression(
     }
   }
   if (body.length === 0) return {};
+  // A `..` ending the line (`{x} ..`) holds it open for the next line.
+  let after = last.nextSibling;
+  while (after && GLUE_SKIP_SIBLINGS.has(after.name) && after.name !== "Newline") {
+    after = after.nextSibling;
+  }
+  const open = after != null && isTrailingGlueAction(after, ctx);
+  if (open) {
+    // The join keeps the spaces written before the mark.
+    const spaces = ctx.read(last.to, leadingGlue(after!)!.from);
+    if (spaces) body.push(new Text(spaces));
+  }
   return wrapInWeave([
     buildDisplayCall(
       undefined,
@@ -1117,6 +1201,8 @@ export function lowerLuauInterpolatedStringExpression(
       body,
       { from: nodeRef.node.from, to: last.to },
       ctx,
+      [],
+      { open },
     ),
   ]);
 }
@@ -1158,13 +1244,16 @@ export function lowerInlineAction(
   ctx: LowerContext,
 ): CompiledBlock {
   const { from, to } = extractInlineBodyRange(nodeRef);
-  // This line's OWN leading `..`. A trailing-glue continuation (previous line
-  // ended with `..`) is detected centrally in `buildDisplayContent`.
-  const leadingGlue = hasLeadingGlue(nodeRef);
+  const glue = leadingGlue(nodeRef.node);
+  // The line before it on its line lowers the join (`{x} ..`).
+  if (isTrailingGlueAction(nodeRef.node, ctx)) return {};
+  if (glue) {
+    reportLeadingGlue(glue, ctx);
+    // A bare `..` line has nothing left to show.
+    if (!ctx.read(from, to).trim()) return {};
+  }
   return wrapInWeave(
-    buildDisplayContent(nodeRef.node, from, to, ctx, "inline", "action", null, {
-      leadingGlue,
-    }),
+    buildDisplayContent(nodeRef.node, from, to, ctx, "inline", "action", null),
   );
 }
 
@@ -1538,38 +1627,6 @@ function findChildByNameDirect(
   while (scan) {
     if (scan.name === name) return scan;
     scan = scan.nextSibling;
-  }
-  return null;
-}
-
-// Find the closing `..` `Glue` node that pairs with an inline-glued
-// alternator. The alternator sits inside an enclosing text-chunk
-// container (e.g. `TextChunk_content`); the closing `..` is captured as
-// a separate `Glue` rule whose tree position is a sibling of the
-// alternator's enclosing `TextChunk`, not of the alternator itself.
-// Walk up the parent chain, scanning forward through siblings at each
-// level (skipping structural `_begin`/`_content`/`_end` wrappers), and
-// return the first `Glue` whose left edge is immediately adjacent.
-function findClosingGlueForAlternator(altNode: SyntaxNode): SyntaxNode | null {
-  let cursor: SyntaxNode | null = altNode;
-  while (cursor) {
-    let sib: SyntaxNode | null = cursor.nextSibling;
-    while (sib) {
-      if (sib.name === "Glue") return sib;
-      // Skip past wrapper siblings (TextChunk_end, etc.) and look further.
-      if (
-        sib.name.endsWith("_begin") ||
-        sib.name.endsWith("_end") ||
-        sib.name.endsWith("_content")
-      ) {
-        sib = sib.nextSibling;
-        continue;
-      }
-      // A real (non-wrapper) sibling that isn't `Glue` — no closing
-      // marker at this nesting level.
-      return null;
-    }
-    cursor = cursor.parent;
   }
   return null;
 }

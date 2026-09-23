@@ -110,8 +110,8 @@ $: E > F
 
   test("a break on a glued continuation ends the joined beat", () => {
     for (const source of [
-      `HERO: Hi.\n.. more > Bye.\n`,
       `HERO: Hi. ..\nmore > Bye.\n`,
+      `HERO: Hi. ..\nHERO: more > Bye.\n`,
     ]) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
@@ -155,7 +155,7 @@ $: E > F
   test("a continuation held open by a trailing `..` chain keeps the cue", () => {
     for (const source of [
       `HERO: A ..\nB ..\nC > D\n`,
-      `HERO: A ..\nB\n.. C > D\n`,
+      `HERO: A ..\nHERO: B ..\nC > D\n`,
     ]) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
