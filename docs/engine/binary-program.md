@@ -125,13 +125,13 @@ The id stays interned and its definition row becomes -1 in the new root. At comp
 
 The set is purpose-built and linear. It has no evaluation mode: where the current engine pushes content to the eval stack or to the output depending on `inExpressionEvaluation`, each instruction here names its own destination (`Text` writes output, `Str` pushes a value), so `EvalStart` and `EvalEnd` do not exist. A literal string is one `Str`. A table is built from a pair count known when it was lowered. A conditional is a relative jump.
 
-Values are the engine's value classes, and a pushed constant is a value object created once per table entry, so pushing allocates nothing. "Pops n, pushes m" below is the effect on the eval stack. The output rules (a newline that is not repeated and does not open a line, the trimming of a function's trailing whitespace) are those of `StoryState.PushToOutputStreamIndividual` and `TrimWhitespaceFromFunctionEnd`, carried over with the instruction's operand in place of the runtime object.
+Values are the engine's value classes, and a pushed constant is a value object created once per table entry, so pushing allocates nothing. "Pops n, pushes m" below is the effect on the eval stack. The output rules (a newline that is not repeated, does not open a line and is not written while a join is pending, the trimming of a function's trailing whitespace) are those of `StoryState.PushToOutputStreamIndividual` and `TrimWhitespaceFromFunctionEnd`, carried over with the instruction's operand in place of the runtime object.
 
 | Instruction | Operands | Eval stack | Output | Call stack | Counts |
 | --- | --- | --- | --- | --- | --- |
 | `LineStart` | | | none: its offset is the address a beat is known by (sections 6 and 8) | | |
 | `Text` | arg: string | | appends the text, or adds it to an open capture | | |
-| `Newline` | | | appends a newline under the newline rule | | |
+| `Newline` | | | appends a newline under the newline rule, which drops it while a join is pending (section 6) | | |
 | `Out` | | pops 1 | appends its text; Void appends nothing | | |
 | `BeginTag`, `EndTag` | | inside a capture `EndTag` pushes the tag for the next `Choice` | otherwise the tag markers | | |
 | `BeginString` | | | opens a capture | | |
@@ -156,7 +156,7 @@ Values are the engine's value classes, and a pushed constant is a value object c
 | `Visit` | arg: symbol | | | | raises the symbol's visits and records the turn |
 | `BeginScope`, `EndScope` | | | | pushes or pops a scope of temporaries on the current frame; popping closes the upvalues bound in it | |
 | `Native` | arg: operator name; aux: arguments | pops them, pushes the result, through `NativeFunctionCall` with its metamethod and namespace-override dispatch | | | |
-| `CallStd` | arg: builtin name; aux: arity; flags: discard, open | pops the arguments with the last one spread; pushes the result unless discard is set | what the builtin writes; `display` writes its table, then a newline unless the open flag is set (section 6) | | |
+| `CallStd` | arg: builtin name; aux: arity; flags: discard, open | pops the arguments with the last one spread; pushes the result unless discard is set | what the builtin writes; `display` writes its table, then a newline, or with the open flag set leaves a join pending in its place (section 6) | | |
 | `Jump` | arg: offset | | | | |
 | `JumpIfFalse` | arg: offset; flags: Luau truthiness, decision site | pops 1 | | | |
 | `JumpIfKeep` | arg: offset; flag: `and` or `or` | jumps and keeps the top when it decides the result, otherwise pops it | | | |
@@ -324,9 +324,9 @@ A flow counts when it is entered from outside, wherever the jump lands. A jump f
 
 ## 6. How a beat ends
 
-Every displayed line is a `display(...)` call whose builtin writes its table and then a newline (#685). A call whose `CallStd` carries the open flag writes its table and no newline. The writer sets the flag on each call the lowering marks as open (#779): the call of a line that ends with a trailing `..`, the call before a mid-line divert, a chosen choice's arrow or an alternator arm's divert tail, and the caption of a `choose` block, which is the last display statement written in the block before its first choice. A continuation is a call after a call that wrote no newline, and it joins the same beat (#686).
+Every displayed line is a `display(...)` call whose builtin writes its table and then a newline (#685). A call whose `CallStd` carries the open flag writes its table and, in place of the newline, leaves a join pending on the output. The writer sets the flag on each call the lowering marks as open (#779): the call of a line that ends with a trailing `..`, the call before a mid-line divert, a chosen choice's arrow or an alternator arm's divert tail, and the caption of a `choose` block, which is the last display statement written in the block before its first choice. A continuation is a call after a call that wrote no newline, and it joins the same beat (#686).
 
-A continue runs until the output ends in a newline outside a capture, or until the flow can no longer continue: a `Done` that stops the flow, an `End`, or the end of content. An open call leaves the output without a newline, so the step runs on through any logic that follows it until the next output closes the line. That is how a trailing `..` joins whatever the story displays next, through an `if` or a divert, and how a mid-line divert, a chosen choice's arrow and an alternator arm's divert tail join what they lead to. A `choose` block's caption runs on through the logic before the choices, the choices are raised, and the continue ends at the block's `Done`, so the caption and its choices return together; a line written before the block returns alone, and the next continue raises the choices with no text. A `Done` that only pops a forked thread is no end: the flow goes on.
+A continue runs until the output ends in a newline outside a capture, or until the flow can no longer continue: a `Done` that stops the flow, an `End`, or the end of content. While a join is pending, no newline is written, whichever instruction writes it: the `Newline` a multi-line `if` branch opens with (as `ConditionalSingleBranch` inserts one today), the one a chosen choice's target opens with (section 4), and any other the flow meets before the next visible output. That output, text or a display table whose text is not empty or whitespace, consumes the join and continues the line, and its own closing newline is written as usual; whitespace text, or a table with no words, leaves the join pending. So the step runs on through any logic between the open call and the next visible output, and the output cannot end in a newline in between. That is how a trailing `..` joins whatever the story displays next, through an `if` or a divert, and how a mid-line divert, a chosen choice's arrow and an alternator arm's divert tail join what they lead to. A `choose` block's caption runs on through the logic before the choices, the choices are raised, and the continue ends at the block's `Done`, so the caption and its choices return together; a line written before the block returns alone, and the next continue raises the choices with no text. A `Done` that only pops a forked thread is no end: the flow goes on. Every continue starts from an empty output, as `Story.ContinueInternal` resets it today (`Story.ts:1273`), so a join still pending when a continue returns, such as a caption's, joins nothing in the next one.
 
 Every instruction runs once, in order. Logic after a line's newline runs when the next continue starts, which is when a game that reads variables between continues expects its assignments to land. A builtin whose effect leaves the engine, such as `log` writing to the host's console (`StdLib.ts:3124-3133`), runs once like every other instruction.
 
@@ -336,7 +336,7 @@ A continue that ends at a newline returns with the position just after the instr
 
 Choice presentation needs from the engine what it has today: each choice's text and tags, its index, whether it is an invisible default, the address of its `Choice` instruction as its identity, its target, and the thread it was raised in. A choice's text is built in a capture and stays flat text; how choices are transported is outside #685.
 
-**Decision:** a continue that returns when the output ends in a newline outside a capture or when the flow can no longer continue; an open flag on the display call, which leaves the newline unwritten so the next output joins the beat; and a `LineStart` emitted by the writer as the address a beat is known by.
+**Decision:** a continue that returns when the output ends in a newline outside a capture or when the flow can no longer continue; an open flag on the display call, which leaves a join pending in place of its newline, so that no newline is written until the next visible output joins the beat; and a `LineStart` emitted by the writer as the address a beat is known by.
 
 **Reason:** a join is a property of the call that writes the line and is known when the call runs, so the engine never looks past a newline to learn whether the line is over. A beat is stepped once and saves nothing at its end, so the route simulator, the game's record of what a run met and the host's console each see a step exactly once, when it runs.
 
@@ -352,6 +352,7 @@ Engine state is of two kinds. Positional state is small at the end of a line and
 | Call frames: kind, return address, eval height, output start, scopes of temporaries, open upvalues, block stack | an array per thread | addresses, each with its entry, and the temporaries; the block stack is rebuilt |
 | Threads, and the thread each choice holds | arrays of frames | as frames |
 | Eval stack, output, captures, choices | arrays | copied |
+| Pending join (section 6) | a flag beside the output | copied |
 | Turn index, seed, previous random, safe-exit flag | numbers | copied |
 | Visits, turns | typed arrays | whole in a keyframe; the changed ids in a delta |
 | Globals | `VariablesState`, unchanged | whole in a keyframe; the names assigned since in a delta |
@@ -376,7 +377,7 @@ Restoring an image restores in place: counts are copied into the live arrays, gl
 
 A route search node holds an image in place of `stateJson` (`planRoute.ts:21`). The search is breadth-first, so its nodes are live together and their images form a tree: a fork's image is a delta on the image its run started from, siblings share it, and `claimForkSite` hashes its content. A node run restores the chain from the nearest keyframe, which costs the changes along that path and not the size of the state. Forks are rare beside steps (the route to `main.sd` line 3515 is about 30,000 engine steps and one `choose`), so a fork pays a positional copy and a short delta.
 
-A checkpoint is the same image taken at each beat: a keyframe every `baseInterval` beats and deltas between, as `CheckpointStore` arranges them today, without the JSON text and without the string splice that exists to keep the path-keyed count maps out of it. Within a session a checkpoint holds addresses and count ids as they are. They survive a compile for every statement that was not re-emitted. When a root arrives, the store translates the addresses of chunks the new root no longer holds while it still has the old root to ask (section 8).
+A checkpoint is the same image taken at each beat: a keyframe every `baseInterval` beats and deltas between, as `CheckpointStore` arranges them today, without the JSON text and without the string splice that exists to keep the path-keyed count maps out of it. A beat's image is taken when its newline is written. A continue that ends with choices raised writes none, so a menu, with a caption or without one, is kept as the image before it, and restoring that image runs the continue that shows the caption and raises the choices again (#699). Within a session a checkpoint holds addresses and count ids as they are. They survive a compile for every statement that was not re-emitted. When a root arrives, the store translates the addresses of chunks the new root no longer holds while it still has the old root to ask (section 8).
 
 ### The save format
 
