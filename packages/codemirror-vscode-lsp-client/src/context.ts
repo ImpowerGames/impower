@@ -1,4 +1,5 @@
 import { redo, selectAll, undo } from "@codemirror/commands";
+import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { jumpToDefinition, jumpToDefinitionKeymap } from "./definition";
 import { formatDocument, formatKeymap } from "./formatting";
@@ -11,6 +12,10 @@ export type ContextMenuItem =
       icon?: string;
       shortcut?: string;
       command: (view: EditorView) => void;
+      /** The touch menu leaves this item out when nothing is selected. */
+      needsSelection?: boolean;
+      /** The touch menu reopens for the new selection after this item runs. */
+      keepsMenuOpen?: boolean;
     }
   | { type: "separator" };
 
@@ -55,6 +60,18 @@ export async function copy(view: EditorView) {
     try {
       // Modern clipboard API writes
       await navigator.clipboard.writeText(texts.join("\n"));
+      if (isMobile()) {
+        // Android's selection toolbar leaves a caret at the end of what it
+        // copied.
+        const selection = view.state.selection;
+        view.dispatch({
+          selection: EditorSelection.create(
+            selection.ranges.map((r) => EditorSelection.cursor(r.to)),
+            selection.mainIndex,
+          ),
+          userEvent: "select",
+        });
+      }
     } catch (err) {
       console.error("Clipboard access denied.");
     }
@@ -92,11 +109,13 @@ export const textContextMenuItems: ContextMenuItem[] = [
     label: "Cut",
     command: cut,
     shortcut: getShortcutLabel("Mod-x"),
+    needsSelection: true,
   },
   {
     label: "Copy",
     command: copy,
     shortcut: getShortcutLabel("Mod-c"),
+    needsSelection: true,
   },
   {
     label: "Paste",
@@ -107,6 +126,7 @@ export const textContextMenuItems: ContextMenuItem[] = [
     label: "Select All",
     command: selectAll,
     shortcut: getShortcutLabel("Mod-a"),
+    keepsMenuOpen: true,
   },
 ];
 

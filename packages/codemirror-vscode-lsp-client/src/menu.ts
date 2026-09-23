@@ -1,4 +1,10 @@
-import { Extension, Facet, StateEffect, StateField } from "@codemirror/state";
+import {
+  Extension,
+  Facet,
+  StateEffect,
+  StateField,
+  Transaction,
+} from "@codemirror/state";
 import { EditorView, showTooltip, Tooltip, ViewPlugin } from "@codemirror/view";
 import {
   ContextMenuItem,
@@ -151,7 +157,137 @@ export interface ContextMenuSpec {
   end?: number;
   page?: number;
   clip?: boolean;
-  above?: boolean;
+  /** Client rectangle of the menu that opened this page. An overflow page
+   *  opens over it, aligned to its right edge where the ⋮ button was. */
+  origin?: MenuRect;
+}
+
+export interface MenuRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+/** Space kept between the selection's top edge and a menu placed above it. */
+const MENU_GAP_ABOVE = 8;
+/** Space kept between the selection's bottom edge and a menu placed below it,
+ *  enough to clear the selection handles drawn under the text. */
+const MENU_GAP_BELOW = 32;
+/** Space kept between the menu and the edges of the visual viewport. */
+const MENU_VIEWPORT_MARGIN = 4;
+
+/**
+ * Where the touch text-selection menu goes, following Android's floating
+ * selection toolbar: centred over the selection, above its top edge when that
+ * fits inside the visual viewport, otherwise below its bottom edge, and pinned
+ * to the top of the viewport when neither fits or nothing of the selection is
+ * visible. The menu may leave the editor and cover the page around it, but it
+ * never covers a selection it can sit beside.
+ *
+ * `selection` is the visible part of the selection's bounding box, or null
+ * when none of it is visible.
+ */
+function placeSelectionMenu(
+  selection: MenuRect | null,
+  menu: { width: number; height: number },
+  viewport: MenuRect,
+): { left: number; top: number } {
+  const minTop = viewport.top + MENU_VIEWPORT_MARGIN;
+  const maxBottom = viewport.bottom - MENU_VIEWPORT_MARGIN;
+  let top = minTop;
+  if (selection) {
+    const above = selection.top - MENU_GAP_ABOVE - menu.height;
+    const below = selection.bottom + MENU_GAP_BELOW;
+    if (above >= minTop) {
+      top = above;
+    } else if (below + menu.height <= maxBottom) {
+      top = below;
+    }
+  }
+  const centre = selection
+    ? (selection.left + selection.right) / 2
+    : (viewport.left + viewport.right) / 2;
+  return { left: clampMenuLeft(centre - menu.width / 2, menu, viewport), top };
+}
+
+/**
+ * Where an overflow page goes: over the menu that opened it, with the two
+ * right edges aligned, moved up only as far as it must to fit the viewport.
+ */
+function placeOverflowMenu(
+  origin: MenuRect,
+  menu: { width: number; height: number },
+  viewport: MenuRect,
+): { left: number; top: number } {
+  const minTop = viewport.top + MENU_VIEWPORT_MARGIN;
+  const maxTop = viewport.bottom - MENU_VIEWPORT_MARGIN - menu.height;
+  return {
+    left: clampMenuLeft(origin.right - menu.width, menu, viewport),
+    top: Math.max(minTop, Math.min(origin.top, maxTop)),
+  };
+}
+
+function clampMenuLeft(
+  left: number,
+  menu: { width: number },
+  viewport: MenuRect,
+) {
+  const min = viewport.left + MENU_VIEWPORT_MARGIN;
+  const max = viewport.right - MENU_VIEWPORT_MARGIN - menu.width;
+  return Math.max(min, Math.min(left, max));
+}
+
+function visualViewportRect(): MenuRect {
+  const vv = window.visualViewport;
+  if (!vv) {
+    return {
+      left: 0,
+      top: 0,
+      right: window.innerWidth,
+      bottom: window.innerHeight,
+    };
+  }
+  return {
+    left: vv.offsetLeft,
+    top: vv.offsetTop,
+    right: vv.offsetLeft + vv.width,
+    bottom: vv.offsetTop + vv.height,
+  };
+}
+
+/** The part of the selection `from`..`to` visible inside the editor's
+ *  scroller, as a bounding box, or null when none of it is visible. */
+function visibleSelectionRect(
+  view: EditorView,
+  from: number,
+  to: number,
+): MenuRect | null {
+  const scroller = view.scrollDOM.getBoundingClientRect();
+  const content = view.contentDOM.getBoundingClientRect();
+  const start = view.coordsAtPos(from, 1);
+  const end = view.coordsAtPos(to, -1);
+  // A position outside the rendered viewport has no coordinates; it lies
+  // beyond the scroller's top or bottom edge.
+  const top = start
+    ? start.top
+    : from < view.viewport.from
+      ? -Infinity
+      : Infinity;
+  const bottom = end
+    ? end.bottom
+    : to > view.viewport.to
+      ? Infinity
+      : -Infinity;
+  const visibleTop = Math.max(top, scroller.top);
+  const visibleBottom = Math.min(bottom, scroller.bottom);
+  if (visibleTop >= visibleBottom) {
+    return null;
+  }
+  const oneLine = start && end && Math.abs(start.top - end.top) < 1;
+  const left = oneLine ? start.left : Math.max(content.left, scroller.left);
+  const right = oneLine ? end.right : scroller.right;
+  return { left, top: visibleTop, right, bottom: visibleBottom };
 }
 
 const openContextMenu = StateEffect.define<ContextMenuSpec>();
@@ -162,6 +298,18 @@ const contextMenuState = StateField.define<Tooltip | null>({
     return null;
   },
   update(value, tr) {
+    if (value && tr.docChanged) {
+      // An edit the user makes closes the menu, as typing over a selection
+      // closes Android's selection toolbar. Other changes move it with the
+      // text.
+      value = tr.annotation(Transaction.userEvent)
+        ? null
+        : {
+            ...value,
+            pos: tr.changes.mapPos(value.pos),
+            end: tr.changes.mapPos(value.end!),
+          };
+    }
     for (const e of tr.effects) {
       if (e.is(openContextMenu)) {
         value = createContextMenuTooltip(e.value);
@@ -169,29 +317,28 @@ const contextMenuState = StateField.define<Tooltip | null>({
         value = null;
       }
     }
-    if (value && tr.docChanged) {
-      value = {
-        ...value,
-        pos: tr.changes.mapPos(value.pos),
-        end: tr.changes.mapPos(value.end!),
-      };
-    }
     return value;
   },
   provide: (f) => showTooltip.from(f),
 });
 
 function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
-  const { x, y, pos, end, above, clip = false, page = 0 } = spec;
+  const { x, y, pos, end, origin, clip = false, page = 0 } = spec;
+  // A menu for a selection places itself: getCoords returns its top-left
+  // corner, so the tooltip must neither flip nor shrink it.
+  const placesItself = (x === undefined || y === undefined) && !clip;
   return {
     pos,
     end,
-    above,
     clip,
     arrow: false,
+    strictSide: placesItself,
     create(view: EditorView) {
       const dom = document.createElement("div");
       dom.className = "cm-context-menu";
+      // Pressing the menu must not move focus: on a touch screen, losing
+      // focus closes the keyboard, and paste needs the page focused.
+      dom.addEventListener("mousedown", (e) => e.preventDefault());
 
       const config = view.state.facet(contextMenuConfig);
       const items = config.items || [];
@@ -218,9 +365,16 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
           displayItems.push({ type: "separator" });
           displayItems.push(...moreItems);
         }
+      } else if (page === 0) {
+        // Mobile uses the page state. With nothing selected, the first page
+        // leaves out items that act on a selection, as Android's insertion
+        // menu does.
+        const empty = view.state.selection.main.empty;
+        displayItems = items.filter(
+          (item) => !(empty && "needsSelection" in item && item.needsSelection),
+        );
       } else {
-        // Mobile uses the page state
-        displayItems = page === 0 ? items : moreItems;
+        displayItems = moreItems;
       }
 
       const hasPrev = !isDesktop && page > 0;
@@ -243,7 +397,11 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
           view.dispatch({
             effects: [
               closeContextMenu.of(),
-              openContextMenu.of({ ...spec, page: page - 1 }),
+              openContextMenu.of({
+                ...spec,
+                page: page - 1,
+                origin: undefined,
+              }),
             ],
           });
         };
@@ -275,6 +433,15 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             e.stopPropagation();
             view.dispatch({ effects: closeContextMenu.of() });
             item.command(view);
+            if (!isDesktop && item.keepsMenuOpen) {
+              const selection = view.state.selection.main;
+              view.dispatch({
+                effects: openContextMenu.of({
+                  pos: selection.from,
+                  end: selection.to,
+                }),
+              });
+            }
           };
           dom.appendChild(itemEl);
         } else if ("type" in item && item.type === "separator") {
@@ -297,10 +464,15 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         moreBtn.appendChild(icon);
         moreBtn.onclick = (e) => {
           e.stopPropagation();
+          const { left, top, right, bottom } = dom.getBoundingClientRect();
           view.dispatch({
             effects: [
               closeContextMenu.of(),
-              openContextMenu.of({ ...spec, page: page + 1 }),
+              openContextMenu.of({
+                ...spec,
+                page: page + 1,
+                origin: { left, top, right, bottom },
+              }),
             ],
           });
         };
@@ -310,62 +482,23 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       return {
         dom,
         overlap: true,
+        resize: !placesItself,
         getCoords:
           x !== undefined && y !== undefined
             ? () => ({ left: x, right: x, top: y, bottom: y })
             : clip
               ? undefined
-              : (pos: number) => {
-                  const coords = view.coordsAtPos(pos);
-                  const scrollRect = view.scrollDOM.getBoundingClientRect();
-                  const padding = 5;
-
-                  const tooltipHeight = dom.getBoundingClientRect().height;
-
-                  // Define the safe boundaries for the anchor point based on tooltip direction
-                  let minTop: number;
-                  let maxBottom: number;
-
-                  if (above) {
-                    // Anchor must be at least one tooltip height away from the top
-                    minTop = scrollRect.top + padding + tooltipHeight;
-                    maxBottom = scrollRect.bottom - padding;
-                  } else {
-                    // Anchor must be at least one tooltip height away from the bottom
-                    minTop = scrollRect.top + padding;
-                    maxBottom = scrollRect.bottom - padding - tooltipHeight;
-                  }
-
-                  // Fallback for Virtualization
-                  if (!coords) {
-                    const isScrolledPast = pos < view.viewport.from;
-                    const fallbackY = isScrolledPast ? minTop : maxBottom;
-
-                    return {
-                      left: scrollRect.left + padding,
-                      right: scrollRect.left + padding,
-                      top: fallbackY,
-                      bottom: fallbackY,
-                    };
-                  }
-
-                  // Clamp the anchor coordinates
-                  const top = Math.max(minTop, Math.min(coords.top, maxBottom));
-                  const bottom = Math.max(
-                    minTop,
-                    Math.min(coords.bottom, maxBottom),
-                  );
-
-                  const left = Math.max(
-                    scrollRect.left + padding,
-                    Math.min(coords.left, scrollRect.right - padding),
-                  );
-                  const right = Math.max(
-                    scrollRect.left + padding,
-                    Math.min(coords.right, scrollRect.right - padding),
-                  );
-
-                  return { left, right, top, bottom };
+              : () => {
+                  const { width, height } = dom.getBoundingClientRect();
+                  const viewport = visualViewportRect();
+                  const { left, top } = origin
+                    ? placeOverflowMenu(origin, { width, height }, viewport)
+                    : placeSelectionMenu(
+                        visibleSelectionRect(view, pos, end ?? pos),
+                        { width, height },
+                        viewport,
+                      );
+                  return { left, right: left, top, bottom: top };
                 },
       };
     },
