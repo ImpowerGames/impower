@@ -23,7 +23,7 @@ Launch as soon as the draft PR is open; do not wait for the Test Suite workflow,
 
 For a PR with no linked issue, set the prompt builder's `issue` field to `null`; never invent an issue number.
 
-Freeze head, base and files; record SHAs and a single diff artifact. Give each reviewer/round/attempt a unique private directory. Read [handoff execution](HANDOFF.md) before launching any local CLI reviewer; it reserves machine-wide slots and runs serial reviewers. Native/remote tasks do not satisfy this enforced workflow. Before selecting executable arguments, read [runner mappings](../references/runner-review.md).
+Freeze head, base and files; record SHAs and a single diff artifact. Every review artifact lives in the round's job directory, `<main checkout>.review-jobs/pr-<P>/round-<R>` beside the main checkout, and each reviewer/attempt gets its own empty subdirectory there; [launch procedure](references/launch.md) gives the command that resolves it. Read [handoff execution](HANDOFF.md) before launching any local CLI reviewer; it reserves machine-wide slots and runs serial reviewers. Native/remote tasks do not satisfy this enforced workflow. Before selecting executable arguments, read [runner mappings](../references/runner-review.md).
 
 Post round state with identities, SHAs, scope, lenses, launch method and artifact paths. Record process IDs, OS start identities and output paths. Wait for each process to exit, then verify its report landed before advancing. Missing comments alone never justify relaunch. Preserve uncertain launches and recover through the journal and reservation status.
 

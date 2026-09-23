@@ -8,10 +8,10 @@ import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import childProcess from 'node:child_process';
 import {syncBuiltinESMExports} from 'node:module';
-import {pathToFileURL} from 'node:url';
+import {pathToFileURL,fileURLToPath} from 'node:url';
 import net from 'node:net';
 import {randomUUID} from 'node:crypto';
-import {validateReviewPlan,createReviewJob,advanceReviewJob,claimReviewJob,cancelReviewJob,jobStatus} from './review-supervisor.mjs';
+import {validateReviewPlan as actualValidate,createReviewJob,advanceReviewJob,claimReviewJob,cancelReviewJob,jobStatus} from './review-supervisor.mjs';
 import {verifyNativeReviewResult,runHandoff} from './agent-handoff.mjs';
 import {processIdentity} from './reviewer-slots.mjs';
 import {appendEvent,withJob,readEvents,readJson,worktreePaths} from './review-job-store.mjs';
@@ -23,10 +23,17 @@ import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment} from '
 import {claudeClaimArgv,renderClaudeClaimCommand} from './claude-claim-proof.mjs';
 import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
 import {removeScratch} from './remove-scratch.mjs';
+import {testScratch} from './review-job-root.mjs';
 
-const scratch=fs.mkdtempSync(path.join(os.homedir(),'.impower-cross-provider-'));
+// Codex needs its job directory outside TEMP, and supervised job directories
+// must lie under the review job root, so the scratch folder lives there.
+const scratch=testScratch('cross-provider',path.dirname(fileURLToPath(import.meta.url)));
+// The fixture repository sits inside scratch, so its own default job root is
+// scratch/repo.review-jobs; the fixtures hold their job paths to scratch.
+const validateReviewPlan=input=>actualValidate(input,{jobRoot:scratch});
 let receivedServer;
 console.log(`Scratch repository: ${scratch}`);
+try {
 const repo=path.join(scratch,'repo');fs.mkdirSync(repo);
 const git=(...args)=>execFileSync('git',args,{cwd:repo,encoding:'utf8',windowsHide:true});
 git('init','--quiet');git('-c','user.name=test','-c','user.email=test@example.invalid','commit','--allow-empty','-qm','fixture');
@@ -35,7 +42,6 @@ const prompt=path.join(privateDir,'prompt.txt');fs.writeFileSync(prompt,'Review 
 const sourceHome=path.join(scratch,'source-home');fs.mkdirSync(sourceHome);fs.mkdirSync(path.join(sourceHome,'.sandbox'));fs.mkdirSync(path.join(sourceHome,'.sandbox-secrets'));
 for(const name of ['auth.json','.sandbox/setup_marker.json','.sandbox-secrets/sandbox_users.json'])fs.writeFileSync(path.join(sourceHome,name),'{}');
 const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,writer:'claude-opus-5',writerEffort:'high',permissions:{permissionMode:'dontAsk'},reviewer:'gpt-6-astra',round:1,completedReviewRound:0,destination:{host:'claude-cli-windows',threadId:'origin',turnId:'prior-turn',cwd:repo},reviews:[{id:'correctness',transport:'native-codex-jsonl',executable:process.execPath,prompt,effort:'medium',permissions:{sandbox:'workspace-write',approvalPolicy:'never',networkAccess:true,cwd:privateDir},args:['exec','--model','gpt-6-astra','-c','model_reasoning_effort="medium"','-c','approval_policy="never"','--sandbox','workspace-write','-c','sandbox_workspace_write.network_access=true','--cd',privateDir,'--skip-git-repo-check','--json','--output-last-message',path.join(privateDir,'report.md'),'-']}]};
-try {
   const echo=path.join(privateDir,'quote-proof.mjs');fs.writeFileSync(echo,'console.log(JSON.stringify({args:process.argv.slice(2),id:process.env.IMPOWER_CLAUDE_CLAIM_ID}));');
   const literal="space ' quote $() ; & literal",quoted=renderClaudeClaimCommand([process.execPath,echo,literal]);
   assert.deepEqual(JSON.parse(execFileSync(process.env.AGENT_TOOLING_BASH||testShell(),['-c',quoted],{encoding:'utf8',windowsHide:true})),{args:[literal],id:literal});
@@ -307,7 +313,7 @@ try {
     try{
       for(const mode of ['incomplete','malformed','stale-build']){doctorMode=mode;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/provisioning/);assert.equal(fs.existsSync(capture),false,'failed setup proof never reaches reviewer execution');}
       doctorMode='complete';authUnavailable=true;assert.throws(()=>nativeReviewerEnvironment(config.steps.check,launchDir,process.env,{worktree:repo}),/GitHub authentication/,'missing parent authentication refuses before native reviewer launch');authUnavailable=false;
-      await runHandoff(configFile,{slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,5);assert.equal(authCalls,2);
+      await runHandoff(configFile,{jobRoot:scratch,slotRoot:path.join(scratch,'launcher-slots')});assert.equal(doctorCalls,5);assert.equal(authCalls,2);
     }
     finally{childProcess.execFileSync=originalExec;childProcess.spawn=originalSpawn;syncBuiltinESMExports();for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
     const journal=readClaudeRows(config.journal),launch=journal.find(row=>row.event==='launching'),observed=readJson(capture);
@@ -336,7 +342,7 @@ try {
       throw new Error('Acknowledgment lost');
     }});
     const original=fs.readFileSync(receipts,'utf8');
-    await createReviewJob(input,host,{verifyExecutable:()=>{}});
+    await createReviewJob(input,host,{verifyExecutable:()=>{},jobRoot:scratch});
     const saved=readJson(path.join(input.jobDir,'plan.json'));
     const complete=()=>{
       withJob(input.jobDir,()=>{appendEvent(input.jobDir,'worker-launch-intent');appendEvent(input.jobDir,'worker-started',{identity});appendEvent(input.jobDir,'worker-finished',{ok:true});});

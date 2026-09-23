@@ -20,6 +20,10 @@ Only clean, idle worktrees whose branch and remote commits are on origin/main qu
 
 Before interpreting a keep/refusal, manually reconciling a link, or recovering interrupted/partial removal, read [classification and recovery](references/classification.md). Never bypass refusal with recursive deletion or remove a junction using a trailing separator. A failed removal is a recovery task; preserve its log and remaining branch/data.
 
+## Review job directories
+
+The same run lists every directory under `<main checkout>.review-jobs`, the root that holds review plans, journals, diffs and reviewer probe checkouts. A `pr-<N>` directory is removable when GitHub reports PR (or issue) N closed, every `*.jsonl` journal in it reads in full, no process a journal records is running, and no process command line names it. A `test-*` directory is a standalone check's scratch folder kept outside TEMP (the cross-provider continuation test's, for one); it is removable under the same process rules, with no GitHub lookup, and retained when it holds no journal naming its process. Anything else under the root is retained with its reason. Removal unlinks every symlink and junction inside the directory before deleting it and never follows one, since probe checkouts hold `node_modules` junctions into live worktrees. A recycled process ID that happens to be running retains the directory until a later run.
+
 ## Apply and verify
 
 Run apply only for authorized cleanup after inspecting the dry run. Review removed/kept/failed rows, exit status and the recorded leftovers. Do not claim success for a partial failure. Stop owned dev servers through their drivers and rerun classification; do not force a tree with changes.

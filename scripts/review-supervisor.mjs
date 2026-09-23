@@ -8,6 +8,7 @@ import { reviewerEnvironment } from './reviewer-security.mjs';
 import { checkWriterEffort } from './reviewer-defaults.mjs';
 import { verifyClaimConfiguration } from './continuation-host.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
+import { reviewJobRoot,assertInsideJobRoot } from './review-job-root.mjs';
 import { nativeResultType,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import { readJson,writeExclusive,git,readEvents,appendEvent,withJob,retryBusy,recoverJobLock,alive,sameIdentity,currentIdentity,assertFrozen,reserveFreeze,assertJobFreeze,worktreePaths,failureDetails } from './review-job-store.mjs';
 
@@ -28,7 +29,7 @@ export function jobStatus(dir,events=readEvents(dir)) {
   }
   return {jobId:events[0].jobId,sequence:events.at(-1).sequence,state:last(events,'workflow-cancelled')?'workflow-cancelled':blocked(events)?'blocked':last(events,'claimed')?'claimed':last(events,'continuation-accepted')?'continuation-accepted':last(events,'worker-finished')?.ok===false||last(events,'worker-launch-failed')?'review-failed':suspended(events)?'monitor-suspended':submissionOutstanding(events)?'delivery-uncertain':last(events,'continuation-pending')?'continuation-pending':last(events,'worker-started')?'review-running':last(events,'worker-launch-intent')?'registration-pending':'accepted',events};
 }
-export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}={}) {
+export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,jobRoot}={}) {
   const plan=structuredClone(input);
   if(!path.isAbsolute(plan.worktree)||!path.isAbsolute(plan.jobDir))throw new Error('Absolute worktree and private jobDir required');
   plan.worktree=fs.realpathSync.native(plan.worktree);plan.jobDir=path.resolve(plan.jobDir);
@@ -66,6 +67,10 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs}
     if(!fs.statSync(review.prompt).isFile())throw new Error('Reviewer prompt missing');
     if(!fs.statSync(review.executable).isFile())throw new Error('Reviewer executable missing');
   }
+  // The job directory holds the launcher plan and journal, which the launcher
+  // refuses outside the review job root; refusing here happens before the
+  // job's files or the worktree freeze exist.
+  assertInsideJobRoot([['jobDir',plan.jobDir],...plan.reviews.flatMap(review=>[[`review ${review.id} prompt`,review.prompt],...(review.permissions?.cwd!==undefined?[[`review ${review.id} reviewer directory`,review.permissions.cwd]]:[])])],jobRoot??reviewJobRoot(plan.worktree),`in pr-${plan.pr}${path.sep}round-${plan.round}`);
   assertFrozen(plan);
   return plan;
 }
@@ -183,11 +188,11 @@ async function advanceTerminalNotification(dir,host,{failpoint=()=>{}}={}) {
   rows=await advanceDelivery(dir,host,{plan,envelope,rows,outstanding:terminalSubmissionOutstanding,accepted:current=>Boolean(last(current,'terminal-notification-accepted')),maySubmit:current=>['blocked','review-failed'].includes(jobStatus(dir,current).state),intent:'terminal-submission-intent',response:'terminal-submission-response',refused:'terminal-dispatch-refused',uncertain:'terminal-delivery-uncertain',acceptedEvent:'terminal-notification-accepted',failpoint});
   return Boolean(last(rows,'terminal-notification-accepted'));
 }
-export async function runReviewWorker(dir,{slotRoot}={}) {
+export async function runReviewWorker(dir,{slotRoot,jobRoot}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   await transaction(dir,rows=>{if(!last(rows,'worker-launch-intent')||last(rows,'worker-started')||last(rows,'workflow-cancelled'))throw new Error('Invalid or cancelled worker claim');assertJobFreeze(plan,dir);appendEvent(dir,'worker-started',{identity:processIdentity(process.pid)});});
   try {
-    await runHandoff(path.join(dir,'handoff.json'),{slotRoot,automaticJob:{jobId:plan.jobId,jobDir:dir}});
+    await runHandoff(path.join(dir,'handoff.json'),{slotRoot,jobRoot,automaticJob:{jobId:plan.jobId,jobDir:dir}});
     await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:true}));
   } catch(error) {await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:false,...failureDetails(error)}));throw error;}
 }

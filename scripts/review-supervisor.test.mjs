@@ -14,7 +14,7 @@ import { removeScratch } from './remove-scratch.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { codexContinuationHost,continuationPrompt,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 const claimReviewJob=(dir,id,options)=>actualClaim(dir,id,{verifyConfiguration:()=>({turnId:'fixture-turn'}),...options});
-const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args})};
+const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args}),get jobRoot(){return scratch;}};
 const createReviewJob=(input,host)=>actualCreate(input,host,fixtureValidation);
 const validateReviewPlan=input=>actualValidate(input,fixtureValidation);
 const seededEnvironment=async run=>{
@@ -38,6 +38,22 @@ try {
   await assert.rejects(runHandoff(file),/Automatic continuation requires review-supervisor/,'automatic mode must refuse before an unverified destination can launch work');
   assert.equal(fs.existsSync(plan.journal),false);
   console.log('PASS: automatic mode cannot silently run as awaited mode');
+  {
+    // Without the test seam the root is <main checkout>.review-jobs, here the
+    // fixture repository's; a job directory outside it is refused before the
+    // job's files or the worktree freeze exist.
+    const outsideDir=path.join(scratch,'outside-job');
+    const input={worktree:repo,jobDir:outsideDir,head,base:head,pr:547,writer:'writer',writerEffort:'medium',permissions:{mode:'fixture'},reviewer:'reviewer',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'old-turn',cwd:repo},reviews:[{id:'correctness',transport:'native-claude-json',executable:process.execPath,args:[child,'--model','reviewer','--effort','high','--permission-mode','dontAsk','--output-format','json'],effort:'high',permissions:'dontAsk',prompt}]};
+    const host={preflight:async()=>({supported:true})};
+    const unseamed={validateArgs:fixtureValidation.validateArgs};
+    await assert.rejects(actualCreate(input,host,unseamed),error=>error.message.includes(`under ${path.join(fs.realpathSync.native(scratch),'repo.review-jobs')} `)&&/jobDir .*outside-job/.test(error.message)&&/review correctness prompt/.test(error.message));
+    assert.equal(fs.existsSync(outsideDir),false,'a refused job directory must not be created');
+    assert.equal(fs.existsSync(worktreePaths(repo).freeze),false,'a refused plan must not take the worktree freeze');
+    const inside=path.join(fs.realpathSync.native(scratch),'repo.review-jobs','pr-547','round-1');fs.mkdirSync(inside,{recursive:true});
+    const insidePrompt=path.join(inside,'prompt.txt');fs.writeFileSync(insidePrompt,'fixture');
+    assert.doesNotThrow(()=>actualValidate({...input,jobDir:path.join(inside,'job'),reviews:[{...input.reviews[0],prompt:insidePrompt}]},unseamed),'a plan inside the default root is accepted');
+    console.log('PASS: the supervised route refuses a job directory or prompt outside the default job root before writing anything');
+  }
   let index=0;
   const identify=()=>null;
   const fixture=async(extra={})=>{
@@ -277,7 +293,7 @@ try {
     const original=childProcess.execFileSync;
     childProcess.execFileSync=(exe,args,options)=>exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:`Fixture report for ${head}`,created_at:new Date().toISOString()}):original(exe,args,options);
     syncBuiltinESMExports();
-    try{await seededEnvironment(()=>runReviewWorker(f.jobDir+path.sep+'.',{slotRoot:path.join(scratch,'slots')}));}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
+    try{await seededEnvironment(()=>runReviewWorker(f.jobDir+path.sep+'.',{jobRoot:scratch,slotRoot:path.join(scratch,'slots')}));}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
     assert.equal(readEvents(f.jobDir).at(-1).event,'worker-finished');
     const completed=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse).find(row=>row.event==='completed');assert.equal(completed.step,'correctness','reviewer fields cannot overwrite journal identity');
     const launch=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse).find(row=>row.event==='launching');assert.match(fs.readFileSync(launch.diagnostics,'utf8'),/late shutdown/);assert.doesNotMatch(fs.readFileSync(launch.output,'utf8'),/late shutdown/);
@@ -288,14 +304,14 @@ try {
     const originalSpawn=childProcess.spawn;
     childProcess.spawn=(...args)=>{captured=originalSpawn(...args);captured.once('close',()=>{closed=true;});fs.unlinkSync(path.join(lost.jobDir,'mutation.lock'));return captured;};syncBuiltinESMExports();
     try{
-      await assert.rejects(runHandoff(path.join(lost.jobDir,'handoff.json'),{slotRoot:path.join(scratch,'lost-slot'),automaticJob:{jobId:lost.p.jobId,jobDir:lost.jobDir}}),/ENOENT/);
+      await assert.rejects(runHandoff(path.join(lost.jobDir,'handoff.json'),{jobRoot:scratch,slotRoot:path.join(scratch,'lost-slot'),automaticJob:{jobId:lost.p.jobId,jobDir:lost.jobDir}}),/ENOENT/);
       assert.equal(closed,true,'post-spawn admission cleanup failure must retain and await the actual child handle');
       assert.equal(fs.existsSync(worktreePaths(repo).lock),false,'worktree release follows confirmed close');
     }finally{childProcess.spawn=originalSpawn;syncBuiltinESMExports();if(captured&&!closed){const ended=new Promise(resolve=>captured.once('close',resolve));captured.kill();await ended;}}
     const interrupted=await fixture();
     fs.writeFileSync(child,fs.readFileSync(child,'utf8').replace("stop_reason:'end_turn'","stop_reason:'interrupt'"));
     withJob(interrupted.jobDir,()=>appendEvent(interrupted.jobDir,'worker-launch-intent'));
-    await assert.rejects(runReviewWorker(interrupted.jobDir,{slotRoot:path.join(scratch,'slots')}),/interrupted/);
+    await assert.rejects(runReviewWorker(interrupted.jobDir,{jobRoot:scratch,slotRoot:path.join(scratch,'slots')}),/interrupted/);
     assert.equal(readEvents(interrupted.jobDir).at(-1).ok,false);
     assert.equal(fs.readFileSync(path.join(interrupted.jobDir,'handoff.jsonl'),'utf8').includes('"event":"completed"'),false,'native interruption rejects before report validation or another reviewer');
   }
@@ -307,7 +323,7 @@ try {
     const cancel=()=>{if(!cancelled){cancelled=true;withJob(f.jobDir,()=>appendEvent(f.jobDir,'workflow-cancelled'));}};
     childProcess.execFileSync=(exe,args,options)=>{if(exe!=='gh')return originalExec(exe,args,options);if(boundary==='between-reviewers')cancel();return JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:head,created_at:new Date().toISOString()});};
     fs.openSync=(file,...args)=>{if(boundary==='admission'&&String(file).includes('handoff-1-review-')&&path.basename(String(file))==='process.log')cancel();return originalOpen(file,...args);};syncBuiltinESMExports();
-    try{await assert.rejects(runHandoff(path.join(f.jobDir,'handoff.json'),{slotRoot:path.join(scratch,'cancel-slots'),automaticJob:{jobId:f.p.jobId,jobDir:f.jobDir}}),/cancelled/);}finally{childProcess.execFileSync=originalExec;fs.openSync=originalOpen;syncBuiltinESMExports();}
+    try{await assert.rejects(runHandoff(path.join(f.jobDir,'handoff.json'),{jobRoot:scratch,slotRoot:path.join(scratch,'cancel-slots'),automaticJob:{jobId:f.p.jobId,jobDir:f.jobDir}}),/cancelled/);}finally{childProcess.execFileSync=originalExec;fs.openSync=originalOpen;syncBuiltinESMExports();}
     const rows=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse);assert.equal(rows.filter(row=>row.event==='running').length,1,`${boundary} prevents second reviewer spawn`);
   }
   {
@@ -357,7 +373,7 @@ try {
   {
     const f=await fixture(),review=f.input.reviews[0],native={...review,args:review.args.slice(1)};
     assert.doesNotThrow(()=>validateNativeReviewArgs(native));assert.throws(()=>validateNativeReviewArgs(review),/Unsupported automatic/);
-    assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]}));assert.throws(()=>actualValidate(f.input),/Unsupported automatic/,'production default validator is wired');
+    assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]},{jobRoot:scratch}));assert.throws(()=>actualValidate(f.input,{jobRoot:scratch}),/Unsupported automatic/,'production default validator is wired');
     assert.throws(()=>validateNativeReviewArgs({...native,permissions:'bypassPermissions',args:native.args.map(value=>value==='dontAsk'?'bypassPermissions':value)}),/permission mode/);
     assert.throws(()=>validateReviewPlan({...f.input,writer:'reviewer[fast]'}),/distinct/);
     assert.throws(()=>validateReviewPlan({...f.input,writerEffort:'bogus'}),/Supply writerEffort/,'job admission refuses an unknown writer effort');
@@ -375,7 +391,7 @@ try {
         assert.equal(isolatedGit(repo,['rev-parse','HEAD']),head,'Git environment cannot redirect frozen head');
         assert.deepEqual(worktreePaths(repo),{lock:path.join(expectedAdmin,'agent-handoff.lock'),freeze:path.join(expectedAdmin,'agent-review-job.json')},'Git environment cannot relocate either canonical ownership path');
         const guarded={...plan,continuation:undefined,journal:path.join(scratch,`env-${name}.jsonl`)};const file=path.join(scratch,`env-${name}.json`);fs.writeFileSync(file,JSON.stringify(guarded));
-        await assert.rejects(runHandoff(file,{slotRoot:path.join(scratch,'env-slots')}),/reserved by automatic review/,'ambient Git environment cannot bypass awaited launcher freeze');
+        await assert.rejects(runHandoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,'env-slots')}),/reserved by automatic review/,'ambient Git environment cannot bypass awaited launcher freeze');
       }finally{if(prior===undefined)delete process.env[name];else process.env[name]=prior;}
     }
   }
