@@ -9,7 +9,7 @@ Use this map only when a runner capability is unclear. Repository instruction an
 | Invoke a skill          | Skill tool, named by frontmatter                                       | Use the discovered skill or read its SKILL.md directly                              |
 | Read and edit files     | Read, Grep, Glob, Write/Edit                                           | File reading and apply_patch/editor capability exposed by the host                  |
 | Rename a session        | set_session_title when offered; a deferred tool, loaded through tool search before the call | set_thread_title when offered; the CLI has none and uses the hook's acknowledgement command |
-| Own model and effort    | Session metadata; `CLAUDE_EFFORT` in shell commands                    | Latest `turn_context` row of the session rollout file                               |
+| Own model and effort    | Desktop `get_session` on `self`; `CLAUDE_EFFORT` in shells             | Latest `turn_context` row of the session rollout file                               |
 | Independent review      | Agent tool with caller-supplied subagent_type, or a fresh CLI process  | Caller-supplied collaboration model override when available, or a fresh CLI process |
 | Private artifacts       | Unique directory under system temp; a scratchpad is usable if private  | Unique directory under system temp or a host-provided private directory             |
 | Observe completion      | Await task status or CLI process exit, then read paginated PR comments | Await task status or CLI process exit, then read paginated PR comments              |
