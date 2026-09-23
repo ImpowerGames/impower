@@ -466,24 +466,28 @@ assert.match(fs.readFileSync(config.journal,"utf8"),/confirmed-absent/);
 assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
 {
   const reviewedHead=execFileSync("git",["rev-parse","HEAD"],{cwd:config.worktree,encoding:"utf8",windowsHide:true}).trim();
-  const report=(id,body=`### Adversarial review — undirected (reviewer-test)\n\nRound 1; reviewed head ${reviewedHead}.`,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
+  // The launch token exists only in the reviewer's prompt and the private journal, so the fixture reads it from the launching row.
+  const token=()=>fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="launching").reportToken;
+  const heading="### Adversarial review — undirected (reviewer-test)";
+  const genuine=()=>`${heading}\n\nRound 1; reviewed head ${reviewedHead}.\n\n${token()}`;
+  const report=(id,body,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
+  const run=async(name,comments)=>{config.journal=path.join(scratch,`${name}.jsonl`);write();return handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,`${name}-slots`),listComments:()=>comments()});};
   const realExec=childProcess.execFileSync;
   try {
-    childProcess.execFileSync=(exe,args,options)=>exe==="gh"?JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]))):realExec(exe,args,options);
+    childProcess.execFileSync=(exe,args,options)=>exe==="gh"?JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]),`${reviewedHead}`)):realExec(exe,args,options);
     syncBuiltinESMExports();
-    config.journal=path.join(scratch,"missing-artifact.jsonl");write();
-    await handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"missing-slots"),listComments:()=>[report(41,"older report","2000-01-01T00:00:00Z"),report(42,"another head"),report(43)]});
+    await run("missing-artifact",()=>[report(43,genuine())]);
     const rows=fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse);
-    assert.deepEqual(rows.find(row=>row.event==="completion-artifact-missing").commentIds,[43],"a clean exit without an artifact records the report posted for the head");
+    assert.match(rows.find(row=>row.event==="launching").reportToken,/^handoff-report-[0-9a-f-]{36}$/);
+    assert.deepEqual(rows.find(row=>row.event==="completion-artifact-missing").commentIds,[43],"a clean exit without an artifact records the report carrying this launch's token");
     assert.deepEqual(rows.find(row=>row.event==="completed").commentIds,[43]);
     assert.equal(rows.at(-1).event,"finished");
-    config.journal=path.join(scratch,"ambiguous-artifact.jsonl");write();
-    await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"ambiguous-slots"),listComments:()=>[report(43),report(44)]}),/2 reports name head .*43, 44/);
-    config.journal=path.join(scratch,"unrelated-comment.jsonl");write();
-    await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"unrelated-slots"),listComments:()=>[report(45,`Looks good at ${reviewedHead}`),report(46,`### Adversarial review — undirected (another-route)\n\n${reviewedHead}`)]}),/ENOENT.*no report naming head/,"a comment without this route's report heading is not the reviewer's report");
+    await assert.rejects(run("unrelated-comment",()=>[report(45,`${heading}\n\nNotes on ${reviewedHead}`)]),/ENOENT.*no report naming head/,"a lone comment with a copied heading and the head is not this reviewer's report");
+    await assert.rejects(run("stale-report",()=>[report(46,genuine(),"2000-01-01T00:00:00Z")]),/ENOENT.*no report naming head/,"a report older than the launch is refused");
+    await assert.rejects(run("other-head",()=>[report(47,genuine().split(reviewedHead).join("0".repeat(40)))]),/ENOENT.*no report naming head/,"a report for another head is refused");
+    await assert.rejects(run("ambiguous-artifact",()=>[report(43,genuine()),report(44,genuine())]),/2 reports name head .*43, 44/);
     config.steps.first.next=[null,"second"];
-    config.journal=path.join(scratch,"branching-artifact.jsonl");write();
-    await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"branching-slots"),listComments:()=>[report(43)]}),/declares 2 transitions/);
+    await assert.rejects(run("branching-artifact",()=>[report(43,genuine())]),/declares 2 transitions/);
     config.steps.first.next=[null];
   } finally {childProcess.execFileSync=realExec;syncBuiltinESMExports();}
 }

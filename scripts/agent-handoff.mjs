@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawn, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { randomUUID } from "node:crypto";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
@@ -27,13 +28,12 @@ export async function verifyReviewComment(id, pr, head, cwd, { readComment = rea
 const listPrComments = (pr, since, cwd) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", `repos/ImpowerGames/impower/issues/${pr}/comments?per_page=100&since=${encodeURIComponent(since)}`], { cwd, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 })).flat();
 
 // A review that exited cleanly without its completion artifact is covered by the one report it posted for the reviewed head since launch.
-// The reviewer prompt fixes a report's first line as `### Adversarial review — <lens> (<route>)`, which ties the comment to this step's route.
-export function deriveMissingCompletion(step, pr, head, notBefore, cwd, excluded, { listComments = listPrComments } = {}) {
+// Only this launch's private prompt carries reportToken, so a comment containing it is attributable to this reviewer.
+export function deriveMissingCompletion(step, pr, head, notBefore, reportToken, cwd, excluded, { listComments = listPrComments } = {}) {
   if (step.role !== "review") return null;
   if (step.next.length !== 1) throw new Error(`Completion artifact missing and the review declares ${step.next.length} transitions; confirm coverage from the PR comments`);
   const floor = Math.floor(Date.parse(notBefore) / 1000) * 1000;
-  const isReport = (body) => { const heading = body.split("\n", 1)[0].trim(); return heading.startsWith("### Adversarial review — ") && heading.endsWith(`(${step.model})`); };
-  const reports = listComments(pr, notBefore, cwd).filter((comment) => Number.isSafeInteger(comment.id) && !excluded.has(comment.id) && typeof comment.body === "string" && isReport(comment.body) && comment.body.includes(head) && Date.parse(comment.created_at) >= floor);
+  const reports = listComments(pr, notBefore, cwd).filter((comment) => Number.isSafeInteger(comment.id) && !excluded.has(comment.id) && typeof comment.body === "string" && comment.body.includes(reportToken) && comment.body.includes(head) && Date.parse(comment.created_at) >= floor);
   if (!reports.length) return null;
   if (reports.length > 1) throw new Error(`Completion artifact missing and ${reports.length} reports name head ${head} since launch (${reports.map((comment) => comment.id).join(", ")}); confirm which one this reviewer posted`);
   return { head, next: step.next[0], commentIds: [reports[0].id], summary: `Derived from posted report ${reports[0].id}; no completion artifact was found at the launcher's path` };
@@ -203,11 +203,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const writable=step.nativeResult==='codex-jsonl'?fs.realpathSync.native(fs.mkdtempSync(path.join(path.dirname(journal),`completion-${index}-`))):artifacts;
       const completion = path.join(writable, "completion.json");
       const output = path.join(artifacts, "process.log");
-      const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}. Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
+      const reportToken = `handoff-report-${randomUUID()}`;
+      const prompt = fs.readFileSync(step.prompt, "utf8") + `\n\nHandoff contract: role=${step.role}, configured model=${step.model}, reviewed head=${head}.${step.role === "review" ? ` End your posted report with the line \`${reportToken}\`.` : ""} Write ${completion} with the editor tool as JSON: {"head":"<actual HEAD>","next":"<declared transition or null>","commentIds":[<numeric GitHub comment IDs>],"summary":"<result>"}. Allowed next steps: ${JSON.stringify(step.next)}. Review and adjudication must post their complete report/dispositions before completion; include those IDs. Do not mark ready or merge. Do not modify repository files during review.\n`;
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const args=step.nativeResult==='codex-jsonl'?nativeCodexArgs(step,writable):step.args;
       const reportNotBefore=new Date().toISOString();
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore });
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken });
       const log = fs.openSync(output, "wx");
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
@@ -288,7 +289,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       try { done = read(completion); }
       catch (error) {
         if (error.code !== "ENOENT") throw error;
-        done = deriveMissingCompletion(step, config.pr, head, reportNotBefore, cwd, usedReports, { listComments });
+        done = deriveMissingCompletion(step, config.pr, head, reportNotBefore, reportToken, cwd, usedReports, { listComments });
         if (!done) { error.message += `; no report naming head ${head} was posted since launch`; throw error; }
         append({ event: "completion-artifact-missing", index, step: current, completion, commentIds: done.commentIds });
       }
