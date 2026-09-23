@@ -84,17 +84,23 @@ const focusWithKeyboard = (view: EditorView) => {
 };
 
 /**
- * The word under a point at client x, where `pos` is the position
- * `posAtCoords` found for the point, or null when the point is on blank space:
- * past the end of a line, on an empty line, or between words. `wordAt` alone
- * also returns a word that merely starts or ends at `pos`.
+ * The word under the client point (x, y), where `pos` is the position
+ * `posAtCoords` found for it, or null when the point is on blank space: above
+ * or below the text, past the end of a line, on an empty line, or between
+ * words. `wordAt` alone also returns a word that merely starts or ends at
+ * `pos`.
  *
- * `posAtCoords` has already chosen the row under the point, so only the
- * horizontal extent is checked, and only at the word's edges, on the row
- * where each edge is drawn. A point inside a word, including one in the
- * space below its glyphs, is over the word.
+ * Vertically, the point must be inside the line's own box. That box is the
+ * whole line, every wrapped row and the space between its glyphs and the next
+ * line, so a press just below a word's glyphs is still on the word; outside
+ * the text, `posAtCoords` returns the document's start or end, whose line box
+ * the point is not in. Horizontally, only the word's edges are checked, on
+ * the row where each edge is drawn: a point inside a word is over it.
  */
-const wordAtPoint = (view: EditorView, pos: number, x: number) => {
+const wordAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
+  const line = view.lineBlockAt(pos);
+  const lineTop = view.documentTop + line.top;
+  if (y < lineTop || y > lineTop + line.height) return null;
   const word = view.state.wordAt(pos);
   if (!word) return null;
   if (pos === word.to) {
@@ -113,9 +119,9 @@ const wordAtPoint = (view: EditorView, pos: number, x: number) => {
  * and opens the menu for the result: the full menu for a word, the insertion
  * menu for a caret.
  */
-const selectAtPoint = (view: EditorView, pos: number, x: number) => {
+const selectAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
   const config = view.state.facet(touchInputHandlerConfig);
-  const word = wordAtPoint(view, pos, x);
+  const word = wordAtPoint(view, pos, x, y);
   const selection = word
     ? EditorSelection.range(word.from, word.to)
     : EditorSelection.cursor(pos);
@@ -572,6 +578,13 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         passive: false,
       });
       document.addEventListener("selectstart", this.onSelectStart, true);
+      for (const type of ["touchstart", "touchend", "touchcancel"] as const) {
+        this.view.dom.addEventListener(type, this.onViewTouch, {
+          capture: true,
+          passive: true,
+        });
+      }
+      this.view.contentDOM.addEventListener("focusout", this.onFocusOut);
     }
 
     unbind() {
@@ -583,6 +596,12 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         this.onTouchCancel,
       );
       document.removeEventListener("selectstart", this.onSelectStart, true);
+      for (const type of ["touchstart", "touchend", "touchcancel"] as const) {
+        this.view.dom.removeEventListener(type, this.onViewTouch, {
+          capture: true,
+        });
+      }
+      this.view.contentDOM.removeEventListener("focusout", this.onFocusOut);
     }
 
     // Chrome still runs its own long-press gesture on a touch whose
@@ -603,6 +622,35 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       if (this.isTouching) {
         event.preventDefault();
       }
+    };
+
+    // The same gesture also fires on a press-and-hold that begins on a
+    // selection handle or the menu, which have their own touch listeners
+    // outside the text. Nothing a touch on the editor does is meant to take
+    // focus to nowhere, so while such a touch is down, an editor that had
+    // focus when it began takes focus back.
+    touchesOnView = 0;
+    focusedAtTouch = false;
+
+    onViewTouch = (event: TouchEvent) => {
+      if (event.type === "touchstart" && this.touchesOnView === 0) {
+        this.focusedAtTouch = this.view.hasFocus;
+      }
+      this.touchesOnView = event.touches.length;
+    };
+
+    onFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget;
+      if (
+        this.touchesOnView === 0 ||
+        !this.focusedAtTouch ||
+        (next instanceof Node && this.view.dom.contains(next))
+      ) {
+        return;
+      }
+      queueMicrotask(() => {
+        if (!this.view.hasFocus) this.view.focus();
+      });
     };
 
     onTouchStart = (event: TouchEvent) => {
@@ -645,7 +693,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       longPressTimer = setTimeout(() => {
         if (isScrolling) return;
 
-        const selection = selectAtPoint(this.view, pos, startX);
+        const selection = selectAtPoint(this.view, pos, startX, startY);
         selectionAnchor = selection.anchor;
         selectionHead = selection.head;
         lastTap = null;
@@ -808,8 +856,11 @@ const touchEventsPlugin = ViewPlugin.fromClass(
             now - lastTap.time <= DOUBLE_TAP_INTERVAL &&
             Math.abs(startX - lastTap.x) <= DOUBLE_TAP_SLOP &&
             Math.abs(startY - lastTap.y) <= DOUBLE_TAP_SLOP;
-          if (isDoubleTap && wordAtPoint(this.view, tapPos, startX) != null) {
-            selectAtPoint(this.view, tapPos, startX);
+          if (
+            isDoubleTap &&
+            wordAtPoint(this.view, tapPos, startX, startY) != null
+          ) {
+            selectAtPoint(this.view, tapPos, startX, startY);
             lastTap = null;
           } else {
             focusWithKeyboard(this.view);

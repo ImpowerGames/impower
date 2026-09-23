@@ -157,14 +157,32 @@ function mount(doc: string, selection?: EditorSelection) {
     const top = scroller.top - scrollOffset + (line.number - 1) * LINE_HEIGHT;
     return { left, right: left, top, bottom: top + LINE_HEIGHT };
   };
+  // Like CodeMirror's, a point above the text gives the document's start and
+  // one below it gives the document's end.
   v.posAtCoords = ((coords: { x: number; y: number }) => {
     const number =
       Math.floor((coords.y - scroller.top + scrollOffset) / LINE_HEIGHT) + 1;
-    if (number < 1 || number > v.state.doc.lines) return null;
+    if (number < 1) return 0;
+    if (number > v.state.doc.lines) return v.state.doc.length;
     const line = v.state.doc.line(number);
     const col = Math.round((coords.x - TEXT_LEFT) / CHAR_WIDTH);
     return line.from + Math.max(0, Math.min(col, line.length));
   }) as EditorView["posAtCoords"];
+  Object.defineProperty(v, "documentTop", {
+    get: () => scroller.top - scrollOffset,
+    configurable: true,
+  });
+  v.lineBlockAt = ((pos: number) => {
+    const line = v.state.doc.lineAt(pos);
+    const top = (line.number - 1) * LINE_HEIGHT;
+    return {
+      from: line.from,
+      to: line.to,
+      top,
+      height: LINE_HEIGHT,
+      bottom: top + LINE_HEIGHT,
+    };
+  }) as unknown as EditorView["lineBlockAt"];
   return v;
 }
 
@@ -346,6 +364,25 @@ describe("menu placement", () => {
     expect(list.right).toBeCloseTo(bar.right, 0);
     expect(list.top).toBeCloseTo(bar.top, 0);
   });
+
+  it("comes back beside its selection from the overflow list after an edit the user did not make", () => {
+    // Wide enough that the viewport's edges do not clamp the menu.
+    viewport.width = 800;
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      value: 800,
+      configurable: true,
+    });
+    const v = mount(DOC);
+    const { from } = selectWord(v, 3, "world");
+    v.dispatch({ changes: { from, insert: "x".repeat(20) } });
+    menuItem("⋮").click();
+    menuItem("Back").click();
+    const { from: movedFrom, to: movedTo } = v.state.selection.main;
+    const box = menuBox();
+    const centre =
+      (v.coordsAtPos(movedFrom)!.left + v.coordsAtPos(movedTo)!.left) / 2;
+    expect((box.left + box.right) / 2).toBeCloseTo(centre, 0);
+  });
 });
 
 describe("menu items", () => {
@@ -523,6 +560,13 @@ describe("touch gestures", () => {
         ? Math.max(0, Math.min(col, WRAP))
         : Math.max(WRAP, Math.min(WRAP + col, length));
     }) as EditorView["posAtCoords"];
+    v.lineBlockAt = (() => ({
+      from: 0,
+      to: v.state.doc.length,
+      top: 0,
+      height: 2 * LINE_HEIGHT,
+      bottom: 2 * LINE_HEIGHT,
+    })) as unknown as EditorView["lineBlockAt"];
     const end = v.coordsAtPos(v.state.doc.length)!;
     longPress(v, { x: end.right + 100, y: (end.top + end.bottom) / 2 });
     expect(v.state.selection.main.empty).toBe(true);
@@ -550,6 +594,40 @@ describe("touch gestures", () => {
       v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to),
     ).toBe("world");
     expect(menuLabels()).toEqual(["Cut", "Copy", "Paste", "Select All", "⋮"]);
+  });
+
+  it("a long-press below the text places the caret at its end", () => {
+    const v = mount("hello");
+    const line = v.coordsAtPos(0)!;
+    longPress(v, { x: line.left + 8, y: line.bottom + 3 * LINE_HEIGHT });
+    expect(v.state.selection.main.empty).toBe(true);
+    expect(v.state.selection.main.head).toBe(v.state.doc.length);
+    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+  });
+
+  it("a press and hold on a handle or the menu keeps the editor's focus", async () => {
+    const v = mount(DOC);
+    v.focus();
+    longPress(v, pointAt(v, 3, "world"));
+    // The menu first: pressing a handle hides the menu for the drag.
+    const targets = [
+      () => menuItem("Copy"),
+      () => v.dom.querySelector(".cm-touch-selection-handle-end")!,
+    ];
+    for (const find of targets) {
+      const target = find();
+      // Chrome's own long-press gesture takes focus to nowhere while the
+      // finger is still down.
+      touch(target, "touchstart", { x: 0, y: 0 });
+      v.contentDOM.blur();
+      await Promise.resolve();
+      expect(v.hasFocus).toBe(true);
+      touch(target, "touchend", { x: 0, y: 0 });
+    }
+    // With no touch down, leaving the editor is the user's choice.
+    v.contentDOM.blur();
+    await Promise.resolve();
+    expect(v.hasFocus).toBe(false);
   });
 
   it("a touch in the text lets Chrome's long-press gesture through the handles", () => {

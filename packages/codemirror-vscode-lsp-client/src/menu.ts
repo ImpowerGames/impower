@@ -364,6 +364,13 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       // focus closes the keyboard, and paste needs the page focused.
       dom.addEventListener("mousedown", (e) => e.preventDefault());
 
+      // The spec with the range as it is now: edits the user did not make map
+      // the range after the menu opened, and a page change keeps it.
+      const currentSpec = (): ContextMenuSpec => {
+        const current = view.state.field(contextMenuState, false);
+        return current ? { ...spec, pos: current.pos, end: current.end } : spec;
+      };
+
       const config = view.state.facet(contextMenuConfig);
       const items = config.items || [];
       const moreItems = config.moreItems || [];
@@ -422,7 +429,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             effects: [
               closeContextMenu.of(),
               openContextMenu.of({
-                ...spec,
+                ...currentSpec(),
                 page: page - 1,
                 origin: undefined,
               }),
@@ -497,7 +504,7 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             effects: [
               closeContextMenu.of(),
               openContextMenu.of({
-                ...spec,
+                ...currentSpec(),
                 page: page + 1,
                 origin: { left, top, right, bottom },
               }),
