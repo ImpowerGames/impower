@@ -31,6 +31,11 @@ const viewportPlugin = ViewPlugin.fromClass(
   class {
     view: EditorView;
     closeTimeout?: ReturnType<typeof setTimeout>;
+    destroyed = false;
+    // True from the moment this view locks the body to the visual viewport
+    // until its close runs, so teardown can release a lock whose queued open
+    // has not landed yet.
+    lockedLayout = false;
 
     constructor(view: EditorView) {
       this.view = view;
@@ -40,6 +45,7 @@ const viewportPlugin = ViewPlugin.fromClass(
 
     openKeyboardUI(keyboardHeight: number) {
       requestAnimationFrame(() => {
+        if (this.destroyed) return;
         document.body.style.setProperty(
           "--keyboard-height",
           `${keyboardHeight}px`,
@@ -54,6 +60,8 @@ const viewportPlugin = ViewPlugin.fromClass(
 
     closeKeyboardUI() {
       requestAnimationFrame(() => {
+        if (this.destroyed) return;
+        this.lockedLayout = false;
         document.body.style.height = "";
         document.documentElement.classList.remove("keyboard-open");
         this.view.dom.classList.remove("keyboard-open");
@@ -124,6 +132,7 @@ const viewportPlugin = ViewPlugin.fromClass(
 
       // We only reach here if the editor has focus, so we can safely
       // lock the body height to the visual viewport.
+      this.lockedLayout = true;
       document.body.style.height = `${vv.height}px`;
 
       const isKeyboardVisible = keyboardHeight > 0;
@@ -189,7 +198,17 @@ const viewportPlugin = ViewPlugin.fromClass(
     }
 
     destroy() {
+      this.destroyed = true;
       this.unbind();
+      // The keyboard state lives on the document, which outlives this view.
+      // A focused editor that unmounts (closing a script from its Back
+      // button) takes the keyboard with it after these listeners are gone,
+      // so release the state here or the host keeps laying out for a
+      // keyboard that is no longer open.
+      if (this.lockedLayout) {
+        document.body.style.height = "";
+        document.documentElement.classList.remove("keyboard-open");
+      }
     }
   },
 );

@@ -117,7 +117,11 @@ export default function MainWindow(_props: MainWindowProps) {
           </>
         )}
       </div>
-      <div class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full">
+      {/* Hidden while the script editor's mobile viewport manager marks the
+          root keyboard-open, so its keyboard toolbar sits directly on the
+          soft keyboard. The manager measures the keyboard from
+          innerHeight and visualViewport, which this does not change. */}
+      <div class="relative flex-none h-[60px] bg-engine-800 text-foreground [&>*]:h-full [.keyboard-open_&]:hidden">
         {/* 1px white/6% divider hugging the top edge — mirrors main's
             <s-divider bg-color="fg-06"> above the bottom-nav tabs. The
             !h-px overrides the parent's [&>*]:h-full selector which
