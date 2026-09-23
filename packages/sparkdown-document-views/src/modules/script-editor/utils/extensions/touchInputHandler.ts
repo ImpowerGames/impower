@@ -84,19 +84,27 @@ const focusWithKeyboard = (view: EditorView) => {
 };
 
 /**
- * The word under the point (x, y) at document position `pos`, or null when
- * the point is on blank space: past the end of a line, on an empty line, or
- * between words. `wordAt` alone also returns a word that merely ends at `pos`.
+ * The word under a point at client x, where `pos` is the position
+ * `posAtCoords` found for the point, or null when the point is on blank space:
+ * past the end of a line, on an empty line, or between words. `wordAt` alone
+ * also returns a word that merely starts or ends at `pos`.
+ *
+ * `posAtCoords` has already chosen the row under the point, so only the
+ * horizontal extent is checked, and only at the word's edges, on the row
+ * where each edge is drawn. A point inside a word, including one in the
+ * space below its glyphs, is over the word.
  */
-const wordAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
+const wordAtPoint = (view: EditorView, pos: number, x: number) => {
   const word = view.state.wordAt(pos);
   if (!word) return null;
-  const start = view.coordsAtPos(word.from, 1);
-  const end = view.coordsAtPos(word.to, -1);
-  if (!start || !end) return null;
-  if (y < start.top || y > end.bottom) return null;
-  const oneLine = Math.abs(start.top - end.top) < 1;
-  if (oneLine && (x < start.left || x > end.right)) return null;
+  if (pos === word.to) {
+    const end = view.coordsAtPos(word.to, -1);
+    if (!end || x > end.right) return null;
+  }
+  if (pos === word.from) {
+    const start = view.coordsAtPos(word.from, 1);
+    if (!start || x < start.left) return null;
+  }
   return word;
 };
 
@@ -105,9 +113,9 @@ const wordAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
  * and opens the menu for the result: the full menu for a word, the insertion
  * menu for a caret.
  */
-const selectAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
+const selectAtPoint = (view: EditorView, pos: number, x: number) => {
   const config = view.state.facet(touchInputHandlerConfig);
-  const word = wordAtPoint(view, pos, x, y);
+  const word = wordAtPoint(view, pos, x);
   const selection = word
     ? EditorSelection.range(word.from, word.to)
     : EditorSelection.cursor(pos);
@@ -213,7 +221,29 @@ const selectionHandleTheme = EditorView.baseTheme({
       transform: "translate(-30%, -30%)",
     },
   },
+  ".cm-touch-selection-handle.cm-touch-selection-handle-inert": {
+    pointerEvents: "none",
+    "&::after": {
+      pointerEvents: "none",
+    },
+  },
 });
+
+/**
+ * Makes the selection handles transparent to touch while a touch that began
+ * in the text is down. A long-press can draw a handle under the finger, and
+ * Chrome's own long-press gesture, which still runs on a touch whose
+ * touchstart was prevented, hit-tests what is under the finger when it fires:
+ * on a handle, which is not editable, it takes focus from the editor and the
+ * keyboard closes.
+ */
+const setHandlesInert = (view: EditorView, inert: boolean) => {
+  for (const handle of view.dom.querySelectorAll(
+    ".cm-touch-selection-handle",
+  )) {
+    handle.classList.toggle("cm-touch-selection-handle-inert", inert);
+  }
+};
 
 const selectionHandlePlugin = ViewPlugin.fromClass(
   class {
@@ -558,9 +588,16 @@ const touchEventsPlugin = ViewPlugin.fromClass(
     // Chrome still runs its own long-press gesture on a touch whose
     // touchstart was prevented, on whatever is under the finger when it
     // fires. Once the keyboard has opened and shrunk the editor, that can be
-    // the page below it or the menu, and the text selection the gesture
-    // starts there takes focus from the editor and closes the keyboard.
+    // the page below it, the menu or a selection handle, and what the gesture
+    // does there takes focus from the editor and closes the keyboard. While a
+    // touch that began in the text is down, text selection elsewhere is
+    // cancelled and the handles let the gesture through to the text.
     isTouching = false;
+
+    setTouching(touching: boolean) {
+      this.isTouching = touching;
+      setHandlesInert(this.view, touching);
+    }
 
     onSelectStart = (event: Event) => {
       if (this.isTouching) {
@@ -572,7 +609,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       event.preventDefault();
       event.stopPropagation();
 
-      this.isTouching = true;
+      this.setTouching(true);
 
       stoppedMomentum = rafId !== null;
 
@@ -608,7 +645,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       longPressTimer = setTimeout(() => {
         if (isScrolling) return;
 
-        const selection = selectAtPoint(this.view, pos, startX, startY);
+        const selection = selectAtPoint(this.view, pos, startX);
         selectionAnchor = selection.anchor;
         selectionHead = selection.head;
         lastTap = null;
@@ -701,7 +738,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       event.preventDefault();
       event.stopPropagation();
 
-      this.isTouching = event.touches.length > 0;
+      this.setTouching(event.touches.length > 0);
 
       clearTimeout(longPressTimer);
 
@@ -771,11 +808,8 @@ const touchEventsPlugin = ViewPlugin.fromClass(
             now - lastTap.time <= DOUBLE_TAP_INTERVAL &&
             Math.abs(startX - lastTap.x) <= DOUBLE_TAP_SLOP &&
             Math.abs(startY - lastTap.y) <= DOUBLE_TAP_SLOP;
-          if (
-            isDoubleTap &&
-            wordAtPoint(this.view, tapPos, startX, startY) != null
-          ) {
-            selectAtPoint(this.view, tapPos, startX, startY);
+          if (isDoubleTap && wordAtPoint(this.view, tapPos, startX) != null) {
+            selectAtPoint(this.view, tapPos, startX);
             lastTap = null;
           } else {
             focusWithKeyboard(this.view);
@@ -804,7 +838,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
     };
 
     onTouchCancel = (event: TouchEvent) => {
-      this.isTouching = event.touches.length > 0;
+      this.setTouching(event.touches.length > 0);
       clearTimeout(longPressTimer);
       stopMomentum(this.view);
       if (isScrolling) {
@@ -830,7 +864,9 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       }
     }
 
-    // The gesture state lives at module scope; none of it outlives the view.
+    // The gesture state lives at module scope. Destroying the view stops the
+    // pending long-press timer and momentum frame, and clears the state a
+    // later view could read before its own first touch overwrites it.
     destroy() {
       this.unbind();
       clearTimeout(longPressTimer);

@@ -447,6 +447,26 @@ describe("closing the menu", () => {
     expect(after.top).toBeCloseTo(before.top, 0);
   });
 
+  it("a change the user did not make at the selection's start keeps it beside the selection", () => {
+    // Wide enough that the viewport's edges do not clamp the menu.
+    viewport.width = 800;
+    Object.defineProperty(document.documentElement, "clientWidth", {
+      value: 800,
+      configurable: true,
+    });
+    const v = mount(DOC);
+    const { from } = selectWord(v, 3, "world");
+    // Inserted exactly at the selection's start, as CodeMirror maps it, the
+    // text stays outside the selection.
+    v.dispatch({ changes: { from, insert: "x".repeat(20) } });
+    const { from: movedFrom, to: movedTo } = v.state.selection.main;
+    expect(v.state.sliceDoc(movedFrom, movedTo)).toBe("world");
+    const box = menuBox();
+    const centre =
+      (v.coordsAtPos(movedFrom)!.left + v.coordsAtPos(movedTo)!.left) / 2;
+    expect((box.left + box.right) / 2).toBeCloseTo(centre, 0);
+  });
+
   it("closing the keyboard keeps focus, the selection and the menu", () => {
     const v = mount(DOC);
     v.focus();
@@ -482,6 +502,70 @@ describe("touch gestures", () => {
     expect(v.state.selection.main.head).toBe(line.to);
     expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
     expect(handleShown("cursor")).toBe(true);
+  });
+
+  it("a long-press past the end of a word that wraps places the caret there", () => {
+    const WRAP = 15;
+    const v = mount("averyveryverylongidentifier");
+    // The word's first 15 characters fill the first row and the rest wrap
+    // onto the second.
+    v.coordsAtPos = (pos: number) => {
+      const row = pos > WRAP ? 1 : 0;
+      const left = TEXT_LEFT + (row ? pos - WRAP : pos) * CHAR_WIDTH;
+      const top = scroller.top + row * LINE_HEIGHT;
+      return { left, right: left, top, bottom: top + LINE_HEIGHT };
+    };
+    v.posAtCoords = ((coords: { x: number; y: number }) => {
+      const row = Math.floor((coords.y - scroller.top) / LINE_HEIGHT);
+      const col = Math.round((coords.x - TEXT_LEFT) / CHAR_WIDTH);
+      const length = v.state.doc.length;
+      return row === 0
+        ? Math.max(0, Math.min(col, WRAP))
+        : Math.max(WRAP, Math.min(WRAP + col, length));
+    }) as EditorView["posAtCoords"];
+    const end = v.coordsAtPos(v.state.doc.length)!;
+    longPress(v, { x: end.right + 100, y: (end.top + end.bottom) / 2 });
+    expect(v.state.selection.main.empty).toBe(true);
+    expect(v.state.selection.main.head).toBe(v.state.doc.length);
+    expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+  });
+
+  it("a long-press on a word, below its glyphs but inside its row, selects it", () => {
+    const v = mount(DOC);
+    // Glyphs are shorter than their row, as in a real line box: the text box
+    // CodeMirror reports leaves 4px of the row below it.
+    const layout = v.coordsAtPos.bind(v);
+    v.coordsAtPos = (pos: number, side?: -1 | 1) => {
+      const box = layout(pos, side)!;
+      return { ...box, bottom: box.bottom - 4 };
+    };
+    const line = v.state.doc.line(3);
+    const from = line.from + line.text.indexOf("world");
+    const glyphs = v.coordsAtPos(from)!;
+    longPress(v, {
+      x: pointAt(v, 3, "world").x,
+      y: glyphs.bottom + 2,
+    });
+    expect(
+      v.state.sliceDoc(v.state.selection.main.from, v.state.selection.main.to),
+    ).toBe("world");
+    expect(menuLabels()).toEqual(["Cut", "Copy", "Paste", "Select All", "⋮"]);
+  });
+
+  it("a touch in the text lets Chrome's long-press gesture through the handles", () => {
+    const v = mount(DOC);
+    v.focus();
+    tap(v, pointAt(v, 3, "world"));
+    const handles = [...v.dom.querySelectorAll(".cm-touch-selection-handle")];
+    const point = pointAt(v, 5, "");
+    touch(v.scrollDOM, "touchstart", point);
+    for (const handle of handles) {
+      expect(handle.classList).toContain("cm-touch-selection-handle-inert");
+    }
+    touch(v.scrollDOM, "touchend", point);
+    for (const handle of handles) {
+      expect(handle.classList).not.toContain("cm-touch-selection-handle-inert");
+    }
   });
 
   it("a long-press on an empty line opens the insertion menu", () => {
@@ -580,6 +664,26 @@ describe("touch gestures", () => {
     });
     touch(v.scrollDOM, "touchmove", { x, y: 140 });
     touch(v.scrollDOM, "touchend", { x, y: 140 });
+    for (let frame = 0; frame < 120; frame++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      expect(isContextMenuOpen(v)).toBe(false);
+    }
+  });
+
+  it("a scroll cut short by the view closing does not bring a menu into the next view", async () => {
+    const first = mount(DOC);
+    first.focus();
+    longPress(first, pointAt(first, 3, "world"));
+    expect(isContextMenuOpen(first)).toBe(true);
+    // A scroll hides the menu, and the view is replaced before the finger
+    // lifts, as when the open document changes.
+    touch(first.scrollDOM, "touchstart", { x: 200, y: 240 });
+    touch(first.scrollDOM, "touchmove", { x: 200, y: 190 });
+    first.destroy();
+
+    const v = mount(DOC);
+    v.focus();
+    swipe(v, 240, 140);
     for (let frame = 0; frame < 120; frame++) {
       await new Promise((resolve) => requestAnimationFrame(resolve));
       expect(isContextMenuOpen(v)).toBe(false);

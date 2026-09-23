@@ -322,13 +322,16 @@ const contextMenuState = StateField.define<Tooltip | null>({
     if (value && tr.docChanged) {
       // An edit the user makes closes the menu, as typing over a selection
       // closes Android's selection toolbar. Other changes move it with the
-      // text.
+      // text, mapping its range as CodeMirror maps a selection range: a
+      // non-empty range keeps text inserted at either edge outside it.
+      const empty = value.end == null || value.end === value.pos;
       value = tr.annotation(Transaction.userEvent)
         ? null
         : {
             ...value,
-            pos: tr.changes.mapPos(value.pos),
-            end: tr.changes.mapPos(value.end!),
+            pos: tr.changes.mapPos(value.pos, empty ? -1 : 1),
+            end:
+              value.end == null ? undefined : tr.changes.mapPos(value.end, -1),
           };
     }
     for (const e of tr.effects) {
