@@ -3,6 +3,7 @@
 // with the switch off, and its summary with the switch on, from which the
 // worker writes the same program out whole. A later edit that does not compile
 // leaves both where they were.
+import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
@@ -110,6 +111,63 @@ for (const workerDisplays of [false, true]) {
         expect(programIdentity(played[0])).toBe(goodId);
         expect(played[0].summary).toBeUndefined();
         expect(played[0].compiled ?? played[0].compiledBuffer).toBeTruthy();
+        await h.controller.destroyGameAndApp();
+      } finally {
+        h.dispose();
+      }
+    }, 120_000);
+
+    it("PLAY runs the program the page holds when a newer compile is ahead of it", async () => {
+      const h = await createPlayerHarness({
+        workerDisplays,
+        files: [{ uri: MAIN_URI, text: SOURCE }],
+        startFrom: { file: MAIN_URI, line: LINE },
+      });
+      try {
+        const held = await h.compile();
+        await h.select(LINE);
+        const heldId = programIdentity(held.program);
+
+        // A suggestion is on screen, so the preview last displayed is not
+        // the real program.
+        const first = SOURCE.split("\n").findIndex((l) => l.includes("The first line."));
+        await h.suggest(
+          [
+            {
+              range: { start: { line: first, character: 4 }, end: { line: first, character: 19 } },
+              text: "The first line, suggested.",
+            },
+          ],
+          first,
+        );
+
+        // The author edits, and PLAY is pressed while the compile of the
+        // edit is still ahead of it in the worker.
+        await h.edit([
+          {
+            range: { start: { line: first, character: 4 }, end: { line: first, character: 19 } },
+            text: "The first line, edited.",
+          },
+        ]);
+        const played: any[] = [];
+        const buildGame = h.controller.buildGame.bind(h.controller);
+        h.controller.buildGame = async (program: any, restarted?: boolean) => {
+          played.push(program);
+          return buildGame(program, restarted);
+        };
+        const compiled = h.page.sendRequest(CompileProgramMessage.type, {
+          textDocument: { uri: MAIN_URI },
+          startFrom: { file: MAIN_URI, line: LINE },
+        });
+        const started = h.controller.startGameAndApp();
+        await compiled;
+        expect(await started).toBe(true);
+        await settle();
+
+        // The game that runs is the program the page held when PLAY was
+        // pressed, as the page's own game is with the switch off.
+        expect(played).toHaveLength(1);
+        expect(programIdentity(played[0])).toBe(heldId);
         await h.controller.destroyGameAndApp();
       } finally {
         h.dispose();

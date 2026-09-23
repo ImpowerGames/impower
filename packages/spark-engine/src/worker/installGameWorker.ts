@@ -79,8 +79,10 @@ export function installGameWorker(connection: MessageConnection) {
     },
   };
 
-  // What the editor last asked of the debugger, which is what the setters
-  // answer with while there is no game to ask.
+  // What the editor last asked of the debugger, which every game built here
+  // starts with. Until there is a game, a setter records the request and
+  // resolves no breakpoint: only a game's program can say where one lands,
+  // as a host that owns its game answers with none before it has one.
   const pending: {
     debugging?: boolean;
     breakpoints?: { file: string; line: number }[];
@@ -290,9 +292,7 @@ export function installGameWorker(connection: MessageConnection) {
       connection.sendResponse(message, () => {
         pending.breakpoints = breakpoints;
         return {
-          breakpoints: state.game
-            ? state.game.setBreakpoints(breakpoints)
-            : breakpoints,
+          breakpoints: state.game ? state.game.setBreakpoints(breakpoints) : [],
         };
       });
       return;
@@ -304,7 +304,7 @@ export function installGameWorker(connection: MessageConnection) {
         return {
           dataBreakpoints: state.game
             ? state.game.setDataBreakpoints(dataBreakpoints)
-            : dataBreakpoints,
+            : [],
         };
       });
       return;
@@ -316,7 +316,7 @@ export function installGameWorker(connection: MessageConnection) {
         return {
           functionBreakpoints: state.game
             ? state.game.setFunctionBreakpoints(functionBreakpoints)
-            : functionBreakpoints,
+            : [],
         };
       });
       return;

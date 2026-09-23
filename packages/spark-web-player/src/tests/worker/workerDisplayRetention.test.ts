@@ -88,4 +88,51 @@ describe("the stories the worker keeps", () => {
       h.dispose();
     }
   }, 600_000);
+
+  it("stay bounded while the author edits with a suggestion on screen", async () => {
+    // The page takes each real program without displaying it while a
+    // suggestion holds the screen, and PLAY can name any of them; the worker
+    // keeps the one the page says it holds and those compiled after it, not
+    // every one compiled since the page last displayed a real program.
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: TEXT }],
+      startFrom: { file: MAIN_URI, line: LINE },
+      recordMessages: false,
+    });
+    try {
+      await h.compile();
+      await h.select(LINE);
+      const journal = (h.workerState.compilerState.compiler as any)._storyJournal;
+      const lines = TEXT.split("\n");
+      const lineText = lines[LINE]!;
+      const ACTION = lines.indexOf("  Action describing room 3.");
+      let action = lines[ACTION]!;
+      const counts: number[] = [];
+      for (let n = 0; n < 6; n++) {
+        await h.suggest(
+          [
+            {
+              range: { start: { line: LINE, character: 2 }, end: { line: LINE, character: lineText.length } },
+              text: `Suggestion number ${n} for scene 3.`,
+            },
+          ],
+          LINE,
+        );
+        const edited = `  Action describing room 3, take ${n}.`;
+        await h.edit([
+          {
+            range: { start: { line: ACTION, character: 0 }, end: { line: ACTION, character: action.length } },
+            text: edited,
+          },
+        ]);
+        action = edited;
+        await h.compile();
+        counts.push(journal._tables.size);
+      }
+      expect(counts.at(-1)).toBeLessThanOrEqual(counts[1]!);
+    } finally {
+      h.dispose();
+    }
+  }, 300_000);
 });

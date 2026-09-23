@@ -50,6 +50,9 @@ describe("a game the worker creates", () => {
         breakpoints: [{ file: program.uri, line }],
       }),
     );
+    // With no game, nothing says where the breakpoint lands, so it is not
+    // answered as a resolved breakpoint.
+    expect(answers).toEqual([{ breakpoints: [] }]);
     await send(EnableGameDebugMessage.type.request({}));
     await send(CreateGameMessage.type.request({ program }));
 

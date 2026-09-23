@@ -2,9 +2,9 @@ import { hasCompiledProgram } from "../../binary/programBinary";
 import type { SparkProgram } from "../types/SparkProgram";
 
 /** What a host that leaves a program where it was compiled still reads of it:
- *  its identity (`uri` and `scripts`), its version, the settings a preview
- *  starts from, and whether it runs. No path locations, context, assets or
- *  compiled story. */
+ *  its identity (`uri`, `scripts` and `filesEpoch`, see `programIdentity`),
+ *  its version, the settings a preview starts from, and whether it runs. No
+ *  path locations, context, assets or compiled story. */
 export const programSummary = (
   program: SparkProgram,
   runnable: boolean,

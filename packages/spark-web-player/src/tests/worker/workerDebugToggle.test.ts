@@ -4,6 +4,8 @@
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
+import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
+import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
@@ -47,7 +49,22 @@ for (const workerDisplays of [false, true]) {
         const answered = await h.controller.handleSetGameBreakpoints(
           SetGameBreakpointsMessage.type.request({ breakpoints }),
         );
-        expect("error" in answered).toBe(false);
+        const answeredFunctions = await h.controller.handleSetGameFunctionBreakpoints(
+          SetGameFunctionBreakpointsMessage.type.request({
+            functionBreakpoints: [{ name: "greet" }],
+          }),
+        );
+        const answeredData = await h.controller.handleSetGameDataBreakpoints(
+          SetGameDataBreakpointsMessage.type.request({
+            dataBreakpoints: [{ dataId: "mood" }],
+          }),
+        );
+        // No game has resolved where any of them lands, so none is answered
+        // as a breakpoint: the editor's debugger reads each answer as a
+        // resolved breakpoint, with its verification and location.
+        expect(answered.result).toEqual({ breakpoints: [] });
+        expect(answeredFunctions.result).toEqual({ functionBreakpoints: [] });
+        expect(answeredData.result).toEqual({ dataBreakpoints: [] });
         const enabled = await h.controller.handleEnableGameDebug(
           EnableGameDebugMessage.type.request({}),
         );

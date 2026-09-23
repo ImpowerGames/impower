@@ -112,17 +112,33 @@ export function installPlayerWorker(connection: MessageConnection) {
   // ---- The programs the game can display ----------------------------------
   //
   // With `workerDisplaysPreview`, the page names what it wants displayed and
-  // the game shows it from the story compiled for it: the last real program;
-  // the two newest suggestions, since the page asks for one after the next
-  // may have compiled; the suggestion the page shows, which a return to it
-  // displays again without compiling; and the one displayed last, which the
-  // page takes as shown once its display answers. The compiler keeps each of
-  // their stories runnable across later compiles (`keepStory`).
+  // the game shows it from the story compiled for it: every real program the
+  // page can still name, which PLAY names too; the two newest suggestions,
+  // since the page asks for one after the next may have compiled; the
+  // suggestion the page shows, which a return to it displays again without
+  // compiling; and the one displayed last, which the page takes as shown once
+  // its display answers. The compiler keeps each of their stories runnable
+  // across later compiles (`keepStory`).
   const displayable = new Map<string, DisplayableProgram>();
   let canonicalId: string | undefined;
+  // The real programs the page can still name, oldest first: the one it
+  // named last, in a display or for PLAY, and each compiled after it. Their
+  // summaries reach the page in the order they compiled, so it can come to
+  // hold any of those, and never again one compiled before the last it
+  // named.
+  const nameableRealIds: string[] = [];
   const newestSuggestionIds: string[] = [];
   let shownSuggestionId: string | undefined;
   let displayedId: string | undefined;
+
+  /** The page names `id` as the real program it holds, so none compiled
+   *  before it can be named again. */
+  const pageHolds = (id: string | undefined) => {
+    const at = id ? nameableRealIds.indexOf(id) : -1;
+    if (at > 0) {
+      nameableRealIds.splice(0, at);
+    }
+  };
 
   const retain = (entry: DisplayableProgram) => {
     const previous = displayable.get(entry.id);
@@ -136,6 +152,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     for (const [id, entry] of displayable) {
       if (
         id !== canonicalId &&
+        !nameableRealIds.includes(id) &&
         !newestSuggestionIds.includes(id) &&
         id !== shownSuggestionId &&
         id !== displayedId
@@ -218,6 +235,9 @@ export function installPlayerWorker(connection: MessageConnection) {
         log: routeSearches,
       };
       canonicalId = entry.id;
+      if (nameableRealIds.at(-1) !== entry.id) {
+        nameableRealIds.push(entry.id);
+      }
       retain(entry);
       releaseUnneeded();
     }
@@ -416,6 +436,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (params.keep !== undefined) {
       shownSuggestionId = params.keep;
     }
+    // Named as the request arrives: a compile handled while this display
+    // waits its turn must not let go of what the page holds.
+    pageHolds(params.real);
     // A held arrow key sends one display per selection, and working one out
     // is a route replay, about a second of it on a long script. Let the
     // requests the page has already sent arrive before taking any of this
@@ -487,6 +510,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     params: ProgramForPlayParams,
   ): ProgramForPlayResult => {
     displays += 1;
+    pageHolds(params.program);
     const entry = displayable.get(params.program);
     const game = gameState.game;
     if (!entry || !game) {

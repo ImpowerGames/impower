@@ -2500,6 +2500,7 @@ export class GamePlayerController {
         line,
         speculative: Boolean(options?.speculative),
         keep: shown ? programIdentity(shown.program) : undefined,
+        real: programIdentity(this._program),
         fresh: this._workerAppFresh,
       });
     } catch (e) {
