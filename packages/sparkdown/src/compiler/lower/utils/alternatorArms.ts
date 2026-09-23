@@ -2,7 +2,6 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { lowerDivertPath } from "./lowerDivertPath";
-import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import {
   LegacyTag,
@@ -11,7 +10,6 @@ import {
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
-import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import { Tag as RuntimeTag } from "../../../inkjs/engine/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -149,7 +147,7 @@ export function lowerArms(
 
 // A single-line block arm is a display line of its own: a `display({ text })`
 // call on the default target carrying the arm's tags, and a divert after the
-// call, held on the same line by glue as a mid-line divert is. An arm with no
+// call, which holds the line open (`open`) as a mid-line divert does. An arm with no
 // text keeps its tags on the stream.
 function armLineAsDisplayCall(
   parts: ParsedObject[],
@@ -176,13 +174,16 @@ function armLineAsDisplayCall(
     out.push(...tagObjects);
   } else {
     const { tags } = separateTags(tagObjects);
-    out.push(buildDisplayCall(undefined, undefined, text, null, ctx, tags));
-    const joins =
+    // An arm whose tail is a divert holds its line open for the first line
+    // the divert reaches.
+    const open =
       tail.length > 0 &&
       tail.every(
         (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
       );
-    if (joins) out.push(new ParsedGlue(new RuntimeGlue()));
+    out.push(
+      buildDisplayCall(undefined, undefined, text, null, ctx, tags, { open }),
+    );
   }
   if (text.length === 0 || tail.length > 0) {
     out.push(...tail, new Text("\n"));

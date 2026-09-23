@@ -278,9 +278,9 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
     ],
   ],
   [
-    "leading-glue continuation (.. on the next line)",
-    `  Some\n  .. content\n  .. with glue.`,
-    [{ text: { action: ["Some content with glue."] } }],
+    "touching-glue continuation (.. touching the last word)",
+    `  Some..\n  content..\n  with glue.`,
+    [{ text: { action: ["Somecontentwith glue."] } }],
   ],
   [
     "trailing-glue continuation (.. at end of line)",
@@ -289,12 +289,12 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
   ],
   [
     "glued dialogue continuation",
-    `  HERO: Wait ..\n  .. for me.`,
-    [{ text: { dialogue: ["Wait  for me."], character_name: ["HERO"] } }],
+    `  HERO: Wait ..\n  right there.`,
+    [{ text: { dialogue: ["Wait right there."], character_name: ["HERO"] } }],
   ],
   [
     "continuation inside an if branch",
-    `  You see a\n  if true then\n    .. red door.\n  end`,
+    `  You see a ..\n  if true then\n    red door.\n  end`,
     [{ text: { action: ["You see a red door."] } }],
   ],
   [
@@ -314,13 +314,13 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
   ],
   [
     "empty glued continuation keeps the beat open",
-    `  You see\n  .. {if true then "" else ""}\n  The door.`,
-    [{ text: { action: ["You see The door."] } }],
+    `  You see ..\n  {if true then "" else ""} ..\n  The door.`,
+    [{ text: { action: ["You see  The door."] } }],
   ],
   [
     "whitespace-only glued continuation keeps the beat open",
-    `  First\n  .. {if true then " " else ""}\n  Last ..\n  word.`,
-    [{ text: { action: ["First  Last word."] } }],
+    `  First ..\n  {if true then " " else ""} ..\n  Last ..\n  word.`,
+    [{ text: { action: ["First   Last word."] } }],
   ],
   [
     "trailing > break alone",
@@ -328,23 +328,16 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
     [{ text: { action: ["First"] } }, { text: { action: ["Last."] } }],
   ],
   [
-    "trailing > break followed by a glued line",
-    `  First >\n  .. second.\n  Last.`,
+    "trailing > break that joins the next line",
+    `  First > ..\n  second.\n  Last.`,
     [{ text: { action: ["First second."] } }, { text: { action: ["Last."] } }],
   ],
   [
-    "load directive with a trailing-glue continuation",
-    `  load overworld ..\n  underworld\n  The world appears.`,
+    "load directive ending with `..` joins nothing",
+    `  load overworld ..\n  Underworld.\n  The world appears.`,
     [
-      { load: [{ name: "overworld" }, { name: "underworld" }] },
-      { text: { action: ["The world appears."] } },
-    ],
-  ],
-  [
-    "load directive with a leading-glue continuation",
-    `  load overworld\n  .. underworld\n  The world appears.`,
-    [
-      { load: [{ name: "overworld" }, { name: "underworld" }] },
+      { load: [{ name: "overworld" }] },
+      { text: { action: ["Underworld."] } },
       { text: { action: ["The world appears."] } },
     ],
   ],

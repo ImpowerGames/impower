@@ -9,13 +9,11 @@ import {
 import { ContentList } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
-import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
-import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import type {
 CompiledBlock,
@@ -308,8 +306,8 @@ export function lowerChoice(
 
 // The words a chosen choice prints (its start content repeated, then its inner
 // text) become one `display({ text })` call on the default target, followed by
-// the arrow's objects. A plain arrow is held on the line by glue, so the
-// target's first line joins the choice's beat.
+// the arrow's objects. A plain arrow holds the line open (the call is
+// `open`), so the target's first line joins the choice's beat.
 // Returns null when there are no words to print.
 //
 // The start content repeats by jumping into the container the choice label
@@ -335,32 +333,31 @@ function chosenTextAsDisplayCall(
   const tagged = [...start.content, ...words].some(
     (obj) => obj instanceof Tag,
   );
+  // The call's own newline ends the line, so a bare newline tail is dropped.
+  const arrow = tail.filter((obj) => !(obj instanceof Text && obj.text === "\n"));
+  // A choice whose flow ends after it keeps no newline, and an arrow holds the
+  // line open for the first line it reaches. A `load` arrow's directive is a
+  // step of its own, so nothing holds the line open for it.
+  const open =
+    endsFlow ||
+    (arrow.length > 0 &&
+      arrow.every(
+        (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
+      ));
   let call: ParsedObject;
   let startEcho: ChoiceStartEcho | null = null;
   if (tagged) {
     const startWords = hasStart ? relowerStart().content.slice() : [];
-    call = buildOrderedDisplayCall([...startWords, ...words], ctx);
+    call = buildOrderedDisplayCall([...startWords, ...words], ctx, { open });
   } else {
     startEcho = hasStart ? new ChoiceStartEcho() : null;
     const body = startEcho ? [startEcho, ...words] : words;
-    call = buildDisplayCall(undefined, undefined, body, null, ctx);
+    call = buildDisplayCall(undefined, undefined, body, null, ctx, [], {
+      open,
+    });
   }
   const out: ParsedObject[] = [call];
-  // A choice whose flow ends after it keeps no newline, so glue trims the
-  // one the call closes its line with.
-  if (endsFlow) out.push(new ParsedGlue(new RuntimeGlue()));
-  // The call's own newline ends the line, so a bare newline tail is dropped.
-  const arrow = tail.filter((obj) => !(obj instanceof Text && obj.text === "\n"));
-  if (arrow.length > 0) {
-    // A `load` arrow's directive is a step of its own, so nothing holds the
-    // line open for it.
-    if (
-      arrow.every((obj) => obj instanceof Divert || obj instanceof TunnelOnwards)
-    ) {
-      out.push(new ParsedGlue(new RuntimeGlue()));
-    }
-    out.push(...tail);
-  }
+  if (arrow.length > 0) out.push(...tail);
   return { inner: out, startEcho, repeatsStartContent: !tagged };
 }
 

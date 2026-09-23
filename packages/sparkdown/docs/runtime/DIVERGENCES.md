@@ -16,27 +16,24 @@ description stays grounded in the actual implementation.
 
 ## Coming from ink
 
-### Glue: `<>` → `..`
+### Glue: `<>` → a `..` that ends the line
 
-Ink's `<>` glue operator becomes `..` between whitespace boundaries. The
-grammar's `Glue` rule (`(?<=^|WS)(?:[.][.])(?=$|WS)`) disambiguates it from
-Luau's `..` string-concatenation operator, which appears between non-whitespace
-operands.
+Ink's `<>` glue becomes a `..` that ends a display line: the next display line joins onto it, in the same beat. The join keeps the spaces written before the `..` and drops the spaces after it, so `A ..` then `B` shows "A B", `A   ..` keeps all three spaces, and `A..` joins with none. Anything but a dot may touch the `..`, so `Wait...` stays an ellipsis. A `..` in the middle of a line (`a..b`, `a .. b`) is text, and tags or a `//` comment may follow the `..` at the end.
 
 ```sparkdown
 if true then
-  {"a"}
+  {"a"} ..
 end
-.. b
+b
 ```
 
-The runtime `Glue` output-stream marker is emitted by
-[`lowerInlineAction`](src/compiler/lower/lowerers/lowerDisplay.ts) when the
-line begins with `..`. Glued lines also skip the line-type metadata tag
-(`action` / `dialogue` / etc.) — the tag's inner text would otherwise sit
-between the `Glue` marker and the body, preventing the runtime from cleanly
-consuming the marker. The glued content conceptually inherits the previous
-line's type.
+A `>..` or `> ..` that ends a line, with a space before the `>` as every break needs, is a break that the next line joins: `Abso >..` then `lutely.` is one beat reading "Absolutely.", and `Wait > ..` joins with a space. The break's table carries `pause`; the player shows the joined beat without stopping inside it. The space before the `>` belongs to the break, so it is dropped, while the spaces between the `>` and the `..` are kept. A `>` that touches the word before it (`Wait>..`) is text, not a break, and the compiler warns about it.
+
+A `..` at the end of a block's last line joins the next display line whatever its cue, so `ALICE:` / `Hello ..` followed by a `BOB:` block shows BOB's words in ALICE's beat.
+
+Ink also lets `<>` begin a line. Sparkdown does not: a line that begins with `..` is an error, "A line cannot begin with `..`. End the previous line with `..` to join them.", reported on the mark, and the line shows its text without the mark. Every join is decided where a line ends, so the engine never has to look past a newline to learn whether the next line joins it. A `load` line cannot end with `..` either, because everything after `load` names assets.
+
+Every join lowers to a `display()` call whose table carries `open` ([`lowerDisplay.ts`](src/compiler/lower/lowerers/lowerDisplay.ts)). `display` writes no newline after an open table, so the step runs on into the next line's call. The joined line's table names no routing, so the beat keeps the routing of the line it continues. No `Glue` object reaches the compiled program.
 
 ### Explicit statements: `~` → `&` (top level only)
 
@@ -65,8 +62,8 @@ Sparkdown replaces this with explicit block syntax that matches the
 Luau register (`if/then/end`, `function ... end`):
 
 ```sparkdown
-Marcus stands in the doorway. He's not smiling.
 choose
+  Marcus stands in the doorway. He's not smiling.
   * "What do you want?"
     "An explanation."
   * "How did you find me?"
@@ -96,6 +93,8 @@ Translation rules from ink:
 - `- - foo` (depth 2 gather) → `then` clause of the innermost `choose`
 - `- (label) foo` → `then (label) foo`
 - Multiple weaves at the same scope: each `choose ... then ... end` is self-contained — write `end` then start the next `choose`. (No chaining shortcut: keeping the close-token explicit avoids relying on indentation for block scoping.)
+
+The display lines written in a `choose` block before its first choice are its caption, the line the choices answer. The last of them shows together with the choices: its newline waits, so the step runs on through whatever runs between it and the choices and completes with the caption and the choices at once. That holds on every run where nothing else shows before the choices, whether what runs is an assignment, an external call, a function that shows nothing, or a conditional that shows nothing this time, and a first choice inside a conditional is reached the same way. If something does show first (a `print`, a line a function or a conditional shows, a tag), the caption's newline is written before it, the caption is a step of its own, and the next step starts with what showed. Earlier caption lines are steps of their own. Write the line the choices answer inside the block, as in the example above, so it stays on screen while the player picks.
 
 The `then` body is optional — `choose ... end` with no `then` clause
 is fine when every choice diverts away. Conditional gating uses an
@@ -360,16 +359,12 @@ specific control commands, expect the extra metadata tags.
 
 ### `..` is context-sensitive
 
-In Luau, `..` is always string concatenation. In sparkdown it has two
-meanings:
+In Luau, `..` is always string concatenation. In sparkdown it has two meanings:
 
-- Between whitespace boundaries (start-of-line / spaces) → **glue marker**:
-  `.. b`
-- Between non-whitespace operands → **string concat**: `"a" .. "b"`
+- At the end of a display line → **glue marker**: `A ..` or `A..`
+- Between operands in an expression → **string concat**: `"a" .. "b"`
 
-The grammar's `Glue` rule uses lookbehind / lookahead anchors to keep the two
-disambiguated. There's no syntax to force one or the other — surround with
-whitespace to get glue.
+The grammar's `Glue` rule matches only a `..` that ends a line of display text; inside `{...}` or a logic line, `..` is always concatenation. An inline alternator in display text is also written between `..` marks (`.. queue|a|b ..`), and those marks are part of the alternator.
 
 ### `&` prefix for bare statements at the top level
 

@@ -3164,7 +3164,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // non-string object (currentTags skips it).
         story.state.PushToOutputStream(payload);
       }
-      // Close the beat so Continue completes here (mirrors print's `\n`).
+      // Close the beat so Continue completes here (mirrors print's `\n`). A
+      // table marked `open` joins the next display call onto its line, so
+      // the step runs on until a call closes it.
+      const flag = (key: string) => {
+        const value =
+          payload instanceof ObjectValue ? payload.value?.get(key) : null;
+        return value instanceof BoolValue && value.value === true;
+      };
+      if (flag("open")) return;
+      // A `choose` block's caption leaves its newline pending: the step runs
+      // on and completes with the choices, unless something shows first,
+      // which writes the newline and starts the next step.
+      if (flag("caption")) {
+        story.state.lineEndPending = true;
+        return;
+      }
       story.state.PushToOutputStream(new StringValue("\n"));
     },
   },

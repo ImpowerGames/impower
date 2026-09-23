@@ -38,24 +38,17 @@ function beatsWithRouting(story: RuntimeStory): [string, Routing[]][] {
 
 describe("Glue (ported from inkjs)", () => {
   test("simple glue across multiple lines", () => {
-    // Ink's `Some <>\ncontent<> with glue.` uses trailing/leading `<>`
-    // markers; sparkdown's `..` lives between whitespace boundaries.
-    // Rewritten so each continuation line opens with ` .. ` — the same
-    // pattern as the multiline-glue logic test, exercising the
-    // `Glue` runtime marker's newline-suppression behavior.
+    // Ink's `Some <>\ncontent<> with glue.` glues mid-word; sparkdown's
+    // `..` joins from the end of a line, and a `..` touching the last word
+    // (`con..`) joins with no space.
     const ctx = makeRuntimeStoryFromFile("glue", "simple-glue");
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
   });
 
   test("trailing glue across multiple lines", () => {
-    // The mirror of the leading-`..` fixture above: each line ends with a
-    // trailing ` ..` glue marker instead of opening with one. The grammar
-    // recognizes (and highlights) trailing `..` as a `Glue` node, but the
-    // display lowerer used to read its raw `..` characters as literal text,
-    // so the lines never joined. Both forms must produce the same joined
-    // output, with the single space before `..` preserved as the word
-    // separator (`Some ..` + `content` → `Some content`).
+    // Each line ends with a spaced ` ..`, and the space before `..` is the
+    // word separator (`Some ..` + `content` → `Some content`).
     const ctx = makeRuntimeStoryFromFile("glue", "trailing-glue");
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
@@ -112,11 +105,11 @@ describe("Glue — ported from ink fixture rewrites", () => {
   });
 });
 
-// Glue is not action-only: a `..` marker joins consecutive display lines of
-// EVERY type (action, dialogue, heading, title, transitional, write), in both
-// the leading (`.. text`) and trailing (`text ..`) positions. A correct join
-// collapses the two lines into a SINGLE `Continue()` beat with its trailing
-// newline intact.
+// Glue is not action-only: a `..` that ends a line joins the next display line
+// onto it for EVERY type (action, dialogue, heading, title, transitional,
+// write), spaced (`text ..`) or touching (`text..`). A correct join collapses
+// the two lines into a SINGLE `Continue()` beat with its trailing newline
+// intact.
 //
 // Routing is carried by each line's `display()` table, not by a `<prefix>:`
 // in the visible text. So the joined beat's TEXT is prefix-free, and the
@@ -152,13 +145,12 @@ describe("Glue - across all display statement types", () => {
       expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [routing, {}]]]);
     });
 
-    test(`leading \`..\` joins a continuation onto a ${label} line`, () => {
-      // The continuation `.. second.` carries no cue of its own (a leading-`..`
-      // line is always parsed as a bare continuation), so it must inherit the
-      // previous line's routing rather than name its own.
-      const ctx = makeRuntimeStoryFromSource(`${p}first\n.. second.\n`);
+    test(`touching \`..\` joins two ${label} lines with no space`, () => {
+      const ctx = makeRuntimeStoryFromSource(`${p}first..\n${p}second.\n`);
       expect(ctx.errorMessages).toEqual([]);
-      expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [routing, {}]]]);
+      expect(beatsWithRouting(ctx.story)).toEqual([
+        ["firstsecond.\n", [routing, {}]],
+      ]);
     });
   }
 
@@ -178,12 +170,12 @@ describe("Glue - across all display statement types", () => {
     expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [ALICE]]]);
   });
 
-  test("leading `..` joins mid-body lines within a block dialogue", () => {
-    // The separator space (after `.. `) must survive block-mode indentation
-    // stripping, so the words don't fuse into `firstsecond`.
-    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first\n  .. second.\n");
+  test("touching `..` joins mid-body lines within a block dialogue", () => {
+    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first..\n  second.\n");
     expect(ctx.errorMessages).toEqual([]);
-    expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [ALICE]]]);
+    expect(beatsWithRouting(ctx.story)).toEqual([
+      ["firstsecond.\n", [ALICE]],
+    ]);
   });
 
   test("a non-glued multi-line block dialogue still keeps its line breaks", () => {

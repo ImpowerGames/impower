@@ -77,14 +77,14 @@ end
 -> start
 
 scene start
-  Some
-  .. content
-  .. with glue.
+  Some ..
+  content ..
+  with glue.
   HERO: Wait ..
   right there.
-  You see a
+  You see a ..
   if true then
-    .. red door.
+    red door.
   end
   The end.
 end

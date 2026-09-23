@@ -10,6 +10,7 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import { lower, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
+import { captionDisplayCall, isDisplayCall } from "../utils/displayCall";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lowers a `choose ... [then [(label)] ...] end` block — sparkdown's
@@ -59,6 +60,7 @@ export function lowerSparkdownChooseBlock(
   // already groups them as siblings inside our `_content` wrapper.
   let thenClause: SyntaxNode | null = null;
   let currentChoice: Choice | null = null;
+  let sawChoice = false;
   let child = content?.firstChild ?? null;
   const diagnostics: InkDiagnostic[] = [];
   while (child) {
@@ -69,6 +71,10 @@ export function lowerSparkdownChooseBlock(
       continue;
     }
     if (child.name === "Choice") {
+      if (!sawChoice) {
+        markCaption(weaveContent);
+      }
+      sawChoice = true;
       currentChoice = null;
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       if (block?.diagnostics) {
@@ -107,6 +113,13 @@ export function lowerSparkdownChooseBlock(
     //     the previous choice's `innerContent` so `* one\n  foo` works
     //     as expected.
     const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+    // A construct that holds a choice (a conditional whose branches offer
+    // them) holds the block's first choice when no choice came before it, so
+    // the display statements before it are the caption.
+    if (!sawChoice && block?.content?.some(holdsChoice)) {
+      markCaption(weaveContent);
+      sawChoice = true;
+    }
     if (block?.content) {
       for (const obj of block.content) {
         const items =
@@ -143,6 +156,31 @@ export function lowerSparkdownChooseBlock(
 
 interface MutableCtx {
   chooseDepth?: number;
+}
+
+// The display statements before a block's first choice are its caption. The
+// last of them is marked `caption`: its newline waits, so its step runs on and
+// completes with the caption and the choices together. Whatever the run shows
+// before the choices (a `print`, a line a function or a conditional shows, a
+// tag) writes the newline first and starts the next step, so only the run
+// decides, and nothing between the caption and the choices is inspected here.
+// Earlier caption lines are steps of their own.
+function markCaption(items: ParsedObject[]): void {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i]!;
+    if (isDisplayCall(item)) {
+      captionDisplayCall(item);
+      return;
+    }
+  }
+}
+
+// Whether `obj` is a choice or holds one anywhere inside it.
+function holdsChoice(obj: ParsedObject): boolean {
+  return (
+    obj instanceof Choice ||
+    (obj.content ?? []).some((child) => holdsChoice(child))
+  );
 }
 
 function buildGatherFromThenClause(

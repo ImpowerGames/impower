@@ -13,10 +13,9 @@ sparkdown [0..27]
  │   │       │       ├─ TextChunk_begin 0
  │   │       │       ├─ TextChunk_content [0..26]
  │   │       │       │   ├─ Word [0..1]: "x"
- │   │       │       │   ├─ Glue [1..4]
- │   │       │       │   │   ├─ Glue_c1 [1..2]
- │   │       │       │   │   │   └─ Whitespace [1..2]: " "
- │   │       │       │   │   └─ Glue_c2 [2..4]: ".."
+ │   │       │       │   ├─ Space [1..2]: " "
+ │   │       │       │   ├─ Punctuation [2..3]: "."
+ │   │       │       │   ├─ Punctuation [3..4]: "."
  │   │       │       │   ├─ Space [4..5]: " "
  │   │       │       │   ├─ Word [5..11]: "plural"
  │   │       │       │   ├─ Punctuation [11..12]: "."

@@ -19,6 +19,10 @@ layout main with
       character_name:
         text
     text
+  choice 0:
+    text
+  choice 1:
+    text
 end
 `;
 
@@ -45,9 +49,9 @@ async function beats(body: string) {
   return out;
 }
 
-const NESTED = `  You see a
+const NESTED = `  You see a ..
   if true then
-    .. red door.
+    red door.
   end`;
 
 describe("display() glue join", () => {
@@ -71,5 +75,83 @@ describe("display() glue join", () => {
     expect(result.find((b) => b.target === "dialogue")?.text).toBe(
       "Wait right there.",
     );
+  });
+
+  test("a touching `..` joins with no space", async () => {
+    expect(await beats(`  Abso..\n  lutely.\n  After.`)).toEqual([
+      { target: "action", text: "Absolutely." },
+      { target: "action", text: "After." },
+    ]);
+  });
+
+  // The break's table carries `pause` (pinned in the runtime tests); the
+  // player shows the joined beat without stopping inside it, so this beat reads
+  // as the plain join does.
+  test("a touching `>..` joins the next line into one beat", async () => {
+    expect(await beats(`  Abso >..\n  lutely.\n  After.`)).toEqual([
+      { target: "action", text: "Absolutely." },
+      { target: "action", text: "After." },
+    ]);
+  });
+
+  // The same beat the look-ahead produced before captions ran on: a parity
+  // check. The runtime tests pin what changed underneath, a caption step that
+  // runs through an external call to its choices.
+  // What shows between a caption and its choices ends the caption's beat,
+  // and the next beat, which the engine carried over from the caption's
+  // continue, shows it with the choices.
+  test("a caption a print follows is a beat of its own", async () => {
+    const harness = createHarness(
+      story(
+        `  choose\n    HERO: Pick one.\n    & print("A voice calls out.")\n    * One\n    * Two\n  end`,
+      ),
+    );
+    await harness.ready;
+    harness.jumpTo("start");
+    harness.reset();
+    const texts = (beat: ReturnType<typeof harness.nextBeat>) =>
+      Object.fromEntries(
+        Object.entries(beat?.text ?? {}).map(([target, instructions]) => [
+          target,
+          instructions.map((t) => t.text).join("").trim(),
+        ]),
+      );
+    const first = harness.nextBeat();
+    expect(texts(first)).toEqual({
+      dialogue: "Pick one.",
+      character_name: "HERO",
+    });
+    expect(first?.choices ?? []).toEqual([]);
+    await harness.display(first!, true);
+    await flushMicrotasks();
+    const second = harness.nextBeat();
+    expect(texts(second)).toEqual({
+      action: "A voice calls out.",
+      "choice 0": "One",
+      "choice 1": "Two",
+    });
+    expect(second?.choices).toEqual(["choice 0", "choice 1"]);
+  });
+
+  test("a choose block's caption shows with its choices", async () => {
+    const harness = createHarness(
+      story(`  choose\n    HERO: Pick one.\n    * One\n    * Two\n  end`),
+    );
+    await harness.ready;
+    harness.jumpTo("start");
+    harness.reset();
+    const beat = harness.nextBeat();
+    expect(beat?.choices).toEqual(["choice 0", "choice 1"]);
+    const text = Object.fromEntries(
+      Object.entries(beat?.text ?? {}).map(([target, instructions]) => [
+        target,
+        instructions.map((t) => t.text).join("").trim(),
+      ]),
+    );
+    expect(text).toMatchObject({
+      dialogue: "Pick one.",
+      "choice 0": "One",
+      "choice 1": "Two",
+    });
   });
 });

@@ -47,8 +47,9 @@ sparkdown [0..169]
  │   │   ├─ Newline [28..29]: "\n"
  │   │   ├─ BlockLineContinue [29..45]
  │   │   │   ├─ BlockLineContinue_begin [29..33]
- │   │   │   │   └─ BlockLineContinue_begin_c1 [29..33]
- │   │   │   │       └─ OptionalWhitespace [29..33]: "    "
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [29..33]
+ │   │   │   │   │   └─ OptionalWhitespace [29..33]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 33
  │   │   │   ├─ BlockLineContinue_content [33..45]
  │   │   │   │   └─ ParentheticalLine [33..45]
  │   │   │   │       ├─ ParentheticalLine_c1 33
@@ -73,8 +74,9 @@ sparkdown [0..169]
  │   │   ├─ Newline [45..46]: "\n"
  │   │   ├─ BlockLineContinue [46..62]
  │   │   │   ├─ BlockLineContinue_begin [46..50]
- │   │   │   │   └─ BlockLineContinue_begin_c1 [46..50]
- │   │   │   │       └─ OptionalWhitespace [46..50]: "    "
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [46..50]
+ │   │   │   │   │   └─ OptionalWhitespace [46..50]: "    "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 50
  │   │   │   ├─ BlockLineContinue_content [50..62]
  │   │   │   │   └─ TextChunk [50..62]
  │   │   │   │       ├─ TextChunk_begin 50
@@ -90,8 +92,9 @@ sparkdown [0..169]
  │   │   ├─ Newline [63..64]: "\n"
  │   │   ├─ BlockLineContinue [64..102]
  │   │   │   ├─ BlockLineContinue_begin [64..88]
- │   │   │   │   └─ BlockLineContinue_begin_c1 [64..88]
- │   │   │   │       └─ OptionalWhitespace [64..88]: "                        "
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [64..88]
+ │   │   │   │   │   └─ OptionalWhitespace [64..88]: "                        "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 88
  │   │   │   ├─ BlockLineContinue_content [88..102]
  │   │   │   │   └─ TextChunk [88..102]
  │   │   │   │       ├─ TextChunk_begin 88

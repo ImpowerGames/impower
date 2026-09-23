@@ -84,7 +84,7 @@ describe("spaced `>` break", () => {
   });
 
   test("a break on a glued continuation keeps the cue of the line it continues", async () => {
-    const harness = createHarness(story(`  HERO: Hi.\n  .. more > Bye.`));
+    const harness = createHarness(story(`  HERO: Hi. ..\n  more > Bye.`));
     await harness.ready;
     harness.jumpTo("start");
     const joined = harness.nextBeat();
@@ -108,7 +108,7 @@ describe("spaced `>` break", () => {
     // after its break takes the cue the line it continues reads, and never
     // the cue of a beat that happens to have run before.
     const source = story(
-      `  HERO: A.\n  .. hero joined > Hero after.\n  VILLAIN: V.\n  .. villain joined > Villain after.`,
+      `  HERO: A. ..\n  hero joined > Hero after.\n  VILLAIN: V. ..\n  villain joined > Villain after.`,
     );
     const harness = createHarness(source);
     await harness.ready;
@@ -136,12 +136,12 @@ describe("spaced `>` break", () => {
   });
 
   test("a step holding several continuations is remembered by the last", async () => {
-    // Glue keeps every continuation of the step open, so its tables name
+    // `..` keeps every continuation of the step open, so its tables name
     // several continuations. The beat after the break belongs to the LAST of
     // them, and keeps the cue of the beat the run actually joined (HERO),
     // not the cue its own line reads (VILLAIN).
     const harness = createHarness(
-      `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B\n  .. C\n  .. D > E\nend\n`,
+      `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  C ..\n  D > E\nend\n`,
     );
     await harness.ready;
     harness.jumpTo("start");
@@ -154,12 +154,12 @@ describe("spaced `>` break", () => {
   });
 
   test("an inherited beat and a newer continuation can share a step", async () => {
-    // `.. C > D ..` holds the next line open, so the step that shows `D`
+    // `C > D ..` holds the next line open, so the step that shows `D`
     // also carries the continuation for `F`. The beat inherits by the group
     // that asked to inherit, while the step is remembered by the group whose
     // break produces the next beat; every beat here joined HERO.
     const harness = createHarness(
-      `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B\n  .. C > D ..\n  E > F\nend\n`,
+      `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  C > D ..\n  E > F\nend\n`,
     );
     await harness.ready;
     harness.jumpTo("start");
@@ -178,7 +178,7 @@ describe("spaced `>` break", () => {
     // break keeps that line's cue.
     for (const body of [
       `  HERO: A ..\n  // note\n  B > C`,
-      `  HERO: A\n  // note\n  .. B > C`,
+      `  HERO: A ..\n  // note\n  // another\n  B > C`,
     ]) {
       const harness = createHarness(story(body));
       await harness.ready;
@@ -197,7 +197,7 @@ describe("spaced `>` break", () => {
     // reached by a divert from HERO but is written under VILLAIN, so the two
     // answers differ: after the run is dropped, the beat takes the cue its
     // own line reads.
-    const source = `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B\n  .. joined > After.\nend\n`;
+    const source = `${DEFS}\n-> start\n\nscene start\n  HERO: A -> later\nend\n\nscene later\n  VILLAIN: B ..\n  joined > After.\nend\n`;
     const line = source.split("\n").findIndex((l) => l.includes("joined"));
     const primed = async () => {
       const harness = createHarness(source);
@@ -239,13 +239,13 @@ describe("spaced `>` break", () => {
     // continuation and then jumping straight into the second must not carry
     // the first file's cue across.
     const INCLUDE = "inmemory:///evil.sd";
-    const main = `${DEFS}\ninclude evil.sd\n\n-> start\n\nscene start\n  HERO: A.\n  .. joined > After.\nend\n`;
+    const main = `${DEFS}\ninclude evil.sd\n\n-> start\n\nscene start\n  HERO: A. ..\n  joined > After.\nend\n`;
     const head = `scene evil\n  EVIL: `;
     const evil = `${head}${"B".repeat(
-      main.indexOf("  .. joined") - head.length - 2,
-    )}.\n  .. joined > After.\nend\n`;
+      main.indexOf("  joined") - head.length - 5,
+    )}. ..\n  joined > After.\nend\n`;
     // The continuations of the two files start at the same offset.
-    expect(evil.indexOf("  .. joined")).toBe(main.indexOf("  .. joined"));
+    expect(evil.indexOf("  joined")).toBe(main.indexOf("  joined"));
     const harness = createHarness(main, 0, { scripts: { [INCLUDE]: evil } });
     await harness.ready;
     harness.jumpTo("start");

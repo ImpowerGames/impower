@@ -33,8 +33,8 @@ describe("display line-break whitespace", () => {
     expect(render("ALICE:\n  first ..\n  second\n")).toBe("first second\n");
   });
 
-  test("leading `.. ` glue joins the two lines with a single space", () => {
-    expect(render("ALICE:\n  first\n  .. second\n")).toBe("first second\n");
+  test("touching `..` glue joins the two lines with no space", () => {
+    expect(render("ALICE:\n  first..\n  second\n")).toBe("firstsecond\n");
   });
 
   // A line break and a `{...}` interpolation are lowered by different parts

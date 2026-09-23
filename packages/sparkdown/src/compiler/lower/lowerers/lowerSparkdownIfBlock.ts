@@ -136,6 +136,10 @@ function buildBranch(
     );
   }
   branch.isElse = isElse;
+  // Every display line closes its own line, so a branch needs no newline of
+  // its own to start one. A newline there would end the line a trailing `..`
+  // holds open before the branch (`You see a ..` then `if`).
+  branch.isInline = true;
   return branch;
 }
 

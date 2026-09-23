@@ -29,7 +29,12 @@ import { stampDebugMetadata } from "./debugMetadata";
 // ending during string evaluation is taken for a choice label's tag.
 //
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
-// shows no text. `group` names the glued continuation a call belongs to (its
+// shows no text. `open` marks a call that joins the next display call onto its
+// line: `display` writes no newline after it, so the step runs on until a
+// call closes the line. A trailing `..` and a divert the line holds open carry
+// it. `caption` marks a `choose` block's last caption line, whose newline
+// waits: the step completes with the choices unless the run shows something
+// first. `group` names the glued continuation a call belongs to (its
 // file and the offset it starts at, since offsets start again in every
 // script), and
 // `inherit` marks its beats after one of its breaks: they take the routing of
@@ -47,7 +52,12 @@ export function buildDisplayCall(
   range: { from: number; to: number } | null,
   ctx: LowerContext,
   tags: ParsedObject[][] = [],
-  options: { pause?: boolean; inherit?: boolean; group?: string } = {},
+  options: {
+    pause?: boolean;
+    inherit?: boolean;
+    group?: string;
+    open?: boolean;
+  } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
   if (target) {
@@ -67,12 +77,8 @@ export function buildDisplayCall(
     );
   }
   entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
-  for (const flag of ["pause", "inherit"] as const) {
-    if (options[flag]) {
-      entries.push(
-        new ObjectExpressionEntry(flag, new NumberExpression(true, "bool")),
-      );
-    }
+  for (const flag of ["pause", "inherit", "open"] as const) {
+    if (options[flag]) entries.push(flagEntry(flag));
   }
   if (options.group != null) {
     entries.push(
@@ -93,6 +99,7 @@ export function buildDisplayCall(
 export function buildOrderedDisplayCall(
   words: ParsedObject[],
   ctx: LowerContext,
+  options: { open?: boolean } = {},
 ): FunctionCall {
   const parts: Expression[] = [];
   let run: ParsedObject[] = [];
@@ -118,19 +125,38 @@ export function buildOrderedDisplayCall(
     }
   }
   if (run.length > 0) parts.push(new StringExpression(run));
-  return finishCall(
-    [
-      new ObjectExpressionEntry(
-        "parts",
-        new ObjectExpression(
-          parts.map((part, i) => new ObjectExpressionEntry(String(i + 1), part)),
-        ),
+  const entries = [
+    new ObjectExpressionEntry(
+      "parts",
+      new ObjectExpression(
+        parts.map((part, i) => new ObjectExpressionEntry(String(i + 1), part)),
       ),
-    ],
-    [],
-    null,
-    ctx,
+    ),
+  ];
+  if (options.open) entries.push(flagEntry("open"));
+  return finishCall(entries, [], null, ctx);
+}
+
+// Whether `call` is a `display` call whose table can take an `open` entry.
+export function isDisplayCall(call: ParsedObject): call is FunctionCall {
+  return (
+    call instanceof FunctionCall &&
+    call.name === "display" &&
+    call.args[0] instanceof ObjectExpression
   );
+}
+
+// Mark a `display` call as a `choose` block's `caption`, whose newline waits
+// for what the run does next. A call already `open` joins the next line
+// instead and is left as it is.
+export function captionDisplayCall(call: FunctionCall): void {
+  const table = call.args[0] as ObjectExpression;
+  if (table.entries.some((entry) => entry.key === "open")) return;
+  table.addEntry(flagEntry("caption"));
+}
+
+function flagEntry(flag: string): ObjectExpressionEntry {
+  return new ObjectExpressionEntry(flag, new NumberExpression(true, "bool"));
 }
 
 // Split parsed objects into their `# tag`s (the content between each
@@ -161,19 +187,18 @@ export function separateTags(objects: ParsedObject[]): {
 
 // `display({ load })`: the interpreter queues the names as a load beat of its
 // own. The names are a captured string, so they may interpolate. `tags` are as
-// for {@link buildDisplayCall}.
+// for {@link buildDisplayCall}, and so is `open`, which a `load` line with a
+// plain divert after it carries so the divert's first line joins the step.
 export function buildLoadCall(
   args: ParsedObject[],
   range: { from: number; to: number } | null,
   ctx: LowerContext,
   tags: ParsedObject[][] = [],
+  options: { open?: boolean } = {},
 ): FunctionCall {
-  return finishCall(
-    [new ObjectExpressionEntry("load", new StringExpression(args))],
-    tags,
-    range,
-    ctx,
-  );
+  const entries = [new ObjectExpressionEntry("load", new StringExpression(args))];
+  if (options.open) entries.push(flagEntry("open"));
+  return finishCall(entries, tags, range, ctx);
 }
 
 function finishCall(
