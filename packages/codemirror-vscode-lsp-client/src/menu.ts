@@ -10,6 +10,7 @@ import {
   ContextMenuItem,
   isMobile,
   lspContextMenuItems,
+  recordMenuClipboard,
   textContextMenuItems,
 } from "./context";
 
@@ -108,6 +109,10 @@ const contextMenuTheme = EditorView.baseTheme({
     maskPosition: "center",
     webkitMaskPosition: "center",
   },
+  ".cm-context-menu .cm-menu-item.cm-menu-disabled": {
+    opacity: "0.4",
+    cursor: "default",
+  },
   ".cm-context-menu .cm-menu-separator": {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     flexShrink: 0,
@@ -122,31 +127,33 @@ const contextMenuTheme = EditorView.baseTheme({
     height: "18px",
     margin: "0 2px",
   },
-  ".cm-context-menu .cm-menu-item:active": {
+  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active": {
     color: "#ffffff",
   },
-  ".cm-context-menu .cm-menu-item:active::after": {
+  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active::after": {
     content: "''",
     position: "absolute",
     inset: "0",
     backgroundColor: "rgba(255, 255, 255, 0.06)",
   },
-  ".cm-context-menu .cm-menu-item:active .cm-menu-item-shortcut": {
-    color: "#ffffff",
-  },
-  "@media (hover: hover) and (pointer: fine)": {
-    ".cm-context-menu .cm-menu-item:hover": {
+  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active .cm-menu-item-shortcut":
+    {
       color: "#ffffff",
     },
-    ".cm-context-menu .cm-menu-item:hover::after": {
+  "@media (hover: hover) and (pointer: fine)": {
+    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover": {
+      color: "#ffffff",
+    },
+    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover::after": {
       content: "''",
       position: "absolute",
       inset: "0",
       backgroundColor: "rgba(255, 255, 255, 0.06)",
     },
-    ".cm-context-menu .cm-menu-item:hover .cm-menu-item-shortcut": {
-      color: "#ffffff",
-    },
+    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover .cm-menu-item-shortcut":
+      {
+        color: "#ffffff",
+      },
   },
 });
 
@@ -460,8 +467,17 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             itemEl.appendChild(shortcutSpan);
           }
 
+          const disabled = item.disabled?.(view) ?? false;
+          itemEl.classList.toggle("cm-menu-disabled", disabled);
+          if (disabled) {
+            itemEl.setAttribute("aria-disabled", "true");
+          }
+
           itemEl.onclick = (e) => {
             e.stopPropagation();
+            if (disabled) {
+              return;
+            }
             view.dispatch({ effects: closeContextMenu.of() });
             item.command(view);
             if (!isDesktop && item.keepsMenuOpen) {
@@ -573,7 +589,40 @@ const contextMenuHandlers = EditorView.domEventHandlers({
 
     return true;
   },
+  // A keyboard or browser copy or cut also fills the menu's buffer, so menu
+  // Paste pastes what Ctrl+C copied. The selection is read here, before
+  // CodeMirror's own handler runs, and the event is left to that handler.
+  copy: recordNativeCopy,
+  cut: recordNativeCopy,
 });
+
+/** Records what CodeMirror's native copy and cut take: the selected ranges,
+ *  or with only carets selected, their whole lines. */
+function recordNativeCopy(_event: ClipboardEvent, view: EditorView) {
+  // CodeMirror leaves a copy alone when the selection being copied is not
+  // the editor's.
+  if (!view.hasFocus) {
+    return false;
+  }
+  const { state } = view;
+  const pieces = state.selection.ranges
+    .filter((r) => !r.empty)
+    .map((r) => state.sliceDoc(r.from, r.to));
+  if (pieces.length > 0) {
+    recordMenuClipboard(pieces);
+    return false;
+  }
+  let lastLine = -1;
+  for (const range of state.selection.ranges) {
+    const line = state.doc.lineAt(range.from);
+    if (line.number > lastLine) {
+      pieces.push(line.text);
+    }
+    lastLine = line.number;
+  }
+  recordMenuClipboard(pieces, true);
+  return false;
+}
 
 const defaultContextMenuBlocker = ViewPlugin.fromClass(
   class {

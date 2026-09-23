@@ -16,6 +16,8 @@ export type ContextMenuItem =
       needsSelection?: boolean;
       /** The touch menu reopens for the new selection after this item runs. */
       keepsMenuOpen?: boolean;
+      /** The menu shows this item greyed out, and clicking it does nothing. */
+      disabled?: (view: EditorView) => boolean;
     }
   | { type: "separator" };
 
@@ -31,65 +33,114 @@ export function getShortcutLabel(key: string) {
     .join("+");
 }
 
-export async function cut(view: EditorView) {
-  const ranges = view.state.selection.ranges.filter((r) => !r.empty);
-  const texts = ranges.map((r) => view.state.sliceDoc(r.from, r.to));
-  if (texts.length > 0) {
-    try {
-      await navigator.clipboard.writeText(texts.join("\n"));
-      // Dispatch a deletion transaction to remove the cut text
-      const changes = ranges.map((r) => ({
-        from: r.from,
-        to: r.to,
-        insert: "",
-      }));
-      view.dispatch({ changes });
-    } catch (err) {
-      console.error("Clipboard access denied.");
-    }
-  }
+/**
+ * What the menu's Paste inserts: the text last copied or cut in any editor on
+ * the page, one piece per copied selection range. Menu Paste reads only this,
+ * because reading the system clipboard makes the browser ask the user for
+ * access. It is held in memory and never stored.
+ */
+let menuClipboard: { pieces: string[]; linewise: boolean } | null = null;
+
+/**
+ * Records a copy for menu Paste. A copy of bare carets is `linewise`: each
+ * piece is a whole line, and pasting it at carets inserts it above their lines
+ * as CodeMirror's keyboard paste does.
+ */
+export function recordMenuClipboard(pieces: string[], linewise = false) {
+  menuClipboard = { pieces, linewise };
 }
 
-export async function copy(view: EditorView) {
-  const selection = view.state.selection;
-  // Get text from all active cursor selections (multicursor support)
-  const texts = selection.ranges
+/** The selected text of each non-empty range, as the menu copies it. */
+function selectedPieces(view: EditorView) {
+  return view.state.selection.ranges
     .filter((r) => !r.empty)
     .map((r) => view.state.sliceDoc(r.from, r.to));
+}
 
-  if (texts.length > 0) {
-    try {
-      // Modern clipboard API writes
-      await navigator.clipboard.writeText(texts.join("\n"));
-      // Android's selection toolbar leaves a caret, with its handle, at the
-      // end of what it copied. A selection the user changed while the write
-      // was pending is theirs and stays.
-      if (isMobile() && view.state.selection.eq(selection)) {
-        view.dispatch({
-          selection: EditorSelection.create(
-            selection.ranges.map((r) => EditorSelection.cursor(r.to)),
-            selection.mainIndex,
-          ),
-          userEvent: "select.touch",
-        });
-      }
-    } catch (err) {
-      console.error("Clipboard access denied.");
-    }
+/** Also puts the text on the system clipboard so other apps can paste it. A
+ *  write the browser refuses is ignored: the menu's buffer still holds it. */
+function writeSystemClipboard(view: EditorView, pieces: string[]) {
+  navigator.clipboard
+    ?.writeText(pieces.join(view.state.lineBreak))
+    .catch(() => {});
+}
+
+export function cut(view: EditorView) {
+  const pieces = selectedPieces(view);
+  if (pieces.length === 0) {
+    return;
+  }
+  recordMenuClipboard(pieces);
+  writeSystemClipboard(view, pieces);
+  view.dispatch({
+    changes: view.state.selection.ranges.filter((r) => !r.empty),
+    userEvent: "delete.cut",
+  });
+}
+
+export function copy(view: EditorView) {
+  const selection = view.state.selection;
+  const pieces = selectedPieces(view);
+  if (pieces.length === 0) {
+    return;
+  }
+  recordMenuClipboard(pieces);
+  writeSystemClipboard(view, pieces);
+  // Android's selection toolbar leaves a caret, with its handle, at the end
+  // of what it copied.
+  if (isMobile()) {
+    view.dispatch({
+      selection: EditorSelection.create(
+        selection.ranges.map((r) => EditorSelection.cursor(r.to)),
+        selection.mainIndex,
+      ),
+      userEvent: "select.touch",
+    });
   }
 }
 
-export async function paste(view: EditorView) {
-  try {
-    // Browsers often restrict readText() if it wasn't triggered by a keyboard interaction.
-    // We wrap it in a try-catch to display an elegant error if blocked.
-    const text = await navigator.clipboard.readText();
-
-    // CodeMirror's native replaceSelection gracefully inserts text at all current cursors
-    view.dispatch(view.state.replaceSelection(text));
-  } catch (err) {
-    console.error("Browser blocked automated paste.");
+/**
+ * Inserts the menu's buffer. When there is one piece per selection range,
+ * each range gets its own piece; otherwise every range gets all the pieces
+ * joined by line breaks, as CodeMirror's native multi-cursor paste does.
+ */
+export function paste(view: EditorView) {
+  if (!menuClipboard) {
+    return;
   }
+  const { state } = view;
+  const { pieces, linewise } = menuClipboard;
+  const joined = pieces.join(state.lineBreak);
+  const perRange = pieces.length === state.selection.ranges.length;
+  let i = 0;
+  const pieceFor = () => (perRange ? pieces[i++]! : joined);
+  let spec;
+  if (linewise && state.selection.ranges.every((r) => r.empty)) {
+    let lastLine = -1;
+    spec = state.changeByRange((range) => {
+      const line = state.doc.lineAt(range.from);
+      if (line.from === lastLine) {
+        return { range };
+      }
+      lastLine = line.from;
+      const insert = pieceFor() + state.lineBreak;
+      return {
+        changes: { from: line.from, insert },
+        range: EditorSelection.cursor(range.from + insert.length),
+      };
+    });
+  } else if (perRange) {
+    spec = state.changeByRange((range) => {
+      const insert = pieceFor();
+      return {
+        changes: { from: range.from, to: range.to, insert },
+        range: EditorSelection.cursor(range.from + insert.length),
+      };
+    });
+  } else {
+    spec = state.replaceSelection(joined);
+  }
+  view.dispatch(spec, { userEvent: "input.paste", scrollIntoView: true });
 }
 
 export const historyContextMenuItems: ContextMenuItem[] = [
@@ -122,6 +173,7 @@ export const textContextMenuItems: ContextMenuItem[] = [
     label: "Paste",
     command: paste,
     shortcut: getShortcutLabel("Mod-v"),
+    disabled: () => menuClipboard === null,
   },
   {
     label: "Select All",
