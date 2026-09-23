@@ -216,12 +216,23 @@ uncertain.update({phase:"exited"}); uncertain.release();
 // Vitest processes finish, so a third run queues behind it rather than racing.
 const { acquireWaiting } = await import("./test-suite-process.mjs");
 const { runVitest, vitestArguments } = await import("./test-suite.mjs");
-const holder = acquire("holder", { root: lockRoot, census: () => [] });
-setTimeout(() => holder.release(), 150);
+// Each wait signal advances the scenario one step, and a constant identity
+// keeps every attempt cheap, so no step depends on timers or machine load.
+const live = { root: lockRoot, identify: () => owner };
+const holder = acquire("holder", { ...live, census: () => [] });
 let present = [777];
-const waited = await acquireWaiting("queued", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => present,
-  onWait: ({ waiting }) => { if (waiting === "vitest processes") setTimeout(() => { present = []; }, 100); } });
-assert.throws(() => acquire("racer", { root: lockRoot, census: () => [] }), /running/, "the reservation is held while waiting for other processes");
+const waits = [];
+const waited = await acquireWaiting("queued", { ...live, waitMs: 60000, pollMs: 20, census: () => present,
+  onWait: ({ waiting }) => {
+    waits.push(waiting);
+    if (waiting === "reservation") holder.release();
+    if (waiting === "vitest processes") {
+      assert.throws(() => acquire("racer", { ...live, census: () => [] }), /running/, "the reservation is held while waiting for other processes");
+      present = [];
+    }
+  } });
+assert.deepEqual(waits, ["reservation", "vitest processes"], "the run queued on the reservation, then on the census");
+assert.throws(() => acquire("racer", { ...live, census: () => [] }), /running/, "the reservation stays held until released");
 waited.release();
 const blocker = acquire("blocker", { root: lockRoot, census: () => [] });
 await assert.rejects(acquireWaiting("impatient", { root: lockRoot, waitMs: 60, pollMs: 20, census: () => [] }), /Existing suite running/);
