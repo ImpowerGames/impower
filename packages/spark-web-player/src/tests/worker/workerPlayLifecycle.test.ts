@@ -2,7 +2,11 @@
 // the author can press STOP, or an edit can restart the game, at any of them
 // (#682). Whatever the order, STOP ends PLAY: the page is not left waiting,
 // no game is left running in the worker, and the preview shows again.
+import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
+import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameClockMessage";
+import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
+import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { describe, expect, it } from "vitest";
@@ -405,6 +409,178 @@ describe("pause and unpause while PLAY in the worker is starting", () => {
     } finally {
       await h.controller.destroyGameAndApp();
       h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("the controls that move time while PLAY in the worker is starting", () => {
+  it("keeps a game paused during its start from ticking before the start is answered", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+      manualClock: true,
+    });
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // Paused once the application exists; the worker then starts the game,
+      // and its frames run while its answer is on its way.
+      const connecting = holdAnswer(h, ConnectPlayMessage.method);
+      const started = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
+      await h.controller.handlePauseGame(PauseGameMessage.type.request({}));
+      const starting = holdAnswer(h, StartPlayMessage.method);
+      connecting.open();
+      for (let i = 0; i < 100 && !starting.state.asked; i++) await settle(2);
+      await settle(10);
+      const running = h.workerState.gameState.running!;
+      await h.tick(1000 / 60, 60);
+      expect(running.paused).toBe(true);
+      expect(running.clock!.elapsedTime).toBe(0);
+      starting.open();
+      expect(await started).toBe(true);
+      expect(running.paused).toBe(true);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("steps the game by a clock step made during its start, as its application", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+      manualClock: true,
+    });
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      const connecting = holdAnswer(h, ConnectPlayMessage.method);
+      const started = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
+      await h.controller.handleStepGameClock(StepGameClockMessage.type.request({ seconds: 2.5 }));
+      connecting.open();
+      expect(await started).toBe(true);
+      await settle(10);
+      // How far each clock has been moved from the time it reads.
+      const offset = (clock: any) => clock._timeOffset;
+      expect(offset(h.controller._app.clock)).toBeCloseTo(2.5, 9);
+      expect(offset(h.workerState.gameState.running!.clock)).toBeCloseTo(2.5, 9);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("a runtime error as PLAY's game in the worker starts", () => {
+  it("stops PLAY and tells the editor why", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    const error = console.error;
+    console.error = () => {};
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      // The game's first execution fails, before the worker answers that it
+      // started.
+      const createGame = h.workerState.gameState.createGame;
+      h.workerState.gameState.createGame = (options: any) => {
+        const game = createGame(options);
+        if (h.workerState.gameState.game) {
+          const start = game.start.bind(game);
+          game.start = (...args: any[]) => {
+            start(...args);
+            void game.connection.emit(
+              GameEncounteredRuntimeErrorMessage.type.notification({
+                type: ErrorType.Error,
+                message: "The first beat failed.",
+                location: { uri: MAIN_URI, range: { start: { line: AFTER, character: 0 }, end: { line: AFTER, character: 0 } } },
+                state: "running",
+              } as any),
+            );
+          };
+        }
+        return game;
+      };
+      await h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !h.toEditor.some((m) => m.method === "game/exited"); i++) {
+        await settle(2);
+      }
+      const exited = h.toEditor.find((m) => m.method === "game/exited");
+      expect(exited?.params?.reason).toBe("error");
+      expect(h.workerState.gameState.running == null).toBe(true);
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      console.error = error;
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("PLAY pressed again while the worker stops the last run", () => {
+  it("leaves the new run and its application to the new PLAY", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(10);
+
+      const stopping = holdAnswer(h, StopPlayMessage.method);
+      const stopped = h.controller.stopGame("quit");
+      for (let i = 0; i < 100 && !stopping.state.asked; i++) await settle(2);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      const app = h.controller._app;
+      stopping.open();
+      await stopped;
+      await settle(20);
+
+      expect(h.workerState.gameState.running == null).toBe(false);
+      expect(h.controller.playing).toBe(true);
+      expect(h.controller._app).toBe(app);
+      expect(app.destroys).toBe(0);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("a debugger step the worker fails", () => {
+  it("answers the editor with the worker's failure", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    try {
+      await h.compile();
+      (h.link as any).request = async () => {
+        throw new Error("The worker could not step.");
+      };
+      const stepped = await h.controller.handleStepGame(
+        StepGameMessage.type.request({ traversal: "over" }),
+      );
+      expect(stepped.error?.message).toContain("The worker could not step.");
+    } finally {
       h.dispose();
     }
   }, 120_000);

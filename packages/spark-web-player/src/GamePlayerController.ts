@@ -74,6 +74,7 @@ import {
 } from "./app/Application";
 import type { WorkerGameLink } from "./main/workers/WorkerGameLink";
 import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
+import { toResponseError } from "@impower/jsonrpc/src/common/utils/toResponseError";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { ConnectPlayMessage } from "./main/workers/messages/ConnectPlayMessage";
 import { PlayMessage } from "./main/workers/messages/PlayMessage";
@@ -180,6 +181,9 @@ interface WorkerPlay {
    *  which the worker's game is stepped by once it runs: steps add, so their
    *  order does not matter. */
   stepped: number;
+  /** `player/startPlay` is sent: the game runs in the worker, whatever the
+   *  start still brings it to. */
+  startSent?: boolean;
 }
 
 export interface GamePlayerRefs {
@@ -1673,11 +1677,14 @@ export class GamePlayerController {
         done: this._game.step(traversal),
       });
     }
-    // A worker with no game to step answers with an error, which the editor
-    // hears as the page answers it with none.
-    const answer = await this.askWorkerGame(StepGameMessage.type, {
-      traversal,
-    }).catch(() => undefined);
+    // What the worker fails with, a game it does not hold among it, is the
+    // editor's answer.
+    let answer: { done: boolean } | undefined;
+    try {
+      answer = await this.askWorkerGame(StepGameMessage.type, { traversal });
+    } catch (e) {
+      return StepGameMessage.type.error(message.id, toResponseError(e));
+    }
     if (answer) {
       return StepGameMessage.type.response(message.id, answer);
     }
@@ -1695,10 +1702,15 @@ export class GamePlayerController {
         done: this._game.continue(),
       });
     }
-    const answer = await this.askWorkerGame(
-      ContinueGameMessage.type,
-      message.params,
-    ).catch(() => undefined);
+    let answer: { done: boolean } | undefined;
+    try {
+      answer = await this.askWorkerGame(
+        ContinueGameMessage.type,
+        message.params,
+      );
+    } catch (e) {
+      return ContinueGameMessage.type.error(message.id, toResponseError(e));
+    }
     if (answer) {
       return ContinueGameMessage.type.response(message.id, answer);
     }
@@ -1925,7 +1937,12 @@ export class GamePlayerController {
     true,
   );
 
+  /** Counts PLAYs begun, so a teardown a newer PLAY overtook leaves that
+   *  PLAY and its application alone. */
+  protected _plays = 0;
+
   async startGameAndApp(restarted?: boolean) {
+    this._plays += 1;
     // PLAY runs the real document only, and no suggestion may reach the
     // screen once it has started.
     this.endCompletionPreview();
@@ -2014,7 +2031,11 @@ export class GamePlayerController {
         return abandon();
       }
       this._stopListeningToPlay = this.listenToWorker(link, () =>
-        this._workerPlay === play ? play.state : "stopped",
+        this._workerPlay !== play
+          ? "stopped"
+          : play.startSent
+            ? "running"
+            : play.state,
       );
       // A preview build a detach left under way still holds the application
       // slot until it has disposed of its application.
@@ -2050,13 +2071,22 @@ export class GamePlayerController {
         await app.destroy(true);
         return abandon();
       }
-      await link.request(StartPlayMessage.type, { run: play.run! });
-      // Bring the game to what the editor made of its application while it
-      // started, until the two agree, checking before each request that this
-      // start is still the one PLAY runs: a request sent in the same turn as
-      // that check reaches the worker before anything that ends this run.
-      // Controls from then on go to the game as they come, in order.
-      let workerPaused = false;
+      // The game starts in the state the editor made of its application
+      // while PLAY started. Whatever the editor does while the worker starts
+      // it is brought across once it answers, until the two agree, checking
+      // before each request that this start is still the one PLAY runs: a
+      // request sent in the same turn as that check reaches the worker before
+      // anything that ends this run. Controls from then on go to the game as
+      // they come, in order.
+      let workerPaused = app.paused;
+      const seconds = play.stepped;
+      play.stepped = 0;
+      play.startSent = true;
+      await link.request(StartPlayMessage.type, {
+        run: play.run!,
+        paused: workerPaused,
+        seconds,
+      });
       for (;;) {
         if (!current()) {
           return false;
@@ -2132,16 +2162,23 @@ export class GamePlayerController {
     // A teardown supersedes any pending compile-driven restart; without this
     // the timer fires after STOP and silently resurrects the game.
     this.cancelScheduledRestart();
+    const plays = this._plays;
     if (this._game) {
       this._game.destroy();
       this._game = undefined;
     }
     await this.endWorkerPlay();
     await this.detachWorkerPreview();
-    if (this._app) {
-      await this._app.initializing;
-      this._app.destroy(true);
-      this._app = undefined;
+    // A PLAY begun while this waited owns the application now.
+    const app = this._app;
+    if (app && plays === this._plays) {
+      await app.initializing;
+      if (plays === this._plays) {
+        app.destroy(true);
+        if (this._app === app) {
+          this._app = undefined;
+        }
+      }
     }
     this.updateLaunchStateIcon();
   }
@@ -2191,10 +2228,16 @@ export class GamePlayerController {
     },
   ) {
     this._stops += 1;
+    const plays = this._plays;
     // Read before the game goes; PLAY in the worker answers it as it stops.
     const lastExecutedLocation = this._game
       ? this._game.getLastExecutedDocumentLocation()
       : await this.endWorkerPlay();
+    if (plays !== this._plays) {
+      // The author pressed PLAY again while the worker stopped the old run:
+      // the new run is theirs, and this STOP is over.
+      return;
+    }
     await this.destroyGameAndApp();
     this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));

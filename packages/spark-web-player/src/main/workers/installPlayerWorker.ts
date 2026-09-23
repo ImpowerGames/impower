@@ -699,7 +699,17 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (StartPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        runningAs(message.params.run).game.start();
+        const { run, paused, seconds } = message.params;
+        const { game } = runningAs(run);
+        // Before its first frame, as a game on the page is paused before it
+        // starts.
+        if (paused) {
+          game.pause();
+        }
+        game.start();
+        if (seconds) {
+          game.skip(seconds);
+        }
         return {};
       });
       return;
