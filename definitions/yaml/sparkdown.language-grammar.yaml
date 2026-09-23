@@ -159,17 +159,21 @@ variables:
   COMMENT_START: (?:[-][-])
   # A `>` that stands alone between spaces or line edges. `\>`, `->`, `>>`
   # and `>=` are not breaks, because a non-space touches the `>`. A `..` that
-  # touches the `>` and ends the line (`>..`) joins the next line after the
+  # touches the `>` and ends the line (`A >..`) joins the next line after the
   # break.
-  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}|[.][.]{{WS}}*$))
+  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}|[.][.]{{GLUE_END}}))
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
   # A `..` that ends its line joins the next line onto it. Anything but a dot
   # may touch it (`A..`), so `Wait...` stays an ellipsis. Tags and a `//`
   # comment may follow it.
-  GLUE: (?:(?<![.])[.][.](?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}}))))
-  # A `..` that begins a line. It joins nothing: the compiler reports it.
-  LEADING_GLUE: (?:[.][.](?=$|{{WS}}))
+  GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
+  # What may follow a line-ending `..`: spaces, then the end of the line, tags
+  # or a `//` comment.
+  GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})))
+  # A `..` that begins a line. It joins nothing: the compiler reports it. A
+  # third dot makes it an ellipsis (`...and then`).
+  LEADING_GLUE: (?:[.][.](?![.]))
   # The `..` that opens and closes an inline alternator mid-line
   # (`.. queue|a|b ..`).
   ALTERNATOR_GLUE: (?:(?<=^|{{WS}})[.][.](?=$|{{WS}}))

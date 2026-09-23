@@ -155,7 +155,12 @@ function buildDisplayCalls(
       divertTail.objects.every(
         (obj) => obj instanceof Divert || obj instanceof TunnelOnwards,
       );
-    const loadArgs = lineType === "action" ? stripLoadKeyword(body) : null;
+    // A `load` line stays a directive when the line before it ends with `..`.
+    const loadArgs =
+      lineType === "action" ||
+      (isContinuation && ACTION_STATEMENTS.has(parent.name))
+        ? stripLoadKeyword(body)
+        : null;
     if (loadArgs) {
       // Everything after `load` names assets, so a `..` ending the line joins
       // nothing onto it.
@@ -229,16 +234,21 @@ function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
 // Resolve each `..` that ends a body line in place, joining the next body line
 // onto it inside the captured `text` string. The spaces written before the
 // marker stay and all the whitespace after it, the line break included, is
-// dropped. Only a Text neighbour holds whitespace; an interpolation or other
-// neighbour is left as it is.
+// dropped, across however many Text pieces it spans (the spaces before a
+// line's `# tag` are a piece of their own). Only a Text neighbour holds
+// whitespace; an interpolation or other neighbour is left as it is.
 function joinMidBodyGlue(body: ParsedObject[]): void {
   for (let i = body.length - 1; i >= 0; i--) {
     if (!(body[i] instanceof ParsedGlue)) continue;
-    const next = body[i + 1];
-    if (next instanceof Text) {
-      body[i + 1] = new Text(next.text.replace(/^[ \t\n]+/, ""));
-    }
     body.splice(i, 1);
+    while (body[i] instanceof Text) {
+      const rest = (body[i] as Text).text.replace(/^[ \t\n]+/, "");
+      if (rest) {
+        body[i] = new Text(rest);
+        break;
+      }
+      body.splice(i, 1);
+    }
   }
 }
 
@@ -885,26 +895,78 @@ function leadingGlue(node: SyntaxNode): SyntaxNode | null {
   return (begin && getDescendent("LeadingGlue", begin)) ?? null;
 }
 
-// Whether nothing but whitespace stands before `node` on its source line. The
-// grammar reads a `..` after a top-level interpolation (`{x} ..`) as an inline
-// action that begins with `..`; with the interpolation before it on the line,
-// that `..` ends the line instead.
+// Whether nothing but whitespace stands before `node` on its source line.
 function startsItsLine(node: SyntaxNode, ctx: LowerContext): boolean {
   const column = ctx.characterNumber(node.from);
   return !ctx.read(node.from - column, node.from).trim();
 }
 
-// An inline action that is only a `..` ending a line that something else began
-// (`{x} ..`).
-function isTrailingGlueAction(node: SyntaxNode, ctx: LowerContext): boolean {
-  if (node.name !== "InlineAction") return false;
-  const glue = leadingGlue(node);
-  return (
-    glue != null &&
-    !startsItsLine(node, ctx) &&
-    !ctx.read(glue.to, node.to).trim()
-  );
+// The marks that end a line a top-level interpolation began. The grammar reads
+// what follows the interpolation on its line as an action of its own, so in
+// `{x} ..`, `{x} >`, `{x} >..` or `{x} .. # tag` the action holds only the
+// marks (a `..` there parses as one that begins an inline action). The
+// interpolation's call carries them: `pause` for a `>`, `open` for a `..`, the
+// line's tags, and `spaces`, the spaces the join keeps (those written after the
+// `>`, or before the `..` when there is no `>`).
+interface LineEndMarks {
+  pause: boolean;
+  open: boolean;
+  spaces: string;
+  tags: SyntaxNode[];
 }
+
+function lineEndMarks(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): LineEndMarks | null {
+  if (node.name !== "InlineAction" && node.name !== "ImplicitAction") {
+    return null;
+  }
+  let prev = node.prevSibling;
+  while (prev && ADJACENT_WHITESPACE.has(prev.name)) prev = prev.prevSibling;
+  if (
+    !prev ||
+    (prev.name !== "LuauInterpolatedStringExpression" &&
+      prev.name !== "LuauFunctionCallShorthand") ||
+    startsItsLine(node, ctx)
+  ) {
+    return null;
+  }
+  const marks: LineEndMarks = { pause: false, open: false, spaces: "", tags: [] };
+  let pos = node.from;
+  let spacesFrom = prev.to;
+  for (const injection of collectTopLevelInjections(node, node.from, node.to)) {
+    if (ctx.read(pos, injection.from).trim()) return null;
+    if (injection.kind === "break") {
+      marks.pause = true;
+      const written = ctx.read(injection.from, injection.to);
+      spacesFrom = injection.from + written.lastIndexOf(">") + 1;
+    } else if (injection.kind === "glue" || injection.kind === "leadingGlue") {
+      marks.open = true;
+      marks.spaces = ctx.read(spacesFrom, injection.from);
+    } else if (injection.kind === "tag") {
+      marks.tags.push(injection.node);
+    } else if (injection.kind !== "comment") {
+      return null;
+    }
+    pos = Math.max(pos, injection.to);
+  }
+  if (ctx.read(pos, node.to).trim()) return null;
+  return marks.pause || marks.open ? marks : null;
+}
+
+const ACTION_STATEMENTS: ReadonlySet<string> = nodeNameSet([
+  "ImplicitAction",
+  "InlineAction",
+  "BlockAction",
+]);
+
+const ADJACENT_WHITESPACE: ReadonlySet<string> = nodeNameSet([
+  "Whitespace",
+  "ExtraWhitespace",
+  "RequiredWhitespace",
+  "OptionalWhitespace",
+]);
 
 const LEADING_GLUE_MESSAGE =
   "A line cannot begin with `..`. End the previous line with `..` to join them.";
@@ -1024,6 +1086,8 @@ const GLUE_SKIP_SIBLINGS: ReadonlySet<string> = nodeNameSet([
   "RequiredWhitespace",
   "TrailingWhitespace",
   "SparkdownLineComment",
+  "SparkdownInlineComment",
+  "Tags",
 ]);
 
 // True when the immediately-preceding top-level sibling construct ends with a
@@ -1045,11 +1109,12 @@ function isNodePrecededByTrailingGlue(
   return endsWithTrailingGlue(sib, ctx);
 }
 
-// True when `node`'s last visible content is a `..` glue marker — i.e. the
-// right-most `Glue` descendant ends exactly at the node's trailing-whitespace-
-// trimmed end. Mid-construct glues (followed by more text) don't count.
+// True when `node`'s last line ends with a `..` glue marker: nothing but
+// spaces, tags or a `//` comment follows its right-most `Glue` descendant. A
+// `..` that ends an earlier body line of a block is followed by more lines, so
+// it does not count.
 function endsWithTrailingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
-  if (isTrailingGlueAction(node, ctx)) return true;
+  if (lineEndMarks(node, ctx)?.open) return true;
   const text = ctx.read(node.from, node.to);
   // A `..` ending a `load` line is reported, and the line after it stands on
   // its own.
@@ -1059,14 +1124,8 @@ function endsWithTrailingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
   ) {
     return false;
   }
-  const trimmed = text.replace(/\s+$/, "");
-  // Fast reject before the subtree walk: a trailing glue's last visible
-  // characters are always `..`. Most display lines don't end that way, so this
-  // skips the walk for them. (`...` ellipsis also passes this cheap check but
-  // is rejected below — it isn't a `Glue` node, so no descendant ends at
-  // `trimmedEnd`.)
-  if (!trimmed.endsWith("..")) return false;
-  const trimmedEnd = node.from + trimmed.length;
+  // Fast reject before the subtree walk: most display lines hold no `..`.
+  if (!text.includes("..")) return false;
   let lastGlueEnd = -1;
   const visit = (n: SyntaxNode): void => {
     if (n.name === "Glue" && n.to > lastGlueEnd) lastGlueEnd = n.to;
@@ -1077,7 +1136,10 @@ function endsWithTrailingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
     }
   };
   visit(node);
-  return lastGlueEnd === trimmedEnd;
+  return (
+    lastGlueEnd >= 0 &&
+    /^[ \t]*(?:(?:#|\/\/)[^\n]*)?\s*$/.test(ctx.read(lastGlueEnd, node.to))
+  );
 }
 
 // For block forms, the body spans every line after the first newline. The
@@ -1128,6 +1190,8 @@ export function lowerImplicitAction(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
+  // The interpolation before it on its line lowers these marks.
+  if (lineEndMarks(nodeRef.node, ctx)) return {};
   // Trailing-glue continuation (this line glued onto by the previous line's
   // `..`) is detected centrally in `buildDisplayContent`.
   return wrapInWeave(
@@ -1183,16 +1247,14 @@ export function lowerLuauInterpolatedStringExpression(
     }
   }
   if (body.length === 0) return {};
-  // A `..` ending the line (`{x} ..`) holds it open for the next line.
+  // The marks that end the line (`{x} ..`, `{x} >..`) ride this call.
   let after = last.nextSibling;
-  while (after && GLUE_SKIP_SIBLINGS.has(after.name) && after.name !== "Newline") {
-    after = after.nextSibling;
-  }
-  const open = after != null && isTrailingGlueAction(after, ctx);
-  if (open) {
-    // The join keeps the spaces written before the mark.
-    const spaces = ctx.read(last.to, leadingGlue(after!)!.from);
-    if (spaces) body.push(new Text(spaces));
+  while (after && ADJACENT_WHITESPACE.has(after.name)) after = after.nextSibling;
+  const marks = after ? lineEndMarks(after, ctx) : null;
+  if (marks?.spaces) body.push(new Text(marks.spaces));
+  const tagObjects: ParsedObject[] = [];
+  for (const tagsNode of marks?.tags ?? []) {
+    appendDisplayTags(tagsNode, ctx, tagObjects);
   }
   return wrapInWeave([
     buildDisplayCall(
@@ -1201,8 +1263,8 @@ export function lowerLuauInterpolatedStringExpression(
       body,
       { from: nodeRef.node.from, to: last.to },
       ctx,
-      [],
-      { open },
+      separateTags(tagObjects).tags,
+      { pause: marks?.pause, open: marks?.open },
     ),
   ]);
 }
@@ -1245,8 +1307,8 @@ export function lowerInlineAction(
 ): CompiledBlock {
   const { from, to } = extractInlineBodyRange(nodeRef);
   const glue = leadingGlue(nodeRef.node);
-  // The line before it on its line lowers the join (`{x} ..`).
-  if (isTrailingGlueAction(nodeRef.node, ctx)) return {};
+  // The interpolation before it on its line lowers these marks (`{x} ..`).
+  if (lineEndMarks(nodeRef.node, ctx)) return {};
   if (glue) {
     reportLeadingGlue(glue, ctx);
     // A bare `..` line has nothing left to show.

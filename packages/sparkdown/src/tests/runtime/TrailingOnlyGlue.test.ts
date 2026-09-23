@@ -1,7 +1,8 @@
 // A `..` joins lines only from the end of a line. The join keeps the spaces
 // written before the mark and drops the spaces after it, so `A ..` then `B`
 // shows "A B" and `A..` then `B` shows "AB". A `>..` or `> ..` ending a line
-// is a click inside the joined beat. Every join lowers to a display call whose
+// is a break that the next line joins, and the break's table carries `pause`.
+// Every join lowers to a display call whose
 // table carries `open`, which writes no newline, so no `Glue` object is
 // emitted. A line that begins with `..` is an error that names the fix.
 
@@ -212,6 +213,76 @@ describe("a trailing `..` joins the next line", () => {
     expect(texts(ctx.story)).toEqual(["You have 3 coins.\n", "After.\n"]);
   });
 
+  test("an interpolation line that ends with marks and a tag or comment", () => {
+    for (const [source, joined, pause] of [
+      [`{3} .. # tag\nB\n`, "3 B\n", false],
+      [`{3} .. // note\nB\n`, "3 B\n", false],
+      [`{3} >..\nB\n`, "3B\n", true],
+      [`{3} > ..\nB\n`, "3 B\n", true],
+      [`{3} >.. # tag\nB\n`, "3B\n", true],
+    ] as const) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(texts(ctx.story)).toEqual([joined]);
+      const again = makeRuntimeStoryFromSource(source);
+      again.story.Continue();
+      expect(flags(again.story, "pause")).toEqual([pause, false]);
+    }
+  });
+
+  test("a tag or comment after the mark keeps the next line a continuation", () => {
+    for (const source of [
+      `HERO: A .. # note\nB > C\n`,
+      `HERO: A .. // note\nB > C\n`,
+      `A .. # note\nB\n`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      const out = steps(ctx.story);
+      expect(out[0]![1][1]).toEqual({});
+      if (source.startsWith("HERO")) {
+        expect(out).toEqual([
+          ["A B\n", [{ target: "dialogue", character: "HERO" }, {}]],
+          ["C\n", [{ target: "dialogue", character: "HERO" }]],
+        ]);
+      }
+    }
+  });
+
+  test("a tag after the mark keeps a block body's join", () => {
+    for (const block of [`ALICE:`, `:`]) {
+      const ctx = makeRuntimeStoryFromSource(
+        `${block}\n  Hello .. # marker\n  world.\n`,
+      );
+      expect(ctx.errorMessages).toEqual([]);
+      expect(texts(ctx.story)).toEqual(["Hello world.\n"]);
+    }
+  });
+
+  test("a tag or comment after `>..` keeps the break", () => {
+    for (const source of [`A >.. # tag\nB\n`, `A >.. // note\nB\n`]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      ctx.story.Continue();
+      expect(flags(ctx.story, "pause")).toEqual([true, false]);
+      const again = makeRuntimeStoryFromSource(source);
+      expect(texts(again.story)).toEqual(["AB\n"]);
+    }
+  });
+
+  test("a `load` line after a line that ends with `..` stays a directive", () => {
+    const ctx = makeRuntimeStoryFromSource(`A ..\nload overworld\nB\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    ctx.story.Continue();
+    expect(
+      ctx.story.currentDisplayInstructions.map(
+        (table) =>
+          (table.value?.get("load") as { value?: unknown } | undefined)?.value,
+      ),
+    ).toEqual([undefined, "overworld"]);
+    expect(texts(ctx.story)).toEqual(["B\n"]);
+  });
+
   test("an ellipsis and a mid-line `..` stay text", () => {
     const ctx = makeRuntimeStoryFromSource(`Wait...\na..b\nHi ...\nB\n`);
     expect(ctx.errorMessages).toEqual([]);
@@ -248,6 +319,23 @@ describe("a line that begins with `..` is an error", () => {
     ]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(texts(ctx.story)).toEqual(["A\n", "B\n"]);
+  });
+
+  test("a line that begins with a touching `..`", () => {
+    for (const source of [`A\n..B\n`, `ALICE:\n  A\n  ..B\n`]) {
+      const inBlock = source.startsWith("ALICE:");
+      const line = inBlock ? 2 : 1;
+      const character = inBlock ? 2 : 0;
+      expect(errorsOf(source)).toEqual([
+        {
+          message: LEADING_GLUE_ERROR,
+          start: { line, character },
+          end: { line, character: character + 2 },
+        },
+      ]);
+    }
+    const ctx = makeRuntimeStoryFromSource(`A\n..B\n...and then.\n`);
+    expect(texts(ctx.story)).toEqual(["A\n", "B\n", "...and then.\n"]);
   });
 
   test("a bare `..` line", () => {
@@ -321,6 +409,40 @@ end
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One", "Two"]);
     expect(ctx.story.canContinue).toBe(false);
     expect(ctx.story.variablesState.$("x")).toBe(1);
+  });
+
+  // An external call is not safe to run ahead of a line's newline, so without
+  // the caption running on, the caption would complete a step of its own and
+  // the choices would come from the next continue.
+  test("runs through an external call to its choices", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `external ring()
+
+choose
+  ALICE: Pick one.
+  & ring()
+  * One
+  * Two
+end
+`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    let rings = 0;
+    ctx.story.BindExternalFunction("ring", () => {
+      rings++;
+    });
+    expect(ctx.story.Continue()).toBe("Pick one.");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One", "Two"]);
+    expect(rings).toBe(1);
+  });
+
+  test("a caption line followed by a conditional closes its own line", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `choose\n  Pick.\n  if true then\n    Also.\n  end\n  * One\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.\n");
+    expect(ctx.story.currentChoices).toEqual([]);
   });
 
   test("only the last display statement before the first choice runs on", () => {

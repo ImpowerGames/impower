@@ -135,20 +135,16 @@ export function buildOrderedDisplayCall(
   return finishCall(entries, [], null, ctx);
 }
 
-// Mark the last `display` call among `objects` `open`, so the step runs on
-// past it. Returns false when none of them is a display call.
-export function openLastDisplayCall(objects: ParsedObject[]): boolean {
-  for (let i = objects.length - 1; i >= 0; i--) {
-    const call = objects[i];
-    if (!(call instanceof FunctionCall) || call.name !== "display") continue;
-    const table = call.args[0];
-    if (!(table instanceof ObjectExpression)) continue;
-    if (!table.entries.some((entry) => entry.key === "open")) {
-      table.addEntry(flagEntry("open"));
-    }
-    return true;
+// Mark `call` `open` when it is a `display` call, so the step runs on past it.
+// Returns whether it is one.
+export function openDisplayCall(call: ParsedObject): boolean {
+  if (!(call instanceof FunctionCall) || call.name !== "display") return false;
+  const table = call.args[0];
+  if (!(table instanceof ObjectExpression)) return false;
+  if (!table.entries.some((entry) => entry.key === "open")) {
+    table.addEntry(flagEntry("open"));
   }
-  return false;
+  return true;
 }
 
 function flagEntry(flag: string): ObjectExpressionEntry {
@@ -183,8 +179,8 @@ export function separateTags(objects: ParsedObject[]): {
 
 // `display({ load })`: the interpreter queues the names as a load beat of its
 // own. The names are a captured string, so they may interpolate. `tags` are as
-// for {@link buildDisplayCall}, and so is `open`: a `load` line that ends with
-// `..` takes the next line's words as more names.
+// for {@link buildDisplayCall}, and so is `open`, which a `load` line with a
+// plain divert after it carries so the divert's first line joins the step.
 export function buildLoadCall(
   args: ParsedObject[],
   range: { from: number; to: number } | null,

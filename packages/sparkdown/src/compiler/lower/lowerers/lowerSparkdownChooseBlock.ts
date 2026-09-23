@@ -1,16 +1,23 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Choice } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
+import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
+import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
+import { Glue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
+import { Sequence } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Sequence/Sequence";
+import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
+import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
+import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lower, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
-import { openLastDisplayCall } from "../utils/displayCall";
+import { openDisplayCall } from "../utils/displayCall";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lowers a `choose ... [then [(label)] ...] end` block — sparkdown's
@@ -71,11 +78,7 @@ export function lowerSparkdownChooseBlock(
       continue;
     }
     if (child.name === "Choice") {
-      // The display statements before the first choice are the block's
-      // caption. The last of them writes no newline, so its step runs on
-      // through the logic between it and the choices and completes with the
-      // caption and the choices together.
-      if (!sawChoice) openLastDisplayCall(weaveContent);
+      if (!sawChoice) openCaption(weaveContent);
       sawChoice = true;
       currentChoice = null;
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
@@ -152,6 +155,34 @@ export function lowerSparkdownChooseBlock(
 interface MutableCtx {
   chooseDepth?: number;
 }
+
+// The display statements before a block's first choice are its caption. The
+// last of them writes no newline, so its step runs on through the logic
+// between it and the choices and completes with the caption and the choices
+// together; earlier caption lines are steps of their own. Only logic may stand
+// between that line and the first choice: past a conditional, an alternator,
+// a divert or text, which line shows last is not known here, so the caption
+// closes its line as usual.
+function openCaption(items: ParsedObject[]): void {
+  for (let i = items.length - 1; i >= 0; i--) {
+    const item = items[i]!;
+    if (openDisplayCall(item)) return;
+    if (CAPTION_BARRIERS.some((type) => item instanceof type)) return;
+  }
+}
+
+const CAPTION_BARRIERS = [
+  Conditional,
+  Sequence,
+  Weave,
+  Divert,
+  TunnelOnwards,
+  Text,
+  Tag,
+  Glue,
+  Gather,
+  Choice,
+];
 
 function buildGatherFromThenClause(
   thenClause: SyntaxNode,

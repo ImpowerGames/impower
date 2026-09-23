@@ -179,7 +179,7 @@ describe("display statements", () => {
     );
     expect(step!.text).toBe("We hurried home to Savile Row.\n");
     expect(step!.tables).toEqual([
-      { target: "action", text: "We hurried home to " },
+      { target: "action", text: "We hurried home to ", open: true },
       { target: "action", text: "Savile Row." },
     ]);
   });
@@ -359,7 +359,7 @@ describe("producers outside display statements", () => {
     );
     expect(run[1]!.text).toBe("Take it now.\n");
     expect(run[1]!.tables).toEqual([
-      { text: "Take it " },
+      { text: "Take it ", open: true },
       { target: "action", text: "now." },
     ]);
   });

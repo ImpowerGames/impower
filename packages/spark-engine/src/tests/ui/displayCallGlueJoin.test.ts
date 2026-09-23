@@ -84,13 +84,19 @@ describe("display() glue join", () => {
     ]);
   });
 
-  test("a touching `>..` clicks inside the joined beat", async () => {
+  // The break's table carries `pause` (pinned in the runtime tests); the
+  // player shows the joined beat without stopping inside it, so this beat reads
+  // as the plain join does.
+  test("a touching `>..` joins the next line into one beat", async () => {
     expect(await beats(`  Abso >..\n  lutely.\n  After.`)).toEqual([
       { target: "action", text: "Absolutely." },
       { target: "action", text: "After." },
     ]);
   });
 
+  // The same beat the look-ahead produced before captions ran on: a parity
+  // check. The runtime tests pin what changed underneath, a caption step that
+  // runs through an external call to its choices.
   test("a choose block's caption shows with its choices", async () => {
     const harness = createHarness(
       story(`  choose\n    HERO: Pick one.\n    * One\n    * Two\n  end`),
