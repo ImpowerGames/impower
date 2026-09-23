@@ -3,6 +3,7 @@ import {
   EditorSelection,
   EditorState,
   Facet,
+  Transaction,
 } from "@codemirror/state";
 import {
   drawSelection,
@@ -54,14 +55,95 @@ const VELOCITY_BOOST = 1.2;
 const TRACKING_WINDOW_MS = 100;
 const MS_PER_FRAME = 16.66; // 16.66ms is roughly 1 frame at 60fps.
 
+const DOUBLE_TAP_INTERVAL = 300;
+const DOUBLE_TAP_SLOP = 24;
+
+// The previous tap, for recognising a double tap.
+let lastTap: { time: number; x: number; y: number; focused: boolean } | null =
+  null;
+
+/** Whether the on-screen keyboard is showing: it shrinks the visual viewport
+ *  below the window's height. */
+const isKeyboardOpen = () => {
+  const vv = window.visualViewport;
+  return vv != null && window.innerHeight - vv.height > 0;
+};
+
+/**
+ * Focuses the editor so that the on-screen keyboard shows. Focusing an editor
+ * that already has focus does not bring back a keyboard the user dismissed
+ * with Back, so that case refocuses it.
+ */
+const focusWithKeyboard = (view: EditorView) => {
+  if (!view.hasFocus) {
+    view.focus();
+  } else if (!isKeyboardOpen()) {
+    view.contentDOM.blur();
+    view.focus();
+  }
+};
+
+/**
+ * The word under the client point (x, y), where `pos` is the position
+ * `posAtCoords` found for it, or null when the point is on blank space: above
+ * or below the text, past the end of a line, on an empty line, or between
+ * words. `wordAt` alone also returns a word that merely starts or ends at
+ * `pos`.
+ *
+ * Vertically, the point must be inside the line's own box. That box is the
+ * whole line, every wrapped row and the space between its glyphs and the next
+ * line, so a press just below a word's glyphs is still on the word; outside
+ * the text, `posAtCoords` returns the document's start or end, whose line box
+ * the point is not in. Horizontally, only the word's edges are checked, on
+ * the row where each edge is drawn: a point inside a word is over it.
+ */
+const wordAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
+  const line = view.lineBlockAt(pos);
+  const lineTop = view.documentTop + line.top;
+  if (y < lineTop || y > lineTop + line.height) return null;
+  const word = view.state.wordAt(pos);
+  if (!word) return null;
+  if (pos === word.to) {
+    const end = view.coordsAtPos(word.to, -1);
+    if (!end || x > end.right) return null;
+  }
+  if (pos === word.from) {
+    const start = view.coordsAtPos(word.from, 1);
+    if (!start || x < start.left) return null;
+  }
+  return word;
+};
+
+/**
+ * Selects the word under the point, or places the caret when there is none,
+ * and opens the menu for the result: the full menu for a word, the insertion
+ * menu for a caret.
+ */
+const selectAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
+  const config = view.state.facet(touchInputHandlerConfig);
+  const word = wordAtPoint(view, pos, x, y);
+  const selection = word
+    ? EditorSelection.range(word.from, word.to)
+    : EditorSelection.cursor(pos);
+  focusWithKeyboard(view);
+  view.dispatch({
+    selection,
+    scrollIntoView: false,
+    userEvent: "select.touch",
+  });
+  config.showContextMenu?.(view, { pos: selection.from, end: selection.to });
+  return selection;
+};
+
+// A scroll brings back only the menu it hid.
 const finishScroll = (view: EditorView) => {
   if (wasShowingContextMenuBeforeScroll) {
+    wasShowingContextMenuBeforeScroll = false;
     const selection = view.state.selection.main;
     const config = view.state.facet(touchInputHandlerConfig);
     config.showContextMenu?.(view, {
       pos: selection.from,
       end: selection.to,
-      above: true,
     });
   }
 };
@@ -145,7 +227,29 @@ const selectionHandleTheme = EditorView.baseTheme({
       transform: "translate(-30%, -30%)",
     },
   },
+  ".cm-touch-selection-handle.cm-touch-selection-handle-inert": {
+    pointerEvents: "none",
+    "&::after": {
+      pointerEvents: "none",
+    },
+  },
 });
+
+/**
+ * Makes the selection handles transparent to touch while a touch that began
+ * in the text is down. A long-press can draw a handle under the finger, and
+ * Chrome's own long-press gesture, which still runs on a touch whose
+ * touchstart was prevented, hit-tests what is under the finger when it fires:
+ * on a handle, which is not editable, it takes focus from the editor and the
+ * keyboard closes.
+ */
+const setHandlesInert = (view: EditorView, inert: boolean) => {
+  for (const handle of view.dom.querySelectorAll(
+    ".cm-touch-selection-handle",
+  )) {
+    handle.classList.toggle("cm-touch-selection-handle-inert", inert);
+  }
+};
 
 const selectionHandlePlugin = ViewPlugin.fromClass(
   class {
@@ -154,6 +258,12 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
     cursorHandle: HTMLElement;
     view: EditorView;
     isSelecting = false;
+    // Whether the current selection shows handles. A selection made by touch
+    // (a `select.touch` user event, which the touch menu's items also use)
+    // does; one made any other way does not.
+    // Scrolling keeps the choice, so a handle that scrolled out of view comes
+    // back with its text.
+    showsHandles = false;
 
     constructor(view: EditorView) {
       this.view = view;
@@ -244,7 +354,6 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
           config.showContextMenu?.(this.view, {
             pos: from,
             end: to,
-            above: true,
           });
         }, 10);
       });
@@ -256,11 +365,23 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
     }
 
     attachCursorHandleListeners(handle: HTMLElement) {
+      // A tap on the caret handle toggles the insertion menu, as on Android;
+      // a drag moves the caret.
+      let menuWasOpen = false;
+      let moved = false;
+      let handleStartX = 0;
+      let handleStartY = 0;
+
       handle.addEventListener("touchstart", (e) => {
         if (this.isSelecting) return;
         e.preventDefault();
         e.stopPropagation();
+        const touch = e.touches[0];
+        handleStartX = touch?.clientX ?? 0;
+        handleStartY = touch?.clientY ?? 0;
+        moved = false;
         const config = this.view.state.facet(touchInputHandlerConfig);
+        menuWasOpen = config.isContextMenuOpen?.(this.view) ?? false;
         config.hideContextMenu?.(this.view);
       });
 
@@ -271,6 +392,13 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
 
         e.preventDefault();
         e.stopPropagation();
+
+        if (
+          Math.abs(touch.clientX - handleStartX) > SCROLL_THRESHOLD ||
+          Math.abs(touch.clientY - handleStartY) > SCROLL_THRESHOLD
+        ) {
+          moved = true;
+        }
 
         const pos = this.view.posAtCoords(
           {
@@ -294,6 +422,11 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
         if (this.isSelecting) return;
         e.preventDefault();
         e.stopPropagation();
+        if (!moved && !menuWasOpen) {
+          const head = this.view.state.selection.main.head;
+          const config = this.view.state.facet(touchInputHandlerConfig);
+          config.showContextMenu?.(this.view, { pos: head, end: head });
+        }
       });
 
       handle.addEventListener("touchcancel", (e) => {
@@ -322,13 +455,12 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
             return null;
           }
 
-          const isProgrammaticSelection =
-            update?.selectionSet &&
-            !update?.transactions.some((tr) => tr.isUserEvent("select.touch"));
-
           const isTouchSelection =
             update?.selectionSet &&
-            update?.transactions.some((tr) => tr.isUserEvent("select.touch"));
+            update.transactions.some((tr) => tr.isUserEvent("select.touch"));
+
+          const isProgrammaticSelection =
+            update?.selectionSet && !isTouchSelection;
 
           const sel = state.selection.main;
           const editorRect = view.dom.getBoundingClientRect();
@@ -364,6 +496,11 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
         },
         write: (measure) => {
           if (!measure || measure.isProgrammaticSelection) {
+            this.showsHandles = false;
+          } else if (measure.isTouchSelection) {
+            this.showsHandles = true;
+          }
+          if (!measure || !this.showsHandles) {
             this.startHandle.style.display = "none";
             this.endHandle.style.display = "none";
             this.cursorHandle.style.display = "none";
@@ -378,9 +515,7 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
               | undefined,
           ) => {
             if (info && info.visible) {
-              if (measure.isTouchSelection) {
-                el.style.display = "block";
-              }
+              el.style.display = "block";
               el.style.left = `${info.left}px`;
               el.style.top = `${info.top}px`;
             } else {
@@ -421,13 +556,14 @@ const touchEventsPlugin = ViewPlugin.fromClass(
   class {
     view: EditorView;
 
-    lastKeyboardHeight = 0;
-
     constructor(view: EditorView) {
       this.view = view;
       this.bind();
     }
 
+    // Closing the keyboard (Back, or a swipe) leaves focus and the selection
+    // alone, as it does natively; the next tap in the text brings the
+    // keyboard back through focusWithKeyboard.
     bind() {
       this.view.scrollDOM.addEventListener("touchstart", this.onTouchStart, {
         passive: false,
@@ -441,14 +577,14 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       this.view.scrollDOM.addEventListener("touchcancel", this.onTouchCancel, {
         passive: false,
       });
-      window.visualViewport?.addEventListener(
-        "resize",
-        this.onVisualViewportUpdate,
-      );
-      window.visualViewport?.addEventListener(
-        "scroll",
-        this.onVisualViewportUpdate,
-      );
+      document.addEventListener("selectstart", this.onSelectStart, true);
+      for (const type of ["touchstart", "touchend", "touchcancel"] as const) {
+        this.view.dom.addEventListener(type, this.onViewTouch, {
+          capture: true,
+          passive: true,
+        });
+      }
+      this.view.contentDOM.addEventListener("focusout", this.onFocusOut);
     }
 
     unbind() {
@@ -459,40 +595,69 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         "touchcancel",
         this.onTouchCancel,
       );
-      window.visualViewport?.removeEventListener(
-        "resize",
-        this.onVisualViewportUpdate,
-      );
-      window.visualViewport?.removeEventListener(
-        "scroll",
-        this.onVisualViewportUpdate,
-      );
+      document.removeEventListener("selectstart", this.onSelectStart, true);
+      for (const type of ["touchstart", "touchend", "touchcancel"] as const) {
+        this.view.dom.removeEventListener(type, this.onViewTouch, {
+          capture: true,
+        });
+      }
+      this.view.contentDOM.removeEventListener("focusout", this.onFocusOut);
     }
 
-    onVisualViewportUpdate = () => {
-      const config = this.view.state.facet(touchInputHandlerConfig);
+    // Chrome still runs its own long-press gesture on a touch whose
+    // touchstart was prevented, on whatever is under the finger when it
+    // fires. Once the keyboard has opened and shrunk the editor, that can be
+    // the page below it, the menu or a selection handle, and what the gesture
+    // does there takes focus from the editor and closes the keyboard. While a
+    // touch that began in the text is down, text selection elsewhere is
+    // cancelled and the handles let the gesture through to the text.
+    isTouching = false;
 
-      if (!config.isTouchEnvironment()) {
+    setTouching(touching: boolean) {
+      this.isTouching = touching;
+      setHandlesInert(this.view, touching);
+    }
+
+    onSelectStart = (event: Event) => {
+      if (this.isTouching) {
+        event.preventDefault();
+      }
+    };
+
+    // The same gesture also fires on a press-and-hold that begins on a
+    // selection handle or the menu, which have their own touch listeners
+    // outside the text. Nothing a touch on the editor does is meant to take
+    // focus to nowhere, so while such a touch is down, an editor that had
+    // focus when it began takes focus back.
+    touchesOnView = 0;
+    focusedAtTouch = false;
+
+    onViewTouch = (event: TouchEvent) => {
+      if (event.type === "touchstart" && this.touchesOnView === 0) {
+        this.focusedAtTouch = this.view.hasFocus;
+      }
+      this.touchesOnView = event.touches.length;
+    };
+
+    onFocusOut = (event: FocusEvent) => {
+      const next = event.relatedTarget;
+      if (
+        this.touchesOnView === 0 ||
+        !this.focusedAtTouch ||
+        (next instanceof Node && this.view.dom.contains(next))
+      ) {
         return;
       }
-
-      const vv = window.visualViewport;
-      if (!vv) return;
-
-      // Measure keyboard height
-      const keyboardHeight = window.innerHeight - vv.height;
-
-      if (keyboardHeight < this.lastKeyboardHeight) {
-        // Is closing keyboard, so unfocus editor
-        this.view.contentDOM.blur();
-      }
-
-      this.lastKeyboardHeight = keyboardHeight;
+      queueMicrotask(() => {
+        if (!this.view.hasFocus) this.view.focus();
+      });
     };
 
     onTouchStart = (event: TouchEvent) => {
       event.preventDefault();
       event.stopPropagation();
+
+      this.setTouching(true);
 
       stoppedMomentum = rafId !== null;
 
@@ -528,27 +693,10 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       longPressTimer = setTimeout(() => {
         if (isScrolling) return;
 
-        const config = this.view.state.facet(touchInputHandlerConfig);
-
-        const word = this.view.state.wordAt(pos);
-        selectionAnchor = word ? word.from : pos;
-        selectionHead = word ? word.to : pos;
-
-        const selection = EditorSelection.range(selectionAnchor, selectionHead);
-
-        if (!this.view.hasFocus) this.view.focus();
-
-        this.view.dispatch({
-          selection,
-          scrollIntoView: false,
-          userEvent: "select.touch",
-        });
-
-        config.showContextMenu?.(this.view, {
-          pos: selection.from,
-          end: selection.to,
-          above: true,
-        });
+        const selection = selectAtPoint(this.view, pos, startX, startY);
+        selectionAnchor = selection.anchor;
+        selectionHead = selection.head;
+        lastTap = null;
 
         isLongPressing = true;
       }, LONG_PRESS_DURATION);
@@ -582,6 +730,8 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         ) {
           isScrolling = true;
           clearTimeout(longPressTimer);
+          // A drag between two taps makes them two single taps.
+          lastTap = null;
         }
 
         if (isScrolling) {
@@ -636,6 +786,8 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       event.preventDefault();
       event.stopPropagation();
 
+      this.setTouching(event.touches.length > 0);
+
       clearTimeout(longPressTimer);
 
       const config = this.view.state.facet(touchInputHandlerConfig);
@@ -682,7 +834,6 @@ const touchEventsPlugin = ViewPlugin.fromClass(
           config.showContextMenu?.(this.view, {
             pos: selection.from,
             end: selection.to,
-            above: true,
           });
         }
       } else if (
@@ -695,12 +846,36 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         config.hideContextMenu?.(this.view);
         const tapPos = touchStartPos;
         if (tapPos != null) {
-          if (!this.view.hasFocus) this.view.focus();
-          this.view.dispatch({
-            selection: { anchor: tapPos },
-            scrollIntoView: false,
-            userEvent: "select.touch",
-          });
+          // A second tap on a word selects it, as a long-press does, when the
+          // editor had focus for the first tap. A double tap that focuses the
+          // editor only places the caret.
+          const now = performance.now();
+          const isDoubleTap =
+            lastTap != null &&
+            lastTap.focused &&
+            now - lastTap.time <= DOUBLE_TAP_INTERVAL &&
+            Math.abs(startX - lastTap.x) <= DOUBLE_TAP_SLOP &&
+            Math.abs(startY - lastTap.y) <= DOUBLE_TAP_SLOP;
+          if (
+            isDoubleTap &&
+            wordAtPoint(this.view, tapPos, startX, startY) != null
+          ) {
+            selectAtPoint(this.view, tapPos, startX, startY);
+            lastTap = null;
+          } else {
+            focusWithKeyboard(this.view);
+            this.view.dispatch({
+              selection: { anchor: tapPos },
+              scrollIntoView: false,
+              userEvent: "select.touch",
+            });
+            lastTap = {
+              time: now,
+              x: startX,
+              y: startY,
+              focused: startedFocused,
+            };
+          }
         }
       }
 
@@ -713,9 +888,13 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       selectionHead = null;
     };
 
-    onTouchCancel = () => {
+    onTouchCancel = (event: TouchEvent) => {
+      this.setTouching(event.touches.length > 0);
       clearTimeout(longPressTimer);
       stopMomentum(this.view);
+      if (isScrolling) {
+        finishScroll(this.view);
+      }
       isScrolling = false;
       isLongPressing = false;
       isDragging = false;
@@ -725,8 +904,37 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       selectionHead = null;
     };
 
+    // An edit the user makes closes the menu; one hidden by a scroll that is
+    // still coasting stays closed when the scroll stops.
+    update(update: ViewUpdate) {
+      if (
+        update.docChanged &&
+        update.transactions.some((tr) => tr.annotation(Transaction.userEvent))
+      ) {
+        wasShowingContextMenuBeforeScroll = false;
+      }
+    }
+
+    // The gesture state lives at module scope. Destroying the view stops the
+    // pending long-press timer and momentum frame, and clears the state a
+    // later view could read before its own first touch overwrites it.
     destroy() {
       this.unbind();
+      clearTimeout(longPressTimer);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      velocityY = 0;
+      wasShowingContextMenuBeforeScroll = false;
+      isScrolling = false;
+      isLongPressing = false;
+      isDragging = false;
+      touchStartPos = null;
+      touchEndPos = null;
+      selectionAnchor = null;
+      selectionHead = null;
+      lastTap = null;
     }
   },
 );
@@ -734,7 +942,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
 export interface TouchInputHandlerOptions {
   showContextMenu?: (
     view: EditorView,
-    spec: { pos: number; end?: number; above?: boolean },
+    spec: { pos: number; end?: number },
   ) => void;
   hideContextMenu?: (view: EditorView) => void;
   isContextMenuOpen?: (view: EditorView) => boolean;
@@ -785,12 +993,6 @@ export function touchInputHandler(options: TouchInputHandlerOptions = {}) {
       touchmove: () => true,
       touchend: () => true,
       touchcancel: () => true,
-      focus: (_e, view) => {
-        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate();
-      },
-      blur: (_e, view) => {
-        view.plugin(touchEventsPlugin)?.onVisualViewportUpdate();
-      },
     }),
   ];
 }
