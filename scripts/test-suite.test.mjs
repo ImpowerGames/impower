@@ -282,6 +282,23 @@ delete process.env.HOLD_MS;
 for (const deadline = Date.now() + 5000; fs.existsSync(guardFile) && Date.now() < deadline;) await new Promise(r => setTimeout(r, 20));
 assert.equal(read(path.join(lockRoot, "reservation.json")).phase, "exited", "an unreleased reservation stays recoverable");
 fs.unlinkSync(path.join(lockRoot, "reservation.json"));
+const { releaseKeeping } = await import("./test-suite-process.mjs");
+const unreleasable = { release() { throw new Error("guard still held"); } };
+const cause = new Error("Vitest processes still present: 1234");
+assert.throws(() => { releaseKeeping(unreleasable, cause); throw cause; }, /still present: 1234/, "an error-path release failure never replaces the error in hand");
+
+// A store the process may not write is refused with its location, whether the
+// denial comes from creating the directory or from opening the guard.
+const deny = (name, code) => {
+  const original = fs[name];
+  fs[name] = () => { const error = new Error(`${code}: operation not permitted`); error.code = code; throw error; };
+  try { assert.throws(() => acquire("sandboxed", { root: path.join(lockRoot, "denied"), census: () => [] }),
+    /Reservation store not writable at .*denied \((EPERM|EACCES)\).*cannot run Vitest here/, `${name} ${code}`); }
+  finally { fs[name] = original; }
+};
+deny("openSync", "EPERM");
+deny("openSync", "EACCES");
+deny("mkdirSync", "EACCES");
 console.log("PASS: a held reservation guard delays release and never replaces the Vitest result");
 const busy = acquire("busy", { root: lockRoot, census: () => [] });
 await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }), /Existing suite running/);

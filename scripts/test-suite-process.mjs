@@ -71,7 +71,11 @@ export function reservationState(record, identify = processIdentity) {
 // file operations, so a held guard is retried until `waitMs` passes. An
 // abandoned guard requires inspection; it is never guessed away.
 function guarded(root, action, waitMs = guardWaitMs) {
-  fs.mkdirSync(root, { recursive: true });
+  const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
+    ? new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`)
+    : null;
+  try { fs.mkdirSync(root, { recursive: true }); }
+  catch (error) { throw denied(error) || error; }
   const guard = path.join(root, "guard.json");
   const deadline = Date.now() + waitMs;
   let fd;
@@ -79,8 +83,7 @@ function guarded(root, action, waitMs = guardWaitMs) {
     try { fd = fs.openSync(guard, "wx"); break; }
     catch (error) {
       if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
-      if (error.code === "EPERM" || error.code === "EACCES") throw new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`);
-      throw new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`);
+      throw denied(error) || new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`);
     }
   }
   try {
@@ -124,6 +127,13 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
   }, waitMs);
 }
 
+// Release on an error path: the error being handled stays the one thrown, and
+// a release failure beside it is reported rather than replacing it.
+export function releaseKeeping(reservation, cause) {
+  try { reservation.release(); }
+  catch (error) { console.error(`Reservation not released after ${cause.message}; the next acquirer recovers it: ${error.message}`); }
+}
+
 // A sleep never runs past the deadline, so the last attempt happens at it.
 const pause = (ms, deadline) => new Promise(resolve => setTimeout(resolve, Math.max(0, Math.min(ms, deadline - Date.now()))));
 
@@ -143,7 +153,7 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, census = 
     }
   }
   try { await waitForCensus({ deadline, pollMs, census, onWait }); }
-  catch (error) { reservation.release(); throw error; }
+  catch (error) { releaseKeeping(reservation, error); throw error; }
   return reservation;
 }
 
