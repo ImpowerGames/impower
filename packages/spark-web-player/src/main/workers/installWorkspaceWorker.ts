@@ -17,6 +17,15 @@ import {
   planPreviewHint,
   type PreviewHintState,
 } from "../utils/previewHint";
+import { ConfigurePlayerWorkerMessage } from "./messages/ConfigurePlayerWorkerMessage";
+import { PreviewHintMessage } from "./messages/PreviewHintMessage";
+import {
+  ProgramForPlayMessage,
+  type ProgramForPlayResult,
+} from "./messages/ProgramForPlayMessage";
+import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
+import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
+import { WorkerGameLink } from "./WorkerGameLink";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
 const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
@@ -27,9 +36,76 @@ export function installWorkspaceWorker(connection: MessageConnection) {
   // a beat (the editor re-selects on every column change) asks for nothing.
   let lastHint: PreviewHintState | undefined;
 
-  class SparkdownGameWorkspace extends SparkdownWorkspace {
+  class SparkdownGameWorkspace
+    extends SparkdownWorkspace
+    implements WorkerDisplayWorkspace
+  {
+    /** The stopped preview is displayed from the worker's game
+     *  (`installPlayerWorker`). Set by the `workerDisplaysPreview` field of
+     *  the initialization options, which an author never sets. */
+    workerDisplaysPreview = false;
+
+    readonly gameLink: WorkerGameLink;
+
     constructor(profilerId?: string) {
       super(WORKSPACE_INLINE_WORKER_STRING, profilerId);
+      this.gameLink = new WorkerGameLink(this._compilerChannelConnection);
+      this._compilerChannelConnection.addEventListener("message", (e) => {
+        const message = e.data;
+        if (PreviewHintMessage.type.isNotification(message)) {
+          try {
+            applyPreviewHint(cache, message.params);
+          } catch (e) {
+            // A hint is an optimization; it must never take anything down.
+            console.warn("Could not prefetch the selected scene's images:", e);
+          }
+        }
+      });
+    }
+
+    override initialize(
+      params: Parameters<SparkdownWorkspace["initialize"]>[0],
+    ) {
+      const options = params.initializationOptions as
+        | (NonNullable<typeof params.initializationOptions> & {
+            workerDisplaysPreview?: boolean;
+          })
+        | undefined;
+      if (options) {
+        const { workerDisplaysPreview, ...compilerOptions } = options;
+        this.workerDisplaysPreview = workerDisplaysPreview === true;
+        params = { ...params, initializationOptions: compilerOptions };
+      }
+      // Ahead of everything the initialization sends the compiler, which
+      // handles its messages in order.
+      this._compilerChannelConnection
+        .sendRequest(ConfigurePlayerWorkerMessage.type, {
+          workerDisplaysPreview: this.workerDisplaysPreview,
+        })
+        .catch(console.error);
+      return super.initialize(params);
+    }
+
+    async programForPlay(
+      program: string,
+      startFrom: { file: string; line: number } | undefined,
+    ): Promise<ProgramForPlayResult> {
+      await this.compilerReady();
+      const result = await this._compilerChannelConnection.sendRequest(
+        ProgramForPlayMessage.type,
+        { program, startFrom },
+      );
+      if (result.program) {
+        this._programTransport.decode(result.program);
+      }
+      return result;
+    }
+
+    async programHeld(program: string): Promise<void> {
+      await this._compilerChannelConnection.sendRequest(
+        ProgramHeldMessage.type,
+        { program },
+      );
     }
 
     override sendRequest<P, M extends string, R>(
@@ -125,6 +201,11 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       textDocument: { uri: string };
       selectedRange: { start: { line: number } };
     }) {
+      if (this.workerDisplaysPreview) {
+        // The worker holds the program and sends the warm-up itself
+        // (`PreviewHintMessage`).
+        return;
+      }
       try {
         const uri = params.textDocument?.uri ?? "";
         const program = this.program(uri);

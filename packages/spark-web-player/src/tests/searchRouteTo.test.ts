@@ -4,6 +4,10 @@
 // for an autocomplete suggestion (#634) is replayed in a program the author
 // has not written, so nothing it takes may be kept: the real program's next
 // route, and PLAY, must go exactly where they would have gone without it.
+//
+// Both switch positions (#680) are covered: a game built from the compiled
+// bytecode, and one built over the compiler's own story with nothing emitted,
+// as the player's worker routes when it displays the preview.
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { describe, expect, test } from "vitest";
@@ -24,16 +28,22 @@ const SOURCE = [
   "",
 ].join("\n");
 
-function routeToLeft() {
+function routeToLeft(workerDisplays: boolean) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: SOURCE, version: 1, languageId: "sparkdown" },
     ],
+    emitCompiledProgram: !workerDisplays,
   } as never);
+  let story: unknown;
+  compiler.addEventListener("compiler/didCompile", (params) => {
+    story = params.story;
+  });
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   const game = new Game({
     program,
+    story: workerDisplays ? story : undefined,
     now: () => 0,
     setTimeout: ((fn: Function) => {
       fn();
@@ -47,35 +57,37 @@ function routeToLeft() {
   return { game, toPath: game.startPath! };
 }
 
-describe("a route search", () => {
-  test("for the real program remembers the choices its route took", () => {
-    const { game, toPath } = routeToLeft();
-    const config: { simulationOptions?: Record<string, any> } = {};
-    const log = new RouteSearchLog();
+for (const workerDisplays of [false, true]) {
+  describe(`a route search (${workerDisplays ? "over the compiler's story" : "over the compiled bytecode"})`, () => {
+    test("for the real program remembers the choices its route took", () => {
+      const { game, toPath } = routeToLeft(workerDisplays);
+      const config: { simulationOptions?: Record<string, any> } = {};
+      const log = new RouteSearchLog();
 
-    const checkpoint = searchRouteTo(game, toPath, log, { config });
+      const checkpoint = searchRouteTo(game, toPath, log, { config });
 
-    expect(checkpoint).toBeTruthy();
-    expect(log.last).toMatchObject({ path: toPath, reachedTarget: true });
-    const favored = Object.values(config.simulationOptions ?? {});
-    expect(favored).toHaveLength(1);
-    expect(favored[0].favoredChoices).toHaveLength(1);
-  });
-
-  test("for a suggestion remembers nothing, and still answers", () => {
-    const { game, toPath } = routeToLeft();
-    const config: { simulationOptions?: Record<string, any> } = {};
-    const real = new RouteSearchLog();
-    const suggestion = new RouteSearchLog();
-
-    const checkpoint = searchRouteTo(game, toPath, suggestion, {
-      config,
-      remember: false,
+      expect(checkpoint).toBeTruthy();
+      expect(log.last).toMatchObject({ path: toPath, reachedTarget: true });
+      const favored = Object.values(config.simulationOptions ?? {});
+      expect(favored).toHaveLength(1);
+      expect(favored[0].favoredChoices).toHaveLength(1);
     });
 
-    expect(checkpoint).toBeTruthy();
-    expect(suggestion.last).toMatchObject({ path: toPath, reachedTarget: true });
-    expect(config.simulationOptions).toBeUndefined();
-    expect(real.last).toBeNull();
+    test("for a suggestion remembers nothing, and still answers", () => {
+      const { game, toPath } = routeToLeft(workerDisplays);
+      const config: { simulationOptions?: Record<string, any> } = {};
+      const real = new RouteSearchLog();
+      const suggestion = new RouteSearchLog();
+
+      const checkpoint = searchRouteTo(game, toPath, suggestion, {
+        config,
+        remember: false,
+      });
+
+      expect(checkpoint).toBeTruthy();
+      expect(suggestion.last).toMatchObject({ path: toPath, reachedTarget: true });
+      expect(config.simulationOptions).toBeUndefined();
+      expect(real.last).toBeNull();
+    });
   });
-});
+}

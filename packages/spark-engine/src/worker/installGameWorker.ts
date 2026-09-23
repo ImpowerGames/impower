@@ -1,4 +1,6 @@
 import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
@@ -33,6 +35,7 @@ import { StepGameClockMessage } from "../game/core/classes/messages/StepGameCloc
 import { StepGameMessage } from "../game/core/classes/messages/StepGameMessage";
 import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMessage";
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
+import type { GameConfiguration } from "../game/core/types/GameConfiguration";
 import type { SystemConfiguration } from "../game/core/types/SystemConfiguration";
 import { sharedNow } from "../game/core/utils/sharedClock";
 
@@ -46,8 +49,13 @@ export function installGameWorker(connection: MessageConnection) {
 
   const systemConfiguration: SystemConfiguration = {
     now: sharedNow,
-    setTimeout: self.setTimeout,
-    requestFrame: self.requestAnimationFrame,
+    // Called as methods of this configuration, which a browser refuses for
+    // the global's own functions ("Illegal invocation"), so each is called
+    // on the global here.
+    setTimeout: (handler: Function, timeout?: number, ...args: any[]) =>
+      self.setTimeout(handler as TimerHandler, timeout, ...args),
+    requestFrame: (callback: FrameRequestCallback) =>
+      self.requestAnimationFrame(callback),
     resolve: (path: string) => {
       // TODO: resolve import and load paths to url
       return path;
@@ -71,8 +79,45 @@ export function installGameWorker(connection: MessageConnection) {
     },
   };
 
-  const state: { systemConfiguration: SystemConfiguration; game?: Game } = {
+  // What the editor last asked of the debugger, which every game built here
+  // starts with. Until there is a game, a setter records the request and
+  // resolves no breakpoint: only a game's program can say where one lands,
+  // as a host that owns its game answers with none before it has one.
+  const pending: {
+    debugging?: boolean;
+    breakpoints?: { file: string; line: number }[];
+    functionBreakpoints?: { name: string }[];
+    dataBreakpoints?: { dataId: string }[];
+  } = {};
+
+  /** Build a game for this worker to hold, with its system configuration
+   *  and with what the editor has asked of the debugger so far, as a host
+   *  that owns its game gives each game it builds the same settings. Every
+   *  game this worker holds is built here. */
+  const createGame = (
+    options: { program: SparkProgram; story?: Story } & GameConfiguration,
+  ): Game => {
+    const game = new Game({
+      ...systemConfiguration,
+      ...options,
+      breakpoints: options.breakpoints ?? pending.breakpoints,
+      functionBreakpoints:
+        options.functionBreakpoints ?? pending.functionBreakpoints,
+      dataBreakpoints: options.dataBreakpoints ?? pending.dataBreakpoints,
+    });
+    if (pending.debugging) {
+      game.startDebugging();
+    }
+    return game;
+  };
+
+  const state: {
+    systemConfiguration: SystemConfiguration;
+    game?: Game;
+    createGame: typeof createGame;
+  } = {
     systemConfiguration,
+    createGame,
   };
 
   connection.addEventListener("message", (e: MessageEvent) => {
@@ -104,7 +149,7 @@ export function installGameWorker(connection: MessageConnection) {
         if (state.game) {
           state.game.destroy();
         }
-        state.game = new Game({ program, ...systemConfiguration, ...options });
+        state.game = createGame({ program, ...options });
         return {
           simulatePath: state.game.simulatePath,
           startPath: state.game.startPath,
@@ -228,20 +273,16 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (EnableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
-        state.game.startDebugging();
+        pending.debugging = true;
+        state.game?.startDebugging();
         return {};
       });
       return;
     }
     if (DisableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
-        state.game.stopDebugging();
+        pending.debugging = false;
+        state.game?.stopDebugging();
         return {};
       });
       return;
@@ -249,21 +290,21 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameBreakpointsMessage.type.isRequest(message)) {
       const { breakpoints } = message.params;
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
-        return { breakpoints: state.game.setBreakpoints(breakpoints) };
+        pending.breakpoints = breakpoints;
+        return {
+          breakpoints: state.game ? state.game.setBreakpoints(breakpoints) : [],
+        };
       });
       return;
     }
     if (SetGameDataBreakpointsMessage.type.isRequest(message)) {
       const { dataBreakpoints } = message.params;
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
+        pending.dataBreakpoints = dataBreakpoints;
         return {
-          dataBreakpoints: state.game.setDataBreakpoints(dataBreakpoints),
+          dataBreakpoints: state.game
+            ? state.game.setDataBreakpoints(dataBreakpoints)
+            : [],
         };
       });
       return;
@@ -271,12 +312,11 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameFunctionBreakpointsMessage.type.isRequest(message)) {
       const { functionBreakpoints } = message.params;
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
+        pending.functionBreakpoints = functionBreakpoints;
         return {
-          functionBreakpoints:
-            state.game.setFunctionBreakpoints(functionBreakpoints),
+          functionBreakpoints: state.game
+            ? state.game.setFunctionBreakpoints(functionBreakpoints)
+            : [],
         };
       });
       return;

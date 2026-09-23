@@ -155,22 +155,25 @@ function installWAAPIStub(win: any) {
   }
 }
 
-export function createDOMHarness(
-  source: string,
-  startLine = 0,
-  opts?: {
-    reactive?: boolean;
-    autoOpenAll?: boolean;
-    /** Load a saved checkpoint before the connect, as the page does when it
-     *  displays a preview from the worker's route. */
-    loadCheckpoint?: string;
-  },
-): DOMHarness {
-  const program = compile(source);
+/** The globals `installJSDOM` points at its window. */
+const GLOBALS = [
+  "window",
+  "document",
+  "HTMLElement",
+  "HTMLInputElement",
+  "HTMLSelectElement",
+  "Element",
+  "Node",
+  "Animation",
+  "KeyframeEffect",
+  "FontFace",
+  "CSS",
+];
 
-  // Fresh jsdom per harness for isolation. Bind its globals (document,
-  // Animation, KeyframeEffect, …) so the consumer's `document.createElement`
-  // and AnimationPlayer resolve.
+/** A fresh jsdom, with its globals (document, Animation, KeyframeEffect, …)
+ *  bound so the consumer's `document.createElement` and AnimationPlayer
+ *  resolve, and the overlay the managers render into. */
+export function installJSDOM() {
   // jsdom can't parse `@container`/`@media` in the engine-generated stylesheet
   // text (it still stores the textContent, which is what we snapshot); mute the
   // "Could not parse CSS stylesheet" jsdomError so it doesn't spam the output.
@@ -183,6 +186,7 @@ export function createDOMHarness(
   const win = dom.window as any;
   installWAAPIStub(win);
   const g = globalThis as any;
+  const previous = new Map(GLOBALS.map((name) => [name, g[name]]));
   g.window = win;
   g.document = win.document;
   g.HTMLElement = win.HTMLElement;
@@ -198,8 +202,91 @@ export function createDOMHarness(
   g.KeyframeEffect = win.KeyframeEffect;
   g.FontFace = win.FontFace ?? class {};
   g.CSS = win.CSS;
-
   const overlay = win.document.getElementById("overlay") as HTMLElement;
+  /** Put back every global this replaced, so a later test file run in the
+   *  same process sees its own environment's. */
+  const restore = () => {
+    for (const [name, value] of previous) {
+      g[name] = value;
+    }
+  };
+  return { win, overlay, restore };
+}
+
+/** An image that loads on the next microtask, like a cached response, so the
+ *  engine's asset gates settle without a network. With `hold`, a load waits
+ *  until `hold` says the src may finish. */
+export function createFakeImage(
+  hold?: (src: string) => Promise<void> | undefined,
+): ImageTarget {
+  const target: ImageTarget = {
+    src: "",
+    onload: null,
+    onerror: null,
+    naturalWidth: 10,
+    naturalHeight: 10,
+  };
+  let src = "";
+  Object.defineProperty(target, "src", {
+    get: () => src,
+    set: (value: string) => {
+      src = value;
+      const held = hold?.(value);
+      if (held) {
+        held.then(() => target.onload?.call(target, {}));
+      } else {
+        queueMicrotask(() => target.onload?.call(target, {}));
+      }
+    },
+  });
+  return target;
+}
+
+/** The slice of an `Application` the page's managers use: the overlay, the
+ *  way back to the game, an asset cache and an audio graph with nothing to
+ *  play. */
+export function createStubApp(
+  overlay: HTMLElement,
+  emit: (message: any) => void,
+  createImage: () => ImageTarget = () => createFakeImage(),
+): any {
+  return {
+    overlay,
+    emit,
+    assetCache: new AssetCache({ createImage }),
+    // The game's clock reads 0 here, so a beat's shared-clock stamp maps to
+    // the start of the document timeline.
+    audioClock: new AudioClock(0, () => 0),
+    audio: {
+      decodeAudioBuffer: async () => null,
+      playingKeys: () => [],
+    },
+  };
+}
+
+/** This harness has no audio graph or world: it answers their requests as a
+ *  page with nothing to play would, so the game does not wait on them. */
+export class SilentPageManager extends Manager {
+  override async onReceiveRequest(msg: RequestMessage) {
+    return msg.method.startsWith("audio/") || msg.method.startsWith("world/")
+      ? { result: null }
+      : undefined;
+  }
+}
+
+export function createDOMHarness(
+  source: string,
+  startLine = 0,
+  opts?: {
+    reactive?: boolean;
+    autoOpenAll?: boolean;
+    /** Load a saved checkpoint before the connect, as the page does when it
+     *  displays a preview from the worker's route. */
+    loadCheckpoint?: string;
+  },
+): DOMHarness {
+  const program = compile(source);
+  const { overlay } = installJSDOM();
 
   // Timers armed with a real delay (an asset gate's timeout, the loading
   // layout's minimum display) are held for `flushTimers()`; zero-delay timers
@@ -243,41 +330,9 @@ export function createDOMHarness(
   // `emit` is the renderer→engine path: when a real DOM event fires on an
   // observed element, UIManager calls `app.emit(EventMessage...)`; we route it
   // straight back into the engine so click→advance round-trips end to end.
-  // Images "load" on the next microtask, like cached responses, so the
-  // engine's asset gates settle without a network.
-  const fakeImage = (): ImageTarget => {
-    const target: ImageTarget = {
-      src: "",
-      onload: null,
-      onerror: null,
-      naturalWidth: 10,
-      naturalHeight: 10,
-    };
-    let src = "";
-    Object.defineProperty(target, "src", {
-      get: () => src,
-      set: (value: string) => {
-        src = value;
-        queueMicrotask(() => target.onload?.call(target, {}));
-      },
-    });
-    return target;
-  };
-
-  const stubApp: any = {
-    overlay,
-    emit: (message: any) => {
-      game.connection.receive(cloneMessage(message));
-    },
-    assetCache: new AssetCache({ createImage: fakeImage }),
-    // The game's clock reads 0 here, so a beat's shared-clock stamp maps to
-    // the start of the document timeline.
-    audioClock: new AudioClock(0, () => 0),
-    audio: {
-      decodeAudioBuffer: async () => null,
-      playingKeys: () => [],
-    },
-  };
+  const stubApp = createStubApp(overlay, (message) => {
+    game.connection.receive(cloneMessage(message));
+  });
 
   // Swapped on rerender (buildApp makes a NEW manager per edit; the overlay DOM
   // persists across the swap).
@@ -285,16 +340,7 @@ export function createDOMHarness(
   // The asset side persists like the page's shared cache does.
   const assets = new AssetManager(stubApp);
   void assets.onInit();
-
-  // This harness has no audio graph or world: it answers their requests as a
-  // page with nothing to play would, so the game does not wait on them.
-  const silent = new (class extends Manager {
-    override async onReceiveRequest(msg: RequestMessage) {
-      return msg.method.startsWith("audio/") || msg.method.startsWith("world/")
-        ? { result: null }
-        : undefined;
-    }
-  })(stubApp);
+  const silent = new SilentPageManager(stubApp);
 
   // The engine's output reaches the real managers through the router
   // `Application` uses, which answers every request back to the CURRENT game.

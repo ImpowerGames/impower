@@ -5,6 +5,7 @@ import { InkObject } from "./Object";
 import { Pointer } from "./Pointer";
 import { Container } from "./Container";
 import { throwNullException } from "./NullException";
+import { activation } from "./StoryActivation";
 
 export class Divert extends InkObject {
   get targetPath() {
@@ -25,7 +26,12 @@ export class Divert extends InkObject {
   public _targetPath: Path | null = null;
 
   get targetPointer() {
-    if (this._targetPointer.isNull) {
+    if (
+      this._targetPointer.isNull ||
+      this._targetPointerEpoch !== activation.epoch
+    ) {
+      this._targetPointer = Pointer.Null;
+      this._targetPointerEpoch = activation.epoch;
       let targetObj = this.ResolvePath(this._targetPath).obj;
 
       if (this._targetPath === null)
@@ -49,6 +55,7 @@ export class Divert extends InkObject {
   }
 
   public _targetPointer: Pointer = Pointer.Null;
+  private _targetPointerEpoch = 0;
 
   get targetPathString() {
     if (this.targetPath == null) return null;

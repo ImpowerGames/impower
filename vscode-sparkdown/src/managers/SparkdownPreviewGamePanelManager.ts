@@ -344,6 +344,12 @@ export class SparkdownPreviewGamePanelManager {
         },
         skipValidation: true,
         uri: document?.uri.toString(),
+        // Whether the player's worker displays the stopped preview (#680).
+        // Deliberately not a contributed setting, so it is never offered to
+        // an author: a verification sets it in a workspace's settings.
+        workerDisplaysPreview:
+          sparkdownConfig.get<boolean>("internal.workerDisplaysPreview") ===
+          true,
         ...(editor ? this.getGameConfiguration(editor) : {}),
       },
       capabilities: {},

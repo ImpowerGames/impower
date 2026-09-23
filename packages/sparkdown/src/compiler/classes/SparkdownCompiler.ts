@@ -69,6 +69,9 @@ import {
   type ProgramTable,
 } from "../../binary/ProgramBinaryWriter";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { carriedRuntime } from "../../inkjs/compiler/Parser/ParsedHierarchy/CarriedRuntime";
+import { activation } from "../../inkjs/engine/StoryActivation";
+import { StoryJournal } from "./StoryJournal";
 import {
   asINamedContentOrNull,
   asOrNull,
@@ -841,6 +844,13 @@ export class SparkdownCompiler {
   // (still live in the checkpoint-builder Game) isn't left holding containers
   // whose parents were stolen by a discarded half-built tree.
   protected _reuseParentBackups?: Array<[Container, InkObject | null]>;
+  // The runtime stories kept runnable across later compiles, and the values
+  // each needs written back into the objects it shares with them.
+  protected _storyJournal = new StoryJournal();
+  protected _recordCarried = (container: Container) =>
+    this._storyJournal.recordCarried(container);
+  protected _recordParent = (obj: InkObject) =>
+    this._storyJournal.recordParent(obj);
   // Top-level flow names whose subtree was touched by a synthetic rename this
   // compile — their serialized-JSON cache entries must not be reused (the
   // cross-flow fingerprint records nothing for pure content, so a renamed
@@ -1199,6 +1209,58 @@ export class SparkdownCompiler {
     return !Object.entries(canonical.scripts).every(
       ([scriptUri, version]) => this.documents.get(scriptUri)?.version === version,
     );
+  }
+
+  /**
+   * Keep a runtime story this compiler produced runnable after later
+   * compiles, until `releaseStory`. Only the newest story, or one already
+   * kept, can be kept. A later compile carries the story's unchanged flows
+   * into its own and writes its values into them; `activateStory` writes the
+   * kept story's values back before it runs. Answers whether it is kept.
+   */
+  keepStory(story: RuntimeStory): boolean {
+    return this._storyJournal.keep(story);
+  }
+
+  releaseStory(story: RuntimeStory): void {
+    this._storyJournal.release(story);
+  }
+
+  /** Make a kept story, or the newest one, the one that runs. Nothing else
+   *  that shares its flows runs correctly until another is activated; the
+   *  next compile activates the newest story itself. */
+  activateStory(story: RuntimeStory): void {
+    this._storyJournal.activate(story);
+  }
+
+  /**
+   * The whole compiled program of `story`, the newest story or a kept one,
+   * whose compile produced `program`, for a host that runs it once, such as
+   * the player's PLAY. The newest compile's program is serialized through the
+   * incremental caches and keeps its serialization, as a no-change compile
+   * that asks for emission does. A kept earlier story is written afresh into a
+   * copy of its program, and the caches, which describe the newest story, are
+   * left alone. Leaves `story` the active one.
+   */
+  emitCompiledProgramOf(story: RuntimeStory, program: SparkProgram): SparkProgram {
+    this._storyJournal.activate(story);
+    if (program.compiled || program.compiledBuffer) {
+      return program;
+    }
+    const cached = this._lastCompileResult;
+    if (
+      story === this._storyJournal.latest &&
+      cached?.story === story &&
+      cached.program === program
+    ) {
+      this.serializeCompiledProgram(story, program, program.uri);
+      return program;
+    }
+    profile("start", this._profilerId, "ink/json", program.uri);
+    const writer = new SimpleJson.Writer();
+    story.ToJson(writer);
+    profile("end", this._profilerId, "ink/json", program.uri);
+    return { ...program, compiled: writer.toObject() ?? undefined };
   }
 
   selectDocument(params: SelectCompilerDocumentParams) {
@@ -1744,6 +1806,10 @@ export class SparkdownCompiler {
           this.documents.get(scriptUri)?.version === version,
       )
     ) {
+      // Whatever this serves or serializes is read from the newest story.
+      if (this._storyJournal.latest) {
+        this._storyJournal.activate(this._storyJournal.latest);
+      }
       cached.program.startFrom = startFrom ?? this._config.startFrom;
       // The cached program may have been built with emission suppressed. If
       // this request wants bytecode, serialize it now from the RETAINED story
@@ -1797,6 +1863,7 @@ export class SparkdownCompiler {
       scripts: { [uri]: this.documents.get(uri)?.version ?? -1 },
       files: {},
       version: this.documents.get(uri)?.version ?? -1,
+      filesEpoch: this._filesEpoch,
     };
 
     const state: SparkdownCompilerState = {};
@@ -2004,6 +2071,14 @@ export class SparkdownCompiler {
     this._reuseParentBackups = undefined;
     this._renamedFlowNames = undefined;
     this._censusEntries = [];
+    // The flows this compile carries are the newest story's, so they must
+    // hold its values; and a story kept runnable must get back the values
+    // this compile writes over.
+    this._storyJournal.beginCompile();
+    const recording = this._storyJournal.recording;
+    carriedRuntime.record = recording ? this._recordCarried : null;
+    activation.reparent = recording ? this._recordParent : null;
+    let producedStory: RuntimeStory | undefined;
 
     try {
       profile("start", this._profilerId, "ink/parse", uri);
@@ -2249,6 +2324,7 @@ export class SparkdownCompiler {
         // committed reuses) for the next compile's reuse decisions.
         this._prevFlowRuns = this._nextFlowRuns;
         profile("end", this._profilerId, "populateLocations", uri);
+        producedStory = story;
       }
     } catch (e) {
       compileThrew = true;
@@ -2294,6 +2370,13 @@ export class SparkdownCompiler {
       // hardest. Refuse them that compile rather than serve a flow whose
       // codegen may have moved under an undetectable name change.
       this._riskFlowShapeNextCompile = true;
+    }
+    carriedRuntime.record = null;
+    activation.reparent = null;
+    if (producedStory && !compileThrew) {
+      this._storyJournal.endCompile(producedStory);
+    } else {
+      this._storyJournal.abortCompile();
     }
 
     this.populateFiles(program);
@@ -2428,6 +2511,16 @@ export class SparkdownCompiler {
 
     const fileName = uri.split("/").at(-1)?.split(".")[0] ?? null;
 
+    // A chunk's debug metadata is shared by reference with the runtime objects
+    // built from it, in every story that holds them, so a story kept runnable
+    // gets back the position this compile writes over.
+    const restamp = (metadata: DebugMetadata, lineNumberOffset: number) => {
+      this._storyJournal.recordDebugMetadata(metadata);
+      this.offsetDebugMetadata(metadata, lineNumberOffset, version);
+      metadata.fileName = fileName;
+      metadata.filePath = uri;
+    };
+
     const remapContent = (
       content: ParsedObject[],
       lineNumberOffset: number,
@@ -2435,35 +2528,21 @@ export class SparkdownCompiler {
       for (const c of content) {
         c.ResetRuntime();
         if (c.debugMetadata) {
-          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset, version);
-          c.debugMetadata.fileName = fileName;
-          c.debugMetadata.filePath = uri;
+          restamp(c.debugMetadata, lineNumberOffset);
         }
         if (
           "identifier" in c &&
           c.identifier instanceof Identifier &&
           c.identifier?.debugMetadata
         ) {
-          this.offsetDebugMetadata(
-            c.identifier.debugMetadata,
-            lineNumberOffset,
-            version,
-          );
+          restamp(c.identifier.debugMetadata, lineNumberOffset);
           c.identifier.ResetRuntime();
-          c.identifier.debugMetadata.fileName = fileName;
-          c.identifier.debugMetadata.filePath = uri;
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
             if (p instanceof Identifier && p.debugMetadata) {
-              this.offsetDebugMetadata(
-                p.debugMetadata,
-                lineNumberOffset,
-                version,
-              );
+              restamp(p.debugMetadata, lineNumberOffset);
               p.ResetRuntime();
-              p.debugMetadata.fileName = fileName;
-              p.debugMetadata.filePath = uri;
             }
           }
         }
@@ -2481,33 +2560,19 @@ export class SparkdownCompiler {
     ) => {
       for (const c of content) {
         if (c.debugMetadata) {
-          this.offsetDebugMetadata(c.debugMetadata, lineNumberOffset, version);
-          c.debugMetadata.fileName = fileName;
-          c.debugMetadata.filePath = uri;
+          restamp(c.debugMetadata, lineNumberOffset);
         }
         if (
           "identifier" in c &&
           c.identifier instanceof Identifier &&
           c.identifier?.debugMetadata
         ) {
-          this.offsetDebugMetadata(
-            c.identifier.debugMetadata,
-            lineNumberOffset,
-            version,
-          );
-          c.identifier.debugMetadata.fileName = fileName;
-          c.identifier.debugMetadata.filePath = uri;
+          restamp(c.identifier.debugMetadata, lineNumberOffset);
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
             if (p instanceof Identifier && p.debugMetadata) {
-              this.offsetDebugMetadata(
-                p.debugMetadata,
-                lineNumberOffset,
-                version,
-              );
-              p.debugMetadata.fileName = fileName;
-              p.debugMetadata.filePath = uri;
+              restamp(p.debugMetadata, lineNumberOffset);
             }
           }
         }

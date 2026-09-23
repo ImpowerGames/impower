@@ -5,9 +5,13 @@ import { asOrNull, asINamedContentOrNull } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
 import { SearchResult } from "./SearchResult";
 import { DebugMetadata } from "./DebugMetadata";
+import { activation } from "./StoryActivation";
 
 export class InkObject {
   public parent: InkObject | null = null;
+
+  /** The compile generation this object was created in (`activation`). */
+  public readonly _birth: number = activation.generation;
 
   get debugMetadata(): DebugMetadata | null {
     if (this._debugMetadata === null) {
@@ -20,6 +24,14 @@ export class InkObject {
   }
 
   set debugMetadata(value) {
+    // A compile that records carried objects tells the recorder before it
+    // gives one new metadata, as it does before giving one a new parent.
+    if (activation.reparent !== null && value !== this._debugMetadata) {
+      activation.reparent(this);
+    }
+    if (value) {
+      value._heldAtRuntime = true;
+    }
     this._debugMetadata = value;
   }
 
@@ -48,7 +60,8 @@ export class InkObject {
   }
 
   get path() {
-    if (this._path == null) {
+    if (this._path == null || this._pathEpoch !== activation.epoch) {
+      this._pathEpoch = activation.epoch;
       if (this.parent == null) {
         this._path = new Path();
       } else {
@@ -78,6 +91,7 @@ export class InkObject {
     return this._path;
   }
   private _path: Path | null = null;
+  private _pathEpoch = 0;
 
   public ResolvePath(path: Path | null): SearchResult {
     if (path === null) return throwNullException("path");
@@ -186,7 +200,12 @@ export class InkObject {
 
     obj[prop] = value;
 
-    if (obj[prop]) obj[prop].parent = this;
+    if (obj[prop]) {
+      if (activation.reparent !== null && obj[prop].parent !== null) {
+        activation.reparent(obj[prop]);
+      }
+      obj[prop].parent = this;
+    }
   }
 
   public Equals(obj: any) {

@@ -29,6 +29,11 @@ export interface GameExecutedParams {
   simulation?: "none" | "simulating" | "success" | "fail";
   /** Only meaningful alongside `simulation: "fail"`, and always sent with it. */
   simulationFailure?: SimulationFailure;
+  /** Where `simulatePath` and `startPath` are in the script, alongside
+   *  `simulation: "fail"`, added by a host that holds the program for a page
+   *  that labels the failure but does not hold it. */
+  simulateLocation?: DocumentLocation;
+  startLocation?: DocumentLocation;
 }
 
 export class GameExecutedMessage {

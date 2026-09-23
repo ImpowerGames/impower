@@ -65,10 +65,28 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
   );
 };
 
+/** The game an application shows, as far as it reaches the game: everything
+ *  else between the page and the game is a message. */
+export interface GameEndpoint {
+  /** Start a new stream of the game's messages to `send`. */
+  connect(
+    send: (message: Message, transfer?: ArrayBuffer[]) => void,
+  ): Promise<void>;
+  /** Hand the game what the page answers or reports. */
+  receive(message: Message): void;
+  /** Advance a running game by one frame. A preview never ticks. */
+  update?(time: Clock): void;
+}
+
+/** A game on this page, as an application reaches it. */
+export const pageGameEndpoint = (game: Game): GameEndpoint => ({
+  connect: (send) => game.connect(send),
+  receive: (message) => game.connection.receive(message),
+  update: (time) => game.update(time),
+});
+
 export class Application implements IApplication {
-  /** Reached only through `connect`, `connection.receive` and `update`:
-   *  everything else between the page and the game is a message. */
-  protected _game: Game;
+  protected _game: GameEndpoint;
 
   protected _previewing: boolean;
 
@@ -218,7 +236,7 @@ export class Application implements IApplication {
   }
 
   constructor(
-    game: Game,
+    game: GameEndpoint,
     view: HTMLElement,
     overlay: HTMLElement,
     options: {
@@ -339,7 +357,6 @@ export class Application implements IApplication {
   }
 
   async connectGame() {
-    // TODO: application should bind to gameWorker.onmessage in order to receive messages emitted by worker
     await this._game.connect((msg: Message, _t?: ArrayBuffer[]) => {
       this._router.receive(msg);
     });
@@ -444,9 +461,7 @@ export class Application implements IApplication {
         this.sendAudioClock();
       }
       if (!this._paused) {
-        if (this._game) {
-          this._game.update(time);
-        }
+        this._game.update?.(time);
         for (const manager of this._managers) {
           manager.onUpdate(time);
         }
@@ -529,8 +544,7 @@ export class Application implements IApplication {
   }
 
   emit(message: Message, _transfer?: ArrayBuffer[]) {
-    // TODO: Call gameWorker.postMessage instead (worker should call game.connection.receive from self.onmessage)
-    this._game.connection.receive(message);
+    this._game.receive(message);
   }
 
   onPointerDownView = (event: PointerEvent): void => {

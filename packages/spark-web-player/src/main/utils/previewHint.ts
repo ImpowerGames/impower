@@ -164,7 +164,7 @@ export function planPreviewHint(
  *  the rest of the scene at 3. */
 export function applyPreviewHint(
   cache: PreviewHintCache,
-  plan: PreviewHintPlan,
+  plan: PreviewHintPlan | Omit<PreviewHintPlan, "state">,
 ): void {
   cache.hint(plan.cursor);
   if (plan.near.length > 0) {

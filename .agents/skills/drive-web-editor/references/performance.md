@@ -51,6 +51,8 @@ The run stops with `error` when the seed fails, the game never mounts, the playe
 
 `summary` gives min, median and max of `ms` and of each phase over the kept samples. `--json <file>` also writes the raw event log of every sample.
 
+`--worker-preview on` has the player's worker display the stopped preview (#680), and the report says which position it ran in (`workerPreview`). Compare the two positions in one sitting, alternating the runs. With the worker displaying, the page runs neither `game/updateProgram` nor `game/preview`, and the worker's own phases are not observable from the page; the Node benchmark below reports them.
+
 With `--edit`, each sample deletes the word, highlights a different suggestion, waits for its preview, and accepts it with Enter. `ms` then runs from the start of the `workspace compile` that the edit caused to the first state carrying a newer program with a position, which has to be the measured line, and `keyToPainted` runs from the Enter key, which includes the editor's hold on a typed change before it sends it. Its `phases` include the selection and document-update requests that come before that compile.
 
 ### In Node: the worker benchmark

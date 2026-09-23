@@ -1,4 +1,8 @@
 import { profile } from "../../utils/profile";
+import {
+  programIdentity,
+  type IdentifiableProgram,
+} from "../../utils/programIdentity";
 import type { RouteSearchLog, RouteSearchReportTarget } from "./RouteSearchLog";
 
 /** The selection a `compiler/didSelect` notification carries, as this decision
@@ -13,7 +17,7 @@ export interface SelectionForRoute extends RouteSearchReportTarget {
 /** The game, as far as this decision needs it. Structural so the decision can
  *  be exercised without building a real one. */
 export interface RoutableGame {
-  startFrom?: { file: string; line: number };
+  readonly program: IdentifiableProgram | undefined;
   readonly startPath: string | null | undefined;
   setStartFrom(
     startFrom: { file: string; line: number },
@@ -30,6 +34,35 @@ export interface PlanRouteForSelectionContext<G extends RoutableGame> {
   searchRouteTo(game: G, toPath: string): void;
   routeSearches: RouteSearchLog;
   profilerId: string | undefined;
+}
+
+/**
+ * Point `game` at the `beat` of the line `startFrom` names, in the program it
+ * holds, and replay the route there unless `log` already holds the search for
+ * that path in that program. Answers the path, which `log` describes after.
+ *
+ * The editor re-selects on every cursor move, including one that only moves
+ * the column, and a search already run for the path still describes it. The
+ * path and the program are what decide that, not the line: a line that `>`
+ * breaks resolves to one path for PLAY, which starts at its first beat, and to
+ * another for the preview, which shows its last (#721).
+ */
+export function routeGameTo<G extends RoutableGame>(
+  game: G,
+  startFrom: { file: string; line: number },
+  beat: "first" | "last",
+  log: RouteSearchLog,
+  search: (game: G, toPath: string) => void,
+  profilerId: string | undefined,
+): string | null | undefined {
+  profile("start", profilerId + " " + "game/setStartFrom");
+  game.setStartFrom(startFrom, beat);
+  profile("end", profilerId + " " + "game/setStartFrom");
+  const toPath = game.startPath;
+  if (toPath && !log.holds(toPath, programIdentity(game.program))) {
+    search(game, toPath);
+  }
+  return toPath;
 }
 
 /**
@@ -62,28 +95,19 @@ export function planRouteForSelection<G extends RoutableGame>(
     // its route against the program it produces.
     return;
   }
-  if (
-    newStartFrom.file !== game.startFrom?.file ||
-    newStartFrom.line !== game.startFrom?.line
-  ) {
-    profile("start", ctx.profilerId + " " + "game/setStartFrom");
-    // The route ends at the beat the preview shows: a line's last beat.
-    game.setStartFrom(newStartFrom, "last");
-    profile("end", ctx.profilerId + " " + "game/setStartFrom");
-    const toPath = game.startPath;
-    if (toPath) {
-      ctx.searchRouteTo(game, toPath);
-      // Augment with the simulated checkpoint, and with what the search
-      // established about this start point.
-      ctx.routeSearches.report(params, toPath);
-    }
-  } else {
-    // The start point did not move (the editor re-selects on every cursor
-    // change, including one that only moves the column), so the search already
-    // run for it still describes this selection — but only if it was run for
-    // THIS path. Nothing else here may be reused: the newest checkpoint in the
-    // store belongs to the last route that was replayed, which is a different
-    // line whenever the search since then found no route.
-    ctx.routeSearches.report(params, game.startPath);
-  }
+  // The route ends at the beat the preview shows: a line's last beat.
+  const toPath = routeGameTo(
+    game,
+    newStartFrom,
+    "last",
+    ctx.routeSearches,
+    ctx.searchRouteTo,
+    ctx.profilerId,
+  );
+  // Augment with the simulated checkpoint, and with what the search
+  // established about this start point. Nothing else here may be reported:
+  // the newest checkpoint in the store belongs to the last route that was
+  // replayed, which is a different line whenever the search since then found
+  // no route.
+  ctx.routeSearches.report(params, toPath);
 }
