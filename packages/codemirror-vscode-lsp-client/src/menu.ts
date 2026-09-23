@@ -513,13 +513,16 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             ? () => ({ left: x, right: x, top: y, bottom: y })
             : clip
               ? undefined
-              : () => {
+              : (from: number) => {
+                  // The tooltip view outlives edits that map the menu's
+                  // range, so the range comes from the current state.
+                  const to = view.state.field(contextMenuState, false)?.end;
                   const { width, height } = dom.getBoundingClientRect();
                   const viewport = visualViewportRect();
                   const { left, top } = origin
                     ? placeOverflowMenu(origin, { width, height }, viewport)
                     : placeSelectionMenu(
-                        visibleSelectionRect(view, pos, end ?? pos),
+                        visibleSelectionRect(view, from, to ?? from),
                         { width, height },
                         viewport,
                       );

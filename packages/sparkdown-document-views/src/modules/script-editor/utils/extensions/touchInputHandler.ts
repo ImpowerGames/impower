@@ -3,6 +3,7 @@ import {
   EditorSelection,
   EditorState,
   Facet,
+  Transaction,
 } from "@codemirror/state";
 import {
   drawSelection,
@@ -644,6 +645,8 @@ const touchEventsPlugin = ViewPlugin.fromClass(
         ) {
           isScrolling = true;
           clearTimeout(longPressTimer);
+          // A drag between two taps makes them two single taps.
+          lastTap = null;
         }
 
         if (isScrolling) {
@@ -816,8 +819,34 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       selectionHead = null;
     };
 
+    // An edit the user makes closes the menu; one hidden by a scroll that is
+    // still coasting stays closed when the scroll stops.
+    update(update: ViewUpdate) {
+      if (
+        update.docChanged &&
+        update.transactions.some((tr) => tr.annotation(Transaction.userEvent))
+      ) {
+        wasShowingContextMenuBeforeScroll = false;
+      }
+    }
+
+    // The gesture state lives at module scope; none of it outlives the view.
     destroy() {
       this.unbind();
+      clearTimeout(longPressTimer);
+      if (rafId) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+      velocityY = 0;
+      wasShowingContextMenuBeforeScroll = false;
+      isScrolling = false;
+      isLongPressing = false;
+      isDragging = false;
+      touchStartPos = null;
+      touchEndPos = null;
+      selectionAnchor = null;
+      selectionHead = null;
       lastTap = null;
     }
   },

@@ -310,8 +310,8 @@ describe("menu placement", () => {
 
   it("sits beside a caret at a soft wrap, on the line where the caret is drawn", () => {
     const v = mount(DOC, EditorSelection.single(30));
-    // Position 30 ends one visual line and starts the next, as at a soft
-    // wrap: its side before is on line 3, its side after on line 4.
+    // Position 30, inside line 2, is made a soft wrap: its side before is on
+    // line 2's row and its side after on the row below.
     const layout = v.coordsAtPos.bind(v);
     v.coordsAtPos = (pos: number, side = 1) => {
       if (pos !== 30) return layout(pos, side);
@@ -436,6 +436,17 @@ describe("closing the menu", () => {
     expect(isContextMenuOpen(v)).toBe(true);
   });
 
+  it("a change the user did not make keeps it beside its selection", () => {
+    const v = mount(DOC);
+    selectWord(v, 3, "world");
+    const before = menuBox();
+    // Text added to line 1 shifts every later offset by 20 without moving
+    // the selection off line 3; its old offsets now fall on line 2.
+    v.dispatch({ changes: { from: 0, insert: "x".repeat(20) } });
+    const after = menuBox();
+    expect(after.top).toBeCloseTo(before.top, 0);
+  });
+
   it("closing the keyboard keeps focus, the selection and the menu", () => {
     const v = mount(DOC);
     v.focus();
@@ -504,6 +515,20 @@ describe("touch gestures", () => {
     expect(isContextMenuOpen(v)).toBe(false);
   });
 
+  it("a drag between two taps makes them two single taps", () => {
+    const v = mount(DOC);
+    v.focus();
+    const point = pointAt(v, 3, "world");
+    tap(v, point);
+    // Sideways, so the drag leaves no momentum for the next tap to stop.
+    touch(v.scrollDOM, "touchstart", point);
+    touch(v.scrollDOM, "touchmove", { x: point.x + 50, y: point.y });
+    touch(v.scrollDOM, "touchend", { x: point.x + 50, y: point.y });
+    tap(v, point);
+    expect(v.state.selection.main.empty).toBe(true);
+    expect(isContextMenuOpen(v)).toBe(false);
+  });
+
   it("a tap on the caret handle opens the insertion menu, and a second tap closes it", () => {
     const v = mount(DOC);
     tap(v, pointAt(v, 3, "world"));
@@ -535,6 +560,47 @@ describe("touch gestures", () => {
       await new Promise((resolve) => requestAnimationFrame(resolve));
       expect(isContextMenuOpen(v)).toBe(false);
     }
+  });
+
+  it("typing during a scroll keeps the menu it hid closed", async () => {
+    const v = mount(DOC);
+    v.focus();
+    longPress(v, pointAt(v, 3, "world"));
+    expect(isContextMenuOpen(v)).toBe(true);
+
+    const x = 200;
+    touch(v.scrollDOM, "touchstart", { x, y: 240 });
+    touch(v.scrollDOM, "touchmove", { x, y: 190 });
+    expect(isContextMenuOpen(v)).toBe(false);
+    const { from, to } = v.state.selection.main;
+    v.dispatch({
+      changes: { from, to, insert: "Z" },
+      selection: { anchor: from + 1 },
+      userEvent: "input.type",
+    });
+    touch(v.scrollDOM, "touchmove", { x, y: 140 });
+    touch(v.scrollDOM, "touchend", { x, y: 140 });
+    for (let frame = 0; frame < 120; frame++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      expect(isContextMenuOpen(v)).toBe(false);
+    }
+  });
+
+  it("a cancelled scroll brings back the menu it hid", () => {
+    const v = mount(DOC);
+    v.focus();
+    longPress(v, pointAt(v, 3, "world"));
+    const x = 200;
+    touch(v.scrollDOM, "touchstart", { x, y: 240 });
+    touch(v.scrollDOM, "touchmove", { x, y: 190 });
+    expect(isContextMenuOpen(v)).toBe(false);
+    const cancel = new Event("touchcancel", {
+      bubbles: true,
+      cancelable: true,
+    });
+    Object.defineProperty(cancel, "touches", { value: [] });
+    v.scrollDOM.dispatchEvent(cancel);
+    expect(isContextMenuOpen(v)).toBe(true);
   });
 
   it("the selection handles come back when the selection scrolls back into view", () => {
