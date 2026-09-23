@@ -67,6 +67,8 @@ const checks = [
   [event("apply_patch", { command: "*** Begin Patch\n*** Delete File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), true],
   [event("apply_patch", { command: "*** Begin Patch\n*** Add File: docs/example.txt\n+*** Update File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), false],
   ...writeHazards,
+  [event("Bash", { command: `gh pr checks 1 --jq '.[] | select(.name == "test-suite")'` }), true],
+  [event("Bash", { command: `gh pr checks 1 --jq '.[] | .name'` }), false],
 ];
 const config = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
 const group = config.hooks.PreToolUse[0], hook = group.hooks[0];
@@ -111,6 +113,23 @@ for (const [command, blocked] of [[`$p = 'packages/a.ts'; [IO.File]::WriteAllTex
   const assertion = decide(normalize(event("PowerShell", { command }), "claude"));
   assert.equal(Boolean(assertion), blocked, command);
   const run = spawnSync(bash, ["-c", dotnetHook], { cwd: root, input: JSON.stringify(event("PowerShell", { command })), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8", windowsHide: true });
+  assert.equal(run.status, 0, run.stderr);
+  assert.equal(/permissionDecision.*deny/.test(run.stdout), blocked, command + " through the shipped hook");
+}
+// gh --jq filters holding a double quote reach jq damaged through Windows PowerShell 5.1 (#798).
+const jqHook = settings.hooks.PreToolUse.find((g) => g.matcher === "PowerShell").hooks[1].command;
+const listing = `gh api repos/o/r/issues/1/comments --paginate --jq '.[] | [.id, (.body | split("${bs}n")[0])] | @tsv'`;
+assert.equal(decide(normalize(event("Bash", { command: listing }), "claude")), null, "bash passes embedded double quotes intact");
+for (const [command, blocked] of [
+  [listing, true],
+  [`gh run list -q '.[] | select(.name | test("ubuntu"))'`, true],
+  ['gh pr view 1 --jq=".title + `"x`""', true],
+  [`gh pr checks 1 --jq '.[] | .name'`, false],
+  [`git log -q --format='"%s"'`, false],
+  [`Write-Output "gh --jq '.a + x'"`, false],
+]) {
+  assert.equal(Boolean(decide(normalize(event("PowerShell", { command }), "claude"))), blocked, command);
+  const run = spawnSync(bash, ["-c", jqHook], { cwd: root, input: JSON.stringify(event("PowerShell", { command })), env: { ...process.env, CLAUDE_PROJECT_DIR: root }, encoding: "utf8", windowsHide: true });
   assert.equal(run.status, 0, run.stderr);
   assert.equal(/permissionDecision.*deny/.test(run.stdout), blocked, command + " through the shipped hook");
 }

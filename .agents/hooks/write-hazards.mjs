@@ -17,6 +17,11 @@
 // command assigns one. A variable the command does not assign is not judged.
 // The command is read with the shared PowerShell tokenizer, so a call spelled
 // inside a comment, a string or a here-string is text, not an invocation.
+//
+// Windows PowerShell 5.1 drops the double quotes embedded in an argument it
+// passes to a native program, however the string was quoted. A gh --jq filter
+// holding a double quote therefore reaches jq damaged, and the error reads
+// like a jq syntax mistake. Such a filter is refused in a PowerShell reading.
 
 import { readCommand } from "./typed-issue-hook.mjs";
 
@@ -141,6 +146,28 @@ function readPowerShell(command) {
     if (isCode(m.index) || starts.has(m.index)) values.set(m[1].toLowerCase(), m[3]);
   }
   return { values, isCode, subs: subs ?? [] };
+}
+
+export function jqQuoteReason(command) {
+  if (typeof command !== "string" || !/(?:--jq|-q)/.test(command)) return null;
+  const { segments, subs } = readCommand(command, "powershell");
+  for (const sub of subs ?? []) {
+    const reason = jqQuoteReason(sub);
+    if (reason) return reason;
+  }
+  for (const { tokens } of segments) {
+    if (!/^gh(?:\.exe)?$/i.test(tokens[0]?.text ?? "")) continue;
+    for (let i = 1; i < tokens.length; i++) {
+      const { text } = tokens[i];
+      const filter = /^(?:--jq|-q)$/.test(text) ? tokens[i + 1]?.text : /^(?:--jq|-q)=/.test(text) ? text : null;
+      if (!filter?.includes('"')) continue;
+      return (
+        "This command passes gh a --jq filter that contains a double quote. Windows PowerShell 5.1 drops embedded double quotes from native arguments, " +
+        "whatever the quoting, so jq receives a damaged filter. Run this command through the POSIX shell tool instead."
+      );
+    }
+  }
+  return null;
 }
 
 export function dotNetRelativePathReason(command, inherited, depth = 0) {
