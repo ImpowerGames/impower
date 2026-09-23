@@ -139,6 +139,12 @@ export interface SparkProgram {
   // threw.
   sceneAssets?: { [flowName: string]: SceneAssets };
   version?: number;
+  /** The compiler's file-registry epoch this program was compiled at. It
+   *  moves when a file is added, replaced or removed, which is a change no
+   *  script version describes: an asset the author replaces recompiles the
+   *  same scripts into a different program. Part of a program's identity
+   *  across the worker boundary (`programIdentity`). */
+  filesEpoch?: number;
   /** Set on a program's summary (`programSummary`), which is all a compile
    *  sends a host that leaves the program where it was compiled: `uri`,
    *  `scripts`, `version`, `workspace`, `startFrom` and `simulationOptions`. */

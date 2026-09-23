@@ -139,11 +139,9 @@ describe("with the worker displaying the preview", () => {
     expect(off.unreached.labels.executed).toMatch(/main : \d+/);
     expect(off.breakpoints.lines.length).toBeGreaterThan(0);
     // The toolbar's toggle answered, and the game that displays the preview
-    // entered the mode. Disabling answers too; whether the flag comes back
-    // down is the engine's business, and today it does not (#774), so this
-    // pins only that both positions do the same thing with it.
+    // entered the mode and left it again.
     expect(off.debug).toEqual({ answer: false, on: true });
-    expect(off.undebug.answer).toBe(false);
+    expect(off.undebug).toEqual({ answer: false, on: false });
   }, 120_000);
 
   it("sends the scene warm-up the page's own hint would plan", async () => {

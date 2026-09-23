@@ -30,6 +30,11 @@ export interface PlanRouteForSelectionContext<G extends RoutableGame> {
   searchRouteTo(game: G, toPath: string): void;
   routeSearches: RouteSearchLog;
   profilerId: string | undefined;
+  /** The beat the game's current start point was planned for, when that is
+   *  known. A line that `>` breaks holds several, and the preview shows the
+   *  last: a point PLAY planned to the line's first beat has to be planned
+   *  again even though the line is the same one (#721). */
+  plannedBeat?: "first" | "last";
 }
 
 /**
@@ -64,7 +69,8 @@ export function planRouteForSelection<G extends RoutableGame>(
   }
   if (
     newStartFrom.file !== game.startFrom?.file ||
-    newStartFrom.line !== game.startFrom?.line
+    newStartFrom.line !== game.startFrom?.line ||
+    ctx.plannedBeat !== "last"
   ) {
     profile("start", ctx.profilerId + " " + "game/setStartFrom");
     // The route ends at the beat the preview shows: a line's last beat.

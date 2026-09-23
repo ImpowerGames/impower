@@ -175,6 +175,11 @@ export function installPlayerWorker(connection: MessageConnection) {
         program,
         story,
         ...gameState.systemConfiguration,
+        // What the editor asked of the preview's debugger before there was a
+        // game to ask, which the page's own game takes the same way.
+        breakpoints: gameState.pending.breakpoints,
+        functionBreakpoints: gameState.pending.functionBreakpoints,
+        dataBreakpoints: gameState.pending.dataBreakpoints,
         // This is the live-preview / HMR route-simulation game: it saves a
         // checkpoint at every beat while replaying to the edited line, which
         // is the O(n^2) cost incremental checkpoints exist to remove. Deltas
@@ -187,6 +192,9 @@ export function installPlayerWorker(connection: MessageConnection) {
         incrementalCheckpoints: true,
         verifyCheckpoints: false,
       });
+      if (gameState.pending.debugging) {
+        gameState.game.startDebugging();
+      }
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       // A compile that changed nothing serves the program the game already
@@ -309,6 +317,12 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     planRouteForSelection(params, {
       game: gameState.game,
+      // What the game's current start point was planned for: a route PLAY
+      // planned to the line's first beat is not the preview's route, even
+      // though it is the same line.
+      plannedBeat: canonicalId
+        ? displayable.get(canonicalId)?.route?.beat
+        : undefined,
       rememberStartFrom: (startFrom) => {
         compiler.config.startFrom = startFrom;
       },

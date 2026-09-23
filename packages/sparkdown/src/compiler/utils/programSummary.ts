@@ -13,6 +13,7 @@ export const programSummary = (
   scripts: program.scripts,
   files: {},
   version: program.version,
+  filesEpoch: program.filesEpoch,
   workspace: program.workspace,
   startFrom: program.startFrom,
   simulationOptions: program.simulationOptions,

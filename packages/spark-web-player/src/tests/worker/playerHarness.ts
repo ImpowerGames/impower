@@ -246,6 +246,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
 
   return {
     controller,
+    workspace,
     overlay,
     refs,
     page,

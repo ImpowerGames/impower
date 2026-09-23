@@ -76,8 +76,22 @@ export function installGameWorker(connection: MessageConnection) {
     },
   };
 
-  const state: { systemConfiguration: SystemConfiguration; game?: Game } = {
+  // What the editor asked for before there was a game to ask. The host
+  // creating the game passes these to it, as a host that owns its game
+  // applies the same settings itself; until then they are what the setters
+  // answer with.
+  const state: {
+    systemConfiguration: SystemConfiguration;
+    game?: Game;
+    pending: {
+      debugging?: boolean;
+      breakpoints?: { file: string; line: number }[];
+      functionBreakpoints?: { name: string }[];
+      dataBreakpoints?: { dataId: string }[];
+    };
+  } = {
     systemConfiguration,
+    pending: {},
   };
 
   connection.addEventListener("message", (e: MessageEvent) => {
@@ -233,20 +247,16 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (EnableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
-        state.game.startDebugging();
+        state.pending.debugging = true;
+        state.game?.startDebugging();
         return {};
       });
       return;
     }
     if (DisableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
-        state.game.stopDebugging();
+        state.pending.debugging = false;
+        state.game?.stopDebugging();
         return {};
       });
       return;
@@ -254,21 +264,23 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameBreakpointsMessage.type.isRequest(message)) {
       const { breakpoints } = message.params;
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
-        return { breakpoints: state.game.setBreakpoints(breakpoints) };
+        state.pending.breakpoints = breakpoints;
+        return {
+          breakpoints: state.game
+            ? state.game.setBreakpoints(breakpoints)
+            : breakpoints,
+        };
       });
       return;
     }
     if (SetGameDataBreakpointsMessage.type.isRequest(message)) {
       const { dataBreakpoints } = message.params;
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
+        state.pending.dataBreakpoints = dataBreakpoints;
         return {
-          dataBreakpoints: state.game.setDataBreakpoints(dataBreakpoints),
+          dataBreakpoints: state.game
+            ? state.game.setDataBreakpoints(dataBreakpoints)
+            : dataBreakpoints,
         };
       });
       return;
@@ -276,12 +288,11 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameFunctionBreakpointsMessage.type.isRequest(message)) {
       const { functionBreakpoints } = message.params;
       connection.sendResponse(message, () => {
-        if (!state.game) {
-          throw new NoGameError();
-        }
+        state.pending.functionBreakpoints = functionBreakpoints;
         return {
-          functionBreakpoints:
-            state.game.setFunctionBreakpoints(functionBreakpoints),
+          functionBreakpoints: state.game
+            ? state.game.setFunctionBreakpoints(functionBreakpoints)
+            : functionBreakpoints,
         };
       });
       return;

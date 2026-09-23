@@ -281,6 +281,9 @@ export class GamePlayerController {
     breakpoints?: { file: string; line: number }[];
     functionBreakpoints?: { name: string }[];
     dataBreakpoints?: { dataId: string }[];
+    /** What the editor last asked of the preview's debug toggle, which the
+     *  game built next enters as the breakpoints above are applied to it. */
+    debugging?: boolean;
   };
 
   private _resolveLoadingInitialProgram!: () => void;
@@ -1395,7 +1398,12 @@ export class GamePlayerController {
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
   ): Promise<R | undefined> {
-    if (this._game || !this.workerDisplays || !workspace?.gameLink) {
+    if (
+      this._game ||
+      this._startingPlay ||
+      !this.workerDisplays ||
+      !workspace?.gameLink
+    ) {
       return undefined;
     }
     return workspace.gameLink.request(type, params);
@@ -1455,18 +1463,43 @@ export class GamePlayerController {
     });
   };
 
+  /** Turn debugging on or off for whichever game shows the preview, and
+   *  remember it for the game built next, as the breakpoints are remembered.
+   *  Answers the editor either way: a worker that fails is a failure to
+   *  report, not a request to leave unanswered. */
+  protected setDebugging = async (debugging: boolean): Promise<boolean> => {
+    this._options ??= {};
+    this._options.debugging = debugging;
+    if (this._game) {
+      if (debugging) {
+        this._game.startDebugging();
+      } else {
+        this._game.stopDebugging();
+      }
+      return true;
+    }
+    const type = debugging
+      ? EnableGameDebugMessage.type
+      : DisableGameDebugMessage.type;
+    try {
+      // The stopped preview the worker's game displays enters the mode too,
+      // so its beat is coloured as the page's own game colours it. A worker
+      // with no game yet records it for the one it builds, as the option
+      // above does for a game built here, and answers.
+      await this.askWorkerGame(type, {});
+      return true;
+    } catch (e) {
+      // The worker could not be asked. The mode is recorded for the game
+      // built next either way, but the editor is told this did not take.
+      console.error(e);
+      return false;
+    }
+  };
+
   protected handleEnableGameDebug = async (
     message: EnableGameDebugMessage.Request,
   ) => {
-    let debugging = false;
-    if (this._game) {
-      this._game.startDebugging();
-      debugging = true;
-    } else if (await this.askWorkerGame(EnableGameDebugMessage.type, {})) {
-      // The stopped preview the worker's game displays enters the mode too,
-      // so its beat is coloured as the page's own game colours it.
-      debugging = true;
-    }
+    const debugging = await this.setDebugging(true);
     this.updateLaunchStateIcon();
     return debugging
       ? EnableGameDebugMessage.type.response(message.id, {})
@@ -1479,13 +1512,7 @@ export class GamePlayerController {
   protected handleDisableGameDebug = async (
     message: DisableGameDebugMessage.Request,
   ) => {
-    let stopped = false;
-    if (this._game) {
-      this._game.stopDebugging();
-      stopped = true;
-    } else if (await this.askWorkerGame(DisableGameDebugMessage.type, {})) {
-      stopped = true;
-    }
+    const stopped = await this.setDebugging(false);
     this.updateLaunchStateIcon();
     return stopped
       ? DisableGameDebugMessage.type.response(message.id, {})
@@ -2032,6 +2059,11 @@ export class GamePlayerController {
         return setTimeout(handler, timeout, ...args);
       },
     });
+    if (options?.debugging) {
+      // What the editor asked of the preview's debug toggle holds for the
+      // game built after it, as the breakpoints above do.
+      this._game.startDebugging();
+    }
     profile("end", "game/create");
     return this._game;
   }
