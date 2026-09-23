@@ -95,10 +95,11 @@ export function installPlayerWorker(connection: MessageConnection) {
     seedBuiltinsIntoStory: true,
   });
 
-  // The record of what the last route search in the newest real program
-  // established, and the rule for when that is safe to reuse. See
+  // The record of what the last route search in the real program the game
+  // holds established, and the rule for when that is safe to reuse. See
   // RouteSearchLog for why neither a checkpoint's existence nor the checkpoint
-  // store's newest entry is evidence on its own. Each compile starts a new one.
+  // store's newest entry is evidence on its own. Each program a compile gives
+  // the game starts a new one.
   let routeSearches = new RouteSearchLog();
 
   /** Plan a route to `toPath` and replay it for the real program. */
@@ -193,16 +194,19 @@ export function installPlayerWorker(connection: MessageConnection) {
   };
 
   compiler.addEventListener("compiler/didCompile", (params) => {
-    // Whatever the last search established was established against the OLD
-    // program and the story it was compiled from. Neither survives this
-    // compile, so nothing from before it may be reported for the new one. The
-    // old log stays with the old program, which the page can still ask to
-    // display until it has taken this one.
-    routeSearches = new RouteSearchLog();
     const story = params.story;
     if (!story) {
+      // A compile that produced no story, which is one that threw, leaves the
+      // game and the page with the program before it, whose searches still
+      // describe it.
       return;
     }
+    // Whatever the last search established was established against the OLD
+    // program and the story it was compiled from, so nothing from before this
+    // compile may be reported for the new one. The old log stays with the old
+    // program, which the page can still ask to display until it has taken
+    // this one.
+    routeSearches = new RouteSearchLog();
     // The route below is replayed on the game.
     gameTouches += 1;
     const game = createOrUpdateGame(params.program, story);

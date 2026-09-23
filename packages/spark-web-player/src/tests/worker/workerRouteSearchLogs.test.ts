@@ -37,8 +37,77 @@ const countSearches = (h: any) => {
   return searched;
 };
 
+const TWO_LINES = `-> start
+
+scene start
+  store mood = "calm"
+  HERO: I feel {mood}.
+  HERO: Still {mood}.
+end
+`;
+const lineIn = (source: string, text: string) =>
+  source.split("\n").findIndex((l) => l.includes(text));
+const TWO_MOOD = lineIn(TWO_LINES, `store mood = "calm"`);
+const TWO_FEEL = lineIn(TWO_LINES, "I feel {mood}.");
+const STILL = lineIn(TWO_LINES, "Still {mood}.");
+
 for (const workerDisplays of [false, true]) {
   describe(`with the switch ${workerDisplays ? "on" : "off"}`, () => {
+    it("searches a moved selection's route once after a compile that threw", async () => {
+      const h = await createPlayerHarness({
+        workerDisplays,
+        files: [{ uri: MAIN_URI, text: TWO_LINES }],
+        startFrom: { file: MAIN_URI, line: TWO_FEEL },
+      });
+      try {
+        await h.compile();
+        await h.select(TWO_FEEL);
+        await settle(40);
+        expect(text(h.overlay)).toContain("I feel calm.");
+
+        // An edit whose compile throws: the game and the page keep the
+        // program before it.
+        const at = TWO_LINES.split("\n")[TWO_MOOD]!.indexOf("calm");
+        await h.edit([
+          {
+            range: {
+              start: { line: TWO_MOOD, character: at },
+              end: { line: TWO_MOOD, character: at + "calm".length },
+            },
+            text: "angry",
+          },
+        ]);
+        const compiler: any = h.workerState.compilerState.compiler;
+        const kept = {
+          note: compiler.noteFlowShapesWithoutEmitting,
+          serialize: compiler.serializeCompiledProgram,
+        };
+        const fail = () => {
+          throw new Error("the compile threw");
+        };
+        compiler.noteFlowShapesWithoutEmitting = fail;
+        compiler.serializeCompiledProgram = fail;
+        try {
+          await h.compile();
+        } finally {
+          compiler.noteFlowShapesWithoutEmitting = kept.note;
+          compiler.serializeCompiledProgram = kept.serialize;
+        }
+        expect(h.workerState.compilerState.compiler.isProgramOutdated()).toBe(false);
+
+        // The cursor moves to the next line, which the program shown still
+        // describes.
+        const searched = countSearches(h);
+        await h.select(STILL);
+        await settle(40);
+
+        expect(searched).toHaveLength(1);
+        expect(text(h.overlay)).toContain("Still calm.");
+      } finally {
+        h.dispose();
+      }
+    }, 120_000);
+
     it("searches no route again for a selection of the line the preview stands on", async () => {
       const h = await createPlayerHarness({
         workerDisplays,
