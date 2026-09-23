@@ -9,7 +9,6 @@ This list holds only what no driver refusal, report field or check can absorb: a
 - `textContent` on the game DOM returns a wall of CSS, because the player injects `<style>` blocks that every ancestor inherits, and the typewriter effect wraps every character in its own `<span>`, so "leaf nodes with text" gives one letter per entry; a probe of your own wants `innerText`, which the driver uses.
 - The editor auto-closes `[[`, so a script of your own that types `[[show portrait bunny]]` leaves a stray `]]` behind the caret and a trailing `>` lands mid-line, silently joining two beats; type the opener, press `End`, and read the document back with `documentLines`. The driver's `--sd` path writes the file directly and is unaffected.
 - The route indicator lives inside the player iframe, so searching the editor document for `main : N → main : M` finds nothing; `verify` reads it for you and reports it as `route`.
-- The command line cannot attach an image to a pull request. Describe what each frame shows under Testing and verification, keep the files in the private scratch directory, and attach them through the web form if a person wants them.
 - A pid taken from `$!` in Git Bash is the MSYS pid, not the Windows pid a state file needs; get a child's pid from Node.
 - A trailing slash on a scratch junction empties the directory it points at: `rm -rf <link>` removes the junction alone, but `rm -rf <link>/`, which Git Bash tab-completion adds, follows it into the real target. Remove a junction by its bare path, and before the scratch directory around it.
 

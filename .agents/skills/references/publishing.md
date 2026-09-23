@@ -50,6 +50,17 @@ back. This has already shipped a merged PR with an empty description.
 `gh issue view N --json body`, `git log -1`. Prefer writing the body to a file
 first — it survives a bad invocation and can be re-applied with `--body-file`.
 
+## Attach images and videos
+
+`gh issue create`, `gh issue edit`, `gh issue comment`, `gh pr create`, `gh pr edit` and `gh pr comment` upload files with `--attach`, which needs GitHub CLI 2.99.0 or later (`gh --version`); an older `gh` refuses the flag as unknown, and upgrading it is the fix. Embed each file in the body where it belongs, using the same relative path you pass to `--attach`, and run the command from the directory that holds the files. The upload rewrites each reference to the hosted file, so the image renders in place:
+
+```sh
+cd <scratch-dir-with-the-pngs>
+gh issue edit N --body-file body.md --attach ./before.png --attach ./after.png   # body.md contains ![Before the fix](./before.png)
+```
+
+Alt text written in the body is kept. A file passed to `--attach` that the body does not reference is appended at the end, with its file name as alt text unless you add `#<alt text>` after the path. The uploaded file is readable by anyone who has its URL, so crop out anything private before uploading. Read the body back: every reference should now start with `https://github.com/user-attachments/`. A relative path still in the body means that upload failed; the command then exits non-zero but still applies the uploads that worked.
+
 A runner's shell tool may also collapse every doubled backslash in a command to
 one before the shell sees it, inside quotes and quoted heredocs alike; the
 [runner notes](../RUNNERS.md) say which tools do. A hook refuses such a command.
