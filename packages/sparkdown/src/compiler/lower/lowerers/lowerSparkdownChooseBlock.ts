@@ -1,14 +1,12 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Choice } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
-import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Glue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { Sequence } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Sequence/Sequence";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
@@ -79,7 +77,9 @@ export function lowerSparkdownChooseBlock(
       continue;
     }
     if (child.name === "Choice") {
-      if (!sawChoice) openCaption(weaveContent);
+      if (!sawChoice) {
+        openCaption(weaveContent, externalNames(nodeRef.node, ctx));
+      }
       sawChoice = true;
       currentChoice = null;
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
@@ -161,29 +161,33 @@ interface MutableCtx {
 // last of them writes no newline, so its step runs on through the logic
 // between it and the choices and completes with the caption and the choices
 // together; earlier caption lines are steps of their own. Only logic may stand
-// between that line and the first choice. A conditional or an alternator that
-// only runs logic is logic; one that can show text, a tag or glue, or can
-// divert, leaves which line shows last unknown here, and so does a divert, a
-// nested weave, text, a tag or glue outside one, so the caption then closes
+// between that line and the first choice: anything that can show something or
+// divert leaves which line shows last unknown here, so the caption then closes
 // its line as usual.
-function openCaption(items: ParsedObject[]): void {
+function openCaption(
+  items: ParsedObject[],
+  externals: ReadonlySet<string>,
+): void {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!;
     if (openDisplayCall(item)) return;
-    if (item instanceof Conditional || item instanceof Sequence) {
-      if (mayShowOrDivert(item)) return;
-      continue;
-    }
-    if (CAPTION_BARRIERS.some((type) => item instanceof type)) return;
+    if (mayShowOrDivert(item, externals)) return;
   }
 }
 
-const CAPTION_BARRIERS = [Weave, Divert, TunnelOnwards, Text, Tag, Glue];
-
-// Whether running `obj` can show anything or move the flow elsewhere. A
-// function call's own arguments show nothing unless it is `display`.
-function mayShowOrDivert(obj: ParsedObject): boolean {
-  if (obj instanceof FunctionCall) return obj.name === "display";
+// Whether running `obj` can show anything or move the flow elsewhere: text, a
+// tag, glue, a choice, a divert or a tunnel return anywhere inside it, or a
+// call. `display` and `print` show, and a function the story defines may, so
+// the only call that counts as logic is one to an `external`, which runs host
+// code, with arguments that are logic themselves.
+function mayShowOrDivert(
+  obj: ParsedObject,
+  externals: ReadonlySet<string>,
+): boolean {
+  if (obj instanceof FunctionCall) {
+    if (!externals.has(obj.name)) return true;
+    return obj.args.some((arg) => mayShowOrDivert(arg, externals));
+  }
   if (obj instanceof Text) return obj.text.trim().length > 0;
   if (obj instanceof Divert) return !obj.isFunctionCall;
   if (
@@ -194,7 +198,20 @@ function mayShowOrDivert(obj: ParsedObject): boolean {
   ) {
     return true;
   }
-  return (obj.content ?? []).some(mayShowOrDivert);
+  return (obj.content ?? []).some((child) => mayShowOrDivert(child, externals));
+}
+
+// The `external` functions this script declares at its top level.
+function externalNames(node: SyntaxNode, ctx: LowerContext): Set<string> {
+  let root = node;
+  while (root.parent) root = root.parent;
+  const names = new Set<string>();
+  for (let child = root.firstChild; child; child = child.nextSibling) {
+    if (child.name !== "LuauExternalDeclaration") continue;
+    const name = getDescendent("LuauFunctionName", child);
+    if (name) names.add(ctx.read(name.from, name.to).trim());
+  }
+  return names;
 }
 
 function buildGatherFromThenClause(

@@ -231,25 +231,53 @@ describe("a trailing `..` joins the next line", () => {
   });
 
   test("an interpolation line's breaks each end a beat", () => {
-    for (const [source, expected, pauses] of [
-      [`{3} >\nB\n`, ["3\n", "B\n"], [true]],
-      [`{3} > >\nB\n`, ["3\n", "\n", "B\n"], [true]],
-      [`{3} > >..\nB\nAfter.\n`, ["3\n", "B\n", "After.\n"], [true]],
+    for (const [source, expected] of [
+      [`{3} >\nB\n`, [["3\n", [true]], ["B\n", [false]]]],
+      [
+        `{3} > >\nB\n`,
+        [
+          ["3\n", [true]],
+          ["\n", [true]],
+          ["B\n", [false]],
+        ],
+      ],
+      [
+        `{3} > >..\nB\nAfter.\n`,
+        [
+          ["3\n", [true]],
+          ["B\n", [true, false]],
+          ["After.\n", [false]],
+        ],
+      ],
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
-      expect(texts(ctx.story)).toEqual(expected);
-      const again = makeRuntimeStoryFromSource(source);
-      again.story.Continue();
-      expect(flags(again.story, "pause")).toEqual(pauses);
+      const out: [string, boolean[]][] = [];
+      while (ctx.story.canContinue) {
+        ctx.story.Continue();
+        const text = ctx.story.currentDisplayInstructions
+          .map(
+            (table) =>
+              (table.value?.get("text") as { value?: unknown } | undefined)
+                ?.value ?? "",
+          )
+          .join("");
+        out.push([`${text}\n`, flags(ctx.story, "pause")]);
+      }
+      expect(out).toEqual(expected);
     }
   });
 
   test("a `..` after an interpolation in the middle of a line is text", () => {
-    for (const source of [`{3} .. and more.\n`, `{3}..and more.\n`]) {
+    for (const [source, rest] of [
+      [`{3} .. and more.\n`, ".. and more.\n"],
+      [`{3}..and more.\n`, "..and more.\n"],
+    ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
-      expect(texts(ctx.story).join("")).toContain("..");
+      // The grammar makes the interpolation and the rest of its line two
+      // statements, as it does for `{3} and more.`.
+      expect(texts(ctx.story)).toEqual(["3\n", rest]);
     }
   });
 
@@ -260,6 +288,10 @@ describe("a trailing `..` joins the next line", () => {
       "This `>` touches the word before it, so it is text, not a break. Put a space before it to click here and then join the next line.",
     ]);
     expect(texts(ctx.story)).toEqual(["Abso>lutely.\n"]);
+    const inBlock = makeRuntimeStoryFromSource(
+      `:\n  Abso>..\n  lutely.\n  Next.\n`,
+    );
+    expect(inBlock.warningMessages).toEqual(ctx.warningMessages);
     for (const quiet of [`Abso >..\nlutely.\n`, `A\\>..\nB\n`]) {
       expect(makeRuntimeStoryFromSource(quiet).warningMessages).toEqual([]);
     }
@@ -494,6 +526,20 @@ end
     expect(ctx.story.Continue()).toBe("Pick.");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
     expect(rings).toBe(1);
+  });
+
+  test("a caption line followed by a call that can show closes its own line", () => {
+    for (const between of [
+      `& print("Aside.")`,
+      `if true then\n    & print("Aside.")\n  end`,
+      `& aside()`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(
+        `choose\n  Pick.\n  ${between}\n  * One\nend\n\nfunction aside()\n  print("Aside.")\nend\n`,
+      );
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.Continue()).toBe("Pick.\n");
+    }
   });
 
   test("a caption line followed by a conditional closes its own line", () => {

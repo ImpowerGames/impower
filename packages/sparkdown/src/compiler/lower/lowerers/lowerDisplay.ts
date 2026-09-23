@@ -154,10 +154,7 @@ function buildDisplayCalls(
       end--;
     }
     const trailingGlue = body[end - 1] instanceof ParsedGlue ? body[end - 1] : null;
-    if (trailingGlue) {
-      body.splice(end - 1);
-      reportTouchingBreak(parent, range, ctx);
-    }
+    if (trailingGlue) body.splice(end - 1);
     joinMidBodyGlue(body);
     // A plain divert holds the line open, so the target's first line joins
     // this one's beat. A `load` arrow's directive is its own step, which the
@@ -624,6 +621,7 @@ function collectBodySegments(
       } else if (next.kind === "tag") {
         out.push({ kind: "tag", node: next.node });
       } else if (next.kind === "glue") {
+        reportTouchingBreak(next.from, ctx);
         out.push({ kind: "glue" });
       } else if (next.kind === "comment") {
         // Emit nothing — the comment is removed. Swallow the trailing
@@ -993,20 +991,15 @@ const LOAD_GLUE_MESSAGE =
 const TOUCHING_BREAK_MESSAGE =
   "This `>` touches the word before it, so it is text, not a break. Put a space before it to click here and then join the next line.";
 
-// Warn about a `>` that touches the word before a line-ending `..` (`Abso>..`):
-// a break needs a space before its `>`, so this one reaches the player as
-// text, which no author writes on purpose right before a join.
-function reportTouchingBreak(
-  parent: SyntaxNode,
-  range: { from: number; to: number },
-  ctx: LowerContext,
-): void {
-  const mark = collectTopLevelInjections(parent, range.from, range.to)
-    .filter((injection) => injection.kind === "glue")
-    .at(-1);
-  if (!mark || mark.from < 2) return;
-  const before = ctx.read(mark.from - 2, mark.from);
+// Warn about a `>` that touches the word before a line-ending `..` (`Abso>..`),
+// given the offset the `..` starts at: a break needs a space before its `>`,
+// so this one reaches the player as text, which no author writes on purpose
+// right before a join.
+function reportTouchingBreak(markFrom: number, ctx: LowerContext): void {
+  if (markFrom < 2) return;
+  const before = ctx.read(markFrom - 2, markFrom);
   if (before[1] !== ">" || /[\s\-\\]/.test(before[0]!)) return;
+  const mark = { from: markFrom };
   ctx.diagnostics?.push({
     message: TOUCHING_BREAK_MESSAGE,
     severity: ErrorType.Warning,
