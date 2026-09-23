@@ -176,9 +176,10 @@ interface WorkerPlay {
   run?: number;
   /** Where the application that shows it hears it. */
   sink?: (message: Message) => void;
-  /** What the editor asked of the game's clock while it was starting, for
-   *  the game once it runs: the worker has no PLAY game to tell until then. */
-  held: { type: MessageProtocolRequestType<string, any, any>; params: unknown }[];
+  /** How far the editor stepped the application's clock while PLAY started,
+   *  which the worker's game is stepped by once it runs: steps add, so their
+   *  order does not matter. */
+  stepped: number;
 }
 
 export interface GamePlayerRefs {
@@ -1579,9 +1580,11 @@ export class GamePlayerController {
 
   /** Tell PLAY's game in the worker what its application was just told, so
    *  the worker's clock and the page's managers agree. While PLAY starts,
-   *  the worker has no PLAY game yet, so the request is held for the game
-   *  and told it as it starts. Answers whether it took: a worker that fails
-   *  is a failure to report to the editor. */
+   *  the worker has no PLAY game yet: the start brings the game to its
+   *  application's state as it starts (`startWorkerPlay`), so a pause is
+   *  read from the application then and a clock step is added up. Answers
+   *  whether it took: a worker that fails is a failure to report to the
+   *  editor. */
   protected async tellWorkerPlay<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
@@ -1592,9 +1595,9 @@ export class GamePlayerController {
     }
     if (play.state === "starting") {
       // An application built later starts as the game does, so only what
-      // its application heard is held.
-      if (this._app) {
-        play.held.push({ type, params });
+      // its application heard counts.
+      if (this._app && type.method === StepGameClockMessage.method) {
+        play.stepped += (params as { seconds: number }).seconds;
       }
       return true;
     }
@@ -1972,7 +1975,7 @@ export class GamePlayerController {
     link: WorkerGameLink,
     restarted?: boolean,
   ): Promise<boolean> {
-    const play: WorkerPlay = { program, state: "starting", held: [] };
+    const play: WorkerPlay = { program, state: "starting", stepped: 0 };
     this._workerPlay = play;
     // STOP, a restart or the controller going ends this start at whichever
     // step it has reached (`endWorkerPlay`).
@@ -2047,12 +2050,34 @@ export class GamePlayerController {
         await app.destroy(true);
         return abandon();
       }
-      play.state = "running";
       await link.request(StartPlayMessage.type, { run: play.run! });
-      // What the editor asked of the clock while PLAY started, in order.
-      for (const { type, params } of play.held.splice(0)) {
-        await this.tellWorkerPlay(type, params);
+      // Bring the game to what the editor made of its application while it
+      // started, until the two agree, checking before each request that this
+      // start is still the one PLAY runs: a request sent in the same turn as
+      // that check reaches the worker before anything that ends this run.
+      // Controls from then on go to the game as they come, in order.
+      let workerPaused = false;
+      for (;;) {
+        if (!current()) {
+          return false;
+        }
+        if (app.paused !== workerPaused) {
+          workerPaused = app.paused;
+          await this.askWorkerGame(
+            workerPaused ? PauseGameMessage.type : UnpauseGameMessage.type,
+            {},
+          );
+          continue;
+        }
+        if (play.stepped !== 0) {
+          const seconds = play.stepped;
+          play.stepped = 0;
+          await this.askWorkerGame(StepGameClockMessage.type, { seconds });
+          continue;
+        }
+        break;
       }
+      play.state = "running";
       if (built.compiled) {
         app.start();
       }

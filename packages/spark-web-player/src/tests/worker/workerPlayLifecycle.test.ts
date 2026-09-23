@@ -2,11 +2,14 @@
 // the author can press STOP, or an edit can restart the game, at any of them
 // (#682). Whatever the order, STOP ends PLAY: the page is not left waiting,
 // no game is left running in the worker, and the preview shows again.
+import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { PauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/PauseGameMessage";
+import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { describe, expect, it } from "vitest";
 import { ConnectPlayMessage } from "../../main/workers/messages/ConnectPlayMessage";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { PlayMessage } from "../../main/workers/messages/PlayMessage";
+import { StartPlayMessage } from "../../main/workers/messages/StartPlayMessage";
 import { StopPlayMessage } from "../../main/workers/messages/StopPlayMessage";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
@@ -45,6 +48,29 @@ const settlesWithin = async (work: Promise<unknown>, ms: number) =>
     ),
     new Promise((resolve) => setTimeout(() => resolve("waiting"), ms)),
   ]);
+
+/** Whether the editor has been told the game restarted after an edit. */
+const reloaded = (h: { toEditor: any[] }) =>
+  h.toEditor.some((m) => m.method === GameReloadedMessage.method);
+
+/** Hold the worker's answers to the first request of `method` the page
+ *  sends from now on, until the returned gate opens; `asked` says whether
+ *  it has been sent. */
+const holdAnswer = (h: any, method: string) => {
+  const answered = gate();
+  const request = h.link.request.bind(h.link);
+  const state = { asked: false };
+  h.link.request = async (type: any, params: any) => {
+    if (type.method === method && !state.asked) {
+      state.asked = true;
+      const answer = await request(type, params);
+      await answered.opened;
+      return answer;
+    }
+    return request(type, params);
+  };
+  return { ...answered, state };
+};
 
 /** A gate a test opens when it is ready. */
 const gate = () => {
@@ -188,22 +214,30 @@ describe("PLAY while a preview is still being displayed", () => {
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(20);
 
-      // The author edits: the program compiled from the edit reaches the
-      // controller, which schedules the restart.
+      // The author edits the line PLAY restarts from, the one selected last:
+      // the program compiled from the edit reaches the controller, which
+      // restarts the game.
       await h.edit([
         {
           range: {
-            start: { line: AFTER, character: 4 },
-            end: { line: AFTER, character: 4 + "The beat after it.".length },
+            start: { line: PICTURED, character: 4 },
+            end: { line: PICTURED, character: 4 + "The beat with a picture.".length },
           },
-          text: "The beat after it, edited.",
+          text: "The beat with a picture, edited.",
         },
       ]);
       expect(await settlesWithin(h.compile(), 5000)).toBe("settled");
-      expect(h.controller._restartGameTimeout).toBeDefined();
       expect(await settlesWithin(waiting.previewed, 5000)).toBe("settled");
+      // The restart runs, and the game plays the edited program.
+      for (let i = 0; i < 200 && !reloaded(h); i++) {
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(reloaded(h)).toBe(true);
+      for (let i = 0; i < 100 && !/picture, edited\./.test(h.overlay.textContent ?? ""); i++) {
+        await new Promise((resolve) => setTimeout(resolve, 30));
+      }
+      expect(h.overlay.textContent).toContain("The beat with a picture, edited.");
     } finally {
-      h.controller.cancelScheduledRestart();
       await h.controller.destroyGameAndApp();
       h.workerState.gameState.running?.destroy();
       h.dispose();
@@ -296,6 +330,78 @@ describe("pause while PLAY in the worker is starting", () => {
       expect(h.workerState.gameState.running!.paused).toBe(false);
       expect(h.controller._app.paused).toBe(false);
       expect(h.workerState.gameState.game!.paused).toBe(false);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("pause and unpause while PLAY in the worker is starting", () => {
+  it("leaves the game and its application in the state the editor asked for last", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // The editor pauses once the application exists, and unpauses while
+      // the worker's answer that it started is on its way.
+      const connecting = holdAnswer(h, ConnectPlayMessage.method);
+      const started = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
+      await h.controller.handlePauseGame(PauseGameMessage.type.request({}));
+      const starting = holdAnswer(h, StartPlayMessage.method);
+      connecting.open();
+      for (let i = 0; i < 100 && !starting.state.asked; i++) await settle(2);
+      await h.controller.handleUnpauseGame(UnpauseGameMessage.type.request({}));
+      starting.open();
+      expect(await started).toBe(true);
+      await settle(20);
+
+      expect(h.controller._app.paused).toBe(false);
+      expect(h.workerState.gameState.running!.paused).toBe(false);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("hands nothing a stopped start was told to the next PLAY", async () => {
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // The editor pauses the first start, then STOP and a new PLAY come
+      // while the worker's answer that the first one started is on its way.
+      const connecting = holdAnswer(h, ConnectPlayMessage.method);
+      const first = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
+      await h.controller.handlePauseGame(PauseGameMessage.type.request({}));
+      const starting = holdAnswer(h, StartPlayMessage.method);
+      connecting.open();
+      for (let i = 0; i < 100 && !starting.state.asked; i++) await settle(2);
+      await h.controller.stopGame("quit");
+      const second = h.controller.startGameAndApp();
+      await settle(20);
+      starting.open();
+      expect(await first).toBe(false);
+      expect(await second).toBe(true);
+      await settle(20);
+
+      expect(h.controller._app.paused).toBe(false);
+      expect(h.workerState.gameState.running!.paused).toBe(false);
     } finally {
       await h.controller.destroyGameAndApp();
       h.workerState.gameState.running?.destroy();
