@@ -461,9 +461,37 @@ config.steps.first.args=["-e","process.exit(0)","--","--model","reviewer-test"];
 config.journal=path.join(scratch,"fast-exit.jsonl");write();
 await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"fast-slots"),identifyProcess:(pid)=>{
   const end=Date.now()+10000;while(processIdentity(pid)!==null){if(Date.now()>end)throw new Error("fast child did not exit");Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}return null;
-}}),/ENOENT/);
+},listComments:()=>[]}),/ENOENT.*no report naming head/);
 assert.match(fs.readFileSync(config.journal,"utf8"),/confirmed-absent/);
 assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
+{
+  const reviewedHead=execFileSync("git",["rev-parse","HEAD"],{cwd:config.worktree,encoding:"utf8",windowsHide:true}).trim();
+  // The launch token exists only in the reviewer's prompt and the private journal, so the fixture reads it from the launching row.
+  const token=()=>fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse).find(row=>row.event==="launching").reportToken;
+  const heading="### Adversarial review — undirected (reviewer-test)";
+  const genuine=()=>`${heading}\n\nRound 1; reviewed head ${reviewedHead}.\n\n${token()}`;
+  const report=(id,body,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
+  const run=async(name,comments)=>{config.journal=path.join(scratch,`${name}.jsonl`);write();return handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,`${name}-slots`),listComments:()=>comments()});};
+  const realExec=childProcess.execFileSync;
+  try {
+    childProcess.execFileSync=(exe,args,options)=>exe==="gh"?JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]),`${reviewedHead}`)):realExec(exe,args,options);
+    syncBuiltinESMExports();
+    await run("missing-artifact",()=>[report(43,genuine())]);
+    const rows=fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse);
+    assert.match(rows.find(row=>row.event==="launching").reportToken,/^handoff-report-[0-9a-f-]{36}$/);
+    assert.deepEqual(rows.find(row=>row.event==="completion-artifact-missing").commentIds,[43],"a clean exit without an artifact records the report carrying this launch's token");
+    assert.deepEqual(rows.find(row=>row.event==="completed").commentIds,[43]);
+    assert.equal(rows.at(-1).event,"finished");
+    await assert.rejects(run("unrelated-comment",()=>[report(45,`${heading}\n\nNotes on ${reviewedHead}`)]),/ENOENT.*no report naming head/,"a lone comment with a copied heading and the head is not this reviewer's report");
+    await assert.rejects(run("stale-report",()=>[report(46,genuine(),"2000-01-01T00:00:00Z")]),/ENOENT.*no report naming head/,"a report older than the launch is refused");
+    await assert.rejects(run("other-head",()=>[report(47,genuine().split(reviewedHead).join("0".repeat(40)))]),/ENOENT.*no report naming head/,"a report for another head is refused");
+    await assert.rejects(run("ambiguous-artifact",()=>[report(43,genuine()),report(44,genuine())]),/2 reports name head .*43, 44/);
+    config.steps.first.next=[null,"second"];
+    await assert.rejects(run("branching-artifact",()=>[report(43,genuine())]),/declares 2 transitions/);
+    config.steps.first.next=[null];
+  } finally {childProcess.execFileSync=realExec;syncBuiltinESMExports();}
+}
+console.log("PASS: a cleanly exited review without its completion artifact completes from its one posted report");
 config.steps.first.args=["-e","setTimeout(()=>process.exit(2),60000).unref();process.stdin.resume()","--","--model","reviewer-test"];
 config.journal=path.join(scratch,"journal-failure.jsonl");write();
 let ownedPid;
