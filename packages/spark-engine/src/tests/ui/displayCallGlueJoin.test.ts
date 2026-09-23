@@ -97,6 +97,42 @@ describe("display() glue join", () => {
   // The same beat the look-ahead produced before captions ran on: a parity
   // check. The runtime tests pin what changed underneath, a caption step that
   // runs through an external call to its choices.
+  // What shows between a caption and its choices ends the caption's beat,
+  // and the next beat, which the engine carried over from the caption's
+  // continue, shows it with the choices.
+  test("a caption a print follows is a beat of its own", async () => {
+    const harness = createHarness(
+      story(
+        `  choose\n    HERO: Pick one.\n    & print("A voice calls out.")\n    * One\n    * Two\n  end`,
+      ),
+    );
+    await harness.ready;
+    harness.jumpTo("start");
+    harness.reset();
+    const texts = (beat: ReturnType<typeof harness.nextBeat>) =>
+      Object.fromEntries(
+        Object.entries(beat?.text ?? {}).map(([target, instructions]) => [
+          target,
+          instructions.map((t) => t.text).join("").trim(),
+        ]),
+      );
+    const first = harness.nextBeat();
+    expect(texts(first)).toEqual({
+      dialogue: "Pick one.",
+      character_name: "HERO",
+    });
+    expect(first?.choices ?? []).toEqual([]);
+    await harness.display(first!, true);
+    await flushMicrotasks();
+    const second = harness.nextBeat();
+    expect(texts(second)).toEqual({
+      action: "A voice calls out.",
+      "choice 0": "One",
+      "choice 1": "Two",
+    });
+    expect(second?.choices).toEqual(["choice 0", "choice 1"]);
+  });
+
   test("a choose block's caption shows with its choices", async () => {
     const harness = createHarness(
       story(`  choose\n    HERO: Pick one.\n    * One\n    * Two\n  end`),

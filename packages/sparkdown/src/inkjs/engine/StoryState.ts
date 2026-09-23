@@ -290,6 +290,14 @@ export class StoryState {
   public previousRandom: number = 0;
   public didSafeExit: boolean = false;
 
+  // A line whose newline waits: a `choose` block's caption leaves its line
+  // open so its step completes with the choices, unless the run shows
+  // something before them. Output that shows something writes the newline
+  // first and marks where the step ends (`outputCut`); what follows the cut
+  // is carried to the next continue.
+  public lineEndPending: boolean = false;
+  public outputCut: number | null = null;
+
   public story: Story;
 
   get currentPathString() {
@@ -709,6 +717,9 @@ export class StoryState {
     copy.previousRandom = this.previousRandom;
 
     copy.didSafeExit = this.didSafeExit;
+    copy.lineEndPending = this.lineEndPending;
+    copy.outputCut = this.outputCut;
+    copy._currentFlow.carriedOutput = [...this._currentFlow.carriedOutput];
 
     return copy;
   }
@@ -944,6 +955,14 @@ export class StoryState {
   }
 
   public PushToOutputStream(obj: InkObject | null) {
+    // The pending newline is written where the step is cut, when the continue
+    // ends (`CarryOutputPastCut`). Written now, it would read as the line the
+    // new output is on having ended already, and that line's own closing
+    // newline would be dropped as a second one.
+    if (this.lineEndPending && !this.inStringEvaluation && showsOutput(obj)) {
+      this.lineEndPending = false;
+      this.outputCut = this.outputStream.length;
+    }
     // var text = obj as StringValue;
     let text = asOrNull(obj, StringValue);
     if (text !== null) {
@@ -971,6 +990,70 @@ export class StoryState {
 
     this.PushToOutputStreamIndividual(obj);
     this.OutputStreamDirty();
+  }
+
+  // Ends this continue's output at `outputCut` with the newline the cut line
+  // was waiting for: the output after it moves to the flow's carried output,
+  // which the next continue starts from. A function that began before the cut
+  // starts at the head of that output. (The newline is the caption's own, so
+  // a function's rule of dropping newlines before its first output does not
+  // apply to it.)
+  public CarryOutputPastCut() {
+    if (this.outputCut === null) return;
+    const cut = this.outputCut;
+    this.outputCut = null;
+    this._currentFlow.carriedOutput = this.outputStream.splice(cut);
+    this.outputStream.push(new StringValue("\n"));
+    // A start of -1 marks a function that has shown something, whose
+    // newlines are no longer dropped, and stays as it is.
+    for (const element of this.callStack.elements) {
+      if (element.functionStartInOutputStream > 0) {
+        element.functionStartInOutputStream = Math.max(
+          0,
+          element.functionStartInOutputStream - cut,
+        );
+      }
+    }
+    this.OutputStreamDirty();
+  }
+
+  // Writes the newline at `outputCut` and keeps the output after it in this
+  // continue, for a step that leaves no next continue to carry it to.
+  public CloseOutputCut() {
+    if (this.outputCut === null) return;
+    this.outputStream.splice(this.outputCut, 0, new StringValue("\n"));
+    this.outputCut = null;
+    this.OutputStreamDirty();
+  }
+
+  // A call that runs against an output stream of its own, whose output never
+  // reaches the story's steps, neither writes a pending newline, cuts a step
+  // nor starts from carried output: it suspends all three and resumes them
+  // with the stream it restores. A host calls one between continues, so the
+  // carried output waits for the story's next continue.
+  public SuspendLineEnd(): SuspendedLineEnd {
+    const suspended = {
+      pending: this.lineEndPending,
+      cut: this.outputCut,
+      carried: this._currentFlow.carriedOutput,
+    };
+    this.lineEndPending = false;
+    this.outputCut = null;
+    this._currentFlow.carriedOutput = [];
+    return suspended;
+  }
+
+  public ResumeLineEnd(suspended: SuspendedLineEnd) {
+    this.lineEndPending = suspended.pending;
+    this.outputCut = suspended.cut;
+    this._currentFlow.carriedOutput = suspended.carried;
+  }
+
+  // The output a cut carried to this continue, which it starts from.
+  public TakeCarriedOutput(): InkObject[] {
+    const carried = this._currentFlow.carriedOutput;
+    this._currentFlow.carriedOutput = [];
+    return carried;
   }
 
   public PopFromOutputStream(count: number) {
@@ -1497,4 +1580,21 @@ export class StoryState {
   private _namedFlows: Map<string, Flow> | null = null;
   private readonly kDefaultFlowName = "DEFAULT_FLOW";
   private _aliveFlowNamesDirty: boolean = true;
+}
+
+// Whether pushing `obj` shows something: text that is not only spaces and
+// newlines, a display table, or the start of a tag.
+function showsOutput(obj: InkObject | null): boolean {
+  if (obj instanceof StringValue) return /[^ \t\n]/.test(obj.value ?? "");
+  if (obj instanceof ObjectValue || obj instanceof Tag) return true;
+  return (
+    obj instanceof ControlCommand &&
+    obj.commandType == ControlCommand.CommandType.BeginTag
+  );
+}
+
+interface SuspendedLineEnd {
+  pending: boolean;
+  cut: number | null;
+  carried: InkObject[];
 }

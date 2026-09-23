@@ -31,8 +31,10 @@ import { stampDebugMetadata } from "./debugMetadata";
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
 // shows no text. `open` marks a call that joins the next display call onto its
 // line: `display` writes no newline after it, so the step runs on until a
-// call closes the line. A trailing `..`, a divert the line holds open and a
-// `choose` block's caption carry it. `group` names the glued continuation a call belongs to (its
+// call closes the line. A trailing `..` and a divert the line holds open carry
+// it. `caption` marks a `choose` block's last caption line, whose newline
+// waits: the step completes with the choices unless the run shows something
+// first. `group` names the glued continuation a call belongs to (its
 // file and the offset it starts at, since offsets start again in every
 // script), and
 // `inherit` marks its beats after one of its breaks: they take the routing of
@@ -144,14 +146,13 @@ export function isDisplayCall(call: ParsedObject): call is FunctionCall {
   );
 }
 
-// Mark a `display` call `open`, so the step runs on past it: always, or as
-// far as `open` evaluates to true.
-export function openDisplayCall(call: FunctionCall, open?: Expression): void {
+// Mark a `display` call as a `choose` block's `caption`, whose newline waits
+// for what the run does next. A call already `open` joins the next line
+// instead and is left as it is.
+export function captionDisplayCall(call: FunctionCall): void {
   const table = call.args[0] as ObjectExpression;
   if (table.entries.some((entry) => entry.key === "open")) return;
-  table.addEntry(
-    open ? new ObjectExpressionEntry("open", open) : flagEntry("open"),
-  );
+  table.addEntry(flagEntry("caption"));
 }
 
 function flagEntry(flag: string): ObjectExpressionEntry {

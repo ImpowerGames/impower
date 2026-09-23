@@ -1,24 +1,16 @@
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Choice } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
-import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
-import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
-import { Glue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
-import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
-import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
-import { STDLIB } from "../../../inkjs/engine/StdLib";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lower, lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
-import { isDisplayCall, openDisplayCall } from "../utils/displayCall";
-import { ExternalsExpression } from "../utils/ExternalsExpression";
+import { captionDisplayCall, isDisplayCall } from "../utils/displayCall";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lowers a `choose ... [then [(label)] ...] end` block — sparkdown's
@@ -80,7 +72,7 @@ export function lowerSparkdownChooseBlock(
     }
     if (child.name === "Choice") {
       if (!sawChoice) {
-        openCaption(weaveContent);
+        markCaption(weaveContent);
       }
       sawChoice = true;
       currentChoice = null;
@@ -160,56 +152,20 @@ interface MutableCtx {
 }
 
 // The display statements before a block's first choice are its caption. The
-// last of them writes no newline, so its step runs on through the logic
-// between it and the choices and completes with the caption and the choices
-// together; earlier caption lines are steps of their own. Only logic may stand
-// between that line and the first choice: anything that can show something or
-// divert leaves which line shows last unknown here, so the caption then closes
-// its line as usual. A call that is not to a stdlib function is logic only
-// when it is to an `external`, which the program may declare in any script,
-// so a caption with such calls after it is `open` as far as every one of them
-// is an external.
-function openCaption(items: ParsedObject[]): void {
-  const calls: string[] = [];
+// last of them is marked `caption`: its newline waits, so its step runs on and
+// completes with the caption and the choices together. Whatever the run shows
+// before the choices (a `print`, a line a function or a conditional shows, a
+// tag) writes the newline first and starts the next step, so only the run
+// decides, and nothing between the caption and the choices is inspected here.
+// Earlier caption lines are steps of their own.
+function markCaption(items: ParsedObject[]): void {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!;
     if (isDisplayCall(item)) {
-      openDisplayCall(
-        item,
-        calls.length > 0 ? new ExternalsExpression(calls) : undefined,
-      );
+      captionDisplayCall(item);
       return;
     }
-    if (mayShowOrDivert(item, calls)) return;
   }
-}
-
-// Whether running `obj` can show anything or move the flow elsewhere: text, a
-// tag, glue, a choice, a divert or a tunnel return anywhere inside it, or a
-// call that can. A pure stdlib function only computes a value, and the other
-// stdlib functions (`display`, `print`, `pcall` and the rest) can show or
-// move the flow. Any other call is to a function the story defines, which can
-// show, or to an `external`, which runs host code and shows nothing; its name
-// joins `calls`, which are logic only if every one is an external.
-function mayShowOrDivert(obj: ParsedObject, calls: string[]): boolean {
-  if (obj instanceof FunctionCall) {
-    if (!STDLIB[obj.name]?.pure) {
-      if (FunctionCall.IsBuiltIn(obj.name)) return true;
-      calls.push(obj.name);
-    }
-    return obj.args.some((arg) => mayShowOrDivert(arg, calls));
-  }
-  if (obj instanceof Text) return obj.text.trim().length > 0;
-  if (obj instanceof Divert) return !obj.isFunctionCall;
-  if (
-    obj instanceof TunnelOnwards ||
-    obj instanceof Tag ||
-    obj instanceof Glue ||
-    obj instanceof Choice
-  ) {
-    return true;
-  }
-  return (obj.content ?? []).some((child) => mayShowOrDivert(child, calls));
 }
 
 function buildGatherFromThenClause(

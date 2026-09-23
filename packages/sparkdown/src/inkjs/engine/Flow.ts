@@ -11,6 +11,9 @@ export class Flow {
   public callStack: CallStack;
   public outputStream: InkObject[];
   public currentChoices: Choice[];
+  // Output a continue cut off after its line ended, which the next continue
+  // starts from (`StoryState.CarryOutputPastCut`).
+  public carriedOutput: InkObject[] = [];
 
   constructor(name: String, story: Story);
   constructor(name: String, story: Story, jObject: Record<string, any>);
@@ -32,6 +35,12 @@ export class Flow {
         jObject["currentChoices"],
       ) as Choice[];
 
+      if (jObject["carriedOutput"] !== undefined) {
+        this.carriedOutput = JsonSerialisation.JArrayToRuntimeObjList(
+          jObject["carriedOutput"],
+        );
+      }
+
       let jChoiceThreadsObj = jObject["choiceThreads"];
       if (typeof jChoiceThreadsObj !== "undefined") {
         this.LoadFlowChoiceThreads(jChoiceThreadsObj, story);
@@ -49,6 +58,11 @@ export class Flow {
     writer.WriteProperty("outputStream", (w) =>
       JsonSerialisation.WriteListRuntimeObjs(w, this.outputStream),
     );
+    if (this.carriedOutput.length > 0) {
+      writer.WriteProperty("carriedOutput", (w) =>
+        JsonSerialisation.WriteListRuntimeObjs(w, this.carriedOutput),
+      );
+    }
 
     let hasChoiceThreads = false;
     for (let c of this.currentChoices) {

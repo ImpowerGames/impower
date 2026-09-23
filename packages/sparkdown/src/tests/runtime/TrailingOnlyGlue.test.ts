@@ -4,7 +4,9 @@
 // is a break that the next line joins, and the break's table carries `pause`.
 // Every join lowers to a display call whose
 // table carries `open`, which writes no newline, so no `Glue` object is
-// emitted. A line that begins with `..` is an error that names the fix.
+// emitted. A line that begins with `..` is an error that names the fix. A
+// `choose` block's last caption line leaves its newline pending: its step
+// completes with the choices unless the run shows something first.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -113,7 +115,7 @@ function tokens(json: unknown): unknown[] {
 }
 
 // What the compiled program holds: its `Glue` objects, its `line` markers,
-// its `display` calls, and how many of those tables carry `open`.
+// its `display` calls, and how many of those tables carry `open` or `caption`.
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
@@ -123,6 +125,7 @@ function programShape(text: string) {
     line: all.filter((t) => t === "line").length,
     display: all.filter((t) => t === "stdlib:display:1").length,
     open: all.filter((t) => t === "^open").length,
+    caption: all.filter((t) => t === "^caption").length,
   };
 }
 
@@ -584,7 +587,70 @@ end
     expect(ctx.story.variablesState.$("x")).toBe(2);
   });
 
-  test("a caption line followed by a call that can show closes its own line", () => {
+  // `pcall` runs its function against an output stream of its own and drops
+  // what it printed, so a `print` inside one shows nothing.
+  test("runs through calls that show nothing on this run", () => {
+    for (const between of [
+      `& assert(true)`,
+      `& quiet()`,
+      `& pcall(aside)`,
+      `if false then\n    Also.\n  end`,
+    ]) {
+      const ctx = makeRuntimeStoryFromSource(
+        `choose\n  Pick.\n  ${between}\n  * One\nend\n\nfunction quiet()\n  local x = 1\nend\n\nfunction aside()\n  print("Aside.")\nend\n`,
+      );
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.Continue()).toBe("Pick.");
+      expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+    }
+  });
+
+  test("runs through to a first choice inside a conditional", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `choose\n  Pick.\n  if true then\n    * One\n  end\n  * Two\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One", "Two"]);
+  });
+
+  test("ends its step where something shows, and the next continue starts with it", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `choose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  print("Aside.")\n  print("More.")\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.\n");
+    expect(ctx.story.currentChoices).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Aside.\n");
+    // A function's output ends without its trailing newline.
+    expect(ctx.story.Continue()).toBe("More.");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+  });
+
+  test("keeps what it carries through a host's function call", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `choose\n  Pick.\n  & print("Aside.")\n  * One\nend\n\nfunction quiet()\n  return 1\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.\n");
+    ctx.story.EvaluateFunction("quiet");
+    expect(ctx.story.Continue()).toBe("Aside.\n");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+  });
+
+  test("carries what showed after it through a save", () => {
+    const source = `choose\n  Pick.\n  & print("Aside.")\n  * One\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.\n");
+    const saved = ctx.story.state.ToJson();
+    const again = makeRuntimeStoryFromSource(source);
+    again.story.state.LoadJson(saved);
+    expect(again.story.Continue()).toBe("Aside.\n");
+    expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+  });
+
+  test("a caption line followed by a call that shows something closes its own line", () => {
     for (const between of [
       `& print("Aside.")`,
       `if true then\n    & print("Aside.")\n  end`,
@@ -595,6 +661,11 @@ end
       );
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.Continue()).toBe("Pick.\n");
+      expect(ctx.story.currentChoices).toEqual([]);
+      // A function's output ends without its trailing newline, so `aside()`
+      // shows "Aside." where the direct `print` shows "Aside.\n".
+      expect(ctx.story.Continue()?.trim()).toBe("Aside.");
+      expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
     }
   });
 
@@ -649,11 +720,6 @@ describe("the compiled program", () => {
       `A ..\nqueue\n  | B -> s\nend\n\nscene s\n  C\nend\n`,
       2,
     ],
-    [
-      "a choose caption",
-      `choose\n  Pick one.\n  * One\nend\n`,
-      1,
-    ],
   ];
   for (const [label, source, open] of cases) {
     test(`${label} emits no Glue and marks every join \`open\``, () => {
@@ -663,4 +729,11 @@ describe("the compiled program", () => {
       expect(shape.line).toBe(shape.display);
     });
   }
+
+  test("a choose caption is marked `caption`, not `open`", () => {
+    const shape = programShape(`choose\n  First.\n  Pick one.\n  * One\nend\n`);
+    expect(shape.glue).toBe(0);
+    expect(shape.open).toBe(0);
+    expect(shape.caption).toBe(1);
+  });
 });

@@ -1270,10 +1270,16 @@ export class Story extends InkObject {
       }
 
       this._state.didSafeExit = false;
-      this._state.ResetOutput();
+      this._state.lineEndPending = false;
+      // Output the last continue cut off after its line ended starts this one.
+      this._state.ResetOutput(this._state.TakeCarriedOutput());
 
       if (this._recursiveContinueCount == 1)
         this._state.variablesState.StartVariableObservation();
+
+      // Carried output that ends its line is a line already written, so the
+      // look-ahead starts from it as from any newline.
+      if (this._state.outputStreamEndsInNewline) this.StateSnapshot();
     } else if (this._asyncContinueActive && !stepAtATime) {
       this._asyncContinueActive = false;
     }
@@ -1309,6 +1315,8 @@ export class Story extends InkObject {
     } while (this.canContinue);
 
     let changedVariablesToObserve: Map<string, any> | null = null;
+
+    this._state.CarryOutputPastCut();
 
     if (outputStreamEndsInNewline || !this.canContinue) {
       if (this._stateSnapshotAtLastNewline !== null) {
@@ -1437,6 +1445,16 @@ export class Story extends InkObject {
     this.Step();
 
     if (this._profiler != null) this._profiler.PostStep();
+
+    // A step that showed something while a line end was pending cut the
+    // output there: the continue ends with that line, and what the step
+    // showed after the cut belongs to the next one. Where the story cannot go
+    // on, no next continue follows to carry it to, and it stays in this one
+    // after the line's newline.
+    if (this.state.outputCut !== null) {
+      if (this.canContinue) return true;
+      this.state.CloseOutputCut();
+    }
 
     if (!this.canContinue && !this.state.callStack.elementIsEvaluateFromGame) {
       this.TryFollowDefaultInvisibleChoice();
@@ -4124,6 +4142,7 @@ export class Story extends InkObject {
 
     let outputStreamBefore: InkObject[] = [];
     outputStreamBefore.push(...this.state.outputStream);
+    const lineEnd = this._state.SuspendLineEnd();
     this._state.ResetOutput();
 
     this.state.StartFunctionEvaluationFromGame(funcContainer, args);
@@ -4136,6 +4155,7 @@ export class Story extends InkObject {
     let textOutput = stringOutput.toString();
 
     this._state.ResetOutput(outputStreamBefore);
+    this._state.ResumeLineEnd(lineEnd);
 
     let result = this.state.CompleteFunctionEvaluationFromGame();
     if (this.onCompleteEvaluateFunction != null)
@@ -4201,6 +4221,7 @@ export class Story extends InkObject {
     const savedEvalLen = this.state.evaluationStack.length;
     const savedPointer = this.state.currentPointer.copy();
     const outputStreamBefore: InkObject[] = [...this.state.outputStream];
+    const lineEnd = this.state.SuspendLineEnd();
     this.state.ResetOutput();
 
     let path: Path | null = null;
@@ -4296,6 +4317,7 @@ export class Story extends InkObject {
       }
       this.state.currentPointer = savedPointer;
       this.state.ResetOutput(outputStreamBefore);
+      this.state.ResumeLineEnd(lineEnd);
     }
   }
 
@@ -4374,6 +4396,7 @@ export class Story extends InkObject {
     const savedPointer = this.state.currentPointer.copy();
     const outputStreamBefore: InkObject[] = [...this.state.outputStream];
     const savedErrorCount = this.state.currentErrors?.length ?? 0;
+    const lineEnd = this.state.SuspendLineEnd();
     this.state.ResetOutput();
 
     let path: Path | null = null;
@@ -4501,6 +4524,7 @@ export class Story extends InkObject {
       }
       this.state.currentPointer = savedPointer;
       this.state.ResetOutput(outputStreamBefore);
+      this.state.ResumeLineEnd(lineEnd);
     }
   }
 
