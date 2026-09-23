@@ -5,7 +5,7 @@ import { randomUUID, createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "./detached-launch.mjs";
-import { acquireWaiting, waitForCensus, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
+import { acquireWaiting, releaseKeeping, waitForCensus, atomic, read, processIdentity, reservationState, vitestProcesses, same } from "./test-suite-process.mjs";
 import { git, tracked, fingerprinter, canonicalPath, childEnvironment, isWithinDirectory } from "./test-suite-identity.mjs";
 
 const engine = path.join(path.dirname(fileURLToPath(import.meta.url)), "suite-engine.mjs");
@@ -159,6 +159,7 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     if (Date.now() - lastProgress > 10000) { console.log(JSON.stringify({ run: directory, ...value })); lastProgress = Date.now(); }
   });
   const save = () => atomic(path.join(directory, "run.json"), run);
+  let summary;
   try {
     if (fs.existsSync(path.join(directory, "run.json"))) {
       run = read(path.join(directory, "run.json"));
@@ -211,14 +212,21 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
       await childRun(run, "run", file, reservation, save, dependencies);
     }
     if (fingerprint(run.root, []) !== run.identity) { run.stale = true; save(); }
-    const summary = aggregate(run);
+    summary = aggregate(run);
     atomic(path.join(directory, "summary.json"), summary);
     return summary;
   } finally {
     // Persist while still owning the reservation: a successor may acquire it
     // immediately after release and must never be overwritten by this owner.
     if (run?.token === reservation.record.token) { run.active = false; save(); }
-    reservation.release();
+    // A failed release never replaces the summary or the error already in
+    // flight. summary.json is already written, and after the release attempt
+    // this owner writes nothing more, so the failure goes on the returned summary only.
+    try { reservation.release(); }
+    catch (error) {
+      if (summary) summary.releaseError = error.message;
+      console.error(`Reservation not released; the next acquirer recovers it: ${error.message}`);
+    }
   }
 }
 
@@ -243,7 +251,7 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   try {
     child = spawn(process.execPath, ["--max-old-space-size=1024", vitestPath, ...vitestArguments(files)],
       { cwd: packageRoot, env: childEnvironment(), stdio, windowsHide: true });
-  } catch (error) { reservation.update({ phase: "exited" }); reservation.release(); throw error; }
+  } catch (error) { reservation.update({ phase: "exited" }); releaseKeeping(reservation, error); throw error; }
   const completion = new Promise(resolve => {
     child.once("error", error => resolve({ exit: null, signal: null, launchError: error.message }));
     child.once("close", (exit, signal) => resolve({ exit, signal }));
@@ -254,7 +262,12 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   reservation.update({ phase: identity ? "running" : "launching", child: identity });
   const result = await completion;
   reservation.update({ phase: "exited", exit: result.exit, signal: result.signal });
-  reservation.release();
+  // The result is known; a failed release is reported beside it, never instead of it.
+  try { reservation.release(); }
+  catch (error) {
+    result.releaseError = error.message;
+    console.error(`Reservation not released; the next acquirer recovers it: ${error.message}`);
+  }
   return result;
 }
 

@@ -67,13 +67,25 @@ export function reservationState(record, identify = processIdentity) {
 }
 
 // Serialize acquisition, recovery and release, including the reservation's
-// creation window. An abandoned guard requires inspection; it is never guessed away.
-function guarded(root, action) {
-  fs.mkdirSync(root, { recursive: true });
+// creation window. A transaction holds the guard only for a few synchronous
+// file operations, so a held guard is retried until `waitMs` passes. An
+// abandoned guard requires inspection; it is never guessed away.
+function guarded(root, action, waitMs = guardWaitMs) {
+  const denied = (error) => ["EPERM", "EACCES"].includes(error.code)
+    ? new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`)
+    : null;
+  try { fs.mkdirSync(root, { recursive: true }); }
+  catch (error) { throw denied(error) || error; }
   const guard = path.join(root, "guard.json");
+  const deadline = Date.now() + waitMs;
   let fd;
-  try { fd = fs.openSync(guard, "wx"); }
-  catch (error) { throw new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`); }
+  for (;;) {
+    try { fd = fs.openSync(guard, "wx"); break; }
+    catch (error) {
+      if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
+      throw denied(error) || new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`);
+    }
+  }
   try {
     fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
     fs.fsyncSync(fd);
@@ -81,7 +93,10 @@ function guarded(root, action) {
   } finally { fs.closeSync(fd); fs.unlinkSync(guard); }
 }
 
-export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses } = {}) {
+const guardWaitMs = 5000;
+const sleeper = new Int32Array(new SharedArrayBuffer(4));
+
+export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs } = {}) {
   return guarded(root, file => {
     if (fs.existsSync(file)) {
       const previous = read(file);
@@ -107,9 +122,16 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
         if (read(target).token !== record.token) throw new Error("Reservation ownership changed");
         if (!["reserved", "exited"].includes(record.phase)) throw new Error("Child exit unconfirmed; preserve reservation");
         fs.unlinkSync(target);
-      });
+      }, waitMs);
     } };
-  });
+  }, waitMs);
+}
+
+// Release on an error path: the error being handled stays the one thrown, and
+// a release failure beside it is reported rather than replacing it.
+export function releaseKeeping(reservation, cause) {
+  try { reservation.release(); }
+  catch (error) { console.error(`Reservation not released after ${cause.message}; the next acquirer recovers it: ${error.message}`); }
 }
 
 // A sleep never runs past the deadline, so the last attempt happens at it.
@@ -131,7 +153,7 @@ export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, census = 
     }
   }
   try { await waitForCensus({ deadline, pollMs, census, onWait }); }
-  catch (error) { reservation.release(); throw error; }
+  catch (error) { releaseKeeping(reservation, error); throw error; }
   return reservation;
 }
 
