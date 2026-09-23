@@ -65,8 +65,11 @@ export function putAtStartPoint(
       >
     | undefined,
   route: StartPointRoute | undefined,
+  /** Names the thread that runs the rule in its profile marks. */
+  profilerId?: string,
 ): void {
-  profile("start", "game/simulate");
+  const mark = (profilerId ? profilerId + " " : "") + "game/simulate";
+  profile("start", mark);
   const { checkpoint, path: simulatedPath, programId, failure } = route ?? {};
   const startPath = game.startPath;
   // Both halves are required. The path says where the answer is about; the
@@ -108,5 +111,5 @@ export function putAtStartPoint(
     // version of the script. This is the only search there is.
     game.simulate(simulationOptions);
   }
-  profile("end", "game/simulate");
+  profile("end", mark);
 }

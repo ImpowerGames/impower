@@ -334,13 +334,16 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       }
     },
     /** Record the program each PLAY from now on builds its game from, on
-     *  whichever side it runs. */
+     *  whichever side it runs. The worker builds PLAY's game beside the game
+     *  that previews, so a game it builds with none there is that one. */
     recordPlays() {
       const played: any[] = [];
       if (options.workerDisplays) {
         const createGame = workerState.gameState.createGame;
         workerState.gameState.createGame = (gameOptions) => {
-          played.push(gameOptions.program);
+          if (workerState.gameState.game) {
+            played.push(gameOptions.program);
+          }
           return createGame(gameOptions);
         };
       } else {

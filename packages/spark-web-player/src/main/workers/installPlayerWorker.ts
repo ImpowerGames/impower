@@ -3,6 +3,7 @@ import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
+import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import {
@@ -37,6 +38,7 @@ import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
 import { StartPlayMessage } from "./messages/StartPlayMessage";
 import {
   StopPlayMessage,
+  type StopPlayParams,
   type StopPlayResult,
 } from "./messages/StopPlayMessage";
 import { putAtStartPoint } from "../../utils/putAtStartPoint";
@@ -429,14 +431,23 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   // Everything the game sends while it displays goes to the page, and
   // nothing while PLAY's game runs: the page shows that game alone, and a
-  // stream from this one would supersede it there.
+  // stream from this one would supersede it there. A request it makes then
+  // is answered here, as the page answers one it will not act on, so
+  // nothing the game does waits for an answer that will not come.
   const sendToPage = (message: Message, transfer?: ArrayBuffer[]) => {
     const game = gameState.game;
-    if (
-      !game ||
-      gameState.running ||
-      (!isRequest(message) && !isNotification(message))
-    ) {
+    if (!game || (!isRequest(message) && !isNotification(message))) {
+      return;
+    }
+    if (gameState.running) {
+      if (isRequest(message)) {
+        game.connection.receive({
+          jsonrpc: "2.0",
+          id: message.id,
+          method: message.method,
+          error: { code: DISCONNECTED, message: "PLAY's game holds the page" },
+        } as Message);
+      }
       return;
     }
     connection.postMessage(withDocumentLocations(message, game), transfer);
@@ -558,6 +569,13 @@ export function installPlayerWorker(connection: MessageConnection) {
   // page shows it, hears from it and debugs it, and the game above sends the
   // page nothing (`sendToPage`) and replays no route for a selection.
 
+  /** PLAY's game while it runs, with the run the page knows it by, and a
+   *  settlement that STOP answers everything still waiting on it with. */
+  let current:
+    | { run: number; game: Game; stopped: Promise<void>; stop: () => void }
+    | undefined;
+  let runs = 0;
+
   /** Where PLAY's game `running` sends the page what it shows, while it
    *  is the one that runs: a game STOP ended cannot write into the next
    *  run's stream. */
@@ -583,7 +601,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (!entry || !game) {
       return { built: false };
     }
-    stopPlay();
+    stopPlay({});
     const program = compiler.emitCompiledProgramOf(entry.story, entry.program);
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program, entry.story);
@@ -601,26 +619,50 @@ export function installPlayerWorker(connection: MessageConnection) {
       restarted: params.restarted,
     });
     profile("end", compiler.profilerId + " " + "play/create");
-    player.putAtStartPoint(running, params.simulationOptions, {
-      checkpoint: route.checkpoint,
-      path: route.simulatedPath,
-      programId: route.simulatedProgramId,
-      failure: route.simulationFailure,
-    });
+    player.putAtStartPoint(
+      running,
+      params.simulationOptions,
+      {
+        checkpoint: route.checkpoint,
+        path: route.simulatedPath,
+        programId: route.simulatedProgramId,
+        failure: route.simulationFailure,
+      },
+      compiler.profilerId,
+    );
     gameState.running = running;
-    return { built: true, compiled: hasCompiledProgram(program) };
+    let stop!: () => void;
+    const stopped = new Promise<void>((resolve) => (stop = resolve));
+    current = { run: ++runs, game: running, stopped, stop };
+    return {
+      built: true,
+      compiled: hasCompiledProgram(program),
+      run: current.run,
+    };
   };
 
-  /** End PLAY's game, answering where it last executed. */
-  const stopPlay = (): StopPlayResult => {
-    const running = gameState.running;
-    if (!running) {
+  /** End PLAY's game, answering where it last executed: the run the page
+   *  names, or whichever runs when it names none. A run already replaced is
+   *  left alone. */
+  const stopPlay = (params: StopPlayParams): StopPlayResult => {
+    const ending = current;
+    if (!ending || (params.run != null && params.run !== ending.run)) {
       return { location: null };
     }
-    const location = running.getLastExecutedDocumentLocation();
+    const location = ending.game.getLastExecutedDocumentLocation();
+    current = undefined;
     gameState.running = undefined;
-    running.destroy();
+    ending.game.destroy();
+    ending.stop();
     return { location };
+  };
+
+  /** PLAY's game for the run the page names, if it still runs. */
+  const runningAs = (run: number) => {
+    if (!current || current.run !== run) {
+      throw new NoGameError();
+    }
+    return current;
   };
 
   connection.addEventListener("message", (e: MessageEvent) => {
@@ -647,28 +689,23 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (ConnectPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, async () => {
-        const running = gameState.running;
-        if (!running) {
-          throw new NoGameError();
-        }
-        await running.connect(sendFromPlay(running));
+        const { game, stopped } = runningAs(message.params.run);
+        // A game STOP ends while it connects never finishes its restore:
+        // what the page answers from then on is not delivered to it.
+        await Promise.race([game.connect(sendFromPlay(game)), stopped]);
         return {};
       });
       return;
     }
     if (StartPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        const running = gameState.running;
-        if (!running) {
-          throw new NoGameError();
-        }
-        running.start();
+        runningAs(message.params.run).game.start();
         return {};
       });
       return;
     }
     if (StopPlayMessage.type.isRequest(message)) {
-      connection.sendResponse(message, () => stopPlay());
+      connection.sendResponse(message, () => stopPlay(message.params));
       return;
     }
     if (ProgramHeldMessage.type.isRequest(message)) {

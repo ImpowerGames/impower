@@ -321,6 +321,38 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
   });
 });
 
+describe("with the switch on, the worker's own route reaches the rule", () => {
+  test("PLAY's game is put at its start point from the route the worker replayed", async () => {
+    const line = 3;
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: WORKER_SOURCE }],
+      startFrom: { file: MAIN_URI, line },
+    });
+    try {
+      await h.compile();
+      await h.select(line);
+      const handed: any[] = [];
+      h.workerState.player.putAtStartPoint = (built, simulationOptions, route, profilerId) => {
+        handed.push({ built, route });
+        return putAtStartPoint(built, simulationOptions, route, profilerId);
+      };
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      expect(handed).toHaveLength(1);
+      const [{ built, route }] = handed;
+      // The answer is about this start point in this program, with the state
+      // the replay ended in, so PLAY's game loads it and searches nothing.
+      expect(route.path).toBe(built.startPath);
+      expect(route.programId).toBe(programIdentity(built.program));
+      expect(route.checkpoint).toBeTruthy();
+      expect(built.simulation).toBe("success");
+      await h.controller.destroyGameAndApp();
+    } finally {
+      h.dispose();
+    }
+  });
+});
+
 describe("the worker's route answer reaches the play path", () => {
   test("a compile stores both the checkpoint and the path it was found for", async () => {
     const controller: any = new GamePlayerController(

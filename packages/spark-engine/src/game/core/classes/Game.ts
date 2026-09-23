@@ -78,20 +78,22 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 export type M = { [name: string]: Module };
 
 /** A value the editor can receive and evaluate an expression against: a
- *  primitive, or a record of primitives, as a list reads. */
-const isEvaluable = (value: unknown): boolean => {
-  const primitive = (v: unknown) =>
-    v === null || (typeof v !== "object" && typeof v !== "function");
-  if (value === undefined) {
+ *  primitive, or plain data made of them, as a list or a divert target
+ *  reads. */
+const isEvaluable = (value: unknown, depth = 0): boolean => {
+  if (value === undefined || typeof value === "function") {
     return false;
   }
-  if (primitive(value)) {
+  if (value === null || typeof value !== "object") {
     return true;
   }
-  return (
-    typeof value === "object" &&
-    Object.getPrototypeOf(value) === Object.prototype &&
-    Object.values(value as object).every(primitive)
+  // A table is a `Map` of the runtime's own objects, and a structure nested
+  // this deep is not a value an author reads in the console.
+  if (value instanceof Map || value instanceof Set || depth > 8) {
+    return false;
+  }
+  return Object.values(value).every(
+    (item) => item === undefined || isEvaluable(item, depth + 1),
   );
 };
 
@@ -2404,8 +2406,8 @@ export class Game<T extends M = {}> {
 
   /** The story's globals and the current temporaries by name, for the
    *  editor to evaluate an expression against: each value it can receive
-   *  and read into, which is a primitive or a list. A table holds the
-   *  runtime's own objects and functions, which no message can carry. */
+   *  and read into (`isEvaluable`). A table holds the runtime's own objects
+   *  and functions, which no message can carry. */
   getEvaluationContext() {
     const context: any = {};
     const variableState = this._story.state.variablesState;

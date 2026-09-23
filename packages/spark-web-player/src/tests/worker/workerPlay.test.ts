@@ -159,7 +159,9 @@ describe("PLAY with the switch on", () => {
 
     // PLAY showed the line it started from, the restart ran the edited
     // program, and STOP asked the editor to select where the game was.
+    expect(off.previewed).toContain("The second line.");
     expect(off.played).toContain("The second line.");
+    expect(off.afterStop).toContain("The second line.");
     expect(off.restartedIds[0]).not.toBe(off.restartedIds[1]);
     expect(off.stopSelections).toHaveLength(1);
     expect(off.playingAfterStop).toBe(false);
@@ -236,6 +238,20 @@ describe("the game that previews while PLAY runs in the worker", () => {
       } as any);
       await settle(20);
       expect(h.toRouter.some((m) => m.method === "test/fromPreview")).toBe(false);
+      // A request it makes is answered, so whatever it was doing, such as a
+      // display PLAY took over, does not wait for ever.
+      const asked = previewing.connection
+        .emit({ jsonrpc: "2.0", id: "from-preview", method: "test/askPreview", params: {} } as any)
+        .then(
+          () => "answered",
+          () => "refused",
+        );
+      const outcome = await Promise.race([
+        asked,
+        new Promise((resolve) => setTimeout(() => resolve("waiting"), 2000)),
+      ]);
+      expect(outcome).toBe("refused");
+      expect(h.toRouter.some((m) => m.method === "test/askPreview")).toBe(false);
       // PLAY's game still reaches the page afterwards.
       const before = h.toRouter.length;
       await h.controller.handlePauseGame(PauseGameMessage.type.request({}));

@@ -172,8 +172,13 @@ interface WorkerPlay {
   /** The summary of the program it runs. */
   program: SparkProgram;
   state: "starting" | "running";
+  /** The run the worker built for it, once it has answered. */
+  run?: number;
   /** Where the application that shows it hears it. */
   sink?: (message: Message) => void;
+  /** What the editor asked of the game's clock while it was starting, for
+   *  the game once it runs: the worker has no PLAY game to tell until then. */
+  held: { type: MessageProtocolRequestType<string, any, any>; params: unknown }[];
 }
 
 export interface GamePlayerRefs {
@@ -402,6 +407,7 @@ export class GamePlayerController {
       this._completionStatusTimer = 0;
     }
     this._mounted = false;
+    this._stops += 1;
     this._previewPosition = null;
     this._selectionVersion++;
     this._launchState = null;
@@ -1572,13 +1578,24 @@ export class GamePlayerController {
   };
 
   /** Tell PLAY's game in the worker what its application was just told, so
-   *  the worker's clock and the page's managers agree. Answers whether it
-   *  took: a worker that fails is a failure to report to the editor. */
+   *  the worker's clock and the page's managers agree. While PLAY starts,
+   *  the worker has no PLAY game yet, so the request is held for the game
+   *  and told it as it starts. Answers whether it took: a worker that fails
+   *  is a failure to report to the editor. */
   protected async tellWorkerPlay<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
   ): Promise<boolean> {
-    if (!this._workerPlay) {
+    const play = this._workerPlay;
+    if (!play) {
+      return true;
+    }
+    if (play.state === "starting") {
+      // An application built later starts as the game does, so only what
+      // its application heard is held.
+      if (this._app) {
+        play.held.push({ type, params });
+      }
       return true;
     }
     try {
@@ -1955,19 +1972,34 @@ export class GamePlayerController {
     link: WorkerGameLink,
     restarted?: boolean,
   ): Promise<boolean> {
-    const play: WorkerPlay = { program, state: "starting" };
+    const play: WorkerPlay = { program, state: "starting", held: [] };
     this._workerPlay = play;
-    // STOP, or a restart, while this starts ends it.
+    // STOP, a restart or the controller going ends this start at whichever
+    // step it has reached (`endWorkerPlay`).
     const current = () => this._workerPlay === play;
+    /** Stop the run this start built, which nothing else will stop once the
+     *  start is no longer current. */
+    const abandon = () => {
+      if (play.run != null) {
+        link
+          .request(StopPlayMessage.type, { run: play.run })
+          .catch((e) => console.error(e));
+      }
+      return false;
+    };
     this._startingPlay = true;
     try {
       await this.detachWorkerPreview();
+      if (!current()) {
+        return false;
+      }
       const built = await link.request(PlayMessage.type, {
         program: programIdentity(program)!,
         startFrom: this._options?.startFrom ?? undefined,
         restarted,
         simulationOptions: this._options?.simulationOptions,
       });
+      play.run = built.run;
       if (!built.built) {
         console.error("The worker no longer holds the program to play");
         if (current()) {
@@ -1976,7 +2008,7 @@ export class GamePlayerController {
         return false;
       }
       if (!current()) {
-        return false;
+        return abandon();
       }
       this._stopListeningToPlay = this.listenToWorker(link, () =>
         this._workerPlay === play ? play.state : "stopped",
@@ -1984,13 +2016,20 @@ export class GamePlayerController {
       // A preview build a detach left under way still holds the application
       // slot until it has disposed of its application.
       await this._workerAppSettling;
+      if (!current()) {
+        return abandon();
+      }
       const app = await this.buildAppFor(
         {
           connect: async (send) => {
+            // A start that has ended leaves the link to whatever shows now.
+            if (!current()) {
+              return;
+            }
             play.sink = send;
             link.attach(send);
             try {
-              await link.request(ConnectPlayMessage.type, {});
+              await link.request(ConnectPlayMessage.type, { run: play.run! });
             } catch (e) {
               // Ended before it connected; nothing is shown.
               console.error(e);
@@ -2006,10 +2045,14 @@ export class GamePlayerController {
           link.detach(play.sink);
         }
         await app.destroy(true);
-        return false;
+        return abandon();
       }
       play.state = "running";
-      await link.request(StartPlayMessage.type, {});
+      await link.request(StartPlayMessage.type, { run: play.run! });
+      // What the editor asked of the clock while PLAY started, in order.
+      for (const { type, params } of play.held.splice(0)) {
+        await this.tellWorkerPlay(type, params);
+      }
       if (built.compiled) {
         app.start();
       }
@@ -2022,7 +2065,10 @@ export class GamePlayerController {
       }
       return false;
     } finally {
-      this._startingPlay = false;
+      // A newer PLAY that began after this one ended is starting in its turn.
+      if (current() || !this._workerPlay) {
+        this._startingPlay = false;
+      }
     }
   }
 
@@ -2033,6 +2079,10 @@ export class GamePlayerController {
       return null;
     }
     this._workerPlay = undefined;
+    if (play.state === "starting") {
+      // The start stops at its next step; the preview may take the screen.
+      this._startingPlay = false;
+    }
     this._stopListeningToPlay?.();
     this._stopListeningToPlay = undefined;
     const link = workspace?.gameLink;
@@ -2040,7 +2090,12 @@ export class GamePlayerController {
       link?.detach(play.sink);
     }
     try {
-      const stopped = await link?.request(StopPlayMessage.type, {});
+      // Without a run, the worker has not answered PLAY yet and ends
+      // whichever game runs, which is the one it builds next if it builds it
+      // before this arrives; the start stops a game built after this itself.
+      const stopped = await link?.request(StopPlayMessage.type, {
+        run: play.run,
+      });
       return stopped?.location ?? null;
     } catch (e) {
       console.error(e);
@@ -2070,6 +2125,9 @@ export class GamePlayerController {
    *  whatever it still sends is heard by nothing. */
   async detachWorkerPreview() {
     this._workerDetaches += 1;
+    for (const detached of [...this._detachWaiters]) {
+      detached();
+    }
     // A build under way disposes of its application when it finishes, and the
     // next preview builds its own once that is done, so the two never share
     // the application slot.
@@ -2107,6 +2165,7 @@ export class GamePlayerController {
       location: DocumentLocation;
     },
   ) {
+    this._stops += 1;
     // Read before the game goes; PLAY in the worker answers it as it stops.
     const lastExecutedLocation = this._game
       ? this._game.getLastExecutedDocumentLocation()
@@ -2133,9 +2192,20 @@ export class GamePlayerController {
     }
   }
 
-  async restartGame() {
+  /** Counts STOPs and the controller going, so a restart under way when
+   *  one happens does not start the game again after it. */
+  protected _stops = 0;
+
+  /** Restart the game. Answers false when STOP, or the controller going,
+   *  came while the old game was torn down, and nothing restarted. */
+  async restartGame(): Promise<boolean> {
+    const stops = this._stops;
     await this.destroyGameAndApp();
+    if (stops !== this._stops || !this._mounted) {
+      return false;
+    }
     await this.startGameAndApp(true);
+    return true;
   }
 
   // Compile-driven restart of a RUNNING game, coalesced: compiles arrive at
@@ -2160,8 +2230,7 @@ export class GamePlayerController {
       this._restartGameTimeout = undefined;
       // Only restart a game that is still meant to be running; the state can
       // have changed (STOP, finish, error) while the timer was pending.
-      if (this.playing) {
-        await this.restartGame();
+      if (this.playing && (await this.restartGame())) {
         sendProtocolMessage(
           GameReloadedMessage.type.notification({}),
           this.host,
@@ -2485,6 +2554,10 @@ export class GamePlayerController {
    *  on after it. */
   protected _workerDetaches = 0;
 
+  /** The preview updates waiting for a display's answer, each ended by the
+   *  next detach. */
+  protected _detachWaiters = new Set<() => void>();
+
   /** Settles once every build a detach left under way has finished and
    *  disposed of its application. */
   protected _workerAppSettling?: Promise<void>;
@@ -2572,19 +2645,33 @@ export class GamePlayerController {
     }
     const shown = this._completionShown;
     let result: { displayed: boolean } | undefined;
+    // A detach ends the wait for the answer: the application the display
+    // was for is gone, and the worker may never answer a display whose
+    // application no longer tells it that fonts and pictures arrived, while
+    // the next program to reach this page waits for this update to finish.
+    let detached!: () => void;
+    const detaching = new Promise<{ displayed: boolean }>((resolve) => {
+      detached = () => resolve({ displayed: false });
+    });
+    this._detachWaiters.add(detached);
     try {
-      result = await link.request(DisplayPreviewMessage.type, {
-        program: programIdentity(program)!,
-        file,
-        line,
-        speculative: Boolean(options?.speculative),
-        keep: shown ? programIdentity(shown.program) : undefined,
-        real: programIdentity(this._program),
-        fresh: this._workerAppFresh,
-      });
+      result = await Promise.race([
+        link.request(DisplayPreviewMessage.type, {
+          program: programIdentity(program)!,
+          file,
+          line,
+          speculative: Boolean(options?.speculative),
+          keep: shown ? programIdentity(shown.program) : undefined,
+          real: programIdentity(this._program),
+          fresh: this._workerAppFresh,
+        }),
+        detaching,
+      ]);
     } catch (e) {
       console.error(e);
       return false;
+    } finally {
+      this._detachWaiters.delete(detached);
     }
     if (result.displayed && detaches === this._workerDetaches) {
       // The frame reached the application this display was for. A detach

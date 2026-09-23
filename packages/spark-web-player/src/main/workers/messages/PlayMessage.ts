@@ -26,6 +26,9 @@ export interface PlayResult {
   built: boolean;
   /** The program holds compiled story content to run. */
   compiled?: boolean;
+  /** The run the game belongs to, which the requests that connect, start
+   *  and stop it name. */
+  run?: number;
 }
 
 /**

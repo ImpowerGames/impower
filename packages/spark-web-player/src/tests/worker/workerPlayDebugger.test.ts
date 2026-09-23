@@ -173,6 +173,9 @@ describe("the debugger during PLAY", () => {
     expect(stopped.stack.result.stackFrames.length).toBeGreaterThan(0);
     expect(stopped.variables.vars.result.variables.length).toBeGreaterThan(0);
     expect((off.reported as any[]).map((m) => m.method)).toContain("game/hitBreakpoint");
+    // The expression context holds the story's variable, which the Debug
+    // Console evaluates by name.
+    expect(typeof stopped.context.result.context.mood).toBe("number");
 
     for (const key of Object.keys(off)) {
       expect({ [key]: on[key] }).toEqual({ [key]: off[key] });
