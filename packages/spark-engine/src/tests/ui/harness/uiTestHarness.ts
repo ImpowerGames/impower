@@ -114,6 +114,10 @@ export function compileUI(
     seedBuiltinsIntoStory?: boolean;
     /** Asset files (images, audio, fonts, video) the fixture references. */
     assets?: File[];
+    /** Scripts `main.sd` includes, by URI. A fixture that needs a second
+     *  file (source offsets start again in every one) names them here and
+     *  writes `include <uri>` in its main source. */
+    scripts?: Record<string, string>;
   },
 ) {
   const compiler = new SparkdownCompiler();
@@ -133,6 +137,15 @@ export function compileUI(
         version: 1,
         languageId: "sparkdown",
       },
+      ...Object.entries(opts?.scripts ?? {}).map(([uri, text]) => ({
+        uri,
+        type: "script",
+        name: uri.split("/").pop()!.replace(/\.sd$/, ""),
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      })),
       ...(opts?.assets ?? []),
     ],
   });
@@ -214,12 +227,15 @@ export function createHarness(
     holdAssets?: boolean;
     /** Asset files (images, audio, fonts, video) the fixture references. */
     assets?: File[];
+    /** Scripts `main.sd` includes, by URI (see `compileUI`). */
+    scripts?: Record<string, string>;
   },
 ): UIHarness {
   const { program } = compileUI(source, {
     // `compileUI` seeds the builtins prelude by default (the engine sources
     // defines from the live runtime __def tables).
     assets: opts?.assets,
+    scripts: opts?.scripts,
   });
   if (opts?.staticFallback) {
     delete (program as any).sparkle;

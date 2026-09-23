@@ -83,6 +83,11 @@ export class FunctionCall extends Expression {
 
   public shouldPopReturnedValue: boolean = false;
 
+  // Set on the `display()` call a display line lowers to. The call is then
+  // preceded by a `LineStart` marker, which the engine's newline look-ahead
+  // reads as the start of a new line before evaluating its arguments.
+  public emitsLineStart: boolean = false;
+
   constructor(functionName: Identifier, args: Expression[]) {
     super();
 
@@ -138,6 +143,10 @@ export class FunctionCall extends Expression {
     // back to a normal call, the divert would have gone unresolved and
     // undiagnosed. See #329.
     let usingProxyDivert: boolean = false;
+
+    if (this.emitsLineStart) {
+      container.AddContent(RuntimeControlCommand.LineStart());
+    }
 
     if (this.isTurnsSince || this.isReadCount) {
       const divertTarget = asOrNull(this.args[0], DivertTarget);

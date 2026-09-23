@@ -1,6 +1,6 @@
 ---
 name: write-regression-test
-description: Write a behavioral reproduction or regression test. Use reproduction-only mode when filing a bug; use full red/green, suite and typecheck verification when landing a fix.
+description: Write a behavioral reproduction or regression test. Use reproduction-only mode when filing a bug; use full red/green, filtered typecheck and workflow suite verification when landing a fix.
 ---
 
 # Write and verify a behavioral test
@@ -20,7 +20,7 @@ Assert the ticket's behavior rather than patch shape. A file already failing who
 
 ## Resource gate
 
-At most one vitest run at a time across worktrees. Every invocation uses at most a 1024 MB heap and one fork. Run only the test file under work locally; the Test Suite workflow runs whole packages for the pushed head. Use the repository suite runner only for a local baseline comparison the workflow cannot give you; it reserves the machine, saves attempts and reconciles interrupted processes. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
+At most one vitest run at a time across worktrees. Run the test file with `node scripts/test-suite.mjs run <package> <test-file> --wait <seconds>`, which sets the heap and worker caps and queues behind other runs. Run only the test file under work locally; the Test Suite workflow runs whole packages for the pushed head. A repository hook refuses a Vitest call that names no existing test file and a package `npm test` whose script may run Vitest; where hooks are unavailable, or the command is built from a variable the hook cannot read, this sentence is the rule. Use the repository suite runner's `start` only for a local baseline comparison the workflow cannot give you; it reserves the machine, saves attempts and reconciles interrupted processes. Before running Vitest, read [safe commands and result verification](references/vitest.md). Missing summaries, worker crashes or partial manifests are not passes, even with exit status zero.
 
 ## 2. Prove red/green
 
@@ -30,6 +30,6 @@ Inspect the actual failing assertion and full saved logs; a nonzero exit or unre
 
 ## 3. Broaden verification
 
-Read [suite, typecheck and standalone gates](references/suites.md) when the fix is ready. Run the tests you touched, widen to the full applicable typecheck before push, and run `node scripts/check-agent-tooling.mjs` for tooling. Stage new checks first and confirm discovered inventory, expected count, CI triggers and sparse inputs.
+Read [suite, typecheck and standalone gates](references/suites.md) when the fix is ready. Run the tests you touched, typecheck the projects you touched with a filter (the typecheck workflow runs the whole gate on the pushed head), and run `node scripts/check-agent-tooling.mjs` for tooling. Stage new checks first and confirm discovered inventory, expected count, CI triggers and sparse inputs.
 
 Keep the red and green assertions, the files you ran locally, platform skips and any incomplete attempts for the PR; the package suite result comes from the Test Suite workflow on the pushed head. A failure there that you believe pre-exists must be confirmed on `origin/main`, not inferred.

@@ -75,7 +75,8 @@ compilerState.compiler.addEventListener("compiler/didCompile", (params) => {
       "start",
       compilerState.compiler.profilerId + " " + "game/setStartFrom",
     );
-    gameState.game.setStartFrom(params.program.startFrom);
+    // The route ends at the beat the preview shows: a line's last beat.
+    gameState.game.setStartFrom(params.program.startFrom, "last");
     profile(
       "end",
       compilerState.compiler.profilerId + " " + "game/setStartFrom",
@@ -115,7 +116,7 @@ compilerState.compiler.addEventListener(
     }
     const game = gameState.game;
     profile("start", profilerId + " " + "game/setStartFrom");
-    game.setStartFrom(params.startFrom);
+    game.setStartFrom(params.startFrom, "last");
     profile("end", profilerId + " " + "game/setStartFrom");
     const toPath = game.startPath;
     if (toPath) {

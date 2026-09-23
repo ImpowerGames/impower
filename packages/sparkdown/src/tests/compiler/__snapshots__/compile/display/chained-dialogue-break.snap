@@ -36,6 +36,14 @@
                       "Different rope!"
                     ]
                   }
+                },
+                {
+                  "key": "pause",
+                  "value": {
+                    "type": "NumberExpression",
+                    "value": true,
+                    "subtype": "bool"
+                  }
                 }
               ]
             }

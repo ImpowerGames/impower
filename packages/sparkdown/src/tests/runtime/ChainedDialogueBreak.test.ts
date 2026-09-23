@@ -1,9 +1,8 @@
 // A `>` BREAK marker inside a dialogue (or any display) block splits the
 // content into separate BEATS. Each beat must be its own `Continue()` at the
 // runtime level so the screenplay preview / planRoute can route to it by its
-// own checkpoint — otherwise every dialogue box after the first in a chain is
-// unreachable by the preview (the interpreter's `BREAK_BOX_REGEX` still
-// renders the boxes, but they collapse onto a single story-path checkpoint).
+// own checkpoint — otherwise every dialogue box after the first in a chain
+// collapses onto a single story-path checkpoint the preview cannot tell apart.
 //
 // Each beat is its own `display()` call, whose table carries the routing: the
 // cue is not in the visible beat text (`Continue()` output). Each continuation
@@ -98,7 +97,7 @@ describe("chained dialogue `>` break", () => {
   });
 
   test("a trailing break (no content after) stays one beat", () => {
-    // `>` at end of body is not a split point — it's an extra newline.
+    // `>` at end of body is not a split point; it only makes the beat pause.
     const ctx = makeRuntimeStoryFromSource(`N: one line >\n`);
     expect(ctx.errorMessages).toEqual([]);
     const beats = continueBeats(ctx.story);

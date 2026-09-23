@@ -1,0 +1,9 @@
+include includes/evil.sd
+
+-> start
+
+scene start
+  HERO: A.
+  .. joined > After hero.
+  -> evil
+end

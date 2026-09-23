@@ -40,12 +40,12 @@ try {
   console.log('PASS: automatic mode cannot silently run as awaited mode');
   let index=0;
   const identify=()=>null;
-  const fixture=async()=>{
+  const fixture=async(extra={})=>{
     const freeze=worktreePaths(repo).freeze;if(fs.existsSync(freeze))fs.unlinkSync(freeze);
     const jobDir=path.join(scratch,`job-${index++}`);
     let sends=0,accepted=false,state='idle',delivered;
     const host={preflight:async()=>({supported:true}),inspect:async()=>({state}),submit:async envelope=>{sends++;delivered=envelope;accepted=true;return{queued:true};},reconcile:async()=>({status:accepted?'accepted':'uncertain',turnId:'native-turn'})};
-    const input={worktree:repo,jobDir,head,base:head,pr:547,writer:'writer',writerEffort:'medium',permissions:{mode:'fixture'},reviewer:'reviewer',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'old-turn',cwd:repo,credential:'must-stay-private'},reviews:[{id:'correctness',transport:'native-claude-json',executable:process.execPath,args:[child,'--model','reviewer','--effort','high','--permission-mode','dontAsk','--output-format','json'],effort:'high',permissions:'dontAsk',prompt}]};
+    const input={worktree:repo,jobDir,head,base:head,pr:547,writer:'writer',writerEffort:'medium',permissions:{mode:'fixture'},reviewer:'reviewer',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'old-turn',cwd:repo,credential:'must-stay-private'},reviews:[{id:'correctness',transport:'native-claude-json',executable:process.execPath,args:[child,'--model','reviewer','--effort','high','--permission-mode','dontAsk','--output-format','json'],effort:'high',permissions:'dontAsk',prompt}],...extra};
     await createReviewJob(input,host);
     const p=readJson(path.join(jobDir,'plan.json'));
     const complete=()=>{
@@ -309,6 +309,13 @@ try {
     fs.openSync=(file,...args)=>{if(boundary==='admission'&&String(file).includes('handoff-1-review-')&&path.basename(String(file))==='process.log')cancel();return originalOpen(file,...args);};syncBuiltinESMExports();
     try{await assert.rejects(runHandoff(path.join(f.jobDir,'handoff.json'),{slotRoot:path.join(scratch,'cancel-slots'),automaticJob:{jobId:f.p.jobId,jobDir:f.jobDir}}),/cancelled/);}finally{childProcess.execFileSync=originalExec;fs.openSync=originalOpen;syncBuiltinESMExports();}
     const rows=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse);assert.equal(rows.filter(row=>row.event==='running').length,1,`${boundary} prevents second reviewer spawn`);
+  }
+  {
+    const waiting=await fixture({slotWaitSeconds:120});
+    assert.equal(readJson(path.join(waiting.jobDir,'handoff.json')).slotWaitSeconds,120,'a supervised job forwards its slot wait to the launcher');
+    for(const bad of [-1,3601,1.5,'5'])await assert.rejects(createReviewJob({...waiting.input,jobDir:path.join(scratch,`bad-wait-${bad}`),slotWaitSeconds:bad},waiting.host),/slotWaitSeconds must be an integer/,`a supervised plan with slotWaitSeconds ${bad} is refused`);
+    fs.unlinkSync(worktreePaths(repo).freeze);
+    console.log('PASS: supervised jobs forward a valid slot wait and refuse an invalid one');
   }
   {
     const huge=path.join(scratch,'oversize-result');const fd=fs.openSync(huge,'wx');fs.ftruncateSync(fd,16*1024*1024+1);fs.closeSync(fd);assert.throws(()=>verifyNativeReviewResult(huge),/bounded inspection/);

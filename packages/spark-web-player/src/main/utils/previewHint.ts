@@ -101,6 +101,7 @@ export function planPreviewHint(
     { file: uri, line },
     program.pathLocations,
     Object.keys(program.scripts ?? {}),
+    "last",
   );
   const scene = SceneTracker.sceneOf(path) ?? "0";
   const entry = sceneAssets[scene];

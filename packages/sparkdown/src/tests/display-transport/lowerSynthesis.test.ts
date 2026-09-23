@@ -84,8 +84,7 @@ describe("lowerer synthesis: display() from authored prose", () => {
   test("a line-end `>` split emits one display() call per beat", () => {
     // A `>` at END of a body line (followed by more content) splits BEATS —
     // each beat re-emits the cue as its own display() call (separate Continues
-    // via the display-count boundary). A MID-line `>` instead stays one beat
-    // with two boxes (parse()'s BREAK_BOX_REGEX), covered by the parity suite.
+    // via the display-count boundary).
     const { story, errors } = run(
       `HERO:\n  First part. >\n  Second part.\ndone\n`,
     );

@@ -210,18 +210,17 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
     "chained dialogue (mid-line > break)",
     `  HERO: First part. > Second part.`,
     [
-      {
-        text: {
-          dialogue: ["First part. > Second part."],
-          character_name: ["HERO"],
-        },
-      },
+      { text: { dialogue: ["First part."], character_name: ["HERO"] } },
+      { text: { dialogue: ["Second part."], character_name: ["HERO"] } },
     ],
   ],
   [
     "chained action (mid-line > break)",
     `  The door creaks. > Then slams.`,
-    [{ text: { action: ["The door creaks. > Then slams."] } }],
+    [
+      { text: { action: ["The door creaks."] } },
+      { text: { action: ["Then slams."] } },
+    ],
   ],
   [
     "line-end > break (block dialogue, two beats)",
@@ -331,7 +330,7 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
   [
     "trailing > break followed by a glued line",
     `  First >\n  .. second.\n  Last.`,
-    [{ text: { action: ["First  second."] } }, { text: { action: ["Last."] } }],
+    [{ text: { action: ["First second."] } }, { text: { action: ["Last."] } }],
   ],
   [
     "load directive with a trailing-glue continuation",
