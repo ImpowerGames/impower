@@ -373,7 +373,7 @@ try {
   {
     const f=await fixture(),review=f.input.reviews[0],native={...review,args:review.args.slice(1)};
     assert.doesNotThrow(()=>validateNativeReviewArgs(native));assert.throws(()=>validateNativeReviewArgs(review),/Unsupported automatic/);
-    assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]}));assert.throws(()=>actualValidate(f.input),/Unsupported automatic/,'production default validator is wired');
+    assert.doesNotThrow(()=>actualValidate({...f.input,reviews:[native]},{jobRoot:scratch}));assert.throws(()=>actualValidate(f.input,{jobRoot:scratch}),/Unsupported automatic/,'production default validator is wired');
     assert.throws(()=>validateNativeReviewArgs({...native,permissions:'bypassPermissions',args:native.args.map(value=>value==='dontAsk'?'bypassPermissions':value)}),/permission mode/);
     assert.throws(()=>validateReviewPlan({...f.input,writer:'reviewer[fast]'}),/distinct/);
     assert.throws(()=>validateReviewPlan({...f.input,writerEffort:'bogus'}),/Supply writerEffort/,'job admission refuses an unknown writer effort');
