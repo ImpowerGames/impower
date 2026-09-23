@@ -290,7 +290,7 @@ describe("a trailing `..` joins the next line", () => {
   });
 });
 
-describe("a `>..` ending a line clicks inside the joined beat", () => {
+describe("a `>..` ending a line is a break the next line joins", () => {
   for (const [first, joined] of [
     ["A >..", "AB\n"],
     ["A > ..", "A B\n"],
