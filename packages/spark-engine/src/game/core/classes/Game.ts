@@ -417,7 +417,7 @@ export class Game<T extends M = {}> {
         file: options.program.uri,
         line: 0,
       };
-    this.setStartFrom(startFrom);
+    this.setStartFrom(startFrom, previewing ? "last" : "first");
 
     this._executingPath = null;
     this._executingLocation = null;
@@ -942,13 +942,21 @@ export class Game<T extends M = {}> {
     return valid;
   }
 
-  setStartFrom(startFrom: { file: string; line: number }) {
+  /** Where a run from `startFrom` begins. A line that `>` breaks holds
+   *  several beats: PLAY from the line starts at its first, and the route a
+   *  preview of the line replays ends at its last (`beat`), so the beats
+   *  before it run, and apply what they do, as any beat on the route does. */
+  setStartFrom(
+    startFrom: { file: string; line: number },
+    beat: "first" | "last" = "first",
+  ) {
     this._startFrom = startFrom;
     this._startPath =
       findClosestPath(
         this._startFrom,
         this._program.pathLocations,
         this._scripts,
+        beat,
       ) || "0";
     if (this._startPath) {
       const trueLocation = pathLocation(
@@ -1605,10 +1613,13 @@ export class Game<T extends M = {}> {
       //
       // Per-module residue audit for this branch (the abandoned run's state
       // survives the rewind — what of it is CORRECT to keep?):
-      //   interpreter — the beat FIFO is the one true hazard: unflushed beats
+      //   interpreter — the beat FIFO is the first hazard: unflushed beats
       //     from the abandoned run sit at the queue's head and would render
-      //     FIRST in the replay. Cleared below; the replay re-queues from the
-      //     start path. (`_matcherCache`/name maps are pure derivations.)
+      //     FIRST in the replay. The routing the run remembered for a glued
+      //     continuation is the second: a beat of the replay would inherit
+      //     a cue from a beat that is no longer going to run. Both are
+      //     cleared below by `clearQueuedBeats`; the replay re-queues from
+      //     the start path. (`_matcherCache`/name maps are pure derivations.)
       //   audio — `_channelsCurrentlyPlaying` and `_state.channels` MIRROR
       //     the renderer, whose players are untouched by a story rewind:
       //     clearing them would break `replace`-behavior stops and channel-
@@ -2737,7 +2748,7 @@ export class Game<T extends M = {}> {
   }
 
   stopDebugging() {
-    this._context.system.debugging = true;
+    this._context.system.debugging = false;
   }
 
   /** Declare that what follows is a preview rather than a real run.
@@ -2841,6 +2852,7 @@ export class Game<T extends M = {}> {
       { file, line },
       this._program.pathLocations,
       this._scripts,
+      "last",
     );
     if (!previewPath) {
       // A preview call takes over a waiting preview whether or not its

@@ -1,4 +1,5 @@
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
+import { NumberExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NumberExpression";
 import { StringExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StringExpression";
 import {
   ObjectExpression,
@@ -12,8 +13,9 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text })` with `shouldPopReturnedValue` — a
-// synthesized bare-call statement (no author `&` needed). `display` is a
+// `display({ target?, character?, text, pause?, inherit?, group? })` with
+// `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
+// needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
 // live ObjectValue arg the engine reads via `story.currentDisplayInstructions`.
 // `text` is a StringExpression over the body's own ParsedObjects, so ink
@@ -26,6 +28,16 @@ import { stampDebugMetadata } from "./debugMetadata";
 // same step's `currentTags`. A tag cannot sit inside the captured `text`: a tag
 // ending during string evaluation is taken for a choice label's tag.
 //
+// `pause` marks a beat a `>` break ends: it waits for a click even when it
+// shows no text. `group` names the glued continuation a call belongs to (its
+// file and the offset it starts at, since offsets start again in every
+// script), and
+// `inherit` marks its beats after one of its breaks: they take the routing of
+// the beat the run joined the continuation to, which the interpreter knows
+// only while the beat `group` names is the one it queued last, and otherwise
+// route by the table's own routing, which is the line the source reads before
+// the continuation.
+//
 // When `range` is given, the call is stamped with it so its beat surfaces a
 // pathLocation (the screenplay preview's click-to-line routing depends on it).
 export function buildDisplayCall(
@@ -35,6 +47,7 @@ export function buildDisplayCall(
   range: { from: number; to: number } | null,
   ctx: LowerContext,
   tags: ParsedObject[][] = [],
+  options: { pause?: boolean; inherit?: boolean; group?: string } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
   if (target) {
@@ -54,6 +67,21 @@ export function buildDisplayCall(
     );
   }
   entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
+  for (const flag of ["pause", "inherit"] as const) {
+    if (options[flag]) {
+      entries.push(
+        new ObjectExpressionEntry(flag, new NumberExpression(true, "bool")),
+      );
+    }
+  }
+  if (options.group != null) {
+    entries.push(
+      new ObjectExpressionEntry(
+        "group",
+        new StringExpression([new Text(options.group)]),
+      ),
+    );
+  }
   return finishCall(entries, tags, range, ctx);
 }
 
@@ -174,6 +202,7 @@ function finishCall(
     new ObjectExpression(entries),
   ]);
   call.shouldPopReturnedValue = true;
+  call.emitsLineStart = true;
   if (range) stampDebugMetadata([call], range.from, range.to, ctx);
   return call;
 }

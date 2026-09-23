@@ -34,7 +34,7 @@ Make the scoped change. Follow repository-wide artifact, generated-source and co
 
 ## 5. Regression test
 
-Invoke `/write-regression-test` now (skill name `write-regression-test`). Use full verification for fixes; for tooling, run the checks that exercise the change. Record the failing assertion and green result. Package suites run in the Test Suite workflow once the PR is open, not locally.
+Invoke `/write-regression-test` now (skill name `write-regression-test`). Use full verification for fixes; for tooling, run the checks that exercise the change. Record the failing assertion and green result. Package suites run in the Test Suite workflow and the unfiltered typecheck in the typecheck workflow once the PR is open, not locally; locally run the test files under work and the typecheck filtered to the projects you touched.
 
 ## 6. See the change where it runs
 

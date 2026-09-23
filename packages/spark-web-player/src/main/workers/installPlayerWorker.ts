@@ -43,6 +43,7 @@ interface DisplayableProgram {
   canonical: boolean;
   route?: {
     startFrom: { file: string; line: number };
+    beat: "first" | "last";
     path: string | null | undefined;
     log: RouteSearchLog;
   };
@@ -224,7 +225,8 @@ export function installPlayerWorker(connection: MessageConnection) {
     // Plan and simulate route
     if (params.program.startFrom) {
       profile("start", compiler.profilerId + " " + "game/setStartFrom");
-      game.setStartFrom(params.program.startFrom);
+      // The route ends at the beat the preview shows: a line's last beat.
+      game.setStartFrom(params.program.startFrom, "last");
       profile("end", compiler.profilerId + " " + "game/setStartFrom");
       const toPath = game.startPath;
       if (toPath) {
@@ -236,6 +238,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       if (entry) {
         entry.route = {
           startFrom: params.program.startFrom,
+          beat: "last",
           path: toPath,
           log: routeSearches,
         };
@@ -259,7 +262,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const game = createOrUpdateGame(params.program, story);
     const log = new RouteSearchLog();
     profile("start", profilerId + " " + "game/setStartFrom");
-    game.setStartFrom(params.startFrom);
+    game.setStartFrom(params.startFrom, "last");
     profile("end", profilerId + " " + "game/setStartFrom");
     const toPath = game.startPath;
     if (toPath) {
@@ -276,7 +279,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         program: params.program,
         story,
         canonical: false,
-        route: { startFrom: params.startFrom, path: toPath, log },
+        route: { startFrom: params.startFrom, beat: "last", path: toPath, log },
       };
       newestSuggestionIds.push(entry.id);
       if (newestSuggestionIds.length > 2) {
@@ -324,6 +327,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     ) {
       canonical.route = {
         startFrom: { ...game.startFrom },
+        beat: "last",
         path: game.startPath,
         log: routeSearches,
       };
@@ -404,15 +408,17 @@ export function installPlayerWorker(connection: MessageConnection) {
     game: Game,
     entry: DisplayableProgram,
     point: { file: string; line: number },
+    beat: "first" | "last" = "first",
   ) => {
     const route = entry.route;
     if (
       !route ||
       route.startFrom.file !== point.file ||
-      route.startFrom.line !== point.line
+      route.startFrom.line !== point.line ||
+      route.beat !== beat
     ) {
       profile("start", compiler.profilerId + " " + "game/setStartFrom");
-      game.setStartFrom(point);
+      game.setStartFrom(point, beat);
       profile("end", compiler.profilerId + " " + "game/setStartFrom");
       const toPath = game.startPath;
       const log = entry.canonical ? routeSearches : new RouteSearchLog();
@@ -427,7 +433,7 @@ export function installPlayerWorker(connection: MessageConnection) {
           });
         }
       }
-      entry.route = { startFrom: point, path: toPath, log };
+      entry.route = { startFrom: point, beat, path: toPath, log };
     }
     const report: {
       checkpoint?: string;
@@ -470,10 +476,12 @@ export function installPlayerWorker(connection: MessageConnection) {
         updateGameProgram(game, entry.program, entry.story);
       }
       const touches = gameTouches;
-      const route = routeTo(game, entry, {
-        file: params.file,
-        line: params.line,
-      });
+      const route = routeTo(
+        game,
+        entry,
+        { file: params.file, line: params.line },
+        "last",
+      );
       displayedId = entry.id;
       const displayed = await displayPreviewFrom(game, {
         program: entry.program,

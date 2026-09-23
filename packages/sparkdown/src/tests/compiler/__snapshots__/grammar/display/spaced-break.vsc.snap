@@ -1,0 +1,123 @@
+text.source.sparkdown [0..140]
+ ├─ string.display.dialogue.inline.sd [0..16]
+ │   ├─ entity.name.type.dialogue.character.name.sd [0..4]
+ │   │   └─ markup.raw.text.sd [0..4]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [4..5]: ":"
+ │   ├─ punctuation.whitespace.required.sd [5..6]: " "
+ │   ├─ string.display.text.chunk.sd [6..9]
+ │   │   ├─ markup.raw.text.sd [6..8]: "Hi"
+ │   │   └─ markup.raw.punctuation.sd [8..9]: "."
+ │   ├─ meta.break.sd [9..12]
+ │   │   └─ keyword.other.break.sd [9..12]: " > "
+ │   └─ string.display.text.chunk.sd [12..16]
+ │       ├─ markup.raw.text.sd [12..15]: "Bye"
+ │       └─ markup.raw.punctuation.sd [15..16]: "."
+ ├─ Newline [16..17]: "\n"
+ ├─ string.display.dialogue.inline.sd [17..28]
+ │   ├─ entity.name.type.dialogue.character.name.sd [17..21]
+ │   │   └─ markup.raw.text.sd [17..21]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [21..22]: ":"
+ │   ├─ punctuation.whitespace.required.sd [22..23]: " "
+ │   ├─ string.display.text.chunk.sd [23..26]
+ │   │   ├─ markup.raw.text.sd [23..25]: "Hi"
+ │   │   └─ markup.raw.punctuation.sd [25..26]: "."
+ │   └─ meta.break.sd [26..28]
+ │       └─ keyword.other.break.sd [26..28]: " >"
+ ├─ Newline [28..29]: "\n"
+ ├─ meta.break.sd [29..30]
+ │   └─ keyword.other.break.sd [29..30]: ">"
+ ├─ Newline [30..31]: "\n"
+ ├─ meta.break.sd [31..33]
+ │   └─ keyword.other.break.sd [31..33]: "> "
+ ├─ string.display.text.chunk.sd [33..38]
+ │   └─ markup.raw.text.sd [33..38]: "Hello"
+ ├─ Newline [38..39]: "\n"
+ ├─ string.display.text.chunk.sd [39..52]
+ │   └─ meta.image.sd [39..52]
+ │       ├─ keyword.operator.expression.begin.image.sd [39..41]: "[["
+ │       ├─ variable.other.constant.asset.file.sd [41..50]: "cg_sunset"
+ │       └─ keyword.operator.expression.end.image.sd [50..52]: "]]"
+ ├─ meta.break.sd [52..54]
+ │   └─ keyword.other.break.sd [52..54]: " >"
+ ├─ Newline [54..55]: "\n"
+ ├─ string.display.text.chunk.sd [55..61]
+ │   ├─ markup.raw.text.sd [55..56]: "A"
+ │   ├─ markup.raw.space.sd [56..57]: " "
+ │   ├─ constant.character.escape.sd [57..58]: "\\"
+ │   ├─ markup.raw.text.sd [58..59]: ">"
+ │   ├─ markup.raw.space.sd [59..60]: " "
+ │   └─ markup.raw.text.sd [60..61]: "B"
+ ├─ Newline [61..62]: "\n"
+ ├─ string.display.title.inline.sd [62..70]
+ │   ├─ punctuation.title.mark.sd [62..63]: "^"
+ │   ├─ meta.template.expression.operator.colon.sd [63..64]: ":"
+ │   ├─ punctuation.whitespace.required.sd [64..65]: " "
+ │   ├─ string.display.text.chunk.sd [65..66]
+ │   │   └─ markup.raw.text.sd [65..66]: "C"
+ │   ├─ meta.break.sd [66..69]
+ │   │   └─ keyword.other.break.sd [66..69]: " > "
+ │   └─ string.display.text.chunk.sd [69..70]
+ │       └─ markup.raw.text.sd [69..70]: "D"
+ ├─ Newline [70..71]: "\n"
+ ├─ string.display.heading.inline.sd [71..79]
+ │   ├─ punctuation.heading.mark.sd [71..72]: "$"
+ │   ├─ meta.template.expression.operator.colon.sd [72..73]: ":"
+ │   ├─ punctuation.whitespace.required.sd [73..74]: " "
+ │   ├─ string.display.text.chunk.sd [74..75]
+ │   │   └─ markup.raw.text.sd [74..75]: "E"
+ │   ├─ meta.break.sd [75..78]
+ │   │   └─ keyword.other.break.sd [75..78]: " > "
+ │   └─ string.display.text.chunk.sd [78..79]
+ │       └─ markup.raw.text.sd [78..79]: "F"
+ ├─ Newline [79..80]: "\n"
+ ├─ string.display.transitional.inline.sd [80..88]
+ │   ├─ punctuation.transitional.mark.sd [80..81]: "%"
+ │   ├─ meta.template.expression.operator.colon.sd [81..82]: ":"
+ │   ├─ punctuation.whitespace.required.sd [82..83]: " "
+ │   ├─ string.display.text.chunk.sd [83..84]
+ │   │   └─ markup.raw.text.sd [83..84]: "G"
+ │   ├─ meta.break.sd [84..87]
+ │   │   └─ keyword.other.break.sd [84..87]: " > "
+ │   └─ string.display.text.chunk.sd [87..88]
+ │       └─ markup.raw.text.sd [87..88]: "H"
+ ├─ Newline [88..89]: "\n"
+ ├─ string.display.write.inline.sd [89..106]
+ │   ├─ keyword.action.mark.sd [89..90]: "@"
+ │   ├─ punctuation.whitespace.optional.sd [90..91]: " "
+ │   ├─ variable.other.property.write.target.sd [91..99]: "portrait"
+ │   ├─ meta.template.expression.operator.colon.sd [99..100]: ":"
+ │   ├─ punctuation.whitespace.required.sd [100..101]: " "
+ │   ├─ string.display.text.chunk.sd [101..102]
+ │   │   └─ markup.raw.text.sd [101..102]: "I"
+ │   ├─ meta.break.sd [102..105]
+ │   │   └─ keyword.other.break.sd [102..105]: " > "
+ │   └─ string.display.text.chunk.sd [105..106]
+ │       └─ markup.raw.text.sd [105..106]: "J"
+ ├─ Newline [106..107]: "\n"
+ ├─ string.display.dialogue.block.sd [107..112]
+ │   ├─ entity.name.type.dialogue.character.name.sd [107..111]
+ │   │   └─ markup.raw.text.sd [107..111]: "HERO"
+ │   └─ meta.template.expression.operator.colon.sd [111..112]: ":"
+ ├─ Newline [112..113]: "\n"
+ ├─ string.display.dialogue.block.sd [113..126]
+ │   ├─ punctuation.whitespace.optional.sd [113..115]: "  "
+ │   ├─ string.display.text.chunk.sd [115..119]
+ │   │   ├─ markup.raw.text.sd [115..118]: "One"
+ │   │   └─ markup.raw.punctuation.sd [118..119]: "."
+ │   ├─ meta.break.sd [119..122]
+ │   │   └─ keyword.other.break.sd [119..122]: " > "
+ │   └─ string.display.text.chunk.sd [122..126]
+ │       ├─ markup.raw.text.sd [122..125]: "Two"
+ │       └─ markup.raw.punctuation.sd [125..126]: "."
+ ├─ Newline [126..127]: "\n"
+ ├─ string.display.dialogue.block.sd [127..130]
+ │   ├─ punctuation.whitespace.optional.sd [127..129]: "  "
+ │   └─ meta.break.sd [129..130]
+ │       └─ keyword.other.break.sd [129..130]: ">"
+ ├─ Newline [130..131]: "\n"
+ ├─ string.display.dialogue.block.sd [131..139]
+ │   ├─ punctuation.whitespace.optional.sd [131..133]: "  "
+ │   └─ string.display.text.chunk.sd [133..139]
+ │       ├─ markup.raw.text.sd [133..138]: "Three"
+ │       └─ markup.raw.punctuation.sd [138..139]: "."
+ └─ Newline [139..140]: "\n"

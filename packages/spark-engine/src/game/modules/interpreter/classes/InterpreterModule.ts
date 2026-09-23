@@ -77,8 +77,6 @@ export class InterpreterModule extends Module<
   CHAR_REGEX =
     /\p{RI}\p{RI}|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?(\u{200D}\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?)+|\p{EPres}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})?|\p{Emoji}(\p{EMod}+|\u{FE0F}\u{20E3}?|[\u{E0020}-\u{E007E}]+\u{E007F})|./gsu;
 
-  BREAK_BOX_REGEX = /[ \t]+[>][ \t]*$/m;
-
   CHARACTER_REGEX =
     /^(.*?)([ \t]*)([(][^()]*?[)])?([ \t]*)(?:(\[)([ \t]*)(.*?)([ \t]*)(\]))?([ \t]*)$/;
 
@@ -101,6 +99,19 @@ export class InterpreterModule extends Module<
   // per-beat cost in the display hot path. Keying by the pattern string keeps it
   // correct across live-edits (a changed pattern is a new key, never stale).
   protected _matcherCache = new Map<string, Matcher>();
+
+  /** The routing of the last beat this RUN queued, and the glued continuation
+   *  whose table that beat carried (`group`), which is the only continuation
+   *  whose later beats may take this routing as their own.
+   *
+   *  It belongs to the run rather than to the story, so it is not part of the
+   *  saved state: a checkpoint holds what the story is, and two runs that
+   *  reach the same story position must save the same bytes, which is what
+   *  a resumed route is checked against (`routeResume.test.ts`). A run that
+   *  loads a checkpoint therefore remembers nothing, and a continuation's
+   *  beat reached that way routes by its own table, as one reached by a jump
+   *  does. */
+  protected _routing?: { target: string; character?: string; group?: string };
 
   /** Cached `Matcher` for a pattern; `undefined` for an absent/empty pattern
    *  (matching the previous `pattern ? new Matcher(pattern) : undefined`). */
@@ -133,6 +144,10 @@ export class InterpreterModule extends Module<
     // so a live edit (e.g. removing a character's `name`) takes effect instead
     // of resolving against the previous program's defines.
     this.setup();
+    // A continuation of the program just replaced is not a continuation of
+    // this one, however alike their sources are: an edit that keeps a line's
+    // length keeps its offsets too, so the name alone cannot tell them apart.
+    delete this._routing;
   }
 
   setup() {
@@ -252,14 +267,16 @@ export class InterpreterModule extends Module<
    * Build a beat's instructions from an already-resolved target + optional
    * dialogue cue + a final body string, and append them to the buffer: the
    * cue resolution (name / parenthetical / position via `CHARACTER_REGEX`),
-   * the `>` box split, the per-character `parse()`, the cue prefixing, and
-   * the empty-textbox fold. Called by {@link queue}.
+   * the per-character `parse()`, the cue prefixing, and the empty-textbox
+   * fold. A `pause` beat waits for a click even with no text. Called by
+   * {@link queue}.
    */
   protected appendBeat(
     target: string,
     characterDeclaration: string | undefined,
     content: string,
     choices: string[],
+    pause = false,
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
@@ -312,52 +329,54 @@ export class InterpreterModule extends Module<
       }
     }
     // Queue content
-    if (content) {
-      const contentBoxes = content.split(this.BREAK_BOX_REGEX);
-      for (const contentBox of contentBoxes) {
-        const contentInstructions = this.parse(
-          contentBox,
-          target || defaultTarget,
-          options,
-        );
-        if (contentInstructions.text) {
-          if (characterParentheticalInstructions) {
-            // prefix each textbox with character_parenthetical, if specified.
-            this.merge(
-              contentInstructions,
-              characterParentheticalInstructions,
-              true,
-            );
-          }
-          if (characterNameInstructions) {
-            // prefix each textbox with character_name, if specified.
-            this.merge(contentInstructions, characterNameInstructions, true);
-          }
+    if (content || pause) {
+      const contentInstructions = this.parse(
+        content,
+        target || defaultTarget,
+        options,
+      );
+      if (pause && !contentInstructions.text) {
+        // A beat a `>` break ends waits for a click, so it shows its box even
+        // with no text to type.
+        contentInstructions.text = { [target || defaultTarget]: [] };
+      }
+      if (contentInstructions.text) {
+        if (characterParentheticalInstructions) {
+          // prefix each textbox with character_parenthetical, if specified.
+          this.merge(
+            contentInstructions,
+            characterParentheticalInstructions,
+            true,
+          );
         }
-        // A `[[load …]]` is always its own beat: the loading layout must never
-        // open over the line before it, and the beat advances by itself once
-        // loading is done. Whatever else the line carried is queued first.
-        const loads = contentInstructions.load;
-        delete contentInstructions.load;
-        const hasOtherContent =
-          contentInstructions.text ||
-          contentInstructions.image ||
-          contentInstructions.audio ||
-          contentInstructions.layout ||
-          Number(contentInstructions.end) > 0;
-        if (!loads || hasOtherContent) {
-          const lastTextbox = this._state.buffer.at(-1);
-          if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
-            // If previous textbox did not actually contain any text, fold this result into it.
-            this.merge(lastTextbox, contentInstructions);
-          } else {
-            // Otherwise, add this result as a new textbox.
-            this._state.buffer.push(contentInstructions);
-          }
+        if (characterNameInstructions) {
+          // prefix each textbox with character_name, if specified.
+          this.merge(contentInstructions, characterNameInstructions, true);
         }
-        if (loads) {
-          this._state.buffer.push({ load: loads, end: 0 });
+      }
+      // A `[[load …]]` is always its own beat: the loading layout must never
+      // open over the line before it, and the beat advances by itself once
+      // loading is done. Whatever else the line carried is queued first.
+      const loads = contentInstructions.load;
+      delete contentInstructions.load;
+      const hasOtherContent =
+        contentInstructions.text ||
+        contentInstructions.image ||
+        contentInstructions.audio ||
+        contentInstructions.layout ||
+        Number(contentInstructions.end) > 0;
+      if (!loads || hasOtherContent) {
+        const lastTextbox = this._state.buffer.at(-1);
+        if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
+          // If previous textbox did not actually contain any text, fold this result into it.
+          this.merge(lastTextbox, contentInstructions);
+        } else {
+          // Otherwise, add this result as a new textbox.
+          this._state.buffer.push(contentInstructions);
         }
+      }
+      if (loads) {
+        this._state.buffer.push({ load: loads, end: 0 });
       }
     }
     // Show choices after last textbox is done typing.
@@ -386,8 +405,15 @@ export class InterpreterModule extends Module<
    * cue (`character`) are table fields resolved at compile time.
    *
    * Table shape: `{ target?: string, character?: string, text: string,
-   * tags?: table }`, or `{ load: string }` for a `load` line, whose
-   * whitespace-separated names queue a load beat of their own.
+   * pause?: boolean, inherit?: boolean, group?: string, tags?: table }`, or
+   * `{ load: string }` for a `load` line,
+   * whose whitespace-separated names queue a load beat of their own. `pause`
+   * marks a beat a `>` break ends, which waits for a click even when it has no
+   * text. `group` names a glued continuation, and `inherit` marks its beats
+   * after one of its breaks: they take the routing of the beat the run joined
+   * the continuation to, which holds while the beat just queued carried the
+   * same `group`, and otherwise route by their own table, which names the
+   * line the source reads before the continuation.
    *
    * One step makes one beat. Several tables share a step only when glue joined
    * their lines, and the body is the step's ordered visible text: every
@@ -446,24 +472,52 @@ export class InterpreterModule extends Module<
       }
       return;
     }
+    const pause = tables.some((table) => read(table, "pause") === true);
     const routed = tables.find((table) => {
       const target = read(table, "target");
       return typeof target === "string" && target;
     });
-    if (!routed) {
-      this.appendBeat("", undefined, content, choices);
-      return;
+    // Two different continuations can meet in one step: the beat after one
+    // continuation's break, and a newer continuation the glue holds open for
+    // the beat after this one. So the continuation this beat inherits from
+    // and the one the NEXT beat will inherit from are read apart: the beat
+    // inherits by the group of the table that asks to (`inherit`), and the
+    // step is remembered by the last group in it, which is the continuation
+    // whose break produces the next beat.
+    const groupOf = (table: ObjectValue | undefined): string | undefined => {
+      const group = read(table, "group");
+      return typeof group === "string" ? group : undefined;
+    };
+    const inheritGroup = groupOf(
+      tables.find((table) => read(table, "inherit") === true),
+    );
+    const group = tables.map(groupOf).filter((value) => value != null).at(-1);
+    // A glued continuation's beat after one of its breaks takes the routing
+    // of the beat the run joined the continuation to — but only when that
+    // beat is the one just queued, which is what the group establishes. A run
+    // that jumped straight to this beat routes by the table instead, which
+    // carries the line the source reads before the continuation.
+    const remembered = this._routing;
+    const inherits =
+      inheritGroup != null && remembered?.group === inheritGroup;
+    let routing: { target: string; character?: string } = { target: "" };
+    if (inherits) {
+      routing = { target: remembered!.target };
+      if (remembered!.character) routing.character = remembered!.character;
+    } else if (routed) {
+      const characterRaw = read(routed, "character");
+      routing = { target: read(routed, "target") as string };
+      if (typeof characterRaw === "string" && characterRaw) {
+        routing.character = characterRaw;
+      }
     }
-    const characterRaw = read(routed, "character");
-    const character =
-      typeof characterRaw === "string" && characterRaw
-        ? characterRaw
-        : undefined;
+    this._routing = group == null ? routing : { ...routing, group };
     this.appendBeat(
-      read(routed, "target") as string,
-      character,
+      routing.target,
+      routing.character,
       content,
       choices,
+      pause,
     );
   }
 
@@ -505,6 +559,9 @@ export class InterpreterModule extends Module<
    *  buffer holds beats the display still needs. */
   clearQueuedBeats(): void {
     this._state.buffer = [];
+    // The run those beats belonged to is over, so the beat a continuation
+    // would have inherited from is not this run's.
+    delete this._routing;
   }
 
   protected isWhitespace(part: string | undefined) {

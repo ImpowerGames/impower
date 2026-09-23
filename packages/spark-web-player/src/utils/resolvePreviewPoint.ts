@@ -43,7 +43,9 @@ export function resolvePreviewPoint(
   game: PreviewingGame | undefined,
 ): PreviewPoint {
   const scripts = Object.keys(program.scripts);
-  const path = findClosestPath(from, program.pathLocations, scripts);
+  // A line that `>` breaks holds several beats, and a preview shows its last;
+  // PLAY from the line starts at its first (#721).
+  const path = findClosestPath(from, program.pathLocations, scripts, "last");
 
   // When the cursor sits on a line that resolves to no path we keep the game's
   // LAST valid preview point rather than resetting (sticky preview). But a pure
@@ -65,7 +67,7 @@ export function resolvePreviewPoint(
   const resolvedPath = path
     ? path
     : programChanged
-      ? findClosestPath(validFrom, program.pathLocations, scripts)
+      ? findClosestPath(validFrom, program.pathLocations, scripts, "last")
       : game?.previewPath;
   // A point that no longer resolves keeps its old path for the repeat below,
   // which needs it to tell a repeat from a first preview.

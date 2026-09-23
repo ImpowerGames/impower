@@ -23,7 +23,8 @@ export function normalize(payload, harness) {
     if (typeof input?.command !== "string") throw new Error("Shell event is missing command text");
     // The unified exec Bash alias also covers PowerShell; it is not a shell
     // identity. Evaluate both dialects instead of guessing from that alias.
-    return { kind: "shell", command: input.command, shell: harness === "claude" ? tool : undefined };
+    const cwd = typeof payload.cwd === "string" && payload.cwd ? payload.cwd : undefined;
+    return { kind: "shell", command: input.command, shell: harness === "claude" ? tool : undefined, cwd };
   }
   return { kind: "other" };
 }

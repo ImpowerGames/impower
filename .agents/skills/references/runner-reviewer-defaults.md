@@ -4,7 +4,7 @@ Every launcher plan supplies `writer` and `writerEffort` read from the runner, n
 
 ## Discover the writer's model and effort
 
-- Claude Code desktop: the session metadata tool (`get_session` with `self`) returns `model` (for example `claude-opus-5`) and `effort` (for example `medium`). Every shell command also receives `CLAUDE_EFFORT` with the session's effort; no variable carries the model. Whether `CLAUDE_EFFORT` follows an effort change made during the session is unverified, because a session cannot change its own effort; prefer the metadata tool.
+- Claude Code desktop: the session metadata tool (`get_session` with `self`) returns `model` (for example `claude-opus-5-5`) and `effort` (for example `medium`). Every shell command also receives `CLAUDE_EFFORT` with the session's effort; no variable carries the model. Whether `CLAUDE_EFFORT` follows an effort change made during the session is unverified, because a session cannot change its own effort; prefer the metadata tool.
 - Claude Code CLI: the launch arguments `--model` and `--effort` or the settings they default from, plus `CLAUDE_EFFORT` in shell commands.
 - Codex: each session writes a rollout file `~/.codex/sessions/<yyyy>/<mm>/<dd>/rollout-<timestamp>-<thread id>.jsonl`. Its `turn_context` rows carry `payload.model` (for example `gpt-6-astra`) and `payload.effort` (for example `max`); the latest row is current. `~/.codex/config.toml` holds only the defaults, as `model` and `model_reasoning_effort`, which a session's launch arguments can override. Codex exports no equivalent environment variable.
 

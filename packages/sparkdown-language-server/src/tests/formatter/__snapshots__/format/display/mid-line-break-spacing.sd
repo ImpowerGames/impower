@@ -1,0 +1,9 @@
+N: One > space
+N: Two  >  spaces
+N: Mixed    > widths  >   here
+>
+> Lone start
+HERO:
+  One >   two
+  >
+  Three
