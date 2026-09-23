@@ -374,6 +374,11 @@ let unstarted;
 await assert.rejects(main(["run", scratch, "a.test.ts", "--wait", "1"], { ...seam, guardWaitMs: 100, pollMs: 50 }),
   error => (unstarted = error, /Reservation transaction unavailable/.test(error.message) && error.notRun === true));
 assert.ok(Date.now() - guardBegan >= 1000, "the guard is retried until --wait expires");
+// The default five-second transaction bound never carries the wait past --wait.
+const boundBegan = Date.now();
+await assert.rejects(acquireWaiting("bounded", { root: lockRoot, waitMs: 1000, pollMs: 50, census: () => [] }), error => error.guardHeld === true);
+const boundElapsed = Date.now() - boundBegan;
+assert.ok(boundElapsed >= 1000 && boundElapsed < 2500, `a held guard refuses at --wait 1, not after the transaction bound (${boundElapsed} ms)`);
 fs.unlinkSync(guardFile);
 const printed = [];
 assert.equal(notRunExit(unstarted, line => printed.push(line)), 75, "a run that never started exits 75");

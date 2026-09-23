@@ -98,7 +98,9 @@ function guarded(root, action, waitMs = guardWaitMs) {
 const guardWaitMs = 5000;
 const sleeper = new Int32Array(new SharedArrayBuffer(4));
 
-export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs } = {}) {
+// `admitWaitMs` bounds only the acquiring transaction's guard wait, so a caller
+// with a deadline can keep it inside that deadline; release keeps the full bound.
+export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs, admitWaitMs = waitMs } = {}) {
   return guarded(root, file => {
     if (fs.existsSync(file)) {
       const previous = read(file);
@@ -126,7 +128,7 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
         fs.unlinkSync(target);
       }, waitMs);
     } };
-  }, waitMs);
+  }, admitWaitMs);
 }
 
 // Release on an error path: the error being handled stays the one thrown, and
@@ -143,12 +145,15 @@ const pause = (ms, deadline) => new Promise(resolve => setTimeout(resolve, Math.
 // census, so later reservation-aware runs queue behind this one instead of
 // racing it for the moment other Vitest processes exit. Ambiguous and unknown
 // reservations still refuse at once; a live owner, a present process or a
-// guard held past one transaction's bound waits.
+// held guard waits. With a bound, each guard attempt stops at the deadline;
+// without one, a held guard gets one transaction's bound, as in acquire.
 export async function acquireWaiting(run, { waitMs = 0, pollMs = 2000, census = vitestProcesses, onWait = () => {}, ...options } = {}) {
   const deadline = Date.now() + waitMs;
+  const transactionMs = options.guardWaitMs ?? guardWaitMs;
   let reservation;
   for (;;) {
-    try { reservation = acquire(run, { ...options, census: () => [] }); break; }
+    const admitWaitMs = waitMs > 0 ? Math.min(transactionMs, Math.max(0, deadline - Date.now())) : transactionMs;
+    try { reservation = acquire(run, { ...options, admitWaitMs, census: () => [] }); break; }
     catch (error) {
       const waiting = error.guardHeld ? "guard" : /^Existing suite running/.test(error.message) ? "reservation" : null;
       if (!waiting || Date.now() >= deadline) throw error;
