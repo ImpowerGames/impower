@@ -318,6 +318,10 @@ function visibleSelectionRect(
   };
 }
 
+/** Re-reads the disabled state of every open menu's items. A copy can fill
+ *  the menu's clipboard while a menu is open, enabling its Paste. */
+const openMenuRefreshers = new Set<() => void>();
+
 const openContextMenu = StateEffect.define<ContextMenuSpec>();
 const closeContextMenu = StateEffect.define<void>();
 
@@ -450,6 +454,9 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       }
 
       // 2. Items
+      const refreshers: (() => void)[] = [];
+      const refresh = () => refreshers.forEach((f) => f());
+      openMenuRefreshers.add(refresh);
       displayItems.forEach((item) => {
         if ("label" in item) {
           const itemEl = document.createElement("div");
@@ -467,15 +474,17 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             itemEl.appendChild(shortcutSpan);
           }
 
-          const disabled = item.disabled?.(view) ?? false;
-          itemEl.classList.toggle("cm-menu-disabled", disabled);
-          if (disabled) {
-            itemEl.setAttribute("aria-disabled", "true");
+          if (item.disabled) {
+            const isDisabled = item.disabled;
+            const showDisabled = () =>
+              itemEl.classList.toggle("cm-menu-disabled", isDisabled());
+            showDisabled();
+            refreshers.push(showDisabled);
           }
 
           itemEl.onclick = (e) => {
             e.stopPropagation();
-            if (disabled) {
+            if (item.disabled?.()) {
               return;
             }
             view.dispatch({ effects: closeContextMenu.of() });
@@ -534,6 +543,9 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         dom,
         overlap: true,
         resize: !placesItself,
+        destroy() {
+          openMenuRefreshers.delete(refresh);
+        },
         getCoords:
           x !== undefined && y !== undefined
             ? () => ({ left: x, right: x, top: y, bottom: y })
@@ -599,8 +611,9 @@ const contextMenuHandlers = EditorView.domEventHandlers({
 /** Records what CodeMirror's native copy and cut take: the selected ranges,
  *  or with only carets selected, their whole lines. */
 function recordNativeCopy(_event: ClipboardEvent, view: EditorView) {
-  // CodeMirror leaves a copy alone when the selection being copied is not
-  // the editor's.
+  // CodeMirror copies only when the DOM selection is inside the editor, and
+  // it keeps a DOM selection there only while the editor is focused, so
+  // focus stands in for its check, which it does not export.
   if (!view.hasFocus) {
     return false;
   }
@@ -608,19 +621,19 @@ function recordNativeCopy(_event: ClipboardEvent, view: EditorView) {
   const pieces = state.selection.ranges
     .filter((r) => !r.empty)
     .map((r) => state.sliceDoc(r.from, r.to));
-  if (pieces.length > 0) {
-    recordMenuClipboard(pieces);
-    return false;
-  }
-  let lastLine = -1;
-  for (const range of state.selection.ranges) {
-    const line = state.doc.lineAt(range.from);
-    if (line.number > lastLine) {
-      pieces.push(line.text);
+  const linewise = pieces.length === 0;
+  if (linewise) {
+    let lastLine = -1;
+    for (const range of state.selection.ranges) {
+      const line = state.doc.lineAt(range.from);
+      if (line.number > lastLine) {
+        pieces.push(line.text);
+      }
+      lastLine = line.number;
     }
-    lastLine = line.number;
   }
-  recordMenuClipboard(pieces, true);
+  recordMenuClipboard(pieces, linewise);
+  openMenuRefreshers.forEach((refresh) => refresh());
   return false;
 }
 

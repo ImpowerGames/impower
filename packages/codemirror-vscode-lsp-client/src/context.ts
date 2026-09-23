@@ -16,8 +16,9 @@ export type ContextMenuItem =
       needsSelection?: boolean;
       /** The touch menu reopens for the new selection after this item runs. */
       keepsMenuOpen?: boolean;
-      /** The menu shows this item greyed out, and clicking it does nothing. */
-      disabled?: (view: EditorView) => boolean;
+      /** While this returns true, the menu shows the item greyed out and
+       *  clicking it does nothing. */
+      disabled?: () => boolean;
     }
   | { type: "separator" };
 

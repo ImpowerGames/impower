@@ -194,6 +194,38 @@ describe("native copy and cut", () => {
     expect(readText).not.toHaveBeenCalled();
   });
 
+  it("a native copy carrying clipboardData fills the buffer and still reaches the system clipboard", async () => {
+    // A real browser's copy event carries clipboardData, and CodeMirror then
+    // writes the text there itself and ends the event.
+    const v = mount("hello world");
+    select(v, [6, 11]);
+    v.focus();
+    const setData = vi.fn();
+    const event = new Event("copy", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { clearData() {}, setData },
+    });
+    v.contentDOM.dispatchEvent(event);
+    expect(setData).toHaveBeenCalledWith("text/plain", "world");
+    select(v, [0, 0]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("worldhello world");
+  });
+
+  it("enables Paste in a menu that is already open", async () => {
+    const v = mount("one\ntwo");
+    select(v, [1, 1]);
+    openMenu(v);
+    expect(menuItem("Paste").classList.contains("cm-menu-disabled")).toBe(true);
+    fire(v, "copy");
+    expect(lsp.isContextMenuOpen(v)).toBe(true);
+    expect(menuItem("Paste").classList.contains("cm-menu-disabled")).toBe(
+      false,
+    );
+    menuItem("Paste").click();
+    expect(v.state.doc.toString()).toBe("one\none\ntwo");
+  });
+
   it("a copy event from outside the focused editor leaves the buffer alone", async () => {
     const v = mount("hello world");
     select(v, [6, 11]);
