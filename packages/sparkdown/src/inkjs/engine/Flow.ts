@@ -11,9 +11,9 @@ export class Flow {
   public callStack: CallStack;
   public outputStream: InkObject[];
   public currentChoices: Choice[];
-  // Output a continue cut off after its line ended, which the next continue
-  // starts from (`StoryState.CarryOutputPastCut`).
-  public carriedOutput: InkObject[] = [];
+  // The part of a step a continue cut off after its line ended, which the
+  // next continue starts from (`StoryState.CarryOutputPastCut`).
+  public carried: CarriedStep | null = null;
 
   constructor(name: String, story: Story);
   constructor(name: String, story: Story, jObject: Record<string, any>);
@@ -35,10 +35,13 @@ export class Flow {
         jObject["currentChoices"],
       ) as Choice[];
 
-      if (jObject["carriedOutput"] !== undefined) {
-        this.carriedOutput = JsonSerialisation.JArrayToRuntimeObjList(
-          jObject["carriedOutput"],
-        );
+      let jCarried = jObject["carried"];
+      if (jCarried) {
+        this.carried = {
+          output: JsonSerialisation.JArrayToRuntimeObjList(jCarried["output"]),
+          lineEndPending: jCarried["lineEndPending"] === true,
+          paths: (jCarried["paths"] as string[] | undefined) ?? [],
+        };
       }
 
       let jChoiceThreadsObj = jObject["choiceThreads"];
@@ -58,10 +61,23 @@ export class Flow {
     writer.WriteProperty("outputStream", (w) =>
       JsonSerialisation.WriteListRuntimeObjs(w, this.outputStream),
     );
-    if (this.carriedOutput.length > 0) {
-      writer.WriteProperty("carriedOutput", (w) =>
-        JsonSerialisation.WriteListRuntimeObjs(w, this.carriedOutput),
-      );
+    const carried = this.carried;
+    if (carried) {
+      writer.WriteProperty("carried", (w) => {
+        w.WriteObjectStart();
+        w.WriteProperty("output", (o) =>
+          JsonSerialisation.WriteListRuntimeObjs(o, carried.output),
+        );
+        if (carried.lineEndPending) w.WriteProperty("lineEndPending", true);
+        if (carried.paths.length > 0) {
+          w.WriteProperty("paths", (p) => {
+            p.WriteArrayStart();
+            for (const path of carried.paths) p.Write(path);
+            p.WriteArrayEnd();
+          });
+        }
+        w.WriteObjectEnd();
+      });
     }
 
     let hasChoiceThreads = false;
@@ -120,4 +136,14 @@ export class Flow {
       }
     }
   }
+}
+
+// What a continue cut off to start the next one: the output past the cut,
+// whether that output's own line still waits for its newline (it may end with
+// a caption of its own), and the content paths the cut step ran, which belong
+// to the step that shows its output.
+export interface CarriedStep {
+  output: InkObject[];
+  lineEndPending: boolean;
+  paths: string[];
 }

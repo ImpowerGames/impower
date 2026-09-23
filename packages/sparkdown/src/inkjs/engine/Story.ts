@@ -1270,12 +1270,21 @@ export class Story extends InkObject {
       }
 
       this._state.didSafeExit = false;
-      this._state.lineEndPending = false;
-      // Output the last continue cut off after its line ended starts this one.
-      this._state.ResetOutput(this._state.TakeCarriedOutput());
+      // The step the last continue cut off after its line ended starts this
+      // one: its output, whether that output's own line still waits for its
+      // newline, and the paths it ran, which belong to the beat that shows it.
+      const carried = this._state.TakeCarriedStep();
+      this._state.ResetOutput(carried?.output ?? null);
+      this._state.lineEndPending = carried?.lineEndPending ?? false;
+      this._state.outputCut = null;
+      this._state.heldPaths = [];
 
       if (this._recursiveContinueCount == 1)
         this._state.variablesState.StartVariableObservation();
+
+      if (carried && this.onExecute !== null) {
+        for (const path of carried.paths) this.onExecute(path);
+      }
 
       // Carried output that ends its line is a line already written, so the
       // look-ahead starts from it as from any newline.
@@ -1321,6 +1330,12 @@ export class Story extends InkObject {
     if (outputStreamEndsInNewline || !this.canContinue) {
       if (this._stateSnapshotAtLastNewline !== null) {
         this.RestoreStateSnapshot();
+      }
+
+      // Paths held while a line end waited, with no cut to carry them to the
+      // next continue, ran for this one.
+      for (const path of this._state.ReleaseHeldPaths()) {
+        if (this.onExecute !== null) this.onExecute(path);
       }
 
       if (!this.canContinue) {
@@ -4050,6 +4065,8 @@ export class Story extends InkObject {
       }
     }
 
+    // A cut carried output from the path the host is leaving.
+    this.state.DiscardLineEnd();
     this.state.PassArgumentsToEvaluationStack(args);
     this.ChoosePath(new Path(path));
   }
@@ -5036,12 +5053,23 @@ export class Story extends InkObject {
     return sb.toString();
   }
 
+  // Reports a content path the story ran (`onExecute`). While a line end
+  // waits, which continue shows what the path ran for is not yet known, so the
+  // path is held (`StoryState.heldPaths`) until the run shows something or the
+  // continue ends.
+  protected AnnounceExecution(path: string | undefined) {
+    if (this.state.lineEndPending || this.state.outputCut !== null) {
+      if (path !== undefined) this.state.heldPaths.push(path);
+      return;
+    }
+    if (this.onExecute !== null) this.onExecute(path);
+  }
+
   public NextContent() {
     this.state.previousPointer = this.state.currentPointer.copy();
 
     if (!this.state.divertedPointer.isNull) {
-      if (this.onExecute !== null)
-        this.onExecute(this.state.currentPointer.path?.toString());
+      this.AnnounceExecution(this.state.currentPointer.path?.toString());
 
       this.state.currentPointer = this.state.divertedPointer.copy();
       this.state.divertedPointer = Pointer.Null;
@@ -5053,8 +5081,7 @@ export class Story extends InkObject {
       }
     }
 
-    if (this.onExecute !== null)
-      this.onExecute(this.state.previousPointer.path?.toString());
+    this.AnnounceExecution(this.state.previousPointer.path?.toString());
 
     let successfulPointerIncrement = this.IncrementContentPointer();
 

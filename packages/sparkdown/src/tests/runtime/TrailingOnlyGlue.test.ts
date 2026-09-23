@@ -15,6 +15,7 @@ import {
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { pathLocation } from "../../compiler/utils/pathLocationTable";
 
 type Routing = { target?: string; character?: string };
 
@@ -625,6 +626,76 @@ end
     // A function's output ends without its trailing newline.
     expect(ctx.story.Continue()).toBe("More.");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+  });
+
+  // The step that shows something after the caption runs in the caption's
+  // continue, once: its output is carried, not produced again by the next.
+  test("runs the step that shows after it once, before the next continue", () => {
+    const source = `store count = 0\nchoose\n  Pick.\n  & aside()\n  * One\nend\n\nfunction aside()\n  count = count + 1\n  print("Aside.")\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.\n");
+    expect(ctx.story.variablesState.$("count")).toBe(1);
+    const saved = ctx.story.state.ToJson();
+    expect(ctx.story.Continue()?.trim()).toBe("Aside.");
+    expect(ctx.story.variablesState.$("count")).toBe(1);
+    const again = makeRuntimeStoryFromSource(source);
+    again.story.state.LoadJson(saved);
+    expect(again.story.Continue()?.trim()).toBe("Aside.");
+    expect(again.story.variablesState.$("count")).toBe(1);
+    expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
+  });
+
+  // A caption the carried step shows keeps its own newline waiting, through a
+  // save too.
+  test("carries a caption's own waiting line end", () => {
+    const source = `choose\n  Outer.\n  if true then\n    choose\n      Inner.\n      & print("Aside.")\n      * Inner choice\n    end\n  end\n  * Outer choice\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(texts(ctx.story)).toEqual(["Outer.\n", "Inner.\n", "Aside.\n"]);
+    const first = makeRuntimeStoryFromSource(source);
+    expect(first.story.Continue()).toBe("Outer.\n");
+    const again = makeRuntimeStoryFromSource(source);
+    again.story.state.LoadJson(first.story.state.ToJson());
+    expect(again.story.Continue()).toBe("Inner.\n");
+    expect(again.story.Continue()).toBe("Aside.\n");
+  });
+
+  test("drops what it carries when the host jumps elsewhere", () => {
+    const source = `choose\n  Pick.\n  & print("Aside.")\n  * One\nend\n\nscene other\n  Elsewhere.\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Pick.\n");
+    const saved = ctx.story.state.ToJson();
+    ctx.story.ChoosePathString("other");
+    expect(ctx.story.Continue()).toBe("Elsewhere.\n");
+    const again = makeRuntimeStoryFromSource(source);
+    again.story.state.LoadJson(saved);
+    again.story.ChoosePathString("other");
+    expect(again.story.Continue()).toBe("Elsewhere.\n");
+  });
+
+  // What the preview credits a line to: the continue that shows it. The line
+  // that shows after the caption ran in the caption's continue, and is
+  // reported in the next one, which shows it.
+  test("reports the lines the carried step ran in the continue that shows them", () => {
+    const source = `choose\n  Pick.\n  if true then\n    Something shows first.\n  end\n  * One\nend\n`;
+    const program = compile(source) as any;
+    expect(errorsIn(program)).toEqual([]);
+    const story = new RuntimeStory(program.compiled as Record<string, any>);
+    const line = source
+      .split("\n")
+      .findIndex((l) => l.includes("Something shows first."));
+    let ran = new Set<number>();
+    story.onExecute = (path) => {
+      const location = pathLocation(program.pathLocations, path);
+      if (location) ran.add(location[1]!);
+    };
+    expect(story.Continue()).toBe("Pick.\n");
+    expect(ran.has(line)).toBe(false);
+    ran = new Set();
+    expect(story.Continue()).toBe("Something shows first.\n");
+    expect(ran.has(line)).toBe(true);
   });
 
   test("keeps what it carries through a host's function call", () => {
