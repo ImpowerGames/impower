@@ -72,7 +72,7 @@ describe("mobile viewport manager keyboard state", () => {
     expect(document.body.style.height).toBe("");
   });
 
-  it("does not mark the root from an open queued just before destruction", async () => {
+  it("releases the layout when destroyed before a queued open lands", async () => {
     view!.scrollDOM.dispatchEvent(new FocusEvent("focus"));
     view!.destroy();
     view = undefined;
@@ -81,5 +81,6 @@ describe("mobile viewport manager keyboard state", () => {
     expect(document.documentElement.classList.contains("keyboard-open")).toBe(
       false,
     );
+    expect(document.body.style.height).toBe("");
   });
 });
