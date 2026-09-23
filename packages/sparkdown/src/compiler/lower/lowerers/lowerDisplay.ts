@@ -145,7 +145,19 @@ function buildDisplayCalls(
       const before = separateTags(walked.slice(0, divertTail.bodyIndex)).rest;
       body.splice(before.length);
     }
-    const trailingGlue = body.at(-1) instanceof ParsedGlue ? body.pop() : null;
+    // The spaces before a tag after the mark are a Text piece of their own, so
+    // the mark that ends the statement may stand before whitespace.
+    let end = body.length;
+    while (end > 0) {
+      const last = body[end - 1];
+      if (!(last instanceof Text) || last.text.trim()) break;
+      end--;
+    }
+    const trailingGlue = body[end - 1] instanceof ParsedGlue ? body[end - 1] : null;
+    if (trailingGlue) {
+      body.splice(end - 1);
+      reportTouchingBreak(parent, range, ctx);
+    }
     joinMidBodyGlue(body);
     // A plain divert holds the line open, so the target's first line joins
     // this one's beat. A `load` arrow's directive is its own step, which the
@@ -593,10 +605,12 @@ function collectBodySegments(
       continue;
     }
     if (next && next.from === i && next.kind === "leadingGlue") {
+      idx++;
+      // A `..` after something else on its line is text.
+      if (!startsItsLine(next.node, ctx)) continue;
       // A line that begins with `..` is reported and shows its text without
       // the mark or the spaces after it.
       reportLeadingGlue(next.node, ctx);
-      idx++;
       i = next.to;
       while (i < bodyEnd && /[ \t]/.test(ctx.read(i, i + 1))) i++;
       continue;
@@ -905,11 +919,13 @@ function startsItsLine(node: SyntaxNode, ctx: LowerContext): boolean {
 // what follows the interpolation on its line as an action of its own, so in
 // `{x} ..`, `{x} >`, `{x} >..` or `{x} .. # tag` the action holds only the
 // marks (a `..` there parses as one that begins an inline action). The
-// interpolation's call carries them: `pause` for a `>`, `open` for a `..`, the
-// line's tags, and `spaces`, the spaces the join keeps (those written after the
-// `>`, or before the `..` when there is no `>`).
+// interpolation's calls carry them, as the beats of a line written out would:
+// each `>` in `breaks` ends a beat that waits for a click, a `..` makes the last
+// beat `open`, `spaces` are the spaces the join keeps (those written after the
+// last `>`, or before the `..` when there is no `>`), and `tags` are the line's
+// tags.
 interface LineEndMarks {
-  pause: boolean;
+  breaks: SyntaxNode[];
   open: boolean;
   spaces: string;
   tags: SyntaxNode[];
@@ -932,13 +948,13 @@ function lineEndMarks(
   ) {
     return null;
   }
-  const marks: LineEndMarks = { pause: false, open: false, spaces: "", tags: [] };
+  const marks: LineEndMarks = { breaks: [], open: false, spaces: "", tags: [] };
   let pos = node.from;
   let spacesFrom = prev.to;
   for (const injection of collectTopLevelInjections(node, node.from, node.to)) {
     if (ctx.read(pos, injection.from).trim()) return null;
     if (injection.kind === "break") {
-      marks.pause = true;
+      marks.breaks.push(injection.node);
       const written = ctx.read(injection.from, injection.to);
       spacesFrom = injection.from + written.lastIndexOf(">") + 1;
     } else if (injection.kind === "glue" || injection.kind === "leadingGlue") {
@@ -952,7 +968,7 @@ function lineEndMarks(
     pos = Math.max(pos, injection.to);
   }
   if (ctx.read(pos, node.to).trim()) return null;
-  return marks.pause || marks.open ? marks : null;
+  return marks.breaks.length > 0 || marks.open ? marks : null;
 }
 
 const ACTION_STATEMENTS: ReadonlySet<string> = nodeNameSet([
@@ -973,6 +989,37 @@ const LEADING_GLUE_MESSAGE =
 
 const LOAD_GLUE_MESSAGE =
   "A `load` line cannot end with `..`. Name every asset it loads on the line.";
+
+const TOUCHING_BREAK_MESSAGE =
+  "This `>` touches the word before it, so it is text, not a break. Put a space before it to click here and then join the next line.";
+
+// Warn about a `>` that touches the word before a line-ending `..` (`Abso>..`):
+// a break needs a space before its `>`, so this one reaches the player as
+// text, which no author writes on purpose right before a join.
+function reportTouchingBreak(
+  parent: SyntaxNode,
+  range: { from: number; to: number },
+  ctx: LowerContext,
+): void {
+  const mark = collectTopLevelInjections(parent, range.from, range.to)
+    .filter((injection) => injection.kind === "glue")
+    .at(-1);
+  if (!mark || mark.from < 2) return;
+  const before = ctx.read(mark.from - 2, mark.from);
+  if (before[1] !== ">" || /[\s\-\\]/.test(before[0]!)) return;
+  ctx.diagnostics?.push({
+    message: TOUCHING_BREAK_MESSAGE,
+    severity: ErrorType.Warning,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(mark.from - 1) + 1,
+      endLineNumber: ctx.lineNumber(mark.from) + 1,
+      startCharacterNumber: ctx.characterNumber(mark.from - 1) + 1,
+      endCharacterNumber: ctx.characterNumber(mark.from) + 1,
+    },
+  });
+}
 
 // Report the `..` that ends a `load` line, on the mark's range.
 function reportLoadGlue(
@@ -1247,26 +1294,38 @@ export function lowerLuauInterpolatedStringExpression(
     }
   }
   if (body.length === 0) return {};
-  // The marks that end the line (`{x} ..`, `{x} >..`) ride this call.
+  // The marks that end the line (`{x} ..`, `{x} >..`, `{x} > >`) make the
+  // line's beats: the interpolation is the first, and each `>` after the first
+  // adds an empty beat that waits for a click.
   let after = last.nextSibling;
   while (after && ADJACENT_WHITESPACE.has(after.name)) after = after.nextSibling;
   const marks = after ? lineEndMarks(after, ctx) : null;
-  if (marks?.spaces) body.push(new Text(marks.spaces));
   const tagObjects: ParsedObject[] = [];
   for (const tagsNode of marks?.tags ?? []) {
     appendDisplayTags(tagsNode, ctx, tagObjects);
   }
-  return wrapInWeave([
-    buildDisplayCall(
-      undefined,
-      undefined,
-      body,
-      { from: nodeRef.node.from, to: last.to },
-      ctx,
-      separateTags(tagObjects).tags,
-      { pause: marks?.pause, open: marks?.open },
-    ),
-  ]);
+  const breaks = marks?.breaks ?? [];
+  const beats = Math.max(breaks.length, 1);
+  const calls: ParsedObject[] = [];
+  for (let i = 0; i < beats; i++) {
+    const beatBody = i === 0 ? body : [];
+    const lastBeat = i === beats - 1;
+    if (lastBeat && marks?.spaces) beatBody.push(new Text(marks.spaces));
+    calls.push(
+      buildDisplayCall(
+        undefined,
+        undefined,
+        beatBody,
+        i === 0
+          ? { from: nodeRef.node.from, to: last.to }
+          : { from: breaks[i]!.from, to: breaks[i]!.to },
+        ctx,
+        lastBeat ? separateTags(tagObjects).tags : [],
+        { pause: i < breaks.length, open: lastBeat && marks?.open },
+      ),
+    );
+  }
+  return wrapInWeave(calls);
 }
 
 // The interpolation sibling on the same source line next to `node` in the
@@ -1305,14 +1364,18 @@ export function lowerInlineAction(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  const { from, to } = extractInlineBodyRange(nodeRef);
+  let { from, to } = extractInlineBodyRange(nodeRef);
   const glue = leadingGlue(nodeRef.node);
   // The interpolation before it on its line lowers these marks (`{x} ..`).
   if (lineEndMarks(nodeRef.node, ctx)) return {};
-  if (glue) {
+  if (glue && startsItsLine(glue, ctx)) {
     reportLeadingGlue(glue, ctx);
     // A bare `..` line has nothing left to show.
     if (!ctx.read(from, to).trim()) return {};
+  } else if (glue) {
+    // Something began the line before this `..` (`{3} .. and more.`), so the
+    // mark is in the middle of the line, where it is text.
+    from = glue.from;
   }
   return wrapInWeave(
     buildDisplayContent(nodeRef.node, from, to, ctx, "inline", "action", null),

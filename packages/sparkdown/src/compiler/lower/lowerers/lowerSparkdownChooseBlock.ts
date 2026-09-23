@@ -3,6 +3,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { Choice } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Conditional } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Conditional/Conditional";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
+import { FunctionCall } from "../../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import { Glue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
@@ -160,29 +161,41 @@ interface MutableCtx {
 // last of them writes no newline, so its step runs on through the logic
 // between it and the choices and completes with the caption and the choices
 // together; earlier caption lines are steps of their own. Only logic may stand
-// between that line and the first choice: past a conditional, an alternator,
-// a divert or text, which line shows last is not known here, so the caption
-// closes its line as usual.
+// between that line and the first choice. A conditional or an alternator that
+// only runs logic is logic; one that can show text, a tag or glue, or can
+// divert, leaves which line shows last unknown here, and so does a divert, a
+// nested weave, text, a tag or glue outside one, so the caption then closes
+// its line as usual.
 function openCaption(items: ParsedObject[]): void {
   for (let i = items.length - 1; i >= 0; i--) {
     const item = items[i]!;
     if (openDisplayCall(item)) return;
+    if (item instanceof Conditional || item instanceof Sequence) {
+      if (mayShowOrDivert(item)) return;
+      continue;
+    }
     if (CAPTION_BARRIERS.some((type) => item instanceof type)) return;
   }
 }
 
-const CAPTION_BARRIERS = [
-  Conditional,
-  Sequence,
-  Weave,
-  Divert,
-  TunnelOnwards,
-  Text,
-  Tag,
-  Glue,
-  Gather,
-  Choice,
-];
+const CAPTION_BARRIERS = [Weave, Divert, TunnelOnwards, Text, Tag, Glue];
+
+// Whether running `obj` can show anything or move the flow elsewhere. A
+// function call's own arguments show nothing unless it is `display`.
+function mayShowOrDivert(obj: ParsedObject): boolean {
+  if (obj instanceof FunctionCall) return obj.name === "display";
+  if (obj instanceof Text) return obj.text.trim().length > 0;
+  if (obj instanceof Divert) return !obj.isFunctionCall;
+  if (
+    obj instanceof TunnelOnwards ||
+    obj instanceof Tag ||
+    obj instanceof Glue ||
+    obj instanceof Choice
+  ) {
+    return true;
+  }
+  return (obj.content ?? []).some(mayShowOrDivert);
+}
 
 function buildGatherFromThenClause(
   thenClause: SyntaxNode,

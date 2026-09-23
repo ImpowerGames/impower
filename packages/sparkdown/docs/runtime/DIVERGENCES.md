@@ -27,7 +27,9 @@ end
 b
 ```
 
-A `>..` or `> ..` that ends a line, with a space before the `>` as every break needs, is a break that the next line joins: `Abso >..` then `lutely.` is one beat reading "Absolutely.", and `Wait > ..` joins with a space. The break's table carries `pause`; the player shows the joined beat without stopping inside it. A `>` that touches the word before it (`Wait>..`) is text, not a break.
+A `>..` or `> ..` that ends a line, with a space before the `>` as every break needs, is a break that the next line joins: `Abso >..` then `lutely.` is one beat reading "Absolutely.", and `Wait > ..` joins with a space. The break's table carries `pause`; the player shows the joined beat without stopping inside it. The space before the `>` belongs to the break, so it is dropped, while the spaces between the `>` and the `..` are kept. A `>` that touches the word before it (`Wait>..`) is text, not a break, and the compiler warns about it.
+
+A `..` at the end of a block's last line joins the next display line whatever its cue, so `ALICE:` / `Hello ..` followed by a `BOB:` block shows BOB's words in ALICE's beat.
 
 Ink also lets `<>` begin a line. Sparkdown does not: a line that begins with `..` is an error, "A line cannot begin with `..`. End the previous line with `..` to join them.", reported on the mark, and the line shows its text without the mark. Every join is decided where a line ends, so the engine never has to look past a newline to learn whether the next line joins it. A `load` line cannot end with `..` either, because everything after `load` names assets.
 
@@ -92,7 +94,7 @@ Translation rules from ink:
 - `- (label) foo` → `then (label) foo`
 - Multiple weaves at the same scope: each `choose ... then ... end` is self-contained — write `end` then start the next `choose`. (No chaining shortcut: keeping the close-token explicit avoids relying on indentation for block scoping.)
 
-The display lines written in a `choose` block before its first choice are its caption, the line the choices answer. The last of them shows together with the choices: its call is `open`, so the step runs on through any logic between it and the first choice and completes with the caption and the choices at once. Earlier caption lines are steps of their own, and so is a caption line followed by a conditional or an alternator before the first choice. Write the line the choices answer inside the block, as in the example above, so it stays on screen while the player picks.
+The display lines written in a `choose` block before its first choice are its caption, the line the choices answer. The last of them shows together with the choices: its call is `open`, so the step runs on through any logic between it and the first choice and completes with the caption and the choices at once. Earlier caption lines are steps of their own, and so is a caption line followed, before the first choice, by a conditional or an alternator that can show something or divert, or by a divert, a tunnel return, text, a tag or glue. A conditional that only runs logic is logic. Write the line the choices answer inside the block, as in the example above, so it stays on screen while the player picks.
 
 The `then` body is optional — `choose ... end` with no `then` clause
 is fine when every choice diverts away. Conditional gating uses an

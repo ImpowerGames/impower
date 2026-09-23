@@ -230,6 +230,52 @@ describe("a trailing `..` joins the next line", () => {
     }
   });
 
+  test("an interpolation line's breaks each end a beat", () => {
+    for (const [source, expected, pauses] of [
+      [`{3} >\nB\n`, ["3\n", "B\n"], [true]],
+      [`{3} > >\nB\n`, ["3\n", "\n", "B\n"], [true]],
+      [`{3} > >..\nB\nAfter.\n`, ["3\n", "B\n", "After.\n"], [true]],
+    ] as const) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(texts(ctx.story)).toEqual(expected);
+      const again = makeRuntimeStoryFromSource(source);
+      again.story.Continue();
+      expect(flags(again.story, "pause")).toEqual(pauses);
+    }
+  });
+
+  test("a `..` after an interpolation in the middle of a line is text", () => {
+    for (const source of [`{3} .. and more.\n`, `{3}..and more.\n`]) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(texts(ctx.story).join("")).toContain("..");
+    }
+  });
+
+  test("a `>` that touches the word before a line-ending `..` is text and warned", () => {
+    const ctx = makeRuntimeStoryFromSource(`Abso>..\nlutely.\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.warningMessages).toEqual([
+      "This `>` touches the word before it, so it is text, not a break. Put a space before it to click here and then join the next line.",
+    ]);
+    expect(texts(ctx.story)).toEqual(["Abso>lutely.\n"]);
+    for (const quiet of [`Abso >..\nlutely.\n`, `A\\>..\nB\n`]) {
+      expect(makeRuntimeStoryFromSource(quiet).warningMessages).toEqual([]);
+    }
+  });
+
+  test("a tag after the mark on a block's last line keeps the join", () => {
+    for (const [first, joined] of [
+      ["A .. # marker", "A B\n"],
+      ["A >.. # marker", "AB\n"],
+    ] as const) {
+      const ctx = makeRuntimeStoryFromSource(`ALICE:\n  ${first}\nB\n`);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(texts(ctx.story)).toEqual([joined]);
+    }
+  });
+
   test("a tag or comment after the mark keeps the next line a continuation", () => {
     for (const source of [
       `HERO: A .. # note\nB > C\n`,
@@ -433,6 +479,20 @@ end
     });
     expect(ctx.story.Continue()).toBe("Pick one.");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One", "Two"]);
+    expect(rings).toBe(1);
+  });
+
+  test("runs through a conditional that only runs logic", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `external ring()\n\nchoose\n  Pick.\n  if true then\n    & ring()\n  end\n  * One\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    let rings = 0;
+    ctx.story.BindExternalFunction("ring", () => {
+      rings++;
+    });
+    expect(ctx.story.Continue()).toBe("Pick.");
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
     expect(rings).toBe(1);
   });
 
