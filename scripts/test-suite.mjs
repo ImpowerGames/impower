@@ -218,7 +218,9 @@ export async function execute({ directory, packageRoot, retry = [], waitMs = 0, 
     // Persist while still owning the reservation: a successor may acquire it
     // immediately after release and must never be overwritten by this owner.
     if (run?.token === reservation.record.token) { run.active = false; save(); }
-    reservation.release();
+    // A failed release never replaces the summary or the error already in flight.
+    try { reservation.release(); }
+    catch (error) { console.error(`Reservation not released; the next acquirer recovers it: ${error.message}`); }
   }
 }
 
@@ -254,7 +256,12 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   reservation.update({ phase: identity ? "running" : "launching", child: identity });
   const result = await completion;
   reservation.update({ phase: "exited", exit: result.exit, signal: result.signal });
-  reservation.release();
+  // The result is known; a failed release is reported beside it, never instead of it.
+  try { reservation.release(); }
+  catch (error) {
+    result.releaseError = error.message;
+    console.error(`Reservation not released; the next acquirer recovers it: ${error.message}`);
+  }
   return result;
 }
 

@@ -67,13 +67,22 @@ export function reservationState(record, identify = processIdentity) {
 }
 
 // Serialize acquisition, recovery and release, including the reservation's
-// creation window. An abandoned guard requires inspection; it is never guessed away.
-function guarded(root, action) {
+// creation window. A transaction holds the guard only for a few synchronous
+// file operations, so a held guard is retried until `waitMs` passes. An
+// abandoned guard requires inspection; it is never guessed away.
+function guarded(root, action, waitMs = guardWaitMs) {
   fs.mkdirSync(root, { recursive: true });
   const guard = path.join(root, "guard.json");
+  const deadline = Date.now() + waitMs;
   let fd;
-  try { fd = fs.openSync(guard, "wx"); }
-  catch (error) { throw new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`); }
+  for (;;) {
+    try { fd = fs.openSync(guard, "wx"); break; }
+    catch (error) {
+      if (error.code === "EEXIST" && Date.now() < deadline) { Atomics.wait(sleeper, 0, 0, 10); continue; }
+      if (error.code === "EPERM" || error.code === "EACCES") throw new Error(`Reservation store not writable at ${root} (${error.code}); this process cannot take the machine-wide Vitest reservation, so it cannot run Vitest here`);
+      throw new Error(`Reservation transaction unavailable at ${guard}: ${error.message}`);
+    }
+  }
   try {
     fs.writeFileSync(fd, JSON.stringify({ owner: processIdentity(process.pid) }));
     fs.fsyncSync(fd);
@@ -81,7 +90,10 @@ function guarded(root, action) {
   } finally { fs.closeSync(fd); fs.unlinkSync(guard); }
 }
 
-export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses } = {}) {
+const guardWaitMs = 5000;
+const sleeper = new Int32Array(new SharedArrayBuffer(4));
+
+export function acquire(run, { root = machineRoot, identify = processIdentity, census = vitestProcesses, guardWaitMs: waitMs = guardWaitMs } = {}) {
   return guarded(root, file => {
     if (fs.existsSync(file)) {
       const previous = read(file);
@@ -107,9 +119,9 @@ export function acquire(run, { root = machineRoot, identify = processIdentity, c
         if (read(target).token !== record.token) throw new Error("Reservation ownership changed");
         if (!["reserved", "exited"].includes(record.phase)) throw new Error("Child exit unconfirmed; preserve reservation");
         fs.unlinkSync(target);
-      });
+      }, waitMs);
     } };
-  });
+  }, waitMs);
 }
 
 // A sleep never runs past the deadline, so the last attempt happens at it.
