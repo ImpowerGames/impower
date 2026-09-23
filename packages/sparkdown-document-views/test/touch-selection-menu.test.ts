@@ -415,7 +415,7 @@ describe("menu items", () => {
     expect(handleShown("cursor")).toBe(true);
   });
 
-  it("Copy leaves alone a selection made while the clipboard write was pending", async () => {
+  it("Copy leaves alone a selection made after it", async () => {
     let finishWrite = () => {};
     const writeText = vi.fn(
       () => new Promise<void>((resolve) => (finishWrite = resolve)),

@@ -10,6 +10,7 @@ import {
   ContextMenuItem,
   isMobile,
   lspContextMenuItems,
+  recordMenuClipboard,
   textContextMenuItems,
 } from "./context";
 
@@ -108,6 +109,10 @@ const contextMenuTheme = EditorView.baseTheme({
     maskPosition: "center",
     webkitMaskPosition: "center",
   },
+  ".cm-context-menu .cm-menu-item.cm-menu-disabled": {
+    opacity: "0.4",
+    cursor: "default",
+  },
   ".cm-context-menu .cm-menu-separator": {
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     flexShrink: 0,
@@ -122,31 +127,33 @@ const contextMenuTheme = EditorView.baseTheme({
     height: "18px",
     margin: "0 2px",
   },
-  ".cm-context-menu .cm-menu-item:active": {
+  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active": {
     color: "#ffffff",
   },
-  ".cm-context-menu .cm-menu-item:active::after": {
+  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active::after": {
     content: "''",
     position: "absolute",
     inset: "0",
     backgroundColor: "rgba(255, 255, 255, 0.06)",
   },
-  ".cm-context-menu .cm-menu-item:active .cm-menu-item-shortcut": {
-    color: "#ffffff",
-  },
-  "@media (hover: hover) and (pointer: fine)": {
-    ".cm-context-menu .cm-menu-item:hover": {
+  ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):active .cm-menu-item-shortcut":
+    {
       color: "#ffffff",
     },
-    ".cm-context-menu .cm-menu-item:hover::after": {
+  "@media (hover: hover) and (pointer: fine)": {
+    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover": {
+      color: "#ffffff",
+    },
+    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover::after": {
       content: "''",
       position: "absolute",
       inset: "0",
       backgroundColor: "rgba(255, 255, 255, 0.06)",
     },
-    ".cm-context-menu .cm-menu-item:hover .cm-menu-item-shortcut": {
-      color: "#ffffff",
-    },
+    ".cm-context-menu .cm-menu-item:not(.cm-menu-disabled):hover .cm-menu-item-shortcut":
+      {
+        color: "#ffffff",
+      },
   },
 });
 
@@ -311,6 +318,10 @@ function visibleSelectionRect(
   };
 }
 
+/** Re-reads the disabled state of every open menu's items. A copy can fill
+ *  the menu's clipboard while a menu is open, enabling its Paste. */
+const openMenuRefreshers = new Set<() => void>();
+
 const openContextMenu = StateEffect.define<ContextMenuSpec>();
 const closeContextMenu = StateEffect.define<void>();
 
@@ -443,6 +454,9 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
       }
 
       // 2. Items
+      const refreshers: (() => void)[] = [];
+      const refresh = () => refreshers.forEach((f) => f());
+      openMenuRefreshers.add(refresh);
       displayItems.forEach((item) => {
         if ("label" in item) {
           const itemEl = document.createElement("div");
@@ -460,8 +474,19 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             itemEl.appendChild(shortcutSpan);
           }
 
+          if (item.disabled) {
+            const isDisabled = item.disabled;
+            const showDisabled = () =>
+              itemEl.classList.toggle("cm-menu-disabled", isDisabled());
+            showDisabled();
+            refreshers.push(showDisabled);
+          }
+
           itemEl.onclick = (e) => {
             e.stopPropagation();
+            if (item.disabled?.()) {
+              return;
+            }
             view.dispatch({ effects: closeContextMenu.of() });
             item.command(view);
             if (!isDesktop && item.keepsMenuOpen) {
@@ -518,6 +543,9 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
         dom,
         overlap: true,
         resize: !placesItself,
+        destroy() {
+          openMenuRefreshers.delete(refresh);
+        },
         getCoords:
           x !== undefined && y !== undefined
             ? () => ({ left: x, right: x, top: y, bottom: y })
@@ -573,7 +601,41 @@ const contextMenuHandlers = EditorView.domEventHandlers({
 
     return true;
   },
+  // A keyboard or browser copy or cut also fills the menu's buffer, so menu
+  // Paste pastes what Ctrl+C copied. The selection is read here, before
+  // CodeMirror's own handler runs, and the event is left to that handler.
+  copy: recordNativeCopy,
+  cut: recordNativeCopy,
 });
+
+/** Records what CodeMirror's native copy and cut take: the selected ranges,
+ *  or with only carets selected, their whole lines. */
+function recordNativeCopy(_event: ClipboardEvent, view: EditorView) {
+  // CodeMirror copies only when the DOM selection is inside the editor, and
+  // it keeps a DOM selection there only while the editor is focused, so
+  // focus stands in for its check, which it does not export.
+  if (!view.hasFocus) {
+    return false;
+  }
+  const { state } = view;
+  const pieces = state.selection.ranges
+    .filter((r) => !r.empty)
+    .map((r) => state.sliceDoc(r.from, r.to));
+  const linewise = pieces.length === 0;
+  if (linewise) {
+    let lastLine = -1;
+    for (const range of state.selection.ranges) {
+      const line = state.doc.lineAt(range.from);
+      if (line.number > lastLine) {
+        pieces.push(line.text);
+      }
+      lastLine = line.number;
+    }
+  }
+  recordMenuClipboard(state, pieces, linewise);
+  openMenuRefreshers.forEach((refresh) => refresh());
+  return false;
+}
 
 const defaultContextMenuBlocker = ViewPlugin.fromClass(
   class {
