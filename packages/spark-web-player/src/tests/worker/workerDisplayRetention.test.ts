@@ -242,7 +242,7 @@ describe("the stories the worker keeps", () => {
         await edit(n);
         await h.compile();
       }
-      expect(h.controller._game?.state).toBe("running");
+      expect(h.playing()?.state).toBe("running");
       await h.held();
       // The program displayed last, and the one the page holds.
       expect(kept()).toEqual([true, false, false, false, false, false, true]);
@@ -335,7 +335,7 @@ describe("the stories the worker keeps", () => {
       const { kept } = recordStories(h);
       await playBehindCompile(h, kept);
       await h.controller.restartGame();
-      expect(h.controller._game?.state).toBe("running");
+      expect(h.playing()?.state).toBe("running");
       expect(kept()).toEqual([false, true]);
       await h.controller.destroyGameAndApp();
     } finally {
@@ -348,9 +348,14 @@ describe("the stories the worker keeps", () => {
     try {
       const { kept } = recordStories(h);
       await playBehindCompile(h, kept);
+      // A selection while PLAY runs in the worker leaves the game that
+      // previews as it is (#682), and the one after STOP gives it the real
+      // program back.
+      await h.select(LINE);
+      expect(kept()).toEqual([true, true]);
+      await h.controller.destroyGameAndApp();
       await h.select(LINE);
       expect(kept()).toEqual([false, true]);
-      await h.controller.destroyGameAndApp();
     } finally {
       h.dispose();
     }

@@ -74,6 +74,12 @@ import {
 } from "./app/Application";
 import type { WorkerGameLink } from "./main/workers/WorkerGameLink";
 import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
+import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import { ConnectPlayMessage } from "./main/workers/messages/ConnectPlayMessage";
+import { PlayMessage } from "./main/workers/messages/PlayMessage";
+import { StartPlayMessage } from "./main/workers/messages/StartPlayMessage";
+import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
+import { putAtStartPoint } from "./utils/putAtStartPoint";
 import { conflate } from "./utils/conflate";
 import { describeSimulationFailure } from "./utils/describeSimulationFailure";
 import { programIdentity } from "./utils/programIdentity";
@@ -161,6 +167,15 @@ export function setWorkspace(
   workspace = ws;
 }
 
+/** PLAY's game in the worker, as the page follows it. */
+interface WorkerPlay {
+  /** The summary of the program it runs. */
+  program: SparkProgram;
+  state: "starting" | "running";
+  /** Where the application that shows it hears it. */
+  sink?: (message: Message) => void;
+}
+
 export interface GamePlayerRefs {
   viewport: HTMLElement;
   gameBackground: HTMLElement;
@@ -190,15 +205,19 @@ export class GamePlayerController {
   protected refs: GamePlayerRefs;
 
   _audioContext?: AudioContext;
-  /** The game on this page: the preview's, unless the worker displays it,
-   *  and PLAY's. */
+  /** The game on this page, with the switch off: the preview's and PLAY's. */
   _game?: Game;
   /** The preview the worker's game displays, while it does: the program
    *  whose frame the screen shows or is being drawn. */
   _workerGame?: { program?: SparkProgram };
   /** Stop listening to the worker's game. */
   _stopListeningToWorker?: () => void;
-  /** PLAY is fetching its program, so no preview may take the screen. */
+  /** PLAY's game in the worker, from the moment PLAY asks for it until it
+   *  stops: the program it runs, and whether it has started. */
+  _workerPlay?: WorkerPlay;
+  /** Stop listening to PLAY's game in the worker. */
+  _stopListeningToPlay?: () => void;
+  /** PLAY is setting up its game, so no preview may take the screen. */
   _startingPlay = false;
   _app?: Application;
   _debugging = false;
@@ -300,7 +319,15 @@ export class GamePlayerController {
 
   /** The program whose frame the screen shows, or is being drawn. */
   get screenProgram(): SparkProgram | undefined {
-    return this._game ? this._game.program : this._workerGame?.program;
+    return this._game
+      ? this._game.program
+      : (this._workerPlay?.program ?? this._workerGame?.program);
+  }
+
+  /** PLAY runs, or is starting in the worker: nothing previews, and a new
+   *  program restarts the run. */
+  get playing(): boolean {
+    return this._game?.state === "running" || this._workerPlay != null;
   }
 
   get loadingInitialProgram() {
@@ -380,8 +407,9 @@ export class GamePlayerController {
     this._launchState = null;
     this.publishGameState();
     this._protocols.dispose();
-    // What the worker's game shows goes with the controller, as it goes when
-    // the preview detaches.
+    // What the worker's games show goes with the controller, as it goes when
+    // the preview detaches or PLAY stops.
+    this.endWorkerPlay().catch(console.error);
     this.detachWorkerPreview().catch(console.error);
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
@@ -456,7 +484,8 @@ export class GamePlayerController {
   protected updateLaunchStateIcon() {
     const icon = this._app?.paused
       ? "pause"
-      : this._game?.state === "running"
+      : this._game?.state === "running" ||
+          this._workerPlay?.state === "running"
         ? "play"
         : "preview";
     this.refs.launchStateIcon?.setAttribute("icon", icon);
@@ -507,7 +536,7 @@ export class GamePlayerController {
     }
     const firstExecutedLocation = params?.firstLocation;
     const lastExecutedLocation = params?.lastLocation;
-    if (!params || (!this._game && !this._workerGame)) {
+    if (!params || (!this._game && !this._workerGame && !this._workerPlay)) {
       this.refs.leftItems.hidden = true;
       return;
     }
@@ -925,7 +954,7 @@ export class GamePlayerController {
       this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;
       this._simulatedProgramId = simulatedProgramId;
-      if (this._program && this._game?.state !== "running") {
+      if (this._program && !this.playing) {
         if (!(startFrom.file in this._program.scripts)) {
           if (workspace) {
             // Ensure the workspace re-compiles document so preview can be updated
@@ -1065,7 +1094,7 @@ export class GamePlayerController {
 
   /** Only a preview that is open and stopped shows suggestions. */
   completionPreviewEligible() {
-    if (!this._mounted || this._game?.state === "running") {
+    if (!this._mounted || this.playing) {
       return false;
     }
     if (typeof document !== "undefined" && document.visibilityState === "hidden") {
@@ -1165,10 +1194,7 @@ export class GamePlayerController {
     shown: ShownCompletion | null,
     current: () => boolean,
   ) {
-    if (
-      (!this._game && !this._workerGame) ||
-      this._game?.state === "running"
-    ) {
+    if ((!this._game && !this._workerGame) || this.playing) {
       return;
     }
     if (shown) {
@@ -1274,7 +1300,7 @@ export class GamePlayerController {
       return;
     }
     this.setCompletionStatus(null);
-    if (this._game?.state === "running") {
+    if (this.playing) {
       return;
     }
     await this.updatePreview(
@@ -1349,7 +1375,8 @@ export class GamePlayerController {
   }
 
   completionStatusText(status: CompletionPreviewStatus | null) {
-    const hasFrame = this._game != null || this._workerGame != null;
+    const hasFrame =
+      this._game != null || this._workerGame != null || this._workerPlay != null;
     switch (status) {
       case "preparing":
         return "Preparing suggestion preview…";
@@ -1391,19 +1418,17 @@ export class GamePlayerController {
     return ResizeGameMessage.type.response(message.id, {});
   };
 
-  /** Ask the worker's game, while it displays the preview and no game runs on
-   *  this page; answers undefined otherwise. A request the worker fails
-   *  rejects, as a failing call to a game on this page throws. */
+  /** Ask the game in the worker the page talks to, PLAY's while it runs
+   *  there and otherwise the one that displays the preview, when the switch
+   *  is on; answers undefined otherwise. A request the worker fails rejects,
+   *  as a failing call to a game on this page throws. The worker records
+   *  what the editor asks of the debugger for the games it builds later, so
+   *  a request never waits for PLAY to start. */
   protected async askWorkerGame<M extends string, P, R>(
     type: MessageProtocolRequestType<M, P, R>,
     params: P,
   ): Promise<R | undefined> {
-    if (
-      this._game ||
-      this._startingPlay ||
-      !this.workerDisplays ||
-      !workspace?.gameLink
-    ) {
+    if (this._game || !this.workerDisplays || !workspace?.gameLink) {
       return undefined;
     }
     return workspace.gameLink.request(type, params);
@@ -1546,6 +1571,25 @@ export class GamePlayerController {
     return RestartGameMessage.type.response(message.id, {});
   };
 
+  /** Tell PLAY's game in the worker what its application was just told, so
+   *  the worker's clock and the page's managers agree. Answers whether it
+   *  took: a worker that fails is a failure to report to the editor. */
+  protected async tellWorkerPlay<M extends string, P, R>(
+    type: MessageProtocolRequestType<M, P, R>,
+    params: P,
+  ): Promise<boolean> {
+    if (!this._workerPlay) {
+      return true;
+    }
+    try {
+      await this.askWorkerGame(type, params);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  }
+
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
     if (this._app) {
       this._app.pause();
@@ -1553,8 +1597,9 @@ export class GamePlayerController {
     if (this._game) {
       this._game.pause();
     }
+    const told = await this.tellWorkerPlay(PauseGameMessage.type, {});
     this.updateLaunchStateIcon();
-    return this._app
+    return this._app && told
       ? PauseGameMessage.type.response(message.id, {})
       : PauseGameMessage.type.error(message.id, {
           code: 1,
@@ -1569,8 +1614,9 @@ export class GamePlayerController {
     if (this._game) {
       this._game.unpause();
     }
+    const told = await this.tellWorkerPlay(UnpauseGameMessage.type, {});
     this.updateLaunchStateIcon();
-    return this._app
+    return this._app && told
       ? UnpauseGameMessage.type.response(message.id, {})
       : UnpauseGameMessage.type.error(message.id, {
           code: 1,
@@ -1588,8 +1634,11 @@ export class GamePlayerController {
     if (this._game) {
       this._game.skip(seconds);
     }
+    const told = await this.tellWorkerPlay(StepGameClockMessage.type, {
+      seconds,
+    });
     this.updateLaunchStateIcon();
-    return this._app
+    return this._app && told
       ? StepGameClockMessage.type.response(message.id, {})
       : StepGameClockMessage.type.error(message.id, {
           code: 1,
@@ -1599,27 +1648,44 @@ export class GamePlayerController {
 
   protected handleStepGame = async (message: StepGameMessage.Request) => {
     const { traversal } = message.params;
-    return this._game
-      ? StepGameMessage.type.response(message.id, {
-          done: this._game.step(traversal),
-        })
-      : StepGameMessage.type.error(message.id, {
-          code: 1,
-          message: "no game loaded",
-        });
+    if (this._game) {
+      return StepGameMessage.type.response(message.id, {
+        done: this._game.step(traversal),
+      });
+    }
+    // A worker with no game to step answers with an error, which the editor
+    // hears as the page answers it with none.
+    const answer = await this.askWorkerGame(StepGameMessage.type, {
+      traversal,
+    }).catch(() => undefined);
+    if (answer) {
+      return StepGameMessage.type.response(message.id, answer);
+    }
+    return StepGameMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
   protected handleContinueGame = async (
     message: ContinueGameMessage.Request,
   ) => {
-    return this._game
-      ? ContinueGameMessage.type.response(message.id, {
-          done: this._game.continue(),
-        })
-      : ContinueGameMessage.type.error(message.id, {
-          code: 1,
-          message: "no game loaded",
-        });
+    if (this._game) {
+      return ContinueGameMessage.type.response(message.id, {
+        done: this._game.continue(),
+      });
+    }
+    const answer = await this.askWorkerGame(
+      ContinueGameMessage.type,
+      message.params,
+    ).catch(() => undefined);
+    if (answer) {
+      return ContinueGameMessage.type.response(message.id, answer);
+    }
+    return ContinueGameMessage.type.error(message.id, {
+      code: 1,
+      message: "no game loaded",
+    });
   };
 
   protected handleGetGameScripts = async (
@@ -1803,11 +1869,11 @@ export class GamePlayerController {
       this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;
       this._simulatedProgramId = simulatedProgramId;
-      if (this._game?.state === "running") {
+      if (this.playing) {
         // Stop and restart game if we loaded a new game while the old game
-        // was running. (GameReloaded is sent when the restart actually
-        // executes -- see scheduleRestartGame -- not when it is merely
-        // scheduled.)
+        // was running, or starting in the worker. (GameReloaded is sent when
+        // the restart actually executes -- see scheduleRestartGame -- not
+        // when it is merely scheduled.)
         this.scheduleRestartGame();
       } else {
         this._options ??= {};
@@ -1852,42 +1918,19 @@ export class GamePlayerController {
     }
     this._options ??= {};
     this._options.previewFrom = undefined;
-    let program = this._program;
-    let route = {
+    const program = this._program;
+    if (program.summary && workspace?.gameLink) {
+      // The page holds only the program's summary: PLAY runs in the worker,
+      // which holds the program itself.
+      return this.startWorkerPlay(program, workspace.gameLink, restarted);
+    }
+    this._game = await this.buildGame(program, restarted);
+    putAtStartPoint(this._game, this._options?.simulationOptions, {
       checkpoint: this._checkpoint,
       path: this._simulatedPath,
       programId: this._simulatedProgramId,
       failure: this._simulationFailure,
-    };
-    if (program.summary && workspace?.programForPlay) {
-      // The page holds only the program's summary: PLAY's game is built from
-      // that program, the last one that compiled and ran, which the worker
-      // writes out whole for it, with the route it replayed to the start
-      // point.
-      this._startingPlay = true;
-      try {
-        await this.detachWorkerPreview();
-        const result = await workspace.programForPlay(
-          programIdentity(program)!,
-          this._options.startFrom ?? undefined,
-        );
-        if (!result.program) {
-          console.error("The worker no longer holds the program to play");
-          return false;
-        }
-        program = result.program;
-        route = {
-          checkpoint: result.checkpoint,
-          path: result.simulatedPath,
-          programId: result.simulatedProgramId,
-          failure: result.simulationFailure,
-        };
-      } finally {
-        this._startingPlay = false;
-      }
-    }
-    this._game = await this.buildGame(program, restarted);
-    this.simulate(this._game, this._options?.simulationOptions, route);
+    });
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
     const programCompiled = hasCompiledProgram(program);
@@ -1899,6 +1942,112 @@ export class GamePlayerController {
     return programCompiled;
   }
 
+  /**
+   * PLAY with the switch on. The worker builds PLAY's game beside the game
+   * that previews, from the program the page names, the last one that
+   * compiled and ran, and puts it at the start point along the route it
+   * replayed there. The page's application shows it, as it shows a game on
+   * this page: the game connects to it once it is built, then starts, and
+   * ticks on the worker's own frames while the page's managers keep theirs.
+   */
+  protected async startWorkerPlay(
+    program: SparkProgram,
+    link: WorkerGameLink,
+    restarted?: boolean,
+  ): Promise<boolean> {
+    const play: WorkerPlay = { program, state: "starting" };
+    this._workerPlay = play;
+    // STOP, or a restart, while this starts ends it.
+    const current = () => this._workerPlay === play;
+    this._startingPlay = true;
+    try {
+      await this.detachWorkerPreview();
+      const built = await link.request(PlayMessage.type, {
+        program: programIdentity(program)!,
+        startFrom: this._options?.startFrom ?? undefined,
+        restarted,
+        simulationOptions: this._options?.simulationOptions,
+      });
+      if (!built.built) {
+        console.error("The worker no longer holds the program to play");
+        if (current()) {
+          this._workerPlay = undefined;
+        }
+        return false;
+      }
+      if (!current()) {
+        return false;
+      }
+      this._stopListeningToPlay = this.listenToWorker(link, () =>
+        this._workerPlay === play ? play.state : "stopped",
+      );
+      // A preview build a detach left under way still holds the application
+      // slot until it has disposed of its application.
+      await this._workerAppSettling;
+      const app = await this.buildAppFor(
+        {
+          connect: async (send) => {
+            play.sink = send;
+            link.attach(send);
+            try {
+              await link.request(ConnectPlayMessage.type, {});
+            } catch (e) {
+              // Ended before it connected; nothing is shown.
+              console.error(e);
+            }
+          },
+          receive: (message) => link.receive(message),
+        },
+        false,
+        current,
+      );
+      if (!current()) {
+        if (play.sink) {
+          link.detach(play.sink);
+        }
+        await app.destroy(true);
+        return false;
+      }
+      play.state = "running";
+      await link.request(StartPlayMessage.type, {});
+      if (built.compiled) {
+        app.start();
+      }
+      this.updateLaunchStateIcon();
+      return built.compiled === true;
+    } catch (e) {
+      console.error(e);
+      if (current()) {
+        await this.destroyGameAndApp();
+      }
+      return false;
+    } finally {
+      this._startingPlay = false;
+    }
+  }
+
+  /** End PLAY's game in the worker, answering where it last executed. */
+  protected async endWorkerPlay(): Promise<DocumentLocation | null> {
+    const play = this._workerPlay;
+    if (!play) {
+      return null;
+    }
+    this._workerPlay = undefined;
+    this._stopListeningToPlay?.();
+    this._stopListeningToPlay = undefined;
+    const link = workspace?.gameLink;
+    if (play.sink) {
+      link?.detach(play.sink);
+    }
+    try {
+      const stopped = await link?.request(StopPlayMessage.type, {});
+      return stopped?.location ?? null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
   async destroyGameAndApp() {
     // A teardown supersedes any pending compile-driven restart; without this
     // the timer fires after STOP and silently resurrects the game.
@@ -1907,6 +2056,7 @@ export class GamePlayerController {
       this._game.destroy();
       this._game = undefined;
     }
+    await this.endWorkerPlay();
     await this.detachWorkerPreview();
     if (this._app) {
       await this._app.initializing;
@@ -1957,7 +2107,10 @@ export class GamePlayerController {
       location: DocumentLocation;
     },
   ) {
-    const lastExecutedLocation = this._game?.getLastExecutedDocumentLocation();
+    // Read before the game goes; PLAY in the worker answers it as it stops.
+    const lastExecutedLocation = this._game
+      ? this._game.getLastExecutedDocumentLocation()
+      : await this.endWorkerPlay();
     await this.destroyGameAndApp();
     this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
@@ -2007,7 +2160,7 @@ export class GamePlayerController {
       this._restartGameTimeout = undefined;
       // Only restart a game that is still meant to be running; the state can
       // have changed (STOP, finish, error) while the timer was pending.
-      if (this._game?.state === "running") {
+      if (this.playing) {
         await this.restartGame();
         sendProtocolMessage(
           GameReloadedMessage.type.notification({}),
@@ -2142,96 +2295,6 @@ export class GamePlayerController {
       // preview rebuild, find their assets already resident.
       assetCache: getSharedAssetCache(),
     });
-  }
-
-  // Put the game at the start point PLAY was asked to begin from.
-  //
-  // Reaching that point means replaying the story to it, and finding a replay
-  // that gets there is a search that can run for many seconds on a story it
-  // never reaches. This method runs on the thread that paints the player, so a
-  // search here is a frozen page for as long as it lasts (#385).
-  //
-  // The compiler worker already runs that identical search — on every compile
-  // and every cursor move — and reports the paths it reached a DEFINITE answer
-  // about (`path`): either the story state at that path (`checkpoint`), or,
-  // with no checkpoint, that no route to it exists. When that answer is about
-  // the same start point this run begins from, AND about the same program this
-  // run is built from, there is nothing left to look for. Anything less
-  // definite is reported as no answer at all, and then the search does run
-  // here — safely, because the only case that reaches this is one where a route
-  // was already found to exist.
-  simulate(
-    game: Game,
-    simulationOptions:
-      | Record<
-          string,
-          {
-            favoredChoices?: (number | undefined)[];
-            favoredConditions?: (boolean | undefined)[];
-          }
-        >
-      | undefined,
-    workerRoute?: {
-      checkpoint?: string;
-      path?: string | null;
-      programId?: string;
-      failure?: SimulationFailure;
-    },
-  ) {
-    profile("start", "game/simulate");
-    const {
-      checkpoint,
-      path: simulatedPath,
-      programId,
-      failure,
-    } = workerRoute ?? {};
-    const startPath = game.startPath;
-    // Both halves are required. The path says WHERE the answer is about; the
-    // program identity says WHAT SCRIPT it is about, which the path cannot —
-    // the same path string survives an edit that changes what the story does
-    // at it, and a compile landing while this play is being set up leaves the
-    // worker an edit ahead of the program this game was built from. A mismatch
-    // is not an error: it means the answer does not apply, so the search runs
-    // here, which is exactly what PLAY did before any of this.
-    const answersThisRun =
-      startPath != null &&
-      simulatedPath === startPath &&
-      programId != null &&
-      programId === programIdentity(game.program);
-    if (answersThisRun) {
-      if (checkpoint) {
-        // The worker found the route and replayed it; its checkpoint IS the
-        // state that replay ends in, and loading it marks the simulation
-        // successful — exactly what a local search would have left behind.
-        //
-        // If the checkpoint will not load (a truncated or malformed save), the
-        // search is worth running here after all: the worker reaching the start
-        // point proves a route exists, so this search finds one and ends —
-        // there is no runaway to freeze on.
-        if (!game.load(checkpoint)) {
-          game.simulate(simulationOptions);
-        }
-      } else {
-        // No route to this start point exists. Searching again here would
-        // freeze the page only to reach the same verdict, so record the
-        // failure the way a local search would and let `start` fall back to
-        // jumping straight to the start point. Mirrors `updatePreview`'s
-        // no-checkpoint branch, so the toolbar reports an unreachable start
-        // point the same way whether it was reached by PLAY or by preview.
-        game.simulatePath = Game.getSimulateFromPath(startPath);
-        game.simulation = "fail";
-        // Including WHY, for the same reason: the row is the same row, and an
-        // unexplained one there would be the only place left that still just
-        // goes red without saying anything.
-        game.simulationFailure = failure;
-      }
-    } else {
-      // No worker answer applies to this run — nothing was ever selected, the
-      // worker resolved a different path, or it answered against a different
-      // version of the script — so this is the only search there is.
-      game.simulate(simulationOptions);
-    }
-    profile("end", "game/simulate");
   }
 
   /** Relay what a game reports: a game on this page, or the worker's
@@ -2386,12 +2449,18 @@ export class GamePlayerController {
     );
   }
 
-  /** Relay what the worker's game reports, as `listen` does for a game on
-   *  this page, until the returned function is called. */
-  listenToWorker(link: WorkerGameLink): () => void {
+  /** Relay what a game in the worker reports, as `listen` does for a game on
+   *  this page, until the returned function is called. `state` reads the
+   *  game's state as the page knows it. */
+  listenToWorker(
+    link: WorkerGameLink,
+    state: () => string = () => "previewing",
+  ): () => void {
     const stops: (() => void)[] = [];
     this.listen({
-      state: "previewing",
+      get state() {
+        return state();
+      },
       connection: {
         outgoing: {
           addListener: (method, listener) =>
@@ -2438,7 +2507,7 @@ export class GamePlayerController {
     },
   ): Promise<boolean> => {
     const link = workspace?.gameLink;
-    if (!link || this._game || this._startingPlay) {
+    if (!link || this._game || this._startingPlay || this._workerPlay) {
       return false;
     }
     if (!options?.speculative) {
@@ -2453,6 +2522,7 @@ export class GamePlayerController {
       detaches !== this._workerDetaches ||
       this._game != null ||
       this._startingPlay ||
+      this._workerPlay != null ||
       options?.current?.() === false;
     this._workerGame ??= {};
     this._workerGame.program = program;
@@ -2498,8 +2568,6 @@ export class GamePlayerController {
       }
     }
     if (this._workerAppFresh) {
-      // The worker's game shows the preview again after a game ran on this
-      // page, which alone heard what the editor asked of the debugger then.
       this.restoreWorkerDebugger(link);
     }
     const shown = this._completionShown;
@@ -2536,12 +2604,12 @@ export class GamePlayerController {
     return true;
   };
 
-  /** Give the worker's game what the editor last asked of the preview's
-   *  debugger. While a game runs on this page, the editor's requests go to
-   *  that game alone; the worker's game then shows the preview as a game
-   *  built here afterwards would (`buildGame`), with those settings. Sent
-   *  ahead of the display they are for, on the same connection, so the worker
-   *  applies them before it displays. */
+  /** Give the worker's game what the editor last asked of the debugger when
+   *  a new application shows the preview. A request made while PLAY ran
+   *  reached PLAY's game alone, and one made before the page knew the worker
+   *  displays was recorded here and not passed on. Sent ahead of the display
+   *  they are for, on the same connection, so the worker applies them before
+   *  it displays. */
   protected restoreWorkerDebugger(link: WorkerGameLink) {
     const options = this._options;
     const sent: Promise<unknown>[] = [];
@@ -2593,7 +2661,7 @@ export class GamePlayerController {
       current?: () => boolean;
     },
   ): Promise<boolean> => {
-    if (this._game?.state === "running") {
+    if (this.playing) {
       return false;
     }
     if (program?.summary) {

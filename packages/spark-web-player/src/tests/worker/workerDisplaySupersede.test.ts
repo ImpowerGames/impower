@@ -415,7 +415,7 @@ describe("a preview displayed from the worker's game", () => {
       expect(apps.length).toBe(2);
       expect(apps.map((app) => app.destroys)).toEqual([1, 0]);
       expect(h.controller._app).toBe(apps[1]);
-      expect(h.controller._game?.state).toBe("running");
+      expect(h.playing()?.state).toBe("running");
     } finally {
       h.dispose();
     }

@@ -21,6 +21,7 @@ import { PreviewCompileProgramMessage } from "@impower/sparkdown/src/compiler/cl
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { ProgramTransportDecoder } from "@impower/sparkdown/src/workspace/utils/programTransport";
+import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
 import type { GameEndpoint } from "../../app/Application";
 import type { ImageTarget } from "../../app/assets/AssetCache";
 import { MessageRouter } from "../../app/MessageRouter";
@@ -29,7 +30,6 @@ import UIManager from "../../app/managers/UIManager";
 import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
 import { ConfigurePlayerWorkerMessage } from "../../main/workers/messages/ConfigurePlayerWorkerMessage";
-import { ProgramForPlayMessage } from "../../main/workers/messages/ProgramForPlayMessage";
 import { ProgramHeldMessage } from "../../main/workers/messages/ProgramHeldMessage";
 import { WorkerGameLink } from "../../main/workers/WorkerGameLink";
 import {
@@ -88,6 +88,9 @@ export interface PlayerHarnessOptions {
   /** Keep every message in `toPage` and `toRouter` (the default), or none,
    *  for a run whose memory is measured. */
   recordMessages?: boolean;
+  /** Games the worker builds read the time from `tick` and get a frame only
+   *  when it runs, so a run is the same run every time. */
+  manualClock?: boolean;
 }
 
 export async function createPlayerHarness(options: PlayerHarnessOptions) {
@@ -113,6 +116,16 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   page.peer = worker;
   worker.peer = page;
   const workerState = installPlayerWorker(worker);
+  // The worker's clock, when the test drives it: the time in milliseconds,
+  // and the frame callbacks waiting for the next tick.
+  const clock = { now: 1_000_000, frames: [] as (() => void)[] };
+  if (options.manualClock) {
+    workerState.gameState.systemConfiguration.now = () => clock.now;
+    workerState.gameState.systemConfiguration.requestFrame = (callback) => {
+      clock.frames.push(callback);
+      return clock.frames.length;
+    };
+  }
 
   await page.sendRequest(CompilerInitializeMessage.type, { profilerId: "test" });
   await page.sendRequest(ConfigurePlayerWorkerMessage.type, {
@@ -169,19 +182,17 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         }),
       );
     },
-    programForPlay: async (
-      program: string,
-      startFrom: { file: string; line: number } | undefined,
-    ) =>
-      decode(
-        await page.sendRequest(ProgramForPlayMessage.type, { program, startFrom }),
-      ),
     programHeld: (program: string) =>
       (held = page
         .sendRequest(ProgramHeldMessage.type, { program })
         .then(() => undefined)),
     compileTextDocument: async () => {},
-    selectTextDocument: async () => {},
+    // The selections the page asks the editor for, as STOP asks for the
+    // line the game stopped at.
+    selections: [] as any[],
+    selectTextDocument: async (params: any) => {
+      workspace.selections.push(params);
+    },
   };
   setWorkspace(workspace as any);
 
@@ -225,11 +236,51 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     const app = {
       initializing: new Promise<void>((resolve) => (resolveInit = resolve)),
       paused: false,
+      // The application's own clock, which pause, unpause and a clock step
+      // move as `Application` moves it, telling the managers. It reads the
+      // harness's clock and ticks on its frames (`tick`), advancing a game
+      // on the page as `Application` does.
+      clock: new Clock(
+        {
+          get currentTime() {
+            return clock.now / 1000;
+          },
+        },
+        (callback) => {
+          clock.frames.push(callback);
+          return clock.frames.length;
+        },
+      ),
+      /** Send the game what the page reports, as input does. */
+      emit: (message: any) => endpoint.receive(structuredClone(message)),
+      pause() {
+        app.paused = true;
+        for (const m of managers) m.onPause();
+        app.clock.speed = 0;
+      },
+      unpause() {
+        app.paused = false;
+        for (const m of managers) m.onUnpause();
+        app.clock.speed = 1;
+      },
+      skip(seconds: number) {
+        app.clock.adjustTime(seconds);
+        for (const m of managers) m.onSkip(seconds);
+      },
       setAudioContext() {},
-      start() {},
+      started: false,
+      start() {
+        app.started = true;
+        app.clock.add((time) => {
+          if (!app.paused) endpoint.update?.(time);
+        });
+        app.clock.start();
+      },
       destroys: 0,
       destroy: async () => {
         app.destroys += 1;
+        app.clock.stop();
+        app.clock.dispose();
         router.disconnect();
         for (const m of managers) m.onDispose();
       },
@@ -247,6 +298,14 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     };
     return app;
   };
+  /** PLAY's game: the page's own with the switch off, which previews
+   *  until PLAY, and the one in the worker with it on. */
+  const playing = () =>
+    options.workerDisplays
+      ? workerState.gameState.running
+      : controller._game?.state === "previewing"
+        ? undefined
+        : controller._game;
   // What the page relays to the editor.
   const toEditor: any[] = [];
   host.addEventListener("jsonrpc", (e: Event) => toEditor.push((e as CustomEvent).detail));
@@ -262,6 +321,37 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     toPage,
     toEditor,
     toRouter,
+    playing,
+    /** Advance the worker's manual clock by `ms` and run each frame
+     *  waiting for it, `frames` times, letting what the games send arrive
+     *  in between. */
+    async tick(ms = 1000 / 60, frames = 1) {
+      for (let i = 0; i < frames; i++) {
+        clock.now += ms;
+        const waiting = clock.frames.splice(0);
+        for (const frame of waiting) frame();
+        await settle(4);
+      }
+    },
+    /** Record the program each PLAY from now on builds its game from, on
+     *  whichever side it runs. */
+    recordPlays() {
+      const played: any[] = [];
+      if (options.workerDisplays) {
+        const createGame = workerState.gameState.createGame;
+        workerState.gameState.createGame = (gameOptions) => {
+          played.push(gameOptions.program);
+          return createGame(gameOptions);
+        };
+      } else {
+        const buildGame = controller.buildGame.bind(controller);
+        controller.buildGame = async (program: any, restarted?: boolean) => {
+          played.push(program);
+          return buildGame(program, restarted);
+        };
+      }
+      return played;
+    },
     snapshotDOM: () => serializeDOM(overlay),
     /** Settles once the worker has answered the last real program the page
      *  reported taking (`player/programHeld`). */

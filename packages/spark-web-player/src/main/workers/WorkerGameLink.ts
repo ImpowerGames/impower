@@ -7,8 +7,9 @@ import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 type Listener = (message: any) => void;
 
 /**
- * The page's end of the game in the player's worker (`installPlayerWorker`),
- * over the connection the workspace compiles through.
+ * The page's end of the games in the player's worker (`installPlayerWorker`),
+ * the one that previews and PLAY's, over the connection the workspace
+ * compiles through. The worker sends the page one game's stream at a time.
  *
  * What the worker's game sends is told apart from the compiler's traffic by
  * its `epoch`: the engine's `Connection` stamps every message it sends with

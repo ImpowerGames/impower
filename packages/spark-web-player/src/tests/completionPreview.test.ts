@@ -19,6 +19,8 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GamePlayerController, setWorkspace } from "../GamePlayerController";
+import { PlayMessage } from "../main/workers/messages/PlayMessage";
+import { programIdentity } from "../utils/programIdentity";
 
 const URI = "file://proj/main.sd";
 const LINE = 4;
@@ -57,11 +59,11 @@ const edit = (text: string) => [
 
 function harness() {
   const REAL = program("real");
-  // What PLAY builds its game from: the real program, which with the worker
-  // displaying the worker writes out whole for it.
-  const playable = MODE.worker
-    ? { uri: URI, version: 1, compiled: {}, scripts: { [URI]: 1 }, name: "real, whole" }
-    : REAL;
+  // What PLAY names: the real program, which with the worker displaying the
+  // page names by its identity for the worker to build PLAY's game from.
+  const playable = MODE.worker ? programIdentity(REAL) : REAL;
+  // The programs PLAY named to the worker.
+  const played: any[] = [];
   const compiles: {
     params: any;
     resolve: (result: any) => void;
@@ -72,8 +74,21 @@ function harness() {
       new Promise((resolve) => compiles.push({ params, resolve })),
     compileTextDocument: async () => {},
     workerDisplaysPreview: MODE.worker,
-    gameLink: MODE.worker ? { detach() {}, addListener: () => () => {} } : undefined,
-    programForPlay: async () => ({ program: playable, checkpoint: "REAL SAVE" }),
+    gameLink: MODE.worker
+      ? {
+          attach() {},
+          detach() {},
+          receive() {},
+          addListener: () => () => {},
+          request: async (type: any, params: any) => {
+            if (type.method === PlayMessage.method) {
+              played.push(params.program);
+              return { built: true, compiled: true };
+            }
+            return {};
+          },
+        }
+      : undefined,
   };
   setWorkspace(workspace as any);
   const controller: any = new GamePlayerController(
@@ -112,7 +127,7 @@ function harness() {
     _failure: unknown,
     options?: { speculative?: boolean; current?: () => boolean },
   ) => {
-    if (controller._game?.state === "running") return false;
+    if (controller.playing) return false;
     if (!options?.speculative) controller._completionShown = null;
     const draw = ++draws;
     (controller._game ?? controller._workerGame).program = p;
@@ -175,6 +190,7 @@ function harness() {
     hold,
     REAL,
     playable,
+    played,
   };
 }
 
@@ -520,18 +536,25 @@ for (const worker of [false, true]) {
       });
 
       test("PLAY ends the preview, and nothing compiled for it reaches the screen", async () => {
-        const { controller, shown, focus, answer, playable } = harness();
+        const { controller, shown, focus, answer, playable, played } = harness();
         focus("happy");
         await settle();
-        const played: any[] = [];
         controller.buildGame = async (p: any) => {
           played.push(p);
-          controller._game = { state: "running", program: p, start: () => {} };
+          controller._game = {
+            state: "running",
+            program: p,
+            start: () => {},
+            simulate: () => {},
+          };
           return controller._game;
         };
-        controller.simulate = () => {};
         controller.listen = () => {};
         controller.buildApp = async () => ({ start: () => {} });
+        controller.buildAppFor = async (endpoint: any) => {
+          await endpoint.connect(() => {});
+          return { start: () => {} };
+        };
         controller.updateLaunchStateIcon = () => {};
         await controller.startGameAndApp();
 
