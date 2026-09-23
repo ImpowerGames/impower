@@ -11,11 +11,19 @@
 // start point this run begins from, PLAY must not search again — and to the
 // fallback, which must survive intact for every case the answer does not
 // cover.
+//
+// Each case runs in both positions of the worker-display switch: with it off
+// the page builds PLAY's game and puts it at its start point, and with it on
+// the worker builds it and puts it there by the same rule (#682). The worker
+// replays the route itself, so a case hands its game the answer it names in
+// place of the one the worker found.
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { GamePlayerController } from "../GamePlayerController";
 import { programIdentity } from "../utils/programIdentity";
+import { putAtStartPoint } from "../utils/putAtStartPoint";
+import { createPlayerHarness, MAIN_URI } from "./worker/playerHarness";
 
 const PROGRAM = {
   uri: "file://proj/main.sd",
@@ -78,6 +86,11 @@ function recordingGame(startPath: string | null) {
     start: () => {
       calls.push("start");
     },
+    // What the worker asks of the game it builds besides the rule under test.
+    connection: { receive: () => {} },
+    connect: async () => {},
+    destroy: () => {},
+    getLastExecutedDocumentLocation: () => null,
   };
   return game;
 }
@@ -85,6 +98,63 @@ function recordingGame(startPath: string | null) {
 /** The identity the worker reports when it searched against the same program
  *  the player is holding. */
 const MATCHING_PROGRAM_ID = programIdentity(PROGRAM);
+
+type WorkerAnswer = {
+  checkpoint?: string;
+  simulatedPath?: string | null;
+  simulatedProgramId?: string;
+};
+
+/** PLAY with the switch off: the page builds the recording game and puts it
+ *  at its start point from the answer the controller holds. */
+async function playOnPage(game: any, worker: WorkerAnswer) {
+  await playControllerWith(game, worker).startGameAndApp();
+}
+
+const WORKER_SOURCE = ["-> start", "", "scene start", "  The line.", "end", ""].join("\n");
+
+/** PLAY with the switch on: the worker builds the recording game for the
+ *  program the page names and puts it at its start point, from the answer
+ *  the case names. `MATCHING_PROGRAM_ID` stands for the program the game is
+ *  built from. */
+async function playInWorker(game: any, worker: WorkerAnswer) {
+  const line = 3;
+  const h = await createPlayerHarness({
+    workerDisplays: true,
+    files: [{ uri: MAIN_URI, text: WORKER_SOURCE }],
+    startFrom: { file: MAIN_URI, line },
+  });
+  try {
+    await h.compile();
+    await h.select(line);
+    h.workerState.gameState.createGame = ((options: any) => {
+      game.program = options.program;
+      return game;
+    }) as any;
+    h.workerState.player.putAtStartPoint = (built, simulationOptions) =>
+      putAtStartPoint(built, simulationOptions, {
+        checkpoint: worker.checkpoint,
+        path: worker.simulatedPath,
+        programId:
+          !("simulatedProgramId" in worker) ||
+          worker.simulatedProgramId === MATCHING_PROGRAM_ID
+            ? programIdentity(built.program)
+            : worker.simulatedProgramId,
+      });
+    await h.controller.startGameAndApp();
+    await h.controller.destroyGameAndApp();
+  } finally {
+    h.dispose();
+  }
+}
+
+// A case with the switch on compiles and plays in the worker.
+vi.setConfig({ testTimeout: 120_000 });
+
+const HOSTS = [
+  { name: "the switch off", play: playOnPage },
+  { name: "the switch on", play: playInWorker },
+];
 
 /** A controller wired to the recording game, with the two heavy build steps
  *  (the real Game and the pixi Application) stubbed out. */
@@ -115,15 +185,13 @@ function playControllerWith(
   return controller;
 }
 
-describe("pressing play reuses the compiler worker's route search", () => {
+for (const host of HOSTS) describe(`pressing play reuses the compiler worker's route search, with ${host.name}`, () => {
   test("the worker's checkpoint is loaded instead of searching again", async () => {
     const game = recordingGame("main.3");
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: "main.3",
       checkpoint: SIMULATED_SAVE,
     });
-
-    await controller.startGameAndApp();
 
     expect(game.calls).toContain("load:the state at main.3");
     // The whole point: no route search on the thread that paints the player.
@@ -142,12 +210,10 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // reaches it. Running the same doomed search on the interface thread would
     // freeze the page for seconds and reach the same verdict.
     const game = recordingGame("main.3");
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: "main.3",
       checkpoint: undefined,
     });
-
-    await controller.startGameAndApp();
 
     expect(game.calls).not.toContain("simulate");
     expect(game.calls.some((c: string) => c.startsWith("load:"))).toBe(false);
@@ -165,12 +231,10 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // point proves a route exists, so the search run here finds one and ends.
     // Starting at the wrong place would be the worse outcome.
     const game = recordingGame("main.3");
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: "main.3",
       checkpoint: TRUNCATED_SAVE,
     });
-
-    await controller.startGameAndApp();
 
     expect(game.calls).toContain("load-failed");
     expect(game.calls).toContain("simulate");
@@ -181,12 +245,10 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // begins somewhere else, loading that checkpoint would drop the player
     // into an unrelated part of the story, so the search has to happen here.
     const game = recordingGame("main.3");
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: "other.7",
       checkpoint: SIMULATED_SAVE,
     });
-
-    await controller.startGameAndApp();
 
     expect(game.calls.some((c: string) => c.startsWith("load:"))).toBe(false);
     expect(game.calls).toContain("simulate");
@@ -199,7 +261,7 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // identity is what catches it. Falling back to searching here is the old
     // behaviour: slower, but it cannot start the game in the wrong place.
     const game = recordingGame("main.3");
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: "main.3",
       checkpoint: SIMULATED_SAVE,
       simulatedProgramId: programIdentity({
@@ -207,8 +269,6 @@ describe("pressing play reuses the compiler worker's route search", () => {
         scripts: { [PROGRAM.uri]: 4 },
       }),
     });
-
-    await controller.startGameAndApp();
 
     expect(game.calls.some((c: string) => c.startsWith("load:"))).toBe(false);
     expect(game.calls).toContain("simulate");
@@ -220,13 +280,11 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // not. Failing this way costs a search; failing the other way starts the
     // game somewhere the user did not ask for.
     const game = recordingGame("main.3");
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: "main.3",
       checkpoint: SIMULATED_SAVE,
       simulatedProgramId: undefined,
     });
-
-    await controller.startGameAndApp();
 
     expect(game.calls.some((c: string) => c.startsWith("load:"))).toBe(false);
     expect(game.calls).toContain("simulate");
@@ -236,13 +294,11 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // A host that never simulates routes off the main thread must keep
     // working; the fallback is the old behaviour, unchanged.
     const game = recordingGame("main.3");
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: undefined,
       checkpoint: undefined,
       simulatedProgramId: undefined,
     });
-
-    await controller.startGameAndApp();
 
     expect(game.calls).toContain("simulate");
     // Same ordering requirement as the reuse path.
@@ -255,15 +311,45 @@ describe("pressing play reuses the compiler worker's route search", () => {
     // Nothing to match against, so the reuse rule must not fire on two
     // undefineds and silently skip the (cheap, immediately-returning) search.
     const game = recordingGame(null);
-    const controller = playControllerWith(game, {
+    await host.play(game, {
       simulatedPath: undefined,
       checkpoint: undefined,
       simulatedProgramId: undefined,
     });
 
-    await controller.startGameAndApp();
-
     expect(game.calls).toContain("simulate");
+  });
+});
+
+describe("with the switch on, the worker's own route reaches the rule", () => {
+  test("PLAY's game is put at its start point from the route the worker replayed", async () => {
+    const line = 3;
+    const h = await createPlayerHarness({
+      workerDisplays: true,
+      files: [{ uri: MAIN_URI, text: WORKER_SOURCE }],
+      startFrom: { file: MAIN_URI, line },
+    });
+    try {
+      await h.compile();
+      await h.select(line);
+      const handed: any[] = [];
+      h.workerState.player.putAtStartPoint = (built, simulationOptions, route, profilerId) => {
+        handed.push({ built, route });
+        return putAtStartPoint(built, simulationOptions, route, profilerId);
+      };
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      expect(handed).toHaveLength(1);
+      const [{ built, route }] = handed;
+      // The answer is about this start point in this program, with the state
+      // the replay ended in, so PLAY's game loads it and searches nothing.
+      expect(route.path).toBe(built.startPath);
+      expect(route.programId).toBe(programIdentity(built.program));
+      expect(route.checkpoint).toBeTruthy();
+      expect(built.simulation).toBe("success");
+      await h.controller.destroyGameAndApp();
+    } finally {
+      h.dispose();
+    }
   });
 });
 

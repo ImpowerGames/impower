@@ -19,10 +19,6 @@ import {
 } from "../utils/previewHint";
 import { ConfigurePlayerWorkerMessage } from "./messages/ConfigurePlayerWorkerMessage";
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
-import {
-  ProgramForPlayMessage,
-  type ProgramForPlayResult,
-} from "./messages/ProgramForPlayMessage";
 import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
 import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
 import { WorkerGameLink } from "./WorkerGameLink";
@@ -84,21 +80,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
         })
         .catch(console.error);
       return super.initialize(params);
-    }
-
-    async programForPlay(
-      program: string,
-      startFrom: { file: string; line: number } | undefined,
-    ): Promise<ProgramForPlayResult> {
-      await this.compilerReady();
-      const result = await this._compilerChannelConnection.sendRequest(
-        ProgramForPlayMessage.type,
-        { program, startFrom },
-      );
-      if (result.program) {
-        this._programTransport.decode(result.program);
-      }
-      return result;
     }
 
     async programHeld(program: string): Promise<void> {

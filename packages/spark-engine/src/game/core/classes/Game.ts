@@ -77,6 +77,26 @@ export type GameModules = InstanceMap<DefaultModuleConstructors>;
 
 export type M = { [name: string]: Module };
 
+/** A value the editor can receive and evaluate an expression against: a
+ *  primitive, or plain data made of them, as a list or a divert target
+ *  reads. */
+const isEvaluable = (value: unknown, depth = 0): boolean => {
+  if (value === undefined || typeof value === "function") {
+    return false;
+  }
+  if (value === null || typeof value !== "object") {
+    return true;
+  }
+  // A table is a `Map` of the runtime's own objects, and a structure nested
+  // this deep is not a value an author reads in the console.
+  if (value instanceof Map || value instanceof Set || depth > 8) {
+    return false;
+  }
+  return Object.values(value).every(
+    (item) => item === undefined || isEvaluable(item, depth + 1),
+  );
+};
+
 export class Game<T extends M = {}> {
   protected _clock?: Clock;
   get clock() {
@@ -522,8 +542,9 @@ export class Game<T extends M = {}> {
     if (system.requestFrame) {
       this._clock = new Clock(
         {
+          // A clock source reads in seconds, and `now` in milliseconds.
           get currentTime() {
-            return system.now();
+            return system.now() / 1000;
           },
         },
         (callback: () => void) => system.requestFrame?.(callback) ?? 0,
@@ -1689,6 +1710,9 @@ export class Game<T extends M = {}> {
     // the asset module can still send the release.
     this.cancelPreview();
     this._destroyed = true;
+    // A game with its own clock stops asking for frames.
+    this._clock?.stop();
+    this._clock?.dispose();
     for (const k of this._moduleNames) {
       this._modules[k]?.onDestroy();
     }
@@ -2380,13 +2404,17 @@ export class Game<T extends M = {}> {
     );
   }
 
+  /** The story's globals and the current temporaries by name, for the
+   *  editor to evaluate an expression against: each value it can receive
+   *  and read into (`isEvaluable`). A table holds the runtime's own objects
+   *  and functions, which no message can carry. */
   getEvaluationContext() {
     const context: any = {};
     const variableState = this._story.state.variablesState;
     for (const name of variableState["_globalVariables"].keys()) {
       const valueObj = variableState.GetVariableWithName(name);
       const value = this.getRuntimeValue(name, valueObj);
-      if (value !== undefined) {
+      if (isEvaluable(value)) {
         context[name] = value;
       }
     }
@@ -2399,7 +2427,7 @@ export class Game<T extends M = {}> {
         valueObj,
       ] of contextElement?.temporaryVariables.entries()) {
         const value = this.getRuntimeValue(name, valueObj);
-        if (value !== undefined) {
+        if (isEvaluable(value)) {
           context[name] = value;
         }
       }

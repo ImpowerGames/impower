@@ -28,6 +28,8 @@ export interface RoutableGame {
 export interface PlanRouteForSelectionContext<G extends RoutableGame> {
   /** The game holding the last compiled program, or nothing if none is built. */
   game: G | undefined;
+  /** A game runs on the thread the search would run on. */
+  running?: boolean;
   /** Record the selection as the point the next compile starts from. */
   rememberStartFrom(startFrom: { file: string; line: number }): void;
   /** Plan a route to a story path and replay it, recording the outcome. */
@@ -86,6 +88,14 @@ export function planRouteForSelection<G extends RoutableGame>(
     line: params.selectedRange.start.line,
   };
   ctx.rememberStartFrom(newStartFrom);
+  if (ctx.running) {
+    // A route search on a long script takes hundreds of milliseconds, which
+    // a running game on the same thread would spend frozen, and the preview
+    // it serves is not on screen. The selection is recorded above, so the
+    // compile that restarts the game after an edit starts from it, and after
+    // STOP the next selection searches again.
+    return;
+  }
   if (params.programOutdated) {
     // This game holds the program compiled from the document as it was before
     // the edit, so a route planned to this line would replay to whatever used

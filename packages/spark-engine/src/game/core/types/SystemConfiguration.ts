@@ -1,6 +1,7 @@
 import type { FrameRequestCallback } from "../classes/Clock";
 
 export interface SystemConfiguration {
+  /** The current time in milliseconds. */
   now?: () => number;
   resolve?: (path: string) => string;
   fetch?: (url: string) => Promise<string | ArrayBuffer>;

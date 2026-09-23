@@ -1,10 +1,15 @@
 import type { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
+import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
 import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification";
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
+import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
-import { installGameWorker } from "@impower/spark-engine/src/worker/installGameWorker";
+import {
+  installGameWorker,
+  NoGameError,
+} from "@impower/spark-engine/src/worker/installGameWorker";
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
@@ -23,12 +28,20 @@ import {
   type DisplayPreviewResult,
 } from "./messages/DisplayPreviewMessage";
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
+import { ConnectPlayMessage } from "./messages/ConnectPlayMessage";
 import {
-  ProgramForPlayMessage,
-  type ProgramForPlayParams,
-  type ProgramForPlayResult,
-} from "./messages/ProgramForPlayMessage";
+  PlayMessage,
+  type PlayParams,
+  type PlayResult,
+} from "./messages/PlayMessage";
 import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
+import { StartPlayMessage } from "./messages/StartPlayMessage";
+import {
+  StopPlayMessage,
+  type StopPlayParams,
+  type StopPlayResult,
+} from "./messages/StopPlayMessage";
+import { putAtStartPoint } from "../../utils/putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
@@ -49,11 +62,16 @@ interface DisplayableProgram {
  * Everything the Game Preview's worker does: the player's compiler, the game
  * that plans and replays the route to the author's line on every compile and
  * selection, and, with `workerDisplaysPreview`, the display of the stopped
- * preview from that game (`player/displayPreview`), so the page holds no
- * program and no game of its own until PLAY.
+ * preview from that game (`player/displayPreview`) and PLAY's game, which
+ * runs beside it (`player/play`), so the page holds no program and no game.
  */
 export function installPlayerWorker(connection: MessageConnection) {
-  const player = { workerDisplaysPreview: false };
+  const player = {
+    workerDisplaysPreview: false,
+    /** How PLAY's game is put at its start point, as the page's own PLAY
+     *  puts its game there. */
+    putAtStartPoint,
+  };
   // The warm-up is planned before the compiler handles the selection, which
   // can recompile the real documents first, so the fetches start as soon as
   // the selection arrives. Registered before the compiler's own listener,
@@ -318,19 +336,26 @@ export function installPlayerWorker(connection: MessageConnection) {
   });
 
   compiler.addEventListener("compiler/didSelect", (params) => {
-    // The selection's route is replayed on the game.
-    gameTouches += 1;
-    // A selection is routed against the real program. The game can be holding
-    // a suggestion it displayed again from its kept story, with no compile
-    // since to give it the real one back.
-    const kept = canonicalId ? displayable.get(canonicalId) : undefined;
-    if (kept && gameState.game && gameState.game.program !== kept.program) {
-      compiler.activateStory(kept.story);
-      createOrUpdateGame(kept.program, kept.story);
-      releaseUnneeded();
+    // PLAY's game shares this thread, so while it runs the game above is
+    // left as it is and the selection replays no route (see
+    // `planRouteForSelection`).
+    const running = gameState.running != null;
+    if (!running) {
+      // The selection's route is replayed on the game.
+      gameTouches += 1;
+      // A selection is routed against the real program. The game can be
+      // holding a suggestion it displayed again from its kept story, with no
+      // compile since to give it the real one back.
+      const kept = canonicalId ? displayable.get(canonicalId) : undefined;
+      if (kept && gameState.game && gameState.game.program !== kept.program) {
+        compiler.activateStory(kept.story);
+        createOrUpdateGame(kept.program, kept.story);
+        releaseUnneeded();
+      }
     }
     planRouteForSelection(params, {
       game: gameState.game,
+      running,
       rememberStartFrom: (startFrom) => {
         compiler.config.startFrom = startFrom;
       },
@@ -377,35 +402,55 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   let displays = 0;
 
-  // Everything the game sends while it displays goes to the page. The
-  // execution report names where a route that failed was simulated from and
-  // was headed, which the page labels with document locations it can no
-  // longer look up itself.
+  /** `message` as `game` sends it to the page. The execution report names
+   *  where a route that failed was simulated from and was headed, which the
+   *  page labels with document locations it can no longer look up itself. */
+  const withDocumentLocations = (message: Message, game: Game): Message => {
+    const program = game.program;
+    if (
+      !program ||
+      !GameExecutedMessage.type.isNotification(message) ||
+      message.params.simulation !== "fail"
+    ) {
+      return message;
+    }
+    const { simulatePath, startPath } = message.params;
+    return {
+      ...message,
+      params: {
+        ...message.params,
+        simulateLocation: simulatePath
+          ? (Game.pathToDocumentLocation(program, simulatePath) ?? undefined)
+          : undefined,
+        startLocation: startPath
+          ? (Game.pathToDocumentLocation(program, startPath) ?? undefined)
+          : undefined,
+      },
+    } as Message;
+  };
+
+  // Everything the game sends while it displays goes to the page, and
+  // nothing while PLAY's game runs: the page shows that game alone, and a
+  // stream from this one would supersede it there. A request it makes then
+  // is answered here, as the page answers one it will not act on, so
+  // nothing the game does waits for an answer that will not come.
   const sendToPage = (message: Message, transfer?: ArrayBuffer[]) => {
-    if (!isRequest(message) && !isNotification(message)) {
+    const game = gameState.game;
+    if (!game || (!isRequest(message) && !isNotification(message))) {
       return;
     }
-    const program = gameState.game?.program;
-    if (
-      program &&
-      GameExecutedMessage.type.isNotification(message) &&
-      message.params.simulation === "fail"
-    ) {
-      const { simulatePath, startPath } = message.params;
-      message = {
-        ...message,
-        params: {
-          ...message.params,
-          simulateLocation: simulatePath
-            ? (Game.pathToDocumentLocation(program, simulatePath) ?? undefined)
-            : undefined,
-          startLocation: startPath
-            ? (Game.pathToDocumentLocation(program, startPath) ?? undefined)
-            : undefined,
-        },
-      } as Message;
+    if (gameState.running) {
+      if (isRequest(message)) {
+        game.connection.receive({
+          jsonrpc: "2.0",
+          id: message.id,
+          method: message.method,
+          error: { code: DISCONNECTED, message: "PLAY's game holds the page" },
+        } as Message);
+      }
+      return;
     }
-    connection.postMessage(message, transfer);
+    connection.postMessage(withDocumentLocations(message, game), transfer);
   };
 
   /** The route to `point`'s `beat` in `entry`, with the game holding the
@@ -515,18 +560,48 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
   };
 
-  /** The whole program the page names, for PLAY, with the route to where
-   *  PLAY starts. Taking the program supersedes a display under way. */
-  const programForPlay = (
-    params: ProgramForPlayParams,
-  ): ProgramForPlayResult => {
+  // ---- PLAY ---------------------------------------------------------------
+  //
+  // PLAY's game is built beside the game above, with its own story, which it
+  // writes out from the compiled program once per PLAY: a compile re-parents
+  // the runtime containers of every flow it reuses into its new story, so a
+  // game that outlives compiles cannot run the compiler's. While it runs, the
+  // page shows it, hears from it and debugs it, and the game above sends the
+  // page nothing (`sendToPage`) and replays no route for a selection.
+
+  /** PLAY's game while it runs, with the run the page knows it by, and a
+   *  settlement that STOP answers everything still waiting on it with. */
+  let current:
+    | { run: number; game: Game; stopped: Promise<void>; stop: () => void }
+    | undefined;
+  let runs = 0;
+
+  /** Where PLAY's game `running` sends the page what it shows, while it
+   *  is the one that runs: a game STOP ended cannot write into the next
+   *  run's stream. */
+  const sendFromPlay =
+    (running: Game) => (message: Message, transfer?: ArrayBuffer[]) => {
+      if (
+        gameState.running !== running ||
+        !(isRequest(message) || isNotification(message))
+      ) {
+        return;
+      }
+      connection.postMessage(withDocumentLocations(message, running), transfer);
+    };
+
+  /** Build PLAY's game for the program the page names, at the start point
+   *  along the route to it. Taking the program supersedes a display under
+   *  way. */
+  const play = (params: PlayParams): PlayResult => {
     displays += 1;
     pageHolds(params.program);
     const entry = displayable.get(params.program);
     const game = gameState.game;
     if (!entry || !game) {
-      return {};
+      return { built: false };
     }
+    stopPlay({});
     const program = compiler.emitCompiledProgramOf(entry.story, entry.program);
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program, entry.story);
@@ -536,13 +611,58 @@ export function installPlayerWorker(connection: MessageConnection) {
       ? routeTo(game, entry, params.startFrom, "first")
       : {};
     releaseUnneeded();
+    profile("start", compiler.profilerId + " " + "play/create");
+    // No story: the game builds its own from the program.
+    const running = gameState.createGame({
+      program,
+      startFrom: params.startFrom,
+      restarted: params.restarted,
+    });
+    profile("end", compiler.profilerId + " " + "play/create");
+    player.putAtStartPoint(
+      running,
+      params.simulationOptions,
+      {
+        checkpoint: route.checkpoint,
+        path: route.simulatedPath,
+        programId: route.simulatedProgramId,
+        failure: route.simulationFailure,
+      },
+      compiler.profilerId,
+    );
+    gameState.running = running;
+    let stop!: () => void;
+    const stopped = new Promise<void>((resolve) => (stop = resolve));
+    current = { run: ++runs, game: running, stopped, stop };
     return {
-      ...route,
-      program: compilerState.encodeProgram({
-        ...program,
-        startFrom: params.startFrom,
-      }),
+      built: true,
+      compiled: hasCompiledProgram(program),
+      run: current.run,
     };
+  };
+
+  /** End PLAY's game, answering where it last executed: the run the page
+   *  names, or whichever runs when it names none. A run already replaced is
+   *  left alone. */
+  const stopPlay = (params: StopPlayParams): StopPlayResult => {
+    const ending = current;
+    if (!ending || (params.run != null && params.run !== ending.run)) {
+      return { location: null };
+    }
+    const location = ending.game.getLastExecutedDocumentLocation();
+    current = undefined;
+    gameState.running = undefined;
+    ending.game.destroy();
+    ending.stop();
+    return { location };
+  };
+
+  /** PLAY's game for the run the page names, if it still runs. */
+  const runningAs = (run: number) => {
+    if (!current || current.run !== run) {
+      throw new NoGameError();
+    }
+    return current;
   };
 
   connection.addEventListener("message", (e: MessageEvent) => {
@@ -563,8 +683,39 @@ export function installPlayerWorker(connection: MessageConnection) {
       connection.sendResponse(message, () => display(message.params));
       return;
     }
-    if (ProgramForPlayMessage.type.isRequest(message)) {
-      connection.sendResponse(message, () => programForPlay(message.params));
+    if (PlayMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => play(message.params));
+      return;
+    }
+    if (ConnectPlayMessage.type.isRequest(message)) {
+      connection.sendResponse(message, async () => {
+        const { game, stopped } = runningAs(message.params.run);
+        // A game STOP ends while it connects never finishes its restore:
+        // what the page answers from then on is not delivered to it.
+        await Promise.race([game.connect(sendFromPlay(game)), stopped]);
+        return {};
+      });
+      return;
+    }
+    if (StartPlayMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        const { run, paused, seconds } = message.params;
+        const { game } = runningAs(run);
+        // Before its first frame, as a game on the page is paused before it
+        // starts.
+        if (paused) {
+          game.pause();
+        }
+        game.start();
+        if (seconds) {
+          game.skip(seconds);
+        }
+        return {};
+      });
+      return;
+    }
+    if (StopPlayMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => stopPlay(message.params));
       return;
     }
     if (ProgramHeldMessage.type.isRequest(message)) {

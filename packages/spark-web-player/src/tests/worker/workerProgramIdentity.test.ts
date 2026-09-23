@@ -5,6 +5,8 @@
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
+import { PlayMessage } from "../../main/workers/messages/PlayMessage";
+import { StopPlayMessage } from "../../main/workers/messages/StopPlayMessage";
 import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
@@ -62,12 +64,15 @@ describe("the program the page names", () => {
       // And the worker keeps them apart, so PLAY is handed the program the
       // page named — the one it was showing — rather than the one compiled
       // after it under what used to be the same name.
-      const played = await h.workspace.programForPlay(beforeId, {
-        file: MAIN_URI,
-        line: FIRST,
+      const built = await h.link.request(PlayMessage.type, {
+        program: beforeId,
+        startFrom: { file: MAIN_URI, line: FIRST },
       });
-      expect(played.program?.filesEpoch).toBe(before.program.filesEpoch);
-      expect(played.program?.filesEpoch).not.toBe(after.program.filesEpoch);
+      expect(built.built).toBe(true);
+      const played = h.workerState.gameState.running!.program;
+      expect(played.filesEpoch).toBe(before.program.filesEpoch);
+      expect(played.filesEpoch).not.toBe(after.program.filesEpoch);
+      await h.link.request(StopPlayMessage.type, {});
     } finally {
       h.dispose();
     }

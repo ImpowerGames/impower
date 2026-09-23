@@ -7,6 +7,7 @@ import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/c
 import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameDataBreakpointsMessage";
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { describe, expect, it } from "vitest";
+import { PlayMessage } from "../../main/workers/messages/PlayMessage";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `-> start
@@ -167,15 +168,17 @@ describe("with the switch on", () => {
       await h.compile();
       await h.select(FIRST);
 
-      // PLAY asks the worker for the program, and the editor turns debugging
-      // on while it waits: the toolbar offers the control from the moment
-      // PLAY is pressed.
+      // PLAY asks the worker to build its game, and the editor turns
+      // debugging on before the request goes: the toolbar offers the control
+      // from the moment PLAY is pressed.
       let release!: () => void;
       const held = new Promise<void>((resolve) => (release = resolve));
-      const programForPlay = h.workspace.programForPlay.bind(h.workspace);
-      h.workspace.programForPlay = async (...args: unknown[]) => {
-        await held;
-        return programForPlay(...(args as [any, any]));
+      const request = h.link.request.bind(h.link);
+      (h.link as any).request = async (type: any, params: any) => {
+        if (type.method === PlayMessage.method) {
+          await held;
+        }
+        return request(type, params);
       };
       const played = h.controller.startGameAndApp();
       await settle(20);
@@ -188,7 +191,7 @@ describe("with the switch on", () => {
       await settle(40);
 
       // The game that is running is the one the editor was talking about.
-      expect(h.controller._game?.context?.system?.debugging).toBe(true);
+      expect(h.playing()?.context?.system?.debugging).toBe(true);
     } finally {
       h.dispose();
     }

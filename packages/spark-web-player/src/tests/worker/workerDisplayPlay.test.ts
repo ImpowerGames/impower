@@ -1,8 +1,9 @@
 // PLAY runs the program the preview shows, which is the last one that compiled
-// and ran, in either switch position (#680): the page holds that program whole
-// with the switch off, and its summary with the switch on, from which the
-// worker writes the same program out whole. A later edit that does not compile
-// leaves both where they were.
+// and ran, in either switch position (#680, #682): the page holds that program
+// whole with the switch off and builds PLAY's game from it, and holds its
+// summary with the switch on, when the worker builds PLAY's game from the same
+// program written out whole. A later edit that does not compile leaves both
+// where they were.
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
@@ -98,12 +99,7 @@ for (const workerDisplays of [false, true]) {
         expect(h.controller._canonicalInvalid).toBe(true);
         expect(programIdentity(h.controller._program)).toBe(goodId);
 
-        const played: any[] = [];
-        const buildGame = h.controller.buildGame.bind(h.controller);
-        h.controller.buildGame = async (program: any, restarted?: boolean) => {
-          played.push(program);
-          return buildGame(program, restarted);
-        };
+        const played = h.recordPlays();
         const started = await h.controller.startGameAndApp();
         await settle();
         expect(started).toBe(true);
@@ -149,12 +145,7 @@ for (const workerDisplays of [false, true]) {
             text: "The first line, edited.",
           },
         ]);
-        const played: any[] = [];
-        const buildGame = h.controller.buildGame.bind(h.controller);
-        h.controller.buildGame = async (program: any, restarted?: boolean) => {
-          played.push(program);
-          return buildGame(program, restarted);
-        };
+        const played = h.recordPlays();
         const compiled = h.page.sendRequest(CompileProgramMessage.type, {
           textDocument: { uri: MAIN_URI },
           startFrom: { file: MAIN_URI, line: LINE },

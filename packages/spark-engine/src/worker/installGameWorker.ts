@@ -54,8 +54,12 @@ export function installGameWorker(connection: MessageConnection) {
     // on the global here.
     setTimeout: (handler: Function, timeout?: number, ...args: any[]) =>
       self.setTimeout(handler as TimerHandler, timeout, ...args),
+    // A worker that has no animation frames ticks on a timer at the rate the
+    // clock runs at.
     requestFrame: (callback: FrameRequestCallback) =>
-      self.requestAnimationFrame(callback),
+      typeof self.requestAnimationFrame === "function"
+        ? self.requestAnimationFrame(callback)
+        : self.setTimeout(callback, 1000 / 60),
     resolve: (path: string) => {
       // TODO: resolve import and load paths to url
       return path;
@@ -113,20 +117,36 @@ export function installGameWorker(connection: MessageConnection) {
 
   const state: {
     systemConfiguration: SystemConfiguration;
+    /** The game the worker creates, previews and simulates routes in. */
     game?: Game;
+    /** A game that runs beside `game` while it does: the one the page shows,
+     *  hears from and debugs until it goes. */
+    running?: Game;
     createGame: typeof createGame;
   } = {
     systemConfiguration,
     createGame,
   };
 
+  /** The game the page talks to: the running one while there is one. */
+  const target = () => state.running ?? state.game;
+
+  /** Every game the worker holds. */
+  const games = () =>
+    [state.running, state.game].filter((game): game is Game => !!game);
+
   connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;
-    if (isResponse(message) || isNotification(message)) {
-      // Receive responses and notifications
-      if (state.game) {
-        state.game.connection.receive(message);
+    if (isResponse(message)) {
+      // A response answers the game that asked, and no other game holds its
+      // id.
+      for (const game of games()) {
+        game.connection.receive(message);
       }
+    } else if (isNotification(message)) {
+      // What the page reports (input, its audio clock) is for the game it
+      // shows.
+      target()?.connection.receive(message);
     }
     if (InitializeMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => ({}));
@@ -223,31 +243,34 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (PauseGameMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
-        state.game.pause();
+        game.pause();
         return {};
       });
       return;
     }
     if (UnpauseGameMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
-        state.game.pause();
+        game.unpause();
         return {};
       });
       return;
     }
     if (StepGameClockMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
         const { seconds } = message.params;
-        state.game.skip(seconds);
+        game.skip(seconds);
         return {};
       });
       return;
@@ -255,26 +278,28 @@ export function installGameWorker(connection: MessageConnection) {
     if (StepGameMessage.type.isRequest(message)) {
       const { traversal } = message.params;
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
-        return { done: state.game.step(traversal) };
+        return { done: game.step(traversal) };
       });
       return;
     }
     if (ContinueGameMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
-        return { done: state.game.continue() };
+        return { done: game.continue() };
       });
       return;
     }
     if (EnableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
         pending.debugging = true;
-        state.game?.startDebugging();
+        target()?.startDebugging();
         return {};
       });
       return;
@@ -282,7 +307,7 @@ export function installGameWorker(connection: MessageConnection) {
     if (DisableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
         pending.debugging = false;
-        state.game?.stopDebugging();
+        target()?.stopDebugging();
         return {};
       });
       return;
@@ -291,8 +316,9 @@ export function installGameWorker(connection: MessageConnection) {
       const { breakpoints } = message.params;
       connection.sendResponse(message, () => {
         pending.breakpoints = breakpoints;
+        const game = target();
         return {
-          breakpoints: state.game ? state.game.setBreakpoints(breakpoints) : [],
+          breakpoints: game ? game.setBreakpoints(breakpoints) : [],
         };
       });
       return;
@@ -301,10 +327,9 @@ export function installGameWorker(connection: MessageConnection) {
       const { dataBreakpoints } = message.params;
       connection.sendResponse(message, () => {
         pending.dataBreakpoints = dataBreakpoints;
+        const game = target();
         return {
-          dataBreakpoints: state.game
-            ? state.game.setDataBreakpoints(dataBreakpoints)
-            : [],
+          dataBreakpoints: game ? game.setDataBreakpoints(dataBreakpoints) : [],
         };
       });
       return;
@@ -313,9 +338,10 @@ export function installGameWorker(connection: MessageConnection) {
       const { functionBreakpoints } = message.params;
       connection.sendResponse(message, () => {
         pending.functionBreakpoints = functionBreakpoints;
+        const game = target();
         return {
-          functionBreakpoints: state.game
-            ? state.game.setFunctionBreakpoints(functionBreakpoints)
+          functionBreakpoints: game
+            ? game.setFunctionBreakpoints(functionBreakpoints)
             : [],
         };
       });
@@ -335,20 +361,22 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (GetGameEvaluationContextMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
-        return { context: state.game.getEvaluationContext() };
+        return { context: game.getEvaluationContext() };
       });
       return;
     }
     if (GetGamePossibleBreakpointLocationsMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
         const { search } = message.params;
-        const program = state.game.program;
+        const program = game.program;
         const lines = possibleBreakpointLines(
           program.pathLocations,
           Object.keys(program.scripts),
@@ -360,10 +388,11 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (GetGameScriptsMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
-        const program = state.game.program;
+        const program = game.program;
         const uris = Object.keys(program?.scripts || {});
         return { uris };
       });
@@ -371,54 +400,57 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (GetGameStackTraceMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
         const { threadId, startFrame, levels } = message.params;
-        return state.game.getStackTrace(threadId, startFrame, levels);
+        return game.getStackTrace(threadId, startFrame, levels);
       });
       return;
     }
     if (GetGameThreadsMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
-        const threads = state.game.getThreads();
+        const threads = game.getThreads();
         return { threads };
       });
       return;
     }
     if (GetGameVariablesMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        if (!state.game) {
+        const game = target();
+        if (!game) {
           throw new NoGameError();
         }
         const { scope, variablesReference, value } = message.params;
         if (scope === "temps") {
-          const variables = state.game.getTempVariables();
+          const variables = game.getTempVariables();
           return { variables };
         }
         if (scope === "vars") {
-          const variables = state.game.getVarVariables();
+          const variables = game.getVarVariables();
           return { variables };
         }
         if (scope === "lists") {
-          const variables = state.game.getListVariables();
+          const variables = game.getListVariables();
           return { variables };
         }
         if (scope === "defines") {
-          const variables = state.game.getDefineVariables();
+          const variables = game.getDefineVariables();
           return { variables };
         }
         if (scope === "children") {
-          const variables = state.game.getChildVariables(
+          const variables = game.getChildVariables(
             variablesReference ?? 0,
           );
           return { variables };
         }
         if (scope === "value") {
-          const variables = state.game.getValueVariables(value);
+          const variables = game.getValueVariables(value);
           return { variables };
         }
         return { variables: [] };
