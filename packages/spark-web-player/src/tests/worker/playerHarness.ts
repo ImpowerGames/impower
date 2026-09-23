@@ -30,6 +30,7 @@ import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
 import { ConfigurePlayerWorkerMessage } from "../../main/workers/messages/ConfigurePlayerWorkerMessage";
 import { ProgramForPlayMessage } from "../../main/workers/messages/ProgramForPlayMessage";
+import { ProgramHeldMessage } from "../../main/workers/messages/ProgramHeldMessage";
 import { WorkerGameLink } from "../../main/workers/WorkerGameLink";
 import {
   createFakeImage,
@@ -149,6 +150,8 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   let programVersion = 0;
   let completionRequest = 0;
   let selected = options.startFrom;
+  // The worker's answer to the last real program the page reported taking.
+  let held: Promise<void> = Promise.resolve();
   const link = new WorkerGameLink(page);
   const workspace = {
     workerDisplaysPreview: options.workerDisplays,
@@ -173,6 +176,10 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       decode(
         await page.sendRequest(ProgramForPlayMessage.type, { program, startFrom }),
       ),
+    programHeld: (program: string) =>
+      (held = page
+        .sendRequest(ProgramHeldMessage.type, { program })
+        .then(() => undefined)),
     compileTextDocument: async () => {},
     selectTextDocument: async () => {},
   };
@@ -256,6 +263,9 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     toEditor,
     toRouter,
     snapshotDOM: () => serializeDOM(overlay),
+    /** Settles once the worker has answered the last real program the page
+     *  reported taking (`player/programHeld`). */
+    held: () => held,
     /** Compile the main script and hand the result to the controller, as the
      *  workspace's `compiler/didCompile` does. */
     async compile(): Promise<any> {

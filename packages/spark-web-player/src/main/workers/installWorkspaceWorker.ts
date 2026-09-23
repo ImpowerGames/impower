@@ -23,6 +23,7 @@ import {
   ProgramForPlayMessage,
   type ProgramForPlayResult,
 } from "./messages/ProgramForPlayMessage";
+import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
 import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
 import { WorkerGameLink } from "./WorkerGameLink";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
@@ -98,6 +99,13 @@ export function installWorkspaceWorker(connection: MessageConnection) {
         this._programTransport.decode(result.program);
       }
       return result;
+    }
+
+    async programHeld(program: string): Promise<void> {
+      await this._compilerChannelConnection.sendRequest(
+        ProgramHeldMessage.type,
+        { program },
+      );
     }
 
     override sendRequest<P, M extends string, R>(

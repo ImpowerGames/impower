@@ -16,4 +16,8 @@ export interface WorkerDisplayWorkspace {
     program: string,
     startFrom: { file: string; line: number } | undefined,
   ): Promise<ProgramForPlayResult>;
+  /** Tell the worker the page took the summary of the real program named by
+   *  `programIdentity` (`player/programHeld`); settles once the worker has
+   *  let go of what that leaves unneeded. */
+  programHeld(program: string): Promise<void>;
 }

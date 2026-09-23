@@ -13,10 +13,11 @@ export interface DisplayPreviewParams {
   /** The suggestion the page shows, by `programIdentity`, which the worker
    *  keeps so it can display it again without compiling it. */
   keep?: string;
-  /** The real program the page holds, by `programIdentity`, which PLAY
-   *  names whatever the page displays: the worker keeps it, and each real
-   *  program compiled after it, since the page can come to hold any of
-   *  those. */
+  /** The real program the page holds as it sends this, by
+   *  `programIdentity`, which PLAY names whatever the page displays: the
+   *  worker keeps it, and each real program compiled after it, as it does
+   *  for a program the page reports taking (`player/programHeld`), which the
+   *  page does not report while a display waits for its application. */
   real?: string;
   /** The page's application is new since the game last displayed to it, so
    *  it holds nothing the game sent before: the display connects in full, as

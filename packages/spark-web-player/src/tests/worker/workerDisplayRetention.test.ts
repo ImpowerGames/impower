@@ -1,9 +1,15 @@
 // What the worker keeps to display the preview from its own game (#680) is
-// bounded: however many suggestions an author browses, it keeps the stories
-// of the real program, the two newest suggestions, the one the page shows and
-// the one it displayed last, and lets every other go, so nothing it holds for
-// them grows with the browsing.
+// bounded: however many suggestions an author browses and however long they
+// edit, it keeps the stories of the real programs the page can still name, the
+// two newest suggestions, the one the page shows, the one it displayed last,
+// the one a display under way asks for and the one its game holds, and lets
+// every other go as soon as nothing keeps it, so nothing it holds grows with
+// the browsing or the editing.
+import type { CompiledProgramParams } from "@impower/sparkdown/src/compiler/classes/messages/CompiledProgramMessage";
+import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
+import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
+import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
 const TEXT = [
@@ -24,6 +30,67 @@ const TEXT = [
 ].join("\n");
 
 const LINE = TEXT.split("\n").indexOf("  Line one of dialogue in scene 3.");
+const ACTION = TEXT.split("\n").indexOf("  Action describing room 3.");
+
+type Harness = Awaited<ReturnType<typeof createPlayerHarness>>;
+
+const harness = () =>
+  createPlayerHarness({
+    workerDisplays: true,
+    files: [{ uri: MAIN_URI, text: TEXT }],
+    startFrom: { file: MAIN_URI, line: LINE },
+    recordMessages: false,
+  });
+
+/** The story of each real program the worker compiles, in order, and the
+ *  journal that keeps them. */
+const recordStories = (h: Harness) => {
+  const compiler = h.workerState.compilerState.compiler as any;
+  const stories: object[] = [];
+  compiler.addEventListener("compiler/didCompile", (params: any) => {
+    if (params.story) {
+      stories.push(params.story);
+    }
+  });
+  const journal = compiler._storyJournal;
+  return { stories, kept: () => stories.map((story) => journal.isKept(story)) };
+};
+
+/** Rewrites the action of scene 3, differently each time. */
+const actionEditor = (h: Harness) => {
+  let action = TEXT.split("\n")[ACTION]!;
+  return async (n: number) => {
+    const edited = `  Action describing room 3, take ${n}.`;
+    await h.edit([
+      {
+        range: { start: { line: ACTION, character: 0 }, end: { line: ACTION, character: action.length } },
+        text: edited,
+      },
+    ]);
+    action = edited;
+  };
+};
+
+/** A compile the page does not take. */
+const compileAhead = (h: Harness) =>
+  h.page.sendRequest(CompileProgramMessage.type, {
+    textDocument: { uri: MAIN_URI },
+    startFrom: { file: MAIN_URI, line: LINE },
+  });
+
+const suggestLine = (h: Harness, text: string) =>
+  h.suggest(
+    [
+      {
+        range: {
+          start: { line: LINE, character: 2 },
+          end: { line: LINE, character: TEXT.split("\n")[LINE]!.length },
+        },
+        text,
+      },
+    ],
+    LINE,
+  );
 
 describe("the stories the worker keeps", () => {
   it("stay bounded across 150 highlighted suggestions", async () => {
@@ -135,4 +202,157 @@ describe("the stories the worker keeps", () => {
       h.dispose();
     }
   }, 300_000);
+
+  it("stay bounded while the author edits with one suggestion held on screen", async () => {
+    // The page takes each real program without displaying it while the
+    // suggestion holds the screen, and asks for no other display.
+    const h = await harness();
+    try {
+      const { kept } = recordStories(h);
+      await h.compile();
+      await h.select(LINE);
+      await suggestLine(h, "A suggestion for scene 3.");
+      const edit = actionEditor(h);
+      for (let n = 0; n < 6; n++) {
+        await edit(n);
+        await h.compile();
+      }
+      expect(h.overlay.textContent).toContain("A suggestion for scene 3.");
+      await h.held();
+      // The real program the page holds, and none it held before.
+      expect(kept()).toEqual([false, false, false, false, false, false, true]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("stay bounded while the author edits during PLAY", async () => {
+    // The page takes each real program while PLAY runs without displaying
+    // it, and restarts the game only once the compiles pause.
+    const h = await harness();
+    try {
+      const { kept } = recordStories(h);
+      await h.compile();
+      await h.select(LINE);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      // Each compile arrives before the restart the one before it scheduled.
+      h.controller.scheduleRestartGame = () => {};
+      const edit = actionEditor(h);
+      for (let n = 0; n < 6; n++) {
+        await edit(n);
+        await h.compile();
+      }
+      expect(h.controller._game?.state).toBe("running");
+      await h.held();
+      // The program displayed last, and the one the page holds.
+      expect(kept()).toEqual([true, false, false, false, false, false, true]);
+      await h.controller.destroyGameAndApp();
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("let go of the real programs the page skipped once it displays a newer one", async () => {
+    // Summaries that reach the page while it displays another are conflated:
+    // it takes the newest and never names those between.
+    const h = await harness();
+    try {
+      const { kept } = recordStories(h);
+      await h.compile();
+      await h.select(LINE);
+      const edit = actionEditor(h);
+      for (let n = 0; n < 2; n++) {
+        await edit(n);
+        await compileAhead(h);
+      }
+      await edit(2);
+      await h.compile();
+      // With no compile after it, the display leaves only the program it
+      // shows.
+      expect(kept()).toEqual([false, false, false, true]);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("keep the program a display asks for while the page takes a newer one", async () => {
+    // A display can still be ahead in the worker when the page takes a newer
+    // program without displaying it.
+    const h = await harness();
+    try {
+      await h.compile();
+      await h.select(LINE);
+      const held = programIdentity(h.controller._program)!;
+      // A suggestion is displayed last, so only the display asks for the
+      // real program.
+      await suggestLine(h, "A suggestion for scene 3.");
+      await actionEditor(h)(0);
+      const newer = await compileAhead(h);
+      const display = h.link.request(DisplayPreviewMessage.type, {
+        program: held,
+        file: MAIN_URI,
+        line: LINE,
+        speculative: false,
+        real: held,
+      });
+      h.workspace.programHeld(programIdentity(newer.program)!);
+      expect(await display).toEqual({ displayed: true });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  /** PLAY takes the program the page holds while a newer compile is ahead of
+   *  it, so the worker's game holds an older program than the newest, and
+   *  the page takes the newer one while PLAY runs. */
+  const playBehindCompile = async (h: Harness, kept: () => boolean[]) => {
+    await h.compile();
+    await h.select(LINE);
+    await suggestLine(h, "A suggestion for scene 3.");
+    await actionEditor(h)(0);
+    const compiled = compileAhead(h);
+    const started = h.controller.startGameAndApp();
+    const newer: CompiledProgramParams = await compiled;
+    expect(await started).toBe(true);
+    h.controller.scheduleRestartGame = () => {};
+    newer.program.version = 1000;
+    await h.controller.loadProgram(
+      newer.program,
+      newer.checkpoint,
+      newer.simulationFailure,
+      newer.simulatedPath,
+      newer.simulatedProgramId,
+    );
+    await h.held();
+    // The page can no longer name the older program, but the worker's game
+    // still holds it.
+    expect(kept()).toEqual([true, true]);
+  };
+
+  it("keep the program the worker's game holds until PLAY gives it another", async () => {
+    const h = await harness();
+    try {
+      const { kept } = recordStories(h);
+      await playBehindCompile(h, kept);
+      await h.controller.restartGame();
+      expect(h.controller._game?.state).toBe("running");
+      expect(kept()).toEqual([false, true]);
+      await h.controller.destroyGameAndApp();
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("keep the program the worker's game holds until a selection gives it another", async () => {
+    const h = await harness();
+    try {
+      const { kept } = recordStories(h);
+      await playBehindCompile(h, kept);
+      await h.select(LINE);
+      expect(kept()).toEqual([false, true]);
+      await h.controller.destroyGameAndApp();
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
 });

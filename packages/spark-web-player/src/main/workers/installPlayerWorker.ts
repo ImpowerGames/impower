@@ -28,6 +28,7 @@ import {
   type ProgramForPlayParams,
   type ProgramForPlayResult,
 } from "./messages/ProgramForPlayMessage";
+import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
@@ -116,20 +117,26 @@ export function installPlayerWorker(connection: MessageConnection) {
   // page can still name, which PLAY names too; the two newest suggestions,
   // since the page asks for one after the next may have compiled; the
   // suggestion the page shows, which a return to it displays again without
-  // compiling; and the one displayed last, which the page takes as shown once
-  // its display answers. The compiler keeps each of their stories runnable
-  // across later compiles (`keepStory`).
+  // compiling; the one displayed last, which the page takes as shown once its
+  // display answers; and the one the newest display asks for, from when its
+  // request arrives. The compiler keeps each of their stories runnable
+  // across later compiles (`keepStory`), and the story of the program the
+  // game holds, which the game runs until it is given another. Whatever
+  // nothing keeps is released each time that changes: after a compile, a
+  // preview compile, a program the page takes, a display, PLAY, and a
+  // selection that gives the game the real program back.
   const displayable = new Map<string, DisplayableProgram>();
   let canonicalId: string | undefined;
-  // The real programs the page can still name, oldest first: the one it
-  // named last, in a display or for PLAY, and each compiled after it. Their
-  // summaries reach the page in the order they compiled, so it can come to
-  // hold any of those, and never again one compiled before the last it
-  // named.
+  // The real programs the page can still name, oldest first: the last it
+  // named, by taking it or in a display or PLAY, and each compiled after it.
+  // Their summaries reach the page in the order they compiled, so it can
+  // come to hold any of those, and never again one compiled before the last
+  // it named.
   const nameableRealIds: string[] = [];
   const newestSuggestionIds: string[] = [];
   let shownSuggestionId: string | undefined;
   let displayedId: string | undefined;
+  let requestedId: string | undefined;
 
   /** The page names `id` as the real program it holds, so none compiled
    *  before it can be named again. */
@@ -149,13 +156,16 @@ export function installPlayerWorker(connection: MessageConnection) {
     displayable.set(entry.id, entry);
   };
   const releaseUnneeded = () => {
+    const held = gameState.game?.program;
     for (const [id, entry] of displayable) {
       if (
         id !== canonicalId &&
         !nameableRealIds.includes(id) &&
         !newestSuggestionIds.includes(id) &&
         id !== shownSuggestionId &&
-        id !== displayedId
+        id !== displayedId &&
+        id !== requestedId &&
+        entry.program !== held
       ) {
         compiler.releaseStory(entry.story);
         displayable.delete(id);
@@ -317,6 +327,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (kept && gameState.game && gameState.game.program !== kept.program) {
       compiler.activateStory(kept.story);
       createOrUpdateGame(kept.program, kept.story);
+      releaseUnneeded();
     }
     planRouteForSelection(params, {
       game: gameState.game,
@@ -433,11 +444,10 @@ export function installPlayerWorker(connection: MessageConnection) {
     params: DisplayPreviewParams,
   ): Promise<DisplayPreviewResult> => {
     const display = ++displays;
+    requestedId = params.program;
     if (params.keep !== undefined) {
       shownSuggestionId = params.keep;
     }
-    // Named as the request arrives: a compile handled while this display
-    // waits its turn must not let go of what the page holds.
     pageHolds(params.real);
     // A held arrow key sends one display per selection, and working one out
     // is a route replay, about a second of it on a long script. Let the
@@ -470,6 +480,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         "last",
       );
       displayedId = entry.id;
+      releaseUnneeded();
       const displayed = await displayPreviewFrom(game, {
         program: entry.program,
         programChanged,
@@ -524,6 +535,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     const route = params.startFrom
       ? routeTo(game, entry, params.startFrom, "first")
       : {};
+    releaseUnneeded();
     return {
       ...route,
       program: compilerState.encodeProgram({
@@ -553,6 +565,14 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (ProgramForPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => programForPlay(message.params));
+      return;
+    }
+    if (ProgramHeldMessage.type.isRequest(message)) {
+      connection.sendResponse(message, () => {
+        pageHolds(message.params.program);
+        releaseUnneeded();
+        return {};
+      });
       return;
     }
   });

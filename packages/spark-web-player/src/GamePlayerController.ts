@@ -1788,6 +1788,17 @@ export class GamePlayerController {
       this._canonicalInvalid = false;
       const isInitialProgram = !this._program;
       this._program = program;
+      if (program.summary && !this._startingPlay && !this._workerAppBuilding) {
+        // The worker keeps each real program the page can still name. PLAY
+        // that is starting, and a display waiting for the worker's
+        // application, can still ask for the one the page held before, and
+        // name the program the page holds as they reach the worker. Not
+        // awaited: the display below reaches the worker after it on the same
+        // connection.
+        workspace
+          ?.programHeld?.(programIdentity(program)!)
+          .catch((e) => console.error(e));
+      }
       this._checkpoint = checkpoint;
       this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;

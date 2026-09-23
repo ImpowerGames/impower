@@ -3,9 +3,10 @@
 // same scripts into a different program, so the identity carries the
 // compiler's file-registry epoch as well as the script versions (#680).
 import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/AddCompilerFileMessage";
+import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
 const SOURCE = `define BG as image with
   src = "https://example.com/bg.png"
@@ -47,8 +48,12 @@ describe("the program the page names", () => {
           version: 2,
         },
       } as any);
-      const after = await h.compile();
-      await settle(20);
+      // The worker compiles it while the page still holds the program it
+      // shows, as it does while a compile is ahead of the page.
+      const after = await h.page.sendRequest(CompileProgramMessage.type, {
+        textDocument: { uri: MAIN_URI },
+        startFrom: { file: MAIN_URI, line: FIRST },
+      });
       const afterId = programIdentity(after.program)!;
 
       expect(after.program.scripts).toEqual(before.program.scripts);
