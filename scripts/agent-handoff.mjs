@@ -7,6 +7,7 @@ import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer } from "./reviewer-defaults.mjs";
+import { reviewJobRoot, isInsideJobRoot } from "./review-job-root.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -104,7 +105,7 @@ export function validateSlotWait(value) {
 
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
-export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob } = {}) {
+export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot } = {}) {
   const config = read(configFile);
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   validatePlanShape(config);
@@ -112,6 +113,9 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const journal = path.resolve(config.journal);
   const relative = path.relative(cwd, journal);
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
+  const root = jobRoot ?? reviewJobRoot(cwd);
+  const outside = [["plan file", configFile], ["journal", journal], ...Object.entries(config.steps).map(([name, step]) => [`step ${name} prompt`, step?.prompt])].filter(([, p]) => typeof p !== "string" || !isInsideJobRoot(p, root));
+  if (outside.length) throw new Error(`Review job paths must lie under ${root} (in pr-${config.pr}${path.sep}round-<R>):${outside.map(([label, p]) => `${label} ${p}`).join("; ")}`);
   const selection = resolveReviewer(config, cwd);
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
@@ -166,6 +170,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
     } else if(automaticJob)throw new Error('Automatic review ownership marker missing');
     fs.writeFileSync(owner, JSON.stringify({ pid: process.pid, processIdentity: processIdentity(process.pid), startedAt: new Date().toISOString(), journal }));
     fd = fs.openSync(journal, "wx");
+    // Job cleanup retains a job directory while any process a journal names is running.
+    append({ event: "coordinator", pid: process.pid, processIdentity: processIdentity(process.pid) });
     for (let index = 0; current; index++) {
       if(automaticJob)await retryBusy(()=>withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled; no further reviewer dispatch');}));
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");

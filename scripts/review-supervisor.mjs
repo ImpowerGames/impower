@@ -183,11 +183,11 @@ async function advanceTerminalNotification(dir,host,{failpoint=()=>{}}={}) {
   rows=await advanceDelivery(dir,host,{plan,envelope,rows,outstanding:terminalSubmissionOutstanding,accepted:current=>Boolean(last(current,'terminal-notification-accepted')),maySubmit:current=>['blocked','review-failed'].includes(jobStatus(dir,current).state),intent:'terminal-submission-intent',response:'terminal-submission-response',refused:'terminal-dispatch-refused',uncertain:'terminal-delivery-uncertain',acceptedEvent:'terminal-notification-accepted',failpoint});
   return Boolean(last(rows,'terminal-notification-accepted'));
 }
-export async function runReviewWorker(dir,{slotRoot}={}) {
+export async function runReviewWorker(dir,{slotRoot,jobRoot}={}) {
   const plan=readJson(path.join(dir,'plan.json'));
   await transaction(dir,rows=>{if(!last(rows,'worker-launch-intent')||last(rows,'worker-started')||last(rows,'workflow-cancelled'))throw new Error('Invalid or cancelled worker claim');assertJobFreeze(plan,dir);appendEvent(dir,'worker-started',{identity:processIdentity(process.pid)});});
   try {
-    await runHandoff(path.join(dir,'handoff.json'),{slotRoot,automaticJob:{jobId:plan.jobId,jobDir:dir}});
+    await runHandoff(path.join(dir,'handoff.json'),{slotRoot,jobRoot,automaticJob:{jobId:plan.jobId,jobDir:dir}});
     await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:true}));
   } catch(error) {await transaction(dir,()=>appendEvent(dir,'worker-finished',{ok:false,...failureDetails(error)}));throw error;}
 }

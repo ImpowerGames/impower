@@ -19,7 +19,7 @@ Size every follow-up round by the correction's concrete risks and relevant calle
 Capture the later round's patch from the previous round's recorded reviewed head, with explicit paths this change owns:
 
 ```bash
-git diff <previous-reviewed-head>..HEAD -- <owned-paths> > "$SCRATCH/review-<round>-fixes.patch"
+git diff <previous-reviewed-head>..HEAD -- <owned-paths> > "$JOB/review-fixes.patch"
 ```
 
 A lens judging corrections receives this fix diff and the full-PR diff path for context. Put the absolute full-PR diff path in the prompt builder's previous field alongside prior findings and dispositions; diff names the correction patch. A lens assessing the whole change, such as prose consistency or blast radius, receives `git diff origin/main...HEAD` captured under [launch procedure](launch.md). Record the selected range, paths and purpose for each lens in the round state. The path filter excludes unrelated base integration from the correction diff; explicitly include any newly authorized scope and disclose any owned-path base changes still present. Before capture, confirm the prior reviewed head against the journal and review comment rather than inferring it from the last commit or the last report to arrive.

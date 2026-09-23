@@ -6,10 +6,17 @@ All commands run from the worktree root unless stated otherwise.
 
 Fetch the current base and record its SHA before capturing the diff. If the branch must incorporate base changes, finish that integration before review, within the caller's Git constraints; never merge or rebase merely because the review skill was invoked. Freeze the reviewed head, base and working files for the entire round. A changed head invalidates the round.
 
+Every artifact of a review round lives in its job directory, `$JOB`: `<main checkout>.review-jobs/pr-<P>/round-<R>` beside the main checkout, one directory per PR and round. That root is outside every worktree, the [handoff launcher](../HANDOFF.md) refuses a plan whose plan file, journal or prompts lie outside it, and the clean-worktrees skill removes a PR's job directory once the PR is closed and no process its journals record is running. Resolve it from any worktree:
+
+```bash
+JOB="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)").review-jobs/pr-<P>/round-<R>"
+mkdir -p "$JOB"
+```
+
 Capture the diff once, so every reviewer sees the same artifact:
 
 ```bash
-git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
+git diff origin/main...HEAD > "$JOB/review-diff.patch"
 ```
 
 (`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.)
@@ -17,12 +24,12 @@ git diff origin/main...HEAD > "$SCRATCH/review-diff.patch"
 If the change regenerates a large snapshot or other generated file, exclude it from the patch by path and tell the reviewers the command to inspect it separately; a multi-megabyte patch file wastes a reviewer's context before it reads a line of the actual change (one session's patch came out at 2.6 MB for this reason):
 
 ```bash
-git diff origin/main...HEAD -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap' > "$SCRATCH/review-diff.patch"
+git diff origin/main...HEAD -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap' > "$JOB/review-diff.patch"
 ```
 
-Write it to your private scratch directory, never into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs, long enough to trip any hook or check that expects a clean tree. Give reviewers the absolute path (`$SCRATCH` is your session's private scratch directory).
+Never write it into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs, long enough to trip any hook or check that expects a clean tree. Give reviewers the absolute path.
 
-Give each reviewer a subdirectory of your private scratch directory that is its own: never the writer's private scratch directory directly, and never a directory that already holds files. Two reviewers sharing a directory pick up and repoint each other's probe files; one did, found the other's findings in its own file, and had to re-verify everything under fresh names. The [reviewer prompt](reviewer-prompt.md) gives each reviewer that path as REVDIR (`<private scratch directory>\review-<round>-<reviewer-id>-<attempt>\`, `<attempt>` starting at 1); relaunching a reviewer that died is the same round and the same reviewer, so the relaunch increments `<attempt>` rather than reusing the dead reviewer's directory. The reviewer-id is a stable short assignment label, distinct from the model route; one assignment may combine several lenses.
+Give each reviewer a subdirectory of `$JOB` that is its own and starts empty. Two reviewers sharing a directory pick up and repoint each other's probe files; one did, found the other's findings in its own file, and had to re-verify everything under fresh names. The [reviewer prompt](reviewer-prompt.md) gives each reviewer that path as REVDIR (`$JOB/reviewer-<reviewer-id>-<attempt>/`, `<attempt>` starting at 1); relaunching a reviewer that died is the same round and the same reviewer, so the relaunch increments `<attempt>` rather than reusing the dead reviewer's directory. The reviewer-id is a stable short assignment label, distinct from the model route; one assignment may combine several lenses.
 
 Start every local CLI reviewer through the [handoff launcher](../HANDOFF.md); its atomic shared reservation enforces a machine-wide limit of eight participating reviewer processes until confirmed process exit. The launcher runs one reviewer at a time per worktree under its coordinator lock, including a three-reviewer round. The shared ceiling coordinates reviewers in other worktrees. Record the serial reviewer order and assigned lenses in the round state. A posted comment or completion file does not release a slot. Native or remote agent tasks are unsupported for this enforced workflow because the launcher cannot reserve and verify their process lifetime. An unaccountable native or remote review launch blocks the machine-wide capacity guarantee; do not substitute manual counts or claim it is covered by the reservation. Do not launch a local CLI reviewer directly to bypass an occupied or inaccessible slot store.
 

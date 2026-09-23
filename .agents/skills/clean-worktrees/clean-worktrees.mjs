@@ -54,6 +54,10 @@
 // branch goes with -D after that re-verification, and an empty type directory
 // goes with it.
 //
+// After the worktrees, the review job directories under
+// <parent>/<repo>.review-jobs are classified and, under --apply, the
+// removable ones removed; the review-jobs section below says how.
+//
 // Everything that touches the system goes through `deps` (git, the drivers
 // and the process listing through `exec` and `processes`, the file system
 // through the rest), so clean-worktrees.test.mjs runs the whole command
@@ -690,6 +694,190 @@ async function removeWorktree(entry, ctx, deps) {
   return { outcome: "removed", note: notes.join("; "), remaining: 0 };
 }
 
+// ---------------------------------------------------------- review jobs ---
+
+// Review job directories live in <parent>/<repo>.review-jobs/pr-<P>/, one per
+// pull request, with a round-<R> directory per review round inside it (see
+// scripts/review-job-root.mjs). A pr-<P> directory is the unit of removal. A
+// test-* directory is a standalone check's scratch folder, which needs a
+// location outside TEMP for the same reason review jobs do.
+export const jobRootOf = (mainRoot) => path.join(path.dirname(mainRoot), `${path.basename(mainRoot)}.review-jobs`);
+
+// Every *.jsonl file under a job directory, never entering a link, a probe
+// checkout's node_modules or a .git directory, with the directories that
+// could not be read.
+export function jobJournals(dir) {
+  const journals = [];
+  const unreadable = [];
+  const pending = [dir];
+  while (pending.length) {
+    const d = pending.pop();
+    let items;
+    try {
+      items = fs.readdirSync(d, { withFileTypes: true });
+    } catch (err) {
+      unreadable.push(`${d}: ${err.code ?? err.message}`);
+      continue;
+    }
+    for (const it of items) {
+      const p = path.join(d, it.name);
+      if (it.isSymbolicLink()) continue;
+      if (it.isDirectory()) {
+        if (it.name !== "node_modules" && it.name !== ".git") pending.push(p);
+      } else if (it.isFile() && it.name.endsWith(".jsonl")) journals.push(p);
+    }
+  }
+  return { journals, unreadable };
+}
+
+// Every process id a journal records: a row's own `pid`, and the `pid` of any
+// identity object it holds (processIdentity, childIdentity, identity). Null
+// when a line is not JSON, since what that line recorded cannot be told; a
+// launcher appends whole lines, so a torn last line is treated the same way.
+export function journalPids(text) {
+  const pids = new Set();
+  const visit = (value) => {
+    if (!value || typeof value !== "object") return;
+    if (Number.isSafeInteger(value.pid) && value.pid > 0) pids.add(value.pid);
+    for (const child of Object.values(value)) visit(child);
+  };
+  for (const line of text.split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    try {
+      visit(JSON.parse(line));
+    } catch {
+      return null;
+    }
+  }
+  return [...pids];
+}
+
+// The state of pull request (or, failing that, issue) N on GitHub: "open",
+// "closed", or null with the reason it could not be read.
+export function numberState(number, deps, cwd) {
+  const pr = deps.exec("gh", ["pr", "view", String(number), "--json", "state", "--jq", ".state"], cwd, 60_000);
+  if (pr.status === 0 && pr.out) return { state: pr.out === "OPEN" ? "open" : "closed", kind: "PR" };
+  const issue = deps.exec("gh", ["issue", "view", String(number), "--json", "state", "--jq", ".state"], cwd, 60_000);
+  if (issue.status === 0 && issue.out) return { state: issue.out === "OPEN" ? "open" : "closed", kind: "issue" };
+  return { state: null, err: pr.err || issue.err || "no output" };
+}
+
+// The decision for one entry under the job root. It is removable only when
+// its PR (or issue) is closed, every journal in it is readable, and no process
+// a journal names or whose command line names the directory is running. A
+// running pid is taken at its word even when the OS may have reused it, which
+// keeps a directory rather than removing one in use.
+export function classifyJob(name, dir, deps, ctx) {
+  const m = /^pr-(\d+)$/.exec(name);
+  const test = /^test-/.test(name);
+  if (!m && !test) return { remove: false, reason: "not a pr-<N> or test-* job directory; left for a person" };
+  const keep = [];
+  let github = null;
+  if (m) {
+    github = numberState(Number(m[1]), deps, ctx.mainRoot);
+    if (github.state === null) keep.push(`the state of #${m[1]} could not be read (${github.err})`);
+    else if (github.state === "open") keep.push(`${github.kind} #${m[1]} is open`);
+  }
+  const { journals, unreadable } = jobJournals(dir);
+  if (unreadable.length) keep.push(`${n(unreadable.length, "directory", "directories")} inside it could not be read (${listSome(unreadable, 2)})`);
+  const live = new Set();
+  for (const journal of journals) {
+    let pids;
+    try {
+      pids = journalPids(fs.readFileSync(journal, "utf8"));
+    } catch (err) {
+      pids = null;
+    }
+    if (pids === null) keep.push(`the journal ${path.relative(dir, journal)} could not be read in full`);
+    else for (const pid of pids) if (pid !== deps.pid() && deps.pidAlive(pid)) live.add(pid);
+  }
+  if (live.size) keep.push(`its journal records ${n(live.size, "process", "processes")} still running (pid ${[...live].join(", ")})`);
+  if (!ctx.processes.ok) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
+  else {
+    const users = usersOf(dir, ctx.processes.list, deps.pid());
+    if (users.length) keep.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
+  }
+  // A test's scratch directory names its own process in an owner journal
+  // when it is created; without one, whose it is cannot be told.
+  if (test && !journals.length) keep.push("a test directory with no journal naming its process; left for a person");
+  if (keep.length) return { remove: false, reason: keep.join("; ") };
+  const why = m ? `${github.kind} #${m[1]} is closed and` : "a test's scratch directory, and";
+  return { remove: true, reason: `${why} no process its journals record is running; ${n(journals.length, "journal")}` };
+}
+
+// Removes a job directory without following any link in it: every symlink
+// and junction is unlinked first (a reviewer probe checkout holds node_modules
+// junctions into live worktrees), the tree is walked again to confirm none is
+// left, and only then is the rest deleted, which then holds plain files and
+// directories only.
+export function removeJobDir(dir) {
+  const unlinkAll = () => {
+    let found = 0;
+    const pending = [dir];
+    while (pending.length) {
+      const d = pending.pop();
+      for (const it of fs.readdirSync(d, { withFileTypes: true })) {
+        const p = path.join(d, it.name);
+        if (it.isSymbolicLink()) {
+          found++;
+          // A directory junction or symlink on Windows is removed with rmdir,
+          // which deletes the reparse point and never its target.
+          try {
+            fs.unlinkSync(p);
+          } catch {
+            fs.rmdirSync(p);
+          }
+        } else if (it.isDirectory()) pending.push(p);
+      }
+    }
+    return found;
+  };
+  const unlinked = unlinkAll();
+  if (unlinkAll() !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
+  fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+  return unlinked;
+}
+
+// Classifies every entry under the job root, prints a row each, and under
+// --apply removes the removable ones. Returns the count of failed removals.
+export function cleanJobs(ctx, deps, apply, record) {
+  const root = jobRootOf(ctx.mainRoot);
+  const names = deps.listDirs(root);
+  const log = deps.log;
+  if (!names.length) return { failed: 0, rows: [] };
+  log("");
+  log(`review job directories under ${root}:`);
+  const rows = [];
+  let failed = 0;
+  for (const name of names) {
+    const dir = path.join(root, name);
+    const verdict = classifyJob(name, dir, deps, ctx);
+    let decision = verdict.remove ? "remove" : "keep";
+    let why = verdict.reason;
+    if (apply) {
+      if (!verdict.remove) decision = "kept";
+      else {
+        record({ decision: "removing", path: dir, why });
+        try {
+          const unlinked = removeJobDir(dir);
+          decision = "removed";
+          if (unlinked) why += `; ${n(unlinked, "link")} unlinked first, targets untouched`;
+        } catch (err) {
+          failed++;
+          decision = "failed";
+          why = `${err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
+        }
+      }
+      record({ decision, path: dir, why });
+    }
+    rows.push({ name, decision, why });
+    log(`${decision.padEnd(DECISION_WIDTH)}  ${name}  ${why}`);
+  }
+  const removable = rows.filter((r) => r.decision === "remove" || r.decision === "removed" || r.decision === "failed").length;
+  log(`${n(rows.length, "job directory", "job directories")}: ${removable} ${apply ? "removable" : "to remove"}, ${rows.length - removable} kept.`);
+  return { failed, rows };
+}
+
 // ------------------------------------------------------------------ table ---
 
 // One row per worktree or stray directory. Rows print as they are decided, so
@@ -866,7 +1054,8 @@ export async function main(argv, deps = liveDeps) {
     log(summary);
     record({ summary });
   }
-  return failed ? 1 : 0;
+  const jobs = cleanJobs(ctx, deps, apply, record);
+  return failed || jobs.failed ? 1 : 0;
 }
 
 if (process.argv[1] && samePath(fs.realpathSync(fileURLToPath(import.meta.url)), fs.realpathSync(process.argv[1]))) {

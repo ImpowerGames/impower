@@ -12,7 +12,7 @@ import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processI
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
 console.log(`Scratch repository: ${scratch}`);
-const runHandoff = (file) => handoff(file, {slotRoot:path.join(scratch,"serial-slots")});
+const runHandoff = (file) => handoff(file, {jobRoot:scratch,slotRoot:path.join(scratch,"serial-slots")});
 const worktree = path.join(scratch, "repo");
 fs.mkdirSync(worktree);
 const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "utf8", windowsHide: true, env: { ...process.env, GIT_AUTHOR_NAME: "test", GIT_AUTHOR_EMAIL: "test@example.invalid", GIT_COMMITTER_NAME: "test", GIT_COMMITTER_EMAIL: "test@example.invalid" } });
@@ -60,6 +60,39 @@ for (const [label, change, message] of malformed) {
   assert.equal(fs.existsSync(launchMarker), false, `${label} must launch no child`);
   assert.equal(fs.existsSync(plan.journal), false, `${label} must leave no journal to block the corrected plan`);
   assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} must not take the lock`);
+}
+
+// Job paths outside the review job root are refused before the lock, journal or any child exists.
+{
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-outside-"));
+  console.log(`Outside-root directory: ${outsideDir}`);
+  const cases = [
+    ["plan file", (plan) => plan, path.join(outsideDir, "plan.json"), /plan file/],
+    ["journal", (plan) => { plan.journal = path.join(outsideDir, "journal.jsonl"); }, path.join(scratch, "outside-journal.json"), /journal .*impower-handoff-outside-/],
+    ["prompt", (plan) => { plan.steps.second.prompt = path.join(outsideDir, "prompt.txt"); }, path.join(scratch, "outside-prompt.json"), /step second prompt/],
+  ];
+  const link = path.join(scratch, "linked-out");
+  fs.symlinkSync(outsideDir, link, "junction");
+  cases.push(["journal through a junction", (plan) => { plan.journal = path.join(link, "journal.jsonl"); }, path.join(scratch, "junction-journal.json"), /journal .*linked-out/]);
+  for (const [label, change, planFile, message] of cases) {
+    const plan = structuredClone(config);
+    plan.journal = path.join(scratch, `outside-${label.replaceAll(" ", "-")}.jsonl`);
+    for (const step of Object.values(plan.steps)) step.args = [markingChild, "--model", "writer-test"];
+    change(plan);
+    fs.writeFileSync(planFile, JSON.stringify(plan));
+    await assert.rejects(runHandoff(planFile), (error) => { assert.match(error.message, /Review job paths must lie under/, label); assert.match(error.message, message, label); return true; });
+    assert.equal(fs.existsSync(launchMarker), false, `${label} outside the root must launch no child`);
+    assert.equal(fs.existsSync(plan.journal), false, `${label} outside the root must leave no journal`);
+    assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} outside the root must not take the lock`);
+  }
+  fs.rmdirSync(link);
+  // Without the test seam the root is <main checkout>.review-jobs beside the main checkout.
+  const unseamed = structuredClone(config);
+  unseamed.journal = path.join(scratch, "unseamed.jsonl");
+  const unseamedFile = path.join(scratch, "unseamed.json");
+  fs.writeFileSync(unseamedFile, JSON.stringify(unseamed));
+  await assert.rejects(handoff(unseamedFile, { slotRoot: path.join(scratch, "serial-slots") }), (error) => error.message.includes(`under ${path.join(scratch, "repo.review-jobs")} `));
+  assert.equal(fs.existsSync(unseamed.journal), false, "the default root refuses a scratch plan before writing its journal");
 }
 
 // A Codex argument array is refused once, naming every missing flag and field.
@@ -289,7 +322,7 @@ const release = path.join(scratch, "release-reviewers");
 const reviewer = path.join(scratch, "holding-reviewer.mjs");
 fs.writeFileSync(reviewer, `import fs from 'node:fs'; fs.writeFileSync(process.argv[2], 'review posted'); setTimeout(()=>process.exit(2),60000).unref(); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
 const coordinator = path.join(scratch, "coordinator.mjs");
-fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
+fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
 const launched = [];
 const launch = (i, extra = {}) => {
   const repo = path.join(scratch, `concurrent-repo-${i}`);
@@ -424,7 +457,7 @@ config.steps.second.role="implement";config.steps.second.model="writer-test";con
 config.steps.first.role="review";config.steps.first.round=1;config.steps.first.model="reviewer-test";config.steps.first.next=[null];
 config.steps.first.args=["-e","process.exit(0)","--","--model","reviewer-test"];
 config.journal=path.join(scratch,"fast-exit.jsonl");write();
-await assert.rejects(handoff(file,{slotRoot:path.join(scratch,"fast-slots"),identifyProcess:(pid)=>{
+await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"fast-slots"),identifyProcess:(pid)=>{
   const end=Date.now()+10000;while(processIdentity(pid)!==null){if(Date.now()>end)throw new Error("fast child did not exit");Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}return null;
 }}),/ENOENT/);
 assert.match(fs.readFileSync(config.journal,"utf8"),/confirmed-absent/);
@@ -435,7 +468,7 @@ let ownedPid;
 const writeSync=fs.writeSync;
 try {
   fs.writeSync=(fd,data,...args)=>{if(typeof data==="string" && data.includes('"event":"running"')){ownedPid=JSON.parse(data).pid;throw new Error("injected post-spawn journal failure");}return writeSync(fd,data,...args);};
-  await assert.rejects(handoff(file,{slotRoot:path.join(scratch,"failure-slots")}),/injected post-spawn journal failure/);
+  await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"failure-slots")}),/injected post-spawn journal failure/);
 } finally {fs.writeSync=writeSync;}
 assert.equal(processIdentity(ownedPid),null,"a journal failure cannot leave a child awaiting its prompt");
 assert.equal(fs.readdirSync(path.join(scratch,"failure-slots")).length,0,"confirmed termination releases its reservation");
@@ -443,7 +476,7 @@ assert.equal(fs.existsSync(lock),false,"confirmed child close releases the workt
 console.log("PASS: confirmed-absent children, marker diagnostics, and actual post-spawn journal failure cleanup");
 
 const failureWorker=path.join(scratch,"failure-worker.mjs");
-fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>/* windows-hide: caller */spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
+fs.writeFileSync(failureWorker,`import fs from 'node:fs';import cp,{ChildProcess} from 'node:child_process';import {syncBuiltinESMExports} from 'node:module';import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; const realWrite=fs.writeSync;let failing=false;fs.writeSync=(fd,data,...args)=>{if(typeof data==='string'&&data.includes('"event":"running"')){failing=true;throw new Error('primary journal failure')}if(failing&&process.argv[4]==='combined')throw new Error('secondary storage failure');return realWrite(fd,data,...args)};if(process.argv[4]==='retained'){const spawn=cp.spawn;cp.spawn=(exe,args,options)=>/* windows-hide: caller */spawn(exe,args,{...options,detached:true});syncBuiltinESMExports();ChildProcess.prototype.kill=function(){this.emit('error',new Error('fixture signal-delivery failure'));return false;};}runHandoff(process.argv[2],{jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3]}).catch(error=>{console.error(error.message);process.exitCode=1});`);
 for(const mode of ["combined","retained"]){
   const repo=path.join(scratch,`failure-repo-${mode}`);execFileSync("git",["clone","--quiet",worktree,repo],{windowsHide:true});
   const taskRelease=path.join(scratch,`failure-${mode}.release`);
@@ -496,7 +529,7 @@ try{
     if(typeof data==="string"&&data.includes('"phase":"exited"'))throw new Error("injected slot release failure");
     return writeSync(fd,data,...args);
   };
-  await assert.rejects(handoff(file,{slotRoot:finishedPool}),/Child exit confirmed \(code 0\).*reservation retained at .*injected slot release failure.*validation has not run/);
+  await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:finishedPool}),/Child exit confirmed \(code 0\).*reservation retained at .*injected slot release failure.*validation has not run/);
 }finally{fs.writeSync=writeSync;fs.writeFileSync(finishedRelease,"exit");}
 assert.equal(processIdentity(finishedPid),null);
 const finishedRows=fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse);
@@ -516,7 +549,7 @@ for(const mode of ["already-exited","uncertain-exit-journal"]){
       if(typeof data==="string"&&data.includes(mode==="already-exited"?'"event":"running"':'"event":"exited"'))throw new Error("injected final journal failure");
       return writeSync(fd,data,...args);
     };
-    await assert.rejects(handoff(file,{slotRoot:pool,identifyProcess:(pid)=>{
+    await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:pool,identifyProcess:(pid)=>{
       exitedPid=pid;
       const end=Date.now()+10000;
       while(processIdentity(pid)!==null){if(Date.now()>end)throw new Error("fixture child did not exit");Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}

@@ -167,7 +167,7 @@ const plan = (fields, step = {}) => ({ worktree, pr: 531, completedReviewRound: 
 const launch = async (config) => {
   fs.writeFileSync(file, JSON.stringify(config));
   let error;
-  try { await runHandoff(file, { slotRoot: path.join(scratch, "slots") }); } catch (caught) { error = caught; }
+  try { await runHandoff(file, { jobRoot: scratch, slotRoot: path.join(scratch, "slots") }); } catch (caught) { error = caught; }
   const rows = fs.existsSync(config.journal) ? fs.readFileSync(config.journal, "utf8").trim().split("\n").map(JSON.parse) : [];
   return { error, launching: rows.find((row) => row.event === "launching") };
 };

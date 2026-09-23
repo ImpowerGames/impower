@@ -44,7 +44,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, removeJobDir, liveDeps } = await import(pathToFileURL(SCRIPT));
+const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
 // asserts. It names its own reason, because the reasons differ: a refused
@@ -1219,7 +1220,7 @@ try {
   await control("directories that are not worktrees are not listed", [["const strayPaths = strayDirs(entries, ctx.root, deps.listDirs);", "const strayPaths = [];"]], ["no row for impower.worktrees"]);
   await control("the rows are not recorded for the next run", [["if (!row.stray) record({ decision: row.decision, path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });", ""]], [`row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say`]);
   await control("a stray row is recorded over the removal it reports", [["if (!row.stray) record({ decision: row.decision,", "record({ decision: row.decision,"]], ["the log does not hold every worktree row, or holds a stray one", `row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say '; its branch fix/14-grabbed is still local'`]);
-  await control("a failed removal exits 0", [["return failed ? 1 : 0;", "return 0;"]], ["exit code 0 though a removal failed"]);
+  await control("a failed removal exits 0", [["return failed || jobs.failed ? 1 : 0;", "return jobs.failed ? 1 : 0;"]], ["exit code 0 though a removal failed"]);
   await control("a tree that turned dirty after classification is removed", [["if (dirty > 0) return kept(", "if (false) return kept("]], ["fix/25-dirty-late: expected kept, got removed"]);
   await control("the older driver location is not looked at", [['".agents/skills/resolve-issue/driver.mjs"', '".agents/skills/resolve-issue/driver-elsewhere.mjs"']], ["fix/26-old-driver-up: expected keep, got remove"]);
   await control("the VS Code driver is not asked", [['  { driver: ".agents/skills/drive-vscode-web/driver.mjs", states: [".agents/skills/drive-vscode-web/.state.json", ".claude/skills/drive-vscode-web/.state.json"] },\n', ""]], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
@@ -1532,6 +1533,103 @@ try {
 } finally {
   for (const h of holders) await stopHolder(h);
   fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
+}
+
+// ------------------------------------------------------------ review jobs ---
+
+await check("journalPids reads every recorded pid and refuses a line that is not JSON", () => {
+  const rows = [{ event: "coordinator", pid: 11, processIdentity: { pid: 11, start: "a" } }, { event: "identified", childIdentity: { pid: 12, start: "b" } }, { event: "monitor-started", identity: { pid: 13 } }, { event: "finished" }];
+  assert.deepEqual(journalPids(rows.map((r) => JSON.stringify(r)).join("\n") + "\n").sort(), [11, 12, 13]);
+  assert.deepEqual(journalPids(""), []);
+  assert.equal(journalPids(`${JSON.stringify(rows[0])}\n{"event":"runn`), null, "a torn line must make the journal unreadable");
+});
+
+{
+  const jobScratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-clean-jobs-"));
+  console.log(`Scratch job root parent: ${jobScratch}`);
+  const mainRoot = path.join(jobScratch, "repo");
+  const root = jobRootOf(mainRoot);
+  const target = path.join(jobScratch, "live-worktree");
+  fs.mkdirSync(path.join(target, "node_modules", "pkg"), { recursive: true });
+  fs.writeFileSync(path.join(target, "node_modules", "pkg", "index.js"), "kept");
+  const LIVE = 4242;
+  const job = (name, files = {}) => {
+    const dir = path.join(root, name);
+    fs.mkdirSync(path.join(dir, "round-1"), { recursive: true });
+    for (const [rel, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+      fs.writeFileSync(path.join(dir, rel), text);
+    }
+    return dir;
+  };
+  const row = (r) => JSON.stringify(r) + "\n";
+  job("pr-10", { "round-1/journal.jsonl": row({ event: "coordinator", pid: 9001 }) + row({ event: "finished" }) });
+  job("pr-11", { "round-1/journal.jsonl": row({ event: "finished" }) });
+  job("pr-12", { "round-1/journal.jsonl": row({ event: "coordinator", pid: 9002 }) + row({ event: "identified", childIdentity: { pid: LIVE, start: "x" } }) });
+  const junctionJob = job("pr-13", { "round-1/journal.jsonl": row({ event: "finished" }) });
+  const probe = path.join(junctionJob, "round-1", "reviewer-a-1", "probe");
+  fs.mkdirSync(probe, { recursive: true });
+  fs.symlinkSync(path.join(target, "node_modules"), path.join(probe, "node_modules"), "junction");
+  fs.symlinkSync(target, path.join(probe, "whole-worktree"), "junction");
+  job("pr-14", { "round-1/journal.jsonl": row({ event: "finished" }) + '{"event":"runn' });
+  job("notes");
+  job("test-cross-provider-dead", { "owner.jsonl": row({ event: "test-owner", pid: 9003 }) });
+  job("test-cross-provider-live", { "owner.jsonl": row({ event: "test-owner", pid: LIVE }) });
+  job("test-cross-provider-bare");
+  const states = { 10: "MERGED", 11: "OPEN", 12: "CLOSED", 13: "MERGED", 14: "MERGED" };
+  const lines = [];
+  const recorded = [];
+  const ghCalls = [];
+  const deps = {
+    exec: (cmd, args) => (ghCalls.push(args[2]), cmd === "gh" && args[0] === "pr" && states[args[2]] ? { status: 0, out: states[args[2]], err: "" } : { status: 1, out: "", err: "not found" }),
+    listDirs: liveDepsListDirs,
+    exists: (p) => fs.existsSync(p),
+    pid: () => 1,
+    pidAlive: (pid) => pid === LIVE,
+    log: (...a) => lines.push(a.join(" ")),
+  };
+  const ctx = { mainRoot, processes: { ok: true, list: [] } };
+  const decisionOf = (name) => lines.find((l) => l.split(/\s+/)[1] === name) ?? `(no row for ${name})`;
+  try {
+    await check("the job dry run lists each job directory with its reason and removes nothing", () => {
+      const result = cleanJobs(ctx, deps, false, (r) => recorded.push(r));
+      assert.equal(result.failed, 0);
+      assert.match(decisionOf("pr-10"), /^remove\s+pr-10\s+PR #10 is closed and no process its journals record is running/);
+      assert.match(decisionOf("pr-11"), /^keep\s+pr-11\s+PR #11 is open/);
+      assert.match(decisionOf("pr-12"), new RegExp(`^keep\\s+pr-12\\s+its journal records 1 process still running \\(pid ${LIVE}\\)`));
+      assert.match(decisionOf("pr-13"), /^remove\s+pr-13/);
+      assert.match(decisionOf("pr-14"), /^keep\s+pr-14\s+the journal round-1.journal\.jsonl could not be read in full/);
+      assert.match(decisionOf("notes"), /^keep\s+notes\s+not a pr-<N> or test-\* job directory/);
+      assert.match(decisionOf("test-cross-provider-dead"), /^remove\s+test-cross-provider-dead\s+a test's scratch directory, and no process its journals record is running/);
+      assert.match(decisionOf("test-cross-provider-live"), new RegExp(`^keep\\s+test-cross-provider-live\\s+its journal records 1 process still running \\(pid ${LIVE}\\)`));
+      assert.match(decisionOf("test-cross-provider-bare"), /^keep\s+test-cross-provider-bare\s+a test directory with no journal naming its process/);
+      assert.deepEqual([...new Set(ghCalls)].sort(), ["10", "11", "12", "13", "14"], "only pr-<N> directories are looked up on GitHub");
+      for (const name of ["pr-10", "pr-11", "pr-12", "pr-13", "pr-14", "notes", "test-cross-provider-dead", "test-cross-provider-live", "test-cross-provider-bare"]) assert.ok(fs.existsSync(path.join(root, name)), `the dry run removed ${name}`);
+      assert.equal(recorded.length, 0, "the dry run recorded a row");
+    });
+
+    await check("the job apply run removes only the removable directories, and a junction's target survives", () => {
+      lines.length = 0;
+      const result = cleanJobs(ctx, deps, true, (r) => recorded.push(r));
+      assert.equal(result.failed, 0, lines.join("\n"));
+      assert.match(decisionOf("pr-10"), /^removed/);
+      assert.match(decisionOf("pr-13"), /^removed\s+pr-13\s.*2 links unlinked first, targets untouched/);
+      assert.match(decisionOf("test-cross-provider-dead"), /^removed/);
+      for (const name of ["pr-10", "pr-13", "test-cross-provider-dead"]) assert.ok(!fs.existsSync(path.join(root, name)), `the removable ${name} is still there`);
+      for (const name of ["pr-11", "pr-12", "pr-14", "notes", "test-cross-provider-live", "test-cross-provider-bare"]) {
+        assert.match(decisionOf(name), /^kept/);
+        assert.ok(fs.existsSync(path.join(root, name)), `the apply run removed the retained ${name}`);
+      }
+      assert.equal(fs.readFileSync(path.join(target, "node_modules", "pkg", "index.js"), "utf8"), "kept", "removing a job directory deleted a junction's target");
+      assert.deepEqual(recorded.filter((r) => r.decision === "removing").map((r) => path.basename(r.path)).sort(), ["pr-10", "pr-13", "test-cross-provider-dead"]);
+    });
+  } finally {
+    for (const name of fs.existsSync(root) ? fs.readdirSync(root) : []) {
+      const dir = path.join(root, name);
+      if (fs.existsSync(dir)) removeJobDir(dir);
+    }
+    fs.rmSync(jobScratch, { recursive: true, force: true });
+  }
 }
 
 if (failures) {

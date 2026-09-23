@@ -277,7 +277,7 @@ try {
     const original=childProcess.execFileSync;
     childProcess.execFileSync=(exe,args,options)=>exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:`Fixture report for ${head}`,created_at:new Date().toISOString()}):original(exe,args,options);
     syncBuiltinESMExports();
-    try{await seededEnvironment(()=>runReviewWorker(f.jobDir+path.sep+'.',{slotRoot:path.join(scratch,'slots')}));}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
+    try{await seededEnvironment(()=>runReviewWorker(f.jobDir+path.sep+'.',{jobRoot:scratch,slotRoot:path.join(scratch,'slots')}));}finally{childProcess.execFileSync=original;syncBuiltinESMExports();}
     assert.equal(readEvents(f.jobDir).at(-1).event,'worker-finished');
     const completed=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse).find(row=>row.event==='completed');assert.equal(completed.step,'correctness','reviewer fields cannot overwrite journal identity');
     const launch=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse).find(row=>row.event==='launching');assert.match(fs.readFileSync(launch.diagnostics,'utf8'),/late shutdown/);assert.doesNotMatch(fs.readFileSync(launch.output,'utf8'),/late shutdown/);
@@ -288,14 +288,14 @@ try {
     const originalSpawn=childProcess.spawn;
     childProcess.spawn=(...args)=>{captured=originalSpawn(...args);captured.once('close',()=>{closed=true;});fs.unlinkSync(path.join(lost.jobDir,'mutation.lock'));return captured;};syncBuiltinESMExports();
     try{
-      await assert.rejects(runHandoff(path.join(lost.jobDir,'handoff.json'),{slotRoot:path.join(scratch,'lost-slot'),automaticJob:{jobId:lost.p.jobId,jobDir:lost.jobDir}}),/ENOENT/);
+      await assert.rejects(runHandoff(path.join(lost.jobDir,'handoff.json'),{jobRoot:scratch,slotRoot:path.join(scratch,'lost-slot'),automaticJob:{jobId:lost.p.jobId,jobDir:lost.jobDir}}),/ENOENT/);
       assert.equal(closed,true,'post-spawn admission cleanup failure must retain and await the actual child handle');
       assert.equal(fs.existsSync(worktreePaths(repo).lock),false,'worktree release follows confirmed close');
     }finally{childProcess.spawn=originalSpawn;syncBuiltinESMExports();if(captured&&!closed){const ended=new Promise(resolve=>captured.once('close',resolve));captured.kill();await ended;}}
     const interrupted=await fixture();
     fs.writeFileSync(child,fs.readFileSync(child,'utf8').replace("stop_reason:'end_turn'","stop_reason:'interrupt'"));
     withJob(interrupted.jobDir,()=>appendEvent(interrupted.jobDir,'worker-launch-intent'));
-    await assert.rejects(runReviewWorker(interrupted.jobDir,{slotRoot:path.join(scratch,'slots')}),/interrupted/);
+    await assert.rejects(runReviewWorker(interrupted.jobDir,{jobRoot:scratch,slotRoot:path.join(scratch,'slots')}),/interrupted/);
     assert.equal(readEvents(interrupted.jobDir).at(-1).ok,false);
     assert.equal(fs.readFileSync(path.join(interrupted.jobDir,'handoff.jsonl'),'utf8').includes('"event":"completed"'),false,'native interruption rejects before report validation or another reviewer');
   }
@@ -307,7 +307,7 @@ try {
     const cancel=()=>{if(!cancelled){cancelled=true;withJob(f.jobDir,()=>appendEvent(f.jobDir,'workflow-cancelled'));}};
     childProcess.execFileSync=(exe,args,options)=>{if(exe!=='gh')return originalExec(exe,args,options);if(boundary==='between-reviewers')cancel();return JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:head,created_at:new Date().toISOString()});};
     fs.openSync=(file,...args)=>{if(boundary==='admission'&&String(file).includes('handoff-1-review-')&&path.basename(String(file))==='process.log')cancel();return originalOpen(file,...args);};syncBuiltinESMExports();
-    try{await assert.rejects(runHandoff(path.join(f.jobDir,'handoff.json'),{slotRoot:path.join(scratch,'cancel-slots'),automaticJob:{jobId:f.p.jobId,jobDir:f.jobDir}}),/cancelled/);}finally{childProcess.execFileSync=originalExec;fs.openSync=originalOpen;syncBuiltinESMExports();}
+    try{await assert.rejects(runHandoff(path.join(f.jobDir,'handoff.json'),{jobRoot:scratch,slotRoot:path.join(scratch,'cancel-slots'),automaticJob:{jobId:f.p.jobId,jobDir:f.jobDir}}),/cancelled/);}finally{childProcess.execFileSync=originalExec;fs.openSync=originalOpen;syncBuiltinESMExports();}
     const rows=fs.readFileSync(path.join(f.jobDir,'handoff.jsonl'),'utf8').trim().split('\n').map(JSON.parse);assert.equal(rows.filter(row=>row.event==='running').length,1,`${boundary} prevents second reviewer spawn`);
   }
   {
@@ -375,7 +375,7 @@ try {
         assert.equal(isolatedGit(repo,['rev-parse','HEAD']),head,'Git environment cannot redirect frozen head');
         assert.deepEqual(worktreePaths(repo),{lock:path.join(expectedAdmin,'agent-handoff.lock'),freeze:path.join(expectedAdmin,'agent-review-job.json')},'Git environment cannot relocate either canonical ownership path');
         const guarded={...plan,continuation:undefined,journal:path.join(scratch,`env-${name}.jsonl`)};const file=path.join(scratch,`env-${name}.json`);fs.writeFileSync(file,JSON.stringify(guarded));
-        await assert.rejects(runHandoff(file,{slotRoot:path.join(scratch,'env-slots')}),/reserved by automatic review/,'ambient Git environment cannot bypass awaited launcher freeze');
+        await assert.rejects(runHandoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,'env-slots')}),/reserved by automatic review/,'ambient Git environment cannot bypass awaited launcher freeze');
       }finally{if(prior===undefined)delete process.env[name];else process.env[name]=prior;}
     }
   }
