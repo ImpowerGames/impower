@@ -27,14 +27,16 @@ export async function verifyReviewComment(id, pr, head, cwd, { readComment = rea
 const listPrComments = (pr, since, cwd) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", `repos/ImpowerGames/impower/issues/${pr}/comments?per_page=100&since=${encodeURIComponent(since)}`], { cwd, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 })).flat();
 
 // A review that exited cleanly without its completion artifact is covered by the one report it posted for the reviewed head since launch.
+// The reviewer prompt fixes a report's first line as `### Adversarial review — <lens> (<route>)`, which ties the comment to this step's route.
 export function deriveMissingCompletion(step, pr, head, notBefore, cwd, excluded, { listComments = listPrComments } = {}) {
   if (step.role !== "review") return null;
   if (step.next.length !== 1) throw new Error(`Completion artifact missing and the review declares ${step.next.length} transitions; confirm coverage from the PR comments`);
   const floor = Math.floor(Date.parse(notBefore) / 1000) * 1000;
-  const reports = listComments(pr, notBefore, cwd).filter((comment) => Number.isSafeInteger(comment.id) && !excluded.has(comment.id) && typeof comment.body === "string" && comment.body.includes(head) && Date.parse(comment.created_at) >= floor);
+  const isReport = (body) => { const heading = body.split("\n", 1)[0].trim(); return heading.startsWith("### Adversarial review — ") && heading.endsWith(`(${step.model})`); };
+  const reports = listComments(pr, notBefore, cwd).filter((comment) => Number.isSafeInteger(comment.id) && !excluded.has(comment.id) && typeof comment.body === "string" && isReport(comment.body) && comment.body.includes(head) && Date.parse(comment.created_at) >= floor);
   if (!reports.length) return null;
   if (reports.length > 1) throw new Error(`Completion artifact missing and ${reports.length} reports name head ${head} since launch (${reports.map((comment) => comment.id).join(", ")}); confirm which one this reviewer posted`);
-  return { head, next: step.next[0], commentIds: [reports[0].id], summary: `Derived from posted report ${reports[0].id}; the reviewer wrote no completion artifact` };
+  return { head, next: step.next[0], commentIds: [reports[0].id], summary: `Derived from posted report ${reports[0].id}; no completion artifact was found at the launcher's path` };
 }
 
 export function checkReviewRound(round, completedRound, finalCorrections, reviewRoundLimit = 3) {

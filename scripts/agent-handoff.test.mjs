@@ -466,7 +466,7 @@ assert.match(fs.readFileSync(config.journal,"utf8"),/confirmed-absent/);
 assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
 {
   const reviewedHead=execFileSync("git",["rev-parse","HEAD"],{cwd:config.worktree,encoding:"utf8",windowsHide:true}).trim();
-  const report=(id,body=`review of ${reviewedHead}`,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
+  const report=(id,body=`### Adversarial review — undirected (reviewer-test)\n\nRound 1; reviewed head ${reviewedHead}.`,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
   const realExec=childProcess.execFileSync;
   try {
     childProcess.execFileSync=(exe,args,options)=>exe==="gh"?JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]))):realExec(exe,args,options);
@@ -479,6 +479,12 @@ assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
     assert.equal(rows.at(-1).event,"finished");
     config.journal=path.join(scratch,"ambiguous-artifact.jsonl");write();
     await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"ambiguous-slots"),listComments:()=>[report(43),report(44)]}),/2 reports name head .*43, 44/);
+    config.journal=path.join(scratch,"unrelated-comment.jsonl");write();
+    await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"unrelated-slots"),listComments:()=>[report(45,`Looks good at ${reviewedHead}`),report(46,`### Adversarial review — undirected (another-route)\n\n${reviewedHead}`)]}),/ENOENT.*no report naming head/,"a comment without this route's report heading is not the reviewer's report");
+    config.steps.first.next=[null,"second"];
+    config.journal=path.join(scratch,"branching-artifact.jsonl");write();
+    await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"branching-slots"),listComments:()=>[report(43)]}),/declares 2 transitions/);
+    config.steps.first.next=[null];
   } finally {childProcess.execFileSync=realExec;syncBuiltinESMExports();}
 }
 console.log("PASS: a cleanly exited review without its completion artifact completes from its one posted report");
