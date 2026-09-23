@@ -257,28 +257,48 @@ assert.equal(recorded.phase, "running", "the run holds the machine reservation")
 assert.equal(recorded.child, true, "the reservation names the Vitest process");
 assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "the reservation is released after exit");
 
-// Another session's transaction holds the guard as the child exits.
+// Another session's transaction holds the guard as the child exits. The holder
+// keeps it until a marker file appears, so the guard is certainly held when
+// release first tries it; the marker is written from that first refused open.
 const guardFile = path.join(lockRoot, "guard.json");
+const freeGuard = path.join(scratch, ".git", "free-guard");
 const guardHolder = path.join(scratch, ".git", "hold-guard.mjs");
 fs.writeFileSync(guardHolder, `import fs from "node:fs";
 const fd = fs.openSync(${JSON.stringify(guardFile)}, "wx");
 fs.writeFileSync(fd, "{}");
-setTimeout(() => { fs.closeSync(fd); fs.unlinkSync(${JSON.stringify(guardFile)}); }, Number(process.argv[2]));`);
+while (!fs.existsSync(${JSON.stringify(freeGuard)})) await new Promise(r => setTimeout(r, 10));
+fs.closeSync(fd); fs.unlinkSync(${JSON.stringify(guardFile)});`);
 const heldVitest = path.join(scratch, ".git", "held-vitest.mjs");
 fs.writeFileSync(heldVitest, `import fs from "node:fs";
 import { spawn } from "node:child_process";
-spawn(process.execPath, [${JSON.stringify(guardHolder)}, process.env.HOLD_MS], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+spawn(process.execPath, [${JSON.stringify(guardHolder)}], { detached: true, stdio: "ignore", windowsHide: true }).unref();
 while (!fs.existsSync(${JSON.stringify(guardFile)})) await new Promise(r => setTimeout(r, 5));`);
-process.env.HOLD_MS = "300";
-const briefly = await runVitest({ packageRoot: scratch, vitestPath: heldVitest, root: lockRoot, census: () => [], stdio: "ignore" });
-assert.equal(briefly.exit, 0, "a briefly held guard delays release instead of failing the run");
-assert.equal(briefly.releaseError, undefined);
-assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "the reservation is released once the guard frees");
-process.env.HOLD_MS = "1500";
-const stuck = await runVitest({ packageRoot: scratch, vitestPath: heldVitest, root: lockRoot, census: () => [], stdio: "ignore", guardWaitMs: 200 });
-assert.equal(stuck.exit, 0, "the test result survives a release that cannot complete");
-assert.match(stuck.releaseError, /Reservation transaction unavailable.*guard\.json/, "the unreleased reservation is reported separately");
-delete process.env.HOLD_MS;
+const openFile = fs.openSync;
+let refusedGuard = 0;
+let freeOnFirstRefusal = false;
+fs.openSync = function(target, ...args) {
+  try { return openFile.call(this, target, ...args); }
+  catch (error) {
+    if (error.code === "EEXIST" && path.resolve(String(target)) === guardFile && ++refusedGuard === 1 && freeOnFirstRefusal) fs.writeFileSync(freeGuard, "");
+    throw error;
+  }
+};
+try {
+  freeOnFirstRefusal = true;
+  const briefly = await runVitest({ packageRoot: scratch, vitestPath: heldVitest, root: lockRoot, census: () => [], stdio: "ignore" });
+  assert.ok(refusedGuard >= 1, "release met the held guard");
+  assert.equal(briefly.exit, 0, "a briefly held guard delays release instead of failing the run");
+  assert.equal(briefly.releaseError, undefined);
+  assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "the reservation is released once the guard frees");
+  for (const deadline = Date.now() + 5000; fs.existsSync(guardFile) && Date.now() < deadline;) await new Promise(r => setTimeout(r, 20));
+  fs.unlinkSync(freeGuard);
+  refusedGuard = 0;
+  freeOnFirstRefusal = false;
+  const stuck = await runVitest({ packageRoot: scratch, vitestPath: heldVitest, root: lockRoot, census: () => [], stdio: "ignore", guardWaitMs: 200 });
+  assert.ok(refusedGuard >= 1, "release met the held guard");
+  assert.equal(stuck.exit, 0, "the test result survives a release that cannot complete");
+  assert.match(stuck.releaseError, /Reservation transaction unavailable.*guard\.json/, "the unreleased reservation is reported separately");
+} finally { fs.openSync = openFile; fs.writeFileSync(freeGuard, ""); }
 for (const deadline = Date.now() + 5000; fs.existsSync(guardFile) && Date.now() < deadline;) await new Promise(r => setTimeout(r, 20));
 assert.equal(read(path.join(lockRoot, "reservation.json")).phase, "exited", "an unreleased reservation stays recoverable");
 fs.unlinkSync(path.join(lockRoot, "reservation.json"));
