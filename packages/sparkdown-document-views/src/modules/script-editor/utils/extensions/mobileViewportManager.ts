@@ -31,6 +31,7 @@ const viewportPlugin = ViewPlugin.fromClass(
   class {
     view: EditorView;
     closeTimeout?: ReturnType<typeof setTimeout>;
+    destroyed = false;
 
     constructor(view: EditorView) {
       this.view = view;
@@ -40,6 +41,7 @@ const viewportPlugin = ViewPlugin.fromClass(
 
     openKeyboardUI(keyboardHeight: number) {
       requestAnimationFrame(() => {
+        if (this.destroyed) return;
         document.body.style.setProperty(
           "--keyboard-height",
           `${keyboardHeight}px`,
@@ -54,6 +56,7 @@ const viewportPlugin = ViewPlugin.fromClass(
 
     closeKeyboardUI() {
       requestAnimationFrame(() => {
+        if (this.destroyed) return;
         document.body.style.height = "";
         document.documentElement.classList.remove("keyboard-open");
         this.view.dom.classList.remove("keyboard-open");
@@ -189,7 +192,17 @@ const viewportPlugin = ViewPlugin.fromClass(
     }
 
     destroy() {
+      this.destroyed = true;
       this.unbind();
+      // The keyboard state lives on the document, which outlives this view.
+      // A focused editor that unmounts (closing a script from its Back
+      // button) takes the keyboard with it after these listeners are gone,
+      // so release the state here or the host keeps laying out for a
+      // keyboard that is no longer open.
+      if (this.view.dom.classList.contains("keyboard-open")) {
+        document.body.style.height = "";
+        document.documentElement.classList.remove("keyboard-open");
+      }
     }
   },
 );
