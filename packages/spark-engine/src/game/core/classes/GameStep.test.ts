@@ -1,5 +1,5 @@
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { beforeAll, describe, expect, it } from "vitest";
+import { compileProgram } from "../../../tests/harness/compileProgram";
 import { Game } from "./Game";
 
 /**
@@ -22,24 +22,7 @@ const THREE_BEATS = ["First beat.", "Second beat.", "Third beat.", ""].join(
   "\n",
 );
 
-const compile = (source: string) => {
-  const uri = "inmemory:///main.sd";
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    files: [
-      {
-        uri,
-        type: "script",
-        name: "main",
-        ext: "sd",
-        text: source,
-        version: 1,
-        languageId: "sparkdown",
-      },
-    ],
-  } as never);
-  return compiler.compile({ textDocument: { uri } } as never).program;
-};
+const compile = compileProgram;
 
 let program: ReturnType<typeof compile>;
 

@@ -1,29 +1,10 @@
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, it } from "vitest";
+import { compileProgram } from "../../../tests/harness/compileProgram";
 import { Game } from "./Game";
-
-const compile = (source: string) => {
-  const uri = "inmemory:///main.sd";
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    files: [
-      {
-        uri,
-        type: "script",
-        name: "main",
-        ext: "sd",
-        text: source,
-        version: 1,
-        languageId: "sparkdown",
-      },
-    ],
-  } as never);
-  return compiler.compile({ textDocument: { uri } } as never).program;
-};
 
 const createGame = () =>
   new Game({
-    program: compile("A beat.\n"),
+    program: compileProgram("A beat.\n"),
   } as never);
 
 describe("Game debugging", () => {
