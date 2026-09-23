@@ -2486,6 +2486,11 @@ export class GamePlayerController {
         return false;
       }
     }
+    if (this._workerAppFresh) {
+      // The worker's game shows the preview again after a game ran on this
+      // page, which alone heard what the editor asked of the debugger then.
+      this.restoreWorkerDebugger(link);
+    }
     const shown = this._completionShown;
     let result: { displayed: boolean } | undefined;
     try {
@@ -2518,6 +2523,51 @@ export class GamePlayerController {
     }
     return true;
   };
+
+  /** Give the worker's game what the editor last asked of the preview's
+   *  debugger. While a game runs on this page, the editor's requests go to
+   *  that game alone; the worker's game then shows the preview as a game
+   *  built here afterwards would (`buildGame`), with those settings. Sent
+   *  ahead of the display they are for, on the same connection, so the worker
+   *  applies them before it displays. */
+  protected restoreWorkerDebugger(link: WorkerGameLink) {
+    const options = this._options;
+    const sent: Promise<unknown>[] = [];
+    if (options?.breakpoints) {
+      sent.push(
+        link.request(SetGameBreakpointsMessage.type, {
+          breakpoints: options.breakpoints,
+        }),
+      );
+    }
+    if (options?.functionBreakpoints) {
+      sent.push(
+        link.request(SetGameFunctionBreakpointsMessage.type, {
+          functionBreakpoints: options.functionBreakpoints,
+        }),
+      );
+    }
+    if (options?.dataBreakpoints) {
+      sent.push(
+        link.request(SetGameDataBreakpointsMessage.type, {
+          dataBreakpoints: options.dataBreakpoints,
+        }),
+      );
+    }
+    if (options?.debugging !== undefined) {
+      sent.push(
+        link.request(
+          options.debugging
+            ? EnableGameDebugMessage.type
+            : DisableGameDebugMessage.type,
+          {},
+        ),
+      );
+    }
+    for (const request of sent) {
+      request.catch((e) => console.error(e));
+    }
+  }
 
   updatePreview = async (
     program: SparkProgram,

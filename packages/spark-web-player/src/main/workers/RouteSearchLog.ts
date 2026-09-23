@@ -65,6 +65,16 @@ export class RouteSearchLog {
     this._last = outcome;
   }
 
+  /** Whether the last search was run for `path` in the program `programId`
+   *  names, so that it still describes a route there. What a search was asked
+   *  for is the only evidence: a point that resolves to the same path needs
+   *  no second search, and a point on the same line can resolve to another
+   *  path (a line that `>` breaks holds several beats). */
+  holds(path: string, programId: string | undefined): boolean {
+    const last = this._last;
+    return last !== null && last.path === path && last.programId === programId;
+  }
+
   /** Tell the client what is known about `startPath`.
    *
    *  The checkpoint is passed on whenever one was produced for this path — the

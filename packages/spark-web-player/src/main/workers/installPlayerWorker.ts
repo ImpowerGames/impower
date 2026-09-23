@@ -28,25 +28,20 @@ import {
   type ProgramForPlayParams,
   type ProgramForPlayResult,
 } from "./messages/ProgramForPlayMessage";
-import { planRouteForSelection } from "./planRouteForSelection";
+import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
 
-/** A program the worker's game can display, and the route to where it was
- *  last asked to start. */
+/** A program the worker's game can display, and what the route searches run
+ *  in it established. */
 interface DisplayableProgram {
   id: string;
   program: SparkProgram;
   story: RuntimeStory;
-  /** The canonical program searches its routes into the log PLAY reuses and
-   *  remembers their choices; a suggestion's never do. */
-  canonical: boolean;
-  route?: {
-    startFrom: { file: string; line: number };
-    beat: "first" | "last";
-    path: string | null | undefined;
-    log: RouteSearchLog;
-  };
+  /** Its own: a search run in one program says nothing about another. The
+   *  newest real program's is `routeSearches`, whose searches the compiler
+   *  remembers the choices of; no other program's are remembered. */
+  log: RouteSearchLog;
 }
 
 /**
@@ -100,11 +95,11 @@ export function installPlayerWorker(connection: MessageConnection) {
     seedBuiltinsIntoStory: true,
   });
 
-  // The record of what the last route search established, and the rule for
-  // when that is safe to reuse. See RouteSearchLog for why neither a
-  // checkpoint's existence nor the checkpoint store's newest entry is evidence
-  // on its own.
-  const routeSearches = new RouteSearchLog();
+  // The record of what the last route search in the newest real program
+  // established, and the rule for when that is safe to reuse. See
+  // RouteSearchLog for why neither a checkpoint's existence nor the checkpoint
+  // store's newest entry is evidence on its own. Each compile starts a new one.
+  let routeSearches = new RouteSearchLog();
 
   /** Plan a route to `toPath` and replay it for the real program. */
   const searchRealRouteTo = (game: Game, toPath: string) =>
@@ -171,15 +166,11 @@ export function installPlayerWorker(connection: MessageConnection) {
     const profilerId = compiler.profilerId;
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
-      gameState.game = new Game({
+      // Built with what the editor has asked of the preview's debugger so
+      // far, as the page builds its own game.
+      gameState.game = gameState.createGame({
         program,
         story,
-        ...gameState.systemConfiguration,
-        // What the editor asked of the preview's debugger before there was a
-        // game to ask, which the page's own game takes the same way.
-        breakpoints: gameState.pending.breakpoints,
-        functionBreakpoints: gameState.pending.functionBreakpoints,
-        dataBreakpoints: gameState.pending.dataBreakpoints,
         // This is the live-preview / HMR route-simulation game: it saves a
         // checkpoint at every beat while replaying to the edited line, which
         // is the O(n^2) cost incremental checkpoints exist to remove. Deltas
@@ -192,9 +183,6 @@ export function installPlayerWorker(connection: MessageConnection) {
         incrementalCheckpoints: true,
         verifyCheckpoints: false,
       });
-      if (gameState.pending.debugging) {
-        gameState.game.startDebugging();
-      }
       profile("end", profilerId + " " + "game/create");
     } else if (gameState.game.program !== program) {
       // A compile that changed nothing serves the program the game already
@@ -207,8 +195,10 @@ export function installPlayerWorker(connection: MessageConnection) {
   compiler.addEventListener("compiler/didCompile", (params) => {
     // Whatever the last search established was established against the OLD
     // program and the story it was compiled from. Neither survives this
-    // compile, so nothing from before it may be reported for the new one.
-    routeSearches.forget();
+    // compile, so nothing from before it may be reported for the new one. The
+    // old log stays with the old program, which the page can still ask to
+    // display until it has taken this one.
+    routeSearches = new RouteSearchLog();
     const story = params.story;
     if (!story) {
       return;
@@ -216,15 +206,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     // The route below is replayed on the game.
     gameTouches += 1;
     const game = createOrUpdateGame(params.program, story);
-    const entry: DisplayableProgram | undefined = player.workerDisplaysPreview
-      ? {
-          id: programIdentity(params.program)!,
-          program: params.program,
-          story,
-          canonical: true,
-        }
-      : undefined;
-    if (entry) {
+    if (player.workerDisplaysPreview) {
+      const entry: DisplayableProgram = {
+        id: programIdentity(params.program)!,
+        program: params.program,
+        story,
+        log: routeSearches,
+      };
       canonicalId = entry.id;
       retain(entry);
       releaseUnneeded();
@@ -242,14 +230,6 @@ export function installPlayerWorker(connection: MessageConnection) {
         // Augment with the simulated checkpoint, and with what the search
         // established about this start point.
         routeSearches.report(params, toPath);
-      }
-      if (entry) {
-        entry.route = {
-          startFrom: params.program.startFrom,
-          beat: "last",
-          path: toPath,
-          log: routeSearches,
-        };
       }
     }
   });
@@ -286,8 +266,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         id: programIdentity(params.program)!,
         program: params.program,
         story,
-        canonical: false,
-        route: { startFrom: params.startFrom, beat: "last", path: toPath, log },
+        log,
       };
       newestSuggestionIds.push(entry.id);
       if (newestSuggestionIds.length > 2) {
@@ -317,12 +296,6 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     planRouteForSelection(params, {
       game: gameState.game,
-      // What the game's current start point was planned for: a route PLAY
-      // planned to the line's first beat is not the preview's route, even
-      // though it is the same line.
-      plannedBeat: canonicalId
-        ? displayable.get(canonicalId)?.route?.beat
-        : undefined,
       rememberStartFrom: (startFrom) => {
         compiler.config.startFrom = startFrom;
       },
@@ -330,22 +303,6 @@ export function installPlayerWorker(connection: MessageConnection) {
       routeSearches,
       profilerId: compiler.profilerId,
     });
-    // The canonical program's route now starts where the selection is.
-    const canonical = canonicalId ? displayable.get(canonicalId) : undefined;
-    const game = gameState.game;
-    if (
-      canonical &&
-      game?.program === canonical.program &&
-      game.startFrom &&
-      !params.programOutdated
-    ) {
-      canonical.route = {
-        startFrom: { ...game.startFrom },
-        beat: "last",
-        path: game.startPath,
-        log: routeSearches,
-      };
-    }
   });
 
   // ---- The scene warm-up --------------------------------------------------
@@ -416,46 +373,35 @@ export function installPlayerWorker(connection: MessageConnection) {
     connection.postMessage(message, transfer);
   };
 
-  /** The route to `point` in `entry`: the one already replayed there, or a
-   *  search now, with the game holding the entry's program. */
+  /** The route to `point`'s `beat` in `entry`, with the game holding the
+   *  entry's program: the search its log already holds for that path, or one
+   *  run now. */
   const routeTo = (
     game: Game,
     entry: DisplayableProgram,
     point: { file: string; line: number },
-    beat: "first" | "last" = "first",
+    beat: "first" | "last",
   ) => {
-    const route = entry.route;
-    if (
-      !route ||
-      route.startFrom.file !== point.file ||
-      route.startFrom.line !== point.line ||
-      route.beat !== beat
-    ) {
-      profile("start", compiler.profilerId + " " + "game/setStartFrom");
-      game.setStartFrom(point, beat);
-      profile("end", compiler.profilerId + " " + "game/setStartFrom");
-      const toPath = game.startPath;
-      const log = entry.canonical ? routeSearches : new RouteSearchLog();
-      if (toPath) {
-        if (entry.canonical) {
-          searchRealRouteTo(game, toPath);
-        } else {
-          searchRouteTo(game, toPath, log, {
-            config: compiler.config,
-            profilerId: compiler.profilerId,
-            remember: false,
-          });
-        }
-      }
-      entry.route = { startFrom: point, beat, path: toPath, log };
-    }
+    const toPath = routeGameTo(
+      game,
+      point,
+      beat,
+      entry.log,
+      (searched, path) =>
+        searchRouteTo(searched, path, entry.log, {
+          config: compiler.config,
+          profilerId: compiler.profilerId,
+          remember: entry.log === routeSearches,
+        }),
+      compiler.profilerId,
+    );
     const report: {
       checkpoint?: string;
       simulatedPath?: string | null;
       simulatedProgramId?: string;
       simulationFailure?: any;
     } = {};
-    entry.route!.log.report(report, entry.route!.path);
+    entry.log.report(report, toPath);
     return report;
   };
 
@@ -546,8 +492,9 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (game.program !== entry.program) {
       updateGameProgram(game, entry.program, entry.story);
     }
+    // PLAY from a line starts at its first beat (#721).
     const route = params.startFrom
-      ? routeTo(game, entry, params.startFrom)
+      ? routeTo(game, entry, params.startFrom, "first")
       : {};
     return {
       ...route,

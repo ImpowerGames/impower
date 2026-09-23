@@ -1,4 +1,6 @@
 import { hasCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import type { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import type { ResponseError } from "@impower/jsonrpc/src/common/types/ResponseError";
@@ -33,6 +35,7 @@ import { StepGameClockMessage } from "../game/core/classes/messages/StepGameCloc
 import { StepGameMessage } from "../game/core/classes/messages/StepGameMessage";
 import { UnpauseGameMessage } from "../game/core/classes/messages/UnpauseGameMessage";
 import { UpdateGameMessage } from "../game/core/classes/messages/UpdateGameMessage";
+import type { GameConfiguration } from "../game/core/types/GameConfiguration";
 import type { SystemConfiguration } from "../game/core/types/SystemConfiguration";
 import { sharedNow } from "../game/core/utils/sharedClock";
 
@@ -76,22 +79,43 @@ export function installGameWorker(connection: MessageConnection) {
     },
   };
 
-  // What the editor asked for before there was a game to ask. The host
-  // creating the game passes these to it, as a host that owns its game
-  // applies the same settings itself; until then they are what the setters
-  // answer with.
+  // What the editor last asked of the debugger, which is what the setters
+  // answer with while there is no game to ask.
+  const pending: {
+    debugging?: boolean;
+    breakpoints?: { file: string; line: number }[];
+    functionBreakpoints?: { name: string }[];
+    dataBreakpoints?: { dataId: string }[];
+  } = {};
+
+  /** Build a game for this worker to hold, with its system configuration
+   *  and with what the editor has asked of the debugger so far, as a host
+   *  that owns its game gives each game it builds the same settings. Every
+   *  game this worker holds is built here. */
+  const createGame = (
+    options: { program: SparkProgram; story?: Story } & GameConfiguration,
+  ): Game => {
+    const game = new Game({
+      ...systemConfiguration,
+      ...options,
+      breakpoints: options.breakpoints ?? pending.breakpoints,
+      functionBreakpoints:
+        options.functionBreakpoints ?? pending.functionBreakpoints,
+      dataBreakpoints: options.dataBreakpoints ?? pending.dataBreakpoints,
+    });
+    if (pending.debugging) {
+      game.startDebugging();
+    }
+    return game;
+  };
+
   const state: {
     systemConfiguration: SystemConfiguration;
     game?: Game;
-    pending: {
-      debugging?: boolean;
-      breakpoints?: { file: string; line: number }[];
-      functionBreakpoints?: { name: string }[];
-      dataBreakpoints?: { dataId: string }[];
-    };
+    createGame: typeof createGame;
   } = {
     systemConfiguration,
-    pending: {},
+    createGame,
   };
 
   connection.addEventListener("message", (e: MessageEvent) => {
@@ -123,7 +147,7 @@ export function installGameWorker(connection: MessageConnection) {
         if (state.game) {
           state.game.destroy();
         }
-        state.game = new Game({ program, ...systemConfiguration, ...options });
+        state.game = createGame({ program, ...options });
         return {
           simulatePath: state.game.simulatePath,
           startPath: state.game.startPath,
@@ -247,7 +271,7 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (EnableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        state.pending.debugging = true;
+        pending.debugging = true;
         state.game?.startDebugging();
         return {};
       });
@@ -255,7 +279,7 @@ export function installGameWorker(connection: MessageConnection) {
     }
     if (DisableGameDebugMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => {
-        state.pending.debugging = false;
+        pending.debugging = false;
         state.game?.stopDebugging();
         return {};
       });
@@ -264,7 +288,7 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameBreakpointsMessage.type.isRequest(message)) {
       const { breakpoints } = message.params;
       connection.sendResponse(message, () => {
-        state.pending.breakpoints = breakpoints;
+        pending.breakpoints = breakpoints;
         return {
           breakpoints: state.game
             ? state.game.setBreakpoints(breakpoints)
@@ -276,7 +300,7 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameDataBreakpointsMessage.type.isRequest(message)) {
       const { dataBreakpoints } = message.params;
       connection.sendResponse(message, () => {
-        state.pending.dataBreakpoints = dataBreakpoints;
+        pending.dataBreakpoints = dataBreakpoints;
         return {
           dataBreakpoints: state.game
             ? state.game.setDataBreakpoints(dataBreakpoints)
@@ -288,7 +312,7 @@ export function installGameWorker(connection: MessageConnection) {
     if (SetGameFunctionBreakpointsMessage.type.isRequest(message)) {
       const { functionBreakpoints } = message.params;
       connection.sendResponse(message, () => {
-        state.pending.functionBreakpoints = functionBreakpoints;
+        pending.functionBreakpoints = functionBreakpoints;
         return {
           functionBreakpoints: state.game
             ? state.game.setFunctionBreakpoints(functionBreakpoints)
