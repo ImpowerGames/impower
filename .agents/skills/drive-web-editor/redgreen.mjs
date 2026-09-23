@@ -127,6 +127,13 @@ export function testShell() {
   return bash ?? true;
 }
 
+// scripts/test-suite.mjs prints this line (and exits 75) when it could not take
+// the machine-wide Vitest reservation: no test ran, so the run is neither red
+// nor green and the same command can be run again.
+const NOT_RUN_RE = /^test-suite: not run: .*/m;
+const notStarted = (output) => NOT_RUN_RE.test(output.replace(ANSI_ESCAPE_RE, ""));
+const notRunLine = (output) => output.replace(ANSI_ESCAPE_RE, "").match(NOT_RUN_RE)[0];
+
 export function runTest(cmd, cwd, shell = testShell(), { maxBuffer = 64 * 1024 * 1024 } = {}) {
   const r = spawnSync(cmd, {
     cwd,
@@ -167,6 +174,7 @@ export function runTest(cmd, cwd, shell = testShell(), { maxBuffer = 64 * 1024 *
  */
 export function classifyRedFailure(output, { removed = [], launchError = null, exit = null, posixShell = false } = {}) {
   output = output.replace(ANSI_ESCAPE_RE, "");
+  if (notStarted(output)) return "notrun";
   if (["ENOENT", "EACCES", "ENOEXEC"].includes(launchError)) return "shell";
   if (["ENOBUFS", "ETIMEDOUT"].includes(launchError)) return "crash";
   if (launchError) return "unknown";
@@ -512,7 +520,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         launchError: red.launchError,
         signal: red.signal,
         posixShell: red.posixShell,
-        outcome: red.exit === 0 ? "passed" : "failed",
+        outcome: red.exit === 0 ? "passed" : redReason === "notrun" ? "not run" : "failed",
         reason: redReason,
         tail: red.tail,
         ...failureEvidence(red.output, path.join(dir, "red.log")),
@@ -522,6 +530,10 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       if (red.exit === 0) {
         report.problems.push(
           `The test passed against ${base}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
+        );
+      } else if (redReason === "notrun") {
+        report.problems.push(
+          `The red run never started (${notRunLine(red.output)}), so it says nothing about the defect. Wait for the other run to finish and run redgreen again.`,
         );
       } else if (redReason === "shell") {
         report.problems.push(
@@ -598,13 +610,15 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       const green = runTest(test, repoRoot);
       report.green = {
         exit: green.exit,
-        outcome: green.exit === 0 ? "passed" : "failed",
+        outcome: green.exit === 0 ? "passed" : notStarted(green.output) ? "not run" : "failed",
         tail: green.tail,
         ...failureEvidence(green.output, path.join(dir, "green.log")),
         summary: parseVitestSummary(green.output),
       };
       if (report.green.logError) report.problems.push(`The green output could not be saved: ${report.green.logError}. The exit status and excerpts remain in this report.`);
-      if (green.exit !== 0) {
+      if (report.green.outcome === "not run") {
+        report.problems.push(`The green run never started (${notRunLine(green.output)}), so it says nothing about the fix. Wait for the other run to finish and run redgreen again.`);
+      } else if (green.exit !== 0) {
         report.problems.push("The test failed against the fix. The restore is verified by hash, so this is the fix itself, not a stale copy.");
       }
     } catch (err) {

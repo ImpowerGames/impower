@@ -148,11 +148,25 @@ async function childRun(run, mode, file, reservation, save, { enginePath = engin
 
 const reportWait = value => console.log(JSON.stringify({ status: "waiting", ...value }));
 
+// Nothing has run when the reservation cannot be taken; the error says so, so
+// callers never read a refusal as a test result.
+const queue = (run, options) => acquireWaiting(run, { ...options, onWait: reportWait })
+  .catch(error => { throw Object.assign(error, { notRun: true }); });
+
+// The exit status and marker line for a failed command. 75 (EX_TEMPFAIL) and
+// the marker say no test ran and the same command can be run again; the
+// red/green driver reads the marker.
+export function notRunExit(error, write = console.error) {
+  if (!error?.notRun) { write(error?.stack ?? String(error)); return 1; }
+  write(`test-suite: not run: ${error.message}`);
+  return 75;
+}
+
 export async function execute({ directory, packageRoot, retry = [], waitMs = 0, ...dependencies }) {
   directory = canonicalPath(directory);
   retry = retry.map(canonicalPath);
   const census = dependencies.census || vitestProcesses;
-  const reservation = await acquireWaiting(directory, { ...dependencies, census, waitMs, onWait: reportWait });
+  const reservation = await queue(directory, { ...dependencies, census, waitMs });
   let run;
   let lastProgress = 0;
   const fingerprint = dependencies.fingerprint || fingerprinter(value => {
@@ -243,7 +257,7 @@ export async function runVitest({ packageRoot, files = [], waitMs = 0, vitestPat
   vitestPath ??= path.join(path.dirname(createRequire(path.join(packageRoot, "package.json")).resolve("vitest/package.json")), "vitest.mjs");
   const census = dependencies.census || vitestProcesses;
   const identify = dependencies.identify || processIdentity;
-  const reservation = await acquireWaiting(`vitest run in ${packageRoot}`, { ...dependencies, census, waitMs, onWait: reportWait });
+  const reservation = await queue(`vitest run in ${packageRoot}`, { ...dependencies, census, waitMs });
   let child;
   reservation.update({ phase: "launching" });
   // Release only while no child can be running; an unconfirmed exit keeps the
@@ -336,5 +350,5 @@ export async function main(argv, dependencies = {}) {
 
 if (process.argv[1] && canonicalPath(process.argv[1]) === canonicalPath(fileURLToPath(import.meta.url))) {
   try { process.exitCode = await main(process.argv.slice(2)); }
-  catch (error) { console.error(error.stack); process.exitCode = 1; }
+  catch (error) { process.exitCode = notRunExit(error); }
 }

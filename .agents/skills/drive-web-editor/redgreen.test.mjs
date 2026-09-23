@@ -990,6 +990,43 @@ check("parseRedGreenArgs takes several files and an optional base, and refuses a
   assert.throws(() => parseRedGreenArgs(["--files", "a"]), /--test <command> is required/);
 });
 
+// scripts/test-suite.mjs prints this marker and exits 75 when it could not take
+// the machine-wide reservation, so no test ran.
+const NOT_RUN = "test-suite: not run: Reservation transaction unavailable at guard.json: EEXIST";
+const notRunWhen = (dir, condition) => fs.writeFileSync(
+  path.join(dir, "check.mjs"),
+  [
+    'import { value } from "./lib.mjs";',
+    `if (${condition}) { console.error(${JSON.stringify(NOT_RUN)}); process.exit(75); }`,
+    'if (value !== "new") { console.error("AssertionError: expected new, got " + value); process.exit(1); }',
+    'console.log("ok");',
+  ].join("\n") + "\n",
+);
+
+check("a green run the test-suite runner never started is not run, never a failing fix", () => {
+  const dir = makeRepo();
+  notRunWhen(dir, 'value === "new"');
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "not run");
+  const problems = r.problems.join("\n");
+  assert.doesNotMatch(problems, /failed against the fix/);
+  assert.match(problems, /green run never started.*run redgreen again/s);
+});
+
+check("a red run the test-suite runner never started is not run, never a red", () => {
+  const dir = makeRepo();
+  notRunWhen(dir, "true");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.outcome, "not run");
+  assert.equal(r.red.reason, "notrun");
+  assert.match(r.problems.join("\n"), /red run never started.*run redgreen again/s);
+});
+
 if (failures > 0) {
   console.log(`\n${failures} failing`);
   process.exit(1);
