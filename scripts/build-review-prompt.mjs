@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 
 const skill = fileURLToPath(new URL("../.agents/skills/review-pr/references/reviewer-prompt.md", import.meta.url));
 export function reviewTemplate(markdown) {
@@ -21,6 +22,9 @@ export function buildReviewPrompt(context, markdown = fs.readFileSync(skill, "ut
   for (const key of ["issue", "pr", "round"]) if (!(key === "issue" && context[key] === null) && (!Number.isSafeInteger(context[key]) || context[key] < 1)) throw new Error(`Invalid ${key}`);
   if (!/^[a-f0-9]{40}$/.test(context.head ?? "")) throw new Error("Supply the full reviewed head SHA");
   for (const key of ["worktree", "diff", "reviewDir"]) if (typeof context[key] !== "string" || !path.isAbsolute(context[key])) throw new Error(`Supply an absolute ${key}`);
+  // The diff and the reviewer's directory reach a reviewer only through this
+  // prompt, so this is where they are held to the review job root.
+  assertInsideJobRoot([["diff", context.diff], ["reviewDir", context.reviewDir]], reviewJobRoot(context.worktree), `in pr-${context.pr}${path.sep}round-${context.round}`);
   if (!context.lens || !context.previous) throw new Error("Supply lens and previous-round context");
   if (typeof context.task !== "string" || !context.task.trim()) throw new Error("Supply the change's user-facing goal as task");
   let prompt = reviewTemplate(markdown);

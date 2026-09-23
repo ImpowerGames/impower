@@ -70,6 +70,7 @@ for (const [label, change, message] of malformed) {
     ["plan file", (plan) => plan, path.join(outsideDir, "plan.json"), /plan file/],
     ["journal", (plan) => { plan.journal = path.join(outsideDir, "journal.jsonl"); }, path.join(scratch, "outside-journal.json"), /journal .*impower-handoff-outside-/],
     ["prompt", (plan) => { plan.steps.second.prompt = path.join(outsideDir, "prompt.txt"); }, path.join(scratch, "outside-prompt.json"), /step second prompt/],
+    ["reviewer directory", (plan) => { plan.steps.second.permissions = { cwd: path.join(outsideDir, "reviewer-a-1") }; }, path.join(scratch, "outside-reviewer.json"), /step second reviewer directory/],
   ];
   const link = path.join(scratch, "linked-out");
   fs.symlinkSync(outsideDir, link, "junction");
@@ -85,13 +86,14 @@ for (const [label, change, message] of malformed) {
     assert.equal(fs.existsSync(plan.journal), false, `${label} outside the root must leave no journal`);
     assert.equal(fs.existsSync(git("rev-parse", "--path-format=absolute", "--git-path", "agent-handoff.lock").trim()), false, `${label} outside the root must not take the lock`);
   }
-  fs.rmdirSync(link);
+  // A Windows junction is removed with rmdir, a POSIX symlink with unlink.
+  try { fs.unlinkSync(link); } catch { fs.rmdirSync(link); }
   // Without the test seam the root is <main checkout>.review-jobs beside the main checkout.
   const unseamed = structuredClone(config);
   unseamed.journal = path.join(scratch, "unseamed.jsonl");
   const unseamedFile = path.join(scratch, "unseamed.json");
   fs.writeFileSync(unseamedFile, JSON.stringify(unseamed));
-  await assert.rejects(handoff(unseamedFile, { slotRoot: path.join(scratch, "serial-slots") }), (error) => error.message.includes(`under ${path.join(scratch, "repo.review-jobs")} `));
+  await assert.rejects(handoff(unseamedFile, { slotRoot: path.join(scratch, "serial-slots") }), (error) => error.message.includes(`under ${path.join(fs.realpathSync.native(scratch), "repo.review-jobs")} `));
   assert.equal(fs.existsSync(unseamed.journal), false, "the default root refuses a scratch plan before writing its journal");
 }
 

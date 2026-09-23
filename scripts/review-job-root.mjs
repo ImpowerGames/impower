@@ -12,10 +12,22 @@ export const jobRootOf = (mainRoot) => path.join(path.dirname(mainRoot), `${path
 // worktree of the repository shares.
 export function reviewJobRoot(cwd) {
   const common = execFileSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, encoding: "utf8", windowsHide: true }).trim();
-  return jobRootOf(path.dirname(common));
+  return jobRootOf(fs.realpathSync.native(path.dirname(common)));
 }
 
-const lexicallyInside = (child, parent) => {
+// A standalone check's scratch folder under the job root, for checks whose
+// fixtures must satisfy the root (or, for Codex, lie outside TEMP). Its
+// owner journal names this process, so clean-worktrees removes a folder a
+// killed run left behind once the process is gone.
+export function testScratch(prefix, from) {
+  const root = reviewJobRoot(from);
+  fs.mkdirSync(root, { recursive: true });
+  const dir = fs.mkdtempSync(path.join(root, `test-${prefix}-`));
+  fs.writeFileSync(path.join(dir, "owner.jsonl"), JSON.stringify({ event: "test-owner", pid: process.pid }) + "\n");
+  return dir;
+}
+
+const lexicallyInside =(child, parent) => {
   const relative = path.relative(parent, child);
   return relative !== "" && !relative.startsWith(".." + path.sep) && relative !== ".." && !path.isAbsolute(relative);
 };
@@ -32,10 +44,16 @@ const resolvedExisting = (p) => {
   return path.join(fs.realpathSync.native(existing), path.relative(existing, p));
 };
 
+// Both sides are compared after resolution, which also expands a Windows 8.3
+// short name (C:\Users\RUNNER~1) that git never prints.
 export function isInsideJobRoot(p, root) {
-  const absolute = path.resolve(p);
-  if (!lexicallyInside(absolute, root)) return false;
-  const resolvedRoot = resolvedExisting(root);
-  const resolved = resolvedExisting(absolute);
+  const resolvedRoot = resolvedExisting(path.resolve(root));
+  const resolved = resolvedExisting(path.resolve(p));
   return !!resolvedRoot && !!resolved && lexicallyInside(resolved, resolvedRoot);
+}
+
+// Refuses, naming each one, the paths that lie outside the root.
+export function assertInsideJobRoot(entries, root, where) {
+  const outside = entries.filter(([, p]) => typeof p !== "string" || !isInsideJobRoot(p, root));
+  if (outside.length) throw new Error(`Review job paths must lie under ${root} (${where}): ${outside.map(([label, p]) => `${label} ${p}`).join("; ")}`);
 }

@@ -69,6 +69,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkoutStateFiles } from "../drive-web-editor/session-dir.mjs";
+import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 
 // Windows paths compare without case, and git prints them with forward slashes.
 const norm = (p) => {
@@ -701,7 +702,7 @@ async function removeWorktree(entry, ctx, deps) {
 // scripts/review-job-root.mjs). A pr-<P> directory is the unit of removal. A
 // test-* directory is a standalone check's scratch folder, which needs a
 // location outside TEMP for the same reason review jobs do.
-export const jobRootOf = (mainRoot) => path.join(path.dirname(mainRoot), `${path.basename(mainRoot)}.review-jobs`);
+export { jobRootOf };
 
 // Every *.jsonl file under a job directory, never entering a link, a probe
 // checkout's node_modules or a .git directory, with the directories that

@@ -11,7 +11,7 @@ import {syncBuiltinESMExports} from 'node:module';
 import {pathToFileURL,fileURLToPath} from 'node:url';
 import net from 'node:net';
 import {randomUUID} from 'node:crypto';
-import {validateReviewPlan,createReviewJob,advanceReviewJob,claimReviewJob,cancelReviewJob,jobStatus} from './review-supervisor.mjs';
+import {validateReviewPlan as actualValidate,createReviewJob,advanceReviewJob,claimReviewJob,cancelReviewJob,jobStatus} from './review-supervisor.mjs';
 import {verifyNativeReviewResult,runHandoff} from './agent-handoff.mjs';
 import {processIdentity} from './reviewer-slots.mjs';
 import {appendEvent,withJob,readEvents,readJson,worktreePaths} from './review-job-store.mjs';
@@ -23,15 +23,14 @@ import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment} from '
 import {claudeClaimArgv,renderClaudeClaimCommand} from './claude-claim-proof.mjs';
 import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
 import {removeScratch} from './remove-scratch.mjs';
-import {reviewJobRoot} from './review-job-root.mjs';
+import {testScratch} from './review-job-root.mjs';
 
-// Codex needs its job directory outside TEMP, so the scratch folder lives under
-// the review job root. Its owner row names this process, which lets
-// clean-worktrees remove a folder that a killed run left behind once the
-// process is gone.
-const jobRoot=reviewJobRoot(path.dirname(fileURLToPath(import.meta.url)));fs.mkdirSync(jobRoot,{recursive:true});
-const scratch=fs.mkdtempSync(path.join(jobRoot,'test-cross-provider-'));
-fs.writeFileSync(path.join(scratch,'owner.jsonl'),JSON.stringify({event:'test-owner',pid:process.pid})+'\n');
+// Codex needs its job directory outside TEMP, and supervised job directories
+// must lie under the review job root, so the scratch folder lives there.
+const scratch=testScratch('cross-provider',path.dirname(fileURLToPath(import.meta.url)));
+// The fixture repository sits inside scratch, so its own default job root is
+// scratch/repo.review-jobs; the fixtures hold their job paths to scratch.
+const validateReviewPlan=input=>actualValidate(input,{jobRoot:scratch});
 let receivedServer;
 console.log(`Scratch repository: ${scratch}`);
 try {
@@ -343,7 +342,7 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
       throw new Error('Acknowledgment lost');
     }});
     const original=fs.readFileSync(receipts,'utf8');
-    await createReviewJob(input,host,{verifyExecutable:()=>{}});
+    await createReviewJob(input,host,{verifyExecutable:()=>{},jobRoot:scratch});
     const saved=readJson(path.join(input.jobDir,'plan.json'));
     const complete=()=>{
       withJob(input.jobDir,()=>{appendEvent(input.jobDir,'worker-launch-intent');appendEvent(input.jobDir,'worker-started',{identity});appendEvent(input.jobDir,'worker-finished',{ok:true});});

@@ -44,7 +44,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, removeJobDir, liveDeps } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, classifyJob, removeJobDir, liveDeps } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -1163,9 +1163,10 @@ const source = fs.readFileSync(SCRIPT, "utf8");
 const controls = fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-controls-"));
 const control = async (label, cuts, names) => {
   await check(`control: ${label}`, async () => {
-    // The copy runs from another directory, so its one relative import is
-    // pointed at the module beside this check.
+    // The copy runs from another directory, so its relative imports are
+    // pointed at the modules they name from beside this check.
     let text = source.replace('"../drive-web-editor/session-dir.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "drive-web-editor", "session-dir.mjs")).href));
+    text = text.replace('"../../../scripts/review-job-root.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "review-job-root.mjs")).href));
     for (const [needle, replacement] of cuts) {
       assert.ok(text.includes(needle), `the fixture was not built: the script no longer contains ${JSON.stringify(needle)}`);
       text = text.replace(needle, () => replacement);
@@ -1530,6 +1531,40 @@ try {
     ]);
     assert.ok(branches().includes("main"), "the local main is gone");
   });
+
+  await check("as a command, the dry run lists job directories and --apply removes only the removable one, leaving a junction's target intact", () => {
+    const jobs = path.join(scratch, "impower.review-jobs");
+    const outside = path.join(scratch, "junction-target");
+    fs.mkdirSync(path.join(outside, "node_modules"), { recursive: true });
+    fs.writeFileSync(path.join(outside, "node_modules", "kept.js"), "kept");
+    // A pid that has certainly exited: the process ran to completion here.
+    const dead = spawnSync(process.execPath, ["-e", ""], { windowsHide: true }).pid;
+    const deadJob = path.join(jobs, "test-dead");
+    fs.mkdirSync(path.join(deadJob, "probe"), { recursive: true });
+    fs.writeFileSync(path.join(deadJob, "owner.jsonl"), JSON.stringify({ event: "test-owner", pid: dead }) + "\n");
+    fs.symlinkSync(path.join(outside, "node_modules"), path.join(deadJob, "probe", "node_modules"), "junction");
+    const liveJob = path.join(jobs, "test-live");
+    fs.mkdirSync(liveJob, { recursive: true });
+    fs.writeFileSync(path.join(liveJob, "owner.jsonl"), JSON.stringify({ event: "test-owner", pid: process.pid }) + "\n");
+    // The scratch origin is not on GitHub, so gh cannot say whether #5 is closed.
+    fs.mkdirSync(path.join(jobs, "pr-5", "round-1"), { recursive: true });
+    const dry = cli(mainRoot);
+    assert.equal(dry.status, 0, dry.out);
+    assert.match(dry.out, new RegExp(`review job directories under ${jobs.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`));
+    assert.match(dry.out, /^remove\s+test-dead\s+a test's scratch directory/m);
+    assert.match(dry.out, new RegExp(`^keep\\s+test-live\\s+its journal records 1 process still running \\(pid ${process.pid}\\)`, "m"));
+    assert.match(dry.out, /^keep\s+pr-5\s+the state of #5 could not be read/m);
+    assert.ok(fs.existsSync(deadJob), "the dry run removed a job directory");
+    // Earlier cases leave worktrees whose own rows may fail on this platform,
+    // so the exit code is not this case's to judge; its rows are.
+    const applied = cli(mainRoot, "--apply", "--root", mainRoot);
+    assert.match(applied.out, /^removed\s+test-dead\s+.*1 link unlinked first, targets untouched/m);
+    assert.match(applied.out, /^kept\s+test-live/m);
+    assert.match(applied.out, /^kept\s+pr-5/m);
+    assert.ok(!fs.existsSync(deadJob), "--apply left the removable job directory");
+    assert.ok(fs.existsSync(liveJob) && fs.existsSync(path.join(jobs, "pr-5")), "--apply removed a retained job directory");
+    assert.equal(fs.readFileSync(path.join(outside, "node_modules", "kept.js"), "utf8"), "kept", "removing the job directory deleted the junction's target");
+  });
 } finally {
   for (const h of holders) await stopHolder(h);
   fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
@@ -1606,6 +1641,21 @@ await check("journalPids reads every recorded pid and refuses a line that is not
       assert.deepEqual([...new Set(ghCalls)].sort(), ["10", "11", "12", "13", "14"], "only pr-<N> directories are looked up on GitHub");
       for (const name of ["pr-10", "pr-11", "pr-12", "pr-13", "pr-14", "notes", "test-cross-provider-dead", "test-cross-provider-live", "test-cross-provider-bare"]) assert.ok(fs.existsSync(path.join(root, name)), `the dry run removed ${name}`);
       assert.equal(recorded.length, 0, "the dry run recorded a row");
+    });
+
+    await check("a job directory named on a running command line, or with no process listing, is kept; a number that is not a PR is looked up as an issue", () => {
+      const dir = path.join(root, "pr-10");
+      const named = classifyJob("pr-10", dir, deps, { mainRoot, processes: { ok: true, list: [{ pid: 777, name: "node.exe", cmd: `node probe.mjs "${path.join(dir, "round-1")}"` }] } });
+      assert.equal(named.remove, false);
+      assert.match(named.reason, /its path is on the command line of pid 777 \(node\.exe\)/);
+      const unlisted = classifyJob("pr-10", dir, deps, { mainRoot, processes: { ok: false, err: "fixture" } });
+      assert.match(unlisted.reason, /the processes on this machine could not be listed/);
+      const issueDeps = { ...deps, exec: (cmd, args) => (args[0] === "issue" ? { status: 0, out: "CLOSED", err: "" } : { status: 1, out: "", err: "no pull requests found" }) };
+      const issue = classifyJob("pr-10", dir, issueDeps, ctx);
+      assert.equal(issue.remove, true, issue.reason);
+      assert.match(issue.reason, /^issue #10 is closed/);
+      const openIssue = classifyJob("pr-10", dir, { ...issueDeps, exec: (cmd, args) => (args[0] === "issue" ? { status: 0, out: "OPEN", err: "" } : { status: 1, out: "", err: "x" }) }, ctx);
+      assert.match(openIssue.reason, /^issue #10 is open/);
     });
 
     await check("the job apply run removes only the removable directories, and a junction's target survives", () => {

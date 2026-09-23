@@ -14,7 +14,7 @@ import { removeScratch } from './remove-scratch.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
 import { codexContinuationHost,continuationPrompt,verifyOriginConfiguration,verifyHostCatalog } from './continuation-host.mjs';
 const claimReviewJob=(dir,id,options)=>actualClaim(dir,id,{verifyConfiguration:()=>({turnId:'fixture-turn'}),...options});
-const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args})};
+const fixtureValidation={validateArgs:review=>validateNativeReviewArgs({...review,args:review.executable===process.execPath?review.args.slice(1):review.args}),get jobRoot(){return scratch;}};
 const createReviewJob=(input,host)=>actualCreate(input,host,fixtureValidation);
 const validateReviewPlan=input=>actualValidate(input,fixtureValidation);
 const seededEnvironment=async run=>{
@@ -38,6 +38,22 @@ try {
   await assert.rejects(runHandoff(file),/Automatic continuation requires review-supervisor/,'automatic mode must refuse before an unverified destination can launch work');
   assert.equal(fs.existsSync(plan.journal),false);
   console.log('PASS: automatic mode cannot silently run as awaited mode');
+  {
+    // Without the test seam the root is <main checkout>.review-jobs, here the
+    // fixture repository's; a job directory outside it is refused before the
+    // job's files or the worktree freeze exist.
+    const outsideDir=path.join(scratch,'outside-job');
+    const input={worktree:repo,jobDir:outsideDir,head,base:head,pr:547,writer:'writer',writerEffort:'medium',permissions:{mode:'fixture'},reviewer:'reviewer',round:1,completedReviewRound:0,destination:{threadId:'origin',turnId:'old-turn',cwd:repo},reviews:[{id:'correctness',transport:'native-claude-json',executable:process.execPath,args:[child,'--model','reviewer','--effort','high','--permission-mode','dontAsk','--output-format','json'],effort:'high',permissions:'dontAsk',prompt}]};
+    const host={preflight:async()=>({supported:true})};
+    const unseamed={validateArgs:fixtureValidation.validateArgs};
+    await assert.rejects(actualCreate(input,host,unseamed),error=>error.message.includes(`under ${path.join(fs.realpathSync.native(scratch),'repo.review-jobs')} `)&&/jobDir .*outside-job/.test(error.message)&&/review correctness prompt/.test(error.message));
+    assert.equal(fs.existsSync(outsideDir),false,'a refused job directory must not be created');
+    assert.equal(fs.existsSync(worktreePaths(repo).freeze),false,'a refused plan must not take the worktree freeze');
+    const inside=path.join(fs.realpathSync.native(scratch),'repo.review-jobs','pr-547','round-1');fs.mkdirSync(inside,{recursive:true});
+    const insidePrompt=path.join(inside,'prompt.txt');fs.writeFileSync(insidePrompt,'fixture');
+    assert.doesNotThrow(()=>actualValidate({...input,jobDir:path.join(inside,'job'),reviews:[{...input.reviews[0],prompt:insidePrompt}]},unseamed),'a plan inside the default root is accepted');
+    console.log('PASS: the supervised route refuses a job directory or prompt outside the default job root before writing anything');
+  }
   let index=0;
   const identify=()=>null;
   const fixture=async(extra={})=>{

@@ -7,7 +7,7 @@ import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer } from "./reviewer-defaults.mjs";
-import { reviewJobRoot, isInsideJobRoot } from "./review-job-root.mjs";
+import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -114,8 +114,10 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   const relative = path.relative(cwd, journal);
   if (!relative.startsWith(".." + path.sep) && !path.isAbsolute(relative)) throw new Error("Journal must be outside the worktree");
   const root = jobRoot ?? reviewJobRoot(cwd);
-  const outside = [["plan file", configFile], ["journal", journal], ...Object.entries(config.steps).map(([name, step]) => [`step ${name} prompt`, step?.prompt])].filter(([, p]) => typeof p !== "string" || !isInsideJobRoot(p, root));
-  if (outside.length) throw new Error(`Review job paths must lie under ${root} (in pr-${config.pr}${path.sep}round-<R>):${outside.map(([label, p]) => `${label} ${p}`).join("; ")}`);
+  // A Codex reviewer's private directory is declared in its permissions; a
+  // Claude reviewer's directory exists only inside its built prompt, which
+  // scripts/build-review-prompt.mjs checks when it fills REVDIR and DIFF.
+  assertInsideJobRoot([["plan file", configFile], ["journal", journal], ...Object.entries(config.steps).flatMap(([name, step]) => [[`step ${name} prompt`, step?.prompt], ...(step?.permissions?.cwd !== undefined ? [[`step ${name} reviewer directory`, step.permissions.cwd]] : [])])], root, `in pr-${config.pr}${path.sep}round-<R>`);
   const selection = resolveReviewer(config, cwd);
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
