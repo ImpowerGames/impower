@@ -197,7 +197,7 @@ for (const [label, command] of allows) {
 // The reasons name what to run instead and where the wider result comes from.
 {
   const test = decide("cd packages/sparkdown && npx vitest run", "bash", tree);
-  check(/npx vitest run src\/tests\/\S+\.test\.ts/.test(test), "the test reason names the single-file command", JSON.stringify(test));
+  check(/scripts\/test-suite\.mjs run packages\/\S+ src\/tests\/\S+\.test\.ts --wait \d+/.test(test), "the test reason names the single-file command", JSON.stringify(test));
   check(/references\/vitest\.md/.test(test), "the test reason names the reference it comes from", JSON.stringify(test));
   check(/Test Suite workflow/.test(test), "the test reason names the Test Suite workflow", JSON.stringify(test));
   check(/scripts\/test-suite\.mjs/.test(test), "the test reason names the suite runner", JSON.stringify(test));
