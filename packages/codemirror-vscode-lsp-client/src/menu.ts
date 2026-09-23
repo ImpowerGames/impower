@@ -265,8 +265,18 @@ function visibleSelectionRect(
 ): MenuRect | null {
   const scroller = view.scrollDOM.getBoundingClientRect();
   const content = view.contentDOM.getBoundingClientRect();
-  const start = view.coordsAtPos(from, 1);
-  const end = view.coordsAtPos(to, -1);
+  let start: ReturnType<EditorView["coordsAtPos"]>;
+  let end: ReturnType<EditorView["coordsAtPos"]>;
+  if (from === to) {
+    // A caret is measured once, on the side CodeMirror draws it: at a soft
+    // wrap its two sides are on different visual lines.
+    const main = view.state.selection.main;
+    const side = main.empty && main.head === from ? main.assoc || 1 : 1;
+    start = end = view.coordsAtPos(from, side);
+  } else {
+    start = view.coordsAtPos(from, 1);
+    end = view.coordsAtPos(to, -1);
+  }
   // A position outside the rendered viewport has no coordinates; it lies
   // beyond the scroller's top or bottom edge.
   const top = start
@@ -284,10 +294,21 @@ function visibleSelectionRect(
   if (visibleTop >= visibleBottom) {
     return null;
   }
-  const oneLine = start && end && Math.abs(start.top - end.top) < 1;
-  const left = oneLine ? start.left : Math.max(content.left, scroller.left);
-  const right = oneLine ? end.right : scroller.right;
-  return { left, top: visibleTop, right, bottom: visibleBottom };
+  if (start && end && Math.abs(start.top - end.top) < 1) {
+    return {
+      left: start.left,
+      top: visibleTop,
+      right: end.right,
+      bottom: visibleBottom,
+    };
+  }
+  // A selection over several lines spans the text's full width.
+  return {
+    left: Math.max(content.left, scroller.left),
+    top: visibleTop,
+    right: scroller.right,
+    bottom: visibleBottom,
+  };
 }
 
 const openContextMenu = StateEffect.define<ContextMenuSpec>();
@@ -434,8 +455,12 @@ function createContextMenuTooltip(spec: ContextMenuSpec): Tooltip {
             view.dispatch({ effects: closeContextMenu.of() });
             item.command(view);
             if (!isDesktop && item.keepsMenuOpen) {
+              // The selection the item made is shown with the menu, so it
+              // gets the selection handles a touch selection has.
               const selection = view.state.selection.main;
               view.dispatch({
+                selection: view.state.selection,
+                userEvent: "select.touch",
                 effects: openContextMenu.of({
                   pos: selection.from,
                   end: selection.to,

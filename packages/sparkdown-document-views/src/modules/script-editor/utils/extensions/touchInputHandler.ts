@@ -120,8 +120,10 @@ const selectAtPoint = (view: EditorView, pos: number, x: number, y: number) => {
   return selection;
 };
 
+// A scroll brings back only the menu it hid.
 const finishScroll = (view: EditorView) => {
   if (wasShowingContextMenuBeforeScroll) {
+    wasShowingContextMenuBeforeScroll = false;
     const selection = view.state.selection.main;
     const config = view.state.facet(touchInputHandlerConfig);
     config.showContextMenu?.(view, {
@@ -219,8 +221,9 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
     cursorHandle: HTMLElement;
     view: EditorView;
     isSelecting = false;
-    // Whether the current selection shows handles. A selection made by touch,
-    // or one shown with the menu, does; one made any other way does not.
+    // Whether the current selection shows handles. A selection made by touch
+    // (a `select.touch` user event, which the touch menu's items also use)
+    // does; one made any other way does not.
     // Scrolling keeps the choice, so a handle that scrolled out of view comes
     // back with its text.
     showsHandles = false;
@@ -415,13 +418,9 @@ const selectionHandlePlugin = ViewPlugin.fromClass(
             return null;
           }
 
-          // A menu item such as Select All changes the selection and reopens
-          // the menu for it, which counts as a touch selection.
-          const config = view.state.facet(touchInputHandlerConfig);
           const isTouchSelection =
             update?.selectionSet &&
-            (update.transactions.some((tr) => tr.isUserEvent("select.touch")) ||
-              (config.isContextMenuOpen?.(view) ?? false));
+            update.transactions.some((tr) => tr.isUserEvent("select.touch"));
 
           const isProgrammaticSelection =
             update?.selectionSet && !isTouchSelection;
@@ -805,6 +804,9 @@ const touchEventsPlugin = ViewPlugin.fromClass(
       this.isTouching = event.touches.length > 0;
       clearTimeout(longPressTimer);
       stopMomentum(this.view);
+      if (isScrolling) {
+        finishScroll(this.view);
+      }
       isScrolling = false;
       isLongPressing = false;
       isDragging = false;
@@ -816,6 +818,7 @@ const touchEventsPlugin = ViewPlugin.fromClass(
 
     destroy() {
       this.unbind();
+      lastTap = null;
     }
   },
 );

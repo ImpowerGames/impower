@@ -23,6 +23,7 @@ const CHAR_WIDTH = 8;
 const TEXT_LEFT = 41;
 const WINDOW_HEIGHT = 693;
 const KEYBOARD_OPEN_HEIGHT = 383;
+const MAX_SCROLL_TOP = 500;
 
 // The rendered sizes of the two menu shapes.
 const BAR = { width: 324, height: 41 };
@@ -132,6 +133,15 @@ function mount(doc: string, selection?: EditorSelection) {
     ],
   });
   const v = view;
+  // A scroller stops at its ends, which is what ends a fling's momentum.
+  let scrollTop = 0;
+  Object.defineProperty(v.scrollDOM, "scrollTop", {
+    get: () => scrollTop,
+    set: (value: number) => {
+      scrollTop = Math.max(0, Math.min(value, MAX_SCROLL_TOP));
+    },
+    configurable: true,
+  });
   v.scrollDOM.getBoundingClientRect = () =>
     rect(
       scroller.left,
@@ -192,6 +202,15 @@ function longPress(v: EditorView, point: { x: number; y: number }) {
   touch(v.scrollDOM, "touchstart", point);
   vi.advanceTimersByTime(600);
   touch(v.scrollDOM, "touchend", point);
+}
+
+/** A vertical drag in the editor from client y `fromY` to `toY`. */
+function swipe(v: EditorView, fromY: number, toY: number) {
+  const x = 200;
+  touch(v.scrollDOM, "touchstart", { x, y: fromY });
+  touch(v.scrollDOM, "touchmove", { x, y: (fromY + toY) / 2 });
+  touch(v.scrollDOM, "touchmove", { x, y: toY });
+  touch(v.scrollDOM, "touchend", { x, y: toY });
 }
 
 function menu() {
@@ -289,6 +308,25 @@ describe("menu placement", () => {
     expect((box.left + box.right) / 2).toBeCloseTo(centre, 0);
   });
 
+  it("sits beside a caret at a soft wrap, on the line where the caret is drawn", () => {
+    const v = mount(DOC, EditorSelection.single(30));
+    // Position 30 ends one visual line and starts the next, as at a soft
+    // wrap: its side before is on line 3, its side after on line 4.
+    const layout = v.coordsAtPos.bind(v);
+    v.coordsAtPos = (pos: number, side = 1) => {
+      if (pos !== 30) return layout(pos, side);
+      const wrap = layout(pos, side)!;
+      return side < 0
+        ? wrap
+        : { ...wrap, top: wrap.bottom, bottom: wrap.bottom + LINE_HEIGHT };
+    };
+    showContextMenu(v, { pos: 30, end: 30 });
+    const caret = v.coordsAtPos(30, 1)!;
+    const box = menuBox();
+    expect(box.bottom).toBeLessThanOrEqual(caret.top);
+    expect(box.bottom).toBeGreaterThanOrEqual(caret.top - 16);
+  });
+
   it("is pinned to the top of the viewport while the selection is scrolled out of view", () => {
     const v = mount(DOC);
     selectWord(v, 3, "world");
@@ -322,13 +360,14 @@ describe("menu items", () => {
     expect(press.defaultPrevented).toBe(true);
   });
 
-  it("Copy leaves a caret at the end of the copied text", async () => {
+  it("Copy leaves a caret, with its handle, at the end of the copied text", async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
       configurable: true,
     });
     const v = mount(DOC);
+    v.focus();
     const { to } = selectWord(v, 3, "world");
     menuItem("Copy").click();
     await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("world"));
@@ -336,15 +375,39 @@ describe("menu items", () => {
       expect(v.state.selection.main.empty).toBe(true);
       expect(v.state.selection.main.head).toBe(to);
     });
+    expect(handleShown("cursor")).toBe(true);
   });
 
-  it("Select All selects everything and leaves the menu open", () => {
+  it("Copy leaves alone a selection made while the clipboard write was pending", async () => {
+    let finishWrite = () => {};
+    const writeText = vi.fn(
+      () => new Promise<void>((resolve) => (finishWrite = resolve)),
+    );
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
     const v = mount(DOC);
+    selectWord(v, 3, "world");
+    menuItem("Copy").click();
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("world"));
+    const later = selectWord(v, 7, "hello");
+    finishWrite();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(v.state.selection.main.from).toBe(later.from);
+    expect(v.state.selection.main.to).toBe(later.to);
+  });
+
+  it("Select All selects everything, leaves the menu open and shows the handles", () => {
+    const v = mount(DOC);
+    v.focus();
     selectWord(v, 3, "world");
     menuItem("Select All").click();
     expect(v.state.selection.main.from).toBe(0);
     expect(v.state.selection.main.to).toBe(v.state.doc.length);
     expect(isContextMenuOpen(v)).toBe(true);
+    // The document's start is in view; its end is scrolled far below.
+    expect(handleShown("start")).toBe(true);
   });
 
   it("leave out Cut and Copy when nothing is selected", () => {
@@ -407,6 +470,7 @@ describe("touch gestures", () => {
     expect(v.state.selection.main.empty).toBe(true);
     expect(v.state.selection.main.head).toBe(line.to);
     expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(handleShown("cursor")).toBe(true);
   });
 
   it("a long-press on an empty line opens the insertion menu", () => {
@@ -416,6 +480,7 @@ describe("touch gestures", () => {
     longPress(v, { x: start.left + 40, y: (start.top + start.bottom) / 2 });
     expect(v.state.selection.main.empty).toBe(true);
     expect(menuLabels()).toEqual(["Paste", "Select All", "⋮"]);
+    expect(handleShown("cursor")).toBe(true);
   });
 
   it("a double tap on a word, with the editor focused, selects it and opens the menu", () => {
@@ -441,9 +506,9 @@ describe("touch gestures", () => {
 
   it("a tap on the caret handle opens the insertion menu, and a second tap closes it", () => {
     const v = mount(DOC);
-    // Far from the previous test's taps, so this is a single tap.
-    tap(v, pointAt(v, 10, "Line"));
+    tap(v, pointAt(v, 3, "world"));
     expect(v.state.selection.main.empty).toBe(true);
+    expect(handleShown("cursor")).toBe(true);
     const handle = v.dom.querySelector(".cm-touch-selection-handle-cursor")!;
     const point = { x: 0, y: 0 };
     touch(handle, "touchstart", point);
@@ -452,6 +517,24 @@ describe("touch gestures", () => {
     touch(handle, "touchstart", point);
     touch(handle, "touchend", point);
     expect(isContextMenuOpen(v)).toBe(false);
+  });
+
+  it("a scroll brings back only the menu it hid", async () => {
+    const v = mount(DOC);
+    v.focus();
+    longPress(v, pointAt(v, 3, "world"));
+    expect(isContextMenuOpen(v)).toBe(true);
+
+    swipe(v, 240, 140);
+    await vi.waitFor(() => expect(isContextMenuOpen(v)).toBe(true));
+
+    hideContextMenu(v);
+    swipe(v, 240, 140);
+    // Watch every frame until any momentum has run out.
+    for (let frame = 0; frame < 120; frame++) {
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      expect(isContextMenuOpen(v)).toBe(false);
+    }
   });
 
   it("the selection handles come back when the selection scrolls back into view", () => {

@@ -51,8 +51,9 @@ export async function cut(view: EditorView) {
 }
 
 export async function copy(view: EditorView) {
+  const selection = view.state.selection;
   // Get text from all active cursor selections (multicursor support)
-  const texts = view.state.selection.ranges
+  const texts = selection.ranges
     .filter((r) => !r.empty)
     .map((r) => view.state.sliceDoc(r.from, r.to));
 
@@ -60,16 +61,16 @@ export async function copy(view: EditorView) {
     try {
       // Modern clipboard API writes
       await navigator.clipboard.writeText(texts.join("\n"));
-      if (isMobile()) {
-        // Android's selection toolbar leaves a caret at the end of what it
-        // copied.
-        const selection = view.state.selection;
+      // Android's selection toolbar leaves a caret, with its handle, at the
+      // end of what it copied. A selection the user changed while the write
+      // was pending is theirs and stays.
+      if (isMobile() && view.state.selection.eq(selection)) {
         view.dispatch({
           selection: EditorSelection.create(
             selection.ranges.map((r) => EditorSelection.cursor(r.to)),
             selection.mainIndex,
           ),
-          userEvent: "select",
+          userEvent: "select.touch",
         });
       }
     } catch (err) {
