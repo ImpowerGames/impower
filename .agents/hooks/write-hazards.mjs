@@ -21,9 +21,11 @@
 // Windows PowerShell 5.1 drops the double quotes embedded in an argument it
 // passes to a native program, however the string was quoted. A gh --jq filter
 // holding a double quote therefore reaches jq damaged, and the error reads
-// like a jq syntax mistake. Such a filter is refused in a PowerShell reading.
+// like a jq syntax mistake. Such a filter is refused only when the runner names
+// the shell as PowerShell: a runner whose one shell tool may be bash has no
+// other route to offer, and bash passes the quotes intact.
 
-import { readCommand } from "./typed-issue-hook.mjs";
+import { baseName, readCommand } from "./typed-issue-hook.mjs";
 
 const CONTROL_BYTE = /[\x00-\x08\x0B\x0C\x0E-\x1F]/;
 
@@ -155,11 +157,13 @@ export function jqQuoteReason(command) {
     const reason = jqQuoteReason(sub);
     if (reason) return reason;
   }
-  for (const { tokens } of segments) {
-    if (!/^gh(?:\.exe)?$/i.test(tokens[0]?.text ?? "")) continue;
-    for (let i = 1; i < tokens.length; i++) {
+  for (const { tokens, positions } of segments) {
+    const start = tokens.findIndex((t, i) => positions.has(i) && baseName(t) === "gh");
+    if (start < 0) continue;
+    for (let i = start + 1; i < tokens.length; i++) {
       const { text } = tokens[i];
-      const filter = /^(?:--jq|-q)$/.test(text) ? tokens[i + 1]?.text : /^(?:--jq|-q)=/.test(text) ? text : null;
+      // gh takes the filter as the next word, after --jq=, or attached to -q.
+      const filter = /^(?:--jq|-q)$/.test(text) ? tokens[i + 1]?.text : /^--jq=|^-q./.test(text) ? text : null;
       if (!filter?.includes('"')) continue;
       return (
         "This command passes gh a --jq filter that contains a double quote. Windows PowerShell 5.1 drops embedded double quotes from native arguments, " +

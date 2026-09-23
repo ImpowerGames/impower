@@ -67,8 +67,8 @@ const checks = [
   [event("apply_patch", { command: "*** Begin Patch\n*** Delete File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), true],
   [event("apply_patch", { command: "*** Begin Patch\n*** Add File: docs/example.txt\n+*** Update File: packages/sparkdown/language/sparkdown.language-grammar.json\n*** End Patch" }), false],
   ...writeHazards,
-  [event("Bash", { command: `gh pr checks 1 --jq '.[] | select(.name == "test-suite")'` }), true],
-  [event("Bash", { command: `gh pr checks 1 --jq '.[] | .name'` }), false],
+  // Codex's shell tool may be bash, where the quotes survive and no other tool exists (PR #803 round 1).
+  [event("Bash", { command: `gh pr checks 1 --jq '.[] | select(.name == "test-suite")'` }), false],
 ];
 const config = JSON.parse(fs.readFileSync(path.join(root, ".codex/hooks.json"), "utf8"));
 const group = config.hooks.PreToolUse[0], hook = group.hooks[0];
@@ -124,6 +124,10 @@ for (const [command, blocked] of [
   [listing, true],
   [`gh run list -q '.[] | select(.name | test("ubuntu"))'`, true],
   ['gh pr view 1 --jq=".title + `"x`""', true],
+  // Review round 1 (PR #803): an attached -q value, and gh after an assignment or a wrapper.
+  [`gh api rate_limit -q'.rate.limit | tostring == "5000"'`, true],
+  [`$out = gh api x --jq '.a == "b"'`, true],
+  [`env gh api x --jq '.a == "b"'`, true],
   [`gh pr checks 1 --jq '.[] | .name'`, false],
   [`git log -q --format='"%s"'`, false],
   [`Write-Output "gh --jq '.a + x'"`, false],

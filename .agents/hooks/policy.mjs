@@ -12,6 +12,6 @@ export const generatedReason = "This file is generated from a YAML source under 
 // Undefined shell means both supported shell readings must allow the command.
 export function decide(request) {
   if (request.kind === "edit") return request.paths.some(generatedFile) ? generatedReason : controlByteReason(request.contents ?? []);
-  if (request.kind === "shell") return typedIssue(request.command, request.shell) ?? sharedStash(request.command, request.shell) ?? localTest(request.command, request.shell, request.cwd) ?? (request.shell === "bash" ? null : dotNetRelativePathReason(request.command) ?? jqQuoteReason(request.command));
+  if (request.kind === "shell") return typedIssue(request.command, request.shell) ?? sharedStash(request.command, request.shell) ?? localTest(request.command, request.shell, request.cwd) ?? (request.shell === "bash" ? null : dotNetRelativePathReason(request.command) ?? (request.shell === "powershell" ? jqQuoteReason(request.command) : null));
   return null;
 }
