@@ -24,6 +24,19 @@ export async function verifyReviewComment(id, pr, head, cwd, { readComment = rea
   throw new Error(notBefore===undefined?"Comment does not verify this PR and head":`Comment does not verify this PR/head and current reviewer launch time ${notBefore}`);
 }
 
+const listPrComments = (pr, since, cwd) => JSON.parse(execFileSync("gh", ["api", "--paginate", "--slurp", `repos/ImpowerGames/impower/issues/${pr}/comments?per_page=100&since=${encodeURIComponent(since)}`], { cwd, encoding: "utf8", windowsHide: true, maxBuffer: 64 * 1024 * 1024 })).flat();
+
+// A review that exited cleanly without its completion artifact is covered by the one report it posted for the reviewed head since launch.
+export function deriveMissingCompletion(step, pr, head, notBefore, cwd, excluded, { listComments = listPrComments } = {}) {
+  if (step.role !== "review") return null;
+  if (step.next.length !== 1) throw new Error(`Completion artifact missing and the review declares ${step.next.length} transitions; confirm coverage from the PR comments`);
+  const floor = Math.floor(Date.parse(notBefore) / 1000) * 1000;
+  const reports = listComments(pr, notBefore, cwd).filter((comment) => Number.isSafeInteger(comment.id) && !excluded.has(comment.id) && typeof comment.body === "string" && comment.body.includes(head) && Date.parse(comment.created_at) >= floor);
+  if (!reports.length) return null;
+  if (reports.length > 1) throw new Error(`Completion artifact missing and ${reports.length} reports name head ${head} since launch (${reports.map((comment) => comment.id).join(", ")}); confirm which one this reviewer posted`);
+  return { head, next: step.next[0], commentIds: [reports[0].id], summary: `Derived from posted report ${reports[0].id}; the reviewer wrote no completion artifact` };
+}
+
 export function checkReviewRound(round, completedRound, finalCorrections, reviewRoundLimit = 3) {
   if (!Number.isInteger(round) || round < 1 || round > reviewRoundLimit || round < completedRound) throw new Error(`Review round must be 1..${reviewRoundLimit} and preserve the completed round count`);
   if (round > completedRound + 1) throw new Error("Review round cannot skip ahead of the recorded count");
@@ -105,7 +118,7 @@ export function validateSlotWait(value) {
 
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
-export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot } = {}) {
+export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments } = {}) {
   const config = read(configFile);
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   validatePlanShape(config);
@@ -269,7 +282,14 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if(step.nativeResult)verifyNativeReviewResult(output,step.nativeResult);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
-      const done = read(completion);
+      let done;
+      try { done = read(completion); }
+      catch (error) {
+        if (error.code !== "ENOENT") throw error;
+        done = deriveMissingCompletion(step, config.pr, head, reportNotBefore, cwd, usedReports, { listComments });
+        if (!done) { error.message += `; no report naming head ${head} was posted since launch`; throw error; }
+        append({ event: "completion-artifact-missing", index, step: current, completion, commentIds: done.commentIds });
+      }
       if (done.head !== gitHead(cwd) || typeof done.summary !== "string" || !done.summary.trim() || !Array.isArray(done.commentIds) || !done.commentIds.every(Number.isSafeInteger)) throw new Error("Invalid or stale completion artifact");
       if (!(step.next.includes(done.next))) throw new Error("Undeclared transition");
       if (step.role !== "implement" && !done.commentIds.length) throw new Error("Review/adjudication needs posted comment IDs");

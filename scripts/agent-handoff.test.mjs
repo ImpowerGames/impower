@@ -461,9 +461,27 @@ config.steps.first.args=["-e","process.exit(0)","--","--model","reviewer-test"];
 config.journal=path.join(scratch,"fast-exit.jsonl");write();
 await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"fast-slots"),identifyProcess:(pid)=>{
   const end=Date.now()+10000;while(processIdentity(pid)!==null){if(Date.now()>end)throw new Error("fast child did not exit");Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}return null;
-}}),/ENOENT/);
+},listComments:()=>[]}),/ENOENT.*no report naming head/);
 assert.match(fs.readFileSync(config.journal,"utf8"),/confirmed-absent/);
 assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
+{
+  const reviewedHead=execFileSync("git",["rev-parse","HEAD"],{cwd:config.worktree,encoding:"utf8",windowsHide:true}).trim();
+  const report=(id,body=`review of ${reviewedHead}`,created_at=new Date(Date.now()+60000).toISOString())=>({id,body,created_at,issue_url:`https://api.github.com/repos/ImpowerGames/impower/issues/${config.pr}`});
+  const realExec=childProcess.execFileSync;
+  try {
+    childProcess.execFileSync=(exe,args,options)=>exe==="gh"?JSON.stringify(report(Number(/comments\/(\d+)/.exec(args[1])[1]))):realExec(exe,args,options);
+    syncBuiltinESMExports();
+    config.journal=path.join(scratch,"missing-artifact.jsonl");write();
+    await handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"missing-slots"),listComments:()=>[report(41,"older report","2000-01-01T00:00:00Z"),report(42,"another head"),report(43)]});
+    const rows=fs.readFileSync(config.journal,"utf8").trim().split("\n").map(JSON.parse);
+    assert.deepEqual(rows.find(row=>row.event==="completion-artifact-missing").commentIds,[43],"a clean exit without an artifact records the report posted for the head");
+    assert.deepEqual(rows.find(row=>row.event==="completed").commentIds,[43]);
+    assert.equal(rows.at(-1).event,"finished");
+    config.journal=path.join(scratch,"ambiguous-artifact.jsonl");write();
+    await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"ambiguous-slots"),listComments:()=>[report(43),report(44)]}),/2 reports name head .*43, 44/);
+  } finally {childProcess.execFileSync=realExec;syncBuiltinESMExports();}
+}
+console.log("PASS: a cleanly exited review without its completion artifact completes from its one posted report");
 config.steps.first.args=["-e","setTimeout(()=>process.exit(2),60000).unref();process.stdin.resume()","--","--model","reviewer-test"];
 config.journal=path.join(scratch,"journal-failure.jsonl");write();
 let ownedPid;
