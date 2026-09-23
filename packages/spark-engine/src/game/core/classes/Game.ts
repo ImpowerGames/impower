@@ -336,11 +336,6 @@ export class Game<T extends M = {}> {
     return this._state;
   }
 
-  protected _debugging = false;
-  get debugging() {
-    return this._debugging;
-  }
-
   protected _program: SparkProgram;
   get program() {
     return this._program;

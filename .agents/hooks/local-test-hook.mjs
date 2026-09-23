@@ -37,11 +37,10 @@ import { pathToFileURL } from "node:url";
 import { baseName, isShellCommandString, programBefore, readCommand } from "./typed-issue-hook.mjs";
 
 const SINGLE_FILE =
-  "cd packages/sparkdown && NODE_OPTIONS=--max-old-space-size=1024 npx vitest run src/tests/compiler/constDeclarationValidity.test.ts " +
-  "--pool=forks --poolOptions.forks.minForks=1 --poolOptions.forks.maxForks=1";
+  "node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/constDeclarationValidity.test.ts --wait 600";
 
 export const TEST_REASON =
-  "Run only the test files under work locally, one Vitest process at a time with a 1024 MB heap and one fork, for example: " +
+  "Run only the test files under work locally, through the runner that sets the heap and worker caps and queues behind other runs, for example: " +
   SINGLE_FILE +
   " (from .agents/skills/write-regression-test/references/vitest.md). The package result comes from the Test Suite workflow " +
   "on the pushed head, which runs every touched package on each pull request; a whole-package run here duplicates it while " +

@@ -212,6 +212,78 @@ uncertain.update({phase:"launching"});
 assert.throws(() => acquire("fifth",{root:lockRoot,census:()=>[],identify:()=>null}),/unknown/);
 uncertain.update({phase:"exited"}); uncertain.release();
 
+// A waiting run queues on a live reservation, then holds it while other
+// Vitest processes finish, so a third run queues behind it rather than racing.
+const { acquireWaiting } = await import("./test-suite-process.mjs");
+const { runVitest, vitestArguments } = await import("./test-suite.mjs");
+const holder = acquire("holder", { root: lockRoot, census: () => [] });
+setTimeout(() => holder.release(), 150);
+let present = [777];
+const waited = await acquireWaiting("queued", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => present,
+  onWait: ({ waiting }) => { if (waiting === "vitest processes") setTimeout(() => { present = []; }, 100); } });
+assert.throws(() => acquire("racer", { root: lockRoot, census: () => [] }), /running/, "the reservation is held while waiting for other processes");
+waited.release();
+const blocker = acquire("blocker", { root: lockRoot, census: () => [] });
+await assert.rejects(acquireWaiting("impatient", { root: lockRoot, waitMs: 60, pollMs: 20, census: () => [] }), /Existing suite running/);
+blocker.release();
+await assert.rejects(acquireWaiting("timeout", { root: lockRoot, waitMs: 60, pollMs: 20, census: () => [5] }), /still present: 5/);
+acquire("released after timeout", { root: lockRoot, census: () => [] }).release();
+const ambiguous = acquire("ambiguous", { root: lockRoot, census: () => [], identify: () => owner });
+ambiguous.update({ phase: "launching" });
+const started = Date.now();
+await assert.rejects(acquireWaiting("unknown", { root: lockRoot, waitMs: 5000, pollMs: 20, census: () => [], identify: () => null }), /unknown/);
+assert.ok(Date.now() - started < 2000, "an ambiguous reservation refuses without waiting");
+ambiguous.update({ phase: "exited" }); ambiguous.release();
+console.log("PASS: --wait queues on the reservation, holds it while other Vitest processes exit, and times out by releasing it");
+
+assert.deepEqual(vitestArguments(["src/a.test.ts"]), ["run", "src/a.test.ts", "--pool=forks", "--poolOptions.forks.minForks=1", "--poolOptions.forks.maxForks=1", "--no-file-parallelism"]);
+assert.ok(!vitestArguments([]).some(a => /singleFork/.test(a)), "singleFork shares one environment across files");
+const fakeVitest = path.join(scratch, ".git", "fake-vitest.mjs");
+const fakeRecord = path.join(scratch, ".git", "fake-vitest.json");
+fs.writeFileSync(fakeVitest, `import fs from "node:fs";
+const read = () => JSON.parse(fs.readFileSync(${JSON.stringify(path.join(lockRoot, "reservation.json"))}, "utf8"));
+let reservation = read();
+for (const deadline = Date.now() + 20000; !reservation.child && Date.now() < deadline; reservation = read()) await new Promise(r => setTimeout(r, 50));
+fs.writeFileSync(${JSON.stringify(fakeRecord)}, JSON.stringify({ argv: process.argv.slice(2), execArgv: process.execArgv, nodeOptions: process.env.NODE_OPTIONS, cwd: process.cwd(), phase: reservation.phase, child: reservation.child?.pid === process.pid }));
+process.exitCode = 3;`);
+const ran = await runVitest({ packageRoot: scratch, files: ["a.test.ts"], vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" });
+assert.equal(ran.exit, 3, "the Vitest exit status is returned");
+const recorded = read(fakeRecord);
+assert.deepEqual(recorded.argv, vitestArguments(["a.test.ts"]));
+assert.ok(recorded.execArgv.includes("--max-old-space-size=1024"));
+assert.equal(recorded.nodeOptions, "--max-old-space-size=1024", "forked workers inherit the heap cap");
+assert.equal(canonicalPath(recorded.cwd), canonicalPath(scratch));
+assert.equal(recorded.phase, "running", "the run holds the machine reservation");
+assert.equal(recorded.child, true, "the reservation names the Vitest process");
+assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "the reservation is released after exit");
+const busy = acquire("busy", { root: lockRoot, census: () => [] });
+await assert.rejects(runVitest({ packageRoot: scratch, vitestPath: fakeVitest, root: lockRoot, census: () => [], stdio: "ignore" }), /Existing suite running/);
+busy.release();
+console.log("PASS: run composes the one-worker flags, caps the heap and holds the reservation");
+
+// The command line parses --wait and dispatches run, start and resume through
+// the same waiting reservation. A long poll interval shows the sleep stops at
+// the deadline rather than after a full interval.
+const { main } = await import("./test-suite.mjs");
+const seam = { root: lockRoot, census: () => [], vitestPath: fakeVitest, stdio: "ignore" };
+assert.equal(await main(["run", scratch, "a.test.ts", "--wait", "5"], seam), 3, "run returns the Vitest exit status");
+assert.deepEqual(read(fakeRecord).argv, vitestArguments(["a.test.ts"]), "--wait and its value are not passed to Vitest");
+const cliHolder = acquire("cli holder", { root: lockRoot, census: () => [] });
+for (const argv of [["run", scratch, "a.test.ts", "--wait", "3"], ["start", scratch, "--wait", "3"], ["resume", directory, "--wait", "3"]]) {
+  const began = Date.now();
+  await assert.rejects(main(argv, { ...seam, pollMs: 10000, enginePath, fingerprint: () => "unchanged" }), /Existing suite running/, argv[0]);
+  assert.ok(Date.now() - began < 8000, `${argv[0]} --wait 3 refuses near its bound, not after a 10 s poll`);
+}
+cliHolder.release();
+const cliCensusStart = Date.now();
+await assert.rejects(main(["start", scratch, "--wait", "3"], { ...seam, census: () => [5], pollMs: 10000 }), /still present: 5/);
+assert.ok(Date.now() - cliCensusStart < 8000, "the census wait also stops at its bound");
+assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "a timed-out start releases the reservation");
+await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait takes a number of seconds/);
+await assert.rejects(main(["run", scratch, "--wait", "5"], seam), /Name the test files under work/, "run refuses a whole-package call");
+await assert.rejects(main(["bogus", scratch], seam), /Usage/);
+console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
+
 const coordinator = path.join(scratch, ".git", "coordinator.mjs");
 fs.writeFileSync(coordinator, `import { execute } from ${JSON.stringify(new URL("./test-suite.mjs", import.meta.url).href)};
 await execute({...${JSON.stringify({ ...options, directory: path.join(scratch, ".git", "interrupted") })}, census:()=>[], fingerprint:()=>"unchanged"});`);
@@ -362,4 +434,12 @@ await import(${JSON.stringify(new URL("./suite-engine.mjs",import.meta.url).href
   assert.match(fs.readFileSync(path.join(workspaceAttempt.directory,"output.log"),"utf8"),/workspace\/browser\/typecheck\/pool-routing configurations are unsupported/);
   console.log("PASS: installed Vitest glob semantics, tracked-only TS/TSX test/spec, literal brackets, exact single-file execution, worker heap, skip inventory and resume");
   console.log("PASS: an automatically discovered single-project workspace is refused");
+  fs.rmSync(path.join(real,"vitest.workspace.ts"));
+  fs.writeFileSync(path.join(real,"vitest.config.ts"),'import {defineConfig} from "vitest/config"; export default defineConfig({test:{environment:"jsdom",include:["shared/**/*.test.ts"]}});');
+  fs.mkdirSync(path.join(real,"shared"));
+  const leak=`import {it,expect} from "vitest"; it("fresh document",()=>{expect(document.body.dataset.seen).toBeUndefined();document.body.dataset.seen="1";expect(globalThis.leaked).toBeUndefined();globalThis.leaked=true;});`;
+  for(const name of ["first.test.ts","second.test.ts"]) fs.writeFileSync(path.join(real,"shared",name),leak);
+  const shared=await runVitest({packageRoot:real,root:path.join(real,".git","reservation"),census:()=>vitestProcesses({within:real}),stdio:"ignore"});
+  assert.equal(shared.exit,0,"each file gets a fresh environment in the one worker");
+  console.log("PASS: run gives each file a fresh jsdom environment in one worker");
 }
