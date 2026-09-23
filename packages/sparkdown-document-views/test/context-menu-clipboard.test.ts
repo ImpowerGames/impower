@@ -298,6 +298,32 @@ describe("clipboard filters", () => {
     expect(v.state.doc.toString()).toBe("hello worldFILTERED:hello");
   });
 
+  it("gives each line of an output-filtered copy to its own cursor when the counts match, as keyboard paste does", async () => {
+    const v = mount("ab cd\n1\n2", undefined, [
+      EditorView.clipboardOutputFilter.of((text) => text.toUpperCase()),
+    ]);
+    select(v, [0, 2], [3, 5]);
+    await pick(v, "Copy");
+    expect(writeText).toHaveBeenCalledWith("AB\nCD");
+    select(v, [7, 7], [9, 9]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("ab cd\n1AB\n2CD");
+  });
+
+  it("pastes a line-wise copy as plain text once an input filter changes it, as keyboard paste does", async () => {
+    const v = mount("one\ntwo", undefined, [
+      EditorView.clipboardInputFilter.of((text) => text.toUpperCase()),
+    ]);
+    select(v, [1, 1]);
+    v.focus();
+    v.contentDOM.dispatchEvent(
+      new Event("copy", { bubbles: true, cancelable: true }),
+    );
+    select(v, [4, 4]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("one\nONEtwo");
+  });
+
   it("menu Paste passes the text through the editor's input filters", async () => {
     const v = mount("hello world", undefined, [
       EditorView.clipboardInputFilter.of((text) => text.toUpperCase()),

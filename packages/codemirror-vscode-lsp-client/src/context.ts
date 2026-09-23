@@ -45,7 +45,8 @@ let menuClipboard: { pieces: string[]; linewise: boolean } | null = null;
 /**
  * Passes `pieces`, joined by line breaks, through one of the editor's
  * clipboard filters, as CodeMirror does for keyboard copy and paste. Text a
- * filter changes becomes a single piece.
+ * filter changes is split into its lines, which become the pieces: CodeMirror
+ * gives each line of a filtered text to its own range when the counts match.
  */
 function filterPieces(
   state: EditorState,
@@ -54,7 +55,7 @@ function filterPieces(
 ) {
   const joined = pieces.join(state.lineBreak);
   const text = filters.reduce((t, filter) => filter(t, state), joined);
-  return text === joined ? pieces : [text];
+  return text === joined ? pieces : state.toText(text).toJSON();
 }
 
 /**
@@ -137,12 +138,14 @@ export function paste(view: EditorView) {
     return;
   }
   const { state } = view;
-  const { linewise } = menuClipboard;
   const pieces = filterPieces(
     state,
     state.facet(EditorView.clipboardInputFilter),
     menuClipboard.pieces,
   );
+  // CodeMirror pastes a line-wise copy as whole lines only while the text is
+  // still the copied text, so an input filter that changes it ends that.
+  const linewise = menuClipboard.linewise && pieces === menuClipboard.pieces;
   const joined = pieces.join(state.lineBreak);
   const perRange = pieces.length === state.selection.ranges.length;
   let i = 0;
