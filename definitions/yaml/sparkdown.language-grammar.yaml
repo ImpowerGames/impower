@@ -557,9 +557,11 @@ repository:
         tag: keyword
         name: keyword.other.glue.sd
 
+  # The grammar cannot tell a `..` at the start of a line from one after a
+  # top-level interpolation, so this mark is not coloured as an error; the
+  # compiler reports the ones that begin a line.
   LeadingGlue:
-    tag: invalid
-    name: invalid.illegal.glue.leading.sd
+    name: meta.glue.leading.sd
     match: ({{LEADING_GLUE}})
 
   AlternatorGlue:

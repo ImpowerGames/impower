@@ -674,8 +674,7 @@
       }
     },
     "LeadingGlue": {
-      "tag": "invalid",
-      "name": "invalid.illegal.glue.leading.sd",
+      "name": "meta.glue.leading.sd",
       "match": "((?:[.][.](?![.])))"
     },
     "AlternatorGlue": {
