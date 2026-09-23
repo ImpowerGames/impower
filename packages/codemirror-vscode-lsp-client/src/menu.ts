@@ -632,7 +632,7 @@ function recordNativeCopy(_event: ClipboardEvent, view: EditorView) {
       lastLine = line.number;
     }
   }
-  recordMenuClipboard(pieces, linewise);
+  recordMenuClipboard(state, pieces, linewise);
   openMenuRefreshers.forEach((refresh) => refresh());
   return false;
 }

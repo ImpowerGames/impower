@@ -8,6 +8,7 @@
 import type {
   EditorSelection as EditorSelectionType,
   EditorState as EditorStateType,
+  Extension,
 } from "@codemirror/state";
 import type { EditorView as EditorViewType } from "@codemirror/view";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -46,7 +47,11 @@ afterEach(() => {
   delete (navigator as { maxTouchPoints?: number }).maxTouchPoints;
 });
 
-function editor(doc: string, selection?: EditorSelectionType) {
+function editor(
+  doc: string,
+  selection?: EditorSelectionType,
+  extensions: Extension[] = [],
+) {
   return new EditorView({
     doc,
     selection,
@@ -54,12 +59,17 @@ function editor(doc: string, selection?: EditorSelectionType) {
     extensions: [
       EditorState.allowMultipleSelections.of(true),
       lsp.contextMenu(),
+      extensions,
     ],
   });
 }
 
-function mount(doc: string, selection?: EditorSelectionType) {
-  view = editor(doc, selection);
+function mount(
+  doc: string,
+  selection?: EditorSelectionType,
+  extensions: Extension[] = [],
+) {
+  view = editor(doc, selection, extensions);
   return view;
 }
 
@@ -252,6 +262,51 @@ describe("native copy and cut", () => {
     select(v, [5, 5]);
     await pick(v, "Paste");
     expect(v.state.doc.toString()).toBe("one\none\ntwo");
+  });
+});
+
+describe("clipboard filters", () => {
+  const prefix = (text: string) => `FILTERED:${text}`;
+
+  it("a native copy records the text the editor's output filters put on the clipboard", async () => {
+    const v = mount("hello world", undefined, [
+      EditorView.clipboardOutputFilter.of(prefix),
+    ]);
+    select(v, [0, 5]);
+    v.focus();
+    const setData = vi.fn();
+    const event = new Event("copy", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "clipboardData", {
+      value: { clearData() {}, setData },
+    });
+    v.contentDOM.dispatchEvent(event);
+    expect(setData).toHaveBeenCalledWith("text/plain", "FILTERED:hello");
+    select(v, [11, 11]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("hello worldFILTERED:hello");
+  });
+
+  it("menu Copy puts the output-filtered text on the system clipboard and in the buffer", async () => {
+    const v = mount("hello world", undefined, [
+      EditorView.clipboardOutputFilter.of(prefix),
+    ]);
+    select(v, [0, 5]);
+    await pick(v, "Copy");
+    expect(writeText).toHaveBeenCalledWith("FILTERED:hello");
+    select(v, [11, 11]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("hello worldFILTERED:hello");
+  });
+
+  it("menu Paste passes the text through the editor's input filters", async () => {
+    const v = mount("hello world", undefined, [
+      EditorView.clipboardInputFilter.of((text) => text.toUpperCase()),
+    ]);
+    select(v, [0, 5]);
+    await pick(v, "Copy");
+    select(v, [11, 11]);
+    await pick(v, "Paste");
+    expect(v.state.doc.toString()).toBe("hello worldHELLO");
   });
 });
 

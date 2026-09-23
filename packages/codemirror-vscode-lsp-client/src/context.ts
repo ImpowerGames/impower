@@ -1,5 +1,5 @@
 import { redo, selectAll, undo } from "@codemirror/commands";
-import { EditorSelection } from "@codemirror/state";
+import { EditorSelection, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { jumpToDefinition, jumpToDefinitionKeymap } from "./definition";
 import { formatDocument, formatKeymap } from "./formatting";
@@ -43,12 +43,39 @@ export function getShortcutLabel(key: string) {
 let menuClipboard: { pieces: string[]; linewise: boolean } | null = null;
 
 /**
- * Records a copy for menu Paste. A copy of bare carets is `linewise`: each
- * piece is a whole line, and pasting it at carets inserts it above their lines
- * as CodeMirror's keyboard paste does.
+ * Passes `pieces`, joined by line breaks, through one of the editor's
+ * clipboard filters, as CodeMirror does for keyboard copy and paste. Text a
+ * filter changes becomes a single piece.
  */
-export function recordMenuClipboard(pieces: string[], linewise = false) {
-  menuClipboard = { pieces, linewise };
+function filterPieces(
+  state: EditorState,
+  filters: readonly ((text: string, state: EditorState) => string)[],
+  pieces: string[],
+) {
+  const joined = pieces.join(state.lineBreak);
+  const text = filters.reduce((t, filter) => filter(t, state), joined);
+  return text === joined ? pieces : [text];
+}
+
+/**
+ * Records a copy for menu Paste and returns the text CodeMirror puts on the
+ * system clipboard for it, after the editor's clipboard output filters. A
+ * copy of bare carets is `linewise`: each piece is a whole line, and pasting
+ * it at carets inserts it above their lines as CodeMirror's keyboard paste
+ * does.
+ */
+export function recordMenuClipboard(
+  state: EditorState,
+  pieces: string[],
+  linewise = false,
+) {
+  const copied = filterPieces(
+    state,
+    state.facet(EditorView.clipboardOutputFilter),
+    pieces,
+  );
+  menuClipboard = { pieces: copied, linewise };
+  return copied.join(state.lineBreak);
 }
 
 /** The selected text of each non-empty range, as the menu copies it. */
@@ -58,12 +85,12 @@ function selectedPieces(view: EditorView) {
     .map((r) => view.state.sliceDoc(r.from, r.to));
 }
 
-/** Also puts the text on the system clipboard so other apps can paste it. A
- *  write the browser refuses is ignored: the menu's buffer still holds it. */
-function writeSystemClipboard(view: EditorView, pieces: string[]) {
-  navigator.clipboard
-    ?.writeText(pieces.join(view.state.lineBreak))
-    .catch(() => {});
+/** Records the selection for menu Paste and also puts it on the system
+ *  clipboard so other apps can paste it. A write the browser refuses is
+ *  ignored: the menu's buffer still holds the text. */
+function copySelection(view: EditorView, pieces: string[]) {
+  const text = recordMenuClipboard(view.state, pieces);
+  navigator.clipboard?.writeText(text).catch(() => {});
 }
 
 export function cut(view: EditorView) {
@@ -71,8 +98,7 @@ export function cut(view: EditorView) {
   if (pieces.length === 0) {
     return;
   }
-  recordMenuClipboard(pieces);
-  writeSystemClipboard(view, pieces);
+  copySelection(view, pieces);
   view.dispatch({
     changes: view.state.selection.ranges.filter((r) => !r.empty),
     userEvent: "delete.cut",
@@ -85,8 +111,7 @@ export function copy(view: EditorView) {
   if (pieces.length === 0) {
     return;
   }
-  recordMenuClipboard(pieces);
-  writeSystemClipboard(view, pieces);
+  copySelection(view, pieces);
   // Android's selection toolbar leaves a caret, with its handle, at the end
   // of what it copied.
   if (isMobile()) {
@@ -103,14 +128,21 @@ export function copy(view: EditorView) {
 /**
  * Inserts the menu's buffer. When there is one piece per selection range,
  * each range gets its own piece; otherwise every range gets all the pieces
- * joined by line breaks, as CodeMirror's native multi-cursor paste does.
+ * joined by line breaks, as CodeMirror's native multi-cursor paste does. The
+ * text goes through the editor's clipboard input filters first, as a
+ * keyboard paste does.
  */
 export function paste(view: EditorView) {
   if (!menuClipboard) {
     return;
   }
   const { state } = view;
-  const { pieces, linewise } = menuClipboard;
+  const { linewise } = menuClipboard;
+  const pieces = filterPieces(
+    state,
+    state.facet(EditorView.clipboardInputFilter),
+    menuClipboard.pieces,
+  );
   const joined = pieces.join(state.lineBreak);
   const perRange = pieces.length === state.selection.ranges.length;
   let i = 0;
