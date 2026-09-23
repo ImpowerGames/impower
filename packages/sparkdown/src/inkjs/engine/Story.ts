@@ -5057,19 +5057,23 @@ export class Story extends InkObject {
   // waits, which continue shows what the path ran for is not yet known, so the
   // path is held (`StoryState.heldPaths`) until the run shows something or the
   // continue ends.
-  protected AnnounceExecution(path: string | undefined) {
+  // The pointer's path is read only when a host listens, as reading it is not
+  // safe for every pointer the story steps through.
+  protected AnnounceExecution(pointer: Pointer) {
+    if (this.onExecute === null) return;
+    const path = pointer.path?.toString();
     if (this.state.lineEndPending || this.state.outputCut !== null) {
       if (path !== undefined) this.state.heldPaths.push(path);
       return;
     }
-    if (this.onExecute !== null) this.onExecute(path);
+    this.onExecute(path);
   }
 
   public NextContent() {
     this.state.previousPointer = this.state.currentPointer.copy();
 
     if (!this.state.divertedPointer.isNull) {
-      this.AnnounceExecution(this.state.currentPointer.path?.toString());
+      this.AnnounceExecution(this.state.currentPointer);
 
       this.state.currentPointer = this.state.divertedPointer.copy();
       this.state.divertedPointer = Pointer.Null;
@@ -5081,7 +5085,7 @@ export class Story extends InkObject {
       }
     }
 
-    this.AnnounceExecution(this.state.previousPointer.path?.toString());
+    this.AnnounceExecution(this.state.previousPointer);
 
     let successfulPointerIncrement = this.IncrementContentPointer();
 

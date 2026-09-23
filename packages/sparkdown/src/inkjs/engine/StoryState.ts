@@ -21,7 +21,7 @@ import { throwNullException } from "./NullException";
 import { Story } from "./Story";
 import { StatePatch } from "./StatePatch";
 import { SimpleJson } from "./SimpleJson";
-import { CarriedStep, Flow } from "./Flow";
+import { type CarriedStep, Flow } from "./Flow";
 import { InkList } from "./InkList";
 
 export class StoryState {
