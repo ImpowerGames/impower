@@ -21,7 +21,6 @@ import {
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
-import { RuntimeDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
@@ -42,7 +41,6 @@ import { getUri } from "../utils/getUri";
 import { getWebviewUri } from "../utils/getWebviewUri";
 import { getWorkspaceFileWatchers } from "../utils/getWorkspaceFileWatchers";
 import { getWorkspaceFiles } from "../utils/getWorkspaceFiles";
-import { SparkProgramManager } from "./SparkProgramManager";
 
 export class SparkdownPreviewGamePanelManager {
   private static _instance: SparkdownPreviewGamePanelManager;
@@ -220,15 +218,6 @@ export class SparkdownPreviewGamePanelManager {
           ExecuteCommandMessage.type,
           message.id,
           result ?? null,
-        );
-      }
-      if (RuntimeDiagnosticsMessage.type.isNotification(message)) {
-        // The language server shows the run's errors and warnings in the
-        // Problems panel, beside the compile's.
-        const client = await SparkProgramManager.instance.languageClientReady;
-        await client.sendNotification(
-          RuntimeDiagnosticsMessage.method,
-          message.params,
         );
       }
       if (HoveredOnPreviewMessage.type.isNotification(message)) {
