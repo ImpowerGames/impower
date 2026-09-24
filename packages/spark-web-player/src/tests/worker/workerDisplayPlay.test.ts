@@ -5,7 +5,7 @@
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
-import { createPlayerHarness, MAIN_URI, settle, recorded } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `-> start
 
@@ -21,7 +21,7 @@ end
 const LINE = SOURCE.split("\n").findIndex((l) => l.includes("The line PLAY starts from."));
 
 describe("after PLAY and STOP", () => {
-  it("the preview shows the recorded frame, labels included", async () => {
+  it("the preview shows the line again, labels included", async () => {
     const after = async () => {
       const h = await createPlayerHarness({
         files: [{ uri: MAIN_URI, text: SOURCE }],
@@ -52,7 +52,7 @@ describe("after PLAY and STOP", () => {
     const on = await after();
     expect(on.game).toBe(true);
     expect(JSON.stringify(on.dom)).toContain("The line PLAY starts from.");
-    expect(recorded(on)).toMatchSnapshot();
+    expect(on.executed).toBe(`main : ${LINE + 1}`);
   }, 120_000);
 });
 

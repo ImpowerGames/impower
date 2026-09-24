@@ -12,7 +12,7 @@ import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classe
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
-import { createPlayerHarness, MAIN_URI, settle, recorded } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `-> start
 
@@ -144,7 +144,7 @@ const session = async () => {
 };
 
 describe("PLAY", () => {
-  it("builds no game on the page, and shows what was recorded", async () => {
+  it("builds no game on the page, restarts on an edit and returns on STOP", async () => {
     const on = await session();
 
     // Every game is the worker's: the preview's, PLAY's, and the one the
@@ -160,8 +160,7 @@ describe("PLAY", () => {
     expect(on.restartedIds[0]).not.toBe(on.restartedIds[1]);
     expect(on.stopSelections).toHaveLength(1);
     expect(on.playingAfterStop).toBe(false);
-    const { builds: _on, ...onSeen } = on;
-    expect(recorded(onSeen)).toMatchSnapshot();
+    expect(on.stopSelections[0].selectedRange.start.line).toBe(SECOND);
   }, 120_000);
 });
 

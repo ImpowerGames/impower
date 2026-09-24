@@ -119,22 +119,26 @@ async function reads() {
 }
 
 describe("the preview's reads", () => {
-  it("label, highlight and list breakpoints as recorded", async () => {
+  it("label, highlight and list breakpoints", async () => {
     const on = await reads();
-    expect({
-      reached: on.reached,
-      unreached: on.unreached,
-      breakpoints: on.breakpoints,
-      debug: on.debug,
-      undebug: on.undebug,
-    }).toMatchSnapshot();
 
-    // What was recorded says something.
     expect(on.summary.summary).toBe(true);
     expect(on.reached.executed.at(-1)?.executedLines).toBeTruthy();
     expect(on.unreached.labels.failed).toBe(true);
     expect(on.unreached.labels.connection).toContain("🞪");
     expect(on.unreached.labels.executed).toMatch(/main : \d+/);
+    // The reached line's route runs from the first beat to the beat with
+    // the line, and the toolbar names both; an unreached line names the
+    // scene it could not be reached in, and says why.
+    expect(on.reached.executed.at(-1)?.firstLocation?.range.start.line).toBe(lineOf("[[SPRITE_A]]"));
+    expect(on.reached.executed.at(-1)?.lastLocation?.range.start.line).toBe(lineOf("[[SPRITE_B]]"));
+    expect(on.reached.labels.launch).toBe(`main : ${lineOf("[[SPRITE_A]]") + 1}`);
+    expect(on.unreached.labels.launch).toBe(`main : ${lineOf("scene start") + 1}`);
+    expect(on.unreached.labels.title).toMatch(/No path through this scene reaches this line/);
+    // A breakpoint can go on each beat's first line.
+    for (const line of [lineOf("[[SPRITE_A]]"), lineOf("[[SPRITE_B]]"), UNREACHED]) {
+      expect(on.breakpoints.lines).toContain(line);
+    }
     expect(on.breakpoints.lines.length).toBeGreaterThan(0);
     // The toolbar's toggle answered, and the game that displays the preview
     // entered the mode and left it again.

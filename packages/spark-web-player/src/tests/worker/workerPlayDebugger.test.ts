@@ -1,6 +1,6 @@
 // The editor's debugger talks to the player, which forwards each request to
-// PLAY's game in the worker (#682). For the same program in the same state,
-// every answer is the one recorded in the snapshot.
+// PLAY's game in the worker (#682), and answers the editor from it: where
+// the game stopped, what it holds, and what each step and continue did.
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
@@ -13,7 +13,7 @@ import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/co
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI, settle, recorded } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `store mood = 0
 
@@ -32,8 +32,17 @@ end
 `;
 
 const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(text));
+const SCENE = lineOf("scene start");
 const FIRST = lineOf("The first line.");
 const SECOND = lineOf("The second line.");
+const THIRD = lineOf("The third line.");
+
+/** Where an answered stack trace says the game stands, and the story's
+ *  `mood` then. */
+const standing = (asked: any) => ({
+  line: asked.stack.result.stackFrames[0]?.location?.range.start.line,
+  mood: asked.context.result.context.mood,
+});
 
 /** The answer a handler gave, without the id of the request it answered. */
 const answer = (response: any) =>
@@ -161,21 +170,39 @@ const debugSession = async () => {
 };
 
 describe("the debugger during PLAY", () => {
-  it("answers each request from the worker as recorded", async () => {
+  it("answers each request from the worker", async () => {
     const on = await debugSession();
 
-    // The session stopped somewhere and has something to show, so the
-    // comparison below compares answers that say something.
-    const stopped = on.stopped as any;
-    expect(stopped.stack.result.stackFrames.length).toBeGreaterThan(0);
-    expect(stopped.variables.vars.result.variables.length).toBeGreaterThan(0);
-    expect((on.reported as any[]).map((m) => m.method)).toContain("game/hitBreakpoint");
-    // The expression context holds the story's variable, which the Debug
-    // Console evaluates by name.
-    expect(typeof stopped.context.result.context.mood).toBe("number");
-
-    for (const key of Object.keys(on)) {
-      expect(recorded(on[key])).toMatchSnapshot(key);
+    // Every request was answered, none with an error.
+    for (const [key, value] of Object.entries(on)) {
+      if (key !== "reported") {
+        expect({ [key]: "error" in (value as any) ? (value as any).error : "answered" }).toEqual({ [key]: "answered" });
+      }
     }
+    for (const asked of ["stopped", "afterStepOver", "afterStepIn", "afterContinue"]) {
+      for (const [scope, variables] of Object.entries(on[asked].variables as Record<string, any>)) {
+        expect({ [`${asked} ${scope}`]: "error" in variables ? variables.error : "answered" }).toEqual({ [`${asked} ${scope}`]: "answered" });
+      }
+    }
+
+    // The game stops on entry at the top of its scene, before the first
+    // line has run; the Debug Console reads the story's variable by name.
+    expect(standing(on.stopped)).toEqual({ line: SCENE, mood: 0 });
+    expect(on.stopped.variables.vars.result.variables.length).toBeGreaterThan(0);
+    // Stepping over runs to the breakpoint on the second line.
+    expect(standing(on.afterStepOver)).toEqual({ line: SECOND, mood: 1 });
+    // Stepping in there stays on that line.
+    expect(standing(on.afterStepIn)).toEqual({ line: SECOND, mood: 1 });
+    // Continuing runs on to the third line, which waits for the player.
+    expect(standing(on.afterContinue)).toEqual({ line: THIRD, mood: 2 });
+    expect(on.stepOver.result.done).toBe(true);
+    expect(on.continue.result.done).toBe(true);
+    // The editor heard where the game stopped and where it stepped to.
+    expect(
+      (on.reported as any[]).map((m) => [m.method, m.params.location?.range.start.line]),
+    ).toEqual([
+      ["game/hitBreakpoint", SCENE],
+      ["game/stepped", SECOND],
+    ]);
   }, 120_000);
 });
