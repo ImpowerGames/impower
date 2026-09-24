@@ -86,7 +86,7 @@ function roundTrip(
   const errors: string[] = [];
 
   const storyA = new RuntimeStory(compiled);
-  storyA.BindExternalFunction("host_record", (v: unknown) => v, true);
+  storyA.BindExternalFunction("host_record", (v: unknown) => v);
   storyA.onError = (m: string) => errors.push(`[setup] ${m}`);
   storyA.ContinueMaximally(); // runs setup(), pauses at the choice
 
@@ -100,7 +100,6 @@ function roundTrip(
       recorded.push(v);
       return v;
     },
-    true,
   );
   storyB.onError = (m: string) => errors.push(`[check] ${m}`);
   storyB.state.LoadJson(savedJson);
@@ -224,7 +223,7 @@ host_record(t.n)`,
     );
     const errors: string[] = [];
     const storyA = new RuntimeStory(compiled);
-    storyA.BindExternalFunction("host_record", (v: unknown) => v, true);
+    storyA.BindExternalFunction("host_record", (v: unknown) => v);
     storyA.onError = (m: string) => errors.push(m);
     storyA.ContinueMaximally();
 
@@ -243,7 +242,6 @@ host_record(t.n)`,
           recorded.push(v);
           return v;
         },
-        true,
       );
       storyB.onError = (m: string) => errors.push(m);
       storyB.state.LoadJson(save);

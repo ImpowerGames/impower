@@ -26,8 +26,8 @@ const CHOICE_STORY = `${SCREEN}
 -> start
 
 scene start
-  Pick a fruit:
   choose
+    Pick a fruit:
     + (a) Apple
       You chose apple.
       -> DONE

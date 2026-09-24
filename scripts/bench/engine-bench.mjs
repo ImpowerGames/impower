@@ -12,7 +12,7 @@
 //                     temporary directory and measure its target line
 //   --line <N>        the line of main.sd the route ends at, counting from one
 //   --mode <m,..>     any of kinds, step, proto, emit, ready, chunks, symbols,
-//                     order, lookahead, or all (the default); see MODES below
+//                     order, or all (the default); see MODES below
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>      discarded samples first (default 4)
 //   --cpu-prof <dir>  also write a V8 CPU profile of each candidate's process
@@ -46,7 +46,6 @@ export const MODES = {
   chunks: { entry: "chunkStepBench.ts", project: "chunks", candidates: ["engine-step", "chunk-step", "engine-line", "chunk-line"] },
   symbols: { entry: "chunkSymbolBench.ts", project: "route", candidates: ["symbol", "direct"] },
   order: { entry: "chunkOrderBench.ts", project: "route", candidates: ["flat-copy", "flat-splice", "tree-copy", "records-splice"] },
-  lookahead: { entry: "lookaheadBench.ts", project: "route", candidates: ["engine", "engine-write", "chunk", "chunk-write"] },
   emit: { entry: "emitBench.ts", project: "route", candidates: ["walk", "binary", "json", "tree"] },
   ready: { entry: "readyBench.ts", project: "route", candidates: ["prepare", "story-json", "story-buffer", "buffer"] },
 };
@@ -162,11 +161,6 @@ async function main(args) {
       if (mode === "symbols" && reports.length === candidates.length) {
         const [symbol, direct] = reports.map((r) => r.nanosecondsPerDivert.median);
         console.log(`symbols: in a table of ${reports[0].symbols} symbols, a divert through the symbol table costs ${(symbol - direct).toFixed(2)} nanoseconds more than one resolved at compile time, by the medians (${symbol.toFixed(2)} against ${direct.toFixed(2)})`);
-        console.log("");
-      }
-      if (mode === "lookahead" && reports.length === candidates.length) {
-        const median = (candidate) => reports.find((r) => r.candidate === candidate).microsecondsPerPair.median;
-        console.log(`lookahead: a save and a restore cost ${median("engine").toFixed(3)} microseconds in the engine and ${median("chunk").toFixed(3)} in restorable state; with a write between them, ${median("engine-write").toFixed(3)} and ${median("chunk-write").toFixed(3)}`);
         console.log("");
       }
       if (mode === "chunks" && reports.length === candidates.length) {

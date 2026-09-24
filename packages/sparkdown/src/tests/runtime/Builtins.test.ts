@@ -204,6 +204,8 @@ describe("Builtins (ported from inkjs)", () => {
     expect(ctx.errorMessages).toEqual([]);
     for (let i = 0; i < 10; i++) {
       expect(ctx.story.Continue()).toBe(`${i}\n`);
+      // The line returns at its newline; the next continue raises the choice.
+      expect(ctx.story.Continue()).toBe("");
       ctx.story.ChooseChoiceIndex(0);
     }
   });
@@ -245,6 +247,10 @@ describe("Builtins (ported from inkjs)", () => {
     expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
     expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
 
+    // The next continue raises the choice, and enters nothing.
+    ctx.story.Continue();
+    expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
+
     ctx.story.ChooseChoiceIndex(0);
     expect(state.VisitCountAtPathString("TestKnot")).toBe(1);
     expect(state.VisitCountAtPathString("TestKnot2")).toBe(0);
@@ -276,6 +282,7 @@ describe("Builtins (ported from inkjs)", () => {
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("1\n");
+    expect(ctx.story.Continue()).toBe("");
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.ContinueMaximally()).toBe("choice\n1\n");
   });

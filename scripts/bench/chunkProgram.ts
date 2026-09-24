@@ -31,8 +31,7 @@ import { NativeFunctionCall } from "../../packages/sparkdown/src/inkjs/engine/Na
 import { IntValue, StringValue } from "../../packages/sparkdown/src/inkjs/engine/Value";
 
 export const enum Op {
-  LineStart = 1,
-  Text,
+  Text = 1,
   Newline,
   Out,
   Num,
@@ -319,9 +318,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       } else if (t === "out") {
         b.emit(Op.Out);
         depth--;
-      } else if (t === "line") {
-        // The engine's line marker. The statement emits its own `LineStart`
-        // ahead of the argument.
       } else if (typeof t === "string" && t.startsWith("stdlib:")) {
         const [, name, arity] = t.split(":");
         if (name !== "display") throw new UnsupportedConstruct(`builtin ${name}`);
@@ -466,10 +462,7 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       if (item === "ev") {
         const close = matching(items, i, "ev", "/ev");
         const b = new ChunkBuilder();
-        // A statement that displays starts a new line, and says so before its
-        // argument is evaluated.
         const displays = items.slice(i + 1, close).some((t) => typeof t === "string" && t.startsWith("stdlib:display:"));
-        if (displays) b.emit(Op.LineStart);
         expression(b, items, i + 1, close);
         const next = items[close + 1];
         if (isObject(next) && typeof next["VAR="] === "string") {

@@ -153,9 +153,6 @@ interface RouteOutcome {
    *  route was taken, this is the one position in it where steps copied from
    *  the earlier plan meet steps this search found. */
   resumedAfter?: number;
-  /** Every position the story engine reported rewinding to while this route
-   *  was searched, in order. Present only where the search was watched. */
-  rewoundTo?: string[];
 }
 
 interface CompiledRound extends RouteOutcome {
@@ -369,7 +366,6 @@ function fromTheTop(round: CompiledRound): RouteOutcome {
     ...GAME_OPTIONS,
   } as never);
   game.setStartFrom(round.startFrom);
-  const rewoundTo = watchRewinds(game);
   const toPath = game.startPath;
   const log = new RouteSearchLog();
   const checkpoint = toPath
@@ -382,38 +378,8 @@ function fromTheTop(round: CompiledRound): RouteOutcome {
     checkpoint,
     simulation: game.simulation,
     searchSteps: lastSearchStats.stepsUsed,
-    rewoundTo,
     ...walked(game),
   };
-}
-
-/**
- * Every position the story engine rewound to while this game searched.
- *
- * The engine reads one line past the end of a beat to decide whether the beat
- * is over, and takes a state snapshot first so it can put the story back. The
- * snapshot is restored through `onRestoreStateSnapshot`, which is the engine
- * saying it rewound — not a shape a route happens to have. Chaining the game's
- * own handler rather than replacing it leaves the runtime record it maintains
- * exactly as it would have been.
- */
-function watchRewinds(game: Game): string[] {
-  const rewoundTo: string[] = [];
-  const story = game.story as unknown as {
-    onRestoreStateSnapshot: (() => void) | null;
-    state: { previousPointer?: { path?: { toString(): string } | null } | null };
-  };
-  const chained = story.onRestoreStateSnapshot;
-  story.onRestoreStateSnapshot = () => {
-    chained?.();
-    // Read after the handler, which is after the engine has put the state
-    // back: this is the position the story returned to.
-    const path = story.state.previousPointer?.path?.toString();
-    if (path) {
-      rewoundTo.push(path);
-    }
-  };
-  return rewoundTo;
 }
 
 /** The route a game is holding, as the comparison reads it: the path of every
@@ -466,71 +432,15 @@ const comparableCheckpoint = (checkpoint: string | undefined) => {
 };
 
 /**
- * How many positions of `steps`, starting at `at`, are the engine's look-ahead
- * running a second time over the run it has just made: a run that repeats the
- * one immediately before it, position for position, and is followed by
- * `resumes`. Zero when the gap is anything else, or longer than a beat.
- */
-function lookaheadRepeat(
-  steps: readonly string[],
-  at: number,
-  resumes: string,
-): number {
-  // One beat's worth: a display line, its `display()` call and the table the
-  // call builds take eighteen steps here. A longer run is a different
-  // explanation and needs one.
-  const longestBeat = 18;
-  for (let length = 1; length <= Math.min(longestBeat, at); length += 1) {
-    if (at + length >= steps.length || steps[at + length] !== resumes) {
-      continue;
-    }
-    let repeats = true;
-    for (let i = 0; i < length; i += 1) {
-      if (steps[at + i] !== steps[at - length + i]) {
-        repeats = false;
-        break;
-      }
-    }
-    if (repeats) {
-      return length;
-    }
-  }
-  return 0;
-}
-
-/**
  * Assert two routes are the same answer, reporting the first place they are
  * not.
  *
  * A route holds thousands of steps and a checkpoint is a whole serialized
  * story, so comparing them as values gives a failure nobody can read. What is
  * compared instead is the first bytes of the restored story that differ, then
- * the first step, then the verdict, each with its neighbours.
- *
- * The step lists are compared as the same walk rather than as the same list,
- * because of one artifact that can be named. The engine looks one line ahead at
- * every beat and rewinds, so a search that watches it happen records that run
- * of positions twice in a row, while a search resumed from a checkpoint taken
- * after the rewind records it once.
- *
- * The licence for that is not granted on the shape of the gap, because the
- * shape cannot carry it: a story that came back around to a run of positions a
- * second time and a look-ahead that rewound over it leave the same paths
- * behind. Nor can the checkpoint settle it — a route resumed from a checkpoint
- * taken after a real second traversal restores that traversal's visit counts,
- * output and variables whether or not its steps are in the route, so the two
- * checkpoints match and the difference is in the route alone.
- *
- * So the licence is granted on what the engine says. `watchRewinds` records
- * every position the story reported rewinding to while the expected route was
- * searched, through the engine's own restore hook, and a gap is tolerated only
- * where the run it skips begins at one of them. On top of that it must be the
- * only gap, no earlier than the step this compile was offered to resume from —
- * everything before that was written by the earlier search, which recorded the
- * rewind — it must repeat the run immediately before it, and it must be no
- * longer than a beat. Both lists are then consumed to the end. A compile
- * offered nothing to resume from, or an expected route nobody watched, gets no
- * licence at all.
+ * the first step, then the verdict, each with its neighbours. Every statement
+ * runs once, so a resumed route and a route searched from the top hold the same
+ * steps in the same order.
  */
 function expectSameAnswer(
   actual: RouteOutcome,
@@ -556,31 +466,13 @@ function expectSameAnswer(
   }
   let step = 0;
   let against = 0;
-  let gaps = 0;
-  while (step < actual.stepPaths.length && against < expected.stepPaths.length) {
-    if (actual.stepPaths[step] === expected.stepPaths[against]) {
-      step += 1;
-      against += 1;
-      continue;
-    }
-    // The look-ahead's second pass over a run it has just made. Allowed once,
-    // no earlier than the step this compile was offered to resume from — the
-    // steps before that one came from the earlier search, which recorded the
-    // rewind — and only where the engine reported rewinding to the position
-    // the skipped run starts at.
-    const admissible =
-      gaps === 0 &&
-      actual.resumedAfter != null &&
-      step >= actual.resumedAfter &&
-      (expected.rewoundTo ?? []).includes(expected.stepPaths[against]!);
-    const repeated = admissible
-      ? lookaheadRepeat(expected.stepPaths, against, actual.stepPaths[step]!)
-      : 0;
-    if (!repeated) {
-      break;
-    }
-    gaps += 1;
-    against += repeated;
+  while (
+    step < actual.stepPaths.length &&
+    against < expected.stepPaths.length &&
+    actual.stepPaths[step] === expected.stepPaths[against]
+  ) {
+    step += 1;
+    against += 1;
   }
   // Both lists, to the end. Stopping when either one runs out would leave
   // whatever the other still holds unexamined.
@@ -686,87 +578,6 @@ describe("the comparison the rest of these tests rest on", () => {
     expect(differs({ checkpoint: reseeded })).not.toThrow();
   });
 
-  test("accepts a run the engine reported rewinding over", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
-      ),
-    ).not.toThrow();
-  });
-
-  // The case that matters, and the one the shape of the gap cannot answer: the
-  // two routes agree on everything the checkpoint holds, because the resumed
-  // one restored a checkpoint taken after the second traversal and so carries
-  // its visit counts, output and variables whether or not its steps are in the
-  // route. If the engine did not report a rewind there, the difference is a
-  // route missing real steps.
-  test("rejects the same run where the engine reported no rewind", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: [] }),
-      ),
-    ).toThrow();
-  });
-
-  test("rejects the same run where the engine rewound somewhere else", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["c"] }),
-      ),
-    ).toThrow();
-  });
-
-  test("rejects the same run when nobody watched the expected route", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-        outcome({ stepPaths: ["a", "b", "a", "b", "c"] }),
-      ),
-    ).toThrow();
-  });
-
-  test("rejects the same run when nothing was offered to resume from", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c"] }),
-        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
-      ),
-    ).toThrow();
-  });
-
-  test("rejects the same run among the steps the route reused", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 3 }),
-        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
-      ),
-    ).toThrow();
-  });
-
-  test("rejects a second rewound run", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c", "d", "e"], resumedAfter: 1 }),
-        outcome({
-          stepPaths: ["a", "b", "a", "b", "c", "d", "c", "d", "e"],
-          rewoundTo: ["a", "c"],
-        }),
-      ),
-    ).toThrow();
-  });
-
-  test("rejects a run left over at the end of the expected route", () => {
-    expect(() =>
-      expectSameAnswer(
-        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-        outcome({ stepPaths: ["a", "b", "c", "b", "c"], rewoundTo: ["b"] }),
-      ),
-    ).toThrow();
-  });
-
   test("rejects a module's state differing", () => {
     expect(differs({ checkpoint: save({ modules: { ui: { images: ["b"] } } }) })).toThrow();
   });
@@ -786,7 +597,16 @@ describe("the comparison the rest of these tests rest on", () => {
     expect(differs({ stepPaths: ["a", "b", "d"] })).toThrow();
   });
 
-  test("rejects a run the route skipped that was not a repeat", () => {
+  test("rejects a route that holds a run of steps once where the other holds it twice", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects a route that skipped steps", () => {
     expect(() =>
       expectSameAnswer(outcome({ stepPaths: ["a", "d"] }), outcome({ stepPaths: ["a", "b", "c", "d"] })),
     ).toThrow();

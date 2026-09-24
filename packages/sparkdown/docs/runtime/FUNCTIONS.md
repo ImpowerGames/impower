@@ -460,16 +460,12 @@ The runtime scan is cheap in practice (most assignments are
 primitives, and `instanceof FunctionValue` is fast). And it makes the
 "closures are transient" guarantee bulletproof.
 
-### Rollback (within-session state patching)
+### No rollback
 
-Unchanged from today. `StatePatch` continues to track only global
-writes; `local` writes don't need patching because:
-
-- Locals can't outlive their enclosing call past the next save point.
-- After rollback, the runtime replays from the save point, which
-  recreates any locals naturally.
-
-This is consistent with the "save state = top-level stores" invariant.
+The runtime never takes back what a continue ran (RUNTIME.md §4), so
+neither `store` writes nor `local` writes need tracking beyond their
+own storage. This is consistent with the "save state = top-level
+stores" invariant.
 
 ### `EvaluateFunction` isolation (host API)
 
@@ -477,8 +473,11 @@ This is consistent with the "save state = top-level stores" invariant.
 evaluates can mutate things in two places:
 
 1. Its own frame's locals — discarded when the frame pops. Zero leakage.
-2. Top-level `store`s — already isolated via the existing `StatePatch`
-   mechanism (write through patch, revert on pop).
+2. Top-level `store`s — written to the story's state, as any call
+   writes them. `EvaluateFunction` (`Story.ts`) runs the function by
+   calling `Continue()` until it can no longer continue, against an
+   output stream of its own, and puts the story's output back
+   afterwards; the `store` writes it made stay.
 
 The host-evaluated function **cannot** reach any local in the
 paused game callstack because:
@@ -498,7 +497,7 @@ closure must outlive its enclosing function call.
 
 **No escape analysis.** Predictable, simple, eliminates a class of
 "captured-or-not" bugs. The locals-don't-need-saving rule above means
-heap allocation has no save/rollback cost — it's just a JS heap
+heap allocation has no save cost — it's just a JS heap
 object that gets GC'd when no closure or active frame references it.
 
 For sparkdown's scale (narrative scripts, not hot-loop game logic),

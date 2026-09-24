@@ -141,11 +141,11 @@ describe("delta checkpoints actually reconstruct byte-identically", () => {
   });
 
   // A scene the route simulator must drive through several forced conditionals
-  // (each a lookahead try/rewind) before reaching the target — exercises the
-  // runtime executedSinceCheckpoint / count-delta tracking across rewinds, in
-  // the pure-delta path (verify OFF) so a rewind-leak would corrupt rather than
-  // silently fall back.
-  const REWIND = `store a = false
+  // before reaching the target — exercises the runtime executedSinceCheckpoint
+  // / count-delta tracking across forced branches, in the pure-delta path
+  // (verify OFF) so a tracking error would corrupt rather than silently fall
+  // back.
+  const CONDITIONAL = `store a = false
 store b = false
 store c = false
 store out = "none"
@@ -181,15 +181,15 @@ scene start
   Final line.
 end
 `;
-  const REWIND_LAST_LINE = 33; // "Final line."
+  const CONDITIONAL_LAST_LINE = 33; // "Final line."
 
-  test("rewind-heavy conditional route reconstructs byte-identically (verify OFF)", () => {
-    const program = compileSrc(REWIND);
+  test("conditional-heavy route reconstructs byte-identically (verify OFF)", () => {
+    const program = compileSrc(CONDITIONAL);
     const diags = (program as any).diagnostics?.[URI] ?? [];
     expect(diags.filter((d: any) => d?.severity === 1)).toEqual([]);
 
-    const off = simulateAll(program, REWIND_LAST_LINE, OFF);
-    const on = simulateAll(program, REWIND_LAST_LINE, ON_NO_VERIFY);
+    const off = simulateAll(program, CONDITIONAL_LAST_LINE, OFF);
+    const on = simulateAll(program, CONDITIONAL_LAST_LINE, ON_NO_VERIFY);
 
     expect(on.length).toBe(off.length);
     expect(on.stats.deltas).toBeGreaterThan(0);

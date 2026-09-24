@@ -5,11 +5,8 @@
 // The position is a sequence, an entry in it and a word offset into that
 // entry's chunk. Values are the engine's own value classes and operators are
 // the engine's own native calls, so an expression costs here what it would cost
-// a real engine that keeps the value model. State that a look-ahead has to give
-// back is held so that saving costs a few small copies and restoring costs what
-// changed: the positional state is copied whole, because at the end of a line it
-// is a handful of entries, and the variables and the counts keep an undo log
-// while a save point is open.
+// a real engine that keeps the value model. A line ends at its newline, where
+// the engine returns, so nothing that runs is taken back.
 //
 // Left out: function calls and call frames, tunnels, threads, labels and
 // diverts into a block (`resumeAt` rebuilds the block stack for a position
@@ -39,10 +36,6 @@ const NIL = new NullValue();
 
 export class ChunkStepper {
   steps = 0;
-  /** How many times a save point was opened, restored and forgotten. */
-  saves = 0;
-  restores = 0;
-  forgets = 0;
 
   readonly globals = new Map<string, InkObject>();
   readonly visits: Uint32Array;
@@ -62,20 +55,6 @@ export class ChunkStepper {
   private output: unknown[] = [];
   private stringMarks: number[] = [];
 
-  // The save point of the look-ahead past a line's newline.
-  private saved = false;
-  private savedSeq: Sequence | null = null;
-  private savedIndex = 0;
-  private savedPc = 0;
-  private savedBlockStack: number[] = [];
-  private savedEvalStack: InkObject[] = [];
-  private savedOutput: unknown[] = [];
-  private savedChoices = 0;
-  private savedTurnIndex = 0;
-  private undoNames: string[] = [];
-  private undoValues: (InkObject | undefined)[] = [];
-  private undoCounts: number[] = [];
-
   constructor(private readonly root: ProgramRoot) {
     this.visits = new Uint32Array(root.symbolNames.length);
     this.turns = new Int32Array(root.symbolNames.length).fill(-1);
@@ -92,9 +71,7 @@ export class ChunkStepper {
     this.evalStack.length = 0;
     this.output.length = 0;
     this.stringMarks.length = 0;
-    this.saved = false;
-    this.undoNames.length = this.undoValues.length = this.undoCounts.length = 0;
-    this.steps = this.saves = this.restores = this.forgets = 0;
+    this.steps = 0;
   }
 
   start(flow: string, globals: Iterable<[string, InkObject]>) {
@@ -148,7 +125,6 @@ export class ChunkStepper {
   }
 
   private count(symbol: number) {
-    if (this.saved) this.undoCounts.push(symbol, this.visits[symbol]!, this.turns[symbol]!);
     this.visits[symbol]!++;
     this.turns[symbol] = this.turnIndex;
   }
@@ -185,52 +161,6 @@ export class ChunkStepper {
     this.enter(this.root.sequences[stack.pop()!]!, index, pc);
   }
 
-  save() {
-    this.saved = true;
-    this.saves++;
-    this.savedSeq = this.seq;
-    this.savedIndex = this.index;
-    this.savedPc = this.pc;
-    this.savedBlockStack = this.blockStack.slice();
-    this.savedEvalStack = this.evalStack.slice();
-    this.savedOutput = this.output.slice();
-    this.savedChoices = this.choices.length;
-    this.savedTurnIndex = this.turnIndex;
-  }
-
-  restore() {
-    this.restores++;
-    const { undoNames, undoValues, undoCounts, globals } = this;
-    for (let i = undoNames.length - 1; i >= 0; i--) {
-      const old = undoValues[i];
-      if (old === undefined) globals.delete(undoNames[i]!);
-      else globals.set(undoNames[i]!, old);
-    }
-    for (let i = undoCounts.length - 3; i >= 0; i -= 3) {
-      this.visits[undoCounts[i]!] = undoCounts[i + 1]!;
-      this.turns[undoCounts[i]!] = undoCounts[i + 2]!;
-    }
-    this.blockStack = this.savedBlockStack;
-    this.evalStack = this.savedEvalStack;
-    this.output = this.savedOutput;
-    this.choices.length = this.savedChoices;
-    this.turnIndex = this.savedTurnIndex;
-    this.stringMarks.length = 0;
-    if (this.savedSeq) this.enter(this.savedSeq, this.savedIndex, this.savedPc);
-    else this.seq = null;
-    this.close();
-  }
-
-  forget() {
-    this.forgets++;
-    this.close();
-  }
-
-  private close() {
-    this.saved = false;
-    this.undoNames.length = this.undoValues.length = this.undoCounts.length = 0;
-  }
-
   private get endsInNewline() {
     return this.output.length > 0 && this.output[this.output.length - 1] === NEWLINE;
   }
@@ -244,7 +174,7 @@ export class ChunkStepper {
   step(): boolean {
     while (this.pc >= this.end) {
       this.advance();
-      if (this.seq === null) return this.finish();
+      if (this.seq === null) return true;
     }
     const chunk = this.chunk;
     const word = chunk[this.pc]!;
@@ -254,16 +184,7 @@ export class ChunkStepper {
     const root = this.root;
     const stack = this.evalStack;
     switch ((word & 0xff) as Op) {
-      case Op.LineStart:
-        // New content is about to arrive. After a newline that ends the line
-        // before it, and nothing of the new line has been evaluated.
-        if (this.saved) {
-          this.restore();
-          return true;
-        }
-        break;
       case Op.Text:
-        if (this.visible()) return true;
         this.output.push(root.strings[arg]!);
         break;
       case Op.Newline:
@@ -271,7 +192,6 @@ export class ChunkStepper {
         else this.output.push(NEWLINE);
         break;
       case Op.Out: {
-        if (this.visible()) return true;
         this.output.push(String(stack.pop()));
         break;
       }
@@ -285,12 +205,7 @@ export class ChunkStepper {
         stack.push(this.globals.get(root.strings[arg]!) ?? NIL);
         break;
       case Op.SetVar: {
-        const name = root.strings[arg]!;
-        if (this.saved) {
-          this.undoNames.push(name);
-          this.undoValues.push(this.globals.get(name));
-        }
-        this.globals.set(name, stack.pop()!);
+        this.globals.set(root.strings[arg]!, stack.pop()!);
         break;
       }
       case Op.BeginString:
@@ -376,26 +291,12 @@ export class ChunkStepper {
       case Op.Done:
       case Op.End:
         this.seq = null;
-        return this.finish();
+        return true;
       default:
         throw new Error(`instruction ${word & 0xff} at ${this.pc - 2} is not one the prototype executes`);
     }
-    if (this.stringMarks.length === 0 && !this.saved && this.endsInNewline) this.save();
-    return false;
-  }
-
-  // Content that a reader would see. After a newline it ends the line before it.
-  private visible(): boolean {
-    if (this.stringMarks.length > 0 || !this.saved) return false;
-    this.restore();
-    return true;
-  }
-
-  // The flow stopped. What ran past the last newline stays run: nothing can
-  // extend the line any more.
-  private finish(): boolean {
-    if (this.saved) this.forget();
-    return true;
+    // A newline outside a string ends the line, and the engine returns there.
+    return this.stringMarks.length === 0 && this.endsInNewline;
   }
 
   choose(index: number) {
@@ -417,8 +318,16 @@ export class ChunkStepper {
   takeLine(): ChunkLine {
     const line: ChunkLine = { text: "", tags: [], display: [] };
     for (const content of this.output) {
-      if (typeof content === "string") line.text += content;
-      else line.display.push(content as ObjectValue);
+      if (typeof content === "string") {
+        line.text += content;
+        continue;
+      }
+      // A table's `text` is part of the line's text, where the engine's
+      // `currentText` reads it.
+      const table = content as ObjectValue;
+      const text = table.value?.get("text");
+      if (text instanceof StringValue && text.value) line.text += text.value;
+      line.display.push(table);
     }
     this.output = [];
     return line;

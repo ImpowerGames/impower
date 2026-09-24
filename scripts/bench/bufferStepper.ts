@@ -6,13 +6,12 @@
 //
 // What it executes is the content a preview route is made of: text, string
 // evaluation (`str` ... `/str`), expression evaluation (`ev` ... `/ev`), table
-// construction (`obj{` ... `}obj`), the `display` builtin and the `line` marker
-// ahead of it, `pop`, line ends with the engine's look-ahead past a newline,
-// and `done` and `end`. A record of any other kind throws, naming itself.
-// Left out: diverts and everything
-// that follows a path, choices, threads, tunnels, function calls and call
-// frames, variables, native operators, tags, glue, visit and turn counts,
-// every builtin but `display`, errors and warnings, saved state.
+// construction (`obj{` ... `}obj`), the `display` builtin, `pop`, line ends at
+// a newline, where the engine returns, and `done` and `end`. A record of any
+// other kind throws, naming itself. Left out: diverts and everything that
+// follows a path, choices, threads, tunnels, function calls and call frames,
+// variables, native operators, tags, glue, visit and turn counts, every
+// builtin but `display`, errors and warnings, saved state.
 import { NODE_WIDTH, ProgramNodeTag, type ProgramBuffer } from "../../packages/sparkdown/src/binary/programBinary";
 
 const enum Op {
@@ -27,7 +26,6 @@ const enum Op {
   EndObject,
   Pop,
   Display,
-  LineStart,
   Stop,
 }
 
@@ -41,7 +39,6 @@ const COMMAND_OPS: Record<string, Op> = {
   "}obj": Op.EndObject,
   pop: Op.Pop,
   "stdlib:display:1": Op.Display,
-  line: Op.LineStart,
   done: Op.Stop,
   end: Op.Stop,
 };
@@ -145,12 +142,6 @@ export class BufferStepper {
   // pieces of the string, above `stringMarks.at(-1)`.
   private readonly output: unknown[] = [];
   private readonly stringMarks: number[] = [];
-  // The look-ahead past a newline: where the line ended, to return to once
-  // later content proves the line is over. -1 while no newline is pending.
-  private lineEndCursor = -1;
-  private lineEndOutput = 0;
-  private lineEndEval = 0;
-  private lineOver = false;
 
   constructor(
     private readonly buffer: ProgramBuffer,
@@ -166,8 +157,6 @@ export class BufferStepper {
     this.evalStack.length = 0;
     this.output.length = 0;
     this.stringMarks.length = 0;
-    this.lineEndCursor = -1;
-    this.lineOver = false;
     this.steps = 0;
     this.cursor = this.enter(target);
   }
@@ -249,42 +238,18 @@ export class BufferStepper {
         this.evalStack.push(undefined);
         break;
       }
-      case Op.LineStart:
-        // A new display line proves the pending line is over, before its
-        // argument is evaluated, as the engine's look-ahead stops there.
-        if (this.stringMarks.length === 0 && this.lineEndCursor >= 0) this.lineOver = true;
-        break;
       case Op.Stop:
         next = -1;
         break;
       default:
         throw new Error(`record ${at} is ${JSON.stringify(this.buffer.strings[stringId])}, which the prototype does not execute`);
     }
-    if (this.lineOver) {
-      // Content arrived after the newline, so the line ended there: go back
-      // to it, as the engine restores its snapshot.
-      this.lineOver = false;
-      this.cursor = this.lineEndCursor;
-      this.output.length = this.lineEndOutput;
-      this.evalStack.length = this.lineEndEval;
-      this.lineEndCursor = -1;
-      return true;
-    }
     this.cursor = next < 0 ? -1 : this.enter(next);
-    if (this.stringMarks.length === 0 && this.lineEndCursor < 0 && this.output.at(-1) === "\n") {
-      if (this.cursor < 0) return true;
-      this.lineEndCursor = this.cursor;
-      this.lineEndOutput = this.output.length;
-      this.lineEndEval = this.evalStack.length;
-    }
-    return this.cursor < 0;
+    // A newline outside a string ends the line, and the engine returns there.
+    return this.cursor < 0 || (this.stringMarks.length === 0 && this.output.at(-1) === "\n");
   }
 
   private emit(content: unknown) {
-    if (this.stringMarks.length === 0 && this.lineEndCursor >= 0) {
-      // Whitespace after a newline leaves the line open; anything else ends it.
-      if (typeof content !== "string" || content.trim() !== "") this.lineOver = true;
-    }
     this.output.push(content);
   }
 
