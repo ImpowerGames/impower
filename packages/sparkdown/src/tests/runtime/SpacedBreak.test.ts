@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromDirectory,
   makeRuntimeStoryFromSource,
@@ -28,6 +29,7 @@ function continueBeats(
     [];
   while (story.canContinue) {
     const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
     const routed = displayRouting(story).find((r) => r.target);
     beats.push({
       text,
@@ -129,6 +131,7 @@ $: E > F
         { target: "dialogue", character: "HERO" },
       ]);
       expect(flagged(ctx.story, "inherit")).toBe(true);
+      expect(ctx.story.Continue()).toBe("");
       expect(ctx.story.canContinue).toBe(false);
     }
   });
@@ -252,6 +255,7 @@ end
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("true is true.\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual([
       "Go > there",
     ]);

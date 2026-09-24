@@ -139,10 +139,7 @@ export class CheckpointStore {
       this._entries.push({ kind: "keyframe", json: this._host.save() });
       // Reset the per-beat change logs here too. Nothing consumes them in this
       // mode — the full save above already holds everything — but they mirror
-      // collections that otherwise grow for the whole simulation, and one of
-      // them is copied on EVERY lookahead (Game.onSaveStateSnapshot). Skipping
-      // the drain here left that copy O(beats) in the default configuration,
-      // which is the quadratic #376 is about.
+      // collections that otherwise grow for the whole simulation.
       this._host.drainCountDeltas();
       this._host.drainRuntime();
       return;

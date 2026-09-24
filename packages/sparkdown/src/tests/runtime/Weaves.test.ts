@@ -47,6 +47,7 @@ describe("Weaves (ported from inkjs)", () => {
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["First"]);
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.Continue()).toBe("First\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual([
       "Very indented",
     ]);
@@ -68,7 +69,7 @@ describe("Weaves (ported from inkjs)", () => {
       "four",
     ]);
     ctx.story.ChooseChoiceIndex(0);
-    ctx.story.Continue();
+    expect(ctx.story.ContinueMaximally()).toBe("one\n");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["two"]);
     ctx.story.ChooseChoiceIndex(0);
     expect(runToEnd(ctx.story)).toBe("two\nthree\nsix\n");
@@ -112,6 +113,7 @@ describe("Weaves (ported from inkjs)", () => {
     const ctx = makeRuntimeStoryFromFile("weaves", "conditional-choice-in-weave-2");
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("first gather\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.length).toBe(2);
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.ContinueMaximally()).toBe(

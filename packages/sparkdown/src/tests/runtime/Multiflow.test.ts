@@ -76,20 +76,22 @@ describe("Multiflow (ported from inkjs)", () => {
     // haven't diverted there).
     expect(ctx.story.Continue()).toBe("Default line 1\n");
 
+    // Each flow's line returns at its newline, and the continue after it
+    // spawns the threads and raises their choices with no text.
     ctx.story.SwitchFlow("Blue Flow");
     ctx.story.ChoosePathString("blue", true, []);
     expect(ctx.story.Continue()).toBe("Hello I'm blue\n");
+    expect(ctx.story.Continue()).toBe("");
 
     ctx.story.SwitchFlow("Red Flow");
     ctx.story.ChoosePathString("red", true, []);
     expect(ctx.story.Continue()).toBe("Hello I'm red\n");
+    expect(ctx.story.Continue()).toBe("");
 
     ctx.story.SwitchFlow("Blue Flow");
-    expect(ctx.story.currentText).toBe("Hello I'm blue\n");
     expect(ctx.story.currentChoices[0]?.text).toBe("Thread 1 blue choice");
 
     ctx.story.SwitchFlow("Red Flow");
-    expect(ctx.story.currentText).toBe("Hello I'm red\n");
     expect(ctx.story.currentChoices[0]?.text).toBe("Thread 1 red choice");
 
     const saved = ctx.story.state.ToJson() as string;

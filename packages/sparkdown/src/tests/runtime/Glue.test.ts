@@ -10,6 +10,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromFile,
   makeRuntimeStoryFromSource,
@@ -31,6 +32,7 @@ function beatsWithRouting(story: RuntimeStory): [string, Routing[]][] {
   const beats: [string, Routing[]][] = [];
   while (story.canContinue) {
     const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
     beats.push([text, displayRouting(story)]);
   }
   return beats;

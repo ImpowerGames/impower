@@ -26,8 +26,8 @@ const SOURCE = [
 ].join("\n");
 
 const CHOICE_SOURCE = [
-  "Pick a path.",
   "choose",
+  "  Pick a path.",
   "  * Left path",
   "    You went left.",
   "  * Right path",

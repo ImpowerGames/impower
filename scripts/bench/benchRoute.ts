@@ -38,9 +38,6 @@ export function prepareWalk(project: string, line: number, hooked = false): Walk
   story.onExecute = hooked ? (NOOP as any) : null;
   story.onMakeChoice = NOOP as any;
   story.onEvaluateCondition = NOOP as any;
-  story.onSaveStateSnapshot = NOOP as any;
-  story.onRestoreStateSnapshot = NOOP as any;
-  story.onDiscardStateSnapshot = NOOP as any;
   story.onDidContinue = null;
   return { game, story, route, toPath };
 }

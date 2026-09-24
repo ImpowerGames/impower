@@ -10,6 +10,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
+  continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
@@ -38,7 +39,8 @@ function run(story: RuntimeStory): { texts: string[]; warnings: string[] } {
   };
   const texts: string[] = [];
   while (story.canContinue) {
-    texts.push(story.Continue() ?? "");
+    const text = story.Continue() ?? "";
+    if (continueShowedSomething(story)) texts.push(text);
   }
   return { texts, warnings };
 }
@@ -350,7 +352,9 @@ describe("a line that begins with `..` after a `load` line", () => {
       const texts: string[] = [];
       const routing: unknown[] = [];
       while (ctx.story.canContinue) {
-        texts.push(ctx.story.Continue() ?? "");
+        const text = ctx.story.Continue() ?? "";
+        if (!continueShowedSomething(ctx.story)) continue;
+        texts.push(text);
         routing.push(displayRouting(ctx.story));
       }
       expect(texts.at(-1), source).toBe("You see a rusty key.\n");
