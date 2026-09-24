@@ -174,6 +174,18 @@ function isInsideAlternatorSet(
   return false;
 }
 
+// Whether `node` begins right where a `..` that begins a line ends.
+function followsLeadingGlue(node: SyntaxNode): boolean {
+  for (
+    let before: SyntaxNode | null = node.resolveInner(node.from, -1);
+    before && before.to === node.from;
+    before = before.parent
+  ) {
+    if (before.name === "LeadingGlue") return true;
+  }
+  return false;
+}
+
 export type FormatType =
   | "separator"
   // Like `separator` but always normalizes to one space — bypasses
@@ -541,6 +553,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     ) {
       const read = (from: number, to: number) => this.read(from, to);
       if (isInsideInlineAlternator(nodeRef, read)) return annotations;
+      // The spaces after a `..` that begins a line are the author's; the
+      // line shows its text without them either way.
+      if (followsLeadingGlue(nodeRef.node)) return annotations;
       const tightInline = isInsideAnyInlineAlternator(nodeRef, read);
       // Unary `-` collapse: if this WS sits immediately after a unary
       // ArithmeticOperator (`-x` not `a - b`), force tight (no space).

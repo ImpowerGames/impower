@@ -3143,6 +3143,26 @@ export const STDLIB: Record<string, StdLibEntry> = {
       if (payload instanceof ObjectValue && payload.value) {
         joinDisplayParts(payload.value);
       }
+      const flag = (key: string) => {
+        const value =
+          payload instanceof ObjectValue ? payload.value?.get(key) : null;
+        return value instanceof BoolValue && value.value === true;
+      };
+      // A line that begins with `..` states that it continues the line
+      // before it. Where only the run knows that line, the call checks it
+      // here: the line is open when the step has shown something and has not
+      // yet written the newline that ends it. A caption's pending newline is
+      // written before anything else shows, so its line has ended.
+      if (
+        flag("continues") &&
+        (!story.state.outputStreamContainsContent ||
+          story.state.outputStreamEndsInNewline ||
+          story.state.lineEndPending)
+      ) {
+        story.Warning(
+          "This line begins with `..`, but the line before it had already ended.",
+        );
+      }
       // The line's author tags go to the stream first, as a tag written on
       // the line would, so they land in the same step's `currentTags`.
       const tags =
@@ -3167,11 +3187,6 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // Close the beat so Continue completes here (mirrors print's `\n`). A
       // table marked `open` joins the next display call onto its line, so
       // the step runs on until a call closes it.
-      const flag = (key: string) => {
-        const value =
-          payload instanceof ObjectValue ? payload.value?.get(key) : null;
-        return value instanceof BoolValue && value.value === true;
-      };
       if (flag("open")) return;
       // A `choose` block's caption leaves its newline pending: the step runs
       // on and completes with the choices, unless something shows first,

@@ -94,7 +94,9 @@ function buildDisplayContent(
 // ends the statement marks its last call `open`, so the call writes no
 // newline and the step runs on into the next line's table. A `>..` ending a
 // line marks the beat its break ends `open` the same way. A `null` line type
-// marks a glued continuation: its tables name no routing.
+// marks a glued continuation: its tables name no routing. A line that begins
+// with `..` where only the run knows the line before marks its first call
+// `continues`, which `display` checks.
 function buildDisplayCalls(
   parent: SyntaxNode,
   bodyStart: number,
@@ -129,6 +131,7 @@ function buildDisplayCalls(
   // before it.
   const isContinuation = lineType === null;
   const joined = isContinuation ? lexicalRouting(parent, ctx) : null;
+  const continues = runCheckedLeadingGlue(parent, bodyStart, bodyEnd, ctx);
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
@@ -216,6 +219,7 @@ function buildDisplayCalls(
               : undefined,
             inherit: isContinuation && i > 0,
             open: trailingGlue != null || divertJoins,
+            continues: continues && i === 0,
           },
         ),
       );
@@ -605,9 +609,9 @@ function collectBodySegments(
       idx++;
       // A `..` after something else on its line is text.
       if (!startsItsLine(next.node, ctx)) continue;
-      // A line that begins with `..` is reported and shows its text without
-      // the mark or the spaces after it.
-      reportLeadingGlue(next.node, ctx);
+      // A line that begins with `..` shows its text without the mark or the
+      // spaces after it, and the mark is checked against the line before.
+      checkLeadingGlue(parent, next.node, ctx);
       i = next.to;
       while (i < bodyEnd && /[ \t]/.test(ctx.read(i, i + 1))) i++;
       continue;
@@ -1037,12 +1041,19 @@ function reportLoadGlue(
   });
 }
 
-// A `..` that begins a line joins nothing: the line after a newline has
-// already ended, and only a `..` that ends a line joins the next one. The
-// error names that fix, on the mark's range.
+// A bare `..` line has no text for the mark to lead, so it states nothing the
+// line before could continue into. The error names the fix, on the mark's
+// range.
 export function reportLeadingGlue(mark: SyntaxNode, ctx: LowerContext): void {
+  reportMark(mark, LEADING_GLUE_MESSAGE, ctx);
+}
+
+const CONTINUES_MESSAGE =
+  "This line continues the one before it, but that line does not end with `..`. End it with `..` to join them.";
+
+function reportMark(mark: SyntaxNode, message: string, ctx: LowerContext) {
   ctx.diagnostics?.push({
-    message: LEADING_GLUE_MESSAGE,
+    message,
     severity: ErrorType.Error,
     source: {
       fileName: null,
@@ -1053,6 +1064,122 @@ export function reportLeadingGlue(mark: SyntaxNode, ctx: LowerContext): void {
       endCharacterNumber: ctx.characterNumber(mark.to) + 1,
     },
   });
+}
+
+// A `..` that begins a line states that the line continues the one before
+// it; it joins nothing itself, since only a `..` that ends a line joins. Where
+// the line before is known at compile time, a line before that does not end
+// with `..` is an error on the mark. A bare `..` line keeps its own error.
+function checkLeadingGlue(
+  statement: SyntaxNode,
+  mark: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  if (!restOfLine(mark, statement, ctx).trim()) {
+    reportLeadingGlue(mark, ctx);
+  } else if (leadingGlueCheck(statement, mark, ctx) === "unjoined") {
+    reportMark(mark, CONTINUES_MESSAGE, ctx);
+  }
+}
+
+// What the line a `..` begins continues: a line before it that ends with `..`
+// (`joined`), a line before it that does not (`unjoined`), or a line only the
+// run knows (`run`): the first statement of a scene, branch or label a divert
+// reaches, or one after a statement that is not a display line.
+function leadingGlueCheck(
+  statement: SyntaxNode,
+  mark: SyntaxNode,
+  ctx: LowerContext,
+): "joined" | "unjoined" | "run" {
+  const before = previousBodyLine(statement, mark, ctx);
+  if (before) {
+    return bodyLineEndsWithGlue(statement, before, ctx) ? "joined" : "unjoined";
+  }
+  const sib = precedingConstruct(statement);
+  if (!sib || !isDisplayLine(sib)) return "run";
+  return endsWithTrailingGlue(sib, ctx) ? "joined" : "unjoined";
+}
+
+// The `..` that begins the first line of a statement's text, when the line
+// before it is one only the run knows. Its first call carries `continues`, so
+// `display` can check the line is open as the call runs.
+function runCheckedLeadingGlue(
+  statement: SyntaxNode,
+  bodyStart: number,
+  bodyEnd: number,
+  ctx: LowerContext,
+): boolean {
+  const inline = leadingGlue(statement);
+  const mark =
+    inline ??
+    collectTopLevelInjections(statement, bodyStart, bodyEnd).find(
+      (injection) => injection.kind === "leadingGlue",
+    )?.node;
+  return (
+    mark != null &&
+    startsItsLine(mark, ctx) &&
+    restOfLine(mark, statement, ctx).trim().length > 0 &&
+    leadingGlueCheck(statement, mark, ctx) === "run"
+  );
+}
+
+// The rest of the source line after `mark`, within `statement`.
+function restOfLine(
+  mark: SyntaxNode,
+  statement: SyntaxNode,
+  ctx: LowerContext,
+): string {
+  const rest = ctx.read(mark.to, statement.to);
+  const newline = rest.indexOf("\n");
+  return newline < 0 ? rest : rest.slice(0, newline);
+}
+
+// The body line of a block statement before the line `mark` is on, past blank
+// lines and `//` comment lines, or null when `mark` is on the statement's
+// first line of text.
+function previousBodyLine(
+  statement: SyntaxNode,
+  mark: SyntaxNode,
+  ctx: LowerContext,
+): { from: number; to: number } | null {
+  const head = ctx.read(statement.from, mark.from).indexOf("\n");
+  if (head < 0) return null;
+  const bodyStart = statement.from + head + 1;
+  let to = mark.from - ctx.characterNumber(mark.from) - 1;
+  while (to >= bodyStart) {
+    const text = ctx.read(bodyStart, to);
+    const from = bodyStart + text.lastIndexOf("\n") + 1;
+    const line = ctx.read(from, to);
+    if (line.trim() && !/^\s*\/\//.test(line)) return { from, to };
+    to = from - 1;
+  }
+  return null;
+}
+
+// Whether a body line ends with a `..`: nothing but spaces, tags or a `//`
+// comment follows the last `..` mark on it.
+function bodyLineEndsWithGlue(
+  statement: SyntaxNode,
+  line: { from: number; to: number },
+  ctx: LowerContext,
+): boolean {
+  const glue = collectTopLevelInjections(statement, line.from, line.to)
+    .filter((injection) => injection.kind === "glue")
+    .at(-1);
+  return (
+    glue != null &&
+    /^[ \t]*(?:(?:#|\/\/)[^\n]*)?\s*$/.test(ctx.read(glue.to, line.to))
+  );
+}
+
+// Whether a construct shows a line of text: a display statement or a line of
+// interpolations.
+function isDisplayLine(node: SyntaxNode): boolean {
+  return (
+    DISPLAY_LINE_TYPES[node.name] != null ||
+    node.name === "LuauInterpolatedStringExpression" ||
+    node.name === "LuauFunctionCallShorthand"
+  );
 }
 
 // The display line each statement kind routes by.
@@ -1395,9 +1522,12 @@ export function lowerInlineAction(
   // The interpolation before it on its line lowers these marks (`{x} ..`).
   if (lineEndMarks(nodeRef.node, ctx)) return {};
   if (glue && startsItsLine(glue, ctx)) {
-    reportLeadingGlue(glue, ctx);
     // A bare `..` line has nothing left to show.
-    if (!ctx.read(from, to).trim()) return {};
+    if (!ctx.read(from, to).trim()) {
+      reportLeadingGlue(glue, ctx);
+      return {};
+    }
+    checkLeadingGlue(nodeRef.node, glue, ctx);
   } else if (glue) {
     // Something began the line before this `..` (`{3} .. and more.`), so the
     // mark is in the middle of the line, where it is text.

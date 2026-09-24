@@ -31,7 +31,18 @@ A `>..` or `> ..` that ends a line, with a space before the `>` as every break n
 
 A `..` at the end of a block's last line joins the next display line whatever its cue, so `ALICE:` / `Hello ..` followed by a `BOB:` block shows BOB's words in ALICE's beat.
 
-Ink also lets `<>` begin a line. Sparkdown does not: a line that begins with `..` is an error, "A line cannot begin with `..`. End the previous line with `..` to join them.", reported on the mark, and the line shows its text without the mark. Every join is decided where a line ends, so the engine never has to look past a newline to learn whether the next line joins it. A `load` line cannot end with `..` either, because everything after `load` names assets.
+Ink also lets `<>` begin a line and join it to the line before. In Sparkdown a `..` that begins a line joins nothing: it states that the line continues the one before it, and the compiler and the engine check that statement. Every join is decided where a line ends, so the engine never has to look past a newline to learn whether the next line joins it, and a line that begins with `..` shows what it would show without the mark (the spaces after the mark are dropped with it). The mark lets a branch or a scene say, next to its own words, that it continues a line written elsewhere:
+
+```sparkdown
+You see a ..
+if has_key then
+  .. rusty key.
+else
+  .. locked door.
+end
+```
+
+Where the line before is a display line the source shows (the line above, the body line above in a block, or for the first line of an `if` branch or alternator arm the line before the block), it must end with `..`, and otherwise the mark is an error: "This line continues the one before it, but that line does not end with `..`. End it with `..` to join them." Where only the run knows the line before (the first line of a scene or label a divert reaches, or a line after a logic statement), the line's table carries `continues`, and the engine raises a runtime warning when the line before had already ended as the line runs: "This line begins with `..`, but the line before it had already ended." A divert holds its line open, so a scene whose first line begins with `..` runs quietly from `A -> s` and warns when a plain `-> s` after a closed line reaches it. A bare `..` line is an error, "A line cannot begin with `..`. End the previous line with `..` to join them.", and a `load` line cannot end with `..`, because everything after `load` names assets.
 
 Every join lowers to a `display()` call whose table carries `open` ([`lowerDisplay.ts`](src/compiler/lower/lowerers/lowerDisplay.ts)). `display` writes no newline after an open table, so the step runs on into the next line's call. The joined line's table names no routing, so the beat keeps the routing of the line it continues. No `Glue` object reaches the compiled program.
 
@@ -359,12 +370,13 @@ specific control commands, expect the extra metadata tags.
 
 ### `..` is context-sensitive
 
-In Luau, `..` is always string concatenation. In sparkdown it has two meanings:
+In Luau, `..` is always string concatenation. In sparkdown it has three meanings:
 
 - At the end of a display line → **glue marker**: `A ..` or `A..`
+- At the start of a display line → **continuation mark**, checked against the line before: `.. B`
 - Between operands in an expression → **string concat**: `"a" .. "b"`
 
-The grammar's `Glue` rule matches only a `..` that ends a line of display text; inside `{...}` or a logic line, `..` is always concatenation. An inline alternator in display text is also written between `..` marks (`.. queue|a|b ..`), and those marks are part of the alternator.
+The grammar's `Glue` rule matches only a `..` that ends a line of display text, and its `LeadingGlue` rule one that begins a line of display text; inside `{...}` or a logic line, `..` is always concatenation. An inline alternator in display text is also written between `..` marks (`.. queue|a|b ..`), and those marks are part of the alternator.
 
 ### `&` prefix for bare statements at the top level
 

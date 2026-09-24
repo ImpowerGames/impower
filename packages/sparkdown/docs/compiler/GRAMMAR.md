@@ -862,6 +862,8 @@ That position-based dispatch is why the grammar has no dedicated `Indent` rule a
 
 So if you write `({{WS}}*)` somewhere a value can sit at line start AND mid-line (`name: type` vs `\n  name: type`), reach for `#OptionalWhitespace` and let the formatter do the right thing for each case — the position check covers both.
 
+**After a leading `..`.** A `..` that begins a line of display text is a `LeadingGlue` node (`InlineAction`'s begin, and the begin of a block body line). It states that the line continues the one before it, and the compiler checks that statement (`docs/compiler/LOWERING.md` §10.7). The whitespace after it is the author's, and the line shows its text without the mark or those spaces, so the formatter leaves a `RequiredWhitespace` or `OptionalWhitespace` run that begins where a `LeadingGlue` ends as written: `.. B`, `..B` and `..   B` all keep their spacing.
+
 **A common mistake** is to use `Whitespace` (preserve-as-is) where `RequiredWhitespace` would be more correct. When in doubt, ask: should auto-formatting ever change this whitespace mid-line?
 
 - Yes → `RequiredWhitespace`, `OptionalWhitespace`, or `ExtraWhitespace`.

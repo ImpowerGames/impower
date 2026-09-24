@@ -4,7 +4,8 @@
 // is a break that the next line joins, and the break's table carries `pause`.
 // Every join lowers to a display call whose
 // table carries `open`, which writes no newline, so no `Glue` object is
-// emitted. A line that begins with `..` is an error that names the fix. A
+// emitted. A bare `..` line is an error that names the fix; a line that
+// begins with `..` and has text is checked in LeadingGlueIntent.test.ts. A
 // `choose` block's last caption line leaves its newline pending: its step
 // completes with the choices unless the run shows something first.
 
@@ -409,37 +410,7 @@ describe("a `>..` ending a line is a break the next line joins", () => {
   }
 });
 
-describe("a line that begins with `..` is an error", () => {
-  test("a line that begins with `..`", () => {
-    const source = `A\n.. B\n`;
-    expect(errorsOf(source)).toEqual([
-      {
-        message: LEADING_GLUE_ERROR,
-        start: { line: 1, character: 0 },
-        end: { line: 1, character: 2 },
-      },
-    ]);
-    const ctx = makeRuntimeStoryFromSource(source);
-    expect(texts(ctx.story)).toEqual(["A\n", "B\n"]);
-  });
-
-  test("a line that begins with a touching `..`", () => {
-    for (const source of [`A\n..B\n`, `ALICE:\n  A\n  ..B\n`]) {
-      const inBlock = source.startsWith("ALICE:");
-      const line = inBlock ? 2 : 1;
-      const character = inBlock ? 2 : 0;
-      expect(errorsOf(source)).toEqual([
-        {
-          message: LEADING_GLUE_ERROR,
-          start: { line, character },
-          end: { line, character: character + 2 },
-        },
-      ]);
-    }
-    const ctx = makeRuntimeStoryFromSource(`A\n..B\n...and then.\n`);
-    expect(texts(ctx.story)).toEqual(["A\n", "B\n", "...and then.\n"]);
-  });
-
+describe("a bare `..` line is an error", () => {
   test("a bare `..` line", () => {
     const source = `A\n  ..\nB\n`;
     expect(errorsOf(source)).toEqual([
@@ -451,19 +422,6 @@ describe("a line that begins with `..` is an error", () => {
     ]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(texts(ctx.story)).toEqual(["A\n", "B\n"]);
-  });
-
-  test("a block body line that begins with `..`", () => {
-    const source = `ALICE:\n  A\n  .. B\n`;
-    expect(errorsOf(source)).toEqual([
-      {
-        message: LEADING_GLUE_ERROR,
-        start: { line: 2, character: 2 },
-        end: { line: 2, character: 4 },
-      },
-    ]);
-    const ctx = makeRuntimeStoryFromSource(source);
-    expect(texts(ctx.story)).toEqual(["A\nB\n"]);
   });
 });
 
