@@ -1,9 +1,7 @@
-import { CallStack } from "./CallStack";
 import { VariablesState } from "./VariablesState";
 import { ValueType, Value, StringValue, ListValue, ObjectValue } from "./Value";
 import { PushPopType } from "./PushPop";
 import { Tag } from "./Tag";
-import { Glue } from "./Glue";
 import { Path } from "./Path";
 import { ControlCommand } from "./ControlCommand";
 import { StringBuilder } from "./StringBuilder";
@@ -19,7 +17,6 @@ import { Container } from "./Container";
 import { InkObject } from "./Object";
 import { throwNullException } from "./NullException";
 import { Story } from "./Story";
-import { StatePatch } from "./StatePatch";
 import { SimpleJson } from "./SimpleJson";
 import { type CarriedStep, Flow } from "./Flow";
 import { InkList } from "./InkList";
@@ -58,13 +55,8 @@ export class StoryState {
   // (delta-reconstructed) count maps to rebuild a byte-identical full save.
   private _omitCountsForDelta = false;
 
-  // Dirty-key logs: container paths whose visit count / turn index were
-  // COMMITTED since the last drain. Shared by reference across
-  // CopyAndStartPatching copies (like the count maps themselves), so a drain
-  // from whichever StoryState is current at a beat boundary sees every commit.
-  // Speculative lookahead writes go through the patch and never touch these —
-  // they're only recorded when the patch is applied (ApplyCountChanges) or on
-  // the direct (no-patch) path.
+  // Dirty-key logs: container paths whose visit count / turn index changed
+  // since the last drain.
   private _changedVisitCounts: Set<string> = new Set();
   private _changedTurnIndices: Set<string> = new Set();
 
@@ -126,18 +118,7 @@ export class StoryState {
   }
 
   public VisitCountAtPathString(pathString: string) {
-    let visitCountOut;
-
-    if (this._patch !== null) {
-      let container = this.story.ContentAtPath(new Path(pathString)).container;
-      if (container === null)
-        throw new Error("Content at path not found: " + pathString);
-
-      visitCountOut = this._patch.TryGetVisitCount(container, 0);
-      if (visitCountOut.exists) return visitCountOut.result;
-    }
-
-    visitCountOut = tryGetValueFromMap(this._visitCounts, pathString, null);
+    let visitCountOut = tryGetValueFromMap(this._visitCounts, pathString, null);
     if (visitCountOut.exists) return visitCountOut.result;
 
     return 0;
@@ -158,13 +139,6 @@ export class StoryState {
       return 0;
     }
 
-    if (this._patch !== null) {
-      let count = this._patch.TryGetVisitCount(container, 0);
-      if (count.exists) {
-        return count.result!;
-      }
-    }
-
     let containerPathStr = container.path.toString();
     let count2 = tryGetValueFromMap(this._visitCounts, containerPathStr, null);
     if (count2.exists) {
@@ -175,13 +149,6 @@ export class StoryState {
   }
 
   public IncrementVisitCountForContainer(container: Container) {
-    if (this._patch !== null) {
-      let currCount = this.VisitCountForContainer(container);
-      currCount++;
-      this._patch.SetVisitCount(container, currCount);
-      return;
-    }
-
     let containerPathStr = container.path.toString();
     let count = tryGetValueFromMap(this._visitCounts, containerPathStr, null);
     if (count.exists) {
@@ -193,11 +160,6 @@ export class StoryState {
   }
 
   public RecordTurnIndexVisitToContainer(container: Container) {
-    if (this._patch !== null) {
-      this._patch.SetTurnIndex(container, this.currentTurnIndex);
-      return;
-    }
-
     let containerPathStr = container.path.toString();
     this._turnIndices.set(containerPathStr, this.currentTurnIndex);
     this._changedTurnIndices.add(containerPathStr);
@@ -212,13 +174,6 @@ export class StoryState {
           container.debugMetadata +
           ") unknown. The story may need to be compiled with countAllVisits flag (-c).",
       );
-    }
-
-    if (this._patch !== null) {
-      let index = this._patch.TryGetTurnIndex(container, 0);
-      if (index.exists) {
-        return this.currentTurnIndex - index.result!;
-      }
     }
 
     let containerPathStr = container.path.toString();
@@ -667,125 +622,6 @@ export class StoryState {
     this._aliveFlowNamesDirty = true;
   }
 
-  public CopyAndStartPatching(forBackgroundSave: boolean) {
-    let copy = new StoryState(this.story);
-
-    copy._patch = new StatePatch(this._patch);
-
-    copy._currentFlow.name = this._currentFlow.name;
-    copy._currentFlow.callStack = new CallStack(this._currentFlow.callStack);
-    copy._currentFlow.outputStream.push(...this._currentFlow.outputStream);
-    copy.OutputStreamDirty();
-
-    // When background saving we need to make copies of choices since they each have
-    // a snapshot of the thread at the time of generation since the game could progress
-    // significantly and threads modified during the save process.
-    // However, when doing internal saving and restoring of snapshots this isn't an issue,
-    // and we can simply ref-copy the choices with their existing threads.
-
-    if (forBackgroundSave) {
-      for (let choice of this._currentFlow.currentChoices) {
-        copy._currentFlow.currentChoices.push(choice.Clone());
-      }
-    } else {
-      copy._currentFlow.currentChoices.push(
-        ...this._currentFlow.currentChoices,
-      );
-    }
-
-    if (this._namedFlows !== null) {
-      copy._namedFlows = new Map();
-      for (let [namedFlowKey, namedFlowValue] of this._namedFlows) {
-        copy._namedFlows.set(namedFlowKey, namedFlowValue);
-        copy._aliveFlowNamesDirty = true;
-      }
-      copy._namedFlows.set(this._currentFlow.name, copy._currentFlow);
-    }
-
-    if (this.hasError) {
-      copy._currentErrors = [];
-      copy._currentErrors.push(...(this.currentErrors || []));
-      copy._raisedErrors = this._raisedErrors.slice(
-        0,
-        copy._currentErrors.length,
-      );
-    }
-
-    if (this.hasWarning) {
-      copy._currentWarnings = [];
-      copy._currentWarnings.push(...(this.currentWarnings || []));
-      copy._raisedWarnings = this._raisedWarnings.slice(
-        0,
-        copy._currentWarnings.length,
-      );
-    }
-
-    copy.variablesState = this.variablesState;
-    copy.variablesState.callStack = copy.callStack;
-    copy.variablesState.patch = copy._patch;
-
-    copy.evaluationStack.push(...this.evaluationStack);
-
-    if (!this.divertedPointer.isNull)
-      copy.divertedPointer = this.divertedPointer.copy();
-
-    copy.previousPointer = this.previousPointer.copy();
-
-    copy._visitCounts = this._visitCounts;
-    copy._turnIndices = this._turnIndices;
-
-    // Share the delta dirty-key logs by reference alongside the maps they
-    // track, so a checkpoint drain from whichever copy is current sees every
-    // committed mutation regardless of which copy performed it.
-    copy._changedVisitCounts = this._changedVisitCounts;
-    copy._changedTurnIndices = this._changedTurnIndices;
-
-    copy.currentTurnIndex = this.currentTurnIndex;
-    copy.storySeed = this.storySeed;
-    copy.previousRandom = this.previousRandom;
-
-    copy.didSafeExit = this.didSafeExit;
-    copy.lineEndPending = this.lineEndPending;
-    copy.outputCut = this.outputCut;
-    copy.heldPaths = [...this.heldPaths];
-    const carried = this._currentFlow.carried;
-    copy._currentFlow.carried = carried
-      ? { ...carried, output: [...carried.output], paths: [...carried.paths] }
-      : null;
-
-    return copy;
-  }
-
-  public RestoreAfterPatch() {
-    this.variablesState.callStack = this.callStack;
-    this.variablesState.patch = this._patch;
-  }
-
-  public ApplyAnyPatch() {
-    if (this._patch === null) return;
-
-    this.variablesState.ApplyPatch();
-
-    for (let [key, value] of this._patch.visitCounts)
-      this.ApplyCountChanges(key, value, true);
-
-    for (let [key, value] of this._patch.turnIndices)
-      this.ApplyCountChanges(key, value, false);
-
-    this._patch = null;
-  }
-
-  public ApplyCountChanges(
-    container: Container,
-    newCount: number,
-    isVisit: boolean,
-  ) {
-    let counts = isVisit ? this._visitCounts : this._turnIndices;
-    const pathStr = container.path.toString();
-    counts.set(pathStr, newCount);
-    (isVisit ? this._changedVisitCounts : this._changedTurnIndices).add(pathStr);
-  }
-
   public WriteJson(writer: SimpleJson.Writer) {
     writer.WriteObjectStart();
 
@@ -994,10 +830,8 @@ export class StoryState {
     // new output is on having ended already, and that line's own closing
     // newline would be dropped as a second one.
     //
-    // The cut is the stream's length before this push. Only a runtime `Glue`
-    // makes a push remove earlier entries (`RemoveExistingGlue`,
-    // `TrimNewlinesFromOutputStream`), and no join lowers to one, so nothing
-    // below the cut moves.
+    // The cut is the stream's length before this push. A push never removes
+    // earlier entries, so nothing below the cut moves.
     if (this.lineEndPending && !this.inStringEvaluation && showsOutput(obj)) {
       this.lineEndPending = false;
       this.outputCut = this.outputStream.length;
@@ -1200,33 +1034,22 @@ export class StoryState {
   }
 
   public PushToOutputStreamIndividual(obj: InkObject | null) {
-    let glue = asOrNull(obj, Glue);
     let text = asOrNull(obj, StringValue);
 
     let includeInOutput = true;
 
-    if (glue) {
-      this.TrimNewlinesFromOutputStream();
-      includeInOutput = true;
-    } else if (text) {
+    if (text) {
       let functionTrimIndex = -1;
       let currEl = this.callStack.currentElement;
       if (currEl!.type == PushPopType.Function) {
         functionTrimIndex = currEl!.functionStartInOutputStream;
       }
 
-      let glueTrimIndex = -1;
       for (let i = this.outputStream.length - 1; i >= 0; i--) {
         let o = this.outputStream[i];
-        let c = o instanceof ControlCommand ? o : null;
-        let g = o instanceof Glue ? o : null;
-
-        if (g != null) {
-          glueTrimIndex = i;
-          break;
-        } else if (
-          c != null &&
-          c.commandType == ControlCommand.CommandType.BeginString
+        if (
+          o instanceof ControlCommand &&
+          o.commandType == ControlCommand.CommandType.BeginString
         ) {
           if (i >= functionTrimIndex) {
             functionTrimIndex = -1;
@@ -1235,61 +1058,24 @@ export class StoryState {
         }
       }
 
-      let trimIndex = -1;
-      if (glueTrimIndex != -1 && functionTrimIndex != -1)
-        trimIndex = Math.min(functionTrimIndex, glueTrimIndex);
-      else if (glueTrimIndex != -1) trimIndex = glueTrimIndex;
-      else trimIndex = functionTrimIndex;
-
-      if (trimIndex != -1) {
+      if (functionTrimIndex != -1) {
         if (text.isNewline) {
           includeInOutput = false;
         } else if (text.isNonWhitespace) {
-          if (glueTrimIndex > -1) this.RemoveExistingGlue();
-
-          if (functionTrimIndex > -1) {
-            let callStackElements = this.callStack.elements;
-            for (let i = callStackElements.length - 1; i >= 0; i--) {
-              let el = callStackElements[i];
-              if (el!.type == PushPopType.Function) {
-                el!.functionStartInOutputStream = -1;
-              } else {
-                break;
-              }
-            }
-          }
+          this.MarkFunctionsShown();
         }
       } else if (text.isNewline) {
         if (this.outputStreamEndsInNewline || !this.outputStreamContainsContent)
           includeInOutput = false;
       }
     } else if (obj instanceof ObjectValue) {
-      // A display table with visible words consumes pending glue exactly as
-      // non-whitespace text does. Left in place, the glue would swallow the
-      // newline that closes this table's step and every later line would join.
-      // A table whose `text` is empty or whitespace leaves the glue pending,
-      // as whitespace text does, so the next visible words still join.
-      //
-      // The removal looks past a `# tag`'s BeginTag/EndTag pair. A tag is
-      // metadata, so a tagged line between the glue and the table leaves the
-      // step boundaries where they would be without the tag.
-      // Inside a function, visible words also end the stretch at the
-      // function's start where newlines are dropped, so the newline that
-      // closes a `print()` table's line is kept.
+      // Inside a function, a display table with visible words ends the
+      // stretch at the function's start where newlines are dropped, as
+      // non-whitespace text does, so the newline that closes a `print()`
+      // table's line is kept.
       let tableText = obj.value?.get("text");
-      if (!(tableText instanceof StringValue) || tableText.isNonWhitespace) {
-        this.RemoveExistingGlue(true);
-        if (tableText instanceof StringValue) {
-          let callStackElements = this.callStack.elements;
-          for (let i = callStackElements.length - 1; i >= 0; i--) {
-            let el = callStackElements[i];
-            if (el!.type == PushPopType.Function) {
-              el!.functionStartInOutputStream = -1;
-            } else {
-              break;
-            }
-          }
-        }
+      if (tableText instanceof StringValue && tableText.isNonWhitespace) {
+        this.MarkFunctionsShown();
       }
     }
 
@@ -1302,55 +1088,18 @@ export class StoryState {
     }
   }
 
-  public TrimNewlinesFromOutputStream() {
-    let removeWhitespaceFrom = -1;
-
-    let i = this.outputStream.length - 1;
-    while (i >= 0) {
-      let obj = this.outputStream[i];
-      let cmd = asOrNull(obj, ControlCommand);
-      let txt = asOrNull(obj, StringValue);
-
-      if (cmd != null || (txt != null && txt.isNonWhitespace)) {
+  // The functions on top of the call stack have shown something, so their
+  // newlines are no longer dropped.
+  private MarkFunctionsShown() {
+    let callStackElements = this.callStack.elements;
+    for (let i = callStackElements.length - 1; i >= 0; i--) {
+      let el = callStackElements[i];
+      if (el!.type == PushPopType.Function) {
+        el!.functionStartInOutputStream = -1;
+      } else {
         break;
-      } else if (txt != null && txt.isNewline) {
-        removeWhitespaceFrom = i;
-      }
-      i--;
-    }
-
-    // Remove the whitespace
-    if (removeWhitespaceFrom >= 0) {
-      i = removeWhitespaceFrom;
-      while (i < this.outputStream.length) {
-        let text = asOrNull(this.outputStream[i], StringValue);
-        if (text) {
-          this.outputStream.splice(i, 1);
-        } else {
-          i++;
-        }
       }
     }
-
-    this.OutputStreamDirty();
-  }
-
-  // Remove pending glue, scanning back to the nearest control command. With
-  // `pastTags`, a BeginTag/EndTag pair does not end the scan.
-  public RemoveExistingGlue(pastTags = false) {
-    for (let i = this.outputStream.length - 1; i >= 0; i--) {
-      let c = this.outputStream[i];
-      if (c instanceof Glue) {
-        this.outputStream.splice(i, 1);
-      } else if (c instanceof ControlCommand) {
-        let isTag =
-          c.commandType == ControlCommand.CommandType.BeginTag ||
-          c.commandType == ControlCommand.CommandType.EndTag;
-        if (!(pastTags && isTag)) break;
-      }
-    }
-
-    this.OutputStreamDirty();
   }
 
   get outputStreamEndsInNewline() {
@@ -1645,8 +1394,6 @@ export class StoryState {
 
   private _outputStreamTextDirty = true;
   private _outputStreamTagsDirty = true;
-
-  private _patch: StatePatch | null = null;
 
   private _currentFlow: Flow;
   private _aliveFlowNames: string[] | null = null;

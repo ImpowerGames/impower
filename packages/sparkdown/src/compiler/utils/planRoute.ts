@@ -527,9 +527,6 @@ export const planRoute = (
   const prevOnExecute = story.onExecute;
   const prevOnMakeChoice = story.onMakeChoice;
   const prevOnEvaluateCondition = story.onEvaluateCondition;
-  const prevOnSaveStateSnapshot = story.onSaveStateSnapshot;
-  const prevOnRestoreStateSnapshot = story.onRestoreStateSnapshot;
-  const prevOnDiscardStateSnapshot = story.onDiscardStateSnapshot;
 
   try {
     // Inside the guarded region, and before the hooks are replaced: the start
@@ -549,9 +546,6 @@ export const planRoute = (
     story.onExecute = null;
     story.onMakeChoice = NOOP;
     story.onEvaluateCondition = NOOP;
-    story.onSaveStateSnapshot = NOOP;
-    story.onRestoreStateSnapshot = NOOP;
-    story.onDiscardStateSnapshot = NOOP;
 
     while (queue.length) {
       if (searchBudgetExhausted(budget)) {
@@ -642,9 +636,6 @@ export const planRoute = (
       story.onExecute = prevOnExecute;
       story.onMakeChoice = prevOnMakeChoice;
       story.onEvaluateCondition = prevOnEvaluateCondition;
-      story.onSaveStateSnapshot = prevOnSaveStateSnapshot;
-      story.onRestoreStateSnapshot = prevOnRestoreStateSnapshot;
-      story.onDiscardStateSnapshot = prevOnDiscardStateSnapshot;
     }
   }
 
@@ -666,32 +657,13 @@ const runUntilDecisionOrBranch = (
   story.state.LoadJson(node.stateJson);
   story.state.ResetErrors();
 
-  let lastSimulatorSnapshot: SimulatorSnapshot | undefined = undefined;
-
   const prevPauseBeforeEvaluatingConditions =
     story.pauseBeforeEvaluatingConditions;
   const prevSimulator = story.simulator;
-  const prevOnSaveStateSnapshot = story.onSaveStateSnapshot;
-  const prevOnRestoreStateSnapshot = story.onRestoreStateSnapshot;
-  const prevOnDiscardStateSnapshot = story.onDiscardStateSnapshot;
 
   // Build a simulator from *this node's* overrides (streams per path)
   const simulator = buildRouteSimulator(node.overrides);
   story.simulator = simulator;
-
-  story.onSaveStateSnapshot = () => {
-    lastSimulatorSnapshot = simulator.saveSnapshot();
-  };
-
-  story.onRestoreStateSnapshot = () => {
-    if (lastSimulatorSnapshot) {
-      simulator.restoreSnapshot(lastSimulatorSnapshot);
-    }
-  };
-
-  story.onDiscardStateSnapshot = () => {
-    lastSimulatorSnapshot = undefined;
-  };
 
   const branches: SearchNode[] = [];
   let hitTarget = false;
@@ -905,9 +877,6 @@ const runUntilDecisionOrBranch = (
     // Restore hooks
     story.pauseBeforeEvaluatingConditions = prevPauseBeforeEvaluatingConditions;
     story.simulator = prevSimulator;
-    story.onSaveStateSnapshot = prevOnSaveStateSnapshot;
-    story.onRestoreStateSnapshot = prevOnRestoreStateSnapshot;
-    story.onDiscardStateSnapshot = prevOnDiscardStateSnapshot;
   }
 
   return {
@@ -1193,17 +1162,6 @@ export const buildRouteSimulator = (
     choicePointer: Object.fromEntries(choicePointers),
   });
 
-  const restoreSnapshot = (snap: SimulatorSnapshot) => {
-    conditionPointers.clear();
-    for (const [k, v] of Object.entries(snap.conditionPointer)) {
-      conditionPointers.set(k, v);
-    }
-    choicePointers.clear();
-    for (const [k, v] of Object.entries(snap.choicePointer)) {
-      choicePointers.set(k, v);
-    }
-  };
-
   const willForceCondition = (sitePath: string) => {
     const q = condQueues.get(sitePath);
     if (!q) {
@@ -1230,7 +1188,6 @@ export const buildRouteSimulator = (
     willForceCondition,
     willForceChoice,
     saveSnapshot,
-    restoreSnapshot,
   };
 };
 

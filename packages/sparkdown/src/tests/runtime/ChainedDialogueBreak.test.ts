@@ -14,6 +14,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
@@ -27,6 +28,7 @@ function continueBeats(
   const beats: { text: string; routing: string | null }[] = [];
   while (story.canContinue) {
     const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
     const routed = displayRouting(story).find((r) => r.target);
     beats.push({
       text,

@@ -9,5 +9,4 @@ export type Simulator = {
   willForceCondition: (sitePath: string) => boolean;
   willForceChoice: (sitePath: string) => boolean;
   saveSnapshot: () => SimulatorSnapshot;
-  restoreSnapshot: (snap: SimulatorSnapshot) => void;
 };

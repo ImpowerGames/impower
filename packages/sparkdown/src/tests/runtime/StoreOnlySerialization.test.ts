@@ -65,7 +65,7 @@ function roundTrip(setupBody: string, checkBody: string, prelude = "") {
   const compiled = compileStory(storySource(setupBody, checkBody, prelude));
   const errors: string[] = [];
   const storyA = new RuntimeStory(compiled);
-  storyA.BindExternalFunction("host_record", (v: unknown) => v, true);
+  storyA.BindExternalFunction("host_record", (v: unknown) => v);
   storyA.onError = (m: string) => errors.push(`[setup] ${m}`);
   storyA.ContinueMaximally();
   const savedJson = storyA.state.ToJson() as string;
@@ -78,7 +78,6 @@ function roundTrip(setupBody: string, checkBody: string, prelude = "") {
       recorded.push(v);
       return v;
     },
-    true,
   );
   storyB.onError = (m: string) => errors.push(`[check] ${m}`);
   storyB.state.LoadJson(savedJson);

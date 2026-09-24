@@ -6,11 +6,9 @@ import { ConditionalSingleBranch } from "../../../inkjs/compiler/Parser/ParsedHi
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
-import { Glue as ParsedGlue } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Glue";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
-import { Glue as RuntimeGlue } from "../../../inkjs/engine/Glue";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -156,7 +154,7 @@ function buildDisplayCalls(
       if (!(last instanceof Text) || last.text.trim()) break;
       end--;
     }
-    const trailingGlue = body[end - 1] instanceof ParsedGlue ? body[end - 1] : null;
+    const trailingGlue = body[end - 1] instanceof GlueMark ? body[end - 1] : null;
     if (trailingGlue) body.splice(end - 1);
     joinMidBodyGlue(body);
     // A plain divert holds the line open, so the target's first line joins
@@ -233,6 +231,12 @@ function buildDisplayCalls(
   return calls;
 }
 
+// A `..` that ends a line of a display body, held in the body until
+// `buildDisplayCalls` or `joinMidBodyGlue` resolves it. It generates nothing.
+class GlueMark extends ParsedObject {
+  public readonly GenerateRuntimeObject = (): null => null;
+}
+
 // A `load <names>` action line is a world-load directive. Returns the body
 // with the keyword removed, or null when the line is not one.
 function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
@@ -252,7 +256,7 @@ function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
 // whitespace; an interpolation or other neighbour is left as it is.
 function joinMidBodyGlue(body: ParsedObject[]): void {
   for (let i = body.length - 1; i >= 0; i--) {
-    if (!(body[i] instanceof ParsedGlue)) continue;
+    if (!(body[i] instanceof GlueMark)) continue;
     body.splice(i, 1);
     while (body[i] instanceof Text) {
       const rest = (body[i] as Text).text.replace(/^[ \t\n]+/, "");
@@ -474,7 +478,7 @@ function processDisplayBody(
       // marker: `buildDisplayCalls` marks the call `open` for one that ends
       // the body, and `joinMidBodyGlue` joins the next body line onto one
       // that ends an earlier line. Neither reaches the compiled program.
-      out.push(new ParsedGlue(new RuntimeGlue()));
+      out.push(new GlueMark());
     } else if (seg.kind === "inlineGluedAlt") {
       // `Here is text .. queue|A|B|C .. and more` — inline-glued
       // alternator embedded in display content. The grammar matches

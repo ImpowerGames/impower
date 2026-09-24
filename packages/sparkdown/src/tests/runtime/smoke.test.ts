@@ -104,22 +104,10 @@ end
     expect(ctx.story.ContinueMaximally()).toBe("10\n99\n");
   });
 
-  test("property mutations are rolled back across newline-lookahead snapshots", () => {
-    // The runtime takes a state snapshot at every newline so it can
-    // look ahead one line and decide whether to commit the newline or
-    // keep accumulating. Variable assignments are snapshot-safe (they
-    // go through the patch's `SetGlobal`), but `StoreIndex` mutates an
-    // ObjectValue's internal Map in place — that mutation needs an
-    // explicit undo log on the patch, otherwise re-running the bytecode
-    // after a rewind observes already-mutated state.
-    //
-    // With print-before / print-after surrounding the assignment, the
-    // runtime DOES rewind (it speculatively ran the second `{t.value}`
-    // during lookahead before realising the assignment line emits
-    // nothing of its own). Without the undo log, `t.value` would
-    // advance twice — once during lookahead, once after rewind — so
-    // `5 * 5` would land at `625` (= 5^4) instead of `25`. With the fix,
-    // it lands at the correct `25`.
+  test("a property write between two lines is applied once", () => {
+    // `StoreIndex` mutates the table's Map in place. The write runs in the
+    // continue after the first line's newline, once, so `5 * 5` lands at `25`;
+    // a second run would square it again to `625`.
     const ctx = makeRuntimeStoryFromSource(`store t = { value = 5 }
 {t.value}
 & t.value = t.value * t.value
@@ -127,7 +115,9 @@ end
 -> DONE
 `);
     expect(ctx.errorMessages).toEqual([]);
-    expect(ctx.story.ContinueMaximally()).toBe("5\n25\n");
+    expect(ctx.story.Continue()).toBe("5\n");
+    expect(ctx.story.Continue()).toBe("25\n");
+    expect(ctx.story.ContinueMaximally()).toBe("");
   });
 
   test("diverts inside alternator arms route through `lower()` dispatch", () => {

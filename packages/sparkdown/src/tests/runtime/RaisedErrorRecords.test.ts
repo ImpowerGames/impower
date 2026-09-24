@@ -36,25 +36,16 @@ end
     expect(reports[0]!.raised?.path).toMatch(/^run\./);
   });
 
-  test("a copied state carries the records of the errors it carries", () => {
+  test("the error added after a trim takes the trimmed one's record slot", () => {
     const { ctx } = run(`A\n`);
     const state = ctx.story.state;
     state.AddError("first", false, { message: "first", path: "0.1" });
     state.AddError("second", false, { message: "second", path: "0.2" });
     // What `pcall` does when it traps the second.
     state.currentErrors!.length = 1;
-    const copy = state.CopyAndStartPatching(false);
-    // The next error takes the trapped one's place, record and all.
-    state.AddError("fourth", false, { message: "fourth", path: "0.4" });
-    expect(state.currentErrors).toEqual(["first", "fourth"]);
+    state.AddError("third", false, { message: "third", path: "0.3" });
+    expect(state.currentErrors).toEqual(["first", "third"]);
     expect(state.raisedErrors.slice(0, 2)).toEqual([
-      { message: "first", path: "0.1" },
-      { message: "fourth", path: "0.4" },
-    ]);
-    expect(copy.raisedErrors).toEqual([{ message: "first", path: "0.1" }]);
-    copy.AddError("third", false, { message: "third", path: "0.3" });
-    expect(copy.currentErrors).toEqual(["first", "third"]);
-    expect(copy.raisedErrors).toEqual([
       { message: "first", path: "0.1" },
       { message: "third", path: "0.3" },
     ]);

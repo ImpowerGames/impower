@@ -17,7 +17,6 @@ import { asOrThrows, asOrNull, isEquatable } from "./TypeAssertion";
 import { tryGetValueFromMap } from "./TryGetResult";
 import { throwNullException } from "./NullException";
 import { CallStack } from "./CallStack";
-import { StatePatch } from "./StatePatch";
 import { SimpleJson } from "./SimpleJson";
 import { InkList } from "./Story";
 import { Path } from "./Path";
@@ -46,37 +45,20 @@ export class VariablesState extends VariablesStateAccessor<
     }
   }
 
-  public patch: StatePatch | null = null;
-
   public StartVariableObservation() {
     this._batchObservingVariableChanges = true;
     this._changedVariablesForBatchObs = new Set();
   }
 
-  public CompleteVariableObservation(): Map<string, any> {
+  public CompleteVariableObservation() {
     this._batchObservingVariableChanges = false;
-    let changedVars = new Map<string, any>();
     if (this._changedVariablesForBatchObs != null) {
       for (let variableName of this._changedVariablesForBatchObs) {
         let currentValue = this._globalVariables.get(variableName) as InkObject;
         this.variableChangedEvent(variableName, currentValue);
       }
     }
-    // Patch may still be active - e.g. if we were in the middle of a background save
-    if (this.patch != null) {
-      for (let variableName of this.patch.changedVariables) {
-        let patchedVal = this.patch.TryGetGlobal(variableName, null);
-        if (patchedVal.exists) changedVars.set(variableName, patchedVal);
-      }
-    }
     this._changedVariablesForBatchObs = null;
-    return changedVars;
-  }
-
-  public NotifyObservers(changedVars: Map<string, any>) {
-    for (const [key, value] of changedVars) {
-      this.variableChangedEvent(key, value);
-    }
   }
 
   get callStack() {
@@ -93,15 +75,7 @@ export class VariablesState extends VariablesStateAccessor<
   public $(variableName: string, value: VariableStateValue): void;
   public $(variableName: string, value?: any) {
     if (typeof value === "undefined") {
-      let varContents = null;
-
-      if (this.patch !== null) {
-        varContents = this.patch.TryGetGlobal(variableName, null);
-        if (varContents.exists)
-          return (varContents.result as AbstractValue).valueObject;
-      }
-
-      varContents = this._globalVariables.get(variableName);
+      let varContents = this._globalVariables.get(variableName);
 
       if (typeof varContents === "undefined") {
         varContents = this._defaultGlobalVariables.get(variableName);
@@ -180,24 +154,6 @@ export class VariablesState extends VariablesStateAccessor<
       // dev but writing to the console feels a bit intrusive.
       // console.log("ES6 Proxy not available - direct manipulation of global variables can't work, use $() instead.");
     }
-  }
-
-  public ApplyPatch() {
-    if (this.patch === null) {
-      return throwNullException("this.patch");
-    }
-
-    for (let [namedVarKey, namedVarValue] of this.patch.globals) {
-      this._globalVariables.set(namedVarKey, namedVarValue);
-    }
-
-    if (this._changedVariablesForBatchObs !== null) {
-      for (let name of this.patch.changedVariables) {
-        this._changedVariablesForBatchObs.add(name);
-      }
-    }
-
-    this.patch = null;
   }
 
   /**
@@ -384,10 +340,6 @@ export class VariablesState extends VariablesStateAccessor<
   // GLOBAL binding even when a same-named local is in scope —
   // `local x = 1  _G.x` reads the global x (or nil), never the local.
   public GetGlobalVariableValue(name: string): InkObject | null {
-    if (this.patch !== null) {
-      const patched = this.patch.TryGetGlobal(name, null);
-      if (patched.exists) return patched.result!;
-    }
     const current = tryGetValueFromMap(this._globalVariables, name, null);
     if (current.exists) return current.result;
     if (this._defaultGlobalVariables !== null) {
@@ -421,14 +373,7 @@ export class VariablesState extends VariablesStateAccessor<
     if (varValue != null) return varValue;
 
     if (contextIndex == 0 || contextIndex == -1) {
-      let variableValue = null;
-      if (this.patch !== null) {
-        variableValue = this.patch.TryGetGlobal(name, null);
-        if (variableValue.exists) return variableValue.result!;
-      }
-
-      // this is a conditional assignment
-      variableValue = tryGetValueFromMap(this._globalVariables, name, null);
+      let variableValue = tryGetValueFromMap(this._globalVariables, name, null);
       if (variableValue.exists) return variableValue.result;
 
       if (this._defaultGlobalVariables !== null) {
@@ -560,34 +505,19 @@ export class VariablesState extends VariablesStateAccessor<
   }
 
   public SetGlobal(variableName: string | null, value: InkObject) {
-    let oldValue = null;
+    let oldValue = tryGetValueFromMap(
+      this._globalVariables,
+      variableName,
+      null,
+    );
 
-    if (this.patch === null) {
-      oldValue = tryGetValueFromMap(this._globalVariables, variableName, null);
-    }
-
-    if (this.patch !== null) {
-      oldValue = this.patch.TryGetGlobal(variableName, null);
-      if (!oldValue.exists) {
-        oldValue = tryGetValueFromMap(
-          this._globalVariables,
-          variableName,
-          null,
-        );
-      }
-    }
-
-    ListValue.RetainListOriginsForAssignment(oldValue!.result!, value);
+    ListValue.RetainListOriginsForAssignment(oldValue.result!, value);
 
     if (variableName === null) {
       return throwNullException("variableName");
     }
 
-    if (this.patch !== null) {
-      this.patch.SetGlobal(variableName, value);
-    } else {
-      this._globalVariables.set(variableName, value);
-    }
+    this._globalVariables.set(variableName, value);
 
     // Reactive dep tracking: a global write is a coarse-grained change keyed by
     // name (a binding that read this global re-runs). Cheap no-op when disabled.
@@ -604,11 +534,7 @@ export class VariablesState extends VariablesStateAccessor<
           return throwNullException("this._changedVariablesForBatchObs");
         }
 
-        if (this.patch !== null) {
-          this.patch.AddChangedVariable(variableName);
-        } else if (this._changedVariablesForBatchObs !== null) {
-          this._changedVariablesForBatchObs.add(variableName);
-        }
+        this._changedVariablesForBatchObs.add(variableName);
       } else {
         this.variableChangedEvent(variableName, value);
       }
@@ -696,8 +622,8 @@ export class VariablesState extends VariablesStateAccessor<
   // and, during a single binding evaluation bracketed by
   // begin/endReactiveRead(), the GLOBAL names + TABLE identities that binding
   // READ. The runtime re-runs a binding only when its read-set intersects the
-  // change-set. False positives (e.g. a local shadowing a global name, or a
-  // speculative lookahead write) are safe — they cost an extra (equality-gated)
+  // change-set. False positives (e.g. a local shadowing a global name) are
+  // safe — they cost an extra (equality-gated)
   // re-eval, never a missed update. Disabled by default → zero cost for
   // non-reactive games (every hook is a single boolean check).
   // -------------------------------------------------------------------------

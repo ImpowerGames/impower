@@ -21,10 +21,6 @@
 //     that does it, so no story can make it take long, let alone forever;
 //   - the story is genuinely left replaceable, so the rewind the discard
 //     exists to enable actually happens;
-//   - the look-ahead snapshot of the discarded run is cleared — it lives on
-//     the story rather than the story state, so replacing the state does not
-//     clear it, and a stale one could roll a later run back into a story state
-//     that had already been thrown away;
 //   - ordinary content still resets and replays exactly as before.
 //
 // Every assertion counts story advances rather than elapsed time. A test for a
@@ -116,9 +112,6 @@ interface Probe {
   capAdvances(extra: number): void;
   /** True while a line is open: the state that forces the discard to happen. */
   midLine(): boolean;
-  /** The look-ahead snapshot, which lives on the story rather than on the
-   *  story state — so replacing the state does NOT clear it. */
-  lookaheadSnapshot(): unknown;
   /** How many times the engine let go of an open line, and how many story
    *  advances it spent doing so. Recorded at the engine's own seam so that a
    *  path which stopped calling it — by going back to a bare `Continue()`, say
@@ -171,7 +164,6 @@ const probe = (game: Game): Probe => {
       cap = advances + extra;
     },
     midLine: () => story.canContinue && !story.asyncContinueComplete,
-    lookaheadSnapshot: () => story._stateSnapshotAtLastNewline,
     discards: () => ({ count: discardCount, advancesSpent: discardAdvances }),
   };
 };
@@ -213,24 +205,19 @@ const expectDiscardedForFree = (p: Probe) => {
 };
 
 /** Drive an ordinary story one advance at a time — the same unit the engine's
- *  own step loop uses — and stop on the step that takes a look-ahead snapshot
- *  while the continue is still open.
- *
- *  Reaching that state deliberately matters: the runtime only takes a snapshot
- *  after a line ends in a newline with more content to come, so a story that
- *  emits nothing never has one, and an assertion made against such a story
- *  would pass whatever the code did. */
-const driveToOpenSnapshot = () => {
+ *  own step loop uses — and stop on the first step that leaves a line open
+ *  with output already written, so the line has something to lose. */
+const driveToOpenLine = () => {
   const p = probe(newGame(compileSrc(ORDINARY)));
   const story: any = p.game.story;
   story.ChoosePathString("start");
   for (let i = 0; i < 60 && story.canContinue; i += 1) {
     story.ContinueAsync();
-    if (story._stateSnapshotAtLastNewline !== null && p.midLine()) {
+    if (story.state.outputStream.length > 0 && p.midLine()) {
       return p;
     }
   }
-  throw new Error("fixture never reached an open line holding a snapshot");
+  throw new Error("fixture never reached an open line holding output");
 };
 
 describe("letting go of a line the story cannot finish", () => {
@@ -294,7 +281,7 @@ describe("letting go of a line the story cannot finish", () => {
     // then failing to load leaves the line torn in half with no replacement:
     // the next continue resumes from the middle of it, dropping the text and
     // the `display()` table that decide how the beat is displayed.
-    const p = driveToOpenSnapshot();
+    const p = driveToOpenLine();
     expect(p.midLine()).toBe(true);
 
     expect(p.game.load("{ this is not a save")).toBe(false);
@@ -385,99 +372,25 @@ describe("the route planner lets go of an open line too", () => {
   }, 300_000);
 });
 
-describe("the look-ahead snapshot of the discarded run is cleared", () => {
-  // The subtle half of the change, and the half a loop that emits nothing
-  // cannot exercise at all: the runtime only takes a look-ahead snapshot after
-  // a line actually ends in a newline with more content to come, so a story
-  // with no text never sets one and an assertion made against it would pass
-  // whatever the code did.
-  //
-  // So the tests below reach the state deliberately, via `driveToOpenSnapshot`.
-
-  test("the state this test needs is actually reachable", () => {
-    // Guards the test below from silently becoming vacuous: if the runtime
-    // stops taking look-ahead snapshots here, this fails loudly rather than
-    // leaving an assertion that passes because it never runs.
-    const p = driveToOpenSnapshot();
-    expect(p.lookaheadSnapshot()).not.toBeNull();
-    expect(p.midLine()).toBe(true);
-  }, 300_000);
-
-  test("loading a save clears it, so no later run can roll back into it", () => {
-    // Load is the path that proves this, and the only one that can. Reset and
-    // jump both re-declare the story's globals afterwards, and that runs a
-    // continue of its own whose own wrap-up happens to clear the snapshot — so
-    // on those paths the discard could skip the rollback entirely and nothing
-    // would show it. Load replaces the state outright and runs no continue, so
-    // a discard that failed to roll the snapshot back leaves it dangling,
-    // pointing at a story state that has just been thrown away.
+describe("letting go of an ordinary open line", () => {
+  test("loading a save lets go of it", () => {
+    // Load replaces the state outright and runs no continue of its own, so
+    // it is the path where a discard that left the continue open would show.
     const save = newGame(compileSrc(ORDINARY)).save();
-    const p = driveToOpenSnapshot();
-    expect(p.lookaheadSnapshot()).not.toBeNull();
+    const p = driveToOpenLine();
     p.capAdvances(200_000);
 
     expect(p.game.load(save)).toBe(true);
 
-    expect(p.lookaheadSnapshot()).toBeNull();
     expect(p.midLine()).toBe(false);
     expectDiscardedForFree(p);
   }, 300_000);
 
-  test("the route simulator's position is dropped, not handed to the next route", () => {
-    // Reading ahead records a second thing alongside the story snapshot: where
-    // the route simulator had got to in the decisions it feeds the story. It
-    // lives on the story too, so replacing the state does not clear it — and
-    // the simulator attached when the discard happens need not be the one the
-    // abandoned run was reading from, because route simulation attaches the
-    // NEXT route's simulator first. Putting one route's consumed position into
-    // another route's simulator makes it skip the decisions it was meant to
-    // force, and the replay silently takes the wrong branch.
-    const p = probe(newGame(compileSrc(ORDINARY)));
-    const story: any = p.game.story;
-
-    const makeSimulator = (label: string) => ({
-      label,
-      restored: [] as unknown[],
-      saveSnapshot: () => ({ label, at: "abandoned-run" }),
-      restoreSnapshot(snap: unknown) {
-        this.restored.push(snap);
-      },
-      forceChoice: () => null,
-      forceCondition: () => null,
-    });
-
-    // The run that gets abandoned, reading from its own simulator.
-    const abandoned = makeSimulator("route-a");
-    story.simulator = abandoned;
-    story.ChoosePathString("start");
-    let reached = false;
-    for (let i = 0; i < 60 && story.canContinue; i += 1) {
-      story.ContinueAsync();
-      if (story._simulatorSnapshotAtLastNewline != null && p.midLine()) {
-        reached = true;
-        break;
-      }
-    }
-    // Guards this test from going vacuous if the runtime stops recording it.
-    expect(reached).toBe(true);
-
-    // What route simulation does next: attach the new route's simulator, then
-    // replace the story state.
-    const next = makeSimulator("route-b");
-    story.simulator = next;
+  test("rewinding lets go of it, and the story still replays correctly", () => {
+    const p = driveToOpenLine();
     p.capAdvances(200_000);
     p.game.reset();
 
-    expect(next.restored).toEqual([]);
-    expect(story._simulatorSnapshotAtLastNewline).toBeNull();
-  }, 300_000);
-
-  test("rewinding clears it too, and the story still replays correctly", () => {
-    const p = driveToOpenSnapshot();
-    p.capAdvances(200_000);
-    p.game.reset();
-
-    expect(p.lookaheadSnapshot()).toBeNull();
     expect(p.midLine()).toBe(false);
     expectDiscardedForFree(p);
 

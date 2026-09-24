@@ -3660,8 +3660,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("rawset: key must be a string or number");
         return null;
       }
-      // `_G` globals-table proxy — write the global directly
-      // (patch-aware via SetGlobal, same as the StoreIndex path).
+      // `_G` globals-table proxy — write the global directly through
+      // SetGlobal, as the StoreIndex path does.
       if (t.value.has(GLOBALS_PROXY_TAG)) {
         story.state.variablesState.SetGlobal(key, v as AbstractValue);
         return t;

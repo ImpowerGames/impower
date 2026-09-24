@@ -94,12 +94,10 @@ describe("display() glue join", () => {
     ]);
   });
 
-  // The same beat the look-ahead produced before captions ran on: a parity
-  // check. The runtime tests pin what changed underneath, a caption step that
-  // runs through an external call to its choices.
   // What shows between a caption and its choices ends the caption's beat,
   // and the next beat, which the engine carried over from the caption's
-  // continue, shows it with the choices.
+  // continue, shows it. That line is not a caption, so it returns at its
+  // newline like any line, and the choices come in a beat of their own.
   test("a caption a print follows is a beat of its own", async () => {
     const harness = createHarness(
       story(
@@ -125,12 +123,13 @@ describe("display() glue join", () => {
     await harness.display(first!, true);
     await flushMicrotasks();
     const second = harness.nextBeat();
-    expect(texts(second)).toEqual({
-      action: "A voice calls out.",
-      "choice 0": "One",
-      "choice 1": "Two",
-    });
-    expect(second?.choices).toEqual(["choice 0", "choice 1"]);
+    expect(texts(second)).toEqual({ action: "A voice calls out." });
+    expect(second?.choices ?? []).toEqual([]);
+    await harness.display(second!, true);
+    await flushMicrotasks();
+    const third = harness.nextBeat();
+    expect(texts(third)).toEqual({ "choice 0": "One", "choice 1": "Two" });
+    expect(third?.choices).toEqual(["choice 0", "choice 1"]);
   });
 
   test("a choose block's caption shows with its choices", async () => {

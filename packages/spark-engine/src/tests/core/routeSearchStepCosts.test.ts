@@ -168,10 +168,10 @@ describe("a route search pays neither per-step cost", () => {
     expect(short.reads).toBeLessThan(short.steps);
     expect(long.reads).toBeLessThan(long.steps);
 
-    // And what is left tracks the scene's beats, which is one read per story
-    // state the search builds, rather than the advances it takes to get there.
-    expect(short.reads).toBe(BEATS);
-    expect(long.reads).toBe(BEATS * 4);
+    // And what is left is one read per story state the search builds. A
+    // search from one start builds one, however long the scene.
+    expect(short.reads).toBe(1);
+    expect(long.reads).toBe(1);
   }, 240_000);
 
   test("an asynchronous continue advances a step, an ordinary one a whole line", () => {
