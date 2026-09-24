@@ -2,8 +2,10 @@
  * An insertion-ordered string set whose entries move to the end when re-added,
  * so iteration order is "least recently added first".
  *
- * Entries live in a doubly-linked list keyed by a `Map`, so an add or a move is
- * O(1).
+ * It holds and orders exactly what a `Set` holds when every `add` deletes the
+ * value first, the spelling `RuntimeState.executedSinceCheckpoint` uses; here
+ * `add` does both. Entries live in a doubly-linked list keyed by a `Map`, so
+ * an add or a move is O(1).
  */
 
 interface RecencyNode {

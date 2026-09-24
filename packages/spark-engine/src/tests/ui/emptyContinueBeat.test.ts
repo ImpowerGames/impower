@@ -33,6 +33,8 @@ layout main with
       text
   choice 0:
     text
+  choice 1:
+    text
 end
 `;
 
@@ -193,11 +195,70 @@ describe("a route replay", () => {
       checkpoints += 1;
       return checkpoint();
     };
+    // The continues the replay completed with nothing to show, read from
+    // the story itself.
+    let empty = 0;
+    const story: any = game.story;
+    const continueAsync = story.ContinueAsync.bind(story);
+    story.ContinueAsync = () => {
+      continueAsync();
+      if (
+        story.asyncContinueComplete &&
+        !story.currentText &&
+        story.currentDisplayInstructions.length === 0 &&
+        story.currentChoices.length === 0
+      ) {
+        empty += 1;
+      }
+    };
 
     anyGame.simulateRoute(route);
 
     expect(game.story.canContinue).toBe(false);
+    expect(empty).toBeGreaterThan(0);
     expect(beats).toBeGreaterThan(3);
     expect(checkpoints).toBe(beats);
+  });
+});
+
+describe("a game", () => {
+  test("shows a line before a choose block alone, and its choices after a click", () => {
+    const source = `${DEFS}\n-> start\n\nscene start\n  Pick a door.\n  choose\n    * Left\n      Gone left.\n    * Right\n      Gone right.\n  end\nend\n`;
+    const game = new Game({
+      program: compileSrc(source) as any,
+      now: () => 0,
+      setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
+        fn(...a);
+        return 0;
+      }) as any,
+    } as any);
+    const interpreter = (game as any).module.interpreter;
+    const flush = interpreter.flush.bind(interpreter);
+    const beats: { text: string[]; choices: string[] }[] = [];
+    interpreter.flush = () => {
+      const instructions = flush();
+      if (instructions) {
+        beats.push({
+          text: Object.entries(instructions.text ?? {})
+            .filter(([target]) => !target.startsWith("choice"))
+            .map(([, events]) =>
+              (events as any[]).map((event) => event.text ?? "").join(""),
+            ),
+          choices: instructions.choices ?? [],
+        });
+      }
+      return instructions;
+    };
+
+    game.start();
+    (game as any).jumpToPath("start");
+    beats.length = 0;
+    game.continue();
+    expect(beats).toEqual([{ text: ["Pick a door."], choices: [] }]);
+
+    game.clickedToContinue();
+    expect(beats).toHaveLength(2);
+    expect(beats[1]!.text).toEqual([]);
+    expect(beats[1]!.choices).toHaveLength(2);
   });
 });

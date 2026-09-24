@@ -7,11 +7,11 @@
 // What it executes is the content a preview route is made of: text, string
 // evaluation (`str` ... `/str`), expression evaluation (`ev` ... `/ev`), table
 // construction (`obj{` ... `}obj`), the `display` builtin, `pop`, line ends at
-// a newline, where the engine returns, and `done` and `end`. A record of any other kind throws, naming itself.
-// Left out: diverts and everything
-// that follows a path, choices, threads, tunnels, function calls and call
-// frames, variables, native operators, tags, glue, visit and turn counts,
-// every builtin but `display`, errors and warnings, saved state.
+// a newline, where the engine returns, and `done` and `end`. A record of any
+// other kind throws, naming itself. Left out: diverts and everything that
+// follows a path, choices, threads, tunnels, function calls and call frames,
+// variables, native operators, tags, glue, visit and turn counts, every
+// builtin but `display`, errors and warnings, saved state.
 import { NODE_WIDTH, ProgramNodeTag, type ProgramBuffer } from "../../packages/sparkdown/src/binary/programBinary";
 
 const enum Op {

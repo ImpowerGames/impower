@@ -296,11 +296,7 @@ export function runToEnd(story: RuntimeStory): string {
  *  story's last line completes with nothing, and the game makes no beat of
  *  it; a helper that collects beats skips it the same way. */
 export function continueShowedSomething(story: RuntimeStory): boolean {
-  return (
-    Boolean(story.currentText) ||
-    story.currentDisplayInstructions.length > 0 ||
-    story.currentChoices.length > 0
-  );
+  return story.continueShowedSomething;
 }
 
 /** The routing of each `display(<table>)` call the last step made, in order:

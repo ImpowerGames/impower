@@ -2034,22 +2034,27 @@ export class Game<T extends M = {}> {
           }
         }
 
-        if (this._story.asyncContinueComplete) {
-          const currentText = this._story.currentText || "";
-          const currentChoices = this._story.currentChoices.map((c) => c.text);
-          const tables = this._story.currentDisplayInstructions;
-          // A continue returns at its line's newline, so the one after a line
-          // can complete with nothing to show: the flow went on through logic
-          // and reached the choices, the end, or more of the story. Choices
-          // alone make a beat of their own; otherwise nothing is queued, and
-          // the end is reported, or the story runs on, below.
-          if (currentText || tables.length > 0 || currentChoices.length > 0) {
-            // The step's beat takes its routing from the first
-            // `display(<table>)` table that names a target (see
-            // `InterpreterModule.queue`). Its body is `currentText`, the
-            // step's ordered visible text.
-            this.module.interpreter.queue(tables, currentChoices, currentText);
-          }
+        // A continue returns at its line's newline, so the one after a line
+        // can complete with nothing to show: the flow went on through logic
+        // to the story's end, or on into more of it. Choices alone make a beat
+        // of their own. A continue that shows nothing is not handed to the
+        // interpreter at all: `queue` would create its empty beat buffer, and
+        // the interpreter's saved state is part of every checkpoint, which two
+        // runs reaching the same story position must write alike. The end is
+        // reported, or the story runs on, below.
+        if (
+          this._story.asyncContinueComplete &&
+          this._story.continueShowedSomething
+        ) {
+          // The step's beat takes its routing from the first
+          // `display(<table>)` table that names a target (see
+          // `InterpreterModule.queue`). Its body is `currentText`, the step's
+          // ordered visible text.
+          this.module.interpreter.queue(
+            this._story.currentDisplayInstructions,
+            this._story.currentChoices.map((c) => c.text),
+            this._story.currentText || "",
+          );
         }
 
         if (this._simulation !== "simulating") {

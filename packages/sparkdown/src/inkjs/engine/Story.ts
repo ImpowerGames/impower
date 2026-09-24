@@ -730,6 +730,18 @@ export class Story extends InkObject {
     return this.state.currentDisplayInstructions;
   }
 
+  /** Whether the last continue brought anything to show: text, a display
+   *  table or choices. A continue returns at its line's newline, so the next
+   *  one can complete with none of them, having run through logic to the
+   *  story's end or on into more of the story. A host makes no beat of it. */
+  get continueShowedSomething() {
+    return (
+      Boolean(this.currentText) ||
+      this.currentDisplayInstructions.length > 0 ||
+      this.currentChoices.length > 0
+    );
+  }
+
   get currentErrors() {
     return this.state.currentErrors;
   }
@@ -4435,7 +4447,8 @@ export class Story extends InkObject {
           coercedArgs[i] = this.TryCoerce(args[i]);
         }
         return func.apply(null, coercedArgs);
-    });
+      },
+    );
   }
 
   public UnbindExternalFunction(funcName: string) {
