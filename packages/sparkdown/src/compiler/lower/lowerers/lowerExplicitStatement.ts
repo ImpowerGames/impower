@@ -31,16 +31,18 @@ export function lowerExplicitStatement(
   // range, stamped by `lower()`, no longer reaches the statements it held.
   // Give them the line's range themselves: `program.pathLocations` then has
   // rows for the line, so a runtime error it raises is reported on it and
-  // PLAY, a preview or a breakpoint on it resolves to it. A declaration
-  // (`& store x = 5`) keeps the metadata `lowerVariableDefinition` gives it,
-  // as its implicit form does. The characters are 1-based, as diagnostics
-  // read them: a logic line starts at column 0, and a 0-based stamp there
-  // would hide every compile error the statement reports.
+  // PLAY, a preview or a breakpoint on it resolves to it. A `& local`
+  // declaration runs in the flow like any other logic line and is stamped
+  // too. A `& store` or `& const` declaration is hoisted out of the flow into
+  // the story's global declarations, as its implicit form is, so it is not a
+  // place in the flow and gets no rows. The characters are 1-based, as
+  // diagnostics read them: a logic line starts at column 0, and a 0-based
+  // stamp there would hide every compile error the statement reports.
   const weave = block.content?.[0];
-  if (
-    weave instanceof Weave &&
-    !getDescendent("LuauVariableDefinition", nodeRef.node)
-  ) {
+  const varDef = getDescendent("LuauVariableDefinition", nodeRef.node);
+  const scopeNode = varDef && getDescendent("LuauScopeModifier", varDef);
+  const scope = scopeNode ? ctx.read(scopeNode.from, scopeNode.to).trim() : "";
+  if (weave instanceof Weave && (!varDef || scope === "local")) {
     const text = ctx.read(nodeRef.from, nodeRef.to);
     const to = nodeRef.from + text.trimEnd().length;
     stampDebugMetadata(weave.content, nodeRef.from, to, ctx, true);

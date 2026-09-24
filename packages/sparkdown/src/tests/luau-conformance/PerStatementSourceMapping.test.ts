@@ -130,12 +130,12 @@ describe("Temp shadows parameter (Luau spec)", () => {
 });
 
 describe("Divert.Error forwards isWarning flag", () => {
-  test("DivertTarget warning stays a warning (not severity 1)", () => {
-    // The Luau-superset "Can't use a divert target like that" hint
-    // fires whenever an anonymous function lowers to a
-    // DivertTarget(synth_knot) value used in a non-call context.
-    // Before the fix, that warning got re-routed as a severity-1
-    // error when the propagation chain crossed a Divert ancestor.
+  test("a function value passed through a Divert ancestor raises no error", () => {
+    // An anonymous function lowers to a DivertTarget(synth_knot) value.
+    // It is a function value, so it raises no "Can't use a divert
+    // target like that" hint at all; the severity an authored
+    // `-> target` misuse keeps is pinned in
+    // compiler/logicLineLocations.test.ts.
     const r = runConformanceSource(
       `local function noinline(x, ...) local s, r = pcall(function(y) return y end, x) return r end\nassert(noinline(42) == 42)`,
     );

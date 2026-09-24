@@ -54,11 +54,33 @@ const pathsStartingOn = (program: any, line: number): string[] =>
     return location[0] === MAIN_SCRIPT && location[1] === line;
   });
 
+/** The main.sd diagnostics whose message matches `pattern`. */
+const matching = (program: any, pattern: RegExp): any[] =>
+  ((program.diagnostics?.[URI] ?? []) as any[]).filter((d) =>
+    pattern.test(d.message?.value ?? d.message ?? ""),
+  );
+
 /** The 0-based lines of main.sd diagnostics whose message matches `pattern`. */
 const warningsMatching = (program: any, pattern: RegExp): number[] =>
-  ((program.diagnostics?.[URI] ?? []) as any[])
-    .filter((d) => pattern.test(d.message?.value ?? d.message ?? ""))
-    .map((d) => d.range.start.line);
+  matching(program, pattern).map((d) => d.range.start.line);
+
+/** Where and how severe each main.sd diagnostic matching `pattern` is. */
+const diagnosticsMatching = (program: any, pattern: RegExp) =>
+  matching(program, pattern).map((d) => ({
+    line: d.range.start.line,
+    character: d.range.start.character,
+    severity: d.severity,
+  }));
+
+/** Everything the story writes when run to its end with no choices. */
+function runText(program: any): string {
+  const story = new Story(program.compiled as Record<string, any>);
+  let text = "";
+  for (let step = 0; step < 100 && story.canContinue; step++) {
+    text += story.Continue();
+  }
+  return text;
+}
 
 /** Run the story until it raises, and return the path the error was raised at. */
 function raisedPath(program: any): string | undefined {
@@ -155,11 +177,42 @@ describe("logic lines own their instructions' path locations (#824)", () => {
     expect(warningsMatching(program, /divert target like that/)).toEqual([]);
   });
 
-  it("an authored divert target misused on a logic line still gets the hint, on that line", () => {
+  it("an authored divert target misused on a logic line still gets the hint, as a warning on that line", () => {
     const program = compile(
       `store x = 0\nA\n& x = (-> later) + 1\nC\n-> DONE\n\nscene later\n  B\nend\n`,
     );
-    expect(warningsMatching(program, /divert target like that/)).toEqual([2]);
+    expect(diagnosticsMatching(program, /divert target like that/)).toEqual([
+      { line: 2, character: 0, severity: 2 },
+    ]);
+  });
+
+  it("a `& local` declaration's warning reaches the editor on its line", () => {
+    const program = compile(
+      `A\n& local x = (-> later) + 1\nC\n-> DONE\n\nscene later\n  B\nend\n`,
+    );
+    expect(diagnosticsMatching(program, /divert target like that/)).toEqual([
+      { line: 1, character: 0, severity: 2 },
+    ]);
+  });
+
+  it("an error raised by a `& local` declaration resolves to that line", () => {
+    expect(raisedLine(`A\n& local x = error("boom")\nC\n`)).toBe(1);
+  });
+
+  it("a `& local` shadowed in a block reports no duplicate identifier and reads the right binding", () => {
+    // Luau lets a `local` be declared again in a nested block; the inner one
+    // shadows the outer until the block ends.
+    const program = compile(
+      `& local x = 1\nif true then\n  & local x = 2\n  Inner {x}.\nend\nOuter {x}.\n`,
+    );
+    expect(diagnosticsMatching(program, /Duplicate identifier/)).toEqual([]);
+    expect(runText(program)).toBe("Inner 2.\nOuter 1.\n");
+  });
+
+  it("a `& local` declared again in the same block reports no duplicate identifier", () => {
+    const program = compile(`& local x = 1\n& local x = x + 1\nValue {x}.\n`);
+    expect(diagnosticsMatching(program, /Duplicate identifier/)).toEqual([]);
+    expect(runText(program)).toBe("Value 2.\n");
   });
 
   it("a definition's assignments get no paths", () => {
