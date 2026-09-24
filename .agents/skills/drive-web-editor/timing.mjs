@@ -8,7 +8,7 @@
 // whether its message arrived late, the first audible sample of the click
 // from a sample-accurate tap on the mixer (`AudioProbe.startOnsetTap`), and
 // the flash animation's start time. Each runs idle and then with the page's
-// main thread loaded, in each switch position asked for.
+// main thread loaded.
 //
 // The pure parts (arguments, statistics, pairing a click with what it caused,
 // pairing a beat with its onset and flash) are exported for timing.test.mjs;
@@ -28,7 +28,6 @@ export const TIMING_USAGE = [
   "  --samples <K>           measured samples per phase (default: input 200, metronome 100)",
   "  --warmup <W>            discarded samples first, per phase (default: input 10, metronome 4)",
   "  --load <ms>             the loaded phase burns this long on the page's main thread every frame (default 10; 0 skips it)",
-  "  --worker-preview on|off|both  the switch positions to run, each in a browser of its own (default both, on first)",
   "  --bpm <n>               the metronome's tempo (default 120)",
   "  --timeout <ms>          how long one sample may take before it is a failure (default 5000)",
   "  --json <file>           also write the full report, with every sample",
@@ -49,7 +48,7 @@ function integer(text, name, min) {
 export function parseTimingArgs(args) {
   const kind = args[0];
   if (kind !== "input" && kind !== "metronome") throw new Error("timing needs input or metronome first");
-  const out = { kind, load: 10, positions: ["on", "off"], bpm: 120, timeout: 5000, headed: false };
+  const out = { kind, load: 10, bpm: 120, timeout: 5000, headed: false };
   for (let i = 1; i < args.length; i++) {
     const name = args[i];
     switch (name) {
@@ -62,12 +61,6 @@ export function parseTimingArgs(args) {
       case "--load":
         out.load = integer(value(args, i++, name), name, 0);
         break;
-      case "--worker-preview": {
-        const position = value(args, i++, name);
-        if (!["on", "off", "both"].includes(position)) throw new Error("--worker-preview takes on, off or both");
-        out.positions = position === "both" ? ["on", "off"] : [position];
-        break;
-      }
       case "--bpm":
         out.bpm = integer(value(args, i++, name), name, 1);
         break;
@@ -326,10 +319,10 @@ export function summarizeMetronome(samples) {
   };
 }
 
-/** Whether a finished report is a failed run: an error in any position, or
- *  any measured sample that failed. */
+/** Whether a finished report is a failed run: an error, or any measured
+ *  sample that failed. */
 export function timingFailed(report) {
-  return report.positions.some((p) => p.error || p.phases?.some((phase) => phase.summary.failures > 0));
+  return Boolean(report.error || report.phases?.some((phase) => phase.summary.failures > 0));
 }
 
 // ---------------------------------------------------------------- browser ---
@@ -586,11 +579,11 @@ export async function runMetronome(page, frame, workers, options) {
   return metronomeSamples(pairMetronome({ ...read, sends, requireWorker: options.requireWorker }), total, options.warmup);
 }
 
-async function runPosition(position, options, deps, scratch) {
+async function runOnce(options, deps, scratch) {
   const fixture = options.kind === "input" ? buildInputFixture() : buildMetronomeFixture({ beats: (options.warmup + options.samples) * 2 + 20 });
-  const dir = path.join(scratch, `fixture-${position}`);
+  const dir = path.join(scratch, "fixture");
   writeTimingFixture(dir, fixture);
-  const result = { workerPreview: position, phases: [] };
+  const result = { phases: [] };
   let pageConsole = [];
   try {
     await deps.withEditor(
@@ -614,14 +607,14 @@ async function runPosition(position, options, deps, scratch) {
         if (!frame) throw new Error("no same-origin player frame; the timing commands need `up` without --cross-origin");
         await frame.evaluate(installProbe);
         await startPlay(page, frame, fixture.startLine, 2000, deps);
-        // With the game in the worker every sample needs the worker's posts,
-        // so a position with no worker the probe could reach stops here.
+        // The game runs in the worker, so every sample needs the worker's
+        // posts, and a run with no worker the probe could reach stops here.
         const workers = [];
         for (const worker of page.workers().filter((w) => w.url().startsWith("blob:"))) {
           if (await worker.evaluate(installWorkerProbe).catch(() => false)) workers.push(worker);
         }
-        options = { ...options, requireWorker: position === "on" };
-        if (options.requireWorker && workers.length === 0) throw new Error("no worker of the page could be probed, so no sample could split the worker's time from the delivery");
+        options = { ...options, requireWorker: true };
+        if (workers.length === 0) throw new Error("no worker of the page could be probed, so no sample could split the worker's time from the delivery");
         result.browser = await page.evaluate(() => navigator.userAgent);
         if (options.kind === "metronome") {
           // The first sound creates the mixers the tap goes on. A key that
@@ -660,7 +653,7 @@ async function runPosition(position, options, deps, scratch) {
           result.phases.push({ loadMs: load, summary, samples });
         }
       },
-      { headless: !options.headed, workerPreview: position, launch: privateLaunch(deps, path.join(scratch, `profile-${position}`)) },
+      { headless: !options.headed, launch: privateLaunch(deps, path.join(scratch, "profile")) },
     );
   } catch (error) {
     result.error = String(error?.message ?? error);
@@ -685,15 +678,14 @@ export async function timing(args, deps) {
     loadMs: options.load,
     ...(options.kind === "metronome" ? { bpm: options.bpm } : {}),
     machine: { platform: `${os.platform()} ${os.release()}`, cpu: os.cpus()[0]?.model ?? null, cores: os.cpus().length },
-    positions: [],
   };
   try {
-    for (const position of options.positions) report.positions.push(await runPosition(position, options, deps, scratch));
+    Object.assign(report, await runOnce(options, deps, scratch));
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
   if (options.json) fs.writeFileSync(options.json, JSON.stringify(report, null, 2));
-  const printed = { ...report, positions: report.positions.map((p) => ({ ...p, phases: p.phases.map(({ samples, ...rest }) => rest) })) };
+  const printed = { ...report, phases: report.phases.map(({ samples, ...rest }) => rest) };
   deps.log(JSON.stringify(printed, null, 2));
   if (timingFailed(report)) process.exitCode = 1;
   return report;
