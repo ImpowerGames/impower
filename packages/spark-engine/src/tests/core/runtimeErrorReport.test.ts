@@ -7,6 +7,7 @@
 // message, since the location travels separately.
 
 import { describe, expect, test } from "vitest";
+import type { Game } from "../../game/core/classes/Game";
 import { createHarness } from "../ui/harness/uiTestHarness";
 
 const CONTINUES_WARNING =
@@ -25,8 +26,8 @@ const play = async (source: string) => {
 };
 
 /** The 0-based line the game last executed. */
-const executingLine = (h: { game: unknown }) =>
-  ((h.game as any)._executingLocation as number[] | null)?.[1];
+const executingLine = (h: { game: Game }) =>
+  h.game.getLastExecutedDocumentLocation()?.range.start.line;
 
 describe("a runtime warning", () => {
   const SOURCE = `store x = 0\nA\n& x = 1\n.. B\nC\n`;
@@ -54,7 +55,7 @@ describe("a runtime warning", () => {
 
 describe("a runtime error", () => {
   test("ends the story", async () => {
-    const h = await play(`A\n& error("boom")\nC\n`);
+    const h = await play(`A\nB {error("boom")}\nC\n`);
     h.game.continue();
     const errors = runtimeErrors(h.messages);
     expect(errors.map((e) => [e.type, e.message])).toEqual([[1, "boom"]]);
@@ -80,8 +81,10 @@ describe("a runtime error", () => {
   });
 
   // A handler runs between steps, so the last step the game ran says nothing
-  // about where the handler's function raised its error.
-  test("raised inside a function a click handler calls is reported where the function raised it", async () => {
+  // about where the handler's function raised its error. The error ends the
+  // story, and it is the only report: what the ended evaluation throws after
+  // it is not reported again at the last step's line.
+  test("raised inside a function a click handler calls is reported once, where the function raised it", async () => {
     const h = createHarness(
       `A\nB\nC\n\nstore hp = 100\nfunction heal()\n  hp = hp + 5\n  error("broken heal")\nend\nlayout hud with\n  button "Heal" @click=heal\nend\n`,
       0,
@@ -92,9 +95,10 @@ describe("a runtime error", () => {
     const button = h.observedElementIds()[0]!;
     h.reset();
     h.emitEvent("click", button);
-    const [first] = runtimeErrors(h.messages);
-    expect(first.location.range.start.line).toBe(7);
-    expect(first.message).toBe("broken heal");
+    const errors = runtimeErrors(h.messages);
+    expect(errors.map((e) => [e.location.range.start.line, e.message])).toEqual(
+      [[7, "broken heal"]],
+    );
   });
 
   test("carries no runtime location prefix in its message", async () => {

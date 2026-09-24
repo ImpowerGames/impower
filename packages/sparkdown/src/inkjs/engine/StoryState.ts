@@ -1622,7 +1622,7 @@ export class StoryState {
   public AddError(
     message: string,
     isWarning: boolean,
-    raised: RaisedError = { message, path: null },
+    raised: RaisedError,
   ) {
     if (!isWarning) {
       if (this._currentErrors == null) this._currentErrors = [];

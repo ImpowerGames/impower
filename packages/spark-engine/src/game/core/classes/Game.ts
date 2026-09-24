@@ -20,6 +20,7 @@ import {
   type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
+import { ErrorType as InkErrorType } from "@impower/sparkdown/src/inkjs/engine/Error";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
@@ -219,6 +220,13 @@ export class Game<T extends M = {}> {
   }
 
   protected _executingLocation: ScriptLocation | null = null;
+
+  protected _runtimeErrorsReported = 0;
+  /** How many runtime errors (not warnings) the game has reported, so a caller
+   *  can tell whether a failure it caught was already reported. */
+  get runtimeErrorsReported() {
+    return this._runtimeErrorsReported;
+  }
 
   protected _runtimeState: RuntimeState = new RuntimeState();
   get runtimeState() {
@@ -687,7 +695,7 @@ export class Game<T extends M = {}> {
       // location.
       this.Error(
         raised?.message ?? message,
-        type as number as ErrorType,
+        type === InkErrorType.Warning ? ErrorType.Warning : ErrorType.Error,
         pathLocation(this._program.pathLocations, raised?.path) ??
           this._executingLocation,
       );
@@ -2765,6 +2773,9 @@ export class Game<T extends M = {}> {
     type: ErrorType,
     location: ScriptLocation | null = this._executingLocation,
   ) {
+    if (type === ErrorType.Error) {
+      this._runtimeErrorsReported += 1;
+    }
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
