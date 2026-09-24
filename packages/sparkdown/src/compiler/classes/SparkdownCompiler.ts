@@ -3365,12 +3365,17 @@ export class SparkdownCompiler {
             last instanceof TunnelOnwards ||
             last instanceof ParsedReturnType;
           if (!alreadyTerminates) {
+            // The gather collects the loose ends a nested weave leaves: a
+            // choice or gather whose named container cannot step out to
+            // the divert on its own.
+            const finalGather = new Gather(null, 1);
             const doneDivert = new Divert([Identifier.Done()]);
             // Inherit debug metadata from the enclosing flow so any
             // diagnostic pointing at the synthesized divert lands on
             // the scene/branch declaration line rather than at offset 0.
+            finalGather.debugMetadata = flow.debugMetadata;
             doneDivert.debugMetadata = flow.debugMetadata;
-            rootWeave.AddContent(doneDivert);
+            rootWeave.AddContent([finalGather, doneDivert]);
           }
         }
       }

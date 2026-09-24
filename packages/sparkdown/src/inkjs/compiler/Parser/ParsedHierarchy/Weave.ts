@@ -283,6 +283,7 @@ export class Weave extends ParsedObject {
       this._unnamedGatherCount += 1;
     }
 
+    const containerEntered = this.currentContainer;
     if (autoEnter) {
       if (!this.currentContainer) {
         throw new Error();
@@ -302,14 +303,19 @@ export class Weave extends ParsedObject {
     for (const looseEndWeavePoint of this.looseEnds) {
       const looseEnd = looseEndWeavePoint as ParsedObject;
 
-      // Skip gather loose ends that are at the same level
-      // since they'll be handled by the auto-enter code below
-      // that only jumps into the gather if (current runtime choices == 0)
-      if (looseEnd instanceof Gather) {
-        const prevGather = looseEnd;
-        if (prevGather.indentationDepth == gather.indentationDepth) {
-          continue;
-        }
+      // Skip a gather loose end whose container this gather was just
+      // auto-entered into: its content already runs on into this gather.
+      // Any other gather loose end is diverted, whatever its depth: one
+      // passed up from a nested weave (a `choose` block's gather sits at the
+      // block's depth, which can equal a scene's final gather's) is in the
+      // nested weave's container, and a `label` anchor (depth 0) auto-entered
+      // into a `choose` block's gather must not divert that gather to itself.
+      if (
+        looseEnd instanceof Gather &&
+        autoEnter &&
+        looseEnd.runtimeContainer === containerEntered
+      ) {
+        continue;
       }
 
       let divert: RuntimeDivert | null = null;
@@ -446,10 +452,8 @@ export class Weave extends ParsedObject {
     //    sequence to get to it. We're allowed to pass all loose ends to
     //    one of these.
     //  - An "outer" weave is one that is outside of a conditional/sequence
-    //    that the current weave is nested within. We're only allowed to
-    //    pass gathers (i.e. 'normal flow') loose ends up there, not normal
-    //    choices. The rule is that choices have to be diverted explicitly
-    //    by the author since it's ambiguous where flow should go otherwise.
+    //    that the current weave is nested within. Loose ends pass up there
+    //    only when there is no inner weave.
     //
     // e.g.:
     //
@@ -505,20 +509,15 @@ export class Weave extends ParsedObject {
       let received = false;
 
       if (nested) {
-        // This weave is nested within a conditional or sequence:
-        //  - choices can only be passed up to direct ancestor ("inner") weaves
-        //  - gathers can be passed up to either, but favour the closer (inner) weave
-        //    if there is one
-        if (looseEnd instanceof Choice && closestInnerWeaveAncestor !== null) {
-          closestInnerWeaveAncestor.ReceiveLooseEnd(looseEnd);
+        // This weave is nested within a conditional or sequence. Sparkdown
+        // offers choices from inside an `if` in a `choose` block, so choices
+        // and gathers alike pass up to the closer (inner) weave if there is
+        // one, else to the outer weave, whose next gather they continue at.
+        const receivingWeave =
+          closestInnerWeaveAncestor || closestOuterWeaveAncestor;
+        if (receivingWeave !== null) {
+          receivingWeave.ReceiveLooseEnd(looseEnd!);
           received = true;
-        } else if (!(looseEnd instanceof Choice)) {
-          const receivingWeave =
-            closestInnerWeaveAncestor || closestOuterWeaveAncestor;
-          if (receivingWeave !== null) {
-            receivingWeave.ReceiveLooseEnd(looseEnd!);
-            received = true;
-          }
         }
       } else {
         // No nesting, all loose ends can be safely passed up

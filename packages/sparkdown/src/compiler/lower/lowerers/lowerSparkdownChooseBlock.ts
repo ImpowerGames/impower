@@ -138,12 +138,15 @@ export function lowerSparkdownChooseBlock(
     child = child.nextSibling;
   }
 
-  // Phase 2: if there's a `then` clause, lower its body and wrap it in
-  // a Gather at the same depth.
-  if (thenClause) {
-    const gather = buildGatherFromThenClause(thenClause, depth, ctx);
-    if (gather) weaveContent.push(gather);
-  }
+  // Phase 2: the block's `end` is a Gather at the same depth, so every choice
+  // continues there once its content runs out. A `then` clause's body is that
+  // Gather's content; without one the Gather is empty and the content after
+  // the block follows it.
+  weaveContent.push(
+    thenClause
+      ? buildGatherFromThenClause(thenClause, depth, ctx)
+      : new Gather(null, depth),
+  );
 
   (ctx as MutableCtx).chooseDepth = depth - 1;
 
@@ -187,7 +190,7 @@ function buildGatherFromThenClause(
   thenClause: SyntaxNode,
   depth: number,
   ctx: LowerContext,
-): Gather | null {
+): Gather {
   // Optional `(label)` after `then` is captured as a `Label` child by
   // the begin pattern — find its `LabelDeclarationName` descendant.
   const label = getDescendent("LabelDeclarationName", thenClause);
