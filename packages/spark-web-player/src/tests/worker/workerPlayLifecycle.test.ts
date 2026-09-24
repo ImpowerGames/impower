@@ -854,3 +854,124 @@ describe("the controller going while PLAY's application is built", () => {
     }
   }, 120_000);
 });
+
+/** How many listeners the page holds on the worker's games. */
+const listeners = (h: any) => {
+  let count = 0;
+  for (const set of h.link._listeners.values()) count += set.size;
+  return count;
+};
+
+describe("the PLAY button pressed while the audio context resumes", () => {
+  for (const ending of ["STOP", "the controller going"] as const) {
+    it(`starts nothing after ${ending}`, async () => {
+      const h = await createPlayerHarness({
+        files: [{ uri: MAIN_URI, text: SOURCE }],
+        startFrom: { file: MAIN_URI, line: AFTER },
+      });
+      framesForStop(h);
+      try {
+        await h.compile();
+        await h.select(AFTER);
+        const resumed = gate();
+        h.controller.ensureAudioContext = () => resumed.opened;
+        const clicked = h.controller.handleClickPlayButton();
+        await settle(10);
+        if (ending === "STOP") {
+          await h.controller.stopGame("quit");
+        } else {
+          h.controller.dispose();
+        }
+        h.toEditor.length = 0;
+        resumed.open();
+        await clicked;
+        await settle(40);
+
+        expect(h.toEditor.map((m) => m.method)).toEqual([]);
+        expect(h.workerState.gameState.running == null).toBe(true);
+        expect(h.controller.playing).toBe(false);
+      } finally {
+        h.workerState.gameState.running?.destroy();
+        h.dispose();
+      }
+    }, 120_000);
+  }
+});
+
+describe("a newer PLAY while the last one builds its application", () => {
+  it("leaves one set of listeners, and one destroy of the abandoned application", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // PLAY A has built its run and listens; its application's connect waits.
+      const connectingA = holdAnswer(h, ConnectPlayMessage.method);
+      const startingA = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connectingA.state.asked; i++) await settle(2);
+      expect(connectingA.state.asked).toBe(true);
+      const appA = h.controller._app;
+
+      // PLAY B has been answered but waits before building its application.
+      const buildingB = holdAnswer(h, PlayMessage.method);
+      const startingB = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !buildingB.state.asked; i++) await settle(2);
+      connectingA.open();
+      expect(await startingA).toBe(false);
+      buildingB.open();
+      expect(await startingB).toBe(true);
+      await settle(20);
+
+      expect(appA.destroys).toBe(1);
+      expect(h.controller._app === appA).toBe(false);
+      // What listens now is PLAY B alone: as many listeners as a PLAY that
+      // raced nothing holds.
+      const raced = listeners(h);
+      await h.controller.stopGame("quit");
+      await settle(20);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(20);
+      expect(raced).toBe(listeners(h));
+      // And the controller going leaves none.
+      h.controller.dispose();
+      await settle(20);
+      expect(listeners(h)).toBe(0);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("game/start from the editor while the controller goes", () => {
+  it("publishes nothing after the controller has gone", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      const connecting = holdAnswer(h, ConnectPlayMessage.method);
+      const started = h.controller.handleStartGame({ jsonrpc: "2.0", id: "start", method: "game/start", params: {} });
+      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
+      h.controller.dispose();
+      h.toEditor.length = 0;
+      connecting.open();
+      await started;
+      await settle(20);
+
+      expect(h.toEditor.map((m) => m.method)).toEqual([]);
+      expect(h.controller.getGameState().launchState).toBe(null);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});

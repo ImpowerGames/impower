@@ -463,6 +463,9 @@ export class Application implements IApplication {
   }
 
   async destroy(removeCanvas?: boolean) {
+    if (this._destroyed) {
+      return;
+    }
     try {
       this._destroyed = true;
       // Whatever the game still waits on from this page will not finish:

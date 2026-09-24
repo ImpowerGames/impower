@@ -215,6 +215,9 @@ export class GamePlayerController {
   _debugging = false;
   _program?: SparkProgram;
   private _mounted = false;
+  /** The controller has gone: nothing it began may start a game or publish
+   *  its state from then on. */
+  private _disposed = false;
   private _previewPosition: GameState["position"] = null;
   private _selectionVersion = 0;
   private _launchState: GameState["launchState"] = null;
@@ -368,6 +371,7 @@ export class GamePlayerController {
       this._completionStatusTimer = 0;
     }
     this._mounted = false;
+    this._disposed = true;
     this._stops += 1;
     this._previewPosition = null;
     this._selectionVersion++;
@@ -449,6 +453,9 @@ export class GamePlayerController {
   }
 
   protected updateLaunchStateIcon() {
+    if (this._disposed) {
+      return;
+    }
     const icon = this._app?.paused
       ? "pause"
       : this._workerPlay?.state === "running"
@@ -735,7 +742,14 @@ export class GamePlayerController {
   };
 
   protected handleClickPlayButton = async () => {
+    const stops = this._stops;
+    const clicked = this._plays;
     await this.ensureAudioContext();
+    // STOP, another PLAY or the controller going while the audio context
+    // resumed ended this click before it asked for anything.
+    if (stops !== this._stops || clicked !== this._plays || this._disposed) {
+      return;
+    }
     const plays = this._plays + 1;
     await this.startGameAndApp();
     // STOP, a newer PLAY or the controller going ended this PLAY while it
@@ -1755,6 +1769,9 @@ export class GamePlayerController {
   async startGameAndApp(restarted?: boolean) {
     const plays = ++this._plays;
     const stops = this._stops;
+    if (this._disposed) {
+      return false;
+    }
     // PLAY runs the real document only, and no suggestion may reach the
     // screen once it has started.
     this.endCompletionPreview();
@@ -1797,9 +1814,22 @@ export class GamePlayerController {
     // STOP, a restart or the controller going ends this start at whichever
     // step it has reached (`endWorkerPlay`).
     const current = () => this._workerPlay === play;
+    /** This start's own listeners on the worker's PLAY game, once it has
+     *  registered them. */
+    let stopListening: (() => void) | undefined;
+    /** Stop listening for this start, which a newer PLAY no longer does for
+     *  it once it has replaced the start's listeners. */
+    const release = () => {
+      stopListening?.();
+      if (this._stopListeningToPlay === stopListening) {
+        this._stopListeningToPlay = undefined;
+      }
+      stopListening = undefined;
+    };
     /** Stop the run this start built, which nothing else will stop once the
-     *  start is no longer current. */
+     *  start is no longer current, and let go of what the start holds. */
     const abandon = () => {
+      release();
       if (play.run != null) {
         link
           .request(StopPlayMessage.type, { run: play.run })
@@ -1830,13 +1860,17 @@ export class GamePlayerController {
       if (!current()) {
         return abandon();
       }
-      this._stopListeningToPlay = this.listenToWorker(link, () =>
+      stopListening = this.listenToWorker(link, () =>
         this._workerPlay !== play
           ? "stopped"
           : play.startSent
             ? "running"
             : play.state,
       );
+      // A PLAY this one replaced may still have listeners; only this one's
+      // game is heard from now on.
+      this._stopListeningToPlay?.();
+      this._stopListeningToPlay = stopListening;
       // A preview build a detach left under way still holds the application
       // slot until it has disposed of its application.
       await this._workerAppSettling;
@@ -1870,6 +1904,11 @@ export class GamePlayerController {
       if (!current()) {
         if (play.sink) {
           link.detach(play.sink);
+        }
+        // The slot is this start's no longer: a newer PLAY builds its own
+        // application without destroying this one again.
+        if (this._app === app) {
+          this._app = undefined;
         }
         if (!app.destroyed) {
           await app.destroy(true);
@@ -1922,6 +1961,8 @@ export class GamePlayerController {
       console.error(e);
       if (current()) {
         await this.destroyGameAndApp();
+      } else {
+        release();
       }
       return false;
     } finally {
