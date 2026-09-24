@@ -286,6 +286,18 @@ export function pairMetronome({ keys, beats, writes, anims, onsets, sends = [], 
   });
 }
 
+/**
+ * The phase's samples from its rows, one per key pressed, when `requested`
+ * keys were asked for and the first `warmup` are discarded. A run that
+ * pressed fewer keys ends with a measured failed sample saying so, whatever
+ * its position, so a shortfall can never hide among the warm-up samples.
+ */
+export function metronomeSamples(rows, requested, warmup) {
+  const samples = rows.map((row, i) => ({ index: i + 1, warmup: i < warmup, ...row }));
+  if (rows.length !== requested) samples.push({ index: samples.length + 1, warmup: false, failure: `the page pressed ${rows.length} of ${requested} keys` });
+  return samples;
+}
+
 export function summarizeMetronome(rows) {
   const ok = rows.filter((r) => !r.failure);
   const stamps = rows.map((r) => r.stamp).filter((s) => s != null);
@@ -561,9 +573,7 @@ async function runMetronome(page, frame, workers, options) {
     };
   }, from);
   const sends = (await workerSends(workers, from.at)).filter((s) => s.channel === "sound" && s.time != null);
-  const rows = pairMetronome({ ...read, sends, requireWorker: options.requireWorker });
-  if (read.keys.length !== total) rows.push({ failure: `the page pressed ${read.keys.length} of ${total} keys` });
-  return rows.map((row, i) => ({ index: i + 1, warmup: i < options.warmup, ...row }));
+  return metronomeSamples(pairMetronome({ ...read, sends, requireWorker: options.requireWorker }), total, options.warmup);
 }
 
 async function runPosition(position, options, deps, scratch) {

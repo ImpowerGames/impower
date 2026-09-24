@@ -12,7 +12,7 @@
 // Pure functions, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
-import { attributeInputSample, metronomeRow, pairMetronome, parseTimingArgs, stats, summarizeInput, summarizeMetronome, timingFailed } from "./timing.mjs";
+import { attributeInputSample, metronomeRow, metronomeSamples, pairMetronome, parseTimingArgs, stats, summarizeInput, summarizeMetronome, timingFailed } from "./timing.mjs";
 import { buildInputFixture, buildMetronomeFixture, clickWav } from "./timing-fixture.mjs";
 
 let failures = 0;
@@ -300,6 +300,29 @@ await check("a metronome summary counts late arrivals and failures and reads the
   assert.deepEqual(summary.stampInterval, { n: 2, min: 500, median: 500, p95: 516, p99: 516, max: 516, spread: 16 });
   assert.equal(summary.onsetMinusStamp.spread, 5);
   assert.equal(summary.lateBy.n, 1);
+});
+
+await check("a phase that pressed fewer keys than it asked for fails the run, even inside its warm-up", () => {
+  // The defaults ask for 4 warm-up keys and 100 measured ones; the page
+  // pressed 3, all of which fall in the warm-up.
+  const beats = [played(0), played(1), played(2)];
+  const rows = pairMetronome({ keys: [5_000, 5_500, 6_000], beats, writes: beats.map(writeOf), anims: beats.map(enterOf), onsets: beats.map(onsetOf), timeOrigin });
+  const samples = metronomeSamples(rows, 104, 4);
+  assert.deepEqual(
+    samples.map((s) => [s.index, s.warmup]),
+    [
+      [1, true],
+      [2, true],
+      [3, true],
+      [4, false],
+    ],
+  );
+  assert.match(samples[3].failure, /pressed 3 of 104 keys/);
+  const summary = summarizeMetronome(samples.filter((s) => !s.warmup));
+  assert.equal(summary.failures, 1);
+  assert.equal(timingFailed({ positions: [{ phases: [{ summary }] }] }), true);
+  // A phase that pressed every key it asked for adds nothing.
+  assert.equal(metronomeSamples(rows, 3, 1).length, 3);
 });
 
 await check("a run fails on an error in any position or any failed measured sample", () => {
