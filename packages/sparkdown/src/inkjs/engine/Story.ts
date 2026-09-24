@@ -50,7 +50,7 @@ import { asOrNull, asOrThrows } from "./TypeAssertion";
 import { DebugMetadata } from "./DebugMetadata";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
-import { type ErrorHandler, ErrorType } from "./Error";
+import { ErrorType, type RaisedError, type RuntimeErrorHandler } from "./Error";
 import { StructDefinition } from "./StructDefinition";
 import type { Simulator,SimulatorSnapshot } from "./Simulator";
 
@@ -823,7 +823,7 @@ export class Story extends InkObject {
     this._stateIsPristine = false;
   }
 
-  public onError: ErrorHandler | null = null;
+  public onError: RuntimeErrorHandler | null = null;
 
   public onDidContinue: (() => void) | null = null;
 
@@ -1094,6 +1094,10 @@ export class Story extends InkObject {
       return throwNullException("this._state");
     }
     this._state.ResetErrors();
+    // The state saved at the last newline holds the errors raised before it
+    // was taken. They have been reported with the live state's, so a look-ahead
+    // that restores it must not bring them back to be reported again.
+    this._stateSnapshotAtLastNewline?.ResetErrors();
   }
 
   public ResetCallstack() {
@@ -1390,14 +1394,16 @@ export class Story extends InkObject {
     if (this.state.hasError || this.state.hasWarning) {
       if (this.onError !== null) {
         if (this.state.hasError) {
-          for (let err of this.state.currentErrors!) {
-            this.onError(err, ErrorType.Error, null);
-          }
+          const raised = this.state.raisedErrors;
+          this.state.currentErrors!.forEach((err, i) => {
+            this.onError!(err, ErrorType.Error, null, raised[i] ?? null);
+          });
         }
         if (this.state.hasWarning) {
-          for (let err of this.state.currentWarnings!) {
-            this.onError(err, ErrorType.Warning, null);
-          }
+          const raised = this.state.raisedWarnings;
+          this.state.currentWarnings!.forEach((err, i) => {
+            this.onError!(err, ErrorType.Warning, null, raised[i] ?? null);
+          });
         }
         this.ResetErrors();
       } else {
@@ -5269,6 +5275,17 @@ export class Story extends InkObject {
   ) {
     let dm = this.currentDebugMetadata;
 
+    // The content being executed as the error is raised. An error raised
+    // after the story ran out of content has no current pointer, so it names
+    // the last content that ran.
+    const at = this.state.currentPointer.isNull
+      ? this.state.previousPointer
+      : this.state.currentPointer;
+    const raised: RaisedError = {
+      message,
+      path: at.path?.toString() ?? null,
+    };
+
     let errorTypeStr = isWarning ? "WARNING" : "ERROR";
 
     if (dm != null) {
@@ -5294,7 +5311,7 @@ export class Story extends InkObject {
       message = "RUNTIME " + errorTypeStr + ": " + message;
     }
 
-    this.state.AddError(message, isWarning);
+    this.state.AddError(message, isWarning, raised);
 
     // In a broken state don't need to know about any other errors.
     if (!isWarning) this.state.ForceEnd();

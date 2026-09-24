@@ -680,8 +680,17 @@ export class Game<T extends M = {}> {
   setupStory(story: Story) {
     story.collapseWhitespace = false;
     story.processEscapes = false;
-    story.onError = (message: string, type: ErrorType) => {
-      this.Error(message, type);
+    story.onError = (message, type, _source, raised) => {
+      // The story reports its errors as the step that raised them ends, before
+      // that step's location is recorded, so an error names the content that
+      // raised it, and the last recorded step only when that content has no
+      // location.
+      this.Error(
+        raised?.message ?? message,
+        type as number as ErrorType,
+        pathLocation(this._program.pathLocations, raised?.path) ??
+          this._executingLocation,
+      );
     };
     story.onExecute = (path: string | undefined) => {
       if (path) {
@@ -2751,12 +2760,16 @@ export class Game<T extends M = {}> {
     return { stackFrames, totalFrames: 0 };
   }
 
-  protected Error(message: string, type: ErrorType) {
+  protected Error(
+    message: string,
+    type: ErrorType,
+    location: ScriptLocation | null = this._executingLocation,
+  ) {
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
         type,
-        location: this.getDocumentLocation(this._executingLocation),
+        location: this.getDocumentLocation(location),
         state: this._state,
       }),
     );
