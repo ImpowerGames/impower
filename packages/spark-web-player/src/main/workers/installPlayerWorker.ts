@@ -569,25 +569,34 @@ export function installPlayerWorker(connection: MessageConnection) {
   // page shows it, hears from it and debugs it, and the game above sends the
   // page nothing (`sendToPage`) and replays no route for a selection.
 
-  /** PLAY's game while it runs, with the run the page knows it by, and a
-   *  settlement that STOP answers everything still waiting on it with. */
+  /** PLAY's game while it runs, with the run the page knows it by, a
+   *  settlement that STOP answers everything still waiting on it with, and
+   *  the channel it sends the page its stream on once connected. */
   let current:
-    | { run: number; game: Game; stopped: Promise<void>; stop: () => void }
+    | {
+        run: number;
+        game: Game;
+        stopped: Promise<void>;
+        stop: () => void;
+        channel?: BroadcastChannel;
+      }
     | undefined;
   let runs = 0;
 
   /** Where PLAY's game `running` sends the page what it shows, while it
    *  is the one that runs: a game STOP ended cannot write into the next
-   *  run's stream. */
+   *  run's stream. It goes on the page's `channel` rather than the
+   *  connection, which Chromium holds after input (`WorkerGameLink`). No
+   *  game message carries a transfer, which a channel cannot take. */
   const sendFromPlay =
-    (running: Game) => (message: Message, transfer?: ArrayBuffer[]) => {
+    (running: Game, channel: BroadcastChannel) => (message: Message) => {
       if (
         gameState.running !== running ||
         !(isRequest(message) || isNotification(message))
       ) {
         return;
       }
-      connection.postMessage(withDocumentLocations(message, running), transfer);
+      channel.postMessage(withDocumentLocations(message, running));
     };
 
   /** Build PLAY's game for the program the page names, at the start point
@@ -653,6 +662,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     current = undefined;
     gameState.running = undefined;
     ending.game.destroy();
+    ending.channel?.close();
     ending.stop();
     return { location };
   };
@@ -689,10 +699,17 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     if (ConnectPlayMessage.type.isRequest(message)) {
       connection.sendResponse(message, async () => {
-        const { game, stopped } = runningAs(message.params.run);
+        const running = runningAs(message.params.run);
+        const { game, stopped } = running;
+        running.channel?.close();
+        const channel = new BroadcastChannel(message.params.channel);
+        running.channel = channel;
         // A game STOP ends while it connects never finishes its restore:
         // what the page answers from then on is not delivered to it.
-        await Promise.race([game.connect(sendFromPlay(game)), stopped]);
+        await Promise.race([
+          game.connect(sendFromPlay(game, channel)),
+          stopped,
+        ]);
         return {};
       });
       return;

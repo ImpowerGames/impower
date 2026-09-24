@@ -468,18 +468,21 @@ function installProbe() {
 
 // Installed in each of the page's workers made from a blob, the player's
 // among them: every message the game posts carries a stream epoch, and this
-// stamps each one on the shared clock as the worker posts it. Nothing else a
+// stamps each one on the shared clock as the worker posts it, on a port or on
+// the broadcast channel PLAY's game sends its stream on. Nothing else a
 // worker posts carries an epoch, so the other workers record nothing.
 function installWorkerProbe() {
   if (self.__timingSent) return true;
   const sent = (self.__timingSent = []);
-  const post = MessagePort.prototype.postMessage;
-  MessagePort.prototype.postMessage = function (message, ...rest) {
-    if (message && typeof message.epoch === "number") {
-      sent.push({ at: performance.timeOrigin + performance.now(), method: message.method, time: message.params?.time, channel: message.params?.channel });
-    }
-    return post.call(this, message, ...rest);
-  };
+  for (const proto of [MessagePort.prototype, BroadcastChannel.prototype]) {
+    const post = proto.postMessage;
+    proto.postMessage = function (message, ...rest) {
+      if (message && typeof message.epoch === "number") {
+        sent.push({ at: performance.timeOrigin + performance.now(), method: message.method, time: message.params?.time, channel: message.params?.channel });
+      }
+      return post.call(this, message, ...rest);
+    };
+  }
   return true;
 }
 

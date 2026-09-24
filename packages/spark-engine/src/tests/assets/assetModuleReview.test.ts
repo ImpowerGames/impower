@@ -10,6 +10,7 @@ import "@impower/sparkdown/src/inkjs/engine/Container";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
 import { describe, expect, it, vi } from "vitest";
 import { Coordinator } from "../../game/core/classes/Coordinator";
+import { BEAT_LEAD_MS } from "../../game/core/utils/sharedClock";
 import { createHarness, flushMicrotasks } from "../ui/harness/uiTestHarness";
 
 const ASSETS: File[] = [
@@ -48,9 +49,9 @@ describe("AssetModule, after review", () => {
     await flushMicrotasks(20);
     coordinator.onUpdate(tick());
     expect(ui._mountedLayouts.has("loading")).toBe(false);
-    // Ready on that tick; the next one runs out the lead to its display.
+    // Ready on that tick; the lead to its display runs out after it.
     expect(coordinator.shouldContinue()).toBe(0);
-    coordinator.onUpdate(tick());
+    coordinator.onUpdate(tick(BEAT_LEAD_MS));
     expect(coordinator.shouldContinue()).toBe(1);
   });
 

@@ -23,6 +23,7 @@ import { GetGameThreadsMessage } from "../game/core/classes/messages/GetGameThre
 import { GetGameVariablesMessage } from "../game/core/classes/messages/GetGameVariablesMessage";
 import { InitializedMessage } from "../game/core/classes/messages/InitializedMessage";
 import { InitializeMessage } from "../game/core/classes/messages/InitializeMessage";
+import { PageFramedMessage } from "../game/core/classes/messages/PageFramedMessage";
 import { PauseGameMessage } from "../game/core/classes/messages/PauseGameMessage";
 import { PreviewGameMessage } from "../game/core/classes/messages/PreviewGameMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
@@ -44,8 +45,44 @@ export class NoGameError extends Error implements ResponseError {
   code = -32900;
 }
 
+/** How long a game waits for the page's next frame once the page has sent
+ *  one, before it ticks anyway: a hidden page renders no frames. */
+export const PAGE_FRAME_TIMEOUT_MS = 100;
+
 export function installGameWorker(connection: MessageConnection) {
   console.log("running spark-engine v1.0");
+
+  // The games tick when the page has finished rendering a frame
+  // (`PageFramedMessage`), so what a tick posts reaches a page that is not
+  // rendering. A message that arrives while the page renders waits for the
+  // whole frame, which in the editor cost a beat most of its lead: a worker's
+  // own animation frames begin with the page's, and a timer's ticks land in a
+  // frame about as often as the page spends rendering (#811). Until the page
+  // sends a frame, and after it stops for longer than
+  // `PAGE_FRAME_TIMEOUT_MS`, the games tick on a timer at the rate the clock
+  // runs at.
+  const frames: {
+    waiting: FrameRequestCallback[];
+    timer?: number;
+    /** The page has sent a frame since the timer last ran one. */
+    paged: boolean;
+  } = { waiting: [], paged: false };
+  const runFrame = () => {
+    if (frames.timer !== undefined) {
+      self.clearTimeout(frames.timer);
+      frames.timer = undefined;
+    }
+    const waiting = frames.waiting.splice(0);
+    const now = performance.now();
+    for (const callback of waiting) {
+      callback(now);
+    }
+  };
+  const runFrameOnTimer = () => {
+    frames.timer = undefined;
+    frames.paged = false;
+    runFrame();
+  };
 
   const systemConfiguration: SystemConfiguration = {
     now: sharedNow,
@@ -54,12 +91,16 @@ export function installGameWorker(connection: MessageConnection) {
     // on the global here.
     setTimeout: (handler: Function, timeout?: number, ...args: any[]) =>
       self.setTimeout(handler as TimerHandler, timeout, ...args),
-    // A worker that has no animation frames ticks on a timer at the rate the
-    // clock runs at.
-    requestFrame: (callback: FrameRequestCallback) =>
-      typeof self.requestAnimationFrame === "function"
-        ? self.requestAnimationFrame(callback)
-        : self.setTimeout(callback, 1000 / 60),
+    requestFrame: (callback: FrameRequestCallback) => {
+      const handle = frames.waiting.push(callback);
+      if (frames.timer === undefined) {
+        frames.timer = self.setTimeout(
+          runFrameOnTimer,
+          frames.paged ? PAGE_FRAME_TIMEOUT_MS : 1000 / 60,
+        );
+      }
+      return handle;
+    },
     resolve: (path: string) => {
       // TODO: resolve import and load paths to url
       return path;
@@ -137,6 +178,11 @@ export function installGameWorker(connection: MessageConnection) {
 
   connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;
+    if (PageFramedMessage.type.isNotification(message)) {
+      frames.paged = true;
+      runFrame();
+      return;
+    }
     if (isResponse(message)) {
       // A response answers the game that asked, and no other game holds its
       // id.

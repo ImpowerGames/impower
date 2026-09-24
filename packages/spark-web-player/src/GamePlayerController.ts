@@ -2051,9 +2051,12 @@ export class GamePlayerController {
               return;
             }
             play.sink = send;
-            link.attach(send);
+            const channel = link.attachPlay(send);
             try {
-              await link.request(ConnectPlayMessage.type, { run: play.run! });
+              await link.request(ConnectPlayMessage.type, {
+                run: play.run!,
+                channel,
+              });
             } catch (e) {
               // Ended before it connected; nothing is shown.
               console.error(e);

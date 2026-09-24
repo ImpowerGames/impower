@@ -6,9 +6,10 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { CreateGameMessage } from "../game/core/classes/messages/CreateGameMessage";
 import { EnableGameDebugMessage } from "../game/core/classes/messages/EnableGameDebugMessage";
+import { PageFramedMessage } from "../game/core/classes/messages/PageFramedMessage";
 import { SetGameBreakpointsMessage } from "../game/core/classes/messages/SetGameBreakpointsMessage";
 import { compileProgram } from "../tests/harness/compileProgram";
-import { installGameWorker } from "./installGameWorker";
+import { installGameWorker, PAGE_FRAME_TIMEOUT_MS } from "./installGameWorker";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -92,9 +93,101 @@ describe("the configuration a worker gives its game", () => {
     let ran = 0;
 
     expect(systemConfiguration.setTimeout!(() => ran++, 5)).toBe(1);
-    expect(systemConfiguration.requestFrame!(() => ran++)).toBe(2);
+    expect(systemConfiguration.requestFrame!(() => ran++)).toBe(1);
 
     expect(ran).toBe(2);
-    expect(calls).toEqual(["setTimeout 5", "requestAnimationFrame"]);
+    expect(calls).toEqual(["setTimeout 5", `setTimeout ${1000 / 60}`]);
+  });
+});
+
+// A message that reaches the page while it renders waits for the whole frame.
+// A worker's animation frames begin with the page's, which left a beat's
+// sound reaching the page after its stamp on about one beat in three (#811),
+// so the games tick when the page says it has finished a frame.
+describe("when the games a worker holds tick", () => {
+  /** A worker whose timers are run by the test, and a way to post it a
+   *  message as the page does. */
+  const createWorker = () => {
+    const calls: string[] = [];
+    const timers = new Map<number, { handler: () => void; timeout?: number }>();
+    let nextTimer = 1;
+    vi.stubGlobal("self", {
+      setTimeout: (handler: () => void, timeout?: number) => {
+        calls.push(`setTimeout ${timeout}`);
+        timers.set(nextTimer, { handler, timeout });
+        return nextTimer++;
+      },
+      clearTimeout: (id: number) => {
+        timers.delete(id);
+      },
+      requestAnimationFrame: () => {
+        calls.push("requestAnimationFrame");
+        return 0;
+      },
+    });
+    const listeners: ((e: MessageEvent) => void)[] = [];
+    const { systemConfiguration } = installGameWorker({
+      addEventListener: (_: string, listener: (e: MessageEvent) => void) => {
+        listeners.push(listener);
+      },
+    } as any);
+    const pageFramed = () => {
+      for (const listener of listeners) {
+        listener({
+          data: PageFramedMessage.type.notification({}),
+        } as MessageEvent);
+      }
+    };
+    const fireTimers = () => {
+      const due = [...timers.values()];
+      timers.clear();
+      for (const timer of due) timer.handler();
+    };
+    return { calls, timers, systemConfiguration, pageFramed, fireTimers };
+  };
+
+  test("on a timer at the clock's rate before the page sends a frame, never on the worker's animation frames", () => {
+    const worker = createWorker();
+    let ticks = 0;
+
+    worker.systemConfiguration.requestFrame!(() => ticks++);
+    expect(worker.calls).toEqual([`setTimeout ${1000 / 60}`]);
+    worker.fireTimers();
+
+    expect(ticks).toBe(1);
+  });
+
+  test("on the page's next frame once it sends them, and not before", () => {
+    const worker = createWorker();
+    let ticks = 0;
+    worker.pageFramed();
+
+    worker.systemConfiguration.requestFrame!(() => ticks++);
+    worker.systemConfiguration.requestFrame!(() => ticks++);
+    expect(ticks).toBe(0);
+    worker.pageFramed();
+
+    // Both waiting callbacks ran on that frame, and the timer that would
+    // have run them if it had not come is gone.
+    expect(ticks).toBe(2);
+    expect(worker.timers.size).toBe(0);
+  });
+
+  test("on a timer again once the page stops sending frames, as a hidden page does", () => {
+    const worker = createWorker();
+    let ticks = 0;
+    worker.pageFramed();
+
+    worker.systemConfiguration.requestFrame!(() => ticks++);
+    expect([...worker.timers.values()].map((t) => t.timeout)).toEqual([
+      PAGE_FRAME_TIMEOUT_MS,
+    ]);
+    worker.fireTimers();
+    expect(ticks).toBe(1);
+
+    worker.systemConfiguration.requestFrame!(() => ticks++);
+    expect([...worker.timers.values()].map((t) => t.timeout)).toEqual([
+      1000 / 60,
+    ]);
   });
 });
