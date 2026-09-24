@@ -1,7 +1,7 @@
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { reportLeadingGlue } from "./lowerDisplay";
+import { checkLeadingGlue } from "./lowerDisplay";
 
 // A `..` reached as a statement of its own is a bare `..` line: it leads no
 // text, and only a `..` that ends a line joins the next one, which the display
@@ -11,6 +11,6 @@ export function lowerGlue(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  reportLeadingGlue(nodeRef.node, ctx);
+  checkLeadingGlue(nodeRef.node, nodeRef.node, ctx);
   return {};
 }

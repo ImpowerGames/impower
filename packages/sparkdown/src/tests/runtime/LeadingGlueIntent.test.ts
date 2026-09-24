@@ -9,7 +9,10 @@
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import {
+  displayRouting,
+  makeRuntimeStoryFromSource,
+} from "./runtimeTestHarness";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const CONTINUES_ERROR =
@@ -20,6 +23,12 @@ const CONTINUES_WARNING =
 
 const BARE_GLUE_ERROR =
   "A line cannot begin with `..`. End the previous line with `..` to join them.";
+
+const LEADS_NOTHING_ERROR =
+  "This line begins with `..` but has no words after it. Put the line's words after the mark, or delete the line.";
+
+const AFTER_LOAD_ERROR =
+  "This line continues the one before it, but that line is a `load` line, which cannot join the next. Move the `load` line, or remove this `..`.";
 
 // Each step's text, and every runtime error and warning the run raised.
 function run(story: RuntimeStory): { texts: string[]; warnings: string[] } {
@@ -259,49 +268,86 @@ test("a line that begins with an ellipsis is text", () => {
   });
 });
 
-describe("marks that keep their error", () => {
-  test("a bare `..` line", () => {
-    for (const source of [`A\n  ..\nB\n`, `A ..\n..\nB\n`]) {
-      const errors = errorsOf(source);
-      expect(errors.map((e) => e.message)).toEqual([BARE_GLUE_ERROR]);
+// A mark with no words after it (only a comment or a tag, which show nothing)
+// is an error. Under a line that ends with `..` the fix is the missing words;
+// otherwise it is the trailing mark on the line before.
+describe("a `..` with no words after it", () => {
+  test("under a line that does not end with `..`", () => {
+    for (const source of [`A\n  ..\nB\n`, `A\n.. // note\nB\n`]) {
+      expect(
+        errorsOf(source).map((e) => e.message),
+        source,
+      ).toEqual([BARE_GLUE_ERROR]);
     }
   });
 
-  // A comment or a tag after the mark shows nothing, so the line is bare.
-  test("a `..` line with only a comment or a tag after it", () => {
+  test("under a line that ends with `..`", () => {
     for (const source of [
+      `A ..\n..\nB\n`,
       `A ..\n.. // note\nB\n`,
       `A ..\n.. # tag\nB\n`,
       `ALICE:\n  A ..\n  .. // note\n  B\n`,
     ]) {
-      const errors = errorsOf(source);
-      expect(errors.map((e) => e.message), source).toEqual([BARE_GLUE_ERROR]);
+      expect(
+        errorsOf(source).map((e) => e.message),
+        source,
+      ).toEqual([LEADS_NOTHING_ERROR]);
     }
+  });
+
+  test("as the first line of a scene carries no `continues`", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `A -> s\n\nscene s\n  .. // note\n  B\nend\n`,
+    );
+    expect(
+      tokens(ctx.compiledJson).filter((t) => t === "^continues").length,
+    ).toBe(0);
   });
 });
 
-// A `load` line's `..` joins nothing, so the line after it does not continue
-// it, whether the `load` line is inline or the last line of a block.
+// A `load` directive's `..` joins nothing, so the line after it does not
+// continue it, whether the directive is inline or in a block.
 describe("a line that begins with `..` after a `load` line", () => {
-  test("is an error", () => {
+  test("is an error that says the `load` line cannot join", () => {
     for (const [source, line] of [
+      [`load overworld\n.. B\n`, 1],
       [`load overworld ..\n.. B\n`, 1],
+      [`:\n  load overworld\n.. B\n`, 2],
       [`:\n  load overworld ..\n.. B\n`, 2],
       [`:\n  load overworld ..\n  .. B\n`, 2],
     ] as const) {
+      const character = source.split("\n")[line]!.indexOf("..");
       expect(
-        errorsOf(source).filter((e) => e.message === CONTINUES_ERROR),
+        errorsOf(source).filter((e) => e.message === AFTER_LOAD_ERROR),
         source,
       ).toEqual([
         {
-          message: CONTINUES_ERROR,
-          start: { line, character: source.split("\n")[line]!.indexOf("..") },
-          end: {
-            line,
-            character: source.split("\n")[line]!.indexOf("..") + 2,
-          },
+          message: AFTER_LOAD_ERROR,
+          start: { line, character },
+          end: { line, character: character + 2 },
         },
       ]);
+    }
+  });
+
+  // Lowering decides a `load` directive per beat: after a `>` break, a beat
+  // of text that ends with `..` joins the next line.
+  test("after a break in a `load` statement, the text beat joins", () => {
+    for (const load of [
+      `load overworld > You see a ..`,
+      `:\n  load overworld\n  > You see a ..`,
+    ]) {
+      const source = `${load}\n.. rusty key.\n`;
+      expect(errorsOf(source), source).toEqual([]);
+      const ctx = makeRuntimeStoryFromSource(source);
+      const texts: string[] = [];
+      const routing: unknown[] = [];
+      while (ctx.story.canContinue) {
+        texts.push(ctx.story.Continue() ?? "");
+        routing.push(displayRouting(ctx.story));
+      }
+      expect(texts.at(-1), source).toBe("You see a rusty key.\n");
+      expect((routing.at(-1) as unknown[]).at(-1), source).toEqual({});
     }
   });
 });
