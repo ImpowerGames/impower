@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
-import AudioProbe from "./AudioProbe";
+import AudioProbe, { enableOnsetTap } from "./AudioProbe";
 
 /**
  * The probe is what makes audio answerable by someone who cannot hear it
@@ -134,6 +134,28 @@ describe("AudioProbe", () => {
 
     it("is empty before anything has been sampled", () => {
       expect(createProbe().probe.snapshot()).toEqual({});
+    });
+  });
+
+  describe("startOnsetTap", () => {
+    // In this order: the switch is module state, and a file runs in an
+    // environment of its own.
+    it("refuses until a development build enables it", async () => {
+      const h = createProbe();
+      h.set("main", 0);
+
+      await expect(h.probe.startOnsetTap()).rejects.toThrow(
+        /development builds only/,
+      );
+    });
+
+    it("needs the mixer it taps to exist", async () => {
+      enableOnsetTap();
+      const h = createProbe();
+
+      await expect(h.probe.startOnsetTap("main")).rejects.toThrow(
+        /no main mixer/,
+      );
     });
   });
 
