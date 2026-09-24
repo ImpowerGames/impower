@@ -6,6 +6,7 @@ import { createImageElement } from "../../../../spark-dom/src/utils/createImageE
 import { resolveAnimationTargets } from "../../../../spark-dom/src/utils/resolveAnimationTargets";
 import { getCSSPropertyKeyValue } from "../../../../spark-dom/src/utils/getCSSPropertyKeyValue";
 import { getElementContent } from "../../../../spark-dom/src/utils/getElementContent";
+import { getHiddenUntilAnimation } from "../../../../spark-dom/src/utils/getHiddenUntilAnimation";
 import { getRevealAnimation } from "../../../../spark-dom/src/utils/getRevealAnimation";
 import type { TextInstruction } from "../../../../spark-engine/src/game/core/types/Instruction";
 import type { Animation } from "../../../../spark-engine/src/game/modules/ui/types/Animation";
@@ -835,13 +836,6 @@ export default class UIManager extends Manager {
   }
 
   /**
-   * [D14] Consumer-side realization of a text write. Replaces the engine's
-   * per-glyph `CreateElement` + per-letter `AnimateElements` emission: the
-   * engine now sends a single `ui/write-text` carrying the `TextInstruction[]`,
-   * and the consumer rebuilds the `text` + `stroke` content children and drives
-   * the reveal here.
-   */
-  /**
    * When a beat stamped `time` on the shared clock shows, on the document
    * timeline: once its sound, which the audio context starts at `time`, has
    * reached the speakers. The latency is the audio clock reading's, which the
@@ -857,6 +851,18 @@ export default class UIManager extends Manager {
     );
   }
 
+  /**
+   * [D14] Realizes a text write on the page: the engine sends one
+   * `ui/write-text` carrying the `TextInstruction[]`, and the page builds the
+   * target's `text` and `stroke` content from it and drives the reveal.
+   *
+   * The engine shows the target when it writes it, but a played write to a
+   * target whose `text` and `stroke` are empty keeps the target hidden until
+   * the first letter's reveal begins: at the beat's start, or later when that
+   * letter waits (a choice while the caption above it types). The target's own
+   * box and border do not show empty in the meantime. An instant write shows
+   * everything at once.
+   */
   protected async writeText(
     target: string,
     instructions: TextInstruction[],
@@ -882,9 +888,32 @@ export default class UIManager extends Manager {
       element: HTMLElement;
       animation: ReturnType<typeof getRevealAnimation>;
     }[] = [];
+    // Seconds from the write's start until its first letter's reveal begins.
+    const wait = instructions.reduce(
+      (min, e) => Math.min(min, e.after ?? 0),
+      Infinity,
+    );
+    const waiting: HTMLElement[] = [];
     for (const targetEl of targetEls) {
       const textEls = this.getContentElements(targetEl, "text");
       const strokeEls = this.getContentElements(targetEl, "stroke");
+      const contentEls = [...textEls, ...strokeEls];
+      // With no text on it yet, the target would show as an empty box until
+      // its first letter appears.
+      const empty =
+        contentEls.length > 0 && contentEls.every((el) => !el.hasChildNodes());
+      if (instant || instructions.length === 0 || empty) {
+        // A clear or an instant write shows the target at once, and a played
+        // write to an empty target waits for its own first letter, so the
+        // wait the last write left ends here. A played write adding to text
+        // that is still waiting keeps that wait, which ends as the earlier
+        // text starts to appear. Stored on the node, like `__sdTxt`.
+        (targetEl as any).__sdWait?.cancel();
+        delete (targetEl as any).__sdWait;
+      }
+      if (!instant && instructions.length > 0 && empty) {
+        waiting.push(targetEl);
+      }
       if (instructions.length > 0) {
         // Build text + stroke (the faux-outline duplicate) from the same
         // instructions, mirroring the engine's dual process() over both.
@@ -908,10 +937,18 @@ export default class UIManager extends Manager {
         }
       }
     }
-    if (enter.length > 0) {
+    if (enter.length > 0 || waiting.length > 0) {
       const player = new AnimationPlayer();
       for (const { element, animation } of enter) {
         player.add({ element, animations: [animation] });
+      }
+      // On the letters' timeline, so the target appears as the first letter
+      // does, however late the write is handled.
+      for (const element of waiting) {
+        (element as any).__sdWait = player.add({
+          element,
+          animations: [getHiddenUntilAnimation(wait)],
+        })[0];
       }
       await player.play(startTime);
     }
