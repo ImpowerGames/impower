@@ -84,11 +84,11 @@ describe("display() glue join", () => {
     ]);
   });
 
-  // The break's table carries `pause` (pinned in the runtime tests); the
-  // player shows the joined beat without stopping inside it, so this beat reads
-  // as the plain join does.
-  test("a touching `>..` joins the next line into one beat", async () => {
+  // The break's beat waits for a click, and the next line carries on in its
+  // box (extendAfterBreak.test.ts), joining with no space.
+  test("a touching `>..` waits, then carries on in the box", async () => {
     expect(await beats(`  Abso >..\n  lutely.\n  After.`)).toEqual([
+      { target: "action", text: "Abso" },
       { target: "action", text: "Absolutely." },
       { target: "action", text: "After." },
     ]);

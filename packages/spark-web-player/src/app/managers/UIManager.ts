@@ -30,6 +30,16 @@ import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/u
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
+/** Where a text write to an element stopped, for a write that goes on from
+ *  it: the line and word it was filling and what it had just written. */
+interface TextWriteEnd {
+  lineWrapperEl?: HTMLElement;
+  wordWrapperEl?: HTMLElement;
+  wasSpace?: boolean;
+  wasNewline?: boolean;
+  prevTextAlign?: string;
+}
+
 /**
  * Apply one engine-sent attribute to a realized element.
  *
@@ -726,11 +736,20 @@ export default class UIManager extends Manager {
     instant: boolean,
     enter: { element: HTMLElement; animation: ReturnType<typeof getRevealAnimation> }[],
   ) {
-    let lineWrapperEl: HTMLElement | undefined = undefined;
-    let wordWrapperEl: HTMLElement | undefined = undefined;
-    let wasSpace: boolean | undefined = undefined;
-    let wasNewline: boolean | undefined = undefined;
-    let prevTextAlign: string | undefined = undefined;
+    // A write appends to what the element shows. One that lands right after
+    // the last write to it goes on from where that write stopped, so the text
+    // wraps as it would had the two been one write: a box carried on after a
+    // click is written as the text it shows, then the continuation.
+    const resumed: TextWriteEnd | undefined = (contentEl as any).__sdTextEnd;
+    const resume =
+      resumed?.lineWrapperEl && contentEl.lastChild === resumed.lineWrapperEl
+        ? resumed
+        : undefined;
+    let lineWrapperEl: HTMLElement | undefined = resume?.lineWrapperEl;
+    let wordWrapperEl: HTMLElement | undefined = resume?.wordWrapperEl;
+    let wasSpace: boolean | undefined = resume?.wasSpace;
+    let wasNewline: boolean | undefined = resume?.wasNewline;
+    let prevTextAlign: string | undefined = resume?.prevTextAlign;
     const createEl = (
       parent: HTMLElement,
       type: string,
@@ -832,6 +851,14 @@ export default class UIManager extends Manager {
         animation: getRevealAnimation({ after: e.after, over: e.over }, instant),
       });
     }
+    const end: TextWriteEnd = {
+      lineWrapperEl,
+      wordWrapperEl,
+      wasSpace,
+      wasNewline,
+      prevTextAlign,
+    };
+    (contentEl as any).__sdTextEnd = end;
   }
 
   /**

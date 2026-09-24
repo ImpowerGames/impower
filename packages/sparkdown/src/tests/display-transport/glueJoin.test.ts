@@ -136,9 +136,9 @@ describe("currentText of a joined chain", () => {
       ["First\n", "Last.\n"],
     ],
     [
-      "a trailing break that joins the next line",
+      "a trailing break the next line carries on after",
       `First > ..\nsecond.\nLast.\ndone\n`,
-      ["First second.\n", "Last.\n"],
+      ["First\n", "second.\n", "Last.\n"],
     ],
     [
       "a bare interpolation line as the continuation",

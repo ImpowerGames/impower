@@ -4059,13 +4059,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // the `text`/`stroke` content children to the consumer via a single
         // `ui/write-text` message per target.
         const targetEls = $.findElements(target);
+        // A write appends to what the target shows, so the text it reads out
+        // is everything written since the target was last cleared.
+        const shown = sequence
+          ? ($._state.text?.[target] ?? sequence).map((t) => t.text).join("")
+          : null;
         for (const targetEl of targetEls) {
           if (targetEl) {
             if (sequence) {
               $.updateElement(targetEl, {
                 style: { display: null },
                 attributes: {
-                  text: sequence?.map((t) => t.text).join("") ?? null,
+                  text: shown,
                 },
               });
             } else {

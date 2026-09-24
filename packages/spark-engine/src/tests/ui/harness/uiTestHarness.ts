@@ -34,6 +34,7 @@
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { type File } from "@impower/sparkdown/src/compiler/types/File";
+import { writeBeatText } from "../../../game/core/classes/Coordinator";
 import { Game } from "../../../game/core/classes/Game";
 import type { Instructions } from "../../../game/core/types/Instructions";
 import { BEAT_LEAD_MS } from "../../../game/core/utils/sharedClock";
@@ -400,13 +401,7 @@ export function createHarness(
           ui.observe("click", target, handleClick);
         });
       }
-      if (instructions.text) {
-        await Promise.all(
-          Object.entries(instructions.text).map(([target, events]) =>
-            ui.text.write(target, events as any, instant, time),
-          ),
-        );
-      }
+      await Promise.all(writeBeatText(ui, instructions, instant, time));
       if (instructions.image) {
         await Promise.all(
           Object.entries(instructions.image).map(([target, events]) =>

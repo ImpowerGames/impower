@@ -13,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text, pause?, inherit?, group?, continues? })` with
+// `display({ target?, character?, text, pause?, extend?, inherit?, group?, continues? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
@@ -29,7 +29,9 @@ import { stampDebugMetadata } from "./debugMetadata";
 // ending during string evaluation is taken for a choice label's tag.
 //
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
-// shows no text. `open` marks a call that joins the next display call onto its
+// shows no text. `extend` marks a beat a `> ..` ends: its step ends at the
+// click like any beat's, and the next step that shows something carries on in
+// the same box. `open` marks a call that joins the next display call onto its
 // line: `display` writes no newline after it, so the step runs on until a
 // call closes the line. A trailing `..` and a divert the line holds open carry
 // it. `caption` marks a `choose` block's last caption line, whose newline
@@ -56,6 +58,7 @@ export function buildDisplayCall(
   tags: ParsedObject[][] = [],
   options: {
     pause?: boolean;
+    extend?: boolean;
     inherit?: boolean;
     group?: string;
     open?: boolean;
@@ -80,7 +83,13 @@ export function buildDisplayCall(
     );
   }
   entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
-  for (const flag of ["pause", "inherit", "open", "continues"] as const) {
+  for (const flag of [
+    "pause",
+    "extend",
+    "inherit",
+    "open",
+    "continues",
+  ] as const) {
     if (options[flag]) entries.push(flagEntry(flag));
   }
   if (options.group != null) {

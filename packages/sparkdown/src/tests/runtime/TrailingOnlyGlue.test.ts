@@ -1,8 +1,9 @@
 // A `..` joins lines only from the end of a line. The join keeps the spaces
 // written before the mark and drops the spaces after it, so `A ..` then `B`
 // shows "A B" and `A..` then `B` shows "AB". A `>..` or `> ..` ending a line
-// is a break that the next line joins, and the break's table carries `pause`.
-// Every join lowers to a display call whose
+// is a break whose table carries `pause` and `extend`: its step ends at the
+// click, and the next carries on in its box (ExtendAfterBreak.test.ts). Every
+// join lowers to a display call whose
 // table carries `open`, which writes no newline, so no `Glue` object is
 // emitted. A bare `..` line is an error that names the fix; a line that
 // begins with `..` and has text is checked in LeadingGlueIntent.test.ts. A
@@ -119,7 +120,8 @@ function tokens(json: unknown): unknown[] {
 }
 
 // What the compiled program holds: its `Glue` objects, its `line` markers,
-// its `display` calls, and how many of those tables carry `open` or `caption`.
+// its `display` calls, and how many of those tables carry `open`, `extend` or
+// `caption`.
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
@@ -129,6 +131,7 @@ function programShape(text: string) {
     line: all.filter((t) => t === "line").length,
     display: all.filter((t) => t === "stdlib:display:1").length,
     open: all.filter((t) => t === "^open").length,
+    extend: all.filter((t) => t === "^extend").length,
     caption: all.filter((t) => t === "^caption").length,
   };
 }
@@ -251,19 +254,31 @@ describe("a trailing `..` joins the next line", () => {
   });
 
   test("an interpolation line that ends with marks and a tag or comment", () => {
-    for (const [source, joined, pause] of [
-      [`{3} .. # tag\nB\n`, "3 B\n", false],
-      [`{3} .. // note\nB\n`, "3 B\n", false],
-      [`{3} >..\nB\n`, "3B\n", true],
-      [`{3} > ..\nB\n`, "3 B\n", true],
-      [`{3} >.. # tag\nB\n`, "3B\n", true],
+    for (const [source, joined] of [
+      [`{3} .. # tag\nB\n`, "3 B\n"],
+      [`{3} .. // note\nB\n`, "3 B\n"],
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual([joined]);
       const again = makeRuntimeStoryFromSource(source);
       again.story.Continue();
-      expect(flags(again.story, "pause")).toEqual([pause, false]);
+      expect(flags(again.story, "pause")).toEqual([false, false]);
+    }
+    // A `..` after the break ends the step at the click, keeping the spaces
+    // the join keeps, and the next line carries on in its box.
+    for (const [source, before] of [
+      [`{3} >..\nB\n`, "3\n"],
+      [`{3} > ..\nB\n`, "3 \n"],
+      [`{3} >.. # tag\nB\n`, "3\n"],
+    ] as const) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(texts(ctx.story)).toEqual([before, "B\n"]);
+      const again = makeRuntimeStoryFromSource(source);
+      again.story.Continue();
+      expect(flags(again.story, "pause")).toEqual([true]);
+      expect(flags(again.story, "extend")).toEqual([true]);
     }
   });
 
@@ -282,7 +297,8 @@ describe("a trailing `..` joins the next line", () => {
         `{3} > >..\nB\nAfter.\n`,
         [
           ["3\n", [true]],
-          ["B\n", [true, false]],
+          ["\n", [true]],
+          ["B\n", [false]],
           ["After.\n", [false]],
         ],
       ],
@@ -326,12 +342,12 @@ describe("a trailing `..` joins the next line", () => {
 
   test("a tag after the mark on a block's last line keeps the join", () => {
     for (const [first, joined] of [
-      ["A .. # marker", "A B\n"],
-      ["A >.. # marker", "AB\n"],
+      ["A .. # marker", ["A B\n"]],
+      ["A >.. # marker", ["A\n", "B\n"]],
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(`ALICE:\n  ${first}\nB\n`);
       expect(ctx.errorMessages).toEqual([]);
-      expect(texts(ctx.story)).toEqual([joined]);
+      expect(texts(ctx.story)).toEqual(joined);
     }
   });
 
@@ -369,9 +385,10 @@ describe("a trailing `..` joins the next line", () => {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
       ctx.story.Continue();
-      expect(flags(ctx.story, "pause")).toEqual([true, false]);
+      expect(flags(ctx.story, "pause")).toEqual([true]);
+      expect(flags(ctx.story, "extend")).toEqual([true]);
       const again = makeRuntimeStoryFromSource(source);
-      expect(texts(again.story)).toEqual(["AB\n"]);
+      expect(texts(again.story)).toEqual(["A\n", "B\n"]);
     }
   });
 
@@ -395,20 +412,23 @@ describe("a trailing `..` joins the next line", () => {
   });
 });
 
-describe("a `>..` ending a line is a break the next line joins", () => {
-  for (const [first, joined] of [
-    ["A >..", "AB\n"],
-    ["A > ..", "A B\n"],
-    ["Abso >..", "Absolutely.\n"],
+describe("a `>..` ending a line is a break the next line carries on after", () => {
+  for (const [first, before] of [
+    ["A >..", "A"],
+    ["A > ..", "A "],
+    ["Abso >..", "Abso"],
   ] as const) {
     test(JSON.stringify(first), () => {
       const second = first.startsWith("Abso") ? "lutely." : "B";
       const ctx = makeRuntimeStoryFromSource(`${first}\n${second}\n`);
       expect(ctx.errorMessages).toEqual([]);
-      expect(ctx.story.Continue()).toBe(joined);
-      expect(flags(ctx.story, "pause")).toEqual([true, false]);
-      expect(ctx.story.Continue()).toBe("");
-      expect(ctx.story.canContinue).toBe(false);
+      expect(texts(ctx.story)).toEqual([`${before}\n`, `${second}\n`]);
+      const again = makeRuntimeStoryFromSource(`${first}\n${second}\n`);
+      again.story.Continue();
+      expect(flags(again.story, "pause")).toEqual([true]);
+      expect(flags(again.story, "extend")).toEqual([true]);
+      again.story.Continue();
+      expect(flags(again.story, "extend")).toEqual([false]);
     });
   }
 });
@@ -773,8 +793,6 @@ describe("the compiled program", () => {
     ["a touching join", `A..\nB\n`, 1],
     ["a chain", `A ..\nB ..\nC\n`, 2],
     ["a join inside a block body", `ALICE:\n  A ..\n  B\n`, 0],
-    ["a touching click", `A >..\nB\n`, 1],
-    ["a spaced click", `A > ..\nB\n`, 1],
     ["a join into an if", `You see a ..\nif true then\n  door.\nend\n`, 1],
     ["a join after a divert", `A -> s\n\nscene s\n  B\nend\n`, 1],
     [
@@ -799,6 +817,19 @@ describe("the compiled program", () => {
       expect(shape.glue).toBe(0);
       expect(shape.open).toBe(open);
       expect(shape.display).toBeGreaterThan(0);
+      expect(shape.line).toBe(0);
+    });
+  }
+
+  for (const [label, source] of [
+    ["a touching click", `A >..\nB\n`],
+    ["a spaced click", `A > ..\nB\n`],
+  ] as const) {
+    test(`${label} emits no Glue and marks its break \`extend\`, not \`open\``, () => {
+      const shape = programShape(source);
+      expect(shape.glue).toBe(0);
+      expect(shape.open).toBe(0);
+      expect(shape.extend).toBe(1);
       expect(shape.line).toBe(0);
     });
   }

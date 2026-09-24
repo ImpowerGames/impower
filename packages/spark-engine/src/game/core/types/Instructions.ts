@@ -18,5 +18,11 @@ export interface Instructions {
   choices?: string[];
   uuids?: string[];
   auto?: boolean;
+  /** Present on a beat that carries on in the box the beat before it left
+   *  (`A > ..`): for each text target, how many of its leading events that
+   *  box already shows. They are written at once, and only the rest is
+   *  revealed with the typewriter. The beat keeps the pictures and the `sound`
+   *  and `voice` audio already playing. */
+  extended?: Record<string, number>;
   end: number;
 }

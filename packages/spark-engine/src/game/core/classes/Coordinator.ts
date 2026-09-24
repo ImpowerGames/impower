@@ -12,6 +12,32 @@ import { EventMessage } from "./messages/EventMessage";
  */
 const ADVANCE_KEYS = ["Enter", " "];
 
+/**
+ * Write a beat's text to its targets. On a beat that carries on in the box
+ * before it, the events that box already shows are written at once, so they
+ * never leave the page, and only the rest are revealed from `time`.
+ */
+export function writeBeatText(
+  ui: Game["module"]["ui"],
+  instructions: Instructions,
+  instant = false,
+  time?: number,
+): Promise<void>[] {
+  return Object.entries(instructions.text ?? {}).flatMap(
+    ([target, events]) => {
+      const kept = instant ? 0 : (instructions.extended?.[target] ?? 0);
+      if (kept <= 0) {
+        return [ui.text.write(target, events, instant, time)];
+      }
+      const writes = [ui.text.write(target, events.slice(0, kept), true)];
+      if (events.length > kept) {
+        writes.push(ui.text.write(target, events.slice(kept), false, time));
+      }
+      return writes;
+    },
+  );
+}
+
 export class Coordinator<G extends Game> {
   protected _game: G;
 
@@ -165,7 +191,11 @@ export class Coordinator<G extends Game> {
 
     const transientLayers: string[] = game.module.ui.getTransientTargets();
 
-    if (!instant) {
+    // A beat that carries on in the box before it keeps what that box showed
+    // and the sound and voice it started.
+    const extended = Boolean(instructions.extended);
+
+    if (!instant && !extended) {
       // Stop stale sound and voice audio on new dialogue line
       game.module.audio.stopChannel("sound");
       game.module.audio.stopChannel("voice");
@@ -177,9 +207,13 @@ export class Coordinator<G extends Game> {
     // simulated display has none and shows as soon as the page handles it.
     const updateUI = (time?: number) => {
       game.module.ui.text.clearAll(transientLayers);
-      game.module.ui.image.clearAll(
-        transientLayers.filter((layer) => !instructions.image?.[layer]),
-      );
+      // A picture the beat shows replaces the one on its layer. A beat that
+      // carries on in the box keeps the others.
+      if (!extended) {
+        game.module.ui.image.clearAll(
+          transientLayers.filter((layer) => !instructions.image?.[layer]),
+        );
+      }
 
       game.module.ui.showLayout("main");
       game.module.ui.reveal();
@@ -212,11 +246,7 @@ export class Coordinator<G extends Game> {
       }
 
       // Process text events
-      if (instructions.text) {
-        Object.entries(instructions.text).forEach(([target, events]) =>
-          game.module.ui.text.write(target, events, instant, time),
-        );
-      }
+      writeBeatText(game.module.ui, instructions, instant, time);
 
       // Process images events
       if (instructions.image) {

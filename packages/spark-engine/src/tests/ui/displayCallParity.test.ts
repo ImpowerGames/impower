@@ -328,9 +328,13 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
     [{ text: { action: ["First"] } }, { text: { action: ["Last."] } }],
   ],
   [
-    "trailing > break that joins the next line",
+    "trailing > break the next line carries on after",
     `  First > ..\n  second.\n  Last.`,
-    [{ text: { action: ["First second."] } }, { text: { action: ["Last."] } }],
+    [
+      { text: { action: ["First"] } },
+      { text: { action: ["First second."] } },
+      { text: { action: ["Last."] } },
+    ],
   ],
   [
     "load directive ending with `..` joins nothing",

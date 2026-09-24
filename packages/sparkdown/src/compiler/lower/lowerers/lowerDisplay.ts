@@ -56,8 +56,12 @@ function buildDisplayContent(
   // its text onto that beat and the beat keeps the routing of the line it
   // continues. The join keeps the spaces written before the `..` and drops
   // the spaces after it, so this line's own leading whitespace (the space
-  // after a `CHARACTER:` or `$:` routing colon) is trimmed.
-  if (isNodePrecededByTrailingGlue(parent, ctx)) {
+  // after a `CHARACTER:` or `$:` routing colon) is trimmed. A line after a
+  // `> ..` is a step of its own and keeps its routing.
+  if (
+    isNodePrecededByTrailingGlue(parent, ctx) &&
+    !isNodePrecededByExtend(parent, ctx)
+  ) {
     return buildDisplayCalls(parent, bodyStart, bodyEnd, ctx, mode, null, null);
   }
   return buildDisplayCalls(
@@ -90,9 +94,12 @@ function buildDisplayContent(
 // Glue: a `..` that ends a body line inside a block joins the next body line
 // inside the captured string at compile time (`joinMidBodyGlue`). A `..` that
 // ends the statement marks its last call `open`, so the call writes no
-// newline and the step runs on into the next line's table. A `>..` ending a
-// line marks the beat its break ends `open` the same way. A `null` line type
-// marks a glued continuation: its tables name no routing. A line that begins
+// newline and the step runs on into the next line's table. A `..` after a
+// break (`A > ..`, `A >..`, `A > .. B`) instead marks the beat the break ends
+// `extend`: its step ends at the click, and the next step that shows something
+// carries on in its box. A `null` line type marks a glued continuation: its
+// tables name no routing, while the line after a `> ..` keeps its own, since a
+// continuation that names a speaker names the box's new one. A line that begins
 // with `..` where only the run knows the line before marks its first call
 // `continues`, which `display` checks.
 function buildDisplayCalls(
@@ -157,6 +164,7 @@ function buildDisplayCalls(
     const trailingGlue = body[end - 1] instanceof GlueMark ? body[end - 1] : null;
     if (trailingGlue) body.splice(end - 1);
     joinMidBodyGlue(body);
+    if (range.spaces) body.push(new Text(range.spaces));
     // A plain divert holds the line open, so the target's first line joins
     // this one's beat. A `load` arrow's directive is its own step, which the
     // call's closing newline already starts.
@@ -210,13 +218,16 @@ function buildDisplayCalls(
           tags,
           {
             pause: range.pause,
+            // A `> ..` ends its step at the click like any break; the step
+            // after it carries on in the box.
+            extend: range.extend,
             // Source offsets start again in every script, so the file the
             // continuation is written in is part of what names it.
             group: isContinuation
               ? `${ctx.filePath ?? ""}#${parent.from}`
               : undefined,
             inherit: isContinuation && i > 0,
-            open: trailingGlue != null || divertJoins,
+            open: (trailingGlue != null && !range.extend) || divertJoins,
             continues: continues && i === 0,
           },
         ),
@@ -289,15 +300,21 @@ function joinMidBodyGlue(body: ParsedObject[]): void {
 // A break that ends its source line keeps the tags and comments written after
 // it on that line in the range before it, so a line's tags stay with the beat
 // the line shows.
+//
+// A `..` after a break (`A > ..` ending a line, or `A > .. B` in the middle of
+// one) marks the range the break ends `extend`: what follows carries on in its
+// box after the click. `spaces` are the spaces written between the `>` and a
+// `..` in the middle of a line, which the range's text keeps as the join's; a
+// `..` that ends the line stays in its range, which keeps them itself.
 function splitBodyRangeAtBreaks(
   parent: SyntaxNode,
   bodyStart: number,
   bodyEnd: number,
   ctx: LowerContext,
   mode: "inline" | "block",
-): { from: number; to: number; pause: boolean }[] {
+): BeatRange[] {
   const breaks = collectBreaksInRange(parent, bodyStart, bodyEnd);
-  const ranges: { from: number; to: number; pause: boolean }[] = [];
+  const ranges: BeatRange[] = [];
   let segStart = bodyStart;
   for (const brk of breaks) {
     const newline = ctx.read(brk.to, bodyEnd).indexOf("\n");
@@ -312,10 +329,26 @@ function splitBodyRangeAtBreaks(
         ? lineEnd - 1
         : lineEnd
       : brk.from;
-    ranges.push({ from: segStart, to, pause: true });
-    segStart = endsLine ? Math.min(lineEnd + 1, bodyEnd) : brk.to;
+    if (endsLine) {
+      const extend = collectTopLevelInjections(parent, brk.to, lineEnd).some(
+        (injection) => injection.kind === "glue",
+      );
+      ranges.push({ from: segStart, to, pause: true, extend });
+      segStart = Math.min(lineEnd + 1, bodyEnd);
+      continue;
+    }
+    const mark = MID_LINE_EXTEND.exec(ctx.read(brk.to, lineEnd));
+    if (mark) {
+      const written = ctx.read(brk.from, brk.to);
+      const spaces = written.slice(written.lastIndexOf(">") + 1);
+      ranges.push({ from: segStart, to, pause: true, extend: true, spaces });
+      segStart = brk.to + mark[0].length;
+      continue;
+    }
+    ranges.push({ from: segStart, to, pause: true, extend: false });
+    segStart = brk.to;
   }
-  ranges.push({ from: segStart, to: bodyEnd, pause: false });
+  ranges.push({ from: segStart, to: bodyEnd, pause: false, extend: false });
   const kept = ranges.filter(
     (range, i) =>
       hasBodyContent(parent, range.from, range.to, ctx) ||
@@ -323,8 +356,24 @@ function splitBodyRangeAtBreaks(
   );
   return kept.length > 0
     ? kept
-    : [{ from: bodyStart, to: bodyEnd, pause: false }];
+    : [{ from: bodyStart, to: bodyEnd, pause: false, extend: false }];
 }
+
+// A beat of a display body: its source range, whether a break ends it
+// (`pause`), whether the next beat carries on in its box (`extend`), and the
+// spaces its text keeps for that join when the break is mid-line.
+interface BeatRange {
+  from: number;
+  to: number;
+  pause: boolean;
+  extend: boolean;
+  spaces?: string;
+}
+
+// The `..` after a break in the middle of a line, with the spaces after it,
+// when words follow them: `A > .. B` carries on in A's box. An ellipsis
+// (`> ...`) is text.
+const MID_LINE_EXTEND = /^\.\.(?!\.)[ \t]+(?=\S)/;
 
 const BODY_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "tag",
@@ -704,14 +753,16 @@ function collectTopLevelInjections(
         return;
       }
       if (node.name === "Divert") {
-        if (node.from >= bodyStart && node.to <= bodyEnd) {
-          // The grammar captures the whitespace before `->` inside the
-          // Divert node (as `Indent` / `OptionalSeparator`). Anchor the
-          // injection on the `DivertMark` so any leading whitespace remains
-          // as part of the preceding text segment — that space is what
-          // separates the text from the diverted-to content visually.
-          const mark = getDescendent("DivertMark", node);
-          const from = mark ? mark.from : node.from;
+        // The grammar captures the whitespace before `->` inside the
+        // Divert node (as `Indent` / `OptionalSeparator`). Anchor the
+        // injection on the `DivertMark` so any leading whitespace remains
+        // as part of the preceding text segment — that space is what
+        // separates the text from the diverted-to content visually. A range
+        // may begin inside that whitespace (after the `..` of `A > .. -> s`),
+        // so the anchor is what must fall inside it.
+        const mark = getDescendent("DivertMark", node);
+        const from = mark ? mark.from : node.from;
+        if (from >= bodyStart && node.to <= bodyEnd) {
           out.push({ kind: "divert", node, from, to: node.to });
         }
         return;
@@ -929,12 +980,13 @@ function startsItsLine(node: SyntaxNode, ctx: LowerContext): boolean {
 // marks (a `..` there parses as one that begins an inline action). The
 // interpolation's calls carry them, as the beats of a line written out would:
 // each `>` in `breaks` ends a beat that waits for a click, a `..` makes the last
-// beat `open`, `spaces` are the spaces the join keeps (those written after the
-// last `>`, or before the `..` when there is no `>`), and `tags` are the line's
-// tags.
+// beat `open`, or `extend` when it follows the last `>`, `spaces` are the
+// spaces the join keeps (those written after the last `>`, or before the `..`
+// when there is no `>`), and `tags` are the line's tags.
 interface LineEndMarks {
   breaks: SyntaxNode[];
   open: boolean;
+  extend: boolean;
   spaces: string;
   tags: SyntaxNode[];
 }
@@ -956,7 +1008,13 @@ function lineEndMarks(
   ) {
     return null;
   }
-  const marks: LineEndMarks = { breaks: [], open: false, spaces: "", tags: [] };
+  const marks: LineEndMarks = {
+    breaks: [],
+    open: false,
+    extend: false,
+    spaces: "",
+    tags: [],
+  };
   let pos = node.from;
   let spacesFrom = prev.to;
   for (const injection of collectTopLevelInjections(node, node.from, node.to)) {
@@ -967,6 +1025,7 @@ function lineEndMarks(
       spacesFrom = injection.from + written.lastIndexOf(">") + 1;
     } else if (injection.kind === "glue" || injection.kind === "leadingGlue") {
       marks.open = true;
+      marks.extend = marks.breaks.length > 0;
       marks.spaces = ctx.read(spacesFrom, injection.from);
     } else if (injection.kind === "tag") {
       marks.tags.push(injection.node);
@@ -1299,8 +1358,12 @@ function lexicalRouting(
   while (sib) {
     const lineType = DISPLAY_LINE_TYPES[sib.name];
     if (!lineType) return null;
-    // A continuation routes by what the line IT continues routes by.
-    if (isNodePrecededByTrailingGlue(sib, ctx)) {
+    // A continuation routes by what the line IT continues routes by, and the
+    // line after a `> ..` by its own.
+    if (
+      isNodePrecededByTrailingGlue(sib, ctx) &&
+      !isNodePrecededByExtend(sib, ctx)
+    ) {
       sib = precedingConstruct(sib);
       continue;
     }
@@ -1394,6 +1457,30 @@ function isNodePrecededByTrailingGlue(
 ): boolean {
   const sib = precedingConstruct(node);
   return sib != null && endsWithTrailingGlue(sib, ctx);
+}
+
+// True when the construct the run reaches just before `node` ends with a `..`
+// after a break (`A > ..`, `A >..`), so `node` carries on in the box of the
+// beat that break ends. It is a step of its own, so its call names its own
+// routing: a continuation that names a speaker names the box's new one.
+function isNodePrecededByExtend(node: SyntaxNode, ctx: LowerContext): boolean {
+  const sib = precedingConstruct(node);
+  return sib != null && endsWithExtend(sib, ctx);
+}
+
+// True when `node` ends with a `..` that follows a break: the `..` ends the
+// line (`endsWithTrailingGlue`) and only spaces stand between it and a `>`.
+function endsWithExtend(node: SyntaxNode, ctx: LowerContext): boolean {
+  const marks = lineEndMarks(node, ctx);
+  if (marks) return marks.extend;
+  if (!endsWithTrailingGlue(node, ctx)) return false;
+  const glue = collectTopLevelInjections(node, node.from, node.to)
+    .filter((injection) => injection.kind === "glue")
+    .at(-1);
+  if (!glue) return false;
+  return collectBreaksInRange(node, node.from, glue.from).some(
+    (brk) => brk.to <= glue.from && !ctx.read(brk.to, glue.from).trim(),
+  );
 }
 
 // True when `node`'s last line ends with a `..` glue marker: nothing but
@@ -1556,7 +1643,11 @@ export function lowerLuauInterpolatedStringExpression(
           : { from: breaks[i]!.from, to: breaks[i]!.to },
         ctx,
         lastBeat ? separateTags(tagObjects).tags : [],
-        { pause: i < breaks.length, open: lastBeat && marks?.open },
+        {
+          pause: i < breaks.length,
+          extend: lastBeat && marks?.extend,
+          open: lastBeat && marks?.open && !marks.extend,
+        },
       ),
     );
   }
