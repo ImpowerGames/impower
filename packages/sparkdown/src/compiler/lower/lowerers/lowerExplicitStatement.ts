@@ -7,6 +7,7 @@ import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Ident
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
+import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
@@ -14,12 +15,40 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
 import { validateExplicitStatement } from "../utils/validateExplicitStatement";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerVariableDefinition } from "./lowerVariableDefinition";
 
 export function lowerExplicitStatement(
+  nodeRef: SparkdownSyntaxNodeRef,
+  ctx: LowerContext,
+): CompiledBlock {
+  const block = lowerExplicitStatementContent(nodeRef, ctx);
+  // A statement's weave is unwrapped wherever its content is placed (the
+  // enclosing flow's weave, a choice body, an alternator arm), so the weave's
+  // range, stamped by `lower()`, no longer reaches the statements it held.
+  // Give them the line's range themselves: `program.pathLocations` then has
+  // rows for the line, so a runtime error it raises is reported on it and
+  // PLAY, a preview or a breakpoint on it resolves to it. A declaration
+  // (`& store x = 5`) keeps the metadata `lowerVariableDefinition` gives it,
+  // as its implicit form does. The characters are 1-based, as diagnostics
+  // read them: a logic line starts at column 0, and a 0-based stamp there
+  // would hide every compile error the statement reports.
+  const weave = block.content?.[0];
+  if (
+    weave instanceof Weave &&
+    !getDescendent("LuauVariableDefinition", nodeRef.node)
+  ) {
+    const text = ctx.read(nodeRef.from, nodeRef.to);
+    const to = nodeRef.from + text.trimEnd().length;
+    stampDebugMetadata(weave.content, nodeRef.from, to, ctx, true);
+  }
+  return block;
+}
+
+function lowerExplicitStatementContent(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {

@@ -54,6 +54,12 @@ const pathsStartingOn = (program: any, line: number): string[] =>
     return location[0] === MAIN_SCRIPT && location[1] === line;
   });
 
+/** The 0-based lines of main.sd diagnostics whose message matches `pattern`. */
+const warningsMatching = (program: any, pattern: RegExp): number[] =>
+  ((program.diagnostics?.[URI] ?? []) as any[])
+    .filter((d) => pattern.test(d.message?.value ?? d.message ?? ""))
+    .map((d) => d.range.start.line);
+
 /** Run the story until it raises, and return the path the error was raised at. */
 function raisedPath(program: any): string | undefined {
   const story = new Story(program.compiled as Record<string, any>);
@@ -64,10 +70,27 @@ function raisedPath(program: any): string | undefined {
     return addError(...args);
   }) as typeof story.AddError;
   story.onError = () => {};
-  while (story.canContinue && raised === undefined) {
-    story.Continue();
+  for (let step = 0; step < 100 && raised === undefined; step++) {
+    if (story.canContinue) {
+      story.Continue();
+    } else if (story.currentChoices.length > 0) {
+      story.ChooseChoiceIndex(0);
+    } else {
+      break;
+    }
   }
   return raised;
+}
+
+/** The 0-based line the error raised by running `source` is located on. */
+function raisedLine(source: string): number | undefined {
+  const program = compile(source);
+  const path = raisedPath(program);
+  expect(path, "the story did not raise").toBeDefined();
+  const location = pathLocation(program.pathLocations, path!);
+  expect(location, `no location for raised path ${path}`).toBeDefined();
+  expect(location![0]).toBe(MAIN_SCRIPT);
+  return location![1];
 }
 
 describe("logic lines own their instructions' path locations (#824)", () => {
@@ -103,5 +126,45 @@ describe("logic lines own their instructions' path locations (#824)", () => {
     expect(location, `no location for raised path ${path}`).toBeDefined();
     expect(location![0]).toBe(MAIN_SCRIPT);
     expect(location![1]).toBe(4);
+  });
+
+  it("an error raised by a property assignment logic line resolves to that line", () => {
+    expect(raisedLine(`store t = {}\nA\n& t.x = error("boom")\nC\n`)).toBe(2);
+  });
+
+  it("a property assignment logic line has paths starting on it", () => {
+    const program = compile(`store t = {}\nA\n& t.x = 1\nC\n`);
+    expect(pathsStartingOn(program, 2)).not.toEqual([]);
+  });
+
+  it("an error raised by a logic line in a choice body resolves to that line", () => {
+    expect(
+      raisedLine(`A\nchoose\n  + [Go]\n    & error("boom")\nthen\nC\n`),
+    ).toBe(3);
+  });
+
+  it("an error raised by a logic line in a queue arm resolves to that line", () => {
+    expect(raisedLine(`A\nqueue\n  |\n    & error("boom")\nend\nC\n`)).toBe(3);
+  });
+
+  it("a function value assigned on a logic line gets no divert-target hint", () => {
+    // The line now has a location, so any warning its statements raise reaches
+    // the editor. An anonymous function is a function value, not a misused
+    // `-> target`.
+    const program = compile(`A\n& f = function() return 1 end\nC\n`);
+    expect(warningsMatching(program, /divert target like that/)).toEqual([]);
+  });
+
+  it("an authored divert target misused on a logic line still gets the hint, on that line", () => {
+    const program = compile(
+      `store x = 0\nA\n& x = (-> later) + 1\nC\n-> DONE\n\nscene later\n  B\nend\n`,
+    );
+    expect(warningsMatching(program, /divert target like that/)).toEqual([2]);
+  });
+
+  it("a definition's assignments get no paths", () => {
+    // A `define` body is not a logic line and not a place PLAY can start.
+    const program = compile(`define config.thing:\n  value = 1\n`);
+    expect(pathsStartingOn(program, 1)).toEqual([]);
   });
 });
