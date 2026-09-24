@@ -123,7 +123,15 @@ describe("the preview's reads", () => {
     const on = await reads();
 
     expect(on.summary.summary).toBe(true);
-    expect(on.reached.executed.at(-1)?.executedLines).toBeTruthy();
+    // The route's two beats are highlighted, and the unreached line alone.
+    const beatA = lineOf("[[SPRITE_A]]");
+    const beatB = lineOf("[[SPRITE_B]]");
+    expect(on.reached.executed.at(-1)?.executedLines).toEqual({
+      [MAIN_URI]: { ranges: [beatA, beatA + 2, beatB, beatB + 2], last: beatB + 2 },
+    });
+    expect(on.unreached.executed.at(-1)?.executedLines).toEqual({
+      [MAIN_URI]: { ranges: [UNREACHED, UNREACHED], last: UNREACHED },
+    });
     expect(on.unreached.labels.failed).toBe(true);
     expect(on.unreached.labels.connection).toContain("🞪");
     expect(on.unreached.labels.executed).toMatch(/main : \d+/);

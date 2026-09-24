@@ -35,7 +35,8 @@ function posAt(text: string, offset: number) {
 }
 
 /** Run `steps` against `text`, and read the overlay after the first compile
- *  and after every step. */
+ *  and after every step, with the line the toolbar says the preview
+ *  launches from (`launches`). */
 async function frames(text: string, steps: Step[]) {
   const h = await createPlayerHarness({
     files: [{ uri: MAIN_URI, text }],
@@ -43,6 +44,11 @@ async function frames(text: string, steps: Step[]) {
   });
   harnesses.push(h);
   const out: unknown[] = [];
+  const launches: string[] = [];
+  const read = () => {
+    out.push(h.snapshotDOM());
+    launches.push(h.refs.launchLabel.textContent ?? "");
+  };
   // A compile or selection the worker rejects is part of what is compared.
   const note = (answer: any) => {
     if (answer?.error) {
@@ -50,7 +56,7 @@ async function frames(text: string, steps: Step[]) {
     }
   };
   note(await h.compile());
-  out.push(h.snapshotDOM());
+  read();
   let current = text;
   for (const step of steps) {
     if ("select" in step) {
@@ -84,10 +90,13 @@ async function frames(text: string, steps: Step[]) {
       current = current.slice(0, offset) + insert + current.slice(offset + deleteLength);
       note(await h.compile());
     }
-    out.push(h.snapshotDOM());
+    read();
   }
-  return out;
+  return Object.assign(out, { launches });
 }
+
+/** Whether a frame shows `text`. */
+const shows = (frame: unknown, text: string) => JSON.stringify(frame).includes(text);
 
 function coupledScreenplay(): string {
   const L: string[] = [];
@@ -132,9 +141,18 @@ describe("the preview displayed from the worker's game", () => {
       { select: lineOf(text, "Line one of dialogue in scene 3.") },
     ];
     const on = await frames(text, steps);
-    // What was compared is the script on screen, not two empty overlays.
-    expect(JSON.stringify(on[1])).toContain("Line one of dialogue in scene 0.");
-    expect(JSON.stringify(on[3])).toContain("Action describing room 4.");
+    // Nothing was rejected, and each step shows its own beat.
+    expect(on).toHaveLength(steps.length + 1);
+    expect(shows(on[1], "Line one of dialogue in scene 0.")).toBe(true);
+    expect(shows(on[2], "Not yet in scene 2.")).toBe(true);
+    expect(shows(on[3], "Action describing room 4.")).toBe(true);
+    // An edit on another line leaves the beat at the cursor on screen.
+    expect(shows(on[4], "Action describing room 4.")).toBe(true);
+    expect(shows(on[5], "Line one of dialogue in scene 0.")).toBe(true);
+    expect(shows(on[5], "Trust is")).toBe(true);
+    // An edit above the scene leaves its beat on screen.
+    expect(shows(on[6], "Line one of dialogue in scene 0.")).toBe(true);
+    expect(shows(on[7], "Line one of dialogue in scene 3.")).toBe(true);
   }, 120_000);
 
   it("shows each step's beat while suggestions are browsed, returned to and closed", async () => {
@@ -150,10 +168,15 @@ describe("the preview displayed from the worker's game", () => {
       { select: lineOf(text, "Action describing room 5.") },
     ];
     const on = await frames(text, steps);
-    expect(JSON.stringify(on[2])).toContain("A first suggestion for scene 2.");
-    expect(JSON.stringify(on[3])).toContain("A second suggestion for scene 2.");
-    expect(JSON.stringify(on[4])).toContain("A first suggestion for scene 2.");
-    expect(JSON.stringify(on[5])).toContain(line);
+    expect(on).toHaveLength(steps.length + 1);
+    expect(shows(on[1], line)).toBe(true);
+    expect(shows(on[2], "A first suggestion for scene 2.")).toBe(true);
+    expect(shows(on[3], "A second suggestion for scene 2.")).toBe(true);
+    expect(shows(on[4], "A first suggestion for scene 2.")).toBe(true);
+    // Closing the list shows the real document again.
+    expect(shows(on[5], line)).toBe(true);
+    expect(shows(on[5], "suggestion for scene 2.")).toBe(false);
+    expect(shows(on[6], "Action describing room 5.")).toBe(true);
   }, 120_000);
 
   it("shows each step's beat while an image name is typed with the list open", async () => {
@@ -191,7 +214,21 @@ describe("the preview displayed from the worker's game", () => {
       { close: true },
     ];
     const on = await frames(text, steps);
-    expect(JSON.stringify(on[6])).toContain("b.png");
+    expect(on).toHaveLength(steps.length + 1);
+    // Each keystroke's compile and each highlighted suggestion shows the
+    // beat being typed into, with the picture the suggestion names.
+    for (const frame of on.slice(1)) {
+      expect(shows(frame, "The second line.")).toBe(true);
+    }
+    // Every frame names both images once for the assets it holds; a picture
+    // on screen names its image again.
+    const shown = (frame: unknown, image: string) =>
+      JSON.stringify(frame).split(image).length - JSON.stringify(on[0]).split(image).length;
+    expect(shown(on[3], "a.png")).toBeGreaterThan(0);
+    expect(shown(on[6], "b.png")).toBeGreaterThan(0);
+    // Closing the list shows the real document, whose name matches no image.
+    expect(shown(on[7], "a.png")).toBe(0);
+    expect(shown(on[7], "b.png")).toBe(0);
   }, 120_000);
 
   it("shows the real document after a suggestion changed a function an unchanged scene calls", async () => {
@@ -229,7 +266,7 @@ describe("the preview displayed from the worker's game", () => {
     expect(JSON.stringify(on[3])).toContain("The bridge says the real greeting.");
   }, 120_000);
 
-  it("shows the Pico showcase at every quarter of the script", async () => {
+  it("shows the Pico showcase's layout wherever the cursor is in it", async () => {
     const text = readFileSync(
       resolve(__dirname, "../../../../../docs/sparkle/pico-showcase.sd"),
       "utf8",
@@ -239,6 +276,16 @@ describe("the preview displayed from the worker's game", () => {
       select: Math.floor(lines.length * at),
     }));
     const on = await frames(text, steps);
-    expect(JSON.stringify(on.at(-1)).length).toBeGreaterThan(5000);
+    expect(on).toHaveLength(steps.length + 1);
+    // The showcase has no scene: past its stores and functions it is one
+    // layout, so every line previews from the same place, and each frame
+    // draws the layout's controls.
+    expect(new Set(on.launches.slice(1)).size).toBe(1);
+    expect(on.launches[1]).toMatch(/main : \d+/);
+    for (const frame of on.slice(1)) {
+      for (const text of ["Pico", "Preview", "Subscribe", "Privacy Policy"]) {
+        expect(shows(frame, text)).toBe(true);
+      }
+    }
   }, 120_000);
 });

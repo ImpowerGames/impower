@@ -156,6 +156,7 @@ describe("PLAY", () => {
     // program, and STOP asked the editor to select where the game was.
     expect(on.previewed).toContain("The second line.");
     expect(on.played).toContain("The second line.");
+    expect(on.restarted).toContain("The second line.");
     expect(on.afterStop).toContain("The second line.");
     expect(on.restartedIds[0]).not.toBe(on.restartedIds[1]);
     expect(on.stopSelections).toHaveLength(1);

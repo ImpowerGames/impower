@@ -1505,9 +1505,9 @@ export class GamePlayerController {
       return true;
     }
     if (play.state === "starting") {
-      // An application built later starts as the game does, so only what
-      // its application heard counts.
-      if (this._app && type.method === StepGameClockMessage.method) {
+      // The game starts as its application stands, so a pause is read from
+      // the application then; a clock step is added up.
+      if (type.method === StepGameClockMessage.method) {
         play.stepped += (params as { seconds: number }).seconds;
       }
       return true;
@@ -1521,13 +1521,20 @@ export class GamePlayerController {
     }
   }
 
+  /** The application under the editor's controls: none while the one in the
+   *  slot is being torn down (`releaseGames`), since what it is told then
+   *  goes with it and the game that follows starts without it. */
+  protected get controlledApp() {
+    const app = this._app;
+    return app && !this._outgoingApps.includes(app) ? app : undefined;
+  }
+
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
-    if (this._app) {
-      this._app.pause();
-    }
-    const told = await this.tellWorkerPlay(PauseGameMessage.type, {});
+    const app = this.controlledApp;
+    app?.pause();
+    const told = app && (await this.tellWorkerPlay(PauseGameMessage.type, {}));
     this.updateLaunchStateIcon();
-    return this._app && told
+    return told
       ? PauseGameMessage.type.response(message.id, {})
       : PauseGameMessage.type.error(message.id, {
           code: 1,
@@ -1536,12 +1543,12 @@ export class GamePlayerController {
   };
 
   protected handleUnpauseGame = async (message: UnpauseGameMessage.Request) => {
-    if (this._app) {
-      this._app.unpause();
-    }
-    const told = await this.tellWorkerPlay(UnpauseGameMessage.type, {});
+    const app = this.controlledApp;
+    app?.unpause();
+    const told =
+      app && (await this.tellWorkerPlay(UnpauseGameMessage.type, {}));
     this.updateLaunchStateIcon();
-    return this._app && told
+    return told
       ? UnpauseGameMessage.type.response(message.id, {})
       : UnpauseGameMessage.type.error(message.id, {
           code: 1,
@@ -1553,14 +1560,15 @@ export class GamePlayerController {
     message: StepGameClockMessage.Request,
   ) => {
     const { seconds } = message.params;
-    if (this._app) {
-      this._app.skip(seconds);
-    }
-    const told = await this.tellWorkerPlay(StepGameClockMessage.type, {
-      seconds,
-    });
+    const app = this.controlledApp;
+    app?.skip(seconds);
+    const told =
+      app &&
+      (await this.tellWorkerPlay(StepGameClockMessage.type, {
+        seconds,
+      }));
     this.updateLaunchStateIcon();
-    return this._app && told
+    return told
       ? StepGameClockMessage.type.response(message.id, {})
       : StepGameClockMessage.type.error(message.id, {
           code: 1,
@@ -2021,26 +2029,35 @@ export class GamePlayerController {
     // the timer fires after STOP and silently resurrects the game.
     this.cancelScheduledRestart();
     const plays = this._plays;
-    const ending = this.endWorkerPlay();
-    const detaching = this.detachWorkerPreview();
-    await ending;
-    await detaching;
-    // A PLAY begun while this waited owns the application now.
-    const app = this._app;
-    if (app && plays === this._plays) {
-      await app.initializing;
-      if (plays === this._plays) {
-        // A start that ended while it built this application destroys it
-        // too; whichever comes second finds it destroyed.
-        if (!app.destroyed) {
-          app.destroy(true);
-        }
-        if (this._app === app) {
-          this._app = undefined;
+    const outgoing = this._app;
+    this._outgoingApps.push(outgoing);
+    try {
+      const ending = this.endWorkerPlay();
+      const detaching = this.detachWorkerPreview();
+      await ending;
+      await detaching;
+      // A PLAY begun while this waited owns the application now.
+      const app = this._app;
+      if (app && plays === this._plays) {
+        await app.initializing;
+        if (plays === this._plays) {
+          // A start that ended while it built this application destroys it
+          // too; whichever comes second finds it destroyed.
+          if (!app.destroyed) {
+            app.destroy(true);
+          }
+          if (this._app === app) {
+            this._app = undefined;
+          }
         }
       }
+    } finally {
+      this._outgoingApps.splice(this._outgoingApps.indexOf(outgoing), 1);
     }
   }
+
+  /** The application each `releaseGames` under way is tearing down. */
+  protected _outgoingApps: (Application | undefined)[] = [];
 
   /** Stop showing what the worker's game displays: its application goes, and
    *  whatever it still sends is heard by nothing. */
@@ -2209,10 +2226,14 @@ export class GamePlayerController {
     previewing: boolean,
     owned: () => boolean = () => true,
   ) {
-    if (this._app && owned()) {
+    const old = this._app;
+    if (old && owned()) {
       profile("start", "app/destroy");
-      await this._app.destroy(true);
-      this._app = undefined;
+      await old.destroy(true);
+      // A newer build may have taken the slot while this one waited.
+      if (this._app === old) {
+        this._app = undefined;
+      }
       profile("end", "app/destroy");
     }
     this.updateExecutionLabels();

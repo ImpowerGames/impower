@@ -304,13 +304,21 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       },
       destroys: 0,
       destroyed: false,
-      destroy: async () => {
-        app.destroyed = true;
-        app.destroys += 1;
-        app.clock.stop();
-        app.clock.dispose();
-        router.disconnect();
-        for (const m of managers) m.onDispose();
+      destroying: undefined as Promise<void> | undefined,
+      // As `Application.destroy`: one teardown, begun at the first call and
+      // finished once the application has initialized, which every call
+      // waits for.
+      destroy() {
+        app.destroying ??= (async () => {
+          app.destroyed = true;
+          app.destroys += 1;
+          router.disconnect();
+          await app.initializing;
+          app.clock.stop();
+          app.clock.dispose();
+          for (const m of managers) m.onDispose();
+        })();
+        return app.destroying;
       },
       connectGame: () =>
         endpoint.connect((message) => {

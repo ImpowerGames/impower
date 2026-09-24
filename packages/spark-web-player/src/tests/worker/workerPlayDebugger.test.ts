@@ -174,16 +174,44 @@ describe("the debugger during PLAY", () => {
     const on = await debugSession();
 
     // Every request was answered, none with an error.
+    const asked = ["stopped", "afterStepOver", "afterStepIn", "afterContinue"];
+    const answers: [string, any][] = [];
     for (const [key, value] of Object.entries(on)) {
-      if (key !== "reported") {
-        expect({ [key]: "error" in (value as any) ? (value as any).error : "answered" }).toEqual({ [key]: "answered" });
+      if (asked.includes(key)) {
+        const { threads, stack, context, variables } = value as any;
+        answers.push([`${key} threads`, threads], [`${key} stack`, stack], [`${key} context`, context]);
+        for (const [scope, variable] of Object.entries(variables)) {
+          answers.push([`${key} ${scope}`, variable]);
+        }
+      } else if (key !== "reported") {
+        answers.push([key, value]);
       }
     }
-    for (const asked of ["stopped", "afterStepOver", "afterStepIn", "afterContinue"]) {
-      for (const [scope, variables] of Object.entries(on[asked].variables as Record<string, any>)) {
-        expect({ [`${asked} ${scope}`]: "error" in variables ? variables.error : "answered" }).toEqual({ [`${asked} ${scope}`]: "answered" });
-      }
+    for (const [key, value] of answers) {
+      expect({ [key]: "error" in value ? value.error : "answered" }).toEqual({ [key]: "answered" });
     }
+    // The game is the one thread, and the stack traces ask about it.
+    for (const key of asked) {
+      expect(on[key].threads.result.threads).toHaveLength(1);
+    }
+    // The line breakpoint and the data breakpoint on `mood` are verified;
+    // the function breakpoint names no function in the program.
+    expect(on.setBreakpoints.result.breakpoints).toHaveLength(1);
+    expect(on.setBreakpoints.result.breakpoints[0].verified).toBe(true);
+    expect(on.setBreakpoints.result.breakpoints[0].location.range.start.line).toBe(SECOND);
+    expect(on.setFunctionBreakpoints.result.functionBreakpoints).toHaveLength(1);
+    expect(on.setFunctionBreakpoints.result.functionBreakpoints[0].verified).toBe(false);
+    expect(on.setDataBreakpoints.result.dataBreakpoints).toHaveLength(1);
+    expect(on.setDataBreakpoints.result.dataBreakpoints[0].verified).toBe(true);
+    // Each step says whether it stopped somewhere; stepping out there does
+    // not.
+    expect(on.stepIn.result.done).toBe(true);
+    expect(on.stepOut.result.done).toBe(false);
+    // The Variables view lists the story's `mood` with its value.
+    const mood = (key: string) =>
+      on[key].variables.vars.result.variables.find((v: any) => v.name === "mood")?.value;
+    expect(mood("stopped")).toBe("0");
+    expect(mood("afterContinue")).toBe("2");
 
     // The game stops on entry at the top of its scene, before the first
     // line has run; the Debug Console reads the story's variable by name.

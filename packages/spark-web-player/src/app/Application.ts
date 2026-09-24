@@ -462,10 +462,16 @@ export class Application implements IApplication {
     }
   }
 
-  async destroy(removeCanvas?: boolean) {
-    if (this._destroyed) {
-      return;
-    }
+  protected _destroying?: Promise<void>;
+
+  /** Tear the application down once. Every call answers when that teardown
+   *  has finished, which waits for the application to initialize. */
+  destroy(removeCanvas?: boolean): Promise<void> {
+    this._destroying ??= this.tearDown(removeCanvas);
+    return this._destroying;
+  }
+
+  protected async tearDown(removeCanvas?: boolean) {
     try {
       this._destroyed = true;
       // Whatever the game still waits on from this page will not finish:
