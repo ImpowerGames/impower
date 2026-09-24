@@ -976,49 +976,85 @@ describe("game/start from the editor while the controller goes", () => {
   }, 120_000);
 });
 
-describe("the editor's controls while an edit's restart stops the old run", () => {
-  for (const control of ["pause", "clock step"] as const) {
-    it(`answers that no game took a ${control}, and the new run starts without it`, async () => {
-      const h = await createPlayerHarness({
-        files: [{ uri: MAIN_URI, text: SOURCE }],
-        startFrom: { file: MAIN_URI, line: AFTER },
-        manualClock: true,
-      });
-      framesForStop(h);
-      try {
-        await h.compile();
-        await h.select(AFTER);
-        expect(await h.controller.startGameAndApp()).toBe(true);
-        await settle(10);
+/** Where the old run's application is on its way out, what each is held
+ *  on, how to begin it, and whether a run follows. */
+const outgoing = {
+  "an edit's restart stops the old run": {
+    hold: StopPlayMessage.method,
+    begin: (h: any) => h.controller.restartGame(),
+    follows: true,
+  },
+  "STOP waits for the worker": {
+    hold: StopPlayMessage.method,
+    begin: (h: any) => h.controller.stopGame("quit"),
+    follows: false,
+  },
+  "a newer PLAY waits for its run": {
+    hold: PlayMessage.method,
+    begin: (h: any) => h.controller.startGameAndApp(),
+    follows: true,
+  },
+} as const;
 
-        const stopping = holdAnswer(h, StopPlayMessage.method);
-        const restarting = h.controller.restartGame();
-        for (let i = 0; i < 100 && !stopping.state.asked; i++) await settle(2);
-        expect(stopping.state.asked).toBe(true);
-        const answer =
-          control === "pause"
-            ? await h.controller.handlePauseGame(PauseGameMessage.type.request({}))
-            : await h.controller.handleStepGameClock(
-                StepGameClockMessage.type.request({ seconds: 2.5 }),
-              );
-        stopping.open();
-        expect(await restarting).toBe(true);
-        await settle(20);
+/** Each control the editor sends, sent the way the editor sends it. */
+const controls = {
+  pause: (h: any) => h.controller.handlePauseGame(PauseGameMessage.type.request({})),
+  unpause: (h: any) => h.controller.handleUnpauseGame(UnpauseGameMessage.type.request({})),
+  "clock step": (h: any) =>
+    h.controller.handleStepGameClock(StepGameClockMessage.type.request({ seconds: 2.5 })),
+} as const;
 
-        // The old run's application heard it and went; the editor is told
-        // no game took it, so it does not show a pause or a step that the
-        // new run never had.
-        expect(answer.error?.message).toBe("no game loaded");
-        const offset = (clock: any) => clock._timeOffset;
-        expect(h.controller._app.paused).toBe(false);
-        expect(h.workerState.gameState.running!.paused).toBe(false);
-        expect(offset(h.controller._app.clock)).toBe(0);
-      } finally {
-        await h.controller.destroyGameAndApp();
-        h.workerState.gameState.running?.destroy();
-        h.dispose();
-      }
-    }, 120_000);
+describe("the editor's controls while the old run's application is on its way out", () => {
+  for (const [when, { hold, begin, follows }] of Object.entries(outgoing)) {
+    for (const [control, send] of Object.entries(controls)) {
+      it(`answers that no game took a ${control} while ${when}`, async () => {
+        const h = await createPlayerHarness({
+          files: [{ uri: MAIN_URI, text: SOURCE }],
+          startFrom: { file: MAIN_URI, line: AFTER },
+          manualClock: true,
+        });
+        framesForStop(h);
+        try {
+          await h.compile();
+          await h.select(AFTER);
+          expect(await h.controller.startGameAndApp()).toBe(true);
+          await settle(10);
+          // An unpause needs a paused run to act on.
+          if (control === "unpause") {
+            expect("error" in (await controls.pause(h))).toBe(false);
+            await settle(10);
+          }
+
+          const held = holdAnswer(h, hold);
+          const begun = begin(h);
+          for (let i = 0; i < 100 && !held.state.asked; i++) await settle(2);
+          expect(held.state.asked).toBe(true);
+          const answer = await send(h);
+          held.open();
+          await begun;
+          await settle(20);
+
+          // What the old run's application is told goes with it, so the
+          // editor hears that no game took it, and does not show a pause, a
+          // resume or a step the run that follows never had.
+          expect(answer.error?.message).toBe("no game loaded");
+          if (follows) {
+            const offset = (clock: any) => clock._timeOffset;
+            expect(h.controller.playing).toBe(true);
+            expect(h.controller._app.paused).toBe(false);
+            expect(h.workerState.gameState.running!.paused).toBe(false);
+            expect(offset(h.controller._app.clock)).toBe(0);
+            expect(offset(h.workerState.gameState.running!.clock)).toBe(0);
+          } else {
+            expect(h.playing()).toBeFalsy();
+          }
+        } finally {
+          await h.controller.destroyGameAndApp();
+          h.workerState.gameState.running?.destroy();
+          h.dispose();
+        }
+      }, 120_000);
+    }
   }
 });
 

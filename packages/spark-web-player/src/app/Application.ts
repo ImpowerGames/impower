@@ -322,17 +322,22 @@ export class Application implements IApplication {
       this._resolveInit = resolve;
     });
 
-    if (!this._previewing) {
-      // Don't initialize renderer in preview mode
-      await this.initializeRenderer();
+    try {
+      if (!this._previewing) {
+        // Don't initialize renderer in preview mode
+        await this.initializeRenderer();
+      }
+
+      await this.initializeManagers();
+
+      await this.connectGame();
+
+      this._initialized = true;
+    } finally {
+      // A failed initialization is over too, so a teardown waiting for it
+      // goes ahead with whatever was set up.
+      this._resolveInit();
     }
-
-    await this.initializeManagers();
-
-    await this.connectGame();
-
-    this._initialized = true;
-    this._resolveInit();
   }
 
   async initializeRenderer() {

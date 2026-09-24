@@ -7,12 +7,14 @@
 // in both.
 //
 // The rule covers the package's own source, which is what the page and the
-// worker are built from. `main/workers/` is the worker's; tests build engine
-// games of their own to drive the page's managers directly, which ships
-// nowhere.
+// worker are built from. The page's code is every file that the files outside
+// the worker reach by import, short of a worker entry (`*.worker.ts`), which
+// the bundler builds into a worker of its own; what only the worker entries
+// reach is the worker's, and may build games. Tests build engine games of
+// their own to drive the page's managers directly, which ships nowhere.
 
-import { readdirSync, readFileSync } from "node:fs";
-import { join, relative, sep } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
@@ -27,13 +29,33 @@ const sourceFiles = (dir: string): string[] =>
     return /\.tsx?$/.test(entry.name) ? [path] : [];
   });
 
-const isPageSource = (file: string) => {
-  const rel = relative(SRC, file).split(sep).join("/");
-  return !(
-    rel.startsWith("main/workers/") ||
-    rel.startsWith("tests/") ||
-    /\.(test|spec)\.tsx?$/.test(rel)
-  );
+const rel = (file: string) => relative(SRC, file).split(sep).join("/");
+
+const isTest = (file: string) =>
+  rel(file).startsWith("tests/") || /\.(test|spec)\.tsx?$/.test(file);
+
+const isWorkerEntry = (file: string) => /\.worker\.ts$/.test(file);
+
+/** The package's own files `file` imports by relative path. */
+const relativeImports = (file: string): string[] =>
+  [...readFileSync(file, "utf8").matchAll(/(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']*)["']/g)]
+    .map(([, spec]) => resolve(dirname(file), spec!))
+    .flatMap((base) =>
+      [`${base}.ts`, `${base}.tsx`, join(base, "index.ts")].filter(existsSync).slice(0, 1),
+    );
+
+/** Every file `roots` reach by import, entering no worker entry but a root. */
+const reach = (roots: string[]): Set<string> => {
+  const reached = new Set<string>();
+  const next = [...roots];
+  while (next.length > 0) {
+    const file = next.pop()!;
+    if (!reached.has(file)) {
+      reached.add(file);
+      next.push(...relativeImports(file).filter((imported) => !isWorkerEntry(imported)));
+    }
+  }
+  return reached;
 };
 
 /** What `text` does with the engine's `Game` as a value: each import that
@@ -80,17 +102,28 @@ describe("the page holds no game", () => {
     ).toEqual([]);
   });
 
-  test("no page source outside the worker reaches Game as a value", () => {
-    const files = sourceFiles(SRC).filter(isPageSource);
-    // The walk found the controller and the application, so an empty result
-    // below is about their contents rather than a walk that saw nothing.
-    const names = files.map((file) => relative(SRC, file).split(sep).join("/"));
-    expect(names).toContain("GamePlayerController.ts");
-    expect(names).toContain("app/Application.ts");
-    const offenders = files.flatMap((file) =>
-      gameValueUses(readFileSync(file, "utf8")).map(
-        (use) => `${relative(SRC, file).split(sep).join("/")}: ${use}`,
-      ),
+  const sources = sourceFiles(SRC).filter((file) => !isTest(file));
+  const worker = reach(sources.filter(isWorkerEntry));
+  const page = [...reach(sources.filter((file) => !worker.has(file)))];
+
+  test("the walk tells the worker's files from the page's", () => {
+    // Both sides were found, so an empty result below is about their
+    // contents rather than a walk that saw nothing.
+    const names = (files: Iterable<string>) => [...files].map(rel);
+    expect(names(worker)).toContain("main/workers/installPlayerWorker.ts");
+    expect(names(page)).not.toContain("main/workers/installPlayerWorker.ts");
+    expect(names(page)).toContain("GamePlayerController.ts");
+    expect(names(page)).toContain("app/Application.ts");
+    // The page's side of the worker connection, and the messages both sides
+    // speak, are the page's too.
+    expect(names(page)).toContain("main/workers/installWorkspaceWorker.ts");
+    expect(names(page)).toContain("main/workers/WorkerGameLink.ts");
+    expect(names(page)).toContain("main/workers/messages/ProgramHeldMessage.ts");
+  });
+
+  test("no page source reaches Game as a value", () => {
+    const offenders = page.flatMap((file) =>
+      gameValueUses(readFileSync(file, "utf8")).map((use) => `${rel(file)}: ${use}`),
     );
     expect(offenders).toEqual([]);
   });

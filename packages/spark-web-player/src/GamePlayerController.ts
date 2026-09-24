@@ -1521,12 +1521,17 @@ export class GamePlayerController {
     }
   }
 
-  /** The application under the editor's controls: none while the one in the
-   *  slot is being torn down (`releaseGames`), since what it is told then
-   *  goes with it and the game that follows starts without it. */
+  /** The PLAY the application in the slot was built for, if it was built
+   *  for one. */
+  protected _appPlay?: WorkerPlay;
+
+  /** The application under the editor's controls: the one built for the
+   *  PLAY that runs or starts now. Any other in the slot is on its way out,
+   *  to STOP, a restart or a newer PLAY, and what it is told would not reach
+   *  the run that follows. */
   protected get controlledApp() {
-    const app = this._app;
-    return app && !this._outgoingApps.includes(app) ? app : undefined;
+    const play = this._workerPlay;
+    return play && this._appPlay === play ? this._app : undefined;
   }
 
   protected handlePauseGame = async (message: PauseGameMessage.Request) => {
@@ -1908,6 +1913,7 @@ export class GamePlayerController {
         },
         false,
         current,
+        play,
       );
       if (!current()) {
         if (play.sink) {
@@ -2029,35 +2035,26 @@ export class GamePlayerController {
     // the timer fires after STOP and silently resurrects the game.
     this.cancelScheduledRestart();
     const plays = this._plays;
-    const outgoing = this._app;
-    this._outgoingApps.push(outgoing);
-    try {
-      const ending = this.endWorkerPlay();
-      const detaching = this.detachWorkerPreview();
-      await ending;
-      await detaching;
-      // A PLAY begun while this waited owns the application now.
-      const app = this._app;
-      if (app && plays === this._plays) {
-        await app.initializing;
-        if (plays === this._plays) {
-          // A start that ended while it built this application destroys it
-          // too; whichever comes second finds it destroyed.
-          if (!app.destroyed) {
-            app.destroy(true);
-          }
-          if (this._app === app) {
-            this._app = undefined;
-          }
+    const ending = this.endWorkerPlay();
+    const detaching = this.detachWorkerPreview();
+    await ending;
+    await detaching;
+    // A PLAY begun while this waited owns the application now.
+    const app = this._app;
+    if (app && plays === this._plays) {
+      await app.initializing;
+      if (plays === this._plays) {
+        // A start that ended while it built this application destroys it
+        // too; whichever comes second finds it destroyed.
+        if (!app.destroyed) {
+          app.destroy(true);
+        }
+        if (this._app === app) {
+          this._app = undefined;
         }
       }
-    } finally {
-      this._outgoingApps.splice(this._outgoingApps.indexOf(outgoing), 1);
     }
   }
-
-  /** The application each `releaseGames` under way is tearing down. */
-  protected _outgoingApps: (Application | undefined)[] = [];
 
   /** Stop showing what the worker's game displays: its application goes, and
    *  whatever it still sends is heard by nothing. */
@@ -2218,13 +2215,15 @@ export class GamePlayerController {
     );
   }
 
-  /** Build an application for `game` and answer it, whatever the slot holds
-   *  by then. A build that is no longer `owned` leaves the slot alone, and
-   *  its caller disposes of the application. */
+  /** Build an application for `game`, the game of `play` when it is PLAY's,
+   *  and answer it, whatever the slot holds by then. A build that is no
+   *  longer `owned` leaves the slot alone, and its caller disposes of the
+   *  application. */
   protected async buildAppFor(
     game: GameEndpoint,
     previewing: boolean,
     owned: () => boolean = () => true,
+    play?: WorkerPlay,
   ) {
     const old = this._app;
     if (old && owned()) {
@@ -2245,6 +2244,7 @@ export class GamePlayerController {
     const app = this.createApp(game, previewing);
     if (owned()) {
       this._app = app;
+      this._appPlay = play;
     }
     profile("end", "app/create");
     profile("start", "app/init");
