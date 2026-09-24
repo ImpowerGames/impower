@@ -3949,6 +3949,12 @@ export class Story extends InkObject {
    * is restored on the way out so the callback can't leak narrative
    * text into the calling story flow.
    *
+   * The callback runs inside the step that called it, so it works the
+   * same during `ContinueAsync()` as during `Continue()`: it never
+   * starts a continue of its own. Route search's pause before
+   * conditions is off while it runs, since the conditions route search
+   * forces are the story's decisions, not ones inside a callback.
+   *
    * Errors inside the callback propagate via `story.Error`; without
    * a `pcall` trap (#98), they abort the whole story — that's the
    * same behaviour as any other runtime error today.
@@ -3957,8 +3963,6 @@ export class Story extends InkObject {
     fnValue: AbstractValue,
     args: AbstractValue[],
   ): AbstractValue[] {
-    this.IfAsyncWeCant("call a Luau function from stdlib");
-
     // VariablePointerValue: deref and recurse.
     if (fnValue instanceof VariablePointerValue) {
       const resolved = this.state.variablesState.GetVariableWithName(
@@ -3983,6 +3987,8 @@ export class Story extends InkObject {
     const outputStreamBefore: InkObject[] = [...this.state.outputStream];
     const lineEnd = this.state.SuspendLineEnd();
     this.state.ResetOutput();
+    const pauseBeforeConditions = this.pauseBeforeEvaluatingConditions;
+    this.pauseBeforeEvaluatingConditions = false;
 
     let path: Path | null = null;
     try {
@@ -4086,6 +4092,7 @@ export class Story extends InkObject {
       this.state.currentPointer = savedPointer;
       this.state.ResetOutput(outputStreamBefore);
       this.state.ResumeLineEnd(lineEnd);
+      this.pauseBeforeEvaluatingConditions = pauseBeforeConditions;
     }
   }
 
@@ -4110,8 +4117,6 @@ export class Story extends InkObject {
     values: AbstractValue[];
     errorMessage?: string;
   } {
-    this.IfAsyncWeCant("call a Luau function from stdlib (protected)");
-
     if (fnValue instanceof VariablePointerValue) {
       const resolved = this.state.variablesState.GetVariableWithName(
         fnValue.variableName,
@@ -4166,6 +4171,8 @@ export class Story extends InkObject {
     const savedErrorCount = this.state.currentErrors?.length ?? 0;
     const lineEnd = this.state.SuspendLineEnd();
     this.state.ResetOutput();
+    const pauseBeforeConditions = this.pauseBeforeEvaluatingConditions;
+    this.pauseBeforeEvaluatingConditions = false;
 
     let path: Path | null = null;
     let trappedError: string | null = null;
@@ -4293,6 +4300,7 @@ export class Story extends InkObject {
       this.state.currentPointer = savedPointer;
       this.state.ResetOutput(outputStreamBefore);
       this.state.ResumeLineEnd(lineEnd);
+      this.pauseBeforeEvaluatingConditions = pauseBeforeConditions;
     }
   }
 
