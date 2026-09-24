@@ -34,6 +34,7 @@ import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
+import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { stripTrailingLineComment } from "../utils/stripTrailingLineComment";
 
@@ -292,8 +293,13 @@ export function lowerLuauDefine(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
+  const structureDiagnostics = validateDefineStructure(nodeRef.node, ctx);
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
-  if (!nameNode) return {};
+  if (!nameNode) {
+    return structureDiagnostics.length > 0
+      ? { diagnostics: structureDiagnostics }
+      : {};
+  }
   const nameIdentifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
 
   const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
@@ -527,6 +533,9 @@ export function lowerLuauDefine(
     }
   }
 
+  if (structureDiagnostics.length > 0) {
+    block.diagnostics = [...(block.diagnostics ?? []), ...structureDiagnostics];
+  }
   return block;
 }
 

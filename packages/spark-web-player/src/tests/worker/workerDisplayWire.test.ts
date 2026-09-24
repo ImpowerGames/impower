@@ -7,8 +7,9 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
 const SOURCE = [
-  "define hero as character:",
+  "define hero as character with",
   `  name = "Hero"`,
+  "end",
   "",
   ...Array.from({ length: 4 }, (_, s) => [
     `scene scene_${s}`,

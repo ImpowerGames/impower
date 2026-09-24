@@ -13,8 +13,9 @@ import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
 const TEXT = [
-  "define hero as character:",
+  "define hero as character with",
   `  name = "Hero"`,
+  "end",
   "",
   ...Array.from({ length: 6 }, (_, s) => [
     `scene scene_${s}`,
