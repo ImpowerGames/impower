@@ -177,6 +177,25 @@ describe("runtime diagnostics", () => {
     expect(published(story).at(-1)).toEqual([runtimeWarning]);
   });
 
+  it("of a document two entry scripts import are published against the new run's entry", () => {
+    const { workspace, compiled, report, published } = setup();
+    const other = "file:///project/other.sd";
+    compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
+    const second = { uri: other, scripts: { [other]: 1, [story]: 1 }, diagnostics: {} };
+    (workspace as any)._programStates.set(other, { program: second });
+    report({
+      program: { uri: main, scripts: { [main]: 1, [story]: 1 } },
+      diagnostics: { [story]: [runtimeWarning] },
+    });
+    expect(published(story).at(-1)).toEqual([runtimeWarning]);
+    // A run of the other entry raises something else in the same document.
+    report({
+      program: { uri: other, scripts: { [other]: 1, [story]: 1 } },
+      diagnostics: { [story]: [runtimeError] },
+    });
+    expect(published(story).at(-1)).toEqual([runtimeError]);
+  });
+
   it("are not shown against a program with other scripts", () => {
     const { compiled, report, published } = setup();
     compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });

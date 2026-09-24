@@ -357,21 +357,21 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _fileChanges = 0;
 
   /** Take the player's report of its current run in place of the last, and
-   *  publish every document either report names, against the program the
-   *  run's entry script compiled. */
+   *  publish every document either report names: one the new report names
+   *  against the program the new run's entry script compiled, and one only
+   *  the last report named against the last run's, whose program published
+   *  it. */
   reportRuntimeDiagnostics(params: RuntimeDiagnosticsParams) {
     const last = this._runtimeDiagnostics?.params;
-    const entries = [
-      ...Object.keys(last?.diagnostics ?? {}).map((uri) => [uri, last!.program.uri] as const),
-      ...Object.keys(params.diagnostics ?? {}).map((uri) => [uri, params.program.uri] as const),
-    ];
+    const entries = new Map<string, string | undefined>();
+    for (const uri of Object.keys(last?.diagnostics ?? {})) {
+      entries.set(uri, last!.program.uri);
+    }
+    for (const uri of Object.keys(params.diagnostics ?? {})) {
+      entries.set(uri, params.program.uri);
+    }
     this._runtimeDiagnostics = { params, files: this._fileChanges };
-    const published = new Set<string>();
     for (const [uri, entry] of entries) {
-      if (published.has(uri)) {
-        continue;
-      }
-      published.add(uri);
       const entryUri = entry || this.getMainScriptUri(uri) || uri;
       const program = this.program(entryUri);
       if (!program) {
@@ -413,8 +413,10 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   /** The compile's diagnostics for `uri`, then the player's current run's,
-   *  while that run ran this program. The same problem at the same place is
-   *  shown once. */
+   *  while that run ran this program. The run's are the player's report,
+   *  which this server does not produce, so it shows each runtime problem
+   *  once per severity, message and place itself, as #816 requires, rather
+   *  than rely on the report having done so. */
   override getDiagnostics(program: SparkProgram, uri: string) {
     const diagnostics = super.getDiagnostics(program, uri);
     const report = this._runtimeDiagnostics;

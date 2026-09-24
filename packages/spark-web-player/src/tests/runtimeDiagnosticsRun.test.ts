@@ -43,4 +43,13 @@ describe("a run's runtime diagnostics", () => {
       diagnosticsOf([{ message: "boom", type: ErrorType.Error, location: at(6, -1, 14) }]),
     ).toEqual([{ range: at(6, 0, 14).range, severity: 1, message: "boom", source: "runtime" }]);
   });
+
+  it("keep one diagnostic for two places that differ only before the start of the line", () => {
+    expect(
+      diagnosticsOf([
+        { message: "boom", type: ErrorType.Error, location: at(6, -1, 14) },
+        { message: "boom", type: ErrorType.Error, location: at(6, 0, 14) },
+      ]),
+    ).toEqual([{ range: at(6, 0, 14).range, severity: 1, message: "boom", source: "runtime" }]);
+  });
 });

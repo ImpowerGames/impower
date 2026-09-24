@@ -186,8 +186,14 @@ describe.each([false, true])("runtime diagnostics (worker displays: %s)", (worke
       await h.compile();
       await h.select(lineOf("Pick a path."));
       await settle(20);
+      const reports = () =>
+        h.toEditor.filter((m) => m.method === "sparkdown/runtimeDiagnostics");
+      const previewed = reports().length;
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(20);
+      // PLAY's run says what the preview's said, and is still reported: the
+      // language server takes each report as the program as it is now.
+      expect(reports().length).toBe(previewed + 1);
       expect(lastReported(h.toEditor)).toEqual([
         [lineOf(".. B"), 2, CONTINUES_WARNING, "runtime"],
       ]);
