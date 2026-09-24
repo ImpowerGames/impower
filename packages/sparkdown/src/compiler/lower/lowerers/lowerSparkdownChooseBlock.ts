@@ -42,6 +42,10 @@ export function lowerSparkdownChooseBlock(
   // nested `choose` inside a choice's body) see the right level.
   const depth = ((ctx as MutableCtx).chooseDepth ?? 0) + 1;
   (ctx as MutableCtx).chooseDepth = depth;
+  // A block written in another block's preamble (before its first choice or
+  // inside an `if` there) offers its choices with that block's, so it holds
+  // no flow of its own: its choices continue where the other block's do.
+  const inPreamble = (ctx as MutableCtx).inChoosePreamble === true;
 
   const content = findChildByName(
     nodeRef.node,
@@ -76,6 +80,7 @@ export function lowerSparkdownChooseBlock(
       }
       sawChoice = true;
       currentChoice = null;
+      (ctx as MutableCtx).inChoosePreamble = false;
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       if (block?.diagnostics) {
         diagnostics.push(...block.diagnostics);
@@ -102,16 +107,12 @@ export function lowerSparkdownChooseBlock(
       child = child.nextSibling;
       continue;
     }
-    // Non-Choice, non-then content. Two flavors:
-    //   - Nested `Weave` (from a sibling `choose`-block): goes into the
-    //     OUTER weaveContent as a sibling of the choice. This mirrors
-    //     legacy ink where `* one\n  * * two` parses with `two` as a
-    //     depth-2 sibling weave point — inkjs's `AddRuntimeForNestedWeave`
-    //     then removes the preceding choice from `looseEnds` so it
-    //     doesn't get a stray fall-through divert appended.
-    //   - Anything else (text, divert, single statements): attaches to
-    //     the previous choice's `innerContent` so `* one\n  foo` works
-    //     as expected.
+    // Non-Choice, non-then content, including a nested `choose` block's
+    // `Weave`, attaches in order to the previous choice's `innerContent`, so
+    // a line after a nested block's `end` runs after that block's choice.
+    // Before the first choice it is the preamble, which runs before the
+    // choices are offered.
+    (ctx as MutableCtx).inChoosePreamble = currentChoice === null;
     const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
     // A construct that holds a choice (a conditional whose branches offer
     // them) holds the block's first choice when no choice came before it, so
@@ -125,9 +126,7 @@ export function lowerSparkdownChooseBlock(
         const items =
           obj instanceof Weave ? (obj.content as ParsedObject[]) : [obj];
         for (const item of items) {
-          if (item instanceof Weave) {
-            weaveContent.push(item);
-          } else if (currentChoice) {
+          if (currentChoice) {
             currentChoice.innerContent.AddContent(item);
           } else {
             weaveContent.push(item);
@@ -141,14 +140,23 @@ export function lowerSparkdownChooseBlock(
   // Phase 2: the block's `end` is a Gather at the same depth, so every choice
   // continues there once its content runs out. A `then` clause's body is that
   // Gather's content; without one the Gather is empty and the content after
-  // the block follows it.
-  weaveContent.push(
-    thenClause
-      ? buildGatherFromThenClause(thenClause, depth, ctx)
-      : new Gather(null, depth),
-  );
+  // the block follows it. The Gather ends the block: the flow stops before it
+  // once the choices are offered, and runs on out of it into whatever follows
+  // the block. A block in another block's preamble keeps only its `then`
+  // clause, as an ordinary Gather.
+  (ctx as MutableCtx).inChoosePreamble = false;
+  const gather = thenClause
+    ? buildGatherFromThenClause(thenClause, depth, ctx)
+    : inPreamble
+      ? null
+      : new Gather(null, depth);
+  if (gather) {
+    gather.endsChooseBlock = sawChoice && !inPreamble;
+    weaveContent.push(gather);
+  }
 
   (ctx as MutableCtx).chooseDepth = depth - 1;
+  (ctx as MutableCtx).inChoosePreamble = inPreamble;
 
   const block = wrapInWeave([new Weave(weaveContent, depth)]);
   if (diagnostics.length > 0) {
@@ -159,6 +167,7 @@ export function lowerSparkdownChooseBlock(
 
 interface MutableCtx {
   chooseDepth?: number;
+  inChoosePreamble?: boolean;
 }
 
 // The display statements before a block's first choice are its caption. The
