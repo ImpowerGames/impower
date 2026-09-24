@@ -1,8 +1,6 @@
-// A display line ends with a newline, and the engine keeps stepping past it to
-// learn whether glue removes that newline. Each line's argument must still be
-// evaluated once: the look-ahead stops where the next line begins, before that
-// line's text is built, rather than building it and throwing it away. A host
-// function called from an interpolation is how an author sees the difference.
+// A continue returns at the newline that ends its line, so each display
+// line's argument is evaluated once, by the continue that shows it. A host
+// function called from an interpolation is how an author sees that.
 
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
@@ -11,7 +9,7 @@ function countingStory(source: string) {
   const ctx = makeRuntimeStoryFromSource(`external tick()\n${source}`);
   expect(ctx.errorMessages).toEqual([]);
   let calls = 0;
-  ctx.story.BindExternalFunction("tick", () => ++calls, true);
+  ctx.story.BindExternalFunction("tick", () => ++calls);
   const beats: [string, number][] = [];
   while (ctx.story.canContinue) {
     beats.push([ctx.story.Continue() ?? "", calls]);
@@ -19,11 +17,12 @@ function countingStory(source: string) {
   return beats;
 }
 
-describe("newline look-ahead evaluates each display line once", () => {
+describe("each display line is evaluated once", () => {
   test("an action line's interpolated host call runs once when the next line is not glued", () => {
     expect(countingStory("First {tick()}.\nSecond {tick()}.\n")).toEqual([
       ["First 1.\n", 1],
       ["Second 2.\n", 2],
+      ["", 2],
     ]);
   });
 
@@ -33,6 +32,7 @@ describe("newline look-ahead evaluates each display line once", () => {
     ).toEqual([
       ["First 1.\n", 1],
       ["Second 2.\n", 2],
+      ["", 2],
     ]);
   });
 
@@ -42,6 +42,7 @@ describe("newline look-ahead evaluates each display line once", () => {
     ).toEqual([
       ["First 1 second 2.\n", 2],
       ["Third 3.\n", 3],
+      ["", 3],
     ]);
   });
 
@@ -53,6 +54,7 @@ describe("newline look-ahead evaluates each display line once", () => {
     ).toEqual([
       ["First 1 second 2.\n", 2],
       ["Third 3.\n", 3],
+      ["", 3],
     ]);
   });
 });

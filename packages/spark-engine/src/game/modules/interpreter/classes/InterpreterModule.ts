@@ -511,7 +511,12 @@ export class InterpreterModule extends Module<
         routing.character = characterRaw;
       }
     }
-    this._routing = group == null ? routing : { ...routing, group };
+    // A beat with no table (choices alone, or flat text) names no routing of
+    // its own, so a continuation after it still inherits from the beat
+    // before.
+    if (tables.length > 0) {
+      this._routing = group == null ? routing : { ...routing, group };
+    }
     this.appendBeat(
       routing.target,
       routing.character,

@@ -23,10 +23,7 @@ export interface RuntimeDelta {
 }
 
 export class RuntimeState {
-  /** Every path executed since the frame began, least-recent first.
-   *  A {@link RecencySet} rather than a `Set` because the ink runtime snapshots
-   *  and rewinds this collection around every lookahead, and it can undo those
-   *  changes without copying itself (#376). */
+  /** Every path executed since the frame began, least-recent first. */
   pathsExecutedThisFrame: RecencySet = new RecencySet();
 
   choicesEncountered: {
@@ -43,17 +40,10 @@ export class RuntimeState {
   // `pathsExecutedThisFrame` grows ~1 entry/beat and re-orders on revisit
   // (delete+add), so a full copy per checkpoint is O(n^2). We mirror the
   // per-beat executions into `executedSinceCheckpoint` (same delete+add recency
-  // semantics) and drain it at each checkpoint — its rewind-safety is handled by
-  // Game's lookahead snapshot. That mirror stays a plain `Set`: it is emptied
-  // at every checkpoint (one per beat), so copying it costs one beat's worth of
-  // paths, unlike `pathsExecutedThisFrame` which spans the whole simulation.
-  // That per-beat draining is load-bearing, not incidental: if checkpoints ever
-  // become periodic rather than per-beat, this mirror grows for the whole
-  // simulation and Game's per-lookahead copy of it becomes the O(n^2) term all
-  // over again (#376). Give it the same journalling treatment if that changes.
-  // `choicesEncountered` / `conditionsEncountered` are append-only and never
-  // truncated below the last checkpoint, so a slice from a drain mark is exact
-  // and needs no snapshot/restore.
+  // semantics) and drain it at each checkpoint (one per beat), so a checkpoint
+  // stores one beat's worth of paths.
+  // `choicesEncountered` / `conditionsEncountered` are append-only, so a
+  // slice from a drain mark is exact.
   executedSinceCheckpoint: Set<string> = new Set();
   protected _choiceDrainMark = 0;
   protected _conditionDrainMark = 0;

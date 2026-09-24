@@ -52,7 +52,7 @@ import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 import { type ErrorHandler, ErrorType } from "./Error";
 import { StructDefinition } from "./StructDefinition";
-import type { Simulator,SimulatorSnapshot } from "./Simulator";
+import type { Simulator } from "./Simulator";
 
 export { InkList } from "./InkList";
 
@@ -632,14 +632,6 @@ function newindexThroughMetatable(
       if (base.isFrozen) {
         throw new StoryException("attempt to modify a readonly table");
       }
-      const patch = story.state.variablesState.patch;
-      if (patch !== null) {
-        patch.RecordPropertyMutation(
-          base.value,
-          keyStr,
-          base.value.get(keyStr),
-        );
-      }
       base.value.set(keyStr, newVal);
       return true;
     }
@@ -654,10 +646,6 @@ function newindexThroughMetatable(
     if (depth > 0) {
       if (base.isFrozen) {
         throw new StoryException("attempt to modify a readonly table");
-      }
-      const patch = story.state.variablesState.patch;
-      if (patch !== null) {
-        patch.RecordPropertyMutation(base.value, keyStr, undefined);
       }
       base.value!.set(keyStr, newVal);
       return true;
@@ -740,12 +728,6 @@ export class Story extends InkObject {
       "call currentDisplayInstructions since it's a work in progress",
     );
     return this.state.currentDisplayInstructions;
-  }
-
-  /** True while the story runs past a finished line to learn whether the
-   *  line continues. What runs then is undone unless it does. */
-  get isLookingAhead() {
-    return this._stateSnapshotAtLastNewline !== null;
   }
 
   get currentErrors() {
@@ -842,12 +824,6 @@ export class Story extends InkObject {
     null;
 
   public onExecute: ((arg1: string | undefined) => void) | null = null;
-
-  public onSaveStateSnapshot: (() => void) | null = null;
-
-  public onRestoreStateSnapshot: (() => void) | null = null;
-
-  public onDiscardStateSnapshot: (() => void) | null = null;
 
   public onWriteRuntimeObject?: (
     writer: SimpleJson.Writer,
@@ -1124,12 +1100,6 @@ export class Story extends InkObject {
 
   public SwitchFlow(flowName: string) {
     this.IfAsyncWeCant("switch flow");
-    if (this._asyncSaving) {
-      throw new Error(
-        "Story is already in background saving mode, can't switch flow to " +
-          flowName,
-      );
-    }
 
     this._stateIsPristine = false;
     this.state.SwitchFlow_Internal(flowName);
@@ -1182,11 +1152,7 @@ export class Story extends InkObject {
    *
    *  So this ends the continue instead of finishing it. Everything below is
    *  the wrap-up `ContinueInternal` performs when a line is over, minus the
-   *  advancing: the look-ahead snapshot is rolled back rather than left
-   *  dangling — it lives on the story, not the state, so a caller replacing
-   *  the state would not clear it, and the next continue could restore a story
-   *  state that had already been thrown away — and the open batch of variable
-   *  observations is closed out.
+   *  advancing: the open batch of variable observations is closed out.
    *
    *  Closing that batch ANNOUNCES what it recorded: `CompleteVariableObservation`
    *  raises `variableChangedEvent` for every variable the abandoned run touched
@@ -1199,9 +1165,7 @@ export class Story extends InkObject {
    *  because both are announcements of a run that is about to be discarded, and
    *  choosing what an observer should see across an abandoned line is a
    *  decision about observer semantics rather than part of ending the continue.
-   *  Nothing in this repository subscribes today. What is skipped either way is
-   *  only the map the wrap-up feeds to `NotifyObservers`, which carries
-   *  patch-derived changes that matter during a background save.
+   *  Nothing in this repository subscribes today.
    *
    *  One deliberate divergence from that wrap-up: it completes the observation
    *  batch only at `_recursiveContinueCount == 1`, and this does it
@@ -1227,26 +1191,7 @@ export class Story extends InkObject {
       return;
     }
 
-    // Reading ahead past a newline records TWO things, and both live on the
-    // story rather than on the story state, so replacing the state clears
-    // neither. The second is the route simulator's position in the decisions
-    // it is feeding the story, and it is dropped rather than put back: the
-    // simulator that happens to be attached now need not be the one this run
-    // was reading from — `Game.simulateRoute` attaches the NEXT route's
-    // simulator before the caller gets here — and restoring one route's
-    // consumed position into another route's simulator makes it skip the
-    // decisions it was supposed to force. Dropping it is what "this run is
-    // being discarded" means; the caller replaces the state on the next line
-    // regardless, so there is nothing for a rolled-back simulator to serve.
-    this._simulatorSnapshotAtLastNewline = null;
-
-    if (this._stateSnapshotAtLastNewline !== null) {
-      this.RestoreStateSnapshot();
-    }
-
     this._state.didSafeExit = false;
-    this._sawLookaheadUnsafeFunctionAfterNewline = false;
-    this._sawLineStartAfterNewline = false;
     this._state.variablesState.CompleteVariableObservation();
 
     this._asyncContinueActive = false;
@@ -1285,18 +1230,15 @@ export class Story extends InkObject {
       if (carried && this.onExecute !== null) {
         for (const path of carried.paths) this.onExecute(path);
       }
-
-      // Carried output that ends its line is a line already written, so the
-      // look-ahead starts from it as from any newline.
-      if (this._state.outputStreamEndsInNewline) this.StateSnapshot();
     } else if (this._asyncContinueActive && !stepAtATime) {
       this._asyncContinueActive = false;
     }
 
-    let outputStreamEndsInNewline = false;
-    this._sawLookaheadUnsafeFunctionAfterNewline = false;
-    this._sawLineStartAfterNewline = false;
-    do {
+    // Carried output that ends its line is a line already written, and this
+    // continue returns it without stepping.
+    let outputStreamEndsInNewline =
+      !this._state.inStringEvaluation && this._state.outputStreamEndsInNewline;
+    while (!outputStreamEndsInNewline && this.canContinue) {
       try {
         outputStreamEndsInNewline = this.ContinueSingleStep();
       } catch (e) {
@@ -1314,24 +1256,16 @@ export class Story extends InkObject {
         break;
       }
 
-      if (outputStreamEndsInNewline) break;
-
       // An asynchronous continue advances one step per call, so the caller
       // decides when the story moves again.
       if (this._asyncContinueActive) {
         break;
       }
-    } while (this.canContinue);
-
-    let changedVariablesToObserve: Map<string, any> | null = null;
+    }
 
     this._state.CarryOutputPastCut();
 
     if (outputStreamEndsInNewline || !this.canContinue) {
-      if (this._stateSnapshotAtLastNewline !== null) {
-        this.RestoreStateSnapshot();
-      }
-
       // Paths held while a line end waited, with no cut to carry them to the
       // next continue, ran for this one.
       for (const path of this._state.ReleaseHeldPaths()) {
@@ -1369,12 +1303,9 @@ export class Story extends InkObject {
       }
 
       this.state.didSafeExit = false;
-      this._sawLookaheadUnsafeFunctionAfterNewline = false;
-      this._sawLineStartAfterNewline = false;
 
       if (this._recursiveContinueCount == 1)
-        changedVariablesToObserve =
-          this._state.variablesState.CompleteVariableObservation();
+        this._state.variablesState.CompleteVariableObservation();
 
       this._asyncContinueActive = false;
       if (this.onDidContinue !== null) this.onDidContinue();
@@ -1429,13 +1360,6 @@ export class Story extends InkObject {
         throw new StoryException(sb.toString());
       }
     }
-    if (
-      changedVariablesToObserve != null &&
-      Object.keys(changedVariablesToObserve).length > 0
-    ) {
-      this._state.variablesState.NotifyObservers(changedVariablesToObserve);
-    }
-
     // Automatically force a choice (used when simulating routes)
     if (this.simulator) {
       const currentChoices = this._state.currentChoices;
@@ -1454,6 +1378,7 @@ export class Story extends InkObject {
     }
   }
 
+  // Runs one step, and returns true when the step ended this continue's line.
   public ContinueSingleStep() {
     if (this._profiler != null) this._profiler.PreStep();
 
@@ -1475,100 +1400,11 @@ export class Story extends InkObject {
       this.TryFollowDefaultInvisibleChoice();
     }
 
-    if (this._profiler != null) this._profiler.PreSnapshot();
-
-    if (!this.state.inStringEvaluation) {
-      if (this._stateSnapshotAtLastNewline !== null) {
-        if (this._stateSnapshotAtLastNewline.currentTags === null) {
-          return throwNullException("this._stateAtLastNewline.currentTags");
-        }
-        if (this.state.currentTags === null) {
-          return throwNullException("this.state.currentTags");
-        }
-
-        let change = this.CalculateNewlineOutputStateChange(
-          this._stateSnapshotAtLastNewline.currentText,
-          this.state.currentText,
-          this._stateSnapshotAtLastNewline.currentTags.length,
-          this.state.currentTags.length,
-          this._stateSnapshotAtLastNewline.currentDisplayInstructions.length,
-          this.state.currentDisplayInstructions.length,
-        );
-
-        if (
-          change == Story.OutputStateChange.ExtendedBeyondNewline ||
-          this._sawLookaheadUnsafeFunctionAfterNewline ||
-          this._sawLineStartAfterNewline
-        ) {
-          this.RestoreStateSnapshot();
-
-          return true;
-        } else if (change == Story.OutputStateChange.NewlineRemoved) {
-          this.DiscardSnapshot();
-        }
-      }
-
-      if (this.state.outputStreamEndsInNewline) {
-        if (this.canContinue) {
-          if (this._stateSnapshotAtLastNewline == null) this.StateSnapshot();
-        } else {
-          this.DiscardSnapshot();
-        }
-      }
-    }
-
-    if (this._profiler != null) this._profiler.PostSnapshot();
-
-    return false;
-  }
-
-  public CalculateNewlineOutputStateChange(
-    prevText: string | null,
-    currText: string | null,
-    prevTagCount: number,
-    currTagCount: number,
-    // A `display(<table>)` call whose `text` is empty adds nothing to
-    // `currentText`, so the text/tag deltas below can't see it. The
-    // display-instruction count rides the same look-ahead so an extra table
-    // past the newline counts as "extended beyond the newline" — exactly like
-    // an extra tag does — and an empty-body line keeps its own step.
-    prevDisplayCount = 0,
-    currDisplayCount = 0,
-  ) {
-    if (prevText === null) {
-      return throwNullException("prevText");
-    }
-    if (currText === null) {
-      return throwNullException("currText");
-    }
-
-    let newlineStillExists =
-      currText.length >= prevText.length &&
-      prevText.length > 0 &&
-      currText.charAt(prevText.length - 1) == "\n";
-    if (
-      prevTagCount == currTagCount &&
-      prevDisplayCount == currDisplayCount &&
-      prevText.length == currText.length &&
-      newlineStillExists
-    )
-      return Story.OutputStateChange.NoChange;
-
-    if (!newlineStillExists) {
-      return Story.OutputStateChange.NewlineRemoved;
-    }
-
-    if (currTagCount > prevTagCount || currDisplayCount > prevDisplayCount)
-      return Story.OutputStateChange.ExtendedBeyondNewline;
-
-    for (let i = prevText.length; i < currText.length; i++) {
-      let c = currText.charAt(i);
-      if (c != " " && c != "\t") {
-        return Story.OutputStateChange.ExtendedBeyondNewline;
-      }
-    }
-
-    return Story.OutputStateChange.NoChange;
+    // A newline ends the line, so the continue returns at it. Inside a string
+    // evaluation a newline is a character of the value being built.
+    return (
+      !this.state.inStringEvaluation && this.state.outputStreamEndsInNewline
+    );
   }
 
   public ContinueMaximally() {
@@ -1648,81 +1484,6 @@ export class Story extends InkObject {
       );
 
     return p;
-  }
-
-  public StateSnapshot() {
-    this._stateSnapshotAtLastNewline = this._state;
-    this._state = this._state.CopyAndStartPatching(false);
-    if (this.simulator) {
-      this._simulatorSnapshotAtLastNewline = this.simulator.saveSnapshot();
-    }
-    if (this.onSaveStateSnapshot !== null) this.onSaveStateSnapshot();
-  }
-
-  public RestoreStateSnapshot() {
-    if (this._stateSnapshotAtLastNewline === null) {
-      throwNullException("_stateSnapshotAtLastNewline");
-    }
-    // Roll back any in-place ObjectValue mutations that were recorded by
-    // the runtime's `StoreIndex` handler during the lookahead window.
-    // Variable assignments are already snapshot-safe (they go through
-    // the patch's `SetGlobal` and never touch `_globalVariables` until
-    // `ApplyAnyPatch` runs). Property mutations write directly to a
-    // shared `Map`, so they need an explicit undo step here — otherwise
-    // re-executing the bytecode from the snapshot point would observe
-    // already-mutated state.
-    const livePatch = this._state.variablesState.patch;
-    if (livePatch !== null) {
-      livePatch.UndoPropertyMutations();
-    }
-
-    this._stateSnapshotAtLastNewline.RestoreAfterPatch();
-
-    this._state = this._stateSnapshotAtLastNewline;
-    this._stateSnapshotAtLastNewline = null;
-
-    if (!this._asyncSaving) {
-      this._state.ApplyAnyPatch();
-    }
-
-    if (this.simulator && this._simulatorSnapshotAtLastNewline) {
-      this.simulator.restoreSnapshot(this._simulatorSnapshotAtLastNewline);
-      this._simulatorSnapshotAtLastNewline = null;
-    }
-
-    if (this.onRestoreStateSnapshot !== null) this.onRestoreStateSnapshot();
-  }
-
-  public DiscardSnapshot() {
-    if (!this._asyncSaving) this._state.ApplyAnyPatch();
-
-    this._stateSnapshotAtLastNewline = null;
-
-    this._simulatorSnapshotAtLastNewline = null;
-
-    if (this.onDiscardStateSnapshot !== null) this.onDiscardStateSnapshot();
-  }
-
-  public CopyStateForBackgroundThreadSave() {
-    this.IfAsyncWeCant("start saving on a background thread");
-
-    if (this._asyncSaving)
-      throw new Error(
-        "Story is already in background saving mode, can't call CopyStateForBackgroundThreadSave again!",
-      );
-
-    let stateToSave = this._state;
-    this._state = this._state.CopyAndStartPatching(true);
-    this._asyncSaving = true;
-    return stateToSave;
-  }
-
-  public BackgroundSaveComplete() {
-    if (this._stateSnapshotAtLastNewline === null) {
-      this._state.ApplyAnyPatch();
-    }
-
-    this._asyncSaving = false;
   }
 
   public Step() {
@@ -2084,8 +1845,7 @@ export class Story extends InkObject {
           if (sitePath) {
             const forced = this.simulator.forceCondition(sitePath);
             // A null verdict means the route says nothing about this site (it
-            // is past the route's end, reached by look-ahead), so the
-            // evaluated value stands.
+            // is past the route's end), so the evaluated value stands.
             if (forced != null) {
               // Inject as int (ink booleans are ints)
               this.state.PopEvaluationStack();
@@ -2371,19 +2131,6 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.NoOp:
-          break;
-
-        case ControlCommand.CommandType.LineStart:
-          // Past a newline, a new display line proves the previous line has
-          // ended: glue that joins it must come before this marker. Stopping
-          // here keeps the look-ahead from evaluating this line's argument
-          // only to throw it away when the snapshot is restored.
-          if (
-            this._stateSnapshotAtLastNewline !== null &&
-            !this.state.inStringEvaluation
-          ) {
-            this._sawLineStartAfterNewline = true;
-          }
           break;
 
         case ControlCommand.CommandType.Duplicate:
@@ -2753,22 +2500,11 @@ export class Story extends InkObject {
           // statement-level effect. The container must be an ObjectValue
           // looked up from a variable; mutating its internal Map propagates
           // through the variable reference (Maps are passed by reference).
-          //
-          // When a state snapshot is active (newline lookahead, background
-          // save), the mutation is also recorded in the patch's undo log
-          // so that `RestoreStateSnapshot` can roll it back. Without the
-          // undo log, mutations to ObjectValue maps survive the rewind
-          // (the snapshot's patch mechanism only tracks `SetGlobal`
-          // writes, not in-place Map edits), which causes the bytecode to
-          // re-run against already-mutated state — e.g. `obj.field =
-          // obj.field + 1` between two outputs would advance the field by 2.
           const storeValue = this.state.PopEvaluationStack();
           const storeKey = this.state.PopEvaluationStack();
           const storeBase = this.state.PopEvaluationStack();
           // `_G` globals-table proxy: `_G.foo = v` / `_G['foo'] = v`
-          // writes the global directly. `SetGlobal` is patch-aware,
-          // so snapshot/rewind semantics match ordinary global
-          // assignments.
+          // writes the global directly, as an ordinary global assignment.
           if (
             storeBase instanceof ObjectValue &&
             storeBase.value?.has(GLOBALS_PROXY_TAG)
@@ -2808,13 +2544,6 @@ export class Story extends InkObject {
               }
               if (newindexThroughMetatable(this, storeBase, keyStr, val)) {
                 break;
-              }
-              const patch = this.state.variablesState.patch;
-              if (patch !== null) {
-                const oldValue = storeBase.value.has(keyStr)
-                  ? storeBase.value.get(keyStr)
-                  : undefined;
-                patch.RecordPropertyMutation(storeBase.value, keyStr, oldValue);
               }
               // Lua: assigning nil REMOVES the key — a nil-valued
               // entry doesn't exist (`t[k] = nil` is the idiomatic
@@ -4610,19 +4339,6 @@ export class Story extends InkObject {
 
     let foundExternal = typeof funcDef !== "undefined";
 
-    // A function that is not lookahead-safe is skipped past a newline, and
-    // the step that reached it is rewound to the snapshot, evaluation stack
-    // included. That holds in the middle of string evaluation too (a display
-    // line's text is one), so such a call may sit inside an interpolation.
-    if (
-      foundExternal &&
-      !funcDef!.lookAheadSafe &&
-      this._stateSnapshotAtLastNewline !== null
-    ) {
-      this._sawLookaheadUnsafeFunctionAfterNewline = true;
-      return;
-    }
-
     if (!foundExternal) {
       if (this.allowExternalFunctionFallbacks) {
         fallbackFunctionContainer = this.KnotContainerWithName(funcName);
@@ -4686,17 +4402,13 @@ export class Story extends InkObject {
   public BindExternalFunctionGeneral(
     funcName: string,
     func: Story.ExternalFunction,
-    lookaheadSafe: boolean = true,
   ) {
     this.IfAsyncWeCant("bind an external function");
     this.Assert(
       !this._externals.has(funcName),
       "Function '" + funcName + "' has already been bound.",
     );
-    this._externals.set(funcName, {
-      function: func,
-      lookAheadSafe: lookaheadSafe,
-    });
+    this._externals.set(funcName, { function: func });
   }
 
   public TryCoerce(value: any) {
@@ -4707,11 +4419,7 @@ export class Story extends InkObject {
     return value;
   }
 
-  public BindExternalFunction(
-    funcName: string,
-    func: Story.ExternalFunction,
-    lookaheadSafe: boolean = false,
-  ) {
+  public BindExternalFunction(funcName: string, func: Story.ExternalFunction) {
     this.Assert(func != null, "Can't bind a null function");
 
     this.BindExternalFunctionGeneral(
@@ -4727,9 +4435,7 @@ export class Story extends InkObject {
           coercedArgs[i] = this.TryCoerce(args[i]);
         }
         return func.apply(null, coercedArgs);
-      },
-      lookaheadSafe,
-    );
+    });
   }
 
   public UnbindExternalFunction(funcName: string) {
@@ -5184,10 +4890,6 @@ export class Story extends InkObject {
 
     this.state.callStack.currentThread = choice!.threadAtGeneration;
 
-    if (this._stateSnapshotAtLastNewline !== null) {
-      this.state.callStack.currentThread = this.state.callStack.ForkThread();
-    }
-
     this.ChoosePath(choice!.targetPath, false);
 
     return true;
@@ -5382,29 +5084,13 @@ export class Story extends InkObject {
   private _stateIsPristine: boolean = false;
 
   private _asyncContinueActive: boolean = false;
-  private _stateSnapshotAtLastNewline: StoryState | null = null;
-  private _simulatorSnapshotAtLastNewline: SimulatorSnapshot | null = null;
-  private _sawLookaheadUnsafeFunctionAfterNewline: boolean = false;
-  private _sawLineStartAfterNewline: boolean = false;
 
   private _recursiveContinueCount: number = 0;
 
-  private _asyncSaving: boolean = false;
-
   private _profiler: any | null = null; // TODO: Profiler
-
-  get stateSnapshotAtLastNewline() {
-    return this._stateSnapshotAtLastNewline;
-  }
 }
 
 export namespace Story {
-  export enum OutputStateChange {
-    NoChange = 0,
-    ExtendedBeyondNewline = 1,
-    NewlineRemoved = 2,
-  }
-
   export interface EvaluateFunctionTextOutput {
     returned: any;
     output: string;
@@ -5412,7 +5098,6 @@ export namespace Story {
 
   export interface ExternalFunctionDef {
     function: ExternalFunction;
-    lookAheadSafe: boolean;
   }
 
   export type VariableObserver = (variableName: string, newValue: any) => void;

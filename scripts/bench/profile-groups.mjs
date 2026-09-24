@@ -27,15 +27,13 @@ export const STEPPING = [
   [REPRESENTATION, /^StoryState\.ts:((get|set) (currentPointer|previousPointer|divertedPointer)|SetChosenPath)$/],
   // Finding out what a content object is by testing its class.
   [REPRESENTATION, /^TypeAssertion\.ts:/],
-  // Allocating call stack elements and threads, value wrappers, and the state
-  // objects copied for the look-ahead past a newline.
+  // Allocating call stack elements and threads, and value wrappers.
   [REPRESENTATION, /^CallStack\.ts:/],
   [REPRESENTATION, /^Value\.ts:(_?[A-Z]\w*Value\d*|Value|Create|get valueObject|get valueType)$/],
   [REPRESENTATION, /^Void\.ts:/],
-  [REPRESENTATION, /^(StatePatch|Flow|PRNG)\.ts:/],
-  [REPRESENTATION, /^StoryState\.ts:(_?StoryState\d*|CopyAndStartPatching|RestoreAfterPatch|ApplyAnyPatch)$/],
-  [REPRESENTATION, /^VariablesState\.ts:(_?VariablesState\d*|set callStack|set patch|get patch)$/],
-  [REPRESENTATION, /^Story\.ts:(StateSnapshot|RestoreStateSnapshot|DiscardSnapshot)$/],
+  [REPRESENTATION, /^(Flow|PRNG)\.ts:/],
+  [REPRESENTATION, /^StoryState\.ts:_?StoryState\d*$/],
+  [REPRESENTATION, /^VariablesState\.ts:(_?VariablesState\d*|set callStack)$/],
 
   [MIXED, /^Story\.ts:(Step|NextContent|IncrementContentPointer|PerformLogicAndFlowControl)$/],
 
@@ -46,7 +44,7 @@ export const STEPPING = [
 
   // Output text, the evaluation stack, variables, builtins, line ends,
   // choices, errors.
-  [ANY_ENGINE, /^(ControlCommand|TryGetResult|StoryState|VariablesState|Story|StdLib|NativeFunctionCall|StringBuilder|Value|Tag|Glue|Choice|ChoicePoint|Divert|VariableAssignment|VariableReference|LuauTruthiness|MethodDispatch|StructDefinition|InkList|planRoute|Simulator)\.ts:/],
+  [ANY_ENGINE, /^(ControlCommand|TryGetResult|StoryState|VariablesState|Story|StdLib|NativeFunctionCall|StringBuilder|Value|Tag|Choice|ChoicePoint|Divert|VariableAssignment|VariableReference|LuauTruthiness|MethodDispatch|StructDefinition|InkList|planRoute|Simulator)\.ts:/],
 ];
 
 // What fills the preview benchmark's unattributed worker time (#706), for

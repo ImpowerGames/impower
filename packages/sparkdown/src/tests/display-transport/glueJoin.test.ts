@@ -27,7 +27,6 @@ const SILENT_SIMULATOR: Simulator = {
   willForceCondition: () => false,
   willForceChoice: () => false,
   saveSnapshot: () => ({ conditionPointer: {}, choicePointer: {} }),
-  restoreSnapshot: () => {},
 };
 
 function steps(source: string, simulator?: Simulator): Step[] {

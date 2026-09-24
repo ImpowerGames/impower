@@ -15,8 +15,7 @@ packages/sparkdown/src/inkjs/
 ├── engine/
 │   ├── Story.ts                # main interpreter loop, PerformLogicAndFlowControl
 │   ├── StoryState.ts           # the mutable run state (call stack, output, eval stack)
-│   ├── VariablesState.ts       # global vars, with patch-aware get/set
-│   ├── StatePatch.ts           # snapshot patch: deferred writes + property-mutation undo log
+│   ├── VariablesState.ts       # global vars
 │   ├── CallStack.ts            # call-stack elements (each has its own temp-var scopes)
 │   ├── ControlCommand.ts       # the enum of control-command opcodes
 │   ├── NativeFunctionCall.ts   # operators (+, *, ==, and/or/not, ...) as native funcs
@@ -79,7 +78,6 @@ Story.Continue()
                 ├─ Story.Step()                       — execute one instruction
                 │  ├─ PerformLogicAndFlowControl()    — handle control commands
                 │  └─ (otherwise treat content as output)
-                ├─ (newline/lookahead bookkeeping)
                 └─ check stopping conditions (newline, choice, done)
 ```
 
@@ -96,7 +94,7 @@ The loop keeps stepping until:
 
 Every line of visible text the compiler lowers reaches the output stream through the `display` stdlib function (`StdLib.ts`), which the compiler calls with a table: `{ target?, character?, text, pause?, inherit?, group?, tags? }`, `{ load }` for a `load` line, or `{ parts }` for a picked choice whose tags sit between its words (`display` joins the parts into `text` and `tags`). `display` pushes the table's tags as `BeginTag` … `EndTag` spans, then the table itself as an `ObjectValue`, then a closing `"\n"` that ends the step. The `print` stdlib function is the one other producer of a table: it builds `{ text }` from its arguments and pushes it and a closing `"\n"` the same way, or, inside string evaluation, pushes its text as a plain string.
 
-A table with `continues` came from a line that begins with `..` whose line before only the run knows. Before it writes anything, `display` checks that the step's line is open: the output stream has content and does not end in a newline, and no caption's newline is pending. When the line has ended, it raises a runtime warning, "This line begins with `..`, but the line before it had already ended.", and shows the line as it would without the flag. The check reads only what the run has already written, so it needs no look-ahead. A preview route search runs with its error handler silenced, so the warning reaches the author when the path is played: the web player logs it with its source location and stops the run, as it does for every runtime warning.
+A table with `continues` came from a line that begins with `..` whose line before only the run knows. Before it writes anything, `display` checks that the step's line is open: the output stream has content and does not end in a newline, and no caption's newline is pending. When the line has ended, it raises a runtime warning, "This line begins with `..`, but the line before it had already ended.", and shows the line as it would without the flag. The check reads only what the run has already written. A preview route search runs with its error handler silenced, so the warning reaches the author when the path is played: the web player logs it with its source location and stops the run, as it does for every runtime warning.
 
 Two flags change the closing newline. A table with `open` writes none: the next display call joins its line, and the step runs on until a call closes it. A table with `caption` (a `choose` block's last caption line) leaves the newline pending (`StoryState.lineEndPending`): if the step reaches its choices, or the story's end, without showing anything else, it completes with the caption and the choices together. The first output that shows something (text that is not only whitespace, a display table or a tag) marks the output stream where it starts (`outputCut`). The continue ends after that step: its output ends at the mark with the pending newline, and the rest moves to the flow's carried step (`Flow.carried`), which the next continue starts from, so nothing is run twice. The carried step holds the output past the mark, whether that output's own line still waits (it may end with a caption of its own), and the content paths run while the line end waited. Those paths are held back from `onExecute` (`StoryState.heldPaths`) because they ran for the output past the mark: the next continue reports them as it starts, so the game credits their lines to the beat that shows them. When no cut comes, they are reported as the continue ends. The caption's own statement finishes after its line end starts waiting, so its last instructions are held too and its line is also reported with the next continue; the caption's first instructions are reported in its own continue, which is where the preview finds its line. The carried step is saved with the flow as `carried` (`output`, and `lineEndPending` and `paths` when set). A step that leaves the story unable to continue keeps its output whole, with the newline written at the mark, since no continue follows to carry it to. `ChoosePathString` drops a pending line end and a carried step, since what they would show belongs to the path the host leaves, and so does `StoryState.ForceEnd`, which a host's `ResetCallstack`, the story's own end (`fin`) and an error all reach; the caption's text stays, without its newline, as a story that ends does not start another line. A call that runs a story function against an output stream of its own (`EvaluateFunction`, `CallLuauFunction`, and `pcall` of a function the story defines) suspends the pending newline, the cut, the held paths and the carried step while it runs, since what it shows never reaches the story's steps; a host calling `EvaluateFunction` between continues leaves the carried step for the story's next continue.
 
@@ -105,76 +103,26 @@ What a step collected is read two ways:
 - `currentText` includes each table's `text`, in stream order, beside any other text on the stream, so text reads the same whether it came from a table or not.
 - `currentDisplayInstructions` returns the step's tables in order. The engine's interpreter (`InterpreterModule.queue` in `spark-engine`) builds the step's beat from them: the first table that names a `target` routes the beat, with its `character` as the dialogue cue, and the body is `currentText`. A step whose tables name no target renders on the default target. A table with `pause` set came from a beat a `>` break ends, and its beat waits for a click even when it has no text. A glued continuation's tables name it with `group` (its file and starting offset), and the interpreter remembers each beat's routing with the last `group` its tables carried, since glue can hold several continuations open in one step and the beat after a break belongs to the last of them. A beat that sets `inherit` takes that remembered routing only while the beat its own `group` names is the one just queued; otherwise it routes by its own table, which names the line the source reads before the continuation. The remembered routing belongs to the run rather than to the story, so it is not part of the interpreter's saved state — two runs that reach the same story position save the same bytes, which is what a resumed route is checked against. `clearQueuedBeats` and a program update drop it, and a run that loads a checkpoint remembers nothing, so a continuation's beat reached that way routes by its own table, as one reached by a jump does.
 
-Glue joins lines across tables as it joins text: a glued line's table joins the step the glue holds open, so one step may carry several tables. A table with empty text adds no text, so `CalculateNewlineOutputStateChange` also counts the step's tables to find where a step ends.
+Glue joins lines across tables as it joins text: a glued line's table joins the step the glue holds open, so one step may carry several tables.
 
 A table's `text` is a captured string, evaluated between `BeginString` and `EndString`. A tag cannot end inside one (`EndTag` there is taken for a choice label's tag and goes to the evaluation stack), so a line's tags ride the table's `tags` instead, and an inline-glued alternator arm's tag is a runtime `Tag` object, which `EndString` moves back onto the output stream.
 
 ---
 
-## 4. The state snapshot — and why it matters
+## 4. How a line ends
 
-Sparkdown inherits ink's **newline-lookahead state snapshot** mechanism. When the output stream ends in a newline and there's more bytecode to execute, the runtime:
+A continue returns at the newline that ends its line. `ContinueSingleStep` runs one step and reports whether the output stream now ends in a newline outside string evaluation (`StoryState.outputStreamEndsInNewline`), and `ContinueInternal` stops there, or when the flow cannot continue. The story rests just after the newline. Everything after it, whether logic, the choices, the story's end or a fallback choice, runs in the next continue, once and in order.
 
-1. Takes a snapshot of the current state.
-2. Keeps executing.
-3. After the next step, checks whether the extended output would "extend beyond the newline" (i.e. produce more text on the same logical line). If so → restore the snapshot, return only up to the newline; if not → commit and continue.
+Nothing that runs is taken back, so the runtime keeps no copy of the state to return to and no undo log for variables or table writes, and a host binds an external function with only its name and its implementation (`BindExternalFunction(name, fn)`). An opcode that mutates shared state in place, such as `StoreIndex` writing into a table's `Map`, needs no extra bookkeeping.
 
-This lets ink decide on a per-line basis whether `text\n` should be one line or whether more text glues onto it.
+What that means for a caller:
 
-A display line's `display()` call is preceded by a `line` marker (`ControlCommand.LineStart`), which the compiler places ahead of the call's argument. Glue that joins a line onto the previous one always comes before that marker, so reaching it with a snapshot held proves the previous line is over: the step restores the snapshot there, before the new line's text is built. Each line's argument, and every function its interpolations call, is therefore evaluated once. Without the marker the look-ahead would learn of the new line only when its `display()` call pushed its table, after its whole argument had been evaluated, and that evaluation would be thrown away and repeated on the next `Continue`.
+- A continue may complete with no text. After a line, the next continue can run through logic to the choices and raise them with no text, reach the story's end with nothing (`canContinue` false and no choices), or follow a fallback choice into the content after it. The game makes a beat of choices alone and makes no beat of a continue that brings nothing.
+- A `choose` block's caption shows with its choices because the caption's newline waits (§3.1). A line written before the block returns alone, and the choices come with the next continue.
+- A host function called between two lines runs in the continue that reaches it. One interpolated into a line runs as that line is built.
+- A table with `open` writes no newline (§3.1), so the next display call joins its line before any newline is written, and the line ends where the joined line's newline is.
 
-The mechanism works via a **`StatePatch`** attached during the speculation window:
-
-- Variable assignments (`SetGlobal`) go into `patch._globals` instead of the real `_globalVariables`.
-- On commit (`ApplyAnyPatch`) the patch's globals are written to `_globalVariables`.
-- On rewind (`RestoreStateSnapshot`) the patch is discarded — globals are unchanged.
-
-### 4.1 The trap: in-place mutations bypass the patch
-
-Most state changes are "set the variable named X to value Y" — the patch sees these via `SetGlobal`. But some operations mutate state *in place*:
-
-- **`idx=` (`StoreIndex`)** — mutates an `ObjectValue`'s internal `Map` directly.
-- Any future operation that mutates a shared reference.
-
-These operations write to objects that are also referenced from outside the patch. The patch can't undo them by discarding itself.
-
-### 4.2 The fix pattern: explicit undo log
-
-For `StoreIndex`, the runtime records each mutation in `patch._propertyMutations` (a `(map, key, oldValue)` triple). On `RestoreStateSnapshot`, `UndoPropertyMutations` walks the log in reverse and restores each entry. On commit, the log is dropped (the mutations have already been applied to the real Map).
-
-```typescript
-case ControlCommand.CommandType.StoreIndex: {
-  const storeValue = this.state.PopEvaluationStack();
-  const storeKey   = this.state.PopEvaluationStack();
-  const storeBase  = this.state.PopEvaluationStack();
-  if (storeBase instanceof ObjectValue) {
-    const keyStr = storeKey?.toString() ?? "";
-    const val = asOrNull(storeValue, AbstractValue);
-    if (storeBase.value && val !== null) {
-      // Record undo entry while a snapshot is active.
-      const patch = this.state.variablesState.patch;
-      if (patch !== null) {
-        const oldValue = storeBase.value.has(keyStr)
-          ? storeBase.value.get(keyStr) : undefined;
-        patch.RecordPropertyMutation(storeBase.value, keyStr, oldValue);
-      }
-      storeBase.value.set(keyStr, val);
-    }
-  }
-  ...
-}
-```
-
-If you add another opcode that mutates shared state in-place, **mirror this pattern**: detect snapshot mode, record an undo entry, then mutate.
-
-### 4.3 Lookahead-unsafe escape hatch
-
-There's also a coarser-grained mechanism: `_sawLookaheadUnsafeFunctionAfterNewline`. When a lookahead reaches an external function bound with `lookAheadSafe: false`, the call is skipped, the flag is set, and the step that reached it rewinds to the snapshot, evaluation stack included, so the function runs once, on the next `Continue`, when the story replays that step for real. That holds in the middle of string evaluation too, which is why such a function may be interpolated into a display line's captured text. Nothing the lookahead did survives: the operation is deferred, not committed. It's appropriate when:
-
-- The side effect can't reasonably be undone (e.g. an external function called user-supplied JS code), so it must not run speculatively at all.
-- The operation is rare enough that ending the lookahead early, and giving up the chance to join the next line onto this one's step, costs little.
-
-Prefer the explicit-undo pattern when possible. Use the lookahead-unsafe flag only when undoing is genuinely impractical.
+When a caption's pending newline is written at a cut (§3.1), the continue ends after the cutting step and the carried output starts the next one. Carried output that already ends its line is returned by that continue without stepping.
 
 ---
 
@@ -204,12 +152,10 @@ if (foundValue == null && varRef.name && varRef.name.includes(".")) {
 
 Two paths:
 
-1. **Flat lookup** — `GetVariableWithName(name)`. Hits temp vars (per-call-stack scopes), then globals (with patch awareness).
+1. **Flat lookup** — `GetVariableWithName(name)`. Hits temp vars (per-call-stack scopes), then globals.
 2. **Dotted fallback** — for `t.value` when no flat variable `"t.value"` exists, split the name and walk the table.
 
 The dotted fallback is sparkdown-specific (ink uses hierarchical knot.stitch paths instead). When adding new value containers that should support `.` access, make sure their inner storage is a `Map` (or wire them into this walk).
-
-`VariablesState.GetVariableWithName` goes through `TryGetGlobal` which checks the patch first. The dotted fallback respects this because the *first segment* lookup goes through the same path; the inner Map walk is non-patched, which is fine because Map mutations are tracked by the undo log (§4.2).
 
 ---
 
@@ -264,9 +210,9 @@ The dispatcher in `NativeFunctionCall.Call` coerces operands to a single type fi
 `ObjectValue` wraps a `Map<string, AbstractValue>`. Important properties:
 
 - The **same Map** is referenced by every variable that holds the value. Mutations propagate through references (luau-table semantics, this is intentional).
-- The Map is **not deep-cloned** on save/load by default. State snapshots track mutations explicitly via the undo log (§4.2). Background saves don't currently deep-clone either — if you need value-semantics for a table, copy it explicitly in user code.
+- The Map is **not deep-cloned** on save/load. If you need value semantics for a table, copy it explicitly in user code.
 - Property reads via `IndexValue` opcode (pops key + base, pushes value) handle both `ObjectValue` (Map key lookup) and `StringValue` (1-indexed character access).
-- Property writes via `StoreIndex` opcode (§4.2).
+- Property writes via the `StoreIndex` opcode (`idx=`, §2), which sets the key in place.
 
 Tables are how sparkdown represents structured data — they replace ink's separate `LIST` type. The `define X with ...` construct also lowers to a table-like structure.
 
@@ -307,13 +253,11 @@ Suppose you need a new operation `MyOp` that pops two values and pushes a custom
    }
    ```
 
-4. **Decide on snapshot safety.** If your op mutates shared state in-place, record an undo entry on `patch` (§4.2). If it writes to a global via `SetGlobal`, the existing patch handles it. If it's pure stack manipulation, you don't need to do anything.
+4. **Emit the opcode** from a ParsedObject's `GenerateRuntimeObject`. See `StorePropertyAssignment.ts` for an example that emits `EvalStart; base; key; value; StoreIndex; EvalEnd`.
 
-5. **Emit the opcode** from a ParsedObject's `GenerateRuntimeObject`. See `StorePropertyAssignment.ts` for an example that emits `EvalStart; base; key; value; StoreIndex; EvalEnd`.
+5. **Wire it into a lowerer** so the new opcode actually gets emitted from grammar tree input.
 
-6. **Wire it into a lowerer** so the new opcode actually gets emitted from grammar tree input.
-
-7. **Test end-to-end** via a runtime fixture.
+6. **Test end-to-end** via a runtime fixture.
 
 ---
 
@@ -354,7 +298,7 @@ case ControlCommand.CommandType.StoreIndex: {
 }
 ```
 
-Run a test that exercises the path. The trace shows *exactly* how many times the opcode fires, with what operands. Comparing "fires once" vs "fires twice" is often how state-snapshot bugs surface (see the recent `& obj.field = obj.field + 1` investigation).
+Run a test that exercises the path. The trace shows *exactly* how many times the opcode fires, with what operands. Comparing how many times it fires with how many times the source should run it is often how a lowering bug surfaces.
 
 Remove the `console.log` before committing.
 
@@ -362,11 +306,10 @@ Remove the `console.log` before committing.
 
 | Symptom | Likely cause |
 |---|---|
-| Operation runs twice | State snapshot is rewinding but the mutation isn't being undone. Add undo log (§4.2). |
 | `Variable not found` warnings on names that should exist | Lookup is happening before the declaration; or temp-var scope was popped early; or dotted-name fallback can't traverse (check Map type at each segment). |
 | `target not found: -> X.Y.Z` | Path resolution can't find the target. Verify the named container exists in the bytecode JSON (look for `{"X": [..., {"Y": [..., {"Z": ...}]}]}`). |
 | Infinite loop / worker crash | Recursive call with no base case, or a divert chain that loops back without progress. Check the divert path. |
-| Output text doubled / missing newlines | Output-stream snapshot bug, or wrong text/newline emission in lowerer. Step through with `Continue()`. |
+| Output text doubled / missing newlines | Wrong text/newline emission in the lowerer. Step through with `Continue()`. |
 | `Cannot read property 'value' of null` | A primary expression lowered to nothing; check the lowerer for the input shape. |
 
 ---
@@ -388,10 +331,9 @@ If you find a runtime feature that doesn't match inkjs's spec test, check DIVERG
 
 ## 12. Pitfalls
 
-- **Forgetting snapshot safety on a new mutating opcode.** §4.2 has the pattern.
 - **Calling `SetGlobal` without going through `VariablesState.Assign`.** `Assign` resolves whether the target is global or temp; `SetGlobal` is unconditional. Use `Assign` from runtime contexts unless you specifically know you want global.
 - **Forgetting to pop the eval stack after a value-emitting call you don't want output.** Use `pop` opcode, or set `shouldPopReturnedValue = true` on the `FunctionCall`.
-- **Mutating a value retrieved from globals without going through the patch.** Reads return the same reference that's stored. Writes need to either go through `SetGlobal` (atomic replace) or be recorded in the undo log (§4.2).
+- **Mutating a value retrieved from globals when a copy was meant.** Reads return the same reference that's stored, so an in-place write is seen by every variable that holds it. Replace the value through `SetGlobal` to change one variable alone.
 - **Assuming the eval stack is empty between top-level instructions.** It usually is, but some intermediate states leave values on it. Trace with `PrintEvaluationStack` if you're unsure.
 
 ---
@@ -399,8 +341,7 @@ If you find a runtime feature that doesn't match inkjs's spec test, check DIVERG
 ## 13. Useful files to read
 
 - `engine/Story.ts` — `Step`, `ContinueSingleStep`, `PerformLogicAndFlowControl`. Most behavior lives here.
-- `engine/StoryState.ts` — `CopyAndStartPatching`, `RestoreAfterPatch`, `ApplyAnyPatch`.
-- `engine/StatePatch.ts` — patch shape, `RecordPropertyMutation`, `UndoPropertyMutations`.
+- `engine/StoryState.ts` — the output stream (`PushToOutputStream`, `outputStreamEndsInNewline`), the pending line end and the carried step.
 - `engine/VariablesState.ts` — `Assign`, `SetGlobal`, `GetVariableWithName`.
 - `engine/ControlCommand.ts` — the opcode enum (full vocabulary).
 - `engine/NativeFunctionCall.ts` — operator implementations.

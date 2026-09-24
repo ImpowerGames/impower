@@ -48,7 +48,6 @@ type Entry = [text: string, tags: string[], display: [string, unknown][][]] | ["
 interface Run {
   steps: number;
   entries: Entry[];
-  beats: number;
 }
 
 const plainTables = (tables: any[]): [string, unknown][][] => tables.map((table) => [...table.value].map(([key, v]: [string, any]) => [key, v.value]));
@@ -85,7 +84,7 @@ function engineCandidate(compiled: Record<string, any>, perStep: boolean) {
         entries.push(["choices", story.currentChoices.map((choice) => choice.text)]);
         story.ChooseChoiceIndex(0);
       }
-      return { steps, entries, beats: 0 };
+      return { steps, entries };
     },
   };
 }
@@ -118,11 +117,17 @@ function chunkCandidate(compiled: Record<string, any>, perStep: boolean, globals
         entries.push(["choices", stepper.choices.map((choice) => choice.text)]);
         stepper.choose(0);
       }
-      // Every look-ahead that was opened was taken back or let stand.
-      if (stepper.saves !== stepper.restores + stepper.forgets) throw new Error(`${stepper.saves} look-aheads were opened and ${stepper.restores + stepper.forgets} closed`);
-      return { steps: stepper.steps, entries, beats: stepper.saves };
+      return { steps: stepper.steps, entries };
     },
   };
+}
+
+// Whether a chunk's code calls `display`, which makes it a display statement.
+function callsDisplay(chunk: Int32Array): boolean {
+  for (let pc = HEADER; pc < HEADER + chunk[H_CODE_WORDS]!; pc += 2) {
+    if ((chunk[pc]! & 0xff) === Op.CallStd) return true;
+  }
+  return false;
 }
 
 // A run to the end, one call per line, taking the first choice. `onLine` sees
@@ -206,7 +211,7 @@ function editProbe(root: ProgramRoot, globals: Map<string, InkObject>): string {
   });
   if (body < 0) throw new Error("no line of the run ended inside a block of the then clause");
   const entry = clause.ids.indexOf(root.sequences[body]!.owner);
-  const display = clause.chunks.find((chunk) => chunk[H_BLOCKS] === 0 && (chunk[HEADER]! & 0xff) === Op.LineStart);
+  const display = clause.chunks.find((chunk) => chunk[H_BLOCKS] === 0 && callsDisplay(chunk));
   if (!display) throw new Error("the then clause holds no display statement to copy");
 
   // Below the `if` first, so that `entry` still names the `if` when the
@@ -306,7 +311,7 @@ function main() {
   }
 
   const totals: number[] = [];
-  let last: Run = { steps: 0, entries: [], beats: 0 };
+  let last: Run = { steps: 0, entries: [] };
   for (let i = 0; i < config.warmup + config.samples; i++) {
     candidate.prepare();
     const t0 = performance.now();
@@ -327,7 +332,6 @@ function main() {
     displayTables: lines.reduce((n, line) => n + (line[2] as unknown[]).length, 0),
     choiceStops: last.entries.length - lines.length,
     steps,
-    lookAheads: last.beats || undefined,
     layout,
     editProbe: edit,
     outputDigest: createHash("sha256").update(JSON.stringify(last.entries)).digest("hex"),
@@ -344,7 +348,7 @@ function main() {
   if (layout) {
     const beat = layout["displayBeat"] as ProgramRoot["displayBeat"];
     out.push(
-      `  layout: ${layout["chunks"]} chunks in ${layout["sequences"]} sequences, ${layout["instructions"]} instructions, ${layout["bytes"]} bytes, ${layout["symbols"]} symbols; ${report.lookAheads} look-aheads`,
+      `  layout: ${layout["chunks"]} chunks in ${layout["sequences"]} sequences, ${layout["instructions"]} instructions, ${layout["bytes"]} bytes, ${layout["symbols"]} symbols`,
       `  a display beat that interpolates nothing: ${beat.instructions[0]} to ${beat.instructions[1]} instructions, ${beat.objects[0]} to ${beat.objects[1]} runtime objects in the JSON tree`,
       `  edit probe: ${edit}`,
     );

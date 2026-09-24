@@ -204,7 +204,6 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /candidate flat-copy: flow MAIN, [0-9]+ records, [0-9]+ statements in [0-9]+ sequences[^]*insert at the bottom/);
     assert.match(run.stdout, /candidate tree-copy:[^]*replace at the middle/);
     assert.match(run.stdout, /candidate records-splice:[^]*copy of the flow's records/);
-    assert.match(run.stdout, /lookahead: a save and a restore cost [0-9.]+ microseconds in the engine and [0-9.]+ in restorable state/);
   });
 }
 

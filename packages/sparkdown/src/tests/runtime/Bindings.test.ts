@@ -150,50 +150,6 @@ describe("Bindings (ported from inkjs)", () => {
     ]);
   });
 
-  test("lookahead-safe flag controls how often the external is called", () => {
-    // Upstream ink fixture:
-    //   EXTERNAL myAction()
-    //   One
-    //   ~ myAction()
-    //   Two
-    //
-    // The runtime's `ContinueMaximally` does a lookahead pass to
-    // detect glue. When the bound external is registered with
-    // `lookaheadSafe = true`, the lookahead may call it once
-    // speculatively in addition to the "real" call — so the host sees
-    // 2 invocations. With `lookaheadSafe = false`, the runtime breaks
-    // out of the lookahead the first time it sees the external,
-    // ensuring exactly 1 invocation.
-    const ctxSafe = makeRuntimeStoryFromFile("bindings", "lookup-safe-or-not");
-    expect(ctxSafe.errorMessages).toEqual([]);
-    let callCount = 0;
-    ctxSafe.story.BindExternalFunction(
-      "myAction",
-      () => {
-        callCount++;
-      },
-      true,
-    );
-    ctxSafe.story.ContinueMaximally();
-    expect(callCount).toBe(2);
-
-    const ctxUnsafe = makeRuntimeStoryFromFile(
-      "bindings",
-      "lookup-safe-or-not",
-    );
-    expect(ctxUnsafe.errorMessages).toEqual([]);
-    let unsafeCallCount = 0;
-    ctxUnsafe.story.BindExternalFunction(
-      "myAction",
-      () => {
-        unsafeCallCount++;
-      },
-      false,
-    );
-    ctxUnsafe.story.ContinueMaximally();
-    expect(unsafeCallCount).toBe(1);
-  });
-
   test("ValidateExternalBindings errors on a call site with no bound host fn", () => {
     // The runtime auto-validates external bindings on the first
     // Continue (via `_hasValidatedExternals`). When a declared
@@ -212,9 +168,9 @@ describe("Bindings (ported from inkjs)", () => {
 
   test("an external call inside a glued line runs once", () => {
     // Upstream ink fixture uses `<>` (ink's glue marker); sparkdown
-    // uses `..` instead. `One ..` writes no newline, so the step runs
-    // on through the external call to `Two` with nothing to look
-    // ahead past: the call runs once and the line joins.
+    // uses `..` instead. `One ..` writes no newline, so the continue
+    // runs on through the external call to `Two`: the call runs once
+    // and the line joins.
     const ctx = makeRuntimeStoryFromFile(
       "bindings",
       "lookup-safe-or-not-with-post-glue",

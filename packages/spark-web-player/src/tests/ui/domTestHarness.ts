@@ -415,13 +415,14 @@ export function createDOMHarness(
         story.ContinueAsync();
         if (story.asyncContinueComplete) {
           const choices = story.currentChoices.map((c: any) => c.text);
+          const tables = story.currentDisplayInstructions;
+          const text = story.currentText || "";
           // Mirror Game's continue loop: the step's tables, choices and ordered
-          // text make its beat.
-          interpreter.queue(
-            story.currentDisplayInstructions,
-            choices,
-            story.currentText || "",
-          );
+          // text make its beat, and a completed continue with none of them
+          // makes no beat, so the loop continues past it.
+          if (text || tables.length > 0 || choices.length > 0) {
+            interpreter.queue(tables, choices, text);
+          }
         }
         guard++;
       }

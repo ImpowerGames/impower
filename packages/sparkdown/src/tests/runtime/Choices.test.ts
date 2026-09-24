@@ -341,7 +341,7 @@ describe("Choices (ported from inkjs)", () => {
     expect(ctx.story.ContinueMaximally()).toBe("1\n2\n3\n");
   });
 
-  test("state rollback over default choice", () => {
+  test("a fallback choice a thread registered is followed after the line", () => {
     // Upstream ink fixture:
     //   <- make_default_choice
     //   Text.
@@ -351,14 +351,10 @@ describe("Choices (ported from inkjs)", () => {
     //           -> END
     //
     // Spawns a thread that registers a fallback choice `* ->` and
-    // diverts past it. The first Continue emits "Text." from the
-    // top-level. The second Continue auto-follows the fallback (via
-    // `TryFollowDefaultInvisibleChoice`) into the choice body, emitting
-    // `{5}`. State rollback over a default choice requires
-    // `isInvisibleDefault` to survive the internal snapshot/restore
-    // dance the runtime performs around fallback resolution — fixed
-    // by the JSON serialization round-trip in `JsonSerialisation.
-    // WriteChoice` / `JObjectToChoice`.
+    // diverts past it. The first Continue returns "Text." at its newline.
+    // The second reaches the end of the top-level content and follows the
+    // fallback (via `TryFollowDefaultInvisibleChoice`) into the choice body,
+    // emitting `{5}`.
     const ctx = makeRuntimeStoryFromFile(
       "choices",
       "state-rollback-over-default-choice",
