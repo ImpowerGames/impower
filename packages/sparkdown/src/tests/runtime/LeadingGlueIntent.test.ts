@@ -39,7 +39,7 @@ function run(story: RuntimeStory): { texts: string[]; warnings: string[] } {
 function runBoth(source: string) {
   const withMark = makeRuntimeStoryFromSource(source);
   const without = makeRuntimeStoryFromSource(
-    source.replace(/^([ \t]*)\.\.[ \t]*/gm, "$1"),
+    source.replace(/^([ \t]*)\.\.(?!\.)[ \t]*/gm, "$1"),
   );
   const marked = run(withMark.story);
   const plain = run(without.story);
@@ -138,6 +138,7 @@ describe("a line that begins with `..` after a line that ends with `..`", () => 
       [`ALICE:\n  A ..\n  .. B\n`, ["A B\n"]],
       [`ALICE: A ..\nALICE:\n  .. B\n`, ["A B\n"]],
       [`A ..\n// note\n.. B\n`, ["A B\n"]],
+      [`A ..\n...and then.\n`, ["A ...and then.\n"]],
     ] as const) {
       const { ctx, texts, warnings } = runBoth(source);
       expect(ctx.errorMessages).toEqual([]);
@@ -263,6 +264,44 @@ describe("marks that keep their error", () => {
     for (const source of [`A\n  ..\nB\n`, `A ..\n..\nB\n`]) {
       const errors = errorsOf(source);
       expect(errors.map((e) => e.message)).toEqual([BARE_GLUE_ERROR]);
+    }
+  });
+
+  // A comment or a tag after the mark shows nothing, so the line is bare.
+  test("a `..` line with only a comment or a tag after it", () => {
+    for (const source of [
+      `A ..\n.. // note\nB\n`,
+      `A ..\n.. # tag\nB\n`,
+      `ALICE:\n  A ..\n  .. // note\n  B\n`,
+    ]) {
+      const errors = errorsOf(source);
+      expect(errors.map((e) => e.message), source).toEqual([BARE_GLUE_ERROR]);
+    }
+  });
+});
+
+// A `load` line's `..` joins nothing, so the line after it does not continue
+// it, whether the `load` line is inline or the last line of a block.
+describe("a line that begins with `..` after a `load` line", () => {
+  test("is an error", () => {
+    for (const [source, line] of [
+      [`load overworld ..\n.. B\n`, 1],
+      [`:\n  load overworld ..\n.. B\n`, 2],
+      [`:\n  load overworld ..\n  .. B\n`, 2],
+    ] as const) {
+      expect(
+        errorsOf(source).filter((e) => e.message === CONTINUES_ERROR),
+        source,
+      ).toEqual([
+        {
+          message: CONTINUES_ERROR,
+          start: { line, character: source.split("\n")[line]!.indexOf("..") },
+          end: {
+            line,
+            character: source.split("\n")[line]!.indexOf("..") + 2,
+          },
+        },
+      ]);
     }
   });
 });

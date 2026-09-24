@@ -174,7 +174,7 @@ function isInsideAlternatorSet(
   return false;
 }
 
-// Whether `node` begins right where a `..` that begins a line ends.
+// Whether `node` begins right where a `LeadingGlue` mark ends.
 function followsLeadingGlue(node: SyntaxNode): boolean {
   for (
     let before: SyntaxNode | null = node.resolveInner(node.from, -1);
@@ -553,8 +553,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     ) {
       const read = (from: number, to: number) => this.read(from, to);
       if (isInsideInlineAlternator(nodeRef, read)) return annotations;
-      // The spaces after a `..` that begins a line are the author's; the
-      // line shows its text without them either way.
+      // The spaces after a `LeadingGlue` are the author's. At the start of a
+      // line the line shows its text without them; after an interpolation
+      // (`{x} ..   more`) the mark and the spaces are text the player sees.
       if (followsLeadingGlue(nodeRef.node)) return annotations;
       const tightInline = isInsideAnyInlineAlternator(nodeRef, read);
       // Unary `-` collapse: if this WS sits immediately after a unary
