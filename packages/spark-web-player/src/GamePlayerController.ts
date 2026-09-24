@@ -375,9 +375,9 @@ export class GamePlayerController {
     this.publishGameState();
     this._protocols.dispose();
     // What the worker's games show goes with the controller, as it goes when
-    // the preview detaches or PLAY stops.
-    this.endWorkerPlay().catch(console.error);
-    this.detachWorkerPreview().catch(console.error);
+    // the preview detaches or PLAY stops, and so does PLAY's application,
+    // which no detach reaches.
+    this.releaseGames().catch(console.error);
     window.removeEventListener("contextmenu", this.handleContextMenu);
     window.removeEventListener("dragstart", this.handleDragStart);
     window.removeEventListener("resize", this.handleResize);
@@ -1747,13 +1747,19 @@ export class GamePlayerController {
   protected _plays = 0;
 
   async startGameAndApp(restarted?: boolean) {
-    this._plays += 1;
+    const plays = ++this._plays;
+    const stops = this._stops;
     // PLAY runs the real document only, and no suggestion may reach the
     // screen once it has started.
     this.endCompletionPreview();
     if (!this._program) {
       // wait for initial program to be loaded
       await this.loadingInitialProgram;
+      // STOP, a newer PLAY or the controller going while it waited ended
+      // this PLAY before it asked the worker for anything.
+      if (plays !== this._plays || stops !== this._stops || !this._mounted) {
+        return false;
+      }
     }
     if (!this._program) {
       return false;
@@ -1950,6 +1956,13 @@ export class GamePlayerController {
   }
 
   async destroyGameAndApp() {
+    await this.releaseGames();
+    this.updateLaunchStateIcon();
+  }
+
+  /** End PLAY and the preview in the worker and destroy the application
+   *  that showed them, unless a PLAY begun meanwhile owns it. */
+  protected async releaseGames() {
     // A teardown supersedes any pending compile-driven restart; without this
     // the timer fires after STOP and silently resurrects the game.
     this.cancelScheduledRestart();
@@ -1967,7 +1980,6 @@ export class GamePlayerController {
         }
       }
     }
-    this.updateLaunchStateIcon();
   }
 
   /** Stop showing what the worker's game displays: its application goes, and
@@ -2018,14 +2030,21 @@ export class GamePlayerController {
     const plays = this._plays;
     // PLAY's game in the worker answers where it last executed as it stops.
     const lastExecutedLocation = await this.endWorkerPlay();
-    if (plays !== this._plays) {
-      // The author pressed PLAY again while the worker stopped the old run:
-      // the new run is theirs, and this STOP is over.
+    // The author can press PLAY again at any step of this STOP: the new run
+    // is theirs from then on, and this STOP says nothing more of the old one.
+    const overtaken = () => plays !== this._plays;
+    if (overtaken()) {
       return;
     }
     await this.destroyGameAndApp();
+    if (overtaken()) {
+      return;
+    }
     this.showPlayButton();
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    if (overtaken()) {
+      return;
+    }
     sendProtocolMessage(
       GameExitedMessage.type.notification({
         reason,
@@ -2034,6 +2053,9 @@ export class GamePlayerController {
       this.host,
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    if (overtaken()) {
+      return;
+    }
     if (lastExecutedLocation && workspace) {
       // Ensure the workspace simulates a checkpoint from last executed location
       await workspace.selectTextDocument({
@@ -2050,7 +2072,8 @@ export class GamePlayerController {
   protected _stops = 0;
 
   /** Restart the game. Answers false when STOP, or the controller going,
-   *  came while the old game was torn down, and nothing restarted. */
+   *  came while the old game was torn down or the new one started, and
+   *  nothing restarted. */
   async restartGame(): Promise<boolean> {
     const stops = this._stops;
     await this.destroyGameAndApp();
@@ -2058,7 +2081,7 @@ export class GamePlayerController {
       return false;
     }
     await this.startGameAndApp(true);
-    return true;
+    return stops === this._stops && this._mounted && this.playing;
   }
 
   // Compile-driven restart of a RUNNING game, coalesced: compiles arrive at
