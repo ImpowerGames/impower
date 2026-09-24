@@ -6,6 +6,9 @@ export type ConnectPlayMethod = typeof ConnectPlayMessage.method;
 export interface ConnectPlayParams {
   /** The run to connect (`player/play`). */
   run: number;
+  /** The `BroadcastChannel` the game sends its stream on
+   *  (`WorkerGameLink.attach`). */
+  channel: string;
 }
 
 /**

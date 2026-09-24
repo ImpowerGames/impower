@@ -73,6 +73,48 @@ export class LoopbackConnection extends MessageConnection {
   }
 }
 
+/** A `BroadcastChannel` in one process: what one posts arrives at every other
+ *  open channel of its name as a structured clone, one task later, in the
+ *  order it was posted, so PLAY's stream keeps the timing and order the
+ *  loopback port gives the rest. Only the worker posts on one here, so
+ *  `onPost` sees everything the worker sends on a channel. */
+function loopbackBroadcastChannel(onPost: (message: any) => void) {
+  const open = new Map<string, Set<LoopbackBroadcastChannel>>();
+  class LoopbackBroadcastChannel {
+    onmessage: ((e: MessageEvent) => void) | null = null;
+
+    constructor(readonly name: string) {
+      let named = open.get(name);
+      if (!named) {
+        named = new Set();
+        open.set(name, named);
+      }
+      named.add(this);
+    }
+
+    postMessage(message: any) {
+      if (!open.get(this.name)?.has(this)) {
+        throw new Error("BroadcastChannel is closed");
+      }
+      const copy = structuredClone(message);
+      onPost(copy);
+      const peers = [...open.get(this.name)!].filter((c) => c !== this);
+      setTimeout(() => {
+        for (const peer of peers) {
+          if (open.get(this.name)?.has(peer)) {
+            peer.onmessage?.({ data: copy } as MessageEvent);
+          }
+        }
+      }, 0);
+    }
+
+    close() {
+      open.get(this.name)?.delete(this);
+    }
+  }
+  return LoopbackBroadcastChannel;
+}
+
 export const settle = async (tasks = 20) => {
   for (let i = 0; i < tasks; i++) {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -98,17 +140,26 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   // The controller dispatches events on the page's elements, and an event is
   // dispatched only on a target of its own realm.
   const g = globalThis as any;
-  const { Event, CustomEvent } = g;
+  const { Event, CustomEvent, BroadcastChannel } = g;
   g.Event = win.Event;
   g.CustomEvent = win.CustomEvent;
   const restore = () => {
     g.Event = Event;
     g.CustomEvent = CustomEvent;
+    g.BroadcastChannel = BroadcastChannel;
     restoreDOM();
   };
   // Everything the worker sends the page, as the page receives it.
   const toPage: any[] = [];
   const recordMessages = options.recordMessages !== false;
+  // What the worker sends on a channel rather than the connection.
+  const onChannel: any[] = [];
+  g.BroadcastChannel = loopbackBroadcastChannel((message) => {
+    if (recordMessages) {
+      toPage.push(message);
+      onChannel.push(message);
+    }
+  });
   const page = new LoopbackConnection();
   const worker = new LoopbackConnection((message) => {
     if (recordMessages) toPage.push(message);
@@ -319,6 +370,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     link,
     workerState,
     toPage,
+    onChannel,
     toEditor,
     toRouter,
     playing,
