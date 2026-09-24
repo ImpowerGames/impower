@@ -137,6 +137,7 @@ function buildDisplayCalls(
   const isContinuation = lineType === null;
   const joined = isContinuation ? lexicalRouting(parent, ctx) : null;
   const continues = runCheckedLeadingGlue(parent, bodyStart, bodyEnd, ctx);
+  const fresh = followsBranchingBlock(parent, ctx);
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
@@ -229,6 +230,7 @@ function buildDisplayCalls(
             inherit: isContinuation && i > 0,
             open: (trailingGlue != null && !range.extend) || divertJoins,
             continues: continues && i === 0,
+            fresh: fresh && i === 0,
           },
         ),
       );
@@ -370,10 +372,10 @@ interface BeatRange {
   spaces?: string;
 }
 
-// The `..` after a break in the middle of a line, with the spaces after it,
-// when words follow them: `A > .. B` carries on in A's box. An ellipsis
-// (`> ...`) is text.
-const MID_LINE_EXTEND = /^\.\.(?!\.)[ \t]+(?=\S)/;
+// The `..` after a break in the middle of a line, with any spaces after it,
+// when words follow: `A > .. B`, `A > ..B` and `A >..B` carry on in A's box.
+// An ellipsis (`> ...`) is text.
+const MID_LINE_EXTEND = /^\.\.(?!\.)[ \t]*(?=\S)/;
 
 const BODY_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
   "tag",
@@ -1374,7 +1376,7 @@ function lexicalRouting(
     if (lineType === "dialogue") {
       return {
         target: "dialogue",
-        character: read("DialogueCharacterName") || undefined,
+        character: readCue(sib, ctx) || undefined,
       };
     }
     if (lineType === "write") {
@@ -1468,6 +1470,30 @@ function isNodePrecededByExtend(node: SyntaxNode, ctx: LowerContext): boolean {
   return sib != null && endsWithExtend(sib, ctx);
 }
 
+// Whether `node` is the first display line after an `if` or alternator block,
+// past statements that show nothing, where the block holds no line ending with
+// a `..` after a break. A `> ..` before the block was waiting for the block to
+// continue it, so when the branch taken showed nothing this line starts a new
+// box; a block that ends a branch with `> ..` leaves its box for this line.
+function followsBranchingBlock(node: SyntaxNode, ctx: LowerContext): boolean {
+  let sib = precedingConstruct(node);
+  while (sib && !isDisplayLine(sib) && !BRANCHING_BLOCKS.has(sib.name)) {
+    sib = precedingConstruct(sib);
+  }
+  if (!sib || !BRANCHING_BLOCKS.has(sib.name)) return false;
+  let holdsBox = false;
+  const visit = (n: SyntaxNode): void => {
+    if (holdsBox) return;
+    if (DISPLAY_LINE_TYPES[n.name] != null || isDisplayLine(n)) {
+      holdsBox = endsWithExtend(n, ctx);
+      if (holdsBox) return;
+    }
+    for (let c = n.firstChild; c; c = c.nextSibling) visit(c);
+  };
+  visit(sib);
+  return !holdsBox;
+}
+
 // True when `node` ends with a `..` that follows a break: the `..` ends the
 // line (`endsWithTrailingGlue`) and only spaces stand between it and a `>`.
 function endsWithExtend(node: SyntaxNode, ctx: LowerContext): boolean {
@@ -1534,13 +1560,26 @@ function readIdentifier(
   return ctx.read(node.from, node.to).trim();
 }
 
+// A dialogue line's cue as the interpreter reads it: the character's name, and
+// the parenthetical written after it (`ALICE (softly)`), which the beat shows
+// over its text.
+function readCue(node: SyntaxNode, ctx: LowerContext): string | null {
+  const name = getDescendent("DialogueCharacterName", node);
+  if (!name) return null;
+  const cue = ctx.read(name.from, name.to).trim();
+  const parenthetical = getDescendent("DialogueCharacterParenthetical", node);
+  return parenthetical
+    ? `${cue} ${ctx.read(parenthetical.from, parenthetical.to).trim()}`
+    : cue;
+}
+
 // ----- Inline display forms -----
 
 export function lowerInlineDialogue(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  const character = readIdentifier(nodeRef, ctx, "DialogueCharacterName");
+  const character = readCue(nodeRef.node, ctx);
   const { from, to } = extractInlineBodyRange(nodeRef);
   return wrapInWeave(
     buildDisplayContent(
@@ -1628,6 +1667,7 @@ export function lowerLuauInterpolatedStringExpression(
   }
   const breaks = marks?.breaks ?? [];
   const beats = Math.max(breaks.length, 1);
+  const fresh = followsBranchingBlock(nodeRef.node, ctx);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < beats; i++) {
     const beatBody = i === 0 ? body : [];
@@ -1647,6 +1687,7 @@ export function lowerLuauInterpolatedStringExpression(
           pause: i < breaks.length,
           extend: lastBeat && marks?.extend,
           open: lastBeat && marks?.open && !marks.extend,
+          fresh: fresh && i === 0,
         },
       ),
     );
@@ -1763,7 +1804,7 @@ export function lowerBlockDialogue(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  const character = readIdentifier(nodeRef, ctx, "DialogueCharacterName");
+  const character = readCue(nodeRef.node, ctx);
   const { from, to } = extractBlockBodyRange(nodeRef, ctx);
   return wrapInWeave(
     buildDisplayContent(

@@ -24,6 +24,7 @@ interface Table {
   pause?: boolean;
   extend?: boolean;
   open?: boolean;
+  fresh?: boolean;
 }
 
 // Every step that shows something, as its tables.
@@ -42,7 +43,7 @@ function steps(story: RuntimeStory): Table[][] {
           const value = read(key);
           if (typeof value === "string") out[key] = value;
         }
-        for (const key of ["pause", "extend", "open"] as const) {
+        for (const key of ["pause", "extend", "open", "fresh"] as const) {
           if (read(key) === true) out[key] = true;
         }
         return out;
@@ -163,6 +164,42 @@ describe("a `..` after a break carries on in the box after the click", () => {
     const out = run(`A > ..\n[[b]]\nB\n`);
     expect(out.map(text)).toEqual(["A ", "[[b]]", "B"]);
     expect(out[0]!.at(-1)).toMatchObject({ extend: true });
+  });
+
+  test("a `..` touching the words after a mid-line break carries on too", () => {
+    for (const [source, first, second] of [
+      [`Hold on > ..tight.\n`, "Hold on ", "tight."],
+      [`Abso >..lutely.\n`, "Abso", "lutely."],
+    ] as const) {
+      const out = run(source);
+      expect(out.map(text)).toEqual([first, second]);
+      expect(out[0]!.at(-1)).toMatchObject({ pause: true, extend: true });
+    }
+  });
+
+  test("the line after a block whose branch could continue the box is `fresh`", () => {
+    const fresh = (step: Table[] | undefined) =>
+      step?.[0]?.fresh === true;
+    // The branch taken shows nothing, so C must start a new box.
+    const untaken = run(`A > ..\nif false then\n  B\nend\nC\n`);
+    expect(untaken.map(text)).toEqual(["A ", "C"]);
+    expect(fresh(untaken[1])).toBe(true);
+    // Logic between the block and the line keeps the flag on the line.
+    const logic = run(`store x = 0\nA > ..\nif false then\n  B\nend\n& x = 1\nC\n`);
+    expect(fresh(logic[1])).toBe(true);
+    // A block that ends a branch with `> ..` leaves its box for the line.
+    const inside = run(`if true then\n  A > ..\nend\nC\n`);
+    expect(inside.map(text)).toEqual(["A ", "C"]);
+    expect(fresh(inside[1])).toBe(false);
+    // A line after a line, or at the top of a scene, is not.
+    expect(run(`A > ..\nB\n`).some(fresh)).toBe(false);
+  });
+
+  test("a cue's parenthetical rides the table's cue", () => {
+    const out = run(`HERO: A > ..\nHERO (loudly): B\n`);
+    expect(out[1]![0]).toMatchObject({ character: "HERO (loudly)" });
+    const block = run(`HERO (softly):\n  A\n`);
+    expect(block[0]![0]).toMatchObject({ character: "HERO (softly)" });
   });
 
   test("a display line between the break and a `..` makes it an ordinary join", () => {

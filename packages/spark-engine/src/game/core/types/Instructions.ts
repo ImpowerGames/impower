@@ -22,7 +22,9 @@ export interface Instructions {
    *  (`A > ..`): for each text target, how many of its leading events that
    *  box already shows. They are written at once, and only the rest is
    *  revealed with the typewriter. The beat keeps the pictures and the `sound`
-   *  and `voice` audio already playing. */
+   *  and `voice` audio already playing. Empty on a beat with no text of its
+   *  own (pictures, sound or a load while the box waits), which leaves the
+   *  box's text on the page. */
   extended?: Record<string, number>;
   end: number;
 }

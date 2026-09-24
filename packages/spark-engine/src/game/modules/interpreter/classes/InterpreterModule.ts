@@ -171,7 +171,11 @@ export class InterpreterModule extends Module<
     // A continuation of the program just replaced is not a continuation of
     // this one, however alike their sources are: an edit that keeps a line's
     // length keeps its offsets too, so the name alone cannot tell them apart.
+    // Nor is the box a `> ..` of the replaced program left one this
+    // program's lines carry on in; a checkpoint loaded after the update
+    // brings back the box it was taken with.
     delete this._routing;
+    delete this._state.box;
   }
 
   setup() {
@@ -288,6 +292,17 @@ export class InterpreterModule extends Module<
   }
 
   /**
+   * A load beat of its own. While a box is waiting to be carried on in, the
+   * box stays on the page under the loading layout, with the pictures and the
+   * sound and voice it had.
+   */
+  protected loadBeat(load: LoadInstruction[]): Instructions {
+    const beat: Instructions = { load, end: 0 };
+    if (this._state.box) beat.extended = {};
+    return beat;
+  }
+
+  /**
    * Resolve a dialogue cue declaration (`CHARACTER NAME (parenthetical) [>]`)
    * into the name shown, its parenthetical, its position, and the character
    * whose settings type the line.
@@ -361,7 +376,8 @@ export class InterpreterModule extends Module<
    * names the speaker shown and the character whose settings type the text,
    * and a parenthetical on its cue, or on a line of its own before its text,
    * replaces the one shown; without them, the box's own stay. A beat with
-   * neither text nor a break (only pictures or sound) leaves the box waiting.
+   * neither text nor a break (only pictures or sound) leaves the box waiting
+   * and on the page, with empty `extended` counts.
    * `extend` marks a beat a `> ..` ended: the box it shows is kept for the
    * next step, with the `spaces` its table ends with, which join the two.
    */
@@ -436,9 +452,7 @@ export class InterpreterModule extends Module<
       // A beat that leaves the box waiting shows no text, so what it was
       // parsed as for the box is what it shows.
       const contentInstructions =
-        boxInstructions && (carries || boxContent === content)
-          ? boxInstructions
-          : this.parse(content, textTarget, options);
+        boxInstructions ?? this.parse(content, textTarget, options);
       if (pause && !contentInstructions.text) {
         // A beat a `>` break ends waits for a click, so it shows its box even
         // with no text to type.
@@ -465,6 +479,10 @@ export class InterpreterModule extends Module<
             ]?.length ?? 0;
         }
         contentInstructions.extended = extended;
+      } else if (box) {
+        // A beat of only pictures or sound runs at the click and leaves the
+        // box on the page, still waiting for its text.
+        contentInstructions.extended = {};
       }
       if (contentInstructions.text) {
         if (characterParentheticalInstructions) {
@@ -495,9 +513,12 @@ export class InterpreterModule extends Module<
         const lastTextbox = this._state.buffer.at(-1);
         if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
           // If previous textbox did not actually contain any text, fold this result into it.
+          // The merged beat is as much a part of the box as this one is.
           this.merge(lastTextbox, contentInstructions);
           if (contentInstructions.extended) {
             lastTextbox.extended = contentInstructions.extended;
+          } else {
+            delete lastTextbox.extended;
           }
         } else {
           // Otherwise, add this result as a new textbox.
@@ -505,7 +526,7 @@ export class InterpreterModule extends Module<
         }
       }
       if (loads) {
-        this._state.buffer.push({ load: loads, end: 0 });
+        this._state.buffer.push(this.loadBeat(loads));
       }
       if (extend) {
         // The next step carries on in this box: its text shown again at
@@ -604,7 +625,7 @@ export class InterpreterModule extends Module<
             .split(this.WHITESPACE_REGEX)
             .filter(Boolean)
             .map((name) => ({ name }));
-          this._state.buffer!.push({ load: loadInstructions, end: 0 });
+          this._state.buffer!.push(this.loadBeat(loadInstructions));
         }
         before = [];
       };
@@ -624,6 +645,11 @@ export class InterpreterModule extends Module<
       return;
     }
     const pause = tables.some((table) => read(table, "pause") === true);
+    // The first line after an `if` or alternator block: a `> ..` before the
+    // block whose branch showed nothing leaves this line a new box.
+    if (read(tables[0], "fresh") === true) {
+      delete this._state.box;
+    }
     const routed = tables.find((table) => {
       const target = read(table, "target");
       return typeof target === "string" && target;

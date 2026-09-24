@@ -206,7 +206,11 @@ export class Coordinator<G extends Game> {
     // `time` is when a played beat starts on the shared clock; an instant or
     // simulated display has none and shows as soon as the page handles it.
     const updateUI = (time?: number) => {
-      game.module.ui.text.clearAll(transientLayers);
+      // A beat that carries on in the box writes the whole box again; one
+      // with no text of its own (pictures or sound only) leaves it as it is.
+      if (!extended || instructions.text) {
+        game.module.ui.text.clearAll(transientLayers);
+      }
       // A picture the beat shows replaces the one on its layer. A beat that
       // carries on in the box keeps the others.
       if (!extended) {

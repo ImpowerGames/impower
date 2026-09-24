@@ -63,6 +63,8 @@ describe("a box carried on after a click", () => {
   test.each([
     [`  HERO: First > .. second.`, `  HERO: First second.`],
     [`  HERO: Abso >..\n  lutely!`, `  HERO: Absolutely!`],
+    // The two writes hold the same events; both must reach the page.
+    [`  HERO: A >..\n  A`, `  HERO: AA`],
     [`  HERO: One > .. two > .. three.`, `  HERO: One two three.`],
   ])("%s lays out as %s", async (extended, whole) => {
     const harness = await shownAfterClick(extended);

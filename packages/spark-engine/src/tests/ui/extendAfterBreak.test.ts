@@ -178,6 +178,62 @@ describe("a `..` after a break carries on in the box", () => {
     expect(beats[1]?.extended).toBeUndefined();
   });
 
+  test("a branch that shows nothing leaves the line after its block a new box", async () => {
+    const untaken = await beatsOf(
+      `  A > ..\n  if false then\n    B\n  end\n  C`,
+      2,
+    );
+    expect(untaken.beats.map(shown)).toEqual(["A", "C"]);
+    expect(untaken.beats[1]?.extended).toBeUndefined();
+    const taken = await beatsOf(
+      `  A > ..\n  if true then\n    B\n  end\n  C`,
+      3,
+    );
+    expect(taken.beats.map(shown)).toEqual(["A", "A B", "C"]);
+    expect(taken.beats[2]?.extended).toBeUndefined();
+    // A block whose branch ends with `> ..` leaves its box to the next line.
+    const inside = await beatsOf(`  if true then\n    A > ..\n  end\n  C`, 2);
+    expect(inside.beats.map(shown)).toEqual(["A", "A C"]);
+  });
+
+  test("a load line as the continuation keeps the box on the page while it loads", async () => {
+    const { beats } = await beatsOf(`  A > ..\n  load elsewhere\n  B`, 3);
+    expect(beats[1]?.load?.map((load) => load.name)).toEqual(["elsewhere"]);
+    expect(beats[1]?.extended).toEqual({});
+    expect(shown(beats[2])).toBe("A B");
+  });
+
+  test("a parenthetical on the continuation's cue replaces the one shown", async () => {
+    const replaced = await beatsOf(
+      `  HERO (softly): Quiet > ..\n  HERO (loudly): now!`,
+      2,
+    );
+    expect(on(replaced.beats[0], "character_parenthetical")).toBe("(softly)");
+    expect(on(replaced.beats[1], "character_parenthetical")).toBe("(loudly)");
+    expect(on(replaced.beats[1], "dialogue")).toBe("Quiet now!");
+    expect(
+      replaced.beats[1]?.extended?.["character_parenthetical"],
+    ).toBeUndefined();
+    const kept = await beatsOf(`  HERO (softly): Quiet > ..\n  now.`, 2);
+    expect(on(kept.beats[1], "character_parenthetical")).toBe("(softly)");
+    expect(kept.beats[1]?.extended?.["character_parenthetical"]).toBe(1);
+  });
+
+  test("a new program drops the box the replaced one left", async () => {
+    const { harness, beats } = await beatsOf(`  A > ..\n  B`, 1);
+    expect(shown(beats[0])).toBe("A");
+    (harness.game.module.interpreter as any).onProgramUpdate();
+    const next = harness.nextBeat();
+    expect(shown(next)).toBe("B");
+    expect(next?.extended).toBeUndefined();
+  });
+
+  test("a continuation may repeat the text before it", async () => {
+    const { beats } = await beatsOf(`  A >..\n  A`, 2);
+    expect(shown(beats[1])).toBe("AA");
+    expect(beats[1]?.extended).toEqual({ action: 1 });
+  });
+
   test("choices after an extended box attach to it as to any box", async () => {
     const { beats } = await beatsOf(
       `  choose\n    HERO: Pick > ..\n    one.\n    * One\n    * Two\n  end`,
@@ -231,42 +287,74 @@ describe("the extended beat on the page", () => {
       `  HERO:\n    [[a]]\n    First > ..\n    second.`,
       0,
     );
-    const game = harness.game as Game;
-    game.context.system.previewing = undefined;
-    const stopped: string[] = [];
-    const cleared: string[][] = [];
-    vi.spyOn(game.module.audio, "stopChannel").mockImplementation(
-      (channel: string) => {
-        stopped.push(channel);
-        return 0;
-      },
-    );
-    vi.spyOn(game.module.ui.image, "clearAll").mockImplementation(
-      async (targets: string[]) => {
-        cleared.push(targets);
-      },
-    );
-    const play = async (beat: Instructions) => {
-      stopped.length = 0;
-      cleared.length = 0;
+    const played = coordinated(harness);
+    const first = harness.nextBeat()!;
+    await played.play(first);
+    expect(played.stopped).toEqual(["sound", "voice", "typewriter"]);
+    expect(played.clearedImages).toHaveLength(1);
+    const second = harness.nextBeat()!;
+    expect(second.image).toBeUndefined();
+    await played.play(second);
+    expect(played.stopped).toEqual(["typewriter"]);
+    expect(played.clearedImages).toEqual([]);
+  });
+
+  test("a continuation of only pictures keeps the box, its pictures and its sound", async () => {
+    const { harness } = await beatsOf(`  HERO: First > ..\n  [[b]]`, 0);
+    const played = coordinated(harness);
+    await played.play(harness.nextBeat()!);
+    const second = harness.nextBeat()!;
+    expect(second.text).toBeUndefined();
+    expect(second.extended).toEqual({});
+    expect(Object.keys(second.image ?? {})).toEqual(["portrait"]);
+    await played.play(second);
+    expect(played.stopped).toEqual(["typewriter"]);
+    expect(played.clearedImages).toEqual([]);
+    expect(played.clearedText).toEqual([]);
+  });
+});
+
+/** Play beats through the real Coordinator, recording which audio channels
+ *  it stops and which layers it clears. */
+function coordinated(harness: UIHarness) {
+  const game = harness.game as Game;
+  game.context.system.previewing = undefined;
+  const out = {
+    stopped: [] as string[],
+    clearedImages: [] as string[][],
+    clearedText: [] as string[][],
+    async play(beat: Instructions) {
+      out.stopped.length = 0;
+      out.clearedImages.length = 0;
+      out.clearedText.length = 0;
       const coordinator = new Coordinator(game, beat);
       for (let i = 0; i < 20 && !(coordinator as any)._startedExecution; i++) {
         coordinator.onUpdate({ deltaMS: 16 } as any);
         await flushMicrotasks(10);
       }
       expect((coordinator as any)._startedExecution).toBe(true);
-    };
-    const first = harness.nextBeat()!;
-    await play(first);
-    expect(stopped).toEqual(["sound", "voice", "typewriter"]);
-    expect(cleared).toHaveLength(1);
-    const second = harness.nextBeat()!;
-    expect(second.image).toBeUndefined();
-    await play(second);
-    expect(stopped).toEqual(["typewriter"]);
-    expect(cleared).toEqual([]);
-  });
-});
+    },
+  };
+  vi.spyOn(game.module.audio, "stopChannel").mockImplementation(
+    (channel: string) => {
+      out.stopped.push(channel);
+      return 0;
+    },
+  );
+  vi.spyOn(game.module.ui.image, "clearAll").mockImplementation(
+    async (targets: string[]) => {
+      out.clearedImages.push(targets);
+    },
+  );
+  const clearText = game.module.ui.text.clearAll.bind(game.module.ui.text);
+  vi.spyOn(game.module.ui.text, "clearAll").mockImplementation(
+    async (targets: string[]) => {
+      out.clearedText.push(targets);
+      await clearText(targets);
+    },
+  );
+  return out;
+}
 
 // The scrub path: an unconnected game replays the route to the line, and its
 // checkpoint is loaded into a connected game that previews it.

@@ -894,8 +894,11 @@ export default class UIManager extends Manager {
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
     // target already shows exactly this write, leave it untouched. Stored on the
-    // node so it survives the per-edit UIManager swap.
-    const sig = JSON.stringify(instructions);
+    // node so it survives the per-edit UIManager swap. Whether the write is
+    // instant is part of it: a box carried on after a click is written as the
+    // text it shows, at once, then the continuation revealed, and the two can
+    // hold the same events (`A >..` then `A`).
+    const sig = JSON.stringify([instant, instructions]);
     if (
       targetEls.length > 0 &&
       targetEls.every((el) => (el as any).__sdTxt === sig)

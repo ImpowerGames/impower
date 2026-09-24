@@ -205,7 +205,7 @@ exports[`dialogue > character name + parenthetical routing > messages 1`] = `
           "method": "ui/update",
           "params": {
             "attributes": {
-              "text": "HERO",
+              "text": "(cheerfully)",
             },
             "breakpoints": {
               "lg": 1024,
@@ -233,6 +233,54 @@ exports[`dialogue > character name + parenthetical routing > messages 1`] = `
       "instructions": [
         {
           "control": "show",
+          "style": {
+            "text_align": "center",
+          },
+          "text": "(cheerfully)",
+        },
+      ],
+      "target": "character_parenthetical",
+    },
+  },
+  {
+    "kind": "notification",
+    "method": "ui/batch",
+    "params": {
+      "messages": [
+        {
+          "id": "req-5",
+          "kind": "request",
+          "method": "ui/update",
+          "params": {
+            "attributes": {
+              "text": "HERO",
+            },
+            "breakpoints": {
+              "lg": 1024,
+              "md": 768,
+              "sm": 640,
+              "xl": 1280,
+              "xs": 400,
+            },
+            "content": undefined,
+            "element": "e-3",
+            "style": {
+              "display": null,
+            },
+          },
+        },
+      ],
+    },
+  },
+  {
+    "id": "req-6",
+    "kind": "request",
+    "method": "ui/write-text",
+    "params": {
+      "instant": true,
+      "instructions": [
+        {
+          "control": "show",
           "text": "HERO",
         },
       ],
@@ -245,6 +293,7 @@ exports[`dialogue > character name + parenthetical routing > messages 1`] = `
 exports[`dialogue > character name + parenthetical routing > text-targets 1`] = `
 [
   "character_name",
+  "character_parenthetical",
   "dialogue",
 ]
 `;

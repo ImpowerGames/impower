@@ -158,10 +158,10 @@ variables:
   TAG_START: (?:[#]+(?=$|{{WS}}))
   COMMENT_START: (?:[-][-])
   # A `>` that stands alone between spaces or line edges. `\>`, `->`, `>>`
-  # and `>=` are not breaks, because a non-space touches the `>`. A `..` that
-  # touches the `>` and ends the line (`A >..`) joins the next line after the
-  # break.
-  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}|[.][.]{{GLUE_END}}))
+  # and `>=` are not breaks, because a non-space touches the `>`. A `..` may
+  # touch the `>` (`A >..` ending the line, or `A >..B`): after the click, what
+  # follows carries on in the same box. A third dot makes it an ellipsis.
+  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}|[.][.](?![.])))
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
   # A `..` that ends its line joins the next line onto it. Anything but a dot
