@@ -37,6 +37,8 @@ import { IncludedFile } from "../../inkjs/compiler/Parser/ParsedHierarchy/Includ
 import { Knot } from "../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { FunctionCall } from "../../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
+import { CallValueExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
+import { MultiVariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
 import {
   ObjectExpression,
   ObjectExpressionEntry,
@@ -3242,18 +3244,25 @@ export class SparkdownCompiler {
               // children first, mirroring `appendBlockContent`. Must guard on
               // `ownDebugMetadata` (NOT the inheriting `debugMetadata` getter,
               // which returns this weave's value and would skip everything).
-              // Restrict the carry-down to DISPLAY leaves (Text / Tag) — the
-              // content that needs per-line `pathLocations`. Stamping other
-              // child types (e.g. VariableAssignment, scope/flow ControlCommands)
-              // would give them an own source line they didn't have, which
-              // perturbs declaration-collection and scope/collision analysis
-              // (block-scoped `local` shadowing, scene/function call
-              // restrictions) — a whitelist keeps the fix to its purpose.
+              // Restrict the carry-down to the leaves that need per-line
+              // `pathLocations`: display content (Text / Tag) and the
+              // statements a logic line (`& …`) compiles to, so an error
+              // raised by a logic line, and a preview point or breakpoint on
+              // it, resolve to that line. Stamping a block-shaped child
+              // (Choice, Conditional, a nested Weave) would give it the whole
+              // statement's range, which then claims the lines of its nested
+              // content, and a scope/flow ControlCommand has no line of its
+              // own — a whitelist keeps the carry-down to its purpose.
               if (flow.ownDebugMetadata) {
                 for (const child of flow.content) {
                   if (
                     !child.ownDebugMetadata &&
-                    (child instanceof Text || child instanceof Tag)
+                    (child instanceof Text ||
+                      child instanceof Tag ||
+                      child instanceof ParsedVariableAssignment ||
+                      child instanceof MultiVariableAssignment ||
+                      child instanceof FunctionCall ||
+                      child instanceof CallValueExpression)
                   ) {
                     child.debugMetadata = flow.ownDebugMetadata;
                   }

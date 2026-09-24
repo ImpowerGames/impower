@@ -121,7 +121,8 @@ const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
     `  {1 + 2}\n  {1}{2}\n  After the expressions.`,
     [6, 7, 8, 9, 13, 14, 19],
   ],
-  "a print() call": [`  & f()\n  After the print.`, [6, 8, 12, 13, 18]],
+  // The `& f()` logic line (7) covers its own line with its call (#824).
+  "a print() call": [`  & f()\n  After the print.`, [6, 7, 8, 12, 13, 18]],
   "picked choices": [
     `  choose\n    * Take it # picked\n    * Leave it -> later\n  end`,
     [6, 14, 15, 20],
