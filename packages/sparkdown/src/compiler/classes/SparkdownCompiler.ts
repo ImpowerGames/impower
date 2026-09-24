@@ -3511,6 +3511,9 @@ export class SparkdownCompiler {
     // Their Identifier-shaped counterparts get renamed above, so the string side
     // must be kept in lockstep or the temp's declaration and its read diverge.
     // Only SYNTH-matching values are touched, so user strings/display text are safe.
+    // Only a node's own data property is a plain-string name: `VariableAssignment`
+    // exposes `variableName` as a read-only getter over its identifier, which the
+    // identifier pass already renames, and writing through it throws.
     const NAME_STRING_FIELDS = ["tempName", "variableName"];
 
     // Every Identifier-bearing field in the ParsedHierarchy (from the class
@@ -3576,6 +3579,9 @@ export class SparkdownCompiler {
         }
       }
       for (const f of NAME_STRING_FIELDS) {
+        if (!Object.prototype.hasOwnProperty.call(node, f)) {
+          continue;
+        }
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
           found = true;
