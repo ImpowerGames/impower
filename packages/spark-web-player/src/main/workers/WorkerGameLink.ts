@@ -81,10 +81,9 @@ export class WorkerGameLink {
     this._sink = sink;
   }
 
-  /** Deliver PLAY's game's messages to `sink` from now on, both those sent
-   *  on the connection and those sent on the channel whose name this
-   *  returns, which is the sink's until it is detached, and tell the worker
-   *  of the page's frames until then. */
+  /** Deliver PLAY's game's messages to `sink` from now on, from the channel
+   *  whose name this returns alone, which is the sink's until it is
+   *  detached, and tell the worker of the page's frames until then. */
   attachPlay(sink: (message: Message) => void): string {
     this.attach(sink);
     const name = `impower-game-${crypto.randomUUID()}`;
