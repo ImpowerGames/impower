@@ -1532,10 +1532,10 @@ end
   });
 
   it("gates nothing for a cursor inside a function, whose body a preview cannot run to a picture", async () => {
-    // A function's body has no scene to run in: entered from its start, it
-    // runs out of content before it displays anything, and the preview
-    // reports that as the runtime does. The gate follows the writes, which
-    // hold no picture.
+    // A function's body has no scene to run in. Entered from its start, the
+    // preview's step returns at the body's first line, and nothing runs on to
+    // the body's end, where it would run out of content. The gate follows
+    // the writes, which hold no picture.
     const story = `function greet
   [[show portrait bunny]]
   Hello there.
@@ -1559,7 +1559,7 @@ end
     expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
     expect(
       byMethod(h.messages, "game/runtimeError").map((m) => m.params.message),
-    ).toEqual([expect.stringContaining("ran out of content")]);
+    ).toEqual([]);
   });
 
   it("previews nothing for a point the program does not know, and reveals the layouts", async () => {

@@ -159,6 +159,7 @@ describe("Choices (ported from inkjs)", () => {
 
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.Continue()).toBe("After choice\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.length).toBe(1);
 
     ctx.story.ChooseChoiceIndex(0);
@@ -466,8 +467,10 @@ describe("Choices (ported from inkjs)", () => {
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.Continue();
     expect(ctx.story.currentChoices[0]?.text).toBe("hello");
+    // The picked choice echoes "hello" first; the next block's choice comes
+    // with the continue after it.
     ctx.story.ChooseChoiceIndex(0);
-    ctx.story.Continue();
+    expect(ctx.story.ContinueMaximally()).toBe("hello\n");
     expect(ctx.story.currentChoices[0]?.text).toBe("world");
   });
 });

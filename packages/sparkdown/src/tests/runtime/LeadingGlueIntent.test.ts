@@ -10,6 +10,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
+  continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
@@ -38,7 +39,8 @@ function run(story: RuntimeStory): { texts: string[]; warnings: string[] } {
   };
   const texts: string[] = [];
   while (story.canContinue) {
-    texts.push(story.Continue() ?? "");
+    const text = story.Continue() ?? "";
+    if (continueShowedSomething(story)) texts.push(text);
   }
   return { texts, warnings };
 }

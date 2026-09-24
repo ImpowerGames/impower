@@ -12,6 +12,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
+  continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
@@ -32,6 +33,7 @@ function stepsWith<T>(
   const out: [string, T][] = [];
   while (story.canContinue) {
     story.Continue();
+    if (!continueShowedSomething(story)) continue;
     const text = story.currentDisplayInstructions
       .map(
         (table) =>

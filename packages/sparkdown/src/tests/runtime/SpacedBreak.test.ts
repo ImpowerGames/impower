@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  continueShowedSomething,
   displayRouting,
   makeRuntimeStoryFromDirectory,
   makeRuntimeStoryFromSource,
@@ -28,6 +29,7 @@ function continueBeats(
     [];
   while (story.canContinue) {
     const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
     const routed = displayRouting(story).find((r) => r.target);
     beats.push({
       text,

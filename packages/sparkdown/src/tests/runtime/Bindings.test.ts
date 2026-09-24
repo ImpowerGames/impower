@@ -129,8 +129,10 @@ describe("Bindings (ported from inkjs)", () => {
     expect(currentVarValue).toBe(15);
     expect(observerCallCount).toBe(1);
 
+    // The picked choice echoes its text first, and that line returns before
+    // the assignments after it run.
     ctx.story.ChooseChoiceIndex(0);
-    ctx.story.Continue();
+    ctx.story.ContinueMaximally();
     expect(currentVarValue).toBe(25);
     expect(observerCallCount).toBe(2);
   });

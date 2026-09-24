@@ -107,9 +107,9 @@ describe("Diverts (ported from inkjs)", () => {
     // is still runnable (canContinue stays true).
     const ctx = makeRuntimeStoryFromFile("diverts", "path-to-self");
     expect(ctx.errorMessages).toEqual([]);
-    ctx.story.Continue();
+    ctx.story.ContinueMaximally();
     ctx.story.ChooseChoiceIndex(0);
-    ctx.story.Continue();
+    ctx.story.ContinueMaximally();
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.canContinue).toBe(true);
   });
