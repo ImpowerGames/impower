@@ -2037,7 +2037,14 @@ export class Game<T extends M = {}> {
         }
         return true;
       } else if (this._story.canContinue) {
+        const stepsBefore = this._story.stepCount;
         this._story.ContinueAsync();
+        // One step was charged above. A Luau callback runs all of its steps
+        // inside the step that called it, and those count too.
+        this._executionStepsRemaining -= Math.max(
+          0,
+          this._story.stepCount - stepsBefore - 1,
+        );
 
         const prevExecutedLocation = this._executingLocation;
         const pointerPath = this._story.state.previousPointer.path?.toString();

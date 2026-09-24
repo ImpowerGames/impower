@@ -806,7 +806,11 @@ const runUntilDecisionOrBranch = (
       story.pauseBeforeEvaluatingConditions =
         !simulator.willForceCondition(previousPath);
 
+      const stepsBefore = story.stepCount;
       story.ContinueAsync(); // this may hit a condition divert
+      // One step was charged above. A Luau callback runs all of its steps
+      // inside the step that called it, and those count too.
+      budget.stepsRemaining -= Math.max(0, story.stepCount - stepsBefore - 1);
 
       if (story.pausedBeforeCondition) {
         // Pop the last encountered step,

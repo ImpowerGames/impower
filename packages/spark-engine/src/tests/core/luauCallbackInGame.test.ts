@@ -4,11 +4,39 @@
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
-import { lastSearchStats } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import {
+  lastSearchStats,
+  planRoute,
+} from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness } from "../ui/harness/uiTestHarness";
 
 const URI = "inmemory:///main.sd";
+
+const compileProgram = (source: string) => {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: true,
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  } as never);
+  const program = compiler.compile({
+    textDocument: { uri: URI },
+    countAllVisits: true,
+  }).program;
+  expect(program.compiled).toBeTruthy();
+  return program;
+};
 
 const runtimeErrors = (messages: any[]) =>
   messages
@@ -126,6 +154,83 @@ describe("a Luau callback run from a story line in a running game", () => {
   });
 });
 
+// A callback runs all of its steps inside the one step of the story line that
+// called it. Those steps still count: against the callback's own limit, which
+// includes the callbacks nested inside it, and against the game's execution
+// budget, which is what stops a running game that runs away.
+describe("a callback's steps", () => {
+  test("count against the step limit of the callback they are nested in", async () => {
+    // About a million steps in all, though the outer function takes only a
+    // few thousand of its own.
+    const result = await playSecondBeat(
+      `store ok = true\nA\n& ok = pcall(function() for i = 1, 1000 do pcall(function() for j = 1, 200 do end end) end end)\nB {ok}\nC\n`,
+    );
+    expect(result.errors).toEqual([]);
+    expect(result.threw).toBe("");
+    expect(result.text).toBe("B false");
+  });
+
+  const LOOPING_CALLBACK = `-> start
+
+scene start
+  A
+  & table.foreach({1}, function(k, v) for i = 1, 2000 do end end)
+  B
+end
+`;
+
+  test("count against a route search's step budget", () => {
+    const program = compileProgram(LOOPING_CALLBACK);
+    const locator: any = new Game({ program: program as any } as any);
+    locator.setStartFrom({
+      file: URI,
+      line: LOOPING_CALLBACK.split("\n").indexOf("  B"),
+    });
+    const route = planRoute(
+      new Game({ program: program as any } as any).story,
+      "start",
+      locator.startPath as string,
+      { maxSteps: 5000, searchTimeout: Number.MAX_SAFE_INTEGER },
+    );
+    expect(route).toBeNull();
+    expect(lastSearchStats.endReason).toBe("max-steps");
+  });
+
+  test("count against the running game's execution budget", () => {
+    const SOURCE = LOOPING_CALLBACK;
+    const program = compileProgram(SOURCE);
+    const game = new Game({
+      program: program as any,
+      executionStepLimit: 5000,
+      now: () => 0,
+      setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
+        fn(...a);
+        return 0;
+      }) as any,
+    } as any);
+    const anyGame = game as any;
+    const errors: string[] = [];
+    const realError = anyGame.Error.bind(anyGame);
+    anyGame.Error = (message: string, ...rest: unknown[]) => {
+      errors.push(String(message));
+      return realError(message, ...rest);
+    };
+    game.setStartFrom({ file: URI, line: SOURCE.split("\n").indexOf("  B") });
+    const toPath = anyGame.startPath as string;
+    const route = Game.planRoute(
+      game.story,
+      program as any,
+      Game.getSimulateFromPath(toPath),
+      toPath,
+    );
+    expect(route).not.toBeNull();
+    game.patchAndSimulateRoute(route!);
+    expect(errors).toEqual([
+      "Execution exceeded 5000 steps: possible infinite loop",
+    ]);
+  });
+});
+
 // Route search pauses the story before each condition so it can force the
 // result. A comparator's own `if` is not one of the story's decisions, so the
 // sort runs through it and the search reaches the line after the sort.
@@ -150,27 +255,7 @@ end
 `;
 
   test("finds the route to the line after the sort", () => {
-    const compiler = new SparkdownCompiler();
-    compiler.configure({
-      useBuiltinsPrelude: true,
-      seedBuiltinsIntoStory: true,
-      files: [
-        {
-          uri: URI,
-          type: "script",
-          name: "main",
-          ext: "sd",
-          text: SOURCE,
-          version: 1,
-          languageId: "sparkdown",
-        },
-      ],
-    } as never);
-    const program = compiler.compile({
-      textDocument: { uri: URI },
-      countAllVisits: true,
-    }).program;
-    expect(program.compiled).toBeTruthy();
+    const program = compileProgram(SOURCE);
     const newGame = () =>
       new Game({
         program: program as any,

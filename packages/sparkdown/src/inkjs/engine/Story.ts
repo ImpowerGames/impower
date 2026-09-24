@@ -692,6 +692,12 @@ export class Story extends InkObject {
 
   public pausedBeforeCondition: string | null = null;
 
+  /** Every `Step()` this story has run, the steps of Luau callbacks included.
+   *  A callback runs all of its steps inside the one step that called it, so a
+   *  caller that budgets execution per `ContinueAsync()` charges the difference
+   *  in this count, not one step per call. */
+  public stepCount = 0;
+
   public simulator?: Simulator | null = null;
 
   get currentChoices() {
@@ -1501,6 +1507,7 @@ export class Story extends InkObject {
   }
 
   public Step() {
+    this.stepCount++;
     this.pausedBeforeCondition = null; // clear any previous pause
 
     let shouldAddToStream = true;
@@ -4051,16 +4058,18 @@ export class Story extends InkObject {
       // the wrong eval-stack state.
       this.NextContent();
 
-      // Drive Step until the inner Function frame pops back. Bound
-      // iterations to avoid hangs on misbehaving callbacks.
+      // Drive Step until the inner Function frame pops back. Bound the
+      // steps to avoid hangs on misbehaving callbacks, counting the steps
+      // of callbacks nested inside this one, which all run inside one of
+      // its own steps.
       const MAX_STEPS = 100000;
-      let steps = 0;
+      const firstStep = this.stepCount;
       while (
         this.state.callStack.elements.length > savedCallStackLen &&
         !this.state.currentPointer.isNull
       ) {
         this.Step();
-        if (++steps > MAX_STEPS) {
+        if (this.stepCount - firstStep > MAX_STEPS) {
           throw new StoryException(
             "CallLuauFunction: callback exceeded step limit (possible infinite loop)",
           );
@@ -4230,8 +4239,9 @@ export class Story extends InkObject {
       );
       this.NextContent();
 
+      // Bounded as in `CallLuauFunction`, nested callbacks' steps included.
       const MAX_STEPS = 100000;
-      let steps = 0;
+      const firstStep = this.stepCount;
       while (
         this.state.callStack.elements.length > savedCallStackLen &&
         !this.state.currentPointer.isNull
@@ -4256,7 +4266,7 @@ export class Story extends InkObject {
           errs.length = savedErrorCount;
           break;
         }
-        if (++steps > MAX_STEPS) {
+        if (this.stepCount - firstStep > MAX_STEPS) {
           trappedError =
             "pcall: callback exceeded step limit (possible infinite loop)";
           break;
