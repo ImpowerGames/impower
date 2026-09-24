@@ -86,7 +86,6 @@ const gate = () => {
 describe("STOP while PLAY in the worker is starting", () => {
   it("ends PLAY while its game waits on the page to connect", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: PICTURED },
     });
@@ -150,7 +149,6 @@ describe("STOP while PLAY in the worker is starting", () => {
 
   it("leaves no game running when STOP comes before the worker is asked to build one", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -197,7 +195,6 @@ describe("STOP while PLAY in the worker is starting", () => {
 describe("PLAY while a preview is still being displayed", () => {
   it("takes the next program and restarts on an edit", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -252,7 +249,6 @@ describe("PLAY while a preview is still being displayed", () => {
 describe("an edit's restart under way when the author presses STOP", () => {
   it("does not start the game again", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -297,7 +293,6 @@ describe("an edit's restart under way when the author presses STOP", () => {
 describe("pause while PLAY in the worker is starting", () => {
   it("does not pause the game that previews before PLAY's game exists", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -345,7 +340,6 @@ describe("pause while PLAY in the worker is starting", () => {
 describe("pause and unpause while PLAY in the worker is starting", () => {
   it("leaves the game and its application in the state the editor asked for last", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -378,7 +372,6 @@ describe("pause and unpause while PLAY in the worker is starting", () => {
 
   it("hands nothing a stopped start was told to the next PLAY", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -417,7 +410,6 @@ describe("pause and unpause while PLAY in the worker is starting", () => {
 describe("the controls that move time while PLAY in the worker is starting", () => {
   it("keeps a game paused during its start from ticking before the start is answered", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
       manualClock: true,
@@ -452,7 +444,6 @@ describe("the controls that move time while PLAY in the worker is starting", () 
 
   it("steps the game by a clock step made during its start, as its application", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
       manualClock: true,
@@ -482,7 +473,6 @@ describe("the controls that move time while PLAY in the worker is starting", () 
 describe("a runtime error as PLAY's game in the worker starts", () => {
   it("stops PLAY and tells the editor why", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -532,7 +522,6 @@ describe("a runtime error as PLAY's game in the worker starts", () => {
 describe("PLAY pressed again while the worker stops the last run", () => {
   it("leaves the new run and its application to the new PLAY", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -567,7 +556,6 @@ describe("PLAY pressed again while the worker stops the last run", () => {
 describe("a debugger step the worker fails", () => {
   it("answers the editor with the worker's failure", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });

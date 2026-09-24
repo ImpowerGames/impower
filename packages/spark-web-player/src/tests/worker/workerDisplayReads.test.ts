@@ -46,7 +46,6 @@ const AFTER = lineOf("The line after.");
 /** Run the reads. */
 async function reads() {
   const h = await createPlayerHarness({
-    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: FIRST },
   });

@@ -87,11 +87,11 @@ export default class AudioManager extends Manager {
 
   override onDispose() {
     this._audioProbe.stop();
-    // Only retract our own. In preview the Application is rebuilt on every
-    // edit, so the outgoing manager's dispose can land AFTER the incoming
-    // one has published its probe -- deleting unconditionally would then wipe
-    // a live probe and leave `window.__audioProbe` undefined for the rest of
-    // the session, which is exactly what it looked like when this was found.
+    // Only retract our own. The controller replaces the Application after a
+    // detach and for each PLAY, and an application a detach overtook while it
+    // was built is disposed of after its replacement has published its probe:
+    // deleting unconditionally would then wipe a live probe and leave
+    // `window.__audioProbe` undefined for the rest of the session.
     if (
       typeof window !== "undefined" &&
       (window as any).__audioProbe === this._exposedProbe

@@ -13,7 +13,6 @@ import {
 } from "pixi.js";
 import "pixi.js/unsafe-eval";
 import { Clock } from "../../../spark-engine/src/game/core/classes/Clock";
-import { Game } from "../../../spark-engine/src/game/core/classes/Game";
 import { EventMessage } from "../../../spark-engine/src/game/core/classes/messages/EventMessage";
 import { AudioClockMessage } from "../../../spark-engine/src/game/modules/audio/classes/messages/AudioClockMessage";
 import { AudioClock } from "./AudioClock";
@@ -65,8 +64,9 @@ const isEditableTarget = (target: EventTarget | null): boolean => {
   );
 };
 
-/** The game an application shows, as far as it reaches the game: everything
- *  else between the page and the game is a message. */
+/** The game an application shows, which runs in the player's worker: the
+ *  application reaches it only by messages, and it ticks on the worker's own
+ *  frames. */
 export interface GameEndpoint {
   /** Start a new stream of the game's messages to `send`. */
   connect(
@@ -74,16 +74,7 @@ export interface GameEndpoint {
   ): Promise<void>;
   /** Hand the game what the page answers or reports. */
   receive(message: Message): void;
-  /** Advance a running game by one frame. A preview never ticks. */
-  update?(time: Clock): void;
 }
-
-/** A game on this page, as an application reaches it. */
-export const pageGameEndpoint = (game: Game): GameEndpoint => ({
-  connect: (send) => game.connect(send),
-  receive: (message) => game.connection.receive(message),
-  update: (time) => game.update(time),
-});
 
 export class Application implements IApplication {
   protected _game: GameEndpoint;
@@ -282,13 +273,13 @@ export class Application implements IApplication {
     };
 
     // Use the shared AudioContext the controller owns (passed in via
-    // `audioContext`) — including in preview mode, so preview audio (character
-    // voices, sfx) plays. We must NOT create a new context per Application in
-    // preview: the Application is re-created on every edit, so minting one each
-    // time would exhaust the browser's per-page context limit (the reason
-    // preview mode used to skip this entirely). The controller creates a single
-    // shared context once and reuses it; here we only adopt it. Outside preview
-    // (e.g. the standalone player), fall back to creating one if none was passed.
+    // `audioContext`), including in preview mode, so preview audio (character
+    // voices, sfx) plays. A preview never creates a context of its own: the
+    // controller builds a new Application after every detach and for every
+    // PLAY, and a context minted each time would exhaust the browser's
+    // per-page context limit. The controller creates a single shared context
+    // once and reuses it; here we only adopt it. Outside preview (e.g. the
+    // standalone player), fall back to creating one if none was passed.
     const sharedAudioContext =
       audioContext || (this._previewing ? undefined : new AudioContext());
     if (sharedAudioContext) {
@@ -461,7 +452,6 @@ export class Application implements IApplication {
         this.sendAudioClock();
       }
       if (!this._paused) {
-        this._game.update?.(time);
         for (const manager of this._managers) {
           manager.onUpdate(time);
         }

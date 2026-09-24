@@ -20,7 +20,7 @@ import {
   lastSearchStats,
   type RoutePlan,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { RouteSearchLog } from "../main/workers/RouteSearchLog";
 import { searchRouteTo } from "../main/workers/searchRouteTo";
 
@@ -172,15 +172,6 @@ interface CompiledRound extends RouteOutcome {
   options: SimulationOptions;
 }
 
-/**
- * The switch position the suites run in (#680). With the worker displaying the
- * preview, its compiler emits no bytecode, it keeps the stories it displays
- * runnable across later compiles, and between compiles its game displays one
- * of them, which puts that story's values back into the objects the newest
- * story shares with it.
- */
-const POSITION = { worker: false };
-
 /** The session a test is driving, so a comparison made after later compiles
  *  can run the story it compares against. */
 let currentSession: Session | undefined;
@@ -196,9 +187,11 @@ class Session {
   readonly config: { simulationOptions?: SimulationOptions } = {};
   game?: Game;
   text: string;
-  /** With the worker displaying, every story compiled so far, oldest first. */
+  /** Every story compiled so far, oldest first. The player's worker keeps
+   *  the stories it displays runnable across later compiles, and between
+   *  compiles its game displays one of them, which puts that story's values
+   *  back into the objects the newest story shares with it. */
   readonly kept: { program: SparkProgram; story: any }[] = [];
-  readonly keepsStories = POSITION.worker;
   version = 1;
   last?: CompiledRound;
 
@@ -211,7 +204,7 @@ class Session {
     text: string,
     {
       withoutChangeSummary = false,
-      emitCompiledProgram = !POSITION.worker,
+      emitCompiledProgram = false,
     }: {
       withoutChangeSummary?: boolean;
       /** Off, the game routes the compiler's own story and no bytecode is
@@ -251,7 +244,7 @@ class Session {
     if (this.withoutChangeSummary) {
       delete program.changes;
     }
-    if (this.keepsStories && story) {
+    if (story) {
       this.compiler.keepStory(story as never);
       this.kept.push({ program, story });
     }
@@ -298,12 +291,12 @@ class Session {
     };
   }
 
-  /** With the worker displaying, show the story before the newest on the
-   *  game, as a display of the real document after a suggestion, or of a
-   *  kept suggestion, does between compiles. */
+  /** Show the story before the newest on the game, as a display of the real
+   *  document after a suggestion, or of a kept suggestion, does between
+   *  compiles. */
   protected displayEarlierStory() {
     const shown = this.kept.at(-2);
-    if (!this.keepsStories || !shown || !this.game) {
+    if (!shown || !this.game) {
       return;
     }
     this.compiler.activateStory(shown.story);
@@ -432,9 +425,9 @@ function walked(game: Game) {
 /**
  * A whole checkpoint, as far as anything downstream can tell it apart from
  * another: the story it restores, the state of every module, and the game's
- * runtime record. This is what the page loads and what the worker reads its
- * next route's favored decisions out of, so it is what a reused route has to
- * reproduce.
+ * runtime record. This is what the worker's game displays and PLAY's game
+ * starts from, and what the worker reads its next route's favored decisions
+ * out of, so it is what a reused route has to reproduce.
  *
  * Exactly two things are normalized, each because reproducing it is impossible
  * rather than because it is inconvenient:
@@ -662,675 +655,667 @@ afterEach(() => {
 // Everything below rests on `expectSameAnswer`, so it is worth knowing that it
 // can fail. A comparison that quietly accepts a difference turns every test
 // that uses it into a test of nothing.
-for (const worker of [false, true]) {
-  describe(worker ? "with the worker displaying the preview" : "with the page displaying the preview", () => {
-    beforeEach(() => {
-      POSITION.worker = worker;
+describe("the comparison the rest of these tests rest on", () => {
+  const save = (over: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      modules: { ui: { images: ["a"] } },
+      context: {},
+      story: JSON.stringify({ variablesState: { trust: 0 }, storySeed: 41 }),
+      runtime: JSON.stringify({
+        pathsExecutedThisFrame: ["act_one.0"],
+        choicesEncountered: [],
+        conditionsEncountered: [{ selected: true }],
+      }),
+      ...over,
     });
-
-    describe("the comparison the rest of these tests rest on", () => {
-      const save = (over: Record<string, unknown> = {}) =>
-        JSON.stringify({
-          modules: { ui: { images: ["a"] } },
-          context: {},
-          story: JSON.stringify({ variablesState: { trust: 0 }, storySeed: 41 }),
-          runtime: JSON.stringify({
-            pathsExecutedThisFrame: ["act_one.0"],
-            choicesEncountered: [],
-            conditionsEncountered: [{ selected: true }],
-          }),
-          ...over,
-        });
-      const outcome = (over: Partial<RouteOutcome> = {}): RouteOutcome => ({
-        toPath: "act_one.9",
-        checkpoint: save(),
-        simulation: "success",
-        searchSteps: 0,
-        stepPaths: ["a", "b", "c"],
-        ...over,
-      });
-      const differs = (over: Partial<RouteOutcome>) => () =>
-        expectSameAnswer(outcome(over), outcome());
-
-      test("accepts two runs that differ only in the story's random seed", () => {
-        const reseeded = save({
-          story: JSON.stringify({ variablesState: { trust: 0 }, storySeed: 7 }),
-        });
-        expect(differs({ checkpoint: reseeded })).not.toThrow();
-      });
-
-      test("accepts a run the engine reported rewinding over", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-            outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
-          ),
-        ).not.toThrow();
-      });
-
-      // The case that matters, and the one the shape of the gap cannot answer: the
-      // two routes agree on everything the checkpoint holds, because the resumed
-      // one restored a checkpoint taken after the second traversal and so carries
-      // its visit counts, output and variables whether or not its steps are in the
-      // route. If the engine did not report a rewind there, the difference is a
-      // route missing real steps.
-      test("rejects the same run where the engine reported no rewind", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-            outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: [] }),
-          ),
-        ).toThrow();
-      });
-
-      test("rejects the same run where the engine rewound somewhere else", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-            outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["c"] }),
-          ),
-        ).toThrow();
-      });
-
-      test("rejects the same run when nobody watched the expected route", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-            outcome({ stepPaths: ["a", "b", "a", "b", "c"] }),
-          ),
-        ).toThrow();
-      });
-
-      test("rejects the same run when nothing was offered to resume from", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c"] }),
-            outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
-          ),
-        ).toThrow();
-      });
-
-      test("rejects the same run among the steps the route reused", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 3 }),
-            outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
-          ),
-        ).toThrow();
-      });
-
-      test("rejects a second rewound run", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c", "d", "e"], resumedAfter: 1 }),
-            outcome({
-              stepPaths: ["a", "b", "a", "b", "c", "d", "c", "d", "e"],
-              rewoundTo: ["a", "c"],
-            }),
-          ),
-        ).toThrow();
-      });
-
-      test("rejects a run left over at the end of the expected route", () => {
-        expect(() =>
-          expectSameAnswer(
-            outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
-            outcome({ stepPaths: ["a", "b", "c", "b", "c"], rewoundTo: ["b"] }),
-          ),
-        ).toThrow();
-      });
-
-      test("rejects a module's state differing", () => {
-        expect(differs({ checkpoint: save({ modules: { ui: { images: ["b"] } } }) })).toThrow();
-      });
-
-      test("rejects the recorded conditions differing", () => {
-        const other = save({
-          runtime: JSON.stringify({
-            pathsExecutedThisFrame: ["act_one.0"],
-            choicesEncountered: [],
-            conditionsEncountered: [{ selected: false }],
-          }),
-        });
-        expect(differs({ checkpoint: other })).toThrow();
-      });
-
-      test("rejects a position the route never visited", () => {
-        expect(differs({ stepPaths: ["a", "b", "d"] })).toThrow();
-      });
-
-      test("rejects a run the route skipped that was not a repeat", () => {
-        expect(() =>
-          expectSameAnswer(outcome({ stepPaths: ["a", "d"] }), outcome({ stepPaths: ["a", "b", "c", "d"] })),
-        ).toThrow();
-      });
-    });
-
-    describe("a compile whose edit is below the route's last checkpoint", () => {
-      test("replays the route it has, with no search and from that checkpoint", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        const target = at["tail_6"]!;
-        session.compile(target);
-        const deepest = deepestCheckpoint(session.game!.plannedRoute!);
-        expect(deepest).toBeGreaterThanOrEqual(0);
-
-        const searches = watchSearches();
-        const replays = watchReplays();
-        session.edit(
-          "Beat 6 of the long tail.",
-          "Beat 6 of the long tail, at last.",
-        );
-        const after = session.compile(target);
-
-        expect(searches).toEqual([]);
-        expect(after.searchSteps).toBe(-1);
-        expect(after.simulation).toBe("success");
-        expect(replays).toHaveLength(1);
-        expect(replays[0]!.checkpoint).toBe(deepest);
-        expect(replays[0]!.fromStep).toBeGreaterThan(0);
-      });
-
-      test("answers what a search from the top would answer", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        const target = at["tail_6"]!;
-        session.compile(target);
-        session.edit(
-          "Beat 6 of the long tail.",
-          "Beat 6 of the long tail, at last.",
-        );
-        const after = session.compile(target);
-
-        expectSameAnswer(after, fromTheTop(after));
-      });
-
-      test("searches the scene when the compile says nothing about what it changed", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text, { withoutChangeSummary: true });
-        const target = at["tail_6"]!;
-        const first = session.compile(target);
-
-        const searches = watchSearches();
-        session.edit(
-          "Beat 6 of the long tail.",
-          "Beat 6 of the long tail, at last.",
-        );
-        const after = session.compile(target);
-
-        expect(searches).toEqual([{ resumed: false }]);
-        expect(after.searchSteps).toBeGreaterThan(first.searchSteps / 2);
-        expectSameAnswer(after, fromTheTop(after));
-      });
-    });
-
-    describe("a compile that adds a line at the bottom of the scene", () => {
-      test("searches onward from the last checkpoint rather than from the top", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        const first = session.compile(at["tail_7"]!);
-        expect(first.searchSteps).toBeGreaterThan(50);
-        const deepest = deepestCheckpoint(session.game!.plannedRoute!);
-
-        const searches = watchSearches();
-        const replays = watchReplays();
-        session.edit(
-          "  Beat 7 of the long tail.",
-          "  Beat 7 of the long tail.\n  One more beat entirely.",
-        );
-        const target = at["tail_7"]! + 1;
-        const after = session.compile(target);
-
-        expect(after.simulation).toBe("success");
-        expect(after.resumption).toMatchObject({ replayOnly: false });
-        expect(after.resumption.stepIndex).toBeGreaterThan(0);
-        expect(searches).toEqual([{ resumed: true }]);
-        // The one search that ran covered the added beat, not the scene: the whole
-        // scene costs what the first compile above spent.
-        expect(after.searchSteps).toBeGreaterThan(0);
-        expect(after.searchSteps).toBeLessThan(first.searchSteps / 4);
-        expect(replays[0]!.checkpoint).toBe(deepest);
-      });
-
-      test("answers what a search from the top would answer", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        session.compile(at["tail_7"]!);
-        session.edit(
-          "  Beat 7 of the long tail.",
-          "  Beat 7 of the long tail.\n  One more beat entirely.",
-        );
-        const after = session.compile(at["tail_7"]! + 1);
-
-        expectSameAnswer(after, fromTheTop(after));
-      });
-    });
-
-    describe("a compile that changes a statement the route already ran", () => {
-      test("resumes from no checkpoint captured after it", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        const target = at["tail_6"]!;
-        session.compile(target);
-        const route = session.game!.plannedRoute!;
-        const changedLine = at["one_2"]!;
-        // The deepest checkpoint the route captured before the statement about to
-        // change. Anything past it was captured with that statement as it reads
-        // now, so resuming from it would carry the old reading forward.
-        const allowed = Math.max(
-          -1,
-          ...route.steps
-            .filter((s) => s.location != null && s.location[1]! < changedLine)
-            .map((s) => s.checkpoint ?? -1),
-        );
-
-        const replays = watchReplays();
-        session.edit(
-          "Beat 2 of the first act.",
-          "Beat 2 of the first act, rewritten.",
-        );
-        const after = session.compile(target);
-
-        expect(replays.length).toBeGreaterThan(0);
-        for (const replay of replays) {
-          expect(replay.checkpoint).toBeLessThanOrEqual(allowed);
-        }
-        expectSameAnswer(after, fromTheTop(after));
-      });
-    });
-
-    describe("a preview compile", () => {
-      test("reuses the route and answers what a search from the top would", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        const target = at["tail_6"]!;
-        session.compile(target);
-
-        const searches = watchSearches();
-        const preview = session.preview(
-          "Beat 6 of the long tail.",
-          "Beat 6 of the long tail, suggested.",
-          target,
-        );
-
-        expect(searches).toEqual([]);
-        expectSameAnswer(preview, fromTheTop(preview));
-      });
-
-      test("leaves the real program's next route able to resume too", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        const target = at["tail_6"]!;
-        session.compile(target);
-        session.preview(
-          "Beat 6 of the long tail.",
-          "Beat 6 of the long tail, suggested.",
-          target,
-        );
-
-        const searches = watchSearches();
-        const after = session.compile(target);
-
-        expect(searches).toEqual([]);
-        expectSameAnswer(after, fromTheTop(after));
-      });
-    });
-
-    // Each of these changes what the story does along a route without editing a
-    // line the route runs through: a declaration whose value every checkpoint's
-    // variables embed, or an edit that moves a visit-count flag or a divert target
-    // inside a scene nobody touched. The compile must refuse to call itself
-    // confined, the route must be searched again, and the answer must be the one a
-    // search from the top gives.
-    const HAZARDS: { name: string; find: string; replace: string }[] = [
-      {
-        name: "a store's value changes",
-        find: "store trust = 0",
-        replace: "store trust = 7",
-      },
-      {
-        name: "a new global is declared",
-        find: "store key = false",
-        replace: "store key = false\nstore extra = 3",
-      },
-      {
-        name: "a constant is declared below the route",
-        find: "scene act_two",
-        replace: "const LATE = 4\n\nscene act_two",
-      },
-      {
-        name: "a later line first reads an earlier container's visit count",
-        find: "  Beat 0 of the second act.",
-        replace: "  Beat 0 of the second act. It has run {act_one} times.",
-      },
-      {
-        // The same hazard written inside the scene the route runs through. The
-        // scene's own shape is expected to change here, so the comparison that
-        // catches the case above cannot be the one that catches this: what moves is
-        // how much counting the scene requires, and every checkpoint taken before
-        // it started counting is short a visit it cannot reconstruct.
-        name: "a later line first reads the visit count of the scene being routed",
-        find: "  Beat 7 of the long tail.",
-        replace: "  Beat 7 of the long tail. It has run {act_one} times.",
-      },
-      {
-        name: "a flow below the route is renamed",
-        find: "scene act_two",
-        replace: "scene act_three",
-      },
-      {
-        name: "a scene is added below the route",
-        find: "scene act_two",
-        replace: "scene act_interlude\n  A quiet moment.\nend\n\nscene act_two",
-      },
-      {
-        name: "a function is added below the route",
-        find: "scene act_two",
-        replace: "function late(n)\n  return n + 1\nend\n\nscene act_two",
-      },
-    ];
-
-    // Each case runs with the bytecode emitted and without it, because a compile
-    // that writes none has to reach the same verdict from the same evidence.
-    const EMISSION = [
-      { emitCompiledProgram: true, mode: "emitting" },
-      { emitCompiledProgram: false, mode: "not emitting" },
-    ];
-
-    describe.each(EMISSION)("a change the route's own lines cannot account for, $mode", ({ emitCompiledProgram }) => {
-      for (const hazard of HAZARDS) {
-        test(`is searched again (${hazard.name})`, () => {
-          const { text, at } = screenplay();
-          const session = new Session(text, { emitCompiledProgram });
-          const target = at["tail_6"]!;
-          session.compile(target);
-
-          const searches = watchSearches();
-          session.edit(hazard.find, hazard.replace);
-          const after = session.compile(target);
-
-          expect({
-            confined: after.changes?.confined,
-            resumed: after.resumption.stepIndex != null,
-          }).toEqual({ confined: false, resumed: false });
-          expect(searches.length).toBeGreaterThan(0);
-          expectSameAnswer(after, fromTheTop(after));
-        });
-      }
-
-      // The same hazard again, written so that nothing which merely adds up how
-      // much counting a scene does can catch it. Two labels stand in the first act
-      // and one of them is read from the bottom of the scene; moving the read to
-      // the other label stops one container counting and starts another under the
-      // same flags. Every checkpoint taken before the move carries a count for the
-      // container that no longer keeps one and none for the container that now
-      // does, so a route resumed from one reports the wrong number of visits.
-      test("is searched again (a later line reads a different container's visit count)", () => {
-        const { text } = screenplay();
-        const READ = "  Beat 7 of the long tail. It has run {act_one.alpha} times.";
-        const labelled = withLabels(text).replace("  Beat 7 of the long tail.", READ);
-        const target = labelled.split("\n").indexOf(READ);
-        expect(target, "the line being routed to is in the fixture").toBeGreaterThan(
-          0,
-        );
-        const session = new Session(labelled, { emitCompiledProgram });
-        const before = session.compile(target);
-        expect(
-          (before.program.diagnostics?.[URI] ?? []).filter(
-            (d) => d.severity === 1,
-          ),
-          "the fixture compiles clean",
-        ).toEqual([]);
-
-        const searches = watchSearches();
-        session.edit("{act_one.alpha}", "{act_one.beta}");
-        const after = session.compile(target);
-
-        expect({
-          confined: after.changes?.confined,
-          resumed: after.resumption.stepIndex != null,
-        }).toEqual({ confined: false, resumed: false });
-        expect(searches.length).toBeGreaterThan(0);
-        expectSameAnswer(after, fromTheTop(after));
-      });
-    });
-
-    /** A small deterministic generator, so a failing sequence is reproducible. */
-    function rng(seed: number) {
-      let state = seed >>> 0;
-      return () => {
-        state = (state * 1664525 + 1013904223) >>> 0;
-        return state / 4294967296;
-      };
-    }
-
-    describe("randomized edit sequences", () => {
-      test("never answer differently from a search of the whole scene", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text);
-        const targets = ["tail_1", "tail_4", "tail_7", "doorOpen", "one_5"].map(
-          (mark) => at[mark]!,
-        );
-        let target = targets[2]!;
-        session.compile(target);
-
-        const next = rng(20260920);
-        const rounds: string[] = [];
-        for (let i = 0; i < 24; i += 1) {
-          const roll = next();
-          const beat = Math.floor(next() * 8);
-          const suffix = ` (${i})`;
-          let round: CompiledRound;
-          if (roll < 0.2) {
-            // Move the cursor without editing anything.
-            target = targets[Math.floor(next() * targets.length)]!;
-            round = session.compile(target);
-            rounds.push(`move to ${target}`);
-          } else if (roll < 0.4) {
-            // A suggestion highlighted in the list: compiled, never applied.
-            const find = `Beat ${beat} of the long tail.`;
-            round = session.preview(find, `${find}${suffix}`, target);
-            rounds.push(`preview ${find}`);
-          } else if (roll < 0.6) {
-            // An edit to the beat the cursor is on.
-            const find = `Beat ${beat} of the long tail.`;
-            session.edit(find, `${find}${suffix}`);
-            round = session.compile(target);
-            rounds.push(`edit tail ${beat}`);
-          } else if (roll < 0.75) {
-            // An edit above everything the route runs through.
-            const find = `Beat ${beat} of the first act.`;
-            session.edit(find, `${find}${suffix}`);
-            round = session.compile(target);
-            rounds.push(`edit first act ${beat}`);
-          } else if (roll < 0.85) {
-            // An edit in a scene the route never enters.
-            const find = `Beat ${beat} of the second act.`;
-            session.edit(find, `${find}${suffix}`);
-            round = session.compile(target);
-            rounds.push(`edit second act ${beat}`);
-          } else if (roll < 0.95) {
-            // A line added at the bottom of the scene.
-            const find = "  Beat 7 of the long tail.";
-            session.edit(find, `${find}\n  Added beat${suffix}.`);
-            round = session.compile(target);
-            rounds.push(`insert after the tail`);
-          } else {
-            // A global's value, which every checkpoint's variables embed.
-            session.edit("store trust = ", `store trust =  `);
-            round = session.compile(target);
-            rounds.push(`touch a global`);
-          }
-          expectSameAnswer(round, fromTheTop(round), rounds.join(" | "));
-        }
-      });
-    });
-
-    // A player that holds the compiler in its own worker routes the compiler's own
-    // story and never reads bytecode, so it compiles with emission off. Whether a
-    // compile is confined is a question about the program, not about whether it was
-    // written out, so the verdict has to be the same one.
-    describe("a compile that emits no bytecode", () => {
-      test("certifies an edit inside one beat and replays with no search", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text, { emitCompiledProgram: false });
-        const target = at["tail_6"]!;
-        session.compile(target);
-        const deepest = deepestCheckpoint(session.game!.plannedRoute!);
-        expect(deepest).toBeGreaterThanOrEqual(0);
-
-        const searches = watchSearches();
-        const replays = watchReplays();
-        session.edit(
-          "Beat 6 of the long tail.",
-          "Beat 6 of the long tail, at last.",
-        );
-        const after = session.compile(target);
-
-        expect(after.program.compiled).toBeUndefined();
-        expect(after.changes?.confined).toBe(true);
-        expect(searches).toEqual([]);
-        expect(after.searchSteps).toBe(-1);
-        expect(replays).toHaveLength(1);
-        expect(replays[0]!.checkpoint).toBe(deepest);
-        expectSameAnswer(after, fromTheTop(after));
-      });
-
-      test("never serializes the program", () => {
-        const { text, at } = screenplay();
-        const session = new Session(text, { emitCompiledProgram: false });
-        session.compiler.profilerId = "713";
-        const proto = SparkdownCompiler.prototype as unknown as Record<string, any>;
-        const serialize = vi.spyOn(proto, "serializeCompiledProgram");
-        const measure = vi.spyOn(performance, "measure");
-        const target = at["tail_6"]!;
-
-        session.compile(target);
-        session.edit(
-          "Beat 6 of the long tail.",
-          "Beat 6 of the long tail, at last.",
-        );
-        session.preview(
-          "Beat 5 of the long tail.",
-          "Beat 5 of the long tail, suggested.",
-          target,
-        );
-        const after = session.compile(target);
-
-        const phases = measure.mock.calls.map(([name]) => String(name));
-        expect(serialize).not.toHaveBeenCalled();
-        expect(phases.filter((name) => name.includes("ink/json"))).toEqual([]);
-        // The walk that stands in for serialization is measured under its own name.
-        expect(phases.some((name) => name.includes("ink/flowShapes"))).toBe(true);
-        expect(after.program.compiled).toBeUndefined();
-        expect(after.program.compiledBuffer).toBeUndefined();
-        expect(after.changes?.confined).toBe(true);
-      });
-    });
-
-    describe("randomized edit sequences, emitting and not", () => {
-      test("reach the same verdict on every compile", () => {
-        const text = withLabels(screenplay().text);
-        const lines = text.split("\n");
-        const targets = [
-          "  Beat 1 of the long tail.",
-          "  Beat 4 of the long tail.",
-          "  Beat 7 of the long tail.",
-          "    The door is open.",
-          "  Beat 5 of the first act.",
-        ].map((line) => lines.indexOf(line));
-        expect(targets.every((line) => line > 0)).toBe(true);
-        const emitting = new Session(text);
-        const silent = new Session(text, { emitCompiledProgram: false });
-        const both = (act: (session: Session) => CompiledRound) => {
-          const a = act(emitting);
-          const b = act(silent);
-          expect(emitting.text).toBe(silent.text);
-          return [a, b] as const;
-        };
-        let target = targets[2]!;
-        both((s) => s.compile(target));
-
-        // The two reproductions #653's reviews found, as edits the sequence can
-        // make: the first `{act_one}` reference inside the scene being routed, and
-        // counting moving between two labels.
-        const SCENE_READ = " It has run {act_one} times.";
-        let sceneRead = false;
-        let labelRead: "alpha" | "beta" | undefined;
-
-        const next = rng(20260921);
-        const rounds: string[] = [];
-        const verdicts = new Set<boolean | undefined>();
-        const seen = new Set<string>();
-        for (let i = 0; i < 40; i += 1) {
-          const roll = next();
-          const beat = Math.floor(next() * 8);
-          const suffix = ` (${i})`;
-          let label: string;
-          let pair: readonly [CompiledRound, CompiledRound];
-          if (roll < 0.15) {
-            target = targets[Math.floor(next() * targets.length)]!;
-            label = "move";
-            pair = both((s) => s.compile(target));
-          } else if (roll < 0.35) {
-            const find = `Beat ${beat} of the long tail.`;
-            label = "preview";
-            pair = both((s) => s.preview(find, `${find}${suffix}`, target));
-          } else if (roll < 0.5) {
-            const find = `Beat ${beat} of the long tail.`;
-            label = "edit tail";
-            pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
-          } else if (roll < 0.6) {
-            const find = `Beat ${beat} of the first act.`;
-            label = "edit first act";
-            pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
-          } else if (roll < 0.68) {
-            const find = `Beat ${beat} of the second act.`;
-            label = "edit second act";
-            pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
-          } else if (roll < 0.8) {
-            const find = "Beat 6 of the long tail.";
-            label = sceneRead ? "drop the scene read" : "add the scene read";
-            pair = both((s) => {
-              if (sceneRead) {
-                s.edit(SCENE_READ, "");
-              } else {
-                s.edit(find, `${find}${SCENE_READ}`);
-              }
-              return s.compile(target);
-            });
-            sceneRead = !sceneRead;
-          } else if (roll < 0.95) {
-            const to = labelRead === "alpha" ? "beta" : "alpha";
-            label = labelRead ? `move the label read to ${to}` : "add a label read";
-            pair = both((s) => {
-              if (labelRead) {
-                s.edit(`{act_one.${labelRead}}`, `{act_one.${to}}`);
-              } else {
-                const find = "Beat 7 of the long tail.";
-                s.edit(find, `${find} Counted {act_one.${to}}.`);
-              }
-              return s.compile(target);
-            });
-            labelRead = to;
-          } else {
-            label = "touch a global";
-            pair = both((s) => (s.edit("store trust = ", "store trust =  "), s.compile(target)));
-          }
-          rounds.push(label);
-          seen.add(label);
-          const note = rounds.join(" | ");
-          const [on, off] = pair;
-          expect(off.changes?.confined, note).toBe(on.changes?.confined);
-          verdicts.add(off.changes?.confined);
-          expectSameAnswer(off, fromTheTop(off), note);
-        }
-        // A sequence that never certified anything, or never refused, or never made
-        // the two edits it exists for, would prove nothing.
-        expect([...verdicts].sort()).toEqual([false, true]);
-        expect(seen).toContain("add the scene read");
-        expect(seen).toContain("move the label read to beta");
-      });
-    });
+  const outcome = (over: Partial<RouteOutcome> = {}): RouteOutcome => ({
+    toPath: "act_one.9",
+    checkpoint: save(),
+    simulation: "success",
+    searchSteps: 0,
+    stepPaths: ["a", "b", "c"],
+    ...over,
   });
+  const differs = (over: Partial<RouteOutcome>) => () =>
+    expectSameAnswer(outcome(over), outcome());
+
+  test("accepts two runs that differ only in the story's random seed", () => {
+    const reseeded = save({
+      story: JSON.stringify({ variablesState: { trust: 0 }, storySeed: 7 }),
+    });
+    expect(differs({ checkpoint: reseeded })).not.toThrow();
+  });
+
+  test("accepts a run the engine reported rewinding over", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
+      ),
+    ).not.toThrow();
+  });
+
+  // The case that matters, and the one the shape of the gap cannot answer: the
+  // two routes agree on everything the checkpoint holds, because the resumed
+  // one restored a checkpoint taken after the second traversal and so carries
+  // its visit counts, output and variables whether or not its steps are in the
+  // route. If the engine did not report a rewind there, the difference is a
+  // route missing real steps.
+  test("rejects the same run where the engine reported no rewind", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: [] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects the same run where the engine rewound somewhere else", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["c"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects the same run when nobody watched the expected route", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects the same run when nothing was offered to resume from", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"] }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects the same run among the steps the route reused", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 3 }),
+        outcome({ stepPaths: ["a", "b", "a", "b", "c"], rewoundTo: ["a"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects a second rewound run", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c", "d", "e"], resumedAfter: 1 }),
+        outcome({
+          stepPaths: ["a", "b", "a", "b", "c", "d", "c", "d", "e"],
+          rewoundTo: ["a", "c"],
+        }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects a run left over at the end of the expected route", () => {
+    expect(() =>
+      expectSameAnswer(
+        outcome({ stepPaths: ["a", "b", "c"], resumedAfter: 1 }),
+        outcome({ stepPaths: ["a", "b", "c", "b", "c"], rewoundTo: ["b"] }),
+      ),
+    ).toThrow();
+  });
+
+  test("rejects a module's state differing", () => {
+    expect(differs({ checkpoint: save({ modules: { ui: { images: ["b"] } } }) })).toThrow();
+  });
+
+  test("rejects the recorded conditions differing", () => {
+    const other = save({
+      runtime: JSON.stringify({
+        pathsExecutedThisFrame: ["act_one.0"],
+        choicesEncountered: [],
+        conditionsEncountered: [{ selected: false }],
+      }),
+    });
+    expect(differs({ checkpoint: other })).toThrow();
+  });
+
+  test("rejects a position the route never visited", () => {
+    expect(differs({ stepPaths: ["a", "b", "d"] })).toThrow();
+  });
+
+  test("rejects a run the route skipped that was not a repeat", () => {
+    expect(() =>
+      expectSameAnswer(outcome({ stepPaths: ["a", "d"] }), outcome({ stepPaths: ["a", "b", "c", "d"] })),
+    ).toThrow();
+  });
+});
+
+describe("a compile whose edit is below the route's last checkpoint", () => {
+  test("replays the route it has, with no search and from that checkpoint", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    const target = at["tail_6"]!;
+    session.compile(target);
+    const deepest = deepestCheckpoint(session.game!.plannedRoute!);
+    expect(deepest).toBeGreaterThanOrEqual(0);
+
+    const searches = watchSearches();
+    const replays = watchReplays();
+    session.edit(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, at last.",
+    );
+    const after = session.compile(target);
+
+    expect(searches).toEqual([]);
+    expect(after.searchSteps).toBe(-1);
+    expect(after.simulation).toBe("success");
+    expect(replays).toHaveLength(1);
+    expect(replays[0]!.checkpoint).toBe(deepest);
+    expect(replays[0]!.fromStep).toBeGreaterThan(0);
+  });
+
+  test("answers what a search from the top would answer", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    const target = at["tail_6"]!;
+    session.compile(target);
+    session.edit(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, at last.",
+    );
+    const after = session.compile(target);
+
+    expectSameAnswer(after, fromTheTop(after));
+  });
+
+  test("searches the scene when the compile says nothing about what it changed", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text, { withoutChangeSummary: true });
+    const target = at["tail_6"]!;
+    const first = session.compile(target);
+
+    const searches = watchSearches();
+    session.edit(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, at last.",
+    );
+    const after = session.compile(target);
+
+    expect(searches).toEqual([{ resumed: false }]);
+    expect(after.searchSteps).toBeGreaterThan(first.searchSteps / 2);
+    expectSameAnswer(after, fromTheTop(after));
+  });
+});
+
+describe("a compile that adds a line at the bottom of the scene", () => {
+  test("searches onward from the last checkpoint rather than from the top", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    const first = session.compile(at["tail_7"]!);
+    expect(first.searchSteps).toBeGreaterThan(50);
+    const deepest = deepestCheckpoint(session.game!.plannedRoute!);
+
+    const searches = watchSearches();
+    const replays = watchReplays();
+    session.edit(
+      "  Beat 7 of the long tail.",
+      "  Beat 7 of the long tail.\n  One more beat entirely.",
+    );
+    const target = at["tail_7"]! + 1;
+    const after = session.compile(target);
+
+    expect(after.simulation).toBe("success");
+    expect(after.resumption).toMatchObject({ replayOnly: false });
+    expect(after.resumption.stepIndex).toBeGreaterThan(0);
+    expect(searches).toEqual([{ resumed: true }]);
+    // The one search that ran covered the added beat, not the scene: the whole
+    // scene costs what the first compile above spent.
+    expect(after.searchSteps).toBeGreaterThan(0);
+    expect(after.searchSteps).toBeLessThan(first.searchSteps / 4);
+    expect(replays[0]!.checkpoint).toBe(deepest);
+  });
+
+  test("answers what a search from the top would answer", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    session.compile(at["tail_7"]!);
+    session.edit(
+      "  Beat 7 of the long tail.",
+      "  Beat 7 of the long tail.\n  One more beat entirely.",
+    );
+    const after = session.compile(at["tail_7"]! + 1);
+
+    expectSameAnswer(after, fromTheTop(after));
+  });
+});
+
+describe("a compile that changes a statement the route already ran", () => {
+  test("resumes from no checkpoint captured after it", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    const target = at["tail_6"]!;
+    session.compile(target);
+    const route = session.game!.plannedRoute!;
+    const changedLine = at["one_2"]!;
+    // The deepest checkpoint the route captured before the statement about to
+    // change. Anything past it was captured with that statement as it reads
+    // now, so resuming from it would carry the old reading forward.
+    const allowed = Math.max(
+      -1,
+      ...route.steps
+        .filter((s) => s.location != null && s.location[1]! < changedLine)
+        .map((s) => s.checkpoint ?? -1),
+    );
+
+    const replays = watchReplays();
+    session.edit(
+      "Beat 2 of the first act.",
+      "Beat 2 of the first act, rewritten.",
+    );
+    const after = session.compile(target);
+
+    expect(replays.length).toBeGreaterThan(0);
+    for (const replay of replays) {
+      expect(replay.checkpoint).toBeLessThanOrEqual(allowed);
+    }
+    expectSameAnswer(after, fromTheTop(after));
+  });
+});
+
+describe("a preview compile", () => {
+  test("reuses the route and answers what a search from the top would", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    const target = at["tail_6"]!;
+    session.compile(target);
+
+    const searches = watchSearches();
+    const preview = session.preview(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, suggested.",
+      target,
+    );
+
+    expect(searches).toEqual([]);
+    expectSameAnswer(preview, fromTheTop(preview));
+  });
+
+  test("leaves the real program's next route able to resume too", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    const target = at["tail_6"]!;
+    session.compile(target);
+    session.preview(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, suggested.",
+      target,
+    );
+
+    const searches = watchSearches();
+    const after = session.compile(target);
+
+    expect(searches).toEqual([]);
+    expectSameAnswer(after, fromTheTop(after));
+  });
+});
+
+// Each of these changes what the story does along a route without editing a
+// line the route runs through: a declaration whose value every checkpoint's
+// variables embed, or an edit that moves a visit-count flag or a divert target
+// inside a scene nobody touched. The compile must refuse to call itself
+// confined, the route must be searched again, and the answer must be the one a
+// search from the top gives.
+const HAZARDS: { name: string; find: string; replace: string }[] = [
+  {
+    name: "a store's value changes",
+    find: "store trust = 0",
+    replace: "store trust = 7",
+  },
+  {
+    name: "a new global is declared",
+    find: "store key = false",
+    replace: "store key = false\nstore extra = 3",
+  },
+  {
+    name: "a constant is declared below the route",
+    find: "scene act_two",
+    replace: "const LATE = 4\n\nscene act_two",
+  },
+  {
+    name: "a later line first reads an earlier container's visit count",
+    find: "  Beat 0 of the second act.",
+    replace: "  Beat 0 of the second act. It has run {act_one} times.",
+  },
+  {
+    // The same hazard written inside the scene the route runs through. The
+    // scene's own shape is expected to change here, so the comparison that
+    // catches the case above cannot be the one that catches this: what moves is
+    // how much counting the scene requires, and every checkpoint taken before
+    // it started counting is short a visit it cannot reconstruct.
+    name: "a later line first reads the visit count of the scene being routed",
+    find: "  Beat 7 of the long tail.",
+    replace: "  Beat 7 of the long tail. It has run {act_one} times.",
+  },
+  {
+    name: "a flow below the route is renamed",
+    find: "scene act_two",
+    replace: "scene act_three",
+  },
+  {
+    name: "a scene is added below the route",
+    find: "scene act_two",
+    replace: "scene act_interlude\n  A quiet moment.\nend\n\nscene act_two",
+  },
+  {
+    name: "a function is added below the route",
+    find: "scene act_two",
+    replace: "function late(n)\n  return n + 1\nend\n\nscene act_two",
+  },
+];
+
+// Each case runs with the bytecode emitted and without it, because a compile
+// that writes none has to reach the same verdict from the same evidence.
+const EMISSION = [
+  { emitCompiledProgram: true, mode: "emitting" },
+  { emitCompiledProgram: false, mode: "not emitting" },
+];
+
+describe.each(EMISSION)("a change the route's own lines cannot account for, $mode", ({ emitCompiledProgram }) => {
+  for (const hazard of HAZARDS) {
+    test(`is searched again (${hazard.name})`, () => {
+      const { text, at } = screenplay();
+      const session = new Session(text, { emitCompiledProgram });
+      const target = at["tail_6"]!;
+      session.compile(target);
+
+      const searches = watchSearches();
+      session.edit(hazard.find, hazard.replace);
+      const after = session.compile(target);
+
+      expect({
+        confined: after.changes?.confined,
+        resumed: after.resumption.stepIndex != null,
+      }).toEqual({ confined: false, resumed: false });
+      expect(searches.length).toBeGreaterThan(0);
+      expectSameAnswer(after, fromTheTop(after));
+    });
+  }
+
+  // The same hazard again, written so that nothing which merely adds up how
+  // much counting a scene does can catch it. Two labels stand in the first act
+  // and one of them is read from the bottom of the scene; moving the read to
+  // the other label stops one container counting and starts another under the
+  // same flags. Every checkpoint taken before the move carries a count for the
+  // container that no longer keeps one and none for the container that now
+  // does, so a route resumed from one reports the wrong number of visits.
+  test("is searched again (a later line reads a different container's visit count)", () => {
+    const { text } = screenplay();
+    const READ = "  Beat 7 of the long tail. It has run {act_one.alpha} times.";
+    const labelled = withLabels(text).replace("  Beat 7 of the long tail.", READ);
+    const target = labelled.split("\n").indexOf(READ);
+    expect(target, "the line being routed to is in the fixture").toBeGreaterThan(
+      0,
+    );
+    const session = new Session(labelled, { emitCompiledProgram });
+    const before = session.compile(target);
+    expect(
+      (before.program.diagnostics?.[URI] ?? []).filter(
+        (d) => d.severity === 1,
+      ),
+      "the fixture compiles clean",
+    ).toEqual([]);
+
+    const searches = watchSearches();
+    session.edit("{act_one.alpha}", "{act_one.beta}");
+    const after = session.compile(target);
+
+    expect({
+      confined: after.changes?.confined,
+      resumed: after.resumption.stepIndex != null,
+    }).toEqual({ confined: false, resumed: false });
+    expect(searches.length).toBeGreaterThan(0);
+    expectSameAnswer(after, fromTheTop(after));
+  });
+});
+
+/** A small deterministic generator, so a failing sequence is reproducible. */
+function rng(seed: number) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state * 1664525 + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
 }
+
+describe("randomized edit sequences", () => {
+  test("never answer differently from a search of the whole scene", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text);
+    const targets = ["tail_1", "tail_4", "tail_7", "doorOpen", "one_5"].map(
+      (mark) => at[mark]!,
+    );
+    let target = targets[2]!;
+    session.compile(target);
+
+    const next = rng(20260920);
+    const rounds: string[] = [];
+    for (let i = 0; i < 24; i += 1) {
+      const roll = next();
+      const beat = Math.floor(next() * 8);
+      const suffix = ` (${i})`;
+      let round: CompiledRound;
+      if (roll < 0.2) {
+        // Move the cursor without editing anything.
+        target = targets[Math.floor(next() * targets.length)]!;
+        round = session.compile(target);
+        rounds.push(`move to ${target}`);
+      } else if (roll < 0.4) {
+        // A suggestion highlighted in the list: compiled, never applied.
+        const find = `Beat ${beat} of the long tail.`;
+        round = session.preview(find, `${find}${suffix}`, target);
+        rounds.push(`preview ${find}`);
+      } else if (roll < 0.6) {
+        // An edit to the beat the cursor is on.
+        const find = `Beat ${beat} of the long tail.`;
+        session.edit(find, `${find}${suffix}`);
+        round = session.compile(target);
+        rounds.push(`edit tail ${beat}`);
+      } else if (roll < 0.75) {
+        // An edit above everything the route runs through.
+        const find = `Beat ${beat} of the first act.`;
+        session.edit(find, `${find}${suffix}`);
+        round = session.compile(target);
+        rounds.push(`edit first act ${beat}`);
+      } else if (roll < 0.85) {
+        // An edit in a scene the route never enters.
+        const find = `Beat ${beat} of the second act.`;
+        session.edit(find, `${find}${suffix}`);
+        round = session.compile(target);
+        rounds.push(`edit second act ${beat}`);
+      } else if (roll < 0.95) {
+        // A line added at the bottom of the scene.
+        const find = "  Beat 7 of the long tail.";
+        session.edit(find, `${find}\n  Added beat${suffix}.`);
+        round = session.compile(target);
+        rounds.push(`insert after the tail`);
+      } else {
+        // A global's value, which every checkpoint's variables embed.
+        session.edit("store trust = ", `store trust =  `);
+        round = session.compile(target);
+        rounds.push(`touch a global`);
+      }
+      expectSameAnswer(round, fromTheTop(round), rounds.join(" | "));
+    }
+  });
+});
+
+// A player that holds the compiler in its own worker routes the compiler's own
+// story and never reads bytecode, so it compiles with emission off. Whether a
+// compile is confined is a question about the program, not about whether it was
+// written out, so the verdict has to be the same one.
+describe("a compile that emits no bytecode", () => {
+  test("certifies an edit inside one beat and replays with no search", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text, { emitCompiledProgram: false });
+    const target = at["tail_6"]!;
+    session.compile(target);
+    const deepest = deepestCheckpoint(session.game!.plannedRoute!);
+    expect(deepest).toBeGreaterThanOrEqual(0);
+
+    const searches = watchSearches();
+    const replays = watchReplays();
+    session.edit(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, at last.",
+    );
+    const after = session.compile(target);
+
+    expect(after.program.compiled).toBeUndefined();
+    expect(after.changes?.confined).toBe(true);
+    expect(searches).toEqual([]);
+    expect(after.searchSteps).toBe(-1);
+    expect(replays).toHaveLength(1);
+    expect(replays[0]!.checkpoint).toBe(deepest);
+    expectSameAnswer(after, fromTheTop(after));
+  });
+
+  test("never serializes the program", () => {
+    const { text, at } = screenplay();
+    const session = new Session(text, { emitCompiledProgram: false });
+    session.compiler.profilerId = "713";
+    const proto = SparkdownCompiler.prototype as unknown as Record<string, any>;
+    const serialize = vi.spyOn(proto, "serializeCompiledProgram");
+    const measure = vi.spyOn(performance, "measure");
+    const target = at["tail_6"]!;
+
+    session.compile(target);
+    session.edit(
+      "Beat 6 of the long tail.",
+      "Beat 6 of the long tail, at last.",
+    );
+    session.preview(
+      "Beat 5 of the long tail.",
+      "Beat 5 of the long tail, suggested.",
+      target,
+    );
+    const after = session.compile(target);
+
+    const phases = measure.mock.calls.map(([name]) => String(name));
+    expect(serialize).not.toHaveBeenCalled();
+    expect(phases.filter((name) => name.includes("ink/json"))).toEqual([]);
+    // The walk that stands in for serialization is measured under its own name.
+    expect(phases.some((name) => name.includes("ink/flowShapes"))).toBe(true);
+    expect(after.program.compiled).toBeUndefined();
+    expect(after.program.compiledBuffer).toBeUndefined();
+    expect(after.changes?.confined).toBe(true);
+  });
+});
+
+describe("randomized edit sequences, emitting and not", () => {
+  test("reach the same verdict on every compile", () => {
+    const text = withLabels(screenplay().text);
+    const lines = text.split("\n");
+    const targets = [
+      "  Beat 1 of the long tail.",
+      "  Beat 4 of the long tail.",
+      "  Beat 7 of the long tail.",
+      "    The door is open.",
+      "  Beat 5 of the first act.",
+    ].map((line) => lines.indexOf(line));
+    expect(targets.every((line) => line > 0)).toBe(true);
+    const emitting = new Session(text);
+    const silent = new Session(text, { emitCompiledProgram: false });
+    const both = (act: (session: Session) => CompiledRound) => {
+      const a = act(emitting);
+      const b = act(silent);
+      expect(emitting.text).toBe(silent.text);
+      return [a, b] as const;
+    };
+    let target = targets[2]!;
+    both((s) => s.compile(target));
+
+    // The two reproductions #653's reviews found, as edits the sequence can
+    // make: the first `{act_one}` reference inside the scene being routed, and
+    // counting moving between two labels.
+    const SCENE_READ = " It has run {act_one} times.";
+    let sceneRead = false;
+    let labelRead: "alpha" | "beta" | undefined;
+
+    const next = rng(20260921);
+    const rounds: string[] = [];
+    const verdicts = new Set<boolean | undefined>();
+    const seen = new Set<string>();
+    for (let i = 0; i < 40; i += 1) {
+      const roll = next();
+      const beat = Math.floor(next() * 8);
+      const suffix = ` (${i})`;
+      let label: string;
+      let pair: readonly [CompiledRound, CompiledRound];
+      if (roll < 0.15) {
+        target = targets[Math.floor(next() * targets.length)]!;
+        label = "move";
+        pair = both((s) => s.compile(target));
+      } else if (roll < 0.35) {
+        const find = `Beat ${beat} of the long tail.`;
+        label = "preview";
+        pair = both((s) => s.preview(find, `${find}${suffix}`, target));
+      } else if (roll < 0.5) {
+        const find = `Beat ${beat} of the long tail.`;
+        label = "edit tail";
+        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
+      } else if (roll < 0.6) {
+        const find = `Beat ${beat} of the first act.`;
+        label = "edit first act";
+        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
+      } else if (roll < 0.68) {
+        const find = `Beat ${beat} of the second act.`;
+        label = "edit second act";
+        pair = both((s) => (s.edit(find, `${find}${suffix}`), s.compile(target)));
+      } else if (roll < 0.8) {
+        const find = "Beat 6 of the long tail.";
+        label = sceneRead ? "drop the scene read" : "add the scene read";
+        pair = both((s) => {
+          if (sceneRead) {
+            s.edit(SCENE_READ, "");
+          } else {
+            s.edit(find, `${find}${SCENE_READ}`);
+          }
+          return s.compile(target);
+        });
+        sceneRead = !sceneRead;
+      } else if (roll < 0.95) {
+        const to = labelRead === "alpha" ? "beta" : "alpha";
+        label = labelRead ? `move the label read to ${to}` : "add a label read";
+        pair = both((s) => {
+          if (labelRead) {
+            s.edit(`{act_one.${labelRead}}`, `{act_one.${to}}`);
+          } else {
+            const find = "Beat 7 of the long tail.";
+            s.edit(find, `${find} Counted {act_one.${to}}.`);
+          }
+          return s.compile(target);
+        });
+        labelRead = to;
+      } else {
+        label = "touch a global";
+        pair = both((s) => (s.edit("store trust = ", "store trust =  "), s.compile(target)));
+      }
+      rounds.push(label);
+      seen.add(label);
+      const note = rounds.join(" | ");
+      const [on, off] = pair;
+      expect(off.changes?.confined, note).toBe(on.changes?.confined);
+      verdicts.add(off.changes?.confined);
+      expectSameAnswer(off, fromTheTop(off), note);
+    }
+    // A sequence that never certified anything, or never refused, or never made
+    // the two edits it exists for, would prove nothing.
+    expect([...verdicts].sort()).toEqual([false, true]);
+    expect(seen).toContain("add the scene read");
+    expect(seen).toContain("move the label read to beta");
+  });
+});

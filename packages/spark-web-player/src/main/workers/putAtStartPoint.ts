@@ -1,7 +1,7 @@
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
-import { profile } from "./profile";
-import { programIdentity, type IdentifiableProgram } from "./programIdentity";
+import { profile } from "../../utils/profile";
+import { programIdentity, type IdentifiableProgram } from "../../utils/programIdentity";
 
 /** What a route search established about a start point, as the worker
  *  reports it. */
@@ -36,12 +36,12 @@ export interface StartableGame {
 
 /**
  * Put PLAY's game at the start point it was asked to begin from, from the
- * route the worker's search established, wherever the game runs.
+ * route the worker's search established.
  *
  * Reaching that point means replaying the story to it, and finding a replay
  * that gets there is a search that can run for many seconds on a story it
- * never reaches. On the thread that paints the player, a search is a frozen
- * page for as long as it lasts (#385); in the worker, it holds up the game.
+ * never reaches, holding up the worker and everything the page waits on it
+ * for.
  *
  * The worker already runs that identical search, on every compile and every
  * cursor move, and reports the paths it reached a definite answer about

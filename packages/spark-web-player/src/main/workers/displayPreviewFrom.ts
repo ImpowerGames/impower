@@ -2,7 +2,7 @@ import type { Message } from "@impower/jsonrpc/src/common/types/Message";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { resolvePreviewPoint } from "../../utils/resolvePreviewPoint";
+import { resolvePreviewPoint } from "./resolvePreviewPoint";
 
 /** The game, as far as a display needs it. Structural so the order of the
  *  steps can be checked against a recording stand-in. */
@@ -44,11 +44,9 @@ export interface DisplayRequest {
 }
 
 /**
- * Display a program's preview at a point from the worker's game, with the
- * steps and in the order the page's own preview update takes them
- * (`GamePlayerController.updatePreview`). Answers whether this display's frame
- * is complete on the page: false when something took it over while it waited,
- * in which case it neither previews nor sweeps.
+ * Display a program's preview at a point from the worker's game. Answers
+ * whether this display's frame is complete on the page: false when something
+ * took it over while it waited, in which case it neither previews nor sweeps.
  */
 export async function displayPreviewFrom(
   game: DisplayingGame,

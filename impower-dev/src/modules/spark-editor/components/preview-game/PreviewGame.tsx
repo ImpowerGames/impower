@@ -25,19 +25,6 @@ const PLAYER_TARGET_ORIGIN = SAME_ORIGIN_PREVIEW
     : ""
   : SPARKDOWN_PLAYER_ORIGIN;
 
-/** The localStorage key the web editor driver sets to have the player's
- *  worker display the stopped preview (`workerDisplaysPreview`, #680). Off
- *  unless it holds "on"; read each time the player is initialized. */
-export const WORKER_DISPLAYS_PREVIEW_KEY = "impower.workerDisplaysPreview";
-
-const readWorkerDisplaysPreview = (): boolean => {
-  try {
-    return localStorage.getItem(WORKER_DISPLAYS_PREVIEW_KEY) === "on";
-  } catch {
-    return false;
-  }
-};
-
 export const propDefaults = {};
 export type PreviewGameProps = Partial<typeof propDefaults>;
 
@@ -259,9 +246,6 @@ export default function PreviewGame(_props: PreviewGameProps) {
               stripImageData: true,
               uri,
               workspace: projectPath,
-              // Whether the worker displays the stopped preview (#680). Not an
-              // author setting: the web editor driver sets it.
-              workerDisplaysPreview: readWorkerDisplaysPreview(),
               ...getGameConfiguration(),
             },
             capabilities: {},

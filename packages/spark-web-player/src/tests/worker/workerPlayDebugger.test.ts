@@ -1,7 +1,6 @@
-// The editor's debugger talks to the player, which answers from PLAY's game:
-// the page's own with the switch off, and with it on the one in the worker,
-// to which the player forwards each request (#682). For the same program in
-// the same state, every answer is the one the page's game gives.
+// The editor's debugger talks to the player, which forwards each request to
+// PLAY's game in the worker (#682). For the same program in the same state,
+// every answer is the one recorded in the snapshot.
 import { EventMessage } from "@impower/spark-engine/src/game/core/classes/messages/EventMessage";
 import { ContinueGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ContinueGameMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
@@ -44,7 +43,6 @@ const answer = (response: any) =>
  *  second, advanced by a click, then every request the debugger makes. */
 const debugSession = async () => {
   const h = await createPlayerHarness({
-    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: FIRST },
     manualClock: true,

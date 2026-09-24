@@ -1,7 +1,6 @@
-// With the worker displaying the stopped preview (#680), nothing the worker
-// sends the page carries a program, a checkpoint or path locations, for an
-// edit or for a suggestion, and the worker never serializes a compiled
-// story: the page only ever reads a program's summary.
+// Nothing the worker sends the page carries a program, a checkpoint or path
+// locations, for an edit or for a suggestion, and the worker never serializes
+// a compiled story: the page only ever reads a program's summary.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
@@ -56,9 +55,8 @@ function programShaped(value: unknown): string[] {
 
 afterEach(() => vi.restoreAllMocks());
 
-async function run(workerDisplays: boolean) {
+async function run() {
   const h = await createPlayerHarness({
-    workerDisplays,
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: 0 },
   });
@@ -94,17 +92,15 @@ async function run(workerDisplays: boolean) {
       serialized: serialize.mock.calls.length,
       overlay: h.overlay.textContent ?? "",
       messages: h.toPage.length,
-      pageGame: h.controller._game != null,
     };
   } finally {
     h.dispose();
   }
 }
 
-describe("with the worker displaying the preview", () => {
-  it("sends the page no program, checkpoint or path locations, and serializes no story", async () => {
-    const on = await run(true);
-    expect(on.pageGame).toBe(false);
+describe("what the worker sends the page", () => {
+  it("carries no program, checkpoint or path locations, and no story is serialized", async () => {
+    const on = await run();
     expect(on.messages).toBeGreaterThan(0);
     expect(on.shaped).toEqual([]);
     expect(on.serialized).toBe(0);
@@ -112,11 +108,19 @@ describe("with the worker displaying the preview", () => {
     expect(on.overlay).toContain("Line uno of dialogue in scene 2.");
   }, 120_000);
 
-  it("is a check that finds them when the page displays", async () => {
-    const off = await run(false);
-    expect(off.pageGame).toBe(true);
-    expect(off.shaped).toContain(".result.program.pathLocations");
-    expect(off.shaped).toContain(".result.checkpoint");
-    expect(off.serialized).toBeGreaterThan(0);
-  }, 120_000);
+  it("is read by a check that finds a whole program and a checkpoint", () => {
+    const answer = {
+      result: {
+        program: { uri: MAIN_URI, pathLocations: {}, compiled: {} },
+        checkpoint: "{}",
+      },
+    };
+    expect(programShaped(answer)).toEqual([
+      ".result.program (not a summary)",
+      ".result.program.pathLocations",
+      ".result.program.compiled",
+      ".result.checkpoint",
+    ]);
+    expect(programShaped({ result: { program: { uri: MAIN_URI, summary: true } } })).toEqual([]);
+  });
 });

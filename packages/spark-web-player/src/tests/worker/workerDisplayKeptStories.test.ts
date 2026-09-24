@@ -34,7 +34,6 @@ const shown = (overlay: HTMLElement) =>
 describe("a program the worker kept", () => {
   it("is displayed from its own story when the display has to route it again", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: TEXT }],
       startFrom: { file: MAIN_URI, line: FIRST },
     });

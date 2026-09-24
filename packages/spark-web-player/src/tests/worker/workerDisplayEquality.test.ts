@@ -39,7 +39,6 @@ function posAt(text: string, offset: number) {
  *  and after every step. */
 async function frames(text: string, steps: Step[]) {
   const h = await createPlayerHarness({
-    workerDisplays: true,
     files: [{ uri: MAIN_URI, text }],
     startFrom: { file: MAIN_URI, line: 0 },
   });

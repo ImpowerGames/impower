@@ -1,6 +1,6 @@
-// The preview's debugger controls reach whichever game shows the preview, and
-// what the editor asks for before there is a game to ask holds for the game
-// built next — in either position of the worker-display switch (#680).
+// The preview's debugger controls reach the worker's game that shows the
+// preview, and what the editor asks for before there is a game to ask holds
+// for the game built next.
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
 import { EnableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/EnableGameDebugMessage";
 import { SetGameBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameBreakpointsMessage";
@@ -24,9 +24,8 @@ end
 const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(text));
 const FIRST = lineOf("The first line.");
 
-/** The game that shows the preview, whichever side holds it. */
-const displayingGame = (h: any, workerDisplays: boolean) =>
-  workerDisplays ? h.workerState.gameState.game : h.controller._game;
+/** The worker's game that shows the preview. */
+const displayingGame = (h: any) => h.workerState.gameState.game;
 
 /** The lines a game stops at for its source breakpoints. */
 const stopsAt = (game: any) =>
@@ -34,107 +33,102 @@ const stopsAt = (game: any) =>
     ...m.keys(),
   ]);
 
-for (const workerDisplays of [false, true]) {
-  describe(`with the switch ${workerDisplays ? "on" : "off"}`, () => {
-    it("gives the game it builds the debugger settings made before it existed", async () => {
-      const h = await createPlayerHarness({
-        workerDisplays,
-        files: [{ uri: MAIN_URI, text: SOURCE }],
-        startFrom: { file: MAIN_URI, line: FIRST },
-      });
-      try {
-        // The editor sets a breakpoint and turns debugging on before anything
-        // has compiled, so neither side has a game yet.
-        expect(displayingGame(h, workerDisplays)).toBeUndefined();
-        const breakpoints = [{ file: MAIN_URI, line: FIRST }];
-        const answered = await h.controller.handleSetGameBreakpoints(
-          SetGameBreakpointsMessage.type.request({ breakpoints }),
-        );
-        const answeredFunctions = await h.controller.handleSetGameFunctionBreakpoints(
-          SetGameFunctionBreakpointsMessage.type.request({
-            functionBreakpoints: [{ name: "greet" }],
-          }),
-        );
-        const answeredData = await h.controller.handleSetGameDataBreakpoints(
-          SetGameDataBreakpointsMessage.type.request({
-            dataBreakpoints: [{ dataId: "mood" }],
-          }),
-        );
-        // No game has resolved where any of them lands, so none is answered
-        // as a breakpoint: the editor's debugger reads each answer as a
-        // resolved breakpoint, with its verification and location.
-        expect(answered.result).toEqual({ breakpoints: [] });
-        expect(answeredFunctions.result).toEqual({ functionBreakpoints: [] });
-        expect(answeredData.result).toEqual({ dataBreakpoints: [] });
-        const enabled = await h.controller.handleEnableGameDebug(
-          EnableGameDebugMessage.type.request({}),
-        );
-        expect("error" in enabled).toBe(false);
+describe("debugger settings", () => {
+  it("gives the game it builds the debugger settings made before it existed", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    try {
+      // The editor sets a breakpoint and turns debugging on before anything
+      // has compiled, so neither side has a game yet.
+      expect(displayingGame(h) == null).toBe(true);
+      const breakpoints = [{ file: MAIN_URI, line: FIRST }];
+      const answered = await h.controller.handleSetGameBreakpoints(
+        SetGameBreakpointsMessage.type.request({ breakpoints }),
+      );
+      const answeredFunctions = await h.controller.handleSetGameFunctionBreakpoints(
+        SetGameFunctionBreakpointsMessage.type.request({
+          functionBreakpoints: [{ name: "greet" }],
+        }),
+      );
+      const answeredData = await h.controller.handleSetGameDataBreakpoints(
+        SetGameDataBreakpointsMessage.type.request({
+          dataBreakpoints: [{ dataId: "mood" }],
+        }),
+      );
+      // No game has resolved where any of them lands, so none is answered
+      // as a breakpoint: the editor's debugger reads each answer as a
+      // resolved breakpoint, with its verification and location.
+      expect(answered.result).toEqual({ breakpoints: [] });
+      expect(answeredFunctions.result).toEqual({ functionBreakpoints: [] });
+      expect(answeredData.result).toEqual({ dataBreakpoints: [] });
+      const enabled = await h.controller.handleEnableGameDebug(
+        EnableGameDebugMessage.type.request({}),
+      );
+      expect("error" in enabled).toBe(false);
 
-        await h.compile();
-        await settle(40);
+      await h.compile();
+      await settle(40);
 
-        // The game that now shows the preview holds both.
-        const game = displayingGame(h, workerDisplays);
-        expect(game).toBeDefined();
-        expect(game.context.system.debugging).toBe(true);
-        // The breakpoint the editor set is one the game now stops at: it
-        // resolved to a line of the script it holds.
-        expect(stopsAt(game)).toContain(FIRST);
-      } finally {
-        h.dispose();
-      }
-    }, 120_000);
+      // The game that now shows the preview holds both.
+      const game = displayingGame(h);
+      expect(game != null).toBe(true);
+      expect(game.context.system.debugging).toBe(true);
+      // The breakpoint the editor set is one the game now stops at: it
+      // resolved to a line of the script it holds.
+      expect(stopsAt(game)).toContain(FIRST);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
 
-    it("shows the preview after STOP with the debugger settings made while PLAY ran", async () => {
-      const h = await createPlayerHarness({
-        workerDisplays,
-        files: [{ uri: MAIN_URI, text: SOURCE }],
-        startFrom: { file: MAIN_URI, line: FIRST },
-      });
-      try {
-        await h.compile();
-        await h.select(FIRST);
-        await settle(40);
-        // Debugging on, and a breakpoint on the line, while the preview shows.
-        await h.controller.handleEnableGameDebug(EnableGameDebugMessage.type.request({}));
-        await h.controller.handleSetGameBreakpoints(
-          SetGameBreakpointsMessage.type.request({
-            breakpoints: [{ file: MAIN_URI, line: FIRST }],
-          }),
-        );
-        expect(displayingGame(h, workerDisplays).context.system.debugging).toBe(true);
+  it("shows the preview after STOP with the debugger settings made while PLAY ran", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    try {
+      await h.compile();
+      await h.select(FIRST);
+      await settle(40);
+      // Debugging on, and a breakpoint on the line, while the preview shows.
+      await h.controller.handleEnableGameDebug(EnableGameDebugMessage.type.request({}));
+      await h.controller.handleSetGameBreakpoints(
+        SetGameBreakpointsMessage.type.request({
+          breakpoints: [{ file: MAIN_URI, line: FIRST }],
+        }),
+      );
+      expect(displayingGame(h).context.system.debugging).toBe(true);
 
-        // The editor turns both off while PLAY runs, which only the running
-        // game hears.
-        expect(await h.controller.startGameAndApp()).toBe(true);
-        await settle(40);
-        await h.controller.handleDisableGameDebug(DisableGameDebugMessage.type.request({}));
-        await h.controller.handleSetGameBreakpoints(
-          SetGameBreakpointsMessage.type.request({ breakpoints: [] }),
-        );
-        const win = h.overlay.ownerDocument.defaultView as any;
-        win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
-        await h.controller.stopGame("quit");
-        await h.select(FIRST);
-        await settle(40);
+      // The editor turns both off while PLAY runs, which only the running
+      // game hears.
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(40);
+      await h.controller.handleDisableGameDebug(DisableGameDebugMessage.type.request({}));
+      await h.controller.handleSetGameBreakpoints(
+        SetGameBreakpointsMessage.type.request({ breakpoints: [] }),
+      );
+      const win = h.overlay.ownerDocument.defaultView as any;
+      win.requestAnimationFrame ??= (callback: () => void) => setTimeout(callback, 0);
+      await h.controller.stopGame("quit");
+      await h.select(FIRST);
+      await settle(40);
 
-        // The preview after STOP is shown by a game with the settings the
-        // editor made last: with the switch off, the game STOP builds here.
-        const game = displayingGame(h, workerDisplays);
-        expect(game.context.system.debugging).toBeFalsy();
-        expect(stopsAt(game)).not.toContain(FIRST);
-      } finally {
-        h.dispose();
-      }
-    }, 120_000);
-  });
-}
+      // The preview after STOP is shown by a game with the settings the
+      // editor made last.
+      const game = displayingGame(h);
+      expect(game.context.system.debugging).toBeFalsy();
+      expect(stopsAt(game)).not.toContain(FIRST);
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
 
-describe("with the switch on", () => {
+describe("a worker that cannot be asked, and PLAY that is starting", () => {
   it("answers the editor when the worker cannot be asked", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: FIRST },
     });
@@ -160,7 +154,6 @@ describe("with the switch on", () => {
 
   it("gives the game PLAY starts the mode the editor asked for meanwhile", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: FIRST },
     });

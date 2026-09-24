@@ -1,6 +1,6 @@
 // Walking the cursor down a scene, as a held arrow key does, leaves the
-// preview showing the beat the cursor ended on — in either position of the
-// worker-display switch (#680).
+// preview showing the beat the cursor ended on, and the worker works out only
+// the display the page asked for last.
 import { describe, expect, it } from "vitest";
 import { DisplayPreviewMessage } from "../../main/workers/messages/DisplayPreviewMessage";
 import { programIdentity } from "../../utils/programIdentity";
@@ -26,44 +26,40 @@ end
 const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(text));
 const BEATS = ["The first beat.", "The second beat.", "The third beat.", "The fourth beat."];
 
-for (const workerDisplays of [false, true]) {
-  describe(`with the switch ${workerDisplays ? "on" : "off"}`, () => {
-    it("shows the beat the cursor stops on after a walk down the scene", async () => {
-      const h = await createPlayerHarness({
-        workerDisplays,
-        files: [{ uri: MAIN_URI, text: SOURCE }],
-        startFrom: { file: MAIN_URI, line: lineOf(BEATS[0]!) },
-      });
-      try {
-        await h.compile();
-        expect(h.overlay.textContent).toContain(BEATS[0]);
+describe("a walk down a scene", () => {
+  it("shows the beat the cursor stops on after a walk down the scene", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: lineOf(BEATS[0]!) },
+    });
+    try {
+      await h.compile();
+      expect(h.overlay.textContent).toContain(BEATS[0]);
 
-        // Each keypress selects the next beat's line without waiting for the
-        // preview the one before it started.
-        const walking: Promise<unknown>[] = [];
-        for (const beat of BEATS.slice(1)) {
-          const step = await h.selectWithoutWaiting(lineOf(beat));
-          walking.push(step.previewed);
-        }
-        await Promise.all(walking);
-        await settle(60);
-
-        expect(h.overlay.textContent).toContain(BEATS.at(-1));
-        expect(h.controller.getGameState().position).toEqual({
-          uri: MAIN_URI,
-          line: lineOf(BEATS.at(-1)!),
-        });
-      } finally {
-        h.dispose();
+      // Each keypress selects the next beat's line without waiting for the
+      // preview the one before it started.
+      const walking: Promise<unknown>[] = [];
+      for (const beat of BEATS.slice(1)) {
+        const step = await h.selectWithoutWaiting(lineOf(beat));
+        walking.push(step.previewed);
       }
-    }, 120_000);
-  });
-}
+      await Promise.all(walking);
+      await settle(60);
 
-describe("with the switch on", () => {
+      expect(h.overlay.textContent).toContain(BEATS.at(-1));
+      expect(h.controller.getGameState().position).toEqual({
+        uri: MAIN_URI,
+        line: lineOf(BEATS.at(-1)!),
+      });
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("displays waiting their turn", () => {
   it("works out only the last of the displays waiting their turn", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: lineOf(BEATS[0]!) },
     });
