@@ -112,4 +112,44 @@ node scripts/bench/profile-shares.mjs <dir>/preview.cpuprofile --under ExportRun
 
 `node scripts/bench/preview-fixture.mjs <dir>` writes the project both commands use for `--fixture` and prints its target line. It reproduces what makes a real project slow to preview: one flat scene of about 2,400 lines, a `choose ... then ... end` whose `then` clause holds the last 1,100 of them, and attribute directives (`[[hero_concerned:gloves]]`) over SVG portraits whose layers carry a condition vocabulary. Its target is the last directive of the `then` clause, and its route from the top of the scene to the target is about 31,000 story steps. The output is the same on every run, so two checkouts measure the same project.
 
+## Timing a running game
+
+Two committed measurements say whether a game running in the player's worker keeps time (#683): how long input takes to come back as a command the page handles, and how closely a beat's sound and flash land on the beat's stamp. Every change to where the game runs, to the shared clock or to how the page schedules a stamped message reports both, in both switch positions, taken in the same sitting.
+
+```bash
+node .agents/skills/drive-web-editor/driver.mjs up
+node .agents/skills/drive-web-editor/driver.mjs timing input --json input.json
+node .agents/skills/drive-web-editor/driver.mjs timing metronome --json metronome.json
+```
+
+Both need the same-origin launch `up` makes by default; a cross-origin one stops with an error. Each switch position (`--worker-preview on|off|both`, both by default, on first) runs in a browser profile made for it and removed afterwards, seeded with a generated project (`timing-fixture.mjs`), with the preview put on the project's first line and PLAY pressed there. Each position runs an idle phase and then a loaded one, in which a frame loop on the page burns `--load` milliseconds (10 by default; 0 skips the phase) on the main thread that the editor and the player share. The first `--warmup` samples of each phase are discarded. The report records the machine and the browser's user agent; say which with the figures, and whether the run was headed (`--headed`). Headless Chromium reports an `outputLatency` of 40 ms and a `baseLatency` of 10 ms, which is not what a real audio device reports, so the latency-dependent figures are this browser's, while the differences between the two positions are what to read.
+
+The command exits nonzero when a position stops with `error` or any measured sample failed. `consoleErrors` holds the page's last console errors for each position. `--json <file>` writes every sample; the printed report gives the summaries.
+
+### Input
+
+`timing input` plays a scene that offers the choices `Left` and `Right` for ever, and clicks one per sample (`--samples`, 200 by default) with a real mouse click through Playwright, at a random phase against the page's frames, once the choices are back on the page and nothing has arrived from the game for 150 ms. Taking a choice is input the game answers as soon as it arrives, by taking the choices off the page, so what is timed is the hop and nothing the game waits for.
+
+A capturing listener on the player's window stamps the `click` with `performance.now()`, and the page's router stamps every message the game sends it on entry, before anything handles it. Per sample, `ms` runs from the click to the first message after it, which has to touch a choice or the sample fails, since otherwise something else the game was sending would be timed. `fromTimeStamp` runs from the event's own `timeStamp` instead, which adds the browser's delivery of the input to the page. With the game in the worker, the command also stamps, on the shared clock, the page posting the input to the game and the worker posting each of the game's messages, and divides `ms` into `postedToAnswered` (the input reaching the worker and the game answering it) and `answeredToHandled` (the answer reaching the page's router). `quietBefore` is how long before the click the last message arrived.
+
+`summary` gives, over the measured samples, the count, the failures, and min, median, p95, p99, max and spread of each of those.
+
+### Metronome
+
+`timing metronome` plays beats that each start one click and one flash through the engine's `((play sound click))` and `[[show backdrop flash_a]]`, so each carries the beat's stamp as any played beat does. A beat with a sound waits for input to advance, so the page presses Enter on a timer at `--bpm` (120 by default), and each key starts the next beat. The flashes alternate between two images, because a write of the image already showing changes nothing on the page. The click's first sample is at full level, so its first audible frame is its onset.
+
+Before the phases, the command taps the main mixer with `AudioProbe.startOnsetTap`, a development-only audio worklet that reports the exact frame index of the first sample above 0.01 after 2,400 frames of silence (50 ms at 48 kHz), and proves it: a click rendered at frame 12,345 through an `OfflineAudioContext` has to come back as frame 12,345 (`tapCheck`), or the run stops. The tap's worklet is what `OnsetTap.test.ts` runs in a stand-in for the worklet scope.
+
+Per click the page records the stamp (`audio/update`'s `time`), when the audio manager handled the update, the context time the sound was due at and the context time then, with `getOutputTimestamp()` and `outputLatency`, the tap's onset, and the flash: the enter animation of the newly written layer, its `startTime` and when that was set. A context time becomes a time on the shared clock through the output timestamp taken with it, which gives the moment it leaves the speakers. Each row gives:
+
+- `arrivedMinusStamp`: the update reaching the page against its stamp; negative is early. The engine stamps a beat 15 ms ahead of the tick that plays it (`BEAT_LEAD_MS`), so on time reads about -15.
+- `late` and `lateBy`: whether the update was handled after the sound was due, and by how much. A late sound starts at once and that far into itself, so a click later than its own length is inaudible and has no onset.
+- `scheduledMinusStamp`: the time the page passed to the sound's `start`, as heard, against the stamp; on time it is the output latency.
+- `onsetMinusStamp`: the click's first audible sample against the stamp. Its spread over the phase is the onset jitter.
+- `onsetMinusScheduled`: the onset against the scheduled time, which checks the tap and the render against the schedule; it reads within a few hundredths of a millisecond.
+- `flashMinusStamp` and `flashMinusOnset`: the flash's start against the stamp and against the onset. The page starts a beat's pictures at the stamp plus the output latency, so the first is that latency and the second is how far the sound missed its time. `flashSetLateBy` is how long after its own start time the flash's start time was set; the animation still runs on the timeline from that start, with its first frames skipped.
+- `sentMinusStamp` and `transit`: with the game in the worker, the worker posting the update against the stamp, and the update's time from the worker's post to the page's router. They say whether lateness comes from the game or from the delivery.
+
+A row without an onset or a flash is a failure. `summary` counts the clicks, failures and late arrivals, and gives the statistics of each field and of the interval between consecutive stamps, which reads the tempo as the game kept it: a stamp is taken on the tick after a key, so the intervals scatter by a frame around 60,000 / `--bpm`.
+
 ---

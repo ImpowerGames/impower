@@ -13,9 +13,15 @@ import {
   setWorkspace,
 } from "@impower/spark-web-player/src/index.js";
 import { installWorkspaceWorker } from "@impower/spark-web-player/src/main/workers/installWorkspaceWorker";
+import { enableOnsetTap } from "@impower/spark-web-player/src/app/managers/AudioProbe";
 import "./style.css";
 
 const SPARKDOWN_EDITOR_ORIGIN = import.meta.env.VITE_SPARKDOWN_EDITOR_ORIGIN;
+
+// The driver's timing measurements read audio onsets through this tap (#683).
+if (import.meta.env.DEV) {
+  enableOnsetTap();
+}
 
 // Are we running on a local dev host? The editor's dev port varies per worktree,
 // so the build-time `VITE_SPARKDOWN_EDITOR_ORIGIN` is fragile in dev: if it's

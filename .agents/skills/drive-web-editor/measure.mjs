@@ -304,7 +304,7 @@ async function pageHeapMB(page) {
 // A browser profile that exists only for this run, so another session's
 // `verify --sd` or `--project` cannot replace the project being measured, and
 // this run cannot replace theirs. Removed afterwards.
-function privateLaunch(deps, dir) {
+export function privateLaunch(deps, dir) {
   return async ({ headless }) => {
     const { chromium } = await deps.importPlaywright();
     const executablePath = deps.resolveChromiumExecutablePath(chromium);

@@ -1,5 +1,17 @@
 import type AudioMixer from "../../../../spark-dom/src/classes/AudioMixer";
 import type { AudioLevels } from "../../../../spark-dom/src/classes/AudioMixer";
+import { OnsetTap, type OnsetTapOptions } from "./OnsetTap";
+
+let onsetTapEnabled = false;
+
+/**
+ * Lets `AudioProbe.startOnsetTap` run. A development build of the player
+ * calls it at startup; a production build never does, so no page it serves
+ * can load the tap's worklet.
+ */
+export const enableOnsetTap = (): void => {
+  onsetTapEnabled = true;
+};
 
 export interface AudioProbeReading extends AudioLevels {
   /**
@@ -86,10 +98,54 @@ export default class AudioProbe {
     this._frame = requestAnimationFrame(tick);
   }
 
+  protected _onsetTap?: Promise<OnsetTap>;
+
+  /**
+   * Taps a mixer's output for the exact frame each sound starts on (#683),
+   * which the once-a-frame levels above can only place within a frame. The
+   * mixer must exist, so a caller starts it once the game has loaded a sound.
+   * Asking again returns the same tap. Development builds only
+   * (`enableOnsetTap`).
+   */
+  startOnsetTap(
+    mixer = "main",
+    options?: Partial<OnsetTapOptions>,
+  ): Promise<OnsetTap> {
+    if (!onsetTapEnabled) {
+      return Promise.reject(
+        new Error("the onset tap is available in development builds only"),
+      );
+    }
+    if (!this._onsetTap) {
+      const found = [...this._getMixers()].find(([name]) => name === mixer);
+      if (!found) {
+        return Promise.reject(new Error(`there is no ${mixer} mixer yet`));
+      }
+      const [, audioMixer] = found;
+      const tap = OnsetTap.create(
+        audioMixer.context,
+        audioMixer.analyser,
+        options,
+      );
+      this._onsetTap = tap;
+      tap.catch(() => {
+        if (this._onsetTap === tap) {
+          this._onsetTap = undefined;
+        }
+      });
+    }
+    return this._onsetTap;
+  }
+
   stop(): void {
     if (this._frame != null) {
       cancelAnimationFrame(this._frame);
       this._frame = null;
     }
+    this._onsetTap?.then(
+      (tap) => tap.dispose(),
+      () => {},
+    );
+    this._onsetTap = undefined;
   }
 }

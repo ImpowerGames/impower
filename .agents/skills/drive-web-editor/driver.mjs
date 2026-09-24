@@ -3884,6 +3884,27 @@ switch (cmd) {
     });
     break;
   }
+  case "timing": {
+    const { timing } = await import("./timing.mjs");
+    await timing(rest, {
+      importPlaywright,
+      resolveChromiumExecutablePath,
+      withEditor,
+      openEditorPage,
+      reloadEditorPage,
+      waitForApp,
+      seedProject,
+      switchScreen,
+      scriptEditorPresent,
+      settleEditor,
+      waitForGame,
+      waitForProgram,
+      clickLine,
+      log,
+      die,
+    });
+    break;
+  }
   default:
     log(
       [
@@ -3899,6 +3920,7 @@ switch (cmd) {
         "  seed --clear          empty OPFS /local (dot entries stay), then reload; with --project, clear first",
         "  redgreen [options]    prove a regression test fails on the base and passes on the fix",
         "  measure [options]     time key press to painted preview at one line, in a browser profile of its own",
+        "  timing input|metronome [options]  time input and audio against the running game, in a browser profile of its own",
         "",
         "verify options:",
         "  --fresh-sw       unregister and reload; report the controlling worker's script hash and console",
@@ -3936,6 +3958,7 @@ switch (cmd) {
         "                          pass origin/main once the fix is committed)",
         "",
         "measure: see references/performance.md; `measure --help` lists its options.",
+        "timing: see references/performance.md; `timing --help` lists its options.",
       ].join("\n"),
     );
 }
