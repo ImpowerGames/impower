@@ -622,8 +622,8 @@ export class VariablesState extends VariablesStateAccessor<
   // and, during a single binding evaluation bracketed by
   // begin/endReactiveRead(), the GLOBAL names + TABLE identities that binding
   // READ. The runtime re-runs a binding only when its read-set intersects the
-  // change-set. False positives (e.g. a local shadowing a global name, or a
-  // speculative lookahead write) are safe — they cost an extra (equality-gated)
+  // change-set. False positives (e.g. a local shadowing a global name) are
+  // safe — they cost an extra (equality-gated)
   // re-eval, never a missed update. Disabled by default → zero cost for
   // non-reactive games (every hook is a single boolean check).
   // -------------------------------------------------------------------------

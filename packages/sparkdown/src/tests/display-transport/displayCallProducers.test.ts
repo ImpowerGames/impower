@@ -255,7 +255,8 @@ describe("producers outside display statements", () => {
       `& f()\nNext.\ndone\n\nfunction f()\nprint("hi", 2)\nprint("two")\nend\n`,
       [
         ["hi 2\n", []],
-        ["twoNext.\n", []],
+        ["two\n", []],
+        ["Next.\n", []],
       ],
     );
     expect(run[0]!.tables).toEqual([{ text: "hi 2" }]);

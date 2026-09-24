@@ -407,6 +407,7 @@ describe("a `>..` ending a line is a break the next line joins", () => {
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.Continue()).toBe(joined);
       expect(flags(ctx.story, "pause")).toEqual([true, false]);
+      expect(ctx.story.Continue()).toBe("");
       expect(ctx.story.canContinue).toBe(false);
     });
   }
@@ -597,6 +598,7 @@ end
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("Pick.\n");
     expect(ctx.story.Continue()).toBe("Aside.\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
@@ -608,8 +610,10 @@ end
     expect(ctx.story.Continue()).toBe("Pick.\n");
     expect(ctx.story.currentChoices).toEqual([]);
     expect(ctx.story.Continue()).toBe("Aside.\n");
-    // A function's output ends without its trailing newline.
-    expect(ctx.story.Continue()).toBe("More.");
+    // The function's last line returns at its newline too, and the choices
+    // come with the continue after it.
+    expect(ctx.story.Continue()).toBe("More.\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
@@ -628,6 +632,8 @@ end
     again.story.state.LoadJson(saved);
     expect(again.story.Continue()?.trim()).toBe("Aside.");
     expect(again.story.variablesState.$("count")).toBe(1);
+    expect(again.story.Continue()).toBe("");
+    expect(again.story.variablesState.$("count")).toBe(1);
     expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
@@ -637,7 +643,14 @@ end
     const source = `choose\n  Outer.\n  if true then\n    choose\n      Inner.\n      & print("Aside.")\n      * Inner choice\n    end\n  end\n  * Outer choice\nend\n`;
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
-    expect(texts(ctx.story)).toEqual(["Outer.\n", "Inner.\n", "Aside.\n"]);
+    // The last step raises the choices, with no table, so it reads as a
+    // lone newline here.
+    expect(texts(ctx.story)).toEqual([
+      "Outer.\n",
+      "Inner.\n",
+      "Aside.\n",
+      "\n",
+    ]);
     const first = makeRuntimeStoryFromSource(source);
     expect(first.story.Continue()).toBe("Outer.\n");
     const again = makeRuntimeStoryFromSource(source);
@@ -693,6 +706,7 @@ end
     expect(ctx.story.Continue()).toBe("Pick.\n");
     ctx.story.EvaluateFunction("quiet");
     expect(ctx.story.Continue()).toBe("Aside.\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
@@ -705,6 +719,7 @@ end
     const again = makeRuntimeStoryFromSource(source);
     again.story.state.LoadJson(saved);
     expect(again.story.Continue()).toBe("Aside.\n");
+    expect(again.story.Continue()).toBe("");
     expect(again.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
   });
 
@@ -720,9 +735,8 @@ end
       expect(ctx.errorMessages).toEqual([]);
       expect(ctx.story.Continue()).toBe("Pick.\n");
       expect(ctx.story.currentChoices).toEqual([]);
-      // A function's output ends without its trailing newline, so `aside()`
-      // shows "Aside." where the direct `print` shows "Aside.\n".
       expect(ctx.story.Continue()?.trim()).toBe("Aside.");
+      expect(ctx.story.Continue()).toBe("");
       expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["One"]);
     }
   });
@@ -784,7 +798,8 @@ describe("the compiled program", () => {
       const shape = programShape(source);
       expect(shape.glue).toBe(0);
       expect(shape.open).toBe(open);
-      expect(shape.line).toBe(shape.display);
+      expect(shape.display).toBeGreaterThan(0);
+      expect(shape.line).toBe(0);
     });
   }
 

@@ -352,7 +352,9 @@ describe("a line that begins with `..` after a `load` line", () => {
       const texts: string[] = [];
       const routing: unknown[] = [];
       while (ctx.story.canContinue) {
-        texts.push(ctx.story.Continue() ?? "");
+        const text = ctx.story.Continue() ?? "";
+        if (!continueShowedSomething(ctx.story)) continue;
+        texts.push(text);
         routing.push(displayRouting(ctx.story));
       }
       expect(texts.at(-1), source).toBe("You see a rusty key.\n");

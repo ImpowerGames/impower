@@ -131,6 +131,7 @@ $: E > F
         { target: "dialogue", character: "HERO" },
       ]);
       expect(flagged(ctx.story, "inherit")).toBe(true);
+      expect(ctx.story.Continue()).toBe("");
       expect(ctx.story.canContinue).toBe(false);
     }
   });
@@ -254,6 +255,7 @@ end
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.Continue()).toBe("true is true.\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.map((c) => c.text)).toEqual([
       "Go > there",
     ]);
