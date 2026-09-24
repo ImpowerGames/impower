@@ -1079,7 +1079,10 @@ export function checkLeadingGlue(
   ctx: LowerContext,
 ): void {
   const { leadsText, before } = leadingGlueCheck(statement, mark, ctx);
-  if (!leadsText) {
+  if (before === "load") {
+    // A `load` line cannot end with `..`, so no words make this line right.
+    reportMark(mark, AFTER_LOAD_MESSAGE, ctx);
+  } else if (!leadsText) {
     // Under a line that already ends with `..`, the fix is the missing words.
     reportMark(
       mark,
@@ -1088,8 +1091,6 @@ export function checkLeadingGlue(
     );
   } else if (before === "unjoined") {
     reportMark(mark, CONTINUES_MESSAGE, ctx);
-  } else if (before === "load") {
-    reportMark(mark, AFTER_LOAD_MESSAGE, ctx);
   }
 }
 
@@ -1224,25 +1225,34 @@ const ENDS_AFTER_GLUE = /^[ \t]*(?:(?:#|\/\/)[^\n]*)?\s*$/;
 
 // Whether the beat of an action statement that holds `pos` is a `load`
 // directive: everything after `load` names assets, so a `..` in it joins
-// nothing. Lowering decides this per beat (`stripLoadKeyword` on each range
-// `splitBodyRangeAtBreaks` makes), so this reads from the `>` break before
-// `pos`, or from the start of the statement's body, which for a block action
-// is the line after its `:`.
+// nothing. Lowering decides this per beat, on the body its lowerer reads (past
+// a `:` or an inline action's leading `..`) split by `splitBodyRangeAtBreaks`,
+// and this asks the same split, so the two cannot disagree about where a beat
+// starts.
 function isLoadRange(
   node: SyntaxNode,
   pos: number,
   ctx: LowerContext,
 ): boolean {
   if (!ACTION_STATEMENTS.has(node.name)) return false;
-  let from = node.from;
-  if (node.name === "BlockAction") {
-    const head = ctx.read(node.from, node.to).indexOf("\n");
-    if (head < 0) return false;
-    from = node.from + head + 1;
-  }
-  const brk = collectBreaksInRange(node, from, pos).at(-1);
-  if (brk) from = brk.to;
-  return /^\s*(?::\s+)?load\s/.test(ctx.read(from, pos));
+  const ref = makeAltNodeRef(node);
+  const block = node.name === "BlockAction";
+  const body = block
+    ? extractBlockBodyRange(ref, ctx)
+    : extractInlineBodyRange(ref);
+  const range = splitBodyRangeAtBreaks(
+    node,
+    body.from,
+    body.to,
+    ctx,
+    block ? "block" : "inline",
+  ).find((r) => r.from <= pos && pos <= r.to);
+  // `collectBodySegments` drops a `..` that begins a block body line, with the
+  // spaces after it, before `stripLoadKeyword` reads the beat.
+  return (
+    range != null &&
+    /^\s*(?:\.\.(?!\.)[ \t]*)?load\s/.test(ctx.read(range.from, pos))
+  );
 }
 
 // Whether a construct shows a line of text: a display statement or a line of

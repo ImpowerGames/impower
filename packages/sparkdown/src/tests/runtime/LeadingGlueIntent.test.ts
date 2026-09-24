@@ -308,18 +308,25 @@ describe("a `..` with no words after it", () => {
 // A `load` directive's `..` joins nothing, so the line after it does not
 // continue it, whether the directive is inline or in a block.
 describe("a line that begins with `..` after a `load` line", () => {
-  test("is an error that says the `load` line cannot join", () => {
-    for (const [source, line] of [
-      [`load overworld\n.. B\n`, 1],
-      [`load overworld ..\n.. B\n`, 1],
-      [`:\n  load overworld\n.. B\n`, 2],
-      [`:\n  load overworld ..\n.. B\n`, 2],
-      [`:\n  load overworld ..\n  .. B\n`, 2],
-    ] as const) {
+  for (const [source, line] of [
+    [`load overworld\n.. B\n`, 1],
+    [`load overworld ..\n.. B\n`, 1],
+    [`:\n  load overworld\n.. B\n`, 2],
+    [`:\n  load overworld ..\n.. B\n`, 2],
+    [`:\n  load overworld ..\n  .. B\n`, 2],
+    // A `load` line that itself begins with `..` is still a directive.
+    [`A ..\n.. load overworld ..\n.. B\n`, 2],
+    [`:\n  .. load overworld ..\n  .. B\n`, 2],
+    // A tag after a break stays with the beat before it, so the next line
+    // starts the `load` beat.
+    [`:\n  load a > # tag\n  load b ..\n.. c\n`, 3],
+    // With no words after the mark, the fix is the same.
+    [`load overworld\n.. // note\nB\n`, 1],
+  ] as const) {
+    test(`is an error that says the \`load\` line cannot join: ${JSON.stringify(source)}`, () => {
       const character = source.split("\n")[line]!.indexOf("..");
       expect(
         errorsOf(source).filter((e) => e.message === AFTER_LOAD_ERROR),
-        source,
       ).toEqual([
         {
           message: AFTER_LOAD_ERROR,
@@ -327,8 +334,8 @@ describe("a line that begins with `..` after a `load` line", () => {
           end: { line, character: character + 2 },
         },
       ]);
-    }
-  });
+    });
+  }
 
   // Lowering decides a `load` directive per beat: after a `>` break, a beat
   // of text that ends with `..` joins the next line.
