@@ -290,22 +290,26 @@ export function pairMetronome({ keys, beats, writes, anims, onsets, sends = [], 
  * The phase's samples from its rows, one per key pressed, when `requested`
  * keys were asked for and the first `warmup` are discarded. A run that
  * pressed fewer keys ends with a measured failed sample saying so, whatever
- * its position, so a shortfall can never hide among the warm-up samples.
+ * its position, so a shortfall can never hide among the warm-up samples. It
+ * carries how many keys are missing, and is not a click.
  */
 export function metronomeSamples(rows, requested, warmup) {
   const samples = rows.map((row, i) => ({ index: i + 1, warmup: i < warmup, ...row }));
-  if (rows.length !== requested) samples.push({ index: samples.length + 1, warmup: false, failure: `the page pressed ${rows.length} of ${requested} keys` });
+  if (rows.length !== requested) samples.push({ index: samples.length + 1, warmup: false, missingKeys: requested - rows.length, failure: `the page pressed ${rows.length} of ${requested} keys` });
   return samples;
 }
 
-export function summarizeMetronome(rows) {
+export function summarizeMetronome(samples) {
+  const shortfall = samples.filter((r) => r.missingKeys != null);
+  const rows = samples.filter((r) => r.missingKeys == null);
   const ok = rows.filter((r) => !r.failure);
   const stamps = rows.map((r) => r.stamp).filter((s) => s != null);
   const intervals = stamps.slice(1).map((s, i) => s - stamps[i]);
   const metric = (name) => stats(ok.map((r) => r[name]));
   return {
     clicks: rows.length,
-    failures: rows.length - ok.length,
+    failures: rows.length - ok.length + shortfall.length,
+    missingKeys: shortfall.reduce((n, r) => n + r.missingKeys, 0),
     lateArrivals: rows.filter((r) => r.late).length,
     stampInterval: stats(intervals),
     sentMinusStamp: stats(rows.map((r) => r.sentMinusStamp)),
@@ -554,7 +558,10 @@ async function runInput(page, frame, workers, options, fixture) {
   return samples;
 }
 
-async function runMetronome(page, frame, workers, options) {
+// One metronome phase. Exported so timing.test.mjs can drive it with a page
+// and a frame of its own, which is how the check reaches the command's own
+// accounting rather than the helpers it calls.
+export async function runMetronome(page, frame, workers, options) {
   const total = options.warmup + options.samples;
   const interval = 60_000 / options.bpm;
   const from = await frame.evaluate(() => ({ keys: window.__timing.keys.length, beats: window.__timing.beats.length, anims: window.__timing.anims.length, at: window.__timing.timeOrigin + performance.now() }));

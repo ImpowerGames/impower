@@ -12,7 +12,7 @@
 // Pure functions, no browser. Node's built-in assert only.
 
 import assert from "node:assert/strict";
-import { attributeInputSample, metronomeRow, metronomeSamples, pairMetronome, parseTimingArgs, stats, summarizeInput, summarizeMetronome, timingFailed } from "./timing.mjs";
+import { attributeInputSample, metronomeRow, metronomeSamples, pairMetronome, parseTimingArgs, runMetronome, stats, summarizeInput, summarizeMetronome, timingFailed } from "./timing.mjs";
 import { buildInputFixture, buildMetronomeFixture, clickWav } from "./timing-fixture.mjs";
 
 let failures = 0;
@@ -323,6 +323,34 @@ await check("a phase that pressed fewer keys than it asked for fails the run, ev
   assert.equal(timingFailed({ positions: [{ phases: [{ summary }] }] }), true);
   // A phase that pressed every key it asked for adds nothing.
   assert.equal(metronomeSamples(rows, 3, 1).length, 3);
+});
+
+await check("the metronome command itself fails a shortfall, and counts no click for it", async () => {
+  // A stand-in page and player frame for one phase of `runMetronome`: the
+  // frame answers its three evaluations (the marks before the run, the keys
+  // on the grid, and the readback), and the page's readback holds only the
+  // three keys the stand-in says it pressed, against the defaults' 104.
+  const beats = [played(0), played(1), played(2)];
+  const readback = { keys: [5_000, 5_500, 6_000], beats, anims: beats.map(enterOf), onsets: beats.map(onsetOf), writes: beats.map(writeOf), timeOrigin };
+  const answers = [{ keys: 0, beats: 0, anims: 0, at: 0 }, true, readback];
+  const frame = { evaluate: async () => answers.shift() };
+  const page = { waitForTimeout: async () => {} };
+  const samples = await runMetronome(page, frame, [], { warmup: 4, samples: 100, bpm: 120, requireWorker: false });
+  assert.equal(answers.length, 0);
+  assert.deepEqual(
+    samples.map((s) => [s.index, s.warmup, s.failure ?? null]),
+    [
+      [1, true, null],
+      [2, true, null],
+      [3, true, null],
+      [4, false, "the page pressed 3 of 104 keys"],
+    ],
+  );
+  const summary = summarizeMetronome(samples.filter((s) => !s.warmup));
+  assert.equal(summary.clicks, 0);
+  assert.equal(summary.failures, 1);
+  assert.equal(summary.missingKeys, 101);
+  assert.equal(timingFailed({ positions: [{ phases: [{ summary }] }] }), true);
 });
 
 await check("a run fails on an error in any position or any failed measured sample", () => {
