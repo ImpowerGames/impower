@@ -100,8 +100,9 @@ const shows = (frame: unknown, text: string) => JSON.stringify(frame).includes(t
 
 function coupledScreenplay(): string {
   const L: string[] = [];
-  L.push("define hero as character:");
+  L.push("define hero as character with");
   L.push(`  name = "Hero"`);
+  L.push("end");
   L.push("");
   L.push("store trust = 0");
   L.push("");
@@ -148,10 +149,9 @@ describe("the preview displayed from the worker's game", () => {
     expect(shows(on[3], "Action describing room 4.")).toBe(true);
     // An edit on another line leaves the beat at the cursor on screen.
     expect(shows(on[4], "Action describing room 4.")).toBe(true);
-    expect(shows(on[5], "Line one of dialogue in scene 0.")).toBe(true);
-    expect(shows(on[5], "Trust is")).toBe(true);
-    // An edit above the scene leaves its beat on screen.
-    expect(shows(on[6], "Line one of dialogue in scene 0.")).toBe(true);
+    expect(shows(on[5], "Trust is 0.")).toBe(true);
+    // The edit to where trust starts reaches the beat on screen.
+    expect(shows(on[6], "Trust is 5.")).toBe(true);
     expect(shows(on[7], "Line one of dialogue in scene 3.")).toBe(true);
   }, 120_000);
 
