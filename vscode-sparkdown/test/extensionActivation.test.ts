@@ -69,6 +69,10 @@ vi.mock("../src/utils/activatePreviewScreenplayPanel", () => ({
   activatePreviewScreenplayPanel: () =>
     state.activated.push("activatePreviewScreenplayPanel"),
 }));
+vi.mock("../src/utils/activateRuntimeDiagnostics", () => ({
+  activateRuntimeDiagnostics: () =>
+    state.activated.push("activateRuntimeDiagnostics"),
+}));
 vi.mock("../src/utils/activateScreenPreview", () => ({
   activateScreenPreview: () => state.activated.push("activateScreenPreview"),
 }));
@@ -82,11 +86,12 @@ vi.mock("../src/utils/activatePortraitNormalization", () => ({
 }));
 
 describe("the extension", () => {
-  it("turns on the completion preview and the language client when it activates", async () => {
+  it("turns on the completion preview, the language client and the runtime diagnostics relay when it activates", async () => {
     const { activate } = await import("../src/extension");
     activate({ subscriptions: [] } as never);
     expect(state.activated).toContain("activateCompletionPreview");
     expect(state.activated).toContain("activateLanguageClient");
     expect(state.activated).toContain("activatePreviewGamePanel");
+    expect(state.activated).toContain("activateRuntimeDiagnostics");
   });
 });

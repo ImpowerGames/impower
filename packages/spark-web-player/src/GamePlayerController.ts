@@ -86,7 +86,7 @@ import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
 import { putAtStartPoint } from "./utils/putAtStartPoint";
 import { conflate } from "./utils/conflate";
 import { describeSimulationFailure } from "./utils/describeSimulationFailure";
-import { programIdentity } from "./utils/programIdentity";
+import { programIdentity, type IdentifiableProgram } from "./utils/programIdentity";
 import { resolvePreviewPoint } from "./utils/resolvePreviewPoint";
 import { profile } from "./utils/profile";
 import { sharedNow } from "@impower/spark-engine/src/game/core/utils/sharedClock";
@@ -274,13 +274,10 @@ export class GamePlayerController {
   protected _runtimeRun?: RuntimeDiagnosticsRun;
   /** The preview position the current run belongs to, if any. */
   protected _runtimeRunPosition?: string;
-  /** The report last sent to the editor, which a new one repeats only when
-   *  it says something else. */
-  protected _runtimeReportSent?: string;
 
   /** A preview position, as runs are told apart by it. */
   protected runtimePosition(
-    program: SparkProgram | undefined,
+    program: IdentifiableProgram | undefined,
     file: string,
     line: number,
   ) {
@@ -331,19 +328,17 @@ export class GamePlayerController {
     }
   }
 
+  /** Send the editor the current run's whole report: as each run begins,
+   *  and as it raises something new. A run that says what the last one said
+   *  is still reported, since the language server takes each report as the
+   *  program as it is now. */
   protected reportRuntimeDiagnostics() {
     const run = this._runtimeRun;
     if (!run) {
       return;
     }
-    const params = run.params();
-    const report = JSON.stringify(params);
-    if (report === this._runtimeReportSent) {
-      return;
-    }
-    this._runtimeReportSent = report;
     sendProtocolMessage(
-      RuntimeDiagnosticsMessage.type.notification(params),
+      RuntimeDiagnosticsMessage.type.notification(run.params()),
       this.host,
     );
   }
@@ -2363,14 +2358,18 @@ export class GamePlayerController {
     // raised it; any other run, where it last executed.
     const selected = error?.location ?? lastExecutedLocation;
     // The preview at that line shows where the run ended rather than
-    // beginning a run of its own, so PLAY's diagnostics stay.
-    this._runtimeRunPosition = selected
-      ? this.runtimePosition(
-          this._program,
-          selected.uri,
-          selected.range.start.line,
-        )
-      : undefined;
+    // beginning a run of its own, so PLAY's diagnostics stay. That holds only
+    // for a preview of the program the run ran: an edit that compiled while
+    // it ran is previewed as a run of its own.
+    const run = this._runtimeRun;
+    this._runtimeRunPosition =
+      selected && run
+        ? this.runtimePosition(
+            run.program,
+            selected.uri,
+            selected.range.start.line,
+          )
+        : undefined;
     if (selected && workspace) {
       // Ensure the workspace simulates a checkpoint from the selected location
       await workspace.selectTextDocument({

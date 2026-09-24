@@ -150,8 +150,8 @@ export const searchRouteTo = (
       programId,
       reachedTarget: false,
       simulationFailure: Game.describeFailedRouteSearch(game.program, toPath),
-      // Nothing was replayed. What the game holds is the last route's.
-      errors: [],
+      // Nothing was replayed; an error that stopped the search is why.
+      errors: Game.searchErrors(game.program),
     });
     return undefined;
   }

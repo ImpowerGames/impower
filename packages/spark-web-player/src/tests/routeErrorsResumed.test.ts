@@ -7,7 +7,7 @@
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { describe, expect, test } from "vitest";
-import { RouteSearchLog } from "../main/workers/RouteSearchLog";
+import { RouteSearchLog, type RouteSearchReportTarget } from "../main/workers/RouteSearchLog";
 import { searchRouteTo } from "../main/workers/searchRouteTo";
 
 const URI = "inmemory:///main.sd";
@@ -73,7 +73,7 @@ describe.each([false, true])("route errors (worker displays: %s)", (workerDispla
       const resumption = game.routeResumption(Game.getSimulateFromPath(toPath), toPath);
       const log = new RouteSearchLog();
       searchRouteTo(game, toPath, log, { config: config as never });
-      const report: { simulationErrors?: unknown } = {};
+      const report: RouteSearchReportTarget = {};
       log.report(report, toPath);
       rounds.push({
         errors: report.simulationErrors,

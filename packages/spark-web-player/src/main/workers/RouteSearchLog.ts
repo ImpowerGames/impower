@@ -38,7 +38,8 @@ export interface RouteSearchOutcome {
    *  explaining (#379). */
   simulationFailure?: SimulationFailure;
   /** The runtime errors and warnings the replay raised on its way, whether or
-   *  not it reached the path. A search that found no route replayed nothing. */
+   *  not it reached the path; for a search that found no route, which
+   *  replayed nothing, the errors that stopped it. */
   errors?: SimulationError[];
 }
 

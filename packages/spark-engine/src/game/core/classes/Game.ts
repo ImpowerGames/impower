@@ -311,12 +311,36 @@ export class Game<T extends M = {}> {
    *  keeps what the steps before it raised and drops the rest. */
   protected _routeErrors: { at: number; error: SimulationError }[] = [];
 
+  /** The errors that stopped the last search for a route, when it found
+   *  none. Kept apart from the replay's record, which a later replay of the
+   *  route already planned resumes. */
+  protected _searchErrors?: SimulationError[];
+
   /** The runtime errors and warnings the route to the start point raised, in
-   *  the order the replay raised them. A replay reports these here rather than
-   *  as it raises them: nothing shows its beats, and the game that shows the
-   *  start point reports them as part of its own run. */
+   *  the order the replay raised them, or, when the search found no route, the
+   *  errors that stopped it. A replay reports these here rather than as it
+   *  raises them: nothing shows its beats, and the game that shows the start
+   *  point reports them as part of its own run. */
   get routeErrors(): SimulationError[] {
-    return this._routeErrors.map((e) => e.error);
+    return this._searchErrors ?? this._routeErrors.map((e) => e.error);
+  }
+
+  /** The errors that stopped the route search that just returned, where the
+   *  statements that raised them are in `program`. A search that found no
+   *  route and raised an error was stopped by it on the way, since an error
+   *  ends the story; what it raised on the branches it abandoned for a route
+   *  it found is not the author's to see. */
+  static searchErrors(program: SparkProgram): SimulationError[] {
+    const scripts = Object.keys(program?.scripts ?? {});
+    return lastSearchStats.errors.map(({ message, path }) => ({
+      message,
+      type: ErrorType.Error,
+      location: Game.documentLocation(
+        program,
+        scripts,
+        pathLocation(program.pathLocations, path),
+      ),
+    }));
   }
 
   /** Why the last attempt to simulate a route gave up. Recorded where the
@@ -732,6 +756,7 @@ export class Game<T extends M = {}> {
           this._program,
           toPath,
         );
+        this._searchErrors = Game.searchErrors(this._program);
       }
     } else {
       this._simulationFailure = Game.describeFailedRouteSearch(
@@ -1144,6 +1169,7 @@ export class Game<T extends M = {}> {
     // through `simulate()`, which would otherwise leave an older reason to be
     // reported against this run.
     this._simulationFailure = undefined;
+    this._searchErrors = undefined;
     const startStep = route.steps[fromStep];
     const fromDecision = startStep?.decision ?? 0;
     // A step's own checkpoint number is stamped when the step is reached, and

@@ -45,9 +45,18 @@ export class RuntimeDiagnosticsRun {
   /** The run's errors as the editor's diagnostics. */
   params(): RuntimeDiagnosticsParams {
     const diagnostics: Record<string, Diagnostic[]> = {};
+    // A statement's recorded location can start a character before its line,
+    // and a diagnostic's position can never be negative.
+    const position = (p: { line: number; character: number }) => ({
+      line: Math.max(0, p.line),
+      character: Math.max(0, p.character),
+    });
     for (const { message, type, location } of this._errors.values()) {
       (diagnostics[location.uri] ??= []).push({
-        range: location.range,
+        range: {
+          start: position(location.range.start),
+          end: position(location.range.end),
+        },
         severity: type === ErrorType.Error ? 1 : 2,
         message,
         source: "runtime",

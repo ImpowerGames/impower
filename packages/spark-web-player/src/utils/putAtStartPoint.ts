@@ -59,8 +59,8 @@ export interface StartableGame {
  * found to exist.
  *
  * Answers the runtime errors and warnings the route to the start point
- * raised: the worker's replay's when the game loads its checkpoint, and the
- * game's own when it searches.
+ * raised, or the errors that kept a search from finding one: the worker's
+ * when its answer applies, and the game's own when it searches.
  */
 export function putAtStartPoint(
   game: StartableGame,
@@ -123,6 +123,8 @@ export function putAtStartPoint(
       game.simulatePath = Game.getSimulateFromPath(startPath);
       game.simulation = "fail";
       game.simulationFailure = failure;
+      // What stopped the worker's search, which this run reports as its own.
+      raised = errors ?? [];
     }
   } else {
     // No worker answer applies to this run: nothing was ever selected, the

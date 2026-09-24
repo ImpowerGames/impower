@@ -1,5 +1,3 @@
-import type { Message } from "@impower/spark-editor-protocol/src/types/base/Message";
-import { RuntimeDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
 import { DEFAULT_SCHEMA_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_SCHEMA_DEFINITIONS";
@@ -17,7 +15,6 @@ import {
   ProvideDocumentSymbolsSignature,
   ResolveCompletionItemSignature,
 } from "vscode-languageclient";
-import { SparkdownPreviewGamePanelManager } from "../managers/SparkdownPreviewGamePanelManager";
 import { SparkProgramManager } from "../managers/SparkProgramManager";
 import { SparkdownOutlineTreeDataProvider } from "../providers/SparkdownOutlineTreeDataProvider";
 import {
@@ -149,25 +146,6 @@ export const activateLanguageClient = async (
     },
   );
   SparkProgramManager.instance.bindLanguageClient(client);
-  // The Game Preview's player reports the runtime errors and warnings of its
-  // current run, which the language server shows beside the compile's.
-  const relayRuntimeDiagnostics = (message: Message) => {
-    if (RuntimeDiagnosticsMessage.type.isNotification(message)) {
-      client.sendNotification(RuntimeDiagnosticsMessage.method, message.params);
-    }
-  };
-  const previewConnection = SparkdownPreviewGamePanelManager.instance.connection;
-  previewConnection.incoming.addListener(
-    RuntimeDiagnosticsMessage.method,
-    relayRuntimeDiagnostics,
-  );
-  context.subscriptions.push({
-    dispose: () =>
-      previewConnection.incoming.removeListener(
-        RuntimeDiagnosticsMessage.method,
-        relayRuntimeDiagnostics,
-      ),
-  });
   await client.start();
   context.subscriptions.push({ dispose: () => client.stop() });
 };

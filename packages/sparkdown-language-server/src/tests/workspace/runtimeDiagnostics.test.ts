@@ -52,6 +52,7 @@ function setup() {
       [story, {}],
     ]),
     _programStates: new Map(),
+    _fileChanges: 0,
     _connection: new Proxy(
       {},
       {
@@ -160,6 +161,53 @@ describe("runtime diagnostics", () => {
       diagnostics: { [main]: [runtimeWarning, { ...runtimeWarning }, runtimeError] },
     });
     expect(published(main).at(-1)).toEqual([runtimeWarning, runtimeError]);
+  });
+
+  it("of a script main does not import are published against that script's own program", () => {
+    const { workspace, compiled, report, published } = setup();
+    compiled({ uri: main, scripts: { [main]: 1 }, diagnostics: {} });
+    // The workspace compiles a script main does not import on its own.
+    const standalone = { uri: story, scripts: { [story]: 1 }, diagnostics: {} };
+    (workspace as any)._programStates.set(story, { program: standalone });
+    workspace.onCompiledTextDocument({ textDocument: { uri: story }, program: standalone });
+    report({
+      program: { uri: story, scripts: { [story]: 1 } },
+      diagnostics: { [story]: [runtimeWarning] },
+    });
+    expect(published(story).at(-1)).toEqual([runtimeWarning]);
+  });
+
+  it("are not shown against a program with other scripts", () => {
+    const { compiled, report, published } = setup();
+    compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
+    // A run of main before it imported story shares main's version.
+    report({
+      program: { uri: main, scripts: { [main]: 1 } },
+      diagnostics: { [main]: [runtimeWarning] },
+    });
+    expect(published(main).at(-1)).toEqual([]);
+  });
+
+  it("are cleared by the compile that follows a change to a project file", () => {
+    const { workspace, compiled, report, published } = setup();
+    const program = { uri: main, scripts: { [main]: 1 }, diagnostics: {} };
+    compiled(program);
+    report({
+      program: { uri: main, scripts: { [main]: 1 } },
+      diagnostics: { [main]: [runtimeWarning] },
+    });
+    expect(published(main).at(-1)).toEqual([runtimeWarning]);
+    // Replacing an asset recompiles the same script versions into another
+    // program, which the run did not run.
+    workspace.onChangedFile({ uri: "file:///project/hero.svg", name: "hero", ext: "svg", type: "image" });
+    compiled({ ...program });
+    expect(published(main).at(-1)).toEqual([]);
+    // A run of the program as it is now is shown again.
+    report({
+      program: { uri: main, scripts: { [main]: 1 } },
+      diagnostics: { [main]: [runtimeWarning] },
+    });
+    expect(published(main).at(-1)).toEqual([runtimeWarning]);
   });
 
   it("are included when the client pulls a document's diagnostics", async () => {

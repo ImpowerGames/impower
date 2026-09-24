@@ -344,20 +344,36 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   /** The runtime errors and warnings of the player's current run, as it last
-   *  reported them. */
-  protected _runtimeDiagnostics?: RuntimeDiagnosticsParams;
+   *  reported them, and how many project files had been created, changed or
+   *  deleted when the report arrived. */
+  protected _runtimeDiagnostics?: {
+    params: RuntimeDiagnosticsParams;
+    files: number;
+  };
+
+  /** Counts the project files created, changed and deleted. A changed asset
+   *  recompiles the same script versions into another program, which a run
+   *  reported before the change did not run. */
+  protected _fileChanges = 0;
 
   /** Take the player's report of its current run in place of the last, and
-   *  publish every document either report names. */
+   *  publish every document either report names, against the program the
+   *  run's entry script compiled. */
   reportRuntimeDiagnostics(params: RuntimeDiagnosticsParams) {
-    const uris = new Set([
-      ...Object.keys(this._runtimeDiagnostics?.diagnostics ?? {}),
-      ...Object.keys(params.diagnostics ?? {}),
-    ]);
-    this._runtimeDiagnostics = params;
-    for (const uri of uris) {
-      const mainUri = this.getMainScriptUri(uri) ?? uri;
-      const program = this.program(mainUri);
+    const last = this._runtimeDiagnostics?.params;
+    const entries = [
+      ...Object.keys(last?.diagnostics ?? {}).map((uri) => [uri, last!.program.uri] as const),
+      ...Object.keys(params.diagnostics ?? {}).map((uri) => [uri, params.program.uri] as const),
+    ];
+    this._runtimeDiagnostics = { params, files: this._fileChanges };
+    const published = new Set<string>();
+    for (const [uri, entry] of entries) {
+      if (published.has(uri)) {
+        continue;
+      }
+      published.add(uri);
+      const entryUri = entry || this.getMainScriptUri(uri) || uri;
+      const program = this.program(entryUri);
       if (!program) {
         // Nothing is published for a document before its program compiles,
         // and that compile publishes what this report says about it.
@@ -366,30 +382,34 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       this.publishDiagnostics(
         uri,
         this.getDiagnostics(program, uri),
-        this._lastPublishedDiagnostics.get(uri)?.owner ?? program.uri ?? mainUri,
+        this._lastPublishedDiagnostics.get(uri)?.owner ?? program.uri ?? entryUri,
       );
     }
   }
 
-  /** Whether a run built from `ran` ran `program`: every script both were
-   *  compiled from is at the same document version. A run of an older
+  /** Whether a run built from `ran` ran `program`: the same entry script,
+   *  compiled from the same scripts at the same document versions, with no
+   *  project file changed since the run was reported. A run of an older
    *  version describes text that has changed since, and one of a newer
    *  version describes text this server has not compiled yet. */
   protected ranProgram(
-    ran: RuntimeDiagnosticsParams["program"],
+    ran: { params: RuntimeDiagnosticsParams; files: number },
     program: SparkProgram,
   ) {
-    const scripts = program.scripts ?? {};
-    let shared = 0;
-    for (const [uri, version] of Object.entries(ran.scripts ?? {})) {
-      if (uri in scripts) {
-        if (scripts[uri] !== version) {
-          return false;
-        }
-        shared += 1;
-      }
+    if (ran.files !== this._fileChanges) {
+      return false;
     }
-    return shared > 0;
+    const { uri, scripts: ranScripts = {} } = ran.params.program;
+    if (program.uri && uri && program.uri !== uri) {
+      return false;
+    }
+    const scripts = program.scripts ?? {};
+    const names = Object.keys(ranScripts);
+    return (
+      names.length > 0 &&
+      names.length === Object.keys(scripts).length &&
+      names.every((name) => scripts[name] === ranScripts[name])
+    );
   }
 
   /** The compile's diagnostics for `uri`, then the player's current run's,
@@ -398,8 +418,8 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   override getDiagnostics(program: SparkProgram, uri: string) {
     const diagnostics = super.getDiagnostics(program, uri);
     const report = this._runtimeDiagnostics;
-    const reported = report?.diagnostics?.[uri];
-    if (!report || !reported?.length || !this.ranProgram(report.program, program)) {
+    const reported = report?.params.diagnostics?.[uri];
+    if (!report || !reported?.length || !this.ranProgram(report, program)) {
       return diagnostics;
     }
     const seen = new Set<string>();
@@ -459,6 +479,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     version?: number | null;
     languageId?: string | null;
   }) {
+    this._fileChanges += 1;
     if (
       file &&
       file.type === "script" &&
@@ -494,6 +515,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     version?: number | null;
     languageId?: string | null;
   }) {
+    this._fileChanges += 1;
     if (
       file &&
       file.type === "script" &&
@@ -526,6 +548,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     version?: number | null;
     languageId?: string | null;
   }) {
+    this._fileChanges += 1;
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);
     for (const [uri, published] of this._lastPublishedDiagnostics) {
