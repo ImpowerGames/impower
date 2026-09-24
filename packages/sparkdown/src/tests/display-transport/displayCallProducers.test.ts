@@ -4,6 +4,7 @@
 // producers replaced, so the tables read as the flat text did.
 
 import { describe, expect, test } from "vitest";
+import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -51,6 +52,7 @@ function steps(source: string): Step[] {
   for (let guard = 0; guard < 50; guard++) {
     if (story.canContinue) {
       const text = story.Continue() ?? "";
+      if (!continueShowedSomething(story)) continue;
       const tags = story.currentTags ?? [];
       let flatText = "";
       let inTag = false;
@@ -253,7 +255,8 @@ describe("producers outside display statements", () => {
       `& f()\nNext.\ndone\n\nfunction f()\nprint("hi", 2)\nprint("two")\nend\n`,
       [
         ["hi 2\n", []],
-        ["twoNext.\n", []],
+        ["two\n", []],
+        ["Next.\n", []],
       ],
     );
     expect(run[0]!.tables).toEqual([{ text: "hi 2" }]);

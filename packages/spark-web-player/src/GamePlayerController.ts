@@ -2252,11 +2252,14 @@ export class GamePlayerController {
       this.host,
     );
     await new Promise((resolve) => window.requestAnimationFrame(resolve));
-    if (lastExecutedLocation && workspace) {
-      // Ensure the workspace simulates a checkpoint from last executed location
+    // A run that ended in an error leaves the author on the statement that
+    // raised it; any other run, where it last executed.
+    const selected = error?.location ?? lastExecutedLocation;
+    if (selected && workspace) {
+      // Ensure the workspace simulates a checkpoint from the selected location
       await workspace.selectTextDocument({
-        textDocument: { uri: lastExecutedLocation.uri },
-        selectedRange: lastExecutedLocation.range,
+        textDocument: { uri: selected.uri },
+        selectedRange: selected.range,
         userEvent: true,
         docChanged: false,
       });
@@ -2459,7 +2462,9 @@ export class GamePlayerController {
           } else {
             console.log(message, location);
           }
-          if (game && game.state === "running") {
+          // A warning marks something the runtime recovered from, so only an
+          // error ends the run.
+          if (type === ErrorType.Error && game && game.state === "running") {
             const error = {
               message,
               location,

@@ -116,7 +116,10 @@ function main() {
     const t1 = performance.now();
     if (i >= config.warmup) totals.push(t1 - t0);
   }
-  const plain = last.lines.map(candidate.plain);
+  // A continue returns at its line's newline, so the one after the scene's
+  // last line completes with no text and no table. The game makes no beat of
+  // it, and neither does the digest.
+  const plain = last.lines.map(candidate.plain).filter(([text, , display]) => text !== "" || display.length > 0);
   // The `line` drive does not count the engine's steps; per-step figures come
   // from the `step` drive.
   const steps = last.steps || undefined;

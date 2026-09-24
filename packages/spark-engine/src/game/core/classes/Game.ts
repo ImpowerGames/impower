@@ -20,6 +20,7 @@ import {
   type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
+import { ErrorType as InkErrorType } from "@impower/sparkdown/src/inkjs/engine/Error";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
@@ -68,7 +69,6 @@ import { GameStartedMessage } from "./messages/GameStartedMessage";
 import { GameStartedThreadMessage } from "./messages/GameStartedThreadMessage";
 import { GameSteppedMessage } from "./messages/GameSteppedMessage";
 import { Module } from "./Module";
-import { RecencySet } from "./RecencySet";
 import { RuntimeState } from "./RuntimeState";
 
 export type DefaultModuleConstructors = typeof DEFAULT_MODULES;
@@ -220,37 +220,17 @@ export class Game<T extends M = {}> {
 
   protected _executingLocation: ScriptLocation | null = null;
 
+  protected _runtimeErrorsReported = 0;
+  /** How many runtime errors (not warnings) the game has reported, so a caller
+   *  can tell whether a failure it caught was already reported. */
+  get runtimeErrorsReported() {
+    return this._runtimeErrorsReported;
+  }
+
   protected _runtimeState: RuntimeState = new RuntimeState();
   get runtimeState() {
     return this._runtimeState;
   }
-
-  // Lookahead-rewind snapshot of `_runtimeState`. NOT a checkpoint — this is the
-  // try-a-branch/rewind-on-dead-end mechanism ink drives per output newline.
-  // Nothing here is proportional to the length of the simulation.
-  // `choicesEncountered`/`conditionsEncountered` are append-only, so we snapshot
-  // them by LENGTH and restore by truncation (O(1), exactly reverts the appends)
-  // instead of deep-cloning the growing arrays every newline. And
-  // `pathsExecutedThisFrame`, which grows for the whole simulation and reorders
-  // on revisit, journals its own undo information instead of being copied here
-  // (see RecencySet) — copying it was the last O(n²) term, and it made
-  // previewing deep inside a long scene exhaust memory (#376).
-  protected _runtimeSnapshot: {
-    // The collection the journal was opened on. A lookahead's undo information
-    // now lives ON that instance, so if the whole runtime state is replaced
-    // between save and restore (a `load`, a fresh simulation), rewinding it is
-    // meaningless — and rewinding only the OTHER collections would leave the
-    // four of them describing different moments. Identity is checked so the
-    // rewind stays all-or-nothing.
-    paths: RecencySet;
-    // Mirror of pathsExecutedThisFrame's per-checkpoint delta log — snapshotted
-    // alongside it so a lookahead rewind reverts the delta tracking too (else a
-    // speculative-then-rewound execution would leak into the next checkpoint's
-    // delta). Bounded by one beat's executions (we checkpoint every beat).
-    executedSinceCheckpoint: Set<string>;
-    choicesLength: number;
-    conditionsLength: number;
-  } | null = null;
 
   protected _lastHitBreakpointLocation: ScriptLocation | null = null;
 
@@ -436,7 +416,6 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this.discardRuntimeSnapshot();
 
     this.updateBreakpointsMap(options?.breakpoints ?? []);
     this.updateFunctionBreakpointsMap(options?.functionBreakpoints ?? []);
@@ -680,8 +659,17 @@ export class Game<T extends M = {}> {
   setupStory(story: Story) {
     story.collapseWhitespace = false;
     story.processEscapes = false;
-    story.onError = (message: string, type: ErrorType) => {
-      this.Error(message, type);
+    story.onError = (message, type, _source, raised) => {
+      // The story reports its errors as the step that raised them ends, before
+      // that step's location is recorded, so an error names the content that
+      // raised it, and the last recorded step only when that content has no
+      // location.
+      this.Error(
+        raised?.message ?? message,
+        type === InkErrorType.Warning ? ErrorType.Warning : ErrorType.Error,
+        pathLocation(this._program.pathLocations, raised?.path) ??
+          this._executingLocation,
+      );
     };
     story.onExecute = (path: string | undefined) => {
       if (path) {
@@ -694,53 +682,6 @@ export class Game<T extends M = {}> {
     story.onEvaluateCondition = (value) => {
       this._runtimeState.recordCondition(value);
     };
-    story.onSaveStateSnapshot = () => {
-      // O(1) in the size of the simulation: `pathsExecutedThisFrame` starts
-      // journalling its own changes, the append-only arrays are marked by
-      // length, and the only copy is the per-beat delta mirror.
-      const paths = this._runtimeState.pathsExecutedThisFrame;
-      paths.beginSnapshot();
-      this._runtimeSnapshot = {
-        paths,
-        executedSinceCheckpoint: new Set(
-          this._runtimeState.executedSinceCheckpoint,
-        ),
-        choicesLength: this._runtimeState.choicesEncountered.length,
-        conditionsLength: this._runtimeState.conditionsEncountered.length,
-      };
-    };
-    story.onRestoreStateSnapshot = () => {
-      if (
-        this._runtimeSnapshot &&
-        // The runtime state this snapshot describes is still the live one.
-        // Otherwise it belongs to a run that has already been abandoned, and
-        // applying half of it would be worse than applying none.
-        this._runtimeSnapshot.paths === this._runtimeState.pathsExecutedThisFrame
-      ) {
-        // Mutate in place (same _runtimeState object): rewind the recorded
-        // paths through their journal, and truncate the appended
-        // choices/conditions.
-        this._runtimeState.pathsExecutedThisFrame.restoreSnapshot();
-        this._runtimeState.executedSinceCheckpoint = new Set(
-          this._runtimeSnapshot.executedSinceCheckpoint,
-        );
-        this._runtimeState.choicesEncountered.length =
-          this._runtimeSnapshot.choicesLength;
-        this._runtimeState.conditionsEncountered.length =
-          this._runtimeSnapshot.conditionsLength;
-      }
-    };
-    story.onDiscardStateSnapshot = () => {
-      this.discardRuntimeSnapshot();
-    };
-  }
-
-  /** Drop any open lookahead snapshot, journal included. Used both when ink
-   *  discards one and when the game abandons a run mid-lookahead (a rewind, a
-   *  fresh simulation), so a stale journal can never rewind a later beat. */
-  protected discardRuntimeSnapshot() {
-    this._runtimeState?.pathsExecutedThisFrame?.discardSnapshot();
-    this._runtimeSnapshot = null;
   }
 
   simulate(
@@ -1264,7 +1205,6 @@ export class Game<T extends M = {}> {
 
     this._executingPath = null;
     this._executingLocation = null;
-    this.discardRuntimeSnapshot();
 
     this.continue(true);
 
@@ -1987,12 +1927,7 @@ export class Game<T extends M = {}> {
       if (pointerPath) {
         if (pointerPath !== this._executingPath) {
           this._executingPath = pointerPath;
-          // A look-ahead past the end of a line can run into the next scene
-          // and be undone. The scene is entered when the story really gets
-          // there.
-          if (!this._story.isLookingAhead) {
-            this.observeScene(pointerPath);
-          }
+          this.observeScene(pointerPath);
           if (
             this._plannedRoute &&
             this._plannedRouteStepCursor < this._plannedRoute?.steps.length
@@ -2078,7 +2013,11 @@ export class Game<T extends M = {}> {
           // consumed -- a last beat still waiting to be read flushes above.
           this.notifyFinished();
         }
-        this.checkpoint();
+        // A replay takes one checkpoint per beat. The continue after its last
+        // line can end the story with nothing to flush, and that is no beat.
+        if (instructions || this._simulation !== "simulating") {
+          this.checkpoint();
+        }
         if (this._simulation === "simulating") {
           if (!this._story.canContinue) {
             return true;
@@ -2112,17 +2051,26 @@ export class Game<T extends M = {}> {
           }
         }
 
-        if (this._story.asyncContinueComplete) {
-          const currentText = this._story.currentText || "";
-          const currentChoices = this._story.currentChoices.map((c) => c.text);
+        // A continue returns at its line's newline, so the one after a line
+        // can complete with nothing to show: the flow went on through logic
+        // to the story's end, or on into more of it. Choices alone make a beat
+        // of their own. A continue that shows nothing is not handed to the
+        // interpreter at all: `queue` would create its empty beat buffer, and
+        // the interpreter's saved state is part of every checkpoint, which two
+        // runs reaching the same story position must write alike. The end is
+        // reported, or the story runs on, below.
+        if (
+          this._story.asyncContinueComplete &&
+          this._story.continueShowedSomething
+        ) {
           // The step's beat takes its routing from the first
           // `display(<table>)` table that names a target (see
           // `InterpreterModule.queue`). Its body is `currentText`, the step's
           // ordered visible text.
           this.module.interpreter.queue(
             this._story.currentDisplayInstructions,
-            currentChoices,
-            currentText,
+            this._story.currentChoices.map((c) => c.text),
+            this._story.currentText || "",
           );
         }
 
@@ -2751,12 +2699,19 @@ export class Game<T extends M = {}> {
     return { stackFrames, totalFrames: 0 };
   }
 
-  protected Error(message: string, type: ErrorType) {
+  protected Error(
+    message: string,
+    type: ErrorType,
+    location: ScriptLocation | null = this._executingLocation,
+  ) {
+    if (type === ErrorType.Error) {
+      this._runtimeErrorsReported += 1;
+    }
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
         type,
-        location: this.getDocumentLocation(this._executingLocation),
+        location: this.getDocumentLocation(location),
         state: this._state,
       }),
     );

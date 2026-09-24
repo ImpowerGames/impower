@@ -12,7 +12,6 @@ import {
   ObjectValue,
   AbstractValue,
 } from "./Value";
-import { Glue } from "./Glue";
 import { ControlCommand } from "./ControlCommand";
 import { PushPopType } from "./PushPop";
 import { Divert } from "./Divert";
@@ -469,12 +468,6 @@ export class JsonSerialisation {
       return;
     }
 
-    let glue = asOrNull(obj, Glue);
-    if (glue) {
-      writer.Write("<>");
-      return;
-    }
-
     let controlCmd = asOrNull(obj, ControlCommand);
     if (controlCmd) {
       // Data-carrying generic dispatcher: encode the function name
@@ -776,9 +769,6 @@ export class JsonSerialisation {
       if (firstChar == "^") return new StringValue(str.substring(1));
       else if (firstChar == "\n" && str.length == 1)
         return new StringValue("\n");
-
-      // Glue
-      if (str == "<>") return new Glue();
 
       // Generic stdlib dispatcher: encoded as `stdlib:<name>:<arity>`.
       // Mirror of the writer above. Function names may contain dots
@@ -1413,7 +1403,6 @@ export class JsonSerialisation {
     // `sc:<op>:<skipCount>` form (see WriteRuntimeObject's special
     // case for ShortCircuit).
     _controlCommandNames[ControlCommand.CommandType.ShortCircuit] = "sc:?";
-    _controlCommandNames[ControlCommand.CommandType.LineStart] = "line";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

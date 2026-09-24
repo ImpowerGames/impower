@@ -5,6 +5,7 @@
 // captured from that lowering at commit ffd59219a.
 
 import { describe, expect, test } from "vitest";
+import { continueShowedSomething } from "../runtime/runtimeTestHarness";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import type { Simulator } from "../../inkjs/engine/Simulator";
@@ -27,7 +28,6 @@ const SILENT_SIMULATOR: Simulator = {
   willForceCondition: () => false,
   willForceChoice: () => false,
   saveSnapshot: () => ({ conditionPointer: {}, choicePointer: {} }),
-  restoreSnapshot: () => {},
 };
 
 function steps(source: string, simulator?: Simulator): Step[] {
@@ -60,6 +60,7 @@ function steps(source: string, simulator?: Simulator): Step[] {
   const out: Step[] = [];
   while (story.canContinue) {
     const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
     out.push({
       text,
       tables: story.currentDisplayInstructions.map((t) => ({

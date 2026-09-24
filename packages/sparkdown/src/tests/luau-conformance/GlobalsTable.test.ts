@@ -13,8 +13,8 @@ import { runConformanceSource } from "./conformanceTestHarness";
 //     invisible through `_G`). Misses push nil, not the generic
 //     empty-string sentinel.
 //   - The `StoreIndex` ControlCommand routes proxy writes to
-//     `VariablesState.SetGlobal` (patch-aware, so snapshot/rewind
-//     semantics match ordinary global assignment).
+//     `VariablesState.SetGlobal`, the same write an ordinary global
+//     assignment makes.
 //   - Dotted reads (`_G.foo`) lower to `VariableReference([_G, foo])`;
 //     the runtime's dotted-name fallback strips the `_G.` hop and
 //     starts the walk at the global binding.

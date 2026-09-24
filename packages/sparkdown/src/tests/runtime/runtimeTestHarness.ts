@@ -291,6 +291,14 @@ export function runToEnd(story: RuntimeStory): string {
   return story.ContinueMaximally();
 }
 
+/** Whether the last continue brought anything to show: text, a display table
+ *  or choices. A continue returns at its line's newline, so the one after a
+ *  story's last line completes with nothing, and the game makes no beat of
+ *  it; a helper that collects beats skips it the same way. */
+export function continueShowedSomething(story: RuntimeStory): boolean {
+  return story.continueShowedSomething;
+}
+
 /** The routing of each `display(<table>)` call the last step made, in order:
  *  the table's `target` and dialogue `character`, each present only when the
  *  table names it. */

@@ -384,7 +384,11 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
   [
     "print() call",
     `  & f()\n  After.\nend\n\nfunction f()\nprint("hi")\nprint("two")`,
-    [{ text: { action: ["hi"] } }, { text: { action: ["twoAfter."] } }],
+    [
+      { text: { action: ["hi"] } },
+      { text: { action: ["two"] } },
+      { text: { action: ["After."] } },
+    ],
   ],
   [
     "picked choice",
@@ -421,9 +425,12 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
     ],
   ],
   [
-    "print() ending a function glued onto a dialogue line",
+    "print() ending a function, then a dialogue line",
     `  & f()\n  HERO: After.\nend\n\nfunction f()\nprint("printed")`,
-    [{ text: { dialogue: ["printedAfter."], character_name: ["HERO"] } }],
+    [
+      { text: { action: ["printed"] } },
+      { text: { dialogue: ["After."], character_name: ["HERO"] } },
+    ],
   ],
   [
     "dialogue line with a tag evaluated after its text",
@@ -574,11 +581,11 @@ describe("display() load beats", () => {
     });
   }
 
-  test("a load step split from a held line keeps the step's choices", async () => {
+  test("a load step split from a held line is followed by the choices' own beat", async () => {
     const run = await beats(
       `  Before -> row\nend\n\nscene row\n  load overworld\n  choose\n    * Go\n      Gone.\n  end`,
     );
-    expect(run.map((b) => Boolean(b.load))).toEqual([false, true]);
+    expect(run.map((b) => Boolean(b.load))).toEqual([false, true, false]);
     expect(run[1]!.load).toEqual([{ name: "overworld" }]);
     expect(
       Object.keys(run.at(-1)!.text ?? {}).some((k) => k.startsWith("choice")),

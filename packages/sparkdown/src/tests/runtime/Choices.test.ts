@@ -159,6 +159,7 @@ describe("Choices (ported from inkjs)", () => {
 
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.Continue()).toBe("After choice\n");
+    expect(ctx.story.Continue()).toBe("");
     expect(ctx.story.currentChoices.length).toBe(1);
 
     ctx.story.ChooseChoiceIndex(0);
@@ -341,7 +342,7 @@ describe("Choices (ported from inkjs)", () => {
     expect(ctx.story.ContinueMaximally()).toBe("1\n2\n3\n");
   });
 
-  test("state rollback over default choice", () => {
+  test("a fallback choice a thread registered is followed after the line", () => {
     // Upstream ink fixture:
     //   <- make_default_choice
     //   Text.
@@ -351,14 +352,10 @@ describe("Choices (ported from inkjs)", () => {
     //           -> END
     //
     // Spawns a thread that registers a fallback choice `* ->` and
-    // diverts past it. The first Continue emits "Text." from the
-    // top-level. The second Continue auto-follows the fallback (via
-    // `TryFollowDefaultInvisibleChoice`) into the choice body, emitting
-    // `{5}`. State rollback over a default choice requires
-    // `isInvisibleDefault` to survive the internal snapshot/restore
-    // dance the runtime performs around fallback resolution — fixed
-    // by the JSON serialization round-trip in `JsonSerialisation.
-    // WriteChoice` / `JObjectToChoice`.
+    // diverts past it. The first Continue returns "Text." at its newline.
+    // The second reaches the end of the top-level content and follows the
+    // fallback (via `TryFollowDefaultInvisibleChoice`) into the choice body,
+    // emitting `{5}`.
     const ctx = makeRuntimeStoryFromFile(
       "choices",
       "state-rollback-over-default-choice",
@@ -470,8 +467,10 @@ describe("Choices (ported from inkjs)", () => {
     expect(ctx.errorMessages).toEqual([]);
     ctx.story.Continue();
     expect(ctx.story.currentChoices[0]?.text).toBe("hello");
+    // The picked choice echoes "hello" first; the next block's choice comes
+    // with the continue after it.
     ctx.story.ChooseChoiceIndex(0);
-    ctx.story.Continue();
+    expect(ctx.story.ContinueMaximally()).toBe("hello\n");
     expect(ctx.story.currentChoices[0]?.text).toBe("world");
   });
 });

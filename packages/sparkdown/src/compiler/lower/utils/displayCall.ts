@@ -230,7 +230,6 @@ function finishCall(
     new ObjectExpression(entries),
   ]);
   call.shouldPopReturnedValue = true;
-  call.emitsLineStart = true;
   if (range) stampDebugMetadata([call], range.from, range.to, ctx);
   return call;
 }
