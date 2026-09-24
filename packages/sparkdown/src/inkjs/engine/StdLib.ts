@@ -3946,8 +3946,9 @@ export const STDLIB: Record<string, StdLibEntry> = {
           try {
             results = story.CallLuauFunction(replArg, callArgs);
           } catch (e) {
-            story.Error(
+            story.ErrorFrom(
               `string.gsub: replacement function threw: ${(e as Error).message}`,
+              e,
             );
             return new MultiValue([new StringValue(input), new IntValue(0)]);
           }
@@ -4776,7 +4777,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
           if (top == null) return false;
           return isTruthy(top);
         } catch (e) {
-          story.Error(`table.sort: comparator threw: ${(e as Error).message}`);
+          story.ErrorFrom(
+            `table.sort: comparator threw: ${(e as Error).message}`,
+            e,
+          );
           aborted = true;
           return false;
         }

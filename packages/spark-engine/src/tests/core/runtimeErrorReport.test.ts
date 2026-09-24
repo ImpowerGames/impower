@@ -101,6 +101,41 @@ describe("a runtime error", () => {
     );
   });
 
+  // A handler's function runs synchronously, so the callbacks it reaches run
+  // too, from host code that restores the caller's position as the error
+  // unwinds. The report still names the statement inside the callback.
+  const clickReports = async (source: string) => {
+    const h = createHarness(source, 0);
+    await h.ready;
+    h.game.start();
+    const button = h.observedElementIds()[0]!;
+    h.reset();
+    h.emitEvent("click", button);
+    return runtimeErrors(h.messages).map((e) => [
+      e.location.range.start.line,
+      e.message,
+    ]);
+  };
+  const lineOf = (source: string, text: string) =>
+    source.split("\n").findIndex((line) => line.includes(text));
+
+  test("raised inside a metamethod a click handler reaches is reported where the metamethod raised it", async () => {
+    const source = `A\nB\n\nstore obj = setmetatable({}, { __index = function(t, k)\n  error("bad index")\nend })\n\nfunction read_item()\n  local value = obj.missing\nend\n\nlayout hud with\n  button "Read" @click=read_item\nend\n`;
+    expect(await clickReports(source)).toEqual([
+      [lineOf(source, `error("bad index")`), "bad index"],
+    ]);
+  });
+
+  test("raised inside a comparator a click handler's sort calls is reported where the comparator raised it", async () => {
+    const source = `A\nB\n\nstore items = {3, 1, 2}\n\nfunction compare(a, b)\n  error("bad compare")\nend\n\nfunction sort_items()\n  table.sort(items, compare)\nend\n\nlayout hud with\n  button "Sort" @click=sort_items\nend\n`;
+    expect(await clickReports(source)).toEqual([
+      [
+        lineOf(source, `error("bad compare")`),
+        expect.stringMatching(/bad compare$/),
+      ],
+    ]);
+  });
+
   test("carries no runtime location prefix in its message", async () => {
     const h = await play(`A\nB {error("boom")}\nC\n`);
     h.game.continue();

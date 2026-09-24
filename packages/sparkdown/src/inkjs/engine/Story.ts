@@ -1314,7 +1314,7 @@ export class Story extends InkObject {
           throw e;
         }
 
-        this.AddError(e.message, undefined, e.useEndLineNumber);
+        this.AddError(e.message, undefined, e.useEndLineNumber, e.raisedPath);
         break;
       }
 
@@ -4330,6 +4330,14 @@ export class Story extends InkObject {
         results.unshift(this.state.PopEvaluationStack() as AbstractValue);
       }
       return results;
+    } catch (e) {
+      // The pointer is restored to the caller's below, so an error the
+      // callback raised keeps the path of the content that raised it. An
+      // error from a callback nested inside this one already carries its own.
+      if (e instanceof StoryException && e.raisedPath == null) {
+        e.raisedPath = this.state.currentPointer.path?.toString() ?? null;
+      }
+      throw e;
     } finally {
       // Restore everything — output stream, currentPointer (in case
       // the inner ~ret restored it to something unexpected), and
@@ -5264,6 +5272,16 @@ export class Story extends InkObject {
     throw e;
   }
 
+  /** Raise `message` in place of `cause`, an error a callback raised, keeping
+   *  where the callback raised it. */
+  public ErrorFrom(message: string, cause: unknown): never {
+    let e = new StoryException(message);
+    if (cause instanceof StoryException) {
+      e.raisedPath = cause.raisedPath;
+    }
+    throw e;
+  }
+
   public Warning(message: string) {
     this.AddError(message, true);
   }
@@ -5272,18 +5290,20 @@ export class Story extends InkObject {
     message: string,
     isWarning = false,
     useEndLineNumber = false,
+    raisedPath: string | null = null,
   ) {
     let dm = this.currentDebugMetadata;
 
-    // The content being executed as the error is raised. An error raised
-    // after the story ran out of content has no current pointer, so it names
-    // the last content that ran.
+    // The content being executed as the error is raised, unless the error
+    // names it itself (`StoryException.raisedPath`). An error raised after the
+    // story ran out of content has no current pointer, so it names the last
+    // content that ran.
     const at = this.state.currentPointer.isNull
       ? this.state.previousPointer
       : this.state.currentPointer;
     const raised: RaisedError = {
       message,
-      path: at.path?.toString() ?? null,
+      path: raisedPath ?? at.path?.toString() ?? null,
     };
 
     let errorTypeStr = isWarning ? "WARNING" : "ERROR";
