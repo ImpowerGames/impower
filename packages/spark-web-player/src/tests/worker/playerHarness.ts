@@ -324,7 +324,9 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         app.clock.start();
       },
       destroys: 0,
+      destroyed: false,
       destroy: async () => {
+        app.destroyed = true;
         app.destroys += 1;
         app.clock.stop();
         app.clock.dispose();
