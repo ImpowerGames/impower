@@ -861,7 +861,7 @@ export default class UIManager extends Manager {
    * the first letter's reveal begins: at the beat's start, or later when that
    * letter waits (a choice while the caption above it types). The target's own
    * box and border do not show empty in the meantime. An instant write shows
-   * everything at once.
+   * everything at once, including when it repeats the last write.
    */
   protected async writeText(
     target: string,
@@ -879,6 +879,14 @@ export default class UIManager extends Manager {
       targetEls.length > 0 &&
       targetEls.every((el) => (el as any).__sdTxt === sig)
     ) {
+      if (instant) {
+        // The same write shown at once, as when a beat shown in full repeats
+        // its writes onto a target nothing cleared: what the first one left
+        // to reveal shows now.
+        for (const el of targetEls) {
+          this.revealAtOnce(el);
+        }
+      }
       return;
     }
     for (const el of targetEls) {
@@ -902,12 +910,13 @@ export default class UIManager extends Manager {
       // its first letter appears.
       const empty =
         contentEls.length > 0 && contentEls.every((el) => !el.hasChildNodes());
-      if (instant || instructions.length === 0 || empty) {
-        // A clear or an instant write shows the target at once, and a played
-        // write to an empty target waits for its own first letter, so the
-        // wait the last write left ends here. A played write adding to text
-        // that is still waiting keeps that wait, which ends as the earlier
-        // text starts to appear. Stored on the node, like `__sdTxt`.
+      if (instant) {
+        this.revealAtOnce(targetEl);
+      } else if (instructions.length === 0 || empty) {
+        // A played write to an empty target waits for its own first letter,
+        // so the wait the last write left ends here. A played write adding to
+        // text that is still waiting keeps that wait, which ends as the
+        // earlier text starts to appear. Stored on the node, like `__sdTxt`.
         (targetEl as any).__sdWait?.cancel();
         delete (targetEl as any).__sdWait;
       }
@@ -940,7 +949,10 @@ export default class UIManager extends Manager {
     if (enter.length > 0 || waiting.length > 0) {
       const player = new AnimationPlayer();
       for (const { element, animation } of enter) {
-        player.add({ element, animations: [animation] });
+        (element as any).__sdReveal = player.add({
+          element,
+          animations: [animation],
+        })[0];
       }
       // On the letters' timeline, so the target appears as the first letter
       // does, however late the write is handled.
@@ -951,6 +963,26 @@ export default class UIManager extends Manager {
         })[0];
       }
       await player.play(startTime);
+    }
+  }
+
+  /**
+   * Shows at once everything a target's writes have left to reveal: the
+   * target's wait ends and each of its letters finishes its reveal. A letter
+   * keeps its reveal on its node (`__sdReveal`), as the target keeps its wait.
+   */
+  protected revealAtOnce(targetEl: HTMLElement) {
+    (targetEl as any).__sdWait?.cancel();
+    delete (targetEl as any).__sdWait;
+    for (const contentEl of [
+      ...this.getContentElements(targetEl, "text"),
+      ...this.getContentElements(targetEl, "stroke"),
+    ]) {
+      for (const letter of Array.from(
+        contentEl.querySelectorAll(".text_letter"),
+      )) {
+        (letter as any).__sdReveal?.finish();
+      }
     }
   }
 

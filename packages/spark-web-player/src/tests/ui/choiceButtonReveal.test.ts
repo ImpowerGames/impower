@@ -2,9 +2,10 @@
 // delays its label's letters until then. The button waits with its label. The
 // page keeps a played text target with nothing on it hidden until its first
 // letter's reveal begins, so no empty button shows while the caption types, or
-// before the beat starts (#827). The preview, and a save the page loads and
-// displays, show the buttons with their labels at once, and the box of a lone
-// `>` break, with no letter to wait for, shows as its beat is written.
+// before the beat starts (#827). The preview, a save the page loads and
+// displays, and an instant write repeating a played one show the buttons with
+// their labels at once, and the box of a lone `>` break, with no letter to
+// wait for, shows as its beat is written.
 //
 // Beats play through the engine's own Coordinator into the page's own
 // UIManager. jsdom has no Web Animations, so the animations the page starts
@@ -13,7 +14,9 @@
 
 import { Coordinator } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import type { TextInstruction } from "@impower/spark-engine/src/game/core/types/Instruction";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
+import { BEAT_LEAD_MS } from "@impower/spark-engine/src/game/core/utils/sharedClock";
 import { describe, expect, test } from "vitest";
 import {
   compile,
@@ -64,6 +67,8 @@ interface Played {
   };
   startTime: number | null;
   cancelled: boolean;
+  /** Finished early, so it reads as it does at its end. */
+  done: boolean;
 }
 
 let played: Played[] = [];
@@ -87,6 +92,7 @@ const recordAnimations = () => {
   g.Animation = class {
     startTime: number | null = null;
     cancelled = false;
+    done = false;
     finished = Promise.resolve();
     constructor(public effect: Played["effect"]) {
       played.push(this);
@@ -96,6 +102,9 @@ const recordAnimations = () => {
     }
     cancel() {
       this.cancelled = true;
+    }
+    finish() {
+      this.done = true;
     }
   };
 };
@@ -120,7 +129,7 @@ const styleAt = (el: HTMLElement, property: string, t: number): string => {
     const delay = timing.delay ?? 0;
     const duration = timing.duration ?? 0;
     const fill = timing.fill ?? "auto";
-    const local = t - animation.startTime;
+    const local = animation.done ? Infinity : t - animation.startTime;
     if (local < delay) {
       if (fill === "backwards" || fill === "both") {
         value = from;
@@ -291,6 +300,32 @@ describe("a choice button", () => {
     expect(labelAt(choiceButton(h, 0), now)).toBe("Up");
     expect(shownAt(choiceButton(h, 1), now)).toBe(true);
     expect(labelAt(choiceButton(h, 1), now)).toBe("Down");
+  });
+});
+
+describe("an instant write", () => {
+  test("repeating a played write shows the target with its text at once", async () => {
+    // Nothing clears the target between the two writes, as for a target with
+    // text of its own, which the game does not clear between beats.
+    const h = createDOMHarness(SOURCE);
+    recordAnimations();
+    await h.ready;
+    const text = h.game.module.ui.text;
+    const label: TextInstruction[] = [
+      { control: "show", text: "U", after: 0.5 },
+      { control: "show", text: "p", after: 0.55 },
+    ];
+    await text.write("choice 0", label, false, BEAT_LEAD_MS);
+    await flushMicrotasks(20);
+    const button = choiceButton(h, 0);
+    const now = Number(document.timeline.currentTime);
+    expect(shownAt(button, now)).toBe(false);
+
+    await text.write("choice 0", label, true);
+    await flushMicrotasks(20);
+
+    expect(shownAt(button, now)).toBe(true);
+    expect(labelAt(button, now)).toBe("Up");
   });
 });
 
