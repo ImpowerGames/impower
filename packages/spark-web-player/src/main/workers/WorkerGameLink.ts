@@ -25,7 +25,8 @@ type Listener = (message: any) => void;
  * 8 ms between a click and the game's answer; a broadcast channel's messages
  * are not held, and arrive in a median of 0.3 ms (#811). The channel's name
  * is made for the sink, so no other page of the editor hears it, and closing
- * it on detach leaves a stopped run nothing to write into.
+ * it on detach leaves a stopped run nothing to write into. While the channel
+ * is open, the game messages the connection carries are not delivered.
  *
  * While PLAY's sink is attached, the link also tells the worker each time the
  * page has finished rendering a frame (`PageFramedMessage`), and the worker's
@@ -43,8 +44,18 @@ export class WorkerGameLink {
 
   constructor(connection: MessageConnection) {
     this._connection = connection;
-    connection.addEventListener("message", this.onMessage);
+    connection.addEventListener("message", this.onConnectionMessage);
   }
+
+  /** The two transports keep no order between them, and each game numbers
+   *  its stream's epochs from one, so while PLAY's channel is open a game
+   *  message the connection still carries (the preview's) would reach PLAY's
+   *  sink in any order and could supersede its stream. */
+  protected onConnectionMessage = (e: MessageEvent) => {
+    if (!this._channel) {
+      this.onMessage(e);
+    }
+  };
 
   protected onMessage = (e: MessageEvent) => {
     const message = e.data;
