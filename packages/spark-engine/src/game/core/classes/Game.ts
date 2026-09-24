@@ -24,6 +24,7 @@ import { ErrorType as InkErrorType } from "@impower/sparkdown/src/inkjs/engine/E
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { StepLimitExceeded } from "@impower/sparkdown/src/inkjs/engine/StoryException";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
@@ -2037,14 +2038,32 @@ export class Game<T extends M = {}> {
         }
         return true;
       } else if (this._story.canContinue) {
-        const stepsBefore = this._story.stepCount;
-        this._story.ContinueAsync();
         // One step was charged above. A Luau callback runs all of its steps
-        // inside the step that called it, and those count too.
-        this._executionStepsRemaining -= Math.max(
-          0,
-          this._story.stepCount - stepsBefore - 1,
-        );
+        // inside the step that called it, and those count too: the limit stops
+        // them where the budget runs out, and what they took is charged after.
+        const stepsBefore = this._story.stepCount;
+        this._story.stepLimit =
+          stepsBefore + 1 + this._executionStepsRemaining;
+        let stopped = false;
+        try {
+          this._story.ContinueAsync();
+        } catch (e) {
+          if (!(e instanceof StepLimitExceeded)) {
+            throw e;
+          }
+          stopped = true;
+        } finally {
+          this._story.stepLimit = null;
+          this._executionStepsRemaining -= Math.max(
+            0,
+            this._story.stepCount - stepsBefore - 1,
+          );
+        }
+        if (stopped) {
+          // The budget ran out part way through the step; the check at the
+          // top of the loop reports it.
+          continue;
+        }
 
         const prevExecutedLocation = this._executingLocation;
         const pointerPath = this._story.state.previousPointer.path?.toString();

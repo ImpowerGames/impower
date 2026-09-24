@@ -38,7 +38,7 @@ import {
   stepBuiltinIterator,
   unwrapArgsForPureStdLibFn,
 } from "./StdLib";
-import { StoryException } from "./StoryException";
+import { StepLimitExceeded, StoryException } from "./StoryException";
 import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
@@ -697,6 +697,12 @@ export class Story extends InkObject {
    *  caller that budgets execution per `ContinueAsync()` charges the difference
    *  in this count, not one step per call. */
   public stepCount = 0;
+
+  /** The `stepCount` past which `Step()` throws {@link StepLimitExceeded}, or
+   *  null for none. A caller that budgets execution sets it around a
+   *  `ContinueAsync()`, so the budget also stops the steps of callbacks, which
+   *  run before that call returns. */
+  public stepLimit: number | null = null;
 
   public simulator?: Simulator | null = null;
 
@@ -1508,6 +1514,9 @@ export class Story extends InkObject {
 
   public Step() {
     this.stepCount++;
+    if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
+      throw new StepLimitExceeded();
+    }
     this.pausedBeforeCondition = null; // clear any previous pause
 
     let shouldAddToStream = true;

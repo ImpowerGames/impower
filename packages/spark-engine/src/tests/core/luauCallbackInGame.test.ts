@@ -196,12 +196,13 @@ end
     expect(lastSearchStats.endReason).toBe("max-steps");
   });
 
-  test("count against the running game's execution budget", () => {
-    const SOURCE = LOOPING_CALLBACK;
-    const program = compileProgram(SOURCE);
+  /** Replay the route to the `  B` line of `source` under an execution budget
+   *  of `limit` steps, returning the errors the game reported. */
+  const replayToB = (source: string, limit: number) => {
+    const program = compileProgram(source);
     const game = new Game({
       program: program as any,
-      executionStepLimit: 5000,
+      executionStepLimit: limit,
       now: () => 0,
       setTimeout: ((fn: Function, _ms?: number, ...a: any[]) => {
         fn(...a);
@@ -215,7 +216,7 @@ end
       errors.push(String(message));
       return realError(message, ...rest);
     };
-    game.setStartFrom({ file: URI, line: SOURCE.split("\n").indexOf("  B") });
+    game.setStartFrom({ file: URI, line: source.split("\n").indexOf("  B") });
     const toPath = anyGame.startPath as string;
     const route = Game.planRoute(
       game.story,
@@ -225,9 +226,91 @@ end
     );
     expect(route).not.toBeNull();
     game.patchAndSimulateRoute(route!);
+    return { game, errors };
+  };
+
+  test("count against the running game's execution budget", () => {
+    const { errors } = replayToB(LOOPING_CALLBACK, 5000);
     expect(errors).toEqual([
       "Execution exceeded 5000 steps: possible infinite loop",
     ]);
+  });
+
+  // A native loop can call short callbacks for as long as they keep giving it
+  // more to do: `table.foreach` over a table its callback appends to never
+  // runs out. Every callback stays far inside its own limit, so only the
+  // budget can stop the step, and it has to while the callbacks are running.
+  // The fixture stops growing at 20,000 entries so that a budget which waits
+  // for the step to end still finishes.
+  const GROWING_FOREACH = `-> start
+
+store t = {1}
+
+scene start
+  A
+  & table.foreach(t, function(k, v) if #t < 20000 then table.insert(t, v) end end)
+  B
+end
+`;
+
+  test("are stopped by the running game's execution budget while they run", () => {
+    const { game, errors } = replayToB(GROWING_FOREACH, 5000);
+    expect(errors).toEqual([
+      "Execution exceeded 5000 steps: possible infinite loop",
+    ]);
+    const t = game.story.variablesState.GetVariableWithName("t") as any;
+    expect((t.value as Map<unknown, unknown>).size).toBeLessThan(5000);
+  });
+
+  // `table.sort` and `string.gsub` report an error their callback raises as
+  // their own. The budget running out is not the callback's error.
+  test.each([
+    [
+      "table.sort",
+      `& table.sort(t, function(a, b) for i = 1, 2000 do end return a < b end)`,
+    ],
+    [
+      "string.gsub",
+      `& s = string.gsub("aaaa", "a", function(m) for i = 1, 2000 do end return "b" end)`,
+    ],
+  ])(
+    "stopped inside %s are reported as the budget running out",
+    (_, line) => {
+      const source = `-> start
+
+store t = {5, 4, 3, 2, 1}
+store s = ""
+
+scene start
+  A
+  ${line}
+  B
+end
+`;
+      const { errors } = replayToB(source, 5000);
+      expect(errors).toEqual([
+        "Execution exceeded 5000 steps: possible infinite loop",
+      ]);
+    },
+  );
+
+  test("are stopped by a route search's step budget while they run", () => {
+    const program = compileProgram(GROWING_FOREACH);
+    const locator: any = new Game({ program: program as any } as any);
+    locator.setStartFrom({
+      file: URI,
+      line: GROWING_FOREACH.split("\n").indexOf("  B"),
+    });
+    const route = planRoute(
+      new Game({ program: program as any } as any).story,
+      "start",
+      locator.startPath as string,
+      { maxSteps: 5000, searchTimeout: Number.MAX_SAFE_INTEGER },
+    );
+    expect(route).toBeNull();
+    expect(lastSearchStats.endReason).toBe("max-steps");
+    // The step the budget ran out in is the only one that can overrun it.
+    expect(lastSearchStats.stepsUsed).toBeLessThanOrEqual(5001);
   });
 });
 
