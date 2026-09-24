@@ -1,4 +1,8 @@
 import {
+  RuntimeDiagnosticsMessage,
+  type RuntimeDiagnosticsParams,
+} from "@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage";
+import {
   CompileProgramMessage,
   CompileProgramParams,
 } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
@@ -318,6 +322,98 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
+  /** Publish `diagnostics` for `uri`, unless they are what was last
+   *  published for the document at its current version. */
+  protected publishDiagnostics(
+    uri: string,
+    diagnostics: ReturnType<SparkdownWorkspace["getDiagnostics"]>,
+    owner: string | undefined,
+  ) {
+    const last = this._lastPublishedDiagnostics.get(uri);
+    const version = this._documentVersions.get(uri);
+    const fingerprint = JSON.stringify(diagnostics);
+    this._lastPublishedDiagnostics.set(uri, { fingerprint, version, diagnostics, owner });
+    if (last && last.fingerprint === fingerprint && last.version === version) {
+      return;
+    }
+    this.sendNotification(PublishDiagnosticsNotification.method, {
+      uri,
+      diagnostics,
+      version,
+    });
+  }
+
+  /** The runtime errors and warnings of the player's current run, as it last
+   *  reported them. */
+  protected _runtimeDiagnostics?: RuntimeDiagnosticsParams;
+
+  /** Take the player's report of its current run in place of the last, and
+   *  publish every document either report names. */
+  reportRuntimeDiagnostics(params: RuntimeDiagnosticsParams) {
+    const uris = new Set([
+      ...Object.keys(this._runtimeDiagnostics?.diagnostics ?? {}),
+      ...Object.keys(params.diagnostics ?? {}),
+    ]);
+    this._runtimeDiagnostics = params;
+    for (const uri of uris) {
+      const mainUri = this.getMainScriptUri(uri) ?? uri;
+      const program = this.program(mainUri);
+      if (!program) {
+        // Nothing is published for a document before its program compiles,
+        // and that compile publishes what this report says about it.
+        continue;
+      }
+      this.publishDiagnostics(
+        uri,
+        this.getDiagnostics(program, uri),
+        this._lastPublishedDiagnostics.get(uri)?.owner ?? program.uri ?? mainUri,
+      );
+    }
+  }
+
+  /** Whether a run built from `ran` ran `program`: every script both were
+   *  compiled from is at the same document version. A run of an older
+   *  version describes text that has changed since, and one of a newer
+   *  version describes text this server has not compiled yet. */
+  protected ranProgram(
+    ran: RuntimeDiagnosticsParams["program"],
+    program: SparkProgram,
+  ) {
+    const scripts = program.scripts ?? {};
+    let shared = 0;
+    for (const [uri, version] of Object.entries(ran.scripts ?? {})) {
+      if (uri in scripts) {
+        if (scripts[uri] !== version) {
+          return false;
+        }
+        shared += 1;
+      }
+    }
+    return shared > 0;
+  }
+
+  /** The compile's diagnostics for `uri`, then the player's current run's,
+   *  while that run ran this program. The same problem at the same place is
+   *  shown once. */
+  override getDiagnostics(program: SparkProgram, uri: string) {
+    const diagnostics = super.getDiagnostics(program, uri);
+    const report = this._runtimeDiagnostics;
+    const reported = report?.diagnostics?.[uri];
+    if (!report || !reported?.length || !this.ranProgram(report.program, program)) {
+      return diagnostics;
+    }
+    const seen = new Set<string>();
+    const runtime = reported.filter((d) => {
+      const key = JSON.stringify([d.severity, d.message, d.range]);
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+    return [...diagnostics, ...(runtime as typeof diagnostics)];
+  }
+
   override onCompiledTextDocument(params: {
     textDocument?: { uri: string };
     program: any;
@@ -343,18 +439,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
       ) {
         continue;
       }
-      const version = this._documentVersions.get(uri);
-      const diagnostics = this.getDiagnostics(params.program, uri);
-      const fingerprint = JSON.stringify(diagnostics);
-      this._lastPublishedDiagnostics.set(uri, { fingerprint, version, diagnostics, owner });
-      if (last && last.fingerprint === fingerprint && last.version === version) {
-        continue;
-      }
-      this.sendNotification(PublishDiagnosticsNotification.method, {
-        uri,
-        diagnostics,
-        version,
-      });
+      this.publishDiagnostics(uri, this.getDiagnostics(params.program, uri), owner);
     }
     // These refreshes are workspace-wide and carry no params, so once per
     // compile is lossless. (They used to be sent inside the loop above --
@@ -484,6 +569,14 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     (this._connection as any).__textDocumentSync =
       TextDocumentSyncKind.Incremental;
     const disposables: Disposable[] = [];
+    disposables.push(
+      this._connection.onNotification(
+        RuntimeDiagnosticsMessage.method,
+        (params: RuntimeDiagnosticsParams) => {
+          this.reportRuntimeDiagnostics(params);
+        },
+      ),
+    );
     // Asset inspectors pull just their selected file's messages. Never compile
     // an SVG as a text document or send the full diagnostic map to the client.
     disposables.push(

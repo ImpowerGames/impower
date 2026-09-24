@@ -19,6 +19,7 @@ import {
   type RoutePlan,
   type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/inkjs/engine/Error";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
@@ -302,6 +303,20 @@ export class Game<T extends M = {}> {
   protected _replaying = false;
   get replaying() {
     return this._replaying;
+  }
+
+  /** The runtime errors and warnings the route replays raised, each with the
+   *  number of checkpoints saved before it was raised. A replay that resumes
+   *  from a checkpoint runs again only what came after that checkpoint, so it
+   *  keeps what the steps before it raised and drops the rest. */
+  protected _routeErrors: { at: number; error: SimulationError }[] = [];
+
+  /** The runtime errors and warnings the route to the start point raised, in
+   *  the order the replay raised them. A replay reports these here rather than
+   *  as it raises them: nothing shows its beats, and the game that shows the
+   *  start point reports them as part of its own run. */
+  get routeErrors(): SimulationError[] {
+    return this._routeErrors.map((e) => e.error);
   }
 
   /** Why the last attempt to simulate a route gave up. Recorded where the
@@ -1139,6 +1154,9 @@ export class Game<T extends M = {}> {
     const startCheckpoint = this._checkpoints.getJson(fromCheckpoint);
     this._checkpoints.truncate(fromCheckpoint + 1);
     this._checkpointStepCursors.length = fromCheckpoint + 1;
+    this._routeErrors = this._routeErrors.filter(
+      (e) => e.at <= fromCheckpoint,
+    );
     this._plannedRoute = route;
     this._plannedRouteChangeId = this._program.changes?.id;
     this._simulatePath = route.fromPath;
@@ -2706,6 +2724,13 @@ export class Game<T extends M = {}> {
   ) {
     if (type === ErrorType.Error) {
       this._runtimeErrorsReported += 1;
+    }
+    if (this._replaying) {
+      this._routeErrors.push({
+        at: this._checkpoints.length,
+        error: { message, type, location: this.getDocumentLocation(location) },
+      });
+      return;
     }
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({

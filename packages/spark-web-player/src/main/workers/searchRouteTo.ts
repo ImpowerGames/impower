@@ -90,6 +90,7 @@ export const searchRouteTo = (
       // A route existed, so any failure here happened during the replay rather
       // than the search; the game recorded which (`"diverged"`).
       simulationFailure: reachedTarget ? undefined : game.simulationFailure,
+      errors: game.routeErrors,
     });
     if (checkpoint && remember) {
       // Cache favored conditions and choices
@@ -149,6 +150,8 @@ export const searchRouteTo = (
       programId,
       reachedTarget: false,
       simulationFailure: Game.describeFailedRouteSearch(game.program, toPath),
+      // Nothing was replayed. What the game holds is the last route's.
+      errors: [],
     });
     return undefined;
   }

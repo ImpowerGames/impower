@@ -1,3 +1,4 @@
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 
 /** What the last route search established about a start point, and the rule for
@@ -36,6 +37,9 @@ export interface RouteSearchOutcome {
    *  route found but not replayed to the end is not reusable and is still worth
    *  explaining (#379). */
   simulationFailure?: SimulationFailure;
+  /** The runtime errors and warnings the replay raised on its way, whether or
+   *  not it reached the path. A search that found no route replayed nothing. */
+  errors?: SimulationError[];
 }
 
 /** Params a route-search outcome can be reported on. Structural, so both
@@ -45,6 +49,7 @@ export interface RouteSearchReportTarget {
   simulatedPath?: string | null;
   simulatedProgramId?: string;
   simulationFailure?: SimulationFailure;
+  simulationErrors?: SimulationError[];
 }
 
 export class RouteSearchLog {
@@ -113,5 +118,8 @@ export class RouteSearchLog {
       params.simulatedProgramId = last.programId;
     }
     params.simulationFailure = last.simulationFailure;
+    // What the replay raised is the author's to see wherever the start point
+    // is shown, whether the replay got there or stopped short of it.
+    params.simulationErrors = last.errors ?? [];
   }
 }
