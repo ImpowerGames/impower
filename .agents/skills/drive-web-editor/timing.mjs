@@ -123,12 +123,15 @@ export function stats(values) {
  *
  * With the game in the worker the record also holds, on the shared clock,
  * when the page posted each input to the game (`posted`) and when the worker
- * posted each of the game's messages (`sent`), which divide the time into
- * the page's input reaching the game and being answered, and the answer
- * reaching the page's router. `timeOrigin` is the page's
- * `performance.timeOrigin`.
+ * posted each of the game's messages (`sent`, each { at, method }), which
+ * divide the time into the page's input reaching the game and being
+ * answered, and the answer reaching the page's router. The worker's answer is
+ * its first post after the click's of the answer's method. `timeOrigin` is
+ * the page's `performance.timeOrigin`. With `requireWorker`, a sample whose
+ * answer the worker probe did not record fails, since its figures would lack
+ * the split they are read for.
  */
-export function attributeInputSample(record) {
+export function attributeInputSample(record, { requireWorker = false } = {}) {
   const click = record.clicks.find((c) => c.type === "click");
   if (!click) return { failure: "no click event reached the page" };
   const answer = record.messages.find((m) => m.t >= click.t);
@@ -142,12 +145,13 @@ export function attributeInputSample(record) {
     fromTimeStamp: round(answer.t - click.timeStamp),
   };
   const post = record.posted?.find((p) => p.type === "click");
-  const answered = post ? record.sent?.find((at) => at >= post.at) : undefined;
-  if (answered != null) {
-    out.postedToAnswered = round(answered - post.at);
-    out.answeredToHandled = round(record.timeOrigin + answer.t - answered);
+  const answered = post ? record.sent?.find((s) => s.at >= post.at && s.method === answer.method) : undefined;
+  if (answered) {
+    out.postedToAnswered = round(answered.at - post.at);
+    out.answeredToHandled = round(record.timeOrigin + answer.t - answered.at);
   }
   if (!answer.answersChoice) return { ...out, failure: `the first message after the click (${answer.method}) does not touch a choice` };
+  if (requireWorker && !answered) return { ...out, failure: "the worker probe recorded no post of the answer" };
   return out;
 }
 
@@ -183,14 +187,16 @@ export function summarizeInput(samples) {
  * - `sentAt`: with the game in the worker, when the worker posted the
  *   `audio/update`, on the shared clock.
  *
- * `onsets` are the tap's reports ({ contextTime, frame, peak }); the onset of
- * a beat is the first one from 50 ms before it was due to 250 ms after.
- * `timeOrigin` is the page's `performance.timeOrigin`.
+ * `onset` is the tap's report the beat was paired with ({ contextTime,
+ * frame, peak }), or null (`pairMetronome`). `timeOrigin` is the page's
+ * `performance.timeOrigin`. With `requireWorker`, the game runs in the worker
+ * and a beat whose post the worker probe did not record fails, since its
+ * figures would lack the split they are read for.
  *
  * Every time here is when it reaches the listener: a context time is mapped
  * through the output timestamp, which gives the time it leaves the speakers.
  */
-export function metronomeRow(beat, onsets, timeOrigin) {
+export function metronomeRow(beat, onset, timeOrigin, { requireWorker = false } = {}) {
   const ts = beat.outputTimestamp;
   const heard = (contextTime) => timeOrigin + ts.performanceTime + (contextTime - ts.contextTime) * 1000;
   const late = beat.currentTime > beat.due;
@@ -206,8 +212,9 @@ export function metronomeRow(beat, onsets, timeOrigin) {
   if (beat.sentAt != null) {
     row.sentMinusStamp = round(beat.sentAt - beat.stamp);
     row.transit = round(timeOrigin + beat.arrivedAt - beat.sentAt);
+  } else if (requireWorker) {
+    row.failure = "the worker probe recorded no post of the beat's audio/update";
   }
-  const onset = onsets.find((o) => o.contextTime >= beat.due - 0.05 && o.contextTime <= beat.due + 0.25);
   if (onset) {
     const at = heard(onset.contextTime);
     row.frame = onset.frame;
@@ -216,7 +223,7 @@ export function metronomeRow(beat, onsets, timeOrigin) {
     row.onsetMinusScheduled = round(at - heard(when));
     if (beat.flash) row.flashMinusOnset = round(timeOrigin + beat.flash.startTime - at);
   } else {
-    row.failure = "no onset within 50 ms before and 250 ms after the sound was due";
+    row.failure ??= "no onset was heard for the beat's click";
   }
   if (beat.flash) {
     row.flashMinusStamp = round(timeOrigin + beat.flash.startTime - beat.stamp);
@@ -227,9 +234,61 @@ export function metronomeRow(beat, onsets, timeOrigin) {
   return row;
 }
 
+/**
+ * One row for every key the page pressed, so a key that started no beat is a
+ * failed row rather than a missing one. What the page logged:
+ *
+ * - `keys`: the page `performance.now()` of each key, in order. A key owns
+ *   what arrives from it to the next key.
+ * - `beats`: each played sound, as `metronomeRow` reads it, without `flash`
+ *   or `sentAt`. A key's beat is the first to arrive in its window; a second
+ *   one fails the row, since the attribution would be a guess.
+ * - `writes`: each stamped `ui/write-image` ({ t, time }). A beat's write is
+ *   the one carrying its stamp.
+ * - `anims`: each animation start time the page set ({ setAt, startTime,
+ *   fresh }), where `fresh` says its target was never animated before. The
+ *   flash is the first fresh one set from the beat's write to the end of the
+ *   key's window, which is the enter animation of the layer the write made:
+ *   the exit of the layer before it, and the target wrapper, animate elements
+ *   that existed already. A write arrives after its key, so no two beats
+ *   search the same stretch.
+ * - `onsets`: the tap's reports. A beat's onset is the first one from 50 ms
+ *   before the sound was due to 250 ms after, or to 50 ms before the next beat
+ *   was due when that is sooner, so no two beats search the same stretch and
+ *   a missing click is never credited with its neighbour's.
+ * - `sends`: the worker's posts ({ at, method, time, channel }); a beat's is
+ *   the `audio/update` carrying its stamp.
+ */
+export function pairMetronome({ keys, beats, writes, anims, onsets, sends = [], timeOrigin, requireWorker = false }) {
+  const paired = keys.map((key, i) => {
+    const end = keys[i + 1] ?? Infinity;
+    const mine = beats.filter((b) => b.arrivedAt >= key && b.arrivedAt < end);
+    if (mine.length === 0) return { failure: "the key started no beat" };
+    const beat = mine[0];
+    const write = writes.find((w) => w.time === beat.stamp);
+    let flash = null;
+    if (write) {
+      const anim = anims.find((a) => a.fresh && a.setAt >= write.t && a.setAt < end);
+      if (anim) flash = { startTime: anim.startTime, setAt: anim.setAt };
+    }
+    const sent = sends.find((s) => s.method === "audio/update" && s.time === beat.stamp);
+    return { beat: { ...beat, flash, sentAt: sent?.at }, extra: mine.length - 1 };
+  });
+  const played = paired.filter((p) => p.beat);
+  return paired.map((p) => {
+    if (!p.beat) return p;
+    const next = played[played.indexOf(p) + 1]?.beat;
+    const until = Math.min(p.beat.due + 0.25, next ? next.due - 0.05 : Infinity);
+    const onset = onsets.find((o) => o.contextTime >= p.beat.due - 0.05 && o.contextTime < until) ?? null;
+    const row = metronomeRow(p.beat, onset, timeOrigin, { requireWorker });
+    if (p.extra > 0) row.failure = `the key started ${p.extra + 1} beats`;
+    return row;
+  });
+}
+
 export function summarizeMetronome(rows) {
   const ok = rows.filter((r) => !r.failure);
-  const stamps = rows.map((r) => r.stamp);
+  const stamps = rows.map((r) => r.stamp).filter((s) => s != null);
   const intervals = stamps.slice(1).map((s, i) => s - stamps[i]);
   const metric = (name) => stats(ok.map((r) => r[name]));
   return {
@@ -260,7 +319,8 @@ export function timingFailed(report) {
 // ---------------------------------------------------------------- browser ---
 
 // Installed in the player frame before PLAY. It records the DOM input the
-// page sees, the start time every animation is given, and, once `attach` is
+// page sees, the keys it presses, the start time every animation is given
+// with whether its target was ever animated before, and, once `attach` is
 // handed PLAY's application, every message the game sends it and every sound
 // its audio manager starts. The router is stamped on entry, before anything
 // handles the message, and each message is kept by reference and summarized
@@ -268,14 +328,18 @@ export function timingFailed(report) {
 function installProbe() {
   const w = window;
   if (w.__timing) return true;
-  const T = (w.__timing = { clicks: [], messages: [], beats: [], anims: [], burn: 0, frame: null, app: null, tap: null });
+  const T = (w.__timing = { clicks: [], keys: [], messages: [], beats: [], anims: [], burn: 0, frame: null, app: null, tap: null });
+  const animated = new WeakSet();
   T.timeOrigin = performance.timeOrigin;
   const startTime = Object.getOwnPropertyDescriptor(w.Animation.prototype, "startTime");
   Object.defineProperty(w.Animation.prototype, "startTime", {
     configurable: true,
     get: startTime.get,
     set(v) {
-      T.anims.push({ setAt: performance.now(), startTime: v, target: String(this.effect?.target?.className ?? "") });
+      const target = this.effect?.target;
+      const fresh = !!target && !animated.has(target);
+      if (target) animated.add(target);
+      T.anims.push({ setAt: performance.now(), startTime: v, fresh });
       startTime.set.call(this, v);
     },
   });
@@ -376,6 +440,7 @@ function installProbe() {
       let i = 0;
       const next = () => {
         if (i >= count) return resolve(true);
+        T.keys.push(performance.now());
         w.dispatchEvent(new w.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
         i += 1;
         setTimeout(next, Math.max(0, start + i * interval - performance.now()));
@@ -402,10 +467,12 @@ function installWorkerProbe() {
   return true;
 }
 
-// What the workers posted from `from` on the shared clock, oldest first.
+// What the probed workers posted from `from` on the shared clock, oldest
+// first. A worker that can no longer be read stops the run: its posts would
+// be missing from every figure that follows.
 async function workerSends(workers, from) {
   const sends = [];
-  for (const worker of workers) sends.push(...(await worker.evaluate((from) => (self.__timingSent ?? []).filter((s) => s.at >= from), from).catch(() => [])));
+  for (const worker of workers) sends.push(...(await worker.evaluate((from) => self.__timingSent.filter((s) => s.at >= from), from)));
   return sends.sort((a, b) => a.at - b.at);
 }
 
@@ -469,8 +536,8 @@ async function runInput(page, frame, workers, options, fixture) {
     // Whatever else the answer brings arrives before the next sample.
     await page.waitForTimeout(30);
     const record = await frame.evaluate((mark) => window.__timing.readInput(mark), mark);
-    record.sent = (await workerSends(workers, mark.at)).map((s) => s.at);
-    samples.push({ index: i + 1, warmup: i < options.warmup, label, ...attributeInputSample(record) });
+    record.sent = await workerSends(workers, mark.at);
+    samples.push({ index: i + 1, warmup: i < options.warmup, label, ...attributeInputSample(record, { requireWorker: options.requireWorker }) });
   }
   return samples;
 }
@@ -478,13 +545,14 @@ async function runInput(page, frame, workers, options, fixture) {
 async function runMetronome(page, frame, workers, options) {
   const total = options.warmup + options.samples;
   const interval = 60_000 / options.bpm;
-  const from = await frame.evaluate(() => ({ beats: window.__timing.beats.length, anims: window.__timing.anims.length, at: window.__timing.timeOrigin + performance.now() }));
+  const from = await frame.evaluate(() => ({ keys: window.__timing.keys.length, beats: window.__timing.beats.length, anims: window.__timing.anims.length, at: window.__timing.timeOrigin + performance.now() }));
   await frame.evaluate(({ total, interval }) => window.__timing.pressOnGrid(total, interval), { total, interval });
   // The last beat's sound and flash, which start after its key.
   await page.waitForTimeout(1000);
   const read = await frame.evaluate((from) => {
     const T = window.__timing;
     return {
+      keys: T.keys.slice(from.keys),
       beats: T.beats.slice(from.beats),
       anims: T.anims.slice(from.anims),
       onsets: T.tap.onsets.map((o) => ({ frame: o.frame, contextTime: o.contextTime, peak: o.peak })),
@@ -492,16 +560,10 @@ async function runMetronome(page, frame, workers, options) {
       timeOrigin: T.timeOrigin,
     };
   }, from);
-  const sends = (await workerSends(workers, from.at)).filter((s) => s.method === "audio/update" && s.channel === "sound" && s.time != null);
-  return read.beats.map((beat, i) => {
-    // The flash is the new layer's enter animation, the first one the page
-    // starts after the beat's image write arrives.
-    const write = read.writes.find((w) => w.time === beat.stamp);
-    const anim = write ? read.anims.find((a) => a.setAt >= write.t && /instance/.test(a.target)) : null;
-    const sentAt = sends.find((s) => s.time === beat.stamp)?.at;
-    const row = metronomeRow({ ...beat, sentAt, flash: anim ? { startTime: anim.startTime, setAt: anim.setAt } : null }, read.onsets, read.timeOrigin);
-    return { index: i + 1, warmup: i < options.warmup, ...row };
-  });
+  const sends = (await workerSends(workers, from.at)).filter((s) => s.channel === "sound" && s.time != null);
+  const rows = pairMetronome({ ...read, sends, requireWorker: options.requireWorker });
+  if (read.keys.length !== total) rows.push({ failure: `the page pressed ${read.keys.length} of ${total} keys` });
+  return rows.map((row, i) => ({ index: i + 1, warmup: i < options.warmup, ...row }));
 }
 
 async function runPosition(position, options, deps, scratch) {
@@ -532,8 +594,14 @@ async function runPosition(position, options, deps, scratch) {
         if (!frame) throw new Error("no same-origin player frame; the timing commands need `up` without --cross-origin");
         await frame.evaluate(installProbe);
         await startPlay(page, frame, fixture.startLine, 2000, deps);
-        const workers = page.workers().filter((w) => w.url().startsWith("blob:"));
-        for (const worker of workers) await worker.evaluate(installWorkerProbe).catch(() => {});
+        // With the game in the worker every sample needs the worker's posts,
+        // so a position with no worker the probe could reach stops here.
+        const workers = [];
+        for (const worker of page.workers().filter((w) => w.url().startsWith("blob:"))) {
+          if (await worker.evaluate(installWorkerProbe).catch(() => false)) workers.push(worker);
+        }
+        options = { ...options, requireWorker: position === "on" };
+        if (options.requireWorker && workers.length === 0) throw new Error("no worker of the page could be probed, so no sample could split the worker's time from the delivery");
         result.browser = await page.evaluate(() => navigator.userAgent);
         if (options.kind === "metronome") {
           // The first sound creates the mixers the tap goes on. A key that
