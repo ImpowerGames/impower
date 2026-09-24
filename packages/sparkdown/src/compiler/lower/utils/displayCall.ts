@@ -13,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text, pause?, inherit?, group? })` with
+// `display({ target?, character?, text, pause?, inherit?, group?, continues? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
@@ -41,7 +41,9 @@ import { stampDebugMetadata } from "./debugMetadata";
 // the beat the run joined the continuation to, which the interpreter knows
 // only while the beat `group` names is the one it queued last, and otherwise
 // route by the table's own routing, which is the line the source reads before
-// the continuation.
+// the continuation. `continues` marks the first call of a line that begins with
+// `..` where only the run knows the line before it: `display` warns when that
+// line had already ended as the call runs.
 //
 // When `range` is given, the call is stamped with it so its beat surfaces a
 // pathLocation (the screenplay preview's click-to-line routing depends on it).
@@ -57,6 +59,7 @@ export function buildDisplayCall(
     inherit?: boolean;
     group?: string;
     open?: boolean;
+    continues?: boolean;
   } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
@@ -77,7 +80,7 @@ export function buildDisplayCall(
     );
   }
   entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
-  for (const flag of ["pause", "inherit", "open"] as const) {
+  for (const flag of ["pause", "inherit", "open", "continues"] as const) {
     if (options[flag]) entries.push(flagEntry(flag));
   }
   if (options.group != null) {

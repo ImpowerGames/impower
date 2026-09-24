@@ -94,7 +94,9 @@ function buildDisplayContent(
 // ends the statement marks its last call `open`, so the call writes no
 // newline and the step runs on into the next line's table. A `>..` ending a
 // line marks the beat its break ends `open` the same way. A `null` line type
-// marks a glued continuation: its tables name no routing.
+// marks a glued continuation: its tables name no routing. A line that begins
+// with `..` where only the run knows the line before marks its first call
+// `continues`, which `display` checks.
 function buildDisplayCalls(
   parent: SyntaxNode,
   bodyStart: number,
@@ -129,6 +131,7 @@ function buildDisplayCalls(
   // before it.
   const isContinuation = lineType === null;
   const joined = isContinuation ? lexicalRouting(parent, ctx) : null;
+  const continues = runCheckedLeadingGlue(parent, bodyStart, bodyEnd, ctx);
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
@@ -216,6 +219,7 @@ function buildDisplayCalls(
               : undefined,
             inherit: isContinuation && i > 0,
             open: trailingGlue != null || divertJoins,
+            continues: continues && i === 0,
           },
         ),
       );
@@ -318,26 +322,28 @@ function splitBodyRangeAtBreaks(
     : [{ from: bodyStart, to: bodyEnd, pause: false }];
 }
 
-// Whether [from, to) of a display body holds anything but whitespace, author
-// tags, comments, breaks and `..` marks. A break followed on its line only by
-// a `..` ends that line, so the beat it ends carries the join.
+const BODY_MARKS: ReadonlySet<BodyInjection["kind"]> = new Set([
+  "tag",
+  "comment",
+  "break",
+  "glue",
+  "leadingGlue",
+]);
+
+// Whether [from, to) of a display body holds anything but whitespace and the
+// `marks` it names: by default author tags, comments, breaks and `..` marks. A
+// break followed on its line only by a `..` ends that line, so the beat it
+// ends carries the join.
 function hasBodyContent(
   parent: SyntaxNode,
   from: number,
   to: number,
   ctx: LowerContext,
+  marks: ReadonlySet<BodyInjection["kind"]> = BODY_MARKS,
 ): boolean {
   let pos = from;
   for (const injection of collectTopLevelInjections(parent, from, to)) {
-    if (
-      injection.kind !== "tag" &&
-      injection.kind !== "comment" &&
-      injection.kind !== "break" &&
-      injection.kind !== "glue" &&
-      injection.kind !== "leadingGlue"
-    ) {
-      continue;
-    }
+    if (!marks.has(injection.kind)) continue;
     if (injection.from > pos && ctx.read(pos, injection.from).trim()) {
       return true;
     }
@@ -605,9 +611,9 @@ function collectBodySegments(
       idx++;
       // A `..` after something else on its line is text.
       if (!startsItsLine(next.node, ctx)) continue;
-      // A line that begins with `..` is reported and shows its text without
-      // the mark or the spaces after it.
-      reportLeadingGlue(next.node, ctx);
+      // A line that begins with `..` shows its text without the mark or the
+      // spaces after it, and the mark is checked against the line before.
+      checkLeadingGlue(parent, next.node, ctx);
       i = next.to;
       while (i < bodyEnd && /[ \t]/.test(ctx.read(i, i + 1))) i++;
       continue;
@@ -1037,12 +1043,18 @@ function reportLoadGlue(
   });
 }
 
-// A `..` that begins a line joins nothing: the line after a newline has
-// already ended, and only a `..` that ends a line joins the next one. The
-// error names that fix, on the mark's range.
-export function reportLeadingGlue(mark: SyntaxNode, ctx: LowerContext): void {
+const CONTINUES_MESSAGE =
+  "This line continues the one before it, but that line does not end with `..`. End it with `..` to join them.";
+
+const LEADS_NOTHING_MESSAGE =
+  "This line begins with `..` but has no words after it. Put the line's words after the mark, or delete the line.";
+
+const AFTER_LOAD_MESSAGE =
+  "This line continues the one before it, but that line is a `load` line, which cannot join the next. Move the `load` line, or remove this `..`.";
+
+function reportMark(mark: SyntaxNode, message: string, ctx: LowerContext) {
   ctx.diagnostics?.push({
-    message: LEADING_GLUE_MESSAGE,
+    message,
     severity: ErrorType.Error,
     source: {
       fileName: null,
@@ -1053,6 +1065,204 @@ export function reportLeadingGlue(mark: SyntaxNode, ctx: LowerContext): void {
       endCharacterNumber: ctx.characterNumber(mark.to) + 1,
     },
   });
+}
+
+// A `..` that begins a line states that the line continues the one before
+// it; it joins nothing itself, since only a `..` that ends a line joins. Where
+// the line before is known at compile time, a line before that does not end
+// with `..` is an error on the mark, and so is a mark with no words after it.
+// Each message names the fix that applies. A bare `..` reached as a statement
+// of its own is its own `mark`.
+export function checkLeadingGlue(
+  statement: SyntaxNode,
+  mark: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  const { leadsText, before } = leadingGlueCheck(statement, mark, ctx);
+  if (before === "load") {
+    // A `load` line cannot end with `..`, so no words make this line right.
+    reportMark(mark, AFTER_LOAD_MESSAGE, ctx);
+  } else if (!leadsText) {
+    // Under a line that already ends with `..`, the fix is the missing words.
+    reportMark(
+      mark,
+      before === "joined" ? LEADS_NOTHING_MESSAGE : LEADING_GLUE_MESSAGE,
+      ctx,
+    );
+  } else if (before === "unjoined") {
+    reportMark(mark, CONTINUES_MESSAGE, ctx);
+  }
+}
+
+// What a `..` that begins a line states. `leadsText` is whether words follow
+// it on its line (not only spaces, tags or a comment). `before` is the line it
+// continues: one that ends with `..` (`joined`), one that does not (`unjoined`),
+// a `load` directive, whose `..` cannot join (`load`), or a line only the run
+// knows (`run`): the first statement of a scene, branch or label a divert
+// reaches, or one after a statement that is not a display line. Both the
+// diagnostic and the `continues` flag read this one verdict.
+function leadingGlueCheck(
+  statement: SyntaxNode,
+  mark: SyntaxNode,
+  ctx: LowerContext,
+): {
+  leadsText: boolean;
+  before: "joined" | "unjoined" | "load" | "run";
+} {
+  const lineEnd = mark.to + restOfLine(mark, statement, ctx).length;
+  const leadsText = hasBodyContent(
+    statement,
+    mark.to,
+    lineEnd,
+    ctx,
+    SHOWS_NOTHING,
+  );
+  const line = previousBodyLine(statement, mark, ctx);
+  if (line) {
+    return {
+      leadsText,
+      before: bodyLineEndsWithGlue(statement, line, ctx)
+        ? "joined"
+        : isLoadRange(statement, line.to, ctx)
+          ? "load"
+          : "unjoined",
+    };
+  }
+  const sib = precedingConstruct(statement);
+  if (!sib || !isDisplayLine(sib)) return { leadsText, before: "run" };
+  return {
+    leadsText,
+    before: endsWithTrailingGlue(sib, ctx)
+      ? "joined"
+      : isLoadRange(sib, sib.to, ctx)
+        ? "load"
+        : "unjoined",
+  };
+}
+
+// Whether a statement's first call carries `continues`: `display` then checks
+// that the line is open as the call runs. That is so when the statement's
+// first `..` that begins a line is one whose line before only the run knows.
+// Only a mark with no text above it in its statement can be one: a body line
+// above it is a line the compiler knows. So the mark found is on the first
+// line of the statement's text, which the first call shows.
+function runCheckedLeadingGlue(
+  statement: SyntaxNode,
+  bodyStart: number,
+  bodyEnd: number,
+  ctx: LowerContext,
+): boolean {
+  const mark =
+    leadingGlue(statement) ??
+    collectTopLevelInjections(statement, bodyStart, bodyEnd).find(
+      (injection) => injection.kind === "leadingGlue",
+    )?.node;
+  if (mark == null || !startsItsLine(mark, ctx)) return false;
+  const { leadsText, before } = leadingGlueCheck(statement, mark, ctx);
+  return leadsText && before === "run";
+}
+
+// What shows nothing after a `..` that begins a line.
+const SHOWS_NOTHING: ReadonlySet<BodyInjection["kind"]> = new Set([
+  "tag",
+  "comment",
+]);
+
+// The rest of the source line after `mark`, within `statement`.
+function restOfLine(
+  mark: SyntaxNode,
+  statement: SyntaxNode,
+  ctx: LowerContext,
+): string {
+  const rest = ctx.read(mark.to, statement.to);
+  const newline = rest.indexOf("\n");
+  return newline < 0 ? rest : rest.slice(0, newline);
+}
+
+// The body line of a block statement before the line `mark` is on, past blank
+// lines and `//` comment lines, or null when `mark` is on the statement's
+// first line of text.
+function previousBodyLine(
+  statement: SyntaxNode,
+  mark: SyntaxNode,
+  ctx: LowerContext,
+): { from: number; to: number } | null {
+  const head = ctx.read(statement.from, mark.from).indexOf("\n");
+  if (head < 0) return null;
+  const bodyStart = statement.from + head + 1;
+  let to = mark.from - ctx.characterNumber(mark.from) - 1;
+  while (to >= bodyStart) {
+    const text = ctx.read(bodyStart, to);
+    const from = bodyStart + text.lastIndexOf("\n") + 1;
+    const line = ctx.read(from, to);
+    if (line.trim() && !/^\s*\/\//.test(line)) return { from, to };
+    to = from - 1;
+  }
+  return null;
+}
+
+// Whether a body line ends with a `..` that joins the next line: nothing but
+// spaces, tags or a `//` comment follows the last `..` mark on it, and the
+// beat that holds it is not a `load` directive.
+function bodyLineEndsWithGlue(
+  statement: SyntaxNode,
+  line: { from: number; to: number },
+  ctx: LowerContext,
+): boolean {
+  const glue = collectTopLevelInjections(statement, line.from, line.to)
+    .filter((injection) => injection.kind === "glue")
+    .at(-1);
+  return (
+    glue != null &&
+    ENDS_AFTER_GLUE.test(ctx.read(glue.to, line.to)) &&
+    !isLoadRange(statement, glue.to, ctx)
+  );
+}
+
+// What may follow a `..` that ends a line: spaces, then tags or a `//`
+// comment.
+const ENDS_AFTER_GLUE = /^[ \t]*(?:(?:#|\/\/)[^\n]*)?\s*$/;
+
+// Whether the beat of an action statement that holds `pos` is a `load`
+// directive: everything after `load` names assets, so a `..` in it joins
+// nothing. Lowering decides this per beat, on the body its lowerer reads (past
+// a `:` or an inline action's leading `..`) split by `splitBodyRangeAtBreaks`,
+// and this asks the same split, so the two cannot disagree about where a beat
+// starts.
+function isLoadRange(
+  node: SyntaxNode,
+  pos: number,
+  ctx: LowerContext,
+): boolean {
+  if (!ACTION_STATEMENTS.has(node.name)) return false;
+  const ref = makeAltNodeRef(node);
+  const block = node.name === "BlockAction";
+  const body = block
+    ? extractBlockBodyRange(ref, ctx)
+    : extractInlineBodyRange(ref);
+  const range = splitBodyRangeAtBreaks(
+    node,
+    body.from,
+    body.to,
+    ctx,
+    block ? "block" : "inline",
+  ).find((r) => r.from <= pos && pos <= r.to);
+  // `collectBodySegments` drops a `..` that begins a block body line, with the
+  // spaces after it, before `stripLoadKeyword` reads the beat.
+  return (
+    range != null &&
+    /^\s*(?:\.\.(?!\.)[ \t]*)?load\s/.test(ctx.read(range.from, pos))
+  );
+}
+
+// Whether a construct shows a line of text: a display statement or a line of
+// interpolations.
+function isDisplayLine(node: SyntaxNode): boolean {
+  return (
+    DISPLAY_LINE_TYPES[node.name] != null ||
+    node.name === "LuauInterpolatedStringExpression" ||
+    node.name === "LuauFunctionCallShorthand"
+  );
 }
 
 // The display line each statement kind routes by.
@@ -1189,14 +1399,6 @@ function isNodePrecededByTrailingGlue(
 function endsWithTrailingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
   if (lineEndMarks(node, ctx)?.open) return true;
   const text = ctx.read(node.from, node.to);
-  // A `..` ending a `load` line is reported, and the line after it stands on
-  // its own.
-  if (
-    (node.name === "ImplicitAction" || node.name === "InlineAction") &&
-    /^\s*(?::\s+)?load\s/.test(text)
-  ) {
-    return false;
-  }
   // Fast reject before the subtree walk: most display lines hold no `..`.
   if (!text.includes("..")) return false;
   let lastGlueEnd = -1;
@@ -1209,9 +1411,12 @@ function endsWithTrailingGlue(node: SyntaxNode, ctx: LowerContext): boolean {
     }
   };
   visit(node);
+  // A `..` ending a `load` directive is reported, and the line after it
+  // stands on its own.
   return (
     lastGlueEnd >= 0 &&
-    /^[ \t]*(?:(?:#|\/\/)[^\n]*)?\s*$/.test(ctx.read(lastGlueEnd, node.to))
+    ENDS_AFTER_GLUE.test(ctx.read(lastGlueEnd, node.to)) &&
+    !isLoadRange(node, lastGlueEnd, ctx)
   );
 }
 
@@ -1395,7 +1600,7 @@ export function lowerInlineAction(
   // The interpolation before it on its line lowers these marks (`{x} ..`).
   if (lineEndMarks(nodeRef.node, ctx)) return {};
   if (glue && startsItsLine(glue, ctx)) {
-    reportLeadingGlue(glue, ctx);
+    checkLeadingGlue(nodeRef.node, glue, ctx);
     // A bare `..` line has nothing left to show.
     if (!ctx.read(from, to).trim()) return {};
   } else if (glue) {

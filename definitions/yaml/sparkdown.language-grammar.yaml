@@ -171,7 +171,8 @@ variables:
   # What may follow a line-ending `..`: spaces, then the end of the line, tags
   # or a `//` comment.
   GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})))
-  # A `..` that begins a line. It joins nothing: the compiler reports it. A
+  # A `..` that begins a line. It joins nothing: it states that the line
+  # continues the one before it, which the compiler and the engine check. A
   # third dot makes it an ellipsis (`...and then`).
   LEADING_GLUE: (?:[.][.](?![.]))
   # The `..` that opens and closes an inline alternator mid-line
@@ -558,8 +559,9 @@ repository:
         name: keyword.other.glue.sd
 
   # The grammar cannot tell a `..` at the start of a line from one after a
-  # top-level interpolation, so this mark is not coloured as an error; the
-  # compiler reports the ones that begin a line.
+  # top-level interpolation, and whether one that begins a line is right
+  # depends on the line before it, so this mark is not coloured as an error;
+  # the compiler reports the ones that are wrong.
   LeadingGlue:
     name: meta.glue.leading.sd
     match: ({{LEADING_GLUE}})
