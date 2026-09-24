@@ -9,6 +9,7 @@
 // The same harness runs with the switch off (the worker sends the program and
 // the page's game displays it) and on (the worker's game displays it), so a
 // test can compare the two.
+import { createHash } from "node:crypto";
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
@@ -114,6 +115,26 @@ function loopbackBroadcastChannel(onPost: (message: any) => void) {
   }
   return LoopbackBroadcastChannel;
 }
+
+/** `value` as a snapshot records it: whole when its JSON is short enough to
+ *  read, and otherwise each of its entries whole or, when that is long too,
+ *  as the digest of the entry's JSON and that JSON's length. A frame that
+ *  holds the theme's whole style sheet is then compared in full without
+ *  being written out. */
+export const recorded = (value: unknown): unknown => {
+  const digest = (entry: unknown, json: string) =>
+    json.length <= 400
+      ? entry
+      : `sha256 ${createHash("sha256").update(json).digest("hex")} of ${json.length} characters`;
+  const json = JSON.stringify(value) ?? "undefined";
+  if (json.length <= 400 || !value || typeof value !== "object") {
+    return digest(value, json);
+  }
+  const entry = (e: unknown) => digest(e, JSON.stringify(e) ?? "undefined");
+  return Array.isArray(value)
+    ? value.map(entry)
+    : Object.fromEntries(Object.entries(value).map(([key, e]) => [key, entry(e)]));
+};
 
 export const settle = async (tasks = 20) => {
   for (let i = 0; i < tasks; i++) {

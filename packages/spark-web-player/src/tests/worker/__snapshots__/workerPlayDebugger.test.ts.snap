@@ -1,0 +1,376 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > afterContinue 1`] = `
+{
+  "context": {
+    "result": {
+      "context": {
+        "mood": 1,
+      },
+    },
+  },
+  "stack": {
+    "result": {
+      "stackFrames": [
+        {
+          "id": 0,
+          "location": {
+            "range": {
+              "end": {
+                "character": 20,
+                "line": 9,
+              },
+              "start": {
+                "character": -1,
+                "line": 9,
+              },
+            },
+            "uri": "file:///local/main.sd",
+          },
+          "moduleId": "tunnel",
+          "name": "start.51",
+          "presentationHint": "normal",
+        },
+      ],
+      "totalFrames": 1,
+    },
+  },
+  "threads": {
+    "result": {
+      "threads": [
+        {
+          "id": 0,
+          "name": "start.51",
+        },
+      ],
+    },
+  },
+  "variables": "sha256 7100b2116c8f4006a16515edf46cf06ae9fa17be93911aa951a3aa31c0342810 of 76573 characters",
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > afterStepIn 1`] = `
+{
+  "context": {
+    "result": {
+      "context": {
+        "mood": 1,
+      },
+    },
+  },
+  "stack": {
+    "result": {
+      "stackFrames": [
+        {
+          "id": 0,
+          "location": {
+            "range": {
+              "end": {
+                "character": 10,
+                "line": 4,
+              },
+              "start": {
+                "character": -1,
+                "line": 4,
+              },
+            },
+            "uri": "file:///local/main.sd",
+          },
+          "moduleId": "tunnel",
+          "name": "start.54",
+          "presentationHint": "normal",
+        },
+      ],
+      "totalFrames": 1,
+    },
+  },
+  "threads": {
+    "result": {
+      "threads": [
+        {
+          "id": 0,
+          "name": "start.54",
+        },
+      ],
+    },
+  },
+  "variables": "sha256 a76165c05f01ad491e03f8abfb06cf8185617310c645638203f7b9b8418f0324 of 76573 characters",
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > afterStepOver 1`] = `
+{
+  "context": {
+    "result": {
+      "context": {
+        "mood": 1,
+      },
+    },
+  },
+  "stack": {
+    "result": {
+      "stackFrames": [
+        {
+          "id": 0,
+          "location": {
+            "range": {
+              "end": {
+                "character": 20,
+                "line": 9,
+              },
+              "start": {
+                "character": -1,
+                "line": 9,
+              },
+            },
+            "uri": "file:///local/main.sd",
+          },
+          "moduleId": "tunnel",
+          "name": "start.29",
+          "presentationHint": "normal",
+        },
+      ],
+      "totalFrames": 1,
+    },
+  },
+  "threads": {
+    "result": {
+      "threads": [
+        {
+          "id": 0,
+          "name": "start.29",
+        },
+      ],
+    },
+  },
+  "variables": "sha256 0da4a95f8a10b4299e0c06ff8fd552e6ee1e187b0fe1216ea8e03a02fe8773d1 of 76573 characters",
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > continue 1`] = `
+{
+  "result": {
+    "done": true,
+  },
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > enable 1`] = `
+{
+  "result": {},
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > reported 1`] = `
+[
+  {
+    "method": "game/hitBreakpoint",
+    "params": {
+      "location": {
+        "range": {
+          "end": {
+            "character": 10,
+            "line": 4,
+          },
+          "start": {
+            "character": -1,
+            "line": 4,
+          },
+        },
+        "uri": "file:///local/main.sd",
+      },
+    },
+  },
+  {
+    "method": "game/stepped",
+    "params": {
+      "location": {
+        "range": {
+          "end": {
+            "character": 20,
+            "line": 9,
+          },
+          "start": {
+            "character": -1,
+            "line": 9,
+          },
+        },
+        "uri": "file:///local/main.sd",
+      },
+    },
+  },
+  {
+    "method": "game/stepped",
+    "params": {
+      "location": {
+        "range": {
+          "end": {
+            "character": 10,
+            "line": 4,
+          },
+          "start": {
+            "character": -1,
+            "line": 4,
+          },
+        },
+        "uri": "file:///local/main.sd",
+      },
+    },
+  },
+  {
+    "method": "game/hitBreakpoint",
+    "params": {
+      "location": {
+        "range": {
+          "end": {
+            "character": 20,
+            "line": 9,
+          },
+          "start": {
+            "character": -1,
+            "line": 9,
+          },
+        },
+        "uri": "file:///local/main.sd",
+      },
+    },
+  },
+]
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > setBreakpoints 1`] = `
+{
+  "result": {
+    "breakpoints": [
+      {
+        "location": {
+          "range": {
+            "end": {
+              "character": 0,
+              "line": 9,
+            },
+            "start": {
+              "character": 0,
+              "line": 9,
+            },
+          },
+          "uri": "file:///local/main.sd",
+        },
+        "verified": true,
+      },
+    ],
+  },
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > setDataBreakpoints 1`] = `
+{
+  "result": {
+    "dataBreakpoints": [
+      {
+        "location": {
+          "range": {
+            "end": {
+              "character": 0,
+              "line": 4,
+            },
+            "start": {
+              "character": 0,
+              "line": 4,
+            },
+          },
+          "uri": "file:///local/main.sd",
+        },
+        "verified": true,
+      },
+    ],
+  },
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > setFunctionBreakpoints 1`] = `
+{
+  "result": {
+    "functionBreakpoints": [
+      {
+        "message": "No instruction found at the breakpoint",
+        "reason": "failed",
+        "verified": false,
+      },
+    ],
+  },
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > stepIn 1`] = `
+{
+  "result": {
+    "done": true,
+  },
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > stepOut 1`] = `
+{
+  "result": {
+    "done": false,
+  },
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > stepOver 1`] = `
+{
+  "result": {
+    "done": true,
+  },
+}
+`;
+
+exports[`the debugger during PLAY > answers each request from the worker as recorded > stopped 1`] = `
+{
+  "context": {
+    "result": {
+      "context": {
+        "mood": 0,
+      },
+    },
+  },
+  "stack": {
+    "result": {
+      "stackFrames": [
+        {
+          "id": 0,
+          "location": {
+            "range": {
+              "end": {
+                "character": 10,
+                "line": 4,
+              },
+              "start": {
+                "character": -1,
+                "line": 4,
+              },
+            },
+            "uri": "file:///local/main.sd",
+          },
+          "moduleId": "tunnel",
+          "name": "start.25",
+          "presentationHint": "normal",
+        },
+      ],
+      "totalFrames": 1,
+    },
+  },
+  "threads": {
+    "result": {
+      "threads": [
+        {
+          "id": 0,
+          "name": "start.25",
+        },
+      ],
+    },
+  },
+  "variables": "sha256 13ba828194a51c773c0b9738dca1ac8e66fd3e8f5a292adde62d284d6d372dd2 of 76573 characters",
+}
+`;

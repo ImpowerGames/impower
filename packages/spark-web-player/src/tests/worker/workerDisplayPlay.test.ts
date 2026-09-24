@@ -7,7 +7,7 @@
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle, recorded } from "./playerHarness";
 
 const SOURCE = `-> start
 
@@ -23,10 +23,10 @@ end
 const LINE = SOURCE.split("\n").findIndex((l) => l.includes("The line PLAY starts from."));
 
 describe("after PLAY and STOP", () => {
-  it("the preview shows what it shows with the switch off, labels included", async () => {
-    const after = async (workerDisplays: boolean) => {
+  it("the preview shows the recorded frame, labels included", async () => {
+    const after = async () => {
       const h = await createPlayerHarness({
-        workerDisplays,
+        workerDisplays: true,
         files: [{ uri: MAIN_URI, text: SOURCE }],
         startFrom: { file: MAIN_URI, line: LINE },
       });
@@ -43,7 +43,7 @@ describe("after PLAY and STOP", () => {
         await h.select(LINE);
         await settle(40);
         return {
-          game: workerDisplays ? h.controller._workerGame != null : h.controller._game != null,
+          game: h.controller._workerGame != null,
           dom: h.snapshotDOM(),
           executed: h.refs.executedLabel.textContent,
           location: h.refs.locationItems.textContent,
@@ -52,11 +52,10 @@ describe("after PLAY and STOP", () => {
         h.dispose();
       }
     };
-    const off = await after(false);
-    const on = await after(true);
+    const on = await after();
     expect(on.game).toBe(true);
-    expect(JSON.stringify(off.dom)).toContain("The line PLAY starts from.");
-    expect(on).toEqual(off);
+    expect(JSON.stringify(on.dom)).toContain("The line PLAY starts from.");
+    expect(recorded(on)).toMatchSnapshot();
   }, 120_000);
 });
 

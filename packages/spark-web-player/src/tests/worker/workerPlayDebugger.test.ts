@@ -14,7 +14,7 @@ import { SetGameDataBreakpointsMessage } from "@impower/spark-engine/src/game/co
 import { SetGameFunctionBreakpointsMessage } from "@impower/spark-engine/src/game/core/classes/messages/SetGameFunctionBreakpointsMessage";
 import { StepGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/StepGameMessage";
 import { describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle, recorded } from "./playerHarness";
 
 const SOURCE = `store mood = 0
 
@@ -42,9 +42,9 @@ const answer = (response: any) =>
 
 /** PLAY from the first line with the debugger on and a breakpoint on the
  *  second, advanced by a click, then every request the debugger makes. */
-const debugSession = async (workerDisplays: boolean) => {
+const debugSession = async () => {
   const h = await createPlayerHarness({
-    workerDisplays,
+    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: FIRST },
     manualClock: true,
@@ -163,22 +163,21 @@ const debugSession = async (workerDisplays: boolean) => {
 };
 
 describe("the debugger during PLAY", () => {
-  it("answers each request from the worker as the page's game does", async () => {
-    const off = await debugSession(false);
-    const on = await debugSession(true);
+  it("answers each request from the worker as recorded", async () => {
+    const on = await debugSession();
 
     // The session stopped somewhere and has something to show, so the
     // comparison below compares answers that say something.
-    const stopped = off.stopped as any;
+    const stopped = on.stopped as any;
     expect(stopped.stack.result.stackFrames.length).toBeGreaterThan(0);
     expect(stopped.variables.vars.result.variables.length).toBeGreaterThan(0);
-    expect((off.reported as any[]).map((m) => m.method)).toContain("game/hitBreakpoint");
+    expect((on.reported as any[]).map((m) => m.method)).toContain("game/hitBreakpoint");
     // The expression context holds the story's variable, which the Debug
     // Console evaluates by name.
     expect(typeof stopped.context.result.context.mood).toBe("number");
 
-    for (const key of Object.keys(off)) {
-      expect({ [key]: on[key] }).toEqual({ [key]: off[key] });
+    for (const key of Object.keys(on)) {
+      expect(recorded(on[key])).toMatchSnapshot(key);
     }
   }, 120_000);
 });

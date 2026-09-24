@@ -1,9 +1,8 @@
-// What the controller used to read from its own program comes from the worker
-// when the worker displays the preview (#680), and behaves as it does when the
-// page displays it: the toolbar's execution labels, including those of a route
-// that failed; the executed lines the editor highlights; the possible
-// breakpoint lines; and the scene warm-up, which the worker sends as a
-// `player/previewHint`.
+// The page holds only each program's summary, so what it shows about a
+// program comes from the worker's game: the toolbar's execution labels,
+// including those of a route that failed; the executed lines the editor
+// highlights; the possible breakpoint lines; and the scene warm-up, which the
+// worker sends as a `player/previewHint`.
 import { describe, expect, it } from "vitest";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { DisableGameDebugMessage } from "@impower/spark-engine/src/game/core/classes/messages/DisableGameDebugMessage";
@@ -44,10 +43,10 @@ const FIRST = lineOf("The first line.");
 const UNREACHED = lineOf("A line no route reaches.");
 const AFTER = lineOf("The line after.");
 
-/** Run the reads with the switch in one position. */
-async function reads(workerDisplays: boolean) {
+/** Run the reads. */
+async function reads() {
   const h = await createPlayerHarness({
-    workerDisplays,
+    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: FIRST },
   });
@@ -90,9 +89,7 @@ async function reads(workerDisplays: boolean) {
 
     // Turning debugging on and off from the preview toolbar, and what the
     // game that displays the preview made of it.
-    const debugging = () =>
-      (workerDisplays ? h.workerState.gameState.game : h.controller._game)?.context
-        ?.system?.debugging;
+    const debugging = () => h.workerState.gameState.game?.context?.system?.debugging;
     const enabled = await h.controller.handleEnableGameDebug(
       EnableGameDebugMessage.type.request({}),
     );
@@ -102,8 +99,7 @@ async function reads(workerDisplays: boolean) {
     );
     const undebug = { answer: "error" in disabled, on: debugging() };
 
-    // The warm-up the worker sent for the selections, and what the page's own
-    // hint would have planned from the whole program.
+    // The warm-up the worker sent for the selections.
     const prefetches = h.toPage
       .filter((m) => PreviewHintMessage.type.isNotification(m))
       .map((m) => m.params);
@@ -114,43 +110,44 @@ async function reads(workerDisplays: boolean) {
       undebug,
       breakpoints: breakpoints.result,
       prefetches,
-      program: compiled.program,
+      summary: compiled.program,
+      // The whole program, which only the worker holds.
+      program: h.workerState.gameState.game!.program,
     };
   } finally {
     h.dispose();
   }
 }
 
-describe("with the worker displaying the preview", () => {
-  it("labels, highlights and lists breakpoints as the page's game does", async () => {
-    const on = await reads(true);
-    const off = await reads(false);
+describe("the preview's reads", () => {
+  it("label, highlight and list breakpoints as recorded", async () => {
+    const on = await reads();
+    expect({
+      reached: on.reached,
+      unreached: on.unreached,
+      breakpoints: on.breakpoints,
+      debug: on.debug,
+      undebug: on.undebug,
+    }).toMatchSnapshot();
 
-    expect(on.reached).toEqual(off.reached);
-    expect(on.unreached).toEqual(off.unreached);
-    expect(on.breakpoints).toEqual(off.breakpoints);
-    expect(on.debug).toEqual(off.debug);
-    expect(on.undebug).toEqual(off.undebug);
-
-    // What was compared says something.
-    expect(off.reached.executed.at(-1)?.executedLines).toBeTruthy();
-    expect(off.unreached.labels.failed).toBe(true);
-    expect(off.unreached.labels.connection).toContain("🞪");
-    expect(off.unreached.labels.executed).toMatch(/main : \d+/);
-    expect(off.breakpoints.lines.length).toBeGreaterThan(0);
+    // What was recorded says something.
+    expect(on.summary.summary).toBe(true);
+    expect(on.reached.executed.at(-1)?.executedLines).toBeTruthy();
+    expect(on.unreached.labels.failed).toBe(true);
+    expect(on.unreached.labels.connection).toContain("🞪");
+    expect(on.unreached.labels.executed).toMatch(/main : \d+/);
+    expect(on.breakpoints.lines.length).toBeGreaterThan(0);
     // The toolbar's toggle answered, and the game that displays the preview
     // entered the mode and left it again.
-    expect(off.debug).toEqual({ answer: false, on: true });
-    expect(off.undebug).toEqual({ answer: false, on: false });
+    expect(on.debug).toEqual({ answer: false, on: true });
+    expect(on.undebug).toEqual({ answer: false, on: false });
   }, 120_000);
 
-  it("sends the scene warm-up the page's own hint would plan", async () => {
-    const on = await reads(true);
-    const off = await reads(false);
-    expect(off.prefetches).toEqual([]);
-    // The page's hint, planned from the whole program for the same selections.
-    const first = planPreviewHint(off.program, MAIN_URI, AFTER, undefined)!;
-    const second = planPreviewHint(off.program, MAIN_URI, UNREACHED, first.state);
+  it("send the scene warm-up planned from the whole program", async () => {
+    const on = await reads();
+    // The hint planned from the whole program for the same selections.
+    const first = planPreviewHint(on.program, MAIN_URI, AFTER, undefined)!;
+    const second = planPreviewHint(on.program, MAIN_URI, UNREACHED, first.state);
     const planned = [first, second]
       .filter((plan) => plan != null)
       .map(({ cursor, near, rest }) => ({ cursor, near, rest }));

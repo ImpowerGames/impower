@@ -1,13 +1,13 @@
-// The stopped preview displayed from the worker's game (#680) builds the same
-// overlay DOM as the page's own game does, for every program and line.
+// The stopped preview displayed from the worker's game builds the same overlay
+// DOM for every program and line, run after run.
 //
-// Each case runs the whole player twice, with the switch off and on, through
-// the same sequence of compiles, selections and edits, and compares the
-// serialized overlay after every step.
+// Each case runs the whole player through a sequence of compiles, selections
+// and edits, and compares the serialized overlay after every step with the
+// frames recorded in its snapshot.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { createPlayerHarness, MAIN_URI } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, recorded } from "./playerHarness";
 
 type Step =
   | { select: number }
@@ -35,18 +35,17 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/** Run `steps` against `text` with the switch in one position, and read the
- *  overlay after the first compile and after every step. */
-async function frames(workerDisplays: boolean, text: string, steps: Step[]) {
+/** Run `steps` against `text`, and read the overlay after the first compile
+ *  and after every step. */
+async function frames(text: string, steps: Step[]) {
   const h = await createPlayerHarness({
-    workerDisplays,
+    workerDisplays: true,
     files: [{ uri: MAIN_URI, text }],
     startFrom: { file: MAIN_URI, line: 0 },
   });
   harnesses.push(h);
   const out: unknown[] = [];
-  // A compile or selection the worker rejects is part of what is compared:
-  // the route search runs the same way in both positions.
+  // A compile or selection the worker rejects is part of what is compared.
   const note = (answer: any) => {
     if (answer?.error) {
       out.push({ rejected: answer.error });
@@ -89,8 +88,6 @@ async function frames(workerDisplays: boolean, text: string, steps: Step[]) {
     }
     out.push(h.snapshotDOM());
   }
-  // The switch really was in the position asked for.
-  expect(h.controller._game == null).toBe(workerDisplays);
   return out;
 }
 
@@ -125,7 +122,7 @@ function coupledScreenplay(): string {
 const lineOf = (text: string, find: string) => posAt(text, text.indexOf(find)).line;
 
 describe("the preview displayed from the worker's game", () => {
-  it("builds the page game's overlay over a screenplay, line by line and across edits", async () => {
+  it("builds the recorded overlay over a screenplay, line by line and across edits", async () => {
     const text = coupledScreenplay();
     const steps: Step[] = [
       { select: lineOf(text, "Line one of dialogue in scene 0.") },
@@ -136,14 +133,14 @@ describe("the preview displayed from the worker's game", () => {
       { edit: { find: "store trust = 0", replace: "store trust = 5" } },
       { select: lineOf(text, "Line one of dialogue in scene 3.") },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
+    const on = await frames(text, steps);
+    expect(recorded(on)).toMatchSnapshot();
     // What was compared is the script on screen, not two empty overlays.
     expect(JSON.stringify(on[1])).toContain("Line one of dialogue in scene 0.");
     expect(JSON.stringify(on[3])).toContain("Action describing room 4.");
   }, 120_000);
 
-  it("builds the page game's overlay while suggestions are browsed, returned to and closed", async () => {
+  it("builds the recorded overlay while suggestions are browsed, returned to and closed", async () => {
     const text = coupledScreenplay();
     const line = "Line one of dialogue in scene 2.";
     const steps: Step[] = [
@@ -155,15 +152,15 @@ describe("the preview displayed from the worker's game", () => {
       { close: true },
       { select: lineOf(text, "Action describing room 5.") },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
+    const on = await frames(text, steps);
+    expect(recorded(on)).toMatchSnapshot();
     expect(JSON.stringify(on[2])).toContain("A first suggestion for scene 2.");
     expect(JSON.stringify(on[3])).toContain("A second suggestion for scene 2.");
     expect(JSON.stringify(on[4])).toContain("A first suggestion for scene 2.");
     expect(JSON.stringify(on[5])).toContain(line);
   }, 120_000);
 
-  it("builds the page game's overlay while an image name is typed with the list open", async () => {
+  it("builds the recorded overlay while an image name is typed with the list open", async () => {
     const text = [
       `define SPRITE_A as image with`,
       `  src = "https://example.com/a.png"`,
@@ -197,8 +194,8 @@ describe("the preview displayed from the worker's game", () => {
       { suggest: { find: "[[SPRITE_\n", replace: "[[SPRITE_B]]\n" } },
       { close: true },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
+    const on = await frames(text, steps);
+    expect(recorded(on)).toMatchSnapshot();
     expect(JSON.stringify(on[6])).toContain("b.png");
   }, 120_000);
 
@@ -231,14 +228,14 @@ describe("the preview displayed from the worker's game", () => {
       },
       { close: true },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
+    const on = await frames(text, steps);
+    expect(recorded(on)).toMatchSnapshot();
     expect(JSON.stringify(on[1])).toContain("The bridge says the real greeting.");
     expect(JSON.stringify(on[2])).toContain("The bridge says the suggested greeting.");
     expect(JSON.stringify(on[3])).toContain("The bridge says the real greeting.");
   }, 120_000);
 
-  it("builds the page game's overlay over the Pico showcase", async () => {
+  it("builds the recorded overlay over the Pico showcase", async () => {
     const text = readFileSync(
       resolve(__dirname, "../../../../../docs/sparkle/pico-showcase.sd"),
       "utf8",
@@ -247,12 +244,12 @@ describe("the preview displayed from the worker's game", () => {
     const steps: Step[] = [0.25, 0.5, 0.75, 0.95].map((at) => ({
       select: Math.floor(lines.length * at),
     }));
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
+    const on = await frames(text, steps);
+    expect(recorded(on)).toMatchSnapshot();
     expect(JSON.stringify(on.at(-1)).length).toBeGreaterThan(5000);
   }, 120_000);
 
-  it("builds the page game's overlay across random edits and selections", async () => {
+  it("builds the recorded overlay across random edits and selections", async () => {
     // A deterministic LCG, as the incremental equivalence fuzz uses, so both
     // runs see the same edits.
     const plan = (seed: number) => {
@@ -279,6 +276,6 @@ describe("the preview displayed from the worker's game", () => {
     };
     const steps = plan(0x680);
     const text = coupledScreenplay();
-    expect(await frames(true, text, steps)).toEqual(await frames(false, text, steps));
+    expect(recorded(await frames(text, steps))).toMatchSnapshot();
   }, 120_000);
 });

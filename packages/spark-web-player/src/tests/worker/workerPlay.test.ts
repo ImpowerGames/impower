@@ -12,7 +12,7 @@ import { StepGameClockMessage } from "@impower/spark-engine/src/game/core/classe
 import { UnpauseGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/UnpauseGameMessage";
 import { describe, expect, it } from "vitest";
 import { programIdentity } from "../../utils/programIdentity";
-import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
+import { createPlayerHarness, MAIN_URI, settle, recorded } from "./playerHarness";
 
 const SOURCE = `-> start
 
@@ -89,10 +89,10 @@ const reloaded = async (h: { toEditor: any[] }) => {
 
 /** Stopped preview, PLAY, an edit during PLAY with its restart, and STOP, as
  *  the author does them. Answers what each step showed. */
-const session = async (workerDisplays: boolean) => {
-  const recorded = recordGameBuilds();
+const session = async () => {
+  const gameBuilds = recordGameBuilds();
   const h = await createPlayerHarness({
-    workerDisplays,
+    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: SECOND },
     // Each side ticks the frames the test gives it, and no others.
@@ -126,7 +126,7 @@ const session = async (workerDisplays: boolean) => {
     await h.select(SECOND);
     await settle(40);
     return {
-      builds: recorded.builds,
+      builds: gameBuilds.builds,
       previewed,
       played,
       restarted,
@@ -139,35 +139,30 @@ const session = async (workerDisplays: boolean) => {
       playingAfterStop: h.playing() != null,
     };
   } finally {
-    recorded.restore();
+    gameBuilds.restore();
     h.dispose();
   }
 };
 
-describe("PLAY with the switch on", () => {
-  it("builds no game on the page, and behaves as PLAY on the page does", async () => {
-    const off = await session(false);
-    const on = await session(true);
+describe("PLAY", () => {
+  it("builds no game on the page, and shows what was recorded", async () => {
+    const on = await session();
 
-    // The record sees a game the page builds: with the switch off, the
-    // preview's and each PLAY's.
-    expect(off.builds.filter((b) => b.page).length).toBeGreaterThanOrEqual(3);
-    // With it on, every game is the worker's: the preview's, PLAY's, and the
-    // one the restart built.
+    // Every game is the worker's: the preview's, PLAY's, and the one the
+    // restart built.
     expect(on.builds.filter((b) => b.page)).toEqual([]);
     expect(on.builds.length).toBeGreaterThanOrEqual(3);
 
     // PLAY showed the line it started from, the restart ran the edited
     // program, and STOP asked the editor to select where the game was.
-    expect(off.previewed).toContain("The second line.");
-    expect(off.played).toContain("The second line.");
-    expect(off.afterStop).toContain("The second line.");
-    expect(off.restartedIds[0]).not.toBe(off.restartedIds[1]);
-    expect(off.stopSelections).toHaveLength(1);
-    expect(off.playingAfterStop).toBe(false);
-    const { builds: _off, ...offSeen } = off;
+    expect(on.previewed).toContain("The second line.");
+    expect(on.played).toContain("The second line.");
+    expect(on.afterStop).toContain("The second line.");
+    expect(on.restartedIds[0]).not.toBe(on.restartedIds[1]);
+    expect(on.stopSelections).toHaveLength(1);
+    expect(on.playingAfterStop).toBe(false);
     const { builds: _on, ...onSeen } = on;
-    expect(onSeen).toEqual(offSeen);
+    expect(recorded(onSeen)).toMatchSnapshot();
   }, 120_000);
 });
 
