@@ -571,10 +571,15 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
     //
     // `undefined` is already the not-evaluable answer here (see the guards
     // above) and every consumer handles it.
+    const reported = this._game.runtimeErrorsReported;
     try {
       return story.EvaluateFunction(exprId, args);
     } catch (e) {
-      this.reportRuntimeError(`Error evaluating \`${binding.source ?? exprId}\``, e);
+      this.reportRuntimeError(
+        `Error evaluating \`${binding.source ?? exprId}\``,
+        e,
+        reported,
+      );
       return undefined;
     }
   }
@@ -583,8 +588,25 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
    *
    *  `story.onError` is the channel `Game.setupStory` wires to its own runtime
    *  error notification, so this reaches the editor exactly like an ink runtime
-   *  error rather than dying silently in a console. */
-  protected reportRuntimeError(what: string, e: unknown): void {
+   *  error rather than dying silently in a console.
+   *
+   *  A function that raises a runtime error ends the story, and the story
+   *  reports that error itself, at the statement that raised it. What
+   *  `EvaluateFunction` throws afterwards is a consequence of that ending, so
+   *  a caller that evaluated a function passes the game's count of reported
+   *  errors from before the call, and when the game has reported one since,
+   *  this reports nothing. */
+  protected reportRuntimeError(
+    what: string,
+    e: unknown,
+    reportedBefore?: number,
+  ): void {
+    if (
+      reportedBefore !== undefined &&
+      this._game.runtimeErrorsReported !== reportedBefore
+    ) {
+      return;
+    }
     const detail = e instanceof Error ? e.message : String(e);
     // No SourceMetadata: a binding evaluation failure has no single ink source
     // location to point at (the handler wires the message through unchanged).
@@ -2197,10 +2219,11 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       // Same containment as `evalBinding`: a handler that throws must not take
       // down the click that ran it (and, through `refreshLayouts`, the rest of
       // the UI).
+      const reported = this._game.runtimeErrorsReported;
       try {
         story.EvaluateFunction(name, event !== undefined ? [event] : []);
       } catch (e) {
-        this.reportRuntimeError(`Error running handler \`${name}\``, e);
+        this.reportRuntimeError(`Error running handler \`${name}\``, e, reported);
       }
     }
   }

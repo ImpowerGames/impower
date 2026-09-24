@@ -20,6 +20,7 @@ import {
   type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
+import { ErrorType as InkErrorType } from "@impower/sparkdown/src/inkjs/engine/Error";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
@@ -218,6 +219,13 @@ export class Game<T extends M = {}> {
   }
 
   protected _executingLocation: ScriptLocation | null = null;
+
+  protected _runtimeErrorsReported = 0;
+  /** How many runtime errors (not warnings) the game has reported, so a caller
+   *  can tell whether a failure it caught was already reported. */
+  get runtimeErrorsReported() {
+    return this._runtimeErrorsReported;
+  }
 
   protected _runtimeState: RuntimeState = new RuntimeState();
   get runtimeState() {
@@ -651,8 +659,17 @@ export class Game<T extends M = {}> {
   setupStory(story: Story) {
     story.collapseWhitespace = false;
     story.processEscapes = false;
-    story.onError = (message: string, type: ErrorType) => {
-      this.Error(message, type);
+    story.onError = (message, type, _source, raised) => {
+      // The story reports its errors as the step that raised them ends, before
+      // that step's location is recorded, so an error names the content that
+      // raised it, and the last recorded step only when that content has no
+      // location.
+      this.Error(
+        raised?.message ?? message,
+        type === InkErrorType.Warning ? ErrorType.Warning : ErrorType.Error,
+        pathLocation(this._program.pathLocations, raised?.path) ??
+          this._executingLocation,
+      );
     };
     story.onExecute = (path: string | undefined) => {
       if (path) {
@@ -2682,12 +2699,19 @@ export class Game<T extends M = {}> {
     return { stackFrames, totalFrames: 0 };
   }
 
-  protected Error(message: string, type: ErrorType) {
+  protected Error(
+    message: string,
+    type: ErrorType,
+    location: ScriptLocation | null = this._executingLocation,
+  ) {
+    if (type === ErrorType.Error) {
+      this._runtimeErrorsReported += 1;
+    }
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({
         message,
         type,
-        location: this.getDocumentLocation(this._executingLocation),
+        location: this.getDocumentLocation(location),
         state: this._state,
       }),
     );
