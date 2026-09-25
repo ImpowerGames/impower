@@ -58,6 +58,7 @@ import {
   validateBranch,
 } from "../lower/utils/validateSceneBranchScope";
 import type { LowerContext } from "../lower/context";
+import { ContinuationGroup } from "../lower/utils/displayCall";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
@@ -3418,6 +3419,12 @@ export class SparkdownCompiler {
   // and all of its references share the exact same string and are emitted within
   // the same chunk, so a uniform string→string remap suffices (no need to link
   // references back to definitions).
+  //
+  // A display call's continuation `group` (`ContinuationGroup`) is minted from
+  // its statement's offset the same way, as a string value rather than a name.
+  // The pass renumbers those to `__group_<n>` in a sequence of their own, so
+  // adding a continuation leaves the synthetic names after it as they were,
+  // and the other way round.
   // Call-relevant signature of every named flow, keyed by name. Walks the
   // flow tree only (each flow's named sub-flows), never the full parsed tree,
   // so this is O(flows) — negligible next to a compile. See
@@ -3489,6 +3496,10 @@ export class SparkdownCompiler {
     const seenIds = new Set<Identifier>();
     const matchedStrings: Array<{ node: any; field: string }> = [];
     const flowsToRekey: FlowBase[] = [];
+    // Every call of one continuation carries the same group, so the calls
+    // share a mapping just as a synthetic's definition and references do.
+    const groupRemap = new Map<string, string>();
+    const matchedGroups: ContinuationGroup[] = [];
 
     const considerName = (name: string) => {
       let next = remap.get(name);
@@ -3499,6 +3510,17 @@ export class SparkdownCompiler {
           changed = true;
         }
       }
+    };
+    const considerGroup = (group: ContinuationGroup) => {
+      let next = groupRemap.get(group.text);
+      if (next === undefined) {
+        next = `__group_${groupRemap.size}`;
+        groupRemap.set(group.text, next);
+      }
+      if (next !== group.text) {
+        changed = true;
+      }
+      matchedGroups.push(group);
     };
     const considerId = (id: Identifier, owner: ParsedObject) => {
       const name = id.name;
@@ -3592,17 +3614,21 @@ export class SparkdownCompiler {
           matchedStrings.push({ node, field: f });
         }
       }
+      if (node instanceof ContinuationGroup) {
+        found = true;
+        considerGroup(node);
+      }
       if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
         // Only flows that actually contain a synthetic can need re-keying,
         // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
       }
-      const content = node.content;
-      if (content) {
-        for (const c of content) {
-          if (collect(c)) {
-            found = true;
-          }
+      // A stdlib or native call drops its proxy divert, which holds its
+      // arguments, from `content` when it generates, so a call carried from
+      // an earlier compile reaches its arguments only through `args`.
+      for (const c of parsedChildren(node)) {
+        if (collect(c)) {
+          found = true;
         }
       }
       if (!found) {
@@ -3647,6 +3673,13 @@ export class SparkdownCompiler {
           markRenamed(node);
         }
         node[field] = next;
+      }
+    }
+    for (const group of matchedGroups) {
+      const next = groupRemap.get(group.text)!;
+      if (next !== group.text) {
+        markRenamed(group);
+        group.text = next;
       }
     }
     for (const flow of flowsToRekey) {
