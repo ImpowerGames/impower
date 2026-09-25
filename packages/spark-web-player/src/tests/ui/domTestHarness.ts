@@ -23,6 +23,7 @@
 
 import { JSDOM, VirtualConsole } from "jsdom";
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { writeBeatText } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import type { Instructions } from "@impower/spark-engine/src/game/core/types/Instructions";
 import { cloneMessage } from "@impower/spark-engine/src/tests/harness/cloneMessage";
@@ -443,13 +444,7 @@ export function createDOMHarness(
           uiMod.observe("click", target, handleClick);
         });
       }
-      if (instructions.text) {
-        await Promise.all(
-          Object.entries(instructions.text).map(([target, events]) =>
-            uiMod.text.write(target, events as any, instant),
-          ),
-        );
-      }
+      await Promise.all(writeBeatText(uiMod, instructions, instant));
       if (instructions.image) {
         await Promise.all(
           Object.entries(instructions.image).map(([target, events]) =>

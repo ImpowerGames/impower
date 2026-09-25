@@ -15,6 +15,10 @@ export interface WriteTextParams {
    *  audio's output latency. Absent for writes that start when the page
    *  handles them. */
   time?: number;
+  /** How many leading instructions are text already on the page (a box
+   *  carried on after a click): they appear at once, and only the rest are
+   *  revealed from `time`. */
+  shown?: number;
 }
 
 export class WriteTextMessage {

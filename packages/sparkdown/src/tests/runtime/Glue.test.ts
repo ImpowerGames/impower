@@ -24,9 +24,8 @@ import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 // Each beat's text paired with the routing of each of its `display()`
 // tables. Routing lives in the tables rather than a `<prefix>:` in the
-// visible text, so asserting that only the first table names a target is what
-// proves a glued continuation INHERITED the first line's target instead of
-// re-cueing a beat of its own.
+// visible text, so the tables are what show which line a joined beat is
+// routed by.
 type Routing = { target?: string; character?: string };
 function beatsWithRouting(story: RuntimeStory): [string, Routing[]][] {
   const beats: [string, Routing[]][] = [];
@@ -41,8 +40,8 @@ function beatsWithRouting(story: RuntimeStory): [string, Routing[]][] {
 describe("Glue (ported from inkjs)", () => {
   test("simple glue across multiple lines", () => {
     // Ink's `Some <>\ncontent<> with glue.` glues mid-word; sparkdown's
-    // `..` joins from the end of a line, and a `..` touching the last word
-    // (`con..`) joins with no space.
+    // `..` marks both lines, and marks touching the words (`con..` then
+    // `..tent`) join with no space.
     const ctx = makeRuntimeStoryFromFile("glue", "simple-glue");
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
@@ -50,7 +49,7 @@ describe("Glue (ported from inkjs)", () => {
 
   test("trailing glue across multiple lines", () => {
     // Each line ends with a spaced ` ..`, and the space before `..` is the
-    // word separator (`Some ..` + `content` → `Some content`).
+    // word separator (`Some ..` + `.. content` → `Some content`).
     const ctx = makeRuntimeStoryFromFile("glue", "trailing-glue");
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Some content with glue.\n");
@@ -108,16 +107,15 @@ describe("Glue — ported from ink fixture rewrites", () => {
 });
 
 // Glue is not action-only: a `..` that ends a line joins the next display line
-// onto it for EVERY type (action, dialogue, heading, title, transitional,
-// write), spaced (`text ..`) or touching (`text..`). A correct join collapses
-// the two lines into a SINGLE `Continue()` beat with its trailing newline
-// intact.
+// that begins with `..` onto it for EVERY type (action, dialogue, heading,
+// title, transitional, write), spaced (`text ..`) or touching (`text..`). A
+// correct join collapses the two lines into a SINGLE `Continue()` beat with its
+// trailing newline intact.
 //
 // Routing is carried by each line's `display()` table, not by a `<prefix>:`
-// in the visible text. So the joined beat's TEXT is prefix-free, and the
-// invariant that actually matters here is that only the first table of the
-// join names a target: the continuation must INHERIT the first line's target
-// rather than re-cue a fresh beat of its own.
+// in the visible text. So the joined beat's TEXT is prefix-free, and the beat
+// takes the first table's routing. An action continuation names none, so it
+// takes the routing of the line it joins; every other kind keeps its own.
 describe("Glue - across all display statement types", () => {
   const TYPES: { label: string; prefix: string; routing: Routing }[] = [
     { label: "action", prefix: "", routing: { target: "action" } },
@@ -140,40 +138,50 @@ describe("Glue - across all display statement types", () => {
 
   for (const { label, prefix, routing } of TYPES) {
     const p = prefix ? `${prefix} ` : "";
+    const own = label === "action" ? {} : routing;
 
     test(`trailing \`..\` joins two ${label} lines into one beat`, () => {
-      const ctx = makeRuntimeStoryFromSource(`${p}first ..\n${p}second.\n`);
+      const ctx = makeRuntimeStoryFromSource(`${p}first ..\n${p}.. second.\n`);
       expect(ctx.errorMessages).toEqual([]);
-      expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [routing, {}]]]);
+      expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [routing, own]]]);
     });
 
     test(`touching \`..\` joins two ${label} lines with no space`, () => {
-      const ctx = makeRuntimeStoryFromSource(`${p}first..\n${p}second.\n`);
+      const ctx = makeRuntimeStoryFromSource(`${p}first..\n${p}..second.\n`);
       expect(ctx.errorMessages).toEqual([]);
       expect(beatsWithRouting(ctx.story)).toEqual([
-        ["firstsecond.\n", [routing, {}]],
+        ["firstsecond.\n", [routing, own]],
+      ]);
+    });
+
+    test(`a \`..\` on one side only leaves two ${label} lines apart`, () => {
+      const ctx = makeRuntimeStoryFromSource(`${p}first ..\n${p}second.\n`);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(beatsWithRouting(ctx.story)).toEqual([
+        ["first\n", [routing]],
+        ["second.\n", [routing]],
       ]);
     });
   }
 
   test("a chain of trailing `..` joins three dialogue lines into one beat", () => {
     const ctx = makeRuntimeStoryFromSource(
-      "ALICE: a ..\nALICE: b ..\nALICE: c.\n",
+      "ALICE: a ..\nALICE: .. b ..\nALICE: .. c.\n",
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(beatsWithRouting(ctx.story)).toEqual([
-      ["a b c.\n", [ALICE, {}, {}]],
+      ["a b c.\n", [ALICE, ALICE, ALICE]],
     ]);
   });
 
   test("trailing `..` joins mid-body lines within a block dialogue", () => {
-    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first ..\n  second.\n");
+    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first ..\n  .. second.\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(beatsWithRouting(ctx.story)).toEqual([[JOINED, [ALICE]]]);
   });
 
   test("touching `..` joins mid-body lines within a block dialogue", () => {
-    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first..\n  second.\n");
+    const ctx = makeRuntimeStoryFromSource("ALICE:\n  first..\n  ..second.\n");
     expect(ctx.errorMessages).toEqual([]);
     expect(beatsWithRouting(ctx.story)).toEqual([
       ["firstsecond.\n", [ALICE]],

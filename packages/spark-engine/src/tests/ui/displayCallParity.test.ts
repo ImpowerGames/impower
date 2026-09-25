@@ -279,47 +279,47 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
   ],
   [
     "touching-glue continuation (.. touching the last word)",
-    `  Some..\n  content..\n  with glue.`,
+    `  Some..\n  ..content..\n  ..with glue.`,
     [{ text: { action: ["Somecontentwith glue."] } }],
   ],
   [
     "trailing-glue continuation (.. at end of line)",
-    `  Some ..\n  content ..\n  with glue.`,
+    `  Some ..\n  .. content ..\n  .. with glue.`,
     [{ text: { action: ["Some content with glue."] } }],
   ],
   [
     "glued dialogue continuation",
-    `  HERO: Wait ..\n  right there.`,
+    `  HERO: Wait ..\n  .. right there.`,
     [{ text: { dialogue: ["Wait right there."], character_name: ["HERO"] } }],
   ],
   [
     "continuation inside an if branch",
-    `  You see a ..\n  if true then\n    red door.\n  end`,
+    `  You see a ..\n  if true then\n    .. red door.\n  end`,
     [{ text: { action: ["You see a red door."] } }],
   ],
   [
     "chain of three trailing-glue dialogue lines",
-    `  HERO: One ..\n  HERO: two ..\n  HERO: three.`,
+    `  HERO: One ..\n  HERO: .. two ..\n  HERO: .. three.`,
     [{ text: { dialogue: ["One two three."], character_name: ["HERO"] } }],
   ],
   [
     "mid-body glue in a block dialogue",
-    `  HERO:\n    First ..\n    second.`,
+    `  HERO:\n    First ..\n    .. second.`,
     [{ text: { dialogue: ["First second."], character_name: ["HERO"] } }],
   ],
   [
     "glued line continued by a bare {expr} line",
-    `  You have ..\n  {1 + 2}`,
+    `  You have ..\n  .. {1 + 2}`,
     [{ text: { action: ["You have 3"] } }],
   ],
   [
     "empty glued continuation keeps the beat open",
-    `  You see ..\n  {if true then "" else ""} ..\n  The door.`,
+    `  You see ..\n  .. {if true then "" else ""} ..\n  .. The door.`,
     [{ text: { action: ["You see  The door."] } }],
   ],
   [
     "whitespace-only glued continuation keeps the beat open",
-    `  First ..\n  {if true then " " else ""} ..\n  Last ..\n  word.`,
+    `  First ..\n  .. {if true then " " else ""} ..\n  .. Last ..\n  .. word.`,
     [{ text: { action: ["First   Last word."] } }],
   ],
   [
@@ -328,9 +328,13 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
     [{ text: { action: ["First"] } }, { text: { action: ["Last."] } }],
   ],
   [
-    "trailing > break that joins the next line",
-    `  First > ..\n  second.\n  Last.`,
-    [{ text: { action: ["First second."] } }, { text: { action: ["Last."] } }],
+    "trailing > break the next line carries on after",
+    `  First .. >\n  .. second.\n  Last.`,
+    [
+      { text: { action: ["First"] } },
+      { text: { action: ["First second."] } },
+      { text: { action: ["Last."] } },
+    ],
   ],
   [
     "load directive ending with `..` joins nothing",
@@ -343,7 +347,7 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
   ],
   [
     "line after a glued pair is its own beat",
-    `  You see a ..\n  red door.\n  It is locked.`,
+    `  You see a ..\n  .. red door.\n  It is locked.`,
     [
       { text: { action: ["You see a red door."] } },
       { text: { action: ["It is locked."] } },
@@ -439,12 +443,12 @@ const FIXTURES: [label: string, body: string, beats: Beat[]][] = [
   ],
   [
     "mid-body glue after an interpolation",
-    `  HERO:\n    You have {1 + 1} ..\n    apples.`,
+    `  HERO:\n    You have {1 + 1} ..\n    .. apples.`,
     [{ text: { dialogue: ["You have 2 apples."], character_name: ["HERO"] } }],
   ],
   [
     "mid-body glue before an interpolation",
-    `  HERO:\n    Count ..\n    {1 + 1} apples.`,
+    `  HERO:\n    Count ..\n    .. {1 + 1} apples.`,
     [{ text: { dialogue: ["Count 2 apples."], character_name: ["HERO"] } }],
   ],
   [

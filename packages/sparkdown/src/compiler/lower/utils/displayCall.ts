@@ -13,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text, pause?, inherit?, group?, continues? })` with
+// `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, continues? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
@@ -29,21 +29,24 @@ import { stampDebugMetadata } from "./debugMetadata";
 // ending during string evaluation is taken for a choice label's tag.
 //
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
-// shows no text. `open` marks a call that joins the next display call onto its
-// line: `display` writes no newline after it, so the step runs on until a
-// call closes the line. A trailing `..` and a divert the line holds open carry
+// shows no text. `glue` marks a beat whose text ends with `..`: its newline
+// waits, and a line that begins with `..` joins the beat. `extend` marks a beat
+// whose text ends with `..` before a `>` break: its step ends at the click like
+// any beat's, and a line that begins with `..` carries on in the same box.
+// `continues` marks a beat whose text begins with `..`: `display` checks that
+// the line shown before it ends with `..`, and warns and shows the beat as a
+// line of its own when it does not. `open` marks a call that joins the next
+// display call onto its line: `display` writes no newline after it, so the step
+// runs on until a call closes the line. A divert the line holds open carries
 // it. `caption` marks a `choose` block's last caption line, whose newline
 // waits: the step completes with the choices unless the run shows something
-// first. `group` names the glued continuation a call belongs to (its
-// file and the offset it starts at, since offsets start again in every
-// script), and
+// first. `group` names the glued continuation a call belongs to (its file and
+// the offset it starts at, since offsets start again in every script), and
 // `inherit` marks its beats after one of its breaks: they take the routing of
 // the beat the run joined the continuation to, which the interpreter knows
 // only while the beat `group` names is the one it queued last, and otherwise
 // route by the table's own routing, which is the line the source reads before
-// the continuation. `continues` marks the first call of a line that begins with
-// `..` where only the run knows the line before it: `display` warns when that
-// line had already ended as the call runs.
+// the continuation.
 //
 // When `range` is given, the call is stamped with it so its beat surfaces a
 // pathLocation (the screenplay preview's click-to-line routing depends on it).
@@ -56,6 +59,8 @@ export function buildDisplayCall(
   tags: ParsedObject[][] = [],
   options: {
     pause?: boolean;
+    extend?: boolean;
+    glue?: boolean;
     inherit?: boolean;
     group?: string;
     open?: boolean;
@@ -80,7 +85,14 @@ export function buildDisplayCall(
     );
   }
   entries.push(new ObjectExpressionEntry("text", new StringExpression(body)));
-  for (const flag of ["pause", "inherit", "open", "continues"] as const) {
+  for (const flag of [
+    "pause",
+    "extend",
+    "glue",
+    "inherit",
+    "open",
+    "continues",
+  ] as const) {
     if (options[flag]) entries.push(flagEntry(flag));
   }
   if (options.group != null) {
@@ -140,6 +152,19 @@ export function buildOrderedDisplayCall(
   return finishCall(entries, [], null, ctx);
 }
 
+// `__unjoined()` at a `..` that begins a block body line under a line that
+// does not end with one, stamped with the mark so its runtime warning names
+// that line.
+export function buildUnjoinedWarning(
+  range: { from: number; to: number },
+  ctx: LowerContext,
+): FunctionCall {
+  const call = new FunctionCall(new Identifier("__unjoined"), []);
+  call.shouldPopReturnedValue = true;
+  stampDebugMetadata([call], range.from, range.to, ctx);
+  return call;
+}
+
 // Whether `call` is a `display` call whose table can take an `open` entry.
 export function isDisplayCall(call: ParsedObject): call is FunctionCall {
   return (
@@ -151,10 +176,15 @@ export function isDisplayCall(call: ParsedObject): call is FunctionCall {
 
 // Mark a `display` call as a `choose` block's `caption`, whose newline waits
 // for what the run does next. A call already `open` joins the next line
-// instead and is left as it is.
+// instead, and one marked `glue` already leaves its newline waiting, so either
+// is left as it is.
 export function captionDisplayCall(call: FunctionCall): void {
   const table = call.args[0] as ObjectExpression;
-  if (table.entries.some((entry) => entry.key === "open")) return;
+  if (
+    table.entries.some((entry) => entry.key === "open" || entry.key === "glue")
+  ) {
+    return;
+  }
   table.addEntry(flagEntry("caption"));
 }
 

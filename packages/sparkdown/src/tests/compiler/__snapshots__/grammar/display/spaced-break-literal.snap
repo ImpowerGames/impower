@@ -66,8 +66,9 @@ sparkdown [0..189]
  │   │   │       └─ DialogueCharacter_c7 35
  │   │   ├─ InlineDialogue_begin_c3 [35..36]
  │   │   │   └─ ColonSeparator [35..36]: ":"
- │   │   └─ InlineDialogue_begin_c4 [36..37]
- │   │       └─ RequiredWhitespace [36..37]: " "
+ │   │   ├─ InlineDialogue_begin_c4 [36..37]
+ │   │   │   └─ RequiredWhitespace [36..37]: " "
+ │   │   └─ InlineDialogue_begin_c5 37
  │   ├─ InlineDialogue_content [37..60]
  │   │   └─ LineEnd [37..60]
  │   │       ├─ LineEnd_begin 37
@@ -176,8 +177,9 @@ sparkdown [0..189]
  │   │   │       └─ DialogueCharacter_c7 65
  │   │   ├─ InlineDialogue_begin_c3 [65..66]
  │   │   │   └─ ColonSeparator [65..66]: ":"
- │   │   └─ InlineDialogue_begin_c4 [66..67]
- │   │       └─ RequiredWhitespace [66..67]: " "
+ │   │   ├─ InlineDialogue_begin_c4 [66..67]
+ │   │   │   └─ RequiredWhitespace [66..67]: " "
+ │   │   └─ InlineDialogue_begin_c5 67
  │   ├─ InlineDialogue_content [67..82]
  │   │   └─ LineEnd [67..82]
  │   │       ├─ LineEnd_begin 67
@@ -233,8 +235,9 @@ sparkdown [0..189]
  │   │   │       └─ DialogueCharacter_c7 87
  │   │   ├─ InlineDialogue_begin_c3 [87..88]
  │   │   │   └─ ColonSeparator [87..88]: ":"
- │   │   └─ InlineDialogue_begin_c4 [88..89]
- │   │       └─ RequiredWhitespace [88..89]: " "
+ │   │   ├─ InlineDialogue_begin_c4 [88..89]
+ │   │   │   └─ RequiredWhitespace [88..89]: " "
+ │   │   └─ InlineDialogue_begin_c5 89
  │   ├─ InlineDialogue_content [89..109]
  │   │   └─ LineEnd [89..109]
  │   │       ├─ LineEnd_begin 89
@@ -292,8 +295,9 @@ sparkdown [0..189]
  │   │   │       └─ DialogueCharacter_c7 127
  │   │   ├─ InlineDialogue_begin_c3 [127..128]
  │   │   │   └─ ColonSeparator [127..128]: ":"
- │   │   └─ InlineDialogue_begin_c4 [128..129]
- │   │       └─ RequiredWhitespace [128..129]: " "
+ │   │   ├─ InlineDialogue_begin_c4 [128..129]
+ │   │   │   └─ RequiredWhitespace [128..129]: " "
+ │   │   └─ InlineDialogue_begin_c5 129
  │   ├─ InlineDialogue_content [129..132]
  │   │   └─ LineEnd [129..132]
  │   │       ├─ LineEnd_begin 129

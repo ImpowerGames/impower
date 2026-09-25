@@ -4050,6 +4050,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[] | null,
         instant: boolean,
         time?: number,
+        shown = 0,
       ) {
         // [D14] The engine no longer builds per-glyph spans or per-letter
         // reveal animations. It still owns the structural target element tree
@@ -4094,6 +4095,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instructions: sequence ?? [],
             instant,
             ...(time != null ? { time } : {}),
+            ...(shown > 0 ? { shown } : {}),
           }),
         );
       }
@@ -4110,16 +4112,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       /** `time` is when the beat starts on the shared clock (`sharedNow`),
-       *  for a write the page should show at that moment. */
+       *  for a write the page should show at that moment. The first `shown`
+       *  instructions are text already on the page, which appears at once. */
       async write(
         target: string,
         sequence: TextInstruction[],
         instant = false,
         time?: number,
+        shown = 0,
       ) {
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time);
+          await this.applyChanges(target, sequence, instant, time, shown);
         }
       }
     }

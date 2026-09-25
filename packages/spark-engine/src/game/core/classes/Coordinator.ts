@@ -12,6 +12,29 @@ import { EventMessage } from "./messages/EventMessage";
  */
 const ADVANCE_KEYS = ["Enter", " "];
 
+/**
+ * Write a beat's text to its targets. On a beat that carries on in the box
+ * before it, the events that box already shows are marked `shown`, so the page
+ * shows them at once and they never leave it, and only the rest are revealed
+ * from `time`.
+ */
+export function writeBeatText(
+  ui: Game["module"]["ui"],
+  instructions: Instructions,
+  instant = false,
+  time?: number,
+): Promise<void>[] {
+  return Object.entries(instructions.text ?? {}).map(([target, events]) =>
+    ui.text.write(
+      target,
+      events,
+      instant,
+      time,
+      instant ? 0 : (instructions.extended?.[target] ?? 0),
+    ),
+  );
+}
+
 export class Coordinator<G extends Game> {
   protected _game: G;
 
@@ -165,7 +188,11 @@ export class Coordinator<G extends Game> {
 
     const transientLayers: string[] = game.module.ui.getTransientTargets();
 
-    if (!instant) {
+    // A beat that carries on in the box before it keeps what that box showed
+    // and the sound and voice it started.
+    const extended = Boolean(instructions.extended);
+
+    if (!instant && !extended) {
       // Stop stale sound and voice audio on new dialogue line
       game.module.audio.stopChannel("sound");
       game.module.audio.stopChannel("voice");
@@ -176,10 +203,18 @@ export class Coordinator<G extends Game> {
     // `time` is when a played beat starts on the shared clock; an instant or
     // simulated display has none and shows as soon as the page handles it.
     const updateUI = (time?: number) => {
-      game.module.ui.text.clearAll(transientLayers);
-      game.module.ui.image.clearAll(
-        transientLayers.filter((layer) => !instructions.image?.[layer]),
-      );
+      // A beat that carries on in the box writes the whole box again; one
+      // with no text of its own (pictures or sound only) leaves it as it is.
+      if (!extended || instructions.text) {
+        game.module.ui.text.clearAll(transientLayers);
+      }
+      // A picture the beat shows replaces the one on its layer. A beat that
+      // carries on in the box keeps the others.
+      if (!extended) {
+        game.module.ui.image.clearAll(
+          transientLayers.filter((layer) => !instructions.image?.[layer]),
+        );
+      }
 
       game.module.ui.showLayout("main");
       game.module.ui.reveal();
@@ -212,11 +247,7 @@ export class Coordinator<G extends Game> {
       }
 
       // Process text events
-      if (instructions.text) {
-        Object.entries(instructions.text).forEach(([target, events]) =>
-          game.module.ui.text.write(target, events, instant, time),
-        );
-      }
+      writeBeatText(game.module.ui, instructions, instant, time);
 
       // Process images events
       if (instructions.image) {
