@@ -3012,11 +3012,18 @@ export class Story extends InkObject {
           this.state.PushEvaluationStack(new IntValue(count));
           break;
 
-        case ControlCommand.CommandType.ChoiceCount:
-          this.state.PushEvaluationStack(
-            new IntValue(this.state.generatedChoices.length),
-          );
+        case ControlCommand.CommandType.HoldForChoices: {
+          const since = asOrNull(this.state.PopEvaluationStack(), IntValue);
+          if (since === null) {
+            throw new StoryException(
+              "Expected the choice count a choose block began at",
+            );
+          }
+          if (this.state.generatedChoices.length > (since.value ?? 0)) {
+            this.StopFlowInThread();
+          }
           break;
+        }
 
         case ControlCommand.CommandType.SequenceShuffleIndex:
           let shuffleIndex = this.NextSequenceShuffleIndex();
@@ -3028,21 +3035,7 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.Done:
-          // We may exist in the context of the initial
-          // act of creating the thread, or in the context of
-          // evaluating the content.
-          if (this.state.callStack.canPopThread) {
-            this.state.callStack.PopThread();
-          }
-
-          // In normal flow - allow safe exit without warning
-          else {
-            this.state.didSafeExit = true;
-
-            // Stop flow in current thread
-            this.state.currentPointer = Pointer.Null;
-          }
-
+          this.StopFlowInThread();
           break;
 
         // Force flow to end completely
@@ -4786,6 +4779,25 @@ export class Story extends InkObject {
       this.state.currentPointer.Resolve(),
     );
     return sb.toString();
+  }
+
+  // What `done` does: ends the current thread, or ends the flow safely when
+  // no thread is left to pop.
+  protected StopFlowInThread() {
+    // We may exist in the context of the initial
+    // act of creating the thread, or in the context of
+    // evaluating the content.
+    if (this.state.callStack.canPopThread) {
+      this.state.callStack.PopThread();
+    }
+
+    // In normal flow - allow safe exit without warning
+    else {
+      this.state.didSafeExit = true;
+
+      // Stop flow in current thread
+      this.state.currentPointer = Pointer.Null;
+    }
   }
 
   // Reports a content path the story ran (`onExecute`). While a line end

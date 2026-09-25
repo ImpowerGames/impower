@@ -399,6 +399,55 @@ end
     expect(result.choices).toEqual([]);
   });
 
+  test("a block that offers no choice runs on even after a choice generated before it", () => {
+    const result = drive(`
+-> main
+
+scene main
+  if true then
+    * Stray
+  end
+  choose
+    if false then
+      * Hidden
+    end
+  end
+  After the empty choose.
+end
+`);
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.lines).toEqual(["After the empty choose."]);
+    expect(result.choices).toEqual(["Stray"]);
+  });
+
+  test("a block that offers no choice runs on after a thread offered a choice", () => {
+    const result = drive(`
+store has_key = false
+-> hub
+
+scene hub
+  <- side
+  choose
+    if has_key then
+      * Unlock
+    end
+  end
+  After the gated block.
+end
+
+scene side
+  choose
+    * Side one
+      Side taken.
+  end
+  done
+end
+`);
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.lines).toEqual(["After the gated block."]);
+    expect(result.choices).toEqual(["Side one"]);
+  });
+
   test("a fallback choice fires when every other choice in the block is unavailable", () => {
     const result = drive(`
 store has_key = false

@@ -4,8 +4,8 @@ import { Conditional } from "./Conditional/Conditional";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
-import { NativeFunctionCall } from "../../../engine/NativeFunctionCall";
-import { IntValue } from "../../../engine/Value";
+import { VariableAssignment as RuntimeVariableAssignment } from "../../../engine/VariableAssignment";
+import { VariableReference as RuntimeVariableReference } from "../../../engine/VariableReference";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
@@ -80,6 +80,11 @@ export class Weave extends ParsedObject {
   // The weave of a `choose` block, which choices offered from inside a
   // conditional or sequence within it continue at the end of.
   public isChooseBlock = false;
+
+  // The temporary a holding `choose` block keeps the choice count it began
+  // at in. A block nested in a choice's content reuses it only after the
+  // outer block's hold has read it.
+  static readonly CHOOSE_START_VARIABLE = "$choose";
 
   public gatherPointsToResolve: GatherPointToResolve[] = [];
 
@@ -239,6 +244,22 @@ export class Weave extends ParsedObject {
     this.looseEnds = [];
     this.gatherPointsToResolve = [];
 
+    // A `choose` block that holds the flow records how many choices the flow
+    // has already generated, so its end holds only for choices it generated.
+    const holds = this.content.some(
+      (obj) => obj instanceof Gather && obj.endsChooseBlock,
+    );
+    if (holds) {
+      this._rootContainer.AddContent(RuntimeControlCommand.EvalStart());
+      this._rootContainer.AddContent(
+        RuntimeControlCommand.RunStdLib("count.choices", 0),
+      );
+      this._rootContainer.AddContent(RuntimeControlCommand.EvalEnd());
+      this._rootContainer.AddContent(
+        new RuntimeVariableAssignment(Weave.CHOOSE_START_VARIABLE, true),
+      );
+    }
+
     // Iterate through content for the block at this level of indentation
     //  - Normal content is nested under Choices and Gathers
     //  - Blocks that are further indented cause recursion
@@ -304,21 +325,17 @@ export class Weave extends ParsedObject {
       }
 
       if (gather.endsChooseBlock) {
-        // Hold the flow when the block offered a choice. When none was
-        // generated (every choice gated off), step over the stop into the
-        // gather and run on.
-        const skipStop = new RuntimeDivert();
-        skipStop.isConditional = true;
+        // Hold the flow when the block generated a choice since it began
+        // (the count its start recorded); a block that generated none runs
+        // on into the gather.
         this.currentContainer.AddContent(RuntimeControlCommand.EvalStart());
-        this.currentContainer.AddContent(RuntimeControlCommand.ChoiceCount());
-        this.currentContainer.AddContent(new IntValue(0));
-        this.currentContainer.AddContent(NativeFunctionCall.CallWithName("=="));
-        this.currentContainer.AddContent(RuntimeControlCommand.EvalEnd());
-        this.currentContainer.AddContent(skipStop);
-        this.gatherPointsToResolve.push(
-          new GatherPointToResolve(skipStop, gatherContainer),
+        this.currentContainer.AddContent(
+          new RuntimeVariableReference(Weave.CHOOSE_START_VARIABLE),
         );
-        this.currentContainer.AddContent(RuntimeControlCommand.Done());
+        this.currentContainer.AddContent(RuntimeControlCommand.EvalEnd());
+        this.currentContainer.AddContent(
+          RuntimeControlCommand.HoldForChoices(),
+        );
       }
 
       // Auto-enter: include in main content

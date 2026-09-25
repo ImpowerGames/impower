@@ -109,8 +109,8 @@ export class ControlCommand extends InkObject {
   public static Done() {
     return new ControlCommand(ControlCommand.CommandType.Done);
   }
-  public static ChoiceCount() {
-    return new ControlCommand(ControlCommand.CommandType.ChoiceCount);
+  public static HoldForChoices() {
+    return new ControlCommand(ControlCommand.CommandType.HoldForChoices);
   }
   public static End() {
     return new ControlCommand(ControlCommand.CommandType.End);
@@ -280,10 +280,12 @@ export namespace ControlCommand {
     // (`_shortCircuitSkipCount`). See `ShortCircuit()`.
     ShortCircuit, // 32
 
-    // Pushes how many choices the current flow has generated, fallback
-    // choices included. A `choose` block's end reads it to hold the flow
-    // only when the block offered a choice.
-    ChoiceCount, // 33
+    // A `choose` block's hold: pops the choice count the block began at (read
+    // from `count.choices()` at its start) and, when the flow has generated
+    // more choices since, stops the flow as `Done` does. A block that
+    // generated no choice runs on. It is not a condition, so a route planner
+    // never forks on it.
+    HoldForChoices, // 33
 
     TOTAL_VALUES,
   }
