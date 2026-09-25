@@ -226,15 +226,14 @@ $: E > F
     ]);
   });
 
-  test("`>` stays literal where it belongs to `>>` or `>=`", () => {
+  test("each `>` of `>>` and the `>` of `>=` is a break", () => {
     const ctx = makeRuntimeStoryFromSource(`HERO: c >> d, e >= f.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
-      {
-        text: "c >> d, e >= f.\n",
-        routing: "dialogue:HERO",
-        pause: false,
-      },
+      { text: "c\n", routing: "dialogue:HERO", pause: true },
+      { text: "\n", routing: "dialogue:HERO", pause: true },
+      { text: "d, e\n", routing: "dialogue:HERO", pause: true },
+      { text: "= f.\n", routing: "dialogue:HERO", pause: false },
     ]);
   });
 

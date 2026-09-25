@@ -1,7 +1,7 @@
-// A `>` in display text is a break unless it belongs to a longer mark or is
-// escaped, so it needs no space on either side, as a `..` glue mark does. It
-// belongs to a longer mark when a `-` or another `>` stands right before it,
-// or a `>` or `=` right after it; `\>` is a literal `>`. A touching break
+// A `>` in display text is a break unless it is escaped, closes a text command
+// or is the `>` of a `->` divert, so it needs no space on either side, as a
+// `..` glue mark does. Each `>` of `>>` is a break, and so is the `>` of `>=`.
+// `-->` is a `-` followed by a divert. `\>` is a literal `>`. A touching break
 // shows the same beats as the spaced one.
 
 import { describe, expect, test } from "vitest";
@@ -170,13 +170,28 @@ describe("a `>` break that touches the words around it", () => {
     ).toEqual(run(`HERO:\n  A>B\n  C>\n  D\n`).steps);
   });
 
-  test("a `>` that touches another `>` or a `-`, or has `=` after it, is text", () => {
+  test("each `>` of `>>` is a break, and so is the `>` of `>=`", () => {
+    for (const [touching, spaced] of [
+      [`A>>B\n`, `A > > B\n`],
+      [`A >> B\n`, `A > > B\n`],
+      [`x>=y\n`, `x > =y\n`],
+      [`x >= y\n`, `x > = y\n`],
+    ]) {
+      expect(run(touching!)).toEqual(run(spaced!));
+    }
+    expect(run(`A>>B\n`).steps.map((step) => step.text)).toEqual([
+      "A\n",
+      "\n",
+      "B\n",
+    ]);
+    expect(run(`x >= y\n`).steps.map((step) => step.text)).toEqual([
+      "x\n",
+      "= y\n",
+    ]);
+  });
+
+  test("an escaped `>` and a text command's `>` are text", () => {
     for (const [source, shown] of [
-      [`A >> B\n`, "A >> B\n"],
-      [`A>>B\n`, "A>>B\n"],
-      [`x >= y\n`, "x >= y\n"],
-      [`x>=y\n`, "x>=y\n"],
-      [`A-->B\n`, "A-->B\n"],
       [`A \\> B\n`, "A > B\n"],
       [`A\\>B\n`, "A>B\n"],
       [`Go <wait 1> now.\n`, "Go <wait 1> now.\n"],
@@ -192,6 +207,19 @@ describe("a `>` break that touches the words around it", () => {
     expect(divert.steps.some((step) => step.pause)).toBe(false);
     const tunnel = run(`->->\n`);
     expect(tunnel.steps).toEqual([]);
+  });
+
+  test("`-->` is a `-` followed by a divert", () => {
+    for (const [dashed, shown] of [
+      [`A-->later\n`, "A-Later.\n"],
+      [`A --> later\n`, "A -Later.\n"],
+      [`A--->later\n`, "A--Later.\n"],
+    ]) {
+      const scene = `\nscene later\n  Later.\nend\n`;
+      expect(run(`${dashed}${scene}`).steps).toEqual([
+        { text: shown, target: "action" },
+      ]);
+    }
   });
 
   // A divert that begins the text after a break, a cue's colon or a block's
@@ -218,17 +246,16 @@ describe("a `>` break that touches the words around it", () => {
     }
   });
 
-  test("a `..` before `>=` or `>>` is text, and before a lone `>` is glue", () => {
-    for (const [source, shown] of [
-      [`Alpha..>=beta\n`, "Alpha..>=beta\n"],
-      [`Gamma..>>delta\n`, "Gamma..>>delta\n"],
-      [`Alpha .. >= beta\n`, "Alpha .. >= beta\n"],
-    ] as const) {
-      expect(run(source).steps).toEqual([{ text: shown, target: "action" }]);
+  test("a `..` right before a `>` is glue, whatever follows the `>`", () => {
+    for (const [touching, spaced] of [
+      [`Epsilon..>zeta\nAfter.\n`, `Epsilon.. >zeta\nAfter.\n`],
+      [`Alpha..>=beta\nAfter.\n`, `Alpha.. >=beta\nAfter.\n`],
+      [`Gamma..>>delta\nAfter.\n`, `Gamma.. > >delta\nAfter.\n`],
+    ]) {
+      const result = run(touching!);
+      expect(result).toEqual(run(spaced!));
+      expect(result.steps[0]).toMatchObject({ pause: true, extend: true });
     }
-    expect(run(`Epsilon..>zeta\nAfter.\n`)).toEqual(
-      run(`Epsilon.. >zeta\nAfter.\n`),
-    );
   });
 
   test("a cue's `[>]` is a character position, not a break", () => {

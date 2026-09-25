@@ -320,14 +320,13 @@ sparkdown [0..883]
  │   │       │   │   ├─ TextChunk_content [82..83]
  │   │       │   │   │   └─ Word [82..83]: "A"
  │   │       │   │   └─ TextChunk_end 83
- │   │       │   ├─ AngleText [83..86]
- │   │       │   │   ├─ AngleText_c1 [83..84]
- │   │       │   │   │   └─ Space [83..84]: " "
- │   │       │   │   └─ AngleText_c2 [84..86]: ">>"
- │   │       │   └─ TextChunk [86..88]
- │   │       │       ├─ TextChunk_begin 86
- │   │       │       ├─ TextChunk_content [86..88]
- │   │       │       │   ├─ Space [86..87]: " "
+ │   │       │   ├─ Break [83..85]
+ │   │       │   │   └─ Break_c1 [83..85]: " >"
+ │   │       │   ├─ Break [85..87]
+ │   │       │   │   └─ Break_c1 [85..87]: "> "
+ │   │       │   └─ TextChunk [87..88]
+ │   │       │       ├─ TextChunk_begin 87
+ │   │       │       ├─ TextChunk_content [87..88]
  │   │       │       │   └─ Word [87..88]: "B"
  │   │       │       └─ TextChunk_end 88
  │   │       └─ LineEnd_end 88
@@ -348,9 +347,10 @@ sparkdown [0..883]
  │   │       │   │   ├─ TextChunk_content [89..90]
  │   │       │   │   │   └─ Word [89..90]: "A"
  │   │       │   │   └─ TextChunk_end 90
- │   │       │   ├─ AngleText [90..92]
- │   │       │   │   ├─ AngleText_c1 90
- │   │       │   │   └─ AngleText_c2 [90..92]: ">>"
+ │   │       │   ├─ Break [90..91]
+ │   │       │   │   └─ Break_c1 [90..91]: ">"
+ │   │       │   ├─ Break [91..92]
+ │   │       │   │   └─ Break_c1 [91..92]: ">"
  │   │       │   └─ TextChunk [92..93]
  │   │       │       ├─ TextChunk_begin 92
  │   │       │       ├─ TextChunk_content [92..93]
@@ -421,13 +421,12 @@ sparkdown [0..883]
  │   │       │   │   ├─ TextChunk_content [106..107]
  │   │       │   │   │   └─ Word [106..107]: "x"
  │   │       │   │   └─ TextChunk_end 107
- │   │       │   ├─ AngleText [107..110]
- │   │       │   │   ├─ AngleText_c1 [107..108]
- │   │       │   │   │   └─ Space [107..108]: " "
- │   │       │   │   └─ AngleText_c2 [108..110]: ">="
- │   │       │   └─ TextChunk [110..112]
- │   │       │       ├─ TextChunk_begin 110
- │   │       │       ├─ TextChunk_content [110..112]
+ │   │       │   ├─ Break [107..109]
+ │   │       │   │   └─ Break_c1 [107..109]: " >"
+ │   │       │   └─ TextChunk [109..112]
+ │   │       │       ├─ TextChunk_begin 109
+ │   │       │       ├─ TextChunk_content [109..112]
+ │   │       │       │   ├─ Punctuation [109..110]: "="
  │   │       │       │   ├─ Space [110..111]: " "
  │   │       │       │   └─ Word [111..112]: "y"
  │   │       │       └─ TextChunk_end 112
@@ -449,12 +448,12 @@ sparkdown [0..883]
  │   │       │   │   ├─ TextChunk_content [113..114]
  │   │       │   │   │   └─ Word [113..114]: "x"
  │   │       │   │   └─ TextChunk_end 114
- │   │       │   ├─ AngleText [114..116]
- │   │       │   │   ├─ AngleText_c1 114
- │   │       │   │   └─ AngleText_c2 [114..116]: ">="
- │   │       │   └─ TextChunk [116..117]
- │   │       │       ├─ TextChunk_begin 116
- │   │       │       ├─ TextChunk_content [116..117]
+ │   │       │   ├─ Break [114..115]
+ │   │       │   │   └─ Break_c1 [114..115]: ">"
+ │   │       │   └─ TextChunk [115..117]
+ │   │       │       ├─ TextChunk_begin 115
+ │   │       │       ├─ TextChunk_content [115..117]
+ │   │       │       │   ├─ Punctuation [115..116]: "="
  │   │       │       │   └─ Word [116..117]: "y"
  │   │       │       └─ TextChunk_end 117
  │   │       └─ LineEnd_end 117
@@ -474,8 +473,28 @@ sparkdown [0..883]
  │   │       │       ├─ TextChunk_begin 118
  │   │       │       ├─ TextChunk_content [118..123]
  │   │       │       │   ├─ Word [118..119]: "A"
- │   │       │       │   ├─ DashAngle [119..122]: "-->"
- │   │       │       │   └─ Word [122..123]: "B"
+ │   │       │       │   ├─ Punctuation [119..120]: "-"
+ │   │       │       │   └─ Divert [120..123]
+ │   │       │       │       ├─ Divert_begin [120..122]
+ │   │       │       │       │   ├─ Divert_begin_c1 120
+ │   │       │       │       │   │   └─ OptionalWhitespace 120
+ │   │       │       │       │   └─ Divert_begin_c2 [120..122]
+ │   │       │       │       │       └─ DivertMark [120..122]: "->"
+ │   │       │       │       ├─ Divert_content [122..123]
+ │   │       │       │       │   └─ DivertTarget [122..123]
+ │   │       │       │       │       ├─ DivertTarget_begin 122
+ │   │       │       │       │       │   └─ DivertTarget_begin_c1 122
+ │   │       │       │       │       │       └─ DivertTarget_begin_c1 122
+ │   │       │       │       │       │           └─ OptionalWhitespace 122
+ │   │       │       │       │       ├─ DivertTarget_content [122..123]
+ │   │       │       │       │       │   └─ DivertPath [122..123]
+ │   │       │       │       │       │       ├─ DivertPath_begin 122
+ │   │       │       │       │       │       ├─ DivertPath_content [122..123]
+ │   │       │       │       │       │       │   └─ DivertPart [122..123]
+ │   │       │       │       │       │       │       └─ DivertPartName [122..123]: "B"
+ │   │       │       │       │       │       └─ DivertPath_end 123
+ │   │       │       │       │       └─ DivertTarget_end 123
+ │   │       │       │       └─ Divert_end 123
  │   │       │       └─ TextChunk_end 123
  │   │       └─ LineEnd_end 123
  │   └─ ImplicitAction_end 123
@@ -656,19 +675,20 @@ sparkdown [0..883]
  │   │       │   └─ LineEnd_begin_c1 178
  │   │       │       └─ OptionalWhitespace 178
  │   │       ├─ LineEnd_content [178..191]
- │   │       │   ├─ TextChunk [178..185]
+ │   │       │   ├─ TextChunk [178..183]
  │   │       │   │   ├─ TextChunk_begin 178
- │   │       │   │   ├─ TextChunk_content [178..185]
- │   │       │   │   │   ├─ Word [178..183]: "Alpha"
- │   │       │   │   │   ├─ Punctuation [183..184]: "."
- │   │       │   │   │   └─ Punctuation [184..185]: "."
- │   │       │   │   └─ TextChunk_end 185
- │   │       │   ├─ AngleText [185..187]
- │   │       │   │   ├─ AngleText_c1 185
- │   │       │   │   └─ AngleText_c2 [185..187]: ">="
- │   │       │   └─ TextChunk [187..191]
- │   │       │       ├─ TextChunk_begin 187
- │   │       │       ├─ TextChunk_content [187..191]
+ │   │       │   │   ├─ TextChunk_content [178..183]
+ │   │       │   │   │   └─ Word [178..183]: "Alpha"
+ │   │       │   │   └─ TextChunk_end 183
+ │   │       │   ├─ Glue [183..185]
+ │   │       │   │   ├─ Glue_c1 183
+ │   │       │   │   └─ Glue_c2 [183..185]: ".."
+ │   │       │   ├─ Break [185..186]
+ │   │       │   │   └─ Break_c1 [185..186]: ">"
+ │   │       │   └─ TextChunk [186..191]
+ │   │       │       ├─ TextChunk_begin 186
+ │   │       │       ├─ TextChunk_content [186..191]
+ │   │       │       │   ├─ Punctuation [186..187]: "="
  │   │       │       │   └─ Word [187..191]: "beta"
  │   │       │       └─ TextChunk_end 191
  │   │       └─ LineEnd_end 191
@@ -684,16 +704,18 @@ sparkdown [0..883]
  │   │       │   └─ LineEnd_begin_c1 192
  │   │       │       └─ OptionalWhitespace 192
  │   │       ├─ LineEnd_content [192..206]
- │   │       │   ├─ TextChunk [192..199]
+ │   │       │   ├─ TextChunk [192..197]
  │   │       │   │   ├─ TextChunk_begin 192
- │   │       │   │   ├─ TextChunk_content [192..199]
- │   │       │   │   │   ├─ Word [192..197]: "Gamma"
- │   │       │   │   │   ├─ Punctuation [197..198]: "."
- │   │       │   │   │   └─ Punctuation [198..199]: "."
- │   │       │   │   └─ TextChunk_end 199
- │   │       │   ├─ AngleText [199..201]
- │   │       │   │   ├─ AngleText_c1 199
- │   │       │   │   └─ AngleText_c2 [199..201]: ">>"
+ │   │       │   │   ├─ TextChunk_content [192..197]
+ │   │       │   │   │   └─ Word [192..197]: "Gamma"
+ │   │       │   │   └─ TextChunk_end 197
+ │   │       │   ├─ Glue [197..199]
+ │   │       │   │   ├─ Glue_c1 197
+ │   │       │   │   └─ Glue_c2 [197..199]: ".."
+ │   │       │   ├─ Break [199..200]
+ │   │       │   │   └─ Break_c1 [199..200]: ">"
+ │   │       │   ├─ Break [200..201]
+ │   │       │   │   └─ Break_c1 [200..201]: ">"
  │   │       │   └─ TextChunk [201..206]
  │   │       │       ├─ TextChunk_begin 201
  │   │       │       ├─ TextChunk_content [201..206]
@@ -1670,14 +1692,13 @@ sparkdown [0..883]
  │   │   │   │   │   ├─ TextChunk_content [563..564]
  │   │   │   │   │   │   └─ Word [563..564]: "A"
  │   │   │   │   │   └─ TextChunk_end 564
- │   │   │   │   ├─ AngleText [564..567]
- │   │   │   │   │   ├─ AngleText_c1 [564..565]
- │   │   │   │   │   │   └─ Space [564..565]: " "
- │   │   │   │   │   └─ AngleText_c2 [565..567]: ">>"
- │   │   │   │   └─ TextChunk [567..569]
- │   │   │   │       ├─ TextChunk_begin 567
- │   │   │   │       ├─ TextChunk_content [567..569]
- │   │   │   │       │   ├─ Space [567..568]: " "
+ │   │   │   │   ├─ Break [564..566]
+ │   │   │   │   │   └─ Break_c1 [564..566]: " >"
+ │   │   │   │   ├─ Break [566..568]
+ │   │   │   │   │   └─ Break_c1 [566..568]: "> "
+ │   │   │   │   └─ TextChunk [568..569]
+ │   │   │   │       ├─ TextChunk_begin 568
+ │   │   │   │       ├─ TextChunk_content [568..569]
  │   │   │   │       │   └─ Word [568..569]: "B"
  │   │   │   │       └─ TextChunk_end 569
  │   │   │   └─ BlockLineContinue_end 569
@@ -1694,9 +1715,10 @@ sparkdown [0..883]
  │   │   │   │   │   ├─ TextChunk_content [572..573]
  │   │   │   │   │   │   └─ Word [572..573]: "A"
  │   │   │   │   │   └─ TextChunk_end 573
- │   │   │   │   ├─ AngleText [573..575]
- │   │   │   │   │   ├─ AngleText_c1 573
- │   │   │   │   │   └─ AngleText_c2 [573..575]: ">>"
+ │   │   │   │   ├─ Break [573..574]
+ │   │   │   │   │   └─ Break_c1 [573..574]: ">"
+ │   │   │   │   ├─ Break [574..575]
+ │   │   │   │   │   └─ Break_c1 [574..575]: ">"
  │   │   │   │   └─ TextChunk [575..576]
  │   │   │   │       ├─ TextChunk_begin 575
  │   │   │   │       ├─ TextChunk_content [575..576]
@@ -1751,13 +1773,12 @@ sparkdown [0..883]
  │   │   │   │   │   ├─ TextChunk_content [588..589]
  │   │   │   │   │   │   └─ Word [588..589]: "x"
  │   │   │   │   │   └─ TextChunk_end 589
- │   │   │   │   ├─ AngleText [589..592]
- │   │   │   │   │   ├─ AngleText_c1 [589..590]
- │   │   │   │   │   │   └─ Space [589..590]: " "
- │   │   │   │   │   └─ AngleText_c2 [590..592]: ">="
- │   │   │   │   └─ TextChunk [592..594]
- │   │   │   │       ├─ TextChunk_begin 592
- │   │   │   │       ├─ TextChunk_content [592..594]
+ │   │   │   │   ├─ Break [589..591]
+ │   │   │   │   │   └─ Break_c1 [589..591]: " >"
+ │   │   │   │   └─ TextChunk [591..594]
+ │   │   │   │       ├─ TextChunk_begin 591
+ │   │   │   │       ├─ TextChunk_content [591..594]
+ │   │   │   │       │   ├─ Punctuation [591..592]: "="
  │   │   │   │       │   ├─ Space [592..593]: " "
  │   │   │   │       │   └─ Word [593..594]: "y"
  │   │   │   │       └─ TextChunk_end 594
@@ -1775,12 +1796,12 @@ sparkdown [0..883]
  │   │   │   │   │   ├─ TextChunk_content [597..598]
  │   │   │   │   │   │   └─ Word [597..598]: "x"
  │   │   │   │   │   └─ TextChunk_end 598
- │   │   │   │   ├─ AngleText [598..600]
- │   │   │   │   │   ├─ AngleText_c1 598
- │   │   │   │   │   └─ AngleText_c2 [598..600]: ">="
- │   │   │   │   └─ TextChunk [600..601]
- │   │   │   │       ├─ TextChunk_begin 600
- │   │   │   │       ├─ TextChunk_content [600..601]
+ │   │   │   │   ├─ Break [598..599]
+ │   │   │   │   │   └─ Break_c1 [598..599]: ">"
+ │   │   │   │   └─ TextChunk [599..601]
+ │   │   │   │       ├─ TextChunk_begin 599
+ │   │   │   │       ├─ TextChunk_content [599..601]
+ │   │   │   │       │   ├─ Punctuation [599..600]: "="
  │   │   │   │       │   └─ Word [600..601]: "y"
  │   │   │   │       └─ TextChunk_end 601
  │   │   │   └─ BlockLineContinue_end 601
@@ -1796,8 +1817,28 @@ sparkdown [0..883]
  │   │   │   │       ├─ TextChunk_begin 604
  │   │   │   │       ├─ TextChunk_content [604..609]
  │   │   │   │       │   ├─ Word [604..605]: "A"
- │   │   │   │       │   ├─ DashAngle [605..608]: "-->"
- │   │   │   │       │   └─ Word [608..609]: "B"
+ │   │   │   │       │   ├─ Punctuation [605..606]: "-"
+ │   │   │   │       │   └─ Divert [606..609]
+ │   │   │   │       │       ├─ Divert_begin [606..608]
+ │   │   │   │       │       │   ├─ Divert_begin_c1 606
+ │   │   │   │       │       │   │   └─ OptionalWhitespace 606
+ │   │   │   │       │       │   └─ Divert_begin_c2 [606..608]
+ │   │   │   │       │       │       └─ DivertMark [606..608]: "->"
+ │   │   │   │       │       ├─ Divert_content [608..609]
+ │   │   │   │       │       │   └─ DivertTarget [608..609]
+ │   │   │   │       │       │       ├─ DivertTarget_begin 608
+ │   │   │   │       │       │       │   └─ DivertTarget_begin_c1 608
+ │   │   │   │       │       │       │       └─ DivertTarget_begin_c1 608
+ │   │   │   │       │       │       │           └─ OptionalWhitespace 608
+ │   │   │   │       │       │       ├─ DivertTarget_content [608..609]
+ │   │   │   │       │       │       │   └─ DivertPath [608..609]
+ │   │   │   │       │       │       │       ├─ DivertPath_begin 608
+ │   │   │   │       │       │       │       ├─ DivertPath_content [608..609]
+ │   │   │   │       │       │       │       │   └─ DivertPart [608..609]
+ │   │   │   │       │       │       │       │       └─ DivertPartName [608..609]: "B"
+ │   │   │   │       │       │       │       └─ DivertPath_end 609
+ │   │   │   │       │       │       └─ DivertTarget_end 609
+ │   │   │   │       │       └─ Divert_end 609
  │   │   │   │       └─ TextChunk_end 609
  │   │   │   └─ BlockLineContinue_end 609
  │   │   │       └─ BlockLineContinue_end_c1 609
@@ -1963,19 +2004,20 @@ sparkdown [0..883]
  │   │       │   └─ LineEnd_begin_c1 676
  │   │       │       └─ OptionalWhitespace 676
  │   │       ├─ LineEnd_content [676..689]
- │   │       │   ├─ TextChunk [676..683]
+ │   │       │   ├─ TextChunk [676..681]
  │   │       │   │   ├─ TextChunk_begin 676
- │   │       │   │   ├─ TextChunk_content [676..683]
- │   │       │   │   │   ├─ Word [676..681]: "Alpha"
- │   │       │   │   │   ├─ Punctuation [681..682]: "."
- │   │       │   │   │   └─ Punctuation [682..683]: "."
- │   │       │   │   └─ TextChunk_end 683
- │   │       │   ├─ AngleText [683..685]
- │   │       │   │   ├─ AngleText_c1 683
- │   │       │   │   └─ AngleText_c2 [683..685]: ">="
- │   │       │   └─ TextChunk [685..689]
- │   │       │       ├─ TextChunk_begin 685
- │   │       │       ├─ TextChunk_content [685..689]
+ │   │       │   │   ├─ TextChunk_content [676..681]
+ │   │       │   │   │   └─ Word [676..681]: "Alpha"
+ │   │       │   │   └─ TextChunk_end 681
+ │   │       │   ├─ Glue [681..683]
+ │   │       │   │   ├─ Glue_c1 681
+ │   │       │   │   └─ Glue_c2 [681..683]: ".."
+ │   │       │   ├─ Break [683..684]
+ │   │       │   │   └─ Break_c1 [683..684]: ">"
+ │   │       │   └─ TextChunk [684..689]
+ │   │       │       ├─ TextChunk_begin 684
+ │   │       │       ├─ TextChunk_content [684..689]
+ │   │       │       │   ├─ Punctuation [684..685]: "="
  │   │       │       │   └─ Word [685..689]: "beta"
  │   │       │       └─ TextChunk_end 689
  │   │       └─ LineEnd_end 689
@@ -1991,16 +2033,18 @@ sparkdown [0..883]
  │   │       │   └─ LineEnd_begin_c1 692
  │   │       │       └─ OptionalWhitespace 692
  │   │       ├─ LineEnd_content [692..706]
- │   │       │   ├─ TextChunk [692..699]
+ │   │       │   ├─ TextChunk [692..697]
  │   │       │   │   ├─ TextChunk_begin 692
- │   │       │   │   ├─ TextChunk_content [692..699]
- │   │       │   │   │   ├─ Word [692..697]: "Gamma"
- │   │       │   │   │   ├─ Punctuation [697..698]: "."
- │   │       │   │   │   └─ Punctuation [698..699]: "."
- │   │       │   │   └─ TextChunk_end 699
- │   │       │   ├─ AngleText [699..701]
- │   │       │   │   ├─ AngleText_c1 699
- │   │       │   │   └─ AngleText_c2 [699..701]: ">>"
+ │   │       │   │   ├─ TextChunk_content [692..697]
+ │   │       │   │   │   └─ Word [692..697]: "Gamma"
+ │   │       │   │   └─ TextChunk_end 697
+ │   │       │   ├─ Glue [697..699]
+ │   │       │   │   ├─ Glue_c1 697
+ │   │       │   │   └─ Glue_c2 [697..699]: ".."
+ │   │       │   ├─ Break [699..700]
+ │   │       │   │   └─ Break_c1 [699..700]: ">"
+ │   │       │   ├─ Break [700..701]
+ │   │       │   │   └─ Break_c1 [700..701]: ">"
  │   │       │   └─ TextChunk [701..706]
  │   │       │       ├─ TextChunk_begin 701
  │   │       │       ├─ TextChunk_content [701..706]
@@ -2315,25 +2359,36 @@ sparkdown [0..883]
  │   │   └─ ImplicitAction_begin_c1 [836..838]
  │   │       └─ OptionalWhitespace [836..838]: "  "
  │   ├─ ImplicitAction_content [838..850]
- │   │   └─ LineEnd [838..850]
- │   │       ├─ LineEnd_begin 838
- │   │       │   └─ LineEnd_begin_c1 838
- │   │       │       └─ OptionalWhitespace 838
- │   │       ├─ LineEnd_content [838..850]
- │   │       │   ├─ TextChunk [838..846]
- │   │       │   │   ├─ TextChunk_begin 838
- │   │       │   │   ├─ TextChunk_content [838..846]
- │   │       │   │   │   ├─ Punctuation [838..839]: "("
- │   │       │   │   │   ├─ Word [839..845]: "softly"
- │   │       │   │   │   └─ Punctuation [845..846]: ")"
- │   │       │   │   └─ TextChunk_end 846
- │   │       │   ├─ AngleText [846..849]
- │   │       │   │   ├─ AngleText_c1 [846..847]
- │   │       │   │   │   └─ Space [846..847]: " "
- │   │       │   │   └─ AngleText_c2 [847..849]: ">="
- │   │       │   └─ TextChunk [849..850]
- │   │       │       ├─ TextChunk_begin 849
- │   │       │       ├─ TextChunk_content [849..850]
+ │   │   ├─ ParentheticalLine [838..847]
+ │   │   │   ├─ ParentheticalLine_c1 838
+ │   │   │   │   └─ OptionalWhitespace 838
+ │   │   │   ├─ ParentheticalLine_c2 838
+ │   │   │   ├─ ParentheticalLine_c3 838
+ │   │   │   ├─ ParentheticalLine_c4 [838..846]
+ │   │   │   │   └─ ParentheticalLineContent [838..846]
+ │   │   │   │       ├─ ParentheticalLineContent_c1 838
+ │   │   │   │       ├─ ParentheticalLineContent_c2 [838..839]: "("
+ │   │   │   │       ├─ ParentheticalLineContent_c3 839
+ │   │   │   │       ├─ ParentheticalLineContent_c4 [839..845]
+ │   │   │   │       │   └─ Word [839..845]: "softly"
+ │   │   │   │       ├─ ParentheticalLineContent_c5 845
+ │   │   │   │       ├─ ParentheticalLineContent_c6 [845..846]: ")"
+ │   │   │   │       └─ ParentheticalLineContent_c7 846
+ │   │   │   ├─ ParentheticalLine_c5 [846..847]
+ │   │   │   │   └─ ExtraWhitespace [846..847]: " "
+ │   │   │   ├─ ParentheticalLine_c6 847
+ │   │   │   └─ ParentheticalLine_c7 847
+ │   │   └─ LineEnd [847..850]
+ │   │       ├─ LineEnd_begin 847
+ │   │       │   └─ LineEnd_begin_c1 847
+ │   │       │       └─ OptionalWhitespace 847
+ │   │       ├─ LineEnd_content [847..850]
+ │   │       │   ├─ Break [847..848]
+ │   │       │   │   └─ Break_c1 [847..848]: ">"
+ │   │       │   └─ TextChunk [848..850]
+ │   │       │       ├─ TextChunk_begin 848
+ │   │       │       ├─ TextChunk_content [848..850]
+ │   │       │       │   ├─ Punctuation [848..849]: "="
  │   │       │       │   └─ Word [849..850]: "z"
  │   │       │       └─ TextChunk_end 850
  │   │       └─ LineEnd_end 850
@@ -2344,26 +2399,37 @@ sparkdown [0..883]
  │   │   └─ ImplicitAction_begin_c1 [851..853]
  │   │       └─ OptionalWhitespace [851..853]: "  "
  │   ├─ ImplicitAction_content [853..866]
- │   │   └─ LineEnd [853..866]
- │   │       ├─ LineEnd_begin 853
- │   │       │   └─ LineEnd_begin_c1 853
- │   │       │       └─ OptionalWhitespace 853
- │   │       ├─ LineEnd_content [853..866]
- │   │       │   ├─ TextChunk [853..861]
- │   │       │   │   ├─ TextChunk_begin 853
- │   │       │   │   ├─ TextChunk_content [853..861]
- │   │       │   │   │   ├─ Punctuation [853..854]: "("
- │   │       │   │   │   ├─ Word [854..860]: "softly"
- │   │       │   │   │   └─ Punctuation [860..861]: ")"
- │   │       │   │   └─ TextChunk_end 861
- │   │       │   ├─ AngleText [861..864]
- │   │       │   │   ├─ AngleText_c1 [861..862]
- │   │       │   │   │   └─ Space [861..862]: " "
- │   │       │   │   └─ AngleText_c2 [862..864]: ">>"
- │   │       │   └─ TextChunk [864..866]
- │   │       │       ├─ TextChunk_begin 864
- │   │       │       ├─ TextChunk_content [864..866]
- │   │       │       │   ├─ Space [864..865]: " "
+ │   │   ├─ ParentheticalLine [853..862]
+ │   │   │   ├─ ParentheticalLine_c1 853
+ │   │   │   │   └─ OptionalWhitespace 853
+ │   │   │   ├─ ParentheticalLine_c2 853
+ │   │   │   ├─ ParentheticalLine_c3 853
+ │   │   │   ├─ ParentheticalLine_c4 [853..861]
+ │   │   │   │   └─ ParentheticalLineContent [853..861]
+ │   │   │   │       ├─ ParentheticalLineContent_c1 853
+ │   │   │   │       ├─ ParentheticalLineContent_c2 [853..854]: "("
+ │   │   │   │       ├─ ParentheticalLineContent_c3 854
+ │   │   │   │       ├─ ParentheticalLineContent_c4 [854..860]
+ │   │   │   │       │   └─ Word [854..860]: "softly"
+ │   │   │   │       ├─ ParentheticalLineContent_c5 860
+ │   │   │   │       ├─ ParentheticalLineContent_c6 [860..861]: ")"
+ │   │   │   │       └─ ParentheticalLineContent_c7 861
+ │   │   │   ├─ ParentheticalLine_c5 [861..862]
+ │   │   │   │   └─ ExtraWhitespace [861..862]: " "
+ │   │   │   ├─ ParentheticalLine_c6 862
+ │   │   │   └─ ParentheticalLine_c7 862
+ │   │   └─ LineEnd [862..866]
+ │   │       ├─ LineEnd_begin 862
+ │   │       │   └─ LineEnd_begin_c1 862
+ │   │       │       └─ OptionalWhitespace 862
+ │   │       ├─ LineEnd_content [862..866]
+ │   │       │   ├─ Break [862..863]
+ │   │       │   │   └─ Break_c1 [862..863]: ">"
+ │   │       │   ├─ Break [863..865]
+ │   │       │   │   └─ Break_c1 [863..865]: "> "
+ │   │       │   └─ TextChunk [865..866]
+ │   │       │       ├─ TextChunk_begin 865
+ │   │       │       ├─ TextChunk_content [865..866]
  │   │       │       │   └─ Word [865..866]: "y"
  │   │       │       └─ TextChunk_end 866
  │   │       └─ LineEnd_end 866
@@ -2386,8 +2452,28 @@ sparkdown [0..883]
  │   │       │       │   ├─ Word [870..876]: "softly"
  │   │       │       │   ├─ Punctuation [876..877]: ")"
  │   │       │       │   ├─ Space [877..878]: " "
- │   │       │       │   ├─ DashAngle [878..881]: "-->"
- │   │       │       │   └─ Word [881..882]: "z"
+ │   │       │       │   ├─ Punctuation [878..879]: "-"
+ │   │       │       │   └─ Divert [879..882]
+ │   │       │       │       ├─ Divert_begin [879..881]
+ │   │       │       │       │   ├─ Divert_begin_c1 879
+ │   │       │       │       │   │   └─ OptionalWhitespace 879
+ │   │       │       │       │   └─ Divert_begin_c2 [879..881]
+ │   │       │       │       │       └─ DivertMark [879..881]: "->"
+ │   │       │       │       ├─ Divert_content [881..882]
+ │   │       │       │       │   └─ DivertTarget [881..882]
+ │   │       │       │       │       ├─ DivertTarget_begin 881
+ │   │       │       │       │       │   └─ DivertTarget_begin_c1 881
+ │   │       │       │       │       │       └─ DivertTarget_begin_c1 881
+ │   │       │       │       │       │           └─ OptionalWhitespace 881
+ │   │       │       │       │       ├─ DivertTarget_content [881..882]
+ │   │       │       │       │       │   └─ DivertPath [881..882]
+ │   │       │       │       │       │       ├─ DivertPath_begin 881
+ │   │       │       │       │       │       ├─ DivertPath_content [881..882]
+ │   │       │       │       │       │       │   └─ DivertPart [881..882]
+ │   │       │       │       │       │       │       └─ DivertPartName [881..882]: "z"
+ │   │       │       │       │       │       └─ DivertPath_end 882
+ │   │       │       │       │       └─ DivertTarget_end 882
+ │   │       │       │       └─ Divert_end 882
  │   │       │       └─ TextChunk_end 882
  │   │       └─ LineEnd_end 882
  │   └─ ImplicitAction_end 882
