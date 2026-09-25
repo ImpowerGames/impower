@@ -20,6 +20,13 @@ import { type SparkRange } from "./SparkRange";
 export interface Binding {
   exprId: string;
   source: string;
+  /**
+   * Where the expression sits in `span.file`: `line` is the 0-based document
+   * line of its start, and `from` and `to` are document offsets. A tree carried
+   * into a later compile is shared with the earlier program, and the later
+   * compile updates its spans in place, so a span read from an earlier
+   * program gives the latest compile's positions.
+   */
   span: SparkRange;
   /**
    * Enclosing `for`-loop variable names (outermost-first) the evaluator takes as

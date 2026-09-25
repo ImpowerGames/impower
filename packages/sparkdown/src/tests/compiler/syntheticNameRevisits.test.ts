@@ -50,38 +50,36 @@ function configure(compiler: SparkdownCompiler, project: Project, version: numbe
 }
 
 type Compiled = {
-  // The program and its Sparkle trees, with each binding handle's `span` left
-  // out: a carried chunk keeps the source offsets it was lowered at, and
-  // nothing reads them.
+  // The program and its Sparkle trees.
   text: string;
-  // Where each binding handle says its source starts, in serialization order.
-  spans: number[];
+  sparkle: any;
+  // The `span` of each binding handle from `main.sd`, in serialization order.
+  spans: { line: number; from: number; to: number }[];
 };
 
 function compiled(compiler: SparkdownCompiler): Compiled {
   const { program } = compiler.compile({ textDocument: { uri: MAIN_URI } });
-  const spans: number[] = [];
+  const spans: Compiled["spans"] = [];
   const text = JSON.stringify(
     { compiled: program.compiled, sparkle: program.sparkle },
     function (this: any, key, value) {
-      if (key === "span" && this && typeof this.exprId === "string") {
-        spans.push(value.from);
-        return undefined;
+      if (key === "span" && this && typeof this.exprId === "string" && value.file === MAIN_URI) {
+        spans.push({ line: value.line, from: value.from, to: value.to });
       }
       return value;
     },
   );
-  return { text, spans };
+  return { text, sparkle: program.sparkle, spans };
 }
 
 // Compiles `project`, inserts `insert` into the file `name` at `offset`, and
-// returns the incremental compile of the edited project beside a cold compile
-// of it.
-function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [Compiled, Compiled] {
+// returns the compile before the edit, the incremental compile of the edited
+// project and a cold compile of it.
+function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [Compiled, Compiled, Compiled] {
   return quiet(() => {
     const compiler = new SparkdownCompiler();
     configure(compiler, project, 1);
-    compiled(compiler);
+    const before = compiled(compiler);
     const text = project[name]!;
     const at = posAt(text, offset);
     compiler.updateDocument({
@@ -92,7 +90,7 @@ function incrementalAndCold(project: Project, name: string, offset: number, inse
     const edited = { ...project, [name]: text.slice(0, offset) + insert + text.slice(offset) };
     const fresh = new SparkdownCompiler();
     configure(fresh, edited, 2);
-    return [incremental, compiled(fresh)];
+    return [before, incremental, compiled(fresh)];
   });
 }
 
@@ -143,7 +141,7 @@ describe("synthetic names after an edit", () => {
     // so every carried canonical name moves up. It goes after the line already
     // there, so its offsets differ from the shared temps' offsets.
     const pre = project["pre"]!;
-    const [incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
+    const [, incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
     expect(incremental.text).toContain("__synth_");
     expect(incremental.text).toBe(cold.text);
   });
@@ -174,13 +172,90 @@ describe("synthetic names after an edit", () => {
     // The scenes between keep the layout outside the region the edit
     // reparses, so the incremental compile carries its chunk unlowered.
     const at = project["main"]!.indexOf("  First line.") + 2;
-    const [incremental, cold] = incrementalAndCold(project, "main", at, "Longer ");
-    // A carried handle still gives the offset its chunk was lowered at, which
-    // is how this test knows the chunk was carried and not lowered again.
-    const bindingSpans = (c: Compiled) => c.spans.slice(-1);
-    expect(bindingSpans(incremental)[0]! + "Longer ".length).toBe(bindingSpans(cold)[0]);
+    const [before, incremental, cold] = incrementalAndCold(project, "main", at, "Longer ");
+    // The layout's tree is the one the first compile lowered, so its chunk was
+    // carried and not lowered again.
+    expect(incremental.sparkle.layouts.la).toBe(before.sparkle.layouts.la);
+    expect(incremental.spans).toEqual(cold.spans);
+    expect(incremental.spans).toHaveLength(1);
     expect(incremental.text).toContain("__binding_");
     expect(incremental.text).toBe(cold.text);
+  });
+
+  it("a carried layout's span follows each of several edits above it", () => {
+    let text = [
+      "store a = 1",
+      "",
+      "scene one",
+      "  First line.",
+      "end",
+      "",
+      "scene two",
+      "  Second line.",
+      "end",
+      "",
+      "scene three",
+      "  Third line.",
+      "end",
+      "",
+      "layout la with",
+      '  text "{a}"',
+      "end",
+      "",
+    ].join("\n");
+    const spanOf = (source: string) => {
+      const from = source.indexOf("{a}");
+      return { line: posAt(source, from).line, from, to: from + "{a}".length };
+    };
+    quiet(() => {
+      const compiler = new SparkdownCompiler();
+      configure(compiler, { main: text }, 1);
+      const first = compiled(compiler);
+      expect(first.spans).toEqual([spanOf(text)]);
+      // Lengthen a line, add a line, then remove what was added: the carried
+      // layout moves down twice and then back up.
+      const edits: [number, number, string][] = [
+        [text.indexOf("  First line.") + 2, 0, "Longer "],
+        [text.indexOf("  Second line.") + 2 + "Longer ".length, 0, "Added line.\n  "],
+        [text.indexOf("  Second line.") + 2 + "Longer ".length, "Added line.\n  ".length, ""],
+      ];
+      for (const [index, [offset, removed, insert]] of edits.entries()) {
+        const start = posAt(text, offset);
+        const end = posAt(text, offset + removed);
+        compiler.updateDocument({
+          textDocument: { uri: MAIN_URI, version: index + 2 },
+          contentChanges: [{ range: { start, end }, text: insert }],
+        });
+        text = text.slice(0, offset) + insert + text.slice(offset + removed);
+        const incremental = compiled(compiler);
+        expect(incremental.sparkle.layouts.la).toBe(first.sparkle.layouts.la);
+        expect(incremental.spans).toEqual([spanOf(text)]);
+      }
+    });
+  });
+
+  it("a match with no condition keeps its empty placeholder span", () => {
+    const main = ["store a = 1", "", "scene one", "  First line.", "end", "", "layout la with", "  match do", "    case 1", '      text "{a}"', "  end", "end", ""].join("\n");
+    const program = compileOnce(main);
+    const placeholders: unknown[] = [];
+    JSON.stringify(program.sparkle, function (this: any, key, value) {
+      if (key === "span" && this?.exprId === "") placeholders.push(value);
+      return value;
+    });
+    expect(placeholders).toEqual([{ line: 0, from: 0, to: 0 }]);
+  });
+
+  it("a binding handle's span gives its position in the document", () => {
+    const main = ["store a = 1", "", "scene one", "  First line.", "end", "", "layout la with", '  text "{a}"', "end", ""].join("\n");
+    const [before, incremental, cold] = incrementalAndCold({ main }, "main", main.indexOf("  First line.") + 2, "Longer ");
+    const at = (text: string) => {
+      const from = text.indexOf("{a}");
+      return { line: posAt(text, from).line, from, to: from + "{a}".length };
+    };
+    expect(before.spans).toEqual([at(main)]);
+    const edited = main.replace("First line.", "Longer First line.");
+    expect(cold.spans).toEqual([at(edited)]);
+    expect(incremental.spans).toEqual(cold.spans);
   });
 });
 
