@@ -25,6 +25,7 @@ import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
+import { syntheticId } from "../utils/documentTag";
 
 // `for i = start, stop [, step] do BODY end` — Luau numeric-for.
 //
@@ -149,12 +150,12 @@ export function lowerLuauForLoop(
       ? coerce(lowerExpressionFromNodes(trailingGroups[1], ctx) ?? new NumberExpression(1, "int"))
       : new NumberExpression(1, "int");
 
-  const idxName = `__forIdx_${nodeRef.node.from}`;
-  const stopName = `__forStop_${nodeRef.node.from}`;
-  const stepName = `__forStep_${nodeRef.node.from}`;
-  const loopLabel = `__for_${nodeRef.node.from}_loop`;
-  const stepLabel = `__for_${nodeRef.node.from}_step`;
-  const breakLabel = `__for_${nodeRef.node.from}_break`;
+  const idxName = `__forIdx_${syntheticId(nodeRef.node.from, ctx)}`;
+  const stopName = `__forStop_${syntheticId(nodeRef.node.from, ctx)}`;
+  const stepName = `__forStep_${syntheticId(nodeRef.node.from, ctx)}`;
+  const loopLabel = `__for_${syntheticId(nodeRef.node.from, ctx)}_loop`;
+  const stepLabel = `__for_${syntheticId(nodeRef.node.from, ctx)}_step`;
+  const breakLabel = `__for_${syntheticId(nodeRef.node.from, ctx)}_break`;
 
   // `continue` should perform the step and loop back, so its target
   // is the step-update label, not the loop's head. The body runs

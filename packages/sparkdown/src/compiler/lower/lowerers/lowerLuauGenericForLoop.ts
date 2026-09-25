@@ -23,6 +23,7 @@ import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { syntheticId } from "../utils/documentTag";
 
 // `for v1, v2, ... in iter_expr do BODY end` — Luau's generic-for.
 //
@@ -161,11 +162,11 @@ export function lowerLuauGenericForLoop(
   }
   if (iterExprs.length === 0) return {};
 
-  const iterName = `__forIn_${nodeRef.node.from}_iter`;
-  const stateName = `__forIn_${nodeRef.node.from}_state`;
-  const ctrlName = `__forIn_${nodeRef.node.from}_ctrl`;
-  const loopLabel = `__forIn_${nodeRef.node.from}_loop`;
-  const breakLabel = `__forIn_${nodeRef.node.from}_break`;
+  const iterName = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_iter`;
+  const stateName = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_state`;
+  const ctrlName = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_ctrl`;
+  const loopLabel = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_loop`;
+  const breakLabel = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_break`;
 
   // Init: pull (f, s, var) from the iterator expression list via a
   // multi-variable assignment with new-declaration semantics. A

@@ -14,6 +14,7 @@ import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
+import { syntheticId } from "../utils/documentTag";
 
 // `repeat BODY until cond` — Luau's "do-while-not".
 //
@@ -73,9 +74,9 @@ export function lowerLuauRepeatLoop(
   const condExpr = lowerExpressionFromContainer(condContent, ctx);
   if (!condExpr) return {};
 
-  const loopLabel = `__repeat_${nodeRef.node.from}_loop`;
-  const continueLabel = `__repeat_${nodeRef.node.from}_continue`;
-  const breakLabel = `__repeat_${nodeRef.node.from}_break`;
+  const loopLabel = `__repeat_${syntheticId(nodeRef.node.from, ctx)}_loop`;
+  const continueLabel = `__repeat_${syntheticId(nodeRef.node.from, ctx)}_continue`;
+  const breakLabel = `__repeat_${syntheticId(nodeRef.node.from, ctx)}_break`;
 
   // The body runs inside the loop's own scope wrap (see the
   // `wrapInScope` in the return) — count it in `scopeDepth` so

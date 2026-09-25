@@ -3515,8 +3515,11 @@ export class SparkdownCompiler {
   // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
   // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
   // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
-  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
-  // offset-based names are FROZEN into the per-chunk lowered IR that the
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Each
+  // `<from>` is `syntheticId`: the document's tag, then the offset within it,
+  // so two files never mint one raw name, and a name this pass has already
+  // renamed in a carried chunk never meets another file's raw name under a
+  // shared mapping. Those offset-based names are FROZEN into the per-chunk lowered IR that the
   // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
   // `debugMetadata` line numbers are rebased). So a carried-forward shifted
   // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
@@ -3550,8 +3553,10 @@ export class SparkdownCompiler {
     // renumbered too: when an edit adds/removes a synthetic earlier in the
     // document, a carried `__synth_k`'s ordinal is stale and only re-running it
     // through the document-order numbering matches what a cold compile derives.
+    // A raw name carries its document tag (`syntheticId`: path letters,
+    // digits and `_` escapes ending in `__`) before the offset.
     const SYNTH =
-      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__synth_)\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\d+_[A-Za-z]+$|__redef_\d+$/;
+      /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_)(?:\w*__)?\d+$|^(?:__for_|__forIn_|__while_|__repeat_)(?:\w*__)?\d+_[A-Za-z]+$|__redef_(?:\w*__)?\d+$/;
     const remap = new Map<string, string>();
     // True once any collected name maps to a DIFFERENT canonical name. In the
     // steady state (carried names already canonical and ordinals unchanged —

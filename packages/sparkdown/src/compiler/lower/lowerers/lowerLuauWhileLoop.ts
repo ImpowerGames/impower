@@ -13,6 +13,7 @@ import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
+import { syntheticId } from "../utils/documentTag";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
 // the loop's source position in the enclosing weave. The tail-jump is
@@ -85,8 +86,8 @@ export function lowerLuauWhileLoop(
   // The gather's name must be unique across the enclosing flow's
   // named weave points. Tagging with the source offset gives us that
   // without needing a counter on the context.
-  const loopLabel = `__while_${nodeRef.node.from}_loop`;
-  const breakLabel = `__while_${nodeRef.node.from}_break`;
+  const loopLabel = `__while_${syntheticId(nodeRef.node.from, ctx)}_loop`;
+  const breakLabel = `__while_${syntheticId(nodeRef.node.from, ctx)}_break`;
 
   const condExpr = lowerExpressionFromContainer(condNode, ctx);
 
