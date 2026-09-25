@@ -1,7 +1,7 @@
 + [Go > there] You go > there.
 HERO: {a > b} and [[cg > x]].
 HERO: It goes -> knot
-HERO: c >> d, e >= f, g>h.
+HERO: c >> d, e >= f.
 HERO (cheerful) >: Hi.
 style list with
   > list > item:

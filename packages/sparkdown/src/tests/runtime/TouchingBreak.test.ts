@@ -137,6 +137,39 @@ describe("a `>` break that touches the words around it", () => {
     expect(after).toMatchObject({ text: "lutely.\n", continues: true });
   });
 
+  test("`Abso..>` then `..lutely.` carries on as `Abso.. >` does", () => {
+    for (const [touching, spaced] of [
+      [`Abso..>\n..lutely.\nAfter.\n`, `Abso.. >\n..lutely.\nAfter.\n`],
+      [
+        `HERO:\n  Abso..>\n  ..lutely.\nAfter.\n`,
+        `HERO:\n  Abso.. >\n  ..lutely.\nAfter.\n`,
+      ],
+    ]) {
+      const result = run(touching!);
+      expect(result).toEqual(run(spaced!));
+      expect(result.warnings).toEqual([]);
+      expect(result.steps[0]).toMatchObject({ pause: true, extend: true });
+      expect(result.steps[1]).toMatchObject({ continues: true });
+    }
+  });
+
+  test("an escaped `>` before a line-ending `..` is text the next line joins", () => {
+    const result = run(`A\\>..\n..B\nAfter.\n`);
+    expect(result.warnings).toEqual([]);
+    expect(result.steps.map((step) => step.text)).toEqual([
+      "A>B\n",
+      "After.\n",
+    ]);
+    expect(result.steps.some((step) => step.pause)).toBe(false);
+  });
+
+  test("a touching break splits a CRLF line as it splits an LF one", () => {
+    expect(run(`A>B\r\nC>\r\nD\r\n`).steps).toEqual(run(`A>B\nC>\nD\n`).steps);
+    expect(
+      run(`HERO:\r\n  A>B\r\n  C>\r\n  D\r\n`).steps,
+    ).toEqual(run(`HERO:\n  A>B\n  C>\n  D\n`).steps);
+  });
+
   test("a `>` that touches another `>` or a `-`, or has `=` after it, is text", () => {
     for (const [source, shown] of [
       [`A >> B\n`, "A >> B\n"],
