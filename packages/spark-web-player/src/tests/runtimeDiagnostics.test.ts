@@ -2,10 +2,6 @@
 // editor, which shows them as diagnostics. A preview's run includes what the
 // route replayed to the author's line raised; the branches a route search
 // tried and abandoned raise nothing the author sees.
-//
-// Both switch positions (#680) are covered: with the switch off the worker
-// replays the route and the page's own game shows the beat; with it on the
-// worker does both.
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { describe, expect, it } from "vitest";
@@ -49,10 +45,9 @@ const lastReported = (toEditor: any[]) => {
   ]);
 };
 
-describe.each([false, true])("runtime diagnostics (worker displays: %s)", (workerDisplays) => {
+describe("runtime diagnostics", () => {
   it("include a warning the route replay raised, and not one raised only on a branch the search abandoned", async () => {
     const h = await createPlayerHarness({
-      workerDisplays,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: lineOf("Done here.") },
     });
@@ -81,7 +76,6 @@ describe.each([false, true])("runtime diagnostics (worker displays: %s)", (worke
     // after it; the error is what the author has to fix.
     const text = ["A", '{error("first")} B', "C", "D", ""].join("\n");
     const h = await createPlayerHarness({
-      workerDisplays,
       files: [{ uri: MAIN_URI, text }],
       startFrom: { file: MAIN_URI, line: 3 },
     });
@@ -101,7 +95,6 @@ describe.each([false, true])("runtime diagnostics (worker displays: %s)", (worke
   it("of PLAY include an error the story raises while it plays", async () => {
     const text = ["A", "B", '{error("boom")} C', "D", ""].join("\n");
     const h = await createPlayerHarness({
-      workerDisplays,
       files: [{ uri: MAIN_URI, text }],
       startFrom: { file: MAIN_URI, line: 0 },
     });
@@ -128,7 +121,6 @@ describe.each([false, true])("runtime diagnostics (worker displays: %s)", (worke
 
   it("of the program an edit during PLAY compiled replace PLAY's at STOP", async () => {
     const h = await createPlayerHarness({
-      workerDisplays,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: lineOf("Pick a path.") },
     });
@@ -169,7 +161,6 @@ describe.each([false, true])("runtime diagnostics (worker displays: %s)", (worke
 
   it("of PLAY include what its route raised and what it raises, and stay after STOP until the author moves", async () => {
     const h = await createPlayerHarness({
-      workerDisplays,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: lineOf("Pick a path.") },
     });
@@ -225,6 +216,64 @@ describe.each([false, true])("runtime diagnostics (worker displays: %s)", (worke
       ]);
     } finally {
       console.error = error;
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("of a newer PLAY leave out what the PLAY it replaced sent before it went", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: lineOf("Done here.") },
+    });
+    try {
+      await h.compile();
+      await h.select(lineOf("Done here."));
+      await settle(20);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(20);
+      // The channel PLAY A's game posts on.
+      const channelOfA = (h.link as any)._channel.name as string;
+
+      // PLAY B is answered and listens, and waits before its application
+      // attaches its own channel.
+      let asked = false;
+      let resume!: () => void;
+      const resumed = new Promise<void>((resolve) => (resume = resolve));
+      h.controller.ensureAudioContext = async () => {
+        asked = true;
+        await resumed;
+      };
+      const starting = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !asked; i++) await settle(2);
+      expect(asked).toBe(true);
+
+      // A warning PLAY A's game posted before it went arrives now.
+      new BroadcastChannel(channelOfA).postMessage({
+        ...GameEncounteredRuntimeErrorMessage.type.notification({
+          type: ErrorType.Warning,
+          message: "a warning PLAY A sent",
+          location: {
+            uri: MAIN_URI,
+            range: { start: { line: 0, character: 0 }, end: { line: 0, character: 5 } },
+          },
+          state: "running",
+        } as any),
+        epoch: 1,
+      });
+      await settle(20);
+      resume();
+      expect(await starting).toBe(true);
+      await settle(20);
+
+      const reportsOfA = h.toEditor.filter(
+        (m) =>
+          m.method === "sparkdown/runtimeDiagnostics" &&
+          JSON.stringify(m.params).includes("a warning PLAY A sent"),
+      );
+      expect(reportsOfA).toEqual([]);
+    } finally {
+      await h.controller.destroyGameAndApp();
       h.workerState.gameState.running?.destroy();
       h.dispose();
     }

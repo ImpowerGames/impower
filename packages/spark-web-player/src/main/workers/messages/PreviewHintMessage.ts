@@ -12,12 +12,11 @@ export interface PreviewHintParams {
 }
 
 /**
- * The scene warm-up for a selection, sent by the player's worker when it
- * holds the program (`workerDisplaysPreview`), as soon as the selection
- * arrives and before the route to it is planned. The page applies it to its
- * asset cache as it applies a hint it planned itself (`applyPreviewHint`):
- * the cursor's beats in the express lane, the window and the rest of the
- * scene at their priorities. Its own method, because the engine's
+ * The scene warm-up for a selection, sent by the player's worker, which holds
+ * the program, as soon as the selection arrives and before the route to it is
+ * planned. The page applies it to its asset cache (`applyPreviewHint`): the
+ * cursor's beats in the express lane, the window and the rest of the scene at
+ * their priorities. Its own method, because the engine's
  * `assets/prefetch` travels in the game's stream and carries one tier.
  */
 export class PreviewHintMessage {
