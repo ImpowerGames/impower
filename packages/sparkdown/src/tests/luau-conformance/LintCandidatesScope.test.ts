@@ -9,7 +9,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
-  diagnoseInFunction,
+  diagnoseWithLintsInFunction,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
@@ -45,7 +45,7 @@ print(_)
 describe("writing the placeholder `_` is not reported", () => {
   test("local _ = 5; _ = 6", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
 local _ = 5
 _ = 6
 `),
@@ -190,7 +190,7 @@ return foo() + baz()
 `,
     ],
   ])("%s", (_name, body) => {
-    expect(diagnoseInFunction(body)).toEqual([]);
+    expect(diagnoseWithLintsInFunction(body)).toEqual([]);
   });
 });
 
@@ -408,7 +408,7 @@ describe.skip("a method defined twice (not implemented: DuplicateFunction)", () 
 describe("the same function in two arms is not a duplicate", () => {
   test("function c in then and else", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
         if true then
             function c() end
         else

@@ -7,16 +7,16 @@
 
 import { describe, expect, test } from "vitest";
 import {
-  diagnose,
+  diagnoseWithLints,
   diagnoseDetailed,
-  diagnoseInFunction,
+  diagnoseWithLintsInFunction,
 } from "./diagnosticTestHarness";
 
 // Luau: CleanCode
 describe("clean code has no warnings", () => {
   test("recursive fib", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
 function fib(n)
     return n < 2 and 1 or fib(n-1) + fib(n-2)
 end
@@ -32,7 +32,7 @@ end
 describe("an and/or return that mixes types has no warnings", () => {
   test("return n < 2 or fib(n-2)", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
 function fib(n)
     return n < 2 or  fib(n-2)
 end
@@ -44,12 +44,11 @@ end
 // Luau: UnknownGlobal
 // "Unknown global 'foo'; consider assigning to it first"
 //
-// Inside a function sparkdown reports nothing: a global a function reads may
-// be assigned by any other script before the call. At the top level the
-// read is checked, with sparkdown's wording (adapted below).
+// Inside a function sparkdown reports nothing for an unknown global. At the
+// top level the read is checked, with sparkdown's wording (adapted below).
 describe.skip("an unknown global read inside a function (diverges: not reported)", () => {
   test("return foo", () => {
-    expect(diagnoseInFunction("return foo")).toContain(
+    expect(diagnoseWithLintsInFunction("return foo")).toContain(
       "Unknown global 'foo'; consider assigning to it first",
     );
   });
@@ -57,7 +56,7 @@ describe.skip("an unknown global read inside a function (diverges: not reported)
 
 describe("an unknown global read at the top level (adapted)", () => {
   test("& print(foo)", () => {
-    expect(diagnose("& print(foo)\n")).toEqual([
+    expect(diagnoseWithLints("& print(foo)\n")).toEqual([
       "Cannot find variable named `foo`",
     ]);
   });
@@ -88,7 +87,7 @@ describe("a deprecated stdlib global (adapted)", () => {
 // separately below.
 describe("deprecated table members (adapted wording)", () => {
   test("table.getn and table.foreach", () => {
-    const messages = diagnoseInFunction(`
+    const messages = diagnoseWithLintsInFunction(`
 -- TODO
 return function ()
     print(table.getn({}))
@@ -107,7 +106,7 @@ end
 describe.skip("a missing stdlib member (diverges: reported as a missing `table`)", () => {
   test("table.nogetn()", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
 return function ()
     print(table.nogetn()) -- verify that we correctly handle non-existent members
 end
@@ -120,7 +119,7 @@ end
 describe("a type alias has no warnings", () => {
   test("type InputData = { ... }", () => {
     expect(
-      diagnoseInFunction(`--!strict
+      diagnoseWithLintsInFunction(`--!strict
 type InputData = {
     id: number,
     inputType: EnumItem,
@@ -140,7 +139,7 @@ type InputData = {
 // function sparkdown reports no unknown globals (see UnknownGlobal above).
 describe.skip("an unknown global inside interpolation (diverges: not reported in a function)", () => {
   test("local _ = `unknown {foo}`", () => {
-    expect(diagnoseInFunction("local _ = `unknown {foo}`")).toHaveLength(1);
+    expect(diagnoseWithLintsInFunction("local _ = `unknown {foo}`")).toHaveLength(1);
   });
 });
 
@@ -150,7 +149,7 @@ describe.skip("an unknown global inside interpolation (diverges: not reported in
 describe("a function type alias between statements has no warnings (adapted)", () => {
   test("exports table with a function type alias", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
         local exports = {}
         type PathFunction<P> = (P?) -> string
         exports.tokensToFunction = function() end
@@ -166,7 +165,7 @@ describe("a function type alias between statements has no warnings (adapted)", (
 describe("explicit type instantiation has no warnings", () => {
   test('a<<"hi">>("hi")', () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
 local function a<b>(cool: b)
     print(cool)
 end

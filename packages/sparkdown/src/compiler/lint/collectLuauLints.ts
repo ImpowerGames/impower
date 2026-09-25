@@ -801,8 +801,18 @@ function lintForRanges(found: Found, src: Source, out: LuauLint[]) {
     const value = Number(literal.replace(/_/g, ""));
     return Number.isFinite(value) ? value : null;
   };
-  const isLength = (tokens: SyntaxNode[]) =>
-    tokens.length === 1 && tokens[0]!.name === "LuauLengthOperation";
+  // Exactly `#t`. The grammar nests whatever follows the operand inside the
+  // length operation (`#t - 1` is one `LuauLengthOperation` holding `- 1`),
+  // and Luau's rule only fires for a bare length.
+  const isLength = (tokens: SyntaxNode[]) => {
+    if (tokens.length !== 1 || tokens[0]!.name !== "LuauLengthOperation") {
+      return false;
+    }
+    const parts = [...childrenOf(contentOf(tokens[0]!))].filter(
+      (c) => !isTrivia(c),
+    );
+    return parts.length === 2 && parts[0]!.name === "LuauLengthOperator";
+  };
   const backwards =
     "For loop should iterate backwards; did you forget to specify -1 as step?";
 

@@ -5,7 +5,7 @@
 // verbatim.
 
 import { describe, expect, test } from "vitest";
-import { diagnose, diagnoseDetailed } from "./diagnosticTestHarness";
+import { diagnoseWithLints, diagnoseDetailed } from "./diagnosticTestHarness";
 
 const WARNING = 2;
 
@@ -51,14 +51,14 @@ describe("an unrecognized rich text tag", () => {
 // reported is a missing asset rather than an unknown command.
 describe("a misspelled asset command control", () => {
   test("[[shoe x]]", () => {
-    expect(diagnose("[[shoe x]]\n")).toEqual([
+    expect(diagnoseWithLints("[[shoe x]]\n")).toEqual([
       "Cannot find image named `shoe`",
       "Cannot find image named `x`",
     ]);
   });
 
   test("((pley x))", () => {
-    expect(diagnose("((pley x))\n")).toEqual([
+    expect(diagnoseWithLints("((pley x))\n")).toEqual([
       "Cannot find audio named `pley`",
       "Cannot find audio named `x`",
     ]);
@@ -67,7 +67,7 @@ describe("a misspelled asset command control", () => {
 
 describe("an empty choice", () => {
   test("* []", () => {
-    const messages = diagnose(
+    const messages = diagnoseWithLints(
       "-> main\nscene main\n  choose\n    * []\n  end\nend\n",
     );
     expect(messages).toContain(
@@ -81,7 +81,7 @@ describe("an empty choice", () => {
 // error for the same mistake is in FunctionErrors.test.ts.
 describe("varargs outside a vararg function", () => {
   test("the warning names the internal variable", () => {
-    expect(diagnose("function add(x, y) return ... end\n")).toEqual([
+    expect(diagnoseWithLints("function add(x, y) return ... end\n")).toEqual([
       "Cannot find variable named `__varargs__`",
     ]);
   });

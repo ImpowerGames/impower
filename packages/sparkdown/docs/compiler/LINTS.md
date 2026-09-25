@@ -10,14 +10,16 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | --- | --- | --- |
 | `LocalUnused` | A `local` that is never read. Writing to it does not count; a name starting with `_` is exempt. | Locals inside functions |
 | `UnreachableCode` | The statement after one that always returns, breaks, continues or errors (`error(...)`, `assert(false)`). | Function bodies |
-| `DuplicateCondition` | A condition repeated in one `if`/`elseif` chain, one `if` expression, or one `and`/`or` chain. `a and b or c` is exempt. | Everywhere |
-| `ForRange` | A numeric `for` without a step that runs backwards, stops short of a fractional end, or starts or ends at 0 over a table's length. | Everywhere |
+| `DuplicateCondition` | A condition repeated in one `if`/`elseif` chain, one `if` expression, or one `and`/`or` chain. `a and b or c` is exempt. | Luau `if` statements and expressions and Luau `and`/`or` |
+| `ForRange` | A numeric `for` without a step that runs backwards, stops short of a fractional end, or starts or ends at 0 over a table's length (a bare `#t`, as in Luau). | Luau `for` loops |
+
+Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions, and loops in Sparkle `layout` blocks, are separate constructs in the grammar and are not checked.
 
 Sparkdown also has warnings that correspond to two more Luau lints, in its own wording:
 
 | Luau lint | Sparkdown |
 | --- | --- |
-| `UnknownGlobal` | `Cannot find variable named ...`, for a read at the top level. Inside a function no unknown global is reported, because another script may assign it before the call. |
+| `UnknownGlobal` | `Cannot find variable named ...`, for a read at the top level. Inside a function an unknown global is not reported. |
 | `DeprecatedGlobal`, `DeprecatedApi` | An Information diagnostic tagged Deprecated for Luau's deprecated stdlib entries (`unpack`, `table.getn`, `table.foreach` and others), naming the replacement. |
 
 The warnings sparkdown gives for its own syntax (unknown Sparkle events and props, unknown rich text tags, blank choices) are listed in `LintSparkdownWarnings.test.ts`.

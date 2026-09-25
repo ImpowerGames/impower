@@ -6,7 +6,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
-  diagnose,
+  diagnoseWithLints,
   lintInFunction,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
@@ -115,7 +115,7 @@ describe("names the rule does not report", () => {
   // top-level code, so the reads there are out of its reach.
   test("locals in a function that is missing its end", () => {
     expect(
-      diagnose("function f()\n  local x = 1\n  if x then\n    print(x)\n").filter(
+      diagnoseWithLints("function f()\n  local x = 1\n  if x then\n    print(x)\n").filter(
         (m) => m.includes("never used"),
       ),
     ).toEqual([]);
@@ -126,7 +126,7 @@ describe("names the rule does not report", () => {
   // so only locals inside functions are checked.
   test("a local outside any function", () => {
     expect(
-      diagnose("local x = 1\nHello there.\n").filter((m) =>
+      diagnoseWithLints("local x = 1\nHello there.\n").filter((m) =>
         m.includes("never used"),
       ),
     ).toEqual([]);

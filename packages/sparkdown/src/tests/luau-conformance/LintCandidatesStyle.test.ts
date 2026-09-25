@@ -9,7 +9,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
-  diagnoseInFunction,
+  diagnoseWithLintsInFunction,
   lintInFunction,
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
@@ -32,7 +32,7 @@ if true then print(1) print(2) print(3) end
 describe("statements separated by semicolons are not reported", () => {
   test("print(1); print(2); print(3)", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
 print(1); print(2); print(3)
 `),
     ).toEqual([]);
@@ -54,7 +54,7 @@ print(1); print(2) print(3)
 describe("a declaration followed by do on its line is not reported", () => {
   test("local _x do ... end", () => {
     expect(
-      diagnoseInFunction(`
+      diagnoseWithLintsInFunction(`
 local _x do
     _x = 5
 end

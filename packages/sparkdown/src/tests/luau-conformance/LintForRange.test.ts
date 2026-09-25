@@ -87,6 +87,15 @@ end
   });
 });
 
+// Sparkdown-specific: the length of a field is still a bare length.
+describe("a range that starts at 0 over a field's length", () => {
+  test("for i = 0, #self.items", () => {
+    expect(
+      lintInFunction("\nlocal self = { items = {} }\nfor i = 0, #self.items do\nend\n"),
+    ).toEqual([{ line: 2, message: "For loop starts at 0, but arrays start at 1" }]);
+  });
+});
+
 // Sparkdown-specific: ranges the rule must leave alone.
 describe("ordinary ranges are not reported", () => {
   test.each([
@@ -95,6 +104,12 @@ describe("ordinary ranges are not reported", () => {
     ["negative bounds, which are not literals", "\nfor i = -1, -5 do\nend\n"],
     ["a generic for", "\nfor k, v in pairs({}) do\nend\n"],
     ["an expression bound", "\nlocal n = 3\nfor i = n, 1 do\nend\n"],
+    // Luau's rule looks for a bare `#t`; arithmetic on it is a different
+    // bound, and counting from 0 to `#t - 1` is correct.
+    ["0 to #t - 1", "\nlocal t = {}\nfor i = 0, #t - 1 do\nend\n"],
+    ["0 to #t // 2", "\nlocal t = {}\nfor i = 0, #t // 2 do\nend\n"],
+    ["#t - 1 down to 1", "\nlocal t = {}\nfor i = #t - 1, 1 do\nend\n"],
+    ["#t + 1 down to 0", "\nlocal t = {}\nfor i = #t + 1, 0 do\nend\n"],
   ])("%s", (_name, body) => {
     expect(lintInFunction(body)).toEqual([]);
   });
