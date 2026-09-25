@@ -34,6 +34,7 @@ import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
+import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { stripTrailingLineComment } from "../utils/stripTrailingLineComment";
 
@@ -292,6 +293,10 @@ export function lowerLuauDefine(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
+  // Reported through the chunk's diagnostics buffer, as the other lowerers do,
+  // so a define nested inside another block still reports: `lowerStatements`
+  // keeps only the content of the blocks it lowers.
+  ctx.diagnostics?.push(...validateDefineStructure(nodeRef.node, ctx));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return {};
   const nameIdentifier = new Identifier(ctx.read(nameNode.from, nameNode.to));

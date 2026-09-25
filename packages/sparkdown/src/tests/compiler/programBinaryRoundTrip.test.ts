@@ -64,9 +64,10 @@ function corpus(): string {
   L.push("title: Binary Round Trip");
   L.push("author: Anonymous");
   L.push("");
-  L.push("define hero as character:");
+  L.push("define hero as character with");
   L.push(`  name = "Hero"`);
   L.push(`  color = "#3366cc"`);
+  L.push("end");
   L.push("");
   L.push("const LIMIT = 3");
   L.push("const LABEL = \"chapter\"");

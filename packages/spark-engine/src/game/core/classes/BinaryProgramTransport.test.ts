@@ -16,8 +16,9 @@ import { Game } from "./Game";
 const SOURCE = [
   "title: Transport",
   "",
-  "define hero as character:",
+  "define hero as character with",
   `  name = "Hero"`,
+  "end",
   "",
   "const LIMIT = 3",
   "store trust = 0",

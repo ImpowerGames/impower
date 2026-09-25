@@ -96,8 +96,9 @@ async function frames(workerDisplays: boolean, text: string, steps: Step[]) {
 
 function coupledScreenplay(): string {
   const L: string[] = [];
-  L.push("define hero as character:");
+  L.push("define hero as character with");
   L.push(`  name = "Hero"`);
+  L.push("end");
   L.push("");
   L.push("store trust = 0");
   L.push("");
