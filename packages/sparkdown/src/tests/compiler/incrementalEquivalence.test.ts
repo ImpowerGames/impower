@@ -168,9 +168,12 @@ describe("compiler incremental equivalence", () => {
   it("the fixture's continuations carry a group, one per continuation", () => {
     // The edits below move and add continuations; this keeps them from
     // passing on a fixture whose continuations carry no group at all.
-    const json = JSON.stringify(coldCompile(coupledScreenplay()).compiled);
+    const text = coupledScreenplay();
+    const continuations = text.split("Glued in scene").length - 1;
+    const json = JSON.stringify(coldCompile(text).compiled);
     const groups = [...json.matchAll(/"\^group","\/str","str","\^([^"]*)"/g)].map((m) => m[1]);
-    expect(new Set(groups).size).toBe(14);
+    expect(continuations).toBeGreaterThan(0);
+    expect(new Set(groups).size).toBe(continuations);
   });
 
   // Each diverse edit is applied as a SINGLE minimal-range incremental update
@@ -314,6 +317,26 @@ describe("compiler incremental equivalence", () => {
           // ...then add one EARLIER-BUT-STILL-MID: scenes after it are
           // unchanged (reused) yet their `__synth_<n>` ordinals shift, so they
           // must be demoted and regenerated.
+          {
+            find: "  Action describing room 6 in some detail here.",
+            replace:
+              "  Action describing room 6 in some detail here.\n& local f6 = function(x) return x + 2 end",
+          },
+          { find: "Not yet in scene 12.", replace: "Not yet in scene 12!" },
+        ],
+      },
+      {
+        name: "anonymous fn inside a stdlib call's arguments renumbered in a reused scene",
+        // `print` generates without its proxy divert, which holds its
+        // arguments, so after the first compile the carried call reaches the
+        // function only through `args`. The second step renumbers it.
+        expectsDemotion: true,
+        steps: [
+          {
+            find: "  Action describing room 11 in some detail here.",
+            replace:
+              "  Action describing room 11 in some detail here.\n& print(function(x) return x + 1 end)",
+          },
           {
             find: "  Action describing room 6 in some detail here.",
             replace:

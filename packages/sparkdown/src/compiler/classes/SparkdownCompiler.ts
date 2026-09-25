@@ -3396,35 +3396,6 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
-  // Canonicalize compiler-synthesized identifier names that are minted from a
-  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
-  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
-  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
-  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
-  // offset-based names are FROZEN into the per-chunk lowered IR that the
-  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
-  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
-  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
-  // same text re-derives the current one (`__define_fn_144`) — and since these
-  // names become runtime container names (keys/paths in `program.compiled`),
-  // the bytecode diverges between an incremental and a cold compile.
-  //
-  // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
-  // and incremental, before ExportRuntime) and renumbers each distinct synthetic
-  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
-  // ORDER (not by the offset value) is what makes the result identical between a
-  // cold parse and an incremental parse of the same text: a carried node sits at
-  // the same tree position either way, so it gets the same ordinal regardless of
-  // any stale offset baked into its name. A given synthetic name's definition
-  // and all of its references share the exact same string and are emitted within
-  // the same chunk, so a uniform string→string remap suffices (no need to link
-  // references back to definitions).
-  //
-  // A display call's continuation `group` (`ContinuationGroup`) is minted from
-  // its statement's offset the same way, as a string value rather than a name.
-  // The pass renumbers those to `__group_<n>` in a sequence of their own, so
-  // adding a continuation leaves the synthetic names after it as they were,
-  // and the other way round.
   // Call-relevant signature of every named flow, keyed by name. Walks the
   // flow tree only (each flow's named sub-flows), never the full parsed tree,
   // so this is O(flows) — negligible next to a compile. See
@@ -3468,6 +3439,35 @@ export class SparkdownCompiler {
     }
   }
 
+  // Canonicalize compiler-synthesized identifier names that are minted from a
+  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
+  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
+  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
+  // offset-based names are FROZEN into the per-chunk lowered IR that the
+  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
+  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
+  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
+  // same text re-derives the current one (`__define_fn_144`) — and since these
+  // names become runtime container names (keys/paths in `program.compiled`),
+  // the bytecode diverges between an incremental and a cold compile.
+  //
+  // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
+  // and incremental, before ExportRuntime) and renumbers each distinct synthetic
+  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
+  // ORDER (not by the offset value) is what makes the result identical between a
+  // cold parse and an incremental parse of the same text: a carried node sits at
+  // the same tree position either way, so it gets the same ordinal regardless of
+  // any stale offset baked into its name. A given synthetic name's definition
+  // and all of its references share the exact same string and are emitted within
+  // the same chunk, so a uniform string→string remap suffices (no need to link
+  // references back to definitions).
+  //
+  // A display call's continuation `group` (`ContinuationGroup`) is minted from
+  // its statement's offset the same way, as a string value rather than a name.
+  // The pass renumbers those to `__group_<n>` in a sequence of their own, so
+  // adding a continuation leaves the synthetic names after it as they were,
+  // and the other way round.
   protected canonicalizeSyntheticFlowNames(
     root: ParsedObject,
   ): Set<ParsedObject> | undefined {
@@ -3498,8 +3498,11 @@ export class SparkdownCompiler {
     const flowsToRekey: FlowBase[] = [];
     // Every call of one continuation carries the same group, so the calls
     // share a mapping just as a synthetic's definition and references do.
+    // A script included from two places is walked twice, so a group node is
+    // recorded once, with the text it had before any rewrite.
     const groupRemap = new Map<string, string>();
-    const matchedGroups: ContinuationGroup[] = [];
+    const matchedGroups: Array<{ group: ContinuationGroup; text: string }> = [];
+    const seenGroups = new Set<ContinuationGroup>();
 
     const considerName = (name: string) => {
       let next = remap.get(name);
@@ -3512,15 +3515,20 @@ export class SparkdownCompiler {
       }
     };
     const considerGroup = (group: ContinuationGroup) => {
-      let next = groupRemap.get(group.text);
+      if (seenGroups.has(group)) {
+        return;
+      }
+      seenGroups.add(group);
+      const text = group.text;
+      let next = groupRemap.get(text);
       if (next === undefined) {
         next = `__group_${groupRemap.size}`;
-        groupRemap.set(group.text, next);
+        groupRemap.set(text, next);
       }
-      if (next !== group.text) {
+      if (next !== text) {
         changed = true;
       }
-      matchedGroups.push(group);
+      matchedGroups.push({ group, text });
     };
     const considerId = (id: Identifier, owner: ParsedObject) => {
       const name = id.name;
@@ -3675,9 +3683,9 @@ export class SparkdownCompiler {
         node[field] = next;
       }
     }
-    for (const group of matchedGroups) {
-      const next = groupRemap.get(group.text)!;
-      if (next !== group.text) {
+    for (const { group, text } of matchedGroups) {
+      const next = groupRemap.get(text);
+      if (next !== undefined && next !== text) {
         markRenamed(group);
         group.text = next;
       }
