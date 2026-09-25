@@ -1,0 +1,170 @@
+// A `>` in display text is a break unless it belongs to a longer mark or is
+// escaped, so it needs no space on either side, as a `..` glue mark does. It
+// belongs to a longer mark when a `-` or another `>` stands right before it,
+// or a `>` or `=` right after it; `\>` is a literal `>`. A touching break
+// shows the same beats as the spaced one.
+
+import { describe, expect, test } from "vitest";
+import {
+  continueShowedSomething,
+  makeRuntimeStoryFromSource,
+} from "./runtimeTestHarness";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+
+interface Step {
+  text: string;
+  target?: string;
+  character?: string;
+  pause?: boolean;
+  extend?: boolean;
+  continues?: boolean;
+}
+
+// Every step that shows something: its text, the routing of its first routed
+// table, and the flags its tables carry.
+function steps(story: RuntimeStory): Step[] {
+  const out: Step[] = [];
+  let guard = 0;
+  while (story.canContinue && guard++ < 50) {
+    const text = story.Continue() ?? "";
+    if (!continueShowedSomething(story)) continue;
+    const step: Step = { text };
+    for (const table of story.currentDisplayInstructions) {
+      const read = (key: string) =>
+        (table.value?.get(key) as { value?: unknown } | undefined)?.value;
+      for (const key of ["target", "character"] as const) {
+        const value = read(key);
+        if (typeof value === "string" && step[key] === undefined) {
+          step[key] = value;
+        }
+      }
+      for (const key of ["pause", "extend", "continues"] as const) {
+        if (read(key) === true) step[key] = true;
+      }
+    }
+    out.push(step);
+  }
+  return out;
+}
+
+// The cues in these sources name characters no script declares, which the
+// compiler warns about; nothing else may be reported.
+const UNDECLARED = /^Cannot find character named/;
+
+function run(source: string): { steps: Step[]; warnings: string[] } {
+  const ctx = makeRuntimeStoryFromSource(source);
+  expect(ctx.errorMessages).toEqual([]);
+  expect(
+    ctx.warningMessages.filter((message) => !UNDECLARED.test(message)),
+  ).toEqual([]);
+  const warnings: string[] = [];
+  ctx.story.onError = (message) => {
+    warnings.push(message);
+  };
+  return { steps: steps(ctx.story), warnings };
+}
+
+describe("a `>` break that touches the words around it", () => {
+  test("`HERO: Hi.>Bye.` is two steps that both carry HERO", () => {
+    expect(run(`HERO: Hi.>Bye.\n`).steps).toEqual([
+      { text: "Hi.\n", target: "dialogue", character: "HERO", pause: true },
+      { text: "Bye.\n", target: "dialogue", character: "HERO" },
+    ]);
+  });
+
+  test.each([
+    ["touching both words", `A>B\n`],
+    ["touching the word after", `A >B\n`],
+    ["touching the word before", `A> B\n`],
+    ["in a block", `:\n  A>B\n`],
+    ["in a dialogue block", `HERO:\n  A>B\n`],
+  ])("%s shows the beats `A > B` shows", (_label, source) => {
+    const spaced = source.replace(/ ?> ?/, " > ");
+    expect(run(source).steps).toEqual(run(spaced).steps);
+    expect(run(source).steps.map((step) => step.text)).toEqual(["A\n", "B\n"]);
+  });
+
+  test("`A>` at the end of a line is a break", () => {
+    expect(run(`A>\nB\n`).steps).toEqual(run(`A >\nB\n`).steps);
+    expect(run(`A>\nB\n`).steps[0]).toMatchObject({ text: "A\n", pause: true });
+    expect(run(`:\n  A>\n  B\n`).steps).toEqual(run(`:\n  A >\n  B\n`).steps);
+  });
+
+  test("`>Hello` is a lone `>` followed by a `Hello` line", () => {
+    expect(run(`>Hello\n`).steps).toEqual(run(`> Hello\n`).steps);
+    expect(run(`>Hello\n`).steps.map((step) => step.text)).toEqual([
+      "\n",
+      "Hello\n",
+    ]);
+  });
+
+  test("`Abso>..` then `lutely.` reads the break the next line joins", () => {
+    for (const [touching, spaced] of [
+      [`Abso>..\nlutely.\nAfter.\n`, `Abso >..\nlutely.\nAfter.\n`],
+      [`Abso>..\n..lutely.\nAfter.\n`, `Abso >..\n..lutely.\nAfter.\n`],
+      [`:\n  Abso>..\n  ..lutely.\nAfter.\n`, `:\n  Abso >..\n  ..lutely.\nAfter.\n`],
+    ]) {
+      const result = run(touching!);
+      expect(result.steps).toEqual(run(spaced!).steps);
+      expect(result.warnings).toEqual(run(spaced!).warnings);
+      expect(result.steps[0]).toMatchObject({ text: "Abso\n", pause: true });
+    }
+    expect(
+      run(`Abso>..\n..lutely.\nAfter.\n`).steps.map((step) => step.text),
+    ).toEqual(["Abso\n", "lutely.\n", "After.\n"]);
+  });
+
+  test("`Abso>..lutely.` is the mid-line break `Abso >..lutely.` is", () => {
+    for (const [touching, spaced] of [
+      [`Abso>..lutely.\nAfter.\n`, `Abso >..lutely.\nAfter.\n`],
+      [`A>.. B\nAfter.\n`, `A >.. B\nAfter.\n`],
+    ]) {
+      expect(run(touching!)).toEqual(run(spaced!));
+    }
+    expect(run(`Abso>..lutely.\nAfter.\n`).steps).toEqual([
+      { text: "Abso\n", target: "action", pause: true },
+      { text: "lutely.\n", target: "action" },
+      { text: "After.\n", target: "action" },
+    ]);
+  });
+
+  test("`Abso..>..lutely.` carries on in the same box after the click", () => {
+    const result = run(`Abso..>..lutely.\nAfter.\n`);
+    expect(result).toEqual(run(`Abso.. >..lutely.\nAfter.\n`));
+    expect(result.warnings).toEqual([]);
+    const [before, after] = result.steps;
+    expect(before).toMatchObject({ text: "Abso\n", pause: true, extend: true });
+    expect(after).toMatchObject({ text: "lutely.\n", continues: true });
+  });
+
+  test("a `>` that touches another `>` or a `-`, or has `=` after it, is text", () => {
+    for (const [source, shown] of [
+      [`A >> B\n`, "A >> B\n"],
+      [`A>>B\n`, "A>>B\n"],
+      [`x >= y\n`, "x >= y\n"],
+      [`x>=y\n`, "x>=y\n"],
+      [`A-->B\n`, "A-->B\n"],
+      [`A \\> B\n`, "A > B\n"],
+      [`A\\>B\n`, "A>B\n"],
+      [`Go <wait 1> now.\n`, "Go <wait 1> now.\n"],
+      [`Go <wait 1 > now.\n`, "Go <wait 1 > now.\n"],
+    ] as const) {
+      expect(run(source).steps).toEqual([{ text: shown, target: "action" }]);
+    }
+  });
+
+  test("a divert or tunnel keeps its arrow", () => {
+    const divert = run(`A ->b\n\nscene b\n  B\nend\n`);
+    expect(divert.steps.map((step) => step.text)).toEqual(["A B\n"]);
+    expect(divert.steps.some((step) => step.pause)).toBe(false);
+    const tunnel = run(`->->\n`);
+    expect(tunnel.steps).toEqual([]);
+  });
+
+  test("a cue's `[>]` is a character position, not a break", () => {
+    const { steps: shown } = run(`HERO [>]:\n  Hi.\n`);
+    expect(shown).toEqual([
+      { text: "Hi.\n", target: "dialogue", character: "HERO" },
+    ]);
+  });
+});

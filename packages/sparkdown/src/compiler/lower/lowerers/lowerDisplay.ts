@@ -688,7 +688,6 @@ function collectBodySegments(
       } else if (next.kind === "tag") {
         out.push({ kind: "tag", node: next.node });
       } else if (next.kind === "glue") {
-        reportTouchingBreak(next.from, ctx);
         out.push({ kind: "glue" });
       } else if (next.kind === "comment") {
         // Emit nothing — the comment is removed. Swallow the trailing
@@ -1101,31 +1100,6 @@ const ADJACENT_WHITESPACE: ReadonlySet<string> = nodeNameSet([
 
 const LOAD_GLUE_MESSAGE =
   "A `load` line cannot end with `..`. Name every asset it loads on the line.";
-
-const TOUCHING_BREAK_MESSAGE =
-  "This `>` touches the word before it, so it is text, not a break. Put a space before it to make it a break.";
-
-// Warn about a `>` that touches the word before a line-ending `..` (`Abso>..`),
-// given the offset the `..` starts at: a break needs a space before its `>`,
-// so this one reaches the player as text, which no author writes on purpose
-// right before a `..`.
-function reportTouchingBreak(markFrom: number, ctx: LowerContext): void {
-  if (markFrom < 2) return;
-  const before = ctx.read(markFrom - 2, markFrom);
-  if (before[1] !== ">" || /[\s\-\\]/.test(before[0]!)) return;
-  ctx.diagnostics?.push({
-    message: TOUCHING_BREAK_MESSAGE,
-    severity: ErrorType.Warning,
-    source: {
-      fileName: null,
-      filePath: ctx.filePath ?? null,
-      startLineNumber: ctx.lineNumber(markFrom - 1) + 1,
-      endLineNumber: ctx.lineNumber(markFrom) + 1,
-      startCharacterNumber: ctx.characterNumber(markFrom - 1) + 1,
-      endCharacterNumber: ctx.characterNumber(markFrom) + 1,
-    },
-  });
-}
 
 // Report the `..` that ends a `load` line, on the mark's range.
 function reportLoadGlue(

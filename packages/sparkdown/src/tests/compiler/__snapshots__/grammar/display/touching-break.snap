@@ -1,0 +1,1263 @@
+sparkdown [0..410]
+ ├─ ImplicitAction [0..5]
+ │   ├─ ImplicitAction_begin 0
+ │   │   └─ ImplicitAction_begin_c1 0
+ │   │       └─ OptionalWhitespace 0
+ │   ├─ ImplicitAction_content [0..5]
+ │   │   └─ LineEnd [0..5]
+ │   │       ├─ LineEnd_begin 0
+ │   │       │   └─ LineEnd_begin_c1 0
+ │   │       │       └─ OptionalWhitespace 0
+ │   │       ├─ LineEnd_content [0..5]
+ │   │       │   ├─ TextChunk [0..1]
+ │   │       │   │   ├─ TextChunk_begin 0
+ │   │       │   │   ├─ TextChunk_content [0..1]
+ │   │       │   │   │   └─ Word [0..1]: "A"
+ │   │       │   │   └─ TextChunk_end 1
+ │   │       │   ├─ Break [1..4]
+ │   │       │   │   └─ Break_c1 [1..4]: " > "
+ │   │       │   └─ TextChunk [4..5]
+ │   │       │       ├─ TextChunk_begin 4
+ │   │       │       ├─ TextChunk_content [4..5]
+ │   │       │       │   └─ Word [4..5]: "B"
+ │   │       │       └─ TextChunk_end 5
+ │   │       └─ LineEnd_end 5
+ │   └─ ImplicitAction_end 5
+ ├─ Newline [5..6]: "\n"
+ ├─ ImplicitAction [6..9]
+ │   ├─ ImplicitAction_begin 6
+ │   │   └─ ImplicitAction_begin_c1 6
+ │   │       └─ OptionalWhitespace 6
+ │   ├─ ImplicitAction_content [6..9]
+ │   │   └─ LineEnd [6..9]
+ │   │       ├─ LineEnd_begin 6
+ │   │       │   └─ LineEnd_begin_c1 6
+ │   │       │       └─ OptionalWhitespace 6
+ │   │       ├─ LineEnd_content [6..9]
+ │   │       │   ├─ TextChunk [6..7]
+ │   │       │   │   ├─ TextChunk_begin 6
+ │   │       │   │   ├─ TextChunk_content [6..7]
+ │   │       │   │   │   └─ Word [6..7]: "A"
+ │   │       │   │   └─ TextChunk_end 7
+ │   │       │   └─ Break [7..9]
+ │   │       │       └─ Break_c1 [7..9]: " >"
+ │   │       └─ LineEnd_end 9
+ │   └─ ImplicitAction_end 9
+ ├─ Newline [9..10]: "\n"
+ ├─ ImplicitAction [10..11]
+ │   ├─ ImplicitAction_begin 10
+ │   │   └─ ImplicitAction_begin_c1 10
+ │   │       └─ OptionalWhitespace 10
+ │   ├─ ImplicitAction_content [10..11]
+ │   │   └─ LineEnd [10..11]
+ │   │       ├─ LineEnd_begin 10
+ │   │       │   └─ LineEnd_begin_c1 10
+ │   │       │       └─ OptionalWhitespace 10
+ │   │       ├─ LineEnd_content [10..11]
+ │   │       │   └─ Break [10..11]
+ │   │       │       └─ Break_c1 [10..11]: ">"
+ │   │       └─ LineEnd_end 11
+ │   └─ ImplicitAction_end 11
+ ├─ Newline [11..12]: "\n"
+ ├─ ImplicitAction [12..15]
+ │   ├─ ImplicitAction_begin 12
+ │   │   └─ ImplicitAction_begin_c1 12
+ │   │       └─ OptionalWhitespace 12
+ │   ├─ ImplicitAction_content [12..15]
+ │   │   └─ LineEnd [12..15]
+ │   │       ├─ LineEnd_begin 12
+ │   │       │   └─ LineEnd_begin_c1 12
+ │   │       │       └─ OptionalWhitespace 12
+ │   │       ├─ LineEnd_content [12..15]
+ │   │       │   ├─ TextChunk [12..13]
+ │   │       │   │   ├─ TextChunk_begin 12
+ │   │       │   │   ├─ TextChunk_content [12..13]
+ │   │       │   │   │   └─ Word [12..13]: "A"
+ │   │       │   │   └─ TextChunk_end 13
+ │   │       │   ├─ Break [13..14]
+ │   │       │   │   └─ Break_c1 [13..14]: ">"
+ │   │       │   └─ TextChunk [14..15]
+ │   │       │       ├─ TextChunk_begin 14
+ │   │       │       ├─ TextChunk_content [14..15]
+ │   │       │       │   └─ Word [14..15]: "B"
+ │   │       │       └─ TextChunk_end 15
+ │   │       └─ LineEnd_end 15
+ │   └─ ImplicitAction_end 15
+ ├─ Newline [15..16]: "\n"
+ ├─ ImplicitAction [16..20]
+ │   ├─ ImplicitAction_begin 16
+ │   │   └─ ImplicitAction_begin_c1 16
+ │   │       └─ OptionalWhitespace 16
+ │   ├─ ImplicitAction_content [16..20]
+ │   │   └─ LineEnd [16..20]
+ │   │       ├─ LineEnd_begin 16
+ │   │       │   └─ LineEnd_begin_c1 16
+ │   │       │       └─ OptionalWhitespace 16
+ │   │       ├─ LineEnd_content [16..20]
+ │   │       │   ├─ TextChunk [16..17]
+ │   │       │   │   ├─ TextChunk_begin 16
+ │   │       │   │   ├─ TextChunk_content [16..17]
+ │   │       │   │   │   └─ Word [16..17]: "A"
+ │   │       │   │   └─ TextChunk_end 17
+ │   │       │   ├─ Break [17..19]
+ │   │       │   │   └─ Break_c1 [17..19]: "> "
+ │   │       │   └─ TextChunk [19..20]
+ │   │       │       ├─ TextChunk_begin 19
+ │   │       │       ├─ TextChunk_content [19..20]
+ │   │       │       │   └─ Word [19..20]: "B"
+ │   │       │       └─ TextChunk_end 20
+ │   │       └─ LineEnd_end 20
+ │   └─ ImplicitAction_end 20
+ ├─ Newline [20..21]: "\n"
+ ├─ ImplicitAction [21..25]
+ │   ├─ ImplicitAction_begin 21
+ │   │   └─ ImplicitAction_begin_c1 21
+ │   │       └─ OptionalWhitespace 21
+ │   ├─ ImplicitAction_content [21..25]
+ │   │   └─ LineEnd [21..25]
+ │   │       ├─ LineEnd_begin 21
+ │   │       │   └─ LineEnd_begin_c1 21
+ │   │       │       └─ OptionalWhitespace 21
+ │   │       ├─ LineEnd_content [21..25]
+ │   │       │   ├─ TextChunk [21..22]
+ │   │       │   │   ├─ TextChunk_begin 21
+ │   │       │   │   ├─ TextChunk_content [21..22]
+ │   │       │   │   │   └─ Word [21..22]: "A"
+ │   │       │   │   └─ TextChunk_end 22
+ │   │       │   ├─ Break [22..24]
+ │   │       │   │   └─ Break_c1 [22..24]: " >"
+ │   │       │   └─ TextChunk [24..25]
+ │   │       │       ├─ TextChunk_begin 24
+ │   │       │       ├─ TextChunk_content [24..25]
+ │   │       │       │   └─ Word [24..25]: "B"
+ │   │       │       └─ TextChunk_end 25
+ │   │       └─ LineEnd_end 25
+ │   └─ ImplicitAction_end 25
+ ├─ Newline [25..26]: "\n"
+ ├─ ImplicitAction [26..28]
+ │   ├─ ImplicitAction_begin 26
+ │   │   └─ ImplicitAction_begin_c1 26
+ │   │       └─ OptionalWhitespace 26
+ │   ├─ ImplicitAction_content [26..28]
+ │   │   └─ LineEnd [26..28]
+ │   │       ├─ LineEnd_begin 26
+ │   │       │   └─ LineEnd_begin_c1 26
+ │   │       │       └─ OptionalWhitespace 26
+ │   │       ├─ LineEnd_content [26..28]
+ │   │       │   ├─ TextChunk [26..27]
+ │   │       │   │   ├─ TextChunk_begin 26
+ │   │       │   │   ├─ TextChunk_content [26..27]
+ │   │       │   │   │   └─ Word [26..27]: "A"
+ │   │       │   │   └─ TextChunk_end 27
+ │   │       │   └─ Break [27..28]
+ │   │       │       └─ Break_c1 [27..28]: ">"
+ │   │       └─ LineEnd_end 28
+ │   └─ ImplicitAction_end 28
+ ├─ Newline [28..29]: "\n"
+ ├─ ImplicitAction [29..35]
+ │   ├─ ImplicitAction_begin 29
+ │   │   └─ ImplicitAction_begin_c1 29
+ │   │       └─ OptionalWhitespace 29
+ │   ├─ ImplicitAction_content [29..35]
+ │   │   └─ LineEnd [29..35]
+ │   │       ├─ LineEnd_begin 29
+ │   │       │   └─ LineEnd_begin_c1 29
+ │   │       │       └─ OptionalWhitespace 29
+ │   │       ├─ LineEnd_content [29..35]
+ │   │       │   ├─ Break [29..30]
+ │   │       │   │   └─ Break_c1 [29..30]: ">"
+ │   │       │   └─ TextChunk [30..35]
+ │   │       │       ├─ TextChunk_begin 30
+ │   │       │       ├─ TextChunk_content [30..35]
+ │   │       │       │   └─ Word [30..35]: "Hello"
+ │   │       │       └─ TextChunk_end 35
+ │   │       └─ LineEnd_end 35
+ │   └─ ImplicitAction_end 35
+ ├─ Newline [35..36]: "\n"
+ ├─ ImplicitAction [36..43]
+ │   ├─ ImplicitAction_begin 36
+ │   │   └─ ImplicitAction_begin_c1 36
+ │   │       └─ OptionalWhitespace 36
+ │   ├─ ImplicitAction_content [36..43]
+ │   │   └─ LineEnd [36..43]
+ │   │       ├─ LineEnd_begin 36
+ │   │       │   └─ LineEnd_begin_c1 36
+ │   │       │       └─ OptionalWhitespace 36
+ │   │       ├─ LineEnd_content [36..43]
+ │   │       │   ├─ TextChunk [36..40]
+ │   │       │   │   ├─ TextChunk_begin 36
+ │   │       │   │   ├─ TextChunk_content [36..40]
+ │   │       │   │   │   └─ Word [36..40]: "Abso"
+ │   │       │   │   └─ TextChunk_end 40
+ │   │       │   ├─ Break [40..41]
+ │   │       │   │   └─ Break_c1 [40..41]: ">"
+ │   │       │   └─ Glue [41..43]
+ │   │       │       ├─ Glue_c1 41
+ │   │       │       └─ Glue_c2 [41..43]: ".."
+ │   │       └─ LineEnd_end 43
+ │   └─ ImplicitAction_end 43
+ ├─ Newline [43..44]: "\n"
+ ├─ ImplicitAction [44..51]
+ │   ├─ ImplicitAction_begin 44
+ │   │   └─ ImplicitAction_begin_c1 44
+ │   │       └─ OptionalWhitespace 44
+ │   ├─ ImplicitAction_content [44..51]
+ │   │   └─ LineEnd [44..51]
+ │   │       ├─ LineEnd_begin 44
+ │   │       │   └─ LineEnd_begin_c1 44
+ │   │       │       └─ OptionalWhitespace 44
+ │   │       ├─ LineEnd_content [44..51]
+ │   │       │   └─ TextChunk [44..51]
+ │   │       │       ├─ TextChunk_begin 44
+ │   │       │       ├─ TextChunk_content [44..51]
+ │   │       │       │   ├─ Word [44..50]: "lutely"
+ │   │       │       │   └─ Punctuation [50..51]: "."
+ │   │       │       └─ TextChunk_end 51
+ │   │       └─ LineEnd_end 51
+ │   └─ ImplicitAction_end 51
+ ├─ Newline [51..52]: "\n"
+ ├─ ImplicitAction [52..66]
+ │   ├─ ImplicitAction_begin 52
+ │   │   └─ ImplicitAction_begin_c1 52
+ │   │       └─ OptionalWhitespace 52
+ │   ├─ ImplicitAction_content [52..66]
+ │   │   └─ LineEnd [52..66]
+ │   │       ├─ LineEnd_begin 52
+ │   │       │   └─ LineEnd_begin_c1 52
+ │   │       │       └─ OptionalWhitespace 52
+ │   │       ├─ LineEnd_content [52..66]
+ │   │       │   ├─ TextChunk [52..56]
+ │   │       │   │   ├─ TextChunk_begin 52
+ │   │       │   │   ├─ TextChunk_content [52..56]
+ │   │       │   │   │   └─ Word [52..56]: "Abso"
+ │   │       │   │   └─ TextChunk_end 56
+ │   │       │   ├─ BreakLeadingGlue [56..59]
+ │   │       │   │   ├─ BreakLeadingGlue_c1 [56..57]
+ │   │       │   │   │   └─ Break [56..57]
+ │   │       │   │   │       └─ Break_c1 [56..57]: ">"
+ │   │       │   │   └─ BreakLeadingGlue_c2 [57..59]
+ │   │       │   │       └─ LeadingGlue [57..59]
+ │   │       │   │           └─ LeadingGlue_c1 [57..59]: ".."
+ │   │       │   └─ TextChunk [59..66]
+ │   │       │       ├─ TextChunk_begin 59
+ │   │       │       ├─ TextChunk_content [59..66]
+ │   │       │       │   ├─ Word [59..65]: "lutely"
+ │   │       │       │   └─ Punctuation [65..66]: "."
+ │   │       │       └─ TextChunk_end 66
+ │   │       └─ LineEnd_end 66
+ │   └─ ImplicitAction_end 66
+ ├─ Newline [66..67]: "\n"
+ ├─ ImplicitAction [67..73]
+ │   ├─ ImplicitAction_begin 67
+ │   │   └─ ImplicitAction_begin_c1 67
+ │   │       └─ OptionalWhitespace 67
+ │   ├─ ImplicitAction_content [67..73]
+ │   │   └─ LineEnd [67..73]
+ │   │       ├─ LineEnd_begin 67
+ │   │       │   └─ LineEnd_begin_c1 67
+ │   │       │       └─ OptionalWhitespace 67
+ │   │       ├─ LineEnd_content [67..73]
+ │   │       │   ├─ TextChunk [67..68]
+ │   │       │   │   ├─ TextChunk_begin 67
+ │   │       │   │   ├─ TextChunk_content [67..68]
+ │   │       │   │   │   └─ Word [67..68]: "A"
+ │   │       │   │   └─ TextChunk_end 68
+ │   │       │   ├─ BreakLeadingGlue [68..71]
+ │   │       │   │   ├─ BreakLeadingGlue_c1 [68..69]
+ │   │       │   │   │   └─ Break [68..69]
+ │   │       │   │   │       └─ Break_c1 [68..69]: ">"
+ │   │       │   │   └─ BreakLeadingGlue_c2 [69..71]
+ │   │       │   │       └─ LeadingGlue [69..71]
+ │   │       │   │           └─ LeadingGlue_c1 [69..71]: ".."
+ │   │       │   └─ TextChunk [71..73]
+ │   │       │       ├─ TextChunk_begin 71
+ │   │       │       ├─ TextChunk_content [71..73]
+ │   │       │       │   ├─ Space [71..72]: " "
+ │   │       │       │   └─ Word [72..73]: "B"
+ │   │       │       └─ TextChunk_end 73
+ │   │       └─ LineEnd_end 73
+ │   └─ ImplicitAction_end 73
+ ├─ Newline [73..74]: "\n"
+ ├─ ImplicitAction [74..81]
+ │   ├─ ImplicitAction_begin 74
+ │   │   └─ ImplicitAction_begin_c1 74
+ │   │       └─ OptionalWhitespace 74
+ │   ├─ ImplicitAction_content [74..81]
+ │   │   └─ LineEnd [74..81]
+ │   │       ├─ LineEnd_begin 74
+ │   │       │   └─ LineEnd_begin_c1 74
+ │   │       │       └─ OptionalWhitespace 74
+ │   │       ├─ LineEnd_content [74..81]
+ │   │       │   ├─ TextChunk [74..75]
+ │   │       │   │   ├─ TextChunk_begin 74
+ │   │       │   │   ├─ TextChunk_content [74..75]
+ │   │       │   │   │   └─ Word [74..75]: "A"
+ │   │       │   │   └─ TextChunk_end 75
+ │   │       │   ├─ Break [75..78]
+ │   │       │   │   └─ Break_c1 [75..78]: " > "
+ │   │       │   ├─ Break [78..80]
+ │   │       │   │   └─ Break_c1 [78..80]: "> "
+ │   │       │   └─ TextChunk [80..81]
+ │   │       │       ├─ TextChunk_begin 80
+ │   │       │       ├─ TextChunk_content [80..81]
+ │   │       │       │   └─ Word [80..81]: "B"
+ │   │       │       └─ TextChunk_end 81
+ │   │       └─ LineEnd_end 81
+ │   └─ ImplicitAction_end 81
+ ├─ Newline [81..82]: "\n"
+ ├─ ImplicitAction [82..88]
+ │   ├─ ImplicitAction_begin 82
+ │   │   └─ ImplicitAction_begin_c1 82
+ │   │       └─ OptionalWhitespace 82
+ │   ├─ ImplicitAction_content [82..88]
+ │   │   └─ LineEnd [82..88]
+ │   │       ├─ LineEnd_begin 82
+ │   │       │   └─ LineEnd_begin_c1 82
+ │   │       │       └─ OptionalWhitespace 82
+ │   │       ├─ LineEnd_content [82..88]
+ │   │       │   ├─ TextChunk [82..83]
+ │   │       │   │   ├─ TextChunk_begin 82
+ │   │       │   │   ├─ TextChunk_content [82..83]
+ │   │       │   │   │   └─ Word [82..83]: "A"
+ │   │       │   │   └─ TextChunk_end 83
+ │   │       │   ├─ AngleText [83..86]
+ │   │       │   │   ├─ AngleText_c1 [83..84]
+ │   │       │   │   │   └─ Space [83..84]: " "
+ │   │       │   │   └─ AngleText_c2 [84..86]
+ │   │       │   │       └─ AngleMark [84..86]: ">>"
+ │   │       │   └─ TextChunk [86..88]
+ │   │       │       ├─ TextChunk_begin 86
+ │   │       │       ├─ TextChunk_content [86..88]
+ │   │       │       │   ├─ Space [86..87]: " "
+ │   │       │       │   └─ Word [87..88]: "B"
+ │   │       │       └─ TextChunk_end 88
+ │   │       └─ LineEnd_end 88
+ │   └─ ImplicitAction_end 88
+ ├─ Newline [88..89]: "\n"
+ ├─ ImplicitAction [89..93]
+ │   ├─ ImplicitAction_begin 89
+ │   │   └─ ImplicitAction_begin_c1 89
+ │   │       └─ OptionalWhitespace 89
+ │   ├─ ImplicitAction_content [89..93]
+ │   │   └─ LineEnd [89..93]
+ │   │       ├─ LineEnd_begin 89
+ │   │       │   └─ LineEnd_begin_c1 89
+ │   │       │       └─ OptionalWhitespace 89
+ │   │       ├─ LineEnd_content [89..93]
+ │   │       │   ├─ TextChunk [89..90]
+ │   │       │   │   ├─ TextChunk_begin 89
+ │   │       │   │   ├─ TextChunk_content [89..90]
+ │   │       │   │   │   └─ Word [89..90]: "A"
+ │   │       │   │   └─ TextChunk_end 90
+ │   │       │   ├─ AngleText [90..92]
+ │   │       │   │   ├─ AngleText_c1 90
+ │   │       │   │   └─ AngleText_c2 [90..92]
+ │   │       │   │       └─ AngleMark [90..92]: ">>"
+ │   │       │   └─ TextChunk [92..93]
+ │   │       │       ├─ TextChunk_begin 92
+ │   │       │       ├─ TextChunk_content [92..93]
+ │   │       │       │   └─ Word [92..93]: "B"
+ │   │       │       └─ TextChunk_end 93
+ │   │       └─ LineEnd_end 93
+ │   └─ ImplicitAction_end 93
+ ├─ Newline [93..94]: "\n"
+ ├─ ImplicitAction [94..100]
+ │   ├─ ImplicitAction_begin 94
+ │   │   └─ ImplicitAction_begin_c1 94
+ │   │       └─ OptionalWhitespace 94
+ │   ├─ ImplicitAction_content [94..100]
+ │   │   └─ LineEnd [94..100]
+ │   │       ├─ LineEnd_begin 94
+ │   │       │   └─ LineEnd_begin_c1 94
+ │   │       │       └─ OptionalWhitespace 94
+ │   │       ├─ LineEnd_content [94..100]
+ │   │       │   └─ TextChunk [94..100]
+ │   │       │       ├─ TextChunk_begin 94
+ │   │       │       ├─ TextChunk_content [94..100]
+ │   │       │       │   ├─ Word [94..95]: "A"
+ │   │       │       │   └─ Divert [95..100]
+ │   │       │       │       ├─ Divert_begin [95..98]
+ │   │       │       │       │   ├─ Divert_begin_c1 [95..96]
+ │   │       │       │       │   │   └─ OptionalWhitespace [95..96]: " "
+ │   │       │       │       │   └─ Divert_begin_c2 [96..98]
+ │   │       │       │       │       └─ DivertMark [96..98]: "->"
+ │   │       │       │       ├─ Divert_content [98..100]
+ │   │       │       │       │   └─ DivertTarget [98..100]
+ │   │       │       │       │       ├─ DivertTarget_begin [98..99]
+ │   │       │       │       │       │   └─ DivertTarget_begin_c1 [98..99]
+ │   │       │       │       │       │       └─ DivertTarget_begin_c1 [98..99]
+ │   │       │       │       │       │           └─ OptionalWhitespace [98..99]: " "
+ │   │       │       │       │       ├─ DivertTarget_content [99..100]
+ │   │       │       │       │       │   └─ DivertPath [99..100]
+ │   │       │       │       │       │       ├─ DivertPath_begin 99
+ │   │       │       │       │       │       ├─ DivertPath_content [99..100]
+ │   │       │       │       │       │       │   └─ DivertPart [99..100]
+ │   │       │       │       │       │       │       └─ DivertPartName [99..100]: "b"
+ │   │       │       │       │       │       └─ DivertPath_end 100
+ │   │       │       │       │       └─ DivertTarget_end 100
+ │   │       │       │       └─ Divert_end 100
+ │   │       │       └─ TextChunk_end 100
+ │   │       └─ LineEnd_end 100
+ │   └─ ImplicitAction_end 100
+ ├─ Newline [100..101]: "\n"
+ ├─ Divert [101..105]
+ │   ├─ Divert_begin [101..105]
+ │   │   ├─ Divert_begin_c1 101
+ │   │   │   └─ OptionalWhitespace 101
+ │   │   └─ Divert_begin_c2 [101..105]
+ │   │       └─ TunnelMark [101..105]: "->->"
+ │   └─ Divert_end 105
+ ├─ Newline [105..106]: "\n"
+ ├─ ImplicitAction [106..112]
+ │   ├─ ImplicitAction_begin 106
+ │   │   └─ ImplicitAction_begin_c1 106
+ │   │       └─ OptionalWhitespace 106
+ │   ├─ ImplicitAction_content [106..112]
+ │   │   └─ LineEnd [106..112]
+ │   │       ├─ LineEnd_begin 106
+ │   │       │   └─ LineEnd_begin_c1 106
+ │   │       │       └─ OptionalWhitespace 106
+ │   │       ├─ LineEnd_content [106..112]
+ │   │       │   ├─ TextChunk [106..107]
+ │   │       │   │   ├─ TextChunk_begin 106
+ │   │       │   │   ├─ TextChunk_content [106..107]
+ │   │       │   │   │   └─ Word [106..107]: "x"
+ │   │       │   │   └─ TextChunk_end 107
+ │   │       │   ├─ AngleText [107..110]
+ │   │       │   │   ├─ AngleText_c1 [107..108]
+ │   │       │   │   │   └─ Space [107..108]: " "
+ │   │       │   │   └─ AngleText_c2 [108..110]
+ │   │       │   │       └─ AngleMark [108..110]: ">="
+ │   │       │   └─ TextChunk [110..112]
+ │   │       │       ├─ TextChunk_begin 110
+ │   │       │       ├─ TextChunk_content [110..112]
+ │   │       │       │   ├─ Space [110..111]: " "
+ │   │       │       │   └─ Word [111..112]: "y"
+ │   │       │       └─ TextChunk_end 112
+ │   │       └─ LineEnd_end 112
+ │   └─ ImplicitAction_end 112
+ ├─ Newline [112..113]: "\n"
+ ├─ ImplicitAction [113..117]
+ │   ├─ ImplicitAction_begin 113
+ │   │   └─ ImplicitAction_begin_c1 113
+ │   │       └─ OptionalWhitespace 113
+ │   ├─ ImplicitAction_content [113..117]
+ │   │   └─ LineEnd [113..117]
+ │   │       ├─ LineEnd_begin 113
+ │   │       │   └─ LineEnd_begin_c1 113
+ │   │       │       └─ OptionalWhitespace 113
+ │   │       ├─ LineEnd_content [113..117]
+ │   │       │   ├─ TextChunk [113..114]
+ │   │       │   │   ├─ TextChunk_begin 113
+ │   │       │   │   ├─ TextChunk_content [113..114]
+ │   │       │   │   │   └─ Word [113..114]: "x"
+ │   │       │   │   └─ TextChunk_end 114
+ │   │       │   ├─ AngleText [114..116]
+ │   │       │   │   ├─ AngleText_c1 114
+ │   │       │   │   └─ AngleText_c2 [114..116]
+ │   │       │   │       └─ AngleMark [114..116]: ">="
+ │   │       │   └─ TextChunk [116..117]
+ │   │       │       ├─ TextChunk_begin 116
+ │   │       │       ├─ TextChunk_content [116..117]
+ │   │       │       │   └─ Word [116..117]: "y"
+ │   │       │       └─ TextChunk_end 117
+ │   │       └─ LineEnd_end 117
+ │   └─ ImplicitAction_end 117
+ ├─ Newline [117..118]: "\n"
+ ├─ ImplicitAction [118..123]
+ │   ├─ ImplicitAction_begin 118
+ │   │   └─ ImplicitAction_begin_c1 118
+ │   │       └─ OptionalWhitespace 118
+ │   ├─ ImplicitAction_content [118..123]
+ │   │   └─ LineEnd [118..123]
+ │   │       ├─ LineEnd_begin 118
+ │   │       │   └─ LineEnd_begin_c1 118
+ │   │       │       └─ OptionalWhitespace 118
+ │   │       ├─ LineEnd_content [118..123]
+ │   │       │   └─ TextChunk [118..123]
+ │   │       │       ├─ TextChunk_begin 118
+ │   │       │       ├─ TextChunk_content [118..123]
+ │   │       │       │   ├─ Word [118..119]: "A"
+ │   │       │       │   ├─ AngleMark [119..122]: "-->"
+ │   │       │       │   └─ Word [122..123]: "B"
+ │   │       │       └─ TextChunk_end 123
+ │   │       └─ LineEnd_end 123
+ │   └─ ImplicitAction_end 123
+ ├─ Newline [123..124]: "\n"
+ ├─ ImplicitAction [124..130]
+ │   ├─ ImplicitAction_begin 124
+ │   │   └─ ImplicitAction_begin_c1 124
+ │   │       └─ OptionalWhitespace 124
+ │   ├─ ImplicitAction_content [124..130]
+ │   │   └─ LineEnd [124..130]
+ │   │       ├─ LineEnd_begin 124
+ │   │       │   └─ LineEnd_begin_c1 124
+ │   │       │       └─ OptionalWhitespace 124
+ │   │       ├─ LineEnd_content [124..130]
+ │   │       │   └─ TextChunk [124..130]
+ │   │       │       ├─ TextChunk_begin 124
+ │   │       │       ├─ TextChunk_content [124..130]
+ │   │       │       │   ├─ Word [124..125]: "A"
+ │   │       │       │   ├─ Space [125..126]: " "
+ │   │       │       │   ├─ Escape [126..128]
+ │   │       │       │   │   ├─ Escape_c1 126
+ │   │       │       │   │   ├─ Escape_c2 126
+ │   │       │       │   │   ├─ Escape_c3 126
+ │   │       │       │   │   ├─ Escape_c4 126
+ │   │       │       │   │   ├─ Escape_c5 [126..127]: "\\"
+ │   │       │       │   │   └─ Escape_c6 [127..128]: ">"
+ │   │       │       │   ├─ Space [128..129]: " "
+ │   │       │       │   └─ Word [129..130]: "B"
+ │   │       │       └─ TextChunk_end 130
+ │   │       └─ LineEnd_end 130
+ │   └─ ImplicitAction_end 130
+ ├─ Newline [130..131]: "\n"
+ ├─ ImplicitAction [131..135]
+ │   ├─ ImplicitAction_begin 131
+ │   │   └─ ImplicitAction_begin_c1 131
+ │   │       └─ OptionalWhitespace 131
+ │   ├─ ImplicitAction_content [131..135]
+ │   │   └─ LineEnd [131..135]
+ │   │       ├─ LineEnd_begin 131
+ │   │       │   └─ LineEnd_begin_c1 131
+ │   │       │       └─ OptionalWhitespace 131
+ │   │       ├─ LineEnd_content [131..135]
+ │   │       │   └─ TextChunk [131..135]
+ │   │       │       ├─ TextChunk_begin 131
+ │   │       │       ├─ TextChunk_content [131..135]
+ │   │       │       │   ├─ Word [131..132]: "A"
+ │   │       │       │   ├─ Escape [132..134]
+ │   │       │       │   │   ├─ Escape_c1 132
+ │   │       │       │   │   ├─ Escape_c2 132
+ │   │       │       │   │   ├─ Escape_c3 132
+ │   │       │       │   │   ├─ Escape_c4 132
+ │   │       │       │   │   ├─ Escape_c5 [132..133]: "\\"
+ │   │       │       │   │   └─ Escape_c6 [133..134]: ">"
+ │   │       │       │   └─ Word [134..135]: "B"
+ │   │       │       └─ TextChunk_end 135
+ │   │       └─ LineEnd_end 135
+ │   └─ ImplicitAction_end 135
+ ├─ Newline [135..136]: "\n"
+ ├─ BlockDialogue [136..163]
+ │   ├─ BlockDialogue_begin [136..156]
+ │   │   ├─ BlockDialogue_begin_c1 136
+ │   │   │   └─ OptionalWhitespace 136
+ │   │   ├─ BlockDialogue_begin_c2 [136..155]
+ │   │   │   └─ DialogueCharacter [136..155]
+ │   │   │       ├─ DialogueCharacter_c1 136
+ │   │   │       ├─ DialogueCharacter_c2 [136..140]
+ │   │   │       │   └─ DialogueCharacterName [136..140]
+ │   │   │       │       └─ DialogueCharacterName_c1 [136..140]
+ │   │   │       │           └─ Word [136..140]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 140
+ │   │   │       ├─ DialogueCharacter_c4 [140..151]
+ │   │   │       │   └─ DialogueCharacterParenthetical [140..151]
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c1 [140..141]
+ │   │   │       │       │   └─ Whitespace [140..141]: " "
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c2 [141..142]: "("
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c3 142
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c4 [142..150]
+ │   │   │       │       │   └─ Word [142..150]: "cheerful"
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c5 150
+ │   │   │       │       ├─ DialogueCharacterParenthetical_c6 [150..151]: ")"
+ │   │   │       │       └─ DialogueCharacterParenthetical_c7 151
+ │   │   │       ├─ DialogueCharacter_c5 151
+ │   │   │       ├─ DialogueCharacter_c6 [151..155]
+ │   │   │       │   └─ DialogueCharacterPosition [151..155]
+ │   │   │       │       ├─ DialogueCharacterPosition_c1 [151..152]
+ │   │   │       │       │   └─ Whitespace [151..152]: " "
+ │   │   │       │       ├─ DialogueCharacterPosition_c2 [152..153]: "["
+ │   │   │       │       ├─ DialogueCharacterPosition_c3 153
+ │   │   │       │       ├─ DialogueCharacterPosition_c4 [153..154]
+ │   │   │       │       │   └─ DialogueCharacterPositionContent [153..154]: ">"
+ │   │   │       │       ├─ DialogueCharacterPosition_c5 154
+ │   │   │       │       └─ DialogueCharacterPosition_c6 [154..155]: "]"
+ │   │   │       └─ DialogueCharacter_c7 155
+ │   │   ├─ BlockDialogue_begin_c3 [155..156]
+ │   │   │   └─ ColonSeparator [155..156]: ":"
+ │   │   └─ BlockDialogue_begin_c4 156
+ │   ├─ BlockDialogue_content [156..163]
+ │   │   ├─ Newline [156..157]: "\n"
+ │   │   ├─ BlockLineContinue [157..162]
+ │   │   │   ├─ BlockLineContinue_begin [157..159]
+ │   │   │   │   ├─ BlockLineContinue_begin_c1 [157..159]
+ │   │   │   │   │   └─ OptionalWhitespace [157..159]: "  "
+ │   │   │   │   └─ BlockLineContinue_begin_c2 159
+ │   │   │   ├─ BlockLineContinue_content [159..162]
+ │   │   │   │   └─ TextChunk [159..162]
+ │   │   │   │       ├─ TextChunk_begin 159
+ │   │   │   │       ├─ TextChunk_content [159..162]
+ │   │   │   │       │   ├─ Word [159..161]: "Hi"
+ │   │   │   │       │   └─ Punctuation [161..162]: "."
+ │   │   │   │       └─ TextChunk_end 162
+ │   │   │   └─ BlockLineContinue_end 162
+ │   │   │       └─ BlockLineContinue_end_c1 162
+ │   │   └─ Newline [162..163]: "\n"
+ │   └─ BlockDialogue_end 163
+ ├─ InlineDialogue [163..209]
+ │   ├─ InlineDialogue_begin [163..169]
+ │   │   ├─ InlineDialogue_begin_c1 163
+ │   │   │   └─ OptionalWhitespace 163
+ │   │   ├─ InlineDialogue_begin_c2 [163..167]
+ │   │   │   └─ DialogueCharacter [163..167]
+ │   │   │       ├─ DialogueCharacter_c1 163
+ │   │   │       ├─ DialogueCharacter_c2 [163..167]
+ │   │   │       │   └─ DialogueCharacterName [163..167]
+ │   │   │       │       └─ DialogueCharacterName_c1 [163..167]
+ │   │   │       │           └─ Word [163..167]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 167
+ │   │   │       ├─ DialogueCharacter_c4 167
+ │   │   │       ├─ DialogueCharacter_c5 167
+ │   │   │       ├─ DialogueCharacter_c6 167
+ │   │   │       └─ DialogueCharacter_c7 167
+ │   │   ├─ InlineDialogue_begin_c3 [167..168]
+ │   │   │   └─ ColonSeparator [167..168]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [168..169]
+ │   │   │   └─ RequiredWhitespace [168..169]: " "
+ │   │   └─ InlineDialogue_begin_c5 169
+ │   ├─ InlineDialogue_content [169..209]
+ │   │   ├─ LineEnd [169..200]
+ │   │   │   ├─ LineEnd_begin 169
+ │   │   │   │   └─ LineEnd_begin_c1 169
+ │   │   │   │       └─ OptionalWhitespace 169
+ │   │   │   ├─ LineEnd_content [169..200]
+ │   │   │   │   ├─ LuauInterpolatedStringExpression [169..176]
+ │   │   │   │   │   ├─ LuauInterpolatedStringExpression_begin [169..170]
+ │   │   │   │   │   │   └─ LuauInterpolatedStringExpression_begin_c1 [169..170]
+ │   │   │   │   │   │       └─ PunctuationBraceOpen [169..170]: "{"
+ │   │   │   │   │   ├─ LuauInterpolatedStringExpression_content [170..175]
+ │   │   │   │   │   │   ├─ LuauAccessPath [170..172]
+ │   │   │   │   │   │   │   ├─ LuauAccessPath_begin 170
+ │   │   │   │   │   │   │   ├─ LuauAccessPath_content [170..171]
+ │   │   │   │   │   │   │   │   └─ LuauAccessPart [170..171]
+ │   │   │   │   │   │   │   │       └─ LuauVariable [170..171]
+ │   │   │   │   │   │   │   │           └─ LuauVariable_c1 [170..171]
+ │   │   │   │   │   │   │   │               └─ LuauVariableName [170..171]: "a"
+ │   │   │   │   │   │   │   └─ LuauAccessPath_end [171..172]
+ │   │   │   │   │   │   │       └─ LuauAccessPath_end_c1 [171..172]
+ │   │   │   │   │   │   │           └─ LuauAccessPath_end_c1 [171..172]
+ │   │   │   │   │   │   │               └─ OptionalWhitespace [171..172]: " "
+ │   │   │   │   │   │   └─ LuauCompareOperation [172..175]
+ │   │   │   │   │   │       ├─ LuauCompareOperation_begin 172
+ │   │   │   │   │   │       │   └─ LuauCompareOperation_begin_c1 172
+ │   │   │   │   │   │       ├─ LuauCompareOperation_content [172..175]
+ │   │   │   │   │   │       │   ├─ LuauCompareOperator [172..174]
+ │   │   │   │   │   │       │   │   ├─ LuauCompareOperator_begin [172..174]
+ │   │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c1 172
+ │   │   │   │   │   │       │   │   │   │   └─ OptionalWhitespace 172
+ │   │   │   │   │   │       │   │   │   ├─ LuauCompareOperator_begin_c2 [172..173]: ">"
+ │   │   │   │   │   │       │   │   │   └─ LuauCompareOperator_begin_c3 [173..174]
+ │   │   │   │   │   │       │   │   │       └─ LuauCompareOperator_begin_c3 [173..174]
+ │   │   │   │   │   │       │   │   │           └─ OptionalWhitespace [173..174]: " "
+ │   │   │   │   │   │       │   │   └─ LuauCompareOperator_end 174
+ │   │   │   │   │   │       │   └─ LuauAccessPath [174..175]
+ │   │   │   │   │   │       │       ├─ LuauAccessPath_begin 174
+ │   │   │   │   │   │       │       ├─ LuauAccessPath_content [174..175]
+ │   │   │   │   │   │       │       │   └─ LuauAccessPart [174..175]
+ │   │   │   │   │   │       │       │       └─ LuauVariable [174..175]
+ │   │   │   │   │   │       │       │           └─ LuauVariable_c1 [174..175]
+ │   │   │   │   │   │       │       │               └─ LuauVariableName [174..175]: "b"
+ │   │   │   │   │   │       │       └─ LuauAccessPath_end 175
+ │   │   │   │   │   │       │           └─ LuauAccessPath_end_c1 175
+ │   │   │   │   │   │       └─ LuauCompareOperation_end 175
+ │   │   │   │   │   └─ LuauInterpolatedStringExpression_end [175..176]
+ │   │   │   │   │       └─ LuauInterpolatedStringExpression_end_c1 [175..176]
+ │   │   │   │   │           └─ PunctuationBraceClose [175..176]: "}"
+ │   │   │   │   └─ TextChunk [176..200]
+ │   │   │   │       ├─ TextChunk_begin 176
+ │   │   │   │       ├─ TextChunk_content [176..200]
+ │   │   │   │       │   ├─ Space [176..177]: " "
+ │   │   │   │       │   ├─ ImageCommand [177..188]
+ │   │   │   │       │   │   ├─ ImageCommand_begin [177..179]
+ │   │   │   │       │   │   │   ├─ ImageCommand_begin_c1 [177..179]
+ │   │   │   │       │   │   │   │   └─ ImageBeginMark [177..179]: "[["
+ │   │   │   │       │   │   │   └─ ImageCommand_begin_c2 179
+ │   │   │   │       │   │   ├─ ImageCommand_content [179..185]
+ │   │   │   │       │   │   │   └─ ImageCommandContent [179..185]
+ │   │   │   │       │   │   │       └─ ImageCommandContent_c1 [179..185]
+ │   │   │   │       │   │   │           └─ AssetCommandContent [179..185]
+ │   │   │   │       │   │   │               ├─ AssetCommandContent_c1 [179..185]
+ │   │   │   │       │   │   │               │   └─ AssetCommandInstruction [179..185]
+ │   │   │   │       │   │   │               │       ├─ AssetCommandInstruction_c1 179
+ │   │   │   │       │   │   │               │       ├─ AssetCommandInstruction_c2 179
+ │   │   │   │       │   │   │               │       ├─ AssetCommandInstruction_c3 179
+ │   │   │   │       │   │   │               │       ├─ AssetCommandInstruction_c4 179
+ │   │   │   │       │   │   │               │       └─ AssetCommandInstruction_c5 [179..185]
+ │   │   │   │       │   │   │               │           └─ AssetCommandName [179..185]
+ │   │   │   │       │   │   │               │               └─ AssetCommandName_c1 [179..185]
+ │   │   │   │       │   │   │               │                   ├─ AssetCommandFileName [179..181]: "cg"
+ │   │   │   │       │   │   │               │                   ├─ RequiredWhitespace [181..182]: " "
+ │   │   │   │       │   │   │               │                   ├─ IllegalChar [182..183]: ">"
+ │   │   │   │       │   │   │               │                   ├─ RequiredWhitespace [183..184]: " "
+ │   │   │   │       │   │   │               │                   └─ IllegalChar [184..185]: "1"
+ │   │   │   │       │   │   │               └─ AssetCommandContent_c2 185
+ │   │   │   │       │   │   └─ ImageCommand_end [185..188]
+ │   │   │   │       │   │       ├─ ImageCommand_end_c1 185
+ │   │   │   │       │   │       ├─ ImageCommand_end_c2 [185..187]
+ │   │   │   │       │   │       │   └─ ImageEndMark [185..187]: "]]"
+ │   │   │   │       │   │       └─ ImageCommand_end_c3 [187..188]
+ │   │   │   │       │   │           └─ ImageCommand_end_c3 [187..188]
+ │   │   │   │       │   │               └─ OptionalWhitespace [187..188]: " "
+ │   │   │   │       │   └─ AudioCommand [188..200]
+ │   │   │   │       │       ├─ AudioCommand_begin [188..190]
+ │   │   │   │       │       │   ├─ AudioCommand_begin_c1 [188..190]
+ │   │   │   │       │       │   │   └─ AudioBeginMark [188..190]: "(("
+ │   │   │   │       │       │   └─ AudioCommand_begin_c2 190
+ │   │   │   │       │       ├─ AudioCommand_content [190..197]
+ │   │   │   │       │       │   └─ AudioCommandContent [190..197]
+ │   │   │   │       │       │       └─ AudioCommandContent_c1 [190..197]
+ │   │   │   │       │       │           └─ AssetCommandContent [190..197]
+ │   │   │   │       │       │               ├─ AssetCommandContent_c1 [190..197]
+ │   │   │   │       │       │               │   └─ AssetCommandInstruction [190..197]
+ │   │   │   │       │       │               │       ├─ AssetCommandInstruction_c1 190
+ │   │   │   │       │       │               │       ├─ AssetCommandInstruction_c2 190
+ │   │   │   │       │       │               │       ├─ AssetCommandInstruction_c3 190
+ │   │   │   │       │       │               │       ├─ AssetCommandInstruction_c4 190
+ │   │   │   │       │       │               │       └─ AssetCommandInstruction_c5 [190..197]
+ │   │   │   │       │       │               │           └─ AssetCommandName [190..197]
+ │   │   │   │       │       │               │               └─ AssetCommandName_c1 [190..197]
+ │   │   │   │       │       │               │                   ├─ AssetCommandFileName [190..193]: "sfx"
+ │   │   │   │       │       │               │                   ├─ RequiredWhitespace [193..194]: " "
+ │   │   │   │       │       │               │                   ├─ IllegalChar [194..195]: ">"
+ │   │   │   │       │       │               │                   ├─ RequiredWhitespace [195..196]: " "
+ │   │   │   │       │       │               │                   └─ IllegalChar [196..197]: "2"
+ │   │   │   │       │       │               └─ AssetCommandContent_c2 197
+ │   │   │   │       │       └─ AudioCommand_end [197..200]
+ │   │   │   │       │           ├─ AudioCommand_end_c1 197
+ │   │   │   │       │           ├─ AudioCommand_end_c2 [197..199]
+ │   │   │   │       │           │   └─ AudioEndMark [197..199]: "))"
+ │   │   │   │       │           └─ AudioCommand_end_c3 [199..200]
+ │   │   │   │       │               └─ AudioCommand_end_c3 [199..200]
+ │   │   │   │       │                   └─ OptionalWhitespace [199..200]: " "
+ │   │   │   │       └─ TextChunk_end 200
+ │   │   │   └─ LineEnd_end 200
+ │   │   └─ Tags [200..209]
+ │   │       ├─ Tags_begin 200
+ │   │       ├─ Tags_content [200..209]
+ │   │       │   └─ Tag [200..209]
+ │   │       │       ├─ Tag_c1 200
+ │   │       │       ├─ Tag_c2 [200..201]: "#"
+ │   │       │       └─ Tag_c3 [201..209]
+ │   │       │           └─ TagContent [201..209]
+ │   │       │               ├─ TagContent_begin 201
+ │   │       │               ├─ TagContent_content [201..209]
+ │   │       │               │   └─ TagText [201..209]: " tag > x"
+ │   │       │               └─ TagContent_end 209
+ │   │       └─ Tags_end 209
+ │   └─ InlineDialogue_end 209
+ ├─ Newline [209..210]: "\n"
+ ├─ InlineDialogue [210..230]
+ │   ├─ InlineDialogue_begin [210..216]
+ │   │   ├─ InlineDialogue_begin_c1 210
+ │   │   │   └─ OptionalWhitespace 210
+ │   │   ├─ InlineDialogue_begin_c2 [210..214]
+ │   │   │   └─ DialogueCharacter [210..214]
+ │   │   │       ├─ DialogueCharacter_c1 210
+ │   │   │       ├─ DialogueCharacter_c2 [210..214]
+ │   │   │       │   └─ DialogueCharacterName [210..214]
+ │   │   │       │       └─ DialogueCharacterName_c1 [210..214]
+ │   │   │       │           └─ Word [210..214]: "HERO"
+ │   │   │       ├─ DialogueCharacter_c3 214
+ │   │   │       ├─ DialogueCharacter_c4 214
+ │   │   │       ├─ DialogueCharacter_c5 214
+ │   │   │       ├─ DialogueCharacter_c6 214
+ │   │   │       └─ DialogueCharacter_c7 214
+ │   │   ├─ InlineDialogue_begin_c3 [214..215]
+ │   │   │   └─ ColonSeparator [214..215]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [215..216]
+ │   │   │   └─ RequiredWhitespace [215..216]: " "
+ │   │   └─ InlineDialogue_begin_c5 216
+ │   ├─ InlineDialogue_content [216..230]
+ │   │   └─ LineEnd [216..230]
+ │   │       ├─ LineEnd_begin 216
+ │   │       │   └─ LineEnd_begin_c1 216
+ │   │       │       └─ OptionalWhitespace 216
+ │   │       ├─ LineEnd_content [216..230]
+ │   │       │   ├─ TextChunk [216..217]
+ │   │       │   │   ├─ TextChunk_begin 216
+ │   │       │   │   ├─ TextChunk_content [216..217]
+ │   │       │   │   │   └─ Word [216..217]: "a"
+ │   │       │   │   └─ TextChunk_end 217
+ │   │       │   ├─ Break [217..220]
+ │   │       │   │   └─ Break_c1 [217..220]: " > "
+ │   │       │   ├─ TextChunk [220..221]
+ │   │       │   │   ├─ TextChunk_begin 220
+ │   │       │   │   ├─ TextChunk_content [220..221]
+ │   │       │   │   │   └─ Word [220..221]: "b"
+ │   │       │   │   └─ TextChunk_end 221
+ │   │       │   └─ SparkdownInlineComment [221..230]
+ │   │       │       ├─ SparkdownInlineComment_c1 [221..222]
+ │   │       │       │   └─ OptionalWhitespace [221..222]: " "
+ │   │       │       ├─ SparkdownInlineComment_c2 [222..224]: "//"
+ │   │       │       └─ SparkdownInlineComment_c3 [224..230]: " a > b"
+ │   │       └─ LineEnd_end 230
+ │   └─ InlineDialogue_end 230
+ ├─ Newline [230..231]: "\n"
+ └─ BlockDialogue [231..410]
+     ├─ BlockDialogue_begin [231..236]
+     │   ├─ BlockDialogue_begin_c1 231
+     │   │   └─ OptionalWhitespace 231
+     │   ├─ BlockDialogue_begin_c2 [231..235]
+     │   │   └─ DialogueCharacter [231..235]
+     │   │       ├─ DialogueCharacter_c1 231
+     │   │       ├─ DialogueCharacter_c2 [231..235]
+     │   │       │   └─ DialogueCharacterName [231..235]
+     │   │       │       └─ DialogueCharacterName_c1 [231..235]
+     │   │       │           └─ Word [231..235]: "HERO"
+     │   │       ├─ DialogueCharacter_c3 235
+     │   │       ├─ DialogueCharacter_c4 235
+     │   │       ├─ DialogueCharacter_c5 235
+     │   │       ├─ DialogueCharacter_c6 235
+     │   │       └─ DialogueCharacter_c7 235
+     │   ├─ BlockDialogue_begin_c3 [235..236]
+     │   │   └─ ColonSeparator [235..236]: ":"
+     │   └─ BlockDialogue_begin_c4 236
+     └─ BlockDialogue_content [236..410]
+         ├─ Newline [236..237]: "\n"
+         ├─ BlockLineContinue [237..244]
+         │   ├─ BlockLineContinue_begin [237..239]
+         │   │   ├─ BlockLineContinue_begin_c1 [237..239]
+         │   │   │   └─ OptionalWhitespace [237..239]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 239
+         │   ├─ BlockLineContinue_content [239..244]
+         │   │   ├─ TextChunk [239..240]
+         │   │   │   ├─ TextChunk_begin 239
+         │   │   │   ├─ TextChunk_content [239..240]
+         │   │   │   │   └─ Word [239..240]: "A"
+         │   │   │   └─ TextChunk_end 240
+         │   │   ├─ Break [240..243]
+         │   │   │   └─ Break_c1 [240..243]: " > "
+         │   │   └─ TextChunk [243..244]
+         │   │       ├─ TextChunk_begin 243
+         │   │       ├─ TextChunk_content [243..244]
+         │   │       │   └─ Word [243..244]: "B"
+         │   │       └─ TextChunk_end 244
+         │   └─ BlockLineContinue_end 244
+         │       └─ BlockLineContinue_end_c1 244
+         ├─ Newline [244..245]: "\n"
+         ├─ BlockLineContinue [245..250]
+         │   ├─ BlockLineContinue_begin [245..247]
+         │   │   ├─ BlockLineContinue_begin_c1 [245..247]
+         │   │   │   └─ OptionalWhitespace [245..247]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 247
+         │   ├─ BlockLineContinue_content [247..250]
+         │   │   ├─ TextChunk [247..248]
+         │   │   │   ├─ TextChunk_begin 247
+         │   │   │   ├─ TextChunk_content [247..248]
+         │   │   │   │   └─ Word [247..248]: "A"
+         │   │   │   └─ TextChunk_end 248
+         │   │   └─ Break [248..250]
+         │   │       └─ Break_c1 [248..250]: " >"
+         │   └─ BlockLineContinue_end 250
+         │       └─ BlockLineContinue_end_c1 250
+         ├─ Newline [250..251]: "\n"
+         ├─ BlockLineContinue [251..254]
+         │   ├─ BlockLineContinue_begin [251..253]
+         │   │   ├─ BlockLineContinue_begin_c1 [251..253]
+         │   │   │   └─ OptionalWhitespace [251..253]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 253
+         │   ├─ BlockLineContinue_content [253..254]
+         │   │   └─ Break [253..254]
+         │   │       └─ Break_c1 [253..254]: ">"
+         │   └─ BlockLineContinue_end 254
+         │       └─ BlockLineContinue_end_c1 254
+         ├─ Newline [254..255]: "\n"
+         ├─ BlockLineContinue [255..260]
+         │   ├─ BlockLineContinue_begin [255..257]
+         │   │   ├─ BlockLineContinue_begin_c1 [255..257]
+         │   │   │   └─ OptionalWhitespace [255..257]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 257
+         │   ├─ BlockLineContinue_content [257..260]
+         │   │   ├─ TextChunk [257..258]
+         │   │   │   ├─ TextChunk_begin 257
+         │   │   │   ├─ TextChunk_content [257..258]
+         │   │   │   │   └─ Word [257..258]: "A"
+         │   │   │   └─ TextChunk_end 258
+         │   │   ├─ Break [258..259]
+         │   │   │   └─ Break_c1 [258..259]: ">"
+         │   │   └─ TextChunk [259..260]
+         │   │       ├─ TextChunk_begin 259
+         │   │       ├─ TextChunk_content [259..260]
+         │   │       │   └─ Word [259..260]: "B"
+         │   │       └─ TextChunk_end 260
+         │   └─ BlockLineContinue_end 260
+         │       └─ BlockLineContinue_end_c1 260
+         ├─ Newline [260..261]: "\n"
+         ├─ BlockLineContinue [261..267]
+         │   ├─ BlockLineContinue_begin [261..263]
+         │   │   ├─ BlockLineContinue_begin_c1 [261..263]
+         │   │   │   └─ OptionalWhitespace [261..263]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 263
+         │   ├─ BlockLineContinue_content [263..267]
+         │   │   ├─ TextChunk [263..264]
+         │   │   │   ├─ TextChunk_begin 263
+         │   │   │   ├─ TextChunk_content [263..264]
+         │   │   │   │   └─ Word [263..264]: "A"
+         │   │   │   └─ TextChunk_end 264
+         │   │   ├─ Break [264..266]
+         │   │   │   └─ Break_c1 [264..266]: "> "
+         │   │   └─ TextChunk [266..267]
+         │   │       ├─ TextChunk_begin 266
+         │   │       ├─ TextChunk_content [266..267]
+         │   │       │   └─ Word [266..267]: "B"
+         │   │       └─ TextChunk_end 267
+         │   └─ BlockLineContinue_end 267
+         │       └─ BlockLineContinue_end_c1 267
+         ├─ Newline [267..268]: "\n"
+         ├─ BlockLineContinue [268..274]
+         │   ├─ BlockLineContinue_begin [268..270]
+         │   │   ├─ BlockLineContinue_begin_c1 [268..270]
+         │   │   │   └─ OptionalWhitespace [268..270]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 270
+         │   ├─ BlockLineContinue_content [270..274]
+         │   │   ├─ TextChunk [270..271]
+         │   │   │   ├─ TextChunk_begin 270
+         │   │   │   ├─ TextChunk_content [270..271]
+         │   │   │   │   └─ Word [270..271]: "A"
+         │   │   │   └─ TextChunk_end 271
+         │   │   ├─ Break [271..273]
+         │   │   │   └─ Break_c1 [271..273]: " >"
+         │   │   └─ TextChunk [273..274]
+         │   │       ├─ TextChunk_begin 273
+         │   │       ├─ TextChunk_content [273..274]
+         │   │       │   └─ Word [273..274]: "B"
+         │   │       └─ TextChunk_end 274
+         │   └─ BlockLineContinue_end 274
+         │       └─ BlockLineContinue_end_c1 274
+         ├─ Newline [274..275]: "\n"
+         ├─ BlockLineContinue [275..279]
+         │   ├─ BlockLineContinue_begin [275..277]
+         │   │   ├─ BlockLineContinue_begin_c1 [275..277]
+         │   │   │   └─ OptionalWhitespace [275..277]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 277
+         │   ├─ BlockLineContinue_content [277..279]
+         │   │   ├─ TextChunk [277..278]
+         │   │   │   ├─ TextChunk_begin 277
+         │   │   │   ├─ TextChunk_content [277..278]
+         │   │   │   │   └─ Word [277..278]: "A"
+         │   │   │   └─ TextChunk_end 278
+         │   │   └─ Break [278..279]
+         │   │       └─ Break_c1 [278..279]: ">"
+         │   └─ BlockLineContinue_end 279
+         │       └─ BlockLineContinue_end_c1 279
+         ├─ Newline [279..280]: "\n"
+         ├─ BlockLineContinue [280..288]
+         │   ├─ BlockLineContinue_begin [280..282]
+         │   │   ├─ BlockLineContinue_begin_c1 [280..282]
+         │   │   │   └─ OptionalWhitespace [280..282]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 282
+         │   ├─ BlockLineContinue_content [282..288]
+         │   │   ├─ Break [282..283]
+         │   │   │   └─ Break_c1 [282..283]: ">"
+         │   │   └─ TextChunk [283..288]
+         │   │       ├─ TextChunk_begin 283
+         │   │       ├─ TextChunk_content [283..288]
+         │   │       │   └─ Word [283..288]: "Hello"
+         │   │       └─ TextChunk_end 288
+         │   └─ BlockLineContinue_end 288
+         │       └─ BlockLineContinue_end_c1 288
+         ├─ Newline [288..289]: "\n"
+         ├─ BlockLineContinue [289..298]
+         │   ├─ BlockLineContinue_begin [289..291]
+         │   │   ├─ BlockLineContinue_begin_c1 [289..291]
+         │   │   │   └─ OptionalWhitespace [289..291]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 291
+         │   ├─ BlockLineContinue_content [291..298]
+         │   │   ├─ TextChunk [291..295]
+         │   │   │   ├─ TextChunk_begin 291
+         │   │   │   ├─ TextChunk_content [291..295]
+         │   │   │   │   └─ Word [291..295]: "Abso"
+         │   │   │   └─ TextChunk_end 295
+         │   │   ├─ Break [295..296]
+         │   │   │   └─ Break_c1 [295..296]: ">"
+         │   │   └─ Glue [296..298]
+         │   │       ├─ Glue_c1 296
+         │   │       └─ Glue_c2 [296..298]: ".."
+         │   └─ BlockLineContinue_end 298
+         │       └─ BlockLineContinue_end_c1 298
+         ├─ Newline [298..299]: "\n"
+         ├─ BlockLineContinue [299..308]
+         │   ├─ BlockLineContinue_begin [299..301]
+         │   │   ├─ BlockLineContinue_begin_c1 [299..301]
+         │   │   │   └─ OptionalWhitespace [299..301]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 301
+         │   ├─ BlockLineContinue_content [301..308]
+         │   │   └─ TextChunk [301..308]
+         │   │       ├─ TextChunk_begin 301
+         │   │       ├─ TextChunk_content [301..308]
+         │   │       │   ├─ Word [301..307]: "lutely"
+         │   │       │   └─ Punctuation [307..308]: "."
+         │   │       └─ TextChunk_end 308
+         │   └─ BlockLineContinue_end 308
+         │       └─ BlockLineContinue_end_c1 308
+         ├─ Newline [308..309]: "\n"
+         ├─ BlockLineContinue [309..325]
+         │   ├─ BlockLineContinue_begin [309..311]
+         │   │   ├─ BlockLineContinue_begin_c1 [309..311]
+         │   │   │   └─ OptionalWhitespace [309..311]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 311
+         │   ├─ BlockLineContinue_content [311..325]
+         │   │   ├─ TextChunk [311..315]
+         │   │   │   ├─ TextChunk_begin 311
+         │   │   │   ├─ TextChunk_content [311..315]
+         │   │   │   │   └─ Word [311..315]: "Abso"
+         │   │   │   └─ TextChunk_end 315
+         │   │   ├─ BreakLeadingGlue [315..318]
+         │   │   │   ├─ BreakLeadingGlue_c1 [315..316]
+         │   │   │   │   └─ Break [315..316]
+         │   │   │   │       └─ Break_c1 [315..316]: ">"
+         │   │   │   └─ BreakLeadingGlue_c2 [316..318]
+         │   │   │       └─ LeadingGlue [316..318]
+         │   │   │           └─ LeadingGlue_c1 [316..318]: ".."
+         │   │   └─ TextChunk [318..325]
+         │   │       ├─ TextChunk_begin 318
+         │   │       ├─ TextChunk_content [318..325]
+         │   │       │   ├─ Word [318..324]: "lutely"
+         │   │       │   └─ Punctuation [324..325]: "."
+         │   │       └─ TextChunk_end 325
+         │   └─ BlockLineContinue_end 325
+         │       └─ BlockLineContinue_end_c1 325
+         ├─ Newline [325..326]: "\n"
+         ├─ BlockLineContinue [326..334]
+         │   ├─ BlockLineContinue_begin [326..328]
+         │   │   ├─ BlockLineContinue_begin_c1 [326..328]
+         │   │   │   └─ OptionalWhitespace [326..328]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 328
+         │   ├─ BlockLineContinue_content [328..334]
+         │   │   ├─ TextChunk [328..329]
+         │   │   │   ├─ TextChunk_begin 328
+         │   │   │   ├─ TextChunk_content [328..329]
+         │   │   │   │   └─ Word [328..329]: "A"
+         │   │   │   └─ TextChunk_end 329
+         │   │   ├─ BreakLeadingGlue [329..332]
+         │   │   │   ├─ BreakLeadingGlue_c1 [329..330]
+         │   │   │   │   └─ Break [329..330]
+         │   │   │   │       └─ Break_c1 [329..330]: ">"
+         │   │   │   └─ BreakLeadingGlue_c2 [330..332]
+         │   │   │       └─ LeadingGlue [330..332]
+         │   │   │           └─ LeadingGlue_c1 [330..332]: ".."
+         │   │   └─ TextChunk [332..334]
+         │   │       ├─ TextChunk_begin 332
+         │   │       ├─ TextChunk_content [332..334]
+         │   │       │   ├─ Space [332..333]: " "
+         │   │       │   └─ Word [333..334]: "B"
+         │   │       └─ TextChunk_end 334
+         │   └─ BlockLineContinue_end 334
+         │       └─ BlockLineContinue_end_c1 334
+         ├─ Newline [334..335]: "\n"
+         ├─ BlockLineContinue [335..344]
+         │   ├─ BlockLineContinue_begin [335..337]
+         │   │   ├─ BlockLineContinue_begin_c1 [335..337]
+         │   │   │   └─ OptionalWhitespace [335..337]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 337
+         │   ├─ BlockLineContinue_content [337..344]
+         │   │   ├─ TextChunk [337..338]
+         │   │   │   ├─ TextChunk_begin 337
+         │   │   │   ├─ TextChunk_content [337..338]
+         │   │   │   │   └─ Word [337..338]: "A"
+         │   │   │   └─ TextChunk_end 338
+         │   │   ├─ Break [338..341]
+         │   │   │   └─ Break_c1 [338..341]: " > "
+         │   │   ├─ Break [341..343]
+         │   │   │   └─ Break_c1 [341..343]: "> "
+         │   │   └─ TextChunk [343..344]
+         │   │       ├─ TextChunk_begin 343
+         │   │       ├─ TextChunk_content [343..344]
+         │   │       │   └─ Word [343..344]: "B"
+         │   │       └─ TextChunk_end 344
+         │   └─ BlockLineContinue_end 344
+         │       └─ BlockLineContinue_end_c1 344
+         ├─ Newline [344..345]: "\n"
+         ├─ BlockLineContinue [345..353]
+         │   ├─ BlockLineContinue_begin [345..347]
+         │   │   ├─ BlockLineContinue_begin_c1 [345..347]
+         │   │   │   └─ OptionalWhitespace [345..347]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 347
+         │   ├─ BlockLineContinue_content [347..353]
+         │   │   ├─ TextChunk [347..348]
+         │   │   │   ├─ TextChunk_begin 347
+         │   │   │   ├─ TextChunk_content [347..348]
+         │   │   │   │   └─ Word [347..348]: "A"
+         │   │   │   └─ TextChunk_end 348
+         │   │   ├─ AngleText [348..351]
+         │   │   │   ├─ AngleText_c1 [348..349]
+         │   │   │   │   └─ Space [348..349]: " "
+         │   │   │   └─ AngleText_c2 [349..351]
+         │   │   │       └─ AngleMark [349..351]: ">>"
+         │   │   └─ TextChunk [351..353]
+         │   │       ├─ TextChunk_begin 351
+         │   │       ├─ TextChunk_content [351..353]
+         │   │       │   ├─ Space [351..352]: " "
+         │   │       │   └─ Word [352..353]: "B"
+         │   │       └─ TextChunk_end 353
+         │   └─ BlockLineContinue_end 353
+         │       └─ BlockLineContinue_end_c1 353
+         ├─ Newline [353..354]: "\n"
+         ├─ BlockLineContinue [354..360]
+         │   ├─ BlockLineContinue_begin [354..356]
+         │   │   ├─ BlockLineContinue_begin_c1 [354..356]
+         │   │   │   └─ OptionalWhitespace [354..356]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 356
+         │   ├─ BlockLineContinue_content [356..360]
+         │   │   ├─ TextChunk [356..357]
+         │   │   │   ├─ TextChunk_begin 356
+         │   │   │   ├─ TextChunk_content [356..357]
+         │   │   │   │   └─ Word [356..357]: "A"
+         │   │   │   └─ TextChunk_end 357
+         │   │   ├─ AngleText [357..359]
+         │   │   │   ├─ AngleText_c1 357
+         │   │   │   └─ AngleText_c2 [357..359]
+         │   │   │       └─ AngleMark [357..359]: ">>"
+         │   │   └─ TextChunk [359..360]
+         │   │       ├─ TextChunk_begin 359
+         │   │       ├─ TextChunk_content [359..360]
+         │   │       │   └─ Word [359..360]: "B"
+         │   │       └─ TextChunk_end 360
+         │   └─ BlockLineContinue_end 360
+         │       └─ BlockLineContinue_end_c1 360
+         ├─ Newline [360..361]: "\n"
+         ├─ BlockLineContinue [361..369]
+         │   ├─ BlockLineContinue_begin [361..363]
+         │   │   ├─ BlockLineContinue_begin_c1 [361..363]
+         │   │   │   └─ OptionalWhitespace [361..363]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 363
+         │   ├─ BlockLineContinue_content [363..369]
+         │   │   └─ TextChunk [363..369]
+         │   │       ├─ TextChunk_begin 363
+         │   │       ├─ TextChunk_content [363..369]
+         │   │       │   ├─ Word [363..364]: "A"
+         │   │       │   └─ Divert [364..369]
+         │   │       │       ├─ Divert_begin [364..367]
+         │   │       │       │   ├─ Divert_begin_c1 [364..365]
+         │   │       │       │   │   └─ OptionalWhitespace [364..365]: " "
+         │   │       │       │   └─ Divert_begin_c2 [365..367]
+         │   │       │       │       └─ DivertMark [365..367]: "->"
+         │   │       │       ├─ Divert_content [367..369]
+         │   │       │       │   └─ DivertTarget [367..369]
+         │   │       │       │       ├─ DivertTarget_begin [367..368]
+         │   │       │       │       │   └─ DivertTarget_begin_c1 [367..368]
+         │   │       │       │       │       └─ DivertTarget_begin_c1 [367..368]
+         │   │       │       │       │           └─ OptionalWhitespace [367..368]: " "
+         │   │       │       │       ├─ DivertTarget_content [368..369]
+         │   │       │       │       │   └─ DivertPath [368..369]
+         │   │       │       │       │       ├─ DivertPath_begin 368
+         │   │       │       │       │       ├─ DivertPath_content [368..369]
+         │   │       │       │       │       │   └─ DivertPart [368..369]
+         │   │       │       │       │       │       └─ DivertPartName [368..369]: "b"
+         │   │       │       │       │       └─ DivertPath_end 369
+         │   │       │       │       └─ DivertTarget_end 369
+         │   │       │       └─ Divert_end 369
+         │   │       └─ TextChunk_end 369
+         │   └─ BlockLineContinue_end 369
+         │       └─ BlockLineContinue_end_c1 369
+         ├─ Newline [369..370]: "\n"
+         ├─ BlockLineContinue [370..378]
+         │   ├─ BlockLineContinue_begin [370..372]
+         │   │   ├─ BlockLineContinue_begin_c1 [370..372]
+         │   │   │   └─ OptionalWhitespace [370..372]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 372
+         │   ├─ BlockLineContinue_content [372..378]
+         │   │   ├─ TextChunk [372..373]
+         │   │   │   ├─ TextChunk_begin 372
+         │   │   │   ├─ TextChunk_content [372..373]
+         │   │   │   │   └─ Word [372..373]: "x"
+         │   │   │   └─ TextChunk_end 373
+         │   │   ├─ AngleText [373..376]
+         │   │   │   ├─ AngleText_c1 [373..374]
+         │   │   │   │   └─ Space [373..374]: " "
+         │   │   │   └─ AngleText_c2 [374..376]
+         │   │   │       └─ AngleMark [374..376]: ">="
+         │   │   └─ TextChunk [376..378]
+         │   │       ├─ TextChunk_begin 376
+         │   │       ├─ TextChunk_content [376..378]
+         │   │       │   ├─ Space [376..377]: " "
+         │   │       │   └─ Word [377..378]: "y"
+         │   │       └─ TextChunk_end 378
+         │   └─ BlockLineContinue_end 378
+         │       └─ BlockLineContinue_end_c1 378
+         ├─ Newline [378..379]: "\n"
+         ├─ BlockLineContinue [379..385]
+         │   ├─ BlockLineContinue_begin [379..381]
+         │   │   ├─ BlockLineContinue_begin_c1 [379..381]
+         │   │   │   └─ OptionalWhitespace [379..381]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 381
+         │   ├─ BlockLineContinue_content [381..385]
+         │   │   ├─ TextChunk [381..382]
+         │   │   │   ├─ TextChunk_begin 381
+         │   │   │   ├─ TextChunk_content [381..382]
+         │   │   │   │   └─ Word [381..382]: "x"
+         │   │   │   └─ TextChunk_end 382
+         │   │   ├─ AngleText [382..384]
+         │   │   │   ├─ AngleText_c1 382
+         │   │   │   └─ AngleText_c2 [382..384]
+         │   │   │       └─ AngleMark [382..384]: ">="
+         │   │   └─ TextChunk [384..385]
+         │   │       ├─ TextChunk_begin 384
+         │   │       ├─ TextChunk_content [384..385]
+         │   │       │   └─ Word [384..385]: "y"
+         │   │       └─ TextChunk_end 385
+         │   └─ BlockLineContinue_end 385
+         │       └─ BlockLineContinue_end_c1 385
+         ├─ Newline [385..386]: "\n"
+         ├─ BlockLineContinue [386..393]
+         │   ├─ BlockLineContinue_begin [386..388]
+         │   │   ├─ BlockLineContinue_begin_c1 [386..388]
+         │   │   │   └─ OptionalWhitespace [386..388]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 388
+         │   ├─ BlockLineContinue_content [388..393]
+         │   │   └─ TextChunk [388..393]
+         │   │       ├─ TextChunk_begin 388
+         │   │       ├─ TextChunk_content [388..393]
+         │   │       │   ├─ Word [388..389]: "A"
+         │   │       │   ├─ AngleMark [389..392]: "-->"
+         │   │       │   └─ Word [392..393]: "B"
+         │   │       └─ TextChunk_end 393
+         │   └─ BlockLineContinue_end 393
+         │       └─ BlockLineContinue_end_c1 393
+         ├─ Newline [393..394]: "\n"
+         ├─ BlockLineContinue [394..402]
+         │   ├─ BlockLineContinue_begin [394..396]
+         │   │   ├─ BlockLineContinue_begin_c1 [394..396]
+         │   │   │   └─ OptionalWhitespace [394..396]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 396
+         │   ├─ BlockLineContinue_content [396..402]
+         │   │   └─ TextChunk [396..402]
+         │   │       ├─ TextChunk_begin 396
+         │   │       ├─ TextChunk_content [396..402]
+         │   │       │   ├─ Word [396..397]: "A"
+         │   │       │   ├─ Space [397..398]: " "
+         │   │       │   ├─ Escape [398..400]
+         │   │       │   │   ├─ Escape_c1 398
+         │   │       │   │   ├─ Escape_c2 398
+         │   │       │   │   ├─ Escape_c3 398
+         │   │       │   │   ├─ Escape_c4 398
+         │   │       │   │   ├─ Escape_c5 [398..399]: "\\"
+         │   │       │   │   └─ Escape_c6 [399..400]: ">"
+         │   │       │   ├─ Space [400..401]: " "
+         │   │       │   └─ Word [401..402]: "B"
+         │   │       └─ TextChunk_end 402
+         │   └─ BlockLineContinue_end 402
+         │       └─ BlockLineContinue_end_c1 402
+         ├─ Newline [402..403]: "\n"
+         ├─ BlockLineContinue [403..409]
+         │   ├─ BlockLineContinue_begin [403..405]
+         │   │   ├─ BlockLineContinue_begin_c1 [403..405]
+         │   │   │   └─ OptionalWhitespace [403..405]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 405
+         │   ├─ BlockLineContinue_content [405..409]
+         │   │   └─ TextChunk [405..409]
+         │   │       ├─ TextChunk_begin 405
+         │   │       ├─ TextChunk_content [405..409]
+         │   │       │   ├─ Word [405..406]: "A"
+         │   │       │   ├─ Escape [406..408]
+         │   │       │   │   ├─ Escape_c1 406
+         │   │       │   │   ├─ Escape_c2 406
+         │   │       │   │   ├─ Escape_c3 406
+         │   │       │   │   ├─ Escape_c4 406
+         │   │       │   │   ├─ Escape_c5 [406..407]: "\\"
+         │   │       │   │   └─ Escape_c6 [407..408]: ">"
+         │   │       │   └─ Word [408..409]: "B"
+         │   │       └─ TextChunk_end 409
+         │   └─ BlockLineContinue_end 409
+         │       └─ BlockLineContinue_end_c1 409
+         └─ Newline [409..410]: "\n"

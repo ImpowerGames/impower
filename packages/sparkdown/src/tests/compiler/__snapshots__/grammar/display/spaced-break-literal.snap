@@ -244,27 +244,44 @@ sparkdown [0..189]
  │   │       │   └─ LineEnd_begin_c1 89
  │   │       │       └─ OptionalWhitespace 89
  │   │       ├─ LineEnd_content [89..109]
- │   │       │   └─ TextChunk [89..109]
- │   │       │       ├─ TextChunk_begin 89
- │   │       │       ├─ TextChunk_content [89..109]
- │   │       │       │   ├─ Word [89..90]: "c"
- │   │       │       │   ├─ Space [90..91]: " "
- │   │       │       │   ├─ Punctuation [91..92]: ">"
- │   │       │       │   ├─ Punctuation [92..93]: ">"
- │   │       │       │   ├─ Space [93..94]: " "
- │   │       │       │   ├─ Word [94..95]: "d"
- │   │       │       │   ├─ Punctuation [95..96]: ","
- │   │       │       │   ├─ Space [96..97]: " "
- │   │       │       │   ├─ Word [97..98]: "e"
- │   │       │       │   ├─ Space [98..99]: " "
- │   │       │       │   ├─ Punctuation [99..100]: ">"
- │   │       │       │   ├─ Punctuation [100..101]: "="
- │   │       │       │   ├─ Space [101..102]: " "
- │   │       │       │   ├─ Word [102..103]: "f"
- │   │       │       │   ├─ Punctuation [103..104]: ","
- │   │       │       │   ├─ Space [104..105]: " "
- │   │       │       │   ├─ Word [105..106]: "g"
- │   │       │       │   ├─ Punctuation [106..107]: ">"
+ │   │       │   ├─ TextChunk [89..90]
+ │   │       │   │   ├─ TextChunk_begin 89
+ │   │       │   │   ├─ TextChunk_content [89..90]
+ │   │       │   │   │   └─ Word [89..90]: "c"
+ │   │       │   │   └─ TextChunk_end 90
+ │   │       │   ├─ AngleText [90..93]
+ │   │       │   │   ├─ AngleText_c1 [90..91]
+ │   │       │   │   │   └─ Space [90..91]: " "
+ │   │       │   │   └─ AngleText_c2 [91..93]
+ │   │       │   │       └─ AngleMark [91..93]: ">>"
+ │   │       │   ├─ TextChunk [93..98]
+ │   │       │   │   ├─ TextChunk_begin 93
+ │   │       │   │   ├─ TextChunk_content [93..98]
+ │   │       │   │   │   ├─ Space [93..94]: " "
+ │   │       │   │   │   ├─ Word [94..95]: "d"
+ │   │       │   │   │   ├─ Punctuation [95..96]: ","
+ │   │       │   │   │   ├─ Space [96..97]: " "
+ │   │       │   │   │   └─ Word [97..98]: "e"
+ │   │       │   │   └─ TextChunk_end 98
+ │   │       │   ├─ AngleText [98..101]
+ │   │       │   │   ├─ AngleText_c1 [98..99]
+ │   │       │   │   │   └─ Space [98..99]: " "
+ │   │       │   │   └─ AngleText_c2 [99..101]
+ │   │       │   │       └─ AngleMark [99..101]: ">="
+ │   │       │   ├─ TextChunk [101..106]
+ │   │       │   │   ├─ TextChunk_begin 101
+ │   │       │   │   ├─ TextChunk_content [101..106]
+ │   │       │   │   │   ├─ Space [101..102]: " "
+ │   │       │   │   │   ├─ Word [102..103]: "f"
+ │   │       │   │   │   ├─ Punctuation [103..104]: ","
+ │   │       │   │   │   ├─ Space [104..105]: " "
+ │   │       │   │   │   └─ Word [105..106]: "g"
+ │   │       │   │   └─ TextChunk_end 106
+ │   │       │   ├─ Break [106..107]
+ │   │       │   │   └─ Break_c1 [106..107]: ">"
+ │   │       │   └─ TextChunk [107..109]
+ │   │       │       ├─ TextChunk_begin 107
+ │   │       │       ├─ TextChunk_content [107..109]
  │   │       │       │   ├─ Word [107..108]: "h"
  │   │       │       │   └─ Punctuation [108..109]: "."
  │   │       │       └─ TextChunk_end 109
