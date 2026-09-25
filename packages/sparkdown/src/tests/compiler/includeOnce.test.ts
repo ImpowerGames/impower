@@ -131,25 +131,30 @@ describe("a script included from two places", () => {
     expect(count(shown, "Shared line.")).toBe(1);
   });
 
-  it("compiles incrementally as it does cold", () => {
+  // An edit to the entry script keeps the flows of every other script for
+  // reuse, the shared script's among them; an edit to another script
+  // rebuilds them all.
+  it.each([
+    ["the entry script", "main", "  Value {shared_helper()}.", "  Value {shared_helper()}, again."],
+    ["the script that includes it second", "chapter", "  Chapter.", "  Chapter, now a good deal longer."],
+  ])("compiles incrementally as it does cold after an edit to %s", (_, name, find, replace) => {
     const project = twice(
       ["scene shared_scene", "  Shared.", "end", "", "function shared_helper()", "  return 7", "end", ""].join("\n"),
       ["  Value {shared_helper()}."],
     );
-    const find = "  Chapter.";
-    const replace = "  Chapter, now a good deal longer.";
-    const chapter = project["chapter"]!;
-    const offset = chapter.indexOf(find);
-    const edited = { ...project, chapter: chapter.slice(0, offset) + replace + chapter.slice(offset + find.length) };
+    const text = project[name]!;
+    const offset = text.indexOf(find);
+    expect(offset).toBeGreaterThanOrEqual(0);
+    const edited = { ...project, [name]: text.slice(0, offset) + replace + text.slice(offset + find.length) };
     const [incremental, cold] = quiet(() => {
       const compiler = new SparkdownCompiler();
       configure(compiler, project, 1);
       compiler.compile({ textDocument: { uri: MAIN_URI } });
       compiler.updateDocument({
-        textDocument: { uri: uriOf("chapter"), version: 2 },
+        textDocument: { uri: uriOf(name), version: 2 },
         contentChanges: [
           {
-            range: { start: posAt(chapter, offset), end: posAt(chapter, offset + find.length) },
+            range: { start: posAt(text, offset), end: posAt(text, offset + find.length) },
             text: replace,
           },
         ],
@@ -162,6 +167,7 @@ describe("a script included from two places", () => {
     expect(errors(incremental)).toEqual([]);
     expect(errors(cold)).toEqual([]);
     expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(play(incremental, "main_one")).toContain("Value 7");
   });
 });
 

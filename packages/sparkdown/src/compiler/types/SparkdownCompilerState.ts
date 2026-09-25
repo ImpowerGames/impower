@@ -26,6 +26,6 @@ export interface SparkdownCompilerState {
   fileResolutionState?: {
     currentParentUri: string;
     runStack?: string[];
-    includedUris?: Set<string>;
+    includedUris: Set<string>;
   };
 }

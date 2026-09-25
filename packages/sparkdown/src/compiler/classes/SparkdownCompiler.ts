@@ -3064,27 +3064,22 @@ export class SparkdownCompiler {
           // reaches it. Its flows then join the story once, and a script that
           // includes the script including it ends the descent there.
           const includedUris = state.fileResolutionState?.includedUris;
-          const alreadyIncluded =
-            resolvedFilePath != null && !!includedUris?.has(resolvedFilePath);
-          if (resolvedFilePath && !alreadyIncluded) {
+          if (!resolvedFilePath) {
+            topLevelIncludedFileObjs.push(new IncludedFile(null));
+          } else if (!includedUris?.has(resolvedFilePath)) {
             includedUris?.add(resolvedFilePath);
+            const includedStory = this.parseIncrementally(
+              resolvedFilePath,
+              fileHandler,
+              true,
+              state,
+              program,
+              onDiagnostic,
+            );
+            topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
           }
-          const includedStory =
-            resolvedFilePath && !alreadyIncluded
-              ? this.parseIncrementally(
-                  resolvedFilePath,
-                  fileHandler,
-                  true,
-                  state,
-                  program,
-                  onDiagnostic,
-                )
-              : null;
           if (state.fileResolutionState) {
             state.fileResolutionState.currentParentUri = previousParentUri;
-          }
-          if (!alreadyIncluded) {
-            topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
           }
         }
       }
@@ -3582,14 +3577,17 @@ export class SparkdownCompiler {
     const matchedIds: Array<{ id: Identifier; owner: ParsedObject }> = [];
     const seenIds = new Set<Identifier>();
     // A string field is recorded once per node, with the name it held when
-    // the walk first reached it.
+    // the walk first reached it, so a node the walk reaches twice is not
+    // renamed twice. The walk reaches each node once when every script is
+    // included once; the record keeps a second visit harmless.
     const matchedStrings: Array<{ node: any; field: string; name: string }> =
       [];
     const seenStrings = new Map<object, Set<string>>();
     const flowsToRekey: FlowBase[] = [];
     // Every call of one continuation carries the same group, so the calls
     // share a mapping just as a synthetic's definition and references do.
-    // A group node is recorded once, with the name it gets.
+    // Each call holds a group node of its own, and a group node is recorded
+    // once, with the name it gets, for the same reason as a string field.
     const groupRemap = new Map<string, string>();
     const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();
