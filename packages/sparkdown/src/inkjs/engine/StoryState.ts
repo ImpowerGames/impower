@@ -20,6 +20,7 @@ import { Story } from "./Story";
 import { SimpleJson } from "./SimpleJson";
 import { type CarriedStep, Flow } from "./Flow";
 import { InkList } from "./InkList";
+import type { RaisedError } from "./Error";
 
 export class StoryState {
   // Backward compatible changes since v8:
@@ -213,6 +214,20 @@ export class StoryState {
     return this._currentWarnings;
   }
   private _currentWarnings: string[] | null = null;
+
+  /** How each of `currentErrors` was raised, at the same index. Written by
+   *  index rather than appended, so an entry left behind when a caller trims
+   *  `currentErrors` (as `pcall` does) is overwritten by the next error. */
+  get raisedErrors() {
+    return this._raisedErrors;
+  }
+  private _raisedErrors: RaisedError[] = [];
+
+  /** How each of `currentWarnings` was raised, at the same index. */
+  get raisedWarnings() {
+    return this._raisedWarnings;
+  }
+  private _raisedWarnings: RaisedError[] = [];
 
   get variablesState() {
     return this._variablesState;
@@ -800,6 +815,8 @@ export class StoryState {
   public ResetErrors() {
     this._currentErrors = null;
     this._currentWarnings = null;
+    this._raisedErrors = [];
+    this._raisedWarnings = [];
   }
   public ResetOutput(objs: InkObject[] | null = null) {
     this.outputStream.length = 0;
@@ -1351,13 +1368,19 @@ export class StoryState {
     return null;
   }
 
-  public AddError(message: string, isWarning: boolean) {
+  public AddError(
+    message: string,
+    isWarning: boolean,
+    raised: RaisedError,
+  ) {
     if (!isWarning) {
       if (this._currentErrors == null) this._currentErrors = [];
       this._currentErrors.push(message);
+      this._raisedErrors[this._currentErrors.length - 1] = raised;
     } else {
       if (this._currentWarnings == null) this._currentWarnings = [];
       this._currentWarnings.push(message);
+      this._raisedWarnings[this._currentWarnings.length - 1] = raised;
     }
   }
 

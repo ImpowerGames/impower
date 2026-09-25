@@ -50,7 +50,7 @@ import { asOrNull, asOrThrows } from "./TypeAssertion";
 import { DebugMetadata } from "./DebugMetadata";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
-import { type ErrorHandler, ErrorType } from "./Error";
+import { ErrorType, type RaisedError, type RuntimeErrorHandler } from "./Error";
 import { StructDefinition } from "./StructDefinition";
 import type { Simulator } from "./Simulator";
 
@@ -817,7 +817,7 @@ export class Story extends InkObject {
     this._stateIsPristine = false;
   }
 
-  public onError: ErrorHandler | null = null;
+  public onError: RuntimeErrorHandler | null = null;
 
   public onDidContinue: (() => void) | null = null;
 
@@ -1264,7 +1264,7 @@ export class Story extends InkObject {
           throw e;
         }
 
-        this.AddError(e.message, undefined, e.useEndLineNumber);
+        this.AddError(e.message, undefined, e.useEndLineNumber, e.raisedPath);
         break;
       }
 
@@ -1333,14 +1333,16 @@ export class Story extends InkObject {
     if (this.state.hasError || this.state.hasWarning) {
       if (this.onError !== null) {
         if (this.state.hasError) {
-          for (let err of this.state.currentErrors!) {
-            this.onError(err, ErrorType.Error, null);
-          }
+          const raised = this.state.raisedErrors;
+          this.state.currentErrors!.forEach((err, i) => {
+            this.onError!(err, ErrorType.Error, null, raised[i] ?? null);
+          });
         }
         if (this.state.hasWarning) {
-          for (let err of this.state.currentWarnings!) {
-            this.onError(err, ErrorType.Warning, null);
-          }
+          const raised = this.state.raisedWarnings;
+          this.state.currentWarnings!.forEach((err, i) => {
+            this.onError!(err, ErrorType.Warning, null, raised[i] ?? null);
+          });
         }
         this.ResetErrors();
       } else {
@@ -4071,6 +4073,14 @@ export class Story extends InkObject {
         results.unshift(this.state.PopEvaluationStack() as AbstractValue);
       }
       return results;
+    } catch (e) {
+      // The pointer is restored to the caller's below, so an error the
+      // callback raised keeps the path of the content that raised it. An
+      // error from a callback nested inside this one already carries its own.
+      if (e instanceof StoryException && e.raisedPath == null) {
+        e.raisedPath = this.state.currentPointer.path?.toString() ?? null;
+      }
+      throw e;
     } finally {
       // Restore everything — output stream, currentPointer (in case
       // the inner ~ret restored it to something unexpected), and
@@ -4979,6 +4989,16 @@ export class Story extends InkObject {
     throw e;
   }
 
+  /** Raise `message` in place of `cause`, an error a callback raised, keeping
+   *  where the callback raised it. */
+  public ErrorFrom(message: string, cause: unknown): never {
+    let e = new StoryException(message);
+    if (cause instanceof StoryException) {
+      e.raisedPath = cause.raisedPath;
+    }
+    throw e;
+  }
+
   public Warning(message: string) {
     this.AddError(message, true);
   }
@@ -4987,8 +5007,21 @@ export class Story extends InkObject {
     message: string,
     isWarning = false,
     useEndLineNumber = false,
+    raisedPath: string | null = null,
   ) {
     let dm = this.currentDebugMetadata;
+
+    // The content being executed as the error is raised, unless the error
+    // names it itself (`StoryException.raisedPath`). An error raised after the
+    // story ran out of content has no current pointer, so it names the last
+    // content that ran.
+    const at = this.state.currentPointer.isNull
+      ? this.state.previousPointer
+      : this.state.currentPointer;
+    const raised: RaisedError = {
+      message,
+      path: raisedPath ?? at.path?.toString() ?? null,
+    };
 
     let errorTypeStr = isWarning ? "WARNING" : "ERROR";
 
@@ -5015,7 +5048,7 @@ export class Story extends InkObject {
       message = "RUNTIME " + errorTypeStr + ": " + message;
     }
 
-    this.state.AddError(message, isWarning);
+    this.state.AddError(message, isWarning, raised);
 
     // In a broken state don't need to know about any other errors.
     if (!isWarning) this.state.ForceEnd();
