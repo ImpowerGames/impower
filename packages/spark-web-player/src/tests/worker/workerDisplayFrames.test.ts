@@ -278,10 +278,10 @@ describe("the preview displayed from the worker's game", () => {
     const on = await frames(text, steps);
     expect(on).toHaveLength(steps.length + 1);
     // The showcase has no scene: past its stores and functions it is one
-    // layout, so every line previews from the same place, and each frame
-    // draws the layout's controls.
-    expect(new Set(on.launches.slice(1)).size).toBe(1);
-    expect(on.launches[1]).toMatch(/main : \d+/);
+    // layout, and a function's lines are never where a preview starts, so no
+    // line is one the toolbar names as the launch, and each frame draws the
+    // layout's controls.
+    expect(on.launches.slice(1)).toEqual(steps.map(() => ""));
     for (const frame of on.slice(1)) {
       for (const text of ["Pico", "Preview", "Subscribe", "Privacy Policy"]) {
         expect(shows(frame, text)).toBe(true);
