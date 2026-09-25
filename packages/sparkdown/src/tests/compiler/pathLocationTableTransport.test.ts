@@ -56,6 +56,19 @@ describe("a path-location table that crossed a JSON transport", () => {
     }
   });
 
+  it("keeps its function containers, so a start still skips their rows", () => {
+    const withFunctions = { ...TABLE, functions: ["A"] };
+    const arrived = asPathLocationTable(
+      JSON.parse(JSON.stringify(withFunctions)),
+    )!;
+    expect(arrived.functions).toEqual(["A"]);
+    // Line 0 of script 0 is A's; a start from it skips to the next story row,
+    // which is script 1's first, and a breakpoint still stops inside A.
+    expect(findPathRow(arrived, 0, 0, true)).toBe(-1);
+    expect(findPathRow(arrived, 1, 0, true)).toBe(3);
+    expect(findPathRow(arrived, 0, 0, false)).toBe(0);
+  });
+
   it("leaves a table that still has its typed array alone", () => {
     expect(asPathLocationTable(TABLE)).toBe(TABLE);
   });

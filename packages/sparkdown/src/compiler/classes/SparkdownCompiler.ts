@@ -498,6 +498,9 @@ export class SparkdownCompiler {
   // can find and widen a range it already recorded. `sortPathLocations` turns
   // it into the program's columnar `pathLocations` table and drops it.
   protected _pathLocationDraft?: Record<string, ScriptLocation>;
+  // This compile's top-level function containers, by their final names, for
+  // `sortPathLocations` to record on the table (see `PathLocationTable`).
+  protected _functionContainers?: string[];
 
   // ---- Incremental location-map cache (Design A) ------------------------
   // Per top-level flow (knot/scene/function name = its key in the runtime
@@ -2000,6 +2003,7 @@ export class SparkdownCompiler {
     // reaches the walk cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
     this._pathLocationDraft = undefined;
+    this._functionContainers = undefined;
     // Begin a fresh change summary. The verdict is only reached at the very end
     // of the compile, where every hazard below has had its chance to speak; a
     // compile that stops before then reports the answer that costs a client
@@ -2236,6 +2240,12 @@ export class SparkdownCompiler {
           if (flowName) {
             (this._renamedFlowNames ??= new Set()).add(flowName);
           }
+        }
+      }
+      this._functionContainers = [];
+      for (const [name, flow] of parsedStory.subFlowsByName) {
+        if (flow.isFunction) {
+          this._functionContainers.push(name);
         }
       }
       // An unseeded compile has no runtime table for any builtin define, but
@@ -2508,7 +2518,9 @@ export class SparkdownCompiler {
     // The chunk's objects are carried to the next compile, and their `content`
     // stays as the chunk lowered it; the copy takes over as the `parent` of the
     // children it holds. It holds them at the same indentation, so it
-    // generates what the chunk's weave would.
+    // generates what the chunk's weave would. A closed function is always a
+    // chunk of its own and never ends a chunk's content, so the last entry
+    // here is the one `getClosestWeave` follows.
     const assemblyWeave = (weave: Weave): Weave => {
       const copy = new Weave(
         withAssemblyWeaves(weave.content),
@@ -3232,6 +3244,7 @@ export class SparkdownCompiler {
                 flow.args ?? [],
                 flow.isFunction,
               );
+              stitch._bodyClosed = flow._bodyClosed;
               stitch.debugMetadata = flow.debugMetadata;
               stitch._rootWeave = rootWeave;
               stitch.AddContent(rootWeave);
@@ -4747,6 +4760,9 @@ export class SparkdownCompiler {
       // No creation-order index (locations weren't gathered via
       // `populateAllLocations`): sort by comparison instead.
       program.pathLocations = pathLocationTableOf(draft);
+    }
+    if (program.pathLocations && this._functionContainers?.length) {
+      program.pathLocations.functions = this._functionContainers;
     }
     this._pathLocationDraft = undefined;
     profile("end", this._profilerId, "sortPathLocations", uri);

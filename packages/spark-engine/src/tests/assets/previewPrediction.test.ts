@@ -1531,11 +1531,10 @@ end
     ).toEqual([["preview:1"]]);
   });
 
-  it("gates nothing for a cursor inside a function, whose body a preview cannot run to a picture", async () => {
-    // A function's body has no scene to run in. Entered from its start, the
-    // preview's step returns at the body's first line, and nothing runs on to
-    // the body's end, where it would run out of content. The gate follows
-    // the writes, which hold no picture.
+  it("previews the story's next line for a cursor inside a function, whose body is not story flow", async () => {
+    // A function's body has no scene to run in, so a preview of one of its
+    // lines previews the next line of story flow after it: here the header
+    // of scene A, as a preview of that header line would.
     const story = `function greet
   [[show portrait bunny]]
   Hello there.
@@ -1547,16 +1546,16 @@ scene A
   done
 end
 `;
-    const h = createHarness(story, 1, { assets: ASSETS, holdAssets: true });
+    const h = connected(story, 1);
     await h.ready;
     h.reset();
     const path = pathAt(h.game, 1);
-    expect(path).toMatch(/^greet\./);
-    h.game.markPreviewing(path!);
+    expect(path).toMatch(/^A\./);
+    expect(path).toBe(pathAt(h.game, 5));
     expect(await h.preview(1)).toBe(path);
-    expect(byMethod(h.messages, "assets/load")).toHaveLength(0);
-    expect(imagesWritten(h.messages)).toEqual([]);
-    expect(byMethod(h.messages, "game/executed")).toHaveLength(1);
+    const executed = byMethod(h.messages, "game/executed");
+    expect(executed).toHaveLength(1);
+    expect(executed[0].params.startPath).toBe(path);
     expect(
       byMethod(h.messages, "game/runtimeError").map((m) => m.params.message),
     ).toEqual([]);

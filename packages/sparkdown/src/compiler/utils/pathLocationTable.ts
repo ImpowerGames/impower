@@ -163,7 +163,23 @@ const isBindingPath = (path: string) =>
   path.includes("__binding_") &&
   path.split(".").some((seg) => seg.startsWith("__binding_"));
 
-const isPreviewablePath = (path: string) => !isBindingPath(path);
+/**
+ * A function's body is not story flow either: a run started inside one runs
+ * the body with no arguments and meets its `return` outside a call. Rows under
+ * a top-level function container (a named function, a hoisted function
+ * literal, and the callables nested in them) are not previewable, so a line
+ * with no story row of its own resolves to the next story row after it.
+ */
+const previewableFilter = (table: PathLocationTable) => {
+  const functions = new Set(table.functions);
+  return (path: string) => {
+    if (isBindingPath(path)) {
+      return false;
+    }
+    const dot = path.indexOf(".");
+    return !functions.has(dot < 0 ? path : path.slice(0, dot));
+  };
+};
 
 const fullIndexes = new WeakMap<PathLocationTable, PathSearchIndex>();
 const previewableIndexes = new WeakMap<PathLocationTable, PathSearchIndex>();
@@ -174,7 +190,7 @@ const searchIndexOf = (table: PathLocationTable, previewableOnly: boolean) => {
   if (!index) {
     index = buildSearchIndex(
       table,
-      previewableOnly ? isPreviewablePath : undefined,
+      previewableOnly ? previewableFilter(table) : undefined,
     );
     cache.set(table, index);
   }
@@ -344,9 +360,10 @@ export const asPathLocationTable = (
   if (!raw || typeof raw !== "object") {
     return undefined;
   }
-  const { paths, values } = raw as {
+  const { paths, values, functions } = raw as {
     paths?: unknown;
     values?: ArrayLike<number>;
+    functions?: unknown;
   };
   if (!Array.isArray(paths)) {
     return undefined;
@@ -358,5 +375,9 @@ export const asPathLocationTable = (
   for (let i = 0; i < restored.length; i++) {
     restored[i] = Number(values?.[i] ?? 0);
   }
-  return { paths: paths as string[], values: restored };
+  return {
+    paths: paths as string[],
+    values: restored,
+    ...(Array.isArray(functions) ? { functions: functions as string[] } : {}),
+  };
 };

@@ -31,6 +31,9 @@ export interface PathLocationTable {
   paths: string[];
   /** Five numbers per path — a {@link ScriptLocation} — in `paths` order. */
   values: Int32Array;
+  /** The top-level containers that are functions. A run or a preview never
+   *  starts on a row inside one, since a function's body is not story flow. */
+  functions?: string[];
 }
 
 export interface SparkProgram {
