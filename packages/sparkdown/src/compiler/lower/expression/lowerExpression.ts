@@ -11,7 +11,10 @@ import { CallValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierar
 import { IndexExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/IndexExpression";
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { SingleValueExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/SingleValueExpression";
-import { StashAndRereadExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StashAndRereadExpression";
+import {
+  StashAndRereadExpression,
+  StashedTempReadExpression,
+} from"../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StashAndRereadExpression";
 import {
   TernaryExpression,
   type TernaryBranch,
@@ -555,7 +558,7 @@ function lowerChainedMethodCall(
   if (isColonForm) {
     const tempName = `__mcall_${chainNode.from}`;
     const targetExpr = new IndexExpression(
-      new VariableReference([new Identifier(tempName)]),
+      new StashedTempReadExpression(tempName),
       new StringExpression([new Text(methodNameText)]),
     );
     return new CallValueExpression(targetExpr, [
@@ -750,7 +753,7 @@ function lowerMethodCall(
   if (isColonForm) {
     const tempName = `__mcall_${accessPath.from}`;
     const targetExpr = new IndexExpression(
-      new VariableReference([new Identifier(tempName)]),
+      new StashedTempReadExpression(tempName),
       new StringExpression([new Text(methodNameText)]),
     );
     return new CallValueExpression(targetExpr, [
