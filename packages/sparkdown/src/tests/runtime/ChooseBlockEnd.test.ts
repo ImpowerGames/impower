@@ -533,6 +533,30 @@ end
     expect(result.choices).toEqual(["Side one"]);
   });
 
+  test("a block with a label between its choices holds for a choice offered before the label", () => {
+    const result = drive(
+      `
+-> main
+
+scene main
+  choose
+    * A
+      Took A.
+    label mid
+    if false then
+      * B
+    end
+  end
+  After.
+end
+`,
+      "A",
+    );
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.offered).toEqual([["A"]]);
+    expect(result.steps).toEqual([[], ["A", "Took A.", "After."]]);
+  });
+
   test("a thread's choices are not the block's: a block whose own choices are gated off runs on", () => {
     const result = drive(`
 store has_key = false

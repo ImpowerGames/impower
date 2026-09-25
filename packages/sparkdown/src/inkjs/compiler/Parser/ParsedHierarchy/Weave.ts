@@ -296,6 +296,7 @@ export class Weave extends ParsedObject {
       this._unnamedGatherCount += 1;
     }
 
+    const containerEntered = this.currentContainer;
     if (autoEnter) {
       if (!this.currentContainer) {
         throw new Error();
@@ -303,11 +304,19 @@ export class Weave extends ParsedObject {
 
       if (gather.endsChooseBlock) {
         // Hold the flow when a pending choice came from a choice point in
-        // this block's container; a block that offered none runs on into the
-        // gather. The hold sits in the block's own container, which keeps its
-        // choices' named containers and so is never flattened into a parent.
+        // this block's root container, which keeps its choices' named
+        // containers and so is never flattened into a parent; a block that
+        // offered none runs on into the gather. The hold names how many
+        // containers up that root is (a `label` in the block makes the
+        // current container the label's gather).
+        let levels = 0;
+        let container: RuntimeContainer | null = this.currentContainer;
+        while (container !== null && container !== this._rootContainer) {
+          container = asOrNull(container.parent, RuntimeContainer);
+          levels += 1;
+        }
         this.currentContainer.AddContent(
-          RuntimeControlCommand.HoldForChoices(),
+          RuntimeControlCommand.HoldForChoices(container === null ? 0 : levels),
         );
       }
 
@@ -327,10 +336,17 @@ export class Weave extends ParsedObject {
 
       // Skip gather loose ends that are at the same level
       // since they'll be handled by the auto-enter code below
-      // that only jumps into the gather if (current runtime choices == 0)
+      // that only jumps into the gather if (current runtime choices == 0).
+      // Skip too a gather whose container this gather was just auto-entered
+      // into (a `label` anchor that opens a `choose` block): its content
+      // already runs on into this gather, and a divert appended to it would
+      // come after this gather and jump back to it.
       if (looseEnd instanceof Gather) {
         const prevGather = looseEnd;
-        if (prevGather.indentationDepth == gather.indentationDepth) {
+        if (
+          prevGather.indentationDepth == gather.indentationDepth ||
+          (autoEnter && prevGather.runtimeContainer === containerEntered)
+        ) {
           continue;
         }
       }

@@ -3030,11 +3030,16 @@ export class Story extends InkObject {
 
         case ControlCommand.CommandType.HoldForChoices: {
           // The block's own choices are the pending ones whose choice point
-          // lies inside the container holding this command, however the run
-          // entered the block. Choices generated elsewhere (before the block,
-          // or by a thread started in it) are not the block's.
-          const block =
-            this.state.currentPointer.container?.path.toString() ?? "";
+          // lies inside the block's container, however the run entered the
+          // block. Choices generated elsewhere (before the block, or by a
+          // thread started in it) are not the block's.
+          let blockContainer = this.state.currentPointer.container;
+          for (let i = 0; i < evalCommand._holdLevels; i++) {
+            const parent = asOrNull(blockContainer?.parent ?? null, Container);
+            if (parent === null) break;
+            blockContainer = parent;
+          }
+          const block = blockContainer?.path.toString() ?? "";
           const offered = this.state.generatedChoices.some(
             (choice) =>
               block === "" ||
