@@ -14,7 +14,7 @@ import { SingleValueExpression } from "../../../inkjs/compiler/Parser/ParsedHier
 import {
   StashAndRereadExpression,
   StashedTempReadExpression,
-} from"../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StashAndRereadExpression";
+} from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/StashAndRereadExpression";
 import {
   TernaryExpression,
   type TernaryBranch,

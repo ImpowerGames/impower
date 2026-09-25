@@ -3616,9 +3616,10 @@ export class SparkdownCompiler {
     };
     // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
     // emit runtime variable refs straight from it — `StashAndRereadExpression.tempName`
-    // (the `__mcall_<from>` receiver stash) and `VariablePointerExpression.variableName`.
-    // Their Identifier-shaped counterparts get renamed above, so the string side
-    // must be kept in lockstep or the temp's declaration and its read diverge.
+    // (the `__mcall_<from>` receiver stash), `StashedTempReadExpression.tempName`
+    // (the method lookup's read of that stash) and `VariablePointerExpression.variableName`.
+    // They share one remap with the Identifier-shaped names renamed above, so a
+    // temp's stash, its reads and any Identifier naming it stay in lockstep.
     // Only SYNTH-matching values are touched, so user strings/display text are safe.
     // Only a node's own data property is a plain-string name: `VariableAssignment`
     // exposes `variableName` as a read-only getter over its identifier, which the
