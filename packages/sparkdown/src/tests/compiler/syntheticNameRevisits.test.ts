@@ -176,8 +176,73 @@ describe("synthetic names after an edit", () => {
     // The layout's tree is the one the first compile lowered, so its chunk was
     // carried and not lowered again.
     expect(incremental.sparkle.layouts.la).toBe(before.sparkle.layouts.la);
+    expect(incremental.spans).toEqual(cold.spans);
+    expect(incremental.spans).toHaveLength(1);
     expect(incremental.text).toContain("__binding_");
     expect(incremental.text).toBe(cold.text);
+  });
+
+  it("a carried layout's span follows each of several edits above it", () => {
+    let text = [
+      "store a = 1",
+      "",
+      "scene one",
+      "  First line.",
+      "end",
+      "",
+      "scene two",
+      "  Second line.",
+      "end",
+      "",
+      "scene three",
+      "  Third line.",
+      "end",
+      "",
+      "layout la with",
+      '  text "{a}"',
+      "end",
+      "",
+    ].join("\n");
+    const spanOf = (source: string) => {
+      const from = source.indexOf("{a}");
+      return { line: posAt(source, from).line, from, to: from + "{a}".length };
+    };
+    quiet(() => {
+      const compiler = new SparkdownCompiler();
+      configure(compiler, { main: text }, 1);
+      const first = compiled(compiler);
+      expect(first.spans).toEqual([spanOf(text)]);
+      // Lengthen a line, add a line, then remove what was added: the carried
+      // layout moves down twice and then back up.
+      const edits: [number, number, string][] = [
+        [text.indexOf("  First line.") + 2, 0, "Longer "],
+        [text.indexOf("  Second line.") + 2 + "Longer ".length, 0, "Added line.\n  "],
+        [text.indexOf("  Second line.") + 2 + "Longer ".length, "Added line.\n  ".length, ""],
+      ];
+      for (const [index, [offset, removed, insert]] of edits.entries()) {
+        const start = posAt(text, offset);
+        const end = posAt(text, offset + removed);
+        compiler.updateDocument({
+          textDocument: { uri: MAIN_URI, version: index + 2 },
+          contentChanges: [{ range: { start, end }, text: insert }],
+        });
+        text = text.slice(0, offset) + insert + text.slice(offset + removed);
+        const incremental = compiled(compiler);
+        expect(incremental.sparkle.layouts.la).toBe(first.sparkle.layouts.la);
+        expect(incremental.spans).toEqual([spanOf(text)]);
+      }
+    });
+  });
+
+  it("a match with no condition keeps its empty placeholder span", () => {
+    const main = ["store a = 1", "", "scene one", "  First line.", "end", "", "layout la with", "  match do", "    case 1", '      text "{a}"', "  end", "end", ""].join("\n");
+    const program = compileOnce(main);
+    const placeholders: unknown[] = [];
+    JSON.stringify(program.sparkle, function (this: any, key, value) {
+      if (key === "span" && this?.exprId === "") placeholders.push(value);
+      return value;
+    });
+    expect(placeholders).toEqual([{ line: 0, from: 0, to: 0 }]);
   });
 
   it("a binding handle's span gives its position in the document", () => {
