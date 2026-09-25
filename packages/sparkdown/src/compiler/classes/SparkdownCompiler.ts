@@ -2470,8 +2470,23 @@ export class SparkdownCompiler {
     ) => void,
   ) {
     const version = this.documents.get(uri)?.version ?? 0;
-    const getClosestWeave = (content: ParsedObject[]) => {
-      const last = content.at(-1);
+    // A function's body ends at its `end`, so the story content after a
+    // function declaration joins the flow or weave it would join if the
+    // function were not there: the scene the function is declared among, or
+    // the root flow. It never joins the function, where it would follow the
+    // function's `return`.
+    const isFunctionFlow = (obj: unknown): boolean =>
+      obj instanceof FlowBase && obj.isFunction;
+    const lastStoryEntry = <T,>(content: T[]): T | undefined => {
+      for (let i = content.length - 1; i >= 0; i--) {
+        if (!isFunctionFlow(content[i])) {
+          return content[i];
+        }
+      }
+      return undefined;
+    };
+    const getClosestWeave = (content: ParsedObject[]): Weave | undefined => {
+      const last = lastStoryEntry(content);
       if (last instanceof Weave) {
         if (last.content.at(-1) instanceof Weave) {
           return getClosestWeave(last.content);
@@ -2665,6 +2680,10 @@ export class SparkdownCompiler {
       if (first) return "body";
       return "none";
     };
+    // A chunk declaring a function, whose flow takes no content from the
+    // chunks after it (see `lastStoryEntry`).
+    const isFunctionChunk = (block: any): boolean =>
+      isFunctionFlow(block?.content?.[0]);
 
     // Reuse-disqualifier scan, computed ONCE per chunk identity (carried
     // chunks keep their result). A flow whose run contains any of these can
@@ -2855,17 +2874,31 @@ export class SparkdownCompiler {
     // Chunks whose content-assembly is skipped because they feed a flow
     // reused from last compile's construction.
     const reuseSkipBlocks = new Set<object>();
-    // The flow currently receiving body content in the NORMAL assembly path,
-    // recorded so next compile knows each flow's full chunk run.
-    let currentRun: { flow: FlowBase; contentChunks: object[] } | undefined;
+    // Each top-level flow built in the NORMAL assembly path, with the chunks
+    // that fed it, recorded so next compile knows each flow's full chunk run.
+    // A chunk after a function declaration can feed the flow declared before
+    // the function, so a flow's run is found through its flow, not by order.
+    type FlowRun = { flow: FlowBase; contentChunks: object[] };
+    const runsByFlow = new Map<ParsedObject, FlowRun>();
+    const startRun = (flow: FlowBase, declBlock: object) => {
+      const run: FlowRun = { flow, contentChunks: [declBlock] };
+      runsByFlow.set(flow, run);
+      this._nextFlowRuns?.set(declBlock, run);
+    };
+    const continueRun = (flow: ParsedObject | undefined, block: object) => {
+      if (flow) {
+        runsByFlow.get(flow)?.contentChunks.push(block);
+      }
+    };
 
     // Try to reuse last compile's constructed flow for the run declared by
     // `declBlock`: every content chunk of the recorded run must reappear
     // identically in order (interleaved content-less chunks — includes,
-    // context-only — are transparent), no run chunk may carry a reuse
-    // disqualifier, the flow must not have raised generation-time
-    // diagnostics, and the chunk FOLLOWING the run must not be one that
-    // would attach new body content into this flow.
+    // context-only — and function declarations are transparent), no run chunk
+    // may carry a reuse disqualifier, the flow must not have raised
+    // generation-time diagnostics, and the chunk FOLLOWING the run (past any
+    // function declarations) must not be one that would attach new body
+    // content into this flow.
     const tryReuseFlowRun = (
       declBlock: object,
       startIdx: number,
@@ -2885,7 +2918,7 @@ export class SparkdownCompiler {
           return undefined;
         }
         const cb = chunkRecords[j]!.block as any;
-        if (!cb.content) {
+        if (!cb.content || (k > 0 && isFunctionChunk(cb))) {
           j++;
           continue;
         }
@@ -2897,7 +2930,7 @@ export class SparkdownCompiler {
       }
       for (let m = j; m < chunkRecords.length; m++) {
         const cb = chunkRecords[m]!.block as any;
-        if (!cb.content) {
+        if (!cb.content || isFunctionChunk(cb)) {
           continue;
         }
         const kind = chunkFlowKind(cb);
@@ -3133,9 +3166,8 @@ export class SparkdownCompiler {
           const declaresTopLevelFlow =
             first instanceof Knot ||
             (first instanceof Stitch &&
-              !(topLevelContent.at(-1) instanceof Knot));
+              !(lastStoryEntry(topLevelContent) instanceof Knot));
           if (declaresTopLevelFlow) {
-            currentRun = undefined;
             const reusedFlow = tryReuseFlowRun(compiledBlock, chunkIdx);
             if (reusedFlow) {
               topLevelFlowBaseObjs.push(reusedFlow);
@@ -3187,8 +3219,7 @@ export class SparkdownCompiler {
               }
               topLevelFlowBaseObjs.push(knot);
               topLevelContent.push(knot);
-              currentRun = { flow: knot, contentChunks: [compiledBlock] };
-              this._nextFlowRuns?.set(compiledBlock, currentRun);
+              startRun(knot, compiledBlock);
             } else if (flow instanceof Stitch) {
               const rootWeave = new Weave([]);
               const stitch = new Stitch(
@@ -3201,7 +3232,7 @@ export class SparkdownCompiler {
               stitch._rootWeave = rootWeave;
               stitch.AddContent(rootWeave);
               rootWeave.debugMetadata = flow.debugMetadata;
-              const last = topLevelContent.at(-1);
+              const last = lastStoryEntry(topLevelContent);
               if (last instanceof Knot) {
                 if (stitch.identifier?.name) {
                   last.subFlowsByName.set(stitch.identifier?.name, stitch);
@@ -3215,18 +3246,16 @@ export class SparkdownCompiler {
                   last.content.pop();
                 }
                 last.AddContent(stitch);
-                currentRun?.contentChunks.push(compiledBlock);
+                continueRun(last, compiledBlock);
               } else {
                 topLevelFlowBaseObjs.push(stitch);
                 topLevelContent.push(stitch);
-                currentRun = { flow: stitch, contentChunks: [compiledBlock] };
-                this._nextFlowRuns?.set(compiledBlock, currentRun);
+                startRun(stitch, compiledBlock);
               }
             } else if (flow instanceof ExternalDeclaration) {
               const weave = new Weave([flow]);
               topLevelWeaveObjs.push(weave);
               topLevelContent.push(weave);
-              currentRun = undefined;
             } else if (flow instanceof Weave) {
               // This chunk's body weave is about to be UNWRAPPED — its children
               // are re-parented directly under the closest existing weave (e.g.
@@ -3283,12 +3312,11 @@ export class SparkdownCompiler {
                   closestWeave.content.pop();
                 }
                 closestWeave.AddContent(flowContent);
-                currentRun?.contentChunks.push(compiledBlock);
+                continueRun(lastStoryEntry(topLevelContent), compiledBlock);
               } else {
                 const weave = new Weave(flowContent);
                 topLevelWeaveObjs.push(weave);
                 topLevelContent.push(weave);
-                currentRun = undefined;
               }
             }
           }
