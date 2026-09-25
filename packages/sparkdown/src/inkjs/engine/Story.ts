@@ -3013,13 +3013,16 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.HoldForChoices: {
-          const since = asOrNull(this.state.PopEvaluationStack(), IntValue);
-          if (since === null) {
-            throw new StoryException(
-              "Expected the choice count a choose block began at",
-            );
-          }
-          if (this.state.generatedChoices.length > (since.value ?? 0)) {
+          // A run that entered the block after its start (a divert to a
+          // label in it, or starting from a line inside it) has no count of
+          // its own, and counts every choice the flow has generated.
+          const since = asOrNull(
+            this.state.variablesState.GetVariableWithName(
+              ControlCommand.CHOOSE_START_VARIABLE,
+            ),
+            IntValue,
+          );
+          if (this.state.generatedChoices.length > (since?.value ?? 0)) {
             this.StopFlowInThread();
           }
           break;

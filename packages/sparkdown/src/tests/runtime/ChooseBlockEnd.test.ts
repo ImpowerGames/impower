@@ -448,6 +448,56 @@ end
     expect(result.choices).toEqual(["Side one"]);
   });
 
+  test("a divert to a label inside a block holds at the block's choices", () => {
+    const result = drive(
+      `
+-> main
+
+scene main
+  -> mark
+  choose
+    label mark
+    Caption.
+    * A
+      Took A.
+  end
+  After.
+end
+`,
+      "A",
+    );
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.steps).toEqual([["Caption."], ["A", "Took A.", "After."]]);
+  });
+
+  test("a thread in a block's preamble adds its choices to the block's, so the block holds", () => {
+    const result = drive(`
+store has_key = false
+-> hub
+
+scene hub
+  choose
+    <- side
+    if has_key then
+      * Unlock
+    end
+  end
+  After the block.
+end
+
+scene side
+  choose
+    * Side one
+      Side taken.
+  end
+  done
+end
+`);
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.lines).toEqual([]);
+    expect(result.choices).toEqual(["Side one"]);
+  });
+
   test("a fallback choice fires when every other choice in the block is unavailable", () => {
     const result = drive(`
 store has_key = false

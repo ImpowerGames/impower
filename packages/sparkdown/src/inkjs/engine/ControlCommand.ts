@@ -109,6 +109,11 @@ export class ControlCommand extends InkObject {
   public static Done() {
     return new ControlCommand(ControlCommand.CommandType.Done);
   }
+  // The temporary a holding `choose` block keeps the choice count it began
+  // at in. A block nested in a choice's content reuses it only after the
+  // outer block's hold has read it.
+  public static readonly CHOOSE_START_VARIABLE = "$choose";
+
   public static HoldForChoices() {
     return new ControlCommand(ControlCommand.CommandType.HoldForChoices);
   }
@@ -280,11 +285,11 @@ export namespace ControlCommand {
     // (`_shortCircuitSkipCount`). See `ShortCircuit()`.
     ShortCircuit, // 32
 
-    // A `choose` block's hold: pops the choice count the block began at (read
-    // from `count.choices()` at its start) and, when the flow has generated
-    // more choices since, stops the flow as `Done` does. A block that
-    // generated no choice runs on. It is not a condition, so a route planner
-    // never forks on it.
+    // A `choose` block's hold: reads the choice count the block began at
+    // (`CHOOSE_START_VARIABLE`, set from `count.choices()` at its start) and,
+    // when the flow has generated more choices since, stops the flow as
+    // `Done` does. A block that generated no choice runs on. It is not a
+    // condition, so a route planner never forks on it.
     HoldForChoices, // 33
 
     TOTAL_VALUES,
