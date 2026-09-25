@@ -1955,6 +1955,11 @@ export class GamePlayerController {
       if (!current()) {
         return abandon();
       }
+      // The run this one replaced may still have messages on their way on
+      // its channel, and none of them is this run's: stop hearing it before
+      // this run's listeners start. The preview detached above, and this
+      // run attaches its own channel once its application connects.
+      link.detach();
       this.beginRuntimeRun(program, play, built.errors ?? []);
       stopListening = this.listenToWorker(
         link,
