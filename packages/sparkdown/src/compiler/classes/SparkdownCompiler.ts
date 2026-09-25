@@ -58,6 +58,7 @@ import {
   validateBranch,
 } from "../lower/utils/validateSceneBranchScope";
 import type { LowerContext } from "../lower/context";
+import { ContinuationGroup } from "../lower/utils/displayCall";
 import { InkObject } from "../../inkjs/engine/Object";
 import { SimpleJson } from "../../inkjs/engine/SimpleJson";
 import { JsonSerialisation } from "../../inkjs/engine/JsonSerialisation";
@@ -896,7 +897,9 @@ export class SparkdownCompiler {
   // Counts down from zero so no preview version can equal a real one.
   protected _lastPreviewVersion = 0;
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
-  // entries it commits here so they can be cached for next compile.
+  // path and local data entries it commits and every global data write the flow
+  // makes here, so they can be cached for next compile. Replaying a cached flow
+  // (`spliceCachedFlowLocations`) re-applies first-write-wins to them.
   protected _locCaptureTarget?: {
     pathEntries: FlowLocCacheEntry["pathEntries"];
     dataEntries: FlowLocCacheEntry["dataEntries"];
@@ -3441,29 +3444,6 @@ export class SparkdownCompiler {
     return combinedParsedStory;
   }
 
-  // Canonicalize compiler-synthesized identifier names that are minted from a
-  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
-  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
-  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
-  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
-  // offset-based names are FROZEN into the per-chunk lowered IR that the
-  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
-  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
-  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
-  // same text re-derives the current one (`__define_fn_144`) — and since these
-  // names become runtime container names (keys/paths in `program.compiled`),
-  // the bytecode diverges between an incremental and a cold compile.
-  //
-  // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
-  // and incremental, before ExportRuntime) and renumbers each distinct synthetic
-  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
-  // ORDER (not by the offset value) is what makes the result identical between a
-  // cold parse and an incremental parse of the same text: a carried node sits at
-  // the same tree position either way, so it gets the same ordinal regardless of
-  // any stale offset baked into its name. A given synthetic name's definition
-  // and all of its references share the exact same string and are emitted within
-  // the same chunk, so a uniform string→string remap suffices (no need to link
-  // references back to definitions).
   // Call-relevant signature of every named flow, keyed by name. Walks the
   // flow tree only (each flow's named sub-flows), never the full parsed tree,
   // so this is O(flows) — negligible next to a compile. See
@@ -3507,6 +3487,35 @@ export class SparkdownCompiler {
     }
   }
 
+  // Canonicalize compiler-synthesized identifier names that are minted from a
+  // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
+  // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
+  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
+  // offset-based names are FROZEN into the per-chunk lowered IR that the
+  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
+  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
+  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
+  // same text re-derives the current one (`__define_fn_144`) — and since these
+  // names become runtime container names (keys/paths in `program.compiled`),
+  // the bytecode diverges between an incremental and a cold compile.
+  //
+  // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
+  // and incremental, before ExportRuntime) and renumbers each distinct synthetic
+  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
+  // ORDER (not by the offset value) is what makes the result identical between a
+  // cold parse and an incremental parse of the same text: a carried node sits at
+  // the same tree position either way, so it gets the same ordinal regardless of
+  // any stale offset baked into its name. A given synthetic name's definition
+  // and all of its references share the exact same string and are emitted within
+  // the same chunk, so a uniform string→string remap suffices (no need to link
+  // references back to definitions).
+  //
+  // A display call's continuation `group` (`ContinuationGroup`) is minted from
+  // its statement's offset the same way, as a string value rather than a name.
+  // The pass renumbers those to `__group_<n>` in a sequence of their own, so
+  // adding a continuation leaves the synthetic names after it as they were,
+  // and the other way round.
   protected canonicalizeSyntheticFlowNames(
     root: ParsedObject,
   ): Set<ParsedObject> | undefined {
@@ -3535,6 +3544,13 @@ export class SparkdownCompiler {
     const seenIds = new Set<Identifier>();
     const matchedStrings: Array<{ node: any; field: string }> = [];
     const flowsToRekey: FlowBase[] = [];
+    // Every call of one continuation carries the same group, so the calls
+    // share a mapping just as a synthetic's definition and references do.
+    // A script included from two places is walked twice, so a group node is
+    // recorded once, with the name it gets.
+    const groupRemap = new Map<string, string>();
+    const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
+    const seenGroups = new Set<ContinuationGroup>();
 
     const considerName = (name: string) => {
       let next = remap.get(name);
@@ -3545,6 +3561,22 @@ export class SparkdownCompiler {
           changed = true;
         }
       }
+    };
+    const considerGroup = (group: ContinuationGroup) => {
+      if (seenGroups.has(group)) {
+        return;
+      }
+      seenGroups.add(group);
+      const text = group.text;
+      let next = groupRemap.get(text);
+      if (next === undefined) {
+        next = `__group_${groupRemap.size}`;
+        groupRemap.set(text, next);
+      }
+      if (next !== text) {
+        changed = true;
+      }
+      matchedGroups.push({ group, next });
     };
     const considerId = (id: Identifier, owner: ParsedObject) => {
       const name = id.name;
@@ -3638,17 +3670,21 @@ export class SparkdownCompiler {
           matchedStrings.push({ node, field: f });
         }
       }
+      if (node instanceof ContinuationGroup) {
+        found = true;
+        considerGroup(node);
+      }
       if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
         // Only flows that actually contain a synthetic can need re-keying,
         // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
       }
-      const content = node.content;
-      if (content) {
-        for (const c of content) {
-          if (collect(c)) {
-            found = true;
-          }
+      // A stdlib or native call drops its proxy divert, which holds its
+      // arguments, from `content` when it generates, so a call carried from
+      // an earlier compile reaches its arguments only through `args`.
+      for (const c of parsedChildren(node)) {
+        if (collect(c)) {
+          found = true;
         }
       }
       if (!found) {
@@ -3693,6 +3729,12 @@ export class SparkdownCompiler {
           markRenamed(node);
         }
         node[field] = next;
+      }
+    }
+    for (const { group, next } of matchedGroups) {
+      if (next !== group.text) {
+        markRenamed(group);
+        group.text = next;
       }
     }
     for (const flow of flowsToRekey) {
@@ -3771,22 +3813,24 @@ export class SparkdownCompiler {
         if (varAss.variableName && !varAss.isNewDeclaration) {
           if (varAss.isGlobal) {
             program.dataLocations ??= {};
-            // Explicit first-write check (was `??=`) so we capture into the
-            // flow cache ONLY the entry this call actually committed.
+            const tuple: [number, number, number, number, number] = [
+              scriptIndex,
+              startLine,
+              startColumn,
+              endLine,
+              endColumn,
+            ];
             if (!(varAss.variableName in program.dataLocations)) {
-              const tuple: [number, number, number, number, number] = [
-                scriptIndex,
-                startLine,
-                startColumn,
-                endLine,
-                endColumn,
-              ];
               program.dataLocations[varAss.variableName] = tuple;
-              this._locCaptureTarget?.dataEntries.push({
-                key: varAss.variableName,
-                tuple,
-              });
             }
+            // A global belongs to its first writer across all flows, so the
+            // flow cache keeps this write even when an earlier flow owns the
+            // name: if that flow stops writing it, a replay of this flow
+            // must be able to claim it (`spliceCachedFlowLocations`).
+            this._locCaptureTarget?.dataEntries.push({
+              key: varAss.variableName,
+              tuple,
+            });
           } else {
             const containerPath = (precomputedPath ?? varAss.path.toString())
               .split(".")
@@ -4323,11 +4367,13 @@ export class SparkdownCompiler {
       const spans = () => (spanIndex ??= this.buildFlowSpanIndex(flows));
       // Reuse is only sound while the set of top-level flows is STABLE. A
       // structural edit (a scene/knot header made/unmade, renamed, added or
-      // removed) can reflow content across flow boundaries and shift the
-      // document-global ownership of GLOBAL dataLocations (a `& global = …`
+      // removed) can reflow content across flow boundaries, so a flow's cached
+      // entries, including its GLOBAL dataLocations writes (a `& global = …`
       // entry is keyed by bare name and owned by the FIRST writer across all
-      // flows — not flow-local). The per-flow cache freezes that ownership, so
-      // when the flow set changes, fall back to a full recompute this compile.
+      // flows — not flow-local), no longer describe what the flow holds. Replay
+      // re-applies first-write-wins only over the writes each flow held when it
+      // was captured, so when the flow set changes, fall back to a full
+      // recompute this compile.
       // `_locCache` keys ARE the previous compile's named-flow set (every
       // non-`global decl` flow is stored), so this is a free comparison.
       let effPrevCache = prevCache;

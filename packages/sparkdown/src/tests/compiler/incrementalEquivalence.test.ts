@@ -25,6 +25,10 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 // runtime flow (in mainContentContainer.namedOnlyContent) — that is exactly what
 // the per-flow location cache (Design A) and ToJson memo (Design B) reuse, so
 // the diverse edits below genuinely exercise the reuse paths.
+//
+// Each scene also holds a glued continuation with a break. Lowering names a
+// continuation's `group` by the offset its statement starts at, which an edit
+// above it moves.
 function coupledScreenplay(): string {
   const L: string[] = [];
   L.push("title: Incr Fixture");
@@ -55,6 +59,8 @@ function coupledScreenplay(): string {
     L.push(`hero:`);
     L.push(`  Line one of dialogue in scene ${s}.`);
     L.push(`  Second line with {trust} and read-count {scene_${(s + 1) % SC}} here.`);
+    L.push(`hero: Glued in scene ${s} ..`);
+    L.push(`.. carried on > and broken.`);
     L.push("if trust > 2 then");
     L.push(`  hero: I trust you in scene ${s}.`);
     L.push("else");
@@ -83,6 +89,8 @@ const edits: Edit[] = [
   { name: "edit define table value", find: "speed = 5", replace: "speed = 9" },
   { name: "add read-count reference (visit-count coupling)", find: "Not yet in scene 7.", replace: "Not yet in scene 7, {scene_2}." },
   { name: "remove a cross-flow divert", find: "-> scene_10", replace: "-> DONE" },
+  { name: "lengthen a line above continuations (moves them)", find: "Line one of dialogue in scene 2.", replace: "Line one of dialogue in scene 2, said at much greater length." },
+  { name: "add a continuation above others (renumbers their groups)", find: "-> scene_6", replace: "hero: A new glued line ..\n.. said here.\n-> scene_6" },
   { name: "change function body", find: "return x * 2 + 1", replace: "return x * 3 + 1" },
   { name: "edit store initial value", find: "store trust = 0", replace: "store trust = 1" },
   { name: "rename a scene (cross-flow divert target)", find: "scene scene_4", replace: "scene scene_renamed" },
@@ -155,6 +163,17 @@ function posAt(text: string, offset: number) {
 }
 
 describe("compiler incremental equivalence", () => {
+  it("the fixture's continuations carry a group, one per continuation", () => {
+    // The edits below move and add continuations; this keeps them from
+    // passing on a fixture whose continuations carry no group at all.
+    const text = coupledScreenplay();
+    const continuations = text.split("Glued in scene").length - 1;
+    const json = JSON.stringify(coldCompile(text).compiled);
+    const groups = [...json.matchAll(/"\^group","\/str","str","\^([^"]*)"/g)].map((m) => m[1]);
+    expect(continuations).toBeGreaterThan(0);
+    expect(new Set(groups).size).toBe(continuations);
+  });
+
   // Each diverse edit is applied as a SINGLE minimal-range incremental update
   // from a freshly-configured compiler, then compared to a cold compile of the
   // resulting text. This isolates per-edit-type correctness (exactly what the
@@ -304,6 +323,26 @@ describe("compiler incremental equivalence", () => {
           { find: "Not yet in scene 12.", replace: "Not yet in scene 12!" },
         ],
       },
+      {
+        name: "anonymous fn inside a stdlib call's arguments renumbered in a reused scene",
+        // `print` generates without its proxy divert, which holds its
+        // arguments, so after the first compile the carried call reaches the
+        // function only through `args`. The second step renumbers it.
+        expectsDemotion: true,
+        steps: [
+          {
+            find: "  Action describing room 11 in some detail here.",
+            replace:
+              "  Action describing room 11 in some detail here.\n& print(function(x) return x + 1 end)",
+          },
+          {
+            find: "  Action describing room 6 in some detail here.",
+            replace:
+              "  Action describing room 6 in some detail here.\n& local f6 = function(x) return x + 2 end",
+          },
+          { find: "Not yet in scene 12.", replace: "Not yet in scene 12!" },
+        ],
+      },
     ];
     const realWarn = console.warn;
     const realError = console.error;
@@ -410,12 +449,44 @@ describe("compiler incremental equivalence", () => {
     }
   });
 
+  // A global's data location belongs to its first writer across all flows.
+  // Removing that writer passes the name to the next one, here in a scene the
+  // edit leaves unchanged, so the replay of that scene's cached locations must
+  // hold its write to the name although it did not own it when captured.
+  for (const edit of [
+    { name: "delete the first writer line", find: "& trust = 1\n", replace: "" },
+    { name: "comment out the first writer", find: "& trust = 1", replace: "& tr// cust = 1" },
+  ]) {
+    it(`incremental == cold data locations when an edit removes a global's first writer: ${edit.name}`, () => {
+      const base = "store trust = 0\n\nscene one\n& trust = 1\n-> two\nend\n\nscene two\n& trust = 2\nend\n";
+      const offset = base.indexOf(edit.find);
+      expect(offset).toBeGreaterThanOrEqual(0);
+      const after = base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length);
+      const incr = new SparkdownCompiler();
+      incr.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
+      });
+      incr.compile({ textDocument: { uri: URI } });
+      incr.updateDocument({
+        textDocument: { uri: URI, version: 2 },
+        contentChanges: [
+          { range: { start: posAt(base, offset), end: posAt(base, offset + edit.find.length) }, text: edit.replace },
+        ],
+      });
+      const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+      const coldProg = coldCompile(after);
+      expect(coldProg.dataLocations?.trust).toBeDefined();
+      expect(stable(incrProg)).toBe(stable(coldProg));
+    });
+  }
+
   it("incremental == cold under randomized structural edits (fuzz, full surface)", () => {
     // Each random edit (structural inserts AND mid-content deletions) is applied
     // as a SINGLE incremental update from a freshly configured compiler and
     // compared on the FULL program surface to a cold compile. This exercises the
     // location/ToJson reuse paths AND the incremental parser+annotation+validation
-    // across a wide variety of edit sites/kinds.
+    // across a wide variety of edit sites/kinds. The seeded edits include one
+    // that comments out scene 0's `& trust = …`, the first writer of `trust`.
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};

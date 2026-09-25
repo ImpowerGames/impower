@@ -1,0 +1,12 @@
+Go <wait 1> now.
+Go <wait 1 > now.
+Go <b>bold</b> now.
+HERO: Go <wait 1> now.
+HERO: Go <wait 1 > now.
+HERO: Go <b>bold</b> now.
+HERO: Go <speed: 0.5> now.
+HERO:
+  Go <wait 1> now.
+  Go <wait 1 > now.
+  Go <b>bold</b> now.
+  Go <speed: 0.5> now.

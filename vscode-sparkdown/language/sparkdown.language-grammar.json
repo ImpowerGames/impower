@@ -4066,7 +4066,8 @@
             }
           ]
         }
-      }
+      },
+      "match": "(.+)"
     },
     "TextCommandControlKeyword": {
       "tag": "keyword",
@@ -4082,7 +4083,8 @@
             }
           ]
         }
-      }
+      },
+      "match": "(.+)"
     },
     "TextCommandArgument": {
       "tag": "meta",
@@ -4222,7 +4224,8 @@
           "tag": "definition(content)",
           "name": "markup.raw.text.sd"
         }
-      }
+      },
+      "match": "(.+)"
     },
     "Raw": {
       "tag": "content",

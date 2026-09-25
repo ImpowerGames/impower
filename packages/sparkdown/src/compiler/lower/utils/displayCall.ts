@@ -13,6 +13,15 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
+// The name a display call's `group` carries. Lowering names the continuation
+// by its file and the offset its statement starts at, which is unique in the
+// story, and the compiler's synthetic-name pass renumbers every such name to
+// `__group_<n>` by document order before the program is generated. The
+// incremental compiler keeps the lowered calls of a line that did not change,
+// even when an edit above it moved the line, so only a name that does not
+// depend on the offset is the same in an incremental and a cold compile.
+export class ContinuationGroup extends Text {}
+
 // `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, continues? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
@@ -40,8 +49,8 @@ import { stampDebugMetadata } from "./debugMetadata";
 // runs on until a call closes the line. A divert the line holds open carries
 // it. `caption` marks a `choose` block's last caption line, whose newline
 // waits: the step completes with the choices unless the run shows something
-// first. `group` names the glued continuation a call belongs to (its file and
-// the offset it starts at, since offsets start again in every script), and
+// first. `group` names the glued continuation a call belongs to (see
+// `ContinuationGroup`), and
 // `inherit` marks its beats after one of its breaks: they take the routing of
 // the beat the run joined the continuation to, which the interpreter knows
 // only while the beat `group` names is the one it queued last, and otherwise
@@ -99,7 +108,7 @@ export function buildDisplayCall(
     entries.push(
       new ObjectExpressionEntry(
         "group",
-        new StringExpression([new Text(options.group)]),
+        new StringExpression([new ContinuationGroup(options.group)]),
       ),
     );
   }
