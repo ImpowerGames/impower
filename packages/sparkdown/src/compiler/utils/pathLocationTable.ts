@@ -160,7 +160,7 @@ const buildSearchIndex = (
  * otherwise jump straight into one and fail to mount. They are never a valid
  * preview target, so exclude them as candidates.
  */
-const isBindingPath = (path: string) =>
+export const isBindingPath = (path: string) =>
   path.includes("__binding_") &&
   path.split(".").some((seg) => seg.startsWith("__binding_"));
 

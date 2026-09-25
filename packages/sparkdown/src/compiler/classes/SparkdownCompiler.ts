@@ -98,6 +98,7 @@ import type {
   SparkProgram,
 } from "../types/SparkProgram";
 import {
+  isBindingPath,
   LOCATION_STRIDE,
   narrowPaths,
   pathLocationTableOf,
@@ -2326,7 +2327,7 @@ export class SparkdownCompiler {
           Object.keys(program.scripts).map((u, i) => [u, i]),
         );
         this.populateAllLocations(program, story);
-        this._functionSpans = this.collectFunctionSpans(parsedStory);
+        this._functionSpans = this.collectFunctionSpans(program, parsedStory);
         // Carry this compile's chunk-identity set forward so the next compile
         // can tell which chunks are unchanged.
         this._prevCompilationIds = this._compilationIds;
@@ -4670,20 +4671,26 @@ export class SparkdownCompiler {
   /**
    * Every function container in the story, with the lines its declaration
    * spans: named functions, hoisted function literals and the callables a
-   * flow nests. A function's own nested flows are under its path, so the walk
-   * stops there.
+   * flow nests. A function's own nested flows are under its path, and their
+   * rows start inside this declaration's lines, so this span covers them and
+   * the walk stops there. Binding evaluators are left out: `isBindingPath`
+   * already rejects every row under one.
    */
-  protected collectFunctionSpans(story: Story): FunctionSpan[] {
+  protected collectFunctionSpans(
+    program: SparkProgram,
+    story: Story,
+  ): FunctionSpan[] {
     const spans: FunctionSpan[] = [];
     const visit = (flow: FlowBase) => {
       for (const sub of flow.subFlowsByName.values()) {
         if (sub.isFunction) {
           const path = sub.runtimeObject?.path?.componentsString;
-          if (path) {
-            const md = sub.debugMetadata;
-            const scriptIndex = md?.filePath
-              ? this._scriptIndices?.get(md.filePath)
-              : undefined;
+          if (path && !isBindingPath(path)) {
+            // Resolved as `populateAllLocations` resolves a row's script.
+            const md = sub.ownDebugMetadata ?? sub.debugMetadata;
+            const uri = md ? (md.filePath ?? program.uri) : undefined;
+            const scriptIndex =
+              uri != null ? this._scriptIndices?.get(uri) : undefined;
             spans.push(
               md && scriptIndex != null
                 ? {

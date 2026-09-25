@@ -33,14 +33,22 @@ const writtenText = (harness: any): string =>
     )
     .join(" ");
 
-/** Press PLAY with the cursor on `line`. */
-const playFrom = async (source: string, line: number) => {
-  const h = createHarness(source, line);
+/** Press PLAY with the cursor on `line` of `file`. */
+const playFrom = async (
+  source: string,
+  line: number,
+  opts?: { file?: string; scripts?: Record<string, string> },
+) => {
+  const h = createHarness(source, line, { scripts: opts?.scripts });
   await h.ready;
   h.reset();
-  const startFrom = h.game.setStartFrom({ file: MAIN_URI, line }, "first");
+  const startFrom = h.game.setStartFrom(
+    { file: opts?.file ?? MAIN_URI, line },
+    "first",
+  );
   h.game.start();
   return {
+    startFile: startFrom?.file,
     startLine: startFrom?.line,
     executedLine: h.game.getLastExecutedDocumentLocation()?.range.start.line,
     errors: runtimeErrors(h.messages),
@@ -206,6 +214,41 @@ describe("a function declaration after the last story line (#835)", () => {
     const run = await playFrom(SOURCE, 3);
     expect(run.errors).toEqual([]);
     expect(run.executedLine).toBe(0);
+    expect(run.running).toBe(true);
+  });
+});
+
+describe("a function declared in an included script (#835)", () => {
+  const OTHER_URI = "inmemory:///other.sd";
+  const MAIN = [`include other.sd`, ``, `A`, ``].join("\n");
+  const OTHER = [
+    `B`,
+    ``,
+    `function less(a, b)`,
+    `  return a < b`,
+    `end`,
+    ``,
+    `C`,
+    ``,
+  ].join("\n");
+
+  test("records the lines of its declaration in that script", () => {
+    const { program } = compileUI(MAIN, { scripts: { [OTHER_URI]: OTHER } });
+    const scripts = Object.keys(program.scripts);
+    expect(program.pathLocations?.functions).toContainEqual({
+      path: "less",
+      lines: [scripts.indexOf(OTHER_URI), 2, 4],
+    });
+  });
+
+  test("PLAY from its header starts at the story line after it, in that script", async () => {
+    const run = await playFrom(MAIN, 2, {
+      file: OTHER_URI,
+      scripts: { [OTHER_URI]: OTHER },
+    });
+    expect(run.errors).toEqual([]);
+    expect(run.startFile).toBe(OTHER_URI);
+    expect(run.startLine).toBe(6);
     expect(run.running).toBe(true);
   });
 });

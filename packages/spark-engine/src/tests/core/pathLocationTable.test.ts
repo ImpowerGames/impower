@@ -199,7 +199,10 @@ describe("path locations resolve a source line by binary search", () => {
     expect(onScreen.length).toBeGreaterThan(0);
     expect(onScreen.every(([p]) => isBindingPath(p))).toBe(true);
     // A function whose rows the preview search skips.
-    expect(table.functions?.map((f) => f.path)).toContain("Fn");
+    expect(table.functions).toContainEqual({
+      path: "Fn",
+      lines: [scripts.indexOf(SCENES), 7, 9],
+    });
     expect(table.paths.some((p) => p.startsWith("Fn."))).toBe(true);
   });
 

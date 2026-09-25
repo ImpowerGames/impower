@@ -35,7 +35,8 @@ export interface PathLocationTable {
    * The containers that are functions: named `function` declarations, hoisted
    * function literals and callables nested in a flow. A function's body runs
    * only when it is called, so a row under one of these containers is not a
-   * place a story can start or a preview can divert into.
+   * place a story can start or a preview can divert into. Binding evaluators
+   * are not listed; their rows are rejected by path.
    */
   functions?: FunctionSpan[];
 }
