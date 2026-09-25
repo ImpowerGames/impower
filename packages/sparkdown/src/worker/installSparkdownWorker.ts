@@ -15,11 +15,11 @@ import { programSummary } from "../compiler/utils/programSummary";
 import { ProgramTransportEncoder } from "../workspace/utils/programTransport";
 
 export interface SparkdownWorkerOptions {
-  /** Whether to answer compiles, preview compiles and selections as a host
-   *  that leaves each program in this worker expects: the program's summary
+  /** Answer compiles, preview compiles and selections as a host that leaves
+   *  each program in this worker expects: the program's summary
    *  (`programSummary`) and no checkpoint. A compile that asks for its
    *  program to be emitted is answered in full. */
-  summarize?: () => boolean;
+  summarize?: boolean;
 }
 
 export function installSparkdownWorker(
@@ -54,7 +54,7 @@ export function installSparkdownWorker(
     if (!result.program) {
       return result;
     }
-    if (options.summarize?.() && !emit) {
+    if (options.summarize && !emit) {
       const { checkpoint: _checkpoint, ...rest } = result;
       return {
         ...rest,
@@ -122,7 +122,7 @@ export function installSparkdownWorker(
       if (SelectCompilerDocumentMessage.type.is(message)) {
         connection.sendResponse(message, () => {
           const result = state.compiler.selectDocument(message.params);
-          if (options.summarize?.()) {
+          if (options.summarize) {
             const { checkpoint: _checkpoint, ...rest } = result;
             return rest;
           }

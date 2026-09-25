@@ -1,7 +1,7 @@
 // What the worker's route searches established is evidence only about the
 // path and the program each ran in (#680). The editor re-selects on every
 // cursor move, so a selection of the line the preview stands on must not
-// search it again, in either position of the switch (#489); and the page can
+// search it again (#489); and the page can
 // ask for the program it shows after a newer one has compiled, which must be
 // displayed from a route through its own story, not the newer program's.
 import { CompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/CompileProgramMessage";
@@ -51,93 +51,88 @@ const TWO_MOOD = lineIn(TWO_LINES, `store mood = "calm"`);
 const TWO_FEEL = lineIn(TWO_LINES, "I feel {mood}.");
 const STILL = lineIn(TWO_LINES, "Still {mood}.");
 
-for (const workerDisplays of [false, true]) {
-  describe(`with the switch ${workerDisplays ? "on" : "off"}`, () => {
-    it("searches a moved selection's route once after a compile that threw", async () => {
-      const h = await createPlayerHarness({
-        workerDisplays,
-        files: [{ uri: MAIN_URI, text: TWO_LINES }],
-        startFrom: { file: MAIN_URI, line: TWO_FEEL },
-      });
-      try {
-        await h.compile();
-        await h.select(TWO_FEEL);
-        await settle(40);
-        expect(text(h.overlay)).toContain("I feel calm.");
+describe("route searches for a selection", () => {
+  it("searches a moved selection's route once after a compile that threw", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: TWO_LINES }],
+      startFrom: { file: MAIN_URI, line: TWO_FEEL },
+    });
+    try {
+      await h.compile();
+      await h.select(TWO_FEEL);
+      await settle(40);
+      expect(text(h.overlay)).toContain("I feel calm.");
 
-        // An edit whose compile throws: the game and the page keep the
-        // program before it.
-        const at = TWO_LINES.split("\n")[TWO_MOOD]!.indexOf("calm");
-        await h.edit([
-          {
-            range: {
-              start: { line: TWO_MOOD, character: at },
-              end: { line: TWO_MOOD, character: at + "calm".length },
-            },
-            text: "angry",
+      // An edit whose compile throws: the game and the page keep the
+      // program before it.
+      const at = TWO_LINES.split("\n")[TWO_MOOD]!.indexOf("calm");
+      await h.edit([
+        {
+          range: {
+            start: { line: TWO_MOOD, character: at },
+            end: { line: TWO_MOOD, character: at + "calm".length },
           },
-        ]);
-        const compiler: any = h.workerState.compilerState.compiler;
-        const kept = {
-          note: compiler.noteFlowShapesWithoutEmitting,
-          serialize: compiler.serializeCompiledProgram,
-        };
-        const fail = () => {
-          throw new Error("the compile threw");
-        };
-        compiler.noteFlowShapesWithoutEmitting = fail;
-        compiler.serializeCompiledProgram = fail;
-        try {
-          await h.compile();
-        } finally {
-          compiler.noteFlowShapesWithoutEmitting = kept.note;
-          compiler.serializeCompiledProgram = kept.serialize;
-        }
-        expect(h.workerState.compilerState.compiler.isProgramOutdated()).toBe(false);
-
-        // The cursor moves to the next line, which the program shown still
-        // describes.
-        const searched = countSearches(h);
-        await h.select(STILL);
-        await settle(40);
-
-        expect(searched).toHaveLength(1);
-        expect(text(h.overlay)).toContain("Still calm.");
-      } finally {
-        h.dispose();
-      }
-    }, 120_000);
-
-    it("searches no route again for a selection of the line the preview stands on", async () => {
-      const h = await createPlayerHarness({
-        workerDisplays,
-        files: [{ uri: MAIN_URI, text: SOURCE }],
-        startFrom: { file: MAIN_URI, line: FEEL },
-      });
+          text: "angry",
+        },
+      ]);
+      const compiler: any = h.workerState.compilerState.compiler;
+      const kept = {
+        note: compiler.noteFlowShapesWithoutEmitting,
+        serialize: compiler.serializeCompiledProgram,
+      };
+      const fail = () => {
+        throw new Error("the compile threw");
+      };
+      compiler.noteFlowShapesWithoutEmitting = fail;
+      compiler.serializeCompiledProgram = fail;
       try {
         await h.compile();
-        await h.select(FEEL);
-        await settle(40);
-        expect(text(h.overlay)).toContain("I feel calm.");
-
-        // The cursor moves along the line.
-        const searched = countSearches(h);
-        await h.select(FEEL);
-        await settle(40);
-
-        expect(searched).toEqual([]);
-        expect(text(h.overlay)).toContain("I feel calm.");
       } finally {
-        h.dispose();
+        compiler.noteFlowShapesWithoutEmitting = kept.note;
+        compiler.serializeCompiledProgram = kept.serialize;
       }
-    }, 120_000);
-  });
-}
+      expect(h.workerState.compilerState.compiler.isProgramOutdated()).toBe(false);
 
-describe("with the switch on", () => {
+      // The cursor moves to the next line, which the program shown still
+      // describes.
+      const searched = countSearches(h);
+      await h.select(STILL);
+      await settle(40);
+
+      expect(searched).toHaveLength(1);
+      expect(text(h.overlay)).toContain("Still calm.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("searches no route again for a selection of the line the preview stands on", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FEEL },
+    });
+    try {
+      await h.compile();
+      await h.select(FEEL);
+      await settle(40);
+      expect(text(h.overlay)).toContain("I feel calm.");
+
+      // The cursor moves along the line.
+      const searched = countSearches(h);
+      await h.select(FEEL);
+      await settle(40);
+
+      expect(searched).toEqual([]);
+      expect(text(h.overlay)).toContain("I feel calm.");
+    } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("a program the page still shows", () => {
   it("displays the program the page shows from its own route after a newer one compiles", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: FEEL },
     });

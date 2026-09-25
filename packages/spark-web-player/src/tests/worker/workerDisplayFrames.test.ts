@@ -1,9 +1,8 @@
-// The stopped preview displayed from the worker's game (#680) builds the same
-// overlay DOM as the page's own game does, for every program and line.
+// The stopped preview displayed from the worker's game shows, after every
+// compile, selection, edit and suggestion, the beat the step asks for.
 //
-// Each case runs the whole player twice, with the switch off and on, through
-// the same sequence of compiles, selections and edits, and compares the
-// serialized overlay after every step.
+// Each case runs the whole player through a sequence of steps and reads the
+// serialized overlay after every one.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -35,25 +34,29 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
-/** Run `steps` against `text` with the switch in one position, and read the
- *  overlay after the first compile and after every step. */
-async function frames(workerDisplays: boolean, text: string, steps: Step[]) {
+/** Run `steps` against `text`, and read the overlay after the first compile
+ *  and after every step, with the line the toolbar says the preview
+ *  launches from (`launches`). */
+async function frames(text: string, steps: Step[]) {
   const h = await createPlayerHarness({
-    workerDisplays,
     files: [{ uri: MAIN_URI, text }],
     startFrom: { file: MAIN_URI, line: 0 },
   });
   harnesses.push(h);
   const out: unknown[] = [];
-  // A compile or selection the worker rejects is part of what is compared:
-  // the route search runs the same way in both positions.
+  const launches: string[] = [];
+  const read = () => {
+    out.push(h.snapshotDOM());
+    launches.push(h.refs.launchLabel.textContent ?? "");
+  };
+  // A compile or selection the worker rejects is part of what is compared.
   const note = (answer: any) => {
     if (answer?.error) {
       out.push({ rejected: answer.error });
     }
   };
   note(await h.compile());
-  out.push(h.snapshotDOM());
+  read();
   let current = text;
   for (const step of steps) {
     if ("select" in step) {
@@ -87,12 +90,13 @@ async function frames(workerDisplays: boolean, text: string, steps: Step[]) {
       current = current.slice(0, offset) + insert + current.slice(offset + deleteLength);
       note(await h.compile());
     }
-    out.push(h.snapshotDOM());
+    read();
   }
-  // The switch really was in the position asked for.
-  expect(h.controller._game == null).toBe(workerDisplays);
-  return out;
+  return Object.assign(out, { launches });
 }
+
+/** Whether a frame shows `text`. */
+const shows = (frame: unknown, text: string) => JSON.stringify(frame).includes(text);
 
 function coupledScreenplay(): string {
   const L: string[] = [];
@@ -126,7 +130,7 @@ function coupledScreenplay(): string {
 const lineOf = (text: string, find: string) => posAt(text, text.indexOf(find)).line;
 
 describe("the preview displayed from the worker's game", () => {
-  it("builds the page game's overlay over a screenplay, line by line and across edits", async () => {
+  it("shows each step's beat over a screenplay, line by line and across edits", async () => {
     const text = coupledScreenplay();
     const steps: Step[] = [
       { select: lineOf(text, "Line one of dialogue in scene 0.") },
@@ -137,14 +141,21 @@ describe("the preview displayed from the worker's game", () => {
       { edit: { find: "store trust = 0", replace: "store trust = 5" } },
       { select: lineOf(text, "Line one of dialogue in scene 3.") },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
-    // What was compared is the script on screen, not two empty overlays.
-    expect(JSON.stringify(on[1])).toContain("Line one of dialogue in scene 0.");
-    expect(JSON.stringify(on[3])).toContain("Action describing room 4.");
+    const on = await frames(text, steps);
+    // Nothing was rejected, and each step shows its own beat.
+    expect(on).toHaveLength(steps.length + 1);
+    expect(shows(on[1], "Line one of dialogue in scene 0.")).toBe(true);
+    expect(shows(on[2], "Not yet in scene 2.")).toBe(true);
+    expect(shows(on[3], "Action describing room 4.")).toBe(true);
+    // An edit on another line leaves the beat at the cursor on screen.
+    expect(shows(on[4], "Action describing room 4.")).toBe(true);
+    expect(shows(on[5], "Trust is 0.")).toBe(true);
+    // The edit to where trust starts reaches the beat on screen.
+    expect(shows(on[6], "Trust is 5.")).toBe(true);
+    expect(shows(on[7], "Line one of dialogue in scene 3.")).toBe(true);
   }, 120_000);
 
-  it("builds the page game's overlay while suggestions are browsed, returned to and closed", async () => {
+  it("shows each step's beat while suggestions are browsed, returned to and closed", async () => {
     const text = coupledScreenplay();
     const line = "Line one of dialogue in scene 2.";
     const steps: Step[] = [
@@ -156,15 +167,19 @@ describe("the preview displayed from the worker's game", () => {
       { close: true },
       { select: lineOf(text, "Action describing room 5.") },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
-    expect(JSON.stringify(on[2])).toContain("A first suggestion for scene 2.");
-    expect(JSON.stringify(on[3])).toContain("A second suggestion for scene 2.");
-    expect(JSON.stringify(on[4])).toContain("A first suggestion for scene 2.");
-    expect(JSON.stringify(on[5])).toContain(line);
+    const on = await frames(text, steps);
+    expect(on).toHaveLength(steps.length + 1);
+    expect(shows(on[1], line)).toBe(true);
+    expect(shows(on[2], "A first suggestion for scene 2.")).toBe(true);
+    expect(shows(on[3], "A second suggestion for scene 2.")).toBe(true);
+    expect(shows(on[4], "A first suggestion for scene 2.")).toBe(true);
+    // Closing the list shows the real document again.
+    expect(shows(on[5], line)).toBe(true);
+    expect(shows(on[5], "suggestion for scene 2.")).toBe(false);
+    expect(shows(on[6], "Action describing room 5.")).toBe(true);
   }, 120_000);
 
-  it("builds the page game's overlay while an image name is typed with the list open", async () => {
+  it("shows each step's beat while an image name is typed with the list open", async () => {
     const text = [
       `define SPRITE_A as image with`,
       `  src = "https://example.com/a.png"`,
@@ -198,9 +213,22 @@ describe("the preview displayed from the worker's game", () => {
       { suggest: { find: "[[SPRITE_\n", replace: "[[SPRITE_B]]\n" } },
       { close: true },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
-    expect(JSON.stringify(on[6])).toContain("b.png");
+    const on = await frames(text, steps);
+    expect(on).toHaveLength(steps.length + 1);
+    // Each keystroke's compile and each highlighted suggestion shows the
+    // beat being typed into, with the picture the suggestion names.
+    for (const frame of on.slice(1)) {
+      expect(shows(frame, "The second line.")).toBe(true);
+    }
+    // Every frame names both images once for the assets it holds; a picture
+    // on screen names its image again.
+    const shown = (frame: unknown, image: string) =>
+      JSON.stringify(frame).split(image).length - JSON.stringify(on[0]).split(image).length;
+    expect(shown(on[3], "a.png")).toBeGreaterThan(0);
+    expect(shown(on[6], "b.png")).toBeGreaterThan(0);
+    // Closing the list shows the real document, whose name matches no image.
+    expect(shown(on[7], "a.png")).toBe(0);
+    expect(shown(on[7], "b.png")).toBe(0);
   }, 120_000);
 
   it("shows the real document after a suggestion changed a function an unchanged scene calls", async () => {
@@ -232,14 +260,13 @@ describe("the preview displayed from the worker's game", () => {
       },
       { close: true },
     ];
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
+    const on = await frames(text, steps);
     expect(JSON.stringify(on[1])).toContain("The bridge says the real greeting.");
     expect(JSON.stringify(on[2])).toContain("The bridge says the suggested greeting.");
     expect(JSON.stringify(on[3])).toContain("The bridge says the real greeting.");
   }, 120_000);
 
-  it("builds the page game's overlay over the Pico showcase", async () => {
+  it("shows the Pico showcase's layout wherever the cursor is in it", async () => {
     const text = readFileSync(
       resolve(__dirname, "../../../../../docs/sparkle/pico-showcase.sd"),
       "utf8",
@@ -248,38 +275,17 @@ describe("the preview displayed from the worker's game", () => {
     const steps: Step[] = [0.25, 0.5, 0.75, 0.95].map((at) => ({
       select: Math.floor(lines.length * at),
     }));
-    const on = await frames(true, text, steps);
-    expect(on).toEqual(await frames(false, text, steps));
-    expect(JSON.stringify(on.at(-1)).length).toBeGreaterThan(5000);
-  }, 120_000);
-
-  it("builds the page game's overlay across random edits and selections", async () => {
-    // A deterministic LCG, as the incremental equivalence fuzz uses, so both
-    // runs see the same edits.
-    const plan = (seed: number) => {
-      let s = seed;
-      const rand = () => {
-        s = (s * 1103515245 + 12345) & 0x7fffffff;
-        return s / 0x7fffffff;
-      };
-      const inserts = ["x", "\n", " ", "1", "{trust}", "hero:", "-> scene_2", "  A new line.\n"];
-      let text = coupledScreenplay();
-      const steps: Step[] = [];
-      for (let n = 0; n < 12; n++) {
-        if (rand() < 0.5) {
-          const insert = inserts[Math.floor(rand() * inserts.length)]!;
-          const deleteLength = rand() < 0.3 ? 1 + Math.floor(rand() * 6) : 0;
-          const offset = Math.floor(rand() * (text.length - deleteLength));
-          steps.push({ editAt: { offset, deleteLength, insert } });
-          text = text.slice(0, offset) + insert + text.slice(offset + deleteLength);
-        } else {
-          steps.push({ select: Math.floor(rand() * text.split("\n").length) });
-        }
+    const on = await frames(text, steps);
+    expect(on).toHaveLength(steps.length + 1);
+    // The showcase has no scene: past its stores and functions it is one
+    // layout, and a function's lines are never where a preview starts, so no
+    // line is one the toolbar names as the launch, and each frame draws the
+    // layout's controls.
+    expect(on.launches.slice(1)).toEqual(steps.map(() => ""));
+    for (const frame of on.slice(1)) {
+      for (const text of ["Pico", "Preview", "Subscribe", "Privacy Policy"]) {
+        expect(shows(frame, text)).toBe(true);
       }
-      return steps;
-    };
-    const steps = plan(0x680);
-    const text = coupledScreenplay();
-    expect(await frames(true, text, steps)).toEqual(await frames(false, text, steps));
+    }
   }, 120_000);
 });

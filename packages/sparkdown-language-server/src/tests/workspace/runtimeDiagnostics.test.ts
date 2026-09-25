@@ -20,7 +20,7 @@ const compileWarning = {
 };
 const runtimeWarning = {
   severity: 2,
-  message: "This line begins with `..`, but the line before it had already ended.",
+  message: "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.",
   range: range(3),
   source: "runtime",
 };

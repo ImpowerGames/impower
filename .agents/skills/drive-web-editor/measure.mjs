@@ -24,7 +24,6 @@ export const MEASURE_USAGE = [
   "  --settle <ms>           wait after each result so its trailing measures arrive (default 1500)",
   "  --json <file>           also write the full report, with the raw event log of every sample",
   "  --headed                run a visible browser instead of headless",
-  "  --worker-preview on|off display the stopped preview from the player's worker (#680); off by default",
   "  --heap                  also read the page's heap, collected, before the list opens and after it closes",
 ];
 
@@ -40,7 +39,7 @@ function integer(text, name, min) {
 }
 
 export function parseMeasureArgs(args) {
-  const out = { samples: 10, warmup: 2, edit: false, timeout: 20_000, settle: 1500, headed: false, workerPreview: "off" };
+  const out = { samples: 10, warmup: 2, edit: false, timeout: 20_000, settle: 1500, headed: false };
   for (let i = 0; i < args.length; i++) {
     const name = args[i];
     switch (name) {
@@ -80,12 +79,6 @@ export function parseMeasureArgs(args) {
       case "--heap":
         out.heap = true;
         break;
-      case "--worker-preview": {
-        const position = value(args, i++, name);
-        if (position !== "on" && position !== "off") throw new Error("--worker-preview takes on or off");
-        out.workerPreview = position;
-        break;
-      }
       default:
         throw new Error(`unknown measure argument ${name}`);
     }
@@ -325,7 +318,7 @@ export async function measure(args, deps) {
     return deps.die([error.message, "", ...MEASURE_USAGE].join("\n"));
   }
   const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-measure-"));
-  const report = { mode: options.edit ? "edit" : "preview", workerPreview: options.workerPreview, line: options.line, word: options.word, samples: [], warmup: options.warmup };
+  const report = { mode: options.edit ? "edit" : "preview", line: options.line, word: options.word, samples: [], warmup: options.warmup };
   let pageConsole = [];
   try {
     let project = options.project;
@@ -474,7 +467,7 @@ export async function measure(args, deps) {
           }
         }
       },
-      { headless: !options.headed, workerPreview: options.workerPreview, launch: privateLaunch(deps, path.join(scratch, "profile")) },
+      { headless: !options.headed, launch: privateLaunch(deps, path.join(scratch, "profile")) },
     );
   } catch (error) {
     report.error = String(error?.message ?? error);

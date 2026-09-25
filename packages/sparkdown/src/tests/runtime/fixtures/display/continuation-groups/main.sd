@@ -4,6 +4,6 @@ include includes/evil.sd
 
 scene start
   HERO: A. ..
-  joined > After hero.
+  .. joined > After hero.
   -> evil
 end

@@ -41,7 +41,7 @@ export interface DisplayPreviewResult {
 
 /**
  * Display the preview at a point of a program the worker compiled, from the
- * worker's own game, as the page's game would display it: the game declares
+ * worker's own game: the game declares
  * the preview, loads the route's checkpoint, connects to the page, previews
  * the point and closes the reconcile pass. Answered once the frame is sent,
  * or once a later display or compile took it over.

@@ -2523,6 +2523,10 @@ function joinDisplayParts(table: Map<string, AbstractValue>): void {
   }
 }
 
+// What a line that begins with `..` and joins nothing raises.
+const NOT_JOINED =
+  "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
+
 export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
@@ -3148,20 +3152,28 @@ export const STDLIB: Record<string, StdLibEntry> = {
           payload instanceof ObjectValue ? payload.value?.get(key) : null;
         return value instanceof BoolValue && value.value === true;
       };
-      // A line that begins with `..` states that it continues the line
-      // before it. Where only the run knows that line, the call checks it
-      // here: the line is open when the step has shown something and has not
-      // yet written the newline that ends it. A caption's pending newline is
-      // written before anything else shows, so its line has ended.
-      if (
-        flag("continues") &&
-        (!story.state.outputStreamContainsContent ||
-          story.state.outputStreamEndsInNewline ||
-          story.state.lineEndPending)
-      ) {
-        story.Warning(
-          "This line begins with `..`, but the line before it had already ended.",
-        );
+      // A line that begins with `..` joins the line shown before it when that
+      // line ends with `..`. After a trailing `..` the step is still running
+      // and its newline waits, so the join drops the newline and this line's
+      // text joins the same beat. After `.. >` the click has ended the step,
+      // and the interpreter carries this beat on in that beat's box. A line a
+      // divert holds open is already joined. Otherwise the line shows as a new
+      // one, without `continues`, so the interpreter starts a new box.
+      if (flag("continues")) {
+        const state = story.state;
+        if (state.lineJoinable) {
+          state.lineJoinable = false;
+          state.lineEndPending = false;
+        } else if (
+          state.outputStreamContainsContent &&
+          !state.outputStreamEndsInNewline &&
+          !state.lineEndPending
+        ) {
+          // A divert held the line open.
+        } else {
+          story.Warning(NOT_JOINED);
+          (payload as ObjectValue).value?.delete("continues");
+        }
       }
       // The line's author tags go to the stream first, as a tag written on
       // the line would, so they land in the same step's `currentTags`.
@@ -3188,6 +3200,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // table marked `open` joins the next display call onto its line, so
       // the step runs on until a call closes it.
       if (flag("open")) return;
+      // A line that ends with `..` leaves its newline waiting, as a caption
+      // does, and offers to join: a line that begins with `..` takes the
+      // offer, and anything else that shows writes the newline first.
+      if (flag("glue")) {
+        story.state.lineEndPending = true;
+        story.state.lineJoinable = true;
+        return;
+      }
       // A `choose` block's caption leaves its newline pending: the step runs
       // on and completes with the choices, unless something shows first,
       // which writes the newline and starts the next step.
@@ -3196,6 +3216,19 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return;
       }
       story.state.PushToOutputStream(new StringValue("\n"));
+      // `.. >` ends the step at the click and offers the step after it the
+      // box.
+      if (flag("extend")) story.state.lineJoinable = true;
+    },
+  },
+  // `__unjoined()`: a line of a block body that begins with `..` under a body
+  // line that does not end with one. Both lines are one captured string, so
+  // the compiler keeps the line break and places this call at the mark,
+  // stamped with it, so the warning names that line when the story shows it.
+  __unjoined: {
+    arity: 0,
+    fn: (story) => {
+      story.Warning(NOT_JOINED);
     },
   },
   // `log(...)` — DEVELOPER console logging, NOT story display (that's

@@ -38,7 +38,7 @@ describe("each display line is evaluated once", () => {
 
   test("a glued continuation still joins, and each part's host call runs once", () => {
     expect(
-      countingStory("First {tick()} ..\nsecond {tick()}.\nThird {tick()}.\n"),
+      countingStory("First {tick()} ..\n.. second {tick()}.\nThird {tick()}.\n"),
     ).toEqual([
       ["First 1 second 2.\n", 2],
       ["Third 3.\n", 3],
@@ -49,7 +49,7 @@ describe("each display line is evaluated once", () => {
   test("a continuation reached through an `if` still joins", () => {
     expect(
       countingStory(
-        "First {tick()} ..\nif true then\n  second {tick()}.\nend\nThird {tick()}.\n",
+        "First {tick()} ..\nif true then\n  .. second {tick()}.\nend\nThird {tick()}.\n",
       ),
     ).toEqual([
       ["First 1 second 2.\n", 2],

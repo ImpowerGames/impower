@@ -272,6 +272,11 @@ export class StoryState {
   // them (`onExecute`) in the next continue, which shows it; otherwise they
   // are reported when this continue ends.
   public heldPaths: string[] = [];
+  // The line shown last ends with `..`, so a line that begins with `..` joins
+  // it: the one right after it, or the part after a `>` click (`A .. >`).
+  // Whatever else shows first ends the offer. It is saved with the state, since
+  // a click falls between the two steps.
+  public lineJoinable: boolean = false;
 
   public story: Story;
 
@@ -685,6 +690,7 @@ export class StoryState {
     writer.WriteIntProperty("turnIdx", this.currentTurnIndex);
     writer.WriteIntProperty("storySeed", this.storySeed);
     writer.WriteIntProperty("previousRandom", this.previousRandom);
+    if (this.lineJoinable) writer.WriteProperty("lineJoinable", true);
 
     writer.WriteIntProperty("inkSaveVersion", this.kInkSaveStateVersion);
 
@@ -807,6 +813,7 @@ export class StoryState {
     this.currentTurnIndex = parseInt(jObject["turnIdx"]);
     this.storySeed = parseInt(jObject["storySeed"]);
     this.previousRandom = parseInt(jObject["previousRandom"]);
+    this.lineJoinable = jObject["lineJoinable"] === true;
 
     // The freshly-loaded state is the new delta baseline — no pending changes.
     this.ResetCountDeltaTracking();
@@ -832,9 +839,12 @@ export class StoryState {
     //
     // The cut is the stream's length before this push. A push never removes
     // earlier entries, so nothing below the cut moves.
-    if (this.lineEndPending && !this.inStringEvaluation && showsOutput(obj)) {
-      this.lineEndPending = false;
-      this.outputCut = this.outputStream.length;
+    if (!this.inStringEvaluation && showsOutput(obj)) {
+      this.lineJoinable = false;
+      if (this.lineEndPending) {
+        this.lineEndPending = false;
+        this.outputCut = this.outputStream.length;
+      }
     }
     // var text = obj as StringValue;
     let text = asOrNull(obj, StringValue);
@@ -921,11 +931,13 @@ export class StoryState {
   public SuspendLineEnd(): SuspendedLineEnd {
     const suspended = {
       pending: this.lineEndPending,
+      joinable: this.lineJoinable,
       cut: this.outputCut,
       held: this.heldPaths,
       carried: this._currentFlow.carried,
     };
     this.lineEndPending = false;
+    this.lineJoinable = false;
     this.outputCut = null;
     this.heldPaths = [];
     this._currentFlow.carried = null;
@@ -934,6 +946,7 @@ export class StoryState {
 
   public ResumeLineEnd(suspended: SuspendedLineEnd) {
     this.lineEndPending = suspended.pending;
+    this.lineJoinable = suspended.joinable;
     this.outputCut = suspended.cut;
     this.heldPaths = suspended.held;
     this._currentFlow.carried = suspended.carried;
@@ -947,11 +960,12 @@ export class StoryState {
   }
 
   // Drops a pending line end, a cut and a carried step, for a path the host
-  // abandons: what they would have shown belongs to the path left behind.
-  // Paths already held ran all the same, and are reported when the continue
-  // ends.
+  // abandons: what they would have shown belongs to the path left behind, and
+  // so does the line a `..` would join. Paths already held ran all the same,
+  // and are reported when the continue ends.
   public DiscardLineEnd() {
     this.lineEndPending = false;
+    this.lineJoinable = false;
     this.outputCut = null;
     this._currentFlow.carried = null;
   }
@@ -1415,6 +1429,7 @@ function showsOutput(obj: InkObject | null): boolean {
 
 interface SuspendedLineEnd {
   pending: boolean;
+  joinable: boolean;
   cut: number | null;
   held: string[];
   carried: CarriedStep | null;

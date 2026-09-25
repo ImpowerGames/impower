@@ -3,30 +3,22 @@
 // browser and times each phase of a highlighted suggestion (`preview`) or an
 // accepted edit (`edit`) at one line of a project.
 //
-// A preview runs in one of two shapes. `transport` is the player as it is: the
-// worker's program crosses to the page through the transport and a clone, and
-// the page's own game loads the route's checkpoint and displays it. `resident`
-// models a preview displayed from the worker's game (#676, #677): the compiler
-// emits no compiled story, the game that searched the route loads its own
-// checkpoint, connects to a sink and previews, and only the messages it emits
-// are cloned, as they would be on their way to the page. `resident-emitting`
-// is the resident shape with the compiled story still emitted, which is what
-// the resident shape saves by not serializing: the compiler certifies an
-// edit's changes as confined either way, with its `ink/flowShapes` walk
-// standing in for `ink/json` when it emits nothing, so the route search
-// resumes from its last route in both.
+// It models the player as it ships: the compiler emits no compiled story, the
+// game that searched the route loads its own checkpoint, connects to a sink
+// and previews, and only the messages it emits are cloned, as they are on
+// their way to the page. The compiler certifies an edit's changes as confined
+// with its `ink/flowShapes` walk, so the route search resumes from its last
+// route.
 //
 // Run through preview-bench.mjs, which bundles this file with esbuild and runs
 // one configuration per process; it passes the configuration as one JSON
-// argument: { project, line, word, options, mode, shape, samples, warmup, json,
-// gaps }.
+// argument: { project, line, word, options, mode, samples, warmup, json, gaps }.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import * as v8 from "node:v8";
 import { performance } from "node:perf_hooks";
 import { SparkdownCompiler } from "../../packages/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { profile, setRetainProfilerEntries } from "../../packages/sparkdown/src/compiler/utils/profile";
-import { ProgramTransportDecoder, ProgramTransportEncoder } from "../../packages/sparkdown/src/workspace/utils/programTransport";
 import { Game } from "../../packages/spark-engine/src/game/core/classes/Game";
 import { assetItemKey } from "../../packages/spark-engine/src/game/modules/assets/types/AssetItem";
 import { RouteSearchLog } from "../../packages/spark-web-player/src/main/workers/RouteSearchLog";
@@ -40,7 +32,6 @@ interface BenchConfig {
   word: string;
   options: string[];
   mode: "preview" | "edit";
-  shape: "transport" | "resident" | "resident-emitting";
   samples: number;
   warmup: number;
   json?: string;
@@ -96,9 +87,9 @@ function pageResult(method: string, params: any): unknown {
 }
 
 // The page's end of a game's connection. Every message the game emits is
-// counted, and with `clone` it goes through v8.serialize and v8.deserialize
-// first, as a postMessage to the page would; the answer to a request is cloned
-// on its way back. Only messages sent while `open` are what a display sends;
+// counted, and goes through v8.serialize and v8.deserialize first, as a
+// postMessage to the page does; the answer to a request is cloned on its way
+// back. Only messages sent while `open` are what a display sends;
 // anything else is residue of the work before it.
 class PageSink {
   open = false;
@@ -113,10 +104,7 @@ class PageSink {
   stream: string[] = [];
   bytesByMethod: Record<string, number> = {};
 
-  constructor(
-    readonly clone: boolean,
-    readonly forbiddenStrings: () => string[],
-  ) {}
+  constructor(readonly forbiddenStrings: () => string[]) {}
 
   reset() {
     this.count = this.bytesOut = this.bytesIn = this.cloneMs = 0;
@@ -147,7 +135,7 @@ class PageSink {
       }
       const t0 = performance.now();
       const wire = v8.serialize(sent);
-      const msg = this.clone ? v8.deserialize(wire) : sent;
+      const msg = v8.deserialize(wire);
       this.cloneMs += performance.now() - t0;
       this.count += 1;
       this.bytesOut += wire.length;
@@ -164,7 +152,7 @@ class PageSink {
       queueMicrotask(() => {
         const t1 = performance.now();
         const back = v8.serialize(response);
-        const received = this.clone ? v8.deserialize(back) : response;
+        const received = v8.deserialize(back);
         this.cloneMs += performance.now() - t1;
         this.bytesIn += back.length;
         game.connection.receive(received);
@@ -213,8 +201,6 @@ async function main() {
   realLog = silenceConsole();
   const compiler = new SparkdownCompiler();
   compiler.profilerId = PROFILER_ID;
-  const encoder = new ProgramTransportEncoder();
-  const decoder = new ProgramTransportDecoder();
   const system = benchSystem;
 
   // The worker: one game kept across compiles, and the route searched to the
@@ -275,24 +261,22 @@ async function main() {
     }
   });
 
-  const resident = config.shape !== "transport";
-  if (resident && config.mode !== "preview") throw new Error("the resident shape models a preview only");
   const startFrom = { file: mainUri, line: line0 };
-  configurePlayerCompiler(compiler, files, startFrom, config.shape === "resident" ? { emitCompiledProgram: false } : {});
-  const cold = compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
+  configurePlayerCompiler(compiler, files, startFrom, { emitCompiledProgram: false });
+  compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
 
-  // A preview's display, on whichever game shows it, in the order the page's
-  // preview update runs it: declare the preview, drop the last preview's
-  // images, load the route's checkpoint, connect, preview.
+  // A preview's display, in the order the worker's display runs it
+  // (`displayPreviewFrom`): declare the preview, drop the last preview's
+  // images, end the route search's simulation, load the route's checkpoint,
+  // connect, preview.
   let lastCheckpoint = "";
-  const sink = new PageSink(resident, () => [lastCheckpoint]);
+  const sink = new PageSink(() => [lastCheckpoint]);
   //
-  // What the route game carries that the page's game does not, and that the
-  // resident shape ends through the engine before it displays: the route
-  // search leaves `system.simulating` set, and while it is set the modules
-  // restore as a simulation does (the asset module prefetches nothing, the ui
-  // module writes instantly). Every entry is a call the engine offers; the
-  // benchmark resets no field by hand.
+  // What the route search leaves on the game, which the display ends through
+  // the engine: `system.simulating` stays set, and while it is set the
+  // modules restore as a simulation does (the asset module prefetches
+  // nothing, the ui module writes instantly). Every entry is a call the
+  // engine offers; the benchmark resets no field by hand.
   const CALLS = ["game.endSimulation()"];
   const prepare = (game: Game, checkpoint: string | undefined) => {
     // What a preview displays is a suggestion, whose report the player takes
@@ -300,7 +284,7 @@ async function main() {
     game.reportsExecutedLines = config.mode !== "preview";
     game.markPreviewing(searched?.toPath);
     game.module.ui.forgetDisplayedImages();
-    if (resident) game.endSimulation();
+    game.endSimulation();
     const t0 = performance.now();
     if (checkpoint) game.load(checkpoint);
     return performance.now() - t0;
@@ -316,8 +300,8 @@ async function main() {
     sink.open = false;
     return { connect: t1 - t0, preview: t2 - t1, previewed };
   };
-  // What the route search left on the game the resident shape displays from,
-  // read before the display prepares it.
+  // What the route search left on the game the display is from, read before
+  // the display prepares it.
   const residueOf = (game: any) => ({
     state: game.state,
     simulation: game._simulation,
@@ -327,17 +311,6 @@ async function main() {
     previewedPath: game.previewedPath ?? null,
   });
 
-  // The page: a second game that receives each program over the transport.
-  let pageGame: Game | undefined;
-  const updatePageGame = (program: any, checkpoint: string | undefined) => {
-    const t0 = performance.now();
-    if (!pageGame) pageGame = new Game({ program, ...system, startFrom, previewFrom: startFrom } as any);
-    else pageGame.updateProgram(program);
-    const t1 = performance.now();
-    const load = prepare(pageGame, checkpoint);
-    return { update: t1 - t0, load };
-  };
-  if (!resident) updatePageGame(decoder.decode(structuredClone(encoder.encode(cold.program))), (cold as any).checkpoint);
   takeMeasures();
 
   const samples: any[] = [];
@@ -347,7 +320,6 @@ async function main() {
   const gapsBySample: Interval[][] = [];
   let version = 1;
   let current = token;
-  let lastEncoded: any;
   let residue: any;
   let lastStream: string[] = [];
   for (let i = 0; i < config.warmup + config.samples; i++) {
@@ -356,64 +328,25 @@ async function main() {
     workerGameMs = 0;
     workerGameIntervals = [];
     const t0 = performance.now();
-    let result: any;
     if (config.mode === "preview") {
-      result = compiler.previewCompile({ textDocument: { uri: mainUri, version }, contentChanges, root: { uri: mainUri }, startFrom } as any);
+      compiler.previewCompile({ textDocument: { uri: mainUri, version }, contentChanges, root: { uri: mainUri }, startFrom } as any);
     } else {
       version += 1;
       compiler.updateDocument({ textDocument: { uri: mainUri, version }, contentChanges } as any);
       current = option;
-      result = compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
+      compiler.compile({ textDocument: { uri: mainUri }, startFrom } as any);
     }
     const t1 = performance.now();
-    if (resident) {
-      const game = workerGame!;
-      const before = residueOf(game);
-      lastCheckpoint = searched?.checkpoint ?? "";
-      const load = prepare(game, searched?.checkpoint);
-      const shown = await display(game);
-      const { sums: phases, intervals } = takeMeasures();
-      if (i < config.warmup) continue;
-      const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
-      gapsBySample.push(gaps);
-      residue = { calls: CALLS, beforeDisplay: before, afterDisplay: residueOf(game), outsideMessages: { ...sink.outside }, previewed: shown.previewed };
-      lastStream = sink.stream;
-      samples.push({
-        option,
-        wall: {
-          "worker compile, game and route": t1 - t0,
-          "(of which worker game.updateProgram)": workerGameMs,
-          "(of which unattributed)": totalLength(gaps),
-          "worker game.load": load,
-          "worker connect": shown.connect,
-          "worker preview": shown.preview,
-          "(of which message clone)": sink.cloneMs,
-          "total without the DOM": t1 - t0 + load + sink.cloneMs,
-        },
-        phases,
-        messages: sink.stats(),
-      });
-      continue;
-    }
-    const encoded = encoder.encode(result.program);
-    const t2 = performance.now();
-    const wire = v8.serialize({ ...result, program: encoded });
-    const t3 = performance.now();
-    const received = v8.deserialize(wire);
-    const t4 = performance.now();
-    const decoded = decoder.decode(received.program);
-    const t5 = performance.now();
-    const page = updatePageGame(decoded, received.checkpoint);
-    // The page's connect and preview, which the resident shape moves into the
-    // worker: timed apart from the total, and their messages kept to compare
-    // with what the resident game sends.
-    const shown = config.mode === "preview" ? await display(pageGame!) : undefined;
+    const game = workerGame!;
+    const before = residueOf(game);
+    lastCheckpoint = searched?.checkpoint ?? "";
+    const load = prepare(game, searched?.checkpoint);
+    const shown = await display(game);
     const { sums: phases, intervals } = takeMeasures();
     if (i < config.warmup) continue;
     const gaps = uncovered([t0, t1], [...intervals, ...workerGameIntervals]);
     gapsBySample.push(gaps);
-    lastEncoded = encoded;
-    lastCheckpoint = received.checkpoint ?? "";
+    residue = { calls: CALLS, beforeDisplay: before, afterDisplay: residueOf(game), outsideMessages: { ...sink.outside }, previewed: shown.previewed };
     lastStream = sink.stream;
     samples.push({
       option,
@@ -421,35 +354,21 @@ async function main() {
         "worker compile, game and route": t1 - t0,
         "(of which worker game.updateProgram)": workerGameMs,
         "(of which unattributed)": totalLength(gaps),
-        "transport encode": t2 - t1,
-        "clone out (serialize)": t3 - t2,
-        "clone in (deserialize)": t4 - t3,
-        "transport decode": t5 - t4,
-        "page game.updateProgram": page.update,
-        "page game.load": page.load,
-        "total without the DOM": t5 - t0 + page.update + page.load,
-        ...(shown ? { "page connect (not in total)": shown.connect, "page preview (not in total)": shown.preview } : {}),
+        "worker game.load": load,
+        "worker connect": shown.connect,
+        "worker preview": shown.preview,
+        "(of which message clone)": sink.cloneMs,
+        "total without the DOM": t1 - t0 + load + sink.cloneMs,
       },
       phases,
-      wireKB: wire.length / 1024,
-      ...(shown ? { messages: sink.stats() } : {}),
+      messages: sink.stats(),
     });
   }
-  const wireByKey: Record<string, number> = {};
-  for (const [key, value] of Object.entries(lastEncoded ?? {})) {
-    try {
-      wireByKey[key] = v8.serialize(value).length / 1024;
-    } catch {
-      wireByKey[key] = -1;
-    }
-  }
-  if (!resident) wireByKey["(checkpoint)"] = lastCheckpoint.length / 1024;
 
   const withMessages = samples.filter((s) => s.messages);
   const last = samples.at(-1)?.messages;
   const report = {
     mode: config.mode,
-    shape: config.shape,
     project: config.project,
     line: config.line,
     lineText,
@@ -463,21 +382,19 @@ async function main() {
     phases: Object.fromEntries(
       [...new Set(samples.flatMap((s) => Object.keys(s.phases)))].map((k) => [k, stats(samples.map((s) => s.phases[k] ?? 0))]),
     ),
-    wireKB: resident ? undefined : { total: stats(samples.map((s) => s.wireKB)), byKey: wireByKey },
     messages: withMessages.length
       ? {
           count: stats(withMessages.map((s) => s.messages.count)),
           outKB: stats(withMessages.map((s) => s.messages.outKB)),
-          inKB: resident ? stats(withMessages.map((s) => s.messages.inKB)) : undefined,
+          inKB: stats(withMessages.map((s) => s.messages.inKB)),
           largest: last?.largest,
           kbByMethod: last?.kbByMethod,
           unanswered: last?.unanswered,
-          forbidden: resident ? [...new Set(withMessages.flatMap((s) => s.messages.forbidden))] : undefined,
+          forbidden: [...new Set(withMessages.flatMap((s) => s.messages.forbidden))],
         }
       : undefined,
     residue,
-    // The last sample's display, message by message, for the launcher to
-    // compare between the shapes.
+    // The last sample's display, message by message.
     displayStream: lastStream,
     perSample: samples,
   };
@@ -493,7 +410,7 @@ function printReport(report: any) {
   const row = (label: string, s: { min: number; median: number; max: number }) =>
     `  ${label.padEnd(40)} ${s.min.toFixed(1).padStart(9)} ${s.median.toFixed(1).padStart(9)} ${s.max.toFixed(1).padStart(9)}`;
   const out = [
-    `mode ${report.mode}, ${report.shape} shape: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
+    `mode ${report.mode}: line ${report.line} ${JSON.stringify(report.lineText)}, replacing ${report.token}`,
     `${report.samples} samples after ${report.warmup} warm-up; route ${report.routeSteps} steps; heap ${report.heapUsedMB} MB`,
     "",
     `  ${"wall clock (ms)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
@@ -505,21 +422,11 @@ function printReport(report: any) {
       .filter(([, s]: any) => s.max >= 0.3)
       .map(([k, s]: any) => row(k, s)),
   ];
-  if (report.wireKB) {
-    out.push(
-      "",
-      `  wire: ${report.wireKB.total.median.toFixed(0)} KB per sample; by top-level program key (KB):`,
-      ...Object.entries(report.wireKB.byKey)
-        .sort((a: any, b: any) => b[1] - a[1])
-        .filter(([, kb]: any) => kb >= 1)
-        .map(([k, kb]: any) => `    ${k.padEnd(38)} ${kb.toFixed(0).padStart(9)}`),
-    );
-  }
   const m = report.messages;
   if (m) {
     out.push(
       "",
-      `  ${(report.shape !== "transport" ? "display messages (cloned)" : "display messages (in-process)").padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
+      `  ${"display messages (cloned)".padEnd(40)} ${"min".padStart(9)} ${"median".padStart(9)} ${"max".padStart(9)}`,
       row("count", m.count),
       row("KB to the page", m.outKB),
       ...(m.inKB ? [row("KB of answers back", m.inKB)] : []),

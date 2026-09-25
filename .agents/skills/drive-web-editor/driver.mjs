@@ -833,22 +833,7 @@ async function reportFreshWorker(...args) {
 // a same-origin launch. `launch` and `state` are parameters so
 // seed-project.test.mjs can run this without a browser and pin what `fn`
 // is handed.
-// The localStorage key the editor reads when it initializes the player
-// (`WORKER_DISPLAYS_PREVIEW_KEY` in PreviewGame.tsx): "on" has the player's
-// worker display the stopped preview (#680).
-const WORKER_PREVIEW_KEY = "impower.workerDisplaysPreview";
-
-// `--worker-preview on|off`, off when absent. The profile is shared across
-// runs, so every run writes its position rather than inheriting the last.
-function workerPreviewOf(args) {
-  const at = args.indexOf("--worker-preview");
-  if (at < 0) return "off";
-  const v = args[at + 1];
-  if (v !== "on" && v !== "off") throw new Error(`--worker-preview takes on or off, not ${v === undefined ? "nothing" : JSON.stringify(v)}`);
-  return v;
-}
-
-async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState, workerPreview = "off" } = {}) {
+async function withEditor(fn, { headless = true, launch = launchEditorBrowser, state = readState } = {}) {
   const record = state();
   if (!record?.url)
     die(
@@ -860,15 +845,6 @@ async function withEditor(fn, { headless = true, launch = launchEditorBrowser, s
   const { url } = record;
   const mode = record.mode ?? "same-origin";
   const ctx = await launch({ headless });
-  await ctx.addInitScript?.(
-    ({ key, on }) => {
-      try {
-        if (on) localStorage.setItem(key, "on");
-        else localStorage.removeItem(key);
-      } catch {}
-    },
-    { key: WORKER_PREVIEW_KEY, on: workerPreview === "on" },
-  );
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   const consoleLines = [];
   const cleanups = [];
@@ -2073,14 +2049,12 @@ async function verify(args, deps = liveDeps) {
   let shot;
   let line;
   let probePath;
-  let workerPreview;
   try {
     sdPath = flag(args, "--sd");
     projectPath = flag(args, "--project");
     shot = flag(args, "--shot");
     line = flag(args, "--line");
     probePath = flag(args, "--probe");
-    workerPreview = workerPreviewOf(args);
   } catch (err) {
     deps.die(err.message);
   }
@@ -2089,7 +2063,7 @@ async function verify(args, deps = liveDeps) {
 
   return deps.withEditor(
     async ({ page, ctx, url, consoleLines, mode, cleanups = [] }) => {
-      const result = { url, workerPreview };
+      const result = { url };
       let monitoredWorker;
       // What verify captures is the game preview, which the page can observe
       // only in same-origin mode (window.__preview). In cross-origin mode
@@ -2357,7 +2331,7 @@ async function verify(args, deps = liveDeps) {
       deps.log(JSON.stringify(result, null, 2));
       return result;
     },
-    { headless, workerPreview },
+    { headless },
   );
 }
 
@@ -3321,10 +3295,6 @@ export function parseUiSteps(args) {
       case "--probe":
         steps.push({ probe: value() });
         break;
-      case "--worker-preview":
-        // Not a step: it holds for the whole run (`workerPreviewOf`).
-        value();
-        break;
       case "--headed":
         break;
       default:
@@ -3372,10 +3342,8 @@ function gatedStep(step, reason) {
 async function ui(args, deps = liveDeps) {
   const headless = !args.includes("--headed");
   let steps;
-  let workerPreview;
   try {
     steps = parseUiSteps(args);
-    workerPreview = workerPreviewOf(args);
   } catch (e) {
     deps.die(e.message);
   }
@@ -3385,7 +3353,7 @@ async function ui(args, deps = liveDeps) {
 
   return deps.withEditor(
     async ({ page, ctx, url, consoleLines, cleanups = [] }) => {
-      const result = { url, workerPreview, steps: [] };
+      const result = { url, steps: [] };
       let monitoredWorker;
       const finishWorker = async () => {
         if (!monitoredWorker) return;
@@ -3665,7 +3633,7 @@ async function ui(args, deps = liveDeps) {
       process.exitCode = result.failed.length > 0 ? 1 : 0;
       return result;
     },
-    { headless, workerPreview },
+    { headless },
   );
 }
 
@@ -3929,7 +3897,6 @@ switch (cmd) {
         "  --line <N>       scrub the preview to source line N (STOPPED state only)",
         "  --shot <out.png> screenshot the editor page",
         "  --probe <file.js> body of an async fn evaluated in the editor page; result -> JSON",
-        "  --worker-preview on|off  display the stopped preview from the player's worker (#680); off when absent",
         "  --headed         run a visible browser instead of headless",
         "",
         "ui steps (run in the order given, then every surface is read back):",
@@ -3948,7 +3915,6 @@ switch (cmd) {
         "  --shot <out.png>        screenshot the page",
         "  --shot-of <what> <png>  screenshot one surface: find | goto | editor | hover | completion | page",
         "  --probe <file.js>       body of an async fn evaluated in the page; result -> JSON",
-        "  --worker-preview on|off display the stopped preview from the player's worker (#680); off when absent",
         "  --headed                run a visible browser instead of headless",
         "",
         "redgreen options:",

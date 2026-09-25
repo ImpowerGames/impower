@@ -1096,7 +1096,6 @@ export abstract class SparkdownWorkspace {
       file: textDocument.uri,
       line: selectedRange.start.line,
     };
-    this.onSelectTextDocument(params);
     await this.compilerReady();
     const result = await this._compilerChannelConnection.sendRequest(
       SelectCompilerDocumentMessage.type,
@@ -1216,13 +1215,6 @@ export abstract class SparkdownWorkspace {
       version: number;
     };
     contentChanges: SparkdownDocumentContentChangeEvent[];
-  }) {}
-
-  onSelectTextDocument(_params: {
-    textDocument: { uri: string };
-    selectedRange: Range;
-    docChanged: boolean;
-    userEvent?: boolean;
   }) {}
 
   onCompiledTextDocument(_params: {

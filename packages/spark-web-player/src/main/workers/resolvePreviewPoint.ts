@@ -6,8 +6,7 @@ export interface PreviewProgram {
   scripts: Record<string, unknown>;
 }
 
-/** What the game showing the preview remembers of the last one. The page's
- *  `Game` and the worker's displaying game both carry these. */
+/** What the game showing the preview remembers of the last one. */
 export interface PreviewingGame {
   state: string;
   previewFrom: { file: string; line: number } | undefined;
@@ -29,13 +28,7 @@ export interface PreviewPoint {
   repeat: boolean;
 }
 
-/**
- * Where a preview at `from` lands, for a game holding `program`.
- *
- * The page's own preview (`GamePlayerController.updatePreview`) and the
- * worker's (`displayPreviewFrom`) resolve it here, so the two positions of the
- * worker-display switch cannot drift apart.
- */
+/** Where a preview at `from` lands, for a game holding `program`. */
 export function resolvePreviewPoint(
   program: PreviewProgram,
   from: { file: string; line: number },

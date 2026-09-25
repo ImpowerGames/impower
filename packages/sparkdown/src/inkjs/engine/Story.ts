@@ -3882,6 +3882,9 @@ export class Story extends InkObject {
     const previousPointer = this.state.previousPointer.copy();
     const currentPointer = this.state.currentPointer.copy();
 
+    // What a choice leads to starts a new box, so no line before the choice
+    // is one a `..` after it joins.
+    this.state.lineJoinable = false;
     this.state.callStack.currentThread = choiceToChoose.threadAtGeneration;
 
     this.state.previousPointer = previousPointer;

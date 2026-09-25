@@ -12,7 +12,8 @@
 //   - choice start content, whose path ends in `.$s` and resolves to the start
 //     of the choice instead;
 //   - a script whose only located paths are `__binding_*` evaluators, which a
-//     preview must never divert into.
+//     preview must never divert into;
+//   - a function, whose rows a preview or a run never starts in (#835).
 
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
@@ -20,6 +21,7 @@ import {
   ProgramTransportEncoder,
 } from "@impower/sparkdown/src/workspace/utils/programTransport";
 import type {
+  FunctionSpan,
   PathLocationTable,
   ScriptLocation,
 } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -146,13 +148,31 @@ const isBindingPath = (path: string) =>
   path.includes("__binding_") &&
   path.split(".").some((seg) => seg.startsWith("__binding_"));
 
+/** Whether a row is function code: under one of `functions` and, when the
+ *  function records its lines, starting within them. */
+const isInFunction = (
+  [path, location]: Entry,
+  functions: FunctionSpan[],
+) =>
+  functions.some(
+    (f) =>
+      (path === f.path || path.startsWith(f.path + ".")) &&
+      (!f.lines ||
+        (location[0] === f.lines[0] &&
+          location[1] >= f.lines[1] &&
+          location[1] <= f.lines[2])),
+  );
+
 /** The linear scan `findClosestPath` replaces, `.$s` rule included. */
 const scanClosestPath = (
   from: { file: string; line: number },
   entries: Entry[],
   scripts: string[],
+  functions: FunctionSpan[],
 ) => {
-  const previewable = entries.filter(([p]) => !isBindingPath(p));
+  const previewable = entries.filter(
+    (entry) => !isBindingPath(entry[0]) && !isInFunction(entry, functions),
+  );
   const [path] = scanClosestLocation(from, previewable, scripts) || [];
   const parentPath = path?.split(".").slice(0, -1).join(".");
   if (parentPath?.endsWith(".$s")) {
@@ -178,6 +198,12 @@ describe("path locations resolve a source line by binary search", () => {
     const onScreen = entries.filter(([, l]) => l[0] === screenIndex);
     expect(onScreen.length).toBeGreaterThan(0);
     expect(onScreen.every(([p]) => isBindingPath(p))).toBe(true);
+    // A function whose rows the preview search skips.
+    expect(table.functions).toContainEqual({
+      path: "Fn",
+      lines: [scripts.indexOf(SCENES), 7, 9],
+    });
+    expect(table.paths.some((p) => p.startsWith("Fn."))).toBe(true);
   });
 
   test("the rows are ordered by script, then start line, then start column", () => {
@@ -210,7 +236,12 @@ describe("path locations resolve a source line by binary search", () => {
       const lineCount = sources[file]!.split(NEWLINE).length;
       for (let line = 0; line <= lineCount + 2; line++) {
         const found = findClosestPath({ file, line }, table, scripts);
-        const scanned = scanClosestPath({ file, line }, entries, scripts);
+        const scanned = scanClosestPath(
+          { file, line },
+          entries,
+          scripts,
+          table.functions ?? [],
+        );
         expect({ line, found }).toEqual({ line, found: scanned });
       }
     },

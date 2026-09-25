@@ -112,8 +112,8 @@ $: E > F
 
   test("a break on a glued continuation ends the joined beat", () => {
     for (const source of [
-      `HERO: Hi. ..\nmore > Bye.\n`,
-      `HERO: Hi. ..\nHERO: more > Bye.\n`,
+      `HERO: Hi. ..\n.. more > Bye.\n`,
+      `HERO: Hi. ..\nHERO: .. more > Bye.\n`,
     ]) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
@@ -123,14 +123,15 @@ $: E > F
         character: "HERO",
       });
       expect(flagged(ctx.story, "pause")).toBe(true);
-      // The beat after the break asks for the routing of the beat the run
-      // joined the continuation to (`inherit`), and names the line the source
-      // reads before it for a run that never queued that beat.
+      // An action continuation's beat after the break asks for the routing
+      // of the beat the run joined the continuation to (`inherit`), and names
+      // the line the source reads before it for a run that never queued that
+      // beat. A continuation that names its speaker routes by its own cue.
       expect(ctx.story.Continue()).toBe("Bye.\n");
       expect(displayRouting(ctx.story)).toEqual([
         { target: "dialogue", character: "HERO" },
       ]);
-      expect(flagged(ctx.story, "inherit")).toBe(true);
+      expect(flagged(ctx.story, "inherit")).toBe(!source.includes("HERO: .."));
       expect(ctx.story.Continue()).toBe("");
       expect(ctx.story.canContinue).toBe(false);
     }
@@ -157,8 +158,8 @@ $: E > F
 
   test("a continuation held open by a trailing `..` chain keeps the cue", () => {
     for (const source of [
-      `HERO: A ..\nB ..\nC > D\n`,
-      `HERO: A ..\nHERO: B ..\nC > D\n`,
+      `HERO: A ..\n.. B ..\n.. C > D\n`,
+      `HERO: A ..\nHERO: .. B ..\n.. C > D\n`,
     ]) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);

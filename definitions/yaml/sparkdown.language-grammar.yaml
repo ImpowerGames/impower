@@ -158,22 +158,23 @@ variables:
   TAG_START: (?:[#]+(?=$|{{WS}}))
   COMMENT_START: (?:[-][-])
   # A `>` that stands alone between spaces or line edges. `\>`, `->`, `>>`
-  # and `>=` are not breaks, because a non-space touches the `>`. A `..` that
-  # touches the `>` and ends the line (`A >..`) joins the next line after the
-  # break.
-  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}|[.][.]{{GLUE_END}}))
+  # and `>=` are not breaks, because a non-space touches the `>`. The `..` that
+  # begins the part after a break may touch the `>` (`A .. >..B`). A third dot
+  # makes it an ellipsis.
+  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}|[.][.](?![.])))
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
-  # A `..` that ends its line joins the next line onto it. Anything but a dot
-  # may touch it (`A..`), so `Wait...` stays an ellipsis. Tags and a `//`
+  # A `..` that ends a line, or the part of a line before a `>` break. It joins
+  # the next line or part onto it when that one begins with `..`. Anything but a
+  # dot may touch it (`A..`), so `Wait...` stays an ellipsis. Tags and a `//`
   # comment may follow it.
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
-  # What may follow a line-ending `..`: spaces, then the end of the line, tags
-  # or a `//` comment.
-  GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})))
-  # A `..` that begins a line. It joins nothing: it states that the line
-  # continues the one before it, which the compiler and the engine check. A
-  # third dot makes it an ellipsis (`...and then`).
+  # What may follow a line-ending `..`: spaces, then the end of the line, tags,
+  # a `//` comment or a `>` break.
+  GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))
+  # A `..` that begins a line. The line joins the one shown before it when
+  # that one ends with `..`, which the engine checks as the story runs. A third
+  # dot makes it an ellipsis (`...and then`).
   LEADING_GLUE: (?:[.][.](?![.]))
   # The `..` that opens and closes an inline alternator mid-line
   # (`.. queue|a|b ..`).
@@ -524,6 +525,19 @@ repository:
         tag: keyword
         name: keyword.other.break.sd
 
+  # A `>` break in the middle of a line with a `..` right after it, when words
+  # follow (`A .. > .. B`, `A .. >..B`): the `..` begins the part after the
+  # click, as a `..` that begins a line does.
+  BreakLeadingGlue:
+    match: ({{BREAK}})({{LEADING_GLUE}})(?={{WS}}*\S)
+    captures:
+      1:
+        patterns:
+          - { include: "#Break" }
+      2:
+        patterns:
+          - { include: "#LeadingGlue" }
+
   ########## Chain ##########
 
   Chain:
@@ -558,13 +572,18 @@ repository:
         tag: keyword
         name: keyword.other.glue.sd
 
-  # The grammar cannot tell a `..` at the start of a line from one after a
-  # top-level interpolation, and whether one that begins a line is right
-  # depends on the line before it, so this mark is not coloured as an error;
-  # the compiler reports the ones that are wrong.
+  # Whether a `..` that begins a line joins depends on the line the run shows
+  # before it, so this mark is never coloured as an error; the engine warns
+  # about one that joins nothing. It is tagged as `Glue` is, so the editor
+  # colours it as a mark and the screenplay leaves it out.
   LeadingGlue:
+    tag: meta
     name: meta.glue.leading.sd
     match: ({{LEADING_GLUE}})
+    captures:
+      1:
+        tag: keyword
+        name: keyword.other.glue.sd
 
   AlternatorGlue:
     tag: keyword
@@ -1614,7 +1633,7 @@ repository:
   InlineTitle:
     tag: monospace
     name: string.display.title.inline.sd
-    begin: ({{WS}}*)(\^)([:])($|{{WS}}+)
+    begin: ({{WS}}*)(\^)([:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
     beginCaptures:
       1:
         patterns:
@@ -1628,6 +1647,9 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1677,7 +1699,7 @@ repository:
   InlineHeading:
     tag: regexp
     name: string.display.heading.inline.sd
-    begin: ({{WS}}*)([$])([:])($|{{WS}}+)
+    begin: ({{WS}}*)([$])([:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
     beginCaptures:
       1:
         patterns:
@@ -1691,6 +1713,9 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1743,7 +1768,7 @@ repository:
   InlineTransitional:
     tag: labelName
     name: string.display.transitional.inline.sd
-    begin: ({{WS}}*)([%])([:])($|{{WS}}+)
+    begin: ({{WS}}*)([%])([:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
     beginCaptures:
       1:
         patterns:
@@ -1757,6 +1782,9 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1813,7 +1841,7 @@ repository:
   InlineWrite:
     tag: definition(string)
     name: string.display.write.inline.sd
-    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)([@])({{WS}}*)((?:\\.|[^:\r\n])*)((?<!\\)[:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
     beginCaptures:
       1:
         patterns:
@@ -1834,6 +1862,9 @@ repository:
       6:
         patterns:
           - { include: "#RequiredWhitespace" }
+      7:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -1906,7 +1937,7 @@ repository:
   InlineDialogue:
     tag: definition(string)
     name: string.display.dialogue.inline.sd
-    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)
+    begin: ({{WS}}*)((?=\S)(?:\\.|[^{}:\r\n])+)((?<!\\)[:])($|{{WS}}+)(?:(?!{{INLINE_GLUED_ALTERNATOR_START}})({{LEADING_GLUE}}))?
     beginCaptures:
       1:
         patterns:
@@ -1921,6 +1952,9 @@ repository:
       4:
         patterns:
           - { include: "#RequiredWhitespace" }
+      5:
+        patterns:
+          - { include: "#LeadingGlue" }
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
@@ -2050,8 +2084,10 @@ repository:
       - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
+  # A `..` right after a top-level interpolation (`{x} .. more`) is text the
+  # player shows, so it does not begin an action there.
   InlineAction:
-    begin: ({{WS}}*)(?:({{LEADING_GLUE}})|([:])($|{{WS}}+))
+    begin: (?<![}])({{WS}}*)(?:({{LEADING_GLUE}})|([:])($|{{WS}}+))
     beginCaptures:
       1:
         patterns:
@@ -2264,7 +2300,9 @@ repository:
       # End-of-line `//` comment after text — must come before Glue/TextChunk
       # so the ` //…` tail is consumed as a comment rather than display text.
       - { include: "#SparkdownInlineComment" }
-      # A spaced `>` anywhere in the line ends the beat before it.
+      # A spaced `>` anywhere in the line ends the beat before it, and a `..`
+      # right after it begins the part after it.
+      - { include: "#BreakLeadingGlue" }
       - { include: "#Break" }
       - { include: "#Glue" }
       - { include: "#TextChunk" }

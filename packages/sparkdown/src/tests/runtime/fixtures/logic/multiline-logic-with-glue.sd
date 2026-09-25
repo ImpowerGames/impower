@@ -1,8 +1,8 @@
 if true then
   {"a"} ..
 end
-b
+.. b
 if true then
   {"a"} ..
 end
-b
+.. b

@@ -1,4 +1,4 @@
-import { Tree } from "@lezer/common";
+import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../sparkdown/language/sparkdown.language-grammar.json";
 import type { SparkdownNodeName } from "../../../sparkdown/src/compiler/types/SparkdownNodeName";
 import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
@@ -29,6 +29,25 @@ export default class ScreenplayParser {
     let position: "l" | "r" | undefined = undefined;
     let lineStart = 0;
     const read = (from: number, to: number) => script.slice(from, to);
+    // A text chunk's words, without the `..` glue marks inside it (with the
+    // spaces written before each): a mark joins lines in the player and is
+    // not a word of the script.
+    const readWords = (node: SyntaxNode): string => {
+      let text = "";
+      let pos = node.from;
+      const visit = (parent: SyntaxNode) => {
+        for (let child = parent.firstChild; child; child = child.nextSibling) {
+          if (child.name === "Glue") {
+            text += read(pos, child.from);
+            pos = child.to;
+          } else {
+            visit(child);
+          }
+        }
+      };
+      visit(node);
+      return text + read(pos, node.to);
+    };
 
     const addSeparator = () => {
       if (tokens.at(-1)?.tag !== "separator") {
@@ -122,7 +141,7 @@ export default class ScreenplayParser {
         // Title
         if (stack.includes("BlockTitle") || stack.includes("InlineTitle")) {
           if (name === "TextChunk") {
-            const text = read(from, to);
+            const text = readWords(nodeRef.node);
             title += text + "\n";
           }
           if (name === "ParentheticalLineContent") {
@@ -134,7 +153,7 @@ export default class ScreenplayParser {
         // Heading
         if (stack.includes("BlockHeading") || stack.includes("InlineHeading")) {
           if (name === "TextChunk") {
-            const text = read(from, to);
+            const text = readWords(nodeRef.node);
             heading += text + "\n";
           }
           if (name === "ParentheticalLineContent") {
@@ -149,7 +168,7 @@ export default class ScreenplayParser {
           stack.includes("InlineTransitional")
         ) {
           if (name === "TextChunk") {
-            const text = read(from, to);
+            const text = readWords(nodeRef.node);
             transitional += text + "\n";
           }
           if (name === "ParentheticalLineContent") {
@@ -165,7 +184,7 @@ export default class ScreenplayParser {
           stack.includes("ImplicitAction")
         ) {
           if (name === "TextChunk") {
-            const text = read(from, to);
+            const text = readWords(nodeRef.node);
             action += text + "\n";
           }
           if (name === "ParentheticalLineContent") {
@@ -196,7 +215,7 @@ export default class ScreenplayParser {
           stack.includes("InlineDialogue_content")
         ) {
           if (name === "TextChunk") {
-            const text = read(from, to);
+            const text = readWords(nodeRef.node);
             tokens.push({
               tag: "dialogue_content",
               text,

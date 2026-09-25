@@ -1,7 +1,7 @@
 // #815 — a runtime warning marks something the runtime recovered from, so it
 // leaves PLAY running; a runtime error ends it and leaves the editor on the
-// line the error names. Page PLAY and worker PLAY both relay the game's
-// reports through `listen`, so both are checked here.
+// line the error names. PLAY's game runs in the worker, whose reports the
+// controller relays through `listenToWorker`.
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { ErrorType } from "@impower/spark-engine/src/game/core/enums/ErrorType";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,21 +45,17 @@ const listeners = () => {
   return { add, emit };
 };
 
-/** Wire a running game to a fresh controller through `via`, and deliver one
+/** Wire a running game in the worker to a fresh controller, and deliver one
  *  report of `type`. */
-const deliver = async (type: ErrorType, via: "page" | "worker") => {
+const deliver = async (type: ErrorType) => {
   const { c, stops } = controller();
   const { add, emit } = listeners();
-  if (via === "page") {
-    c.listen({ state: "running", connection: { outgoing: { addListener: add } } });
-  } else {
-    c.listenToWorker({ addListener: add } as any, () => "running");
-  }
+  c.listenToWorker({ addListener: add } as any, () => "running");
   await emit(report(type));
   return stops;
 };
 
-describe.each(["page", "worker"] as const)("PLAY's game on the %s", (via) => {
+describe("PLAY's game in the worker", () => {
   beforeEach(() => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -69,13 +65,13 @@ describe.each(["page", "worker"] as const)("PLAY's game on the %s", (via) => {
   });
 
   it("stops on a runtime error, with the error's message and location", async () => {
-    expect(await deliver(ErrorType.Error, via)).toEqual([
+    expect(await deliver(ErrorType.Error)).toEqual([
       ["error", { message: "Something happened.", location: LOCATION }],
     ]);
   });
 
   it("keeps running through a runtime warning", async () => {
-    expect(await deliver(ErrorType.Warning, via)).toEqual([]);
+    expect(await deliver(ErrorType.Warning)).toEqual([]);
   });
 });
 
@@ -84,7 +80,6 @@ describe("PLAY in the worker stopped by a runtime error", () => {
 
   it("leaves the editor on the line the error names", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: 0 },
     });

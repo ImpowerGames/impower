@@ -29,7 +29,6 @@ const FIRST = lineOf("The first line.");
 describe("the program the page names", () => {
   it("is a different one once a file has been replaced", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: FIRST },
     });

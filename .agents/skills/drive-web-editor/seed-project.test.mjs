@@ -1449,7 +1449,6 @@ await check("verify on a game that never mounted skips the program wait and says
     assert.equal(calls.waitForProgram, 0);
     assert.deepEqual(result, {
       url: "http://stub.test",
-      workerPreview: "off",
       gameMounted: null,
       program: { loaded: null, reason: "the preview is not observable (cross-origin mode)" },
       error: "the game preview is not observable in cross-origin mode (window.__preview is never installed), so nothing seen on it is evidence; `down`, then `up` without --cross-origin",

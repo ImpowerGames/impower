@@ -25,6 +25,27 @@ export interface InterpreterConfig {}
 
 export interface InterpreterState {
   buffer?: Instructions[];
+  /** The box a beat that a `.. >` ended left for the next step to carry on
+   *  in. It is part of the saved state, so a checkpoint taken between the two
+   *  steps carries on in the same box when it is restored. */
+  box?: ShownBox;
+}
+
+/** A dialogue cue as a beat shows it. */
+export interface Cue {
+  name: string;
+  parenthetical: string;
+  position: string;
+  /** The character's identifier, whose settings type the text. */
+  character?: string;
+}
+
+/** What a box shows: the text target, the cue over it (a dialogue box), and
+ *  its text events, to be shown again at once. */
+export interface ShownBox {
+  target: string;
+  cue?: Cue;
+  text: TextInstruction[];
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
@@ -84,6 +105,9 @@ export class InterpreterModule extends Module<
     /^([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)([ \t]*)([(][^()]*?[)])([ \t]*)((?:[=].*?[=]|[<].*?[>]|[ \t]*)*)$/;
 
   WHITESPACE_REGEX = /[ \t\r\n]+/;
+
+  // A line of only `[[…]]` picture and `((…))` sound commands.
+  ASSET_LINE_REGEX = /^[ \t]*(?:(?:\[\[.*?\]\]|\(\(.*?\)\))[ \t]*)+$/;
 
   // Maps a directive marker → its target name (e.g. `"^" → "title"`), plus the
   // empty-key default-target entry (`"" → "action"`). A beat's routing comes
@@ -147,7 +171,11 @@ export class InterpreterModule extends Module<
     // A continuation of the program just replaced is not a continuation of
     // this one, however alike their sources are: an edit that keeps a line's
     // length keeps its offsets too, so the name alone cannot tell them apart.
+    // Nor is the box a `.. >` of the replaced program left one this
+    // program's lines carry on in; a checkpoint loaded after the update
+    // brings back the box it was taken with.
     delete this._routing;
+    delete this._state.box;
   }
 
   setup() {
@@ -264,12 +292,97 @@ export class InterpreterModule extends Module<
   }
 
   /**
+   * A load beat of its own. While a box is waiting to be carried on in, the
+   * box stays on the page under the loading layout, with the pictures and the
+   * sound and voice it had.
+   */
+  protected loadBeat(load: LoadInstruction[]): Instructions {
+    const beat: Instructions = { load, end: 0 };
+    if (this._state.box) beat.extended = {};
+    return beat;
+  }
+
+  /**
+   * Resolve a dialogue cue declaration (`CHARACTER NAME (parenthetical) [>]`)
+   * into the name shown, its parenthetical, its position, and the character
+   * whose settings type the line.
+   */
+  protected resolveCue(characterDeclaration: string): Cue {
+    const match = characterDeclaration.match(this.CHARACTER_REGEX);
+    const characterNameMatch = match?.[1] || "";
+    const characterParentheticalMatch = match?.[3] || "";
+    const characterPositionMatch = match?.[7] || "";
+    const characterMap = this.context?.["character"] as any;
+    const characterId = this._characterNameMap[characterNameMatch] || "";
+    const characterObj =
+      characterMap?.[characterNameMatch] || characterMap?.[characterId];
+    // Fall back to the cue text when the character has no NON-EMPTY name:
+    // a character defined without a `name` inherits `name = ""` from the
+    // type default, so an empty string must be treated as absent (the same
+    // as an undefined character) rather than rendered as a blank speaker.
+    const characterName =
+      typeof characterObj?.name === "string" && characterObj.name
+        ? characterObj.name
+        : characterNameMatch;
+    const position =
+      characterPositionMatch === "<"
+        ? "left"
+        : characterPositionMatch === ">"
+          ? "right"
+          : characterPositionMatch;
+    return {
+      name: characterName,
+      parenthetical: characterParentheticalMatch,
+      position,
+      character: characterObj?.$name,
+    };
+  }
+
+  /**
+   * The parenthetical on a line of its own before the first line of text, and
+   * the content without it. Only blank lines and lines of pictures and sound
+   * may come before it. Null when a line of text comes first.
+   */
+  protected liftParenthetical(
+    content: string,
+  ): { parenthetical: string; rest: string } | null {
+    const lines = content.split("\n");
+    for (let i = 0; i < lines.length; i += 1) {
+      const line = lines[i]!;
+      if (!line.trim() || this.ASSET_LINE_REGEX.test(line)) {
+        continue;
+      }
+      const match = line.match(this.PARENTHETICAL_REGEX);
+      if (!match) {
+        return null;
+      }
+      lines.splice(i, 1);
+      return { parenthetical: match[4] || "", rest: lines.join("\n") };
+    }
+    return null;
+  }
+
+  /**
    * Build a beat's instructions from an already-resolved target + optional
    * dialogue cue + a final body string, and append them to the buffer: the
-   * cue resolution (name / parenthetical / position via `CHARACTER_REGEX`),
-   * the per-character `parse()`, the cue prefixing, and the empty-textbox
-   * fold. A `pause` beat waits for a click even with no text. Called by
-   * {@link queue}.
+   * cue resolution, the per-character `parse()`, the cue prefixing, and the
+   * empty-textbox fold. A `pause` beat waits for a click even with no text.
+   * Called by {@link queue}.
+   *
+   * While a box is waiting to be carried on in ({@link InterpreterState.box}),
+   * which {@link queue} keeps only for a line that begins with `..`, the
+   * first beat with text, or one a break ends, carries on in it: the box's
+   * text shown again at once, then this beat's text typed after it. The kind
+   * of box stays the one the box is. On a dialogue box, a cue on this beat
+   * names the speaker shown and the character whose settings type the text,
+   * and a parenthetical on its cue, or on a line of its own before its text,
+   * replaces the one shown; without them, the box's own stay. A beat with
+   * neither text nor a break (only pictures or sound) leaves the box waiting
+   * and on the page, with empty `extended` counts, unless its cue names a
+   * speaker for a dialogue box: then it carries on in the box too, so the new
+   * name shows over the box's text at the click.
+   * `extend` marks a beat a `.. >` ended: the box it shows is kept for the
+   * next step, with the `spaces` its table ends with, which join the two.
    */
   protected appendBeat(
     target: string,
@@ -277,52 +390,69 @@ export class InterpreterModule extends Module<
     content: string,
     choices: string[],
     pause = false,
+    extend?: { spaces: string },
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
+    const box = this._state.box;
+    const ownCue = characterDeclaration
+      ? this.resolveCue(characterDeclaration)
+      : undefined;
+    // What this beat shows if it carries on in the box.
+    let boxContent = content;
+    let boxCue = box?.cue;
+    let lifted: { parenthetical: string; rest: string } | null = null;
+    if (box?.cue) {
+      lifted = this.liftParenthetical(content);
+      if (lifted) boxContent = lifted.rest;
+      const speaks = Boolean(ownCue?.name);
+      boxCue = {
+        name: speaks ? ownCue!.name : box.cue.name,
+        position: speaks ? ownCue!.position : box.cue.position,
+        character: speaks ? ownCue!.character : box.cue.character,
+        parenthetical:
+          ownCue?.parenthetical || lifted?.parenthetical || box.cue.parenthetical,
+      };
+    }
+    const boxTarget = box?.target ?? "";
+    // A continuation that names a speaker is typed with that speaker's
+    // settings, even in a box that shows no name.
+    const typedBy = box?.cue ? boxCue : ownCue;
+    const boxInstructions =
+      box && (boxContent || pause || lifted)
+        ? this.parse(boxContent, boxTarget, {
+            character: typedBy?.character,
+            position: typedBy?.position,
+          })
+        : undefined;
+    // A parenthetical of its own is shown in the box too, as a cue's is, and
+    // so is a speaker a beat of only pictures names.
+    const carries = Boolean(
+      box &&
+        (boxInstructions?.text ||
+          pause ||
+          lifted ||
+          (box.cue && ownCue?.name)),
+    );
+    const textTarget = carries ? boxTarget : target || defaultTarget;
+    const cue = carries ? boxCue : ownCue;
     const options: InstructionOptions = {};
     let characterNameInstructions: Instructions | undefined = undefined;
     let characterParentheticalInstructions: Instructions | undefined =
       undefined;
-    if (characterDeclaration) {
-      // Character declaration can include name, parenthetical, and position.
-      // @ CHARACTER NAME (parenthetical) [>]
-      const match = characterDeclaration.match(this.CHARACTER_REGEX);
-      const characterNameMatch = match?.[1] || "";
-      const characterParentheticalMatch = match?.[3] || "";
-      const characterPositionMatch = match?.[7] || "";
-      const characterMap = this.context?.["character"] as any;
-      const characterId = this._characterNameMap[characterNameMatch] || "";
-      const characterObj =
-        characterMap?.[characterNameMatch] || characterMap?.[characterId];
-      const character = characterObj?.$name;
-      // Fall back to the cue text when the character has no NON-EMPTY name:
-      // a character defined without a `name` inherits `name = ""` from the
-      // type default, so an empty string must be treated as absent (the same
-      // as an undefined character) rather than rendered as a blank speaker.
-      const characterName =
-        typeof characterObj?.name === "string" && characterObj.name
-          ? characterObj.name
-          : characterNameMatch;
-      const characterParenthetical = characterParentheticalMatch;
-      const position =
-        characterPositionMatch === "<"
-          ? "left"
-          : characterPositionMatch === ">"
-            ? "right"
-            : characterPositionMatch;
-      options.character = character;
-      options.position = position;
-      if (characterName) {
+    if (cue) {
+      options.character = cue.character;
+      options.position = cue.position;
+      if (cue.name) {
         characterNameInstructions = this.parse(
-          characterName,
+          cue.name,
           "character_name",
           options,
         );
       }
-      if (characterParenthetical) {
+      if (cue.parenthetical) {
         characterParentheticalInstructions = this.parse(
-          characterParenthetical,
+          cue.parenthetical,
           "character_parenthetical",
           options,
         );
@@ -330,15 +460,40 @@ export class InterpreterModule extends Module<
     }
     // Queue content
     if (content || pause) {
-      const contentInstructions = this.parse(
-        content,
-        target || defaultTarget,
-        options,
-      );
+      // A beat that leaves the box waiting shows no text, so what it was
+      // parsed as for the box is what it shows.
+      const contentInstructions =
+        boxInstructions ?? this.parse(content, textTarget, options);
       if (pause && !contentInstructions.text) {
         // A beat a `>` break ends waits for a click, so it shows its box even
         // with no text to type.
-        contentInstructions.text = { [target || defaultTarget]: [] };
+        contentInstructions.text = { [textTarget]: [] };
+      }
+      if (carries && box) {
+        // The box's text shows again at once, ahead of what this beat types.
+        const text = (contentInstructions.text ??= {});
+        text[textTarget] = [...box.text, ...(text[textTarget] ?? [])];
+        const extended: Record<string, number> = {
+          [textTarget]: box.text.length,
+        };
+        if (cue?.name && cue.name === box.cue?.name) {
+          extended["character_name"] =
+            characterNameInstructions?.text?.["character_name"]?.length ?? 0;
+        }
+        if (
+          cue?.parenthetical &&
+          cue.parenthetical === box.cue?.parenthetical
+        ) {
+          extended["character_parenthetical"] =
+            characterParentheticalInstructions?.text?.[
+              "character_parenthetical"
+            ]?.length ?? 0;
+        }
+        contentInstructions.extended = extended;
+      } else if (box) {
+        // A beat of only pictures or sound runs at the click and leaves the
+        // box on the page, still waiting for its text.
+        contentInstructions.extended = {};
       }
       if (contentInstructions.text) {
         if (characterParentheticalInstructions) {
@@ -369,18 +524,47 @@ export class InterpreterModule extends Module<
         const lastTextbox = this._state.buffer.at(-1);
         if (lastTextbox && !lastTextbox?.text && !lastTextbox?.load) {
           // If previous textbox did not actually contain any text, fold this result into it.
+          // The merged beat is as much a part of the box as this one is.
           this.merge(lastTextbox, contentInstructions);
+          if (contentInstructions.extended) {
+            lastTextbox.extended = contentInstructions.extended;
+          } else {
+            delete lastTextbox.extended;
+          }
         } else {
           // Otherwise, add this result as a new textbox.
           this._state.buffer.push(contentInstructions);
         }
       }
       if (loads) {
-        this._state.buffer.push({ load: loads, end: 0 });
+        this._state.buffer.push(this.loadBeat(loads));
+      }
+      if (extend) {
+        // The next step carries on in this box: its text shown again at
+        // once, and the spaces the join keeps after it.
+        const shown = (contentInstructions.text?.[textTarget] ?? []).map(
+          (event) => {
+            const copy = { ...event };
+            delete copy.after;
+            delete copy.over;
+            return copy;
+          },
+        );
+        // One event per space, as the text itself is written, so the page
+        // breaks words at them as it would in the same words shown at once.
+        for (const space of extend.spaces) {
+          shown.push({ control: "show", text: space });
+        }
+        this._state.box = { target: textTarget, text: shown };
+        if (cue) this._state.box.cue = cue;
+      } else if (contentInstructions.text) {
+        delete this._state.box;
       }
     }
-    // Show choices after last textbox is done typing.
     if (choices?.length > 0) {
+      // Choices end the box: what a choice leads to starts a new one.
+      delete this._state.box;
+      // Show choices after last textbox is done typing.
       let lastTextbox = this._state.buffer?.at(-1);
       if (!lastTextbox) {
         lastTextbox = { end: 0 };
@@ -405,11 +589,14 @@ export class InterpreterModule extends Module<
    * cue (`character`) are table fields resolved at compile time.
    *
    * Table shape: `{ target?: string, character?: string, text: string,
-   * pause?: boolean, inherit?: boolean, group?: string, tags?: table }`, or
-   * `{ load: string }` for a `load` line,
+   * pause?: boolean, extend?: boolean, continues?: boolean, inherit?: boolean,
+   * group?: string, tags?: table }`, or `{ load: string }` for a `load` line,
    * whose whitespace-separated names queue a load beat of their own. `pause`
    * marks a beat a `>` break ends, which waits for a click even when it has no
-   * text. `group` names a glued continuation, and `inherit` marks its beats
+   * text, and `extend` one a `.. >` ends, whose box the next step carries on
+   * in when that step's first table is `continues`, a line that begins with
+   * `..` (see {@link appendBeat}). `group` names a glued continuation, and
+   * `inherit` marks its beats
    * after one of its breaks: they take the routing of the beat the run joined
    * the continuation to, which holds while the beat just queued carried the
    * same `group`, and otherwise route by their own table, which names the
@@ -453,7 +640,7 @@ export class InterpreterModule extends Module<
             .split(this.WHITESPACE_REGEX)
             .filter(Boolean)
             .map((name) => ({ name }));
-          this._state.buffer!.push({ load: loadInstructions, end: 0 });
+          this._state.buffer!.push(this.loadBeat(loadInstructions));
         }
         before = [];
       };
@@ -473,6 +660,12 @@ export class InterpreterModule extends Module<
       return;
     }
     const pause = tables.some((table) => read(table, "pause") === true);
+    // Only a step whose first line begins with `..` carries on in the box a
+    // `.. >` left; `display` has already taken the mark off a line that
+    // joins nothing. Any other step starts a new box.
+    if (read(tables[0], "continues") !== true) {
+      delete this._state.box;
+    }
     const routed = tables.find((table) => {
       const target = read(table, "target");
       return typeof target === "string" && target;
@@ -517,12 +710,25 @@ export class InterpreterModule extends Module<
     if (tables.length > 0) {
       this._routing = group == null ? routing : { ...routing, group };
     }
+    // A `.. >` ends the step with the table that asks the next step to carry
+    // on in its box. The step's text loses the spaces that end a line, so the
+    // spaces the join keeps are read off that table.
+    const extending = tables.findLast((table) => read(table, "extend") === true);
+    const extendText = read(extending, "text");
     this.appendBeat(
       routing.target,
       routing.character,
       content,
       choices,
       pause,
+      extending
+        ? {
+            spaces:
+              typeof extendText === "string"
+                ? (/[ \t]*$/.exec(extendText)?.[0] ?? "")
+                : "",
+          }
+        : undefined,
     );
   }
 
@@ -565,8 +771,10 @@ export class InterpreterModule extends Module<
   clearQueuedBeats(): void {
     this._state.buffer = [];
     // The run those beats belonged to is over, so the beat a continuation
-    // would have inherited from is not this run's.
+    // would have inherited from is not this run's, and neither is the box a
+    // `.. >` left.
     delete this._routing;
+    delete this._state.box;
   }
 
   protected isWhitespace(part: string | undefined) {

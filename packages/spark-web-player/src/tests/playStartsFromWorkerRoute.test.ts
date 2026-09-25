@@ -1,37 +1,29 @@
 // Pressing PLAY has to put the game at the line the cursor is on, and getting
 // there means finding a replay of the story that reaches it. That search is
 // expensive — on a story it never reaches it runs until a work ceiling stops
-// it — and `startGameAndApp` runs on the thread that paints the player, so a
-// search there freezes the whole page for as long as it lasts (#385).
+// it — and it holds up the worker, and every preview and PLAY the page waits
+// on it for, for as long as it lasts (#385).
 //
-// The compiler worker already performs that identical search, on every compile
-// and every cursor move, and reports the paths it reached a definite answer
+// The worker already performs that identical search, on every compile and
+// every cursor move, and reports the paths it reached a definite answer
 // about: the story state at that path, or, with no state, that no route to it
-// exists. These tests pin the play path to that answer — when it covers the
-// start point this run begins from, PLAY must not search again — and to the
-// fallback, which must survive intact for every case the answer does not
-// cover.
+// exists. These tests pin PLAY to that answer — when it covers the start point
+// this run begins from, PLAY must not search again — and to the fallback,
+// which must survive intact for every case the answer does not cover.
 //
-// Each case runs in both positions of the worker-display switch: with it off
-// the page builds PLAY's game and puts it at its start point, and with it on
-// the worker builds it and puts it there by the same rule (#682). The worker
+// The worker builds PLAY's game and puts it at its start point (#682). It
 // replays the route itself, so a case hands its game the answer it names in
 // place of the one the worker found.
 
 import { describe, expect, test, vi } from "vitest";
-import { pathLocationTableOf } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
-import { GamePlayerController } from "../GamePlayerController";
 import { programIdentity } from "../utils/programIdentity";
-import { putAtStartPoint } from "../utils/putAtStartPoint";
+import { putAtStartPoint } from "../main/workers/putAtStartPoint";
 import { createPlayerHarness, MAIN_URI } from "./worker/playerHarness";
 
+/** The program the stand-in game holds before the worker builds it. */
 const PROGRAM = {
   uri: "file://proj/main.sd",
   version: 3,
-  // `hasCompiledProgram` only looks for one of these, and the play path gates
-  // starting the app on it.
-  compiled: {},
-  pathLocations: pathLocationTableOf({}),
   scripts: { "file://proj/main.sd": 3 },
 } as any;
 
@@ -51,8 +43,8 @@ const SIMULATED_SAVE = JSON.stringify({
 const TRUNCATED_SAVE = '{"simulatedFrom":"main","stor';
 
 /** A stand-in game that records what the play path asks of it, and nothing
- *  else. `simulate` here is the interface-thread route search — the call this
- *  fix exists to avoid. */
+ *  else. `simulate` here is the route search PLAY runs itself — the call
+ *  this rule exists to avoid. */
 function recordingGame(startPath: string | null) {
   const calls: string[] = [];
   const game: any = {
@@ -107,22 +99,14 @@ type WorkerAnswer = {
   simulatedProgramId?: string;
 };
 
-/** PLAY with the switch off: the page builds the recording game and puts it
- *  at its start point from the answer the controller holds. */
-async function playOnPage(game: any, worker: WorkerAnswer) {
-  await playControllerWith(game, worker).startGameAndApp();
-}
-
 const WORKER_SOURCE = ["-> start", "", "scene start", "  The line.", "end", ""].join("\n");
 
-/** PLAY with the switch on: the worker builds the recording game for the
- *  program the page names and puts it at its start point, from the answer
- *  the case names. `MATCHING_PROGRAM_ID` stands for the program the game is
- *  built from. */
+/** PLAY: the worker builds the recording game for the program the page
+ *  names and puts it at its start point, from the answer the case names.
+ *  `MATCHING_PROGRAM_ID` stands for the program the game is built from. */
 async function playInWorker(game: any, worker: WorkerAnswer) {
   const line = 3;
   const h = await createPlayerHarness({
-    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: WORKER_SOURCE }],
     startFrom: { file: MAIN_URI, line },
   });
@@ -150,53 +134,19 @@ async function playInWorker(game: any, worker: WorkerAnswer) {
   }
 }
 
-// A case with the switch on compiles and plays in the worker.
+// A case compiles and plays in the worker.
 vi.setConfig({ testTimeout: 120_000 });
 
-const HOSTS = [
-  { name: "the switch off", play: playOnPage },
-  { name: "the switch on", play: playInWorker },
-];
-
-/** A controller wired to the recording game, with the two heavy build steps
- *  (the real Game and the pixi Application) stubbed out. */
-function playControllerWith(
-  game: any,
-  worker: {
-    checkpoint?: string;
-    simulatedPath?: string | null;
-    simulatedProgramId?: string;
-  },
-) {
-  const controller: any = new GamePlayerController(
-    document.createElement("div"),
-    {} as any,
-  );
-  controller._program = PROGRAM;
-  controller._checkpoint = worker.checkpoint;
-  controller._simulatedPath = worker.simulatedPath;
-  controller._simulatedProgramId =
-    "simulatedProgramId" in worker
-      ? worker.simulatedProgramId
-      : MATCHING_PROGRAM_ID;
-  controller.buildGame = async () => game;
-  controller.buildApp = async () => ({
-    start: () => game.calls.push("app-start"),
-  });
-  controller.listen = () => {};
-  return controller;
-}
-
-for (const host of HOSTS) describe(`pressing play reuses the compiler worker's route search, with ${host.name}`, () => {
+describe("pressing play reuses the worker's route search", () => {
   test("the worker's checkpoint is loaded instead of searching again", async () => {
     const game = recordingGame("main.3");
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: "main.3",
       checkpoint: SIMULATED_SAVE,
     });
 
     expect(game.calls).toContain("load:the state at main.3");
-    // The whole point: no route search on the thread that paints the player.
+    // The whole point: no second route search in the worker.
     expect(game.calls).not.toContain("simulate");
     // And the game is left in the state `start` resumes from. `start` reads
     // that state when it is called, so the load has to come first — an
@@ -212,7 +162,7 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
     // reaches it. Running the same doomed search on the interface thread would
     // freeze the page for seconds and reach the same verdict.
     const game = recordingGame("main.3");
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: "main.3",
       checkpoint: undefined,
     });
@@ -233,7 +183,7 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
     // point proves a route exists, so the search run here finds one and ends.
     // Starting at the wrong place would be the worse outcome.
     const game = recordingGame("main.3");
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: "main.3",
       checkpoint: TRUNCATED_SAVE,
     });
@@ -247,7 +197,7 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
     // begins somewhere else, loading that checkpoint would drop the player
     // into an unrelated part of the story, so the search has to happen here.
     const game = recordingGame("main.3");
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: "other.7",
       checkpoint: SIMULATED_SAVE,
     });
@@ -263,7 +213,7 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
     // identity is what catches it. Falling back to searching here is the old
     // behaviour: slower, but it cannot start the game in the wrong place.
     const game = recordingGame("main.3");
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: "main.3",
       checkpoint: SIMULATED_SAVE,
       simulatedProgramId: programIdentity({
@@ -282,7 +232,7 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
     // not. Failing this way costs a search; failing the other way starts the
     // game somewhere the user did not ask for.
     const game = recordingGame("main.3");
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: "main.3",
       checkpoint: SIMULATED_SAVE,
       simulatedProgramId: undefined,
@@ -296,7 +246,7 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
     // A host that never simulates routes off the main thread must keep
     // working; the fallback is the old behaviour, unchanged.
     const game = recordingGame("main.3");
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: undefined,
       checkpoint: undefined,
       simulatedProgramId: undefined,
@@ -313,7 +263,7 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
     // Nothing to match against, so the reuse rule must not fire on two
     // undefineds and silently skip the (cheap, immediately-returning) search.
     const game = recordingGame(null);
-    await host.play(game, {
+    await playInWorker(game, {
       simulatedPath: undefined,
       checkpoint: undefined,
       simulatedProgramId: undefined,
@@ -323,11 +273,10 @@ for (const host of HOSTS) describe(`pressing play reuses the compiler worker's r
   });
 });
 
-describe("with the switch on, the worker's own route reaches the rule", () => {
+describe("the worker's own route reaches the rule", () => {
   test("PLAY's game is put at its start point from the route the worker replayed", async () => {
     const line = 3;
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: WORKER_SOURCE }],
       startFrom: { file: MAIN_URI, line },
     });
@@ -352,53 +301,5 @@ describe("with the switch on, the worker's own route reaches the rule", () => {
     } finally {
       h.dispose();
     }
-  });
-});
-
-describe("the worker's route answer reaches the play path", () => {
-  test("a compile stores both the checkpoint and the path it was found for", async () => {
-    const controller: any = new GamePlayerController(
-      document.createElement("div"),
-      {} as any,
-    );
-
-    await controller.handleCompiledProgram({
-      method: "compiler/didCompile",
-      params: {
-        textDocument: { uri: PROGRAM.uri, version: 3 },
-        program: PROGRAM,
-        checkpoint: SIMULATED_SAVE,
-        simulatedPath: "main.3",
-      },
-    });
-
-    expect(controller._checkpoint).toBe(SIMULATED_SAVE);
-    expect(controller._simulatedPath).toBe("main.3");
-  });
-
-  test("a cursor move stores the path even when no route was found", async () => {
-    // `_program` is left unset so the handler stops after recording the
-    // worker's answer instead of walking into the preview path.
-    const controller: any = new GamePlayerController(
-      document.createElement("div"),
-      {} as any,
-    );
-
-    await controller.handleSelectedCompilerDocument({
-      method: "compiler/didSelect",
-      params: {
-        textDocument: { uri: PROGRAM.uri },
-        selectedRange: {
-          start: { line: 12, character: 0 },
-          end: { line: 12, character: 0 },
-        },
-        docChanged: false,
-        userEvent: true,
-        simulatedPath: "main.3",
-      },
-    });
-
-    expect(controller._checkpoint).toBeUndefined();
-    expect(controller._simulatedPath).toBe("main.3");
   });
 });

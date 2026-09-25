@@ -41,7 +41,6 @@ describe("a preview displayed from the worker's game", () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
       holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
@@ -67,7 +66,6 @@ describe("a preview displayed from the worker's game", () => {
       await settle(40);
       observer.disconnect();
 
-      expect(h.controller._game).toBeUndefined();
       expect(painted.some((text) => text.includes("The beat that waits for its picture."))).toBe(false);
       expect(h.overlay.textContent).toContain("The beat that takes over.");
       expect(h.controller.getGameState().position).toEqual({ uri: MAIN_URI, line: TAKING_OVER });
@@ -80,7 +78,6 @@ describe("a preview displayed from the worker's game", () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
       holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
@@ -134,7 +131,6 @@ describe("a preview displayed from the worker's game", () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
       holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
@@ -185,7 +181,6 @@ describe("a preview displayed from the worker's game", () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
       holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
@@ -219,7 +214,6 @@ describe("a preview displayed from the worker's game", () => {
 
   it("stops hearing the worker's game when the preview detaches and when the player goes", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
     });
@@ -247,7 +241,6 @@ describe("a preview displayed from the worker's game", () => {
   for (const ending of ["detach", "dispose"] as const) {
     it(`shows nothing once the preview is gone when its application finishes building after a ${ending}`, async () => {
       const h = await createPlayerHarness({
-        workerDisplays: true,
         files: [{ uri: MAIN_URI, text: SOURCE }],
         startFrom: { file: MAIN_URI, line: TAKING_OVER },
       });
@@ -285,7 +278,6 @@ describe("a preview displayed from the worker's game", () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
       holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),
@@ -311,7 +303,6 @@ describe("a preview displayed from the worker's game", () => {
 
   it("keeps the preview that follows a detach when the build before it finishes late", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
     });
@@ -370,7 +361,6 @@ describe("a preview displayed from the worker's game", () => {
 
   it("settles the preview once the player goes while its application initializes", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
     });
@@ -395,7 +385,6 @@ describe("a preview displayed from the worker's game", () => {
 
   it("keeps PLAY's application when the preview build before it finishes late", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
     });
@@ -423,7 +412,6 @@ describe("a preview displayed from the worker's game", () => {
 
   it("connects the application a detach built when an older display answers late", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
     });
@@ -480,7 +468,6 @@ describe("a preview displayed from the worker's game", () => {
     let releaseA!: () => void;
     const aLoaded = new Promise<void>((resolve) => (releaseA = resolve));
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: TAKING_OVER },
       holdImage: (src) => (src.includes("a.png") ? aLoaded : undefined),

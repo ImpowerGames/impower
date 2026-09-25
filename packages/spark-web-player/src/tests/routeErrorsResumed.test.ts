@@ -13,7 +13,7 @@ import { searchRouteTo } from "../main/workers/searchRouteTo";
 const URI = "inmemory:///main.sd";
 
 const CONTINUES_WARNING =
-  "This line begins with `..`, but the line before it had already ended.";
+  "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
 const lines = ["store x = 0", "A", "& x = 1", ".. B"];
 for (let i = 0; i < 12; i += 1) {
@@ -37,13 +37,13 @@ const quiet = <T>(fn: () => T): T => {
   }
 };
 
-describe.each([false, true])("route errors (worker displays: %s)", (workerDisplays) => {
+describe("route errors", () => {
   test("keep what the steps before a resumed replay's checkpoint raised", () => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
-      emitCompiledProgram: !workerDisplays,
+      emitCompiledProgram: false,
       files: [
         { uri: URI, type: "script", name: "main", ext: "sd", text: SOURCE, version: 1, languageId: "sparkdown" },
       ],
