@@ -56,3 +56,25 @@ rm -rf /tmp/luau-upstream
   (2026-05-15, "Sync to upstream/release/721 (#2394)").
 
 Update this entry whenever you re-vendor.
+
+## Type-checker test cases
+
+`typecheck-cases.json` lists every test case in Luau's 31 type-checker test files (`tests/TypeInfer.test.cpp`, `tests/TypeInfer.*.test.cpp`, `tests/NonStrictTypeChecker.test.cpp` and `tests/NonstrictMode.test.cpp`) at one commit, with Luau's error kinds at that commit. The port of those tests in `../typecheck/` is checked against it, as `../typecheck/README.md` describes. The list is generated rather than copied; the snippets the port carries are Luau's, under its MIT license (`LICENSE.txt`).
+
+Pinned commit: `7d5f73364fdbbaa984fa545071630eba73cfea98` (2026-09-15, "improve stringification of metatable types (#2545)"). The same pin is recorded in the file.
+
+To move the pin, fetch the test files and `Error.h` at the new commit, then regenerate the list with `packages/sparkdown/scripts/generateTypecheckCases.ts`. From the repository root:
+
+```bash
+PIN=<commit>
+LUAU=/tmp/luau-typecheck
+REPO=$(pwd)
+git init "$LUAU" && cd "$LUAU"
+git remote add origin https://github.com/luau-lang/luau.git
+git sparse-checkout set --no-cone '/tests/*' '/Analysis/include/Luau/Error.h'
+git fetch --depth 1 --filter=blob:none origin "$PIN"
+git checkout FETCH_HEAD
+cd "$REPO/packages/sparkdown" && node scripts/generateTypecheckCases.ts "$LUAU"
+```
+
+In Git Bash on Windows, prefix the `sparse-checkout` line with `MSYS_NO_PATHCONV=1`, or its patterns are rewritten as Windows paths. The script prints the number of cases and markers it found, any case name a file uses twice, and any test file that looks like a type-checker file but is not in its list. The coverage test in each ported file then names the cases that changed; port them, and update the pinned commit above.
