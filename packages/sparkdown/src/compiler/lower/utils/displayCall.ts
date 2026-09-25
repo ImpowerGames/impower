@@ -13,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text, pause?, extend?, fresh?, inherit?, group?, continues? })` with
+// `display({ target?, character?, text, pause?, extend?, nested?, fresh?, inherit?, group?, continues? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
@@ -31,10 +31,11 @@ import { stampDebugMetadata } from "./debugMetadata";
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
 // shows no text. `extend` marks a beat a `> ..` ends: its step ends at the
 // click like any beat's, and the next step that shows something carries on in
-// the same box. `fresh` marks the first call of a line that follows an `if` or
-// alternator block: a `> ..` before the block whose branch showed nothing
-// leaves no box for this line to carry on in, since the branch was where its
-// continuation stood. `open` marks a call that joins the next display call onto its
+// the same box; `nested` marks one whose line stands inside an `if` or
+// alternator block. `fresh` marks the first call of a line right after such a
+// block: a box left before the block that the branch taken did not carry on in
+// is not this line's to carry on in, while a `nested` box, left by the branch
+// itself, is. `open` marks a call that joins the next display call onto its
 // line: `display` writes no newline after it, so the step runs on until a
 // call closes the line. A trailing `..` and a divert the line holds open carry
 // it. `caption` marks a `choose` block's last caption line, whose newline
@@ -62,6 +63,7 @@ export function buildDisplayCall(
   options: {
     pause?: boolean;
     extend?: boolean;
+    nested?: boolean;
     fresh?: boolean;
     inherit?: boolean;
     group?: string;
@@ -90,6 +92,7 @@ export function buildDisplayCall(
   for (const flag of [
     "pause",
     "extend",
+    "nested",
     "fresh",
     "inherit",
     "open",

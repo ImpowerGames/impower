@@ -14,8 +14,9 @@ const ADVANCE_KEYS = ["Enter", " "];
 
 /**
  * Write a beat's text to its targets. On a beat that carries on in the box
- * before it, the events that box already shows are written at once, so they
- * never leave the page, and only the rest are revealed from `time`.
+ * before it, the events that box already shows are marked `shown`, so the page
+ * shows them at once and they never leave it, and only the rest are revealed
+ * from `time`.
  */
 export function writeBeatText(
   ui: Game["module"]["ui"],
@@ -23,18 +24,14 @@ export function writeBeatText(
   instant = false,
   time?: number,
 ): Promise<void>[] {
-  return Object.entries(instructions.text ?? {}).flatMap(
-    ([target, events]) => {
-      const kept = instant ? 0 : (instructions.extended?.[target] ?? 0);
-      if (kept <= 0) {
-        return [ui.text.write(target, events, instant, time)];
-      }
-      const writes = [ui.text.write(target, events.slice(0, kept), true)];
-      if (events.length > kept) {
-        writes.push(ui.text.write(target, events.slice(kept), false, time));
-      }
-      return writes;
-    },
+  return Object.entries(instructions.text ?? {}).map(([target, events]) =>
+    ui.text.write(
+      target,
+      events,
+      instant,
+      time,
+      instant ? 0 : (instructions.extended?.[target] ?? 0),
+    ),
   );
 }
 

@@ -149,11 +149,18 @@ describe("a `..` after a break carries on in the box", () => {
     expect(on(beats[1], "dialogue")).toBe("Quiet now!");
   });
 
-  test("an action box extended by a cue gets the text and no name", async () => {
+  test("an action box extended by a cue gets the text and no name, typed as the speaker", async () => {
     const { beats } = await beatsOf(`  Knock > ..\n  BOB: Who's there?`, 2);
     expect(on(beats[1], "action")).toBe("Knock Who's there?");
     expect(beats[1]?.text?.["character_name"]).toBeUndefined();
     expect(beats[1]?.text?.["dialogue"]).toBeUndefined();
+    // The typing sound is the one BOB's own line plays, not the action's.
+    const synth = (beat: Instructions | undefined) =>
+      beat?.audio?.["typewriter"]?.[0]?.assets?.[0]?.split("~")[0];
+    const bob = await beatsOf(`  BOB: Who's there?`, 1);
+    const action = await beatsOf(`  Who's there?`, 1);
+    expect(synth(bob.beats[0])).not.toBe(synth(action.beats[0]));
+    expect(synth(beats[1])).toBe(synth(bob.beats[0]));
   });
 
   test("`A .. >` followed by a cue keeps the first speaker in one beat", async () => {
@@ -179,12 +186,14 @@ describe("a `..` after a break carries on in the box", () => {
   });
 
   test("a branch that shows nothing leaves the line after its block a new box", async () => {
-    const untaken = await beatsOf(
-      `  A > ..\n  if false then\n    B\n  end\n  C`,
-      2,
-    );
-    expect(untaken.beats.map(shown)).toEqual(["A", "C"]);
-    expect(untaken.beats[1]?.extended).toBeUndefined();
+    for (const branch of ["B", "B > .."]) {
+      const untaken = await beatsOf(
+        `  A > ..\n  if false then\n    ${branch}\n  end\n  C`,
+        2,
+      );
+      expect(untaken.beats.map(shown)).toEqual(["A", "C"]);
+      expect(untaken.beats[1]?.extended).toBeUndefined();
+    }
     const taken = await beatsOf(
       `  A > ..\n  if true then\n    B\n  end\n  C`,
       3,
@@ -251,27 +260,27 @@ describe("the extended beat on the page", () => {
     harness.reset();
     await harness.display(beats[1]!, false);
     await flushMicrotasks();
+    // One write per target: the box's text, marked `shown` so the page shows
+    // it at once, then the continuation, revealed from the beat's time.
     const dialogue = writesTo(harness, "dialogue");
-    expect(dialogue).toHaveLength(2);
-    const [kept, typed] = dialogue;
-    expect(kept.params.instant).toBe(true);
-    expect(kept.params.time).toBeUndefined();
-    const keptEvents: any[] = kept.params.instructions;
-    expect(keptEvents.map((e) => e.text).join("")).toBe("First ");
-    expect(keptEvents.every((e) => e.after == null && e.over == null)).toBe(
-      true,
-    );
-    expect(typed.params.instant).toBe(false);
-    expect(typed.params.time).toBeDefined();
-    const typedEvents: any[] = typed.params.instructions;
-    expect(typedEvents.map((e) => e.text).join("")).toBe("second.");
+    expect(dialogue).toHaveLength(1);
+    const [write] = dialogue;
+    expect(write.params.instant).toBe(false);
+    expect(write.params.time).toBeDefined();
+    expect(write.params.shown).toBe("First ".length);
+    const events: any[] = write.params.instructions;
+    const kept = events.slice(0, write.params.shown);
+    const typed = events.slice(write.params.shown);
+    expect(kept.map((e) => e.text).join("")).toBe("First ");
+    expect(kept.every((e) => e.after == null && e.over == null)).toBe(true);
+    expect(typed.map((e) => e.text).join("")).toBe("second.");
     // The continuation types from the start of the beat.
-    expect(typedEvents[0].after ?? 0).toBe(0);
-    expect(typedEvents.at(-1).after).toBeGreaterThan(0);
-    // The name the box shows is written again at once, as it stands.
+    expect(typed[0].after ?? 0).toBe(0);
+    expect(typed.at(-1).after).toBeGreaterThan(0);
+    // The name the box shows is written again, all of it shown at once.
     const name = writesTo(harness, "character_name");
     expect(name).toHaveLength(1);
-    expect(name[0].params.instant).toBe(true);
+    expect(name[0].params.shown).toBe(name[0].params.instructions.length);
     expect(name[0].params.instructions.map((e: any) => e.text).join("")).toBe(
       "HERO",
     );
@@ -448,13 +457,15 @@ describe("the preview, checkpoints and PLAY", () => {
     player.reset();
     await player.display(beat, false);
     await flushMicrotasks();
-    const [kept, typed] = writesTo(player, "dialogue");
-    expect(kept?.params.instant).toBe(true);
+    const [write] = writesTo(player, "dialogue");
+    const events = write?.params.instructions as any[];
+    expect(write?.params.instant).toBe(false);
+    expect(write?.params.shown).toBe("First ".length);
     expect(
-      (kept?.params.instructions as any[]).map((e) => e.text).join(""),
+      events.slice(0, write?.params.shown).map((e) => e.text).join(""),
     ).toBe("First ");
     expect(
-      (typed?.params.instructions as any[]).map((e) => e.text).join(""),
+      events.slice(write?.params.shown).map((e) => e.text).join(""),
     ).toBe("second.");
   });
 });

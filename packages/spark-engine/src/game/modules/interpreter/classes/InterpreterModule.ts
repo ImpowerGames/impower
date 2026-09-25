@@ -46,6 +46,9 @@ export interface ShownBox {
   target: string;
   cue?: Cue;
   text: TextInstruction[];
+  /** The `> ..` that left the box stands inside an `if` or alternator
+   *  block, so the line right after the block may carry on in it. */
+  nested?: boolean;
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
@@ -387,7 +390,7 @@ export class InterpreterModule extends Module<
     content: string,
     choices: string[],
     pause = false,
-    extend?: { spaces: string },
+    extend?: { spaces: string; nested: boolean },
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
@@ -412,11 +415,14 @@ export class InterpreterModule extends Module<
       };
     }
     const boxTarget = box?.target ?? "";
+    // A continuation that names a speaker is typed with that speaker's
+    // settings, even in a box that shows no name.
+    const typedBy = box?.cue ? boxCue : ownCue;
     const boxInstructions =
       box && (boxContent || pause || lifted)
         ? this.parse(boxContent, boxTarget, {
-            character: boxCue?.character,
-            position: boxCue?.position,
+            character: typedBy?.character,
+            position: typedBy?.position,
           })
         : undefined;
     // A parenthetical of its own is shown in the box too, as a cue's is.
@@ -541,6 +547,7 @@ export class InterpreterModule extends Module<
         );
         if (extend.spaces) shown.push({ control: "show", text: extend.spaces });
         this._state.box = { target: textTarget, text: shown };
+        if (extend.nested) this._state.box.nested = true;
         if (cue) this._state.box.cue = cue;
       } else if (contentInstructions.text) {
         delete this._state.box;
@@ -645,9 +652,13 @@ export class InterpreterModule extends Module<
       return;
     }
     const pause = tables.some((table) => read(table, "pause") === true);
-    // The first line after an `if` or alternator block: a `> ..` before the
-    // block whose branch showed nothing leaves this line a new box.
-    if (read(tables[0], "fresh") === true) {
+    // The first line after an `if` or alternator block: a box left before the
+    // block, which the branch taken did not carry on in, leaves this line a
+    // new box. A box the branch itself left is this line's to carry on in.
+    if (
+      !this._state.box?.nested &&
+      tables.some((table) => read(table, "fresh") === true)
+    ) {
       delete this._state.box;
     }
     const routed = tables.find((table) => {
@@ -711,6 +722,7 @@ export class InterpreterModule extends Module<
               typeof extendText === "string"
                 ? (/[ \t]*$/.exec(extendText)?.[0] ?? "")
                 : "",
+            nested: read(extending, "nested") === true,
           }
         : undefined,
     );

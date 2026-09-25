@@ -137,7 +137,8 @@ function buildDisplayCalls(
   const isContinuation = lineType === null;
   const joined = isContinuation ? lexicalRouting(parent, ctx) : null;
   const continues = runCheckedLeadingGlue(parent, bodyStart, bodyEnd, ctx);
-  const fresh = followsBranchingBlock(parent, ctx);
+  const fresh = followsBranchingBlock(parent);
+  const nested = insideBranchingBlock(parent);
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
@@ -222,6 +223,7 @@ function buildDisplayCalls(
             // A `> ..` ends its step at the click like any break; the step
             // after it carries on in the box.
             extend: range.extend,
+            nested: range.extend && nested,
             // Source offsets start again in every script, so the file the
             // continuation is written in is part of what names it.
             group: isContinuation
@@ -1470,28 +1472,25 @@ function isNodePrecededByExtend(node: SyntaxNode, ctx: LowerContext): boolean {
   return sib != null && endsWithExtend(sib, ctx);
 }
 
-// Whether `node` is the first display line after an `if` or alternator block,
-// past statements that show nothing, where the block holds no line ending with
-// a `..` after a break. A `> ..` before the block was waiting for the block to
+// Whether the construct the run reaches just before `node` is an `if` or
+// alternator block. A `> ..` before the block was waiting for the block to
 // continue it, so when the branch taken showed nothing this line starts a new
-// box; a block that ends a branch with `> ..` leaves its box for this line.
-function followsBranchingBlock(node: SyntaxNode, ctx: LowerContext): boolean {
-  let sib = precedingConstruct(node);
-  while (sib && !isDisplayLine(sib) && !BRANCHING_BLOCKS.has(sib.name)) {
-    sib = precedingConstruct(sib);
+// box (`fresh`). Only the kind of the construct just before is read: the
+// incremental compiler lowers this line again when that construct changes,
+// but not when a line deep inside it does.
+function followsBranchingBlock(node: SyntaxNode): boolean {
+  const sib = precedingConstruct(node);
+  return sib != null && BRANCHING_BLOCKS.has(sib.name);
+}
+
+// Whether `node` stands inside a branch of an `if` or alternator block. A box a
+// `> ..` there leaves is the branch's own, which the line after the block
+// carries on in (`nested`), while one left before the block is not.
+function insideBranchingBlock(node: SyntaxNode): boolean {
+  for (let n = node.parent; n; n = n.parent) {
+    if (BRANCHING_BLOCKS.has(n.name)) return true;
   }
-  if (!sib || !BRANCHING_BLOCKS.has(sib.name)) return false;
-  let holdsBox = false;
-  const visit = (n: SyntaxNode): void => {
-    if (holdsBox) return;
-    if (DISPLAY_LINE_TYPES[n.name] != null || isDisplayLine(n)) {
-      holdsBox = endsWithExtend(n, ctx);
-      if (holdsBox) return;
-    }
-    for (let c = n.firstChild; c; c = c.nextSibling) visit(c);
-  };
-  visit(sib);
-  return !holdsBox;
+  return false;
 }
 
 // True when `node` ends with a `..` that follows a break: the `..` ends the
@@ -1667,7 +1666,8 @@ export function lowerLuauInterpolatedStringExpression(
   }
   const breaks = marks?.breaks ?? [];
   const beats = Math.max(breaks.length, 1);
-  const fresh = followsBranchingBlock(nodeRef.node, ctx);
+  const fresh = followsBranchingBlock(nodeRef.node);
+  const nested = insideBranchingBlock(nodeRef.node);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < beats; i++) {
     const beatBody = i === 0 ? body : [];
@@ -1686,6 +1686,7 @@ export function lowerLuauInterpolatedStringExpression(
         {
           pause: i < breaks.length,
           extend: lastBeat && marks?.extend,
+          nested: lastBeat && marks?.extend && nested,
           open: lastBeat && marks?.open && !marks.extend,
           fresh: fresh && i === 0,
         },

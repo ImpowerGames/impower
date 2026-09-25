@@ -1,8 +1,7 @@
-// A box carried on after a click (`First > .. second.`) is written as the text
-// it already shows, at once, and then the continuation, revealed. The page
-// lays the two writes out as it would one: the continuation goes on in the
-// line and word the first write stopped in, and the text the element reads out
-// is the whole box.
+// A box carried on after a click (`First > .. second.`) is written as one
+// write whose first letters, the text the box already shows, are marked
+// `shown`: the page shows them at once and reveals only the continuation. The
+// box lays out as the same words written at once would.
 
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -60,6 +59,19 @@ async function shownAtOnce(body: string) {
 }
 
 describe("a box carried on after a click", () => {
+  // A played write to an empty target keeps the target hidden until its first
+  // letter's reveal begins. The carried box's letters are already on the
+  // page, so the target does not wait for the beat's start.
+  test("the box shows at once, without waiting for the beat", async () => {
+    const extended = await shownAfterClick(`  HERO: First > .. second.`);
+    const box = extended.overlay.querySelector(".dialogue") as any;
+    expect(box?.__sdWait).toBeUndefined();
+    // An ordinary beat written the same way does wait for its first letter.
+    const ordinary = await shownAtOnce(`  HERO: First second.`);
+    const plain = ordinary.overlay.querySelector(".dialogue") as any;
+    expect(plain?.__sdWait).toBeDefined();
+  });
+
   test.each([
     [`  HERO: First > .. second.`, `  HERO: First second.`],
     [`  HERO: Abso >..\n  lutely!`, `  HERO: Absolutely!`],

@@ -4050,6 +4050,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         sequence: TextInstruction[] | null,
         instant: boolean,
         time?: number,
+        shown = 0,
       ) {
         // [D14] The engine no longer builds per-glyph spans or per-letter
         // reveal animations. It still owns the structural target element tree
@@ -4059,18 +4060,13 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
         // the `text`/`stroke` content children to the consumer via a single
         // `ui/write-text` message per target.
         const targetEls = $.findElements(target);
-        // A write appends to what the target shows, so the text it reads out
-        // is everything written since the target was last cleared.
-        const shown = sequence
-          ? ($._state.text?.[target] ?? sequence).map((t) => t.text).join("")
-          : null;
         for (const targetEl of targetEls) {
           if (targetEl) {
             if (sequence) {
               $.updateElement(targetEl, {
                 style: { display: null },
                 attributes: {
-                  text: shown,
+                  text: sequence?.map((t) => t.text).join("") ?? null,
                 },
               });
             } else {
@@ -4099,6 +4095,7 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
             instructions: sequence ?? [],
             instant,
             ...(time != null ? { time } : {}),
+            ...(shown > 0 ? { shown } : {}),
           }),
         );
       }
@@ -4115,16 +4112,18 @@ export class UIModule extends Module<UIState, UIMessageMap, UIBuiltins> {
       }
 
       /** `time` is when the beat starts on the shared clock (`sharedNow`),
-       *  for a write the page should show at that moment. */
+       *  for a write the page should show at that moment. The first `shown`
+       *  instructions are text already on the page, which appears at once. */
       async write(
         target: string,
         sequence: TextInstruction[],
         instant = false,
         time?: number,
+        shown = 0,
       ) {
         this.saveState(target, sequence);
         if (!$.context?.system?.simulating) {
-          await this.applyChanges(target, sequence, instant, time);
+          await this.applyChanges(target, sequence, instant, time, shown);
         }
       }
     }

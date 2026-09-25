@@ -31,16 +31,6 @@ import { getCssPropertyNames } from "../../../../sparkle-style-transformer/src/u
 import { Manager } from "../Manager";
 import { getEventData } from "../utils/getEventData";
 
-/** Where a text write to an element stopped, for a write that goes on from
- *  it: the line and word it was filling and what it had just written. */
-interface TextWriteEnd {
-  lineWrapperEl?: HTMLElement;
-  wordWrapperEl?: HTMLElement;
-  wasSpace?: boolean;
-  wasNewline?: boolean;
-  prevTextAlign?: string;
-}
-
 /**
  * Apply one engine-sent attribute to a realized element.
  *
@@ -560,6 +550,7 @@ export default class UIManager extends Manager {
         params.instructions,
         params.instant,
         this.getDisplayTime(params.time),
+        params.shown,
       );
       return WriteTextMessage.type.result(params.target);
     }
@@ -736,21 +727,15 @@ export default class UIManager extends Manager {
     sequence: TextInstruction[],
     instant: boolean,
     enter: { element: HTMLElement; animation: ReturnType<typeof getRevealAnimation> }[],
+    shown = 0,
+    enterNow: { element: HTMLElement; animation: ReturnType<typeof getRevealAnimation> }[] = enter,
   ) {
-    // A write appends to what the element shows. One that lands right after
-    // the last write to it goes on from where that write stopped, so the text
-    // wraps as it would had the two been one write: a box carried on after a
-    // click is written as the text it shows, then the continuation.
-    const resumed: TextWriteEnd | undefined = (contentEl as any).__sdTextEnd;
-    const resume =
-      resumed?.lineWrapperEl && contentEl.lastChild === resumed.lineWrapperEl
-        ? resumed
-        : undefined;
-    let lineWrapperEl: HTMLElement | undefined = resume?.lineWrapperEl;
-    let wordWrapperEl: HTMLElement | undefined = resume?.wordWrapperEl;
-    let wasSpace: boolean | undefined = resume?.wasSpace;
-    let wasNewline: boolean | undefined = resume?.wasNewline;
-    let prevTextAlign: string | undefined = resume?.prevTextAlign;
+    let lineWrapperEl: HTMLElement | undefined = undefined;
+    let wordWrapperEl: HTMLElement | undefined = undefined;
+    let wasSpace: boolean | undefined = undefined;
+    let wasNewline: boolean | undefined = undefined;
+    let prevTextAlign: string | undefined = undefined;
+    let index = 0;
     const createEl = (
       parent: HTMLElement,
       type: string,
@@ -847,19 +832,18 @@ export default class UIManager extends Manager {
         style,
         text === "\n" ? "" : text, // text_line div already handles breaking up lines
       );
-      enter.push({
+      // The first `shown` letters are already on the page (a box carried on
+      // after a click), so they appear at once, before the beat's start.
+      const atOnce = index < shown;
+      index += 1;
+      (atOnce ? enterNow : enter).push({
         element: newSpanEl,
-        animation: getRevealAnimation({ after: e.after, over: e.over }, instant),
+        animation: getRevealAnimation(
+          { after: e.after, over: e.over },
+          instant || atOnce,
+        ),
       });
     }
-    const end: TextWriteEnd = {
-      lineWrapperEl,
-      wordWrapperEl,
-      wasSpace,
-      wasNewline,
-      prevTextAlign,
-    };
-    (contentEl as any).__sdTextEnd = end;
   }
 
   /**
@@ -888,23 +872,23 @@ export default class UIManager extends Manager {
    * the first letter's reveal begins: at the beat's start, or later when that
    * letter waits (a choice while the caption above it types). The target's own
    * box and border do not show empty in the meantime. An instant write shows
-   * everything at once, including when it repeats the last write.
+   * everything at once, including when it repeats the last write. A played
+   * write's first `shown` letters are text already on the page (a box carried
+   * on after a click), so they appear at once and the target does not wait.
    */
   protected async writeText(
     target: string,
     instructions: TextInstruction[],
     instant: boolean,
     startTime?: number,
+    shown = 0,
   ) {
     const targetEls = this.findTargetElements(target);
     // Reconcile dedup: a write APPENDS spans, so replaying an unchanged write
     // onto a reused target would both re-reveal and DUPLICATE its text. If every
     // target already shows exactly this write, leave it untouched. Stored on the
-    // node so it survives the per-edit UIManager swap. Whether the write is
-    // instant is part of it: a box carried on after a click is written as the
-    // text it shows, at once, then the continuation revealed, and the two can
-    // hold the same events (`A >..` then `A`).
-    const sig = JSON.stringify([instant, instructions]);
+    // node so it survives the per-edit UIManager swap.
+    const sig = JSON.stringify(instructions);
     if (
       targetEls.length > 0 &&
       targetEls.every((el) => (el as any).__sdTxt === sig)
@@ -926,6 +910,8 @@ export default class UIManager extends Manager {
       element: HTMLElement;
       animation: ReturnType<typeof getRevealAnimation>;
     }[] = [];
+    const enterNow: typeof enter = [];
+    const atOnce = !instant && shown > 0;
     // Seconds from the write's start until its first letter's reveal begins.
     const wait = instructions.reduce(
       (min, e) => Math.min(min, e.after ?? 0),
@@ -950,7 +936,7 @@ export default class UIManager extends Manager {
         (targetEl as any).__sdWait?.cancel();
         delete (targetEl as any).__sdWait;
       }
-      if (!instant && instructions.length > 0 && empty) {
+      if (!instant && !atOnce && instructions.length > 0 && empty) {
         waiting.push(targetEl);
       }
       if (instructions.length > 0) {
@@ -961,10 +947,10 @@ export default class UIManager extends Manager {
         // target accumulate; transient targets are emptied via the clear path
         // (empty instructions) before each new beat.
         for (const textEl of textEls) {
-          this.processText(textEl, instructions, instant, enter);
+          this.processText(textEl, instructions, instant, enter, shown, enterNow);
         }
         for (const strokeEl of strokeEls) {
-          this.processText(strokeEl, instructions, instant, enter);
+          this.processText(strokeEl, instructions, instant, enter, shown, enterNow);
         }
       } else {
         // Clear text + stroke (the `null`-sequence / clear path).
@@ -976,6 +962,15 @@ export default class UIManager extends Manager {
         }
       }
     }
+    // The letters already on the page appear now, not at the beat's start.
+    const shownNow = new AnimationPlayer();
+    for (const { element, animation } of enterNow) {
+      (element as any).__sdReveal = shownNow.add({
+        element,
+        animations: [animation],
+      })[0];
+    }
+    const showing = enterNow.length > 0 ? shownNow.play() : undefined;
     if (enter.length > 0 || waiting.length > 0) {
       const player = new AnimationPlayer();
       for (const { element, animation } of enter) {
@@ -994,6 +989,7 @@ export default class UIManager extends Manager {
       }
       await player.play(startTime);
     }
+    await showing;
   }
 
   /**

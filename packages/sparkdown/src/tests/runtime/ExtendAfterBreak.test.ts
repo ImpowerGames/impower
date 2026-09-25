@@ -25,6 +25,7 @@ interface Table {
   extend?: boolean;
   open?: boolean;
   fresh?: boolean;
+  nested?: boolean;
 }
 
 // Every step that shows something, as its tables.
@@ -43,7 +44,7 @@ function steps(story: RuntimeStory): Table[][] {
           const value = read(key);
           if (typeof value === "string") out[key] = value;
         }
-        for (const key of ["pause", "extend", "open", "fresh"] as const) {
+        for (const key of ["pause", "extend", "open", "fresh", "nested"] as const) {
           if (read(key) === true) out[key] = true;
         }
         return out;
@@ -177,22 +178,33 @@ describe("a `..` after a break carries on in the box after the click", () => {
     }
   });
 
-  test("the line after a block whose branch could continue the box is `fresh`", () => {
+  test("the line right after a block is `fresh`, and a `> ..` inside one is `nested`", () => {
     const fresh = (step: Table[] | undefined) =>
       step?.[0]?.fresh === true;
     // The branch taken shows nothing, so C must start a new box.
-    const untaken = run(`A > ..\nif false then\n  B\nend\nC\n`);
-    expect(untaken.map(text)).toEqual(["A ", "C"]);
-    expect(fresh(untaken[1])).toBe(true);
-    // Logic between the block and the line keeps the flag on the line.
-    const logic = run(`store x = 0\nA > ..\nif false then\n  B\nend\n& x = 1\nC\n`);
-    expect(fresh(logic[1])).toBe(true);
-    // A block that ends a branch with `> ..` leaves its box for the line.
+    for (const branch of ["B", "B > .."]) {
+      const untaken = run(`A > ..\nif false then\n  ${branch}\nend\nC\n`);
+      expect(untaken.map(text)).toEqual(["A ", "C"]);
+      expect(fresh(untaken[1])).toBe(true);
+      expect(untaken[0]!.at(-1)?.nested).toBeUndefined();
+    }
+    // A `> ..` inside a branch leaves a box the line after the block
+    // carries on in.
     const inside = run(`if true then\n  A > ..\nend\nC\n`);
     expect(inside.map(text)).toEqual(["A ", "C"]);
-    expect(fresh(inside[1])).toBe(false);
-    // A line after a line, or at the top of a scene, is not.
+    expect(inside[0]!.at(-1)).toMatchObject({ extend: true, nested: true });
+    expect(fresh(inside[1])).toBe(true);
+    // Only the construct just before the line counts: a line after a line,
+    // after logic, or at the top of a scene is not.
     expect(run(`A > ..\nB\n`).some(fresh)).toBe(false);
+    const logic = run(
+      `store x = 0\nA > ..\nif false then\n  B\nend\n& x = 1\nC\n`,
+    );
+    expect(fresh(logic[1])).toBe(false);
+    const scenes = run(
+      `-> s1\n\nscene s1\n  if false then\n    B\n  end\n  -> s2\nend\n\nscene s2\n  C\nend\n`,
+    );
+    expect(scenes.some(fresh)).toBe(false);
   });
 
   test("a cue's parenthetical rides the table's cue", () => {
@@ -206,6 +218,60 @@ describe("a `..` after a break carries on in the box after the click", () => {
     const out = run(`A >\nOther ..\nB\n`);
     expect(out.map(text)).toEqual(["A", "Other B"]);
     expect(out.flat().some((table) => table.extend)).toBe(false);
+  });
+});
+
+describe("an edit inside the block before a line", () => {
+  // The flags a line's calls carry must read the same whether the line was
+  // compiled cold or kept from an earlier compile, so they may depend only on
+  // what the incremental compiler lowers the line again for.
+  test("compiles as a cold compile of the same text does", () => {
+    const pad = Array.from({ length: 20 }, (_, i) => `Filler ${i}.`).join("\n");
+    const base = `${pad}\nA > ..\nif false then\n  B\nend\nC\n${pad}\n`;
+    const find = "  B\n";
+    const replace = "  B > ..\n";
+    const offset = base.indexOf(find);
+    const after = base.slice(0, offset) + replace + base.slice(offset + find.length);
+    const position = (text: string, at: number) => {
+      const lines = text.slice(0, at).split("\n");
+      return { line: lines.length - 1, character: lines.at(-1)!.length };
+    };
+    const configure = (compiler: SparkdownCompiler, text: string) =>
+      compiler.configure({
+        files: [
+          {
+            uri: URI,
+            type: "script",
+            name: "main",
+            ext: "sd",
+            text,
+            version: 1,
+            languageId: "sparkdown",
+          },
+        ],
+      });
+    const incremental = new SparkdownCompiler();
+    configure(incremental, base);
+    incremental.compile({ textDocument: { uri: URI } });
+    incremental.updateDocument({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [
+        {
+          range: {
+            start: position(base, offset),
+            end: position(base, offset + find.length),
+          },
+          text: replace,
+        },
+      ],
+    });
+    const cold = new SparkdownCompiler();
+    configure(cold, after);
+    const compiled = (compiler: SparkdownCompiler) =>
+      JSON.stringify(
+        compiler.compile({ textDocument: { uri: URI } }).program.compiled,
+      );
+    expect(compiled(incremental)).toBe(compiled(cold));
   });
 });
 
