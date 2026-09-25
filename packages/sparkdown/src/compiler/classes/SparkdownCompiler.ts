@@ -897,7 +897,9 @@ export class SparkdownCompiler {
   // Counts down from zero so no preview version can equal a real one.
   protected _lastPreviewVersion = 0;
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
-  // entries it commits here so they can be cached for next compile.
+  // path and local data entries it commits and every global data write the flow
+  // makes here, so they can be cached for next compile. Replaying a cached flow
+  // (`spliceCachedFlowLocations`) re-applies first-write-wins to them.
   protected _locCaptureTarget?: {
     pathEntries: FlowLocCacheEntry["pathEntries"];
     dataEntries: FlowLocCacheEntry["dataEntries"];
@@ -3811,22 +3813,24 @@ export class SparkdownCompiler {
         if (varAss.variableName && !varAss.isNewDeclaration) {
           if (varAss.isGlobal) {
             program.dataLocations ??= {};
-            // Explicit first-write check (was `??=`) so we capture into the
-            // flow cache ONLY the entry this call actually committed.
+            const tuple: [number, number, number, number, number] = [
+              scriptIndex,
+              startLine,
+              startColumn,
+              endLine,
+              endColumn,
+            ];
             if (!(varAss.variableName in program.dataLocations)) {
-              const tuple: [number, number, number, number, number] = [
-                scriptIndex,
-                startLine,
-                startColumn,
-                endLine,
-                endColumn,
-              ];
               program.dataLocations[varAss.variableName] = tuple;
-              this._locCaptureTarget?.dataEntries.push({
-                key: varAss.variableName,
-                tuple,
-              });
             }
+            // A global belongs to its first writer across all flows, so the
+            // flow cache keeps this write even when an earlier flow owns the
+            // name: if that flow stops writing it, a replay of this flow
+            // must be able to claim it (`spliceCachedFlowLocations`).
+            this._locCaptureTarget?.dataEntries.push({
+              key: varAss.variableName,
+              tuple,
+            });
           } else {
             const containerPath = (precomputedPath ?? varAss.path.toString())
               .split(".")
@@ -4363,11 +4367,13 @@ export class SparkdownCompiler {
       const spans = () => (spanIndex ??= this.buildFlowSpanIndex(flows));
       // Reuse is only sound while the set of top-level flows is STABLE. A
       // structural edit (a scene/knot header made/unmade, renamed, added or
-      // removed) can reflow content across flow boundaries and shift the
-      // document-global ownership of GLOBAL dataLocations (a `& global = …`
+      // removed) can reflow content across flow boundaries, so a flow's cached
+      // entries, including its GLOBAL dataLocations writes (a `& global = …`
       // entry is keyed by bare name and owned by the FIRST writer across all
-      // flows — not flow-local). The per-flow cache freezes that ownership, so
-      // when the flow set changes, fall back to a full recompute this compile.
+      // flows — not flow-local), no longer describe what the flow holds. Replay
+      // re-applies first-write-wins only over the writes each flow held when it
+      // was captured, so when the flow set changes, fall back to a full
+      // recompute this compile.
       // `_locCache` keys ARE the previous compile's named-flow set (every
       // non-`global decl` flow is stored), so this is a free comparison.
       let effPrevCache = prevCache;
