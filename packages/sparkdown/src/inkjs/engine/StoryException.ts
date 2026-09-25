@@ -16,3 +16,15 @@ export class StoryException extends Error {
     this.name = "StoryException";
   }
 }
+
+/** Thrown by `Story.Step()` when the story passes its `stepLimit`. It is not a
+ *  `StoryException`, so `pcall` does not trap it and a continue does not turn
+ *  it into a story error; code that catches a callback's errors rethrows it. It
+ *  unwinds every callback to the caller that set the limit, which reports its
+ *  own budget. */
+export class StepLimitExceeded extends Error {
+  constructor() {
+    super("Step limit exceeded");
+    this.name = "StepLimitExceeded";
+  }
+}

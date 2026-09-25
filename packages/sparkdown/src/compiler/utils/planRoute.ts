@@ -1,6 +1,7 @@
 import type { Simulator,SimulatorSnapshot } from "../../inkjs/engine/Simulator";
 import { ErrorType, type RaisedError } from "../../inkjs/engine/Error";
 import { Story } from "../../inkjs/engine/Story";
+import { StepLimitExceeded } from "../../inkjs/engine/StoryException";
 
 export interface RoutePlan {
   /** The path to start from */
@@ -828,7 +829,29 @@ const runUntilDecisionOrBranch = (
       story.pauseBeforeEvaluatingConditions =
         !simulator.willForceCondition(previousPath);
 
-      story.ContinueAsync(); // this may hit a condition divert
+      // One step was charged above. A Luau callback runs all of its steps
+      // inside the step that called it, and those count too: the limit stops
+      // them where the budget runs out, and what they took is charged after.
+      const stepsBefore = story.stepCount;
+      story.stepLimit = stepsBefore + 1 + budget.stepsRemaining;
+      let stopped = false;
+      try {
+        story.ContinueAsync(); // this may hit a condition divert
+      } catch (e) {
+        if (!(e instanceof StepLimitExceeded)) {
+          throw e;
+        }
+        stopped = true;
+      } finally {
+        story.stepLimit = null;
+        budget.stepsRemaining -= Math.max(0, story.stepCount - stepsBefore - 1);
+      }
+      if (stopped) {
+        // The budget ran out part way through the step.
+        budget.cut ??= "max-steps";
+        terminal = true;
+        break;
+      }
 
       if (story.pausedBeforeCondition) {
         // Pop the last encountered step,
