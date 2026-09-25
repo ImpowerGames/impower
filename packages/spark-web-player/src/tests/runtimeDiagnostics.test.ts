@@ -12,7 +12,7 @@ import { describe, expect, it } from "vitest";
 import { createPlayerHarness, MAIN_URI, settle } from "./worker/playerHarness";
 
 const CONTINUES_WARNING =
-  "This line begins with `..`, but the line before it had already ended.";
+  "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
 // Line 3 raises a warning on every route through the scene. Line 8 raises one
 // only on the left branch, which a route to the right branch searches first

@@ -180,10 +180,12 @@ describe("a `..` on each side of a break carries on in the box", () => {
   });
 
   test("a line shown between the parts takes the box away", async () => {
+    // A picture line's beat has no text, so the next beat folds into it.
     for (const between of ["Other.", "[[b]]"]) {
       const { beats } = await beatsOf(`  A .. >\n  ${between}\n  .. B`, 3);
-      expect(shown(beats[2]), between).toBe("B");
-      expect(beats[2]?.extended, between).toBeUndefined();
+      const last = beats.filter((beat) => shown(beat)).at(-1);
+      expect(shown(last), between).toBe("B");
+      expect(last?.extended, between).toBeUndefined();
     }
   });
 

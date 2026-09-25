@@ -13,7 +13,7 @@ import { searchRouteTo } from "../main/workers/searchRouteTo";
 const URI = "inmemory:///main.sd";
 
 const CONTINUES_WARNING =
-  "This line begins with `..`, but the line before it had already ended.";
+  "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
 const lines = ["store x = 0", "A", "& x = 1", ".. B"];
 for (let i = 0; i < 12; i += 1) {
