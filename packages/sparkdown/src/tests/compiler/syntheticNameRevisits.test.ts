@@ -7,6 +7,7 @@ import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const MAIN_URI = "file://proj/main.sd";
 
@@ -48,19 +49,35 @@ function configure(compiler: SparkdownCompiler, project: Project, version: numbe
   });
 }
 
-// The program and its Sparkle trees. A binding's `span` is left out: a carried
-// chunk keeps the source offsets it was lowered at, and nothing reads them.
-function compiled(compiler: SparkdownCompiler): string {
+type Compiled = {
+  // The program and its Sparkle trees, with each binding handle's `span` left
+  // out: a carried chunk keeps the source offsets it was lowered at, and
+  // nothing reads them.
+  text: string;
+  // Where each binding handle says its source starts, in serialization order.
+  spans: number[];
+};
+
+function compiled(compiler: SparkdownCompiler): Compiled {
   const { program } = compiler.compile({ textDocument: { uri: MAIN_URI } });
-  return JSON.stringify({ compiled: program.compiled, sparkle: program.sparkle }, (key, value) =>
-    key === "span" ? undefined : value,
+  const spans: number[] = [];
+  const text = JSON.stringify(
+    { compiled: program.compiled, sparkle: program.sparkle },
+    function (this: any, key, value) {
+      if (key === "span" && this && typeof this.exprId === "string") {
+        spans.push(value.from);
+        return undefined;
+      }
+      return value;
+    },
   );
+  return { text, spans };
 }
 
 // Compiles `project`, inserts `insert` into the file `name` at `offset`, and
 // returns the incremental compile of the edited project beside a cold compile
 // of it.
-function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [string, string] {
+function incrementalAndCold(project: Project, name: string, offset: number, insert: string): [Compiled, Compiled] {
   return quiet(() => {
     const compiler = new SparkdownCompiler();
     configure(compiler, project, 1);
@@ -77,6 +94,28 @@ function incrementalAndCold(project: Project, name: string, offset: number, inse
     configure(fresh, edited, 2);
     return [incremental, compiled(fresh)];
   });
+}
+
+function compileOnce(main: string) {
+  return quiet(() => {
+    const compiler = new SparkdownCompiler();
+    configure(compiler, { main }, 1);
+    return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
+  });
+}
+
+function diagnostics(program: any): string[] {
+  return Object.values(program.diagnostics ?? {}).flatMap((list: any) =>
+    list.map((d: any) => (typeof d.message === "string" ? d.message : (d.message?.value ?? ""))),
+  );
+}
+
+// The value the evaluator behind a layout's first binding returns.
+function firstBindingValue(program: any, layout: string): unknown {
+  const id = JSON.stringify(program.sparkle?.layouts?.[layout]).match(/__binding_\w+/)?.[0];
+  expect(id).toBeDefined();
+  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  return story.EvaluateFunction(id!);
 }
 
 describe("synthetic names after an edit", () => {
@@ -105,8 +144,8 @@ describe("synthetic names after an edit", () => {
     // there, so its offsets differ from the shared temps' offsets.
     const pre = project["pre"]!;
     const [incremental, cold] = incrementalAndCold(project, "pre", pre.length, "& r = a:add(5):add(6)\n");
-    expect(incremental).toContain("__synth_");
-    expect(incremental).toBe(cold);
+    expect(incremental.text).toContain("__synth_");
+    expect(incremental.text).toBe(cold.text);
   });
 
   it("a layout binding moved by an edit above it keeps the cold name", () => {
@@ -136,27 +175,52 @@ describe("synthetic names after an edit", () => {
     // reparses, so the incremental compile carries its chunk unlowered.
     const at = project["main"]!.indexOf("  First line.") + 2;
     const [incremental, cold] = incrementalAndCold(project, "main", at, "Longer ");
-    expect(incremental).toContain("__binding_");
-    expect(incremental).toBe(cold);
+    // A carried handle still gives the offset its chunk was lowered at, which
+    // is how this test knows the chunk was carried and not lowered again.
+    const bindingSpans = (c: Compiled) => c.spans.slice(-1);
+    expect(bindingSpans(incremental)[0]! + "Longer ".length).toBe(bindingSpans(cold)[0]);
+    expect(incremental.text).toContain("__binding_");
+    expect(incremental.text).toBe(cold.text);
+  });
+});
+
+describe("binding evaluator names", () => {
+  it("two layouts of one file get an evaluator each", () => {
+    // Each binding sits at the same place within its own layout, and the two
+    // chunks hash alike under 32-bit FNV-1a, so a name taken from a hash of
+    // the chunk's text would give both layouts one evaluator.
+    const program = compileOnce(
+      [
+        "store a = 1",
+        "store b = 2",
+        "",
+        "layout la with",
+        '  text "{a}"',
+        '  text "A03cka"',
+        "end",
+        "",
+        "layout lb with",
+        '  text "{b}"',
+        '  text "B05101"',
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(diagnostics(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
+    expect(firstBindingValue(program, "la")).toBe(1);
+    expect(firstBindingValue(program, "lb")).toBe(2);
   });
 
-  it("two layouts of one file get an evaluator each", () => {
-    // Each binding sits at the same place within its own layout.
-    const project: Project = {
-      main: ["store a = 1", "", "layout la with", '  text "{a}"', "end", "", "layout lb with", '  text "{a}"', "end", ""].join(
-        "\n",
-      ),
-    };
-    const { program } = quiet(() => {
-      const compiler = new SparkdownCompiler();
-      configure(compiler, project, 1);
-      return compiler.compile({ textDocument: { uri: MAIN_URI } });
-    });
-    const ids = (tree: unknown) => JSON.stringify(tree).match(/__binding_\w+/g) ?? [];
-    const la = ids(program.sparkle?.layouts?.["la"]);
-    const lb = ids(program.sparkle?.layouts?.["lb"]);
-    expect(la.length).toBe(1);
-    expect(lb.length).toBe(1);
-    expect(la[0]).not.toBe(lb[0]);
+  it("a layout declared twice in one file compiles, and the later one is kept", () => {
+    const copy = ["layout la with", '  text "{a}"', "end", ""];
+    const identical = compileOnce(["store a = 1", "", ...copy, ...copy].join("\n"));
+    expect(diagnostics(identical).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
+    expect(firstBindingValue(identical, "la")).toBe(1);
+
+    const adapted = compileOnce(
+      ["store a = 1", "store b = 2", "", ...copy, "layout la with", '  text "{b}"', "end", ""].join("\n"),
+    );
+    expect(diagnostics(adapted).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
+    expect(firstBindingValue(adapted, "la")).toBe(2);
   });
 });

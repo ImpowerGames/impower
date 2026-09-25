@@ -264,7 +264,6 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         // evaluator names did exactly that and collided across files.
         filePath: this.uri,
         chunkFrom: nodeRef.from,
-        chunkTo: nodeRef.to,
         read: (from, to) => this.read(from, to),
         lineNumber: (pos) =>
           text ? text.lineAt(pos).number - 1 - chunkStartLine0 : 0,

@@ -183,51 +183,48 @@ const PLAIN_CONTENT_NODES = nodeNameSet([
   "LuauElementContentStringSingleQuoted",
 ]);
 
-/** A short, stable, identifier-safe tag for `text`, followed by `_`, or the
- *  empty string for no text. FNV-1a: no crypto dependency, and stable across
- *  runs, unlike a counter, which would change every id whenever an unrelated
- *  file or chunk was added and defeat the "first registration wins" reuse
- *  below. */
-function textTag(text: string | undefined | null): string {
-  if (!text) {
+/** A short, stable, identifier-safe tag for the document being lowered.
+ *
+ *  FNV-1a over the path: no crypto dependency, and stable across runs, unlike
+ *  a counter, which would change every id whenever an unrelated file was
+ *  added and defeat the "first registration wins" reuse below. */
+function documentTag(filePath: string | undefined | null): string {
+  if (!filePath) {
     return "";
   }
   let hash = 0x811c9dc5;
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i);
+  for (let i = 0; i < filePath.length; i += 1) {
+    hash ^= filePath.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
   return `${hash.toString(36)}_`;
 }
 
-const chunkTags = new WeakMap<LowerContext, string>();
-
 /** The evaluator name for a binding whose source starts at `from`:
- *  `__binding_<document tag><chunk tag><offset within the chunk>`.
+ *  `__binding_<document tag><kind>_<name>_<offset within the chunk>`, as in
+ *  `__binding_14srukv_layout_hud_23`.
  *
  *  Every hoisted evaluator lands in one flow namespace, so the name carries
  *  the document: two files whose first binding starts at the same offset, as
  *  a copy-and-adapt pair of layout files will, would otherwise share one
  *  evaluator and one layout would render the other's value.
  *
- *  The rest of the name comes from the chunk's text and the binding's place
- *  in it, not from the binding's place in the document. A chunk an edit does
- *  not touch is carried into the next compile without being lowered again,
- *  so a name taken from its document offset would keep the offset it had
- *  before the edit while a cold compile of the same text takes the new one.
- *  Two chunks of one document can share a tag only when their text is
- *  identical, which declares the same layout or component twice. */
+ *  Within the document the name comes from the layout or component that holds
+ *  the binding and the binding's place in its chunk, not from the binding's
+ *  place in the document. A chunk an edit does not touch is carried into the
+ *  next compile without being lowered again, so a name taken from its
+ *  document offset would keep the offset it had before the edit while a cold
+ *  compile of the same text takes the new one. Two chunks of one document
+ *  mint the same name only when they declare the same layout or component
+ *  twice; the later declaration replaces the earlier one, and the compiler
+ *  keeps the later chunk's evaluator to match. A caller without a chunk (the
+ *  snapshot lowerers) names the binding by its offset. */
 function bindingId(from: number, ctx: LowerContext): string {
-  const documentTag = textTag(ctx.filePath);
-  if (ctx.chunkFrom === undefined || ctx.chunkTo === undefined) {
-    return `__binding_${documentTag}${from}`;
+  const tag = documentTag(ctx.filePath);
+  if (ctx.chunkFrom === undefined || ctx.sparkleOwner === undefined) {
+    return `__binding_${tag}${from}`;
   }
-  let chunkTag = chunkTags.get(ctx);
-  if (chunkTag === undefined) {
-    chunkTag = textTag(ctx.read(ctx.chunkFrom, ctx.chunkTo));
-    chunkTags.set(ctx, chunkTag);
-  }
-  return `__binding_${documentTag}${chunkTag}${from - ctx.chunkFrom}`;
+  return `__binding_${tag}${ctx.sparkleOwner}_${from - ctx.chunkFrom}`;
 }
 
 /** DFS in-order: the first descendant (or self) whose name is in `names`. */

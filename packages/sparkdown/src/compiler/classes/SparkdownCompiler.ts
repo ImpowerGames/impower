@@ -2613,7 +2613,9 @@ export class SparkdownCompiler {
     const document = this.documents.get(uri);
     const annotations = this.documents.annotations(uri);
     const topLevelIncludedFileObjs: IncludedFile[] = [];
-    const topLevelFlowBaseObjs: FlowBase[] = [];
+    let topLevelFlowBaseObjs: FlowBase[] = [];
+    const bindingEvaluators = new Map<string, FlowBase>();
+    const supersededEvaluators = new Set<FlowBase>();
     const topLevelWeaveObjs: ParsedObject[] = [];
     const topLevelContent: (FlowBase | Weave)[] = [];
 
@@ -3019,6 +3021,18 @@ export class SparkdownCompiler {
         remapContent(hoistedKnots, lineNumberOffset);
         for (const k of hoistedKnots) {
           if (k instanceof FlowBase) {
+            // A layout or component declared twice in one file mints the
+            // same binding evaluator names in both chunks. The later
+            // declaration is the one `program.sparkle` keeps, so its
+            // evaluators replace the earlier ones.
+            const name = k.identifier?.name;
+            if (name?.startsWith("__binding_")) {
+              const earlier = bindingEvaluators.get(name);
+              if (earlier) {
+                supersededEvaluators.add(earlier);
+              }
+              bindingEvaluators.set(name, k);
+            }
             topLevelFlowBaseObjs.push(k);
           }
         }
@@ -3426,6 +3440,11 @@ export class SparkdownCompiler {
         autoTerminate(sub);
       }
     };
+    if (supersededEvaluators.size > 0) {
+      topLevelFlowBaseObjs = topLevelFlowBaseObjs.filter(
+        (flow) => !supersededEvaluators.has(flow),
+      );
+    }
     for (const flow of topLevelFlowBaseObjs) {
       autoTerminate(flow);
     }
@@ -3732,10 +3751,9 @@ export class SparkdownCompiler {
       }
     }
     for (const { node, field, name } of matchedStrings) {
-      const v = node[field];
       const next = remap.get(name);
       if (next) {
-        if (next !== v) {
+        if (next !== name) {
           markRenamed(node);
         }
         node[field] = next;

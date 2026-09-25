@@ -23,14 +23,18 @@ export interface LowerContext {
    */
   filePath?: string;
   /**
-   * Absolute source range of the chunk being lowered. An unchanged chunk is
+   * Absolute source offset of the chunk being lowered. An unchanged chunk is
    * carried into later compiles without being lowered again, so a name that
-   * must match a cold compile is derived from the chunk's own text rather
-   * than from its position in the document (see `bindingId` in
+   * must match a cold compile is derived from a position within the chunk
+   * rather than from its position in the document (see `bindingId` in
    * `lowerSparkleBody`). Snapshot callers may omit it.
    */
   chunkFrom?: number;
-  chunkTo?: number;
+  /**
+   * The layout or component whose Sparkle body is being lowered, as
+   * `<kind>_<name>` (`layout_hud`). Set by `lowerLuauUI` around the body.
+   */
+  sparkleOwner?: string;
   config?: CompilationConfig;
   /**
    * Mutable list of synthetic `Knot` ParsedObjects produced by lowering

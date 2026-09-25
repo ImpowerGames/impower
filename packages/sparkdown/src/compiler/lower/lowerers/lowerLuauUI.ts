@@ -95,11 +95,14 @@ export function lowerLuauUI(
   // static `context` struct above still drives rendering). Built by reading
   // the grammar's already-separated element tokens, never re-parsing raw text.
   const savedLoopVars = ctx.sparkleLoopVars;
+  const savedOwner = ctx.sparkleOwner;
   if (params.length > 0) {
     ctx.sparkleLoopVars = [...(savedLoopVars ?? []), ...params];
   }
+  ctx.sparkleOwner = `${uiType}_${name}`;
   const children = buildSparkleBody(contentNode, ctx);
   ctx.sparkleLoopVars = savedLoopVars;
+  ctx.sparkleOwner = savedOwner;
   const sparkle =
     uiType === "layout"
       ? {
