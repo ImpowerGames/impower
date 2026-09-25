@@ -62,8 +62,9 @@ describe("a path-location table that crossed a JSON transport", () => {
       JSON.parse(JSON.stringify(withFunctions)),
     )!;
     expect(arrived.functions).toEqual(["A"]);
-    // Line 0 of script 0 is A's; a start from it skips to the next story row,
-    // which is script 1's first, and a breakpoint still stops inside A.
+    // All of script 0's rows are A's, so it has no row a start can use; a
+    // lookup never crosses into another script. Script 1's own lookup still
+    // answers its first row, and a breakpoint on script 0 still stops in A.
     expect(findPathRow(arrived, 0, 0, true)).toBe(-1);
     expect(findPathRow(arrived, 1, 0, true)).toBe(3);
     expect(findPathRow(arrived, 0, 0, false)).toBe(0);

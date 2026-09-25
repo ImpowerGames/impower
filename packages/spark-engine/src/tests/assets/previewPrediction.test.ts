@@ -1546,19 +1546,27 @@ scene A
   done
 end
 `;
-    const h = connected(story, 1);
-    await h.ready;
-    h.reset();
-    const path = pathAt(h.game, 1);
-    expect(path).toMatch(/^A\./);
-    expect(path).toBe(pathAt(h.game, 5));
-    expect(await h.preview(1)).toBe(path);
-    const executed = byMethod(h.messages, "game/executed");
-    expect(executed).toHaveLength(1);
-    expect(executed[0].params.startPath).toBe(path);
-    expect(
-      byMethod(h.messages, "game/runtimeError").map((m) => m.params.message),
-    ).toEqual([]);
+    const gated = async (line: number) => {
+      const h = connected(story, line);
+      await h.ready;
+      h.reset();
+      const path = pathAt(h.game, line);
+      const previewing = h.preview(line);
+      await flushMicrotasks(20);
+      h.releaseAssets();
+      expect(await previewing).toBe(path);
+      expect(
+        byMethod(h.messages, "game/runtimeError").map((m) => m.params.message),
+      ).toEqual([]);
+      return {
+        path,
+        loads: byMethod(h.messages, "assets/load").map(itemKeys),
+        images: imagesWritten(h.messages),
+      };
+    };
+    const inFunction = await gated(1);
+    expect(inFunction.path).toMatch(/^A\./);
+    expect(inFunction).toEqual(await gated(5));
   });
 
   it("previews nothing for a point the program does not know, and reveals the layouts", async () => {

@@ -52,6 +52,25 @@ end
 HP is {hp}.
 `;
 
+const FUNCTION_IN_SCENE = `-> intro
+
+scene intro
+  First line.
+  function less(a, b)
+    return a < b
+  end
+  Second line.
+end
+`;
+
+const FUNCTION_LAST = `First line.
+Second line.
+
+function less(a, b)
+  return a < b
+end
+`;
+
 describe("starting from a line with no story flow (#835)", () => {
   test("PLAY from a function's header starts at the story line after the function", async () => {
     const harness = createHarness(FUNCTION_FIRST, 0);
@@ -103,6 +122,33 @@ describe("starting from a line with no story flow (#835)", () => {
     await flushMicrotasks(20);
     expect(storyPath(game)).toMatch(/^0\./);
     expect(game._story.variablesState["hp"]).toBe(100);
+    expect(errors).toEqual([]);
+  });
+
+  test("PLAY from a function declared inside a scene starts at the scene's line after it", async () => {
+    const harness = createHarness(FUNCTION_IN_SCENE, 0);
+    await harness.ready;
+    const game: any = harness.game;
+    const errors = recordErrors(game);
+    expect(game.setStartFrom({ file: MAIN_URI, line: 5 })).toEqual({
+      file: MAIN_URI,
+      line: 7,
+    });
+    game.start();
+    await flushMicrotasks(20);
+    expect(storyPath(game)).toMatch(/^intro\./);
+    expect(errors).toEqual([]);
+  });
+
+  test("PLAY from a function with no story line after it starts at the top of the story", async () => {
+    const harness = createHarness(FUNCTION_LAST, 0);
+    await harness.ready;
+    const game: any = harness.game;
+    const errors = recordErrors(game);
+    expect(game.setStartFrom({ file: MAIN_URI, line: 4 })).toBeNull();
+    game.start();
+    await flushMicrotasks(20);
+    expect(storyPath(game)).toMatch(/^0\./);
     expect(errors).toEqual([]);
   });
 

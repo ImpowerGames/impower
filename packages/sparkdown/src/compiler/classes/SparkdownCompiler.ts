@@ -2242,9 +2242,11 @@ export class SparkdownCompiler {
           }
         }
       }
+      // Binding evaluators are left out: the table's previewable rows already
+      // exclude them by name, and a program can hold hundreds of them.
       this._functionContainers = [];
       for (const [name, flow] of parsedStory.subFlowsByName) {
-        if (flow.isFunction) {
+        if (flow.isFunction && !name.startsWith("__binding_")) {
           this._functionContainers.push(name);
         }
       }

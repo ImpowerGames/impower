@@ -146,13 +146,21 @@ const isBindingPath = (path: string) =>
   path.includes("__binding_") &&
   path.split(".").some((seg) => seg.startsWith("__binding_"));
 
+/** Whether `path` lies in one of the table's function containers, which a
+ *  start or a preview never enters (#835). */
+const isInFunction = (path: string, functions: string[] | undefined) =>
+  (functions ?? []).includes(path.split(".")[0]!);
+
 /** The linear scan `findClosestPath` replaces, `.$s` rule included. */
 const scanClosestPath = (
   from: { file: string; line: number },
   entries: Entry[],
   scripts: string[],
+  functions: string[] | undefined,
 ) => {
-  const previewable = entries.filter(([p]) => !isBindingPath(p));
+  const previewable = entries.filter(
+    ([p]) => !isBindingPath(p) && !isInFunction(p, functions),
+  );
   const [path] = scanClosestLocation(from, previewable, scripts) || [];
   const parentPath = path?.split(".").slice(0, -1).join(".");
   if (parentPath?.endsWith(".$s")) {
@@ -178,6 +186,14 @@ describe("path locations resolve a source line by binary search", () => {
     const onScreen = entries.filter(([, l]) => l[0] === screenIndex);
     expect(onScreen.length).toBeGreaterThan(0);
     expect(onScreen.every(([p]) => isBindingPath(p))).toBe(true);
+    // A script whose last rows are a function's, which no start enters.
+    expect(table.functions).toContain("Fn");
+    const scenesIndex = scripts.indexOf(SCENES);
+    expect(
+      entries.some(
+        ([p, l]) => l[0] === scenesIndex && isInFunction(p, table.functions),
+      ),
+    ).toBe(true);
   });
 
   test("the rows are ordered by script, then start line, then start column", () => {
@@ -210,7 +226,12 @@ describe("path locations resolve a source line by binary search", () => {
       const lineCount = sources[file]!.split(NEWLINE).length;
       for (let line = 0; line <= lineCount + 2; line++) {
         const found = findClosestPath({ file, line }, table, scripts);
-        const scanned = scanClosestPath({ file, line }, entries, scripts);
+        const scanned = scanClosestPath(
+          { file, line },
+          entries,
+          scripts,
+          table.functions,
+        );
         expect({ line, found }).toEqual({ line, found: scanned });
       }
     },
