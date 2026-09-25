@@ -53,6 +53,7 @@ function setup() {
     ]),
     _programStates: new Map(),
     _fileChanges: 0,
+    _entryPrograms: new Map(),
     _connection: new Proxy(
       {},
       {
@@ -183,6 +184,7 @@ describe("runtime diagnostics", () => {
     compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
     const second = { uri: other, scripts: { [other]: 1, [story]: 1 }, diagnostics: {} };
     (workspace as any)._programStates.set(other, { program: second });
+    workspace.onCompiledTextDocument({ textDocument: { uri: other }, program: second });
     report({
       program: { uri: main, scripts: { [main]: 1, [story]: 1 } },
       diagnostics: { [story]: [runtimeWarning] },
@@ -226,6 +228,28 @@ describe("runtime diagnostics", () => {
     const standalone = { uri: other, scripts: { [other]: 1 }, diagnostics: {} };
     (workspace as any)._programStates.set(other, { program: standalone });
     workspace.onCompiledTextDocument({ textDocument: { uri: other }, program: standalone });
+    expect(published(story).at(-1)).toEqual([runtimeWarning]);
+  });
+
+  it("stay when an entry that includes the run's entry compiles", () => {
+    const { workspace, compiled, report, published } = setup();
+    const nested = "file:///project/sub/main.sd";
+    compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
+    report({
+      program: { uri: main, scripts: { [main]: 1, [story]: 1 } },
+      diagnostics: { [story]: [runtimeWarning] },
+    });
+    // The workspace stores a compile under every script it names, so the
+    // nested entry's program takes main's state too.
+    const program = {
+      uri: nested,
+      scripts: { [nested]: 1, [main]: 1, [story]: 1 },
+      diagnostics: {},
+    };
+    for (const uri of [nested, main, story]) {
+      (workspace as any)._programStates.set(uri, { program });
+    }
+    workspace.onCompiledTextDocument({ textDocument: { uri: nested }, program });
     expect(published(story).at(-1)).toEqual([runtimeWarning]);
   });
 

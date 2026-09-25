@@ -393,9 +393,15 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     }
   }
 
+  /** The program each entry script last compiled here, by the entry's uri.
+   *  Kept apart from the program states, which the workspace fills under
+   *  every script a compile names, so an entry that includes another would
+   *  otherwise take that entry's place. */
+  protected _entryPrograms = new Map<string, SparkProgram>();
+
   /** The program `uri` last compiled here as an entry script, if it has. */
   protected compiledProgram(uri: string): SparkProgram | undefined {
-    return this._programStates.get(uri)?.program;
+    return this._entryPrograms.get(uri);
   }
 
   /** Whether a run built from `ran` ran `program`: the same entry script,
@@ -457,6 +463,9 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }): void {
     this.attachLazyImageData(params.program);
     const owner = params.program.uri ?? params.textDocument?.uri;
+    if (owner) {
+      this._entryPrograms.set(owner, params.program);
+    }
     // Assets need diagnostics even when they have never been opened as text.
     // Include prior publications so warnings removed by repair are cleared.
     const uris = new Set([
@@ -566,6 +575,7 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
     languageId?: string | null;
   }) {
     this._fileChanges += 1;
+    this._entryPrograms.delete(file.uri);
     this._documents.remove({ textDocument: { uri: file.uri } });
     this._lastFormattedText.delete(file.uri);
     for (const [uri, published] of this._lastPublishedDiagnostics) {
