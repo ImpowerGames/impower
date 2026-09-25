@@ -47,7 +47,9 @@ export interface PathLocationTable {
  * Story lines written after a function's `end` can be compiled into the
  * function's container (#834), so a row under the container is only function
  * code when it starts within these lines. A hoisted function literal records
- * no lines: nothing but its own body is compiled into its container.
+ * no lines: nothing but its own body is compiled into its container. Neither
+ * does a function whose declaration's script cannot be resolved; every row
+ * under a container without lines is function code.
  */
 export interface FunctionSpan {
   /** The container's runtime path. */

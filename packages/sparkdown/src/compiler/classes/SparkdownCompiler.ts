@@ -4686,8 +4686,9 @@ export class SparkdownCompiler {
         if (sub.isFunction) {
           const path = sub.runtimeObject?.path?.componentsString;
           if (path && !isBindingPath(path)) {
-            // Resolved as `populateAllLocations` resolves a row's script.
-            const md = sub.ownDebugMetadata ?? sub.debugMetadata;
+            // A flow's own metadata when it has any, else its parent's. The
+            // script is resolved as `populateAllLocations` resolves a row's.
+            const md = sub.debugMetadata;
             const uri = md ? (md.filePath ?? program.uri) : undefined;
             const scriptIndex =
               uri != null ? this._scriptIndices?.get(uri) : undefined;
