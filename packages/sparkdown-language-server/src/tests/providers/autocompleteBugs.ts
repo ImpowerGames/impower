@@ -1,7 +1,10 @@
-// The Bugs the autocomplete port exposed. Each skipped case names one of these,
-// and the manifest test refuses a skipped case whose Bug number is missing.
+// The Bugs the autocomplete cases reproduce. Each skipped case names its Bugs
+// from this map, and the manifest test refuses a skipped case that names one
+// any other way.
 export const BUG = {
-  /** Identifier and divert completion throw once any script declares a `define`. */
+  /** A divert misses a label its scene declares after a branch closes. */
+  labelAfterBranch: 459,
+  /** Identifier and divert completion throw once any script declares a struct (`define`, `layout`, …). */
   defineCrash: 859,
   /** Luau locals and parameters are offered outside their scope and before their declaration. */
   localScope: 860,

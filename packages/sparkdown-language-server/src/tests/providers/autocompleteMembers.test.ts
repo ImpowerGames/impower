@@ -1,12 +1,28 @@
 import { describe, expect } from "vitest";
 import { BUG } from "./autocompleteBugs";
-import { labelsAt, upstreamCase } from "./completionHarness";
+import { labelsAt as labelsInvokedAt, upstreamCase } from "./completionHarness";
 
 // Member-access cases from Luau's Autocomplete.test.cpp, ported against
 // sparkdown tables and `define` structs. Luau's fixture adds `table` and `math`
 // as untyped globals and its builtins fixture loads the standard library; the
 // sparkdown equivalents are the runtime's own `table`, `math` and `string`
 // libraries.
+
+const TRIGGERS = new Set([".", ":", '"']);
+
+/**
+ * The labels offered where the author has just typed the character before the
+ * cursor: when that character is one of the server's trigger characters, the
+ * request carries it, as the editor's own request does.
+ */
+const labelsAt = (source: string, options: { at?: string } = {}) => {
+  const marker = options.at ? `@${options.at}` : /@\d/.exec(source)![0];
+  const typed = source[source.indexOf(marker) - 1] ?? "";
+  return labelsInvokedAt(source, {
+    ...options,
+    trigger: TRIGGERS.has(typed) ? typed : undefined,
+  });
+};
 
 describe("autocomplete · member access", () => {
   upstreamCase.bug(BUG.globals, "get_member_completions", "a standard library table offers its functions", () => {

@@ -1,24 +1,31 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { BUG } from "./autocompleteBugs";
-import { UPSTREAM_CASES } from "./autocompleteUpstreamCases";
+import { UPSTREAM_CASES, UPSTREAM_COMMIT } from "./autocompleteUpstreamCases";
 
 // Holds the port to its manifest: every upstream case is accounted for, every
 // ported or adapted case has at least one test, the tests name no case the
-// manifest does not list as tested, and every skipped case names a filed Bug.
+// manifest does not list as tested, every skipped case names its Bugs from
+// the Bug map, and the manifest's upstream commit is the one the vendored
+// Luau suite is pinned to.
 
 const DIRECTORY = new URL(".", import.meta.url);
 
 const suiteFiles = readdirSync(DIRECTORY).filter((name) =>
   /^autocomplete(?!UpstreamManifest).*\.test\.ts$/.test(name),
 );
+const sources = suiteFiles.map((file) => ({
+  file,
+  source: readFileSync(new URL(file, DIRECTORY), "utf8"),
+}));
 
 const CASE_CALL =
   /upstreamCase(?:\.bug\(\s*(?:[\w.]+|\[[^\]]*\])\s*,|\()\s*"([^"]+)"/g;
+// The first argument of every skipped registration: one Bug or a list.
+const BUG_CALL = /(?:upstreamCase\.bug|sparkdownBug)\(\s*(\[[^\]]*\]|[^,]+),/g;
 
 const testedCases = new Map<string, string[]>();
-for (const file of suiteFiles) {
-  const source = readFileSync(new URL(file, DIRECTORY), "utf8");
+for (const { file, source } of sources) {
   for (const match of source.matchAll(CASE_CALL)) {
     const files = testedCases.get(match[1]!) ?? [];
     testedCases.set(match[1]!, [...files, file]);
@@ -28,6 +35,17 @@ for (const file of suiteFiles) {
 describe("autocomplete · upstream manifest", () => {
   test("lists all 215 upstream cases", () => {
     expect(Object.keys(UPSTREAM_CASES)).toHaveLength(215);
+  });
+
+  test("names the commit the vendored Luau suite is pinned to", () => {
+    const vendoring = readFileSync(
+      new URL(
+        "../../../../sparkdown/src/tests/luau-conformance/upstream/VENDORING.md",
+        DIRECTORY,
+      ),
+      "utf8",
+    );
+    expect(vendoring).toContain(`\`${UPSTREAM_COMMIT}\``);
   });
 
   test("gives every case without a test a reason", () => {
@@ -52,7 +70,22 @@ describe("autocomplete · upstream manifest", () => {
     expect(unknown).toEqual([]);
   });
 
-  test("names a filed Bug for every skipped case", () => {
+  test("names every skipped case's Bugs from the Bug map", () => {
+    const known = new Set(Object.keys(BUG));
+    const refused: string[] = [];
+    let calls = 0;
+    for (const { file, source } of sources) {
+      for (const match of source.matchAll(BUG_CALL)) {
+        calls += 1;
+        const names = match[1]!.replace(/^\[|\]$/g, "").split(",").map((part) => part.trim());
+        for (const name of names) {
+          const key = /^BUG\.(\w+)$/.exec(name)?.[1];
+          if (!key || !known.has(key)) refused.push(`${file}: ${name}`);
+        }
+      }
+    }
+    expect(calls).toBeGreaterThan(0);
+    expect(refused).toEqual([]);
     for (const [name, number] of Object.entries(BUG)) {
       expect(number, name).toBeGreaterThan(0);
     }

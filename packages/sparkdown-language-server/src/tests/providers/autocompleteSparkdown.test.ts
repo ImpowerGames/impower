@@ -82,7 +82,7 @@ describe("autocomplete · sparkdown surfaces", () => {
       expect(labels).toContain("intro");
     });
 
-    sparkdownBug(459, "a divert offers a label the scene declares after a branch closes", () => {
+    sparkdownBug(BUG.labelAfterBranch, "a divert offers a label the scene declares after a branch closes", () => {
       const labels = labelsAt(
         [
           "scene A",
@@ -103,12 +103,8 @@ describe("autocomplete · sparkdown surfaces", () => {
   });
 
   describe("define fields and values", () => {
+    // The type slot after `as` is defineCompletions.test.ts's.
     const program = compileProject("");
-
-    test("a define's parent slot offers the engine types", () => {
-      const labels = labelsAt("define hero as @1\n", { program });
-      expect(labels).toEqual(expect.arrayContaining(["character", "image", "layout"]));
-    });
 
     sparkdownBug(BUG.defineFields, "a define body offers its type's fields", () => {
       const labels = labelsAt("define hero as character with\n  @1\nend\n", { program });
@@ -130,6 +126,14 @@ describe("autocomplete · sparkdown surfaces", () => {
       const source =
         'define hero as character with\n  name = "Hero"\nend\n\nstore gold = 5\nfunction main()\n  return g@1\nend\n';
       expect(labelsAt(source, { program })).toContain("gold");
+    });
+
+    sparkdownBug(BUG.defineCrash, "identifier completion works in a script that declares a layout", () => {
+      // A structural declaration names its struct through the same node as a
+      // `define`, so a script with only a `layout` crashes the same way.
+      const source =
+        'layout main with\n  column:\n    text "hi"\nend\n\nstore hp = 100\nfunction main()\n  return h@1\nend\n';
+      expect(labelsAt(source, { program })).toContain("hp");
     });
   });
 
@@ -192,8 +196,9 @@ describe("autocomplete · sparkdown surfaces", () => {
     const program = compileProject("");
 
     sparkdownBug(BUG.sparkleAttributes, "a `#` after an element offers its props", () => {
-      const labels = labelsAt('layout hud with\n  text "hi" #@1\nend\n', { program });
-      expect(labels.length).toBeGreaterThan(0);
+      // `child-gap` is the row prop the Sparkle control-flow guide uses.
+      const labels = labelsAt("layout hud with\n  row #@1\nend\n", { program });
+      expect(labels).toContain("child-gap");
     });
 
     sparkdownBug(BUG.sparkleAttributes, "an `@` after an element offers its events", () => {

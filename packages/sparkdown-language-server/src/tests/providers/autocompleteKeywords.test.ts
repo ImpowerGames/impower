@@ -48,9 +48,11 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.keywordPosition, "autocomplete_for_middle_keywords", "a numeric for offers `do` after its bounds and nothing before them", () => {
-    const beforeEquals = labelsAt(openMain("for x @1="));
-    expect(beforeEquals).not.toContain("do");
-    expect(beforeEquals).not.toContain("end");
+    for (const header of ["for x @1=", "for x =@1 1", "for x = 1, @12,"]) {
+      const labels = labelsAt(openMain(header));
+      expect(labels, header).not.toContain("do");
+      expect(labels, header).not.toContain("end");
+    }
     expect(labelsAt(openMain("for x = 1, 2 @1"))).toEqual(["do"]);
     expect(labelsAt(openMain("for x = 1, 2, 5 d@1"))).toEqual(["do"]);
   });
@@ -60,19 +62,28 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.emptySlot, "autocomplete_for_middle_keywords", "a numeric for's bounds offer the names in scope and not `do`", () => {
-    const source = "store Foo = 1\n" + openMain("for x = @11, @22, @35");
-    for (const at of ["1", "2", "3"]) {
-      const labels = labelsAt(source, { at });
-      expect(labels).toContain("Foo");
-      expect(labels).not.toContain("do");
+    for (const header of ["for x = @11, @22, @35", "for x = @11, @22", "for x = 1, 2, @35"]) {
+      const source = "store Foo = 1\n" + openMain(header);
+      for (const at of ["1", "2", "3"].filter((n) => header.includes(`@${n}`))) {
+        const labels = labelsAt(source, { at });
+        expect(labels, `${header} @${at}`).toContain("Foo");
+        expect(labels, `${header} @${at}`).not.toContain("do");
+      }
     }
   });
 
   upstreamCase.bug(BUG.keywordPosition, "autocomplete_for_in_middle_keywords", "a generic for offers `in` after its names and `do` after its iterator", () => {
     expect(labelsAt(openMain("for @1"))).toEqual([]);
+    expect(labelsAt(openMain("for x@1 "))).toEqual([]);
     expect(labelsAt(openMain("for x @1"))).toEqual(["in"]);
     expect(labelsAt(openMain("for x in y @1"))).toEqual(["do"]);
     expect(labelsAt(openMain("for x in f f@1"))).toEqual(["do"]);
+  });
+
+  upstreamCase("autocomplete_for_in_middle_keywords", "a generic for's iterator offers the names in scope and not `do`", () => {
+    const labels = labelsAt("store yarn = {}\n" + openMain("for x in y@1"));
+    expect(labels).toContain("yarn");
+    expect(labels).not.toContain("do");
   });
 
   upstreamCase("autocomplete_for_in_middle_keywords", "an open generic for's body offers `end` and `function` and not `in`", () => {
@@ -104,6 +115,7 @@ describe("autocomplete · keywords and statement starts", () => {
 
   upstreamCase.bug(BUG.keywordPosition, "autocomplete_if_middle_keywords", "an if offers `then` after its condition and no branch keywords before it", () => {
     const empty = labelsAt(openMain("if   @1"));
+    expect(empty).toContain("function");
     expect(empty).not.toContain("then");
     expect(empty).not.toContain("else");
     expect(empty).not.toContain("elseif");
@@ -113,6 +125,10 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(afterCondition).not.toContain("function");
     expect(afterCondition).not.toContain("else");
     expect(labelsAt(openMain("if x t@1")).sort()).toEqual(["and", "or", "then"]);
+  });
+
+  upstreamCase.bug(BUG.emptySlot, "autocomplete_if_middle_keywords", "an empty if condition offers the names in scope", () => {
+    expect(labelsAt("store ready = true\n" + openMain("if   @1"))).toContain("ready");
   });
 
   upstreamCase.bug(BUG.keywordPosition, "autocomplete_if_middle_keywords", "a closed if's body offers `else` and `elseif` and neither `then` nor `end`", () => {
@@ -169,6 +185,10 @@ describe("autocomplete · keywords and statement starts", () => {
   });
 
   upstreamCase.bug(BUG.keywordPosition, "local_names", "a new local's name offers only `function`", () => {
+    // Luau offers `function` in a new local's name slot, whatever has been
+    // typed there, as the way to turn `local ab` into `local function`. The
+    // offer belongs to the slot, so unlike the keyword cases elsewhere in this
+    // file it is not filtered by the typed word.
     expect(labelsAt(openMain("local ab@1"))).toEqual(["function"]);
     expect(labelsAt(openMain("local ab, cd@1"))).toEqual([]);
   });
@@ -228,6 +248,10 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(labelsAt(source, { at: "1" })).toEqual(["then"]);
     expect(labelsAt(source, { at: "2" })).toEqual(expect.arrayContaining(["else", "elseif"]));
     expect(labelsAt(source, { at: "3" })).toContain("do");
+    // Upstream expects `do` at `repeat@4`, under a FIXME that the start and
+    // end of every statement should be handled; the keyword being typed there
+    // is `repeat`, and sparkdown completes it to itself.
+    expect(labelsAt(source, { at: "4" })).toContain("repeat");
   });
 
   upstreamCase.bug(BUG.keywordPrefix, "if_then_else_elseif_completions", "`el` inside an if offers `else` and `elseif` and not a local", () => {
@@ -248,6 +272,16 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(labels).toContain("elsewhere");
   });
 
+  upstreamCase.bug(BUG.keywordPrefix, "if_then_else_elseif_completions", "`el` after a misspelt `elif` offers `else`, `elseif` and the local", () => {
+    // `elif` is not a keyword, so the if has had no else yet.
+    const labels = labelsAt(
+      openMain('local elsewhere = false\n\nif true then\n  print("1")\nelif true then\n  print("2")\nel@1\nend'),
+    );
+    expect(labels).toContain("else");
+    expect(labels).toContain("elseif");
+    expect(labels).toContain("elsewhere");
+  });
+
   upstreamCase.bug(BUG.keywordPosition, "autocomplete_ifelse_expressions", "an if-expression offers `then`, `else` and `elseif` in turn", () => {
     // Upstream's first cursor sits inside the word (`t@1emp`). Sparkdown
     // completes a word from its end and deliberately offers nothing with text
@@ -261,6 +295,11 @@ describe("autocomplete · keywords and statement starts", () => {
         "a = if temp t@2",
         "a = if temp then e@3",
         "a = if temp then even e@4",
+        "a = if temp then even elseif t@5",
+        "a = if temp then even elseif true t@6",
+        "a = if temp then even elseif true then t@7",
+        "a = if temp then even elseif true then temp e@8",
+        "a = if temp then even elseif true then temp else e@9",
       ].join("\n"),
     );
     const one = labelsAt(source, { at: "1" });
@@ -275,13 +314,34 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(four).toContain("else");
     expect(four).toContain("elseif");
     expect(four).not.toContain("even");
+    for (const at of ["5", "7"]) {
+      const labels = labelsAt(source, { at });
+      expect(labels, `@${at}`).toContain("temp");
+      expect(labels, `@${at}`).toContain("true");
+      expect(labels, `@${at}`).not.toContain("then");
+      expect(labels, `@${at}`).not.toContain("else");
+      expect(labels, `@${at}`).not.toContain("elseif");
+    }
+    const six = labelsAt(source, { at: "6" });
+    expect(six).toContain("then");
+    expect(six).not.toContain("temp");
+    expect(six).not.toContain("true");
+    const eight = labelsAt(source, { at: "8" });
+    expect(eight).toContain("else");
+    expect(eight).toContain("elseif");
+    expect(eight).not.toContain("even");
+    const nine = labelsAt(source, { at: "9" });
+    expect(nine).not.toContain("then");
+    expect(nine).not.toContain("else");
+    expect(nine).not.toContain("elseif");
   });
 
   upstreamCase("autocomplete_if_else_regression", "after an if-expression's `else` no `else` is offered and names are", () => {
     const source = openMain(
-      "local abcdef = 0\nlocal temp = false\nlocal even = true\nlocal a\na = if temp then even else@1\na = if temp then even else abc@3",
+      "local abcdef = 0\nlocal temp = false\nlocal even = true\nlocal a\na = if temp then even else@1\na = if temp then even else @2\na = if temp then even else abc@3",
     );
     expect(labelsAt(source, { at: "1" })).not.toContain("else");
+    expect(labelsAt(source, { at: "2" })).not.toContain("else");
     expect(labelsAt(source, { at: "3" })).toContain("abcdef");
   });
 
@@ -301,6 +361,8 @@ describe("autocomplete · keywords and statement starts", () => {
       expect(labels).not.toContain("break");
       expect(labels).not.toContain("continue");
     }
+    // The if body offers keywords, so its absence of `break` is a real check.
+    expect(labelsAt(source, { at: "2" })).toContain("if");
   });
 
   upstreamCase.bug(BUG.keywordPosition, "autocomplete_exclude_break_continue_function_boundary", "a function inside a loop does not offer `break` or `continue`", () => {

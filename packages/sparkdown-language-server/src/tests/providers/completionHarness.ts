@@ -18,18 +18,13 @@ import { resolveCompletion } from "../../utils/providers/resolveCompletion";
 // Sparkdown's own `@` (write marks, Sparkle events) is never followed by a
 // digit, so the two do not collide.
 
-export const URI = "file:///proj/main.sd";
+const URI = "file:///proj/main.sd";
 
 const MARKER = /@(\d)/g;
 
 export interface CompletionAt {
-  /** What `getCompletions` returned: null or undefined when it declined. */
-  returned: CompletionItem[] | null | undefined;
-  /** The returned items, or none when the provider declined. */
-  items: CompletionItem[];
+  /** The offered labels; none when the provider declined. */
   labels: string[];
-  /** The item with this label, as the editor would highlight it. */
-  item(label: string): CompletionItem | undefined;
   /** The highlighted item's detail: the description shown beside it. */
   detail(label: string): string | undefined;
   /** The highlighted item after `completionItem/resolve`. */
@@ -40,9 +35,36 @@ export interface CompleteOptions {
   /** Which `@N` marker is the cursor. Defaults to the only one. */
   at?: string;
   program?: SparkProgram;
-  /** The character that triggered the request, if any. */
+  /**
+   * The character that triggered the request, as the editor sends it when
+   * the author types one of the server's trigger characters (`.`, `:`, …).
+   */
   trigger?: string;
+  /**
+   * Text the document held before the request. The document is opened with
+   * it and parsed, then brought to the marked text by one incremental
+   * change, the way `textDocument/didChange` reaches the server while an
+   * author types.
+   */
+  editedFrom?: string;
 }
+
+/** The one range change that turns `before` into `after`. */
+const singleChange = (before: string, after: string) => {
+  let start = 0;
+  while (start < before.length && start < after.length && before[start] === after[start]) {
+    start += 1;
+  }
+  let end = 0;
+  while (
+    end < before.length - start &&
+    end < after.length - start &&
+    before[before.length - 1 - end] === after[after.length - 1 - end]
+  ) {
+    end += 1;
+  }
+  return { start, end: before.length - end, text: after.slice(start, after.length - end) };
+};
 
 export function complete(
   source: string,
@@ -67,10 +89,33 @@ export function complete(
     "declarations",
     "references",
   ]);
-  documents.set({
-    textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" },
-  });
+  if (options.editedFrom == null) {
+    documents.set({
+      textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" },
+    });
+  } else {
+    const before = options.editedFrom;
+    documents.set({
+      textDocument: { uri: URI, text: before, version: 1, languageId: "sparkdown" },
+    });
+    documents.tree(URI);
+    documents.annotations(URI);
+    const opened = documents.get(URI)!;
+    const change = singleChange(before, text);
+    documents.update({
+      textDocument: { uri: URI, version: 2 },
+      contentChanges: [
+        {
+          range: { start: opened.positionAt(change.start), end: opened.positionAt(change.end) },
+          text: change.text,
+        },
+      ],
+    });
+  }
   const document = documents.get(URI)!;
+  if (document.getText() !== text) {
+    throw new Error("the document does not hold the marked text");
+  }
   const returned = getCompletions(
     document,
     documents.tree(URI),
@@ -85,10 +130,7 @@ export function complete(
   const items = returned ?? [];
   const item = (label: string) => items.find((i) => i.label === label);
   return {
-    returned,
-    items,
     labels: items.map((i) => String(i.label)),
-    item,
     detail: (label) => item(label)?.labelDetails?.description,
     resolve: async (label) => {
       const found = item(label);
