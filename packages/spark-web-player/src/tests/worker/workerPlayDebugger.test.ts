@@ -32,7 +32,7 @@ end
 `;
 
 const lineOf = (text: string) => SOURCE.split("\n").findIndex((l) => l.includes(text));
-const SCENE = lineOf("scene start");
+const WRITE = lineOf("& mood = 1");
 const FIRST = lineOf("The first line.");
 const SECOND = lineOf("The second line.");
 const THIRD = lineOf("The third line.");
@@ -203,6 +203,7 @@ describe("the debugger during PLAY", () => {
     expect(on.setFunctionBreakpoints.result.functionBreakpoints[0].verified).toBe(false);
     expect(on.setDataBreakpoints.result.dataBreakpoints).toHaveLength(1);
     expect(on.setDataBreakpoints.result.dataBreakpoints[0].verified).toBe(true);
+    expect(on.setDataBreakpoints.result.dataBreakpoints[0].location.range.start.line).toBe(WRITE);
     // Each step says whether it stopped somewhere; stepping out there does
     // not.
     expect(on.stepIn.result.done).toBe(true);
@@ -213,9 +214,10 @@ describe("the debugger during PLAY", () => {
     expect(mood("stopped")).toBe("0");
     expect(mood("afterContinue")).toBe("2");
 
-    // The game stops on entry at the top of its scene, before the first
-    // line has run; the Debug Console reads the story's variable by name.
-    expect(standing(on.stopped)).toEqual({ line: SCENE, mood: 0 });
+    // The click runs the first line on to the line that writes `mood`,
+    // where the data breakpoint stops the game before the write; the Debug
+    // Console reads the story's variable by name.
+    expect(standing(on.stopped)).toEqual({ line: WRITE, mood: 0 });
     expect(on.stopped.variables.vars.result.variables.length).toBeGreaterThan(0);
     // Stepping over runs to the breakpoint on the second line.
     expect(standing(on.afterStepOver)).toEqual({ line: SECOND, mood: 1 });
@@ -229,7 +231,7 @@ describe("the debugger during PLAY", () => {
     expect(
       (on.reported as any[]).map((m) => [m.method, m.params.location?.range.start.line]),
     ).toEqual([
-      ["game/hitBreakpoint", SCENE],
+      ["game/hitBreakpoint", WRITE],
       ["game/stepped", SECOND],
     ]);
   }, 120_000);
