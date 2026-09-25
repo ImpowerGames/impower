@@ -2060,8 +2060,13 @@ export class Game<T extends M = {}> {
           );
         }
         if (stopped) {
-          // The budget ran out part way through the step; the check at the
-          // top of the loop reports it.
+          // The budget ran out part way through the step. The story cannot
+          // resume from there: the operation the step was running has already
+          // taken its arguments, so running it again would fail for a reason
+          // the story does not have. The story ends, as a runtime error ends
+          // it, and the check at the top of the loop reports the budget.
+          this._story.CancelAsyncContinue();
+          this._story.state.ForceEnd();
           continue;
         }
 

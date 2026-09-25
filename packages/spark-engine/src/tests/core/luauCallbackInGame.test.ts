@@ -262,6 +262,39 @@ end
     expect((t.value as Map<unknown, unknown>).size).toBeLessThan(5000);
   });
 
+  // A step the budget stopped part way through cannot be resumed: the
+  // operation it was running has already taken its arguments. The story ends
+  // there, so driving the game again reports nothing the story did not do.
+  test.each([
+    ["a continue", (game: Game) => game.continue()],
+    ["a step in", (game: Game) => game.step("in")],
+    ["a step over", (game: Game) => game.step("over")],
+    ["a step out", (game: Game) => game.step("out")],
+  ])(
+    "stopped by a running game's budget end the story, and %s after reports nothing",
+    async (_, drive) => {
+      const source = `store t = {1}\nA\n& table.foreach(t, function(k, v) if #t < 20000 then table.insert(t, v) end end)\nB\nC\n`;
+      const h = createHarness(source, source.split("\n").indexOf("A"), {
+        beforeConnect: (game) => {
+          (game as any)._executionStepLimit = 5000;
+        },
+      });
+      await h.ready;
+      h.game.start();
+      h.reset();
+      h.game.continue();
+      expect(runtimeErrors(h.messages)).toEqual([
+        "Execution exceeded 5000 steps: possible infinite loop",
+      ]);
+      expect(h.game.story.canContinue).toBe(false);
+
+      h.reset();
+      drive(h.game);
+      expect(runtimeErrors(h.messages)).toEqual([]);
+      expect(h.game.story.canContinue).toBe(false);
+    },
+  );
+
   // `table.sort` and `string.gsub` report an error their callback raises as
   // their own. The budget running out is not the callback's error.
   test.each([
