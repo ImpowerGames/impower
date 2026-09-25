@@ -64,6 +64,18 @@ describe("story lines after a function declaration", () => {
     }
   });
 
+  test("the story lines of a function whose body holds them stay in the function", () => {
+    // A story line in a function's body closes the definition early, and the
+    // rest of the body follows it as chunks of its own; they are still the
+    // function's.
+    const named = namedContainers(
+      `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
+    );
+    expect(holds(named["greet"], "How are you?")).toBe(true);
+    expect(holds(named["A"], "Line one.")).toBe(true);
+    expect(holds(named["greet"], "Line one.")).toBe(false);
+  });
+
   test("lines after a function declared inside a scene stay in the scene", () => {
     const source = `-> intro\n\nscene intro\nA\n${LESS}B\nC\nend\n`;
     expect(linesFromTop(source)).toEqual(["A\n", "B\n", "C\n"]);

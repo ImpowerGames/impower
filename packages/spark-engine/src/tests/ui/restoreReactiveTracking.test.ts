@@ -19,11 +19,10 @@
 import { describe, expect, test } from "vitest";
 import { compileUI, createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
+// The function sits below the story: a start from the first line resolves to
+// the first line with a path after it, and a start inside a function's body
+// is #835.
 const SOURCE = `store hp = 100
-
-function hit()
-  hp = hp - 10
-end
 
 layout main with
   column:
@@ -34,6 +33,10 @@ end
 -> start
 scene start
   Hello.
+end
+
+function hit()
+  hp = hp - 10
 end
 `;
 

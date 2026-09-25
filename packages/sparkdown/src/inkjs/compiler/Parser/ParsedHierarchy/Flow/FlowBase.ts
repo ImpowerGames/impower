@@ -34,6 +34,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   public abstract readonly flowLevel: FlowLevel;
 
   public _rootWeave: Weave | null = null;
+  // Set when the flow's own declaration holds its whole body, closed by its
+  // `end`, so the chunks after the declaration are not part of it.
+  public _bodyClosed = false;
   public _subFlowsByName: Map<string, FlowBase> = new Map();
   public _startingSubFlowDivert: RuntimeDivert | null = null;
   public _startingSubFlowRuntime: RuntimeObject | null = null;
