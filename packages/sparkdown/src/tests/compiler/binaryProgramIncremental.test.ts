@@ -58,8 +58,9 @@ function corpus(sceneCount: number, tag: string): string {
   const L: string[] = [];
   L.push("title: Incremental Binary");
   L.push("");
-  L.push("define hero as character:");
+  L.push("define hero as character with");
   L.push(`  name = "Hero"`);
+  L.push("end");
   L.push("");
   L.push("const LIMIT = 3");
   L.push("store trust = 0");

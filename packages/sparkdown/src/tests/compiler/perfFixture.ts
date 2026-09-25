@@ -8,9 +8,10 @@ export function generatePerfScreenplay(sceneCount: number): string {
   lines.push("");
   // A handful of defines (characters).
   for (let i = 0; i < 8; i++) {
-    lines.push(`define char_${i} as character:`);
+    lines.push(`define char_${i} as character with`);
     lines.push(`  name = "Character ${i}"`);
     lines.push(`  color = "#${(i * 111111).toString(16).padStart(6, "0")}"`);
+    lines.push("end");
     lines.push("");
   }
   // A couple of helper functions.

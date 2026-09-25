@@ -30,9 +30,10 @@ function coupledScreenplay(): string {
   L.push("title: Incr Fixture");
   L.push("author: Anonymous");
   L.push("");
-  L.push("define hero as character:");
+  L.push("define hero as character with");
   L.push(`  name = "Hero"`);
   L.push(`  color = "#3366cc"`);
+  L.push("end");
   L.push("");
   L.push("store trust = 0");
   L.push("store visited_count = 0");
