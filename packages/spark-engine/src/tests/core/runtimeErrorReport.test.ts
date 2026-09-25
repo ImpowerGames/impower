@@ -51,6 +51,18 @@ describe("a runtime warning", () => {
     expect(runtimeErrors(h.messages)).toEqual([]);
     expect(executingLine(h)).toBe(4);
   });
+
+  test("in a block body, one for each line that begins with a lone `..`, on that line", async () => {
+    const h = await play(`A.\nHERO:\n  B\n  .. C\n  .. D\nE.\n`);
+    h.game.continue();
+    const warnings = runtimeErrors(h.messages);
+    expect(
+      warnings.map((w) => [w.location.range.start.line, w.message]),
+    ).toEqual([
+      [3, CONTINUES_WARNING],
+      [4, CONTINUES_WARNING],
+    ]);
+  });
 });
 
 describe("a runtime error", () => {

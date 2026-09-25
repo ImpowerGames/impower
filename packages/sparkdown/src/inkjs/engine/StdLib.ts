@@ -2523,6 +2523,10 @@ function joinDisplayParts(table: Map<string, AbstractValue>): void {
   }
 }
 
+// What a line that begins with `..` and joins nothing raises.
+const NOT_JOINED =
+  "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
+
 export const STDLIB: Record<string, StdLibEntry> = {
   // ============================================================
   // `math.*` — pure numeric helpers (auto-registered with NativeFunctionCall)
@@ -3154,14 +3158,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // text joins the same beat. After `.. >` the click has ended the step,
       // and the interpreter carries this beat on in that beat's box. A line a
       // divert holds open is already joined. Otherwise the line shows as a new
-      // one, without `continues`, so the interpreter starts a new box. A block
-      // body line that begins with `..` under a line that does not end with
-      // one was left unjoined by the compiler (`unjoined`), and warns here the
-      // same way.
-      const notJoined = () =>
-        story.Warning(
-          "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.",
-        );
+      // one, without `continues`, so the interpreter starts a new box.
       if (flag("continues")) {
         const state = story.state;
         if (state.lineJoinable) {
@@ -3174,11 +3171,10 @@ export const STDLIB: Record<string, StdLibEntry> = {
         ) {
           // A divert held the line open.
         } else {
-          notJoined();
+          story.Warning(NOT_JOINED);
           (payload as ObjectValue).value?.delete("continues");
         }
       }
-      if (flag("unjoined")) notJoined();
       // The line's author tags go to the stream first, as a tag written on
       // the line would, so they land in the same step's `currentTags`.
       const tags =
@@ -3223,6 +3219,16 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // `.. >` ends the step at the click and offers the step after it the
       // box.
       if (flag("extend")) story.state.lineJoinable = true;
+    },
+  },
+  // `__unjoined()`: a line of a block body that begins with `..` under a body
+  // line that does not end with one. Both lines are one captured string, so
+  // the compiler keeps the line break and places this call at the mark,
+  // stamped with it, so the warning names that line when the story shows it.
+  __unjoined: {
+    arity: 0,
+    fn: (story) => {
+      story.Warning(NOT_JOINED);
     },
   },
   // `log(...)` — DEVELOPER console logging, NOT story display (that's

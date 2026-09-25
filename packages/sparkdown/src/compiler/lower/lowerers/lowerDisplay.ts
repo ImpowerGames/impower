@@ -27,6 +27,7 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import {
   buildDisplayCall,
   buildLoadCall,
+  buildUnjoinedWarning,
   separateTags,
 } from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
@@ -140,7 +141,10 @@ function buildDisplayCalls(
     }
     const trailingGlue = body[end - 1] instanceof GlueMark ? body[end - 1] : null;
     if (trailingGlue) body.splice(end - 1);
-    const unjoined = joinMidBodyGlue(body);
+    // A lone `..` that begins a line of this beat warns where it stands.
+    for (const mark of joinMidBodyGlue(body)) {
+      calls.push(buildUnjoinedWarning(mark, ctx));
+    }
     // A plain divert holds the line open, so the target's first line joins
     // this one's beat. A `load` arrow's directive is its own step, which the
     // call's closing newline already starts.
@@ -206,7 +210,6 @@ function buildDisplayCalls(
             inherit: isContinuation && i > 0,
             open: divertJoins,
             continues: beatLeads,
-            unjoined,
           },
         ),
       );
@@ -226,10 +229,13 @@ class GlueMark extends ParsedObject {
   public readonly GenerateRuntimeObject = (): null => null;
 }
 
-// A `..` that begins a line of a display body, held in the body in the same
-// way.
+// A `..` that begins a line of a body, held in the body in the same way,
+// with the source range of the mark.
 class LeadMark extends ParsedObject {
   public readonly GenerateRuntimeObject = (): null => null;
+  constructor(public readonly range: { from: number; to: number }) {
+    super();
+  }
 }
 
 // A `load <names>` action line is a world-load directive. Returns the body
@@ -249,11 +255,13 @@ function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
 // break included, is dropped, across however many Text pieces it spans (the
 // spaces before a line's `# tag` are a piece of their own). A mark without its
 // partner joins nothing: the line break stays, without the spaces written
-// before a lone `..` that ends a line. Returns whether a line began with a
-// lone `..`, which the story warns about when it shows the body, as it does
-// for any line that begins with `..` and joins nothing.
-function joinMidBodyGlue(body: ParsedObject[]): boolean {
-  let unjoined = false;
+// before a lone `..` that ends a line. Returns the ranges of the lone `..`
+// marks that begin a line, which the story warns about when it shows the body,
+// as it does for any line that begins with `..` and joins nothing.
+function joinMidBodyGlue(
+  body: ParsedObject[],
+): { from: number; to: number }[] {
+  const unjoined: { from: number; to: number }[] = [];
   for (let i = body.length - 1; i >= 0; i--) {
     if (body[i] instanceof LeadMark) {
       let before = i - 1;
@@ -263,8 +271,8 @@ function joinMidBodyGlue(body: ParsedObject[]): boolean {
         body.splice(before, i - before + 1);
         i = before;
       } else {
+        unjoined.unshift((body[i] as LeadMark).range);
         body.splice(i, 1);
-        unjoined = true;
       }
     } else if (body[i] instanceof GlueMark) {
       body.splice(i, 1);
@@ -445,7 +453,7 @@ type BodySegment =
   | { kind: "inlineGluedAlt"; node: SyntaxNode }
   | { kind: "tag"; node: SyntaxNode }
   | { kind: "glue" }
-  | { kind: "lead" };
+  | { kind: "lead"; from: number; to: number };
 
 const INLINE_GLUED_ALTERNATOR_NAMES = nodeNameSet([
   "LuauSparkdownInlineGluedSequentialAlternatorBlock",
@@ -530,7 +538,7 @@ function processDisplayBody(
       out.push(new GlueMark());
     } else if (seg.kind === "lead") {
       // A `..` that begins a line of the body, resolved in the same way.
-      out.push(new LeadMark());
+      out.push(new LeadMark({ from: seg.from, to: seg.to }));
     } else if (seg.kind === "inlineGluedAlt") {
       // `Here is text .. queue|A|B|C .. and more` — inline-glued
       // alternator embedded in display content. The grammar matches
@@ -666,7 +674,7 @@ function collectBodySegments(
       // A line that begins with `..` shows its text without the mark or the
       // spaces after it.
       flush();
-      out.push({ kind: "lead" });
+      out.push({ kind: "lead", from: next.from, to: next.to });
       i = next.to;
       while (i < bodyEnd && /[ \t]/.test(ctx.read(i, i + 1))) i++;
       continue;

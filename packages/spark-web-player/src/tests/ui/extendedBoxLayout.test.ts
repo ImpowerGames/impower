@@ -103,6 +103,8 @@ describe("a box carried on after a click", () => {
 
   test.each([
     [`  HERO: First .. > .. second.`, `  HERO: First second.`],
+    // Each carried space is a space of its own, so the words stay apart.
+    [`  HERO: First   .. > .. second.`, `  HERO: First   second.`],
     [`  HERO: Abso.. >\n  ..lutely!`, `  HERO: Absolutely!`],
     // The carried letters and the continuation are the same; both must reach
     // the page.

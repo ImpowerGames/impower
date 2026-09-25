@@ -623,6 +623,25 @@
         }
       }
     },
+    "BreakLeadingGlue": {
+      "match": "((?:(?:[^\\S\\n\\r])*(?:(?<=^|(?:[^\\S\\n\\r]))[>](?=$|(?:[^\\S\\n\\r])|[.][.](?![.])))(?:[^\\S\\n\\r])*))((?:[.][.](?![.])))(?=(?:[^\\S\\n\\r])*\\S)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Break"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LeadingGlue"
+            }
+          ]
+        }
+      }
+    },
     "Chain": {
       "tag": "special(meta)",
       "name": "meta.chain.sd",
@@ -3123,7 +3142,7 @@
       "end": "(?=^(?!$|//|\\1(?:[^\\S\\n\\r])))"
     },
     "InlineAction": {
-      "begin": "((?:[^\\S\\n\\r])*)(?:((?:[.][.](?![.])))|([:])($|(?:[^\\S\\n\\r])+))",
+      "begin": "(?<![}])((?:[^\\S\\n\\r])*)(?:((?:[.][.](?![.])))|([:])($|(?:[^\\S\\n\\r])+))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -3551,6 +3570,9 @@
         },
         {
           "include": "#SparkdownInlineComment"
+        },
+        {
+          "include": "#BreakLeadingGlue"
         },
         {
           "include": "#Break"

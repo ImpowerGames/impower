@@ -550,7 +550,11 @@ export class InterpreterModule extends Module<
             return copy;
           },
         );
-        if (extend.spaces) shown.push({ control: "show", text: extend.spaces });
+        // One event per space, as the text itself is written, so the page
+        // breaks words at them as it would in the same words shown at once.
+        for (const space of extend.spaces) {
+          shown.push({ control: "show", text: space });
+        }
         this._state.box = { target: textTarget, text: shown };
         if (cue) this._state.box.cue = cue;
       } else if (contentInstructions.text) {
