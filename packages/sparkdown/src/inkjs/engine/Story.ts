@@ -38,7 +38,7 @@ import {
   stepBuiltinIterator,
   unwrapArgsForPureStdLibFn,
 } from "./StdLib";
-import { StoryException } from "./StoryException";
+import { StepLimitExceeded, StoryException } from "./StoryException";
 import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
 import { StringBuilder } from "./StringBuilder";
@@ -691,6 +691,18 @@ export class Story extends InkObject {
   public pauseBeforeEvaluatingConditions: boolean = false;
 
   public pausedBeforeCondition: string | null = null;
+
+  /** Every `Step()` this story has run, the steps of Luau callbacks included.
+   *  A callback runs all of its steps inside the one step that called it, so a
+   *  caller that budgets execution per `ContinueAsync()` charges the difference
+   *  in this count, not one step per call. */
+  public stepCount = 0;
+
+  /** The `stepCount` past which `Step()` throws {@link StepLimitExceeded}, or
+   *  null for none. A caller that budgets execution sets it around a
+   *  `ContinueAsync()`, so the budget also stops the steps of callbacks, which
+   *  run before that call returns. */
+  public stepLimit: number | null = null;
 
   public simulator?: Simulator | null = null;
 
@@ -1501,6 +1513,10 @@ export class Story extends InkObject {
   }
 
   public Step() {
+    this.stepCount++;
+    if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
+      throw new StepLimitExceeded();
+    }
     this.pausedBeforeCondition = null; // clear any previous pause
 
     let shouldAddToStream = true;
@@ -3949,6 +3965,12 @@ export class Story extends InkObject {
    * is restored on the way out so the callback can't leak narrative
    * text into the calling story flow.
    *
+   * The callback runs inside the step that called it, so it works the
+   * same during `ContinueAsync()` as during `Continue()`: it never
+   * starts a continue of its own. Route search's pause before
+   * conditions is off while it runs, since the conditions route search
+   * forces are the story's decisions, not ones inside a callback.
+   *
    * Errors inside the callback propagate via `story.Error`; without
    * a `pcall` trap (#98), they abort the whole story — that's the
    * same behaviour as any other runtime error today.
@@ -3957,8 +3979,6 @@ export class Story extends InkObject {
     fnValue: AbstractValue,
     args: AbstractValue[],
   ): AbstractValue[] {
-    this.IfAsyncWeCant("call a Luau function from stdlib");
-
     // VariablePointerValue: deref and recurse.
     if (fnValue instanceof VariablePointerValue) {
       const resolved = this.state.variablesState.GetVariableWithName(
@@ -3983,6 +4003,8 @@ export class Story extends InkObject {
     const outputStreamBefore: InkObject[] = [...this.state.outputStream];
     const lineEnd = this.state.SuspendLineEnd();
     this.state.ResetOutput();
+    const pauseBeforeConditions = this.pauseBeforeEvaluatingConditions;
+    this.pauseBeforeEvaluatingConditions = false;
 
     let path: Path | null = null;
     try {
@@ -4045,16 +4067,18 @@ export class Story extends InkObject {
       // the wrong eval-stack state.
       this.NextContent();
 
-      // Drive Step until the inner Function frame pops back. Bound
-      // iterations to avoid hangs on misbehaving callbacks.
+      // Drive Step until the inner Function frame pops back. Bound the
+      // steps to avoid hangs on misbehaving callbacks, counting the steps
+      // of callbacks nested inside this one, which all run inside one of
+      // its own steps.
       const MAX_STEPS = 100000;
-      let steps = 0;
+      const firstStep = this.stepCount;
       while (
         this.state.callStack.elements.length > savedCallStackLen &&
         !this.state.currentPointer.isNull
       ) {
         this.Step();
-        if (++steps > MAX_STEPS) {
+        if (this.stepCount - firstStep > MAX_STEPS) {
           throw new StoryException(
             "CallLuauFunction: callback exceeded step limit (possible infinite loop)",
           );
@@ -4086,6 +4110,7 @@ export class Story extends InkObject {
       this.state.currentPointer = savedPointer;
       this.state.ResetOutput(outputStreamBefore);
       this.state.ResumeLineEnd(lineEnd);
+      this.pauseBeforeEvaluatingConditions = pauseBeforeConditions;
     }
   }
 
@@ -4110,8 +4135,6 @@ export class Story extends InkObject {
     values: AbstractValue[];
     errorMessage?: string;
   } {
-    this.IfAsyncWeCant("call a Luau function from stdlib (protected)");
-
     if (fnValue instanceof VariablePointerValue) {
       const resolved = this.state.variablesState.GetVariableWithName(
         fnValue.variableName,
@@ -4166,6 +4189,8 @@ export class Story extends InkObject {
     const savedErrorCount = this.state.currentErrors?.length ?? 0;
     const lineEnd = this.state.SuspendLineEnd();
     this.state.ResetOutput();
+    const pauseBeforeConditions = this.pauseBeforeEvaluatingConditions;
+    this.pauseBeforeEvaluatingConditions = false;
 
     let path: Path | null = null;
     let trappedError: string | null = null;
@@ -4223,8 +4248,9 @@ export class Story extends InkObject {
       );
       this.NextContent();
 
+      // Bounded as in `CallLuauFunction`, nested callbacks' steps included.
       const MAX_STEPS = 100000;
-      let steps = 0;
+      const firstStep = this.stepCount;
       while (
         this.state.callStack.elements.length > savedCallStackLen &&
         !this.state.currentPointer.isNull
@@ -4249,7 +4275,7 @@ export class Story extends InkObject {
           errs.length = savedErrorCount;
           break;
         }
-        if (++steps > MAX_STEPS) {
+        if (this.stepCount - firstStep > MAX_STEPS) {
           trappedError =
             "pcall: callback exceeded step limit (possible infinite loop)";
           break;
@@ -4293,6 +4319,7 @@ export class Story extends InkObject {
       this.state.currentPointer = savedPointer;
       this.state.ResetOutput(outputStreamBefore);
       this.state.ResumeLineEnd(lineEnd);
+      this.pauseBeforeEvaluatingConditions = pauseBeforeConditions;
     }
   }
 

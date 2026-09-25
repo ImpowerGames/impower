@@ -1,5 +1,6 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 
 export type DisplayPreviewMethod = typeof DisplayPreviewMessage.method;
 
@@ -31,6 +32,11 @@ export interface DisplayPreviewResult {
   displayed: boolean;
   /** The worker no longer holds that program. */
   missing?: boolean;
+  /** With `displayed`: the runtime errors and warnings the route to the
+   *  point raised, then those the step at the point raised, which the page
+   *  reports as the preview's run. The display sends the page none of them
+   *  as they are raised. */
+  errors?: SimulationError[];
 }
 
 /**

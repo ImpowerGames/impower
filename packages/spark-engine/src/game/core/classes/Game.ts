@@ -19,11 +19,13 @@ import {
   type RoutePlan,
   type RouteResumePoint,
 } from "@impower/sparkdown/src/compiler/utils/planRoute";
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import { uuid } from "@impower/sparkdown/src/compiler/utils/uuid";
 import { ErrorType as InkErrorType } from "@impower/sparkdown/src/inkjs/engine/Error";
 import { InkObject } from "@impower/sparkdown/src/inkjs/engine/Object";
 import { PushPopType } from "@impower/sparkdown/src/inkjs/engine/PushPop";
 import { InkList, Story } from "@impower/sparkdown/src/inkjs/engine/Story";
+import { StepLimitExceeded } from "@impower/sparkdown/src/inkjs/engine/StoryException";
 import { DEFAULT_MODULES } from "../../modules/DEFAULT_MODULES";
 import { ErrorType } from "../enums/ErrorType";
 import type { Breakpoint } from "../types/Breakpoint";
@@ -302,6 +304,44 @@ export class Game<T extends M = {}> {
   protected _replaying = false;
   get replaying() {
     return this._replaying;
+  }
+
+  /** The runtime errors and warnings the route replays raised, each with the
+   *  number of checkpoints saved before it was raised. A replay that resumes
+   *  from a checkpoint runs again only what came after that checkpoint, so it
+   *  keeps what the steps before it raised and drops the rest. */
+  protected _routeErrors: { at: number; error: SimulationError }[] = [];
+
+  /** The errors that stopped the last search for a route, when it found
+   *  none. Kept apart from the replay's record, which a later replay of the
+   *  route already planned resumes. */
+  protected _searchErrors?: SimulationError[];
+
+  /** The runtime errors and warnings the route to the start point raised, in
+   *  the order the replay raised them, or, when the search found no route, the
+   *  errors that stopped it. A replay reports these here rather than as it
+   *  raises them: nothing shows its beats, and the game that shows the start
+   *  point reports them as part of its own run. */
+  get routeErrors(): SimulationError[] {
+    return this._searchErrors ?? this._routeErrors.map((e) => e.error);
+  }
+
+  /** The errors that stopped the route search that just returned, where the
+   *  statements that raised them are in `program`. A search that found no
+   *  route and raised an error was stopped by it on the way, since an error
+   *  ends the story; what it raised on the branches it abandoned for a route
+   *  it found is not the author's to see. */
+  static searchErrors(program: SparkProgram): SimulationError[] {
+    const scripts = Object.keys(program?.scripts ?? {});
+    return lastSearchStats.errors.map(({ message, path }) => ({
+      message,
+      type: ErrorType.Error,
+      location: Game.documentLocation(
+        program,
+        scripts,
+        pathLocation(program.pathLocations, path),
+      ),
+    }));
   }
 
   /** Why the last attempt to simulate a route gave up. Recorded where the
@@ -717,6 +757,7 @@ export class Game<T extends M = {}> {
           this._program,
           toPath,
         );
+        this._searchErrors = Game.searchErrors(this._program);
       }
     } else {
       this._simulationFailure = Game.describeFailedRouteSearch(
@@ -1129,6 +1170,7 @@ export class Game<T extends M = {}> {
     // through `simulate()`, which would otherwise leave an older reason to be
     // reported against this run.
     this._simulationFailure = undefined;
+    this._searchErrors = undefined;
     const startStep = route.steps[fromStep];
     const fromDecision = startStep?.decision ?? 0;
     // A step's own checkpoint number is stamped when the step is reached, and
@@ -1139,6 +1181,9 @@ export class Game<T extends M = {}> {
     const startCheckpoint = this._checkpoints.getJson(fromCheckpoint);
     this._checkpoints.truncate(fromCheckpoint + 1);
     this._checkpointStepCursors.length = fromCheckpoint + 1;
+    this._routeErrors = this._routeErrors.filter(
+      (e) => e.at <= fromCheckpoint,
+    );
     this._plannedRoute = route;
     this._plannedRouteChangeId = this._program.changes?.id;
     this._simulatePath = route.fromPath;
@@ -2037,7 +2082,37 @@ export class Game<T extends M = {}> {
         }
         return true;
       } else if (this._story.canContinue) {
-        this._story.ContinueAsync();
+        // One step was charged above. A Luau callback runs all of its steps
+        // inside the step that called it, and those count too: the limit stops
+        // them where the budget runs out, and what they took is charged after.
+        const stepsBefore = this._story.stepCount;
+        this._story.stepLimit =
+          stepsBefore + 1 + this._executionStepsRemaining;
+        let stopped = false;
+        try {
+          this._story.ContinueAsync();
+        } catch (e) {
+          if (!(e instanceof StepLimitExceeded)) {
+            throw e;
+          }
+          stopped = true;
+        } finally {
+          this._story.stepLimit = null;
+          this._executionStepsRemaining -= Math.max(
+            0,
+            this._story.stepCount - stepsBefore - 1,
+          );
+        }
+        if (stopped) {
+          // The budget ran out part way through the step. The story cannot
+          // resume from there: the operation the step was running has already
+          // taken its arguments, so running it again would fail for a reason
+          // the story does not have. The story ends, as a runtime error ends
+          // it, and the check at the top of the loop reports the budget.
+          this._story.CancelAsyncContinue();
+          this._story.state.ForceEnd();
+          continue;
+        }
 
         const prevExecutedLocation = this._executingLocation;
         const pointerPath = this._story.state.previousPointer.path?.toString();
@@ -2706,6 +2781,13 @@ export class Game<T extends M = {}> {
   ) {
     if (type === ErrorType.Error) {
       this._runtimeErrorsReported += 1;
+    }
+    if (this._replaying) {
+      this._routeErrors.push({
+        at: this._checkpoints.length,
+        error: { message, type, location: this.getDocumentLocation(location) },
+      });
+      return;
     }
     this.connection.emit(
       GameEncounteredRuntimeErrorMessage.type.notification({

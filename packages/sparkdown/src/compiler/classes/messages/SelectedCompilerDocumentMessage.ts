@@ -1,6 +1,7 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import type { Range } from "../../types/SparkDiagnostic";
+import type { SimulationError } from "../../types/SimulationError";
 import type { SimulationFailure } from "../../types/SimulationFailure";
 
 export type SelectedCompilerDocumentMethod =
@@ -33,6 +34,9 @@ export interface SelectedCompilerDocumentParams {
    * reasoning is spelled out.
    */
   simulatedProgramId?: string;
+  /** The runtime errors and warnings the replay of the route raised. Mirrors
+   *  the field of the same name on `CompiledProgramParams`. */
+  simulationErrors?: SimulationError[];
   /**
    * A script the compiled program was built from has been edited since that
    * compile, so its path locations describe where this document's lines used

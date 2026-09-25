@@ -434,6 +434,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         result.simulationFailure,
         result.simulatedPath,
         result.simulatedProgramId,
+        result.simulationErrors,
       );
       await settle();
       return result;

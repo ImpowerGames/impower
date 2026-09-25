@@ -63,6 +63,8 @@ function recordingGame(startPath: string | null) {
     simulation: undefined as string | undefined,
     // `programIdentity` reads these; `version` is deliberately not part of it.
     program: { uri: PROGRAM.uri, scripts: PROGRAM.scripts, version: 99 },
+    // What its own route search replays raises: nothing, here.
+    routeErrors: [],
     simulate: () => {
       calls.push("simulate");
     },
