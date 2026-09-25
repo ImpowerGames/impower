@@ -252,8 +252,7 @@ sparkdown [0..189]
  │   │       │   ├─ AngleText [90..93]
  │   │       │   │   ├─ AngleText_c1 [90..91]
  │   │       │   │   │   └─ Space [90..91]: " "
- │   │       │   │   └─ AngleText_c2 [91..93]
- │   │       │   │       └─ AngleMark [91..93]: ">>"
+ │   │       │   │   └─ AngleText_c2 [91..93]: ">>"
  │   │       │   ├─ TextChunk [93..98]
  │   │       │   │   ├─ TextChunk_begin 93
  │   │       │   │   ├─ TextChunk_content [93..98]
@@ -266,8 +265,7 @@ sparkdown [0..189]
  │   │       │   ├─ AngleText [98..101]
  │   │       │   │   ├─ AngleText_c1 [98..99]
  │   │       │   │   │   └─ Space [98..99]: " "
- │   │       │   │   └─ AngleText_c2 [99..101]
- │   │       │   │       └─ AngleMark [99..101]: ">="
+ │   │       │   │   └─ AngleText_c2 [99..101]: ">="
  │   │       │   ├─ TextChunk [101..106]
  │   │       │   │   ├─ TextChunk_begin 101
  │   │       │   │   ├─ TextChunk_content [101..106]

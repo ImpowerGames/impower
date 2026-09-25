@@ -159,13 +159,20 @@ variables:
   COMMENT_START: (?:[-][-])
   # A `>` in display text, which may touch the words around it (`A>B`). The
   # longer marks that hold a `>` are matched before it: `Escape` takes `\>`,
-  # `TextCommand` takes `<wait 1>`, `Divert` takes `->`, and `AngleText` takes
-  # `>>`, `>=` and `-->`.
+  # `TextCommand` takes `<wait 1>`, `AngleText` takes `>>` and `>=`, and inside
+  # a text chunk `Divert` takes `->` and `DashAngle` takes `-->`.
   BREAK_MARK: (?:[>])
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
-  # A `>` that belongs to a longer mark in display text: one or more `-` before
-  # it, or a `>` or `=` after it. It is text.
-  ANGLE_TEXT: (?:[-]+[>]+|[>][>=]+)
+  # A break as a lookahead reads it: a `>` with the line end or any character
+  # but `>` or `=` after it. A lookahead cannot leave `>>` and `>=` to
+  # `AngleText`'s place in the rule order, so it names the character after the
+  # `>` instead.
+  BREAK_AHEAD: (?:{{WS}}*[>](?:$|[^>=]))
+  # A `>` with a `>` or `=` after it, which is text.
+  ANGLE_TEXT: (?:[>][>=]+)
+  # A `>` with `-` before it that `Divert` does not take (`-->`), which is
+  # text.
+  DASH_ANGLE_TEXT: (?:[-]+[>]+)
   CHAIN: (?:[\\])
   # A `..` that ends a line, or the part of a line before a `>` break. It joins
   # the next line or part onto it when that one begins with `..`. Anything but a
@@ -174,7 +181,7 @@ variables:
   GLUE: (?:(?<![.])[.][.]{{GLUE_END}})
   # What may follow a line-ending `..`: spaces, then the end of the line, tags,
   # a `//` comment or a `>` break.
-  GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_MARK}}))
+  GLUE_END: (?={{WS}}*(?:$|{{TAG_START}}|[/]{2}(?:$|{{WS}})|{{BREAK_AHEAD}}))
   # A `..` that begins a line. The line joins the one shown before it when
   # that one ends with `..`, which the engine checks as the story runs. A third
   # dot makes it an ellipsis (`...and then`).
@@ -2125,7 +2132,7 @@ repository:
     # alternative inside a star makes a failing match explore every partition
     # of a whitespace run (catastrophic backtracking: ~15s on a line with 28
     # leading spaces). See issue #280 and grammarRegexSafety.test.ts.
-    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK}})|{{CHAIN}}(?:{{WS}}))
+    match: ({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)({{WS}}*)([(][^()]*?[)])({{WS}}*)((?:[=].*?[=]|[<].*?[>]|{{WS}}+(?!{{WS}}))*)($|{{EOL}}|(?={{BREAK_AHEAD}})|{{CHAIN}}(?:{{WS}}))
     captures:
       1:
         patterns:
@@ -2832,7 +2839,7 @@ repository:
       - { include: "#Word" }
       # Before `EmDash`, so the `--` of `-->` does not leave its `>` to end
       # the text as a break.
-      - { include: "#AngleMark" }
+      - { include: "#DashAngle" }
       - { include: "#EmDash" }
       - { include: "#Punctuation" }
 
@@ -2857,13 +2864,13 @@ repository:
           - { include: "#Space" }
           - { include: "#Whitespace" }
       2:
-        patterns:
-          - { include: "#AngleMark" }
+        tag: content
+        name: markup.raw.punctuation.sd
 
-  AngleMark:
+  DashAngle:
     tag: content
     name: markup.raw.punctuation.sd
-    match: ({{ANGLE_TEXT}})
+    match: ({{DASH_ANGLE_TEXT}})
 
   EmDash:
     tag: content

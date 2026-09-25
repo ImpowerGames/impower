@@ -20,10 +20,18 @@ x>=y
 A-->B
 A \> B
 A\>B
+Before > -> later
+Before>->later
+-> later
+Alpha..>=beta
+Gamma..>>delta
+Epsilon..>zeta
 HERO (cheerful) [>]:
   Hi.
 HERO: {a > b} [[cg > 1]] ((sfx > 2)) # tag > x
+HERO: {a>b} [[cg>1]] ((sfx>2)) # tag>x
 HERO: a > b // a > b
+HERO: -> later
 HERO:
   A > B
   A >
@@ -46,3 +54,14 @@ HERO:
   A-->B
   A \> B
   A\>B
+  Before > -> later
+  Before>->later
+  -> later
+  Alpha..>=beta
+  Gamma..>>delta
+  Epsilon..>zeta
+  (softly) > x
+  (softly)>x
+  (softly) >=z
+  (softly) >> y
+  (softly) -->z

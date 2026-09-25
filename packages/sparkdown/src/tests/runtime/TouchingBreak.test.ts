@@ -161,6 +161,43 @@ describe("a `>` break that touches the words around it", () => {
     expect(tunnel.steps).toEqual([]);
   });
 
+  // A divert that begins the text after a break, a cue's colon or a block's
+  // indent is where a `DisplayLine` starts reading, ahead of any text chunk.
+  test.each([
+    ["after a spaced break", `Before > -> later\n`],
+    ["after a touching break", `Before>->later\n`],
+    ["after a cue", `HERO: -> later\n`],
+    ["on a block line", `:\n  Before\n  -> later\n`],
+    ["on a dialogue block line", `HERO:\n  -> later\n`],
+  ])("a divert %s still diverts", (_label, source) => {
+    const shown = run(`${source}\nscene later\n  Later.\nend\n`).steps.map(
+      (step) => step.text,
+    );
+    expect(shown.some((text) => text.includes("->"))).toBe(false);
+    expect(shown.at(-1)).toMatch(/Later\.\n$/);
+  });
+
+  test("a divert after a break keeps the break's beat first", () => {
+    for (const source of [`Before > -> later\n`, `Before>->later\n`]) {
+      const { steps: out } = run(`${source}\nscene later\n  Later.\nend\n`);
+      expect(out.map((step) => step.text)).toEqual(["Before\n", "Later.\n"]);
+      expect(out[0]).toMatchObject({ pause: true });
+    }
+  });
+
+  test("a `..` before `>=` or `>>` is text, and before a lone `>` is glue", () => {
+    for (const [source, shown] of [
+      [`Alpha..>=beta\n`, "Alpha..>=beta\n"],
+      [`Gamma..>>delta\n`, "Gamma..>>delta\n"],
+      [`Alpha .. >= beta\n`, "Alpha .. >= beta\n"],
+    ] as const) {
+      expect(run(source).steps).toEqual([{ text: shown, target: "action" }]);
+    }
+    expect(run(`Epsilon..>zeta\nAfter.\n`)).toEqual(
+      run(`Epsilon.. >zeta\nAfter.\n`),
+    );
+  });
+
   test("a cue's `[>]` is a character position, not a break", () => {
     const { steps: shown } = run(`HERO [>]:\n  Hi.\n`);
     expect(shown).toEqual([
