@@ -163,7 +163,40 @@ const isBindingPath = (path: string) =>
   path.includes("__binding_") &&
   path.split(".").some((seg) => seg.startsWith("__binding_"));
 
-const isPreviewablePath = (path: string) => !isBindingPath(path);
+/**
+ * Whether a row may be where a story starts or a preview diverts: not a
+ * binding evaluator, and not inside one of the table's
+ * {@link PathLocationTable.functions}. Starting inside a function runs its
+ * body as story, so its `return` ends the run on a runtime error before
+ * anything shows; a line that holds only function rows (a `function` header,
+ * a `store` whose value is a function literal) resolves instead to the story
+ * row after it.
+ */
+const previewablePathTest = (table: PathLocationTable) => {
+  const functions = table.functions?.length
+    ? new Set(table.functions)
+    : undefined;
+  return (path: string) => {
+    if (isBindingPath(path)) {
+      return false;
+    }
+    if (functions) {
+      for (
+        let dot = path.indexOf(".");
+        dot >= 0;
+        dot = path.indexOf(".", dot + 1)
+      ) {
+        if (functions.has(path.slice(0, dot))) {
+          return false;
+        }
+      }
+      if (functions.has(path)) {
+        return false;
+      }
+    }
+    return true;
+  };
+};
 
 const fullIndexes = new WeakMap<PathLocationTable, PathSearchIndex>();
 const previewableIndexes = new WeakMap<PathLocationTable, PathSearchIndex>();
@@ -174,7 +207,7 @@ const searchIndexOf = (table: PathLocationTable, previewableOnly: boolean) => {
   if (!index) {
     index = buildSearchIndex(
       table,
-      previewableOnly ? isPreviewablePath : undefined,
+      previewableOnly ? previewablePathTest(table) : undefined,
     );
     cache.set(table, index);
   }
@@ -344,9 +377,10 @@ export const asPathLocationTable = (
   if (!raw || typeof raw !== "object") {
     return undefined;
   }
-  const { paths, values } = raw as {
+  const { paths, values, functions } = raw as {
     paths?: unknown;
     values?: ArrayLike<number>;
+    functions?: string[];
   };
   if (!Array.isArray(paths)) {
     return undefined;
@@ -358,5 +392,7 @@ export const asPathLocationTable = (
   for (let i = 0; i < restored.length; i++) {
     restored[i] = Number(values?.[i] ?? 0);
   }
-  return { paths: paths as string[], values: restored };
+  return functions
+    ? { paths: paths as string[], values: restored, functions }
+    : { paths: paths as string[], values: restored };
 };

@@ -499,6 +499,10 @@ export class SparkdownCompiler {
   // it into the program's columnar `pathLocations` table and drops it.
   protected _pathLocationDraft?: Record<string, ScriptLocation>;
 
+  // The runtime paths of the compile in progress's function containers, which
+  // `sortPathLocations` puts on the program's `pathLocations` table.
+  protected _functionPaths?: string[];
+
   // ---- Incremental location-map cache (Design A) ------------------------
   // Per top-level flow (knot/scene/function name = its key in the runtime
   // mainContentContainer.namedOnlyContent), the pathLocations + dataLocations
@@ -2000,6 +2004,7 @@ export class SparkdownCompiler {
     // reaches the walk cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
     this._pathLocationDraft = undefined;
+    this._functionPaths = undefined;
     // Begin a fresh change summary. The verdict is only reached at the very end
     // of the compile, where every hazard below has had its chance to speak; a
     // compile that stops before then reports the answer that costs a client
@@ -2317,6 +2322,7 @@ export class SparkdownCompiler {
           Object.keys(program.scripts).map((u, i) => [u, i]),
         );
         this.populateAllLocations(program, story);
+        this._functionPaths = this.collectFunctionPaths(parsedStory);
         // Carry this compile's chunk-identity set forward so the next compile
         // can tell which chunks are unchanged.
         this._prevCompilationIds = this._compilationIds;
@@ -4657,6 +4663,29 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateFiles", uri);
   }
 
+  /**
+   * The runtime paths of every function container in the story: named
+   * functions, hoisted function literals and the callables a flow nests. A
+   * function's own nested flows are under its path, so the walk stops there.
+   */
+  protected collectFunctionPaths(story: Story): string[] {
+    const paths: string[] = [];
+    const visit = (flow: FlowBase) => {
+      for (const sub of flow.subFlowsByName.values()) {
+        if (sub.isFunction) {
+          const path = sub.runtimeObject?.path?.componentsString;
+          if (path) {
+            paths.push(path);
+          }
+        } else {
+          visit(sub);
+        }
+      }
+    };
+    visit(story);
+    return paths;
+  }
+
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "sortPathLocations", uri);
@@ -4716,7 +4745,11 @@ export class SparkdownCompiler {
       // `populateAllLocations`): sort by comparison instead.
       program.pathLocations = pathLocationTableOf(draft);
     }
+    if (program.pathLocations && this._functionPaths?.length) {
+      program.pathLocations.functions = this._functionPaths;
+    }
     this._pathLocationDraft = undefined;
+    this._functionPaths = undefined;
     profile("end", this._profilerId, "sortPathLocations", uri);
   }
 

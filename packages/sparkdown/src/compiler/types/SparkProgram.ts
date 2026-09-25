@@ -31,6 +31,13 @@ export interface PathLocationTable {
   paths: string[];
   /** Five numbers per path — a {@link ScriptLocation} — in `paths` order. */
   values: Int32Array;
+  /**
+   * The runtime paths of the containers that are functions: named `function`
+   * declarations, hoisted function literals and callables nested in a flow.
+   * A function's body runs only when it is called, so no row at or under one
+   * of these paths is a place a story can start or a preview can divert into.
+   */
+  functions?: string[];
 }
 
 export interface SparkProgram {

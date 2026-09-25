@@ -92,7 +92,9 @@ const CASES: [name: string, source: string, text: string][] = [
   ],
   [
     "table.sort with a named comparator",
-    `function less(a, b)\n  return a < b\nend\n\nstore t = {3, 1, 2}\nA\nB {table.sort(t, less)} {t[1]}\nC\n`,
+    // The function follows the story: story lines after a function compile
+    // into its body (#834).
+    `store t = {3, 1, 2}\nA\nB {table.sort(t, less)} {t[1]}\nC\n\nfunction less(a, b)\n  return a < b\nend\n`,
     "B  1",
   ],
   [
