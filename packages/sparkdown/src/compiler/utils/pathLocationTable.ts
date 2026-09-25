@@ -150,7 +150,7 @@ const buildSearchIndex = (
 };
 
 /**
- * Reactive-binding evaluators (`__binding_<offset>`) are synthetic ink
+ * Reactive-binding evaluators (`__binding_<id>`) are synthetic ink
  * FUNCTIONS the compiler hoists for `{interpolations}` and `@event` handlers.
  * They carry debug metadata (so diagnostics can point at the binding source),
  * which also lists them here as candidate paths — but a preview DIVERTS into

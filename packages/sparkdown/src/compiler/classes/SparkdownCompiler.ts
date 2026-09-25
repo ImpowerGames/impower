@@ -3540,7 +3540,11 @@ export class SparkdownCompiler {
     // now that canonical `__synth_<n>` names are themselves remappable.
     const matchedIds: Array<{ id: Identifier; owner: ParsedObject }> = [];
     const seenIds = new Set<Identifier>();
-    const matchedStrings: Array<{ node: any; field: string }> = [];
+    // A script included from two places is walked twice, so a string field
+    // is recorded once, with the name it held when the walk reached it.
+    const matchedStrings: Array<{ node: any; field: string; name: string }> =
+      [];
+    const seenStrings = new Map<object, Set<string>>();
     const flowsToRekey: FlowBase[] = [];
     // Every call of one continuation carries the same group, so the calls
     // share a mapping just as a synthetic's definition and references do.
@@ -3664,8 +3668,16 @@ export class SparkdownCompiler {
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
           found = true;
-          considerName(v);
-          matchedStrings.push({ node, field: f });
+          let fields = seenStrings.get(node);
+          if (!fields) {
+            fields = new Set();
+            seenStrings.set(node, fields);
+          }
+          if (!fields.has(f)) {
+            fields.add(f);
+            considerName(v);
+            matchedStrings.push({ node, field: f, name: v });
+          }
         }
       }
       if (node instanceof ContinuationGroup) {
@@ -3719,9 +3731,9 @@ export class SparkdownCompiler {
         id.name = next;
       }
     }
-    for (const { node, field } of matchedStrings) {
+    for (const { node, field, name } of matchedStrings) {
       const v = node[field];
-      const next = typeof v === "string" ? remap.get(v) : undefined;
+      const next = remap.get(name);
       if (next) {
         if (next !== v) {
           markRenamed(node);

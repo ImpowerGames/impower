@@ -22,6 +22,15 @@ export interface LowerContext {
    * surface diagnostics.
    */
   filePath?: string;
+  /**
+   * Absolute source range of the chunk being lowered. An unchanged chunk is
+   * carried into later compiles without being lowered again, so a name that
+   * must match a cold compile is derived from the chunk's own text rather
+   * than from its position in the document (see `bindingId` in
+   * `lowerSparkleBody`). Snapshot callers may omit it.
+   */
+  chunkFrom?: number;
+  chunkTo?: number;
   config?: CompilationConfig;
   /**
    * Mutable list of synthetic `Knot` ParsedObjects produced by lowering

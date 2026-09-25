@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
 // Phase 3 I0: program.sparkle (the reactive AST) reaches the engine, and the
-// hoisted `__binding_<offset>() return <expr> end` evaluators the compiler
+// hoisted `__binding_<id>() return <expr> end` evaluators the compiler
 // emitted are callable via story.EvaluateFunction — proving the binding-eval
 // path end-to-end (the compiler-side tests compile bindings but never run them).
 
@@ -45,12 +45,10 @@ end
 `);
     await h.ready;
     const binding = findFirstBinding((h.game.program as any).sparkle);
-    // `__binding_<documentTag>_<byteOffset>`. The document tag is not optional
-    // padding: the id was the byte offset ALONE, and since every hoisted
-    // evaluator shares one flow namespace, two files whose bindings started at
-    // the same offset minted the same name — one evaluator survived and both
-    // layouts resolved to it.
-    expect(binding?.exprId).toMatch(/^__binding_(?:[a-z0-9]+_)?\d+$/);
+    // `__binding_<documentTag>_<chunkTag>_<offset in chunk>`. Every hoisted
+    // evaluator shares one flow namespace, so the tags keep bindings at the
+    // same offset of two files, or of two layouts, from sharing one evaluator.
+    expect(binding?.exprId).toMatch(/^__binding_(?:[a-z0-9]+_){0,2}\d+$/);
     // The screen need not be shown — the evaluator is a top-level story knot,
     // and the global `hp` is initialized at story load.
     const value = (h.game.module.ui as any).evalBinding(binding);
