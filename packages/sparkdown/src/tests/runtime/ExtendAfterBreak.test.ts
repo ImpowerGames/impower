@@ -242,12 +242,11 @@ describe("a mark on one side of a break joins nothing", () => {
 describe("an edit inside the block before a line", () => {
   // The flags a line's calls carry read only the line itself, so a line kept
   // from an earlier compile carries what a cold compile gives it. The edit
-  // keeps the block's length, since a continuation's `group` names the offset
-  // its line starts at.
+  // changes the block's length, which moves the continuation below it.
   test("compiles as a cold compile of the same text does", () => {
     const pad = Array.from({ length: 20 }, (_, i) => `Filler ${i}.`).join("\n");
-    const base = `${pad}\nA .. >\nif false then\n  Bbbbbbbbb\nend\n.. C\n${pad}\n`;
-    const find = "  Bbbbbbbbb\n";
+    const base = `${pad}\nA .. >\nif false then\n  B\nend\n.. C\n${pad}\n`;
+    const find = "  B\n";
     const replace = "  .. B .. >\n";
     const offset = base.indexOf(find);
     const after = base.slice(0, offset) + replace + base.slice(offset + find.length);

@@ -61,7 +61,7 @@ function coupledScreenplay({ continuations = true } = {}): string {
     L.push(`  Second line with {trust} and read-count {scene_${(s + 1) % SC}} here.`);
     if (continuations) {
       L.push(`hero: Glued in scene ${s} ..`);
-      L.push(`carried on > and broken.`);
+      L.push(`.. carried on > and broken.`);
     }
     L.push("if trust > 2 then");
     L.push(`  hero: I trust you in scene ${s}.`);
@@ -92,7 +92,7 @@ const edits: Edit[] = [
   { name: "add read-count reference (visit-count coupling)", find: "Not yet in scene 7.", replace: "Not yet in scene 7, {scene_2}." },
   { name: "remove a cross-flow divert", find: "-> scene_10", replace: "-> DONE" },
   { name: "lengthen a line above continuations (moves them)", find: "Line one of dialogue in scene 2.", replace: "Line one of dialogue in scene 2, said at much greater length." },
-  { name: "add a continuation above others (renumbers their groups)", find: "-> scene_6", replace: "hero: A new glued line ..\nsaid here.\n-> scene_6" },
+  { name: "add a continuation above others (renumbers their groups)", find: "-> scene_6", replace: "hero: A new glued line ..\n.. said here.\n-> scene_6" },
   { name: "change function body", find: "return x * 2 + 1", replace: "return x * 3 + 1" },
   { name: "edit store initial value", find: "store trust = 0", replace: "store trust = 1" },
   { name: "rename a scene (cross-flow divert target)", find: "scene scene_4", replace: "scene scene_renamed" },

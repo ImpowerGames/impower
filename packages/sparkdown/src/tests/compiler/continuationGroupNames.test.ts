@@ -69,12 +69,12 @@ const project: Project = {
     "scene main_one",
     "  Opening line.",
     "HERO: Main glued line ..",
-    "main carry > and broken.",
+    ".. main carry > and broken.",
     "end",
     "",
   ].join("\n"),
   chapter: ["include shared.sd", "", "scene chapter_one", "  Chapter line.", "end", ""].join("\n"),
-  shared: ["HERO: Shared glued line ..", "carried on > and broken.", ""].join("\n"),
+  shared: ["HERO: Shared glued line ..", ".. carried on > and broken.", ""].join("\n"),
 };
 
 describe("continuation group names", () => {
