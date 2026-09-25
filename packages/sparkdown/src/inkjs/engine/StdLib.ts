@@ -3154,7 +3154,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // text joins the same beat. After `.. >` the click has ended the step,
       // and the interpreter carries this beat on in that beat's box. A line a
       // divert holds open is already joined. Otherwise the line shows as a new
-      // one, without `continues`, so the interpreter starts a new box.
+      // one, without `continues`, so the interpreter starts a new box. A block
+      // body line that begins with `..` under a line that does not end with
+      // one was left unjoined by the compiler (`unjoined`), and warns here the
+      // same way.
+      const notJoined = () =>
+        story.Warning(
+          "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.",
+        );
       if (flag("continues")) {
         const state = story.state;
         if (state.lineJoinable) {
@@ -3167,12 +3174,11 @@ export const STDLIB: Record<string, StdLibEntry> = {
         ) {
           // A divert held the line open.
         } else {
-          story.Warning(
-            "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.",
-          );
+          notJoined();
           (payload as ObjectValue).value?.delete("continues");
         }
       }
+      if (flag("unjoined")) notJoined();
       // The line's author tags go to the stream first, as a tag written on
       // the line would, so they land in the same step's `currentTags`.
       const tags =

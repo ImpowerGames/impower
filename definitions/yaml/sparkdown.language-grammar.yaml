@@ -561,10 +561,16 @@ repository:
 
   # Whether a `..` that begins a line joins depends on the line the run shows
   # before it, so this mark is never coloured as an error; the engine warns
-  # about one that joins nothing.
+  # about one that joins nothing. It is tagged as `Glue` is, so the editor
+  # colours it as a mark and the screenplay leaves it out.
   LeadingGlue:
+    tag: meta
     name: meta.glue.leading.sd
     match: ({{LEADING_GLUE}})
+    captures:
+      1:
+        tag: keyword
+        name: keyword.other.glue.sd
 
   AlternatorGlue:
     tag: keyword

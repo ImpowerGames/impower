@@ -186,6 +186,18 @@ function followsLeadingGlue(node: SyntaxNode): boolean {
   return false;
 }
 
+// Whether `node` ends right where a `LeadingGlue` mark begins.
+function precedesLeadingGlue(node: SyntaxNode): boolean {
+  for (
+    let after: SyntaxNode | null = node.resolveInner(node.to, 1);
+    after && after.from === node.to;
+    after = after.parent
+  ) {
+    if (after.name === "LeadingGlue") return true;
+  }
+  return false;
+}
+
 export type FormatType =
   | "separator"
   // Like `separator` but always normalizes to one space — bypasses
@@ -557,6 +569,21 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       // line the line shows its text without them; after an interpolation
       // (`{x} ..   more`) the mark and the spaces are text the player sees.
       if (followsLeadingGlue(nodeRef.node)) return annotations;
+      // The space between a cue's colon and the `..` that begins its text
+      // (`HERO: .. Wait.`) is one space, as after any colon; the separator
+      // rule would read the `..` as a member access and remove it.
+      if (
+        this.read(nodeRef.from - 1, nodeRef.from) === ":" &&
+        precedesLeadingGlue(nodeRef.node)
+      ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+            nodeRef.from,
+            nodeRef.to,
+          ),
+        );
+        return annotations;
+      }
       const tightInline = isInsideAnyInlineAlternator(nodeRef, read);
       // Unary `-` collapse: if this WS sits immediately after a unary
       // ArithmeticOperator (`-x` not `a - b`), force tight (no space).

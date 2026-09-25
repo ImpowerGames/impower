@@ -378,7 +378,9 @@ export class InterpreterModule extends Module<
    * and a parenthetical on its cue, or on a line of its own before its text,
    * replaces the one shown; without them, the box's own stay. A beat with
    * neither text nor a break (only pictures or sound) leaves the box waiting
-   * and on the page, with empty `extended` counts.
+   * and on the page, with empty `extended` counts, unless its cue names a
+   * speaker for a dialogue box: then it carries on in the box too, so the new
+   * name shows over the box's text at the click.
    * `extend` marks a beat a `.. >` ended: the box it shows is kept for the
    * next step, with the `spaces` its table ends with, which join the two.
    */
@@ -423,9 +425,14 @@ export class InterpreterModule extends Module<
             position: typedBy?.position,
           })
         : undefined;
-    // A parenthetical of its own is shown in the box too, as a cue's is.
+    // A parenthetical of its own is shown in the box too, as a cue's is, and
+    // so is a speaker a beat of only pictures names.
     const carries = Boolean(
-      box && (boxInstructions?.text || pause || lifted),
+      box &&
+        (boxInstructions?.text ||
+          pause ||
+          lifted ||
+          (box.cue && ownCue?.name)),
     );
     const textTarget = carries ? boxTarget : target || defaultTarget;
     const cue = carries ? boxCue : ownCue;
@@ -485,15 +492,8 @@ export class InterpreterModule extends Module<
         contentInstructions.extended = extended;
       } else if (box) {
         // A beat of only pictures or sound runs at the click and leaves the
-        // box on the page, still waiting for its text. A cue it names is the
-        // box's speaker from here on.
+        // box on the page, still waiting for its text.
         contentInstructions.extended = {};
-        if (box.cue && ownCue?.name) {
-          box.cue = {
-            ...ownCue,
-            parenthetical: ownCue.parenthetical || box.cue.parenthetical,
-          };
-        }
       }
       if (contentInstructions.text) {
         if (characterParentheticalInstructions) {
@@ -557,12 +557,10 @@ export class InterpreterModule extends Module<
         delete this._state.box;
       }
     }
-    // Choices end the box: what a choice leads to starts a new one.
     if (choices?.length > 0) {
+      // Choices end the box: what a choice leads to starts a new one.
       delete this._state.box;
-    }
-    // Show choices after last textbox is done typing.
-    if (choices?.length > 0) {
+      // Show choices after last textbox is done typing.
       let lastTextbox = this._state.buffer?.at(-1);
       if (!lastTextbox) {
         lastTextbox = { end: 0 };

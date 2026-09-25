@@ -18,7 +18,7 @@ description stays grounded in the actual implementation.
 
 ### Glue: `<>` → a `..` on each side of the join
 
-Ink's `<>` glue becomes a pair of `..` marks: a display line that ends with `..` joins the next display line shown when that line begins with `..`, in the same beat. The join keeps the spaces written before the first mark and drops those after the second, so `A ..` then `.. B` shows "A B", `A   ..` keeps all three spaces, and `A..` then `..B` joins with none. Anything but a dot may touch a mark, so `Wait...` and `...and then` stay ellipses. A `..` in the middle of a line (`a..b`, `a .. b`) is text, except beside a break (below), and tags or a `//` comment may follow the `..` that ends a line. A mark on one side only joins nothing: `A ..` then `B`, or `A` then `.. B`, shows two lines, and inside a block body the line break between them stays.
+Ink's `<>` glue becomes a pair of `..` marks: a display line that ends with `..` joins the next display line shown when that line begins with `..`, in the same beat. The join keeps the spaces written before the first mark and drops those after the second, so `A ..` then `.. B` shows "A B", `A   ..` keeps all three spaces, and `A..` then `..B` joins with none. Anything but a dot may touch a mark, so `Wait...` and `...and then` stay ellipses. A `..` in the middle of a line (`a..b`, `a .. b`) is text, except beside a break (below), and tags or a `//` comment may follow the `..` that ends a line. A mark on one side only joins nothing: `A ..` then `B`, or `A` then `.. B`, shows two lines, and inside a block body the line break between them stays. A lone leading `..` raises the runtime warning below wherever it stands, in a block body too.
 
 ```sparkdown
 You see a ..

@@ -674,8 +674,15 @@
       }
     },
     "LeadingGlue": {
+      "tag": "meta",
       "name": "meta.glue.leading.sd",
-      "match": "((?:[.][.](?![.])))"
+      "match": "((?:[.][.](?![.])))",
+      "captures": {
+        "1": {
+          "tag": "keyword",
+          "name": "keyword.other.glue.sd"
+        }
+      }
     },
     "AlternatorGlue": {
       "tag": "keyword",

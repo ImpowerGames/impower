@@ -179,9 +179,12 @@ describe("a line that begins with `..` after a line that does not end with `..`"
   });
 
   test("in a block body, where the line break stays", () => {
-    const source = `ALICE:\n  A\n  .. B\n`;
-    expect(diagnosticsOf(source)).toEqual([]);
-    expect(runSource(source)).toEqual({ texts: ["A\nB\n"], warnings: [] });
+    for (const source of [`ALICE:\n  A\n  .. B\n`, `:\n  A\n  .. B\n  C ..\n  .. D\n`]) {
+      expect(diagnosticsOf(source), source).toEqual([]);
+      const { texts, warnings } = runSource(source);
+      expect(texts[0]!.startsWith("A\nB"), source).toBe(true);
+      expect(warnings, source).toEqual([NOT_JOINED]);
+    }
   });
 
   test("a line that begins with an ellipsis is text, and joins nothing", () => {
@@ -214,6 +217,56 @@ describe("a line that ends with `..` before a line that does not begin with `..`
       texts: ["A\nB\n"],
       warnings: [],
     });
+  });
+});
+
+// The offer a line that ends with `..` makes (`StoryState.lineJoinable`) is
+// part of the story's state: a click falls between the two steps of `.. >`.
+describe("the offer to join", () => {
+  const CLICK = `A .. >\n.. B\n\nscene elsewhere\n  .. C\nend\n\nfunction aside()\n  print("Aside.")\nend\n`;
+  const continuesOf = (story: RuntimeStory) =>
+    story.currentDisplayInstructions.map(
+      (table) =>
+        (table.value?.get("continues") as { value?: unknown } | undefined)
+          ?.value === true,
+    );
+  const started = () => {
+    const ctx = makeRuntimeStoryFromSource(CLICK);
+    expect(ctx.errorMessages).toEqual([]);
+    const warnings: string[] = [];
+    ctx.story.onError = (message) => {
+      warnings.push(message.replace(/^RUNTIME WARNING: .*?: /, ""));
+    };
+    expect(ctx.story.Continue()).toBe("A\n");
+    return { story: ctx.story, warnings };
+  };
+
+  test("survives a save and a load between the click's two steps", () => {
+    const { story } = started();
+    const saved = story.state.ToJson();
+    const again = makeRuntimeStoryFromSource(CLICK);
+    const warnings: string[] = [];
+    again.story.onError = (message) => warnings.push(message);
+    again.story.state.LoadJson(saved);
+    expect(again.story.Continue()).toBe("B\n");
+    expect(continuesOf(again.story)).toEqual([true]);
+    expect(warnings).toEqual([]);
+  });
+
+  test("is dropped by a host jump", () => {
+    const { story, warnings } = started();
+    story.ChoosePathString("elsewhere");
+    expect(story.Continue()).toBe("C\n");
+    expect(continuesOf(story)).toEqual([false]);
+    expect(warnings).toEqual([NOT_JOINED]);
+  });
+
+  test("outlives a host's function call that shows something", () => {
+    const { story, warnings } = started();
+    story.EvaluateFunction("aside");
+    expect(story.Continue()).toBe("B\n");
+    expect(continuesOf(story)).toEqual([true]);
+    expect(warnings).toEqual([]);
   });
 });
 

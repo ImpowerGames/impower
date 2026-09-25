@@ -216,6 +216,16 @@ describe("a `..` on each side of a break carries on in the box", () => {
     expect(inside.beats.map(shown)).toEqual(["A", "A C"]);
   });
 
+  test("a continuation of only pictures that names a speaker shows the name at the click", async () => {
+    const { beats } = await beatsOf(`  HERO: A .. >\n  BOB: .. [[b]]`, 2);
+    expect(on(beats[0], "character_name")).toBe("HERO");
+    expect(on(beats[1], "character_name")).toBe("BOB");
+    expect(on(beats[1], "dialogue")).toBe("A ");
+    // The box's text shows again at once; nothing is typed.
+    expect(beats[1]?.extended?.["dialogue"]).toBe("A ".length);
+    expect(Object.keys(beats[1]?.image ?? {})).toEqual(["portrait"]);
+  });
+
   test("a cue on a continuation of only pictures names the box's speaker", async () => {
     const { beats } = await beatsOf(
       `  HERO: A .. >\n  BOB: .. [[b]] ..\n  .. C`,

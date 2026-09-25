@@ -13,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, continues? })` with
+// `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, continues?, unjoined? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
@@ -35,7 +35,10 @@ import { stampDebugMetadata } from "./debugMetadata";
 // any beat's, and a line that begins with `..` carries on in the same box.
 // `continues` marks a beat whose text begins with `..`: `display` checks that
 // the line shown before it ends with `..`, and warns and shows the beat as a
-// line of its own when it does not. `open` marks a call that joins the next
+// line of its own when it does not. `unjoined` marks a beat of a block body
+// where a line begins with `..` and the body line above it does not end with
+// one: the compiler keeps the line break, and `display` raises the same
+// warning when the beat shows. `open` marks a call that joins the next
 // display call onto its line: `display` writes no newline after it, so the step
 // runs on until a call closes the line. A divert the line holds open carries
 // it. `caption` marks a `choose` block's last caption line, whose newline
@@ -65,6 +68,7 @@ export function buildDisplayCall(
     group?: string;
     open?: boolean;
     continues?: boolean;
+    unjoined?: boolean;
   } = {},
 ): FunctionCall {
   const entries: ObjectExpressionEntry[] = [];
@@ -92,6 +96,7 @@ export function buildDisplayCall(
     "inherit",
     "open",
     "continues",
+    "unjoined",
   ] as const) {
     if (options[flag]) entries.push(flagEntry(flag));
   }

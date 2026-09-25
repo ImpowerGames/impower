@@ -140,7 +140,7 @@ function buildDisplayCalls(
     }
     const trailingGlue = body[end - 1] instanceof GlueMark ? body[end - 1] : null;
     if (trailingGlue) body.splice(end - 1);
-    joinMidBodyGlue(body);
+    const unjoined = joinMidBodyGlue(body);
     // A plain divert holds the line open, so the target's first line joins
     // this one's beat. A `load` arrow's directive is its own step, which the
     // call's closing newline already starts.
@@ -206,6 +206,7 @@ function buildDisplayCalls(
             inherit: isContinuation && i > 0,
             open: divertJoins,
             continues: beatLeads,
+            unjoined,
           },
         ),
       );
@@ -248,8 +249,11 @@ function stripLoadKeyword(body: ParsedObject[]): ParsedObject[] | null {
 // break included, is dropped, across however many Text pieces it spans (the
 // spaces before a line's `# tag` are a piece of their own). A mark without its
 // partner joins nothing: the line break stays, without the spaces written
-// before a lone `..` that ends a line.
-function joinMidBodyGlue(body: ParsedObject[]): void {
+// before a lone `..` that ends a line. Returns whether a line began with a
+// lone `..`, which the story warns about when it shows the body, as it does
+// for any line that begins with `..` and joins nothing.
+function joinMidBodyGlue(body: ParsedObject[]): boolean {
+  let unjoined = false;
   for (let i = body.length - 1; i >= 0; i--) {
     if (body[i] instanceof LeadMark) {
       let before = i - 1;
@@ -260,6 +264,7 @@ function joinMidBodyGlue(body: ParsedObject[]): void {
         i = before;
       } else {
         body.splice(i, 1);
+        unjoined = true;
       }
     } else if (body[i] instanceof GlueMark) {
       body.splice(i, 1);
@@ -279,6 +284,7 @@ function joinMidBodyGlue(body: ParsedObject[]): void {
       }
     }
   }
+  return unjoined;
 }
 
 function isBlankText(obj: ParsedObject | undefined): boolean {
