@@ -233,7 +233,7 @@ describe("runtime diagnostics", () => {
       expect(await h.controller.startGameAndApp()).toBe(true);
       await settle(20);
       // The channel PLAY A's game posts on.
-      const channelOfA = h.link._channel.name;
+      const channelOfA = (h.link as any)._channel.name as string;
 
       // PLAY B is answered and listens, and waits before its application
       // attaches its own channel.
