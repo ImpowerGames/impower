@@ -92,7 +92,11 @@ import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnost
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
-import type { ScriptLocation, SparkProgram } from "../types/SparkProgram";
+import type {
+  FunctionSpan,
+  ScriptLocation,
+  SparkProgram,
+} from "../types/SparkProgram";
 import {
   LOCATION_STRIDE,
   narrowPaths,
@@ -499,9 +503,9 @@ export class SparkdownCompiler {
   // it into the program's columnar `pathLocations` table and drops it.
   protected _pathLocationDraft?: Record<string, ScriptLocation>;
 
-  // The runtime paths of the compile in progress's function containers, which
+  // The function containers of the compile in progress, which
   // `sortPathLocations` puts on the program's `pathLocations` table.
-  protected _functionPaths?: string[];
+  protected _functionSpans?: FunctionSpan[];
 
   // ---- Incremental location-map cache (Design A) ------------------------
   // Per top-level flow (knot/scene/function name = its key in the runtime
@@ -2004,7 +2008,7 @@ export class SparkdownCompiler {
     // reaches the walk cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
     this._pathLocationDraft = undefined;
-    this._functionPaths = undefined;
+    this._functionSpans = undefined;
     // Begin a fresh change summary. The verdict is only reached at the very end
     // of the compile, where every hazard below has had its chance to speak; a
     // compile that stops before then reports the answer that costs a client
@@ -2322,7 +2326,7 @@ export class SparkdownCompiler {
           Object.keys(program.scripts).map((u, i) => [u, i]),
         );
         this.populateAllLocations(program, story);
-        this._functionPaths = this.collectFunctionPaths(parsedStory);
+        this._functionSpans = this.collectFunctionSpans(parsedStory);
         // Carry this compile's chunk-identity set forward so the next compile
         // can tell which chunks are unchanged.
         this._prevCompilationIds = this._compilationIds;
@@ -4664,18 +4668,34 @@ export class SparkdownCompiler {
   }
 
   /**
-   * The runtime paths of every function container in the story: named
-   * functions, hoisted function literals and the callables a flow nests. A
-   * function's own nested flows are under its path, so the walk stops there.
+   * Every function container in the story, with the lines its declaration
+   * spans: named functions, hoisted function literals and the callables a
+   * flow nests. A function's own nested flows are under its path, so the walk
+   * stops there.
    */
-  protected collectFunctionPaths(story: Story): string[] {
-    const paths: string[] = [];
+  protected collectFunctionSpans(story: Story): FunctionSpan[] {
+    const spans: FunctionSpan[] = [];
     const visit = (flow: FlowBase) => {
       for (const sub of flow.subFlowsByName.values()) {
         if (sub.isFunction) {
           const path = sub.runtimeObject?.path?.componentsString;
           if (path) {
-            paths.push(path);
+            const md = sub.debugMetadata;
+            const scriptIndex = md?.filePath
+              ? this._scriptIndices?.get(md.filePath)
+              : undefined;
+            spans.push(
+              md && scriptIndex != null
+                ? {
+                    path,
+                    lines: [
+                      scriptIndex,
+                      md.startLineNumber - 1,
+                      md.endLineNumber - 1,
+                    ],
+                  }
+                : { path },
+            );
           }
         } else {
           visit(sub);
@@ -4683,7 +4703,7 @@ export class SparkdownCompiler {
       }
     };
     visit(story);
-    return paths;
+    return spans;
   }
 
   sortPathLocations(program: SparkProgram) {
@@ -4733,23 +4753,23 @@ export class SparkdownCompiler {
           }
         }
       }
-      program.pathLocations =
-        row === count
+      const functions = this._functionSpans;
+      program.pathLocations = {
+        ...(row === count
           ? { paths: narrowPaths(paths), values }
           : {
               paths: narrowPaths(paths.slice(0, row)),
               values: values.slice(0, row * LOCATION_STRIDE),
-            };
+            }),
+        ...(functions?.length ? { functions } : {}),
+      };
     } else if (draft) {
       // No creation-order index (locations weren't gathered via
       // `populateAllLocations`): sort by comparison instead.
-      program.pathLocations = pathLocationTableOf(draft);
-    }
-    if (program.pathLocations && this._functionPaths?.length) {
-      program.pathLocations.functions = this._functionPaths;
+      program.pathLocations = pathLocationTableOf(draft, this._functionSpans);
     }
     this._pathLocationDraft = undefined;
-    this._functionPaths = undefined;
+    this._functionSpans = undefined;
     profile("end", this._profilerId, "sortPathLocations", uri);
   }
 

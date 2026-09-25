@@ -32,12 +32,27 @@ export interface PathLocationTable {
   /** Five numbers per path — a {@link ScriptLocation} — in `paths` order. */
   values: Int32Array;
   /**
-   * The runtime paths of the containers that are functions: named `function`
-   * declarations, hoisted function literals and callables nested in a flow.
-   * A function's body runs only when it is called, so no row at or under one
-   * of these paths is a place a story can start or a preview can divert into.
+   * The containers that are functions: named `function` declarations, hoisted
+   * function literals and callables nested in a flow. A function's body runs
+   * only when it is called, so a row under one of these containers is not a
+   * place a story can start or a preview can divert into.
    */
-  functions?: string[];
+  functions?: FunctionSpan[];
+}
+
+/**
+ * A function container and the source lines its declaration spans.
+ *
+ * Story lines written after a function's `end` can be compiled into the
+ * function's container (#834), so a row under the container is only function
+ * code when it starts within these lines. A hoisted function literal records
+ * no lines: nothing but its own body is compiled into its container.
+ */
+export interface FunctionSpan {
+  /** The container's runtime path. */
+  path: string;
+  /** The declaration's script and its first and last lines, 0-based. */
+  lines?: [scriptIndex: number, startLine: number, endLine: number];
 }
 
 export interface SparkProgram {

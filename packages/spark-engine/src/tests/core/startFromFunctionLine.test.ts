@@ -5,6 +5,10 @@
 // from such a line starts at the story's next line of flow after it, or at the
 // top of the story when none follows; a preview of the line shows what that
 // start shows. Neither runs the function's body as story.
+//
+// Story lines written after a function's `end` are compiled into the
+// function's container (#834). They are story, not function code, so a run or
+// a preview from them, or from the function above them, still reaches them.
 
 import { describe, expect, test } from "vitest";
 import { Game } from "../../game/core/classes/Game";
@@ -79,9 +83,30 @@ describe("a store whose value is a function literal (#835)", () => {
   });
 });
 
-// The function is followed by a scene rather than by root story lines: root
-// lines after a function are compiled into its body (#834).
-describe("a function declaration before a scene (#835)", () => {
+describe("a store whose value is a function literal, after the last story line (#835)", () => {
+  const SOURCE = [
+    `A`,
+    `B`,
+    ``,
+    `store obj = setmetatable({}, { __index = function(t, k) return "found" end })`,
+    ``,
+  ].join("\n");
+
+  test("PLAY from its line starts at the top of the story", async () => {
+    const run = await playFrom(SOURCE, 3);
+    expect(run.errors).toEqual([]);
+    expect(run.executedLine).toBe(0);
+    expect(run.running).toBe(true);
+  });
+
+  test("a preview of its line diverts nowhere", async () => {
+    const shown = await previewOf(SOURCE, 3);
+    expect(shown.errors).toEqual([]);
+    expect(shown.path).toBeNull();
+  });
+});
+
+describe("a function declaration between story lines (#835, #834)", () => {
   const SOURCE = [
     `A`,
     ``,
@@ -89,7 +114,6 @@ describe("a function declaration before a scene (#835)", () => {
     `  return a < b`,
     `end`,
     ``,
-    `scene later`,
     `B`,
     `C`,
     ``,
@@ -99,18 +123,71 @@ describe("a function declaration before a scene (#835)", () => {
     ["its header", 2],
     ["its body", 3],
     ["its end", 4],
-  ])("PLAY from %s starts where PLAY from the scene does", async (_, line) => {
+  ])("PLAY from %s starts at the story line after it", async (_, line) => {
     const run = await playFrom(SOURCE, line);
     expect(run.errors).toEqual([]);
+    expect(run.startLine).toBe(6);
+    expect(run.executedLine).toBe(6);
     expect(run.running).toBe(true);
-    expect(run).toEqual(await playFrom(SOURCE, 6));
   });
 
-  test("a preview of its header shows what a preview of the scene shows", async () => {
+  test("a preview of its header shows the story line after it", async () => {
     const shown = await previewOf(SOURCE, 2);
     expect(shown.errors).toEqual([]);
-    expect(shown.path?.split(".")[0]).toBe("later");
-    expect(shown).toEqual(await previewOf(SOURCE, 6));
+    expect(shown.text).toContain("B");
+  });
+
+  test("PLAY from a story line after its end starts on that line", async () => {
+    const run = await playFrom(SOURCE, 7);
+    expect(run.errors).toEqual([]);
+    expect(run.executedLine).toBe(7);
+    expect(run.running).toBe(true);
+  });
+});
+
+describe("a function declaration before the first story line (#835, #834)", () => {
+  const SOURCE = [
+    `function less(a, b)`,
+    `  return a < b`,
+    `end`,
+    ``,
+    `A`,
+    `B`,
+    ``,
+  ].join("\n");
+
+  test("PLAY from its header starts at the first story line", async () => {
+    const run = await playFrom(SOURCE, 0);
+    expect(run.errors).toEqual([]);
+    expect(run.executedLine).toBe(4);
+    expect(run.running).toBe(true);
+  });
+
+  test("PLAY from a story line starts on that line", async () => {
+    const run = await playFrom(SOURCE, 5);
+    expect(run.errors).toEqual([]);
+    expect(run.executedLine).toBe(5);
+    expect(run.running).toBe(true);
+  });
+});
+
+describe("a function declared inside a scene (#835)", () => {
+  const SOURCE = [
+    `scene one`,
+    `  A`,
+    `  function g()`,
+    `    return 1`,
+    `  end`,
+    `  B`,
+    `end`,
+    ``,
+  ].join("\n");
+
+  test("PLAY from its header starts at the scene's line after it", async () => {
+    const run = await playFrom(SOURCE, 2);
+    expect(run.errors).toEqual([]);
+    expect(run.executedLine).toBe(5);
+    expect(run.running).toBe(true);
   });
 });
 

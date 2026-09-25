@@ -21,6 +21,7 @@ import {
   ProgramTransportEncoder,
 } from "@impower/sparkdown/src/workspace/utils/programTransport";
 import type {
+  FunctionSpan,
   PathLocationTable,
   ScriptLocation,
 } from "@impower/sparkdown/src/compiler/types/SparkProgram";
@@ -147,19 +148,30 @@ const isBindingPath = (path: string) =>
   path.includes("__binding_") &&
   path.split(".").some((seg) => seg.startsWith("__binding_"));
 
-/** Whether `path` is one of `functions` or inside one. */
-const isInFunction = (path: string, functions: string[]) =>
-  functions.some((f) => path === f || path.startsWith(f + "."));
+/** Whether a row is function code: under one of `functions` and, when the
+ *  function records its lines, starting within them. */
+const isInFunction = (
+  [path, location]: Entry,
+  functions: FunctionSpan[],
+) =>
+  functions.some(
+    (f) =>
+      (path === f.path || path.startsWith(f.path + ".")) &&
+      (!f.lines ||
+        (location[0] === f.lines[0] &&
+          location[1] >= f.lines[1] &&
+          location[1] <= f.lines[2])),
+  );
 
 /** The linear scan `findClosestPath` replaces, `.$s` rule included. */
 const scanClosestPath = (
   from: { file: string; line: number },
   entries: Entry[],
   scripts: string[],
-  functions: string[],
+  functions: FunctionSpan[],
 ) => {
   const previewable = entries.filter(
-    ([p]) => !isBindingPath(p) && !isInFunction(p, functions),
+    (entry) => !isBindingPath(entry[0]) && !isInFunction(entry, functions),
   );
   const [path] = scanClosestLocation(from, previewable, scripts) || [];
   const parentPath = path?.split(".").slice(0, -1).join(".");
@@ -187,7 +199,7 @@ describe("path locations resolve a source line by binary search", () => {
     expect(onScreen.length).toBeGreaterThan(0);
     expect(onScreen.every(([p]) => isBindingPath(p))).toBe(true);
     // A function whose rows the preview search skips.
-    expect(table.functions).toContain("Fn");
+    expect(table.functions?.map((f) => f.path)).toContain("Fn");
     expect(table.paths.some((p) => p.startsWith("Fn."))).toBe(true);
   });
 

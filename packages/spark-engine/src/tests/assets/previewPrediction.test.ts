@@ -1534,24 +1534,23 @@ end
   it("gates and writes for a cursor inside a function what it does for the story after the function", async () => {
     // A function's body runs only when called, so a preview of one of its
     // lines previews the story's next line of flow after it (#835): the
-    // function's picture is never asked for, and the scene's is.
+    // function's picture is never asked for, and the story's is. The story
+    // lines follow the function's `end`, where #834 compiles them into the
+    // function's container; they are still story.
     const story = `function greet
   [[show portrait bunny]]
   Hello there.
 end
 
-scene A
-  [[show backdrop room]]
-  Line one.
-  done
-end
+[[show backdrop room]]
+Line one.
 `;
     const inFunction = await previewGate(story, 1);
-    const atScene = await previewGate(story, 5);
-    expect(pathAt(inFunction.h.game, 1)).toBe(pathAt(atScene.h.game, 5));
-    expect(pathAt(inFunction.h.game, 1)).not.toMatch(/^greet\./);
-    expect(inFunction.gated).toEqual(atScene.gated);
-    expect(inFunction.written).toEqual(atScene.written);
+    const atStory = await previewGate(story, 5);
+    expect(pathAt(inFunction.h.game, 1)).toBe(pathAt(atStory.h.game, 5));
+    expect(inFunction.gated).toEqual(atStory.gated);
+    expect(inFunction.written).toEqual(atStory.written);
+    expect(atStory.written).toContain("room.png");
     expect(inFunction.written).not.toContain("bunny.png");
     expect(
       byMethod(inFunction.h.messages, "game/runtimeError").map(

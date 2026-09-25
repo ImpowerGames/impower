@@ -71,14 +71,12 @@ describe("a runtime error", () => {
   });
 
   test("raised inside a function a display line calls is reported where the function raised it", async () => {
-    // The function follows the story: story lines after a function compile
-    // into its body (#834).
     const h = await play(
-      `A\nB {f()}\nC\n\nfunction f()\n  error("deep")\nend\n`,
+      `function f()\n  error("deep")\nend\n\nA\nB {f()}\nC\n`,
     );
     h.game.continue();
     const errors = runtimeErrors(h.messages);
-    expect(errors[0].location.range.start.line).toBe(5);
+    expect(errors[0].location.range.start.line).toBe(1);
     expect(errors.map((e) => e.message)).toEqual(["deep"]);
   });
 

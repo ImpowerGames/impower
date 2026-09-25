@@ -77,14 +77,11 @@ end
 `;
 
 // Compiling the fixture and replaying its route takes seconds.
-// The function follows the story: story lines after a function compile into
-// its body (#834).
-const FUNCTION_CALL = `Hello {F()}.
-Bye.
-
-function F()
+const FUNCTION_CALL = `function F()
   return "world"
 end
+Hello {F()}.
+Bye.
 `;
 
 describe("the executed report", { timeout: 60_000 }, () => {
@@ -135,17 +132,17 @@ describe("the executed report", { timeout: 60_000 }, () => {
   });
 
   it("follows the line the listed report did when a line calls a function", async () => {
-    // Line 0 runs, then the function's body on line 4, then line 0 again:
-    // the line an editor follows is 4, the last one to join the set, and not
-    // 0, where the last location ends.
-    const reports = await runningReports(story(FUNCTION_CALL), 0);
+    // Line 3 runs, then the function's body on line 1, then line 3 again:
+    // the line an editor follows is 1, the last one to join the set, and not
+    // 3, where the last location ends.
+    const reports = await runningReports(story(FUNCTION_CALL), 3);
     expect(reports.length).toBeGreaterThan(0);
     for (const report of reports) {
       const { reported, expected } = highlights(report);
       expect(reported).toEqual(expected);
     }
     expect(
-      reports.some((r) => r.params.executedLines?.[MAIN_URI]?.last === 4),
+      reports.some((r) => r.params.executedLines?.[MAIN_URI]?.last === 1),
     ).toBe(true);
   });
 
