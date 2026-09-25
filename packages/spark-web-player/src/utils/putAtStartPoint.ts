@@ -1,4 +1,5 @@
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SimulationFailure } from "@impower/sparkdown/src/compiler/types/SimulationFailure";
 import { profile } from "./profile";
 import { programIdentity, type IdentifiableProgram } from "./programIdentity";
@@ -12,6 +13,8 @@ export interface StartPointRoute {
   /** The program the search ran in. */
   programId?: string;
   failure?: SimulationFailure;
+  /** What the replay that produced the checkpoint raised on its way. */
+  errors?: SimulationError[];
 }
 
 /** The game, as far as putting it at its start point needs it. Structural so
@@ -22,6 +25,8 @@ export interface StartableGame {
   simulatePath: string | null | undefined;
   simulation: string | undefined;
   simulationFailure: SimulationFailure | undefined;
+  /** What the game's own replay of a route raised. */
+  readonly routeErrors: SimulationError[];
   load(checkpoint: string): boolean;
   simulate(
     simulationOptions?: Record<
@@ -52,6 +57,10 @@ export interface StartableGame {
  * treated as no answer at all, and the search runs on the game, which is safe
  * because the only case that reaches it is one where a route was already
  * found to exist.
+ *
+ * Answers the runtime errors and warnings the route to the start point
+ * raised, or the errors that kept a search from finding one: the worker's
+ * when its answer applies, and the game's own when it searches.
  */
 export function putAtStartPoint(
   game: StartableGame,
@@ -67,10 +76,17 @@ export function putAtStartPoint(
   route: StartPointRoute | undefined,
   /** Names the thread that runs the rule in its profile marks. */
   profilerId?: string,
-): void {
+): SimulationError[] {
   const mark = (profilerId ? profilerId + " " : "") + "game/simulate";
   profile("start", mark);
-  const { checkpoint, path: simulatedPath, programId, failure } = route ?? {};
+  const {
+    checkpoint,
+    path: simulatedPath,
+    programId,
+    failure,
+    errors,
+  } = route ?? {};
+  let raised: SimulationError[] = [];
   const startPath = game.startPath;
   // Both halves are required. The path says where the answer is about; the
   // program identity says what script it is about, which the path cannot:
@@ -92,8 +108,11 @@ export function putAtStartPoint(
       // A checkpoint that will not load (a truncated or malformed save) is
       // searched for after all: the worker reaching this start point proves
       // a route exists, so the search finds one and ends.
-      if (!game.load(checkpoint)) {
+      if (game.load(checkpoint)) {
+        raised = errors ?? [];
+      } else {
         game.simulate(simulationOptions);
+        raised = game.routeErrors;
       }
     } else {
       // No route to this start point exists. Searching again would reach
@@ -104,12 +123,16 @@ export function putAtStartPoint(
       game.simulatePath = Game.getSimulateFromPath(startPath);
       game.simulation = "fail";
       game.simulationFailure = failure;
+      // What stopped the worker's search, which this run reports as its own.
+      raised = errors ?? [];
     }
   } else {
     // No worker answer applies to this run: nothing was ever selected, the
     // worker resolved a different path, or it answered for a different
     // version of the script. This is the only search there is.
     game.simulate(simulationOptions);
+    raised = game.routeErrors;
   }
   profile("end", mark);
+  return raised;
 }

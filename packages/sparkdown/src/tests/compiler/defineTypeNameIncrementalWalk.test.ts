@@ -53,17 +53,21 @@ function fixture() {
   L.push("title: Define Type Fixture");
   L.push("author: Anonymous");
   L.push("");
-  L.push("define base_actor as object:");
+  L.push("define base_actor as object with");
   L.push("  hp = 10");
+  L.push("end");
   L.push("");
-  L.push("define hero as base_actor:");
+  L.push("define hero as base_actor with");
   L.push(`  name = "Hero"`);
+  L.push("end");
   L.push("");
-  L.push("define villain as base_actor:");
+  L.push("define villain as base_actor with");
   L.push(`  name = "Villain"`);
+  L.push("end");
   L.push("");
-  L.push("define spawner as object:");
+  L.push("define spawner as object with");
   L.push("  rate = 1");
+  L.push("end");
   L.push("");
   for (let b = 0; b < 12; b++) {
     L.push(`function build_${b}()`);
@@ -224,12 +228,12 @@ describe("define type names are collected incrementally (#649)", () => {
     const registry = open(text);
 
     // An `as`-parent gains a type name.
-    text = replace(registry, text, "define spawner as object:", "define spawner as base_actor:");
+    text = replace(registry, text, "define spawner as object with", "define spawner as base_actor with");
     expect(names(registry)).toEqual(coldNames(registry));
 
     // A `new X()` target deep inside a function body is renamed. Renaming the
     // define it names as well keeps the document's bindings intact.
-    text = replace(registry, text, "define spawner as base_actor:", "define maker as base_actor:");
+    text = replace(registry, text, "define spawner as base_actor with", "define maker as base_actor with");
     while (text.includes("new spawner()")) {
       text = replace(registry, text, "new spawner()", "new maker()");
     }
@@ -238,9 +242,9 @@ describe("define type names are collected incrementally (#649)", () => {
     expect(names(registry)).not.toContain("spawner");
 
     // The last `new X()` target for `base_actor` leaves the set.
-    text = replace(registry, text, "define hero as base_actor:", "define hero as object:");
-    text = replace(registry, text, "define villain as base_actor:", "define villain as object:");
-    text = replace(registry, text, "define maker as base_actor:", "define maker as object:");
+    text = replace(registry, text, "define hero as base_actor with", "define hero as object with");
+    text = replace(registry, text, "define villain as base_actor with", "define villain as object with");
+    text = replace(registry, text, "define maker as base_actor with", "define maker as object with");
     expect(names(registry)).toEqual(coldNames(registry));
     expect(names(registry)).not.toContain("base_actor");
 

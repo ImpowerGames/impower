@@ -26,6 +26,9 @@ import { GameAwaitingInteractionMessage } from "@impower/spark-engine/src/game/c
 import { GameChosePathToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameChosePathToContinueMessage";
 import { GameClickedToContinueMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameClickedToContinueMessage";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
+import { RuntimeDiagnosticsMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage";
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
+import { RuntimeDiagnosticsRun } from "./utils/RuntimeDiagnosticsRun";
 import {
   GameExecutedMessage,
   type GameExecutedParams,
@@ -83,7 +86,7 @@ import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
 import { putAtStartPoint } from "./utils/putAtStartPoint";
 import { conflate } from "./utils/conflate";
 import { describeSimulationFailure } from "./utils/describeSimulationFailure";
-import { programIdentity } from "./utils/programIdentity";
+import { programIdentity, type IdentifiableProgram } from "./utils/programIdentity";
 import { resolvePreviewPoint } from "./utils/resolvePreviewPoint";
 import { profile } from "./utils/profile";
 import { sharedNow } from "@impower/spark-engine/src/game/core/utils/sharedClock";
@@ -256,6 +259,89 @@ export class GamePlayerController {
   // the same status row the preview does, and would otherwise have nothing to
   // say there (#379).
   _simulationFailure?: SimulationFailure;
+  // The runtime errors and warnings the replay of that route raised, which a
+  // game that loads `_checkpoint` never runs into itself.
+  _simulationErrors?: SimulationError[];
+
+  // ---- Runtime diagnostics ------------------------------------------------
+  //
+  // The editor shows the runtime errors and warnings of one run at a time:
+  // PLAY, or the preview at the author's line with the route replayed to it.
+  // A new PLAY replaces the run, and so does a preview at another position or
+  // of another program. STOP keeps PLAY's run: the preview it hands the
+  // screen back to, at the line PLAY stopped on, is not a new position.
+
+  protected _runtimeRun?: RuntimeDiagnosticsRun;
+  /** The preview position the current run belongs to, if any. */
+  protected _runtimeRunPosition?: string;
+
+  /** A preview position, as runs are told apart by it. */
+  protected runtimePosition(
+    program: IdentifiableProgram | undefined,
+    file: string,
+    line: number,
+  ) {
+    return `${programIdentity(program)} ${file}:${line}`;
+  }
+
+  /** Begin a new run of `program`, whose errors `owner` reports, with the
+   *  errors the route to its start raised. */
+  protected beginRuntimeRun(
+    program: SparkProgram,
+    owner: unknown,
+    errors: SimulationError[],
+    position?: string,
+  ) {
+    const run = new RuntimeDiagnosticsRun(program, owner);
+    for (const error of errors) {
+      run.add(error);
+    }
+    this._runtimeRun = run;
+    this._runtimeRunPosition = position;
+    this.reportRuntimeDiagnostics();
+  }
+
+  /** Begin the preview's run at a position, unless the current run already
+   *  belongs to that position. */
+  protected beginPreviewRuntimeRun(
+    program: SparkProgram,
+    owner: unknown,
+    file: string,
+    line: number,
+    errors: SimulationError[],
+  ) {
+    const position = this.runtimePosition(program, file, line);
+    if (this._runtimeRun && position === this._runtimeRunPosition) {
+      return;
+    }
+    this.beginRuntimeRun(program, owner, errors, position);
+  }
+
+  /** An error `owner` reported as its game raised it. */
+  protected recordRuntimeError(owner: unknown, error: SimulationError) {
+    const run = this._runtimeRun;
+    if (!run || run.owner !== owner || this.displayingSpeculative) {
+      return;
+    }
+    if (run.add(error)) {
+      this.reportRuntimeDiagnostics();
+    }
+  }
+
+  /** Send the editor the current run's whole report: as each run begins,
+   *  and as it raises something new. A run that says what the last one said
+   *  is still reported, since the language server takes each report as the
+   *  program as it is now. */
+  protected reportRuntimeDiagnostics() {
+    const run = this._runtimeRun;
+    if (!run) {
+      return;
+    }
+    sendProtocolMessage(
+      RuntimeDiagnosticsMessage.type.notification(run.params()),
+      this.host,
+    );
+  }
 
   // ---- Autocomplete suggestion previews -----------------------------------
   //
@@ -941,6 +1027,7 @@ export class GamePlayerController {
       simulationFailure,
       simulatedPath,
       simulatedProgramId,
+      simulationErrors,
       userEvent,
       programOutdated,
     } = message.params;
@@ -965,6 +1052,7 @@ export class GamePlayerController {
       this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;
       this._simulatedProgramId = simulatedProgramId;
+      this._simulationErrors = simulationErrors;
       if (this._program && !this.playing) {
         if (!(startFrom.file in this._program.scripts)) {
           if (workspace) {
@@ -1413,6 +1501,7 @@ export class GamePlayerController {
       simulationFailure,
       simulatedPath,
       simulatedProgramId,
+      simulationErrors,
     } = message.params;
     await this.loadProgram(
       program,
@@ -1420,6 +1509,7 @@ export class GamePlayerController {
       simulationFailure,
       simulatedPath,
       simulatedProgramId,
+      simulationErrors,
     );
   };
 
@@ -1874,6 +1964,7 @@ export class GamePlayerController {
       simulationFailure?: SimulationFailure,
       simulatedPath?: string | null,
       simulatedProgramId?: string,
+      simulationErrors?: SimulationError[],
     ) => {
       if (!isRunnableProgram(program)) {
         console.error("Program not compiled", program);
@@ -1901,6 +1992,7 @@ export class GamePlayerController {
       this._simulationFailure = simulationFailure;
       this._simulatedPath = simulatedPath;
       this._simulatedProgramId = simulatedProgramId;
+      this._simulationErrors = simulationErrors;
       if (this.playing) {
         // Stop and restart game if we loaded a new game while the old game
         // was running, or starting in the worker. (GameReloaded is sent when
@@ -1962,12 +2054,18 @@ export class GamePlayerController {
       return this.startWorkerPlay(program, workspace.gameLink, restarted);
     }
     this._game = await this.buildGame(program, restarted);
-    putAtStartPoint(this._game, this._options?.simulationOptions, {
-      checkpoint: this._checkpoint,
-      path: this._simulatedPath,
-      programId: this._simulatedProgramId,
-      failure: this._simulationFailure,
-    });
+    const routeErrors = putAtStartPoint(
+      this._game,
+      this._options?.simulationOptions,
+      {
+        checkpoint: this._checkpoint,
+        path: this._simulatedPath,
+        programId: this._simulatedProgramId,
+        failure: this._simulationFailure,
+        errors: this._simulationErrors,
+      },
+    );
+    this.beginRuntimeRun(program, this._game, routeErrors);
     this.listen(this._game);
     this._app = await this.buildApp(this._game);
     const programCompiled = hasCompiledProgram(program);
@@ -2030,12 +2128,16 @@ export class GamePlayerController {
       if (!current()) {
         return abandon();
       }
-      this._stopListeningToPlay = this.listenToWorker(link, () =>
-        this._workerPlay !== play
-          ? "stopped"
-          : play.startSent
-            ? "running"
-            : play.state,
+      this.beginRuntimeRun(program, play, built.errors ?? []);
+      this._stopListeningToPlay = this.listenToWorker(
+        link,
+        () =>
+          this._workerPlay !== play
+            ? "stopped"
+            : play.startSent
+              ? "running"
+              : play.state,
+        play,
       );
       // A preview build a detach left under way still holds the application
       // slot until it has disposed of its application.
@@ -2255,6 +2357,19 @@ export class GamePlayerController {
     // A run that ended in an error leaves the author on the statement that
     // raised it; any other run, where it last executed.
     const selected = error?.location ?? lastExecutedLocation;
+    // The preview at that line shows where the run ended rather than
+    // beginning a run of its own, so PLAY's diagnostics stay. That holds only
+    // for a preview of the program the run ran: an edit that compiled while
+    // it ran is previewed as a run of its own.
+    const run = this._runtimeRun;
+    this._runtimeRunPosition =
+      selected && run
+        ? this.runtimePosition(
+            run.program,
+            selected.uri,
+            selected.range.start.line,
+          )
+        : undefined;
     if (selected && workspace) {
       // Ensure the workspace simulates a checkpoint from the selected location
       await workspace.selectTextDocument({
@@ -2442,12 +2557,16 @@ export class GamePlayerController {
 
   /** Relay what a game reports: a game on this page, or the worker's
    *  (`listenToWorker`). */
-  listen(game: {
-    state?: string;
-    connection: {
-      outgoing: { addListener(method: string, listener: (msg: any) => void): unknown };
-    };
-  }) {
+  listen(
+    game: {
+      state?: string;
+      connection: {
+        outgoing: { addListener(method: string, listener: (msg: any) => void): unknown };
+      };
+    },
+    /** What the game's runtime errors are reported as coming from. */
+    owner: unknown = game,
+  ) {
     game.connection.outgoing.addListener(
       GameEncounteredRuntimeErrorMessage.method,
       async (msg) => {
@@ -2455,6 +2574,7 @@ export class GamePlayerController {
           const type = msg.params.type;
           const message = msg.params.message;
           const location = msg.params.location;
+          this.recordRuntimeError(owner, { message, type, location });
           if (type === ErrorType.Error) {
             console.error(message, location);
           } else if (type === ErrorType.Warning) {
@@ -2600,19 +2720,25 @@ export class GamePlayerController {
   listenToWorker(
     link: WorkerGameLink,
     state: () => string = () => "previewing",
+    /** What the game's runtime errors are reported as coming from: the
+     *  worker's preview game, reported through the link, unless named. */
+    owner: unknown = link,
   ): () => void {
     const stops: (() => void)[] = [];
-    this.listen({
-      get state() {
-        return state();
-      },
-      connection: {
-        outgoing: {
-          addListener: (method, listener) =>
-            stops.push(link.addListener(method, listener)),
+    this.listen(
+      {
+        get state() {
+          return state();
+        },
+        connection: {
+          outgoing: {
+            addListener: (method, listener) =>
+              stops.push(link.addListener(method, listener)),
+          },
         },
       },
-    });
+      owner,
+    );
     return () => stops.forEach((stop) => stop());
   }
 
@@ -2720,7 +2846,7 @@ export class GamePlayerController {
       this.restoreWorkerDebugger(link);
     }
     const shown = this._completionShown;
-    let result: { displayed: boolean } | undefined;
+    let result: { displayed: boolean; errors?: SimulationError[] } | undefined;
     // A detach ends the wait for the answer: the application the display
     // was for is gone, and the worker may never answer a display whose
     // application no longer tells it that fonts and pictures arrived, while
@@ -2759,6 +2885,9 @@ export class GamePlayerController {
     }
     if (overtaken() || !result.displayed) {
       return false;
+    }
+    if (!options?.speculative) {
+      this.beginPreviewRuntimeRun(program, link, file, line, result.errors ?? []);
     }
     if (selectionVersion === this._selectionVersion) {
       this._previewPosition = { uri: file, line };
@@ -2918,6 +3047,17 @@ export class GamePlayerController {
     // out what only the editors would read.
     this._game.reportsExecutedLines = !this.displayingSpeculative;
     const game = this._game;
+    if (!options?.speculative) {
+      // Before the step at the point runs, which reports what it raises into
+      // this run. The route there was replayed where the checkpoint was made.
+      this.beginPreviewRuntimeRun(
+        program,
+        game,
+        file,
+        line,
+        this._simulationErrors ?? [],
+      );
+    }
     const overtaken = () =>
       update !== this._previewUpdates ||
       this._game !== game ||

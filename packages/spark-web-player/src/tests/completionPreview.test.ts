@@ -546,6 +546,7 @@ for (const worker of [false, true]) {
             program: p,
             start: () => {},
             simulate: () => {},
+            routeErrors: [],
           };
           return controller._game;
         };

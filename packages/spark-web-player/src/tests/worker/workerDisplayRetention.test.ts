@@ -13,8 +13,9 @@ import { programIdentity } from "../../utils/programIdentity";
 import { createPlayerHarness, MAIN_URI } from "./playerHarness";
 
 const TEXT = [
-  "define hero as character:",
+  "define hero as character with",
   `  name = "Hero"`,
+  "end",
   "",
   ...Array.from({ length: 6 }, (_, s) => [
     `scene scene_${s}`,
@@ -296,7 +297,8 @@ describe("the stories the worker keeps", () => {
         real: held,
       });
       h.workspace.programHeld(programIdentity(newer.program)!);
-      expect(await display).toEqual({ displayed: true });
+      // Nothing on the route or at the line raises anything.
+      expect(await display).toEqual({ displayed: true, errors: [] });
     } finally {
       h.dispose();
     }

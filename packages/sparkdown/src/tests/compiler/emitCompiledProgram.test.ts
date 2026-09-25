@@ -48,8 +48,9 @@ function compile(text: string, emitCompiledProgram?: boolean) {
 const SOURCE = [
   "title: Emit Toggle",
   "",
-  "define hero as character:",
+  "define hero as character with",
   `  name = "Hero"`,
+  "end",
   "",
   "const LIMIT = 3",
   "store trust = 0",

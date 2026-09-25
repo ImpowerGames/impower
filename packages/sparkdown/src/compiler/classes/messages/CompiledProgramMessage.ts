@@ -1,6 +1,7 @@
 import { MessageProtocolNotificationType } from "@impower/jsonrpc/src/common/classes/MessageProtocolNotificationType";
 import type { NotificationMessage } from "@impower/jsonrpc/src/common/types/NotificationMessage";
 import { type SparkProgram } from "../../types/SparkProgram";
+import type { SimulationError } from "../../types/SimulationError";
 import type { SimulationFailure } from "../../types/SimulationFailure";
 import type { VersionedTextDocumentIdentifier } from "../../types/VersionedTextDocumentIdentifier";
 
@@ -73,6 +74,12 @@ export interface CompiledProgramParams {
    * disagree on identical programs and agree on different ones.
    */
   simulatedProgramId?: string;
+  /**
+   * The runtime errors and warnings the replay of the route to the start point
+   * raised, sent whenever `checkpoint` could be: a game that loads the
+   * checkpoint never runs the route, and reports these as its own.
+   */
+  simulationErrors?: SimulationError[];
   /**
    * Per-file diagnostic counts. Populated (and `program.diagnostics` omitted)
    * when the workspace is initialized with `slimProgramNotifications`.

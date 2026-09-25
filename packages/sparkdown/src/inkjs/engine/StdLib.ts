@@ -1,6 +1,6 @@
 import { ControlCommand } from "./ControlCommand";
 import { getPluralCategory } from "./PluralRules";
-import { StoryException } from "./StoryException";
+import { StepLimitExceeded, StoryException } from "./StoryException";
 import { PRNG } from "./PRNG";
 import { Void } from "./Void";
 import {
@@ -3967,6 +3967,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           try {
             results = story.CallLuauFunction(replArg, callArgs);
           } catch (e) {
+            if (e instanceof StepLimitExceeded) throw e;
             story.ErrorFrom(
               `string.gsub: replacement function threw: ${(e as Error).message}`,
               e,
@@ -4798,6 +4799,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           if (top == null) return false;
           return isTruthy(top);
         } catch (e) {
+          if (e instanceof StepLimitExceeded) throw e;
           story.ErrorFrom(
             `table.sort: comparator threw: ${(e as Error).message}`,
             e,

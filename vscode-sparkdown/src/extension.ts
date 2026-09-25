@@ -19,6 +19,7 @@ import { activateNewlineHelper } from "./utils/activateNewlineHelper";
 import { activateOutlineView } from "./utils/activateOutlineView";
 import { activatePreviewGamePanel } from "./utils/activatePreviewGamePanel";
 import { activatePreviewScreenplayPanel } from "./utils/activatePreviewScreenplayPanel";
+import { activateRuntimeDiagnostics } from "./utils/activateRuntimeDiagnostics";
 import { activateScreenPreview } from "./utils/activateScreenPreview";
 import { activateVirtualDeclarations } from "./utils/activateVirtualDeclarations";
 import { activatePortraitNormalization } from "./utils/activatePortraitNormalization";
@@ -42,6 +43,7 @@ export function activate(context: vscode.ExtensionContext) {
   activateCompilationView(context);
   activateFileWatcher(context);
   activateLanguageClient(context);
+  activateRuntimeDiagnostics(context);
   activateNewlineHelper(context);
   activateDebugger(context);
   activateVirtualDeclarations(context);
