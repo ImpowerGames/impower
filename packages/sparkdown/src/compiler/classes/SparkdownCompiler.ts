@@ -897,7 +897,8 @@ export class SparkdownCompiler {
   // Counts down from zero so no preview version can equal a real one.
   protected _lastPreviewVersion = 0;
   // While recomputing a non-reusable flow's subtree, populateLocations tees the
-  // entries it commits here so they can be cached for next compile.
+  // path entries it commits and every global data write the flow makes here, so
+  // they can be cached for next compile.
   protected _locCaptureTarget?: {
     pathEntries: FlowLocCacheEntry["pathEntries"];
     dataEntries: FlowLocCacheEntry["dataEntries"];
@@ -3811,22 +3812,24 @@ export class SparkdownCompiler {
         if (varAss.variableName && !varAss.isNewDeclaration) {
           if (varAss.isGlobal) {
             program.dataLocations ??= {};
-            // Explicit first-write check (was `??=`) so we capture into the
-            // flow cache ONLY the entry this call actually committed.
+            const tuple: [number, number, number, number, number] = [
+              scriptIndex,
+              startLine,
+              startColumn,
+              endLine,
+              endColumn,
+            ];
             if (!(varAss.variableName in program.dataLocations)) {
-              const tuple: [number, number, number, number, number] = [
-                scriptIndex,
-                startLine,
-                startColumn,
-                endLine,
-                endColumn,
-              ];
               program.dataLocations[varAss.variableName] = tuple;
-              this._locCaptureTarget?.dataEntries.push({
-                key: varAss.variableName,
-                tuple,
-              });
             }
+            // A global belongs to its first writer across all flows, so the
+            // flow cache keeps this write even when an earlier flow owns the
+            // name: if that flow stops writing it, a replay of this flow
+            // must be able to claim it (`spliceCachedFlowLocations`).
+            this._locCaptureTarget?.dataEntries.push({
+              key: varAss.variableName,
+              tuple,
+            });
           } else {
             const containerPath = (precomputedPath ?? varAss.path.toString())
               .split(".")

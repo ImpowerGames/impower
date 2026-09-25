@@ -26,10 +26,10 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 // the per-flow location cache (Design A) and ToJson memo (Design B) reuse, so
 // the diverse edits below genuinely exercise the reuse paths.
 //
-// Each scene also holds a glued continuation with a break unless
-// `continuations` is false. Lowering names a continuation's `group` by the
-// offset its statement starts at, which an edit above it moves.
-function coupledScreenplay({ continuations = true } = {}): string {
+// Each scene also holds a glued continuation with a break. Lowering names a
+// continuation's `group` by the offset its statement starts at, which an edit
+// above it moves.
+function coupledScreenplay(): string {
   const L: string[] = [];
   L.push("title: Incr Fixture");
   L.push("author: Anonymous");
@@ -59,10 +59,8 @@ function coupledScreenplay({ continuations = true } = {}): string {
     L.push(`hero:`);
     L.push(`  Line one of dialogue in scene ${s}.`);
     L.push(`  Second line with {trust} and read-count {scene_${(s + 1) % SC}} here.`);
-    if (continuations) {
-      L.push(`hero: Glued in scene ${s} ..`);
-      L.push(`.. carried on > and broken.`);
-    }
+    L.push(`hero: Glued in scene ${s} ..`);
+    L.push(`.. carried on > and broken.`);
     L.push("if trust > 2 then");
     L.push(`  hero: I trust you in scene ${s}.`);
     L.push("else");
@@ -451,22 +449,49 @@ describe("compiler incremental equivalence", () => {
     }
   });
 
+  // A global's data location belongs to its first writer across all flows.
+  // Removing that writer passes the name to the next one, here in a scene the
+  // edit leaves unchanged, whose cached locations never held the name.
+  for (const edit of [
+    { name: "delete the first writer line", find: "& trust = 1\n", replace: "" },
+    { name: "comment out the first writer", find: "& trust = 1", replace: "& tr// cust = 1" },
+  ]) {
+    it(`incremental == cold data locations when an edit removes a global's first writer: ${edit.name}`, () => {
+      const base = "store trust = 0\n\nscene one\n& trust = 1\n-> two\nend\n\nscene two\n& trust = 2\nend\n";
+      const offset = base.indexOf(edit.find);
+      expect(offset).toBeGreaterThanOrEqual(0);
+      const after = base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length);
+      const incr = new SparkdownCompiler();
+      incr.configure({
+        files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
+      });
+      incr.compile({ textDocument: { uri: URI } });
+      incr.updateDocument({
+        textDocument: { uri: URI, version: 2 },
+        contentChanges: [
+          { range: { start: posAt(base, offset), end: posAt(base, offset + edit.find.length) }, text: edit.replace },
+        ],
+      });
+      const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+      const coldProg = coldCompile(after);
+      expect(coldProg.dataLocations?.trust).toBeDefined();
+      expect(stable(incrProg)).toBe(stable(coldProg));
+    });
+  }
+
   it("incremental == cold under randomized structural edits (fuzz, full surface)", () => {
     // Each random edit (structural inserts AND mid-content deletions) is applied
     // as a SINGLE incremental update from a freshly configured compiler and
     // compared on the FULL program surface to a cold compile. This exercises the
     // location/ToJson reuse paths AND the incremental parser+annotation+validation
-    // across a wide variety of edit sites/kinds.
-    //
-    // The fixture leaves out the continuations: with them, the seeded edits
-    // include one that removes the first writer of `trust`, whose data
-    // location an incremental compile drops (#846).
+    // across a wide variety of edit sites/kinds. The seeded edits include one
+    // that comments out scene 0's `& trust = …`, the first writer of `trust`.
     const realWarn = console.warn;
     const realError = console.error;
     console.warn = () => {};
     console.error = () => {};
     try {
-      const base = coupledScreenplay({ continuations: false });
+      const base = coupledScreenplay();
       // Deterministic LCG so the fuzz is reproducible (no Math.random).
       let seed = 0x2f6e2b1;
       const rand = () => {
