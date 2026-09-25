@@ -42,6 +42,7 @@ import {
   ObjectExpressionEntry,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
+import { BINDING_ID_PREFIX } from "../lower/lowerers/lowerSparkleBody";
 import { ReturnType as ParsedReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
@@ -3023,10 +3024,12 @@ export class SparkdownCompiler {
           if (k instanceof FlowBase) {
             // A layout or component declared twice in one file mints the
             // same binding evaluator names in both chunks. The later
-            // declaration is the one `program.sparkle` keeps, so its
-            // evaluators replace the earlier ones.
+            // declaration is the one `program.sparkle` keeps (the
+            // `Object.assign` of each chunk's `sparkle` trees further down
+            // this loop, in the same chunk order), so its evaluators replace
+            // the earlier ones.
             const name = k.identifier?.name;
-            if (name?.startsWith("__binding_")) {
+            if (name?.startsWith(BINDING_ID_PREFIX)) {
               const earlier = bindingEvaluators.get(name);
               if (earlier) {
                 supersededEvaluators.add(earlier);
@@ -3374,6 +3377,8 @@ export class SparkdownCompiler {
           if (trees) {
             program.sparkle ??= {};
             program.sparkle[kind] ??= {};
+            // Later chunks replace earlier trees of the same name; the
+            // hoisted-knot loop above keeps the matching binding evaluators.
             Object.assign(program.sparkle[kind]!, trees);
           }
         }

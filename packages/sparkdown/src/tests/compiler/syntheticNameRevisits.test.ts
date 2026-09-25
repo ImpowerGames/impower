@@ -96,10 +96,10 @@ function incrementalAndCold(project: Project, name: string, offset: number, inse
   });
 }
 
-function compileOnce(main: string) {
+function compileOnce(main: string, others: Project = {}) {
   return quiet(() => {
     const compiler = new SparkdownCompiler();
-    configure(compiler, { main }, 1);
+    configure(compiler, { main, ...others }, 1);
     return compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
   });
 }
@@ -222,5 +222,16 @@ describe("binding evaluator names", () => {
     );
     expect(diagnostics(adapted).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
     expect(firstBindingValue(adapted, "la")).toBe(2);
+  });
+
+  it("a layout declared in two files compiles, and the later one is kept", () => {
+    // The two paths hash alike under 32-bit FNV-1a, so a name taken from a
+    // hash of the path would give both files' bindings one evaluator.
+    const program = compileOnce(["store a = 1", "store b = 2", "include f19349.sd", "include f1238112.sd", ""].join("\n"), {
+      f19349: ["layout shared with", '  text "{a}"', "end", ""].join("\n"),
+      f1238112: ["", "", "layout shared with", '  text "{b}"', "end", ""].join("\n"),
+    });
+    expect(diagnostics(program).filter((m) => m.includes("Duplicate identifier"))).toEqual([]);
+    expect(firstBindingValue(program, "shared")).toBe(2);
   });
 });

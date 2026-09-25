@@ -183,26 +183,40 @@ const PLAIN_CONTENT_NODES = nodeNameSet([
   "LuauElementContentStringSingleQuoted",
 ]);
 
-/** A short, stable, identifier-safe tag for the document being lowered.
- *
- *  FNV-1a over the path: no crypto dependency, and stable across runs, unlike
- *  a counter, which would change every id whenever an unrelated file was
- *  added and defeat the "first registration wins" reuse below. */
+/** Every binding evaluator's name starts with this. */
+export const BINDING_ID_PREFIX = "__binding_";
+
+/** An identifier-safe spelling of the document's path that no other path
+ *  shares, followed by `__`: letters and digits stay, and every other
+ *  character becomes `_` and two hex digits, or `_u` and six for a code point
+ *  above 0xff. An escape never contains `__`, so the tag ends at the first
+ *  one. The tag is derived from the path alone, unlike a counter, which would
+ *  change every id whenever an unrelated file was added and defeat the
+ *  "first registration wins" reuse below. A hash of the path would be
+ *  shorter, but two paths whose hashes collide would give their files'
+ *  bindings one evaluator. */
 function documentTag(filePath: string | undefined | null): string {
   if (!filePath) {
     return "";
   }
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < filePath.length; i += 1) {
-    hash ^= filePath.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
+  let tag = "";
+  for (const ch of filePath) {
+    if (/[A-Za-z0-9]/.test(ch)) {
+      tag += ch;
+    } else {
+      const code = ch.codePointAt(0)!;
+      tag +=
+        code <= 0xff
+          ? `_${code.toString(16).padStart(2, "0")}`
+          : `_u${code.toString(16).padStart(6, "0")}`;
+    }
   }
-  return `${hash.toString(36)}_`;
+  return `${tag}__`;
 }
 
 /** The evaluator name for a binding whose source starts at `from`:
  *  `__binding_<document tag><kind>_<name>_<offset within the chunk>`, as in
- *  `__binding_14srukv_layout_hud_23`.
+ *  `__binding_file_3a_2f_2fproj_2fmain_2esd__layout_hud_23`.
  *
  *  Every hoisted evaluator lands in one flow namespace, so the name carries
  *  the document: two files whose first binding starts at the same offset, as
@@ -222,9 +236,9 @@ function documentTag(filePath: string | undefined | null): string {
 function bindingId(from: number, ctx: LowerContext): string {
   const tag = documentTag(ctx.filePath);
   if (ctx.chunkFrom === undefined || ctx.sparkleOwner === undefined) {
-    return `__binding_${tag}${from}`;
+    return `${BINDING_ID_PREFIX}${tag}${from}`;
   }
-  return `__binding_${tag}${ctx.sparkleOwner}_${from - ctx.chunkFrom}`;
+  return `${BINDING_ID_PREFIX}${tag}${ctx.sparkleOwner}_${from - ctx.chunkFrom}`;
 }
 
 /** DFS in-order: the first descendant (or self) whose name is in `names`. */
