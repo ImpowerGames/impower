@@ -186,6 +186,43 @@ describe("incremental callee-signature reuse", () => {
     expect(out.filter((s) => s.includes("DIVERGED"))).toEqual([]);
   });
 
+  // One plain parameter and none used to share a signature, so dropping the
+  // only parameter left the caller reused and its argument-count error was
+  // lost (#841). The call sits in `beta`, the scene not adjacent to the
+  // function, whose flow is the one reuse keeps.
+  it("callee loses its only parameter while caller flow is reused", () => {
+    const base = [
+      "function addup(a):",
+      "  return 1",
+      "",
+      "scene alpha",
+      ":",
+      "  Alpha action.",
+      "-> DONE",
+      "end",
+      "",
+      "scene beta",
+      ":",
+      "  Beta action",
+      "& local r = addup(2)",
+      "-> DONE",
+      "end",
+      "",
+    ].join("\n");
+    const out = quiet(() =>
+      runScenario("drop-only-param", base, [
+        WARM(0),
+        WARM(1),
+        { find: "function addup(a):", replace: "function addup():" },
+        WARM(2),
+        { find: "function addup():", replace: "function addup(a):" },
+        WARM(3),
+      ]),
+    );
+    console.info(out.join("\n"));
+    expect(out.filter((s) => s.includes("DIVERGED"))).toEqual([]);
+  });
+
   it("callee becomes variadic while caller flow is reused", () => {
     const out = quiet(() =>
       runScenario("vararg", doc("function addup(a):", "& local r = addup(2)"), [

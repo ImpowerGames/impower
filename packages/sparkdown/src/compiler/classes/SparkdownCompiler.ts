@@ -3428,10 +3428,12 @@ export class SparkdownCompiler {
     for (const sub of flow.subFlowsByName.values()) {
       const name = sub.identifier?.name;
       if (name) {
+        // One `p` per parameter, so the count is part of the signature even
+        // when no parameter carries a flag: `f(x)` and `f()` must differ.
         const args = (sub.args ?? [])
           .map(
             (a) =>
-              `${a.isVararg ? "*" : ""}${a.isByReference ? "&" : ""}${
+              `p${a.isVararg ? "*" : ""}${a.isByReference ? "&" : ""}${
                 a.isDivertTarget ? ">" : ""
               }`,
           )
