@@ -8,9 +8,12 @@ import { findChildByName } from "./alternatorArms";
 // Structural checks for a `define` block, none of which is a parse error:
 //
 //   - A define without a readable name is reported and nothing else is
-//     checked; the lowerer drops it. When a token stands where the name should
-//     be (`define 2hero`, `define "hero"`), that token is reported; otherwise
-//     the define has no name at all and its `define` keyword is reported.
+//     checked; the lowerer drops it. When the define's content has a node that
+//     begins on the header line, that node's text on the header line is
+//     quoted as the unreadable name: `define 2hero` quotes `2` (the grammar
+//     reads a number there) and `define "hero"` quotes `"hero"`. Otherwise
+//     (`define` alone, or `define .hero`, whose `.hero` parses outside the
+//     define) the define is reported as having no name.
 //   - A header the grammar stops reading on its own line, with no `end`, cuts
 //     the define off there and leaves the rest of the script to parse as
 //     top-level lines. That shape is reported on the readable part of the

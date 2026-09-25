@@ -35,10 +35,17 @@ function compile(source: string): { diags: Diag[]; compiled: boolean } {
     ],
   });
   const result = compiler.compile({ textDocument: { uri } });
+  return {
+    diags: readDiags(result.program),
+    compiled: !!result.program.compiled,
+  };
+}
+
+function readDiags(program: {
+  diagnostics?: Record<string, unknown[]>;
+}): Diag[] {
   const diags: Diag[] = [];
-  for (const docDiagnostics of Object.values(
-    result.program.diagnostics ?? {},
-  )) {
+  for (const docDiagnostics of Object.values(program.diagnostics ?? {})) {
     for (const d of docDiagnostics as any[]) {
       diags.push({
         message: typeof d.message === "string" ? d.message : d.message?.value,
@@ -50,7 +57,7 @@ function compile(source: string): { diags: Diag[]; compiled: boolean } {
       });
     }
   }
-  return { diags, compiled: !!result.program.compiled };
+  return diags;
 }
 
 const errors = (source: string) =>
@@ -309,4 +316,90 @@ describe("valid define forms stay clean", () => {
       expect(errors(source)).toEqual([]);
     });
   }
+});
+
+// The define diagnostics are raised while a chunk is lowered, and an
+// incremental compile re-lowers only the chunks an edit touches. Each step
+// below applies one edit incrementally and compares the diagnostics with a
+// cold compile of the same text, including steps whose edit is far from the
+// define.
+describe("define diagnostics across incremental edits", () => {
+  test("match a cold compile as a define breaks and is repaired", () => {
+    const uri = "inmemory:///main.sd";
+    let text = [
+      "define hero as character with",
+      '  name = "Hero"',
+      "end",
+      "",
+      "store trust = 5",
+      "",
+      "-> s",
+      "scene s",
+      "hero:",
+      "  Trust is {trust}.",
+      "end",
+      "",
+    ].join("\n");
+    const steps: [string, string][] = [
+      ['  name = "Hero"\nend\n', '  name = "Hero"\n'],
+      ["Trust is", "Now trust is"],
+      ["define hero as character with", "define hero as character:"],
+      ["Now trust is", "Trust is"],
+      ["define hero as character:", "define hero as character with"],
+      ['  name = "Hero"\n', '  name = "Hero"\nend\n'],
+    ];
+    const posAt = (offset: number) => {
+      const before = text.slice(0, offset).split("\n");
+      return { line: before.length - 1, character: before.at(-1)!.length };
+    };
+    const summary = (diags: Diag[]) =>
+      diags
+        .map(
+          (d) =>
+            `${d.severity} ${d.startLine}:${d.startCharacter} ${d.message}`,
+        )
+        .sort();
+    const incr = new SparkdownCompiler();
+    incr.configure({
+      files: [
+        {
+          uri,
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text,
+          version: 1,
+          languageId: "sparkdown",
+        },
+      ],
+    });
+    incr.compile({ textDocument: { uri } });
+    let version = 1;
+    const seen: string[] = [];
+    for (const [find, replace] of steps) {
+      const offset = text.indexOf(find);
+      expect(
+        offset,
+        `fixture is missing ${JSON.stringify(find)}`,
+      ).toBeGreaterThanOrEqual(0);
+      const start = posAt(offset);
+      const end = posAt(offset + find.length);
+      version += 1;
+      incr.updateDocument({
+        textDocument: { uri, version },
+        contentChanges: [{ range: { start, end }, text: replace }],
+      });
+      text = text.slice(0, offset) + replace + text.slice(offset + find.length);
+      const incremental = summary(
+        readDiags(incr.compile({ textDocument: { uri } }).program),
+      );
+      expect(incremental, `after replacing ${JSON.stringify(find)}`).toEqual(
+        summary(compile(text).diags),
+      );
+      seen.push(...incremental);
+    }
+    // The steps did produce both define errors, so the comparison covered them.
+    expect(seen.some((m) => m.includes(MISSING_END))).toBe(true);
+    expect(seen.some((m) => m.includes("Unexpected `:`"))).toBe(true);
+  });
 });

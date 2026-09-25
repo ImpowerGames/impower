@@ -188,27 +188,9 @@ describe("incremental callee-signature reuse", () => {
 
   // One plain parameter and none used to share a signature, so dropping the
   // only parameter left the caller reused and its argument-count error was
-  // lost (#841). The call sits in `beta`, the scene not adjacent to the
-  // function, whose flow is the one reuse keeps.
+  // lost (#841).
   it("callee loses its only parameter while caller flow is reused", () => {
-    const base = [
-      "function addup(a):",
-      "  return 1",
-      "",
-      "scene alpha",
-      ":",
-      "  Alpha action.",
-      "-> DONE",
-      "end",
-      "",
-      "scene beta",
-      ":",
-      "  Beta action",
-      "& local r = addup(2)",
-      "-> DONE",
-      "end",
-      "",
-    ].join("\n");
+    const base = doc("function addup(a):", "& local r = addup(2)");
     const out = quiet(() =>
       runScenario("drop-only-param", base, [
         WARM(0),
