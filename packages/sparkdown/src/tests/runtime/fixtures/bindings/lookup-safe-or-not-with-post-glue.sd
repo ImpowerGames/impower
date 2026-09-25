@@ -2,5 +2,5 @@ external myAction()
 
 One ..
 & myAction()
-Two
+.. Two
 done

@@ -1,13 +1,14 @@
-// A `..` joins lines only from the end of a line. The join keeps the spaces
-// written before the mark and drops the spaces after it, so `A ..` then `B`
-// shows "A B" and `A..` then `B` shows "AB". A `>..` or `> ..` ending a line
-// is a break whose table carries `pause` and `extend`: its step ends at the
-// click, and the next carries on in its box (ExtendAfterBreak.test.ts). Every
-// join lowers to a display call whose
-// table carries `open`, which writes no newline, so no `Glue` object is
-// emitted. A bare `..` line is an error that names the fix; a line that
-// begins with `..` and has text is checked in LeadingGlueIntent.test.ts. A
-// `choose` block's last caption line leaves its newline pending: its step
+// Glue needs a `..` on each side: a line that ends with `..` joins the next
+// line shown when that line begins with `..`. The join keeps the spaces written
+// before the first mark and drops those after the second, so `A ..` then
+// `.. B` shows "A B" and `A..` then `..B` shows "AB". A mark on one side only
+// joins nothing (LeadingGlueIntent.test.ts). A line that ends with `..` lowers
+// to a display call whose table carries `glue`, which leaves its newline
+// waiting, and one that begins with `..` to one whose table carries
+// `continues`, which takes it up; no `Glue` object is emitted. A `..` before a
+// `>` break marks the break's table `extend` instead: its step ends at the
+// click, and the next carries on in its box (ExtendAfterBreak.test.ts). A
+// `choose` block's last caption line leaves its newline pending too: its step
 // completes with the choices unless the run shows something first.
 
 import { describe, expect, test } from "vitest";
@@ -21,9 +22,6 @@ import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { pathLocation } from "../../compiler/utils/pathLocationTable";
 
 type Routing = { target?: string; character?: string };
-
-const LEADING_GLUE_ERROR =
-  "A line cannot begin with `..`. End the previous line with `..` to join them.";
 
 // Each step's text and what `read` reports of it. The text is what its tables
 // say joined, since `Continue()` collapses a run of spaces.
@@ -120,17 +118,18 @@ function tokens(json: unknown): unknown[] {
 }
 
 // What the compiled program holds: its `Glue` objects, its `line` markers,
-// its `display` calls, and how many of those tables carry `open`, `extend` or
-// `caption`.
+// its `display` calls, and how many of those tables carry `open`, `glue`,
+// `extend` or `caption`.
 function programShape(text: string) {
   const ctx = makeRuntimeStoryFromSource(text);
   expect(ctx.errorMessages).toEqual([]);
   const all = tokens(ctx.compiledJson);
   return {
-    glue: all.filter((t) => t === "<>").length,
+    inkGlue: all.filter((t) => t === "<>").length,
     line: all.filter((t) => t === "line").length,
     display: all.filter((t) => t === "stdlib:display:1").length,
     open: all.filter((t) => t === "^open").length,
+    glue: all.filter((t) => t === "^glue").length,
     extend: all.filter((t) => t === "^extend").length,
     caption: all.filter((t) => t === "^caption").length,
   };
@@ -178,20 +177,23 @@ const SPACINGS: { first: string; joined: string }[] = [
   { first: "A ..   ", joined: "A B\n" },
 ];
 
-describe("a trailing `..` joins the next line", () => {
+describe("a trailing `..` joins the next line that begins with `..`", () => {
   for (const { label, inline, block, routing } of TYPES) {
+    // An action line that begins with `..` names no routing, and every other
+    // kind keeps its own; the beat takes the first table's.
+    const own = label === "action" ? {} : routing;
     for (const { first, joined } of SPACINGS) {
-      test(`${label}: ${JSON.stringify(first)} then B`, () => {
+      test(`${label}: ${JSON.stringify(first)} then .. B`, () => {
         const ctx = makeRuntimeStoryFromSource(
-          `${inline}${first}\n${inline}B\n`,
+          `${inline}${first}\n${inline}.. B\n`,
         );
         expect(ctx.errorMessages).toEqual([]);
-        expect(steps(ctx.story)).toEqual([[joined, [routing, {}]]]);
+        expect(steps(ctx.story)).toEqual([[joined, [routing, own]]]);
       });
 
-      test(`${label} block: ${JSON.stringify(first)} then B`, () => {
+      test(`${label} block: ${JSON.stringify(first)} then .. B`, () => {
         const ctx = makeRuntimeStoryFromSource(
-          `${block}\n  ${first}\n  B\n`,
+          `${block}\n  ${first}\n  .. B\n`,
         );
         expect(ctx.errorMessages).toEqual([]);
         expect(steps(ctx.story)).toEqual([[joined, [routing]]]);
@@ -200,10 +202,10 @@ describe("a trailing `..` joins the next line", () => {
 
     test(`${label}: a chain of three`, () => {
       const ctx = makeRuntimeStoryFromSource(
-        `${inline}a ..\n${inline}b..\n${inline}c.\n`,
+        `${inline}a ..\n${inline}.. b..\n${inline}..c.\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
-      expect(steps(ctx.story)).toEqual([["a bc.\n", [routing, {}, {}]]]);
+      expect(steps(ctx.story)).toEqual([["a bc.\n", [routing, own, own]]]);
     });
 
     test(`${label}: a join into each branch of an if`, () => {
@@ -212,7 +214,7 @@ describe("a trailing `..` joins the next line", () => {
         ["false", "wall."],
       ]) {
         const ctx = makeRuntimeStoryFromSource(
-          `store c = ${value}\n${inline}You see a ..\nif c then\n  door.\nelse\n  wall.\nend\n`,
+          `store c = ${value}\n${inline}You see a ..\nif c then\n  .. door.\nelse\n  .. wall.\nend\n`,
         );
         expect(ctx.errorMessages).toEqual([]);
         expect(texts(ctx.story)).toEqual([`You see a ${word}\n`]);
@@ -221,11 +223,11 @@ describe("a trailing `..` joins the next line", () => {
 
     test(`${label}: a branch's first line keeps the routing of the line it joins`, () => {
       for (const block of [
-        `if true then\n  B > C\nend`,
-        `if false then\n  X.\nelseif true then\n  B > C\nend`,
-        `if false then\n  X.\nelse\n  B > C\nend`,
-        `if true then\n  if true then\n    B > C\n  end\nend`,
-        `queue\n  | B > C\nend`,
+        `if true then\n  .. B > C\nend`,
+        `if false then\n  X.\nelseif true then\n  .. B > C\nend`,
+        `if false then\n  X.\nelse\n  .. B > C\nend`,
+        `if true then\n  if true then\n    .. B > C\n  end\nend`,
+        `queue\n  | .. B > C\nend`,
       ]) {
         const ctx = makeRuntimeStoryFromSource(`${inline}A ..\n${block}\n`);
         expect(ctx.errorMessages).toEqual([]);
@@ -247,7 +249,7 @@ describe("a trailing `..` joins the next line", () => {
 
   test("an interpolation line that ends with `..`", () => {
     const ctx = makeRuntimeStoryFromSource(
-      `store n = 3\nYou have ..\n{n} ..\ncoins.\nAfter.\n`,
+      `store n = 3\nYou have ..\n.. {n} ..\n.. coins.\nAfter.\n`,
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(texts(ctx.story)).toEqual(["You have 3 coins.\n", "After.\n"]);
@@ -255,8 +257,8 @@ describe("a trailing `..` joins the next line", () => {
 
   test("an interpolation line that ends with marks and a tag or comment", () => {
     for (const [source, joined] of [
-      [`{3} .. # tag\nB\n`, "3 B\n"],
-      [`{3} .. // note\nB\n`, "3 B\n"],
+      [`{3} .. # tag\n.. B\n`, "3 B\n"],
+      [`{3} .. // note\n.. B\n`, "3 B\n"],
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
@@ -265,12 +267,12 @@ describe("a trailing `..` joins the next line", () => {
       again.story.Continue();
       expect(flags(again.story, "pause")).toEqual([false, false]);
     }
-    // A `..` after the break ends the step at the click, keeping the spaces
+    // A `..` before the break ends the step at the click, keeping the spaces
     // the join keeps, and the next line carries on in its box.
     for (const [source, before] of [
-      [`{3} >..\nB\n`, "3\n"],
-      [`{3} > ..\nB\n`, "3 \n"],
-      [`{3} >.. # tag\nB\n`, "3\n"],
+      [`{3}.. >\n.. B\n`, "3\n"],
+      [`{3} .. >\n.. B\n`, "3 \n"],
+      [`{3} .. > # tag\n.. B\n`, "3 \n"],
     ] as const) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
@@ -325,17 +327,17 @@ describe("a trailing `..` joins the next line", () => {
   });
 
   test("a `>` that touches the word before a line-ending `..` is text and warned", () => {
-    const ctx = makeRuntimeStoryFromSource(`Abso>..\nlutely.\n`);
+    const ctx = makeRuntimeStoryFromSource(`Abso>..\n..lutely.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.warningMessages).toEqual([
-      "This `>` touches the word before it, so it is text, not a break. Put a space before it to click here and then join the next line.",
+      "This `>` touches the word before it, so it is text, not a break. Put a space before it to make it a break.",
     ]);
     expect(texts(ctx.story)).toEqual(["Abso>lutely.\n"]);
     const inBlock = makeRuntimeStoryFromSource(
-      `:\n  Abso>..\n  lutely.\n  Next.\n`,
+      `:\n  Abso>..\n  ..lutely.\n  Next.\n`,
     );
     expect(inBlock.warningMessages).toEqual(ctx.warningMessages);
-    for (const quiet of [`Abso >..\nlutely.\n`, `A\\>..\nB\n`]) {
+    for (const quiet of [`Abso .. >\n..lutely.\n`, `A\\>..\n..B\n`]) {
       expect(makeRuntimeStoryFromSource(quiet).warningMessages).toEqual([]);
     }
   });
@@ -343,9 +345,9 @@ describe("a trailing `..` joins the next line", () => {
   test("a tag after the mark on a block's last line keeps the join", () => {
     for (const [first, joined] of [
       ["A .. # marker", ["A B\n"]],
-      ["A >.. # marker", ["A\n", "B\n"]],
+      ["A .. > # marker", ["A \n", "B\n"]],
     ] as const) {
-      const ctx = makeRuntimeStoryFromSource(`ALICE:\n  ${first}\nB\n`);
+      const ctx = makeRuntimeStoryFromSource(`ALICE:\n  ${first}\n.. B\n`);
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual(joined);
     }
@@ -353,9 +355,9 @@ describe("a trailing `..` joins the next line", () => {
 
   test("a tag or comment after the mark keeps the next line a continuation", () => {
     for (const source of [
-      `HERO: A .. # note\nB > C\n`,
-      `HERO: A .. // note\nB > C\n`,
-      `A .. # note\nB\n`,
+      `HERO: A .. # note\n.. B > C\n`,
+      `HERO: A .. // note\n.. B > C\n`,
+      `A .. # note\n.. B\n`,
     ]) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
@@ -373,35 +375,43 @@ describe("a trailing `..` joins the next line", () => {
   test("a tag after the mark keeps a block body's join", () => {
     for (const block of [`ALICE:`, `:`]) {
       const ctx = makeRuntimeStoryFromSource(
-        `${block}\n  Hello .. # marker\n  world.\n`,
+        `${block}\n  Hello .. # marker\n  .. world.\n`,
       );
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual(["Hello world.\n"]);
+      // Without the second mark the line break stays, without the spaces
+      // before the lone mark.
+      const lone = makeRuntimeStoryFromSource(
+        `${block}\n  Hello .. # marker\n  world.\n`,
+      );
+      expect(texts(lone.story)).toEqual(["Hello\nworld.\n"]);
     }
   });
 
-  test("a tag or comment after `>..` keeps the break", () => {
-    for (const source of [`A >.. # tag\nB\n`, `A >.. // note\nB\n`]) {
+  test("a tag or comment after `.. >` keeps the break", () => {
+    for (const source of [`A .. > # tag\n.. B\n`, `A .. > // note\n.. B\n`]) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
       ctx.story.Continue();
       expect(flags(ctx.story, "pause")).toEqual([true]);
       expect(flags(ctx.story, "extend")).toEqual([true]);
       const again = makeRuntimeStoryFromSource(source);
-      expect(texts(again.story)).toEqual(["A\n", "B\n"]);
+      expect(texts(again.story)).toEqual(["A \n", "B\n"]);
     }
   });
 
   test("a `load` line after a line that ends with `..` stays a directive", () => {
     const ctx = makeRuntimeStoryFromSource(`A ..\nload overworld\nB\n`);
     expect(ctx.errorMessages).toEqual([]);
-    ctx.story.Continue();
-    expect(
+    const loads = () =>
       ctx.story.currentDisplayInstructions.map(
         (table) =>
           (table.value?.get("load") as { value?: unknown } | undefined)?.value,
-      ),
-    ).toEqual([undefined, "overworld"]);
+      );
+    ctx.story.Continue();
+    expect(loads()).toEqual([undefined]);
+    ctx.story.Continue();
+    expect(loads()).toEqual(["overworld"]);
     expect(texts(ctx.story)).toEqual(["B\n"]);
   });
 
@@ -412,37 +422,33 @@ describe("a trailing `..` joins the next line", () => {
   });
 });
 
-describe("a `>..` ending a line is a break the next line carries on after", () => {
+describe("a `..` before a `>` that ends a line offers the break's box", () => {
   for (const [first, before] of [
-    ["A >..", "A"],
-    ["A > ..", "A "],
-    ["Abso >..", "Abso"],
+    ["A.. >", "A"],
+    ["A .. >", "A "],
+    ["Abso.. >", "Abso"],
   ] as const) {
     test(JSON.stringify(first), () => {
       const second = first.startsWith("Abso") ? "lutely." : "B";
-      const ctx = makeRuntimeStoryFromSource(`${first}\n${second}\n`);
+      const source = `${first}\n..${second}\n`;
+      const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.errorMessages).toEqual([]);
       expect(texts(ctx.story)).toEqual([`${before}\n`, `${second}\n`]);
-      const again = makeRuntimeStoryFromSource(`${first}\n${second}\n`);
+      const again = makeRuntimeStoryFromSource(source);
       again.story.Continue();
       expect(flags(again.story, "pause")).toEqual([true]);
       expect(flags(again.story, "extend")).toEqual([true]);
       again.story.Continue();
       expect(flags(again.story, "extend")).toEqual([false]);
+      expect(flags(again.story, "continues")).toEqual([true]);
     });
   }
 });
 
-describe("a bare `..` line is an error", () => {
-  test("a bare `..` line", () => {
+describe("a bare `..` line", () => {
+  test("shows nothing and reports nothing", () => {
     const source = `A\n  ..\nB\n`;
-    expect(errorsOf(source)).toEqual([
-      {
-        message: LEADING_GLUE_ERROR,
-        start: { line: 1, character: 2 },
-        end: { line: 1, character: 4 },
-      },
-    ]);
+    expect(errorsOf(source)).toEqual([]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(texts(ctx.story)).toEqual(["A\n", "B\n"]);
   });
@@ -788,33 +794,38 @@ end
 });
 
 describe("the compiled program", () => {
-  const cases: [string, string, number][] = [
-    ["a trailing join", `A ..\nB\n`, 1],
-    ["a touching join", `A..\nB\n`, 1],
-    ["a chain", `A ..\nB ..\nC\n`, 2],
-    ["a join inside a block body", `ALICE:\n  A ..\n  B\n`, 0],
-    ["a join into an if", `You see a ..\nif true then\n  door.\nend\n`, 1],
-    ["a join after a divert", `A -> s\n\nscene s\n  B\nend\n`, 1],
+  // Each source, and how many tables carry `glue` and `open`.
+  const cases: [string, string, number, number][] = [
+    ["a trailing join", `A ..\n.. B\n`, 1, 0],
+    ["a touching join", `A..\n..B\n`, 1, 0],
+    ["a chain", `A ..\n.. B ..\n.. C\n`, 2, 0],
+    ["a join inside a block body", `ALICE:\n  A ..\n  .. B\n`, 0, 0],
+    ["a join into an if", `You see a ..\nif true then\n  .. door.\nend\n`, 1, 0],
+    ["a join after a divert", `A -> s\n\nscene s\n  B\nend\n`, 0, 1],
     [
       "a chosen line whose flow ends after it",
       `choose\n  * One\n    fin\nend\n`,
+      0,
       1,
     ],
     [
       "a chosen line an arrow follows",
       `choose\n  * One -> s\nend\n\nscene s\n  B\nend\n`,
+      0,
       1,
     ],
     [
       "an alternator arm whose tail is a divert",
-      `A ..\nqueue\n  | B -> s\nend\n\nscene s\n  C\nend\n`,
-      2,
+      `A ..\nqueue\n  | .. B -> s\nend\n\nscene s\n  C\nend\n`,
+      1,
+      1,
     ],
   ];
-  for (const [label, source, open] of cases) {
-    test(`${label} emits no Glue and marks every join \`open\``, () => {
+  for (const [label, source, glue, open] of cases) {
+    test(`${label} emits no Glue and marks each join \`glue\` or \`open\``, () => {
       const shape = programShape(source);
-      expect(shape.glue).toBe(0);
+      expect(shape.inkGlue).toBe(0);
+      expect(shape.glue).toBe(glue);
       expect(shape.open).toBe(open);
       expect(shape.display).toBeGreaterThan(0);
       expect(shape.line).toBe(0);
@@ -822,11 +833,12 @@ describe("the compiled program", () => {
   }
 
   for (const [label, source] of [
-    ["a touching click", `A >..\nB\n`],
-    ["a spaced click", `A > ..\nB\n`],
+    ["a touching click", `A.. >\n..B\n`],
+    ["a spaced click", `A .. >\n.. B\n`],
   ] as const) {
-    test(`${label} emits no Glue and marks its break \`extend\`, not \`open\``, () => {
+    test(`${label} emits no Glue and marks its break \`extend\``, () => {
       const shape = programShape(source);
+      expect(shape.inkGlue).toBe(0);
       expect(shape.glue).toBe(0);
       expect(shape.open).toBe(0);
       expect(shape.extend).toBe(1);
@@ -836,6 +848,7 @@ describe("the compiled program", () => {
 
   test("a choose caption is marked `caption`, not `open`", () => {
     const shape = programShape(`choose\n  First.\n  Pick one.\n  * One\nend\n`);
+    expect(shape.inkGlue).toBe(0);
     expect(shape.glue).toBe(0);
     expect(shape.open).toBe(0);
     expect(shape.caption).toBe(1);

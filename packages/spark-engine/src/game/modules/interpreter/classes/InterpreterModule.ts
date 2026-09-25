@@ -25,7 +25,7 @@ export interface InterpreterConfig {}
 
 export interface InterpreterState {
   buffer?: Instructions[];
-  /** The box a beat that a `> ..` ended left for the next step to carry on
+  /** The box a beat that a `.. >` ended left for the next step to carry on
    *  in. It is part of the saved state, so a checkpoint taken between the two
    *  steps carries on in the same box when it is restored. */
   box?: ShownBox;
@@ -46,9 +46,6 @@ export interface ShownBox {
   target: string;
   cue?: Cue;
   text: TextInstruction[];
-  /** The `> ..` that left the box stands inside an `if` or alternator
-   *  block, so the line right after the block may carry on in it. */
-  nested?: boolean;
 }
 
 export interface InterpreterMessageMap extends Record<string, any> {}
@@ -174,7 +171,7 @@ export class InterpreterModule extends Module<
     // A continuation of the program just replaced is not a continuation of
     // this one, however alike their sources are: an edit that keeps a line's
     // length keeps its offsets too, so the name alone cannot tell them apart.
-    // Nor is the box a `> ..` of the replaced program left one this
+    // Nor is the box a `.. >` of the replaced program left one this
     // program's lines carry on in; a checkpoint loaded after the update
     // brings back the box it was taken with.
     delete this._routing;
@@ -373,7 +370,8 @@ export class InterpreterModule extends Module<
    * Called by {@link queue}.
    *
    * While a box is waiting to be carried on in ({@link InterpreterState.box}),
-   * the first beat with text, or one a break ends, carries on in it: the box's
+   * which {@link queue} keeps only for a line that begins with `..`, the
+   * first beat with text, or one a break ends, carries on in it: the box's
    * text shown again at once, then this beat's text typed after it. The kind
    * of box stays the one the box is. On a dialogue box, a cue on this beat
    * names the speaker shown and the character whose settings type the text,
@@ -381,7 +379,7 @@ export class InterpreterModule extends Module<
    * replaces the one shown; without them, the box's own stay. A beat with
    * neither text nor a break (only pictures or sound) leaves the box waiting
    * and on the page, with empty `extended` counts.
-   * `extend` marks a beat a `> ..` ended: the box it shows is kept for the
+   * `extend` marks a beat a `.. >` ended: the box it shows is kept for the
    * next step, with the `spaces` its table ends with, which join the two.
    */
   protected appendBeat(
@@ -390,7 +388,7 @@ export class InterpreterModule extends Module<
     content: string,
     choices: string[],
     pause = false,
-    extend?: { spaces: string; nested: boolean },
+    extend?: { spaces: string },
   ): void {
     this._state.buffer ??= [];
     const defaultTarget = this._targetPrefixMap?.[""] || "";
@@ -554,7 +552,6 @@ export class InterpreterModule extends Module<
         );
         if (extend.spaces) shown.push({ control: "show", text: extend.spaces });
         this._state.box = { target: textTarget, text: shown };
-        if (extend.nested) this._state.box.nested = true;
         if (cue) this._state.box.cue = cue;
       } else if (contentInstructions.text) {
         delete this._state.box;
@@ -590,12 +587,14 @@ export class InterpreterModule extends Module<
    * cue (`character`) are table fields resolved at compile time.
    *
    * Table shape: `{ target?: string, character?: string, text: string,
-   * pause?: boolean, extend?: boolean, inherit?: boolean, group?: string,
-   * tags?: table }`, or `{ load: string }` for a `load` line,
+   * pause?: boolean, extend?: boolean, continues?: boolean, inherit?: boolean,
+   * group?: string, tags?: table }`, or `{ load: string }` for a `load` line,
    * whose whitespace-separated names queue a load beat of their own. `pause`
    * marks a beat a `>` break ends, which waits for a click even when it has no
-   * text, and `extend` one a `> ..` ends, whose box the next step carries on
-   * in (see {@link appendBeat}). `group` names a glued continuation, and `inherit` marks its beats
+   * text, and `extend` one a `.. >` ends, whose box the next step carries on
+   * in when that step's first table is `continues`, a line that begins with
+   * `..` (see {@link appendBeat}). `group` names a glued continuation, and
+   * `inherit` marks its beats
    * after one of its breaks: they take the routing of the beat the run joined
    * the continuation to, which holds while the beat just queued carried the
    * same `group`, and otherwise route by their own table, which names the
@@ -659,13 +658,10 @@ export class InterpreterModule extends Module<
       return;
     }
     const pause = tables.some((table) => read(table, "pause") === true);
-    // The first line after an `if` or alternator block: a box left before the
-    // block, which the branch taken did not carry on in, leaves this line a
-    // new box. A box the branch itself left is this line's to carry on in.
-    if (
-      !this._state.box?.nested &&
-      tables.some((table) => read(table, "fresh") === true)
-    ) {
+    // Only a step whose first line begins with `..` carries on in the box a
+    // `.. >` left; `display` has already taken the mark off a line that
+    // joins nothing. Any other step starts a new box.
+    if (read(tables[0], "continues") !== true) {
       delete this._state.box;
     }
     const routed = tables.find((table) => {
@@ -712,7 +708,7 @@ export class InterpreterModule extends Module<
     if (tables.length > 0) {
       this._routing = group == null ? routing : { ...routing, group };
     }
-    // A `> ..` ends the step with the table that asks the next step to carry
+    // A `.. >` ends the step with the table that asks the next step to carry
     // on in its box. The step's text loses the spaces that end a line, so the
     // spaces the join keeps are read off that table.
     const extending = tables.findLast((table) => read(table, "extend") === true);
@@ -729,7 +725,6 @@ export class InterpreterModule extends Module<
               typeof extendText === "string"
                 ? (/[ \t]*$/.exec(extendText)?.[0] ?? "")
                 : "",
-            nested: read(extending, "nested") === true,
           }
         : undefined,
     );
@@ -775,7 +770,7 @@ export class InterpreterModule extends Module<
     this._state.buffer = [];
     // The run those beats belonged to is over, so the beat a continuation
     // would have inherited from is not this run's, and neither is the box a
-    // `> ..` left.
+    // `.. >` left.
     delete this._routing;
     delete this._state.box;
   }

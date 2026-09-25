@@ -51,7 +51,7 @@ async function beats(body: string) {
 
 const NESTED = `  You see a ..
   if true then
-    red door.
+    .. red door.
   end`;
 
 describe("display() glue join", () => {
@@ -63,7 +63,7 @@ describe("display() glue join", () => {
 
   test("a line after a glued pair is its own beat", async () => {
     expect(
-      await beats(`  You see a ..\n  red door.\n  It is locked.`),
+      await beats(`  You see a ..\n  .. red door.\n  It is locked.`),
     ).toEqual([
       { target: "action", text: "You see a red door." },
       { target: "action", text: "It is locked." },
@@ -71,14 +71,14 @@ describe("display() glue join", () => {
   });
 
   test("the first routing wins in a joined dialogue beat", async () => {
-    const result = await beats(`  HERO: Wait ..\n  right there.`);
+    const result = await beats(`  HERO: Wait ..\n  .. right there.`);
     expect(result.find((b) => b.target === "dialogue")?.text).toBe(
       "Wait right there.",
     );
   });
 
   test("a touching `..` joins with no space", async () => {
-    expect(await beats(`  Abso..\n  lutely.\n  After.`)).toEqual([
+    expect(await beats(`  Abso..\n  ..lutely.\n  After.`)).toEqual([
       { target: "action", text: "Absolutely." },
       { target: "action", text: "After." },
     ]);
@@ -86,8 +86,8 @@ describe("display() glue join", () => {
 
   // The break's beat waits for a click, and the next line carries on in its
   // box (extendAfterBreak.test.ts), joining with no space.
-  test("a touching `>..` waits, then carries on in the box", async () => {
-    expect(await beats(`  Abso >..\n  lutely.\n  After.`)).toEqual([
+  test("touching `.. >` then `..` waits, then carries on in the box", async () => {
+    expect(await beats(`  Abso.. >\n  ..lutely.\n  After.`)).toEqual([
       { target: "action", text: "Abso" },
       { target: "action", text: "Absolutely." },
       { target: "action", text: "After." },

@@ -1,4 +1,4 @@
-// A box carried on after a click (`First > .. second.`) is written as one
+// A box carried on after a click (`First .. > .. second.`) is written as one
 // write whose first letters, the text the box already shows, are marked
 // `shown`: the page shows them at once and reveals only the continuation. The
 // box lays out as the same words written at once would.
@@ -64,7 +64,7 @@ describe("a box carried on after a click", () => {
   // letter's reveal begins. The carried box's letters are already on the
   // page, so the target does not wait for the beat's start.
   test("the box's letters start now, and only the continuation's at the beat", async () => {
-    const harness = createDOMHarness(story(`  HERO: First > .. second.`));
+    const harness = createDOMHarness(story(`  HERO: First .. > .. second.`));
     await harness.ready;
     harness.jumpTo("start");
     await harness.display(harness.nextBeat()!, false);
@@ -92,7 +92,7 @@ describe("a box carried on after a click", () => {
   });
 
   test("the box shows at once, without waiting for the beat", async () => {
-    const extended = await shownAfterClick(`  HERO: First > .. second.`);
+    const extended = await shownAfterClick(`  HERO: First .. > .. second.`);
     const box = extended.overlay.querySelector(".dialogue") as any;
     expect(box?.__sdWait).toBeUndefined();
     // An ordinary beat written the same way does wait for its first letter.
@@ -102,11 +102,12 @@ describe("a box carried on after a click", () => {
   });
 
   test.each([
-    [`  HERO: First > .. second.`, `  HERO: First second.`],
-    [`  HERO: Abso >..\n  lutely!`, `  HERO: Absolutely!`],
-    // The two writes hold the same events; both must reach the page.
-    [`  HERO: A >..\n  A`, `  HERO: AA`],
-    [`  HERO: One > .. two > .. three.`, `  HERO: One two three.`],
+    [`  HERO: First .. > .. second.`, `  HERO: First second.`],
+    [`  HERO: Abso.. >\n  ..lutely!`, `  HERO: Absolutely!`],
+    // The carried letters and the continuation are the same; both must reach
+    // the page.
+    [`  HERO: A.. >\n  ..A`, `  HERO: AA`],
+    [`  HERO: One .. > .. two .. > .. three.`, `  HERO: One two three.`],
   ])("%s lays out as %s", async (extended, whole) => {
     const harness = await shownAfterClick(extended);
     if (extended.includes("three")) {

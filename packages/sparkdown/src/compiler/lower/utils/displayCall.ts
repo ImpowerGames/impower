@@ -13,7 +13,7 @@ import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "./debugMetadata";
 
-// `display({ target?, character?, text, pause?, extend?, nested?, fresh?, inherit?, group?, continues? })` with
+// `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, continues? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`
 // needed). `display` is a
 // state-aware STDLIB entry, so this lowers to a RunStdLibFunction dispatch whose
@@ -29,27 +29,24 @@ import { stampDebugMetadata } from "./debugMetadata";
 // ending during string evaluation is taken for a choice label's tag.
 //
 // `pause` marks a beat a `>` break ends: it waits for a click even when it
-// shows no text. `extend` marks a beat a `> ..` ends: its step ends at the
-// click like any beat's, and the next step that shows something carries on in
-// the same box; `nested` marks one whose line stands inside an `if` or
-// alternator block. `fresh` marks the first call of a line right after such a
-// block: a box left before the block that the branch taken did not carry on in
-// is not this line's to carry on in, while a `nested` box, left by the branch
-// itself, is. `open` marks a call that joins the next display call onto its
-// line: `display` writes no newline after it, so the step runs on until a
-// call closes the line. A trailing `..` and a divert the line holds open carry
+// shows no text. `glue` marks a beat whose text ends with `..`: its newline
+// waits, and a line that begins with `..` joins the beat. `extend` marks a beat
+// whose text ends with `..` before a `>` break: its step ends at the click like
+// any beat's, and a line that begins with `..` carries on in the same box.
+// `continues` marks a beat whose text begins with `..`: `display` checks that
+// the line shown before it ends with `..`, and warns and shows the beat as a
+// line of its own when it does not. `open` marks a call that joins the next
+// display call onto its line: `display` writes no newline after it, so the step
+// runs on until a call closes the line. A divert the line holds open carries
 // it. `caption` marks a `choose` block's last caption line, whose newline
 // waits: the step completes with the choices unless the run shows something
-// first. `group` names the glued continuation a call belongs to (its
-// file and the offset it starts at, since offsets start again in every
-// script), and
+// first. `group` names the glued continuation a call belongs to (its file and
+// the offset it starts at, since offsets start again in every script), and
 // `inherit` marks its beats after one of its breaks: they take the routing of
 // the beat the run joined the continuation to, which the interpreter knows
 // only while the beat `group` names is the one it queued last, and otherwise
 // route by the table's own routing, which is the line the source reads before
-// the continuation. `continues` marks the first call of a line that begins with
-// `..` where only the run knows the line before it: `display` warns when that
-// line had already ended as the call runs.
+// the continuation.
 //
 // When `range` is given, the call is stamped with it so its beat surfaces a
 // pathLocation (the screenplay preview's click-to-line routing depends on it).
@@ -63,8 +60,7 @@ export function buildDisplayCall(
   options: {
     pause?: boolean;
     extend?: boolean;
-    nested?: boolean;
-    fresh?: boolean;
+    glue?: boolean;
     inherit?: boolean;
     group?: string;
     open?: boolean;
@@ -92,8 +88,7 @@ export function buildDisplayCall(
   for (const flag of [
     "pause",
     "extend",
-    "nested",
-    "fresh",
+    "glue",
     "inherit",
     "open",
     "continues",
@@ -168,10 +163,15 @@ export function isDisplayCall(call: ParsedObject): call is FunctionCall {
 
 // Mark a `display` call as a `choose` block's `caption`, whose newline waits
 // for what the run does next. A call already `open` joins the next line
-// instead and is left as it is.
+// instead, and one marked `glue` already leaves its newline waiting, so either
+// is left as it is.
 export function captionDisplayCall(call: FunctionCall): void {
   const table = call.args[0] as ObjectExpression;
-  if (table.entries.some((entry) => entry.key === "open")) return;
+  if (
+    table.entries.some((entry) => entry.key === "open" || entry.key === "glue")
+  ) {
+    return;
+  }
   table.addEntry(flagEntry("caption"));
 }
 

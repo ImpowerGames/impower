@@ -1,7 +1,7 @@
 -> main
 scene main
   -> f ->
-  world
+  .. world
   done
 
 end

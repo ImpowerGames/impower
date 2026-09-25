@@ -1,5 +1,5 @@
-// A `..` after a `>` break waits for a click and then carries on in the same
-// box. The continuation's beat shows the box's text again at once, then types
+// A `..` on each side of a `>` break waits for a click and then carries on in
+// the same box. The continuation's beat shows the box's text again at once, then types
 // only its own; it keeps the name and parenthetical unless it brings its own,
 // keeps the portrait unless it shows another, and keeps the sound and voice the
 // first part started. The box is part of the interpreter's saved state, so a
@@ -92,21 +92,21 @@ const writesTo = (harness: UIHarness, target: string) =>
     (m) => m.method === "ui/write-text" && m.params.target === target,
   );
 
-describe("a `..` after a break carries on in the box", () => {
-  test("`First > .. second.` shows First, then First second.", async () => {
-    const { beats } = await beatsOf(`  First > .. second.`, 2);
+describe("a `..` on each side of a break carries on in the box", () => {
+  test("`First .. > .. second.` shows First, then First second.", async () => {
+    const { beats } = await beatsOf(`  First .. > .. second.`, 2);
     expect(beats.map(shown)).toEqual(["First", "First second."]);
     expect(beats[0]?.extended).toBeUndefined();
     expect(beats[1]?.extended).toEqual({ action: "First ".length });
   });
 
-  test("`Abso >..` then `lutely!` shows Absolutely!", async () => {
-    const { beats } = await beatsOf(`  Abso >..\n  lutely!`, 2);
+  test("`Abso.. >` then `..lutely!` shows Absolutely!", async () => {
+    const { beats } = await beatsOf(`  Abso.. >\n  ..lutely!`, 2);
     expect(beats.map(shown)).toEqual(["Abso", "Absolutely!"]);
   });
 
   test("a chain of three adds to the box at each click", async () => {
-    const { beats } = await beatsOf(`  One > .. two > .. three.\n  After.`, 4);
+    const { beats } = await beatsOf(`  One .. > .. two .. > .. three.\n  After.`, 4);
     expect(beats.map(shown)).toEqual([
       "One",
       "One two",
@@ -118,7 +118,7 @@ describe("a `..` after a break carries on in the box", () => {
 
   test("a continuation with a cue names the new speaker over the whole box", async () => {
     const { beats } = await beatsOf(
-      `  ???: Hello... > ..\n  ALICE: It's me.`,
+      `  ???: Hello... .. >\n  ALICE: .. It's me.`,
       2,
     );
     expect(on(beats[0], "character_name")).toBe("???");
@@ -130,7 +130,7 @@ describe("a `..` after a break carries on in the box", () => {
   });
 
   test("a continuation without a cue keeps the name", async () => {
-    const { beats } = await beatsOf(`  HERO: Hold > ..\n  on tight.`, 2);
+    const { beats } = await beatsOf(`  HERO: Hold .. >\n  .. on tight.`, 2);
     expect(on(beats[1], "character_name")).toBe("HERO");
     expect(on(beats[1], "dialogue")).toBe("Hold on tight.");
     expect(beats[1]?.extended).toEqual({
@@ -141,7 +141,7 @@ describe("a `..` after a break carries on in the box", () => {
 
   test("a parenthetical on a line of its own replaces the one shown", async () => {
     const { beats } = await beatsOf(
-      `  HERO:\n    Quiet > ..\n    (louder)\n    now!`,
+      `  HERO:\n    Quiet .. >\n    .. (louder)\n    now!`,
       2,
     );
     expect(on(beats[0], "character_parenthetical")).toBe("");
@@ -150,7 +150,7 @@ describe("a `..` after a break carries on in the box", () => {
   });
 
   test("an action box extended by a cue gets the text and no name, typed as the speaker", async () => {
-    const { beats } = await beatsOf(`  Knock > ..\n  BOB: Who's there?`, 2);
+    const { beats } = await beatsOf(`  Knock .. >\n  BOB: .. Who's there?`, 2);
     expect(on(beats[1], "action")).toBe("Knock Who's there?");
     expect(beats[1]?.text?.["character_name"]).toBeUndefined();
     expect(beats[1]?.text?.["dialogue"]).toBeUndefined();
@@ -163,51 +163,60 @@ describe("a `..` after a break carries on in the box", () => {
     expect(synth(beats[1])).toBe(synth(bob.beats[0]));
   });
 
-  test("`A .. >` followed by a cue keeps the first speaker in one beat", async () => {
-    const { beats } = await beatsOf(`  HERO: A .. >\n  BOB: B\n  C`, 2);
-    expect(on(beats[0], "character_name")).toBe("HERO");
-    expect(on(beats[0], "dialogue")).toBe("A B");
-    expect(beats[0]?.extended).toBeUndefined();
-    expect(shown(beats[1])).toBe("C");
-    expect(beats[1]?.extended).toBeUndefined();
+  test("a mark on one side only starts a new box", async () => {
+    for (const body of [`  HERO: A .. >\n  BOB: B`, `  HERO: A >\n  BOB: .. B`]) {
+      const { beats } = await beatsOf(body, 2);
+      expect(on(beats[1], "character_name"), body).toBe("BOB");
+      expect(on(beats[1], "dialogue"), body).toBe("B");
+      expect(beats[1]?.extended, body).toBeUndefined();
+    }
   });
 
-  test("an asset line between the parts runs at the click", async () => {
-    const { beats } = await beatsOf(`  A > ..\n  [[b]]\n  B`, 2);
+  test("a picture on the continuation's line runs at the click", async () => {
+    const { beats } = await beatsOf(`  A .. >\n  .. [[b]]B`, 2);
     expect(beats[0]?.image).toBeUndefined();
     expect(shown(beats[1])).toBe("A B");
     expect(Object.keys(beats[1]?.image ?? {})).toEqual(["portrait"]);
   });
 
-  test("a display line between the break and a `..` extends nothing", async () => {
-    const { beats } = await beatsOf(`  A >\n  Other ..\n  B`, 2);
-    expect(beats.map(shown)).toEqual(["A", "Other B"]);
-    expect(beats[1]?.extended).toBeUndefined();
+  test("a line shown between the parts takes the box away", async () => {
+    for (const between of ["Other.", "[[b]]"]) {
+      const { beats } = await beatsOf(`  A .. >\n  ${between}\n  .. B`, 3);
+      expect(shown(beats[2]), between).toBe("B");
+      expect(beats[2]?.extended, between).toBeUndefined();
+    }
   });
 
-  test("a branch that shows nothing leaves the line after its block a new box", async () => {
-    for (const branch of ["B", "B > .."]) {
-      const untaken = await beatsOf(
-        `  A > ..\n  if false then\n    ${branch}\n  end\n  C`,
-        2,
-      );
-      expect(untaken.beats.map(shown)).toEqual(["A", "C"]);
-      expect(untaken.beats[1]?.extended).toBeUndefined();
-    }
+  test("a branch that shows nothing leaves the line after its block to its own mark", async () => {
+    const marked = await beatsOf(
+      `  A .. >\n  if false then\n    B\n  end\n  .. C`,
+      2,
+    );
+    expect(marked.beats.map(shown)).toEqual(["A", "A C"]);
+    const unmarked = await beatsOf(
+      `  A .. >\n  if false then\n    .. B\n  end\n  C`,
+      2,
+    );
+    expect(unmarked.beats.map(shown)).toEqual(["A", "C"]);
+    expect(unmarked.beats[1]?.extended).toBeUndefined();
     const taken = await beatsOf(
-      `  A > ..\n  if true then\n    B\n  end\n  C`,
+      `  A .. >\n  if true then\n    .. B\n  end\n  C`,
       3,
     );
     expect(taken.beats.map(shown)).toEqual(["A", "A B", "C"]);
     expect(taken.beats[2]?.extended).toBeUndefined();
-    // A block whose branch ends with `> ..` leaves its box to the next line.
-    const inside = await beatsOf(`  if true then\n    A > ..\n  end\n  C`, 2);
+    // A branch that ends with `.. >` offers its box to the line after the
+    // block.
+    const inside = await beatsOf(
+      `  if true then\n    A .. >\n  end\n  .. C`,
+      2,
+    );
     expect(inside.beats.map(shown)).toEqual(["A", "A C"]);
   });
 
   test("a cue on a continuation of only pictures names the box's speaker", async () => {
     const { beats } = await beatsOf(
-      `  HERO: A > ..\n  BOB:\n    [[b]]\n  C`,
+      `  HERO: A .. >\n  BOB: .. [[b]] ..\n  .. C`,
       2,
     );
     expect(on(beats[1], "character_name")).toBe("BOB");
@@ -215,16 +224,9 @@ describe("a `..` after a break carries on in the box", () => {
     expect(Object.keys(beats[1]?.image ?? {})).toEqual(["portrait"]);
   });
 
-  test("a load line as the continuation keeps the box on the page while it loads", async () => {
-    const { beats } = await beatsOf(`  A > ..\n  load elsewhere\n  B`, 3);
-    expect(beats[1]?.load?.map((load) => load.name)).toEqual(["elsewhere"]);
-    expect(beats[1]?.extended).toEqual({});
-    expect(shown(beats[2])).toBe("A B");
-  });
-
   test("a parenthetical on the continuation's cue replaces the one shown", async () => {
     const replaced = await beatsOf(
-      `  HERO (softly): Quiet > ..\n  HERO (loudly): now!`,
+      `  HERO (softly): Quiet .. >\n  HERO (loudly): .. now!`,
       2,
     );
     expect(on(replaced.beats[0], "character_parenthetical")).toBe("(softly)");
@@ -233,13 +235,13 @@ describe("a `..` after a break carries on in the box", () => {
     expect(
       replaced.beats[1]?.extended?.["character_parenthetical"],
     ).toBeUndefined();
-    const kept = await beatsOf(`  HERO (softly): Quiet > ..\n  now.`, 2);
+    const kept = await beatsOf(`  HERO (softly): Quiet .. >\n  .. now.`, 2);
     expect(on(kept.beats[1], "character_parenthetical")).toBe("(softly)");
     expect(kept.beats[1]?.extended?.["character_parenthetical"]).toBe(1);
   });
 
   test("a new program drops the box the replaced one left", async () => {
-    const { harness, beats } = await beatsOf(`  A > ..\n  B`, 1);
+    const { harness, beats } = await beatsOf(`  A .. >\n  .. B`, 1);
     expect(shown(beats[0])).toBe("A");
     (harness.game.module.interpreter as any).onProgramUpdate();
     const next = harness.nextBeat();
@@ -248,14 +250,14 @@ describe("a `..` after a break carries on in the box", () => {
   });
 
   test("a continuation may repeat the text before it", async () => {
-    const { beats } = await beatsOf(`  A >..\n  A`, 2);
+    const { beats } = await beatsOf(`  A.. >\n  ..A`, 2);
     expect(shown(beats[1])).toBe("AA");
     expect(beats[1]?.extended).toEqual({ action: 1 });
   });
 
   test("choices after an extended box attach to it as to any box", async () => {
     const { beats } = await beatsOf(
-      `  choose\n    HERO: Pick > ..\n    one.\n    * One\n    * Two\n  end`,
+      `  choose\n    HERO: Pick .. >\n    .. one.\n    * One\n    * Two\n  end`,
       2,
     );
     expect(shown(beats[0])).toBe("Pick");
@@ -266,7 +268,7 @@ describe("a `..` after a break carries on in the box", () => {
 
 describe("the extended beat on the page", () => {
   test("writes the box's text at once and reveals only the continuation", async () => {
-    const { harness, beats } = await beatsOf(`  HERO: First > .. second.`, 2);
+    const { harness, beats } = await beatsOf(`  HERO: First .. > .. second.`, 2);
     harness.reset();
     await harness.display(beats[1]!, false);
     await flushMicrotasks();
@@ -303,7 +305,7 @@ describe("the extended beat on the page", () => {
 
   test("keeps the portrait and the sound and voice the first part started", async () => {
     const { harness } = await beatsOf(
-      `  HERO:\n    [[a]]\n    First > ..\n    second.`,
+      `  HERO:\n    [[a]]\n    First .. >\n    .. second.`,
       0,
     );
     const played = coordinated(harness);
@@ -319,7 +321,7 @@ describe("the extended beat on the page", () => {
   });
 
   test("a continuation of only pictures keeps the box, its pictures and its sound", async () => {
-    const { harness } = await beatsOf(`  HERO: First > ..\n  [[b]]`, 0);
+    const { harness } = await beatsOf(`  HERO: First .. >\n  .. [[b]]`, 0);
     const played = coordinated(harness);
     await played.play(harness.nextBeat()!);
     const second = harness.nextBeat()!;
@@ -413,14 +415,14 @@ async function scrubTo(source: string, line: number) {
 
 describe("the preview, checkpoints and PLAY", () => {
   const SOURCE = story(
-    `  CHARACTER:\n    [[a]]\n    First > ..\n    [[b]]\n    second.`,
+    `  CHARACTER:\n    [[a]]\n    First .. >\n    .. [[b]]\n    second.`,
   );
   const lineOf = (needle: string) =>
     SOURCE.split("\n").findIndex((l) => l.includes(needle));
 
   test.each([
     ["[[a]]", "a.png", "First"],
-    ["First > ..", "a.png", "First"],
+    ["First .. >", "a.png", "First"],
     ["[[b]]", "b.png", "First second."],
     ["second.", "b.png", "First second."],
   ])(

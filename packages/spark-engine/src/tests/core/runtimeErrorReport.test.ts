@@ -11,7 +11,7 @@ import type { Game } from "../../game/core/classes/Game";
 import { createHarness } from "../ui/harness/uiTestHarness";
 
 const CONTINUES_WARNING =
-  "This line begins with `..`, but the line before it had already ended.";
+  "This line begins with `..`, but the line shown before it does not end with `..`, so it does not join it.";
 
 const runtimeErrors = (messages: any[]) =>
   messages.filter((m) => m.method === "game/runtimeError").map((m) => m.params);
@@ -35,8 +35,8 @@ describe("a runtime warning", () => {
   test("leaves the game running, and the next step executes", async () => {
     const h = await play(SOURCE);
     expect(runtimeErrors(h.messages)).toEqual([]);
-    // The beat after `A` shows `B`, whose `..` the line before did not leave
-    // open.
+    // The beat after `A` shows `B`, whose `..` the line before did not offer
+    // to join.
     h.game.continue();
     const warnings = runtimeErrors(h.messages);
     expect(warnings.map((w) => [w.type, w.message])).toEqual([
