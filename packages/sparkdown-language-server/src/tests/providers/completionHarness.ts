@@ -152,7 +152,7 @@ type Body = () => void | Promise<void>;
 // has since made pass. SPARKDOWN_KNOWN_COMPLETION_BUGS=run runs them as
 // ordinary tests, to read the assertion each one fails on.
 const knownBug = (title: string, body: Body) => {
-  const mode = process.env.SPARKDOWN_KNOWN_COMPLETION_BUGS;
+  const mode = process.env["SPARKDOWN_KNOWN_COMPLETION_BUGS"];
   if (mode === "fails") test.fails(title, body);
   else if (mode === "run") test(title, body);
   else test.skip(title, body);
