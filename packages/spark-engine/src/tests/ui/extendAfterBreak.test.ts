@@ -205,6 +205,16 @@ describe("a `..` after a break carries on in the box", () => {
     expect(inside.beats.map(shown)).toEqual(["A", "A C"]);
   });
 
+  test("a cue on a continuation of only pictures names the box's speaker", async () => {
+    const { beats } = await beatsOf(
+      `  HERO: A > ..\n  BOB:\n    [[b]]\n  C`,
+      2,
+    );
+    expect(on(beats[1], "character_name")).toBe("BOB");
+    expect(on(beats[1], "dialogue")).toBe("A C");
+    expect(Object.keys(beats[1]?.image ?? {})).toEqual(["portrait"]);
+  });
+
   test("a load line as the continuation keeps the box on the page while it loads", async () => {
     const { beats } = await beatsOf(`  A > ..\n  load elsewhere\n  B`, 3);
     expect(beats[1]?.load?.map((load) => load.name)).toEqual(["elsewhere"]);

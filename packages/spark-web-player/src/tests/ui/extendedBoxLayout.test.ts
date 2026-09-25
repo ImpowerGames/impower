@@ -4,6 +4,7 @@
 // box lays out as the same words written at once would.
 
 import { describe, expect, test } from "vitest";
+import { writeBeatText } from "@impower/spark-engine/src/game/core/classes/Coordinator";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
 
 const SCREEN = `define HERO as character with
@@ -62,6 +63,34 @@ describe("a box carried on after a click", () => {
   // A played write to an empty target keeps the target hidden until its first
   // letter's reveal begins. The carried box's letters are already on the
   // page, so the target does not wait for the beat's start.
+  test("the box's letters start now, and only the continuation's at the beat", async () => {
+    const harness = createDOMHarness(story(`  HERO: First > .. second.`));
+    await harness.ready;
+    harness.jumpTo("start");
+    await harness.display(harness.nextBeat()!, false);
+    const ui = harness.game.module.ui;
+    await ui.text.clearAll(ui.getTransientTargets());
+    const second = harness.nextBeat()!;
+    // A played beat is stamped with its start time on the shared clock.
+    await Promise.all(writeBeatText(ui, second, false, 5000));
+    await flushMicrotasks();
+    const letters = [
+      ...(harness.overlay
+        .querySelector(".dialogue .text")
+        ?.querySelectorAll(".text_letter") ?? []),
+    ] as any[];
+    const starts = letters.map((letter) => letter.__sdReveal?.startTime);
+    const carried = second.extended?.["dialogue"] ?? 0;
+    expect(carried).toBe("First ".length);
+    const now = starts.slice(0, carried);
+    const later = starts.slice(carried);
+    // The page's own clock (0 here) for what is already on it, the beat's
+    // start for what types.
+    expect(now.every((start) => start === 0)).toBe(true);
+    expect(later.length).toBeGreaterThan(0);
+    expect(later.every((start) => start > 0)).toBe(true);
+  });
+
   test("the box shows at once, without waiting for the beat", async () => {
     const extended = await shownAfterClick(`  HERO: First > .. second.`);
     const box = extended.overlay.querySelector(".dialogue") as any;

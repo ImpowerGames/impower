@@ -487,8 +487,15 @@ export class InterpreterModule extends Module<
         contentInstructions.extended = extended;
       } else if (box) {
         // A beat of only pictures or sound runs at the click and leaves the
-        // box on the page, still waiting for its text.
+        // box on the page, still waiting for its text. A cue it names is the
+        // box's speaker from here on.
         contentInstructions.extended = {};
+        if (box.cue && ownCue?.name) {
+          box.cue = {
+            ...ownCue,
+            parenthetical: ownCue.parenthetical || box.cue.parenthetical,
+          };
+        }
       }
       if (contentInstructions.text) {
         if (characterParentheticalInstructions) {

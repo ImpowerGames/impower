@@ -727,8 +727,8 @@ export default class UIManager extends Manager {
     sequence: TextInstruction[],
     instant: boolean,
     enter: { element: HTMLElement; animation: ReturnType<typeof getRevealAnimation> }[],
-    shown = 0,
-    enterNow: { element: HTMLElement; animation: ReturnType<typeof getRevealAnimation> }[] = enter,
+    shown: number,
+    enterNow: { element: HTMLElement; animation: ReturnType<typeof getRevealAnimation> }[],
   ) {
     let lineWrapperEl: HTMLElement | undefined = undefined;
     let wordWrapperEl: HTMLElement | undefined = undefined;
