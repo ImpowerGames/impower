@@ -4,6 +4,8 @@ import { Conditional } from "./Conditional/Conditional";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
+import { NativeFunctionCall } from "../../../engine/NativeFunctionCall";
+import { IntValue } from "../../../engine/Value";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
@@ -74,6 +76,10 @@ export class Weave extends ParsedObject {
   //  - Choices or Gathers that need to be joined up
   //  - Explicit Divert to gather points (i.e. "->" without a target)
   public looseEnds: IWeavePoint[] = [];
+
+  // The weave of a `choose` block, which choices offered from inside a
+  // conditional or sequence within it continue at the end of.
+  public isChooseBlock = false;
 
   public gatherPointsToResolve: GatherPointToResolve[] = [];
 
@@ -298,6 +304,20 @@ export class Weave extends ParsedObject {
       }
 
       if (gather.endsChooseBlock) {
+        // Hold the flow when the block offered a choice. When none was
+        // generated (every choice gated off), step over the stop into the
+        // gather and run on.
+        const skipStop = new RuntimeDivert();
+        skipStop.isConditional = true;
+        this.currentContainer.AddContent(RuntimeControlCommand.EvalStart());
+        this.currentContainer.AddContent(RuntimeControlCommand.ChoiceCount());
+        this.currentContainer.AddContent(new IntValue(0));
+        this.currentContainer.AddContent(NativeFunctionCall.CallWithName("=="));
+        this.currentContainer.AddContent(RuntimeControlCommand.EvalEnd());
+        this.currentContainer.AddContent(skipStop);
+        this.gatherPointsToResolve.push(
+          new GatherPointToResolve(skipStop, gatherContainer),
+        );
         this.currentContainer.AddContent(RuntimeControlCommand.Done());
       }
 
@@ -346,8 +366,12 @@ export class Weave extends ParsedObject {
       );
     }
 
-    // Replace the current container itself
-    this.currentContainer = gatherContainer;
+    // Replace the current container itself. The end of a `choose` block runs
+    // on out of its container, so what follows the block stays beside it
+    // rather than nesting one level deeper per block.
+    if (!gather.endsChooseBlock) {
+      this.currentContainer = gatherContainer;
+    }
   };
 
   public readonly AddRuntimeForWeavePoint = (weavePoint: IWeavePoint): void => {
@@ -413,7 +437,10 @@ export class Weave extends ParsedObject {
     // Now there's a deeper indentation level, the previous weave point doesn't
     // count as a loose end (since it will have content to go to)
     if (this.previousWeavePoint !== null) {
-      this.looseEnds.splice(this.looseEnds.indexOf(this.previousWeavePoint), 1);
+      const index = this.looseEnds.indexOf(this.previousWeavePoint);
+      if (index >= 0) {
+        this.looseEnds.splice(index, 1);
+      }
 
       this.addContentToPreviousWeavePoint = false;
     }
@@ -459,8 +486,13 @@ export class Weave extends ParsedObject {
     //    sequence to get to it. We're allowed to pass all loose ends to
     //    one of these.
     //  - An "outer" weave is one that is outside of a conditional/sequence
-    //    that the current weave is nested within. Loose ends pass up there
-    //    only when there is no inner weave.
+    //    that the current weave is nested within. We're only allowed to
+    //    pass gathers (i.e. 'normal flow') loose ends up there, not normal
+    //    choices. The rule is that choices have to be diverted explicitly
+    //    by the author since it's ambiguous where flow should go otherwise.
+    //  - The exception is a `choose` block: a choice offered from inside a
+    //    conditional or sequence within one continues at that block's end,
+    //    so it passes up to the closest `choose` block's weave.
     //
     // e.g.:
     //
@@ -475,6 +507,7 @@ export class Weave extends ParsedObject {
     //
     let closestInnerWeaveAncestor: Weave | null = null;
     let closestOuterWeaveAncestor: Weave | null = null;
+    let closestChooseBlockAncestor: Weave | null = null;
 
     // Find inner and outer ancestor weaves as defined above.
     let nested = false;
@@ -492,6 +525,14 @@ export class Weave extends ParsedObject {
 
         if (nested && closestOuterWeaveAncestor === null) {
           closestOuterWeaveAncestor = weaveAncestor;
+        }
+
+        if (
+          nested &&
+          closestChooseBlockAncestor === null &&
+          weaveAncestor.isChooseBlock
+        ) {
+          closestChooseBlockAncestor = weaveAncestor;
         }
       }
 
@@ -516,15 +557,25 @@ export class Weave extends ParsedObject {
       let received = false;
 
       if (nested) {
-        // This weave is nested within a conditional or sequence. Sparkdown
-        // offers choices from inside an `if` in a `choose` block, so choices
-        // and gathers alike pass up to the closer (inner) weave if there is
-        // one, else to the outer weave, whose next gather they continue at.
-        const receivingWeave =
-          closestInnerWeaveAncestor || closestOuterWeaveAncestor;
-        if (receivingWeave !== null) {
-          receivingWeave.ReceiveLooseEnd(looseEnd!);
-          received = true;
+        // This weave is nested within a conditional or sequence:
+        //  - choices can only be passed up to direct ancestor ("inner") weaves,
+        //    or else to the closest `choose` block, whose end they continue at
+        //  - gathers can be passed up to either, but favour the closer (inner) weave
+        //    if there is one
+        if (looseEnd instanceof Choice) {
+          const receivingWeave =
+            closestInnerWeaveAncestor || closestChooseBlockAncestor;
+          if (receivingWeave !== null) {
+            receivingWeave.ReceiveLooseEnd(looseEnd);
+            received = true;
+          }
+        } else {
+          const receivingWeave =
+            closestInnerWeaveAncestor || closestOuterWeaveAncestor;
+          if (receivingWeave !== null) {
+            receivingWeave.ReceiveLooseEnd(looseEnd!);
+            received = true;
+          }
         }
       } else {
         // No nesting, all loose ends can be safely passed up

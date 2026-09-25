@@ -158,7 +158,9 @@ export function lowerSparkdownChooseBlock(
   (ctx as MutableCtx).chooseDepth = depth - 1;
   (ctx as MutableCtx).inChoosePreamble = inPreamble;
 
-  const block = wrapInWeave([new Weave(weaveContent, depth)]);
+  const weave = new Weave(weaveContent, depth);
+  weave.isChooseBlock = !inPreamble;
+  const block = wrapInWeave([weave]);
   if (diagnostics.length > 0) {
     block.diagnostics = diagnostics;
   }

@@ -3010,6 +3010,12 @@ export class Story extends InkObject {
           this.state.PushEvaluationStack(new IntValue(count));
           break;
 
+        case ControlCommand.CommandType.ChoiceCount:
+          this.state.PushEvaluationStack(
+            new IntValue(this.state.generatedChoices.length),
+          );
+          break;
+
         case ControlCommand.CommandType.SequenceShuffleIndex:
           let shuffleIndex = this.NextSequenceShuffleIndex();
           this.state.PushEvaluationStack(new IntValue(shuffleIndex!));

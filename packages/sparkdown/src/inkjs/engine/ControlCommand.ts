@@ -109,6 +109,9 @@ export class ControlCommand extends InkObject {
   public static Done() {
     return new ControlCommand(ControlCommand.CommandType.Done);
   }
+  public static ChoiceCount() {
+    return new ControlCommand(ControlCommand.CommandType.ChoiceCount);
+  }
   public static End() {
     return new ControlCommand(ControlCommand.CommandType.End);
   }
@@ -276,6 +279,11 @@ export namespace ControlCommand {
     // (`_shortCircuitOp`) and the RHS op count to skip
     // (`_shortCircuitSkipCount`). See `ShortCircuit()`.
     ShortCircuit, // 32
+
+    // Pushes how many choices the current flow has generated, fallback
+    // choices included. A `choose` block's end reads it to hold the flow
+    // only when the block offered a choice.
+    ChoiceCount, // 33
 
     TOTAL_VALUES,
   }

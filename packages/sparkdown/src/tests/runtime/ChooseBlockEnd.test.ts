@@ -4,6 +4,7 @@
 // the script, at any nesting, runs after the choice. A scene that runs out of
 // content after a choice therefore reaches the scene's implicit `done` and
 // ends without a runtime error, including when the block sits inside an `if`.
+// A block that offers no choice holds nothing, and the flow runs on past it.
 // A block in another block's preamble offers its choices with that block's.
 
 import { describe, expect, test } from "vitest";
@@ -18,12 +19,10 @@ function drive(source: string, ...picks: string[]) {
   const story: any = ctx.story;
   const runtimeErrors: string[] = [];
   story.onError = (message: string) => runtimeErrors.push(message);
-  // The game listens for the paths the story runs, which reads the path of
-  // every pointer stepped through, including an empty gather's start.
-  const executed: string[] = [];
-  story.onExecute = (path: string | undefined) => {
-    if (path) executed.push(path);
-  };
+  // The game listens for the paths the story runs. Listening makes the story
+  // read the path of every pointer it steps through, including an empty
+  // gather's start, so the hook stays although nothing reads what it gets.
+  story.onExecute = () => {};
   const lines: string[] = [];
   const steps: string[][] = [];
   const offered: string[][] = [];
@@ -378,6 +377,90 @@ end
     );
     expect(result.runtimeErrors).toEqual([]);
     expect(result.steps).toEqual([[], ["A", "Other."]]);
+  });
+
+  test("a block that offers no choice holds nothing: the flow runs on past it", () => {
+    const result = drive(`
+store has_key = false
+-> main
+
+scene main
+  Door.
+  choose
+    if has_key then
+      * Unlock
+    end
+  end
+  You walk away.
+end
+`);
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.lines).toEqual(["Door.", "You walk away."]);
+    expect(result.choices).toEqual([]);
+  });
+
+  test("a fallback choice fires when every other choice in the block is unavailable", () => {
+    const result = drive(`
+store has_key = false
+-> main
+
+scene main
+  choose
+    if has_key then
+      * Unlock
+    end
+    * ->
+  then
+    You give up on the door.
+  end
+  You walk away.
+end
+`);
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.lines).toEqual(["You give up on the door.", "You walk away."]);
+  });
+
+  test("a choice inside two ifs in a block continues after the block", () => {
+    const result = drive(
+      `
+-> main
+
+scene main
+  choose
+    if true then
+      if true then
+        * Deep
+      end
+    end
+    * Shallow
+  end
+  After.
+end
+`,
+      "Deep",
+    );
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.offered).toEqual([["Deep", "Shallow"]]);
+    expect(result.steps.at(-1)).toEqual(["Deep", "After."]);
+  });
+
+  test("a choice outside any choose block does not replay the content after it", () => {
+    const result = drive(
+      `
+-> main
+
+scene main
+  if true then
+    * Stray
+  end
+  Middle.
+  label mark
+  Marked.
+end
+`,
+      "Stray",
+    );
+    expect(result.steps.at(-1)).toEqual(["Stray"]);
   });
 
   test("choosing inside a choose nested in an if continues after the outer choose block", () => {

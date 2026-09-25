@@ -4,7 +4,8 @@
 // text produces: the bytecode carries the edited line, and every path location
 // names the line a cold compile gives it. The edit sits above or below a
 // `choose … then … end` or an `if … else … end`, the two blocks a scene's
-// closing lines usually follow.
+// closing lines usually follow, or a `choose` block nested in an `if` or in
+// another block's preamble, or inside those nested blocks.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -28,6 +29,28 @@ const BLOCKS: Record<string, string[]> = {
     "    You hold back.",
     "  then",
     "    The way opens.",
+    "  end",
+  ],
+  "a choose block inside an if block": [
+    "  if key then",
+    "    choose",
+    "      * [Unlock it]",
+    "        The lock gives.",
+    "      * [Leave it]",
+    "        You step back.",
+    "    end",
+    "    The key is warm.",
+    "  end",
+  ],
+  "a choose block in another block's preamble": [
+    "  choose",
+    "    if key then",
+    "      choose",
+    "        * [Inner choice]",
+    "      end",
+    "    end",
+    "    * [Outer choice]",
+    "      You choose the outer way.",
     "  end",
   ],
 };
@@ -219,6 +242,39 @@ describe("an incremental compile of an edit in a scene", () => {
     expect(stable(pick(compileOf(c))), "the next edit below the choose").toBe(
       stable(pick(compileOf(compilerFor(next.after)))),
     );
+  });
+
+  it("is the cold compile after each of several edits in and around nested choose blocks", () => {
+    let text = screenplay([
+      ...BLOCKS["a choose block inside an if block"]!,
+      "  Beat between.",
+      ...BLOCKS["a choose block in another block's preamble"]!,
+    ]);
+    const c = compilerFor(text);
+    compileOf(c);
+    const edits = [
+      ["The lock gives.", "The lock gives, slowly."],
+      ["The key is warm.", "The key is warm.\n    It hums."],
+      ["Beat between.", "Beat between, changed."],
+      ["[Inner choice]", "[Inner choice, renamed]"],
+      ["You choose the outer way.", "You take the outer way."],
+      ["Beat 1 after.", "Beat 1 after, changed."],
+    ] as const;
+    let version = 1;
+    for (const [find, replace] of edits) {
+      const { contentChanges, after } = change(text, find, replace);
+      text = after;
+      version += 1;
+
+      c.updateDocument({
+        textDocument: { uri: URI, version },
+        contentChanges,
+      } as never);
+
+      expect(stable(pick(compileOf(c))), `after "${replace}"`).toBe(
+        stable(pick(compileOf(compilerFor(text)))),
+      );
+    }
   });
 
   it("is the cold compile after each of several edits below a choose block", () => {
