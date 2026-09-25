@@ -485,10 +485,11 @@ const replaceScopes = (
 };
 
 /**
- * Auto-fills `match: (.+)` for any *named* rule that doesn't already
- * provide its own matching shape. A rule counts as "needing the default"
- * when it has a `name` or `tag` (so it emits a scope/node) but lacks every
- * form of pattern source: `match`, `begin`, `patterns`, and `include`.
+ * Auto-fills `match: (.+)` for any named or captures-only rule that doesn't
+ * already provide its own matching shape. A rule counts as "needing the
+ * default" when it has a `name`, `tag` or `captures` (so it emits a
+ * scope/node) but lacks every form of pattern source: `match`, `begin`,
+ * `patterns`, and `include`.
  *
  * The default is the most common marker-rule shape in this grammar — see
  * the dozens of `match: (.+)` lines on simple keyword/punctuation rules —
@@ -497,6 +498,16 @@ const replaceScopes = (
  *   IncludeKeyword:
  *     tag: controlKeyword
  *     name: keyword.control.definition.include.sd
+ *
+ *   StylingMark:
+ *     captures:
+ *       1:
+ *         name: markup.raw.text.sd
+ *
+ * The JSON must carry the `match` itself: textmate-grammar-tree assumes
+ * `(.+)` for a repository rule without one, while vscode-textmate compiles
+ * such a rule as an empty include and matches nothing, so the two engines
+ * would scope the text differently (GRAMMAR.md §17).
  *
  * Applies to top-level `repository:` entries and to each rule inside any
  * nested `patterns:` array. Deliberately does NOT recurse into `captures:`
@@ -509,14 +520,16 @@ const replaceScopes = (
  */
 const applyDefaultMatchToRule = (rule: any): void => {
   if (!rule || typeof rule !== "object" || Array.isArray(rule)) return;
-  const isNamed =
-    typeof rule["name"] === "string" || typeof rule["tag"] === "string";
+  const emitsScope =
+    typeof rule["name"] === "string" ||
+    typeof rule["tag"] === "string" ||
+    (typeof rule["captures"] === "object" && rule["captures"] !== null);
   const hasMatchShape =
     typeof rule["match"] === "string" ||
     typeof rule["begin"] === "string" ||
     typeof rule["include"] === "string" ||
     Array.isArray(rule["patterns"]);
-  if (isNamed && !hasMatchShape) {
+  if (emitsScope && !hasMatchShape) {
     rule["match"] = "(.+)";
   }
   // Recurse only into nested rule lists. A rule's `patterns:` is the only

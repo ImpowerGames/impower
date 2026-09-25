@@ -1,0 +1,193 @@
+text.source.sparkdown [0..245]
+ ├─ string.display.text.chunk.sd [0..16]
+ │   ├─ markup.raw.text.sd [0..2]: "Go"
+ │   ├─ markup.raw.space.sd [2..3]: " "
+ │   ├─ meta.text.sd [3..11]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [3..4]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [4..8]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [8..9]: " "
+ │   │   ├─ constant.numeric.decimal.luau [9..10]: "1"
+ │   │   └─ keyword.operator.expression.end.tag.sd [10..11]: ">"
+ │   ├─ markup.raw.space.sd [11..12]: " "
+ │   ├─ markup.raw.text.sd [12..15]: "now"
+ │   └─ markup.raw.punctuation.sd [15..16]: "."
+ ├─ Newline [16..17]: "\n"
+ ├─ string.display.text.chunk.sd [17..34]
+ │   ├─ markup.raw.text.sd [17..19]: "Go"
+ │   ├─ markup.raw.space.sd [19..20]: " "
+ │   ├─ meta.text.sd [20..29]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [20..21]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [21..25]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [25..26]: " "
+ │   │   ├─ constant.numeric.decimal.luau [26..27]: "1"
+ │   │   ├─ punctuation.whitespace.extra.sd [27..28]: " "
+ │   │   └─ keyword.operator.expression.end.tag.sd [28..29]: ">"
+ │   ├─ markup.raw.space.sd [29..30]: " "
+ │   ├─ markup.raw.text.sd [30..33]: "now"
+ │   └─ markup.raw.punctuation.sd [33..34]: "."
+ ├─ Newline [34..35]: "\n"
+ ├─ string.display.text.chunk.sd [35..54]
+ │   ├─ markup.raw.text.sd [35..37]: "Go"
+ │   ├─ markup.raw.space.sd [37..38]: " "
+ │   ├─ meta.text.sd [38..41]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [38..39]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [39..40]: "b"
+ │   │   └─ keyword.operator.expression.end.tag.sd [40..41]: ">"
+ │   ├─ markup.raw.text.sd [41..45]: "bold"
+ │   ├─ meta.text.sd [45..49]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [45..46]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [46..48]: "/b"
+ │   │   └─ keyword.operator.expression.end.tag.sd [48..49]: ">"
+ │   ├─ markup.raw.space.sd [49..50]: " "
+ │   ├─ markup.raw.text.sd [50..53]: "now"
+ │   └─ markup.raw.punctuation.sd [53..54]: "."
+ ├─ Newline [54..55]: "\n"
+ ├─ string.display.dialogue.inline.sd [55..77]
+ │   ├─ entity.name.type.dialogue.character.name.sd [55..59]
+ │   │   └─ markup.raw.text.sd [55..59]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [59..60]: ":"
+ │   ├─ punctuation.whitespace.required.sd [60..61]: " "
+ │   └─ string.display.text.chunk.sd [61..77]
+ │       ├─ markup.raw.text.sd [61..63]: "Go"
+ │       ├─ markup.raw.space.sd [63..64]: " "
+ │       ├─ meta.text.sd [64..72]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [64..65]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [65..69]: "wait"
+ │       │   ├─ punctuation.whitespace.extra.sd [69..70]: " "
+ │       │   ├─ constant.numeric.decimal.luau [70..71]: "1"
+ │       │   └─ keyword.operator.expression.end.tag.sd [71..72]: ">"
+ │       ├─ markup.raw.space.sd [72..73]: " "
+ │       ├─ markup.raw.text.sd [73..76]: "now"
+ │       └─ markup.raw.punctuation.sd [76..77]: "."
+ ├─ Newline [77..78]: "\n"
+ ├─ string.display.dialogue.inline.sd [78..101]
+ │   ├─ entity.name.type.dialogue.character.name.sd [78..82]
+ │   │   └─ markup.raw.text.sd [78..82]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [82..83]: ":"
+ │   ├─ punctuation.whitespace.required.sd [83..84]: " "
+ │   └─ string.display.text.chunk.sd [84..101]
+ │       ├─ markup.raw.text.sd [84..86]: "Go"
+ │       ├─ markup.raw.space.sd [86..87]: " "
+ │       ├─ meta.text.sd [87..96]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [87..88]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [88..92]: "wait"
+ │       │   ├─ punctuation.whitespace.extra.sd [92..93]: " "
+ │       │   ├─ constant.numeric.decimal.luau [93..94]: "1"
+ │       │   ├─ punctuation.whitespace.extra.sd [94..95]: " "
+ │       │   └─ keyword.operator.expression.end.tag.sd [95..96]: ">"
+ │       ├─ markup.raw.space.sd [96..97]: " "
+ │       ├─ markup.raw.text.sd [97..100]: "now"
+ │       └─ markup.raw.punctuation.sd [100..101]: "."
+ ├─ Newline [101..102]: "\n"
+ ├─ string.display.dialogue.inline.sd [102..127]
+ │   ├─ entity.name.type.dialogue.character.name.sd [102..106]
+ │   │   └─ markup.raw.text.sd [102..106]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [106..107]: ":"
+ │   ├─ punctuation.whitespace.required.sd [107..108]: " "
+ │   └─ string.display.text.chunk.sd [108..127]
+ │       ├─ markup.raw.text.sd [108..110]: "Go"
+ │       ├─ markup.raw.space.sd [110..111]: " "
+ │       ├─ meta.text.sd [111..114]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [111..112]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [112..113]: "b"
+ │       │   └─ keyword.operator.expression.end.tag.sd [113..114]: ">"
+ │       ├─ markup.raw.text.sd [114..118]: "bold"
+ │       ├─ meta.text.sd [118..122]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [118..119]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [119..121]: "/b"
+ │       │   └─ keyword.operator.expression.end.tag.sd [121..122]: ">"
+ │       ├─ markup.raw.space.sd [122..123]: " "
+ │       ├─ markup.raw.text.sd [123..126]: "now"
+ │       └─ markup.raw.punctuation.sd [126..127]: "."
+ ├─ Newline [127..128]: "\n"
+ ├─ string.display.dialogue.inline.sd [128..154]
+ │   ├─ entity.name.type.dialogue.character.name.sd [128..132]
+ │   │   └─ markup.raw.text.sd [128..132]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [132..133]: ":"
+ │   ├─ punctuation.whitespace.required.sd [133..134]: " "
+ │   └─ string.display.text.chunk.sd [134..154]
+ │       ├─ markup.raw.text.sd [134..136]: "Go"
+ │       ├─ markup.raw.space.sd [136..137]: " "
+ │       ├─ meta.text.sd [137..149]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [137..138]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [138..143]: "speed"
+ │       │   ├─ meta.template.expression.operator.colon.sd [143..144]: ":"
+ │       │   ├─ punctuation.whitespace.extra.sd [144..145]: " "
+ │       │   ├─ meta.argument.sd [145..148]
+ │       │   │   └─ constant.numeric.decimal.luau [145..148]: "0.5"
+ │       │   └─ keyword.operator.expression.end.tag.sd [148..149]: ">"
+ │       ├─ markup.raw.space.sd [149..150]: " "
+ │       ├─ markup.raw.text.sd [150..153]: "now"
+ │       └─ markup.raw.punctuation.sd [153..154]: "."
+ ├─ Newline [154..155]: "\n"
+ ├─ string.display.dialogue.block.sd [155..160]
+ │   ├─ entity.name.type.dialogue.character.name.sd [155..159]
+ │   │   └─ markup.raw.text.sd [155..159]: "HERO"
+ │   └─ meta.template.expression.operator.colon.sd [159..160]: ":"
+ ├─ Newline [160..161]: "\n"
+ ├─ string.display.dialogue.block.sd [161..179]
+ │   ├─ punctuation.whitespace.optional.sd [161..163]: "  "
+ │   └─ string.display.text.chunk.sd [163..179]
+ │       ├─ markup.raw.text.sd [163..165]: "Go"
+ │       ├─ markup.raw.space.sd [165..166]: " "
+ │       ├─ meta.text.sd [166..174]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [166..167]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [167..171]: "wait"
+ │       │   ├─ punctuation.whitespace.extra.sd [171..172]: " "
+ │       │   ├─ constant.numeric.decimal.luau [172..173]: "1"
+ │       │   └─ keyword.operator.expression.end.tag.sd [173..174]: ">"
+ │       ├─ markup.raw.space.sd [174..175]: " "
+ │       ├─ markup.raw.text.sd [175..178]: "now"
+ │       └─ markup.raw.punctuation.sd [178..179]: "."
+ ├─ Newline [179..180]: "\n"
+ ├─ string.display.dialogue.block.sd [180..199]
+ │   ├─ punctuation.whitespace.optional.sd [180..182]: "  "
+ │   └─ string.display.text.chunk.sd [182..199]
+ │       ├─ markup.raw.text.sd [182..184]: "Go"
+ │       ├─ markup.raw.space.sd [184..185]: " "
+ │       ├─ meta.text.sd [185..194]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [185..186]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [186..190]: "wait"
+ │       │   ├─ punctuation.whitespace.extra.sd [190..191]: " "
+ │       │   ├─ constant.numeric.decimal.luau [191..192]: "1"
+ │       │   ├─ punctuation.whitespace.extra.sd [192..193]: " "
+ │       │   └─ keyword.operator.expression.end.tag.sd [193..194]: ">"
+ │       ├─ markup.raw.space.sd [194..195]: " "
+ │       ├─ markup.raw.text.sd [195..198]: "now"
+ │       └─ markup.raw.punctuation.sd [198..199]: "."
+ ├─ Newline [199..200]: "\n"
+ ├─ string.display.dialogue.block.sd [200..221]
+ │   ├─ punctuation.whitespace.optional.sd [200..202]: "  "
+ │   └─ string.display.text.chunk.sd [202..221]
+ │       ├─ markup.raw.text.sd [202..204]: "Go"
+ │       ├─ markup.raw.space.sd [204..205]: " "
+ │       ├─ meta.text.sd [205..208]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [205..206]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [206..207]: "b"
+ │       │   └─ keyword.operator.expression.end.tag.sd [207..208]: ">"
+ │       ├─ markup.raw.text.sd [208..212]: "bold"
+ │       ├─ meta.text.sd [212..216]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [212..213]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [213..215]: "/b"
+ │       │   └─ keyword.operator.expression.end.tag.sd [215..216]: ">"
+ │       ├─ markup.raw.space.sd [216..217]: " "
+ │       ├─ markup.raw.text.sd [217..220]: "now"
+ │       └─ markup.raw.punctuation.sd [220..221]: "."
+ ├─ Newline [221..222]: "\n"
+ ├─ string.display.dialogue.block.sd [222..244]
+ │   ├─ punctuation.whitespace.optional.sd [222..224]: "  "
+ │   └─ string.display.text.chunk.sd [224..244]
+ │       ├─ markup.raw.text.sd [224..226]: "Go"
+ │       ├─ markup.raw.space.sd [226..227]: " "
+ │       ├─ meta.text.sd [227..239]
+ │       │   ├─ keyword.operator.expression.begin.tag.sd [227..228]: "<"
+ │       │   ├─ keyword.style.control.keyword.sd [228..233]: "speed"
+ │       │   ├─ meta.template.expression.operator.colon.sd [233..234]: ":"
+ │       │   ├─ punctuation.whitespace.extra.sd [234..235]: " "
+ │       │   ├─ meta.argument.sd [235..238]
+ │       │   │   └─ constant.numeric.decimal.luau [235..238]: "0.5"
+ │       │   └─ keyword.operator.expression.end.tag.sd [238..239]: ">"
+ │       ├─ markup.raw.space.sd [239..240]: " "
+ │       ├─ markup.raw.text.sd [240..243]: "now"
+ │       └─ markup.raw.punctuation.sd [243..244]: "."
+ └─ Newline [244..245]: "\n"
