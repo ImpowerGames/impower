@@ -1,4 +1,5 @@
 import type { Simulator,SimulatorSnapshot } from "../../inkjs/engine/Simulator";
+import { ErrorType, type RaisedError } from "../../inkjs/engine/Error";
 import { Story } from "../../inkjs/engine/Story";
 
 export interface RoutePlan {
@@ -483,12 +484,18 @@ export const lastSearchStats: {
    *  story out, or that it found the route. This is what lets a caller tell an
    *  author "I gave up looking" apart from "there is no way to this line". */
   endReason: SearchEndReason;
+  /** The runtime errors that ended the search's runs, once each, in the order
+   *  they were raised. An error ends the story, so a search that found no
+   *  route and raised one was stopped by it on the way; warnings end nothing
+   *  and are not kept. */
+  errors: RaisedError[];
 } = {
   nodesExpanded: 0,
   stepsUsed: 0,
   forkSitesSkipped: 0,
   exhaustedBudget: false,
   endReason: "exhausted",
+  errors: [],
 };
 
 export const planRoute = (
@@ -502,6 +509,7 @@ export const planRoute = (
   lastSearchStats.forkSitesSkipped = 0;
   lastSearchStats.exhaustedBudget = false;
   lastSearchStats.endReason = "exhausted";
+  lastSearchStats.errors = [];
 
   const isBfs = (options?.searchStrategy ?? "bfs") === "bfs";
   const startTime = now();
@@ -538,7 +546,21 @@ export const planRoute = (
         : makeStartNode(story, fromPath),
     );
 
-    story.onError = NOOP;
+    const raisedErrors = new Set<string>();
+    story.onError = (message, type, _source, raised) => {
+      if (type !== ErrorType.Error) {
+        return;
+      }
+      const error = {
+        message: raised?.message ?? message,
+        path: raised?.path ?? null,
+      };
+      const key = `${error.path} ${error.message}`;
+      if (!raisedErrors.has(key)) {
+        raisedErrors.add(key);
+        lastSearchStats.errors.push(error);
+      }
+    };
     // Null rather than a do-nothing function: the engine builds the text of a
     // pointer's path to hand to this hook, and skips that build only when the
     // hook is null. The search never wants the hook to fire, so a function

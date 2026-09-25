@@ -135,6 +135,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-editor-protocol/src/protocols/InitializeMessage"),
       import("@impower/spark-editor-protocol/src/protocols/MessageProtocol"),
       import("@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage"),
+      import("@impower/spark-editor-protocol/src/protocols/workspace/RuntimeDiagnosticsMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/EnterGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/ExitGameFullscreenModeMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/FetchGameAssetMessage"),
@@ -156,6 +157,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { InitializeMessage },
         { MessageProtocol, sendProtocolMessage },
         { ExecuteCommandMessage },
+        { RuntimeDiagnosticsMessage },
         { EnterGameFullscreenModeMessage },
         { ExitGameFullscreenModeMessage },
         { FetchGameAssetMessage },
@@ -188,6 +190,14 @@ export default function PreviewGame(_props: PreviewGameProps) {
           if (ExecuteCommandMessage.type.is(message)) {
             const result = await Workspace.fs.executeCommand(message.params);
             iframeChannelRef.current?.sendResponse(message, result);
+          }
+          if (RuntimeDiagnosticsMessage.type.isNotification(message)) {
+            // The language server shows the run's errors and warnings beside
+            // the compile's.
+            Workspace.ls.connection.sendNotification(
+              RuntimeDiagnosticsMessage.method,
+              message.params,
+            );
           }
           if (FetchGameAssetMessage.type.is(message)) {
             const { path } = message.params;
