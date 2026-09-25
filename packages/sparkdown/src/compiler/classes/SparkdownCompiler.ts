@@ -1961,7 +1961,10 @@ export class SparkdownCompiler {
     // any nested include path. E.g. `main.sd` → `includes/a.sd` →
     // `b.sd` would try to find `b.sd` next to `main.sd` instead of
     // next to `a.sd` where the import was actually written.
-    const fileResolutionState = { currentParentUri: uri };
+    const fileResolutionState = {
+      currentParentUri: uri,
+      includedUris: new Set([uri]),
+    };
     const fileHandler: IFileHandler = {
       ResolveInkFilename: (filename: string): string => {
         const filePath = this.resolveFile(
@@ -3057,20 +3060,32 @@ export class SparkdownCompiler {
           try {
             resolvedFilePath = fileHandler.ResolveInkFilename(include);
           } catch {}
-          const includedStory = resolvedFilePath
-            ? this.parseIncrementally(
-                resolvedFilePath,
-                fileHandler,
-                true,
-                state,
-                program,
-                onDiagnostic,
-              )
-            : null;
+          // A script is included once per compile, where the first `include`
+          // reaches it. Its flows then join the story once, and a script that
+          // includes the script including it ends the descent there.
+          const includedUris = state.fileResolutionState?.includedUris;
+          const alreadyIncluded =
+            resolvedFilePath != null && !!includedUris?.has(resolvedFilePath);
+          if (resolvedFilePath && !alreadyIncluded) {
+            includedUris?.add(resolvedFilePath);
+          }
+          const includedStory =
+            resolvedFilePath && !alreadyIncluded
+              ? this.parseIncrementally(
+                  resolvedFilePath,
+                  fileHandler,
+                  true,
+                  state,
+                  program,
+                  onDiagnostic,
+                )
+              : null;
           if (state.fileResolutionState) {
             state.fileResolutionState.currentParentUri = previousParentUri;
           }
-          topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
+          if (!alreadyIncluded) {
+            topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
+          }
         }
       }
       if (run) {
@@ -3566,16 +3581,15 @@ export class SparkdownCompiler {
     // now that canonical `__synth_<n>` names are themselves remappable.
     const matchedIds: Array<{ id: Identifier; owner: ParsedObject }> = [];
     const seenIds = new Set<Identifier>();
-    // A script included from two places is walked twice, so a string field
-    // is recorded once, with the name it held when the walk reached it.
+    // A string field is recorded once per node, with the name it held when
+    // the walk first reached it.
     const matchedStrings: Array<{ node: any; field: string; name: string }> =
       [];
     const seenStrings = new Map<object, Set<string>>();
     const flowsToRekey: FlowBase[] = [];
     // Every call of one continuation carries the same group, so the calls
     // share a mapping just as a synthetic's definition and references do.
-    // A script included from two places is walked twice, so a group node is
-    // recorded once, with the name it gets.
+    // A group node is recorded once, with the name it gets.
     const groupRemap = new Map<string, string>();
     const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();
