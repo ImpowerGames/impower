@@ -1,4 +1,4 @@
-text.source.sparkdown [0..723]
+text.source.sparkdown [0..883]
  ├─ string.display.text.chunk.sd [0..1]
  │   └─ markup.raw.text.sd [0..1]: "A"
  ├─ meta.break.sd [1..4]
@@ -188,426 +188,536 @@ text.source.sparkdown [0..723]
  ├─ string.display.text.chunk.sd [217..221]
  │   └─ markup.raw.text.sd [217..221]: "zeta"
  ├─ Newline [221..222]: "\n"
- ├─ string.display.dialogue.block.sd [222..242]
- │   ├─ entity.name.type.dialogue.character.name.sd [222..226]
- │   │   └─ markup.raw.text.sd [222..226]: "HERO"
- │   ├─ constant.character.escape.dialogue.character.parenthetical.sd [226..237]
- │   │   ├─ punctuation.whitespace.sd [226..227]: " "
- │   │   ├─ meta.brace.round.open.sd [227..228]: "("
- │   │   ├─ markup.raw.text.sd [228..236]: "cheerful"
- │   │   └─ meta.brace.round.close.sd [236..237]: ")"
- │   ├─ constant.character.escape.dialogue.character.position.sd [237..239]
- │   │   ├─ punctuation.whitespace.sd [237..238]: " "
- │   │   └─ punctuation.definition.position.sd [238..239]: "["
- │   ├─ constant.character.escape.dialogue.character.position.sd [239..240]: ">"
- │   ├─ constant.character.escape.dialogue.character.position.sd [240..241]
- │   │   └─ punctuation.definition.position.sd [240..241]: "]"
- │   └─ meta.template.expression.operator.colon.sd [241..242]: ":"
- ├─ Newline [242..243]: "\n"
- ├─ string.display.dialogue.block.sd [243..248]
- │   ├─ punctuation.whitespace.optional.sd [243..245]: "  "
- │   └─ string.display.text.chunk.sd [245..248]
- │       ├─ markup.raw.text.sd [245..247]: "Hi"
- │       └─ markup.raw.punctuation.sd [247..248]: "."
- ├─ Newline [248..249]: "\n"
- ├─ string.display.dialogue.inline.sd [249..295]
- │   ├─ entity.name.type.dialogue.character.name.sd [249..253]
- │   │   └─ markup.raw.text.sd [249..253]: "HERO"
- │   ├─ meta.template.expression.operator.colon.sd [253..254]: ":"
- │   ├─ punctuation.whitespace.required.sd [254..255]: " "
- │   ├─ meta.template.expression.luau [255..262]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [255..256]: "{"
- │   │   ├─ meta.embedded.line.luau [256..261]
- │   │   │   ├─ variable.other.readwrite.luau [256..257]: "a"
- │   │   │   ├─ punctuation.whitespace.optional.sd [257..258]: " "
- │   │   │   ├─ keyword.operator.comparison.luau [258..259]: ">"
- │   │   │   ├─ punctuation.whitespace.optional.sd [259..260]: " "
- │   │   │   └─ variable.other.readwrite.luau [260..261]: "b"
- │   │   └─ punctuation.definition.template-expression.end.sd [261..262]: "}"
- │   ├─ string.display.text.chunk.sd [262..286]
- │   │   ├─ markup.raw.space.sd [262..263]: " "
- │   │   ├─ meta.image.sd [263..274]
- │   │   │   ├─ keyword.operator.expression.begin.image.sd [263..265]: "[["
- │   │   │   ├─ variable.other.constant.asset.file.sd [265..267]: "cg"
- │   │   │   ├─ punctuation.whitespace.required.sd [267..268]: " "
- │   │   │   ├─ invalid.illegal.illegal-char.sd [268..269]: ">"
- │   │   │   ├─ punctuation.whitespace.required.sd [269..270]: " "
- │   │   │   ├─ invalid.illegal.illegal-char.sd [270..271]: "1"
- │   │   │   ├─ keyword.operator.expression.end.image.sd [271..273]: "]]"
- │   │   │   └─ punctuation.whitespace.optional.sd [273..274]: " "
- │   │   └─ meta.audio.sd [274..286]
- │   │       ├─ keyword.operator.expression.begin.audio.sd [274..276]: "(("
- │   │       ├─ variable.other.constant.asset.file.sd [276..279]: "sfx"
- │   │       ├─ punctuation.whitespace.required.sd [279..280]: " "
- │   │       ├─ invalid.illegal.illegal-char.sd [280..281]: ">"
- │   │       ├─ punctuation.whitespace.required.sd [281..282]: " "
- │   │       ├─ invalid.illegal.illegal-char.sd [282..283]: "2"
- │   │       ├─ keyword.operator.expression.end.audio.sd [283..285]: "))"
- │   │       └─ punctuation.whitespace.optional.sd [285..286]: " "
- │   └─ comment.line.sd [286..295]
- │       └─ entity.tag.sd [286..295]
- │           └─ comment.line.sd [286..295]
- │               └─ entity.tag.sd [286..295]
- │                   ├─ punctuation.definition.comment.sd [286..287]
- │                   │   └─ comment.line.sd [286..287]
- │                   │       └─ entity.tag.begin.sd [286..287]: "#"
- │                   └─ punctuation.definition.comment.content.sd [287..295]
- │                       └─ punctuation.definition.comment.content.sd [287..295]: " tag > x"
- ├─ Newline [295..296]: "\n"
- ├─ string.display.dialogue.inline.sd [296..334]
- │   ├─ entity.name.type.dialogue.character.name.sd [296..300]
- │   │   └─ markup.raw.text.sd [296..300]: "HERO"
- │   ├─ meta.template.expression.operator.colon.sd [300..301]: ":"
- │   ├─ punctuation.whitespace.required.sd [301..302]: " "
- │   ├─ meta.template.expression.luau [302..307]
- │   │   ├─ punctuation.definition.template-expression.begin.sd [302..303]: "{"
- │   │   ├─ meta.embedded.line.luau [303..306]
- │   │   │   ├─ variable.other.readwrite.luau [303..304]: "a"
- │   │   │   ├─ keyword.operator.comparison.luau [304..305]: ">"
- │   │   │   └─ variable.other.readwrite.luau [305..306]: "b"
- │   │   └─ punctuation.definition.template-expression.end.sd [306..307]: "}"
- │   ├─ string.display.text.chunk.sd [307..327]
- │   │   ├─ markup.raw.space.sd [307..308]: " "
- │   │   ├─ meta.image.sd [308..317]
- │   │   │   ├─ keyword.operator.expression.begin.image.sd [308..310]: "[["
- │   │   │   ├─ variable.other.constant.asset.file.sd [310..312]: "cg"
- │   │   │   ├─ invalid.illegal.illegal-char.sd [312..313]: ">"
- │   │   │   ├─ invalid.illegal.illegal-char.sd [313..314]: "1"
- │   │   │   ├─ keyword.operator.expression.end.image.sd [314..316]: "]]"
- │   │   │   └─ punctuation.whitespace.optional.sd [316..317]: " "
- │   │   └─ meta.audio.sd [317..327]
- │   │       ├─ keyword.operator.expression.begin.audio.sd [317..319]: "(("
- │   │       ├─ variable.other.constant.asset.file.sd [319..322]: "sfx"
- │   │       ├─ invalid.illegal.illegal-char.sd [322..323]: ">"
- │   │       ├─ invalid.illegal.illegal-char.sd [323..324]: "2"
- │   │       ├─ keyword.operator.expression.end.audio.sd [324..326]: "))"
- │   │       └─ punctuation.whitespace.optional.sd [326..327]: " "
- │   └─ comment.line.sd [327..334]
- │       └─ entity.tag.sd [327..334]
- │           └─ comment.line.sd [327..334]
- │               └─ entity.tag.sd [327..334]
- │                   ├─ punctuation.definition.comment.sd [327..328]
- │                   │   └─ comment.line.sd [327..328]
- │                   │       └─ entity.tag.begin.sd [327..328]: "#"
- │                   └─ punctuation.definition.comment.content.sd [328..334]
- │                       └─ punctuation.definition.comment.content.sd [328..334]: " tag>x"
- ├─ Newline [334..335]: "\n"
- ├─ string.display.dialogue.inline.sd [335..355]
- │   ├─ entity.name.type.dialogue.character.name.sd [335..339]
- │   │   └─ markup.raw.text.sd [335..339]: "HERO"
- │   ├─ meta.template.expression.operator.colon.sd [339..340]: ":"
- │   ├─ punctuation.whitespace.required.sd [340..341]: " "
- │   ├─ string.display.text.chunk.sd [341..342]
- │   │   └─ markup.raw.text.sd [341..342]: "a"
- │   ├─ meta.break.sd [342..345]
- │   │   └─ keyword.other.break.sd [342..345]: " > "
- │   ├─ string.display.text.chunk.sd [345..346]
- │   │   └─ markup.raw.text.sd [345..346]: "b"
- │   └─ comment.line.double-slash.sd [346..355]
- │       ├─ punctuation.whitespace.optional.sd [346..347]: " "
- │       ├─ punctuation.definition.comment.sd [347..349]: "//"
- │       └─ comment.line.double-slash.content.sd [349..355]: " a > b"
- ├─ Newline [355..356]: "\n"
- ├─ string.display.dialogue.inline.sd [356..370]
- │   ├─ entity.name.type.dialogue.character.name.sd [356..360]
- │   │   └─ markup.raw.text.sd [356..360]: "HERO"
- │   ├─ meta.template.expression.operator.colon.sd [360..361]: ":"
- │   ├─ punctuation.whitespace.required.sd [361..362]: " "
- │   └─ string.display.text.chunk.sd [362..370]
- │       ├─ keyword.control.divert.mark.sd [362..364]: "->"
- │       └─ keyword.control.divert.path.sd [364..370]
- │           ├─ punctuation.whitespace.optional.sd [364..365]: " "
- │           └─ keyword.control.divert.path.sd [365..370]
- │               └─ keyword.control.divert.path.sd [365..370]: "later"
- ├─ Newline [370..371]: "\n"
- ├─ string.display.dialogue.block.sd [371..376]
- │   ├─ entity.name.type.dialogue.character.name.sd [371..375]
- │   │   └─ markup.raw.text.sd [371..375]: "HERO"
- │   └─ meta.template.expression.operator.colon.sd [375..376]: ":"
- ├─ Newline [376..377]: "\n"
- ├─ string.display.dialogue.block.sd [377..384]
- │   ├─ punctuation.whitespace.optional.sd [377..379]: "  "
- │   ├─ string.display.text.chunk.sd [379..380]
- │   │   └─ markup.raw.text.sd [379..380]: "A"
- │   ├─ meta.break.sd [380..383]
- │   │   └─ keyword.other.break.sd [380..383]: " > "
- │   └─ string.display.text.chunk.sd [383..384]
- │       └─ markup.raw.text.sd [383..384]: "B"
- ├─ Newline [384..385]: "\n"
- ├─ string.display.dialogue.block.sd [385..390]
- │   ├─ punctuation.whitespace.optional.sd [385..387]: "  "
- │   ├─ string.display.text.chunk.sd [387..388]
- │   │   └─ markup.raw.text.sd [387..388]: "A"
- │   └─ meta.break.sd [388..390]
- │       └─ keyword.other.break.sd [388..390]: " >"
- ├─ Newline [390..391]: "\n"
- ├─ string.display.dialogue.block.sd [391..394]
- │   ├─ punctuation.whitespace.optional.sd [391..393]: "  "
- │   └─ meta.break.sd [393..394]
- │       └─ keyword.other.break.sd [393..394]: ">"
- ├─ Newline [394..395]: "\n"
- ├─ string.display.dialogue.block.sd [395..400]
- │   ├─ punctuation.whitespace.optional.sd [395..397]: "  "
- │   ├─ string.display.text.chunk.sd [397..398]
- │   │   └─ markup.raw.text.sd [397..398]: "A"
- │   ├─ meta.break.sd [398..399]
- │   │   └─ keyword.other.break.sd [398..399]: ">"
- │   └─ string.display.text.chunk.sd [399..400]
- │       └─ markup.raw.text.sd [399..400]: "B"
- ├─ Newline [400..401]: "\n"
- ├─ string.display.dialogue.block.sd [401..407]
- │   ├─ punctuation.whitespace.optional.sd [401..403]: "  "
- │   ├─ string.display.text.chunk.sd [403..404]
- │   │   └─ markup.raw.text.sd [403..404]: "A"
- │   ├─ meta.break.sd [404..406]
- │   │   └─ keyword.other.break.sd [404..406]: "> "
- │   └─ string.display.text.chunk.sd [406..407]
- │       └─ markup.raw.text.sd [406..407]: "B"
- ├─ Newline [407..408]: "\n"
- ├─ string.display.dialogue.block.sd [408..414]
- │   ├─ punctuation.whitespace.optional.sd [408..410]: "  "
- │   ├─ string.display.text.chunk.sd [410..411]
- │   │   └─ markup.raw.text.sd [410..411]: "A"
- │   ├─ meta.break.sd [411..413]
- │   │   └─ keyword.other.break.sd [411..413]: " >"
- │   └─ string.display.text.chunk.sd [413..414]
- │       └─ markup.raw.text.sd [413..414]: "B"
- ├─ Newline [414..415]: "\n"
- ├─ string.display.dialogue.block.sd [415..419]
- │   ├─ punctuation.whitespace.optional.sd [415..417]: "  "
+ ├─ string.display.text.chunk.sd [222..238]
+ │   ├─ markup.raw.text.sd [222..224]: "Go"
+ │   ├─ markup.raw.space.sd [224..225]: " "
+ │   ├─ meta.text.sd [225..233]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [225..226]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [226..230]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [230..231]: " "
+ │   │   ├─ constant.numeric.decimal.luau [231..232]: "1"
+ │   │   └─ keyword.operator.expression.end.tag.sd [232..233]: ">"
+ │   ├─ markup.raw.space.sd [233..234]: " "
+ │   ├─ markup.raw.text.sd [234..237]: "now"
+ │   └─ markup.raw.punctuation.sd [237..238]: "."
+ ├─ Newline [238..239]: "\n"
+ ├─ string.display.text.chunk.sd [239..258]
+ │   ├─ markup.raw.text.sd [239..241]: "Go"
+ │   ├─ markup.raw.space.sd [241..242]: " "
+ │   ├─ meta.text.sd [242..245]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [242..243]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [243..244]: "b"
+ │   │   └─ keyword.operator.expression.end.tag.sd [244..245]: ">"
+ │   ├─ markup.raw.text.sd [245..249]: "bold"
+ │   ├─ meta.text.sd [249..253]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [249..250]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [250..252]: "/b"
+ │   │   └─ keyword.operator.expression.end.tag.sd [252..253]: ">"
+ │   ├─ markup.raw.space.sd [253..254]: " "
+ │   ├─ markup.raw.text.sd [254..257]: "now"
+ │   └─ markup.raw.punctuation.sd [257..258]: "."
+ ├─ Newline [258..259]: "\n"
+ ├─ string.display.text.chunk.sd [259..276]
+ │   ├─ markup.raw.text.sd [259..261]: "Go"
+ │   ├─ markup.raw.space.sd [261..262]: " "
+ │   ├─ meta.text.sd [262..271]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [262..263]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [263..267]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [267..268]: " "
+ │   │   ├─ constant.numeric.decimal.luau [268..269]: "1"
+ │   │   ├─ punctuation.whitespace.extra.sd [269..270]: " "
+ │   │   └─ keyword.operator.expression.end.tag.sd [270..271]: ">"
+ │   ├─ markup.raw.space.sd [271..272]: " "
+ │   ├─ markup.raw.text.sd [272..275]: "now"
+ │   └─ markup.raw.punctuation.sd [275..276]: "."
+ ├─ Newline [276..277]: "\n"
+ ├─ string.display.text.chunk.sd [277..297]
+ │   ├─ markup.raw.text.sd [277..281]: "Mike"
+ │   ├─ meta.text.sd [281..289]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [281..282]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [282..286]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [286..287]: " "
+ │   │   ├─ constant.numeric.decimal.luau [287..288]: "1"
+ │   │   └─ keyword.operator.expression.end.tag.sd [288..289]: ">"
+ │   └─ markup.raw.text.sd [289..297]: "November"
+ ├─ Newline [297..298]: "\n"
+ ├─ string.display.dialogue.block.sd [298..318]
+ │   ├─ entity.name.type.dialogue.character.name.sd [298..302]
+ │   │   └─ markup.raw.text.sd [298..302]: "HERO"
+ │   ├─ constant.character.escape.dialogue.character.parenthetical.sd [302..313]
+ │   │   ├─ punctuation.whitespace.sd [302..303]: " "
+ │   │   ├─ meta.brace.round.open.sd [303..304]: "("
+ │   │   ├─ markup.raw.text.sd [304..312]: "cheerful"
+ │   │   └─ meta.brace.round.close.sd [312..313]: ")"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [313..315]
+ │   │   ├─ punctuation.whitespace.sd [313..314]: " "
+ │   │   └─ punctuation.definition.position.sd [314..315]: "["
+ │   ├─ constant.character.escape.dialogue.character.position.sd [315..316]: ">"
+ │   ├─ constant.character.escape.dialogue.character.position.sd [316..317]
+ │   │   └─ punctuation.definition.position.sd [316..317]: "]"
+ │   └─ meta.template.expression.operator.colon.sd [317..318]: ":"
+ ├─ Newline [318..319]: "\n"
+ ├─ string.display.dialogue.block.sd [319..324]
+ │   ├─ punctuation.whitespace.optional.sd [319..321]: "  "
+ │   └─ string.display.text.chunk.sd [321..324]
+ │       ├─ markup.raw.text.sd [321..323]: "Hi"
+ │       └─ markup.raw.punctuation.sd [323..324]: "."
+ ├─ Newline [324..325]: "\n"
+ ├─ string.display.dialogue.inline.sd [325..371]
+ │   ├─ entity.name.type.dialogue.character.name.sd [325..329]
+ │   │   └─ markup.raw.text.sd [325..329]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [329..330]: ":"
+ │   ├─ punctuation.whitespace.required.sd [330..331]: " "
+ │   ├─ meta.template.expression.luau [331..338]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [331..332]: "{"
+ │   │   ├─ meta.embedded.line.luau [332..337]
+ │   │   │   ├─ variable.other.readwrite.luau [332..333]: "a"
+ │   │   │   ├─ punctuation.whitespace.optional.sd [333..334]: " "
+ │   │   │   ├─ keyword.operator.comparison.luau [334..335]: ">"
+ │   │   │   ├─ punctuation.whitespace.optional.sd [335..336]: " "
+ │   │   │   └─ variable.other.readwrite.luau [336..337]: "b"
+ │   │   └─ punctuation.definition.template-expression.end.sd [337..338]: "}"
+ │   ├─ string.display.text.chunk.sd [338..362]
+ │   │   ├─ markup.raw.space.sd [338..339]: " "
+ │   │   ├─ meta.image.sd [339..350]
+ │   │   │   ├─ keyword.operator.expression.begin.image.sd [339..341]: "[["
+ │   │   │   ├─ variable.other.constant.asset.file.sd [341..343]: "cg"
+ │   │   │   ├─ punctuation.whitespace.required.sd [343..344]: " "
+ │   │   │   ├─ invalid.illegal.illegal-char.sd [344..345]: ">"
+ │   │   │   ├─ punctuation.whitespace.required.sd [345..346]: " "
+ │   │   │   ├─ invalid.illegal.illegal-char.sd [346..347]: "1"
+ │   │   │   ├─ keyword.operator.expression.end.image.sd [347..349]: "]]"
+ │   │   │   └─ punctuation.whitespace.optional.sd [349..350]: " "
+ │   │   └─ meta.audio.sd [350..362]
+ │   │       ├─ keyword.operator.expression.begin.audio.sd [350..352]: "(("
+ │   │       ├─ variable.other.constant.asset.file.sd [352..355]: "sfx"
+ │   │       ├─ punctuation.whitespace.required.sd [355..356]: " "
+ │   │       ├─ invalid.illegal.illegal-char.sd [356..357]: ">"
+ │   │       ├─ punctuation.whitespace.required.sd [357..358]: " "
+ │   │       ├─ invalid.illegal.illegal-char.sd [358..359]: "2"
+ │   │       ├─ keyword.operator.expression.end.audio.sd [359..361]: "))"
+ │   │       └─ punctuation.whitespace.optional.sd [361..362]: " "
+ │   └─ comment.line.sd [362..371]
+ │       └─ entity.tag.sd [362..371]
+ │           └─ comment.line.sd [362..371]
+ │               └─ entity.tag.sd [362..371]
+ │                   ├─ punctuation.definition.comment.sd [362..363]
+ │                   │   └─ comment.line.sd [362..363]
+ │                   │       └─ entity.tag.begin.sd [362..363]: "#"
+ │                   └─ punctuation.definition.comment.content.sd [363..371]
+ │                       └─ punctuation.definition.comment.content.sd [363..371]: " tag > x"
+ ├─ Newline [371..372]: "\n"
+ ├─ string.display.dialogue.inline.sd [372..410]
+ │   ├─ entity.name.type.dialogue.character.name.sd [372..376]
+ │   │   └─ markup.raw.text.sd [372..376]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [376..377]: ":"
+ │   ├─ punctuation.whitespace.required.sd [377..378]: " "
+ │   ├─ meta.template.expression.luau [378..383]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [378..379]: "{"
+ │   │   ├─ meta.embedded.line.luau [379..382]
+ │   │   │   ├─ variable.other.readwrite.luau [379..380]: "a"
+ │   │   │   ├─ keyword.operator.comparison.luau [380..381]: ">"
+ │   │   │   └─ variable.other.readwrite.luau [381..382]: "b"
+ │   │   └─ punctuation.definition.template-expression.end.sd [382..383]: "}"
+ │   ├─ string.display.text.chunk.sd [383..403]
+ │   │   ├─ markup.raw.space.sd [383..384]: " "
+ │   │   ├─ meta.image.sd [384..393]
+ │   │   │   ├─ keyword.operator.expression.begin.image.sd [384..386]: "[["
+ │   │   │   ├─ variable.other.constant.asset.file.sd [386..388]: "cg"
+ │   │   │   ├─ invalid.illegal.illegal-char.sd [388..389]: ">"
+ │   │   │   ├─ invalid.illegal.illegal-char.sd [389..390]: "1"
+ │   │   │   ├─ keyword.operator.expression.end.image.sd [390..392]: "]]"
+ │   │   │   └─ punctuation.whitespace.optional.sd [392..393]: " "
+ │   │   └─ meta.audio.sd [393..403]
+ │   │       ├─ keyword.operator.expression.begin.audio.sd [393..395]: "(("
+ │   │       ├─ variable.other.constant.asset.file.sd [395..398]: "sfx"
+ │   │       ├─ invalid.illegal.illegal-char.sd [398..399]: ">"
+ │   │       ├─ invalid.illegal.illegal-char.sd [399..400]: "2"
+ │   │       ├─ keyword.operator.expression.end.audio.sd [400..402]: "))"
+ │   │       └─ punctuation.whitespace.optional.sd [402..403]: " "
+ │   └─ comment.line.sd [403..410]
+ │       └─ entity.tag.sd [403..410]
+ │           └─ comment.line.sd [403..410]
+ │               └─ entity.tag.sd [403..410]
+ │                   ├─ punctuation.definition.comment.sd [403..404]
+ │                   │   └─ comment.line.sd [403..404]
+ │                   │       └─ entity.tag.begin.sd [403..404]: "#"
+ │                   └─ punctuation.definition.comment.content.sd [404..410]
+ │                       └─ punctuation.definition.comment.content.sd [404..410]: " tag>x"
+ ├─ Newline [410..411]: "\n"
+ ├─ string.display.dialogue.inline.sd [411..431]
+ │   ├─ entity.name.type.dialogue.character.name.sd [411..415]
+ │   │   └─ markup.raw.text.sd [411..415]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [415..416]: ":"
+ │   ├─ punctuation.whitespace.required.sd [416..417]: " "
  │   ├─ string.display.text.chunk.sd [417..418]
- │   │   └─ markup.raw.text.sd [417..418]: "A"
- │   └─ meta.break.sd [418..419]
- │       └─ keyword.other.break.sd [418..419]: ">"
- ├─ Newline [419..420]: "\n"
- ├─ string.display.dialogue.block.sd [420..428]
- │   ├─ punctuation.whitespace.optional.sd [420..422]: "  "
- │   ├─ meta.break.sd [422..423]
- │   │   └─ keyword.other.break.sd [422..423]: ">"
- │   └─ string.display.text.chunk.sd [423..428]
- │       └─ markup.raw.text.sd [423..428]: "Hello"
- ├─ Newline [428..429]: "\n"
- ├─ string.display.dialogue.block.sd [429..438]
- │   ├─ punctuation.whitespace.optional.sd [429..431]: "  "
- │   ├─ string.display.text.chunk.sd [431..435]
- │   │   └─ markup.raw.text.sd [431..435]: "Abso"
- │   ├─ meta.break.sd [435..436]
- │   │   └─ keyword.other.break.sd [435..436]: ">"
- │   └─ meta.glue.sd [436..438]
- │       └─ keyword.other.glue.sd [436..438]: ".."
- ├─ Newline [438..439]: "\n"
- ├─ string.display.dialogue.block.sd [439..448]
- │   ├─ punctuation.whitespace.optional.sd [439..441]: "  "
- │   └─ string.display.text.chunk.sd [441..448]
- │       ├─ markup.raw.text.sd [441..447]: "lutely"
- │       └─ markup.raw.punctuation.sd [447..448]: "."
- ├─ Newline [448..449]: "\n"
- ├─ string.display.dialogue.block.sd [449..465]
- │   ├─ punctuation.whitespace.optional.sd [449..451]: "  "
- │   ├─ string.display.text.chunk.sd [451..455]
- │   │   └─ markup.raw.text.sd [451..455]: "Abso"
- │   ├─ meta.break.sd [455..456]
- │   │   └─ keyword.other.break.sd [455..456]: ">"
- │   ├─ meta.glue.leading.sd [456..458]
- │   │   └─ keyword.other.glue.sd [456..458]: ".."
- │   └─ string.display.text.chunk.sd [458..465]
- │       ├─ markup.raw.text.sd [458..464]: "lutely"
- │       └─ markup.raw.punctuation.sd [464..465]: "."
- ├─ Newline [465..466]: "\n"
- ├─ string.display.dialogue.block.sd [466..474]
- │   ├─ punctuation.whitespace.optional.sd [466..468]: "  "
- │   ├─ string.display.text.chunk.sd [468..469]
- │   │   └─ markup.raw.text.sd [468..469]: "A"
- │   ├─ meta.break.sd [469..470]
- │   │   └─ keyword.other.break.sd [469..470]: ">"
- │   ├─ meta.glue.leading.sd [470..472]
- │   │   └─ keyword.other.glue.sd [470..472]: ".."
- │   └─ string.display.text.chunk.sd [472..474]
- │       ├─ markup.raw.space.sd [472..473]: " "
- │       └─ markup.raw.text.sd [473..474]: "B"
- ├─ Newline [474..475]: "\n"
- ├─ string.display.dialogue.block.sd [475..484]
- │   ├─ punctuation.whitespace.optional.sd [475..477]: "  "
- │   ├─ string.display.text.chunk.sd [477..478]
- │   │   └─ markup.raw.text.sd [477..478]: "A"
- │   ├─ meta.break.sd [478..483]
- │   │   ├─ keyword.other.break.sd [478..481]: " > "
- │   │   └─ keyword.other.break.sd [481..483]: "> "
- │   └─ string.display.text.chunk.sd [483..484]
- │       └─ markup.raw.text.sd [483..484]: "B"
- ├─ Newline [484..485]: "\n"
- ├─ string.display.dialogue.block.sd [485..493]
- │   ├─ punctuation.whitespace.optional.sd [485..487]: "  "
- │   └─ string.display.text.chunk.sd [487..493]
- │       ├─ markup.raw.text.sd [487..488]: "A"
- │       ├─ markup.raw.space.sd [488..489]: " "
- │       ├─ markup.raw.punctuation.sd [489..491]: ">>"
- │       ├─ markup.raw.space.sd [491..492]: " "
- │       └─ markup.raw.text.sd [492..493]: "B"
- ├─ Newline [493..494]: "\n"
- ├─ string.display.dialogue.block.sd [494..500]
- │   ├─ punctuation.whitespace.optional.sd [494..496]: "  "
- │   └─ string.display.text.chunk.sd [496..500]
- │       ├─ markup.raw.text.sd [496..497]: "A"
- │       ├─ markup.raw.punctuation.sd [497..499]: ">>"
- │       └─ markup.raw.text.sd [499..500]: "B"
- ├─ Newline [500..501]: "\n"
- ├─ string.display.dialogue.block.sd [501..509]
- │   ├─ punctuation.whitespace.optional.sd [501..503]: "  "
- │   └─ string.display.text.chunk.sd [503..509]
- │       ├─ markup.raw.text.sd [503..504]: "A"
- │       ├─ punctuation.whitespace.optional.sd [504..505]: " "
- │       ├─ keyword.control.divert.mark.sd [505..507]: "->"
- │       └─ keyword.control.divert.path.sd [507..509]
- │           ├─ punctuation.whitespace.optional.sd [507..508]: " "
- │           └─ keyword.control.divert.path.sd [508..509]
- │               └─ keyword.control.divert.path.sd [508..509]: "b"
- ├─ Newline [509..510]: "\n"
- ├─ string.display.dialogue.block.sd [510..518]
- │   ├─ punctuation.whitespace.optional.sd [510..512]: "  "
- │   └─ string.display.text.chunk.sd [512..518]
- │       ├─ markup.raw.text.sd [512..513]: "x"
- │       ├─ markup.raw.space.sd [513..514]: " "
- │       ├─ markup.raw.punctuation.sd [514..516]: ">="
- │       ├─ markup.raw.space.sd [516..517]: " "
- │       └─ markup.raw.text.sd [517..518]: "y"
- ├─ Newline [518..519]: "\n"
- ├─ string.display.dialogue.block.sd [519..525]
- │   ├─ punctuation.whitespace.optional.sd [519..521]: "  "
- │   └─ string.display.text.chunk.sd [521..525]
- │       ├─ markup.raw.text.sd [521..522]: "x"
- │       ├─ markup.raw.punctuation.sd [522..524]: ">="
- │       └─ markup.raw.text.sd [524..525]: "y"
- ├─ Newline [525..526]: "\n"
- ├─ string.display.dialogue.block.sd [526..533]
- │   ├─ punctuation.whitespace.optional.sd [526..528]: "  "
- │   └─ string.display.text.chunk.sd [528..533]
- │       ├─ markup.raw.text.sd [528..529]: "A"
- │       ├─ markup.raw.punctuation.sd [529..532]: "-->"
- │       └─ markup.raw.text.sd [532..533]: "B"
- ├─ Newline [533..534]: "\n"
- ├─ string.display.dialogue.block.sd [534..542]
- │   ├─ punctuation.whitespace.optional.sd [534..536]: "  "
- │   └─ string.display.text.chunk.sd [536..542]
- │       ├─ markup.raw.text.sd [536..537]: "A"
- │       ├─ markup.raw.space.sd [537..538]: " "
- │       ├─ constant.character.escape.sd [538..539]: "\\"
- │       ├─ markup.raw.text.sd [539..540]: ">"
- │       ├─ markup.raw.space.sd [540..541]: " "
- │       └─ markup.raw.text.sd [541..542]: "B"
- ├─ Newline [542..543]: "\n"
- ├─ string.display.dialogue.block.sd [543..549]
- │   ├─ punctuation.whitespace.optional.sd [543..545]: "  "
- │   └─ string.display.text.chunk.sd [545..549]
- │       ├─ markup.raw.text.sd [545..546]: "A"
- │       ├─ constant.character.escape.sd [546..547]: "\\"
- │       ├─ markup.raw.text.sd [547..548]: ">"
- │       └─ markup.raw.text.sd [548..549]: "B"
- ├─ Newline [549..550]: "\n"
- ├─ string.display.dialogue.block.sd [550..569]
- │   ├─ punctuation.whitespace.optional.sd [550..552]: "  "
- │   ├─ string.display.text.chunk.sd [552..558]
- │   │   └─ markup.raw.text.sd [552..558]: "Before"
- │   ├─ meta.break.sd [558..561]
- │   │   └─ keyword.other.break.sd [558..561]: " > "
- │   └─ string.display.text.chunk.sd [561..569]
- │       ├─ keyword.control.divert.mark.sd [561..563]: "->"
- │       └─ keyword.control.divert.path.sd [563..569]
- │           ├─ punctuation.whitespace.optional.sd [563..564]: " "
- │           └─ keyword.control.divert.path.sd [564..569]
- │               └─ keyword.control.divert.path.sd [564..569]: "later"
+ │   │   └─ markup.raw.text.sd [417..418]: "a"
+ │   ├─ meta.break.sd [418..421]
+ │   │   └─ keyword.other.break.sd [418..421]: " > "
+ │   ├─ string.display.text.chunk.sd [421..422]
+ │   │   └─ markup.raw.text.sd [421..422]: "b"
+ │   └─ comment.line.double-slash.sd [422..431]
+ │       ├─ punctuation.whitespace.optional.sd [422..423]: " "
+ │       ├─ punctuation.definition.comment.sd [423..425]: "//"
+ │       └─ comment.line.double-slash.content.sd [425..431]: " a > b"
+ ├─ Newline [431..432]: "\n"
+ ├─ string.display.dialogue.inline.sd [432..446]
+ │   ├─ entity.name.type.dialogue.character.name.sd [432..436]
+ │   │   └─ markup.raw.text.sd [432..436]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [436..437]: ":"
+ │   ├─ punctuation.whitespace.required.sd [437..438]: " "
+ │   └─ string.display.text.chunk.sd [438..446]
+ │       ├─ keyword.control.divert.mark.sd [438..440]: "->"
+ │       └─ keyword.control.divert.path.sd [440..446]
+ │           ├─ punctuation.whitespace.optional.sd [440..441]: " "
+ │           └─ keyword.control.divert.path.sd [441..446]
+ │               └─ keyword.control.divert.path.sd [441..446]: "later"
+ ├─ Newline [446..447]: "\n"
+ ├─ string.display.dialogue.block.sd [447..452]
+ │   ├─ entity.name.type.dialogue.character.name.sd [447..451]
+ │   │   └─ markup.raw.text.sd [447..451]: "HERO"
+ │   └─ meta.template.expression.operator.colon.sd [451..452]: ":"
+ ├─ Newline [452..453]: "\n"
+ ├─ string.display.dialogue.block.sd [453..460]
+ │   ├─ punctuation.whitespace.optional.sd [453..455]: "  "
+ │   ├─ string.display.text.chunk.sd [455..456]
+ │   │   └─ markup.raw.text.sd [455..456]: "A"
+ │   ├─ meta.break.sd [456..459]
+ │   │   └─ keyword.other.break.sd [456..459]: " > "
+ │   └─ string.display.text.chunk.sd [459..460]
+ │       └─ markup.raw.text.sd [459..460]: "B"
+ ├─ Newline [460..461]: "\n"
+ ├─ string.display.dialogue.block.sd [461..466]
+ │   ├─ punctuation.whitespace.optional.sd [461..463]: "  "
+ │   ├─ string.display.text.chunk.sd [463..464]
+ │   │   └─ markup.raw.text.sd [463..464]: "A"
+ │   └─ meta.break.sd [464..466]
+ │       └─ keyword.other.break.sd [464..466]: " >"
+ ├─ Newline [466..467]: "\n"
+ ├─ string.display.dialogue.block.sd [467..470]
+ │   ├─ punctuation.whitespace.optional.sd [467..469]: "  "
+ │   └─ meta.break.sd [469..470]
+ │       └─ keyword.other.break.sd [469..470]: ">"
+ ├─ Newline [470..471]: "\n"
+ ├─ string.display.dialogue.block.sd [471..476]
+ │   ├─ punctuation.whitespace.optional.sd [471..473]: "  "
+ │   ├─ string.display.text.chunk.sd [473..474]
+ │   │   └─ markup.raw.text.sd [473..474]: "A"
+ │   ├─ meta.break.sd [474..475]
+ │   │   └─ keyword.other.break.sd [474..475]: ">"
+ │   └─ string.display.text.chunk.sd [475..476]
+ │       └─ markup.raw.text.sd [475..476]: "B"
+ ├─ Newline [476..477]: "\n"
+ ├─ string.display.dialogue.block.sd [477..483]
+ │   ├─ punctuation.whitespace.optional.sd [477..479]: "  "
+ │   ├─ string.display.text.chunk.sd [479..480]
+ │   │   └─ markup.raw.text.sd [479..480]: "A"
+ │   ├─ meta.break.sd [480..482]
+ │   │   └─ keyword.other.break.sd [480..482]: "> "
+ │   └─ string.display.text.chunk.sd [482..483]
+ │       └─ markup.raw.text.sd [482..483]: "B"
+ ├─ Newline [483..484]: "\n"
+ ├─ string.display.dialogue.block.sd [484..490]
+ │   ├─ punctuation.whitespace.optional.sd [484..486]: "  "
+ │   ├─ string.display.text.chunk.sd [486..487]
+ │   │   └─ markup.raw.text.sd [486..487]: "A"
+ │   ├─ meta.break.sd [487..489]
+ │   │   └─ keyword.other.break.sd [487..489]: " >"
+ │   └─ string.display.text.chunk.sd [489..490]
+ │       └─ markup.raw.text.sd [489..490]: "B"
+ ├─ Newline [490..491]: "\n"
+ ├─ string.display.dialogue.block.sd [491..495]
+ │   ├─ punctuation.whitespace.optional.sd [491..493]: "  "
+ │   ├─ string.display.text.chunk.sd [493..494]
+ │   │   └─ markup.raw.text.sd [493..494]: "A"
+ │   └─ meta.break.sd [494..495]
+ │       └─ keyword.other.break.sd [494..495]: ">"
+ ├─ Newline [495..496]: "\n"
+ ├─ string.display.dialogue.block.sd [496..504]
+ │   ├─ punctuation.whitespace.optional.sd [496..498]: "  "
+ │   ├─ meta.break.sd [498..499]
+ │   │   └─ keyword.other.break.sd [498..499]: ">"
+ │   └─ string.display.text.chunk.sd [499..504]
+ │       └─ markup.raw.text.sd [499..504]: "Hello"
+ ├─ Newline [504..505]: "\n"
+ ├─ string.display.dialogue.block.sd [505..514]
+ │   ├─ punctuation.whitespace.optional.sd [505..507]: "  "
+ │   ├─ string.display.text.chunk.sd [507..511]
+ │   │   └─ markup.raw.text.sd [507..511]: "Abso"
+ │   ├─ meta.break.sd [511..512]
+ │   │   └─ keyword.other.break.sd [511..512]: ">"
+ │   └─ meta.glue.sd [512..514]
+ │       └─ keyword.other.glue.sd [512..514]: ".."
+ ├─ Newline [514..515]: "\n"
+ ├─ string.display.dialogue.block.sd [515..524]
+ │   ├─ punctuation.whitespace.optional.sd [515..517]: "  "
+ │   └─ string.display.text.chunk.sd [517..524]
+ │       ├─ markup.raw.text.sd [517..523]: "lutely"
+ │       └─ markup.raw.punctuation.sd [523..524]: "."
+ ├─ Newline [524..525]: "\n"
+ ├─ string.display.dialogue.block.sd [525..541]
+ │   ├─ punctuation.whitespace.optional.sd [525..527]: "  "
+ │   ├─ string.display.text.chunk.sd [527..531]
+ │   │   └─ markup.raw.text.sd [527..531]: "Abso"
+ │   ├─ meta.break.sd [531..532]
+ │   │   └─ keyword.other.break.sd [531..532]: ">"
+ │   ├─ meta.glue.leading.sd [532..534]
+ │   │   └─ keyword.other.glue.sd [532..534]: ".."
+ │   └─ string.display.text.chunk.sd [534..541]
+ │       ├─ markup.raw.text.sd [534..540]: "lutely"
+ │       └─ markup.raw.punctuation.sd [540..541]: "."
+ ├─ Newline [541..542]: "\n"
+ ├─ string.display.dialogue.block.sd [542..550]
+ │   ├─ punctuation.whitespace.optional.sd [542..544]: "  "
+ │   ├─ string.display.text.chunk.sd [544..545]
+ │   │   └─ markup.raw.text.sd [544..545]: "A"
+ │   ├─ meta.break.sd [545..546]
+ │   │   └─ keyword.other.break.sd [545..546]: ">"
+ │   ├─ meta.glue.leading.sd [546..548]
+ │   │   └─ keyword.other.glue.sd [546..548]: ".."
+ │   └─ string.display.text.chunk.sd [548..550]
+ │       ├─ markup.raw.space.sd [548..549]: " "
+ │       └─ markup.raw.text.sd [549..550]: "B"
+ ├─ Newline [550..551]: "\n"
+ ├─ string.display.dialogue.block.sd [551..560]
+ │   ├─ punctuation.whitespace.optional.sd [551..553]: "  "
+ │   ├─ string.display.text.chunk.sd [553..554]
+ │   │   └─ markup.raw.text.sd [553..554]: "A"
+ │   ├─ meta.break.sd [554..559]
+ │   │   ├─ keyword.other.break.sd [554..557]: " > "
+ │   │   └─ keyword.other.break.sd [557..559]: "> "
+ │   └─ string.display.text.chunk.sd [559..560]
+ │       └─ markup.raw.text.sd [559..560]: "B"
+ ├─ Newline [560..561]: "\n"
+ ├─ string.display.dialogue.block.sd [561..569]
+ │   ├─ punctuation.whitespace.optional.sd [561..563]: "  "
+ │   └─ string.display.text.chunk.sd [563..569]
+ │       ├─ markup.raw.text.sd [563..564]: "A"
+ │       ├─ markup.raw.space.sd [564..565]: " "
+ │       ├─ markup.raw.punctuation.sd [565..567]: ">>"
+ │       ├─ markup.raw.space.sd [567..568]: " "
+ │       └─ markup.raw.text.sd [568..569]: "B"
  ├─ Newline [569..570]: "\n"
- ├─ string.display.dialogue.block.sd [570..586]
+ ├─ string.display.dialogue.block.sd [570..576]
  │   ├─ punctuation.whitespace.optional.sd [570..572]: "  "
- │   ├─ string.display.text.chunk.sd [572..578]
- │   │   └─ markup.raw.text.sd [572..578]: "Before"
- │   ├─ meta.break.sd [578..579]
- │   │   └─ keyword.other.break.sd [578..579]: ">"
- │   └─ string.display.text.chunk.sd [579..586]
- │       ├─ keyword.control.divert.mark.sd [579..581]: "->"
- │       └─ keyword.control.divert.path.sd [581..586]
- │           └─ keyword.control.divert.path.sd [581..586]
- │               └─ keyword.control.divert.path.sd [581..586]: "later"
- ├─ Newline [586..587]: "\n"
- ├─ punctuation.whitespace.optional.sd [587..589]: "  "
- ├─ keyword.control.divert.mark.sd [589..591]: "->"
- ├─ keyword.control.divert.path.sd [591..597]
- │   ├─ punctuation.whitespace.optional.sd [591..592]: " "
- │   └─ keyword.control.divert.path.sd [592..597]
- │       └─ keyword.control.divert.path.sd [592..597]: "later"
- ├─ Newline [597..598]: "\n"
- ├─ punctuation.whitespace.optional.sd [598..600]: "  "
- ├─ string.display.text.chunk.sd [600..613]
- │   ├─ markup.raw.text.sd [600..605]: "Alpha"
- │   ├─ markup.raw.punctuation.sd [605..606]: "."
- │   ├─ markup.raw.punctuation.sd [606..607]: "."
- │   ├─ markup.raw.punctuation.sd [607..609]: ">="
- │   └─ markup.raw.text.sd [609..613]: "beta"
- ├─ Newline [613..614]: "\n"
- ├─ punctuation.whitespace.optional.sd [614..616]: "  "
- ├─ string.display.text.chunk.sd [616..630]
- │   ├─ markup.raw.text.sd [616..621]: "Gamma"
- │   ├─ markup.raw.punctuation.sd [621..622]: "."
- │   ├─ markup.raw.punctuation.sd [622..623]: "."
- │   ├─ markup.raw.punctuation.sd [623..625]: ">>"
- │   └─ markup.raw.text.sd [625..630]: "delta"
- ├─ Newline [630..631]: "\n"
- ├─ punctuation.whitespace.optional.sd [631..633]: "  "
- ├─ string.display.text.chunk.sd [633..640]
- │   └─ markup.raw.text.sd [633..640]: "Epsilon"
- ├─ meta.glue.sd [640..642]
- │   └─ keyword.other.glue.sd [640..642]: ".."
- ├─ meta.break.sd [642..643]
- │   └─ keyword.other.break.sd [642..643]: ">"
- ├─ string.display.text.chunk.sd [643..647]
- │   └─ markup.raw.text.sd [643..647]: "zeta"
- ├─ Newline [647..648]: "\n"
- ├─ punctuation.whitespace.optional.sd [648..650]: "  "
- ├─ constant.character.escape.sd [650..658]
- │   ├─ meta.brace.round.open.sd [650..651]: "("
- │   ├─ markup.raw.text.sd [651..657]: "softly"
- │   └─ meta.brace.round.close.sd [657..658]: ")"
- ├─ punctuation.whitespace.extra.sd [658..659]: " "
- ├─ meta.break.sd [659..661]
- │   └─ keyword.other.break.sd [659..661]: "> "
- ├─ string.display.text.chunk.sd [661..662]
- │   └─ markup.raw.text.sd [661..662]: "x"
+ │   └─ string.display.text.chunk.sd [572..576]
+ │       ├─ markup.raw.text.sd [572..573]: "A"
+ │       ├─ markup.raw.punctuation.sd [573..575]: ">>"
+ │       └─ markup.raw.text.sd [575..576]: "B"
+ ├─ Newline [576..577]: "\n"
+ ├─ string.display.dialogue.block.sd [577..585]
+ │   ├─ punctuation.whitespace.optional.sd [577..579]: "  "
+ │   └─ string.display.text.chunk.sd [579..585]
+ │       ├─ markup.raw.text.sd [579..580]: "A"
+ │       ├─ punctuation.whitespace.optional.sd [580..581]: " "
+ │       ├─ keyword.control.divert.mark.sd [581..583]: "->"
+ │       └─ keyword.control.divert.path.sd [583..585]
+ │           ├─ punctuation.whitespace.optional.sd [583..584]: " "
+ │           └─ keyword.control.divert.path.sd [584..585]
+ │               └─ keyword.control.divert.path.sd [584..585]: "b"
+ ├─ Newline [585..586]: "\n"
+ ├─ string.display.dialogue.block.sd [586..594]
+ │   ├─ punctuation.whitespace.optional.sd [586..588]: "  "
+ │   └─ string.display.text.chunk.sd [588..594]
+ │       ├─ markup.raw.text.sd [588..589]: "x"
+ │       ├─ markup.raw.space.sd [589..590]: " "
+ │       ├─ markup.raw.punctuation.sd [590..592]: ">="
+ │       ├─ markup.raw.space.sd [592..593]: " "
+ │       └─ markup.raw.text.sd [593..594]: "y"
+ ├─ Newline [594..595]: "\n"
+ ├─ string.display.dialogue.block.sd [595..601]
+ │   ├─ punctuation.whitespace.optional.sd [595..597]: "  "
+ │   └─ string.display.text.chunk.sd [597..601]
+ │       ├─ markup.raw.text.sd [597..598]: "x"
+ │       ├─ markup.raw.punctuation.sd [598..600]: ">="
+ │       └─ markup.raw.text.sd [600..601]: "y"
+ ├─ Newline [601..602]: "\n"
+ ├─ string.display.dialogue.block.sd [602..609]
+ │   ├─ punctuation.whitespace.optional.sd [602..604]: "  "
+ │   └─ string.display.text.chunk.sd [604..609]
+ │       ├─ markup.raw.text.sd [604..605]: "A"
+ │       ├─ markup.raw.punctuation.sd [605..608]: "-->"
+ │       └─ markup.raw.text.sd [608..609]: "B"
+ ├─ Newline [609..610]: "\n"
+ ├─ string.display.dialogue.block.sd [610..618]
+ │   ├─ punctuation.whitespace.optional.sd [610..612]: "  "
+ │   └─ string.display.text.chunk.sd [612..618]
+ │       ├─ markup.raw.text.sd [612..613]: "A"
+ │       ├─ markup.raw.space.sd [613..614]: " "
+ │       ├─ constant.character.escape.sd [614..615]: "\\"
+ │       ├─ markup.raw.text.sd [615..616]: ">"
+ │       ├─ markup.raw.space.sd [616..617]: " "
+ │       └─ markup.raw.text.sd [617..618]: "B"
+ ├─ Newline [618..619]: "\n"
+ ├─ string.display.dialogue.block.sd [619..625]
+ │   ├─ punctuation.whitespace.optional.sd [619..621]: "  "
+ │   └─ string.display.text.chunk.sd [621..625]
+ │       ├─ markup.raw.text.sd [621..622]: "A"
+ │       ├─ constant.character.escape.sd [622..623]: "\\"
+ │       ├─ markup.raw.text.sd [623..624]: ">"
+ │       └─ markup.raw.text.sd [624..625]: "B"
+ ├─ Newline [625..626]: "\n"
+ ├─ string.display.dialogue.block.sd [626..645]
+ │   ├─ punctuation.whitespace.optional.sd [626..628]: "  "
+ │   ├─ string.display.text.chunk.sd [628..634]
+ │   │   └─ markup.raw.text.sd [628..634]: "Before"
+ │   ├─ meta.break.sd [634..637]
+ │   │   └─ keyword.other.break.sd [634..637]: " > "
+ │   └─ string.display.text.chunk.sd [637..645]
+ │       ├─ keyword.control.divert.mark.sd [637..639]: "->"
+ │       └─ keyword.control.divert.path.sd [639..645]
+ │           ├─ punctuation.whitespace.optional.sd [639..640]: " "
+ │           └─ keyword.control.divert.path.sd [640..645]
+ │               └─ keyword.control.divert.path.sd [640..645]: "later"
+ ├─ Newline [645..646]: "\n"
+ ├─ string.display.dialogue.block.sd [646..662]
+ │   ├─ punctuation.whitespace.optional.sd [646..648]: "  "
+ │   ├─ string.display.text.chunk.sd [648..654]
+ │   │   └─ markup.raw.text.sd [648..654]: "Before"
+ │   ├─ meta.break.sd [654..655]
+ │   │   └─ keyword.other.break.sd [654..655]: ">"
+ │   └─ string.display.text.chunk.sd [655..662]
+ │       ├─ keyword.control.divert.mark.sd [655..657]: "->"
+ │       └─ keyword.control.divert.path.sd [657..662]
+ │           └─ keyword.control.divert.path.sd [657..662]
+ │               └─ keyword.control.divert.path.sd [657..662]: "later"
  ├─ Newline [662..663]: "\n"
  ├─ punctuation.whitespace.optional.sd [663..665]: "  "
- ├─ constant.character.escape.sd [665..673]
- │   ├─ meta.brace.round.open.sd [665..666]: "("
- │   ├─ markup.raw.text.sd [666..672]: "softly"
- │   └─ meta.brace.round.close.sd [672..673]: ")"
- ├─ meta.break.sd [673..674]
- │   └─ keyword.other.break.sd [673..674]: ">"
- ├─ string.display.text.chunk.sd [674..675]
- │   └─ markup.raw.text.sd [674..675]: "x"
- ├─ Newline [675..676]: "\n"
- ├─ punctuation.whitespace.optional.sd [676..678]: "  "
- ├─ string.display.text.chunk.sd [678..690]
- │   ├─ markup.raw.punctuation.sd [678..679]: "("
- │   ├─ markup.raw.text.sd [679..685]: "softly"
- │   ├─ markup.raw.punctuation.sd [685..686]: ")"
- │   ├─ markup.raw.space.sd [686..687]: " "
- │   ├─ markup.raw.punctuation.sd [687..689]: ">="
- │   └─ markup.raw.text.sd [689..690]: "z"
- ├─ Newline [690..691]: "\n"
- ├─ punctuation.whitespace.optional.sd [691..693]: "  "
- ├─ string.display.text.chunk.sd [693..706]
- │   ├─ markup.raw.punctuation.sd [693..694]: "("
- │   ├─ markup.raw.text.sd [694..700]: "softly"
- │   ├─ markup.raw.punctuation.sd [700..701]: ")"
- │   ├─ markup.raw.space.sd [701..702]: " "
- │   ├─ markup.raw.punctuation.sd [702..704]: ">>"
- │   ├─ markup.raw.space.sd [704..705]: " "
- │   └─ markup.raw.text.sd [705..706]: "y"
+ ├─ keyword.control.divert.mark.sd [665..667]: "->"
+ ├─ keyword.control.divert.path.sd [667..673]
+ │   ├─ punctuation.whitespace.optional.sd [667..668]: " "
+ │   └─ keyword.control.divert.path.sd [668..673]
+ │       └─ keyword.control.divert.path.sd [668..673]: "later"
+ ├─ Newline [673..674]: "\n"
+ ├─ punctuation.whitespace.optional.sd [674..676]: "  "
+ ├─ string.display.text.chunk.sd [676..689]
+ │   ├─ markup.raw.text.sd [676..681]: "Alpha"
+ │   ├─ markup.raw.punctuation.sd [681..682]: "."
+ │   ├─ markup.raw.punctuation.sd [682..683]: "."
+ │   ├─ markup.raw.punctuation.sd [683..685]: ">="
+ │   └─ markup.raw.text.sd [685..689]: "beta"
+ ├─ Newline [689..690]: "\n"
+ ├─ punctuation.whitespace.optional.sd [690..692]: "  "
+ ├─ string.display.text.chunk.sd [692..706]
+ │   ├─ markup.raw.text.sd [692..697]: "Gamma"
+ │   ├─ markup.raw.punctuation.sd [697..698]: "."
+ │   ├─ markup.raw.punctuation.sd [698..699]: "."
+ │   ├─ markup.raw.punctuation.sd [699..701]: ">>"
+ │   └─ markup.raw.text.sd [701..706]: "delta"
  ├─ Newline [706..707]: "\n"
  ├─ punctuation.whitespace.optional.sd [707..709]: "  "
- ├─ string.display.text.chunk.sd [709..722]
- │   ├─ markup.raw.punctuation.sd [709..710]: "("
- │   ├─ markup.raw.text.sd [710..716]: "softly"
- │   ├─ markup.raw.punctuation.sd [716..717]: ")"
- │   ├─ markup.raw.space.sd [717..718]: " "
- │   ├─ markup.raw.punctuation.sd [718..721]: "-->"
- │   └─ markup.raw.text.sd [721..722]: "z"
- └─ Newline [722..723]: "\n"
+ ├─ string.display.text.chunk.sd [709..716]
+ │   └─ markup.raw.text.sd [709..716]: "Epsilon"
+ ├─ meta.glue.sd [716..718]
+ │   └─ keyword.other.glue.sd [716..718]: ".."
+ ├─ meta.break.sd [718..719]
+ │   └─ keyword.other.break.sd [718..719]: ">"
+ ├─ string.display.text.chunk.sd [719..723]
+ │   └─ markup.raw.text.sd [719..723]: "zeta"
+ ├─ Newline [723..724]: "\n"
+ ├─ punctuation.whitespace.optional.sd [724..726]: "  "
+ ├─ string.display.text.chunk.sd [726..742]
+ │   ├─ markup.raw.text.sd [726..728]: "Go"
+ │   ├─ markup.raw.space.sd [728..729]: " "
+ │   ├─ meta.text.sd [729..737]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [729..730]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [730..734]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [734..735]: " "
+ │   │   ├─ constant.numeric.decimal.luau [735..736]: "1"
+ │   │   └─ keyword.operator.expression.end.tag.sd [736..737]: ">"
+ │   ├─ markup.raw.space.sd [737..738]: " "
+ │   ├─ markup.raw.text.sd [738..741]: "now"
+ │   └─ markup.raw.punctuation.sd [741..742]: "."
+ ├─ Newline [742..743]: "\n"
+ ├─ punctuation.whitespace.optional.sd [743..745]: "  "
+ ├─ string.display.text.chunk.sd [745..764]
+ │   ├─ markup.raw.text.sd [745..747]: "Go"
+ │   ├─ markup.raw.space.sd [747..748]: " "
+ │   ├─ meta.text.sd [748..751]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [748..749]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [749..750]: "b"
+ │   │   └─ keyword.operator.expression.end.tag.sd [750..751]: ">"
+ │   ├─ markup.raw.text.sd [751..755]: "bold"
+ │   ├─ meta.text.sd [755..759]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [755..756]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [756..758]: "/b"
+ │   │   └─ keyword.operator.expression.end.tag.sd [758..759]: ">"
+ │   ├─ markup.raw.space.sd [759..760]: " "
+ │   ├─ markup.raw.text.sd [760..763]: "now"
+ │   └─ markup.raw.punctuation.sd [763..764]: "."
+ ├─ Newline [764..765]: "\n"
+ ├─ punctuation.whitespace.optional.sd [765..767]: "  "
+ ├─ string.display.text.chunk.sd [767..784]
+ │   ├─ markup.raw.text.sd [767..769]: "Go"
+ │   ├─ markup.raw.space.sd [769..770]: " "
+ │   ├─ meta.text.sd [770..779]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [770..771]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [771..775]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [775..776]: " "
+ │   │   ├─ constant.numeric.decimal.luau [776..777]: "1"
+ │   │   ├─ punctuation.whitespace.extra.sd [777..778]: " "
+ │   │   └─ keyword.operator.expression.end.tag.sd [778..779]: ">"
+ │   ├─ markup.raw.space.sd [779..780]: " "
+ │   ├─ markup.raw.text.sd [780..783]: "now"
+ │   └─ markup.raw.punctuation.sd [783..784]: "."
+ ├─ Newline [784..785]: "\n"
+ ├─ punctuation.whitespace.optional.sd [785..787]: "  "
+ ├─ string.display.text.chunk.sd [787..807]
+ │   ├─ markup.raw.text.sd [787..791]: "Mike"
+ │   ├─ meta.text.sd [791..799]
+ │   │   ├─ keyword.operator.expression.begin.tag.sd [791..792]: "<"
+ │   │   ├─ keyword.style.control.keyword.sd [792..796]: "wait"
+ │   │   ├─ punctuation.whitespace.extra.sd [796..797]: " "
+ │   │   ├─ constant.numeric.decimal.luau [797..798]: "1"
+ │   │   └─ keyword.operator.expression.end.tag.sd [798..799]: ">"
+ │   └─ markup.raw.text.sd [799..807]: "November"
+ ├─ Newline [807..808]: "\n"
+ ├─ punctuation.whitespace.optional.sd [808..810]: "  "
+ ├─ constant.character.escape.sd [810..818]
+ │   ├─ meta.brace.round.open.sd [810..811]: "("
+ │   ├─ markup.raw.text.sd [811..817]: "softly"
+ │   └─ meta.brace.round.close.sd [817..818]: ")"
+ ├─ punctuation.whitespace.extra.sd [818..819]: " "
+ ├─ meta.break.sd [819..821]
+ │   └─ keyword.other.break.sd [819..821]: "> "
+ ├─ string.display.text.chunk.sd [821..822]
+ │   └─ markup.raw.text.sd [821..822]: "x"
+ ├─ Newline [822..823]: "\n"
+ ├─ punctuation.whitespace.optional.sd [823..825]: "  "
+ ├─ constant.character.escape.sd [825..833]
+ │   ├─ meta.brace.round.open.sd [825..826]: "("
+ │   ├─ markup.raw.text.sd [826..832]: "softly"
+ │   └─ meta.brace.round.close.sd [832..833]: ")"
+ ├─ meta.break.sd [833..834]
+ │   └─ keyword.other.break.sd [833..834]: ">"
+ ├─ string.display.text.chunk.sd [834..835]
+ │   └─ markup.raw.text.sd [834..835]: "x"
+ ├─ Newline [835..836]: "\n"
+ ├─ punctuation.whitespace.optional.sd [836..838]: "  "
+ ├─ string.display.text.chunk.sd [838..850]
+ │   ├─ markup.raw.punctuation.sd [838..839]: "("
+ │   ├─ markup.raw.text.sd [839..845]: "softly"
+ │   ├─ markup.raw.punctuation.sd [845..846]: ")"
+ │   ├─ markup.raw.space.sd [846..847]: " "
+ │   ├─ markup.raw.punctuation.sd [847..849]: ">="
+ │   └─ markup.raw.text.sd [849..850]: "z"
+ ├─ Newline [850..851]: "\n"
+ ├─ punctuation.whitespace.optional.sd [851..853]: "  "
+ ├─ string.display.text.chunk.sd [853..866]
+ │   ├─ markup.raw.punctuation.sd [853..854]: "("
+ │   ├─ markup.raw.text.sd [854..860]: "softly"
+ │   ├─ markup.raw.punctuation.sd [860..861]: ")"
+ │   ├─ markup.raw.space.sd [861..862]: " "
+ │   ├─ markup.raw.punctuation.sd [862..864]: ">>"
+ │   ├─ markup.raw.space.sd [864..865]: " "
+ │   └─ markup.raw.text.sd [865..866]: "y"
+ ├─ Newline [866..867]: "\n"
+ ├─ punctuation.whitespace.optional.sd [867..869]: "  "
+ ├─ string.display.text.chunk.sd [869..882]
+ │   ├─ markup.raw.punctuation.sd [869..870]: "("
+ │   ├─ markup.raw.text.sd [870..876]: "softly"
+ │   ├─ markup.raw.punctuation.sd [876..877]: ")"
+ │   ├─ markup.raw.space.sd [877..878]: " "
+ │   ├─ markup.raw.punctuation.sd [878..881]: "-->"
+ │   └─ markup.raw.text.sd [881..882]: "z"
+ └─ Newline [882..883]: "\n"

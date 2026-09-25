@@ -26,6 +26,10 @@ Before>->later
 Alpha..>=beta
 Gamma..>>delta
 Epsilon..>zeta
+Go <wait 1> now.
+Go <b>bold</b> now.
+Go <wait 1 > now.
+Mike<wait 1>November
 HERO (cheerful) [>]:
   Hi.
 HERO: {a > b} [[cg > 1]] ((sfx > 2)) # tag > x
@@ -60,6 +64,10 @@ HERO:
   Alpha..>=beta
   Gamma..>>delta
   Epsilon..>zeta
+  Go <wait 1> now.
+  Go <b>bold</b> now.
+  Go <wait 1 > now.
+  Mike<wait 1>November
   (softly) > x
   (softly)>x
   (softly) >=z
