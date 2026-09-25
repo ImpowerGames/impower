@@ -326,10 +326,15 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
           if (recordMessages) toRouter.push(copy);
           router.receive(copy);
         }),
+      // As `Application.init`: initialization is over whether it succeeded
+      // or failed.
       async init() {
-        await Promise.all(managers.map((m) => m.onInit()));
-        await app.connectGame();
-        resolveInit();
+        try {
+          await Promise.all(managers.map((m) => m.onInit()));
+          await app.connectGame();
+        } finally {
+          resolveInit();
+        }
       },
     };
     return app;

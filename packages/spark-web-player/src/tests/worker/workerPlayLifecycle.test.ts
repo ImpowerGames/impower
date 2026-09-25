@@ -1104,3 +1104,48 @@ describe("three PLAYs pressed while the first builds its application", () => {
     }
   }, 120_000);
 });
+
+describe("a PLAY that ends while it waits for audio, whose application then fails to start", () => {
+  it("destroys that application, which nothing else holds", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // The build waits for the audio context; STOP comes meanwhile.
+      const audio = gate();
+      let asked = false;
+      h.controller.ensureAudioContext = async () => {
+        asked = true;
+        await audio.opened;
+      };
+      const createApp = h.controller.createApp;
+      let created: any;
+      h.controller.createApp = (...args: unknown[]) => {
+        created = createApp(...args);
+        created.connectGame = () => Promise.reject(new Error("the application failed to start"));
+        return created;
+      };
+      const starting = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !asked; i++) await settle(2);
+      expect(asked).toBe(true);
+      await h.controller.stopGame("quit");
+      audio.open();
+
+      expect(await starting).toBe(false);
+      await settle(20);
+      expect(created).toBeDefined();
+      expect(h.controller._app === created).toBe(false);
+      expect(created.destroyed).toBe(true);
+      expect(created.destroys).toBe(1);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});

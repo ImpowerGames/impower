@@ -2248,7 +2248,16 @@ export class GamePlayerController {
     }
     profile("end", "app/create");
     profile("start", "app/init");
-    await app.init();
+    try {
+      await app.init();
+    } catch (e) {
+      // An application outside the slot is this build's alone: nothing else
+      // will tear it down.
+      if (this._app !== app) {
+        await app.destroy(true);
+      }
+      throw e;
+    }
     profile("end", "app/init");
     return app;
   }

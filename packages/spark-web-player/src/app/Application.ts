@@ -461,7 +461,9 @@ export class Application implements IApplication {
           manager.onUpdate(time);
         }
       }
-      if (this._renderer) {
+      // A renderer draws only once it has initialized; a clock step before
+      // then moves the clock and the managers all the same.
+      if (this._renderer && this._initialized) {
         this._renderer.render(this._stage);
       }
     }
