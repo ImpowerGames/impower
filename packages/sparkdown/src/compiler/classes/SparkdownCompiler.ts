@@ -87,6 +87,7 @@ import {
   type SceneAssetCapture,
   type SceneAssets,
 } from "../types/SceneAssets";
+import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
@@ -731,6 +732,12 @@ export class SparkdownCompiler {
   // Line offset each content chunk's debugMetadata was last stamped at —
   // a reused chunk whose offset is unchanged skips the restamp walk entirely.
   protected _chunkStampOffset = new WeakMap<object, number>();
+  // Document line and offset each chunk's Sparkle binding spans were last
+  // moved to.
+  protected _sparkleSpanOffset = new WeakMap<
+    object,
+    { line: number; from: number }
+  >();
   // Constructed flows that raised a diagnostic during GENERATION (reuse skips
   // generation, which would silently drop the diagnostic — such flows are
   // barred from reuse and rebuilt so the diagnostic re-emits).
@@ -3371,6 +3378,25 @@ export class SparkdownCompiler {
       }
       if (sparkle && !this._injectingPrelude) {
         this._contextKeyIds?.push(compiledBlock);
+        // The lowerer gives binding spans relative to the chunk; move them to
+        // the chunk's current place in the document. A carried chunk's spans
+        // were already moved by an earlier compile, so only the difference
+        // is applied.
+        const stamped = this._sparkleSpanOffset.get(sparkle) ?? {
+          line: 0,
+          from: 0,
+        };
+        if (stamped.line !== lineNumberOffset || stamped.from !== rec.from) {
+          rebaseSparkleSpans(
+            sparkle,
+            lineNumberOffset - stamped.line,
+            rec.from - stamped.from,
+          );
+          this._sparkleSpanOffset.set(sparkle, {
+            line: lineNumberOffset,
+            from: rec.from,
+          });
+        }
         // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
         // not yet consumed — the static screens/components channels still
         // drive rendering until Phase 3).

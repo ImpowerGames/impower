@@ -241,6 +241,20 @@ function bindingId(from: number, ctx: LowerContext): string {
   return `${BINDING_ID_PREFIX}${tag}${ctx.sparkleOwner}_${from - ctx.chunkFrom}`;
 }
 
+// A binding handle's span, relative to the chunk being lowered. The compiler
+// adds the chunk's document position when it merges the chunk's trees into
+// `program.sparkle` (see `rebaseSparkleSpans`), so a chunk carried unlowered
+// into a later compile still gives its handles' current positions.
+function bindingSpan(from: number, to: number, ctx: LowerContext): SparkRange {
+  const chunkFrom = ctx.chunkFrom ?? 0;
+  return {
+    file: ctx.filePath,
+    line: ctx.lineNumber(from),
+    from: from - chunkFrom,
+    to: to - chunkFrom,
+  };
+}
+
 /** DFS in-order: the first descendant (or self) whose name is in `names`. */
 function firstDescendant(
   node: SyntaxNode,
@@ -382,12 +396,7 @@ function lowerBinding(
 ): Binding {
   const exprId = bindingId(interpNode.from, ctx);
   const source = ctx.read(interpNode.from, interpNode.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(interpNode.from),
-    from: interpNode.from,
-    to: interpNode.to,
-  };
+  const span = bindingSpan(interpNode.from, interpNode.to, ctx);
   // Enclosing `for`-loop variables become the evaluator's parameters so the
   // body can read per-iteration values the runtime passes as args (loop locals
   // aren't globals — see LowerContext.sparkleLoopVars). `extraParams` adds
@@ -495,12 +504,7 @@ function lowerComponentArg(
   const last = argNodes[argNodes.length - 1]!;
   const exprId = bindingId(first.from, ctx);
   const source = ctx.read(first.from, last.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(first.from),
-    from: first.from,
-    to: last.to,
-  };
+  const span = bindingSpan(first.from, last.to, ctx);
   const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
@@ -629,12 +633,7 @@ function lowerHandlerClosure(
 ): Binding {
   const exprId = bindingId(closureNode.from, ctx);
   const source = ctx.read(closureNode.from, closureNode.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(closureNode.from),
-    from: closureNode.from,
-    to: closureNode.to,
-  };
+  const span = bindingSpan(closureNode.from, closureNode.to, ctx);
   const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])]; // see lowerBinding
   // The attribute is line-oriented, so a closure whose `}` isn't on the `=`
   // line is force-closed at the newline — the grammar emits no
@@ -1174,12 +1173,7 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
   const last = nodes[nodes.length - 1]!;
   const exprId = bindingId(first.from, ctx);
   const source = ctx.read(first.from, last.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(first.from),
-    from: first.from,
-    to: last.to,
-  };
+  const span = bindingSpan(first.from, last.to, ctx);
   const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,

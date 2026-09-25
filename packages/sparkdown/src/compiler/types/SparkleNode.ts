@@ -20,6 +20,10 @@ import { type SparkRange } from "./SparkRange";
 export interface Binding {
   exprId: string;
   source: string;
+  /**
+   * Where the expression sits in `span.file`: `line` is the 0-based document
+   * line of its start, and `from` and `to` are document offsets.
+   */
   span: SparkRange;
   /**
    * Enclosing `for`-loop variable names (outermost-first) the evaluator takes as
