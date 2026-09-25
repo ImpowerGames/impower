@@ -6,8 +6,8 @@ import {
 
 /**
  * The story path a preview of `from` should divert into: the closest path that
- * owns the line, among those a preview may target (binding evaluators and
- * function bodies are not — see the table's previewable rows).
+ * owns the line, among those a preview may target (binding evaluators are not
+ * — see the table's previewable rows).
  *
  * A line that `>` breaks holds several beats. A preview shows the line's last
  * beat (`"last"`), and PLAY from the line starts at its first (`"first"`).

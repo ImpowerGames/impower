@@ -86,7 +86,6 @@ const gate = () => {
 describe("STOP while PLAY in the worker is starting", () => {
   it("ends PLAY while its game waits on the page to connect", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: PICTURED },
     });
@@ -150,7 +149,6 @@ describe("STOP while PLAY in the worker is starting", () => {
 
   it("leaves no game running when STOP comes before the worker is asked to build one", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -197,7 +195,6 @@ describe("STOP while PLAY in the worker is starting", () => {
 describe("PLAY while a preview is still being displayed", () => {
   it("takes the next program and restarts on an edit", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -252,7 +249,6 @@ describe("PLAY while a preview is still being displayed", () => {
 describe("an edit's restart under way when the author presses STOP", () => {
   it("does not start the game again", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -297,7 +293,6 @@ describe("an edit's restart under way when the author presses STOP", () => {
 describe("pause while PLAY in the worker is starting", () => {
   it("does not pause the game that previews before PLAY's game exists", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -345,7 +340,6 @@ describe("pause while PLAY in the worker is starting", () => {
 describe("pause and unpause while PLAY in the worker is starting", () => {
   it("leaves the game and its application in the state the editor asked for last", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -378,7 +372,6 @@ describe("pause and unpause while PLAY in the worker is starting", () => {
 
   it("hands nothing a stopped start was told to the next PLAY", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -417,7 +410,6 @@ describe("pause and unpause while PLAY in the worker is starting", () => {
 describe("the controls that move time while PLAY in the worker is starting", () => {
   it("keeps a game paused during its start from ticking before the start is answered", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
       manualClock: true,
@@ -452,7 +444,6 @@ describe("the controls that move time while PLAY in the worker is starting", () 
 
   it("steps the game by a clock step made during its start, as its application", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
       manualClock: true,
@@ -482,7 +473,6 @@ describe("the controls that move time while PLAY in the worker is starting", () 
 describe("a runtime error as PLAY's game in the worker starts", () => {
   it("stops PLAY and tells the editor why", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -532,7 +522,6 @@ describe("a runtime error as PLAY's game in the worker starts", () => {
 describe("PLAY pressed again while the worker stops the last run", () => {
   it("leaves the new run and its application to the new PLAY", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -567,7 +556,6 @@ describe("PLAY pressed again while the worker stops the last run", () => {
 describe("a debugger step the worker fails", () => {
   it("answers the editor with the worker's failure", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: AFTER },
     });
@@ -581,6 +569,582 @@ describe("a debugger step the worker fails", () => {
       );
       expect(stepped.error?.message).toContain("The worker could not step.");
     } finally {
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("STOP during the new start of an edit's restart", () => {
+  it("answers that nothing restarted, so the editor hears no reload", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(10);
+
+      // The restart has torn the old run down and asked the worker for the
+      // new one; the author presses STOP before the worker's answer lands.
+      const building = holdAnswer(h, PlayMessage.method);
+      const restarting = h.controller.restartGame();
+      for (let i = 0; i < 100 && !building.state.asked; i++) await settle(2);
+      expect(building.state.asked).toBe(true);
+      await h.controller.stopGame("quit");
+      building.open();
+
+      expect(await restarting).toBe(false);
+      await settle(20);
+      expect(h.workerState.gameState.running == null).toBe(true);
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("PLAY pressed again while STOP waits for its frames", () => {
+  it("tells the editor nothing of the old run and leaves the new one running", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    // STOP's frames, held until the test lets them run.
+    const win = h.overlay.ownerDocument.defaultView as any;
+    const frames: (() => void)[] = [];
+    win.requestAnimationFrame = (callback: () => void) => frames.push(callback);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(10);
+
+      const stopped = h.controller.stopGame("quit");
+      for (let i = 0; i < 100 && frames.length === 0; i++) await settle(2);
+      expect(frames.length).toBe(1);
+      h.toEditor.length = 0;
+      h.workspace.selections.length = 0;
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      // Let STOP's frames run, however many it still asks for.
+      let done = false;
+      void stopped.then(() => (done = true));
+      for (let i = 0; i < 20 && !done; i++) {
+        frames.splice(0).forEach((frame) => frame());
+        await settle(5);
+      }
+      expect(done).toBe(true);
+
+      expect(h.toEditor.filter((m) => m.method === "game/exited")).toEqual([]);
+      expect(h.workspace.selections).toEqual([]);
+      expect(h.workerState.gameState.running == null).toBe(false);
+      expect(h.controller.playing).toBe(true);
+    } finally {
+      win.requestAnimationFrame = (callback: () => void) => setTimeout(callback, 0);
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("STOP while PLAY waits for the first program", () => {
+  it("ends that PLAY before it asks the worker for a game", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      // Nothing has compiled yet, so PLAY waits for the first program.
+      const starting = h.controller.startGameAndApp();
+      await settle(10);
+      await h.controller.stopGame("quit");
+      await h.compile();
+
+      expect(await starting).toBe(false);
+      await settle(20);
+      expect(h.workerState.gameState.running == null).toBe(true);
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("the controller going while PLAY runs", () => {
+  it("destroys PLAY's application with the game", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(10);
+      const app = h.controller._app;
+      expect(app != null).toBe(true);
+
+      h.controller.dispose();
+      await settle(40);
+
+      expect(app.destroys).toBe(1);
+      expect(h.controller._app == null).toBe(true);
+      expect(h.workerState.gameState.running == null).toBe(true);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("the PLAY button pressed before the first program, then STOP", () => {
+  it("does not tell the editor a game started", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      const clicked = h.controller.handleClickPlayButton();
+      await settle(10);
+      await h.controller.stopGame("quit");
+      h.toEditor.length = 0;
+      await h.compile();
+      await clicked;
+      await settle(20);
+
+      expect(h.toEditor.filter((m) => m.method === "game/started")).toEqual([]);
+      expect(h.workerState.gameState.running == null).toBe(true);
+      expect(h.controller.playing).toBe(false);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("PLAY pressed during an edit's restart", () => {
+  it("keeps the new PLAY when it comes while the old run stops", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(10);
+
+      const stopping = holdAnswer(h, StopPlayMessage.method);
+      const restarting = h.controller.restartGame();
+      for (let i = 0; i < 100 && !stopping.state.asked; i++) await settle(2);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      const game = h.workerState.gameState.running;
+      stopping.open();
+
+      expect(await restarting).toBe(false);
+      await settle(20);
+      expect(h.workerState.gameState.running === game).toBe(true);
+      expect(h.controller.playing).toBe(true);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+
+  it("answers that nothing restarted when the new PLAY overtakes the restart's start", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(10);
+
+      const building = holdAnswer(h, PlayMessage.method);
+      const restarting = h.controller.restartGame();
+      for (let i = 0; i < 100 && !building.state.asked; i++) await settle(2);
+      expect(building.state.asked).toBe(true);
+      const newer = h.controller.startGameAndApp();
+      building.open();
+
+      expect(await newer).toBe(true);
+      expect(await restarting).toBe(false);
+      expect(h.controller.playing).toBe(true);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("the controller going while STOP waits for the worker", () => {
+  it("tells the editor nothing more of the run", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(10);
+
+      const stopping = holdAnswer(h, StopPlayMessage.method);
+      const stopped = h.controller.stopGame("quit");
+      for (let i = 0; i < 100 && !stopping.state.asked; i++) await settle(2);
+      h.controller.dispose();
+      h.toEditor.length = 0;
+      h.workspace.selections.length = 0;
+      stopping.open();
+      await stopped;
+      await settle(20);
+
+      expect(h.toEditor.map((m) => m.method)).toEqual([]);
+      expect(h.workspace.selections).toEqual([]);
+      expect(h.controller.getGameState().launchState).toBe(null);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("the controller going while PLAY's application is built", () => {
+  it("destroys that application once", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      // PLAY's application connects its game last in its build; hold that.
+      const connecting = holdAnswer(h, ConnectPlayMessage.method);
+      const starting = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
+      expect(connecting.state.asked).toBe(true);
+      const app = h.controller._app;
+      expect(app != null).toBe(true);
+      h.controller.dispose();
+      connecting.open();
+      expect(await starting).toBe(false);
+      await settle(40);
+
+      expect(app.destroys).toBe(1);
+      expect(h.workerState.gameState.running == null).toBe(true);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+/** How many listeners the page holds on the worker's games. */
+const listeners = (h: any) => {
+  let count = 0;
+  for (const set of h.link._listeners.values()) count += set.size;
+  return count;
+};
+
+describe("the PLAY button pressed while the audio context resumes", () => {
+  for (const ending of ["STOP", "the controller going"] as const) {
+    it(`starts nothing after ${ending}`, async () => {
+      const h = await createPlayerHarness({
+        files: [{ uri: MAIN_URI, text: SOURCE }],
+        startFrom: { file: MAIN_URI, line: AFTER },
+      });
+      framesForStop(h);
+      try {
+        await h.compile();
+        await h.select(AFTER);
+        const resumed = gate();
+        h.controller.ensureAudioContext = () => resumed.opened;
+        const clicked = h.controller.handleClickPlayButton();
+        await settle(10);
+        if (ending === "STOP") {
+          await h.controller.stopGame("quit");
+        } else {
+          h.controller.dispose();
+        }
+        h.toEditor.length = 0;
+        resumed.open();
+        await clicked;
+        await settle(40);
+
+        expect(h.toEditor.map((m) => m.method)).toEqual([]);
+        expect(h.workerState.gameState.running == null).toBe(true);
+        expect(h.controller.playing).toBe(false);
+      } finally {
+        h.workerState.gameState.running?.destroy();
+        h.dispose();
+      }
+    }, 120_000);
+  }
+});
+
+describe("a newer PLAY while the last one builds its application", () => {
+  it("leaves one set of listeners, and one destroy of the abandoned application", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // PLAY A has built its run and listens; its application's connect waits.
+      const connectingA = holdAnswer(h, ConnectPlayMessage.method);
+      const startingA = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connectingA.state.asked; i++) await settle(2);
+      expect(connectingA.state.asked).toBe(true);
+      const appA = h.controller._app;
+
+      // PLAY B has been answered but waits before building its application.
+      const buildingB = holdAnswer(h, PlayMessage.method);
+      const startingB = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !buildingB.state.asked; i++) await settle(2);
+      connectingA.open();
+      expect(await startingA).toBe(false);
+      buildingB.open();
+      expect(await startingB).toBe(true);
+      await settle(20);
+
+      expect(appA.destroys).toBe(1);
+      expect(h.controller._app === appA).toBe(false);
+      // What listens now is PLAY B alone: as many listeners as a PLAY that
+      // raced nothing holds.
+      const raced = listeners(h);
+      await h.controller.stopGame("quit");
+      await settle(20);
+      expect(await h.controller.startGameAndApp()).toBe(true);
+      await settle(20);
+      expect(raced).toBe(listeners(h));
+      // And the controller going leaves none.
+      h.controller.dispose();
+      await settle(20);
+      expect(listeners(h)).toBe(0);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("game/start from the editor while the controller goes", () => {
+  it("publishes nothing after the controller has gone", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+      const connecting = holdAnswer(h, ConnectPlayMessage.method);
+      const started = h.controller.handleStartGame({ jsonrpc: "2.0", id: "start", method: "game/start", params: {} });
+      for (let i = 0; i < 100 && !connecting.state.asked; i++) await settle(2);
+      h.controller.dispose();
+      h.toEditor.length = 0;
+      connecting.open();
+      await started;
+      await settle(20);
+
+      expect(h.toEditor.map((m) => m.method)).toEqual([]);
+      expect(h.controller.getGameState().launchState).toBe(null);
+    } finally {
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+/** Where the old run's application is on its way out, what each is held
+ *  on, how to begin it, and whether a run follows. */
+const outgoing = {
+  "an edit's restart stops the old run": {
+    hold: StopPlayMessage.method,
+    begin: (h: any) => h.controller.restartGame(),
+    follows: true,
+  },
+  "STOP waits for the worker": {
+    hold: StopPlayMessage.method,
+    begin: (h: any) => h.controller.stopGame("quit"),
+    follows: false,
+  },
+  "a newer PLAY waits for its run": {
+    hold: PlayMessage.method,
+    begin: (h: any) => h.controller.startGameAndApp(),
+    follows: true,
+  },
+} as const;
+
+/** Each control the editor sends, sent the way the editor sends it. */
+const controls = {
+  pause: (h: any) => h.controller.handlePauseGame(PauseGameMessage.type.request({})),
+  unpause: (h: any) => h.controller.handleUnpauseGame(UnpauseGameMessage.type.request({})),
+  "clock step": (h: any) =>
+    h.controller.handleStepGameClock(StepGameClockMessage.type.request({ seconds: 2.5 })),
+} as const;
+
+describe("the editor's controls while the old run's application is on its way out", () => {
+  for (const [when, { hold, begin, follows }] of Object.entries(outgoing)) {
+    for (const [control, send] of Object.entries(controls)) {
+      it(`answers that no game took a ${control} while ${when}`, async () => {
+        const h = await createPlayerHarness({
+          files: [{ uri: MAIN_URI, text: SOURCE }],
+          startFrom: { file: MAIN_URI, line: AFTER },
+          manualClock: true,
+        });
+        framesForStop(h);
+        try {
+          await h.compile();
+          await h.select(AFTER);
+          expect(await h.controller.startGameAndApp()).toBe(true);
+          await settle(10);
+          // An unpause needs a paused run to act on.
+          if (control === "unpause") {
+            expect("error" in (await controls.pause(h))).toBe(false);
+            await settle(10);
+          }
+
+          const held = holdAnswer(h, hold);
+          const begun = begin(h);
+          for (let i = 0; i < 100 && !held.state.asked; i++) await settle(2);
+          expect(held.state.asked).toBe(true);
+          const answer = await send(h);
+          held.open();
+          await begun;
+          await settle(20);
+
+          // What the old run's application is told goes with it, so the
+          // editor hears that no game took it, and does not show a pause, a
+          // resume or a step the run that follows never had.
+          expect(answer.error?.message).toBe("no game loaded");
+          if (follows) {
+            const offset = (clock: any) => clock._timeOffset;
+            expect(h.controller.playing).toBe(true);
+            expect(h.controller._app.paused).toBe(false);
+            expect(h.workerState.gameState.running!.paused).toBe(false);
+            expect(offset(h.controller._app.clock)).toBe(0);
+            expect(offset(h.workerState.gameState.running!.clock)).toBe(0);
+          } else {
+            expect(h.playing()).toBeFalsy();
+          }
+        } finally {
+          await h.controller.destroyGameAndApp();
+          h.workerState.gameState.running?.destroy();
+          h.dispose();
+        }
+      }, 120_000);
+    }
+  }
+});
+
+describe("three PLAYs pressed while the first builds its application", () => {
+  it("leaves the last PLAY's application in the slot, where STOP destroys it", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // PLAY A's application waits to connect, so it has not initialized.
+      const connectingA = holdAnswer(h, ConnectPlayMessage.method);
+      const startingA = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !connectingA.state.asked; i++) await settle(2);
+      expect(connectingA.state.asked).toBe(true);
+      const appA = h.controller._app;
+
+      // PLAY B waits for A's application to finish its teardown.
+      const startingB = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !appA.destroyed; i++) await settle(2);
+      expect(appA.destroyed).toBe(true);
+
+      // PLAY C comes while B still waits, and A's application initializes
+      // after it.
+      const startingC = h.controller.startGameAndApp();
+      await settle(20);
+      connectingA.open();
+      const started = await Promise.all([startingA, startingB, startingC]);
+      await settle(20);
+
+      expect(started).toEqual([false, false, true]);
+      const appC = h.controller._app;
+      expect(appC && appC !== appA).toBe(true);
+      expect(appC.destroyed).toBe(false);
+      await h.controller.stopGame("quit");
+      await settle(20);
+      expect(appC.destroyed).toBe(true);
+      expect(h.playing()).toBeFalsy();
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
+      h.dispose();
+    }
+  }, 120_000);
+});
+
+describe("a PLAY that ends while it waits for audio, whose application then fails to start", () => {
+  it("destroys that application, which nothing else holds", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: AFTER },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(AFTER);
+
+      // The build waits for the audio context; STOP comes meanwhile.
+      const audio = gate();
+      let asked = false;
+      h.controller.ensureAudioContext = async () => {
+        asked = true;
+        await audio.opened;
+      };
+      const createApp = h.controller.createApp;
+      let created: any;
+      h.controller.createApp = (...args: unknown[]) => {
+        created = createApp(...args);
+        created.connectGame = () => Promise.reject(new Error("the application failed to start"));
+        return created;
+      };
+      const starting = h.controller.startGameAndApp();
+      for (let i = 0; i < 100 && !asked; i++) await settle(2);
+      expect(asked).toBe(true);
+      await h.controller.stopGame("quit");
+      audio.open();
+
+      expect(await starting).toBe(false);
+      await settle(20);
+      expect(created).toBeDefined();
+      expect(h.controller._app === created).toBe(false);
+      expect(created.destroyed).toBe(true);
+      expect(created.destroys).toBe(1);
+    } finally {
+      await h.controller.destroyGameAndApp();
+      h.workerState.gameState.running?.destroy();
       h.dispose();
     }
   }, 120_000);

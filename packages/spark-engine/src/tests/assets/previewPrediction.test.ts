@@ -1531,42 +1531,32 @@ end
     ).toEqual([["preview:1"]]);
   });
 
-  it("previews the story's next line for a cursor inside a function, whose body is not story flow", async () => {
-    // A function's body has no scene to run in, so a preview of one of its
-    // lines previews the next line of story flow after it: here the header
-    // of scene A, as a preview of that header line would.
+  it("gates and writes for a cursor inside a function what it does for the story after the function", async () => {
+    // A function's body runs only when called, so a preview of one of its
+    // lines previews the story's next line of flow after it (#835): the
+    // function's picture is never asked for, and the story's is. The story
+    // lines follow the function's `end`, where #834 compiles them into the
+    // function's container; they are still story.
     const story = `function greet
   [[show portrait bunny]]
   Hello there.
 end
 
-scene A
-  [[show backdrop room]]
-  Line one.
-  done
-end
+[[show backdrop room]]
+Line one.
 `;
-    const gated = async (line: number) => {
-      const h = connected(story, line);
-      await h.ready;
-      h.reset();
-      const path = pathAt(h.game, line);
-      const previewing = h.preview(line);
-      await flushMicrotasks(20);
-      h.releaseAssets();
-      expect(await previewing).toBe(path);
-      expect(
-        byMethod(h.messages, "game/runtimeError").map((m) => m.params.message),
-      ).toEqual([]);
-      return {
-        path,
-        loads: byMethod(h.messages, "assets/load").map(itemKeys),
-        images: imagesWritten(h.messages),
-      };
-    };
-    const inFunction = await gated(1);
-    expect(inFunction.path).toMatch(/^A\./);
-    expect(inFunction).toEqual(await gated(5));
+    const inFunction = await previewGate(story, 1);
+    const atStory = await previewGate(story, 5);
+    expect(pathAt(inFunction.h.game, 1)).toBe(pathAt(atStory.h.game, 5));
+    expect(inFunction.gated).toEqual(atStory.gated);
+    expect(inFunction.written).toEqual(atStory.written);
+    expect(atStory.written).toContain("room.png");
+    expect(inFunction.written).not.toContain("bunny.png");
+    expect(
+      byMethod(inFunction.h.messages, "game/runtimeError").map(
+        (m) => m.params.message,
+      ),
+    ).toEqual([]);
   });
 
   it("previews nothing for a point the program does not know, and reveals the layouts", async () => {

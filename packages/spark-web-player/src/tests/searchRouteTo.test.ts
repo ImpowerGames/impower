@@ -5,9 +5,9 @@
 // has not written, so nothing it takes may be kept: the real program's next
 // route, and PLAY, must go exactly where they would have gone without it.
 //
-// Both switch positions (#680) are covered: a game built from the compiled
-// bytecode, and one built over the compiler's own story with nothing emitted,
-// as the player's worker routes when it displays the preview.
+// Both shapes of game are covered: one built over the compiler's own story
+// with nothing emitted, as the player's worker routes for the preview, and
+// one built from the compiled bytecode, as PLAY's game is.
 import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { describe, expect, test } from "vitest";
@@ -28,13 +28,13 @@ const SOURCE = [
   "",
 ].join("\n");
 
-function routeToLeft(workerDisplays: boolean) {
+function routeToLeft(overStory: boolean) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
       { uri: URI, type: "script", name: "main", ext: "sd", text: SOURCE, version: 1, languageId: "sparkdown" },
     ],
-    emitCompiledProgram: !workerDisplays,
+    emitCompiledProgram: !overStory,
   } as never);
   let story: unknown;
   compiler.addEventListener("compiler/didCompile", (params) => {
@@ -43,7 +43,7 @@ function routeToLeft(workerDisplays: boolean) {
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
   const game = new Game({
     program,
-    story: workerDisplays ? story : undefined,
+    story: overStory ? story : undefined,
     now: () => 0,
     setTimeout: ((fn: Function) => {
       fn();
@@ -57,10 +57,10 @@ function routeToLeft(workerDisplays: boolean) {
   return { game, toPath: game.startPath! };
 }
 
-for (const workerDisplays of [false, true]) {
-  describe(`a route search (${workerDisplays ? "over the compiler's story" : "over the compiled bytecode"})`, () => {
+for (const overStory of [false, true]) {
+  describe(`a route search (${overStory ? "over the compiler's story" : "over the compiled bytecode"})`, () => {
     test("for the real program remembers the choices its route took", () => {
-      const { game, toPath } = routeToLeft(workerDisplays);
+      const { game, toPath } = routeToLeft(overStory);
       const config: { simulationOptions?: Record<string, any> } = {};
       const log = new RouteSearchLog();
 
@@ -74,7 +74,7 @@ for (const workerDisplays of [false, true]) {
     });
 
     test("for a suggestion remembers nothing, and still answers", () => {
-      const { game, toPath } = routeToLeft(workerDisplays);
+      const { game, toPath } = routeToLeft(overStory);
       const config: { simulationOptions?: Record<string, any> } = {};
       const real = new RouteSearchLog();
       const suggestion = new RouteSearchLog();

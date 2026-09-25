@@ -35,11 +35,11 @@ const rawPlugin = {
 const LOG_PREFIX =
   (WATCH ? "[watch] " : "") + `${path.basename(process.cwd())}: `;
 
-// Source dirs bundled INTO the inline worker (game.worker → spark-web-player,
-// spark-engine, the compiler, textmate-grammar-tree, …), collected from the
-// worker's esbuild metafile below. esbuild's outer ctx.watch() can't see them
-// (the inline worker is a separate build), so we watch them explicitly. This
-// was hardcoded to just spark-web-player/src, missing engine/compiler/grammar.
+// Source dirs bundled INTO the inline worker (workspace.worker →
+// spark-web-player, spark-engine, the compiler, textmate-grammar-tree, …),
+// collected from the worker's esbuild metafile below. esbuild's outer
+// ctx.watch() can't see them (the inline worker is a separate build), so we
+// watch them explicitly.
 const workerSrcDirs = new Set();
 
 /** @type {import('esbuild').Plugin} **/

@@ -1,4 +1,5 @@
 import type {
+  FunctionSpan,
   PathLocationTable,
   ScriptLocation,
 } from "../types/SparkProgram";
@@ -101,7 +102,7 @@ interface PathSearchIndex {
 
 const buildSearchIndex = (
   table: PathLocationTable,
-  include?: (path: string) => boolean,
+  include?: (row: number) => boolean,
 ): PathSearchIndex => {
   const { paths, values } = table;
   const total = paths.length;
@@ -115,7 +116,7 @@ const buildSearchIndex = (
   let rows = new Int32Array(total);
   let count = 0;
   for (let i = 0; i < total; i++) {
-    if (!include || include(paths[i]!)) {
+    if (!include || include(i)) {
       rows[count++] = i;
     }
   }
@@ -159,25 +160,50 @@ const buildSearchIndex = (
  * otherwise jump straight into one and fail to mount. They are never a valid
  * preview target, so exclude them as candidates.
  */
-const isBindingPath = (path: string) =>
+export const isBindingPath = (path: string) =>
   path.includes("__binding_") &&
   path.split(".").some((seg) => seg.startsWith("__binding_"));
 
 /**
- * A function's body is not story flow either: a run started inside one runs
- * the body with no arguments and meets its `return` outside a call. Rows under
- * a top-level function container (a named function, a hoisted function
- * literal, and the callables nested in them) are not previewable, so a line
- * with no story row of its own resolves to the next story row after it.
+ * Whether a row may be where a story starts or a preview diverts: not a
+ * binding evaluator, and not function code, a row under one of the table's
+ * {@link PathLocationTable.functions} that starts within the function's own
+ * lines. Starting inside a function runs its body as story, so its `return`
+ * ends the run on a runtime error before anything shows; a line that holds only
+ * function rows (a `function` header, a `store` whose value is a function
+ * literal) resolves instead to the story row after it.
  */
-const previewableFilter = (table: PathLocationTable) => {
-  const functions = new Set(table.functions);
-  return (path: string) => {
+const previewableRowTest = (table: PathLocationTable) => {
+  const { paths, values } = table;
+  const functions = table.functions?.length
+    ? new Map(table.functions.map((f) => [f.path, f.lines]))
+    : undefined;
+  const inFunction = (path: string, row: number) => {
+    const at = row * LOCATION_STRIDE;
+    for (let dot = path.indexOf("."); ; dot = path.indexOf(".", dot + 1)) {
+      const container = dot < 0 ? path : path.slice(0, dot);
+      if (functions!.has(container)) {
+        const lines = functions!.get(container);
+        if (
+          !lines ||
+          (values[at] === lines[0] &&
+            values[at + 1]! >= lines[1] &&
+            values[at + 1]! <= lines[2])
+        ) {
+          return true;
+        }
+      }
+      if (dot < 0) {
+        return false;
+      }
+    }
+  };
+  return (row: number) => {
+    const path = paths[row]!;
     if (isBindingPath(path)) {
       return false;
     }
-    const dot = path.indexOf(".");
-    return !functions.has(dot < 0 ? path : path.slice(0, dot));
+    return !functions || !inFunction(path, row);
   };
 };
 
@@ -190,7 +216,7 @@ const searchIndexOf = (table: PathLocationTable, previewableOnly: boolean) => {
   if (!index) {
     index = buildSearchIndex(
       table,
-      previewableOnly ? previewableFilter(table) : undefined,
+      previewableOnly ? previewableRowTest(table) : undefined,
     );
     cache.set(table, index);
   }
@@ -325,9 +351,11 @@ export const narrowPaths = (paths: string[]) =>
   paths.map((path) => path.slice(0));
 
 /** A table of `locations`, ordered by script, then start line, then start
- *  column — the order a lookup searches. */
+ *  column — the order a lookup searches, carrying `functions` when there are
+ *  any. */
 export const pathLocationTableOf = (
   locations: Record<string, ScriptLocation> | undefined,
+  functions?: FunctionSpan[],
 ): PathLocationTable => {
   const entries = Object.entries(locations ?? {});
   entries.sort(
@@ -346,7 +374,9 @@ export const pathLocationTableOf = (
     values[at + 3] = location[3];
     values[at + 4] = location[4];
   }
-  return { paths: narrowPaths(paths), values };
+  return functions?.length
+    ? { paths: narrowPaths(paths), values, functions }
+    : { paths: narrowPaths(paths), values };
 };
 
 /**
@@ -363,7 +393,7 @@ export const asPathLocationTable = (
   const { paths, values, functions } = raw as {
     paths?: unknown;
     values?: ArrayLike<number>;
-    functions?: unknown;
+    functions?: FunctionSpan[];
   };
   if (!Array.isArray(paths)) {
     return undefined;
@@ -375,9 +405,7 @@ export const asPathLocationTable = (
   for (let i = 0; i < restored.length; i++) {
     restored[i] = Number(values?.[i] ?? 0);
   }
-  return {
-    paths: paths as string[],
-    values: restored,
-    ...(Array.isArray(functions) ? { functions: functions as string[] } : {}),
-  };
+  return functions
+    ? { paths: paths as string[], values: restored, functions }
+    : { paths: paths as string[], values: restored };
 };

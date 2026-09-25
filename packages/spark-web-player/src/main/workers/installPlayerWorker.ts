@@ -23,7 +23,6 @@ import { profile } from "../../utils/profile";
 import { programIdentity } from "../../utils/programIdentity";
 import { planPreviewHint, type PreviewHintState } from "../utils/previewHint";
 import { displayPreviewFrom } from "./displayPreviewFrom";
-import { ConfigurePlayerWorkerMessage } from "./messages/ConfigurePlayerWorkerMessage";
 import {
   DisplayPreviewMessage,
   type DisplayPreviewParams,
@@ -43,7 +42,7 @@ import {
   type StopPlayParams,
   type StopPlayResult,
 } from "./messages/StopPlayMessage";
-import { putAtStartPoint } from "../../utils/putAtStartPoint";
+import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
@@ -63,15 +62,13 @@ interface DisplayableProgram {
 /**
  * Everything the Game Preview's worker does: the player's compiler, the game
  * that plans and replays the route to the author's line on every compile and
- * selection, and, with `workerDisplaysPreview`, the display of the stopped
- * preview from that game (`player/displayPreview`) and PLAY's game, which
- * runs beside it (`player/play`), so the page holds no program and no game.
+ * selection and displays the stopped preview (`player/displayPreview`), and
+ * PLAY's game, which runs beside it (`player/play`). The page holds only each
+ * program's summary and no game.
  */
 export function installPlayerWorker(connection: MessageConnection) {
   const player = {
-    workerDisplaysPreview: false,
-    /** How PLAY's game is put at its start point, as the page's own PLAY
-     *  puts its game there. */
+    /** How PLAY's game is put at its start point. */
     putAtStartPoint,
   };
   // The warm-up is planned before the compiler handles the selection, which
@@ -81,7 +78,7 @@ export function installPlayerWorker(connection: MessageConnection) {
   let lastHint: PreviewHintState | undefined;
   connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;
-    if (!player.workerDisplaysPreview || !message) {
+    if (!message) {
       return;
     }
     if (
@@ -100,7 +97,7 @@ export function installPlayerWorker(connection: MessageConnection) {
   });
 
   const compilerState = installSparkdownWorker(connection, {
-    summarize: () => player.workerDisplaysPreview,
+    summarize: true,
   });
   const gameState = installGameWorker(connection);
   const compiler = compilerState.compiler;
@@ -112,8 +109,12 @@ export function installPlayerWorker(connection: MessageConnection) {
   // the editor's LSP diagnostics compiler is separate and stays unseeded, so
   // keystroke latency is unaffected. configure() merges, so later editor
   // configures (files, startFrom, …) leave this flag set.
+  //
+  // The page reads no compiled story, so the compiler does not serialize one;
+  // a PLAY writes one out for its own game (`emitCompiledProgramOf`).
   compiler.configure({
     seedBuiltinsIntoStory: true,
+    emitCompiledProgram: false,
   });
 
   // The record of what the last route search in the real program the game
@@ -132,13 +133,12 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   // ---- The programs the game can display ----------------------------------
   //
-  // With `workerDisplaysPreview`, the page names what it wants displayed and
-  // the game shows it from the story compiled for it: every real program the
-  // page can still name, which PLAY names too; the two newest suggestions,
-  // since the page asks for one after the next may have compiled; the
-  // suggestion the page shows, which a return to it displays again without
-  // compiling; the one displayed last, which the page takes as shown once its
-  // display answers; and the one the newest display asks for, from when its
+  // The page names what it wants displayed and the game shows it from the
+  // story compiled for it: every real program the page can still name,
+  // which PLAY names too; the two newest suggestions, since the page asks
+  // for one after the next may have compiled; the suggestion the page
+  // shows, which a return to it displays again without compiling; the one
+  // displayed last, which the page takes as shown once its display answers; and the one the newest display asks for, from when its
   // request arrives. The compiler keeps each of their stories runnable
   // across later compiles (`keepStory`), and the story of the program the
   // game holds, which the game runs until it is given another. Whatever
@@ -215,7 +215,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (!gameState.game) {
       profile("start", profilerId + " " + "game/create");
       // Built with what the editor has asked of the preview's debugger so
-      // far, as the page builds its own game.
+      // far.
       gameState.game = gameState.createGame({
         program,
         story,
@@ -257,20 +257,18 @@ export function installPlayerWorker(connection: MessageConnection) {
     // The route below is replayed on the game.
     gameTouches += 1;
     const game = createOrUpdateGame(params.program, story);
-    if (player.workerDisplaysPreview) {
-      const entry: DisplayableProgram = {
-        id: programIdentity(params.program)!,
-        program: params.program,
-        story,
-        log: routeSearches,
-      };
-      canonicalId = entry.id;
-      if (nameableRealIds.at(-1) !== entry.id) {
-        nameableRealIds.push(entry.id);
-      }
-      retain(entry);
-      releaseUnneeded();
+    const entry: DisplayableProgram = {
+      id: programIdentity(params.program)!,
+      program: params.program,
+      story,
+      log: routeSearches,
+    };
+    canonicalId = entry.id;
+    if (nameableRealIds.at(-1) !== entry.id) {
+      nameableRealIds.push(entry.id);
     }
+    retain(entry);
+    releaseUnneeded();
 
     // Plan and simulate route
     if (params.program.startFrom) {
@@ -315,20 +313,18 @@ export function installPlayerWorker(connection: MessageConnection) {
       });
       log.report(params, toPath);
     }
-    if (player.workerDisplaysPreview) {
-      const entry: DisplayableProgram = {
-        id: programIdentity(params.program)!,
-        program: params.program,
-        story,
-        log,
-      };
-      newestSuggestionIds.push(entry.id);
-      if (newestSuggestionIds.length > 2) {
-        newestSuggestionIds.shift();
-      }
-      retain(entry);
-      releaseUnneeded();
+    const entry: DisplayableProgram = {
+      id: programIdentity(params.program)!,
+      program: params.program,
+      story,
+      log,
+    };
+    newestSuggestionIds.push(entry.id);
+    if (newestSuggestionIds.length > 2) {
+      newestSuggestionIds.shift();
     }
+    retain(entry);
+    releaseUnneeded();
   });
 
   compiler.addEventListener("compiler/didRemove", (params) => {
@@ -412,7 +408,7 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   /** `message` as `game` sends it to the page. The execution report names
    *  where a route that failed was simulated from and was headed, which the
-   *  page labels with document locations it can no longer look up itself. */
+   *  page labels with document locations it cannot look up itself. */
   const withDocumentLocations = (message: Message, game: Game): Message => {
     const program = game.program;
     if (
@@ -711,18 +707,6 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;
-    if (ConfigurePlayerWorkerMessage.type.isRequest(message)) {
-      connection.sendResponse(message, () => {
-        player.workerDisplaysPreview = message.params.workerDisplaysPreview;
-        // The page reads no compiled story while the worker displays, so the
-        // compiler does not serialize one; a PLAY asks for it per compile.
-        compiler.configure({
-          emitCompiledProgram: !player.workerDisplaysPreview,
-        });
-        return {};
-      });
-      return;
-    }
     if (DisplayPreviewMessage.type.isRequest(message)) {
       connection.sendResponse(message, () => display(message.params));
       return;
@@ -752,8 +736,8 @@ export function installPlayerWorker(connection: MessageConnection) {
       connection.sendResponse(message, () => {
         const { run, paused, seconds } = message.params;
         const { game } = runningAs(run);
-        // Before its first frame, as a game on the page is paused before it
-        // starts.
+        // Before its first frame, so a game the editor paused while PLAY
+        // started never runs a frame unpaused.
         if (paused) {
           game.pause();
         }

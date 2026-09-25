@@ -160,20 +160,6 @@ describe("planPreviewHint", () => {
     }
   });
 
-  it("asks for the pictures of the story line after a function for a cursor inside it", () => {
-    const withFunction = compile(
-      `function greet\n  [[show portrait bunny]]\n  Hello there.\nend\n\nscene A\n  [[show backdrop room]]\n  Line one.\n  done\nend\n`,
-    );
-    for (const line of [0, 1, 2]) {
-      const hint = planPreviewHint(withFunction, URI, line, undefined)!;
-      expect({ line, scene: hint.state.scene }).toEqual({ line, scene: "A" });
-      expect({ line, near: srcs(hint.near) }).toEqual({
-        line,
-        near: [src("room")],
-      });
-    }
-  });
-
   it("asks for the same pictures the engine resolves for the same names", () => {
     const game = new Game({ program } as any);
     const names = program.sceneAssets!["A"]!.beats.flatMap((b) => b.image ?? []);

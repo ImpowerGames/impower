@@ -75,10 +75,9 @@ export const predictDistanceOf = (program: SparkProgram): number => {
  * and nothing else. The window is resolved when the cursor moves more than
  * half its reach from where the last one was centred, and the rest of the
  * scene once per scene entered: resolving every name in a long scene costs
- * tens of milliseconds on the thread that paints the preview. A cursor inside
- * a function resolves to the story line after it, as the engine's preview
- * does, and hints that line's pictures. A cursor the program cannot place
- * hints nothing, as the engine gates nothing for it.
+ * tens of milliseconds on the thread that paints the preview. A cursor the
+ * program cannot place, or one inside a function, hints nothing, as the
+ * engine gates nothing for it.
  */
 export function planPreviewHint(
   program: SparkProgram,
@@ -123,7 +122,7 @@ export function planPreviewHint(
     nearBeat: sameScene ? last!.nearBeat : beat,
   };
   const nothing = { state, cursor: [], near: [], rest: null };
-  if (!entry || !known) {
+  if (!entry || !known || entry.kind === "function") {
     return nothing;
   }
   if (sameBeat && sameProgram) {
