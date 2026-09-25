@@ -357,34 +357,45 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   protected _fileChanges = 0;
 
   /** Take the player's report of its current run in place of the last, and
-   *  publish every document either report names: one the new report names
-   *  against the program the new run's entry script compiled, and one only
-   *  the last report named against the last run's, whose program published
-   *  it. */
+   *  republish every document either report names, so the last run's
+   *  diagnostics go and the new run's are shown if its program has compiled
+   *  here. A document's compile diagnostics come from the new run's entry
+   *  program when this server has compiled it, and otherwise from the program
+   *  that published the document last; the new run's appear once its entry
+   *  compiles. */
   reportRuntimeDiagnostics(params: RuntimeDiagnosticsParams) {
     const last = this._runtimeDiagnostics?.params;
-    const entries = new Map<string, string | undefined>();
-    for (const uri of Object.keys(last?.diagnostics ?? {})) {
-      entries.set(uri, last!.program.uri);
-    }
-    for (const uri of Object.keys(params.diagnostics ?? {})) {
-      entries.set(uri, params.program.uri);
-    }
+    const uris = new Set([
+      ...Object.keys(last?.diagnostics ?? {}),
+      ...Object.keys(params.diagnostics ?? {}),
+    ]);
     this._runtimeDiagnostics = { params, files: this._fileChanges };
-    for (const [uri, entry] of entries) {
-      const entryUri = entry || this.getMainScriptUri(uri) || uri;
-      const program = this.program(entryUri);
-      if (!program) {
-        // Nothing is published for a document before its program compiles,
-        // and that compile publishes what this report says about it.
+    for (const uri of uris) {
+      const owner = this._lastPublishedDiagnostics.get(uri)?.owner;
+      const entryUri = [
+        params.program.uri,
+        owner,
+        last?.program.uri,
+        this.getMainScriptUri(uri),
+        uri,
+      ].find((candidate) => candidate && this.compiledProgram(candidate));
+      const program = entryUri ? this.compiledProgram(entryUri) : undefined;
+      if (!program || !entryUri) {
+        // Nothing is published for a document before a program naming it
+        // compiles, and that compile publishes what this report says.
         continue;
       }
       this.publishDiagnostics(
         uri,
         this.getDiagnostics(program, uri),
-        this._lastPublishedDiagnostics.get(uri)?.owner ?? program.uri ?? entryUri,
+        owner ?? program.uri ?? entryUri,
       );
     }
+  }
+
+  /** The program `uri` last compiled here as an entry script, if it has. */
+  protected compiledProgram(uri: string): SparkProgram | undefined {
+    return this._programStates.get(uri)?.program;
   }
 
   /** Whether a run built from `ran` ran `program`: the same entry script,
@@ -413,15 +424,19 @@ export class SparkdownLanguageServerWorkspace extends SparkdownWorkspace {
   }
 
   /** The compile's diagnostics for `uri`, then the player's current run's,
-   *  while that run ran this program. The run's are the player's report,
-   *  which this server does not produce, so it shows each runtime problem
-   *  once per severity, message and place itself, as #816 requires, rather
-   *  than rely on the report having done so. */
+   *  while that run ran the program its entry script last compiled here,
+   *  whichever program is publishing the document now: compiling another
+   *  entry that names the document leaves the run standing. The run's are the
+   *  player's report, which this server does not produce, so it shows each
+   *  runtime problem once per severity, message and place itself, as #816
+   *  requires, rather than rely on the report having done so. */
   override getDiagnostics(program: SparkProgram, uri: string) {
     const diagnostics = super.getDiagnostics(program, uri);
     const report = this._runtimeDiagnostics;
     const reported = report?.params.diagnostics?.[uri];
-    if (!report || !reported?.length || !this.ranProgram(report, program)) {
+    const entry = report?.params.program.uri;
+    const ran = entry ? this.compiledProgram(entry) : program;
+    if (!report || !reported?.length || !ran || !this.ranProgram(report, ran)) {
       return diagnostics;
     }
     const seen = new Set<string>();

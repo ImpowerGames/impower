@@ -196,6 +196,39 @@ describe("runtime diagnostics", () => {
     expect(published(story).at(-1)).toEqual([runtimeError]);
   });
 
+  it("of a run whose entry has not compiled here yet replace the last run's at once", () => {
+    const { compiled, report, published } = setup();
+    const other = "file:///project/other.sd";
+    compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
+    report({
+      program: { uri: main, scripts: { [main]: 1, [story]: 1 } },
+      diagnostics: { [story]: [runtimeWarning] },
+    });
+    expect(published(story).at(-1)).toEqual([runtimeWarning]);
+    // The player compiled the other entry before this server did.
+    report({
+      program: { uri: other, scripts: { [other]: 1, [story]: 1 } },
+      diagnostics: { [story]: [runtimeError] },
+    });
+    expect(published(story).at(-1)).toEqual([]);
+  });
+
+  it("stay when another entry script compiles", () => {
+    const { workspace, compiled, report, published } = setup();
+    const other = "file:///project/other.sd";
+    compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
+    report({
+      program: { uri: main, scripts: { [main]: 1, [story]: 1 } },
+      diagnostics: { [story]: [runtimeWarning] },
+    });
+    // A script main does not import compiles on its own, and publishes the
+    // documents it names.
+    const standalone = { uri: other, scripts: { [other]: 1 }, diagnostics: {} };
+    (workspace as any)._programStates.set(other, { program: standalone });
+    workspace.onCompiledTextDocument({ textDocument: { uri: other }, program: standalone });
+    expect(published(story).at(-1)).toEqual([runtimeWarning]);
+  });
+
   it("are not shown against a program with other scripts", () => {
     const { compiled, report, published } = setup();
     compiled({ uri: main, scripts: { [main]: 1, [story]: 1 }, diagnostics: {} });
