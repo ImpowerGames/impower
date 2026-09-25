@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { createHarness } from "./harness/uiTestHarness";
 
 // A UI-only screen (no narrative flow) has, as its only path-located flows, the
-// synthetic `__binding_<offset>` evaluators the compiler hoists for
+// synthetic `__binding_<id>` evaluators the compiler hoists for
 // `{interpolations}` and `@event` handlers. `preview(file, line)` DIVERTS to the
 // closest path (`ChoosePathString`); if that resolves to a binding FUNCTION, the
 // story runs the function's `return` outside a call context — the ink runtime
