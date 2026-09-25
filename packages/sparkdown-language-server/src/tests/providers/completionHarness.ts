@@ -1,0 +1,192 @@
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
+import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/classes/SparkdownDocumentRegistry";
+import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { test } from "vitest";
+import { type CompletionItem } from "vscode-languageserver";
+import { getCompletions } from "../../utils/providers/getCompletions";
+import { resolveCompletion } from "../../utils/providers/resolveCompletion";
+
+// A completion request at a marked cursor position, run through the language
+// server's own provider the way `onCompletion` runs it: the document goes
+// through the registry that parses and annotates it, and `getCompletions`
+// receives the tree, the annotations and, when a case needs struct or asset
+// names, a program compiled from a real project.
+//
+// A cursor is written as `@` followed by a digit, the marker convention of
+// Luau's Autocomplete.test.cpp, so a ported snippet keeps its markers. Every
+// marker is removed from the text and the request is made at the one named.
+// Sparkdown's own `@` (write marks, Sparkle events) is never followed by a
+// digit, so the two do not collide.
+
+export const URI = "file:///proj/main.sd";
+
+const MARKER = /@(\d)/g;
+
+export interface CompletionAt {
+  /** What `getCompletions` returned: null or undefined when it declined. */
+  returned: CompletionItem[] | null | undefined;
+  /** The returned items, or none when the provider declined. */
+  items: CompletionItem[];
+  labels: string[];
+  /** The item with this label, as the editor would highlight it. */
+  item(label: string): CompletionItem | undefined;
+  /** The highlighted item's detail: the description shown beside it. */
+  detail(label: string): string | undefined;
+  /** The highlighted item after `completionItem/resolve`. */
+  resolve(label: string): Promise<CompletionItem | undefined>;
+}
+
+export interface CompleteOptions {
+  /** Which `@N` marker is the cursor. Defaults to the only one. */
+  at?: string;
+  program?: SparkProgram;
+  /** The character that triggered the request, if any. */
+  trigger?: string;
+}
+
+export function complete(
+  source: string,
+  options: CompleteOptions = {},
+): CompletionAt {
+  const markers = new Map<string, number>();
+  let text = "";
+  let last = 0;
+  for (const match of source.matchAll(MARKER)) {
+    text += source.slice(last, match.index);
+    markers.set(match[1]!, text.length);
+    last = match.index! + match[0].length;
+  }
+  text += source.slice(last);
+  const at = options.at ?? (markers.size === 1 ? [...markers.keys()][0] : undefined);
+  const offset = at == null ? undefined : markers.get(at);
+  if (offset == null) {
+    throw new Error(`no cursor marker @${at ?? "?"} in the source`);
+  }
+  const documents = new SparkdownDocumentRegistry([
+    "characters",
+    "declarations",
+    "references",
+  ]);
+  documents.set({
+    textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" },
+  });
+  const document = documents.get(URI)!;
+  const returned = getCompletions(
+    document,
+    documents.tree(URI),
+    new Map([[URI, documents.annotations(URI)]]),
+    options.program,
+    undefined,
+    document.positionAt(offset),
+    options.trigger
+      ? { triggerKind: 2, triggerCharacter: options.trigger }
+      : undefined,
+  );
+  const items = returned ?? [];
+  const item = (label: string) => items.find((i) => i.label === label);
+  return {
+    returned,
+    items,
+    labels: items.map((i) => String(i.label)),
+    item,
+    detail: (label) => item(label)?.labelDetails?.description,
+    resolve: async (label) => {
+      const found = item(label);
+      return found ? resolveCompletion(found, options.program) : undefined;
+    },
+  };
+}
+
+/** The labels offered at the cursor. */
+export const labelsAt = (source: string, options?: CompleteOptions) =>
+  complete(source, options).labels;
+
+export interface ProjectAsset {
+  name: string;
+  ext: string;
+  type: "image" | "audio";
+}
+
+/**
+ * Compiles `script` as the only script of a project that also holds `assets`,
+ * with the builtins prelude, the way the workspace compiles an open project.
+ * The program's `context` supplies the struct and asset names that the
+ * provider completes from.
+ */
+export function compileProject(
+  script: string,
+  assets: ProjectAsset[] = [],
+): SparkProgram {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    useBuiltinsPrelude: true,
+    seedBuiltinsIntoStory: true,
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: script,
+        version: 1,
+        languageId: "sparkdown",
+      },
+      ...assets.map((asset) => ({
+        uri: `file:///proj/${asset.name}.${asset.ext}`,
+        type: asset.type,
+        name: asset.name,
+        ext: asset.ext,
+        src: `/proj/${asset.name}.${asset.ext}`,
+        version: 1,
+      })),
+    ],
+  } as never);
+  return compiler.compile({ textDocument: { uri: URI } } as never).program;
+}
+
+type Body = () => void | Promise<void>;
+
+// A known-bug case is skipped. SPARKDOWN_KNOWN_COMPLETION_BUGS=fails runs each
+// one as `test.fails`, which passes only while the case still fails, so one
+// run proves every skipped case reproduces its Bug and names any that a fix
+// has since made pass. SPARKDOWN_KNOWN_COMPLETION_BUGS=run runs them as
+// ordinary tests, to read the assertion each one fails on.
+const knownBug = (title: string, body: Body) => {
+  const mode = process.env.SPARKDOWN_KNOWN_COMPLETION_BUGS;
+  if (mode === "fails") test.fails(title, body);
+  else if (mode === "run") test(title, body);
+  else test.skip(title, body);
+};
+
+/**
+ * Registers the sparkdown test for one upstream Autocomplete.test.cpp case.
+ * `key` is the upstream case name as the manifest lists it (a name that
+ * upstream uses twice carries `#2` on its second use); `title` says what the
+ * sparkdown test checks. The manifest test reads these calls to prove every
+ * ported and adapted case has a test.
+ */
+export function upstreamCase(key: string, title: string, body: Body) {
+  test(`${key}: ${title}`, body);
+}
+
+const bugTag = (bugs: number | number[]) =>
+  `(${[bugs].flat().map((bug) => `Bug #${bug}`).join(", ")})`;
+
+/**
+ * A case the port found failing, kept skipped until the named Bug is fixed.
+ * A case that fails on more than one Bug names each, in the order they are
+ * hit. Remove `.bug` (and the bug numbers) with the last fix.
+ */
+upstreamCase.bug = (
+  bugs: number | number[],
+  key: string,
+  title: string,
+  body: Body,
+) => {
+  knownBug(`${key}: ${title} ${bugTag(bugs)}`, body);
+};
+
+/** A sparkdown-only case that the port found failing, skipped under its Bug. */
+export function sparkdownBug(bugs: number | number[], title: string, body: Body) {
+  knownBug(`${title} ${bugTag(bugs)}`, body);
+}
