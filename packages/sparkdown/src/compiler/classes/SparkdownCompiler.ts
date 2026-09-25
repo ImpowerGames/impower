@@ -92,8 +92,13 @@ import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnost
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
-import type { ScriptLocation, SparkProgram } from "../types/SparkProgram";
+import type {
+  FunctionSpan,
+  ScriptLocation,
+  SparkProgram,
+} from "../types/SparkProgram";
 import {
+  isBindingPath,
   LOCATION_STRIDE,
   narrowPaths,
   pathLocationTableOf,
@@ -498,6 +503,10 @@ export class SparkdownCompiler {
   // can find and widen a range it already recorded. `sortPathLocations` turns
   // it into the program's columnar `pathLocations` table and drops it.
   protected _pathLocationDraft?: Record<string, ScriptLocation>;
+
+  // The function containers of the compile in progress, which
+  // `sortPathLocations` puts on the program's `pathLocations` table.
+  protected _functionSpans?: FunctionSpan[];
 
   // ---- Incremental location-map cache (Design A) ------------------------
   // Per top-level flow (knot/scene/function name = its key in the runtime
@@ -2000,6 +2009,7 @@ export class SparkdownCompiler {
     // reaches the walk cannot publish the previous compile's captures.
     this._flowAssetAccum = undefined;
     this._pathLocationDraft = undefined;
+    this._functionSpans = undefined;
     // Begin a fresh change summary. The verdict is only reached at the very end
     // of the compile, where every hazard below has had its chance to speak; a
     // compile that stops before then reports the answer that costs a client
@@ -2317,6 +2327,7 @@ export class SparkdownCompiler {
           Object.keys(program.scripts).map((u, i) => [u, i]),
         );
         this.populateAllLocations(program, story);
+        this._functionSpans = this.collectFunctionSpans(program, parsedStory);
         // Carry this compile's chunk-identity set forward so the next compile
         // can tell which chunks are unchanged.
         this._prevCompilationIds = this._compilationIds;
@@ -4666,6 +4677,52 @@ export class SparkdownCompiler {
     profile("end", this._profilerId, "populateFiles", uri);
   }
 
+  /**
+   * Every function container in the story, with the lines its declaration
+   * spans: named functions, hoisted function literals and the callables a
+   * flow nests. A function's own nested flows are under its path, and their
+   * rows start inside this declaration's lines, so this span covers them and
+   * the walk stops there. Binding evaluators are left out: `isBindingPath`
+   * already rejects every row under one.
+   */
+  protected collectFunctionSpans(
+    program: SparkProgram,
+    story: Story,
+  ): FunctionSpan[] {
+    const spans: FunctionSpan[] = [];
+    const visit = (flow: FlowBase) => {
+      for (const sub of flow.subFlowsByName.values()) {
+        if (sub.isFunction) {
+          const path = sub.runtimeObject?.path?.componentsString;
+          if (path && !isBindingPath(path)) {
+            // A flow's own metadata when it has any, else its parent's. The
+            // script is resolved as `populateAllLocations` resolves a row's.
+            const md = sub.debugMetadata;
+            const uri = md ? (md.filePath ?? program.uri) : undefined;
+            const scriptIndex =
+              uri != null ? this._scriptIndices?.get(uri) : undefined;
+            spans.push(
+              md && scriptIndex != null
+                ? {
+                    path,
+                    lines: [
+                      scriptIndex,
+                      md.startLineNumber - 1,
+                      md.endLineNumber - 1,
+                    ],
+                  }
+                : { path },
+            );
+          }
+        } else {
+          visit(sub);
+        }
+      }
+    };
+    visit(story);
+    return spans;
+  }
+
   sortPathLocations(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "sortPathLocations", uri);
@@ -4713,19 +4770,23 @@ export class SparkdownCompiler {
           }
         }
       }
-      program.pathLocations =
-        row === count
+      const functions = this._functionSpans;
+      program.pathLocations = {
+        ...(row === count
           ? { paths: narrowPaths(paths), values }
           : {
               paths: narrowPaths(paths.slice(0, row)),
               values: values.slice(0, row * LOCATION_STRIDE),
-            };
+            }),
+        ...(functions?.length ? { functions } : {}),
+      };
     } else if (draft) {
       // No creation-order index (locations weren't gathered via
       // `populateAllLocations`): sort by comparison instead.
-      program.pathLocations = pathLocationTableOf(draft);
+      program.pathLocations = pathLocationTableOf(draft, this._functionSpans);
     }
     this._pathLocationDraft = undefined;
+    this._functionSpans = undefined;
     profile("end", this._profilerId, "sortPathLocations", uri);
   }
 
