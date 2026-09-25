@@ -3499,9 +3499,9 @@ export class SparkdownCompiler {
     // Every call of one continuation carries the same group, so the calls
     // share a mapping just as a synthetic's definition and references do.
     // A script included from two places is walked twice, so a group node is
-    // recorded once, with the text it had before any rewrite.
+    // recorded once, with the name it gets.
     const groupRemap = new Map<string, string>();
-    const matchedGroups: Array<{ group: ContinuationGroup; text: string }> = [];
+    const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();
 
     const considerName = (name: string) => {
@@ -3528,7 +3528,7 @@ export class SparkdownCompiler {
       if (next !== text) {
         changed = true;
       }
-      matchedGroups.push({ group, text });
+      matchedGroups.push({ group, next });
     };
     const considerId = (id: Identifier, owner: ParsedObject) => {
       const name = id.name;
@@ -3683,9 +3683,8 @@ export class SparkdownCompiler {
         node[field] = next;
       }
     }
-    for (const { group, text } of matchedGroups) {
-      const next = groupRemap.get(text);
-      if (next !== undefined && next !== text) {
+    for (const { group, next } of matchedGroups) {
+      if (next !== group.text) {
         markRenamed(group);
         group.text = next;
       }
