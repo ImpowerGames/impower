@@ -5,10 +5,10 @@
 // becomes a property of the define, so `{trust}` reads nil); a `:` header
 // leaves the indented properties outside the header, where the lowerer drops
 // them. See issue #836.
-
+import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 interface Diag {
   message: string;
@@ -19,7 +19,7 @@ interface Diag {
   endCharacter: number;
 }
 
-function compileDiagnostics(source: string): Diag[] {
+function compile(source: string): { diags: Diag[]; compiled: boolean } {
   const uri = "inmemory:///main.sd";
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -51,11 +51,11 @@ function compileDiagnostics(source: string): Diag[] {
       });
     }
   }
-  return diags;
+  return { diags, compiled: !!result.program.compiled };
 }
 
 const errors = (source: string) =>
-  compileDiagnostics(source).filter((d) => d.severity === 1);
+  compile(source).diags.filter((d) => d.severity === 1);
 
 const MISSING_END = "missing its closing `end`";
 const HEADER = "define header";
@@ -179,10 +179,81 @@ describe("define header", () => {
     ].join("\n");
     const header = errors(source).filter((e) => e.message.includes(HEADER));
     expect(header).toHaveLength(1);
-    expect(header[0]!.message).toContain("`with`");
+    expect(header[0]!.message).toContain("needs `with` at the end");
     expect(header[0]!.startLine).toBe(1);
     expect(header[0]!.startCharacter).toBe(2);
   });
+
+  test("a `:` header inside another block is still reported", () => {
+    const source = [
+      "if true then",
+      "  define X as character:",
+      "    a = 1",
+      "  end",
+      "end",
+      "Hi.",
+      "",
+    ].join("\n");
+    const header = errors(source).filter((e) => e.message.includes(HEADER));
+    expect(header).toHaveLength(1);
+    expect(header[0]!.message).toContain("`:`");
+    expect(header[0]!.startLine).toBe(1);
+  });
+});
+
+describe("define header the grammar cannot read", () => {
+  const cases: Record<string, [string, string]> = {
+    "a dotted name": [
+      "define config.thing with\n  value = 1\nend\nHi.\n",
+      "define config",
+    ],
+    "a dotted parent": [
+      "define thing as config.sub with\n  value = 1\nend\nHi.\n",
+      "define thing as config",
+    ],
+    "a name with a letter outside A-Z": [
+      'define héro as character with\n  name = "H"\nend\nHi.\n',
+      "define h",
+    ],
+  };
+  for (const [label, [source, readable]] of Object.entries(cases)) {
+    test(`${label} is reported on the header, not as a missing \`end\``, () => {
+      const errs = errors(source);
+      expect(errs).toHaveLength(1);
+      expect(errs[0]!.message).toContain(`cannot be read past \`${readable}\``);
+      expect(errs[0]!.startLine).toBe(0);
+      expect(errs[0]!.startCharacter).toBe(0);
+      expect(errs[0]!.endCharacter).toBe(readable.length);
+    });
+  }
+
+  test("a define with no name is reported, with or without `end`", () => {
+    for (const source of [
+      "define\n\nstore trust = 5\n",
+      "define\nend\nHi.\n",
+    ]) {
+      const errs = errors(source);
+      expect(errs).toHaveLength(1);
+      expect(errs[0]!.message).toContain("has no name");
+      expect(errs[0]!.startLine).toBe(0);
+    }
+  });
+});
+
+describe("a script with a define error still compiles", () => {
+  const cases: Record<string, string> = {
+    "no `end`":
+      'define hero as character with\n  name = "Hero"\n\nstore trust = 5\n\nTrust is {trust}.\n',
+    "`:` header":
+      'define hero as character:\n  name = "Hero"\nend\n\nstore trust = 5\n\nTrust is {trust}.\n',
+  };
+  for (const [label, source] of Object.entries(cases)) {
+    test(label, () => {
+      const { diags, compiled } = compile(source);
+      expect(diags.some((d) => d.severity === 1)).toBe(true);
+      expect(compiled).toBe(true);
+    });
+  }
 });
 
 describe("valid define forms stay clean", () => {

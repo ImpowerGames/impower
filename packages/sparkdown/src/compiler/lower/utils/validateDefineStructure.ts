@@ -5,22 +5,34 @@ import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotato
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
 
-// Structural checks for a `define` block. The grammar ends a define at its
-// `end` keyword or, failing that, at the next `scene` / `branch` beat or the
-// end of the document, so a missing `end` makes the define swallow every
-// top-level line up to that point (a `store x = 1` below it parses as a stored
-// property of the define). The define header ends at `with`; a header written
-// any other way (`define hero as character:`) leaves the lines under it
-// outside the header, where they are not properties. Neither shape is a parse
-// error, so both are reported here:
+// Structural checks for a `define` block, none of which is a parse error:
 //
-//   - a define whose `LuauDefine_end` holds no `end` keyword is missing its
-//     `end` (reported on the header line);
-//   - a define whose header did not reach `with` may hold nothing but
-//     whitespace and comments before its `end`. Text on the header line is
-//     reported where it starts; text on a later line means the body is missing
-//     its `with`. When the define is also missing its `end`, only header-line
-//     text is reported, since what follows is not clearly meant as a body.
+//   - A define with no name is reported on its `define` keyword, and nothing
+//     else is checked; the lowerer drops a nameless define.
+//   - A header the grammar cannot read to its end (a dotted name such as
+//     `config.thing`, or a letter outside `[A-Za-z0-9_]`) cuts the define off
+//     on its own header line, before any `end`, and leaves the rest of the
+//     script to parse as top-level lines. That shape is reported on the
+//     readable part of the header rather than as a missing `end`.
+//   - Otherwise the grammar ends a define at its `end` keyword or, failing
+//     that, at the next `scene` / `branch` beat or the end of the document, so
+//     a missing `end` makes the define swallow every top-level line up to that
+//     point (a `store x = 1` below it parses as a stored property). A define
+//     whose `LuauDefine_end` holds no `end` keyword is reported on its header
+//     line.
+//   - A header that does not end in `with` may be followed on its own line by
+//     nothing but whitespace or a comment. Anything else there is reported where
+//     it starts: after `define hero as character:` the `:` keeps the header from
+//     reaching `with`, and the indented properties parse outside the header,
+//     where they are dropped. A body on the lines below a header without `with`
+//     is read as properties, but `with` is the documented form, so it is
+//     reported on the body's first line when the define has its `end`.
+//
+// Every check reads only the define's own node: its `end` keyword is inside
+// that node, so an edit that changes the result re-lowers this chunk, and the
+// check can run in the lowerer. The scene and branch `end` checks cannot
+// (`validateSceneBranchScope.ts`): their `end` is a later root-level sibling,
+// so they run over the whole document each compile.
 
 const TRIVIA = new Set([
   "Newline",
@@ -69,29 +81,65 @@ function lineTextSpan(
   };
 }
 
+const WITH_FORM =
+  "A define header is its name and optional `as` parent, followed by `with` when properties come next: `define hero as character with` … `end`.";
+
 export function validateDefineStructure(
   node: SyntaxNode,
   ctx: LowerContext,
 ): InkDiagnostic[] {
-  const diagnostics: InkDiagnostic[] = [];
+  const headerLine = lineTextSpan(node.from, node.to, ctx);
+  if (!headerLine) return [];
+  const error = (message: string, from: number, to: number): InkDiagnostic => ({
+    message,
+    severity: ErrorType.Error,
+    source: makeSource(from, to, ctx),
+  });
+
+  if (!getDescendent("LuauDefineName", node)) {
+    return [
+      error(
+        `This define has no name. ${WITH_FORM}`,
+        headerLine.from,
+        headerLine.to,
+      ),
+    ];
+  }
 
   const endNode = findChildByName(node, "LuauDefine_end");
   const hasEnd = !!endNode && !!getDescendent("LuauEndKeyword", endNode);
-  const headerLine = lineTextSpan(node.from, node.to, ctx);
-  if (!hasEnd && headerLine) {
-    diagnostics.push({
-      message:
+  const endsOnHeaderLine =
+    ctx.lineNumber(node.to) === ctx.lineNumber(headerLine.from);
+  if (
+    !hasEnd &&
+    endsOnHeaderLine &&
+    findChildByName(node, "ERROR_INCOMPLETE")
+  ) {
+    return [
+      error(
+        `This define header cannot be read past \`${headerLine.text}\`. A define name and its \`as\` parent use only letters, digits and underscores. ${WITH_FORM}`,
+        headerLine.from,
+        headerLine.to,
+      ),
+    ];
+  }
+
+  const diagnostics: InkDiagnostic[] = [];
+  if (!hasEnd) {
+    diagnostics.push(
+      error(
         "Define is missing its closing `end` keyword. Without it, every line up to the next `scene`, `branch` or the end of the file is read as part of this define.",
-      severity: ErrorType.Error,
-      source: makeSource(headerLine.from, headerLine.to, ctx),
-    });
+        headerLine.from,
+        headerLine.to,
+      ),
+    );
   }
 
   const content = findChildByName(node, "LuauDefine_content");
   const header = content
     ? findChildByName(content, "LuauDefineNameAndInheritance")
     : null;
-  if (!content || !header || !headerLine) return diagnostics;
+  if (!content || !header) return diagnostics;
   const headerEnd = findChildByName(header, "LuauDefineNameAndInheritance_end");
   if (headerEnd && getDescendent("LuauWithKeyword", headerEnd)) {
     return diagnostics;
@@ -105,18 +153,21 @@ export function validateDefineStructure(
   const onHeaderLine =
     ctx.lineNumber(unexpected.from) === ctx.lineNumber(headerLine.from);
   if (onHeaderLine) {
-    diagnostics.push({
-      message: `Unexpected \`${unexpected.text}\` in the define header. A define header is its name and optional \`as\` parent, followed by \`with\` when properties come next: \`define hero as character with\` … \`end\`.`,
-      severity: ErrorType.Error,
-      source: makeSource(unexpected.from, unexpected.to, ctx),
-    });
+    diagnostics.push(
+      error(
+        `Unexpected \`${unexpected.text}\` in the define header. ${WITH_FORM}`,
+        unexpected.from,
+        unexpected.to,
+      ),
+    );
   } else if (hasEnd) {
-    diagnostics.push({
-      message:
-        "This define has a body, but its define header does not end in `with`, so the body is not read as properties. Add `with` to the end of the header: `define hero as character with` … `end`.",
-      severity: ErrorType.Error,
-      source: makeSource(unexpected.from, unexpected.to, ctx),
-    });
+    diagnostics.push(
+      error(
+        "This define has a body, so its define header needs `with` at the end: `define hero as character with` … `end`.",
+        unexpected.from,
+        unexpected.to,
+      ),
+    );
   }
   return diagnostics;
 }

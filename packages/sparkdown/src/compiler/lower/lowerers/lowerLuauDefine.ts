@@ -293,10 +293,16 @@ export function lowerLuauDefine(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
+  // Routed through the chunk's buffer, not the returned block, so a define
+  // nested inside another block still reports: `lowerStatements` keeps only the
+  // content of the blocks it lowers.
   const structureDiagnostics = validateDefineStructure(nodeRef.node, ctx);
+  if (ctx.diagnostics) {
+    ctx.diagnostics.push(...structureDiagnostics);
+  }
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) {
-    return structureDiagnostics.length > 0
+    return !ctx.diagnostics && structureDiagnostics.length > 0
       ? { diagnostics: structureDiagnostics }
       : {};
   }
@@ -533,7 +539,7 @@ export function lowerLuauDefine(
     }
   }
 
-  if (structureDiagnostics.length > 0) {
+  if (!ctx.diagnostics && structureDiagnostics.length > 0) {
     block.diagnostics = [...(block.diagnostics ?? []), ...structureDiagnostics];
   }
   return block;
