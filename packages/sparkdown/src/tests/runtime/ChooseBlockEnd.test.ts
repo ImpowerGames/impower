@@ -470,7 +470,70 @@ end
     expect(result.steps).toEqual([["Caption."], ["A", "Took A.", "After."]]);
   });
 
-  test("a thread in a block's preamble adds its choices to the block's, so the block holds", () => {
+  test("a block entered past its start after an earlier block holds for its own choice", () => {
+    const result = drive(
+      `
+-> main
+
+scene main
+  if true then
+    * Stray
+  end
+  choose
+    * A
+      -> mark
+  end
+  choose
+    label mark
+    Caption.
+    * B
+      Took B.
+  end
+  After.
+end
+`,
+      "A",
+      "B",
+    );
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.steps).toEqual([
+      [],
+      ["A", "Caption."],
+      ["B", "Took B.", "After."],
+    ]);
+  });
+
+  test("a block that offers no choice runs on when entered past its start after an earlier choice", () => {
+    const result = drive(`
+store has_key = false
+-> hub
+
+scene hub
+  <- side
+  -> mark
+  choose
+    label mark
+    if has_key then
+      * Unlock
+    end
+  end
+  After the gated block.
+end
+
+scene side
+  choose
+    * Side one
+      Side taken.
+  end
+  done
+end
+`);
+    expect(result.runtimeErrors).toEqual([]);
+    expect(result.lines).toEqual(["After the gated block."]);
+    expect(result.choices).toEqual(["Side one"]);
+  });
+
+  test("a thread's choices are not the block's: a block whose own choices are gated off runs on", () => {
     const result = drive(`
 store has_key = false
 -> hub
@@ -494,7 +557,7 @@ scene side
 end
 `);
     expect(result.runtimeErrors).toEqual([]);
-    expect(result.lines).toEqual([]);
+    expect(result.lines).toEqual(["After the block."]);
     expect(result.choices).toEqual(["Side one"]);
   });
 

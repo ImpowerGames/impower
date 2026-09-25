@@ -4,7 +4,6 @@ import { Conditional } from "./Conditional/Conditional";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
-import { VariableAssignment as RuntimeVariableAssignment } from "../../../engine/VariableAssignment";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
@@ -238,25 +237,6 @@ export class Weave extends ParsedObject {
     this.looseEnds = [];
     this.gatherPointsToResolve = [];
 
-    // A `choose` block that holds the flow records how many choices the flow
-    // has already generated, so its end holds only for choices it generated.
-    const holds = this.content.some(
-      (obj) => obj instanceof Gather && obj.endsChooseBlock,
-    );
-    if (holds) {
-      this._rootContainer.AddContent(RuntimeControlCommand.EvalStart());
-      this._rootContainer.AddContent(
-        RuntimeControlCommand.RunStdLib("count.choices", 0),
-      );
-      this._rootContainer.AddContent(RuntimeControlCommand.EvalEnd());
-      this._rootContainer.AddContent(
-        new RuntimeVariableAssignment(
-          RuntimeControlCommand.CHOOSE_START_VARIABLE,
-          true,
-        ),
-      );
-    }
-
     // Iterate through content for the block at this level of indentation
     //  - Normal content is nested under Choices and Gathers
     //  - Blocks that are further indented cause recursion
@@ -322,9 +302,10 @@ export class Weave extends ParsedObject {
       }
 
       if (gather.endsChooseBlock) {
-        // Hold the flow when the block generated a choice since it began
-        // (the count its start recorded); a block that generated none runs
-        // on into the gather.
+        // Hold the flow when a pending choice came from a choice point in
+        // this block's container; a block that offered none runs on into the
+        // gather. The hold sits in the block's own container, which keeps its
+        // choices' named containers and so is never flattened into a parent.
         this.currentContainer.AddContent(
           RuntimeControlCommand.HoldForChoices(),
         );

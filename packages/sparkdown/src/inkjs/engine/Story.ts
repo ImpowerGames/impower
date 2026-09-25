@@ -3029,16 +3029,19 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.HoldForChoices: {
-          // A run that entered the block after its start (a divert to a
-          // label in it, or starting from a line inside it) has no count of
-          // its own, and counts every choice the flow has generated.
-          const since = asOrNull(
-            this.state.variablesState.GetVariableWithName(
-              ControlCommand.CHOOSE_START_VARIABLE,
-            ),
-            IntValue,
+          // The block's own choices are the pending ones whose choice point
+          // lies inside the container holding this command, however the run
+          // entered the block. Choices generated elsewhere (before the block,
+          // or by a thread started in it) are not the block's.
+          const block =
+            this.state.currentPointer.container?.path.toString() ?? "";
+          const offered = this.state.generatedChoices.some(
+            (choice) =>
+              block === "" ||
+              choice.sourcePath === block ||
+              choice.sourcePath.startsWith(block + "."),
           );
-          if (this.state.generatedChoices.length > (since?.value ?? 0)) {
+          if (offered) {
             this.StopFlowInThread();
           }
           break;
