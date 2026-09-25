@@ -451,7 +451,8 @@ describe("compiler incremental equivalence", () => {
 
   // A global's data location belongs to its first writer across all flows.
   // Removing that writer passes the name to the next one, here in a scene the
-  // edit leaves unchanged, whose cached locations never held the name.
+  // edit leaves unchanged, so the replay of that scene's cached locations must
+  // hold its write to the name although it did not own it when captured.
   for (const edit of [
     { name: "delete the first writer line", find: "& trust = 1\n", replace: "" },
     { name: "comment out the first writer", find: "& trust = 1", replace: "& tr// cust = 1" },
