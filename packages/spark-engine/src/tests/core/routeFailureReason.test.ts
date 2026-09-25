@@ -91,8 +91,9 @@ end
 
 /** No story flow at all: every line is part of a definition, so no line in the
  *  file resolves to a routable position. */
-const NO_STORY_FLOW = `define config.thing:
+const NO_STORY_FLOW = `define config with
   value = 1
+end
 `;
 
 /** A scene that diverts back to its own top forever. */
