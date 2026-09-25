@@ -96,6 +96,7 @@ function installWAAPIStub(win: any) {
       constructor(public effect?: unknown) {}
       play() {}
       cancel() {}
+      finish() {}
     };
   }
   if (typeof win.KeyframeEffect === "undefined") {

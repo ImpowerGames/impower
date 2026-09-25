@@ -1213,7 +1213,7 @@ function lowerAnonymousFunction(
     // First definition wins; reuse its name for the divert/closure
     // reference returned below.
     if (upvals.length === 0) {
-      return new DivertTarget(new Divert([new Identifier(synthName)]));
+      return new DivertTarget(new Divert([new Identifier(synthName)]), true);
     }
     const userArity = countUserParameters(node, ctx);
     return buildClosureExpression(synthName, upvals, userArity);
@@ -1732,6 +1732,7 @@ export function buildClosureExpression(
 ): Expression {
   const fnDivert = new DivertTarget(
     new Divert([new Identifier(synthName)]),
+    true,
   );
   const upvalEntries: ObjectExpressionEntry[] = upvals.map(
     (name, i) =>
@@ -2266,7 +2267,7 @@ export function lowerSimpleAccessPath(
       if (info && info.upvals.length > 0) {
         return buildClosureExpression(knotName, info.upvals, info.arity);
       }
-      return new DivertTarget(new Divert([new Identifier(knotName)]));
+      return new DivertTarget(new Divert([new Identifier(knotName)]), true);
     }
     // Stdlib constant short-circuit: when the dotted path matches a
     // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),

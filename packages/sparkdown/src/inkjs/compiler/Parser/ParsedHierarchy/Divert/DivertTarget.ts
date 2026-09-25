@@ -36,10 +36,17 @@ export class DivertTarget extends Expression {
 
   public divert: Divert;
 
-  constructor(divert: Divert) {
+  // Set when the lowerer made this target to hold a function as a value (an
+  // anonymous function, a closure, a nested function named as a value) rather
+  // than from an authored `-> target`. A function value is meant to be stored,
+  // passed and called, so the misuse hint below does not apply to it.
+  public isFunctionValue: boolean;
+
+  constructor(divert: Divert, isFunctionValue = false) {
     super();
 
     this.divert = this.AddContent(divert) as Divert;
+    this.isFunctionValue = isFunctionValue;
   }
 
   override get typeName(): string {
@@ -130,17 +137,12 @@ export class DivertTarget extends Expression {
         foundUsage = true;
       }
 
-      if (badUsage) {
-        // Luau-superset semantics: anonymous-function expressions
-        // lower to `DivertTarget(<synth knot>)` values, which the
-        // legacy ink "bad usage" check flags whenever such a value
-        // appears in a non-call expression (e.g. RHS of `local f =
-        // (function() ... end)()`, value passed to a stdlib, etc.).
-        // The runtime handles these correctly via
-        // `CallValueAsFunction` / closure dispatch — the warning is
-        // still useful in the IDE as a hint when the user really
-        // DID forget the `()`, but blocking compile would break
-        // every closure-using fixture.
+      if (badUsage && !this.isFunctionValue) {
+        // Luau-superset semantics: an authored `-> target` used as a
+        // value in a non-call expression is only a hint that the user
+        // forgot the `()`, so it is a warning rather than an error.
+        // Function values (`isFunctionValue`) are called through
+        // `CallValueAsFunction` / closure dispatch and get no hint.
         this.Error(
           `Can't use a divert target like that. Did you intend to call \`${this.divert.target}\` as a function: \`likeThis()\`, or check the read count: \`likeThis\`, with no arrows?`,
           this,

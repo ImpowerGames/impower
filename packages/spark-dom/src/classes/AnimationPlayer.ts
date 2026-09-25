@@ -21,8 +21,11 @@ export default class AnimationPlayer {
     }
   }
 
-  add(effect: AnimationEffect) {
+  /** Adds the effect's animations to the player and returns them, so a
+   *  caller can cancel one before it ends. */
+  add(effect: AnimationEffect): Animation[] {
     const { element, animations } = effect;
+    const created: Animation[] = [];
     if (element) {
       // Convert engine animations to dom animations
       animations.forEach((animation) => {
@@ -146,14 +149,14 @@ export default class AnimationPlayer {
         if (animation.timing.playback_rate != null) {
           convertedTiming.playbackRate = animation.timing.playback_rate;
         }
-        this._instances.push({
-          element,
-          animation: new Animation(
-            new KeyframeEffect(element, convertedKeyframes, convertedTiming),
-          ),
-        });
+        const instance = new Animation(
+          new KeyframeEffect(element, convertedKeyframes, convertedTiming),
+        );
+        this._instances.push({ element, animation: instance });
+        created.push(instance);
       });
     }
+    return created;
   }
 
   /**
