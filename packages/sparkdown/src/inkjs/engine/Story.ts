@@ -3028,6 +3028,30 @@ export class Story extends InkObject {
           this.state.PushEvaluationStack(new IntValue(count));
           break;
 
+        case ControlCommand.CommandType.HoldForChoices: {
+          // The block's own choices are the pending ones whose choice point
+          // lies inside the block's container, however the run entered the
+          // block. Choices generated elsewhere (before the block, or by a
+          // thread started in it) are not the block's.
+          let blockContainer = this.state.currentPointer.container;
+          for (let i = 0; i < evalCommand._holdLevels; i++) {
+            const parent = asOrNull(blockContainer?.parent ?? null, Container);
+            if (parent === null) break;
+            blockContainer = parent;
+          }
+          const block = blockContainer?.path.toString() ?? "";
+          const offered = this.state.generatedChoices.some(
+            (choice) =>
+              block === "" ||
+              choice.sourcePath === block ||
+              choice.sourcePath.startsWith(block + "."),
+          );
+          if (offered) {
+            this.StopFlowInThread();
+          }
+          break;
+        }
+
         case ControlCommand.CommandType.SequenceShuffleIndex:
           let shuffleIndex = this.NextSequenceShuffleIndex();
           this.state.PushEvaluationStack(new IntValue(shuffleIndex!));
@@ -3038,21 +3062,7 @@ export class Story extends InkObject {
           break;
 
         case ControlCommand.CommandType.Done:
-          // We may exist in the context of the initial
-          // act of creating the thread, or in the context of
-          // evaluating the content.
-          if (this.state.callStack.canPopThread) {
-            this.state.callStack.PopThread();
-          }
-
-          // In normal flow - allow safe exit without warning
-          else {
-            this.state.didSafeExit = true;
-
-            // Stop flow in current thread
-            this.state.currentPointer = Pointer.Null;
-          }
-
+          this.StopFlowInThread();
           break;
 
         // Force flow to end completely
@@ -4810,6 +4820,25 @@ export class Story extends InkObject {
       this.state.currentPointer.Resolve(),
     );
     return sb.toString();
+  }
+
+  // What `done` does: ends the current thread, or ends the flow safely when
+  // no thread is left to pop.
+  protected StopFlowInThread() {
+    // We may exist in the context of the initial
+    // act of creating the thread, or in the context of
+    // evaluating the content.
+    if (this.state.callStack.canPopThread) {
+      this.state.callStack.PopThread();
+    }
+
+    // In normal flow - allow safe exit without warning
+    else {
+      this.state.didSafeExit = true;
+
+      // Stop flow in current thread
+      this.state.currentPointer = Pointer.Null;
+    }
   }
 
   // Reports a content path the story ran (`onExecute`). While a line end

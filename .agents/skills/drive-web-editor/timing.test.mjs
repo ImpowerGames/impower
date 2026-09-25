@@ -27,17 +27,16 @@ const check = async (name, fn) => {
   }
 };
 
-await check("each measurement takes its own defaults, and both switch positions, on first", () => {
-  assert.deepEqual(parseTimingArgs(["input"]), { kind: "input", load: 10, positions: ["on", "off"], bpm: 120, timeout: 5000, headed: false, samples: 200, warmup: 10 });
-  assert.deepEqual(parseTimingArgs(["metronome"]), { kind: "metronome", load: 10, positions: ["on", "off"], bpm: 120, timeout: 5000, headed: false, samples: 100, warmup: 4 });
+await check("each measurement takes its own defaults", () => {
+  assert.deepEqual(parseTimingArgs(["input"]), { kind: "input", load: 10, bpm: 120, timeout: 5000, headed: false, samples: 200, warmup: 10 });
+  assert.deepEqual(parseTimingArgs(["metronome"]), { kind: "metronome", load: 10, bpm: 120, timeout: 5000, headed: false, samples: 100, warmup: 4 });
 });
 
 await check("options override the defaults", () => {
-  const options = parseTimingArgs(["metronome", "--samples", "20", "--warmup", "0", "--load", "0", "--worker-preview", "off", "--bpm", "90", "--json", "out.json", "--headed"]);
+  const options = parseTimingArgs(["metronome", "--samples", "20", "--warmup", "0", "--load", "0", "--bpm", "90", "--json", "out.json", "--headed"]);
   assert.equal(options.samples, 20);
   assert.equal(options.warmup, 0);
   assert.equal(options.load, 0);
-  assert.deepEqual(options.positions, ["off"]);
   assert.equal(options.bpm, 90);
   assert.equal(options.json, "out.json");
   assert.equal(options.headed, true);
@@ -49,7 +48,6 @@ await check("a measurement has to be named, and unknown or empty options are ref
   assert.throws(() => parseTimingArgs(["input", "--fast"]), /unknown timing argument --fast/);
   assert.throws(() => parseTimingArgs(["input", "--samples"]), /--samples needs a value/);
   assert.throws(() => parseTimingArgs(["input", "--samples", "0"]), /at least 1/);
-  assert.throws(() => parseTimingArgs(["input", "--worker-preview", "sometimes"]), /on, off or both/);
 });
 
 await check("statistics are nearest-rank quantiles with the spread between the extremes", () => {
@@ -320,7 +318,7 @@ await check("a phase that pressed fewer keys than it asked for fails the run, ev
   assert.match(samples[3].failure, /pressed 3 of 104 keys/);
   const summary = summarizeMetronome(samples.filter((s) => !s.warmup));
   assert.equal(summary.failures, 1);
-  assert.equal(timingFailed({ positions: [{ phases: [{ summary }] }] }), true);
+  assert.equal(timingFailed({ phases: [{ summary }] }), true);
   // A phase that pressed every key it asked for adds nothing.
   assert.equal(metronomeSamples(rows, 3, 1).length, 3);
 });
@@ -350,14 +348,14 @@ await check("the metronome command itself fails a shortfall, and counts no click
   assert.equal(summary.clicks, 0);
   assert.equal(summary.failures, 1);
   assert.equal(summary.missingKeys, 101);
-  assert.equal(timingFailed({ positions: [{ phases: [{ summary }] }] }), true);
+  assert.equal(timingFailed({ phases: [{ summary }] }), true);
 });
 
-await check("a run fails on an error in any position or any failed measured sample", () => {
+await check("a run fails on an error or any failed measured sample", () => {
   const phase = (failures) => ({ summary: { failures } });
-  assert.equal(timingFailed({ positions: [{ phases: [phase(0)] }] }), false);
-  assert.equal(timingFailed({ positions: [{ phases: [phase(0)] }, { error: "no frame", phases: [] }] }), true);
-  assert.equal(timingFailed({ positions: [{ phases: [phase(0), phase(2)] }] }), true);
+  assert.equal(timingFailed({ phases: [phase(0)] }), false);
+  assert.equal(timingFailed({ error: "no frame", phases: [] }), true);
+  assert.equal(timingFailed({ phases: [phase(0), phase(2)] }), true);
 });
 
 await check("the metronome fixture alternates its flashes and starts PLAY on its first line", () => {

@@ -5,10 +5,6 @@
 // does. Only the pixi `Application` is replaced, by an application that routes
 // the game's stream into the page's real managers the way `Application` does
 // (`MessageRouter`), so the overlay DOM is the one the player builds.
-//
-// The same harness runs with the switch off (the worker sends the program and
-// the page's game displays it) and on (the worker's game displays it), so a
-// test can compare the two.
 import { MessageConnection } from "@impower/jsonrpc/src/browser/classes/MessageConnection";
 import { DEFAULT_DESCRIPTION_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS";
 import { DEFAULT_OPTIONAL_DEFINITIONS } from "@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS";
@@ -20,7 +16,6 @@ import { ConfigureCompilerMessage } from "@impower/sparkdown/src/compiler/classe
 import { PreviewCompileProgramMessage } from "@impower/sparkdown/src/compiler/classes/messages/PreviewCompileProgramMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerDocumentMessage";
-import { ProgramTransportDecoder } from "@impower/sparkdown/src/workspace/utils/programTransport";
 import { Clock } from "@impower/spark-engine/src/game/core/classes/Clock";
 import type { GameEndpoint } from "../../app/Application";
 import type { ImageTarget } from "../../app/assets/AssetCache";
@@ -29,7 +24,6 @@ import AssetManager from "../../app/managers/AssetManager";
 import UIManager from "../../app/managers/UIManager";
 import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
-import { ConfigurePlayerWorkerMessage } from "../../main/workers/messages/ConfigurePlayerWorkerMessage";
 import { ProgramHeldMessage } from "../../main/workers/messages/ProgramHeldMessage";
 import { WorkerGameLink } from "../../main/workers/WorkerGameLink";
 import {
@@ -122,7 +116,6 @@ export const settle = async (tasks = 20) => {
 };
 
 export interface PlayerHarnessOptions {
-  workerDisplays: boolean;
   files: { uri: string; text: string }[];
   startFrom: { file: string; line: number };
   /** Decide when an image the page loads finishes; by default at once. */
@@ -179,9 +172,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   }
 
   await page.sendRequest(CompilerInitializeMessage.type, { profilerId: "test" });
-  await page.sendRequest(ConfigurePlayerWorkerMessage.type, {
-    workerDisplaysPreview: options.workerDisplays,
-  });
   const versions = new Map(options.files.map((f) => [f.uri, 1]));
   await page.sendRequest(ConfigureCompilerMessage.type, {
     files: options.files.map((f) => ({
@@ -203,14 +193,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     startFrom: options.startFrom,
   } as any);
 
-  // The page's side of the program transport, as `SparkdownWorkspace` keeps it.
-  const decoder = new ProgramTransportDecoder();
-  const decode = <R extends { program?: any }>(result: R): R => {
-    if (result.program && !result.program.summary) {
-      decoder.decode(result.program);
-    }
-    return result;
-  };
   let programVersion = 0;
   let completionRequest = 0;
   let selected = options.startFrom;
@@ -218,7 +200,6 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   let held: Promise<void> = Promise.resolve();
   const link = new WorkerGameLink(page);
   const workspace = {
-    workerDisplaysPreview: options.workerDisplays,
     gameLink: link,
     filesRevision: 0,
     previewCompile: async (params: any) => {
@@ -226,12 +207,10 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       if (current != null && current !== params.textDocument.version) {
         return { textDocument: params.textDocument, outdated: true };
       }
-      return decode(
-        await page.sendRequest(PreviewCompileProgramMessage.type, {
-          ...params,
-          root: { uri: MAIN_URI },
-        }),
-      );
+      return page.sendRequest(PreviewCompileProgramMessage.type, {
+        ...params,
+        root: { uri: MAIN_URI },
+      });
     },
     programHeld: (program: string) =>
       (held = page
@@ -247,8 +226,8 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   };
   setWorkspace(workspace as any);
 
-  // The page's managers, and an application that connects them to either
-  // game the way `Application` does.
+  // The page's managers, and an application that connects them to the
+  // worker's game the way `Application` does.
   const refs: any = {
     viewport: win.document.createElement("div"),
     gameView: win.document.createElement("div"),
@@ -265,7 +244,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const controller: any = new GamePlayerController(host, refs);
   controller._mounted = true;
   const createImage = (): ImageTarget => createFakeImage(options.holdImage);
-  // Every message the game sends the page's managers, from either game.
+  // Every message the worker's games send the page's managers.
   const toRouter: any[] = [];
   let ui: UIManager | undefined;
   // The controller's own slot handling runs; only the application it builds
@@ -289,8 +268,7 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       paused: false,
       // The application's own clock, which pause, unpause and a clock step
       // move as `Application` moves it, telling the managers. It reads the
-      // harness's clock and ticks on its frames (`tick`), advancing a game
-      // on the page as `Application` does.
+      // harness's clock and ticks on its frames (`tick`).
       clock: new Clock(
         {
           get currentTime() {
@@ -322,18 +300,25 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       started: false,
       start() {
         app.started = true;
-        app.clock.add((time) => {
-          if (!app.paused) endpoint.update?.(time);
-        });
         app.clock.start();
       },
       destroys: 0,
-      destroy: async () => {
-        app.destroys += 1;
-        app.clock.stop();
-        app.clock.dispose();
-        router.disconnect();
-        for (const m of managers) m.onDispose();
+      destroyed: false,
+      destroying: undefined as Promise<void> | undefined,
+      // As `Application.destroy`: one teardown, begun at the first call and
+      // finished once the application has initialized, which every call
+      // waits for.
+      destroy() {
+        app.destroying ??= (async () => {
+          app.destroyed = true;
+          app.destroys += 1;
+          router.disconnect();
+          await app.initializing;
+          app.clock.stop();
+          app.clock.dispose();
+          for (const m of managers) m.onDispose();
+        })();
+        return app.destroying;
       },
       connectGame: () =>
         endpoint.connect((message) => {
@@ -341,22 +326,21 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
           if (recordMessages) toRouter.push(copy);
           router.receive(copy);
         }),
+      // As `Application.init`: initialization is over whether it succeeded
+      // or failed.
       async init() {
-        await Promise.all(managers.map((m) => m.onInit()));
-        await app.connectGame();
-        resolveInit();
+        try {
+          await Promise.all(managers.map((m) => m.onInit()));
+          await app.connectGame();
+        } finally {
+          resolveInit();
+        }
       },
     };
     return app;
   };
-  /** PLAY's game: the page's own with the switch off, which previews
-   *  until PLAY, and the one in the worker with it on. */
-  const playing = () =>
-    options.workerDisplays
-      ? workerState.gameState.running
-      : controller._game?.state === "previewing"
-        ? undefined
-        : controller._game;
+  /** PLAY's game in the worker, while it runs. */
+  const playing = () => workerState.gameState.running;
   // What the page relays to the editor.
   const toEditor: any[] = [];
   host.addEventListener("jsonrpc", (e: Event) => toEditor.push((e as CustomEvent).detail));
@@ -385,26 +369,18 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         await settle(4);
       }
     },
-    /** Record the program each PLAY from now on builds its game from, on
-     *  whichever side it runs. The worker builds PLAY's game beside the game
-     *  that previews, so a game it builds with none there is that one. */
+    /** Record the program each PLAY from now on builds its game from. The
+     *  worker builds PLAY's game beside the game that previews, so a game it
+     *  builds with that one there is PLAY's. */
     recordPlays() {
       const played: any[] = [];
-      if (options.workerDisplays) {
-        const createGame = workerState.gameState.createGame;
-        workerState.gameState.createGame = (gameOptions) => {
-          if (workerState.gameState.game) {
-            played.push(gameOptions.program);
-          }
-          return createGame(gameOptions);
-        };
-      } else {
-        const buildGame = controller.buildGame.bind(controller);
-        controller.buildGame = async (program: any, restarted?: boolean) => {
-          played.push(program);
-          return buildGame(program, restarted);
-        };
-      }
+      const createGame = workerState.gameState.createGame;
+      workerState.gameState.createGame = (gameOptions) => {
+        if (workerState.gameState.game) {
+          played.push(gameOptions.program);
+        }
+        return createGame(gameOptions);
+      };
       return played;
     },
     snapshotDOM: () => serializeDOM(overlay),
@@ -416,26 +392,17 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     async compile(): Promise<any> {
       let result: CompiledProgramParams;
       try {
-        result = decode(
-          await page.sendRequest(CompileProgramMessage.type, {
-            textDocument: { uri: MAIN_URI },
-            startFrom: selected,
-          }),
-        );
+        result = await page.sendRequest(CompileProgramMessage.type, {
+          textDocument: { uri: MAIN_URI },
+          startFrom: selected,
+        });
       } catch (e) {
         // The worker answered the compile with an error, which the page's
         // workspace would log; the preview keeps what it shows.
         return { error: String((e as Error)?.message ?? e) };
       }
       result.program.version = ++programVersion;
-      await controller.loadProgram(
-        result.program,
-        result.checkpoint,
-        result.simulationFailure,
-        result.simulatedPath,
-        result.simulatedProgramId,
-        result.simulationErrors,
-      );
+      await controller.loadProgram(result.program);
       await settle();
       return result;
     },

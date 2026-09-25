@@ -52,7 +52,6 @@ const comparable = (message: any): any => {
  *  game sent the page. */
 const run = async (compileAt?: number) => {
   const h = await createPlayerHarness({
-    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: SOURCE }],
     startFrom: { file: MAIN_URI, line: FIRST },
     manualClock: true,

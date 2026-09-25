@@ -12,12 +12,7 @@ import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protoc
 import type { File } from "@impower/sparkdown/src/compiler";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
-import {
-  applyPreviewHint,
-  planPreviewHint,
-  type PreviewHintState,
-} from "../utils/previewHint";
-import { ConfigurePlayerWorkerMessage } from "./messages/ConfigurePlayerWorkerMessage";
+import { applyPreviewHint } from "../utils/previewHint";
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
 import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
 import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
@@ -28,19 +23,11 @@ const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
 
 export function installWorkspaceWorker(connection: MessageConnection) {
   const cache = getSharedAssetCache();
-  // The beat the cursor last landed on, so a cursor that only moves within
-  // a beat (the editor re-selects on every column change) asks for nothing.
-  let lastHint: PreviewHintState | undefined;
 
   class SparkdownGameWorkspace
     extends SparkdownWorkspace
     implements WorkerDisplayWorkspace
   {
-    /** The stopped preview is displayed from the worker's game
-     *  (`installPlayerWorker`). Set by the `workerDisplaysPreview` field of
-     *  the initialization options, which an author never sets. */
-    workerDisplaysPreview = false;
-
     readonly gameLink: WorkerGameLink;
 
     constructor(profilerId?: string) {
@@ -57,29 +44,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           }
         }
       });
-    }
-
-    override initialize(
-      params: Parameters<SparkdownWorkspace["initialize"]>[0],
-    ) {
-      const options = params.initializationOptions as
-        | (NonNullable<typeof params.initializationOptions> & {
-            workerDisplaysPreview?: boolean;
-          })
-        | undefined;
-      if (options) {
-        const { workerDisplaysPreview, ...compilerOptions } = options;
-        this.workerDisplaysPreview = workerDisplaysPreview === true;
-        params = { ...params, initializationOptions: compilerOptions };
-      }
-      // Ahead of everything the initialization sends the compiler, which
-      // handles its messages in order.
-      this._compilerChannelConnection
-        .sendRequest(ConfigurePlayerWorkerMessage.type, {
-          workerDisplaysPreview: this.workerDisplaysPreview,
-        })
-        .catch(console.error);
-      return super.initialize(params);
     }
 
     async programHeld(program: string): Promise<void> {
@@ -152,7 +116,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
     override async onDeletedFile(file: File) {
       if (ASSET_FILE_TYPES.has(file?.type) && file?.src) {
         cache.evictFile(file.src);
-        lastHint = undefined;
       }
       return file;
     }
@@ -162,51 +125,8 @@ export function installWorkspaceWorker(connection: MessageConnection) {
         // Editing an asset re-stamps its `?v=` signature, so every resident
         // url of the file is dead. Whatever needs the new bytes asks again.
         cache.evictFile(file.src);
-        lastHint = undefined;
       }
       return file;
-    }
-
-    // The cursor landed on a beat. This runs on the page BEFORE the worker
-    // starts planning the route to the line, which can take hundreds of
-    // milliseconds on a long scene, so the images are fetching while the
-    // simulation runs and are resident by the time the checkpoint lands: a
-    // guess at the cursor's own beat first, in the express lane, because the
-    // engine's gate asks for what that beat shows once the route is planned
-    // and the beat has run (a guess, since nothing can run yet: the beat at
-    // or before the cursor and the one after it); then the beats around the
-    // cursor, then the rest of the scene. The engine asks for the same
-    // window again at connect; the cache answers from what is already in
-    // flight.
-    override onSelectTextDocument(params: {
-      textDocument: { uri: string };
-      selectedRange: { start: { line: number } };
-    }) {
-      if (this.workerDisplaysPreview) {
-        // The worker holds the program and sends the warm-up itself
-        // (`PreviewHintMessage`).
-        return;
-      }
-      try {
-        const uri = params.textDocument?.uri ?? "";
-        const program = this.program(uri);
-        const sceneAssets = program?.sceneAssets;
-        if (!program || !sceneAssets) {
-          return;
-        }
-        const line = params.selectedRange.start.line;
-        const plan = planPreviewHint(program, uri, line, lastHint);
-        if (!plan) {
-          return;
-        }
-        lastHint = plan.state;
-        // Visuals only, as a preview shows; fonts are gated by the layouts
-        // as they mount. A superset of what the engine will ask for is fine.
-        applyPreviewHint(cache, plan);
-      } catch (e) {
-        // A hint is an optimization; it must never take the selection down.
-        console.warn("Could not prefetch the selected scene's images:", e);
-      }
     }
   }
 

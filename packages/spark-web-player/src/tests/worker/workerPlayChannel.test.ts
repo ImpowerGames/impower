@@ -1,4 +1,4 @@
-// With the switch on, PLAY's game sends the page its stream on a
+// PLAY's game sends the page its stream on a
 // `BroadcastChannel` of the page's sink rather than on the connection the
 // workspace compiles through. After input, Chromium holds a message from a
 // worker or a port until the page has rendered its next frame, which put a
@@ -29,7 +29,6 @@ const framesForStop = (h: { overlay: HTMLElement }) => {
 describe("PLAY's stream from the worker", () => {
   it("reaches the page on the sink's channel, and never on the connection", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: FIRST },
       manualClock: true,
@@ -59,7 +58,6 @@ describe("PLAY's stream from the worker", () => {
 
   it("gives each run a channel of its own, which STOP closes", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: SOURCE }],
       startFrom: { file: MAIN_URI, line: FIRST },
       manualClock: true,

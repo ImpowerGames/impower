@@ -182,6 +182,14 @@ export function lowerLuauFunctionDefinition(
   ctx.functionScopeStack?.pop();
 
   const knot = new Knot(identifier, [], args, true);
+  // A definition closes at its `end` or just before a following `scene` or
+  // `branch`, and records either as its end. One whose body holds story
+  // lines closes incomplete at the first of them, and the rest of its body,
+  // up to a stray `end`, follows as chunks of their own.
+  knot._bodyClosed = !!findChildByName(
+    nodeRef.node,
+    "LuauFunctionDefinition_end",
+  );
   const rootWeave = new Weave([...hoistedDecls, ...body]);
   knot._rootWeave = rootWeave;
   knot.AddContent(rootWeave);

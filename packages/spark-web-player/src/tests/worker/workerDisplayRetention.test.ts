@@ -37,7 +37,6 @@ type Harness = Awaited<ReturnType<typeof createPlayerHarness>>;
 
 const harness = () =>
   createPlayerHarness({
-    workerDisplays: true,
     files: [{ uri: MAIN_URI, text: TEXT }],
     startFrom: { file: MAIN_URI, line: LINE },
     recordMessages: false,
@@ -96,7 +95,6 @@ const suggestLine = (h: Harness, text: string) =>
 describe("the stories the worker keeps", () => {
   it("stay bounded across 150 highlighted suggestions", async () => {
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: TEXT }],
       startFrom: { file: MAIN_URI, line: LINE },
       recordMessages: false,
@@ -163,7 +161,6 @@ describe("the stories the worker keeps", () => {
     // keeps the one the page says it holds and those compiled after it, not
     // every one compiled since the page last displayed a real program.
     const h = await createPlayerHarness({
-      workerDisplays: true,
       files: [{ uri: MAIN_URI, text: TEXT }],
       startFrom: { file: MAIN_URI, line: LINE },
       recordMessages: false,

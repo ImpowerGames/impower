@@ -18,6 +18,11 @@ export class Gather extends ParsedObject implements INamedContent, IWeavePoint {
 
   public uuid?: string;
 
+  // The end of a `choose` block that offers choices: the flow stops before it
+  // when the block generated a choice, enters it inline otherwise, and runs
+  // on out of it, so it is never a loose end.
+  public endsChooseBlock = false;
+
   constructor(
     identifier: Identifier | null,
     public readonly indentationDepth: number,

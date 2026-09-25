@@ -3,6 +3,7 @@ import { Choice } from "./Choice";
 import { Conditional } from "./Conditional/Conditional";
 import { ConstantDeclaration } from "./Declaration/ConstantDeclaration";
 import { Container as RuntimeContainer } from "../../../engine/Container";
+import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
 import { Divert } from "./Divert/Divert";
 import { Divert as RuntimeDivert } from "../../../engine/Divert";
 import { DivertTarget } from "./Divert/DivertTarget";
@@ -73,6 +74,10 @@ export class Weave extends ParsedObject {
   //  - Choices or Gathers that need to be joined up
   //  - Explicit Divert to gather points (i.e. "->" without a target)
   public looseEnds: IWeavePoint[] = [];
+
+  // The weave of a `choose` block, which choices offered from inside a
+  // conditional or sequence within it continue at the end of.
+  public isChooseBlock = false;
 
   public gatherPointsToResolve: GatherPointToResolve[] = [];
 
@@ -272,8 +277,16 @@ export class Weave extends ParsedObject {
     // Determine whether this Gather should be auto-entered:
     //  - It is auto-entered if there were no choices in the last section
     //  - A section is "since the previous gather" - so reset now
-    const autoEnter = !this.hasSeenChoiceInSection;
+    //  - The end of a `choose` block is always auto-entered, behind a stop
+    //    that holds the flow once the block's choices are offered
+    const autoEnter = !this.hasSeenChoiceInSection || gather.endsChooseBlock;
     this.hasSeenChoiceInSection = false;
+
+    // The loose ends to divert here are the ones reached before this gather.
+    // Generating its container generates its content, and a loose end passed
+    // up from inside that content comes after it.
+    const looseEnds = this.looseEnds;
+    this.looseEnds = [];
 
     const gatherContainer = gather.runtimeContainer;
 
@@ -283,9 +296,28 @@ export class Weave extends ParsedObject {
       this._unnamedGatherCount += 1;
     }
 
+    const containerEntered = this.currentContainer;
     if (autoEnter) {
       if (!this.currentContainer) {
         throw new Error();
+      }
+
+      if (gather.endsChooseBlock) {
+        // Hold the flow when a pending choice came from a choice point in
+        // this block's root container, which keeps its choices' named
+        // containers and so is never flattened into a parent; a block that
+        // offered none runs on into the gather. The hold names how many
+        // containers up that root is (a `label` in the block makes the
+        // current container the label's gather).
+        let levels = 0;
+        let container: RuntimeContainer | null = this.currentContainer;
+        while (container !== null && container !== this._rootContainer) {
+          container = asOrNull(container.parent, RuntimeContainer);
+          levels += 1;
+        }
+        this.currentContainer.AddContent(
+          RuntimeControlCommand.HoldForChoices(container === null ? 0 : levels),
+        );
       }
 
       // Auto-enter: include in main content
@@ -299,15 +331,22 @@ export class Weave extends ParsedObject {
     }
 
     // Consume loose ends: divert them to this gather
-    for (const looseEndWeavePoint of this.looseEnds) {
+    for (const looseEndWeavePoint of looseEnds) {
       const looseEnd = looseEndWeavePoint as ParsedObject;
 
       // Skip gather loose ends that are at the same level
       // since they'll be handled by the auto-enter code below
-      // that only jumps into the gather if (current runtime choices == 0)
+      // that only jumps into the gather if (current runtime choices == 0).
+      // Skip too a gather whose container this gather was just auto-entered
+      // into (a `label` anchor that opens a `choose` block): its content
+      // already runs on into this gather, and a divert appended to it would
+      // come after this gather and jump back to it.
       if (looseEnd instanceof Gather) {
         const prevGather = looseEnd;
-        if (prevGather.indentationDepth == gather.indentationDepth) {
+        if (
+          prevGather.indentationDepth == gather.indentationDepth ||
+          (autoEnter && prevGather.runtimeContainer === containerEntered)
+        ) {
           continue;
         }
       }
@@ -333,10 +372,12 @@ export class Weave extends ParsedObject {
       );
     }
 
-    this.looseEnds = [];
-
-    // Replace the current container itself
-    this.currentContainer = gatherContainer;
+    // Replace the current container itself. The end of a `choose` block runs
+    // on out of its container, so what follows the block stays beside it
+    // rather than nesting one level deeper per block.
+    if (!gather.endsChooseBlock) {
+      this.currentContainer = gatherContainer;
+    }
   };
 
   public readonly AddRuntimeForWeavePoint = (weavePoint: IWeavePoint): void => {
@@ -354,10 +395,10 @@ export class Weave extends ParsedObject {
       // Gathers that contain choices are no longer loose ends
       // (same as when weave points get nested content)
       if (this.previousWeavePoint instanceof Gather) {
-        this.looseEnds.splice(
-          this.looseEnds.indexOf(this.previousWeavePoint),
-          1,
-        );
+        const index = this.looseEnds.indexOf(this.previousWeavePoint);
+        if (index >= 0) {
+          this.looseEnds.splice(index, 1);
+        }
       }
 
       // Add choice point content
@@ -379,7 +420,9 @@ export class Weave extends ParsedObject {
 
     // Keep track of loose ends
     this.addContentToPreviousWeavePoint = false; // default
-    if (this.WeavePointHasLooseEnd(weavePoint)) {
+    const endsChooseBlock =
+      weavePoint instanceof Gather && weavePoint.endsChooseBlock;
+    if (!endsChooseBlock && this.WeavePointHasLooseEnd(weavePoint)) {
       this.looseEnds.push(weavePoint);
 
       const looseChoice = asOrNull(weavePoint, Choice);
@@ -400,7 +443,10 @@ export class Weave extends ParsedObject {
     // Now there's a deeper indentation level, the previous weave point doesn't
     // count as a loose end (since it will have content to go to)
     if (this.previousWeavePoint !== null) {
-      this.looseEnds.splice(this.looseEnds.indexOf(this.previousWeavePoint), 1);
+      const index = this.looseEnds.indexOf(this.previousWeavePoint);
+      if (index >= 0) {
+        this.looseEnds.splice(index, 1);
+      }
 
       this.addContentToPreviousWeavePoint = false;
     }
@@ -450,6 +496,9 @@ export class Weave extends ParsedObject {
     //    pass gathers (i.e. 'normal flow') loose ends up there, not normal
     //    choices. The rule is that choices have to be diverted explicitly
     //    by the author since it's ambiguous where flow should go otherwise.
+    //  - The exception is a `choose` block: a choice offered from inside a
+    //    conditional or sequence within one continues at that block's end,
+    //    so it passes up to the closest `choose` block's weave.
     //
     // e.g.:
     //
@@ -464,6 +513,7 @@ export class Weave extends ParsedObject {
     //
     let closestInnerWeaveAncestor: Weave | null = null;
     let closestOuterWeaveAncestor: Weave | null = null;
+    let closestChooseBlockAncestor: Weave | null = null;
 
     // Find inner and outer ancestor weaves as defined above.
     let nested = false;
@@ -481,6 +531,14 @@ export class Weave extends ParsedObject {
 
         if (nested && closestOuterWeaveAncestor === null) {
           closestOuterWeaveAncestor = weaveAncestor;
+        }
+
+        if (
+          nested &&
+          closestChooseBlockAncestor === null &&
+          weaveAncestor.isChooseBlock
+        ) {
+          closestChooseBlockAncestor = weaveAncestor;
         }
       }
 
@@ -506,13 +564,18 @@ export class Weave extends ParsedObject {
 
       if (nested) {
         // This weave is nested within a conditional or sequence:
-        //  - choices can only be passed up to direct ancestor ("inner") weaves
+        //  - choices can only be passed up to direct ancestor ("inner") weaves,
+        //    or else to the closest `choose` block, whose end they continue at
         //  - gathers can be passed up to either, but favour the closer (inner) weave
         //    if there is one
-        if (looseEnd instanceof Choice && closestInnerWeaveAncestor !== null) {
-          closestInnerWeaveAncestor.ReceiveLooseEnd(looseEnd);
-          received = true;
-        } else if (!(looseEnd instanceof Choice)) {
+        if (looseEnd instanceof Choice) {
+          const receivingWeave =
+            closestInnerWeaveAncestor || closestChooseBlockAncestor;
+          if (receivingWeave !== null) {
+            receivingWeave.ReceiveLooseEnd(looseEnd);
+            received = true;
+          }
+        } else {
           const receivingWeave =
             closestInnerWeaveAncestor || closestOuterWeaveAncestor;
           if (receivingWeave !== null) {
@@ -539,23 +602,6 @@ export class Weave extends ParsedObject {
   };
 
   public override ResolveReferences(context: Story): void {
-    // Check that choices nested within conditionals and sequences are terminated
-    if (this.looseEnds !== null && this.looseEnds.length > 0) {
-      for (
-        let ancestor = this.parent;
-        ancestor !== null;
-        ancestor = ancestor.parent
-      ) {
-        if (ancestor instanceof Sequence || ancestor instanceof Conditional) {
-          break;
-        }
-      }
-
-      // if (isNestedWeave) {
-      //   this.ValidateTermination(this.BadNestedTerminationHandler);
-      // }
-    }
-
     for (const gatherPoint of this.gatherPointsToResolve) {
       gatherPoint.divert.targetPath = gatherPoint.targetRuntimeObj.path;
     }

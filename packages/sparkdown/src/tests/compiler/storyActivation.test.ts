@@ -9,7 +9,7 @@
 // text builds, and the compiles after it have to be unaffected.
 //
 // `Story.ToJson()` without the compiler's per-flow memo serializes every
-// runtime object from the tree as it stands: every field the page's game is
+// runtime object from the tree as it stands: every field PLAY's game is
 // built from, including each divert's target as resolved through its parents.
 // It is the oracle here, beside running the story.
 import "../../inkjs/engine/Container";

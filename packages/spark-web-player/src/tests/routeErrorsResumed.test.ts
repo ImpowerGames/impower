@@ -37,13 +37,13 @@ const quiet = <T>(fn: () => T): T => {
   }
 };
 
-describe.each([false, true])("route errors (worker displays: %s)", (workerDisplays) => {
+describe("route errors", () => {
   test("keep what the steps before a resumed replay's checkpoint raised", () => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
       useBuiltinsPrelude: true,
       seedBuiltinsIntoStory: true,
-      emitCompiledProgram: !workerDisplays,
+      emitCompiledProgram: false,
       files: [
         { uri: URI, type: "script", name: "main", ext: "sd", text: SOURCE, version: 1, languageId: "sparkdown" },
       ],
