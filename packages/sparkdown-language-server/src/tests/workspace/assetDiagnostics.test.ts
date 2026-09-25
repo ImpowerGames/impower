@@ -20,6 +20,7 @@ function setup(entry = main) {
     _lastFormattedText: new Map(),
     _watchedFiles: new Map([[entry, {}], [asset, {}]]),
     _programStates: new Map(),
+    _entryPrograms: new Map(),
     _connection: new Proxy({}, { get: (_target, key) => key === "onRequest" ? (method: string, handler: (params: any) => any) => { handlers.set(method, handler); return { dispose() {} }; } : () => ({ dispose() {} }) }),
     sendNotification: vi.fn(), sendRequest: vi.fn(),
   });

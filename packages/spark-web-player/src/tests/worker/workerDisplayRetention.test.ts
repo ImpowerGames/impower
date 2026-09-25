@@ -294,7 +294,8 @@ describe("the stories the worker keeps", () => {
         real: held,
       });
       h.workspace.programHeld(programIdentity(newer.program)!);
-      expect(await display).toEqual({ displayed: true });
+      // Nothing on the route or at the line raises anything.
+      expect(await display).toEqual({ displayed: true, errors: [] });
     } finally {
       h.dispose();
     }

@@ -27,11 +27,13 @@ function coupledScreenplay(): string {
   const L: string[] = [];
   L.push("title: Activation Fixture");
   L.push("");
-  L.push("define hero as character:");
+  L.push("define hero as character with");
   L.push(`  name = "Hero"`);
+  L.push("end");
   L.push("");
-  L.push("define cfg as object:");
+  L.push("define cfg as object with");
   L.push("  speed = 5");
+  L.push("end");
   L.push("");
   L.push("store trust = 0");
   L.push("");

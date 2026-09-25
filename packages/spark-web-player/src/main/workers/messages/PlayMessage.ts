@@ -1,5 +1,6 @@
 import { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
 import type { RequestMessage } from "@impower/jsonrpc/src/common/types/RequestMessage";
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 
 export type PlayMethod = typeof PlayMessage.method;
 
@@ -29,6 +30,9 @@ export interface PlayResult {
   /** The run the game belongs to, which the requests that connect, start
    *  and stop it name. */
   run?: number;
+  /** The runtime errors and warnings the route to the start point raised,
+   *  which begin PLAY's run. */
+  errors?: SimulationError[];
 }
 
 /**

@@ -5,6 +5,7 @@ import { isNotification } from "@impower/jsonrpc/src/common/utils/isNotification
 import { isRequest } from "@impower/jsonrpc/src/common/utils/isRequest";
 import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
+import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import {
   installGameWorker,
@@ -14,6 +15,7 @@ import { AddCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemoveCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemoveCompilerFileMessage";
 import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
+import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import type { Story as RuntimeStory } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
@@ -398,6 +400,12 @@ export function installPlayerWorker(connection: MessageConnection) {
 
   let displays = 0;
 
+  /** What the step the display under way runs raises, which its answer
+   *  carries with what the route raised, so the page reports the preview's
+   *  run whole rather than hearing part of it before it knows the display is
+   *  the one it shows. */
+  let displayErrors: SimulationError[] | undefined;
+
   /** `message` as `game` sends it to the page. The execution report names
    *  where a route that failed was simulated from and was headed, which the
    *  page labels with document locations it cannot look up itself. */
@@ -433,6 +441,14 @@ export function installPlayerWorker(connection: MessageConnection) {
   const sendToPage = (message: Message, transfer?: ArrayBuffer[]) => {
     const game = gameState.game;
     if (!game || (!isRequest(message) && !isNotification(message))) {
+      return;
+    }
+    if (
+      displayErrors &&
+      GameEncounteredRuntimeErrorMessage.type.isNotification(message)
+    ) {
+      const { message: text, type, location } = message.params;
+      displayErrors.push({ message: text, type, location });
       return;
     }
     if (gameState.running) {
@@ -476,6 +492,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       simulatedPath?: string | null;
       simulatedProgramId?: string;
       simulationFailure?: any;
+      simulationErrors?: SimulationError[];
     } = {};
     entry.log.report(report, toPath);
     return report;
@@ -522,7 +539,9 @@ export function installPlayerWorker(connection: MessageConnection) {
       );
       displayedId = entry.id;
       releaseUnneeded();
-      const displayed = await displayPreviewFrom(game, {
+      const stepErrors: SimulationError[] = [];
+      displayErrors = stepErrors;
+      const displaying = displayPreviewFrom(game, {
         program: entry.program,
         programChanged,
         file: params.file,
@@ -536,6 +555,14 @@ export function installPlayerWorker(connection: MessageConnection) {
           gameState.game !== game ||
           gameTouches !== touches,
       });
+      let displayed: boolean;
+      try {
+        displayed = await displaying;
+      } finally {
+        if (displayErrors === stepErrors) {
+          displayErrors = undefined;
+        }
+      }
       if (
         !displayed &&
         display === displays &&
@@ -552,7 +579,12 @@ export function installPlayerWorker(connection: MessageConnection) {
         fresh = true;
         continue;
       }
-      return { displayed };
+      return displayed
+        ? {
+            displayed,
+            errors: [...(route.simulationErrors ?? []), ...stepErrors],
+          }
+        : { displayed };
     }
   };
 
@@ -624,7 +656,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       restarted: params.restarted,
     });
     profile("end", compiler.profilerId + " " + "play/create");
-    player.putAtStartPoint(
+    const errors = player.putAtStartPoint(
       running,
       params.simulationOptions,
       {
@@ -632,6 +664,7 @@ export function installPlayerWorker(connection: MessageConnection) {
         path: route.simulatedPath,
         programId: route.simulatedProgramId,
         failure: route.simulationFailure,
+        errors: route.simulationErrors,
       },
       compiler.profilerId,
     );
@@ -643,6 +676,7 @@ export function installPlayerWorker(connection: MessageConnection) {
       built: true,
       compiled: hasCompiledProgram(program),
       run: current.run,
+      errors,
     };
   };
 
