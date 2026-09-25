@@ -498,6 +498,13 @@ export class JsonSerialisation {
         writer.Write(`unpack:${controlCmd._tupleArity}`);
         return;
       }
+      // A `choose` block's hold: `hold:<levels>`.
+      if (
+        controlCmd.commandType === ControlCommand.CommandType.HoldForChoices
+      ) {
+        writer.Write(`hold:${controlCmd._holdLevels}`);
+        return;
+      }
       // Lua `and`/`or` short-circuit jump: `sc:<op>:<skipCount>`.
       if (
         controlCmd.commandType === ControlCommand.CommandType.ShortCircuit
@@ -794,6 +801,14 @@ export class JsonSerialisation {
       if (str.startsWith("unpack:")) {
         const arity = parseInt(str.slice("unpack:".length), 10);
         if (Number.isFinite(arity)) return ControlCommand.UnpackTuple(arity);
+      }
+
+      // A `choose` block's hold: `hold:<levels>`.
+      if (str.startsWith("hold:")) {
+        const levels = parseInt(str.slice("hold:".length), 10);
+        if (Number.isFinite(levels) && levels >= 0) {
+          return ControlCommand.HoldForChoices(levels);
+        }
       }
 
       // Conditional content-pointer jump: `sc:<op>:<skipCount>`.
@@ -1403,6 +1418,9 @@ export class JsonSerialisation {
     // `sc:<op>:<skipCount>` form (see WriteRuntimeObject's special
     // case for ShortCircuit).
     _controlCommandNames[ControlCommand.CommandType.ShortCircuit] = "sc:?";
+    // Placeholder — actual serialization uses the dynamic `hold:<levels>`
+    // form (see WriteRuntimeObject's special case for HoldForChoices).
+    _controlCommandNames[ControlCommand.CommandType.HoldForChoices] = "hold:?";
 
     for (let i = 0; i < ControlCommand.CommandType.TOTAL_VALUES; ++i) {
       if (_controlCommandNames[i] == null)

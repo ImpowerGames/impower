@@ -2500,6 +2500,7 @@ export class SparkdownCompiler {
         weave.baseIndentIndex,
       );
       copy.debugMetadata = weave.ownDebugMetadata;
+      copy.isChooseBlock = weave.isChooseBlock;
       return copy;
     };
     const withAssemblyWeaves = (content: ParsedObject[]): ParsedObject[] => {

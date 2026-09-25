@@ -33,9 +33,10 @@ export class Pointer {
     if (this.isNull) return null;
 
     if (this.index != null) {
-      let namedChild = asINamedContentOrNull(
-        this.container!.content[this.index],
-      );
+      // A pointer to the start of an empty container, such as an empty
+      // gather a choice diverts to, has no child at its index.
+      const child = this.container!.content[this.index];
+      let namedChild = child ? asINamedContentOrNull(child) : null;
       if (namedChild && namedChild.hasValidName && namedChild.name) {
         return this.container!.path.PathByAppendingComponent(
           new Path.Component(namedChild.name),

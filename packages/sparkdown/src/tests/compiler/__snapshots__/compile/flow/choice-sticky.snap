@@ -48,6 +48,11 @@
                   "isThread": false
                 }
               ]
+            },
+            {
+              "type": "Gather",
+              "name": null,
+              "depth": 1
             }
           ]
         }

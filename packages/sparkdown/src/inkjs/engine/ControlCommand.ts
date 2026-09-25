@@ -44,6 +44,11 @@ export class ControlCommand extends InkObject {
   public _shortCircuitOp: string = "";
   public _shortCircuitSkipCount: number = 0;
 
+  // For `HoldForChoices` — how many containers up from the one holding the
+  // command the `choose` block's own container is. Encoded as `"hold:<n>"`
+  // in JSON.
+  public _holdLevels: number = 0;
+
   constructor(
     commandType: ControlCommand.CommandType = ControlCommand.CommandType.NotSet,
   ) {
@@ -59,6 +64,7 @@ export class ControlCommand extends InkObject {
     copy._callValueArgCount = this._callValueArgCount;
     copy._shortCircuitOp = this._shortCircuitOp;
     copy._shortCircuitSkipCount = this._shortCircuitSkipCount;
+    copy._holdLevels = this._holdLevels;
     return copy;
   }
   public static EvalStart() {
@@ -108,6 +114,11 @@ export class ControlCommand extends InkObject {
   }
   public static Done() {
     return new ControlCommand(ControlCommand.CommandType.Done);
+  }
+  public static HoldForChoices(levels: number = 0) {
+    const cmd = new ControlCommand(ControlCommand.CommandType.HoldForChoices);
+    cmd._holdLevels = levels;
+    return cmd;
   }
   public static End() {
     return new ControlCommand(ControlCommand.CommandType.End);
@@ -276,6 +287,13 @@ export namespace ControlCommand {
     // (`_shortCircuitOp`) and the RHS op count to skip
     // (`_shortCircuitSkipCount`). See `ShortCircuit()`.
     ShortCircuit, // 32
+
+    // A `choose` block's hold, placed before the block's end: when a pending
+    // choice's choice point lies inside the block's own container
+    // (`_holdLevels` containers up from the one holding the command), stops
+    // the flow as `Done` does; a block that offered no choice runs on. It is
+    // not a condition, so a route planner never forks on it.
+    HoldForChoices, // 33
 
     TOTAL_VALUES,
   }
