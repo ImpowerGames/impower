@@ -195,6 +195,17 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (this.variableDeclarations.has(varName)) {
       const varab = this.variableDeclarations.get(varName)!;
 
+      // Luau lets a `local` be declared again, in a nested block or in the
+      // same one; the new binding shadows the old one from that point on.
+      // The flow keeps one registry for all its blocks, so a second `local`
+      // of the same name is not a collision: the first registration is
+      // enough for name resolution, and which binding a reference reads is
+      // decided at runtime by the BeginScope/EndScope commands around each
+      // block.
+      if (varab.isNewTemporaryDeclaration && varDecl.isNewTemporaryDeclaration) {
+        return;
+      }
+
       // Same-name defines of DIFFERENT engine types coexist — e.g.
       // `define raffles as character` + `define raffles as synth`. They
       // register as type-namespaced structs (context.character.raffles /
