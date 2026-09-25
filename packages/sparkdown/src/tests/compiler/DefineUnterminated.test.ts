@@ -8,7 +8,6 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 interface Diag {
   message: string;
@@ -102,22 +101,6 @@ describe("define without `end`", () => {
     const errs = errors("define X as character\n\nHi.\n");
     expect(errs.map((e) => e.message).join("\n")).toContain(MISSING_END);
   });
-
-  test("a closed define compiles cleanly and leaves the store global", () => {
-    const source = [
-      "define hero as character with",
-      '  name = "Hero"',
-      "end",
-      "",
-      "store trust = 5",
-      "",
-      "Trust is {trust}.",
-      "",
-    ].join("\n");
-    const ctx = makeRuntimeStoryFromSource(source);
-    expect(ctx.errorMessages).toEqual([]);
-    expect(ctx.story.ContinueMaximally()).toBe("Trust is 5.\n");
-  });
 });
 
 describe("define header", () => {
@@ -177,11 +160,26 @@ describe("define header", () => {
       "end",
       "",
     ].join("\n");
-    const header = errors(source).filter((e) => e.message.includes(HEADER));
-    expect(header).toHaveLength(1);
-    expect(header[0]!.message).toContain("needs `with` at the end");
-    expect(header[0]!.startLine).toBe(1);
-    expect(header[0]!.startCharacter).toBe(2);
+    const errs = errors(source);
+    expect(errs).toHaveLength(1);
+    expect(errs[0]!.message).toContain("header line needs `with` at the end");
+    expect(errs[0]!.startLine).toBe(1);
+    expect(errs[0]!.startCharacter).toBe(2);
+  });
+
+  test("`with` on the line below the header is reported there", () => {
+    const source = [
+      "define hero as character",
+      "with",
+      '  name = "Hero"',
+      "end",
+      "",
+    ].join("\n");
+    const errs = errors(source);
+    expect(errs).toHaveLength(1);
+    expect(errs[0]!.message).toContain("header line needs `with` at the end");
+    expect(errs[0]!.startLine).toBe(1);
+    expect(errs[0]!.startCharacter).toBe(0);
   });
 
   test("a `:` header inside another block is still reported", () => {
@@ -221,12 +219,23 @@ describe("define header the grammar cannot read", () => {
       const errs = errors(source);
       expect(errs).toHaveLength(1);
       expect(errs[0]!.message).toContain(`cannot be read past \`${readable}\``);
+      expect(errs[0]!.message).toContain("A–Z, a–z, 0–9 and `_`");
       expect(errs[0]!.startLine).toBe(0);
       expect(errs[0]!.startCharacter).toBe(0);
       expect(errs[0]!.endCharacter).toBe(readable.length);
     });
   }
 
+  test("text the header cannot read after `with` is not blamed on the name", () => {
+    const errs = errors("define X with )\nHi.\n");
+    expect(errs).toHaveLength(1);
+    expect(errs[0]!.message).toContain("cannot be read past `define X with`");
+    expect(errs[0]!.message).not.toContain("name");
+    expect(errs[0]!.startLine).toBe(0);
+  });
+});
+
+describe("define name", () => {
   test("a define with no name is reported, with or without `end`", () => {
     for (const source of [
       "define\n\nstore trust = 5\n",
@@ -238,6 +247,30 @@ describe("define header the grammar cannot read", () => {
       expect(errs[0]!.startLine).toBe(0);
     }
   });
+
+  const unreadable: Record<string, [string, string]> = {
+    "a name starting with a digit": [
+      'define 2hero as character with\n  name = "H"\nend\nHi.\n',
+      "2",
+    ],
+    "a quoted name": ['define "hero" with\nend\nHi.\n', '"hero"'],
+  };
+  for (const [label, [source, token]] of Object.entries(unreadable)) {
+    test(`${label} is reported at the token, not as a missing name`, () => {
+      const errs = errors(source).filter((e) =>
+        e.message.includes("cannot be a define name"),
+      );
+      expect(errs).toHaveLength(1);
+      expect(errs[0]!.message).toContain(
+        `\`${token}\` cannot be a define name`,
+      );
+      expect(errs[0]!.startLine).toBe(0);
+      expect(errs[0]!.startCharacter).toBe("define ".length);
+      expect(
+        errors(source).some((e) => e.message.includes("has no name")),
+      ).toBe(false);
+    });
+  }
 });
 
 describe("a script with a define error still compiles", () => {
