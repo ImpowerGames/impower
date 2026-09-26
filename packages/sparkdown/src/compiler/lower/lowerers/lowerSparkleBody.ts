@@ -183,29 +183,76 @@ const PLAIN_CONTENT_NODES = nodeNameSet([
   "LuauElementContentStringSingleQuoted",
 ]);
 
-/** A short, stable, identifier-safe tag for the document being lowered.
- *
- *  Binding evaluator names were minted from the node's byte offset ALONE, but
- *  every hoisted evaluator lands in one flow namespace. Two files whose first
- *  binding starts at the same offset — near-inevitable for a copy-and-adapt
- *  pair of layout files — both minted `__binding_37`, producing a severity-1
- *  "Duplicate identifier" attributed to `main.sd` rather than to either file
- *  that caused it, one surviving evaluator, and both layouts resolving to it
- *  (so one rendered the other's value).
- *
- *  FNV-1a over the path: no crypto dependency, stable across runs (unlike a
- *  counter, which would change every id whenever an unrelated file was added
- *  and defeat the "first registration wins" reuse below). */
+/** Every binding evaluator's name starts with this. */
+export const BINDING_ID_PREFIX = "__binding_";
+
+/** An identifier-safe spelling of the document's path that no other path
+ *  shares, followed by `__`: letters and digits stay, and every other
+ *  character becomes `_` and two hex digits, or `_u` and six for a code point
+ *  above 0xff. An escape never contains `__`, so the tag ends at the first
+ *  one. The tag is derived from the path alone, unlike a counter, which would
+ *  change every id whenever an unrelated file was added and defeat the
+ *  "first registration wins" reuse below. A hash of the path would be
+ *  shorter, but two paths whose hashes collide would give their files'
+ *  bindings one evaluator. */
 function documentTag(filePath: string | undefined | null): string {
   if (!filePath) {
     return "";
   }
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < filePath.length; i += 1) {
-    hash ^= filePath.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193) >>> 0;
+  let tag = "";
+  for (const ch of filePath) {
+    if (/[A-Za-z0-9]/.test(ch)) {
+      tag += ch;
+    } else {
+      const code = ch.codePointAt(0)!;
+      tag +=
+        code <= 0xff
+          ? `_${code.toString(16).padStart(2, "0")}`
+          : `_u${code.toString(16).padStart(6, "0")}`;
+    }
   }
-  return `${hash.toString(36)}_`;
+  return `${tag}__`;
+}
+
+/** The evaluator name for a binding whose source starts at `from`:
+ *  `__binding_<document tag><kind>_<name>_<offset within the chunk>`, as in
+ *  `__binding_file_3a_2f_2fproj_2fmain_2esd__layout_hud_23`.
+ *
+ *  Every hoisted evaluator lands in one flow namespace, so the name carries
+ *  the document: two files whose first binding starts at the same offset, as
+ *  a copy-and-adapt pair of layout files will, would otherwise share one
+ *  evaluator and one layout would render the other's value.
+ *
+ *  Within the document the name comes from the layout or component that holds
+ *  the binding and the binding's place in its chunk, not from the binding's
+ *  place in the document. A chunk an edit does not touch is carried into the
+ *  next compile without being lowered again, so a name taken from its
+ *  document offset would keep the offset it had before the edit while a cold
+ *  compile of the same text takes the new one. Two chunks of one document
+ *  mint the same name only when they declare the same layout or component
+ *  twice; the later declaration replaces the earlier one, and the compiler
+ *  keeps the later chunk's evaluator to match. A caller without a chunk (the
+ *  snapshot lowerers) names the binding by its offset. */
+function bindingId(from: number, ctx: LowerContext): string {
+  const tag = documentTag(ctx.filePath);
+  if (ctx.chunkFrom === undefined || ctx.sparkleOwner === undefined) {
+    return `${BINDING_ID_PREFIX}${tag}${from}`;
+  }
+  return `${BINDING_ID_PREFIX}${tag}${ctx.sparkleOwner}_${from - ctx.chunkFrom}`;
+}
+
+// A binding handle's span, relative to the chunk being lowered. The compiler
+// adds the chunk's document position when it merges the chunk's trees into
+// `program.sparkle` (see `rebaseSparkleSpans`), so a chunk carried unlowered
+// into a later compile still gives its handles' current positions.
+function bindingSpan(from: number, to: number, ctx: LowerContext): SparkRange {
+  const chunkFrom = ctx.chunkFrom ?? 0;
+  return {
+    file: ctx.filePath,
+    line: ctx.lineNumber(from),
+    from: from - chunkFrom,
+    to: to - chunkFrom,
+  };
 }
 
 /** DFS in-order: the first descendant (or self) whose name is in `names`. */
@@ -336,26 +383,20 @@ function warnOrphanLine(node: SyntaxNode, ctx: LowerContext): void {
 
 /** Compile a `{expr}` interpolation node (a `LuauInterpolatedStringExpression`)
  *  into a {@link Binding}: a synthetic nullary function
- *  `__binding_<from>() return <expr> end` hoisted into `ctx.hoistedKnots`, plus
+ *  `__binding_<id>() return <expr> end` hoisted into `ctx.hoistedKnots`, plus
  *  the handle the AST carries. The reactive runtime (Phase 3) calls the hoisted
  *  function to evaluate the binding (and, later, track its reads for deps); the
  *  compiler only produces the handle + the function. Bindings read game-state
  *  globals by name, so the function is nullary — no upvalue capture (one-way
- *  binding, spec L6). The name is keyed on the source byte offset so it stays
- *  unique across chunks and stable across edits (mirrors `__anon_fn_<from>`). */
+ *  binding, spec L6). {@link bindingId} names it. */
 function lowerBinding(
   interpNode: SyntaxNode,
   ctx: LowerContext,
   extraParams: string[] = [],
 ): Binding {
-  const exprId = `__binding_${documentTag(ctx.filePath)}${interpNode.from}`;
+  const exprId = bindingId(interpNode.from, ctx);
   const source = ctx.read(interpNode.from, interpNode.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(interpNode.from),
-    from: interpNode.from,
-    to: interpNode.to,
-  };
+  const span = bindingSpan(interpNode.from, interpNode.to, ctx);
   // Enclosing `for`-loop variables become the evaluator's parameters so the
   // body can read per-iteration values the runtime passes as args (loop locals
   // aren't globals — see LowerContext.sparkleLoopVars). `extraParams` adds
@@ -461,14 +502,9 @@ function lowerComponentArg(
   }
   const first = argNodes[0]!;
   const last = argNodes[argNodes.length - 1]!;
-  const exprId = `__binding_${documentTag(ctx.filePath)}${first.from}`;
+  const exprId = bindingId(first.from, ctx);
   const source = ctx.read(first.from, last.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(first.from),
-    from: first.from,
-    to: last.to,
-  };
+  const span = bindingSpan(first.from, last.to, ctx);
   const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,
@@ -583,7 +619,7 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
 }
 
 /** Compile an inline-closure handler (`@e={ stmts }`) into a {@link Binding}: a
- *  hoisted function `__binding_<from>(event, <loopvars>) <stmts> end`. Unlike
+ *  hoisted function `__binding_<id>(event, <loopvars>) <stmts> end`. Unlike
  *  {@link lowerBinding} (a single `return <expr>`), the body is the closure's
  *  STATEMENTS — lowered via the shared `lowerStatements` so every form works
  *  (assignment, property-target `a.b = x`, bare call). The reactive runtime
@@ -595,14 +631,9 @@ function lowerHandlerClosure(
   ctx: LowerContext,
   extraParams: string[] = [],
 ): Binding {
-  const exprId = `__binding_${documentTag(ctx.filePath)}${closureNode.from}`;
+  const exprId = bindingId(closureNode.from, ctx);
   const source = ctx.read(closureNode.from, closureNode.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(closureNode.from),
-    from: closureNode.from,
-    to: closureNode.to,
-  };
+  const span = bindingSpan(closureNode.from, closureNode.to, ctx);
   const loopVars = [...new Set([...(ctx.sparkleLoopVars ?? []), ...extraParams])]; // see lowerBinding
   // The attribute is line-oriented, so a closure whose `}` isn't on the `=`
   // line is force-closed at the newline — the grammar emits no
@@ -1140,14 +1171,9 @@ const WS_NODE_NAMES = nodeNameSet([
 function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding {
   const first = nodes[0]!;
   const last = nodes[nodes.length - 1]!;
-  const exprId = `__binding_${documentTag(ctx.filePath)}${first.from}`;
+  const exprId = bindingId(first.from, ctx);
   const source = ctx.read(first.from, last.to);
-  const span: SparkRange = {
-    file: ctx.filePath,
-    line: ctx.lineNumber(first.from),
-    from: first.from,
-    to: last.to,
-  };
+  const span = bindingSpan(first.from, last.to, ctx);
   const loopVars = [...new Set(ctx.sparkleLoopVars ?? [])]; // see lowerBinding
   const already = ctx.hoistedKnots?.some(
     (o) => o instanceof Function && o.identifier?.name === exprId,

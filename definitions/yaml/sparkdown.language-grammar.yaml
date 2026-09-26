@@ -157,11 +157,12 @@ variables:
 
   TAG_START: (?:[#]+(?=$|{{WS}}))
   COMMENT_START: (?:[-][-])
-  # A `>` that stands alone between spaces or line edges. `\>`, `->`, `>>`
-  # and `>=` are not breaks, because a non-space touches the `>`. The `..` that
-  # begins the part after a break may touch the `>` (`A .. >..B`). A third dot
-  # makes it an ellipsis.
-  BREAK_MARK: (?:(?<=^|{{WS}})[>](?=$|{{WS}}|[.][.](?![.])))
+  # A `>` in display text, which may touch the words around it (`A>B`), and
+  # each `>` of `>>` is one. The marks that hold a `>` are matched before it:
+  # `Escape` takes `\>`, `TextCommand` takes `<wait 1>`, and `Divert` takes
+  # `->`. Display text reads a dash at a time, so the last `-` of `-->` reaches
+  # `Divert` and the dashes before it are text.
+  BREAK_MARK: (?:[>])
   BREAK: (?:{{WS}}*{{BREAK_MARK}}{{WS}}*)
   CHAIN: (?:[\\])
   # A `..` that ends a line, or the part of a line before a `>` break. It joins
@@ -1627,7 +1628,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
-      - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
   InlineTitle:
@@ -1653,7 +1653,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -1693,7 +1692,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
-      - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
   InlineHeading:
@@ -1719,7 +1717,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -1762,7 +1759,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
-      - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
   InlineTransitional:
@@ -1788,7 +1784,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -1835,7 +1830,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
-      - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
   InlineWrite:
@@ -1868,7 +1862,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -1912,7 +1905,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
-      - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     # End when the next line:
     #  - is shallower than (or equal-indent to) the speaker line —
@@ -1958,7 +1950,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2081,7 +2072,6 @@ repository:
       - { include: "#Annotation" }
       - { include: "#Newline" }
       - { include: "#BlockLineBlank" }
-      - { include: "#BlockLineBreak" }
       - { include: "#BlockLineContinue" }
     end: (?=^(?!$|//|\1{{WS}}))
   # A `..` right after a top-level interpolation (`{x} .. more`) is text the
@@ -2104,7 +2094,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2120,7 +2109,6 @@ repository:
     patterns:
       - { include: "#Annotation" }
       - { include: "#Newline" }
-      - { include: "#LineBreak" }
       - { include: "#LineChain" }
       - { include: "#AssetLine" }
       - { include: "#ParentheticalLine" }
@@ -2191,27 +2179,6 @@ repository:
 
   ########## Text ##########
 
-  BlockLineBreak:
-    match: ({{WS}}*)({{LEADING_GLUE}})?(.*?)({{BREAK}})({{EOL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LeadingGlue" }
-      3:
-        patterns:
-          - { include: "#AssetLine" }
-          - { include: "#ParentheticalLine" }
-          - { include: "#DisplayLine" }
-      4:
-        patterns:
-          - { include: "#Break" }
-      5:
-        patterns:
-          - { include: "#EndOfLine" }
-
   BlockLineContinue:
     begin: ({{WS}}*)(?=\S)({{LEADING_GLUE}})?
     beginCaptures:
@@ -2257,22 +2224,6 @@ repository:
         patterns:
           - { include: "#Newline" }
 
-  LineBreak:
-    match: ({{WS}}*)(.*?)({{BREAK}})({{EOL}})
-    captures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#DisplayLine" }
-      3:
-        patterns:
-          - { include: "#Break" }
-      4:
-        patterns:
-          - { include: "#EndOfLine" }
-
   LineEnd:
     begin: ({{WS}}*)(?!{{EOL}})(?=\S)
     beginCaptures:
@@ -2300,8 +2251,8 @@ repository:
       # End-of-line `//` comment after text — must come before Glue/TextChunk
       # so the ` //…` tail is consumed as a comment rather than display text.
       - { include: "#SparkdownInlineComment" }
-      # A spaced `>` anywhere in the line ends the beat before it, and a `..`
-      # right after it begins the part after it.
+      # A `>` anywhere in the line ends the beat before it, and a `..` right
+      # after it begins the part after it.
       - { include: "#BreakLeadingGlue" }
       - { include: "#Break" }
       - { include: "#Glue" }
@@ -2875,7 +2826,8 @@ repository:
       - { include: "#Newline" }
       - { include: "#Space" }
       - { include: "#Word" }
-      - { include: "#EmDash" }
+      # One character at a time, so `Divert` is tried at every dash and takes
+      # the last `-` of `-->`.
       - { include: "#Punctuation" }
 
   Space:
@@ -2887,11 +2839,6 @@ repository:
     tag: content
     name: markup.raw.text.sd
     match: ({{WORD}})
-
-  EmDash:
-    tag: content
-    name: markup.raw.punctuation.sd
-    match: ([-][-])
 
   Punctuation:
     tag: content

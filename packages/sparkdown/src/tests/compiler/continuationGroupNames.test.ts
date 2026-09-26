@@ -1,8 +1,7 @@
 // A continuation's display calls carry a `group` the compiler names by
-// document order. A script included from two places is reached twice by the
-// compiler's walk over the story, and the names must survive that: every
-// continuation keeps a name of its own, and an incremental compile still
-// matches a cold one.
+// document order. In a script included from two places every continuation
+// keeps a name of its own, and an incremental compile still matches a cold
+// one.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";

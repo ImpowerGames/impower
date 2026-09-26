@@ -1,4 +1,4 @@
-text.source.sparkdown [0..189]
+text.source.sparkdown [0..162]
  ├─ entity.choice.sd [0..30]
  │   ├─ keyword.operator.expression.list.sd [0..2]: "+ "
  │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [2..3]: "["
@@ -63,76 +63,49 @@ text.source.sparkdown [0..189]
  │           └─ keyword.control.divert.path.sd [78..82]
  │               └─ keyword.control.divert.path.sd [78..82]: "knot"
  ├─ Newline [82..83]: "\n"
- ├─ string.display.dialogue.inline.sd [83..109]
- │   ├─ entity.name.type.dialogue.character.name.sd [83..87]
- │   │   └─ markup.raw.text.sd [83..87]: "HERO"
- │   ├─ meta.template.expression.operator.colon.sd [87..88]: ":"
- │   ├─ punctuation.whitespace.required.sd [88..89]: " "
- │   └─ string.display.text.chunk.sd [89..109]
- │       ├─ markup.raw.text.sd [89..90]: "c"
- │       ├─ markup.raw.space.sd [90..91]: " "
- │       ├─ markup.raw.punctuation.sd [91..92]: ">"
- │       ├─ markup.raw.punctuation.sd [92..93]: ">"
- │       ├─ markup.raw.space.sd [93..94]: " "
- │       ├─ markup.raw.text.sd [94..95]: "d"
- │       ├─ markup.raw.punctuation.sd [95..96]: ","
- │       ├─ markup.raw.space.sd [96..97]: " "
- │       ├─ markup.raw.text.sd [97..98]: "e"
- │       ├─ markup.raw.space.sd [98..99]: " "
- │       ├─ markup.raw.punctuation.sd [99..100]: ">"
- │       ├─ markup.raw.punctuation.sd [100..101]: "="
- │       ├─ markup.raw.space.sd [101..102]: " "
- │       ├─ markup.raw.text.sd [102..103]: "f"
- │       ├─ markup.raw.punctuation.sd [103..104]: ","
- │       ├─ markup.raw.space.sd [104..105]: " "
- │       ├─ markup.raw.text.sd [105..106]: "g"
- │       ├─ markup.raw.punctuation.sd [106..107]: ">"
- │       ├─ markup.raw.text.sd [107..108]: "h"
- │       └─ markup.raw.punctuation.sd [108..109]: "."
- ├─ Newline [109..110]: "\n"
- ├─ string.display.dialogue.inline.sd [110..132]
- │   ├─ entity.name.type.dialogue.character.name.sd [110..127]
- │   │   ├─ markup.raw.text.sd [110..114]: "HERO"
- │   │   ├─ markup.raw.space.sd [114..115]: " "
- │   │   ├─ markup.raw.punctuation.sd [115..116]: "("
- │   │   ├─ markup.raw.text.sd [116..124]: "cheerful"
- │   │   ├─ markup.raw.punctuation.sd [124..125]: ")"
- │   │   ├─ markup.raw.space.sd [125..126]: " "
- │   │   └─ markup.raw.punctuation.sd [126..127]: ">"
- │   ├─ meta.template.expression.operator.colon.sd [127..128]: ":"
- │   ├─ punctuation.whitespace.required.sd [128..129]: " "
- │   └─ string.display.text.chunk.sd [129..132]
- │       ├─ markup.raw.text.sd [129..131]: "Hi"
- │       └─ markup.raw.punctuation.sd [131..132]: "."
- ├─ Newline [132..133]: "\n"
- ├─ meta.style.luau [133..148]
- │   ├─ keyword.control.style.luau [133..138]: "style"
- │   ├─ punctuation.whitespace.optional.sd [138..139]: " "
- │   ├─ entity.name.type.define.luau [139..143]: "list"
- │   ├─ punctuation.whitespace.optional.sd [143..144]: " "
- │   └─ keyword.control.as.luau [144..148]: "with"
- ├─ Newline [148..149]: "\n"
- ├─ meta.style.luau [149..165]
- │   ├─ punctuation.whitespace.optional.sd [149..151]: "  "
- │   └─ meta.struct.body.luau [151..165]
- │       ├─ keyword.other.selector.operator.sd [151..152]: ">"
- │       ├─ punctuation.whitespace.required.sd [152..153]: " "
- │       ├─ keyword.other.component.builtin.name.sd [153..157]: "list"
- │       ├─ punctuation.whitespace.required.sd [157..158]: " "
- │       ├─ keyword.other.selector.operator.sd [158..159]: ">"
- │       ├─ punctuation.whitespace.required.sd [159..160]: " "
- │       ├─ keyword.other.component.builtin.name.sd [160..164]: "item"
- │       └─ meta.template.expression.operator.colon.sd [164..165]: ":"
- ├─ Newline [165..166]: "\n"
- ├─ meta.style.luau [166..184]
- │   ├─ punctuation.whitespace.optional.sd [166..170]: "    "
- │   └─ meta.struct.body.luau [170..184]
- │       ├─ variable.other.property.define.sd [170..177]: "display"
- │       ├─ markup.raw.whitespace.separator.optional.sd [177..178]: " "
- │       ├─ keyword.operator.assignment.sd [178..179]: "="
- │       ├─ markup.raw.whitespace.separator.optional.sd [179..180]: " "
- │       └─ string.unquoted.identifier.sd [180..184]: "flex"
- ├─ Newline [184..185]: "\n"
- ├─ meta.style.luau [185..188]
- │   └─ keyword.control.end.luau [185..188]: "end"
- └─ Newline [188..189]: "\n"
+ ├─ string.display.dialogue.inline.sd [83..105]
+ │   ├─ entity.name.type.dialogue.character.name.sd [83..100]
+ │   │   ├─ markup.raw.text.sd [83..87]: "HERO"
+ │   │   ├─ markup.raw.space.sd [87..88]: " "
+ │   │   ├─ markup.raw.punctuation.sd [88..89]: "("
+ │   │   ├─ markup.raw.text.sd [89..97]: "cheerful"
+ │   │   ├─ markup.raw.punctuation.sd [97..98]: ")"
+ │   │   ├─ markup.raw.space.sd [98..99]: " "
+ │   │   └─ markup.raw.punctuation.sd [99..100]: ">"
+ │   ├─ meta.template.expression.operator.colon.sd [100..101]: ":"
+ │   ├─ punctuation.whitespace.required.sd [101..102]: " "
+ │   └─ string.display.text.chunk.sd [102..105]
+ │       ├─ markup.raw.text.sd [102..104]: "Hi"
+ │       └─ markup.raw.punctuation.sd [104..105]: "."
+ ├─ Newline [105..106]: "\n"
+ ├─ meta.style.luau [106..121]
+ │   ├─ keyword.control.style.luau [106..111]: "style"
+ │   ├─ punctuation.whitespace.optional.sd [111..112]: " "
+ │   ├─ entity.name.type.define.luau [112..116]: "list"
+ │   ├─ punctuation.whitespace.optional.sd [116..117]: " "
+ │   └─ keyword.control.as.luau [117..121]: "with"
+ ├─ Newline [121..122]: "\n"
+ ├─ meta.style.luau [122..138]
+ │   ├─ punctuation.whitespace.optional.sd [122..124]: "  "
+ │   └─ meta.struct.body.luau [124..138]
+ │       ├─ keyword.other.selector.operator.sd [124..125]: ">"
+ │       ├─ punctuation.whitespace.required.sd [125..126]: " "
+ │       ├─ keyword.other.component.builtin.name.sd [126..130]: "list"
+ │       ├─ punctuation.whitespace.required.sd [130..131]: " "
+ │       ├─ keyword.other.selector.operator.sd [131..132]: ">"
+ │       ├─ punctuation.whitespace.required.sd [132..133]: " "
+ │       ├─ keyword.other.component.builtin.name.sd [133..137]: "item"
+ │       └─ meta.template.expression.operator.colon.sd [137..138]: ":"
+ ├─ Newline [138..139]: "\n"
+ ├─ meta.style.luau [139..157]
+ │   ├─ punctuation.whitespace.optional.sd [139..143]: "    "
+ │   └─ meta.struct.body.luau [143..157]
+ │       ├─ variable.other.property.define.sd [143..150]: "display"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [150..151]: " "
+ │       ├─ keyword.operator.assignment.sd [151..152]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [152..153]: " "
+ │       └─ string.unquoted.identifier.sd [153..157]: "flex"
+ ├─ Newline [157..158]: "\n"
+ ├─ meta.style.luau [158..161]
+ │   └─ keyword.control.end.luau [158..161]: "end"
+ └─ Newline [161..162]: "\n"

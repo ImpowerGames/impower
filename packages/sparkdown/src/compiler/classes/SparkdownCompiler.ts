@@ -13,6 +13,7 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
+import { collectLuauLints, type LuauLint } from "../lint/collectLuauLints";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -42,6 +43,7 @@ import {
   ObjectExpressionEntry,
 } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/ObjectExpression";
 import { contextValueToExpression } from "../lower/lowerers/lowerLuauDefine";
+import { BINDING_ID_PREFIX } from "../lower/lowerers/lowerSparkleBody";
 import { ReturnType as ParsedReturnType } from "../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import { Statement } from "../../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
@@ -86,6 +88,7 @@ import {
   type SceneAssetCapture,
   type SceneAssets,
 } from "../types/SceneAssets";
+import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
@@ -479,6 +482,10 @@ export class SparkdownCompiler {
     return this._documents;
   }
 
+  /** Lints of each script's current tree. A tree is replaced whenever its
+   *  script changes, so an unchanged included script is not walked again. */
+  protected _lintsByTree = new WeakMap<object, LuauLint[]>();
+
   protected _files = new SparkdownFileRegistry();
   get files() {
     return this._files;
@@ -730,6 +737,12 @@ export class SparkdownCompiler {
   // Line offset each content chunk's debugMetadata was last stamped at —
   // a reused chunk whose offset is unchanged skips the restamp walk entirely.
   protected _chunkStampOffset = new WeakMap<object, number>();
+  // Document line and offset each chunk's Sparkle binding spans were last
+  // moved to.
+  protected _sparkleSpanOffset = new WeakMap<
+    object,
+    { line: number; from: number }
+  >();
   // Constructed flows that raised a diagnostic during GENERATION (reuse skips
   // generation, which would silently drop the diagnostic — such flows are
   // barred from reuse and rebuilt so the diagnostic re-emits).
@@ -1960,7 +1973,10 @@ export class SparkdownCompiler {
     // any nested include path. E.g. `main.sd` → `includes/a.sd` →
     // `b.sd` would try to find `b.sd` next to `main.sd` instead of
     // next to `a.sd` where the import was actually written.
-    const fileResolutionState = { currentParentUri: uri };
+    const fileResolutionState = {
+      currentParentUri: uri,
+      includedUris: new Set([uri]),
+    };
     const fileHandler: IFileHandler = {
       ResolveInkFilename: (filename: string): string => {
         const filePath = this.resolveFile(
@@ -2407,6 +2423,7 @@ export class SparkdownCompiler {
       this.validateReferences(program);
       this.validateImageAttributes(program);
       this.validateMorphs(program);
+      this.validateLints(program);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -2615,7 +2632,9 @@ export class SparkdownCompiler {
     const document = this.documents.get(uri);
     const annotations = this.documents.annotations(uri);
     const topLevelIncludedFileObjs: IncludedFile[] = [];
-    const topLevelFlowBaseObjs: FlowBase[] = [];
+    let topLevelFlowBaseObjs: FlowBase[] = [];
+    const bindingEvaluators = new Map<string, FlowBase>();
+    const supersededEvaluators = new Set<FlowBase>();
     const topLevelWeaveObjs: ParsedObject[] = [];
     const topLevelContent: (FlowBase | Weave)[] = [];
 
@@ -3021,6 +3040,20 @@ export class SparkdownCompiler {
         remapContent(hoistedKnots, lineNumberOffset);
         for (const k of hoistedKnots) {
           if (k instanceof FlowBase) {
+            // A layout or component declared twice in one file mints the
+            // same binding evaluator names in both chunks. The later
+            // declaration is the one `program.sparkle` keeps (the
+            // `Object.assign` of each chunk's `sparkle` trees further down
+            // this loop, in the same chunk order), so its evaluators replace
+            // the earlier ones.
+            const name = k.identifier?.name;
+            if (name?.startsWith(BINDING_ID_PREFIX)) {
+              const earlier = bindingEvaluators.get(name);
+              if (earlier) {
+                supersededEvaluators.add(earlier);
+              }
+              bindingEvaluators.set(name, k);
+            }
             topLevelFlowBaseObjs.push(k);
           }
         }
@@ -3040,20 +3073,27 @@ export class SparkdownCompiler {
           try {
             resolvedFilePath = fileHandler.ResolveInkFilename(include);
           } catch {}
-          const includedStory = resolvedFilePath
-            ? this.parseIncrementally(
-                resolvedFilePath,
-                fileHandler,
-                true,
-                state,
-                program,
-                onDiagnostic,
-              )
-            : null;
+          // A script is included once per compile, where the first `include`
+          // reaches it. Its flows then join the story once, and a script that
+          // includes the script including it ends the descent there.
+          const includedUris = state.fileResolutionState?.includedUris;
+          if (!resolvedFilePath) {
+            topLevelIncludedFileObjs.push(new IncludedFile(null));
+          } else if (!includedUris?.has(resolvedFilePath)) {
+            includedUris?.add(resolvedFilePath);
+            const includedStory = this.parseIncrementally(
+              resolvedFilePath,
+              fileHandler,
+              true,
+              state,
+              program,
+              onDiagnostic,
+            );
+            topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
+          }
           if (state.fileResolutionState) {
             state.fileResolutionState.currentParentUri = previousParentUri;
           }
-          topLevelIncludedFileObjs.push(new IncludedFile(includedStory));
         }
       }
       if (run) {
@@ -3354,6 +3394,25 @@ export class SparkdownCompiler {
       }
       if (sparkle && !this._injectingPrelude) {
         this._contextKeyIds?.push(compiledBlock);
+        // The lowerer gives binding spans relative to the chunk; move them to
+        // the chunk's current place in the document. A carried chunk's spans
+        // were already moved by an earlier compile, so only the difference
+        // is applied.
+        const stamped = this._sparkleSpanOffset.get(sparkle) ?? {
+          line: 0,
+          from: 0,
+        };
+        if (stamped.line !== lineNumberOffset || stamped.from !== rec.from) {
+          rebaseSparkleSpans(
+            sparkle,
+            lineNumberOffset - stamped.line,
+            rec.from - stamped.from,
+          );
+          this._sparkleSpanOffset.set(sparkle, {
+            line: lineNumberOffset,
+            from: rec.from,
+          });
+        }
         // Merge the reactive Sparkle UI AST onto program.sparkle (additive;
         // not yet consumed — the static screens/components channels still
         // drive rendering until Phase 3).
@@ -3362,6 +3421,8 @@ export class SparkdownCompiler {
           if (trees) {
             program.sparkle ??= {};
             program.sparkle[kind] ??= {};
+            // Later chunks replace earlier trees of the same name; the
+            // hoisted-knot loop above keeps the matching binding evaluators.
             Object.assign(program.sparkle[kind]!, trees);
           }
         }
@@ -3428,6 +3489,11 @@ export class SparkdownCompiler {
         autoTerminate(sub);
       }
     };
+    if (supersededEvaluators.size > 0) {
+      topLevelFlowBaseObjs = topLevelFlowBaseObjs.filter(
+        (flow) => !supersededEvaluators.has(flow),
+      );
+    }
     for (const flow of topLevelFlowBaseObjs) {
       autoTerminate(flow);
     }
@@ -3542,12 +3608,19 @@ export class SparkdownCompiler {
     // now that canonical `__synth_<n>` names are themselves remappable.
     const matchedIds: Array<{ id: Identifier; owner: ParsedObject }> = [];
     const seenIds = new Set<Identifier>();
-    const matchedStrings: Array<{ node: any; field: string }> = [];
+    // A string field is recorded once per node, with the name it held when
+    // the walk first reached it, so a node the walk reaches twice is not
+    // renamed twice. The walk reaches each node once when every script is
+    // included once; the record keeps a second visit harmless.
+    const matchedStrings: Array<{ node: any; field: string; name: string }> =
+      [];
+    const seenStrings = new Map<object, Set<string>>();
     const flowsToRekey: FlowBase[] = [];
-    // Every call of one continuation carries the same group, so the calls
-    // share a mapping just as a synthetic's definition and references do.
-    // A script included from two places is walked twice, so a group node is
-    // recorded once, with the name it gets.
+    // Every call of one continuation carries the same group text, so
+    // `groupRemap`, keyed by that text, gives the calls one name just as a
+    // synthetic's definition and references share one. Each call holds a
+    // group node of its own, and `seenGroups`, keyed by the node, records a
+    // node once, with the name it gets, for the same reason as a string field.
     const groupRemap = new Map<string, string>();
     const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();
@@ -3588,9 +3661,10 @@ export class SparkdownCompiler {
     };
     // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
     // emit runtime variable refs straight from it — `StashAndRereadExpression.tempName`
-    // (the `__mcall_<from>` receiver stash) and `VariablePointerExpression.variableName`.
-    // Their Identifier-shaped counterparts get renamed above, so the string side
-    // must be kept in lockstep or the temp's declaration and its read diverge.
+    // (the `__mcall_<from>` receiver stash), `StashedTempReadExpression.tempName`
+    // (the method lookup's read of that stash) and `VariablePointerExpression.variableName`.
+    // They share one remap with the Identifier-shaped names renamed above, so a
+    // temp's stash, its reads and any Identifier naming it stay in lockstep.
     // Only SYNTH-matching values are touched, so user strings/display text are safe.
     // Only a node's own data property is a plain-string name: `VariableAssignment`
     // exposes `variableName` as a read-only getter over its identifier, which the
@@ -3666,8 +3740,16 @@ export class SparkdownCompiler {
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
           found = true;
-          considerName(v);
-          matchedStrings.push({ node, field: f });
+          let fields = seenStrings.get(node);
+          if (!fields) {
+            fields = new Set();
+            seenStrings.set(node, fields);
+          }
+          if (!fields.has(f)) {
+            fields.add(f);
+            considerName(v);
+            matchedStrings.push({ node, field: f, name: v });
+          }
         }
       }
       if (node instanceof ContinuationGroup) {
@@ -3721,11 +3803,10 @@ export class SparkdownCompiler {
         id.name = next;
       }
     }
-    for (const { node, field } of matchedStrings) {
-      const v = node[field];
-      const next = typeof v === "string" ? remap.get(v) : undefined;
+    for (const { node, field, name } of matchedStrings) {
+      const next = remap.get(name);
       if (next) {
-        if (next !== v) {
+        if (next !== name) {
           markRenamed(node);
         }
         node[field] = next;
@@ -6207,6 +6288,33 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "validateMorphs", uri);
+  }
+
+  /** Luau lints (unused locals, unreachable code, repeated conditions,
+   *  suspicious numeric `for` ranges); see `collectLuauLints`. */
+  validateLints(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateLints", uri);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      let lints = this._lintsByTree.get(tree);
+      if (!lints) {
+        lints = collectLuauLints(tree, (from, to) => doc.read(from, to));
+        this._lintsByTree.set(tree, lints);
+      }
+      for (const lint of lints) {
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range: doc.range(lint.from, lint.to),
+          code: lint.code,
+          severity: DiagnosticSeverity.Warning,
+          message: { kind: "markdown", value: lint.message },
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
+    profile("end", this._profilerId, "validateLints", uri);
   }
 
   validateReferences(program: SparkProgram) {

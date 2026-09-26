@@ -129,7 +129,7 @@ end
 describe("screen · reactive content interpolation", () => {
   test("interpolated content compiles cleanly (binding evaluators hoisted)", () => {
     // `{expr}` in display content lowers to a hoisted nullary binding function
-    // (`__binding_<from>() return <expr> end`). The full pipeline must compile
+    // (`__binding_<id>() return <expr> end`). The full pipeline must compile
     // those with no errors — a malformed flow or unresolved reference would
     // surface as a diagnostic here.
     const r = compileUI(`store hp = 100
