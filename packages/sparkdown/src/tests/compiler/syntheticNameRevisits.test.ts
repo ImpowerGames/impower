@@ -1,8 +1,7 @@
 // A synthetic name minted from a source offset must come out of an
-// incremental compile as a cold compile of the same text names it. Two ways a
-// carried node could keep a different name: a script included from two places
-// is walked twice by the compiler's renaming pass, and a Sparkle layout's
-// binding evaluators are named by offset.
+// incremental compile as a cold compile of the same text names it, including
+// in a script included from two places and in a Sparkle layout, whose binding
+// evaluators are named by offset.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
