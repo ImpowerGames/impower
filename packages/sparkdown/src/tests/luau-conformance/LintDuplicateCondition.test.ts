@@ -5,7 +5,11 @@
 // checks them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
 
 import { describe, expect, test } from "vitest";
-import { lintInFunction, lintMessagesInFunction } from "./diagnosticTestHarness";
+import {
+  diagnoseWithLints,
+  lintInFunction,
+  lintMessagesInFunction,
+} from "./diagnosticTestHarness";
 
 // Luau: DuplicateConditions
 describe("repeated conditions in if chains and and/or chains", () => {
@@ -88,6 +92,19 @@ elseif if 0 then 5 else 4 then
 end
 `),
     ).toEqual(["Condition has already been checked on line 2"]);
+  });
+});
+
+// Sparkdown's narrative `if` block around dialogue and actions is a separate
+// construct in the grammar, and the rule does not reach it
+// (docs/compiler/LINTS.md).
+describe("a narrative if block is not checked", () => {
+  test("a repeated elseif around actions", () => {
+    expect(
+      diagnoseWithLints(
+        "if trust >= 1 then\n  & They trust you.\nelseif trust >= 1 then\n  & They still trust you.\nelse\n  & They do not.\nend\n",
+      ).filter((m) => m.startsWith("Condition has already been checked")),
+    ).toEqual([]);
   });
 });
 

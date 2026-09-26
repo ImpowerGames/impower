@@ -17,11 +17,15 @@
 
 import { type SyntaxNode, type Tree } from "@lezer/common";
 
-export type LuauLintCode =
-  | "LocalUnused"
-  | "UnreachableCode"
-  | "DuplicateCondition"
-  | "ForRange";
+/** The rules, by the name each warning carries as its diagnostic code. */
+export const LUAU_LINT_CODES = [
+  "LocalUnused",
+  "UnreachableCode",
+  "DuplicateCondition",
+  "ForRange",
+] as const;
+
+export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
 
 export interface LuauLint {
   code: LuauLintCode;
@@ -801,9 +805,11 @@ function lintForRanges(found: Found, src: Source, out: LuauLint[]) {
     const value = Number(literal.replace(/_/g, ""));
     return Number.isFinite(value) ? value : null;
   };
-  // Exactly `#t`. The grammar nests whatever follows the operand inside the
-  // length operation (`#t - 1` is one `LuauLengthOperation` holding `- 1`),
-  // and Luau's rule only fires for a bare length.
+  // A bare length (`#t`, `#t:len()`, `##t`), the only bound Luau's rule
+  // fires for. The grammar nests whatever follows `#` inside the length
+  // operation: an operand can take several nodes (`t:len()` is an access
+  // path and a parenthetical), and arithmetic after it (`#t - 1`) is a
+  // binary operation there too, which makes the bound something else.
   const isLength = (tokens: SyntaxNode[]) => {
     if (tokens.length !== 1 || tokens[0]!.name !== "LuauLengthOperation") {
       return false;
@@ -811,7 +817,11 @@ function lintForRanges(found: Found, src: Source, out: LuauLint[]) {
     const parts = [...childrenOf(contentOf(tokens[0]!))].filter(
       (c) => !isTrivia(c),
     );
-    return parts.length === 2 && parts[0]!.name === "LuauLengthOperator";
+    return (
+      parts.length >= 2 &&
+      parts[0]!.name === "LuauLengthOperator" &&
+      !parts.slice(1).some(isBinaryOperation)
+    );
   };
   const backwards =
     "For loop should iterate backwards; did you forget to specify -1 as step?";

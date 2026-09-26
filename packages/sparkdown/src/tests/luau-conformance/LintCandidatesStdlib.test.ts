@@ -4,7 +4,7 @@
 // function body; the upstream test-case name is in the comment above each
 // group. Each `describe.skip` is the ready specification for a lint not
 // implemented (docs/compiler/LINTS.md); a rule that implements one adds its
-// code to `LINT_CODES` in the harness and unskips it.
+// code to `LUAU_LINT_CODES` in `collectLuauLints.ts` and unskips it.
 
 import { describe, expect, test } from "vitest";
 import { lintInFunction, lintMessagesInFunction } from "./diagnosticTestHarness";

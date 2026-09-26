@@ -4,7 +4,7 @@
 // body; the upstream test-case name is in the comment above each group. Each
 // `describe.skip` is the ready specification for a lint not implemented
 // (docs/compiler/LINTS.md); a rule that implements one adds its code to
-// `LINT_CODES` in the harness and unskips it. Upstream cases whose expected
+// `LUAU_LINT_CODES` in `collectLuauLints.ts` and unskips it. Upstream cases whose expected
 // result is silence run now.
 
 import { describe, expect, test } from "vitest";

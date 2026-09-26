@@ -5,7 +5,7 @@
 // them. The rule is implemented in `compiler/lint/collectLuauLints.ts`.
 
 import { describe, expect, test } from "vitest";
-import { lintInFunction } from "./diagnosticTestHarness";
+import { diagnoseWithLints, lintInFunction } from "./diagnosticTestHarness";
 
 const BACKWARDS =
   "For loop should iterate backwards; did you forget to specify -1 as step?";
@@ -87,12 +87,24 @@ end
   });
 });
 
-// Sparkdown-specific: the length of a field is still a bare length.
-describe("a range that starts at 0 over a field's length", () => {
-  test("for i = 0, #self.items", () => {
+// Sparkdown-specific: a length whose operand is a field, a call or another
+// length is still a bare length. The grammar spells some of these operands
+// in several nodes.
+describe("bare lengths of compound operands", () => {
+  const ZERO = "For loop starts at 0, but arrays start at 1";
+  test.each([
+    ["#self.items", "\nlocal self = { items = {} }\nfor i = 0, #self.items do\nend\n"],
+    ["#t:len()", "\nlocal t = {}\nfor i = 0, #t:len() do\nend\n"],
+    ["#a.b.c()", "\nlocal a = {}\nfor i = 0, #a.b.c() do\nend\n"],
+    ["##t", "\nlocal t = {}\nfor i = 0, ##t do\nend\n"],
+  ])("for i = 0, %s", (_name, body) => {
+    expect(lintInFunction(body)).toEqual([{ line: 2, message: ZERO }]);
+  });
+
+  test("for i = #t:len(), 1", () => {
     expect(
-      lintInFunction("\nlocal self = { items = {} }\nfor i = 0, #self.items do\nend\n"),
-    ).toEqual([{ line: 2, message: "For loop starts at 0, but arrays start at 1" }]);
+      lintInFunction("\nlocal t = {}\nfor i = #t:len(), 1 do\nend\n"),
+    ).toEqual([{ line: 2, message: BACKWARDS }]);
   });
 });
 
@@ -110,7 +122,20 @@ describe("ordinary ranges are not reported", () => {
     ["0 to #t // 2", "\nlocal t = {}\nfor i = 0, #t // 2 do\nend\n"],
     ["#t - 1 down to 1", "\nlocal t = {}\nfor i = #t - 1, 1 do\nend\n"],
     ["#t + 1 down to 0", "\nlocal t = {}\nfor i = #t + 1, 0 do\nend\n"],
+    ["0 to #t:len() - 1", "\nlocal t = {}\nfor i = 0, #t:len() - 1 do\nend\n"],
   ])("%s", (_name, body) => {
     expect(lintInFunction(body)).toEqual([]);
+  });
+});
+
+// A Sparkle `layout` loop is a separate construct in the grammar, and the rule
+// does not reach it (docs/compiler/LINTS.md).
+describe("a loop in a Sparkle layout is not checked", () => {
+  test("for i = 8, 1 in a layout", () => {
+    expect(
+      diagnoseWithLints(
+        'layout main with\n  for i = 8, 1 do\n    text "n={i}"\n  end\nend\n',
+      ).filter((m) => m.startsWith("For loop")),
+    ).toEqual([]);
   });
 });

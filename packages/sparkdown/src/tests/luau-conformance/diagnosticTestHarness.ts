@@ -10,13 +10,15 @@
 // way the runtime harness does. `diagnose` compiles the source verbatim for
 // the few cases that need the top level.
 //
-// Luau's parser and compiler tests never run its linter, so `diagnose` and
-// `diagnoseInFunction` leave out lint warnings: a parser snippet that
-// declares a local only to hold the literal under test is not about that
-// local being unused. The linter ports use `diagnoseWithLints`,
-// `diagnoseWithLintsInFunction` or `lintInFunction`.
+// Luau's parser and compiler tests never run its linter, and their snippets
+// declare locals only to hold the literal or annotation under test, so
+// `diagnose` and `diagnoseInFunction` leave out the unused-local lint. The
+// other lints stay in: on these malformed snippets any of them would be a
+// false warning, which the parser ports then catch. The linter ports use
+// `diagnoseWithLints`, `diagnoseWithLintsInFunction` or `lintInFunction`.
 
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { LUAU_LINT_CODES } from "../../compiler/lint/collectLuauLints";
 
 export interface DetailedDiagnostic {
   message: string;
@@ -61,23 +63,16 @@ export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   return out;
 }
 
-// The rules `collectLuauLints` implements, which it stamps as the code. A
-// rule added there is added here.
-const LINT_CODES = new Set([
-  "LocalUnused",
-  "UnreachableCode",
-  "DuplicateCondition",
-  "ForRange",
-]);
+const LINT_CODES = new Set<string>(LUAU_LINT_CODES);
 
 function isLint(d: DetailedDiagnostic) {
   return LINT_CODES.has(String(d.code));
 }
 
-/** The messages of every diagnostic except lint warnings. */
+/** The messages of every diagnostic except the unused-local lint. */
 export function diagnose(source: string): string[] {
   return diagnoseDetailed(source)
-    .filter((d) => !isLint(d))
+    .filter((d) => d.code !== "LocalUnused")
     .map((d) => d.message);
 }
 
