@@ -19,7 +19,7 @@ Sparkdown also has warnings that correspond to two more Luau lints, in its own w
 
 | Luau lint | Sparkdown |
 | --- | --- |
-| `UnknownGlobal` | `Cannot find variable named ...`, for a read at the top level. Inside a function an unknown global is not reported. |
+| `UnknownGlobal` | `Cannot find variable named ...`, for a read of a global that no script declares or assigns, at the top level and inside a function. |
 | `DeprecatedGlobal`, `DeprecatedApi` | An Information diagnostic tagged Deprecated for Luau's deprecated stdlib entries (`unpack`, `table.getn`, `table.foreach` and others), naming the replacement. |
 
 The warnings sparkdown gives for its own syntax (unknown Sparkle events and props, unknown rich text tags, blank choices) are listed in `LintSparkdownWarnings.test.ts`.

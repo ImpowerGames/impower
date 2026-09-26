@@ -2298,13 +2298,7 @@ export function lowerSimpleAccessPath(
     // In a Sparkle binding, stamp the reference with its own token span so an
     // unresolved-variable error lands on the identifier, not the whole binding.
     if (ctx.stampExpressionSpans && parts.length > 0) {
-      stampDebugMetadata(
-        [ref],
-        parts[0]!.from,
-        parts[parts.length - 1]!.to,
-        ctx,
-        true,
-      );
+      stampDebugMetadata([ref], parts[0]!.from, parts[parts.length - 1]!.to, ctx);
     }
     return ref;
   }

@@ -350,6 +350,12 @@ divert), and `function ... end` keeps its pure-expression contract
 - **`# tag` content with inline logic** — front matter (between `---`
   markers) is emitted as `# key: value` tags but cannot contain `{expr}`.
 
+### Fewer rules on parameter and flow names
+
+- A parameter can be diverted to without being marked. Ink asks for `-> target` in the parameter list of a knot that diverts to `target`; sparkdown parameters are untyped, so `scene go(target)` with `-> target` in its body compiles and runs. A `target: ->` annotation is accepted and changes nothing.
+- A scene or branch may take the name of a builtin function (`scene next`). It is only ever diverted to, so `-> next` reaches the scene and `next(t)` still calls the builtin. A `function` may not take a builtin's name, since every call of that name would reach it.
+- The bare `_` may repeat in a parameter list (`function f(_, _, value)`), as in Luau. Any other repeated name is an error, one starting with `_` included.
+
 ### Tag emission
 
 Sparkdown wraps each display line in a `BeginTag` / `Text("<type>")` / `EndTag`

@@ -110,9 +110,17 @@ export function lower(
     // PAST the content. That made a dialogue beat's pathLocation claim the
     // action line right after it (e.g. `RAFFLES:` beat ending on the `Danby
     // picks…` action line), so clicking that action previewed the dialogue.
-    const text = ctx.read(nodeRef.from, nodeRef.to);
-    const to = nodeRef.from + text.replace(/\s+$/, "").length;
-    stampDebugMetadata(block.content, nodeRef.from, to, ctx);
+    // Leading spaces and tabs are clamped off too: a statement's node starts
+    // with its line's indentation, and its range starts at its first
+    // character.
+    const text = ctx.read(nodeRef.from, nodeRef.to).replace(/\s+$/, "");
+    const indentation = text.length - text.replace(/^[ \t]+/, "").length;
+    stampDebugMetadata(
+      block.content,
+      nodeRef.from + indentation,
+      nodeRef.from + text.length,
+      ctx,
+    );
   }
   return block;
 }
