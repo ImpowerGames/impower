@@ -406,7 +406,7 @@ function lowerBinding(
     // error inside it (e.g. an undefined `{player.inventory}`) reports at the
     // binding, not at line 0 (a Function with no debugMetadata makes the
     // inner-node error walk hit null → 0:0). remapContent later rebases it.
-    stampDebugMetadata([fn], interpNode.from, interpNode.to, ctx, true);
+    stampDebugMetadata([fn], interpNode.from, interpNode.to, ctx);
     ctx.hoistedKnots.push(fn);
   }
   return {
@@ -489,7 +489,7 @@ function lowerComponentArg(
       [new ReturnType(expr ?? null)],
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
-    stampDebugMetadata([fn], first.from, last.to, ctx, true);
+    stampDebugMetadata([fn], first.from, last.to, ctx);
     ctx.hoistedKnots.push(fn);
   }
   return {
@@ -641,7 +641,7 @@ function lowerHandlerClosure(
       stmts,
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
-    stampDebugMetadata([fn], closureNode.from, closureNode.to, ctx, true);
+    stampDebugMetadata([fn], closureNode.from, closureNode.to, ctx);
     ctx.hoistedKnots.push(fn);
   }
   return {
@@ -1158,7 +1158,7 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
       [new ReturnType(expr ?? null)],
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
-    stampDebugMetadata([fn], first.from, last.to, ctx, true);
+    stampDebugMetadata([fn], first.from, last.to, ctx);
     ctx.hoistedKnots.push(fn);
   }
   return {

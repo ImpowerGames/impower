@@ -35,9 +35,7 @@ export function lowerExplicitStatement(
   // declaration runs in the flow like any other logic line and is stamped
   // too. A `& store` or `& const` declaration is hoisted out of the flow into
   // the story's global declarations, as its implicit form is, so it is not a
-  // place in the flow and gets no rows. The characters are 1-based, as
-  // diagnostics read them: a logic line starts at column 0, and a 0-based
-  // stamp there would hide every compile error the statement reports.
+  // place in the flow and gets no rows.
   const weave = block.content?.[0];
   const varDef = getDescendent("LuauVariableDefinition", nodeRef.node);
   const scopeNode = varDef && getDescendent("LuauScopeModifier", varDef);
@@ -45,7 +43,7 @@ export function lowerExplicitStatement(
   if (weave instanceof Weave && (!varDef || scope === "local")) {
     const text = ctx.read(nodeRef.from, nodeRef.to);
     const to = nodeRef.from + text.trimEnd().length;
-    stampDebugMetadata(weave.content, nodeRef.from, to, ctx, true);
+    stampDebugMetadata(weave.content, nodeRef.from, to, ctx);
   }
   return block;
 }
