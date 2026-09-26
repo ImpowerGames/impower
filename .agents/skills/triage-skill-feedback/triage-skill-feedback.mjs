@@ -19,6 +19,8 @@ const decode = value => value.startsWith(CELL)
 const literalDisplay = value => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\r\\`*_\[\]~|]/g, char => `&#${char.codePointAt(0)};`).replace(/\n/g, '<br>');
 const statusPattern = /^(open|ticketed #[1-9]\d*|applied in PR #[1-9]\d*)$/;
 const canonicalRows = rows => rows.map(({ skill, friction, edit, status, problemId, sessions, historyIncomplete }) => ({ skill, friction, edit, status, problemId, sessions, historyIncomplete }));
+const closedUnmerged = pr => pr?.state === 'closed' && !pr.merged_at;
+const appliedUnmerged = (status, references) => closedUnmerged(references.prs[status.match(/^applied in PR #(\d+)$/)?.[1]]);
 const taskOf = status => Number(status?.match(/^ticketed #(\d+)$/)?.[1]) || null;
 const reportCount = row => `${row.sessions.length} recorded${row.historyIncomplete ? '; history incomplete' : ''}`;
 const reportExcerpt = text => { const points = Array.from(text); return points.length > 300 ? points.slice(0, 300).join('') + '\n[Full history in Reports archive.]' : text; };
@@ -157,8 +159,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
   const track = row => { rows.push(row); byId.set(row.problemId, row); return row; };
   for (const row of table?.rows || []) track(row);
   // An archived problem still marked open, or applied in a pull request that closed unmerged, has no Task, so this triage files one.
-  const unmerged = status => { const pr = references.prs[status.match(/^applied in PR #(\d+)$/)?.[1]]; return pr?.state === 'closed' && !pr.merged_at; };
-  for (const [id, saved] of Object.entries(ledger)) if ((saved.status === 'open' || unmerged(saved.status)) && !byId.has(id)) track({ ...structuredClone(saved) });
+  for (const [id, saved] of Object.entries(ledger)) if ((saved.status === 'open' || appliedUnmerged(saved.status, references)) && !byId.has(id)) track({ ...structuredClone(saved) });
   const folded = [];
   const ignored = [];
   const skipped = [];
@@ -176,13 +177,11 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
         track({ skill: report.skill, friction: report.friction, edit: report.edit, status: 'open', problemId: report.problemId, sessions: [report.session], historyIncomplete: false });
       } else {
         const row = byId.get(report.problemId) || track({ ...structuredClone(saved) });
-        const applied = row.status.match(/^applied in PR #(\d+)$/)?.[1];
         // A merged edit that did not stop the problem needs a new Task; an unmerged one still carries its proposal.
-        if (applied && !row.previousStatus) {
+        if (row.status.startsWith('applied in PR #') && !row.previousStatus) {
           row.previousStatus = row.status;
-          const pr = references.prs[applied];
           const prefix = `Earlier feedback (${row.status}; context only):\n`;
-          if (pr?.state === 'closed' && !pr.merged_at) row.previousUnmerged = true;
+          if (appliedUnmerged(row.status, references)) row.previousUnmerged = true;
           else for (const field of ['friction', 'edit']) if (!row[field].startsWith(prefix)) row[field] = prefix + row[field];
           row.status = 'open';
         }
@@ -204,9 +203,7 @@ export function makePlan(body, comments, references = { prs: {}, issues: {} }, s
   const ledger = savedLedger ?? readReports(body, fencedAt);
   const { rows, folded, ignored, skipped, migrated } = fold(body, comments, references, ledger);
   for (const row of rows) {
-    const number = row.status.match(/^applied in PR #(\d+)$/)?.[1];
-    const pr = references.prs[number];
-    if (pr?.state === 'closed' && !pr.merged_at) {
+    if (appliedUnmerged(row.status, references)) {
       row.previousStatus = row.status;
       row.previousUnmerged = true;
       row.status = 'open';
@@ -237,7 +234,8 @@ export async function readPlan(api) {
   refusePendingFoldedIntake(body, comments);
   const references = { prs: {}, issues: {} };
   // Every applied problem's pull request is read so one that closed unmerged is filed even without new intake.
-  const statuses = [...Object.values(ledger).map(row => row.status), ...fold(body, comments, undefined, ledger).rows.flatMap(row => [row.status, row.previousStatus])];
+  // Other archived Tasks stay out of the references, so their state changes cannot invalidate the plan.
+  const statuses = [...Object.values(ledger).map(row => row.status).filter(status => status.startsWith('applied in PR #')), ...fold(body, comments, undefined, ledger).rows.flatMap(row => [row.status, row.previousStatus])];
   for (const status of statuses) {
     const match = status?.match(/^(ticketed|applied in PR) #(\d+)$/);
     if (!match) continue;
@@ -268,8 +266,8 @@ export async function lookupReports(api, problemId) {
   return { reports, pending, archive: { index: archive.index, chunks: archive.chunks, superseded: archive.superseded } };
 }
 
-// A recurrence on a recorded Task or a merged edit posts only its new observations; a first filing carries the whole record.
-const onlyObservations = row => Boolean(row.observations?.length && (taskOf(row.status) || (row.previousStatus && !row.previousUnmerged)));
+// A recurrence posted to its recorded Task carries only the new observations; a new Task carries the whole record.
+const onlyObservations = row => Boolean(row.observations?.length && taskOf(row.status));
 function description(rows) {
   return rows.map(row => `### ${row.skill} (${row.problemId}; ${reportCount(row)})\n\n` + (onlyObservations(row)
     ? row.observations.map(item => `Intake #${item.id}:\n\n${item.friction}\n\nProposed change: ${item.edit}`).join('\n\n')
@@ -298,7 +296,7 @@ export function preview(plan) {
   return plan.groups.map(group => {
     if (group.action === 'defer') throw new Error(DEFER_REMOVED);
     const rows = plan.rows.filter(row => group.keys.includes(row.problemId));
-    const closed = group.action === 'existing' && plan.references?.issues?.[group.number]?.state === 'closed';
+    const closed = group.action === 'existing' && plan.references?.issues?.[group.number]?.state === 'closed' && reopensOwnTask(group, plan.rows);
     return { ...group, ...(closed ? { reopen: true } : {}), body: group.action === 'ticket' ? ticketBody(rows, groupMarker(rows), group.context) : group.action === 'existing' ? evidenceBody(rows, groupMarker(rows), group.context, group.number) : undefined };
   });
 }
@@ -382,7 +380,8 @@ export async function applyPlan(plan, api) {
     prepareReports({ ...liveLedger, ...Object.fromEntries(canonicalRows(projectedRows).map(row => [row.problemId, row])) });
     // The body carries prose, the archive pointer and one summary; GitHub refuses an issue body or comment over 65,536 characters.
     // Every Task number, reopen note and foreign parent is counted at its largest so the refusal comes before any write.
-    const projectedSummary = summaryText(plan, marker, projectedRows, plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(() => largest), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
+    const appliedContext = group => literalDisplay(referenceContext(rows.filter(row => group.keys.includes(row.problemId)), ''));
+    const projectedSummary = summaryText(plan, marker, projectedRows.map(row => ({ ...row, status: `applied in PR ${largest}` })), plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(group => `${largest} (${appliedContext(group)})`), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
     const projectedBody = removeLegacyTable(stripSummaryBlocks(plan.body), liveLedger).trimEnd().length + projectedSummary.length + 512;
     if (projectedBody > 65536 || projectedSummary.length > 65536) throw new Error(`The inbox body would reach ${projectedBody} characters and the summary comment ${projectedSummary.length}, over GitHub's 65,536-character limit. No tickets or intake were changed; shorten the inbox prose before planning again.`);
     const filed = [], applied = [];
@@ -420,7 +419,7 @@ export async function applyPlan(plan, api) {
         filed.push(`#${number} (existing${reopenedNow || plan.references?.issues?.[number]?.state === 'closed' ? ', reopened' : ''})`);
       } else {
         const target = await api.pr(number);
-        if (target.state === 'closed' && !target.merged_at) throw new Error(`PR #${number} is closed and unmerged; select work that still carries the edit.`);
+        if (closedUnmerged(target)) throw new Error(`PR #${number} is closed and unmerged; select work that still carries the edit.`);
         const prior = referenceContext(grouped, '');
         applied.push(`#${number}${prior ? ` (${literalDisplay(prior)})` : ''}`);
       }
@@ -438,6 +437,7 @@ export async function applyPlan(plan, api) {
     if (current.body !== plan.body) throw new Error('Inbox changed during triage; tickets are recoverable by marker. Re-plan before overwriting it.');
     await api.updateBody(updated);
     if ((await api.inbox()).body !== updated) throw new Error('Inbox body read-back differs; no intake deleted.');
+    // Re-reads the archive through the new body pointer; a failure here stops before any intake is deleted.
     hydrateReports(updated, await api.comments(), fencedAt);
   } else {
     summary = current.body.slice(latestSummary.index, current.body.lastIndexOf('\n<!-- skill-feedback-state:'));

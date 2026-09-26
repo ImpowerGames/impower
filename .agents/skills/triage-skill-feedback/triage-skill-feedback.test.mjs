@@ -169,7 +169,7 @@ await test('merged applied problems recur as new Tasks with context; unmerged on
   assert.deepEqual(plan.groups.map(group => [group.action, group.keys]).sort(), [['ticket', ['F-5']], ['ticket', ['F-6']]]);
   const merged = preview(plan).find(group => group.keys[0] === 'F-5');
   const unmerged = preview(plan).find(group => group.keys[0] === 'F-6');
-  assert.match(merged.body, /Intake #20:\n\nStill happens/);
+  assert.match(merged.body, /Earlier feedback \(applied in PR #503; context only\):\nFriction F-5\n\nSeen again \(intake #20\):\nStill happens/);
   assert.match(merged.body, /Previous reference for F-5: applied in PR #503\./);
   assert.match(unmerged.body, /Friction F-6\n\nSeen again \(intake #21\):\nUnmerged/);
   assert.match(unmerged.body, /closed without merging; its proposal remains actionable/);
@@ -458,6 +458,42 @@ await test('a body edited after an interrupted fold cannot authorize deletion on
   state.body = state.body.replace('Footer stays.', 'Footer edited.');
   await assert.rejects(applyPlan(plan, api), /Persisted inbox changed after folding/);
   assert.equal(state.comments.filter(comment => comment.id === 1).length, 1);
+});
+
+await test('a retired Task closing between plan and apply does not invalidate the plan', async () => {
+  const text = withLedger(body, [problem('F-5', 'ticketed #737')]);
+  const { state, api } = fixture([reported(1, 'codex:alpha', 'new', 'x', 'file-bug, section 1')], text);
+  state.references.set(737, task(737));
+  const plan = await readPlan(api);
+  assert.deepEqual(plan.references.issues, {});
+  state.references.get(737).state = 'closed';
+  await applyPlan(plan, api);
+  assert.equal(ledgerOf(state)['F-1'].status, 'ticketed #600');
+});
+
+await test('the size preflight counts the reference context an applied group writes into the summary', async () => {
+  const problems = Array.from({ length: 40 }, (_, i) => problem(`F-${i + 1}`, 'applied in PR #504', ['codex:alpha'], `skill-${i}, section 1`));
+  const text = withLedger(body, problems);
+  const context = fixture([], text);
+  const plan = await readPlan(context.api);
+  plan.groups = [{ action: 'applied', number: 503, keys: problems.map(row => row.problemId) }];
+  const referenceLength = problems.length * 'Previous reference for F-40: applied in PR #504; the pull request closed without merging; its proposal remains actionable. '.length;
+  const padding = 65536 - 512 - referenceLength;
+  context.state.body = `${text}${'x'.repeat(Math.max(0, padding - text.length))}\n`;
+  const padded = await readPlan(context.api);
+  padded.groups = plan.groups;
+  await assert.rejects(applyPlan(padded, context.api), /over GitHub's 65,536-character limit/);
+  assert.deepEqual(context.state.events, []);
+});
+
+await test('preview marks a reopen only where apply will reopen', async () => {
+  const text = withLedger(body, [problem('F-5', 'ticketed #740')]);
+  const { state, api } = fixture([reported(20, 'codex:beta', 'F-5'), reported(21, 'codex:beta', 'new', 'x', 'file-bug, section 1')], text);
+  state.references.set(740, task(740, 'closed'));
+  const plan = await readPlan(api);
+  assert.equal(preview(plan).find(group => group.number === 740).reopen, true);
+  plan.groups = [{ action: 'existing', number: 740, keys: ['F-5', 'F-21'], context: '' }];
+  assert.equal(preview(plan)[0].reopen, undefined);
 });
 
 await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {
