@@ -3,7 +3,7 @@
 // covers the statement from its first character to its last, whatever its
 // indentation.
 
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { diagnoseDetailed } from "./diagnosticTestHarness";
 
 const WARNING = "Cannot find variable named `foo`";
@@ -66,8 +66,9 @@ describe("an unknown global read at the top level", () => {
 
 // A read whose statement has no position of its own inherits the position of
 // the scene or branch declared around it. That line is not where the read is,
-// so the warning is not reported at all until those statements get positions
-// of their own (#944).
+// so the warning is not reported until those statements get positions of their
+// own (#944); it is only logged, as the compiler logs every diagnostic it
+// drops.
 describe("a read placed only by the flow around it", () => {
   test.each([
     [
@@ -78,7 +79,16 @@ describe("a read placed only by the flow around it", () => {
       "an if in a branch",
       "scene start()\n  branch first\n    if foo >= 1 then\n      Yes.\n    end\n  end\nend\n",
     ],
-  ])("%s is not reported", (_name, source) => {
-    expect(unknownGlobalRanges(source)).toEqual([]);
+  ])("%s is not reported, only logged as hidden", (_name, source) => {
+    const hidden: unknown[][] = [];
+    const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
+      if (args[0] === "HIDDEN") hidden.push(args);
+    });
+    try {
+      expect(unknownGlobalRanges(source)).toEqual([]);
+    } finally {
+      warn.mockRestore();
+    }
+    expect(hidden.map((args) => [args[1], args[2]])).toEqual([[WARNING, 2]]);
   });
 });

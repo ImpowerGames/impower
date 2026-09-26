@@ -4,6 +4,7 @@
 
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { diagnoseDetailed } from "../luau-conformance/diagnosticTestHarness";
 
 describe("a scene named after a builtin function", () => {
   test("is diverted to, and calls still reach the builtin", () => {
@@ -22,6 +23,17 @@ end
 `);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("1\nNext.\n");
+  });
+
+  test("a divert to a builtin's name with no such scene is an error on the name", () => {
+    const source = `-> start\n\nscene start\n  -> next\nend\n`;
+    const errors = diagnoseDetailed(source).filter((d) => d.severity === 1);
+    expect(errors.map((d) => [d.message, d.range])).toEqual([
+      [
+        "next must be called as a function: ~ next()",
+        { start: { line: 3, character: 5 }, end: { line: 3, character: 9 } },
+      ],
+    ]);
   });
 
   test("a function with that name is still an error", () => {

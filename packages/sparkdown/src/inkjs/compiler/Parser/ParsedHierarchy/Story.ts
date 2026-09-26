@@ -910,10 +910,24 @@ export class Story extends FlowBase {
       if (source instanceof ParsedObject && locatedOnlyByEnclosingFlow(source)) {
         // The only position this diagnostic has is the declaration of the
         // flow around it, which does not point at what it reports, so it is
-        // not passed to the handler. It still counts above: it sets
-        // `hadError` or `hadWarning`, and during generation it marks its flow
-        // in `flowsWithGenerationDiagnostics`, which keeps that flow from
-        // being reused.
+        // not passed to the handler. It is logged the way the compiler's
+        // `getDiagnostic` logs a diagnostic it drops, with the severity and
+        // the 0-based position it would have had, so tests and maintainers
+        // can still find it. It also still counts above: it sets `hadError`
+        // or `hadWarning`, and during generation it marks its flow in
+        // `flowsWithGenerationDiagnostics`, which keeps that flow from being
+        // reused.
+        const position = source.debugMetadata;
+        console.warn(
+          "HIDDEN",
+          message,
+          errorType,
+          position?.filePath,
+          position ? position.startLineNumber - 1 : 0,
+          position ? position.startCharacterNumber - 1 : 0,
+          position ? position.endLineNumber - 1 : 0,
+          position ? position.endCharacterNumber - 1 : 0,
+        );
         return;
       }
       const debugMetadata =

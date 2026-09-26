@@ -511,8 +511,13 @@ export class Divert extends ParsedObject {
         // A scene or branch may share a builtin's name (`scene next`), and a
         // divert that found it goes there.
         if (!this.isFunctionCall && !targetWasFound) {
+          // Placed on the target's name, like `target not found` below: the
+          // divert itself may have no position but its scene's.
           super.Error(
             `${this.target.firstComponent} must be called as a function: ~ ${this.target.firstComponent}()`,
+            this.pathIdentifiers
+              ? new Identifier(...this.pathIdentifiers)
+              : this,
           );
         }
 
