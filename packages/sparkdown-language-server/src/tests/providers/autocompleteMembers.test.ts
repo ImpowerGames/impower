@@ -15,7 +15,7 @@ const TRIGGERS = new Set([".", ":", '"']);
  * cursor: when that character is one of the server's trigger characters, the
  * request carries it, as the editor's own request does.
  */
-const labelsTypedAt = (source: string, options: CompleteOptions = {}) => {
+const labelsTypedAt = (source: string, options: Omit<CompleteOptions, "trigger"> = {}) => {
   const marker = options.at ? `@${options.at}` : /@\d/.exec(source)![0];
   const typed = source[source.indexOf(marker) - 1] ?? "";
   return labelsAt(source, {

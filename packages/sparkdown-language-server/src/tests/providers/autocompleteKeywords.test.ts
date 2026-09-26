@@ -62,7 +62,7 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(labelsAt(openMain("for x = 1, 2, 5 do      @1"))).toContain("end");
   });
 
-  upstreamCase.bug(BUG.emptySlot, "autocomplete_for_middle_keywords", "a numeric for's bounds offer the names in scope and not `do`", () => {
+  upstreamCase.bug([BUG.emptySlot, BUG.keywordPosition], "autocomplete_for_middle_keywords", "a numeric for's bounds offer the names in scope and not `do`", () => {
     // Upstream expects only `do` at `for x = 1,@1 2`: Luau reads the finished
     // bounds `1, 2` and treats the cursor after the comma as keyword context.
     // The cursor sits in front of the upper bound, where `do` would break the
@@ -294,12 +294,13 @@ describe("autocomplete · keywords and statement starts", () => {
     expect(labels).toContain("elsewhere");
   });
 
-  upstreamCase.bug([BUG.keywordPosition, BUG.ifExpressionParse], "autocomplete_ifelse_expressions", "an if-expression offers `then`, `else` and `elseif` in turn", () => {
+  upstreamCase.bug([BUG.keywordPosition, BUG.ifExpressionParse, BUG.keywordPrefix], "autocomplete_ifelse_expressions", "an if-expression offers `then`, `else` and `elseif` in turn", () => {
     // Upstream's first cursor sits inside the word (`t@1emp`). Sparkdown
     // completes a word from its end and deliberately offers nothing with text
     // after the cursor, so the cursor moves to the end of `t`. The lines are
     // unfinished if-expressions, as upstream writes them, so `@3` and `@4`
-    // also need the grammar to keep a half-typed if-expression in Luau code.
+    // also need the grammar to keep a half-typed if-expression in Luau code,
+    // and `@8` needs a typed word to offer keywords.
     const source = openMain(
       [
         "local temp = false",
