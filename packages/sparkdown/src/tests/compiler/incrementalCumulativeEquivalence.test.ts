@@ -21,47 +21,10 @@
 //      ~185/400 edits divergent.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
+import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 const URI = "inmemory:///main.sd";
-
-function coupledScreenplay(): string {
-  const L: string[] = [];
-  L.push("title: Incr Fixture");
-  L.push("author: Anonymous");
-  L.push("");
-  L.push("define hero as character with");
-  L.push(`  name = "Hero"`);
-  L.push(`  color = "#3366cc"`);
-  L.push("end");
-  L.push("");
-  L.push("store trust = 0");
-  L.push("store visited_count = 0");
-  L.push("");
-  L.push("function bonus(x):");
-  L.push("  return x * 2 + 1");
-  L.push("");
-  const SC = 14;
-  for (let s = 0; s < SC; s++) {
-    L.push(`scene scene_${s}`);
-    L.push(`= INT. ROOM ${s} - DAY`);
-    L.push(":");
-    L.push(`  Action describing room ${s} in some detail here.`);
-    L.push(`hero:`);
-    L.push(`  Line one of dialogue in scene ${s}.`);
-    L.push(`  Second line with {trust} and read-count {scene_${(s + 1) % SC}} here.`);
-    L.push("if trust > 2 then");
-    L.push(`  hero: I trust you in scene ${s}.`);
-    L.push("else");
-    L.push(`  hero: Not yet in scene ${s}.`);
-    L.push("end");
-    L.push(`& trust = bonus(trust)`);
-    L.push(`-> scene_${(s + 3) % SC}`);
-    L.push("end");
-    L.push("");
-  }
-  return L.join("\n");
-}
 
 // Per-field stable stringify (sorted keys; arrays kept in order). Each program
 // field is compared independently so a failure names the diverging field.
@@ -136,7 +99,7 @@ describe("compiler cumulative incremental equivalence", () => {
     console.warn = () => {};
     console.error = () => {};
     try {
-      let text = coupledScreenplay();
+      let text = cumulativeScreenplay();
       const incr = new SparkdownCompiler();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
