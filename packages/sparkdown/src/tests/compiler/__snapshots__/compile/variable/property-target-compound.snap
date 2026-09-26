@@ -6,7 +6,7 @@
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "__pa_base_2",
+          "name": "__pa_base_$2",
           "expression": {
             "type": "VariableReference",
             "path": [
@@ -17,7 +17,7 @@
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "__pa_key_2",
+          "name": "__pa_key_$2",
           "expression": {
             "type": "StringExpression",
             "content": [
@@ -30,13 +30,13 @@
           "base": {
             "type": "VariableReference",
             "path": [
-              "__pa_base_2"
+              "__pa_base_$2"
             ]
           },
           "key": {
             "type": "VariableReference",
             "path": [
-              "__pa_key_2"
+              "__pa_key_$2"
             ]
           },
           "value": {
@@ -47,13 +47,13 @@
               "base": {
                 "type": "VariableReference",
                 "path": [
-                  "__pa_base_2"
+                  "__pa_base_$2"
                 ]
               },
               "key": {
                 "type": "VariableReference",
                 "path": [
-                  "__pa_key_2"
+                  "__pa_key_$2"
                 ]
               }
             },

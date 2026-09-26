@@ -174,11 +174,100 @@ describe("synthetic names in two files", () => {
   });
 });
 
+// Compiles `text` in `main`, inserts `insert` at the start of the 0-based
+// `line`, and returns the incremental compile beside a cold compile of the
+// edited text, with the names of the flows the incremental compile carried.
+function editMain(text: string, line: number, insert: string): [any, any, string[]] {
+  return quiet(() => {
+    const compiler = new SparkdownCompiler();
+    configure(compiler, { main: text }, 1);
+    compiler.compile({ textDocument: { uri: MAIN_URI } });
+    const at = { line, character: 0 };
+    compiler.updateDocument({
+      textDocument: { uri: MAIN_URI, version: 2 },
+      contentChanges: [{ range: { start: at, end: at }, text: insert }],
+    });
+    const incremental = compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
+    const reused = [...((compiler as any)._reusedFlowsThisCompile ?? [])].map((f: any) => f?.identifier?.name);
+    const lines = text.split("\n");
+    lines.splice(line, 0, ...insert.split("\n").slice(0, -1));
+    const fresh = new SparkdownCompiler();
+    configure(fresh, { main: lines.join("\n") }, 2);
+    return [incremental, fresh.compile({ textDocument: { uri: MAIN_URI } }).program, reused];
+  });
+}
+
+function evaluate(program: any, fn: string): unknown {
+  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  return quiet(() => story.EvaluateFunction(fn));
+}
+
+describe("assignment temps in a carried chunk", () => {
+  it("compound and multi-target assignment temps keep the cold names after an edit above them", () => {
+    // The scenes keep the function's chunk outside the region the edit
+    // reparses, so the incremental compile carries it without lowering it.
+    const scenes = [0, 1, 2, 3, 4, 5].flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]);
+    const text = [
+      "store t = { a = 0, b = 0 }",
+      "",
+      ...scenes,
+      "function f()",
+      "  t.a += 1",
+      "  local x",
+      "  x, t.b = 1, 2",
+      "end",
+      "",
+    ].join("\n");
+    const [incremental, cold, reused] = editMain(text, 4, "  An added line.\n");
+    expect(reused).toContain("f");
+    expect(errors(incremental)).toEqual([]);
+    expect(errors(cold)).toEqual([]);
+    const incrementalText = JSON.stringify(incremental.compiled);
+    expect(incrementalText).toBe(JSON.stringify(cold.compiled));
+    expect(incrementalText).not.toMatch(/__pa_|__mt_/);
+  });
+
+  // An anonymous function added above `f` shifts the ordinal of every
+  // synthetic name after it, so the carried `g` has its loop labels renamed.
+  it.each([
+    ["numeric for", ["  for i = 1, 2 do", "    u.a += i", "  end"]],
+    ["numeric for with a multi-target assignment", ["  for i = 1, 2 do", "    local z", "    z, u.a = i, u.a + i", "  end"]],
+    ["while", ["  local n = 0", "  while n < 2 do", "    n = n + 1", "    u.a += n", "  end"]],
+    ["repeat", ["  local n = 0", "  repeat", "    n = n + 1", "    u.a += n", "  until n >= 2"]],
+    ["generic for", ["  for _, v in ipairs({ 1, 2 }) do", "    u.a += v", "  end"]],
+    ["nested numeric for", ["  for i = 1, 2 do", "    for j = 1, 1 do", "      u.a = u.a + i", "    end", "  end"]],
+  ])("a %s loop in a carried function still runs after the names before it shift", (_, body) => {
+    const text = [
+      "store u = { a = 0 }",
+      "",
+      "scene s0",
+      "  Line 0.",
+      "end",
+      "",
+      "function f()",
+      "  u.a = u.a + 1",
+      "end",
+      "",
+      "function g()",
+      ...body,
+      "  return u.a",
+      "end",
+      "",
+    ].join("\n");
+    const [incremental, cold] = editMain(text, 6, "& h = function() return 9 end\n\n");
+    expect(errors(incremental)).toEqual([]);
+    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+    expect(evaluate(incremental, "g")).toBe(3);
+  });
+});
+
 describe("authored names shaped like synthetic ones", () => {
   it("keep their names in the program", () => {
     const program = compileOnce({
       main: [
         "store __anon_fn_x__1 = 4",
+        "store __pa_base_1 = 5",
+        "store __mt_1_0 = 6",
         "",
         "function f__redef_x__1()",
         "  return 7",
@@ -191,5 +280,7 @@ describe("authored names shaped like synthetic ones", () => {
     expect(story.HasFunction("f__redef_x__1")).toBe(true);
     expect(quiet(() => story.EvaluateFunction("f__redef_x__1"))).toBe(7);
     expect(JSON.stringify(program.compiled)).toContain('"__anon_fn_x__1"');
+    expect(JSON.stringify(program.compiled)).toContain('"__pa_base_1"');
+    expect(JSON.stringify(program.compiled)).toContain('"__mt_1_0"');
   });
 });
