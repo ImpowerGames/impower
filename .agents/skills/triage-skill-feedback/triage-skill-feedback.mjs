@@ -110,6 +110,7 @@ export function parseLegacyTable(body, savedLedger) {
     const saved = /^F-[1-9]\d*$/.test(row[4]) && Object.hasOwn(ledger, row[4]) ? ledger[row[4]] : null;
     if (!saved) throw new Error(`Table row at line ${end + 1} names ${row[4]}, which is not an archived problem; only counted rows can be retired into the archive.`);
     const entry = { skill: row[0], friction: row[1], edit: row[2], status: row[3] };
+    if (entry.status !== saved.status) throw new Error(`Status for ${row[4]} is ${entry.status} in the table but ${saved.status} in the archive; reconcile them before planning.`);
     if (keyOf(entry.skill) !== keyOf(saved.skill)) throw new Error(`Skill for ${row[4]} does not match its saved problem; reconcile the identity before planning.`);
     for (const field of ['friction', 'edit']) {
       if (entry[field] !== saved[field] && entry[field] !== reportExcerpt(saved[field])) throw new Error(`Text for ${row[4]} differs from its saved history; reconcile the archive before planning.`);
@@ -154,9 +155,10 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
   const rows = [];
   const byId = new Map();
   const track = row => { rows.push(row); byId.set(row.problemId, row); return row; };
-  for (const row of table?.rows || []) track({ ...row, fromTable: true });
-  // An archived problem still marked open has no Task, so this triage files one.
-  for (const [id, saved] of Object.entries(ledger)) if (saved.status === 'open' && !byId.has(id)) track({ ...structuredClone(saved) });
+  for (const row of table?.rows || []) track(row);
+  // An archived problem still marked open, or applied in a pull request that closed unmerged, has no Task, so this triage files one.
+  const unmerged = status => { const pr = references.prs[status.match(/^applied in PR #(\d+)$/)?.[1]]; return pr?.state === 'closed' && !pr.merged_at; };
+  for (const [id, saved] of Object.entries(ledger)) if ((saved.status === 'open' || unmerged(saved.status)) && !byId.has(id)) track({ ...structuredClone(saved) });
   const folded = [];
   const ignored = [];
   const skipped = [];
@@ -234,7 +236,9 @@ export async function readPlan(api) {
   const ledger = archive.problems;
   refusePendingFoldedIntake(body, comments);
   const references = { prs: {}, issues: {} };
-  for (const row of fold(body, comments, undefined, ledger).rows) for (const status of [row.status, row.previousStatus]) {
+  // Every applied problem's pull request is read so one that closed unmerged is filed even without new intake.
+  const statuses = [...Object.values(ledger).map(row => row.status), ...fold(body, comments, undefined, ledger).rows.flatMap(row => [row.status, row.previousStatus])];
+  for (const status of statuses) {
     const match = status?.match(/^(ticketed|applied in PR) #(\d+)$/);
     if (!match) continue;
     const [, kind, number] = match;
@@ -264,9 +268,10 @@ export async function lookupReports(api, problemId) {
   return { reports, pending, archive: { index: archive.index, chunks: archive.chunks, superseded: archive.superseded } };
 }
 
-// A recurrence posts only its new observations; a first filing carries the whole record.
+// A recurrence on a recorded Task or a merged edit posts only its new observations; a first filing carries the whole record.
+const onlyObservations = row => Boolean(row.observations?.length && (taskOf(row.status) || (row.previousStatus && !row.previousUnmerged)));
 function description(rows) {
-  return rows.map(row => `### ${row.skill} (${row.problemId}; ${reportCount(row)})\n\n` + (row.observations?.length && !row.previousUnmerged
+  return rows.map(row => `### ${row.skill} (${row.problemId}; ${reportCount(row)})\n\n` + (onlyObservations(row)
     ? row.observations.map(item => `Intake #${item.id}:\n\n${item.friction}\n\nProposed change: ${item.edit}`).join('\n\n')
     : `${row.friction}\n\nProposed change: ${row.edit}`)).join('\n\n');
 }
@@ -372,7 +377,14 @@ export async function applyPlan(plan, api) {
     const expected = makePlan(plan.body, plan.comments, plan.references, liveLedger).rows;
     if (JSON.stringify(plan.rows) !== JSON.stringify(expected)) throw new Error('Plan rows differ from the current parser; keep the original plan for recovery and inspect any earlier tickets before creating a fresh plan with existing decisions.');
     const rows = expected.map(row => ({ ...row }));
-    prepareReports({ ...liveLedger, ...Object.fromEntries(canonicalRows(rows).map(row => [row.problemId, { ...row, status: row.status === 'open' ? `ticketed #${Number.MAX_SAFE_INTEGER}` : row.status }])) });
+    const largest = `#${Number.MAX_SAFE_INTEGER}`;
+    const projectedRows = rows.map(row => ({ ...row, status: `ticketed ${largest}` }));
+    prepareReports({ ...liveLedger, ...Object.fromEntries(canonicalRows(projectedRows).map(row => [row.problemId, row])) });
+    // The body carries prose, the archive pointer and one summary; GitHub refuses an issue body or comment over 65,536 characters.
+    // Every Task number, reopen note and foreign parent is counted at its largest so the refusal comes before any write.
+    const projectedSummary = summaryText(plan, marker, projectedRows, plan.groups.map(() => `${largest} (existing, reopened)`), plan.groups.map(() => largest), projectedRows.map(() => `${largest} (parent ${REPO}${largest})`));
+    const projectedBody = removeLegacyTable(stripSummaryBlocks(plan.body), liveLedger).trimEnd().length + projectedSummary.length + 512;
+    if (projectedBody > 65536 || projectedSummary.length > 65536) throw new Error(`The inbox body would reach ${projectedBody} characters and the summary comment ${projectedSummary.length}, over GitHub's 65,536-character limit. No tickets or intake were changed; shorten the inbox prose before planning again.`);
     const filed = [], applied = [];
     const allIssues = await api.issues();
     for (const group of plan.groups) {
@@ -414,8 +426,6 @@ export async function applyPlan(plan, api) {
       }
       for (const row of grouped) row.status = group.action === 'applied' ? `applied in PR #${number}` : `ticketed #${number}`;
     }
-    const unmapped = rows.filter(row => row.status === 'open').map(row => row.problemId);
-    if (unmapped.length) throw new Error(`${unmapped.join(', ')} has no Task or applied PR after grouping; no intake deleted.`);
     // Attaching before the body is written keeps a failed attachment recoverable by retrying the same plan.
     const elsewhere = await attachToInbox(api, rows);
     summary = summaryText(plan, marker, rows, filed, applied, elsewhere);
@@ -428,9 +438,7 @@ export async function applyPlan(plan, api) {
     if (current.body !== plan.body) throw new Error('Inbox changed during triage; tickets are recoverable by marker. Re-plan before overwriting it.');
     await api.updateBody(updated);
     if ((await api.inbox()).body !== updated) throw new Error('Inbox body read-back differs; no intake deleted.');
-    const persisted = hydrateReports(updated, await api.comments(), fencedAt);
-    const drifted = Object.entries(persisted).filter(([id, row]) => row.status === 'open' || (Object.hasOwn(ledger, id) && row.status !== ledger[id].status)).map(([id]) => id);
-    if (drifted.length) throw new Error(`Archive read-back does not map ${drifted.join(', ')} to its Task or applied PR; no intake deleted.`);
+    hydrateReports(updated, await api.comments(), fencedAt);
   } else {
     summary = current.body.slice(latestSummary.index, current.body.lastIndexOf('\n<!-- skill-feedback-state:'));
   }

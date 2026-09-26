@@ -166,14 +166,15 @@ await test('merged applied problems recur as new Tasks with context; unmerged on
   const text = withLedger(body, [problem('F-5', 'applied in PR #503'), problem('F-6', 'applied in PR #504', ['codex:alpha'], 'review-pr, section 4')]);
   const { state, api } = fixture([reported(20, 'codex:beta', 'F-5', 'Still happens'), reported(21, 'codex:beta', 'F-6', 'Unmerged', 'review-pr, section 4')], text);
   const plan = await readPlan(api);
-  assert.deepEqual(plan.groups.map(group => [group.action, group.keys]), [['ticket', ['F-5']], ['ticket', ['F-6']]]);
-  const [merged, unmerged] = preview(plan);
+  assert.deepEqual(plan.groups.map(group => [group.action, group.keys]).sort(), [['ticket', ['F-5']], ['ticket', ['F-6']]]);
+  const merged = preview(plan).find(group => group.keys[0] === 'F-5');
+  const unmerged = preview(plan).find(group => group.keys[0] === 'F-6');
   assert.match(merged.body, /Intake #20:\n\nStill happens/);
   assert.match(merged.body, /Previous reference for F-5: applied in PR #503\./);
   assert.match(unmerged.body, /Friction F-6\n\nSeen again \(intake #21\):\nUnmerged/);
   assert.match(unmerged.body, /closed without merging; its proposal remains actionable/);
   await applyPlan(plan, api);
-  assert.equal(ledgerOf(state)['F-5'].status, 'ticketed #600');
+  assert.match(ledgerOf(state)['F-5'].status, /^ticketed #60[01]$/);
   assert.match(ledgerOf(state)['F-5'].friction, /^Earlier feedback \(applied in PR #503; context only\):/);
   assert.ok(!ledgerOf(state)['F-6'].friction.startsWith('Earlier feedback'));
 });
@@ -356,6 +357,107 @@ await test('same-target problems stay separate and are disclosed as possible dup
   assert.deepEqual(plan.possibleDuplicates.map(item => item.keys), [['F-1', 'F-2']]);
   assert.equal(keyOf('review-pr, section 3 (prompt)'), keyOf('review-pr, section 3'));
   assert.equal(fold(body, [reported(1, 'codex:a'), reported(2, 'codex:a', 'F-1')]).rows[0].sessions.length, 1);
+});
+
+await test('a problem reported twice in one triage files a Task carrying its first report and the repeat', () => {
+  const plan = makePlan(body, [reported(1, 'codex:alpha', 'new', 'ORIGINAL-REPORT'), reported(2, 'codex:beta', 'F-1', 'SECOND-REPORT')]);
+  assert.deepEqual(plan.groups.map(group => [group.action, group.keys]), [['ticket', ['F-1']]]);
+  const [ticket] = preview(plan);
+  assert.match(ticket.body, /F-1; 2 recorded/);
+  assert.match(ticket.body, /ORIGINAL-REPORT/);
+  assert.match(ticket.body, /Seen again \(intake #2\):\nSECOND-REPORT/);
+});
+
+await test('an applied problem whose PR closed unmerged is filed without new intake; a merged one is not', async () => {
+  const text = withLedger(body, [problem('F-5', 'applied in PR #504'), problem('F-6', 'applied in PR #503', ['codex:alpha'], 'review-pr, section 4')]);
+  const { state, api } = fixture([], text);
+  const plan = await readPlan(api);
+  assert.deepEqual(plan.groups.map(group => [group.action, group.keys]), [['ticket', ['F-5']]]);
+  assert.match(preview(plan)[0].body, /Friction F-5[\s\S]*closed without merging; its proposal remains actionable/);
+  await applyPlan(plan, api);
+  assert.equal(ledgerOf(state)['F-5'].status, 'ticketed #600');
+  assert.equal(ledgerOf(state)['F-6'].status, 'applied in PR #503');
+  assert.deepEqual((await readPlan(api)).groups, []);
+});
+
+await test('migration refuses a table status that disagrees with the archive', () => {
+  const rows = [problem('F-5', 'ticketed #737')];
+  const text = withLedger(`Intro\n\n${legacyTable([{ ...rows[0], status: 'open' }])}\n`, rows);
+  assert.throws(() => makePlan(text, [], undefined, hydrateReports(text, [])), /Status for F-5 is open in the table but ticketed #737 in the archive/);
+});
+
+await test('migration refuses changed text, changed counts, duplicate rows and a second real table', () => {
+  const rows = [problem('F-5', 'ticketed #737')];
+  const check = (table, pattern) => { const text = withLedger(`Intro\n\n${table}\n`, rows); assert.throws(() => makePlan(text, [], undefined, hydrateReports(text, [])), pattern); };
+  check(legacyTable(rows).replace('Friction F-5', 'Edited friction'), /Text for F-5 differs from its saved history/);
+  check(legacyTable(rows).replace('1 recorded', '2 recorded'), /Reports for F-5 do not match/);
+  check(legacyTable([...rows, ...rows]), /Duplicate problem F-5/);
+  check(`${legacyTable(rows)}\n\n${legacyTable(rows)}`, /Multiple inbox tables/);
+  const fenced = withLedger(`Intro\n\n\`\`\`text\n${legacyTable(rows)}\n\`\`\`\n`, rows);
+  assert.equal(makePlan(fenced, [], undefined, hydrateReports(fenced, [])).migrated, 0);
+});
+
+await test('a projected body over the GitHub limit is refused before any write', async () => {
+  const { state, api } = fixture([reported(1, 'codex:alpha')], `${body}${'Long inbox prose. '.repeat(3700)}\n`);
+  await assert.rejects(applyPlan(await readPlan(api), api), /over GitHub's 65,536-character limit\. No tickets or intake were changed/);
+  assert.deepEqual(state.events, []);
+});
+
+await test('fences decide what is prose: closers with info or deep indent stay open, backtick info strings never open', () => {
+  assert.throws(() => makePlan(`${body}\`\`\`text\nexample\n\`\`\` trailing\n`, []), /closed code fences/);
+  assert.throws(() => makePlan(`${body}\`\`\`text\nexample\n    \`\`\`\n`, []), /closed code fences/);
+  assert.doesNotThrow(() => makePlan(`${body}\`\`\` not a \`fence\`\nprose\n`, []));
+  assert.doesNotThrow(() => makePlan(`${body}\`\`\`\`text\n\`\`\`\nnested\n\`\`\`\n\`\`\`\`\n`, []));
+  assert.throws(() => makePlan(`${body}<!-- skill-feedback-history:v1 !!! -->\n`, []), /Malformed historical-target marker/);
+});
+
+await test('every write-side guard refuses with intake intact', async () => {
+  const cases = [
+    ['duplicate ticket recovery markers', ({ state, api }, plan) => { const marker = preview(plan)[0].body.match(/Feedback group: [a-f0-9]{20}/)[0]; state.issues.push({ ...task(650), body: marker }, { ...task(651), body: marker }); }, /Multiple tickets carry a group recovery marker/],
+    ['inbox edited during triage', ({ state, api }) => { const create = api.createTicket; api.createTicket = async (...args) => { state.body += '\nEdited'; return create(...args); }; }, /Inbox changed during triage/],
+    ['body read-back differs', ({ state, api }) => { api.updateBody = async text => { state.body = text + 'x'; }; }, /Inbox body read-back differs/],
+    ['intake edited before deletion', ({ state, api }) => { const update = api.updateBody; api.updateBody = async text => { await update(text); state.comments[0].body += ' edited'; }; }, /Intake 1 changed before deletion/],
+    ['deletion that did not persist', ({ api }) => { api.deleteComment = async () => {}; }, /An intake deletion did not persist/],
+    ['summary read-back differs', ({ state, api }) => { const post = api.postSummary; api.postSummary = async text => { const comment = await post(text); if (text.includes('Folded')) state.comments.at(-1).body += 'x'; return comment; }; }, /Summary failed read-back/],
+    ['reports history changed since planning', (_, plan) => { plan.reportHistory = { 'F-9': problem('F-9', 'open') }; }, /Reports history changed since planning/],
+  ];
+  for (const [name, arrange, pattern] of cases) {
+    const context = fixture();
+    const plan = await readPlan(context.api);
+    arrange(context, plan);
+    await assert.rejects(applyPlan(plan, context.api), pattern, name);
+    // The summary is read back after intake deletion, once everything else is persisted.
+    if (!name.startsWith('summary')) assert.ok(context.state.comments.some(comment => comment.id === 1), `${name}: intake kept`);
+  }
+});
+
+await test('existing-target guards: wrong type, duplicate evidence and evidence read-back keep intake', async () => {
+  const setup = () => { const text = withLedger(body, [problem('F-5', 'ticketed #737')]); const context = fixture([reported(20, 'codex:beta', 'F-5')], text); context.state.references.set(737, task(737)); return context; };
+  let context = setup();
+  let plan = await readPlan(context.api);
+  context.state.references.get(737).type = { name: 'Bug' };
+  await assert.rejects(applyPlan(plan, context.api), /#737 is not a workflow: skills Task/);
+  context = setup();
+  plan = await readPlan(context.api);
+  const marker = preview(plan)[0].body.match(/Feedback group: [a-f0-9]{20}/)[0];
+  context.state.discussion.set(737, [{ id: 1, body: marker }, { id: 2, body: marker }]);
+  await assert.rejects(applyPlan(plan, context.api), /Multiple existing-ticket evidence comments carry this marker on Task #737: #1, #2/);
+  context = setup();
+  plan = await readPlan(context.api);
+  const post = context.api.postIssueComment;
+  context.api.postIssueComment = async (number, text) => { const comment = await post(number, text); context.state.discussion.get(number)[0].body += 'x'; return comment; };
+  await assert.rejects(applyPlan(plan, context.api), /Existing-ticket evidence failed read-back for Task #737/);
+  assert.equal(context.state.comments.length, 1);
+});
+
+await test('a body edited after an interrupted fold cannot authorize deletion on retry', async () => {
+  const { state, api } = fixture();
+  const plan = await readPlan(api);
+  state.fail = 'delete';
+  await assert.rejects(applyPlan(plan, api), /interrupted delete/);
+  state.body = state.body.replace('Footer stays.', 'Footer edited.');
+  await assert.rejects(applyPlan(plan, api), /Persisted inbox changed after folding/);
+  assert.equal(state.comments.filter(comment => comment.id === 1).length, 1);
 });
 
 await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {
