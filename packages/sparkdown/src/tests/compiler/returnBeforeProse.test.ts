@@ -47,8 +47,15 @@ describe("the line after a return in narrative code stays prose", () => {
     expect(nodeNamesFor(source, "Hello")).toContain("Word");
   });
 
-  test("& if x then return in a scene", () => {
-    const source = `scene a\n  & if x then return\n  Hello there.\n`;
+  // An `&` statement can put a block keyword directly before `return`.
+  test.each([
+    ["& if x then return", `scene a\n  & if x then return\n  Hello there.\n`],
+    ["& repeat return", `scene a\n  & repeat return\n  Hello there.\n`],
+    ["& repeat return at the top level", `& repeat return\nHello there.\n`],
+    ["& do return", `scene a\n  & do return\n  Hello there.\n`],
+    ["& while x do return", `scene a\n  & while x do return\n  Hello there.\n`],
+    ["a ternary's else return", `scene a\n  & y = if c then 1 else return\n  Hello there.\n`],
+  ])("%s in narrative code", (_name, source) => {
     expect(nodeNamesFor(source, "Hello")).toContain("Word");
   });
 });

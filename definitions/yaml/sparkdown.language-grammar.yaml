@@ -6999,21 +6999,23 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
-    # As in Luau, a `return` that ends its line (optionally with a comment)
-    # reads its values from the next line when it starts the line or starts
-    # a block on it (after `then`, `else`, `do` or `repeat`):
-    # `LuauReturnLineBreak` carries the scope across the line break
-    # (GRAMMAR.md §11.5). The end does not fire at the end of such a line for
-    # that reason, and closes before a keyword that ends the block (`end`,
-    # `else`, `elseif`, `until`) or starts a statement that is not an
-    # expression, so a bare `return` still returns nothing and leaves that
-    # keyword to its block.
+    # As in Luau, a `return` that is the whole of its line (optionally with a
+    # comment) reads its values from the next line: `LuauReturnLineBreak`
+    # carries the scope across the line break (GRAMMAR.md §11.5). The end
+    # does not fire at the end of such a line for that reason, and closes
+    # before a keyword that ends the block (`end`, `else`, `elseif`, `until`)
+    # or starts a statement that is not an expression, so a bare `return`
+    # still returns nothing and leaves that keyword to its block.
     #
     # A `return` after other code on its line (`& return`, `local x = 5
     # return`) ends at the line, because narrative bodies reach this rule
     # through `LuauExplicitStatement` and `LuauExpression`, and the line
-    # after them is prose. A narrative `return` that starts its line or a
-    # block is `LuauSparkdownReturnStatement`, which also ends at the line.
+    # after them is prose. A narrative `return` that starts its line is
+    # `LuauSparkdownReturnStatement`, which also ends at the line. A
+    # `return` after `then`, `else`, `do` or `repeat` ends at the line too:
+    # an `&` statement can put a bare `repeat` or a ternary `else` there
+    # (`& repeat return`, `& y = if c then 1 else return`), and the line
+    # after it is prose.
     #
     # `;` alternative: `return f(x); end`-style one-liners close the
     # return statement before the separator (`;` no longer parses
@@ -7023,10 +7025,10 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?<!(?:^|\b(?:then|else|do|repeat)\b){{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)
+    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)
 
   LuauReturnLineBreak:
-    begin: (?<=(?:^|\b(?:then|else|do|repeat)\b){{WS}}*return{{WS}}*)(?=$|{{LUAU_COMMENT_START}})
+    begin: (?<=^{{WS}}*return{{WS}}*)(?=$|{{LUAU_COMMENT_START}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }

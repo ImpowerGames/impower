@@ -1,14 +1,7 @@
 function f(x)
   if x then return
-    "yes"
-  else return
-    "no"
   end
-end
-
-function g()
   for i = 1, 1 do return
-    i + 10
   end
   repeat return
   until true
@@ -18,3 +11,7 @@ scene a
   if x then return
   Hello there.
   end
+  & repeat return
+  Hello again.
+  & y = if c then 1 else return
+  Goodbye.
