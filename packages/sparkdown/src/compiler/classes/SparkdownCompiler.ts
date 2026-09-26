@@ -3584,10 +3584,11 @@ export class SparkdownCompiler {
       [];
     const seenStrings = new Map<object, Set<string>>();
     const flowsToRekey: FlowBase[] = [];
-    // Every call of one continuation carries the same group, so the calls
-    // share a mapping just as a synthetic's definition and references do.
-    // Each call holds a group node of its own, and a group node is recorded
-    // once, with the name it gets, for the same reason as a string field.
+    // Every call of one continuation carries the same group text, so
+    // `groupRemap`, keyed by that text, gives the calls one name just as a
+    // synthetic's definition and references share one. Each call holds a
+    // group node of its own, and `seenGroups`, keyed by the node, records a
+    // node once, with the name it gets, for the same reason as a string field.
     const groupRemap = new Map<string, string>();
     const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();

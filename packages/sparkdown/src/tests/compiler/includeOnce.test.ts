@@ -137,6 +137,8 @@ describe("a script included from two places", () => {
   it.each([
     ["the entry script", "main", "  Value {shared_helper()}.", "  Value {shared_helper()}, again."],
     ["the script that includes it second", "chapter", "  Chapter.", "  Chapter, now a good deal longer."],
+    // The include in `chapter.sd` then becomes the first to reach it.
+    ["the entry script's include of it", "main", "include shared.sd\n", ""],
   ])("compiles incrementally as it does cold after an edit to %s", (_, name, find, replace) => {
     const project = twice(
       ["scene shared_scene", "  Shared.", "end", "", "function shared_helper()", "  return 7", "end", ""].join("\n"),
@@ -168,6 +170,17 @@ describe("a script included from two places", () => {
     expect(errors(cold)).toEqual([]);
     expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
     expect(play(incremental, "main_one")).toContain("Value 7");
+  });
+});
+
+describe("a script included twice by one script", () => {
+  it("declares its scene once and shows its display content once", () => {
+    const program = compileOnce({
+      main: ["include shared.sd", "include shared.sd", "", "scene main_one", "  Main.", "end", ""].join("\n"),
+      shared: ["Shared line.", "", "scene shared_scene", "  Shared.", "end", ""].join("\n"),
+    });
+    expect(errors(program)).toEqual([]);
+    expect(count(play(program), "Shared line.")).toBe(1);
   });
 });
 
