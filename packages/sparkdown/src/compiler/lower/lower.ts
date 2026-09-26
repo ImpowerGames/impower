@@ -18,6 +18,7 @@ import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "./context";
 import { findChildByName } from "./utils/alternatorArms";
+import { syntheticId } from "./utils/documentTag";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
@@ -692,9 +693,9 @@ function lowerMultiTargetReassignment(
   // colliding. The MultiVariableAssignment handles PackTuple +
   // UnpackTuple semantics — including spreading a multi-return f()
   // in the LAST RHS expression across as many temps as we declare.
-  const offset = multi.targets[0]!.from;
+  const id = syntheticId(multi.targets[0]!.from, ctx);
   const tempIdents = multi.targets.map(
-    (_, i) => new Identifier(`__mt_${offset}_${i}`),
+    (_, i) => new Identifier(`__mt_${id}_${i}`),
   );
   const tempDecl = new MultiVariableAssignment(tempIdents, expressions, true);
 
@@ -713,8 +714,8 @@ function lowerMultiTargetReassignment(
     const tempRef = new VariableReference([tempIdents[i]!]);
     const decomposed = decomposeTargetBaseAndKey(target, ctx);
     if (decomposed) {
-      const baseTemp = new Identifier(`__mt_base_${offset}_${i}`);
-      const keyTemp = new Identifier(`__mt_key_${offset}_${i}`);
+      const baseTemp = new Identifier(`__mt_base_${id}_${i}`);
+      const keyTemp = new Identifier(`__mt_key_${id}_${i}`);
       preStores.push(
         new VariableAssignment({
           variableIdentifier: baseTemp,

@@ -14,7 +14,7 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // upstream attrib.luau lines 13 + 15 — common Luau idiom.
 //
 // Fix: detect mixed-target shapes and expand them via synthetic
-// temps. The RHS values are stashed into N synthetic `__mt_<from>_<i>`
+// temps. The RHS values are stashed into N synthetic `__mt_<id>_<i>`
 // locals via the existing `MultiVariableAssignment` (so multi-return
 // spread on the last RHS still works), then per-target writes are
 // emitted — `VariableAssignment` for simple-variable targets,

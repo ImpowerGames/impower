@@ -174,11 +174,54 @@ describe("synthetic names in two files", () => {
   });
 });
 
+describe("assignment temps in a carried chunk", () => {
+  it("compound and multi-target assignment temps keep the cold names after an edit above them", () => {
+    // The scenes keep the function's chunk outside the region the edit
+    // reparses, so the incremental compile carries it without lowering it.
+    const scenes = [0, 1, 2, 3, 4, 5].flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]);
+    const text = [
+      "store t = { a = 0, b = 0 }",
+      "",
+      ...scenes,
+      "function f()",
+      "  t.a += 1",
+      "  local x",
+      "  x, t.b = 1, 2",
+      "end",
+      "",
+    ].join("\n");
+    const insert = "  An added line.\n";
+    const [incremental, cold] = quiet(() => {
+      const compiler = new SparkdownCompiler();
+      configure(compiler, { main: text }, 1);
+      compiler.compile({ textDocument: { uri: MAIN_URI } });
+      const at = { line: 4, character: 0 };
+      compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version: 2 },
+        contentChanges: [{ range: { start: at, end: at }, text: insert }],
+      });
+      const incremental = compiler.compile({ textDocument: { uri: MAIN_URI } }).program;
+      const lines = text.split("\n");
+      lines.splice(4, 0, insert.slice(0, -1));
+      const fresh = new SparkdownCompiler();
+      configure(fresh, { main: lines.join("\n") }, 2);
+      return [incremental, fresh.compile({ textDocument: { uri: MAIN_URI } }).program];
+    });
+    expect(errors(incremental)).toEqual([]);
+    expect(errors(cold)).toEqual([]);
+    const incrementalText = JSON.stringify(incremental.compiled);
+    expect(incrementalText).toBe(JSON.stringify(cold.compiled));
+    expect(incrementalText).not.toMatch(/__pa_|__mt_/);
+  });
+});
+
 describe("authored names shaped like synthetic ones", () => {
   it("keep their names in the program", () => {
     const program = compileOnce({
       main: [
         "store __anon_fn_x__1 = 4",
+        "store __pa_base_1 = 5",
+        "store __mt_1_0 = 6",
         "",
         "function f__redef_x__1()",
         "  return 7",
@@ -191,5 +234,7 @@ describe("authored names shaped like synthetic ones", () => {
     expect(story.HasFunction("f__redef_x__1")).toBe(true);
     expect(quiet(() => story.EvaluateFunction("f__redef_x__1"))).toBe(7);
     expect(JSON.stringify(program.compiled)).toContain('"__anon_fn_x__1"');
+    expect(JSON.stringify(program.compiled)).toContain('"__pa_base_1"');
+    expect(JSON.stringify(program.compiled)).toContain('"__mt_1_0"');
   });
 });

@@ -11,6 +11,7 @@ import { StorePropertyAssignment } from "../../../inkjs/compiler/Parser/ParsedHi
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { LowerContext } from "../context";
+import { syntheticId } from "./documentTag";
 import {
   lowerExpressionFromContainer,
   lowerSimpleAccessPath,
@@ -34,9 +35,11 @@ import {
 // evaluated base and key into temp locals, then build the read and write
 // off those temps:
 //
-//   local __pa_base_<from> = base
-//   local __pa_key_<from>  = key
-//   __pa_base_<from>[__pa_key_<from>] = __pa_base_<from>[__pa_key_<from>] op rhs
+//   local __pa_base_<id> = base
+//   local __pa_key_<id>  = key
+//   __pa_base_<id>[__pa_key_<id>] = __pa_base_<id>[__pa_key_<id>] op rhs
+//
+// where `<id>` is `syntheticId` of the LHS offset.
 //
 // Returns a flat list of ParsedObjects (the temp decls + the store); the
 // caller wraps the list in a Weave.
@@ -100,9 +103,9 @@ export function lowerPropertyTargetAssignment(
   // from incremental reparse — produces the same temp name, which is
   // a no-op on the second declaration.)
   const binOp = opText.slice(0, -1);
-  const offset = lhsPath.from;
-  const baseTempName = `__pa_base_${offset}`;
-  const keyTempName = `__pa_key_${offset}`;
+  const id = syntheticId(lhsPath.from, ctx);
+  const baseTempName = `__pa_base_${id}`;
+  const keyTempName = `__pa_key_${id}`;
 
   const baseTempDecl = new VariableAssignment({
     variableIdentifier: new Identifier(baseTempName),
