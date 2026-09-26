@@ -119,7 +119,7 @@ export function complete(
   const returned = getCompletions(
     document,
     documents.tree(URI),
-    new Map([[URI, documents.annotations(URI)]]),
+    new Map([[URI, { annotations: documents.annotations(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]),
     options.program,
     undefined,
     document.positionAt(offset),

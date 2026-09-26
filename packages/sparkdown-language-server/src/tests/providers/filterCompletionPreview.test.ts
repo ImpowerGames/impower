@@ -15,7 +15,7 @@ const completionsAt = (source: string, program: any) => {
   const text = source.replace("|", "");
   const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
   documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  return getCompletions(documents.get(URI), documents.tree(URI), new Map([[URI, documents.annotations(URI)]]), program, undefined, { line: 0, character: offset }, undefined);
+  return getCompletions(documents.get(URI), documents.tree(URI), new Map([[URI, { annotations: documents.annotations(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]), program, undefined, { line: 0, character: offset }, undefined);
 };
 const itemNamed = (source: string, program: any, label: string) => completionsAt(source, program)?.find((item) => item.label === label);
 const previewSrc = async (item: any, program: any) => {
