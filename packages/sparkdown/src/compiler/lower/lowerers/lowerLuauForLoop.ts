@@ -150,12 +150,13 @@ export function lowerLuauForLoop(
       ? coerce(lowerExpressionFromNodes(trailingGroups[1], ctx) ?? new NumberExpression(1, "int"))
       : new NumberExpression(1, "int");
 
-  const idxName = `__forIdx_${syntheticId(nodeRef.node.from, ctx)}`;
-  const stopName = `__forStop_${syntheticId(nodeRef.node.from, ctx)}`;
-  const stepName = `__forStep_${syntheticId(nodeRef.node.from, ctx)}`;
-  const loopLabel = `__for_${syntheticId(nodeRef.node.from, ctx)}_loop`;
-  const stepLabel = `__for_${syntheticId(nodeRef.node.from, ctx)}_step`;
-  const breakLabel = `__for_${syntheticId(nodeRef.node.from, ctx)}_break`;
+  const id = syntheticId(nodeRef.node.from, ctx);
+  const idxName = `__forIdx_${id}`;
+  const stopName = `__forStop_${id}`;
+  const stepName = `__forStep_${id}`;
+  const loopLabel = `__for_${id}_loop`;
+  const stepLabel = `__for_${id}_step`;
+  const breakLabel = `__for_${id}_break`;
 
   // `continue` should perform the step and loop back, so its target
   // is the step-update label, not the loop's head. The body runs

@@ -162,11 +162,12 @@ export function lowerLuauGenericForLoop(
   }
   if (iterExprs.length === 0) return {};
 
-  const iterName = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_iter`;
-  const stateName = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_state`;
-  const ctrlName = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_ctrl`;
-  const loopLabel = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_loop`;
-  const breakLabel = `__forIn_${syntheticId(nodeRef.node.from, ctx)}_break`;
+  const id = syntheticId(nodeRef.node.from, ctx);
+  const iterName = `__forIn_${id}_iter`;
+  const stateName = `__forIn_${id}_state`;
+  const ctrlName = `__forIn_${id}_ctrl`;
+  const loopLabel = `__forIn_${id}_loop`;
+  const breakLabel = `__forIn_${id}_break`;
 
   // Init: pull (f, s, var) from the iterator expression list via a
   // multi-variable assignment with new-declaration semantics. A

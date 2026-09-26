@@ -84,10 +84,12 @@ export function lowerLuauWhileLoop(
   if (!condNode || !bodyContent) return {};
 
   // The gather's name must be unique across the enclosing flow's
-  // named weave points. Tagging with the source offset gives us that
-  // without needing a counter on the context.
-  const loopLabel = `__while_${syntheticId(nodeRef.node.from, ctx)}_loop`;
-  const breakLabel = `__while_${syntheticId(nodeRef.node.from, ctx)}_break`;
+  // named weave points. Tagging with the document and the source offset
+  // within it (`syntheticId`) gives us that without needing a counter on
+  // the context.
+  const id = syntheticId(nodeRef.node.from, ctx);
+  const loopLabel = `__while_${id}_loop`;
+  const breakLabel = `__while_${id}_break`;
 
   const condExpr = lowerExpressionFromContainer(condNode, ctx);
 

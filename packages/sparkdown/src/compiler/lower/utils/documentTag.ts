@@ -28,12 +28,13 @@ export function documentTag(filePath: string | undefined | null): string {
 }
 
 /** The part of an offset-derived synthetic name that identifies the code
- *  producing it: the document tag, then the offset within the document, as in
- *  `__anon_fn_file_3a_2f_2fproj_2fmain_2esd__42`. An offset alone is a
+ *  producing it: the document tag, `$`, then the offset within the document,
+ *  as in `__anon_fn_file_3a_2f_2fproj_2fmain_2esd__$42`. An offset alone is a
  *  position within one file, so two files would mint the same name for code
  *  at the same offset. `SparkdownCompiler.canonicalizeSyntheticFlowNames`
- *  renames every such name to `__synth_<n>` before export and must recognize
- *  this shape. */
+ *  renames every such name to `__synth_<n>` before export and recognizes it
+ *  by the `$`, which no identifier an author writes can contain, so the pass
+ *  never mistakes an author's name for one of these. */
 export function syntheticId(from: number, ctx: LowerContext): string {
-  return `${documentTag(ctx.filePath)}${from}`;
+  return `${documentTag(ctx.filePath)}$${from}`;
 }

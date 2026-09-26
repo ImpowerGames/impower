@@ -3516,11 +3516,11 @@ export class SparkdownCompiler {
   // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
   // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
   // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Each
-  // `<from>` is `syntheticId`: the document's tag, then the offset within it,
-  // so two files never mint one raw name, and a name this pass has already
+  // `<from>` is `syntheticId`: the document's tag, `$`, then the offset within
+  // it, so two files never mint one raw name, and a name this pass has already
   // renamed in a carried chunk never meets another file's raw name under a
-  // shared mapping. Those offset-based names are FROZEN into the per-chunk lowered IR that the
-  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
+  // shared mapping. Those offset-based names are FROZEN into the per-chunk
+  // lowered IR that the incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
   // `debugMetadata` line numbers are rebased). So a carried-forward shifted
   // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
   // same text re-derives the current one (`__define_fn_144`) — and since these
@@ -3553,10 +3553,11 @@ export class SparkdownCompiler {
     // renumbered too: when an edit adds/removes a synthetic earlier in the
     // document, a carried `__synth_k`'s ordinal is stale and only re-running it
     // through the document-order numbering matches what a cold compile derives.
-    // A raw name carries its document tag (`syntheticId`: path letters,
-    // digits and `_` escapes ending in `__`) before the offset.
+    // A raw name carries `syntheticId`: the document tag, `$`, then the
+    // offset. An author's identifier cannot contain `$`, so requiring it keeps
+    // the pass off authored names such as `f__redef_x__1`.
     const SYNTH =
-      /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_)(?:\w*__)?\d+$|^(?:__for_|__forIn_|__while_|__repeat_)(?:\w*__)?\d+_[A-Za-z]+$|__redef_(?:\w*__)?\d+$/;
+      /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|__redef_\w*\$\d+$/;
     const remap = new Map<string, string>();
     // True once any collected name maps to a DIFFERENT canonical name. In the
     // steady state (carried names already canonical and ordinals unchanged —

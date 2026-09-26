@@ -74,9 +74,10 @@ export function lowerLuauRepeatLoop(
   const condExpr = lowerExpressionFromContainer(condContent, ctx);
   if (!condExpr) return {};
 
-  const loopLabel = `__repeat_${syntheticId(nodeRef.node.from, ctx)}_loop`;
-  const continueLabel = `__repeat_${syntheticId(nodeRef.node.from, ctx)}_continue`;
-  const breakLabel = `__repeat_${syntheticId(nodeRef.node.from, ctx)}_break`;
+  const id = syntheticId(nodeRef.node.from, ctx);
+  const loopLabel = `__repeat_${id}_loop`;
+  const continueLabel = `__repeat_${id}_continue`;
+  const breakLabel = `__repeat_${id}_break`;
 
   // The body runs inside the loop's own scope wrap (see the
   // `wrapInScope` in the return) — count it in `scopeDepth` so
