@@ -4,8 +4,6 @@
 export const BUG = {
   /** A divert misses a label its scene declares after a branch closes. */
   labelAfterBranch: 459,
-  /** Identifier and divert completion throw once any script declares a struct (`define`, `layout`, …). */
-  defineCrash: 859,
   /** Luau locals and parameters are offered outside their scope and before their declaration. */
   localScope: 860,
   /** Function and define names are never offered. */

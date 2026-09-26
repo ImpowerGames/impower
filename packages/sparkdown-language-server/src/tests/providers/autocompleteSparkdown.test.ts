@@ -75,7 +75,7 @@ describe("autocomplete · sparkdown surfaces", () => {
       expect(labels).not.toContain("finale");
     });
 
-    sparkdownBug(BUG.defineCrash, "a divert works in a script that declares a define", () => {
+    test("a divert works in a script that declares a define", () => {
       const labels = labelsAt(
         "define hero with\n  strength = 1\nend\n\nscene intro\n  -> @1\nend\n",
       );
@@ -111,7 +111,7 @@ describe("autocomplete · sparkdown surfaces", () => {
       expect(labels).toContain("name");
     });
 
-    sparkdownBug([BUG.defineCrash, BUG.defineFields], "a partly typed field name in a define body offers the matching fields", () => {
+    sparkdownBug(BUG.defineFields, "a partly typed field name in a define body offers the matching fields", () => {
       const labels = labelsAt("define hero as character with\n  na@1\nend\n", { program });
       expect(labels).toContain("name");
     });
@@ -122,13 +122,13 @@ describe("autocomplete · sparkdown surfaces", () => {
       expect(labels).toContain("self");
     });
 
-    sparkdownBug(BUG.defineCrash, "identifier completion works in a script that declares a define", () => {
+    test("identifier completion works in a script that declares a define", () => {
       const source =
         'define hero as character with\n  name = "Hero"\nend\n\nstore gold = 5\nfunction main()\n  return g@1\nend\n';
       expect(labelsAt(source, { program })).toContain("gold");
     });
 
-    sparkdownBug(BUG.defineCrash, "identifier completion works in a script that declares a layout", () => {
+    test("identifier completion works in a script that declares a layout", () => {
       // A structural declaration names its struct through the same node as a
       // `define`, so a script with only a `layout` crashes the same way.
       const source =

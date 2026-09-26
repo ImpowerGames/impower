@@ -56,7 +56,7 @@ export const getDeclarationScopes = (
           scopes[scopePath] ??= {};
           scopes[scopePath][cur.value.type] ??= [];
           scopes[scopePath][cur.value.type]!.push(
-            read(cur.from, cur.to).trim().replaceAll(/[ ]+/, "."),
+            read(cur.from, cur.to).trim().replaceAll(/[ ]+/g, "."),
           );
         }
         if (cur.value.type === "label" || cur.value.type === "param") {

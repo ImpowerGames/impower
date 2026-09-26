@@ -380,7 +380,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("abc1");
   });
 
-  upstreamCase.bug([BUG.defineCrash, BUG.functions], "class_autocomplete_classname_inside_method","a define's name is offered inside its own method", () => {
+  upstreamCase.bug(BUG.functions, "class_autocomplete_classname_inside_method","a define's name is offered inside its own method", () => {
     // Upstream uses a `class`, which sparkdown does not implement; a `define`
     // with a method is the sparkdown equivalent.
     const labels = labelsAt(
