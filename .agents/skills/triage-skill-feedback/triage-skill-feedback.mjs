@@ -235,7 +235,7 @@ export async function readPlan(api) {
   const references = { prs: {}, issues: {} };
   // Every applied problem's pull request is read so one that closed unmerged is filed even without new intake.
   // Other archived Tasks stay out of the references, so their state changes cannot invalidate the plan.
-  const statuses = [...Object.values(ledger).map(row => row.status).filter(status => status.startsWith('applied in PR #')), ...fold(body, comments, undefined, ledger).rows.flatMap(row => [row.status, row.previousStatus])];
+  const statuses = [...Object.values(ledger).map(row => row.status).filter(status => status.startsWith('applied in PR #')), ...fold(body, comments, undefined, ledger).rows.filter(needsGroup).flatMap(row => [row.status, row.previousStatus])];
   for (const status of statuses) {
     const match = status?.match(/^(ticketed|applied in PR) #(\d+)$/);
     if (!match) continue;
@@ -296,7 +296,8 @@ export function preview(plan) {
   return plan.groups.map(group => {
     if (group.action === 'defer') throw new Error(DEFER_REMOVED);
     const rows = plan.rows.filter(row => group.keys.includes(row.problemId));
-    const closed = group.action === 'existing' && plan.references?.issues?.[group.number]?.state === 'closed' && reopensOwnTask(group, plan.rows);
+    const closed = group.action === 'existing' && plan.references?.issues?.[group.number]?.state === 'closed';
+    if (closed && !reopensOwnTask(group, plan.rows)) throw new Error(`Task #${group.number} is closed and does not record every problem in this group; choose an open Task or file new work.`);
     return { ...group, ...(closed ? { reopen: true } : {}), body: group.action === 'ticket' ? ticketBody(rows, groupMarker(rows), group.context) : group.action === 'existing' ? evidenceBody(rows, groupMarker(rows), group.context, group.number) : undefined };
   });
 }
@@ -404,7 +405,7 @@ export async function applyPlan(plan, api) {
         if (ticket.pull_request || ticket.type?.name !== 'Task' || !ticket.labels.some(label => label.name === 'workflow: skills')) throw new Error(`#${number} is not a workflow: skills Task.`);
         let reopenedNow = false;
         if (ticket.state !== 'open') {
-          if (!reopensOwnTask(group, rows)) throw new Error(`Task #${number} is closed and records none of these problems; choose an open Task or file new work.`);
+          if (!reopensOwnTask(group, rows)) throw new Error(`Task #${number} is closed and does not record every problem in this group; choose an open Task or file new work.`);
           await api.reopenIssue(number);
           if ((await api.issue(number)).state !== 'open') throw new Error(`Task #${number} did not reopen; preserve intake and retry the same plan.`);
           reopenedNow = true;

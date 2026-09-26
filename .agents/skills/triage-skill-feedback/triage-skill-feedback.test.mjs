@@ -131,12 +131,12 @@ await test('a recurrence reopens its closed Task, attaches it and survives an in
   assert.match(result.summary, /Problems: F-5 → #740\./);
 });
 
-await test('an existing group on a closed Task that records none of its problems is refused before writes', async () => {
+await test('an existing group on a closed Task that does not record every problem in it is refused before writes', async () => {
   const { state, api } = fixture();
   state.references.set(701, task(701, 'closed'));
   const plan = await readPlan(api);
   plan.groups = [{ action: 'existing', number: 701, keys: ['F-1'], context: '' }];
-  await assert.rejects(applyPlan(plan, api), /Task #701 is closed and records none of these problems/);
+  await assert.rejects(applyPlan(plan, api), /Task #701 is closed and does not record every problem in this group/);
   assert.deepEqual(state.reopenCalls, []);
   assert.equal(state.bodyWrites.length, 0);
   assert.equal(state.comments.length, 1);
@@ -469,6 +469,15 @@ await test('a retired Task closing between plan and apply does not invalidate th
   state.references.get(737).state = 'closed';
   await applyPlan(plan, api);
   assert.equal(ledgerOf(state)['F-1'].status, 'ticketed #600');
+  const rows = [problem('F-5', 'ticketed #737'), problem('F-6', 'ticketed #740', ['codex:alpha'], 'review-pr, section 4')];
+  const migrating = fixture([], withLedger(`Intro\n\n${legacyTable(rows)}\n`, rows));
+  migrating.state.references.set(737, task(737));
+  migrating.state.references.set(740, task(740));
+  const migration = await readPlan(migrating.api);
+  assert.deepEqual(migration.references.issues, {});
+  migrating.state.references.get(740).state = 'closed';
+  await applyPlan(migration, migrating.api);
+  assert.equal(parseLegacyTable(migrating.state.body, ledgerOf(migrating.state)), null);
 });
 
 await test('the size preflight counts the reference context an applied group writes into the summary', async () => {
@@ -493,7 +502,7 @@ await test('preview marks a reopen only where apply will reopen', async () => {
   const plan = await readPlan(api);
   assert.equal(preview(plan).find(group => group.number === 740).reopen, true);
   plan.groups = [{ action: 'existing', number: 740, keys: ['F-5', 'F-21'], context: '' }];
-  assert.equal(preview(plan)[0].reopen, undefined);
+  assert.throws(() => preview(plan), /Task #740 is closed and does not record every problem in this group/);
 });
 
 await test('CLI rejects inside ..prefix paths and accepts outside siblings', () => {
