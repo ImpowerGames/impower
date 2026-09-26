@@ -28,6 +28,7 @@ import {
 } from "vscode-languageserver";
 import {
   getDeclarationScopes,
+  type AnnotatedScript,
   type DeclarationScopes,
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
@@ -209,8 +210,7 @@ const traverse = <T>(
 
 const rankMostRecentTexts = (
   type: keyof SparkdownAnnotations,
-  read: (from: number, to: number) => string,
-  scriptAnnotations: Map<string, SparkdownAnnotations>,
+  scripts: Map<string, AnnotatedScript>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
   strict: boolean,
@@ -219,25 +219,26 @@ const rankMostRecentTexts = (
   // Sort by most recently used
   const before: string[] = [];
   const after: string[] = [];
-  const scriptAnnotationEntries = Array.from(scriptAnnotations.entries());
-  const currentScriptIndex = scriptAnnotationEntries.findIndex(
+  const scriptEntries = Array.from(scripts.entries());
+  const currentScriptIndex = scriptEntries.findIndex(
     ([k]) => k === uri,
   );
   if (currentScriptIndex < 0) {
     return [];
   }
-  const beforeScriptEntries = scriptAnnotationEntries.slice(
+  const beforeScriptEntries = scriptEntries.slice(
     0,
     currentScriptIndex,
   );
-  const currentScriptEntries = [scriptAnnotationEntries[currentScriptIndex]!];
-  const afterScriptEntries = scriptAnnotationEntries.slice(
+  const currentScriptEntries = [scriptEntries[currentScriptIndex]!];
+  const afterScriptEntries = scriptEntries.slice(
     currentScriptIndex + 1,
   );
+  const currentRead = scriptEntries[currentScriptIndex]![1].read;
   const currentText = contentNode
-    ? read(contentNode.from, contentNode.to)?.trim()
+    ? currentRead(contentNode.from, contentNode.to)?.trim()
     : "";
-  for (const [, annotations] of beforeScriptEntries) {
+  for (const [, { annotations, read }] of beforeScriptEntries) {
     const cur = annotations[type]?.iter();
     if (cur) {
       while (cur.value) {
@@ -252,7 +253,7 @@ const rankMostRecentTexts = (
       }
     }
   }
-  for (const [, annotations] of currentScriptEntries) {
+  for (const [, { annotations, read }] of currentScriptEntries) {
     const cur = annotations[type]?.iter();
     if (cur) {
       while (cur.value) {
@@ -277,7 +278,7 @@ const rankMostRecentTexts = (
       }
     }
   }
-  for (const [, annotations] of afterScriptEntries) {
+  for (const [, { annotations, read }] of afterScriptEntries) {
     const cur = annotations[type]?.iter();
     if (cur) {
       while (cur.value) {
@@ -315,8 +316,7 @@ const rankMostRecentTexts = (
 
 const addCharacterCompletions = (
   completions: Map<string, CompletionItem>,
-  read: (from: number, to: number) => string,
-  scriptAnnotations: Map<string, SparkdownAnnotations>,
+  scripts: Map<string, AnnotatedScript>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
   insertTextPrefix: string = "",
@@ -326,8 +326,7 @@ const addCharacterCompletions = (
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
     "characters",
-    read,
-    scriptAnnotations,
+    scripts,
     uri,
     contentNode,
     strict,
@@ -1232,7 +1231,7 @@ const addDivertPathCompletions = (
 export const getCompletions = (
   document: SparkdownDocument | undefined,
   tree: Tree | undefined,
-  scriptAnnotations: Map<string, SparkdownAnnotations>,
+  scripts: Map<string, AnnotatedScript>,
   program: SparkProgram | undefined,
   config: SparkdownCompilerConfig | undefined,
   position: Position,
@@ -1508,8 +1507,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
-        read,
-        scriptAnnotations,
+        scripts,
         document.uri,
         dialogueCharacterNode,
       );
@@ -1990,7 +1988,7 @@ export const getCompletions = (
         valueCursorOffset,
       );
     } else {
-      const scopes = getDeclarationScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(scripts);
       const scopePath = getParentSectionPath(leftStack, read).join(".");
       addMutableAccessPathCompletions(
         completions,
@@ -2025,7 +2023,7 @@ export const getCompletions = (
     )
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getDeclarationScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(scripts);
       addDivertPathKeywords(completions, "", 0, " ");
       addDivertPathCompletions(
         completions,
@@ -2046,7 +2044,7 @@ export const getCompletions = (
     ).trim()
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getDeclarationScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(scripts);
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
@@ -2062,7 +2060,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(leftStack[0])) {
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
-      const scopes = getDeclarationScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(scripts);
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
@@ -2083,7 +2081,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(divertPathNode)) {
       const valueText = getNodeText(divertPathNode);
       const valueCursorOffset = getCursorOffset(divertPathNode);
-      const scopes = getDeclarationScopes(read, scriptAnnotations);
+      const scopes = getDeclarationScopes(scripts);
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
@@ -2247,8 +2245,7 @@ export const getCompletions = (
         } else {
           addCharacterCompletions(
             completions,
-            read,
-            scriptAnnotations,
+            scripts,
             document.uri,
             contentNode,
             "",
