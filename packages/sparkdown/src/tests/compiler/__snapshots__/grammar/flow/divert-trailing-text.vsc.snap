@@ -4,7 +4,7 @@ text.source.sparkdown [0..323]
  │   ├─ punctuation.whitespace.optional.sd [2..3]: " "
  │   └─ keyword.control.divert.path.sd [3..8]
  │       └─ keyword.control.divert.path.sd [3..8]: "later"
- ├─ punctuation.whitespace.extra.sd [8..9]: " "
+ ├─ punctuation.whitespace.sd [8..9]: " "
  ├─ invalid.illegal.unknown-statement.sd [9..16]: "> After"
  ├─ Newline [16..17]: "\n"
  ├─ string.display.text.chunk.sd [17..35]
@@ -15,7 +15,7 @@ text.source.sparkdown [0..323]
  │   │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
  │   │   └─ keyword.control.divert.path.sd [22..27]
  │   │       └─ keyword.control.divert.path.sd [22..27]: "later"
- │   ├─ punctuation.whitespace.extra.sd [27..28]: " "
+ │   ├─ punctuation.whitespace.sd [27..28]: " "
  │   └─ invalid.illegal.unknown-statement.sd [28..35]: "> After"
  ├─ Newline [35..36]: "\n"
  ├─ string.display.text.chunk.sd [36..52]
@@ -41,7 +41,7 @@ text.source.sparkdown [0..323]
  │       │   ├─ punctuation.whitespace.optional.sd [64..65]: " "
  │       │   └─ keyword.control.divert.path.sd [65..70]
  │       │       └─ keyword.control.divert.path.sd [65..70]: "later"
- │       ├─ punctuation.whitespace.extra.sd [70..71]: " "
+ │       ├─ punctuation.whitespace.sd [70..71]: " "
  │       └─ invalid.illegal.unknown-statement.sd [71..78]: "> After"
  ├─ Newline [78..79]: "\n"
  ├─ entity.choice.sd [79..102]
@@ -56,7 +56,7 @@ text.source.sparkdown [0..323]
  │   │   ├─ punctuation.whitespace.optional.sd [88..89]: " "
  │   │   └─ keyword.control.divert.path.sd [89..94]
  │   │       └─ keyword.control.divert.path.sd [89..94]: "later"
- │   ├─ punctuation.whitespace.extra.sd [94..95]: " "
+ │   ├─ punctuation.whitespace.sd [94..95]: " "
  │   └─ invalid.illegal.unknown-statement.sd [95..102]: "> After"
  ├─ Newline [102..103]: "\n"
  ├─ entity.choice.sd [103..124]
@@ -69,7 +69,7 @@ text.source.sparkdown [0..323]
  │   │   ├─ punctuation.whitespace.optional.sd [110..111]: " "
  │   │   └─ keyword.control.divert.path.sd [111..116]
  │   │       └─ keyword.control.divert.path.sd [111..116]: "later"
- │   ├─ punctuation.whitespace.extra.sd [116..117]: " "
+ │   ├─ punctuation.whitespace.sd [116..117]: " "
  │   └─ invalid.illegal.unknown-statement.sd [117..124]: "> After"
  ├─ Newline [124..125]: "\n"
  ├─ string.display.text.chunk.sd [125..143]
@@ -80,7 +80,7 @@ text.source.sparkdown [0..323]
  │   │   ├─ punctuation.whitespace.optional.sd [129..130]: " "
  │   │   └─ keyword.control.divert.path.sd [130..135]
  │   │       └─ keyword.control.divert.path.sd [130..135]: "later"
- │   ├─ punctuation.whitespace.extra.sd [135..136]: " "
+ │   ├─ punctuation.whitespace.sd [135..136]: " "
  │   └─ invalid.illegal.unknown-statement.sd [136..143]: "! After"
  ├─ Newline [143..144]: "\n"
  ├─ string.display.text.chunk.sd [144..162]
@@ -155,7 +155,7 @@ text.source.sparkdown [0..323]
  │   │       ├─ punctuation.whitespace.optional.sd [243..244]: " "
  │   │       ├─ constant.numeric.decimal.luau [244..245]: "2"
  │   │       └─ punctuation.definition.template-expression.end.sd [245..246]: ")"
- │   ├─ punctuation.whitespace.extra.sd [246..247]: " "
+ │   ├─ punctuation.whitespace.sd [246..247]: " "
  │   └─ invalid.illegal.unknown-statement.sd [247..254]: "> After"
  ├─ Newline [254..255]: "\n"
  ├─ keyword.control.divert.mark.sd [255..257]: "->"
@@ -165,11 +165,11 @@ text.source.sparkdown [0..323]
  ├─ keyword.control.divert.path.sd [263..268]
  │   └─ keyword.control.divert.path.sd [263..268]
  │       └─ keyword.control.divert.path.sd [263..268]: "later"
- ├─ punctuation.whitespace.extra.sd [268..269]: " "
+ ├─ punctuation.whitespace.sd [268..269]: " "
  ├─ invalid.illegal.unknown-statement.sd [269..276]: "> After"
  ├─ Newline [276..277]: "\n"
  ├─ keyword.control.divert.mark.sd [277..281]: "->->"
- ├─ punctuation.whitespace.extra.sd [281..282]: " "
+ ├─ punctuation.whitespace.sd [281..282]: " "
  ├─ invalid.illegal.unknown-statement.sd [282..289]: "> After"
  ├─ Newline [289..290]: "\n"
  ├─ string.display.text.chunk.sd [290..311]

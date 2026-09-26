@@ -1575,6 +1575,9 @@
           "include": "#SparkdownInlineComment"
         },
         {
+          "include": "#DivertStrayTextSpace"
+        },
+        {
           "include": "#ExtraWhitespace"
         },
         {
@@ -1582,6 +1585,18 @@
         }
       ],
       "end": "(?=$)"
+    },
+    "DivertStrayTextSpace": {
+      "match": "((?:[^\\S\\n\\r])+)(?=\\S)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        }
+      }
     },
     "DivertLoad": {
       "match": "((?:[^\\S\\n\\r])*)(\\b(?:load)\\b)((?:[^\\S\\n\\r])+)(?=(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|[.^])",
