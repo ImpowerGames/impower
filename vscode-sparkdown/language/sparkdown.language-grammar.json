@@ -302,6 +302,9 @@
       "include": "#LuauExplicitStatement"
     },
     {
+      "include": "#LuauSparkdownReturnStatement"
+    },
+    {
       "include": "#LuauDeclarations"
     },
     {
@@ -9252,6 +9255,9 @@
           "include": "#LuauExplicitStatement"
         },
         {
+          "include": "#LuauSparkdownReturnStatement"
+        },
+        {
           "include": "#LuauDeclarations"
         },
         {
@@ -10050,6 +10056,9 @@
           "include": "#LuauExplicitStatement"
         },
         {
+          "include": "#LuauSparkdownReturnStatement"
+        },
+        {
           "include": "#LuauDeclarations"
         },
         {
@@ -10126,6 +10135,9 @@
       "patterns": [
         {
           "include": "#LuauExplicitStatement"
+        },
+        {
+          "include": "#LuauSparkdownReturnStatement"
         },
         {
           "include": "#LuauDeclarations"
@@ -10869,6 +10881,65 @@
       "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])*(?!(?:[-][-])))"
     },
     "LuauReturnStatement": {
+      "tag": "meta",
+      "name": "meta.function.luau",
+      "begin": "((?:[^\\S\\n\\r])*)(return)\\b((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauControlKeyword"
+            }
+          ]
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauReturnLineBreak"
+        },
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauCommaSeparator"
+        },
+        {
+          "include": "#LuauExpression"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?<!\\breturn(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)"
+    },
+    "LuauReturnLineBreak": {
+      "begin": "(?<=\\breturn(?:[^\\S\\n\\r])*)(?=$|(?:[-][-]))",
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?!$|(?:[^\\S\\n\\r])|(?:[-][-]))"
+    },
+    "LuauSparkdownReturnStatement": {
       "tag": "meta",
       "name": "meta.function.luau",
       "begin": "((?:[^\\S\\n\\r])*)(return)\\b((?:[^\\S\\n\\r])*)",

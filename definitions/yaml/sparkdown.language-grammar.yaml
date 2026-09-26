@@ -279,6 +279,7 @@ patterns:
   - { include: "#LuauExternalDeclaration" }
 
   - { include: "#LuauExplicitStatement" }
+  - { include: "#LuauSparkdownReturnStatement" }
   - { include: "#LuauDeclarations" }
   - { include: "#LuauSparkdownControlBlock" }
   - { include: "#LuauFunctionCallShorthand" }
@@ -5961,6 +5962,7 @@ repository:
   LuauSparkdownBlockBody:
     patterns:
       - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauSparkdownReturnStatement" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#SparkdownStatement" }
@@ -6473,6 +6475,7 @@ repository:
       - { include: "#LuauSparkdownChooseThenClause" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauSparkdownReturnStatement" }
       - { include: "#LuauDeclarations" }
       - { include: "#FlowStatements" }
       # `#`/`##` section tags and `[[...]]` annotations are scene content
@@ -6519,6 +6522,7 @@ repository:
           - { include: "#Label" }
     patterns:
       - { include: "#LuauExplicitStatement" }
+      - { include: "#LuauSparkdownReturnStatement" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#FlowStatements" }
@@ -6995,14 +6999,59 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    # As in Luau, a `return` that ends its line (optionally with a comment)
+    # reads its values from the next line: `LuauReturnLineBreak` carries the
+    # scope across the line break (GRAMMAR.md §11.5). The end does not fire
+    # at the end of the `return` line for that reason, and closes before a
+    # keyword that ends the block (`end`, `else`, `elseif`, `until`) or
+    # starts a statement that is not an expression, so a bare `return`
+    # still returns nothing and leaves that keyword to its block.
+    #
+    # Narrative bodies use `LuauSparkdownReturnStatement` instead, whose
+    # next line is prose rather than a value.
+    #
+    # `;` alternative: `return f(x); end`-style one-liners close the
+    # return statement before the separator (`;` no longer parses
+    # inside `LuauExpression`).
+    patterns:
+      - { include: "#LuauReturnLineBreak" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauExpression" }
+    end: (?={{BEAT}})|(?<!\breturn{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)
+
+  LuauReturnLineBreak:
+    begin: (?<=\breturn{{WS}}*)(?=$|{{LUAU_COMMENT_START}})
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
+
+  # A `return` in a narrative body (a scene, or a sparkdown `if`, loop or
+  # `choose` around dialogue and actions) ends at its line: the next line
+  # is prose, never the returned value.
+  LuauSparkdownReturnStatement:
+    tag: meta
+    name: meta.function.luau
+    begin: ({{WS}}*)(return)\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauControlKeyword" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    # `;` alternative: `return f(x); end`-style one-liners close the
-    # return statement before the separator (`;` no longer parses
-    # inside `LuauExpression`).
     end: (?={{BEAT}})|(?=$|{{WS}}|;)
+
   # `external message(x)` — single-line declaration of a host-bound callable.
   # Captures the `external` keyword, the function name (via the regular
   # `LuauFunctionDeclarationName`), and a paren-delimited parameter list
