@@ -881,12 +881,12 @@ Many block-shaped constructs come in pairs because the same syntactic shape need
 | `LuauSparkdownIfBlock`                   | sparkdown context (inside a scene, branch, or other narrative flow) | Luau **plus** display lines, `SparkdownStatement`, narrative text |
 | `LuauSequentialAlternatorBlock`          | pure-Luau context (inline `{queue\|A\|B\|C}` in an expression)      | arms parsed as Luau expressions                                   |
 | `LuauSparkdownSequentialAlternatorBlock` | sparkdown context (block-form `queue \| A \| B \| C end`)           | arms parsed as display text                                       |
-| `LuauReturnStatement`                    | pure-Luau context (a function body and the blocks inside it)        | values on the `return` line, or on the next line when `return` is the whole of its line |
-| `LuauSparkdownReturnStatement`           | sparkdown context (a scene, a narrative block, the top level)       | values on the `return` line only; the next line is prose           |
+| `LuauReturnStatement`                    | pure-Luau context (a function body and the blocks inside it), and a narrative line's `&` statement or expression (`& return`, `& f() return`) | values on the `return` line, or on the next line when the `return` ends a line it starts or opens a block on (after `then`, `else`, `do`, `repeat`) |
+| `LuauSparkdownReturnStatement`           | sparkdown context (a `return` that starts a line or a block in a scene, a narrative block or the top level) | values on the `return` line only; the next line is prose           |
 
 ### 13.1 Why pairs exist
 
-The `Sparkdown`-prefixed variant is generally a _superset_ of the un-prefixed one — it accepts everything the Luau version accepts plus display-context constructs. The return pair is the exception: `LuauSparkdownReturnStatement` accepts less, because a Luau value on the line after a bare `return` would be prose in a narrative body. **If you add a new block-shaped construct that should work in both contexts, you almost always need to write both variants** (and remember §3.2 — each variant's `patterns:` must be exhaustive for its context).
+The `Sparkdown`-prefixed variant is generally a _superset_ of the un-prefixed one — it accepts everything the Luau version accepts plus display-context constructs. The return pair is the exception: `LuauSparkdownReturnStatement` accepts less, because a Luau value on the line after a bare `return` would be prose in a narrative body. Narrative code also reaches `LuauReturnStatement` itself, through `LuauExplicitStatement` and `LuauExpression`, which both bodies share; that is why its next-line reading depends on what precedes `return` on its line rather than on the context. **If you add a new block-shaped construct that should work in both contexts, you almost always need to write both variants** (and remember §3.2 — each variant's `patterns:` must be exhaustive for its context).
 
 When you see a bug like "this works in a scene body but not inside a function," the cause is often that the rule's pure-Luau variant is missing a child pattern its Sparkdown variant has.
 

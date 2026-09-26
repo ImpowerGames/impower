@@ -10922,10 +10922,10 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?<!^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?<!(?:^|\\b(?:then|else|do|repeat)\\b)(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)"
     },
     "LuauReturnLineBreak": {
-      "begin": "(?<=^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$|(?:[-][-]))",
+      "begin": "(?<=(?:^|\\b(?:then|else|do|repeat)\\b)(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$|(?:[-][-]))",
       "patterns": [
         {
           "include": "#LuauComment"

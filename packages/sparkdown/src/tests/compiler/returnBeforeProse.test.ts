@@ -31,6 +31,9 @@ describe("the line after a return in narrative code stays prose", () => {
     ["a scene", `scene a\n  return\n  Hello there.\n`],
     ["an if block in a scene", `scene a\n  if x then\n    return\n    Hello there.\n  end\n`],
     ["a choose block", `scene a\n  choose\n    return\n    Hello there.\n  end\nend\n`],
+    ["a choose block's then body", `scene a\n  choose\n    * A\n  then\n    return\n    Hello there.\n  end\nend\n`],
+    ["if x then return in a scene", `scene a\n  if x then return\n  Hello there.\n  end\n`],
+    ["while x do return in a scene", `scene a\n  while x do return\n  Hello there.\n  end\n`],
     ["the top level", `return\nHello there.\n`],
     ["& return in a scene", `scene a\n  & return\n  Hello there.\n`],
     ["& return at the top level", `& return\nHello there.\n`],
@@ -41,6 +44,11 @@ describe("the line after a return in narrative code stays prose", () => {
     const end = returnEnd(source);
     expect(end).toBeDefined();
     expect(end!).toBeLessThanOrEqual(source.indexOf("\n", source.indexOf("return")));
+    expect(nodeNamesFor(source, "Hello")).toContain("Word");
+  });
+
+  test("& if x then return in a scene", () => {
+    const source = `scene a\n  & if x then return\n  Hello there.\n`;
     expect(nodeNamesFor(source, "Hello")).toContain("Word");
   });
 });

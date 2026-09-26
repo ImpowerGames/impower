@@ -48,6 +48,30 @@ end
 assert(f() == 3)`);
   });
 
+  test("a return that starts a block on its line", () => {
+    expectRuns(`local function f(x)
+  if x then return
+    "yes"
+  else return
+    "no"
+  end
+end
+local function g()
+  for i = 1, 1 do return
+    i + 10
+  end
+end
+local function h()
+  repeat return
+    "r"
+  until true
+end
+assert(f(true) == "yes")
+assert(f(false) == "no")
+assert(g() == 11)
+assert(h() == "r")`);
+  });
+
   test("inside an if block", () => {
     expectRuns(`local function f(x)
   if x then
