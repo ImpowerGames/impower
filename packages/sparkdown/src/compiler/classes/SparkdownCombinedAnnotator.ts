@@ -106,9 +106,12 @@ export class SparkdownCombinedAnnotator {
     return this._defineTypeNames.names;
   }
 
-  protected maintainsDefineTypeNames(
-    annotate?: Set<keyof SparkdownAnnotators>,
-  ): boolean {
+  /**
+   * Whether an update with this `annotate` set runs the compilation
+   * annotator. The define-type-name index and the re-lowering of chunks whose
+   * callable-name reads went stale are kept only then.
+   */
+  protected runsCompilations(annotate?: Set<keyof SparkdownAnnotators>): boolean {
     return !annotate || annotate.has("compilations");
   }
 
@@ -342,9 +345,9 @@ export class SparkdownCombinedAnnotator {
         annotator.update(tree, text, uri);
       }
     }
-    const maintainDefineTypeNames = this.maintainsDefineTypeNames(annotate);
+    const runsCompilations = this.runsCompilations(annotate);
     if (!changes || reparsedFrom == null) {
-      if (maintainDefineTypeNames) {
+      if (runsCompilations) {
         this._defineTypeNames.rebuild(tree, text);
       } else {
         this._defineTypeNames.invalidate();
@@ -362,7 +365,7 @@ export class SparkdownCombinedAnnotator {
           }
         }
       }
-      if (!annotate || annotate.has("compilations")) {
+      if (runsCompilations) {
         // Every chunk was just lowered against the current document.
         this.current.compilations.markGlobalCallableNamesChecked();
       }
@@ -395,7 +398,7 @@ export class SparkdownCombinedAnnotator {
     // annotators are about to re-run over. It has to be complete before
     // `annotate` starts, because the first chunk `CompilationAnnotator` lowers
     // already reads it.
-    if (maintainDefineTypeNames) {
+    if (runsCompilations) {
       this._defineTypeNames.update(
         tree,
         text,
@@ -436,7 +439,7 @@ export class SparkdownCombinedAnnotator {
       annotate,
       changeDesc,
     );
-    if (!annotate || annotate.has("compilations")) {
+    if (runsCompilations) {
       this.relowerStaleCompilations(tree);
     }
     return this.current;
@@ -462,8 +465,10 @@ export class SparkdownCombinedAnnotator {
   /**
    * Re-run the annotators over `[windowFrom, windowTo]` (to the end of the
    * document when `windowTo` is undefined) and replace the annotations that
-   * window overlaps. `changes`, when given, first maps the carried
-   * annotations through the edit; it is applied once per update.
+   * window overlaps. `iteratingFrom` and `iteratingTo` are only reported to
+   * each annotator's `end`; the window alone bounds the walk. `changes`, when
+   * given, first maps the carried annotations through the edit; it is applied
+   * once per update.
    */
   protected reannotate(
     tree: Tree,
