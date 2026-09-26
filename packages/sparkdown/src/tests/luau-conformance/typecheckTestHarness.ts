@@ -268,12 +268,21 @@ const NEUTRAL_NODES = nodeNameSet([
 ]);
 
 // A string's or comment's contents are text, whatever the grammar calls them,
-// except the Luau inside a backtick string's braces. Luau interpolates only
-// backtick strings; Sparkdown also interpolates double-quoted ones, where
-// Luau reads the braces as text (DIVERGENCES.md).
+// except the Luau inside a backtick string's braces.
 const TEXT_NODES = /^Luau\w*(String|Comment)$/;
 const LUAU_INTERPOLATION: SparkdownNodeName = "LuauBacktickStringInterpolation";
-const SPARKDOWN_INTERPOLATION: SparkdownNodeName = "LuauDoubleQuotedStringInterpolation";
+
+// Braces in a string that Sparkdown reads as an expression and Luau does not
+// (DIVERGENCES.md): interpolation in a double-quoted string, and the
+// `{{name}}` call shorthand in either kind of string. Each names how the two
+// read them.
+const SPARKDOWN_STRING_EXPRESSIONS = new Map<string, string>(
+  Object.entries({
+    LuauDoubleQuotedStringInterpolation: "an interpolation, where Luau reads string text",
+    LuauDoubleQuotedFunctionCallShorthand: "a function call, where Luau reads string text",
+    LuauBacktickFunctionCallShorthand: "a function call, where Luau rejects double braces in an interpolated string",
+  } satisfies Partial<Record<SparkdownNodeName, string>>),
+);
 
 function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocumentRegistry): LuauDiagnostic[] {
   const found: LuauDiagnostic[] = [];
@@ -323,13 +332,13 @@ function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocume
     }
     for (let child = node.firstChild; child; child = child.nextSibling) visit(child);
   };
-  // Within text, a backtick string's interpolation is read as Luau, and a
-  // double-quoted string's interpolation and an unfinished node are reported.
+  // Within text, a backtick string's interpolation is read as Luau, and an
+  // expression only Sparkdown reads there, or an unfinished node, is reported.
   const visitInterpolations = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === SPARKDOWN_INTERPOLATION) {
-        report(child.from, child.to, `Sparkdown read ${quote(child.from, child.to)} as an interpolation, where Luau reads string text`);
-      } else if (child.type.isError || child.name === LUAU_INTERPOLATION) visit(child);
+      const sparkdownReading = SPARKDOWN_STRING_EXPRESSIONS.get(child.name);
+      if (sparkdownReading) report(child.from, child.to, `Sparkdown read ${quote(child.from, child.to)} as ${sparkdownReading}`);
+      else if (child.type.isError || child.name === LUAU_INTERPOLATION) visit(child);
       else visitInterpolations(child);
     }
   };

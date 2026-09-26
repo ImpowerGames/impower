@@ -72,18 +72,19 @@ describe("syntax diagnostics", () => {
     expect(first).toMatchObject({ line: 0, column: 14, code: "SyntaxError", message: `Sparkdown read "->" as DivertMark, not Luau` });
   });
 
-  test("braces Sparkdown interpolates in a double-quoted string, which Luau reads as text, are reported", () => {
-    expect(checkLuau(`local s = "a {missing} b"`).syntaxDiagnostics).toEqual([
-      {
-        line: 0,
-        column: 13,
-        endLine: 0,
-        endColumn: 22,
-        message: `Sparkdown read "{missing}" as an interpolation, where Luau reads string text`,
-        code: "SyntaxError",
-      },
+  test("braces Sparkdown reads as an expression in a string, where Luau does not, are reported", () => {
+    const read = (source: string) =>
+      checkLuau(source).syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.code, d.message]);
+    expect(read(`local s = "a {missing} b"`)).toEqual([
+      [0, 13, 0, 22, "SyntaxError", `Sparkdown read "{missing}" as an interpolation, where Luau reads string text`],
     ]);
-    expect(checkLuau(`local s = 'a {missing} b'`).syntaxDiagnostics).toEqual([]);
+    expect(read(`local s = "a {{fmt(1, 2)}} b"`)).toEqual([
+      [0, 13, 0, 26, "SyntaxError", `Sparkdown read "{{fmt(1, 2)}}" as a function call, where Luau reads string text`],
+    ]);
+    expect(read("local s = `Hi {{shout}}!`")).toEqual([
+      [0, 14, 0, 23, "SyntaxError", `Sparkdown read "{{shout}}" as a function call, where Luau rejects double braces in an interpolated string`],
+    ]);
+    expect(read(`local s = 'a {missing} {{fmt}} b'`)).toEqual([]);
   });
 
   test("a validator diagnostic keeps Luau's wording", () => {
