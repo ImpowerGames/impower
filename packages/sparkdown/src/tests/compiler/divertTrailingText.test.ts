@@ -6,7 +6,12 @@
 
 import { describe, expect, test } from "vitest";
 import { parseSource } from "./grammarSnapshot";
-import { compareEnginesFull, formatDivergences } from "./scopeEquality";
+import {
+  compareEnginesFull,
+  formatDivergences,
+  treeScopeStackAt,
+  vscodeScopeStacksPerChar,
+} from "./scopeEquality";
 
 const LINES = [
   "-> later > After",
@@ -50,5 +55,27 @@ describe("text after a divert on the same line", () => {
     expect(diverts).toEqual([
       { from: expect.any(Number), to: line.length },
     ]);
+  });
+
+  // A `//` comment after the targets is a comment, as it is after any other
+  // display text, not stray text.
+  test.each([
+    "A -> later // note",
+    "-> later // note",
+    "HERO: Go -> later // note",
+    "+ [Go] -> later // note",
+  ])("%j scopes its `// note` as a comment", async (line) => {
+    const source = `${line}\n`;
+    const vscode = await vscodeScopeStacksPerChar(source);
+    const tree = parseSource(source);
+    for (let offset = line.indexOf("//"); offset < line.length; offset++) {
+      const at = `${JSON.stringify(source[offset])} @ ${offset}`;
+      expect(vscode[offset], `vscode ${at}`).toContain(
+        "comment.line.double-slash.sd",
+      );
+      expect(treeScopeStackAt(tree, offset), `tree ${at}`).toContain(
+        "comment.line.double-slash.sd",
+      );
+    }
   });
 });

@@ -10,20 +10,22 @@ const story = (line: string) =>
 
 describe("text after a divert on the same line", () => {
   test.each([
-    ["-> later > After", "-> later"],
-    ["-> later more words", "-> later"],
-    ["A -> later > After", "A -> later"],
-    ["A -> later>After", "A -> later"],
-    ["A -> later ! After", "A -> later"],
-    ["A -> later more words", "A -> later"],
-    ["HERO: Go -> later > After", "HERO: Go -> later"],
-  ])("%j plays like %j", (line, control) => {
+    ["-> later > After", "-> later", "Later.\n"],
+    ["-> later more words", "-> later", "Later.\n"],
+    ["-> later // note", "-> later", "Later.\n"],
+    ["A -> later > After", "A -> later", "A Later.\n"],
+    ["A -> later>After", "A -> later", "A Later.\n"],
+    ["A -> later ! After", "A -> later", "A Later.\n"],
+    ["A -> later more words", "A -> later", "A Later.\n"],
+    ["A -> later // note", "A -> later", "A Later.\n"],
+    ["HERO: Go -> later > After", "HERO: Go -> later", "Go Later.\n"],
+  ])("%j plays like %j", (line, control, shown) => {
     const withText = story(line);
     const without = story(control);
+    expect(withText.errorMessages).toEqual([]);
     expect(withText.errorMessages).toEqual(without.errorMessages);
     expect(withText.warningMessages).toEqual(without.warningMessages);
-    expect(withText.story.ContinueMaximally()).toBe(
-      without.story.ContinueMaximally(),
-    );
+    expect(withText.story.ContinueMaximally()).toBe(shown);
+    expect(without.story.ContinueMaximally()).toBe(shown);
   });
 });

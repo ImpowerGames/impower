@@ -1,4 +1,4 @@
-sparkdown [0..125]
+sparkdown [0..234]
  ├─ Divert [0..16]
  │   ├─ Divert_begin [0..2]
  │   │   ├─ Divert_begin_c1 0
@@ -213,27 +213,27 @@ sparkdown [0..125]
  │   │               └─ Divert_end 102
  │   └─ Choice_end 102
  ├─ Newline [102..103]: "\n"
- ├─ ImplicitAction [103..124]
+ ├─ ImplicitAction [103..121]
  │   ├─ ImplicitAction_begin 103
  │   │   └─ ImplicitAction_begin_c1 103
  │   │       └─ OptionalWhitespace 103
- │   ├─ ImplicitAction_content [103..124]
- │   │   └─ LineEnd [103..124]
+ │   ├─ ImplicitAction_content [103..121]
+ │   │   └─ LineEnd [103..121]
  │   │       ├─ LineEnd_begin 103
  │   │       │   └─ LineEnd_begin_c1 103
  │   │       │       └─ OptionalWhitespace 103
- │   │       ├─ LineEnd_content [103..124]
- │   │       │   └─ TextChunk [103..124]
+ │   │       ├─ LineEnd_content [103..121]
+ │   │       │   └─ TextChunk [103..121]
  │   │       │       ├─ TextChunk_begin 103
- │   │       │       ├─ TextChunk_content [103..124]
+ │   │       │       ├─ TextChunk_content [103..121]
  │   │       │       │   ├─ Word [103..104]: "A"
- │   │       │       │   └─ Divert [104..124]
+ │   │       │       │   └─ Divert [104..121]
  │   │       │       │       ├─ Divert_begin [104..107]
  │   │       │       │       │   ├─ Divert_begin_c1 [104..105]
  │   │       │       │       │   │   └─ OptionalWhitespace [104..105]: " "
  │   │       │       │       │   └─ Divert_begin_c2 [105..107]
  │   │       │       │       │       └─ DivertMark [105..107]: "->"
- │   │       │       │       ├─ Divert_content [107..124]
+ │   │       │       │       ├─ Divert_content [107..121]
  │   │       │       │       │   ├─ DivertTarget [107..113]
  │   │       │       │       │   │   ├─ DivertTarget_begin [107..108]
  │   │       │       │       │   │   │   └─ DivertTarget_begin_c1 [107..108]
@@ -247,34 +247,263 @@ sparkdown [0..125]
  │   │       │       │       │   │   │       │       └─ DivertPartName [108..113]: "later"
  │   │       │       │       │   │   │       └─ DivertPath_end 113
  │   │       │       │       │   │   └─ DivertTarget_end 113
- │   │       │       │       │   ├─ DivertTarget [113..118]
- │   │       │       │       │   │   ├─ DivertTarget_begin [113..114]
- │   │       │       │       │   │   │   └─ DivertTarget_begin_c1 [113..114]
- │   │       │       │       │   │   │       └─ DivertTarget_begin_c1 [113..114]
- │   │       │       │       │   │   │           └─ OptionalWhitespace [113..114]: " "
- │   │       │       │       │   │   ├─ DivertTarget_content [114..118]
- │   │       │       │       │   │   │   └─ DivertPath [114..118]
- │   │       │       │       │   │   │       ├─ DivertPath_begin 114
- │   │       │       │       │   │   │       ├─ DivertPath_content [114..118]
- │   │       │       │       │   │   │       │   └─ DivertPart [114..118]
- │   │       │       │       │   │   │       │       └─ DivertPartName [114..118]: "more"
- │   │       │       │       │   │   │       └─ DivertPath_end 118
- │   │       │       │       │   │   └─ DivertTarget_end 118
- │   │       │       │       │   └─ DivertTarget [118..124]
- │   │       │       │       │       ├─ DivertTarget_begin [118..119]
- │   │       │       │       │       │   └─ DivertTarget_begin_c1 [118..119]
- │   │       │       │       │       │       └─ DivertTarget_begin_c1 [118..119]
- │   │       │       │       │       │           └─ OptionalWhitespace [118..119]: " "
- │   │       │       │       │       ├─ DivertTarget_content [119..124]
- │   │       │       │       │       │   └─ DivertPath [119..124]
- │   │       │       │       │       │       ├─ DivertPath_begin 119
- │   │       │       │       │       │       ├─ DivertPath_content [119..124]
- │   │       │       │       │       │       │   └─ DivertPart [119..124]
- │   │       │       │       │       │       │       └─ DivertPartName [119..124]: "words"
- │   │       │       │       │       │       └─ DivertPath_end 124
- │   │       │       │       │       └─ DivertTarget_end 124
- │   │       │       │       └─ Divert_end 124
- │   │       │       └─ TextChunk_end 124
- │   │       └─ LineEnd_end 124
- │   └─ ImplicitAction_end 124
- └─ Newline [124..125]: "\n"
+ │   │       │       │       │   ├─ ExtraWhitespace [113..114]: " "
+ │   │       │       │       │   └─ Unknown [114..121]: "! After"
+ │   │       │       │       └─ Divert_end 121
+ │   │       │       └─ TextChunk_end 121
+ │   │       └─ LineEnd_end 121
+ │   └─ ImplicitAction_end 121
+ ├─ Newline [121..122]: "\n"
+ ├─ ImplicitAction [122..140]
+ │   ├─ ImplicitAction_begin 122
+ │   │   └─ ImplicitAction_begin_c1 122
+ │   │       └─ OptionalWhitespace 122
+ │   ├─ ImplicitAction_content [122..140]
+ │   │   └─ LineEnd [122..140]
+ │   │       ├─ LineEnd_begin 122
+ │   │       │   └─ LineEnd_begin_c1 122
+ │   │       │       └─ OptionalWhitespace 122
+ │   │       ├─ LineEnd_content [122..140]
+ │   │       │   └─ TextChunk [122..140]
+ │   │       │       ├─ TextChunk_begin 122
+ │   │       │       ├─ TextChunk_content [122..140]
+ │   │       │       │   ├─ Word [122..123]: "A"
+ │   │       │       │   └─ Divert [123..140]
+ │   │       │       │       ├─ Divert_begin [123..126]
+ │   │       │       │       │   ├─ Divert_begin_c1 [123..124]
+ │   │       │       │       │   │   └─ OptionalWhitespace [123..124]: " "
+ │   │       │       │       │   └─ Divert_begin_c2 [124..126]
+ │   │       │       │       │       └─ DivertMark [124..126]: "->"
+ │   │       │       │       ├─ Divert_content [126..140]
+ │   │       │       │       │   ├─ DivertTarget [126..132]
+ │   │       │       │       │   │   ├─ DivertTarget_begin [126..127]
+ │   │       │       │       │   │   │   └─ DivertTarget_begin_c1 [126..127]
+ │   │       │       │       │   │   │       └─ DivertTarget_begin_c1 [126..127]
+ │   │       │       │       │   │   │           └─ OptionalWhitespace [126..127]: " "
+ │   │       │       │       │   │   ├─ DivertTarget_content [127..132]
+ │   │       │       │       │   │   │   └─ DivertPath [127..132]
+ │   │       │       │       │   │   │       ├─ DivertPath_begin 127
+ │   │       │       │       │   │   │       ├─ DivertPath_content [127..132]
+ │   │       │       │       │   │   │       │   └─ DivertPart [127..132]
+ │   │       │       │       │   │   │       │       └─ DivertPartName [127..132]: "later"
+ │   │       │       │       │   │   │       └─ DivertPath_end 132
+ │   │       │       │       │   │   └─ DivertTarget_end 132
+ │   │       │       │       │   ├─ ExtraWhitespace [132..133]: " "
+ │   │       │       │       │   └─ SparkdownInlineComment [133..140]
+ │   │       │       │       │       ├─ SparkdownInlineComment_c1 133
+ │   │       │       │       │       │   └─ OptionalWhitespace 133
+ │   │       │       │       │       ├─ SparkdownInlineComment_c2 [133..135]: "//"
+ │   │       │       │       │       └─ SparkdownInlineComment_c3 [135..140]: " note"
+ │   │       │       │       └─ Divert_end 140
+ │   │       │       └─ TextChunk_end 140
+ │   │       └─ LineEnd_end 140
+ │   └─ ImplicitAction_end 140
+ ├─ Newline [140..141]: "\n"
+ ├─ ImplicitAction [141..165]
+ │   ├─ ImplicitAction_begin 141
+ │   │   └─ ImplicitAction_begin_c1 141
+ │   │       └─ OptionalWhitespace 141
+ │   ├─ ImplicitAction_content [141..165]
+ │   │   └─ LineEnd [141..165]
+ │   │       ├─ LineEnd_begin 141
+ │   │       │   └─ LineEnd_begin_c1 141
+ │   │       │       └─ OptionalWhitespace 141
+ │   │       ├─ LineEnd_content [141..165]
+ │   │       │   └─ TextChunk [141..165]
+ │   │       │       ├─ TextChunk_begin 141
+ │   │       │       ├─ TextChunk_content [141..165]
+ │   │       │       │   ├─ Word [141..142]: "A"
+ │   │       │       │   └─ Divert [142..165]
+ │   │       │       │       ├─ Divert_begin [142..145]
+ │   │       │       │       │   ├─ Divert_begin_c1 [142..143]
+ │   │       │       │       │   │   └─ OptionalWhitespace [142..143]: " "
+ │   │       │       │       │   └─ Divert_begin_c2 [143..145]
+ │   │       │       │       │       └─ DivertMark [143..145]: "->"
+ │   │       │       │       ├─ Divert_content [145..165]
+ │   │       │       │       │   ├─ DivertTarget [145..157]
+ │   │       │       │       │   │   ├─ DivertTarget_begin [145..146]
+ │   │       │       │       │   │   │   └─ DivertTarget_begin_c1 [145..146]
+ │   │       │       │       │   │   │       └─ DivertTarget_begin_c1 [145..146]
+ │   │       │       │       │   │   │           └─ OptionalWhitespace [145..146]: " "
+ │   │       │       │       │   │   ├─ DivertTarget_content [146..157]
+ │   │       │       │       │   │   │   └─ LuauFunctionCall [146..157]
+ │   │       │       │       │   │   │       ├─ LuauFunctionCall_begin [146..151]
+ │   │       │       │       │   │   │       │   ├─ LuauFunctionCall_begin_c1 [146..151]
+ │   │       │       │       │   │   │       │   │   └─ LuauFunctionName [146..151]: "later"
+ │   │       │       │       │   │   │       │   └─ LuauFunctionCall_begin_c2 151
+ │   │       │       │       │   │   │       ├─ LuauFunctionCall_content [151..157]
+ │   │       │       │       │   │   │       │   └─ LuauFunctionCallParameters [151..157]
+ │   │       │       │       │   │   │       │       ├─ LuauFunctionCallParameters_begin [151..152]
+ │   │       │       │       │   │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [151..152]
+ │   │       │       │       │   │   │       │       │       └─ PunctuationParenOpen [151..152]: "("
+ │   │       │       │       │   │   │       │       ├─ LuauFunctionCallParameters_content [152..156]
+ │   │       │       │       │   │   │       │       │   ├─ LuauNumericDecimal [152..153]
+ │   │       │       │       │   │   │       │       │   │   ├─ LuauNumericDecimal_c1 [152..153]: "1"
+ │   │       │       │       │   │   │       │       │   │   └─ LuauNumericDecimal_c2 153
+ │   │       │       │       │   │   │       │       │   ├─ LuauCommaSeparator [153..155]
+ │   │       │       │       │   │   │       │       │   │   ├─ LuauCommaSeparator_c1 153
+ │   │       │       │       │   │   │       │       │   │   ├─ LuauCommaSeparator_c2 [153..154]: ","
+ │   │       │       │       │   │   │       │       │   │   └─ LuauCommaSeparator_c3 [154..155]
+ │   │       │       │       │   │   │       │       │   │       └─ LuauCommaSeparator_c3 [154..155]
+ │   │       │       │       │   │   │       │       │   │           └─ OptionalWhitespace [154..155]: " "
+ │   │       │       │       │   │   │       │       │   └─ LuauNumericDecimal [155..156]
+ │   │       │       │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [155..156]: "2"
+ │   │       │       │       │   │   │       │       │       └─ LuauNumericDecimal_c2 156
+ │   │       │       │       │   │   │       │       └─ LuauFunctionCallParameters_end [156..157]
+ │   │       │       │       │   │   │       │           └─ LuauFunctionCallParameters_end_c1 [156..157]
+ │   │       │       │       │   │   │       │               └─ PunctuationParenClose [156..157]: ")"
+ │   │       │       │       │   │   │       └─ LuauFunctionCall_end 157
+ │   │       │       │       │   │   └─ DivertTarget_end 157
+ │   │       │       │       │   ├─ ExtraWhitespace [157..158]: " "
+ │   │       │       │       │   └─ Unknown [158..165]: "> After"
+ │   │       │       │       └─ Divert_end 165
+ │   │       │       └─ TextChunk_end 165
+ │   │       └─ LineEnd_end 165
+ │   └─ ImplicitAction_end 165
+ ├─ Newline [165..166]: "\n"
+ ├─ Divert [166..187]
+ │   ├─ Divert_begin [166..168]
+ │   │   ├─ Divert_begin_c1 166
+ │   │   │   └─ OptionalWhitespace 166
+ │   │   └─ Divert_begin_c2 [166..168]
+ │   │       └─ DivertMark [166..168]: "->"
+ │   ├─ Divert_content [168..187]
+ │   │   ├─ DivertLoad [168..174]
+ │   │   │   ├─ DivertLoad_c1 [168..169]
+ │   │   │   │   └─ OptionalWhitespace [168..169]: " "
+ │   │   │   ├─ DivertLoad_c2 [169..173]
+ │   │   │   │   └─ DivertLoadKeyword [169..173]: "load"
+ │   │   │   └─ DivertLoad_c3 [173..174]
+ │   │   │       └─ RequiredWhitespace [173..174]: " "
+ │   │   ├─ DivertTarget [174..179]
+ │   │   │   ├─ DivertTarget_begin 174
+ │   │   │   │   └─ DivertTarget_begin_c1 174
+ │   │   │   │       └─ DivertTarget_begin_c1 174
+ │   │   │   │           └─ OptionalWhitespace 174
+ │   │   │   ├─ DivertTarget_content [174..179]
+ │   │   │   │   └─ DivertPath [174..179]
+ │   │   │   │       ├─ DivertPath_begin 174
+ │   │   │   │       ├─ DivertPath_content [174..179]
+ │   │   │   │       │   └─ DivertPart [174..179]
+ │   │   │   │       │       └─ DivertPartName [174..179]: "later"
+ │   │   │   │       └─ DivertPath_end 179
+ │   │   │   └─ DivertTarget_end 179
+ │   │   ├─ ExtraWhitespace [179..180]: " "
+ │   │   └─ Unknown [180..187]: "> After"
+ │   └─ Divert_end 187
+ ├─ Newline [187..188]: "\n"
+ ├─ Divert [188..200]
+ │   ├─ Divert_begin [188..192]
+ │   │   ├─ Divert_begin_c1 188
+ │   │   │   └─ OptionalWhitespace 188
+ │   │   └─ Divert_begin_c2 [188..192]
+ │   │       └─ TunnelMark [188..192]: "->->"
+ │   ├─ Divert_content [192..200]
+ │   │   ├─ ExtraWhitespace [192..193]: " "
+ │   │   └─ Unknown [193..200]: "> After"
+ │   └─ Divert_end 200
+ ├─ Newline [200..201]: "\n"
+ ├─ ImplicitAction [201..222]
+ │   ├─ ImplicitAction_begin 201
+ │   │   └─ ImplicitAction_begin_c1 201
+ │   │       └─ OptionalWhitespace 201
+ │   ├─ ImplicitAction_content [201..222]
+ │   │   └─ LineEnd [201..222]
+ │   │       ├─ LineEnd_begin 201
+ │   │       │   └─ LineEnd_begin_c1 201
+ │   │       │       └─ OptionalWhitespace 201
+ │   │       ├─ LineEnd_content [201..222]
+ │   │       │   └─ TextChunk [201..222]
+ │   │       │       ├─ TextChunk_begin 201
+ │   │       │       ├─ TextChunk_content [201..222]
+ │   │       │       │   ├─ Word [201..202]: "A"
+ │   │       │       │   └─ Divert [202..222]
+ │   │       │       │       ├─ Divert_begin [202..205]
+ │   │       │       │       │   ├─ Divert_begin_c1 [202..203]
+ │   │       │       │       │   │   └─ OptionalWhitespace [202..203]: " "
+ │   │       │       │       │   └─ Divert_begin_c2 [203..205]
+ │   │       │       │       │       └─ DivertMark [203..205]: "->"
+ │   │       │       │       ├─ Divert_content [205..222]
+ │   │       │       │       │   ├─ DivertTarget [205..211]
+ │   │       │       │       │   │   ├─ DivertTarget_begin [205..206]
+ │   │       │       │       │   │   │   └─ DivertTarget_begin_c1 [205..206]
+ │   │       │       │       │   │   │       └─ DivertTarget_begin_c1 [205..206]
+ │   │       │       │       │   │   │           └─ OptionalWhitespace [205..206]: " "
+ │   │       │       │       │   │   ├─ DivertTarget_content [206..211]
+ │   │       │       │       │   │   │   └─ DivertPath [206..211]
+ │   │       │       │       │   │   │       ├─ DivertPath_begin 206
+ │   │       │       │       │   │   │       ├─ DivertPath_content [206..211]
+ │   │       │       │       │   │   │       │   └─ DivertPart [206..211]
+ │   │       │       │       │   │   │       │       └─ DivertPartName [206..211]: "later"
+ │   │       │       │       │   │   │       └─ DivertPath_end 211
+ │   │       │       │       │   │   └─ DivertTarget_end 211
+ │   │       │       │       │   ├─ DivertTarget [211..216]
+ │   │       │       │       │   │   ├─ DivertTarget_begin [211..212]
+ │   │       │       │       │   │   │   └─ DivertTarget_begin_c1 [211..212]
+ │   │       │       │       │   │   │       └─ DivertTarget_begin_c1 [211..212]
+ │   │       │       │       │   │   │           └─ OptionalWhitespace [211..212]: " "
+ │   │       │       │       │   │   ├─ DivertTarget_content [212..216]
+ │   │       │       │       │   │   │   └─ DivertPath [212..216]
+ │   │       │       │       │   │   │       ├─ DivertPath_begin 212
+ │   │       │       │       │   │   │       ├─ DivertPath_content [212..216]
+ │   │       │       │       │   │   │       │   └─ DivertPart [212..216]
+ │   │       │       │       │   │   │       │       └─ DivertPartName [212..216]: "more"
+ │   │       │       │       │   │   │       └─ DivertPath_end 216
+ │   │       │       │       │   │   └─ DivertTarget_end 216
+ │   │       │       │       │   └─ DivertTarget [216..222]
+ │   │       │       │       │       ├─ DivertTarget_begin [216..217]
+ │   │       │       │       │       │   └─ DivertTarget_begin_c1 [216..217]
+ │   │       │       │       │       │       └─ DivertTarget_begin_c1 [216..217]
+ │   │       │       │       │       │           └─ OptionalWhitespace [216..217]: " "
+ │   │       │       │       │       ├─ DivertTarget_content [217..222]
+ │   │       │       │       │       │   └─ DivertPath [217..222]
+ │   │       │       │       │       │       ├─ DivertPath_begin 217
+ │   │       │       │       │       │       ├─ DivertPath_content [217..222]
+ │   │       │       │       │       │       │   └─ DivertPart [217..222]
+ │   │       │       │       │       │       │       └─ DivertPartName [217..222]: "words"
+ │   │       │       │       │       │       └─ DivertPath_end 222
+ │   │       │       │       │       └─ DivertTarget_end 222
+ │   │       │       │       └─ Divert_end 222
+ │   │       │       └─ TextChunk_end 222
+ │   │       └─ LineEnd_end 222
+ │   └─ ImplicitAction_end 222
+ ├─ Newline [222..223]: "\n"
+ ├─ ImplicitAction [223..233]
+ │   ├─ ImplicitAction_begin 223
+ │   │   └─ ImplicitAction_begin_c1 223
+ │   │       └─ OptionalWhitespace 223
+ │   ├─ ImplicitAction_content [223..233]
+ │   │   └─ LineEnd [223..233]
+ │   │       ├─ LineEnd_begin 223
+ │   │       │   └─ LineEnd_begin_c1 223
+ │   │       │       └─ OptionalWhitespace 223
+ │   │       ├─ LineEnd_content [223..233]
+ │   │       │   └─ TextChunk [223..233]
+ │   │       │       ├─ TextChunk_begin 223
+ │   │       │       ├─ TextChunk_content [223..233]
+ │   │       │       │   ├─ Word [223..224]: "A"
+ │   │       │       │   └─ Divert [224..233]
+ │   │       │       │       ├─ Divert_begin [224..227]
+ │   │       │       │       │   ├─ Divert_begin_c1 [224..225]
+ │   │       │       │       │   │   └─ OptionalWhitespace [224..225]: " "
+ │   │       │       │       │   └─ Divert_begin_c2 [225..227]
+ │   │       │       │       │       └─ DivertMark [225..227]: "->"
+ │   │       │       │       ├─ Divert_content [227..233]
+ │   │       │       │       │   └─ DivertTarget [227..233]
+ │   │       │       │       │       ├─ DivertTarget_begin [227..228]
+ │   │       │       │       │       │   └─ DivertTarget_begin_c1 [227..228]
+ │   │       │       │       │       │       └─ DivertTarget_begin_c1 [227..228]
+ │   │       │       │       │       │           └─ OptionalWhitespace [227..228]: " "
+ │   │       │       │       │       ├─ DivertTarget_content [228..233]
+ │   │       │       │       │       │   └─ DivertPath [228..233]
+ │   │       │       │       │       │       ├─ DivertPath_begin 228
+ │   │       │       │       │       │       ├─ DivertPath_content [228..233]
+ │   │       │       │       │       │       │   └─ DivertPart [228..233]
+ │   │       │       │       │       │       │       └─ DivertPartName [228..233]: "later"
+ │   │       │       │       │       │       └─ DivertPath_end 233
+ │   │       │       │       │       └─ DivertTarget_end 233
+ │   │       │       │       └─ Divert_end 233
+ │   │       │       └─ TextChunk_end 233
+ │   │       └─ LineEnd_end 233
+ │   └─ ImplicitAction_end 233
+ └─ Newline [233..234]: "\n"
