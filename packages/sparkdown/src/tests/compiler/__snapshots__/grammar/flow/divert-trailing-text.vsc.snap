@@ -1,0 +1,76 @@
+text.source.sparkdown [0..125]
+ ├─ keyword.control.divert.mark.sd [0..2]: "->"
+ ├─ keyword.control.divert.path.sd [2..8]
+ │   ├─ punctuation.whitespace.optional.sd [2..3]: " "
+ │   └─ keyword.control.divert.path.sd [3..8]
+ │       └─ keyword.control.divert.path.sd [3..8]: "later"
+ ├─ punctuation.whitespace.extra.sd [8..9]: " "
+ ├─ invalid.illegal.unknown-statement.sd [9..16]: "> After"
+ ├─ Newline [16..17]: "\n"
+ ├─ string.display.text.chunk.sd [17..35]
+ │   ├─ markup.raw.text.sd [17..18]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [18..19]: " "
+ │   ├─ keyword.control.divert.mark.sd [19..21]: "->"
+ │   ├─ keyword.control.divert.path.sd [21..27]
+ │   │   ├─ punctuation.whitespace.optional.sd [21..22]: " "
+ │   │   └─ keyword.control.divert.path.sd [22..27]
+ │   │       └─ keyword.control.divert.path.sd [22..27]: "later"
+ │   ├─ punctuation.whitespace.extra.sd [27..28]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [28..35]: "> After"
+ ├─ Newline [35..36]: "\n"
+ ├─ string.display.text.chunk.sd [36..52]
+ │   ├─ markup.raw.text.sd [36..37]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [37..38]: " "
+ │   ├─ keyword.control.divert.mark.sd [38..40]: "->"
+ │   ├─ keyword.control.divert.path.sd [40..46]
+ │   │   ├─ punctuation.whitespace.optional.sd [40..41]: " "
+ │   │   └─ keyword.control.divert.path.sd [41..46]
+ │   │       └─ keyword.control.divert.path.sd [41..46]: "later"
+ │   └─ invalid.illegal.unknown-statement.sd [46..52]: ">After"
+ ├─ Newline [52..53]: "\n"
+ ├─ string.display.dialogue.inline.sd [53..78]
+ │   ├─ entity.name.type.dialogue.character.name.sd [53..57]
+ │   │   └─ markup.raw.text.sd [53..57]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [57..58]: ":"
+ │   ├─ punctuation.whitespace.required.sd [58..59]: " "
+ │   └─ string.display.text.chunk.sd [59..78]
+ │       ├─ markup.raw.text.sd [59..61]: "Go"
+ │       ├─ punctuation.whitespace.optional.sd [61..62]: " "
+ │       ├─ keyword.control.divert.mark.sd [62..64]: "->"
+ │       ├─ keyword.control.divert.path.sd [64..70]
+ │       │   ├─ punctuation.whitespace.optional.sd [64..65]: " "
+ │       │   └─ keyword.control.divert.path.sd [65..70]
+ │       │       └─ keyword.control.divert.path.sd [65..70]: "later"
+ │       ├─ punctuation.whitespace.extra.sd [70..71]: " "
+ │       └─ invalid.illegal.unknown-statement.sd [71..78]: "> After"
+ ├─ Newline [78..79]: "\n"
+ ├─ entity.choice.sd [79..102]
+ │   ├─ keyword.operator.expression.list.sd [79..81]: "+ "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [81..82]: "["
+ │   ├─ string.choice.sd [82..84]
+ │   │   └─ markup.raw.text.sd [82..84]: "Go"
+ │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [84..85]: "]"
+ │   ├─ punctuation.whitespace.required.sd [85..86]: " "
+ │   ├─ keyword.control.divert.mark.sd [86..88]: "->"
+ │   ├─ keyword.control.divert.path.sd [88..94]
+ │   │   ├─ punctuation.whitespace.optional.sd [88..89]: " "
+ │   │   └─ keyword.control.divert.path.sd [89..94]
+ │   │       └─ keyword.control.divert.path.sd [89..94]: "later"
+ │   ├─ punctuation.whitespace.extra.sd [94..95]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [95..102]: "> After"
+ ├─ Newline [102..103]: "\n"
+ ├─ string.display.text.chunk.sd [103..124]
+ │   ├─ markup.raw.text.sd [103..104]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [104..105]: " "
+ │   ├─ keyword.control.divert.mark.sd [105..107]: "->"
+ │   └─ keyword.control.divert.path.sd [107..124]
+ │       ├─ punctuation.whitespace.optional.sd [107..108]: " "
+ │       ├─ keyword.control.divert.path.sd [108..113]
+ │       │   └─ keyword.control.divert.path.sd [108..113]: "later"
+ │       ├─ punctuation.whitespace.optional.sd [113..114]: " "
+ │       ├─ keyword.control.divert.path.sd [114..118]
+ │       │   └─ keyword.control.divert.path.sd [114..118]: "more"
+ │       ├─ punctuation.whitespace.optional.sd [118..119]: " "
+ │       └─ keyword.control.divert.path.sd [119..124]
+ │           └─ keyword.control.divert.path.sd [119..124]: "words"
+ └─ Newline [124..125]: "\n"

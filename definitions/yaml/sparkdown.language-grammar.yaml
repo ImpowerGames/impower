@@ -1148,6 +1148,10 @@ repository:
       - { include: "#Tunnel" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
+      # The divert ends its line, so anything after the targets (`> After`,
+      # stray punctuation) is stray text. Tile it so the rule always reaches
+      # `end` instead of closing ERROR_INCOMPLETE mid-line (GRAMMAR.md §17).
+      - { include: "#Unknown" }
     end: (?=$)
 
   # `-> load NAME`: preload NAME's scene (and world) behind the loading layout
