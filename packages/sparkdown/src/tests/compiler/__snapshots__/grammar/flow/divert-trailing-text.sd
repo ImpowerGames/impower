@@ -1,0 +1,16 @@
+-> later > After
+A -> later > After
+A -> later>After
+HERO: Go -> later > After
++ [Go] -> later > After
++ Go -> later > After
+A -> later ! After
+A -> later // note
+-> later // note
+HERO: Go -> later // note
++ [Go] -> later // note
+A -> later(1, 2) > After
+-> load later > After
+->-> > After
+A -> later more words
+A -> later

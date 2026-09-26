@@ -1572,7 +1572,13 @@
           "include": "#DivertTarget"
         },
         {
+          "include": "#SparkdownInlineComment"
+        },
+        {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Unknown"
         }
       ],
       "end": "(?=$)"

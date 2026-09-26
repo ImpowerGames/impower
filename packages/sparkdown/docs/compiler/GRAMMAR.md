@@ -1121,6 +1121,8 @@ All 151 `begin`/`end` rules were audited for this class. Grouped by `end`-patter
 
 **Known residual (invalid/incomplete input only, not gated):** an `if` / `for` / `while` header written _without_ its `then` / `do` terminator (a transient mid-edit state) leaves the condition/header expression — which legitimately includes `Newline` so multi-line conditions can parse — running across lines until it hits a `{{BEAT}}` or `end`. The two engines scope that run-on region differently. This is invalid syntax and a separate, deeper concern than the boundary-tiling class; it is characterized here rather than fixed, because bounding the condition to one line would break valid multi-line conditions.
 
+**Known residual (tracked in #926, not gated):** stray text after a tunnel chain (`-> a -> b > After`) or after a divert inside a single-line alternator arm (`x .. queue|-> A > y|b .. z`). `Divert` tiles its line with a comment rule and `Unknown`, but the nested `Tunnel` and the arm's `ArmDivert` have no stray-text rule, so each closes `ERROR_INCOMPLETE` at the first stray character and the engines scope the rest differently. They cannot take `Divert`'s line-eating `Unknown` as is: `ArmDivert` includes `Tunnel`, and the stray-text rule inside an arm has to stop at the arm's `|`, glue and `end`.
+
 ---
 
 # Part VIII — Reference
