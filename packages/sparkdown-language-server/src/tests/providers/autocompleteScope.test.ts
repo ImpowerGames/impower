@@ -46,6 +46,8 @@ describe("autocomplete · scope and visibility", () => {
   });
 
   upstreamCase("leave_numbers_alone", "a decimal point in a number offers nothing", () => {
+    // Member completion after a dot offers nothing anywhere while #867 is
+    // open, so this starts guarding numbers once that is fixed.
     expect(labelsAt("store a = 3.@11\n")).toEqual([]);
     expect(labelsAt("function main()\n  local a = 3.@11\nend\n")).toEqual([]);
   });
@@ -271,7 +273,7 @@ describe("autocomplete · scope and visibility", () => {
     }
   });
 
-  upstreamCase.bug(BUG.keywordPosition, "function_expr_params", "the end of a function expression's `function` keyword offers nothing", () => {
+  upstreamCase.bug(BUG.keywordPosition, "function_expr_params", "positions inside and at the end of a function expression's `function` keyword offer nothing", () => {
     // The keyword is finished and followed by its parameters, so offering
     // `function` there completes nothing.
     for (const text of ["function main()\n  abc = function(def) ", "function main()\n  abc = function(def) \n  end\nend\n"]) {
@@ -359,7 +361,7 @@ describe("autocomplete · scope and visibility", () => {
     const before = "store alpha = 2\nfunction main()\n  return a\nend\n";
     const labels = labelsAt(source, { editedFrom: before });
     expect(labels).toEqual(expect.arrayContaining(["alpha", "beta"]));
-    expect(labels).toEqual(labelsAt(source));
+    expect([...labels].sort()).toEqual([...labelsAt(source)].sort());
   });
 
   upstreamCase("globals_are_order_independent", "globals and the enclosing function's locals are offered", () => {

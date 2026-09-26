@@ -26,4 +26,6 @@ export const BUG = {
   defineFields: 868,
   /** Sparkle `#prop` and `@event` attributes offer nothing. */
   sparkleAttributes: 869,
+  /** A half-typed if-expression turns the rest of its line into narrative text. */
+  ifExpressionParse: 888,
 } as const;

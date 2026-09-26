@@ -9,6 +9,9 @@ import { labelsAt, upstreamCase } from "./completionHarness";
 
 describe("autocomplete · comments, strings and broken input", () => {
   upstreamCase("dont_offer_any_suggestions_from_within_a_comment", "a member access inside a block comment in Luau code offers nothing", () => {
+    // While member completion offers nothing anywhere (#867), this cannot
+    // tell a comment from code. Comment suppression in Luau code is pinned by
+    // the skipped #866 cases below, which fail today.
     const labels = labelsAt(
       "store foo = {}\nfunction foo:bar() end\n\nfunction main()\n  --[[\n    foo:@1\n  ]]\nend\n",
     );
@@ -28,8 +31,13 @@ describe("autocomplete · comments, strings and broken input", () => {
   });
 
   upstreamCase("dont_offer_any_suggestions_from_within_a_comment", "a top-level comment offers nothing", () => {
+    // `foo.` offers nothing outside a comment too while #867 is open. A word
+    // that starts a keyword is the check that can fail today: outside a
+    // comment, `f` offers `function` and `for`.
     expect(labelsAt("store foo = {}\n// foo.@1\n")).toEqual([]);
     expect(labelsAt("// @1")).toEqual([]);
+    expect(labelsAt("// f@1")).toEqual([]);
+    expect(labelsAt("f@1")).toEqual(expect.arrayContaining(["function", "for"]));
   });
 
   upstreamCase("comments", "a top-level comment at the end of the file offers nothing", () => {
