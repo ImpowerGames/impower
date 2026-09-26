@@ -637,6 +637,10 @@ Two literal cases are deliberately different:
 
 Statement-level diagnostics (a missing `end`, an unexpected token, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. Type-annotation diagnostics are not applicable at all (see "Type annotations are parsed but ignored" above) and are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
 
+### Four of Luau's lints, and no lint directives
+
+Sparkdown reports Luau's `LocalUnused`, `UnreachableCode`, `DuplicateCondition` and `ForRange` lints with Luau's messages, lacks the other rules of Luau's linter, and has no `--!nolint` or other `--!` directives to silence them. [`docs/compiler/LINTS.md`](../compiler/LINTS.md) lists which lints sparkdown has, lacks and omits, and where its four rules report less than Luau's do.
+
 ### Regex literals: `@/pattern/flags`
 
 Not a Luau form at all. A regex literal is raw, so a pattern keeps single
