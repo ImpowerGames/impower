@@ -3556,8 +3556,11 @@ export class SparkdownCompiler {
   // Canonicalize compiler-synthesized identifier names that are minted from a
   // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
   // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
-  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
-  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Each
+  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`),
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …),
+  // compound property assignment temps (`__pa_base_<from>`, `__pa_key_<from>`)
+  // and multi-target assignment temps (`__mt_<from>_<i>`, `__mt_base_<from>_<i>`,
+  // `__mt_key_<from>_<i>`). Each
   // `<from>` is `syntheticId`: the document's tag, `$`, then the offset within
   // it, so two files never mint one raw name. The incremental pipeline carries
   // an unchanged chunk's lowered IR into the next compile WITHOUT re-lowering
@@ -3764,7 +3767,10 @@ export class SparkdownCompiler {
         found = true;
         considerGroup(node);
       }
-      if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+      if (
+        node instanceof FlowBase &&
+        (node._subFlowsByName.size > 0 || node.variableDeclarations.size > 0)
+      ) {
         // Only flows that actually contain a synthetic can need re-keying,
         // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
@@ -3788,8 +3794,8 @@ export class SparkdownCompiler {
     }
 
     // Rewrite phase: only the recorded matches, then re-key each FlowBase's
-    // `_subFlowsByName` index (built from the pre-rename identifiers at
-    // lowering time) after all names are final. Every node whose name
+    // `_subFlowsByName` index and `variableDeclarations` map (both keyed by
+    // pre-rename names) after all names are final. Every node whose name
     // actually CHANGED marks its enclosing top-level flow — the caller uses
     // that to demote reused flows and lapse stale serialized-JSON entries.
     const renamedTopLevelFlows = new Set<ParsedObject>();
@@ -3835,6 +3841,19 @@ export class SparkdownCompiler {
         }
       }
       flow._subFlowsByName = next;
+      // A carried flow keeps the temps it declared in an earlier compile under
+      // their names from then. Left there, an old `__synth_<n>` key shadows
+      // whatever now holds that name, such as a loop label, whose back edge
+      // then resolves as a divert to an undeclared variable. Each synthetic
+      // entry is keyed by its declaration's name, which the rewrite above
+      // has already made final.
+      if ([...flow.variableDeclarations.keys()].some((k) => SYNTH.test(k))) {
+        const decls: typeof flow.variableDeclarations = new Map();
+        for (const [key, decl] of flow.variableDeclarations) {
+          decls.set(SYNTH.test(key) ? (decl.variableName ?? key) : key, decl);
+        }
+        flow.variableDeclarations = decls;
+      }
     }
     return renamedTopLevelFlows;
   }
