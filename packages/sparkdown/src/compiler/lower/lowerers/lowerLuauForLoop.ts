@@ -47,6 +47,9 @@ import { syntheticId } from "../utils/documentTag";
 //     - (__for_<off>_break)
 //   EndScope
 //
+// `<off>` is `syntheticId`: the document tag, `$`, then the loop's offset in
+// the document. The rename pass recognizes these names by that `$`.
+//
 // The scope wrap (BeginScope / EndScope) keeps the loop variable and
 // the snapshot index/stop/step temps from leaking into the enclosing
 // scope.

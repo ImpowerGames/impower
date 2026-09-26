@@ -1197,7 +1197,7 @@ function lowerAnonymousFunction(
   // Compound-assignment lowering (`obj[fn()] += 1`) re-lowers the LHS
   // expression for the GET side, which re-lowers any anon fn inside
   // the index expression. Both lowerings produce the same `__anon_fn_<from>`
-  // name, and a duplicate sibling triggers a hard "duplicate flow" error.
+  // name (`<from>` is `syntheticId`: the document tag, `$`, then the offset), and a duplicate sibling triggers a hard "duplicate flow" error.
   // Since the source position is identical, both produce equivalent
   // Functions — keeping the first is correct.
   const alreadyRegistered = (buf: ParsedObject[] | undefined) =>
@@ -1709,7 +1709,7 @@ export function countUserParameters(
 // Build the closure-value `ObjectExpression`. The shape is recognized
 // by `CallValueAsFunction`'s closure-aware dispatch in Story.ts:
 //   {
-//     __closure_fn: -> __anon_fn_<offset>,
+//     __closure_fn: -> __anon_fn_<syntheticId>,
 //     __closure_upvals: { "0": <upval0>, "1": <upval1>, ... },
 //     __closure_user_arity: <K>,
 //   }

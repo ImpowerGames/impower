@@ -3517,23 +3517,25 @@ export class SparkdownCompiler {
   // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
   // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Each
   // `<from>` is `syntheticId`: the document's tag, `$`, then the offset within
-  // it, so two files never mint one raw name, and a name this pass has already
-  // renamed in a carried chunk never meets another file's raw name under a
-  // shared mapping. Those offset-based names are FROZEN into the per-chunk
-  // lowered IR that the incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
-  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
-  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
-  // same text re-derives the current one (`__define_fn_144`) — and since these
-  // names become runtime container names (keys/paths in `program.compiled`),
-  // the bytecode diverges between an incremental and a cold compile.
+  // it, so two files never mint one raw name. The incremental pipeline carries
+  // an unchanged chunk's lowered IR into the next compile WITHOUT re-lowering
+  // it (only `debugMetadata` line numbers are rebased), so an offset baked into
+  // a carried name would stay what it was before an edit shifted the chunk
+  // while a cold compile of the same text derives the current offset, and
+  // since these names become runtime container names (keys/paths in
+  // `program.compiled`) the bytecode would diverge.
   //
   // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
   // and incremental, before ExportRuntime) and renumbers each distinct synthetic
-  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
-  // ORDER (not by the offset value) is what makes the result identical between a
-  // cold parse and an incremental parse of the same text: a carried node sits at
-  // the same tree position either way, so it gets the same ordinal regardless of
-  // any stale offset baked into its name. A given synthetic name's definition
+  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance, rewriting the
+  // IR in place. A carried chunk therefore holds the `__synth_<n>` names an
+  // earlier compile gave it, beside the raw names of freshly lowered chunks;
+  // a raw name always has a `$` and a canonical one never does, so the two
+  // never share a string. Numbering by ORDER (not by the offset value) is what
+  // makes the result identical between a cold parse and an incremental parse
+  // of the same text: a carried node sits at the same tree position either
+  // way, so it gets the same ordinal regardless of the ordinal it carries from
+  // the earlier compile. A given synthetic name's definition
   // and all of its references share the exact same string and are emitted within
   // the same chunk, so a uniform string→string remap suffices (no need to link
   // references back to definitions).

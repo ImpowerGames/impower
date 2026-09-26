@@ -34,6 +34,9 @@ import { syntheticId } from "../utils/documentTag";
 //     - (__repeat_<off>_break)
 //   EndScope
 //
+// `<off>` is `syntheticId`: the document tag, `$`, then the loop's offset in
+// the document. The rename pass recognizes these names by that `$`.
+//
 // `break` diverts to the break gather; control falls through past it
 // to the EndScope. `continue` diverts to the continue gather where
 // the until-condition runs (still inside the same scope, so the

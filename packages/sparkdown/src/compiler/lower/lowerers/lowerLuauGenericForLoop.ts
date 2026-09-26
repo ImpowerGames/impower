@@ -54,6 +54,9 @@ import { syntheticId } from "../utils/documentTag";
 //     - (__forIn_<off>_break)
 //   EndScope
 //
+// `<off>` is `syntheticId`: the document tag, `$`, then the loop's offset in
+// the document. The rename pass recognizes these names by that `$`.
+//
 // Limitations matching numeric/repeat:
 //   - The loop variables (v1..vn) share their slots across iterations
 //     instead of getting a fresh binding per iteration. Most user code

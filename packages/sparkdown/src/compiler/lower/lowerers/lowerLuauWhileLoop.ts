@@ -29,6 +29,9 @@ import { syntheticId } from "../utils/documentTag";
 //       -> __while_<offset>_loop
 //     }
 //
+// `<offset>` is `syntheticId`: the document tag, `$`, then the loop's offset
+// in the document. The rename pass recognizes these names by that `$`.
+//
 // Why this works without a synthetic knot / stitch:
 //
 //   - The labeled `Gather` auto-enters when execution reaches it,
