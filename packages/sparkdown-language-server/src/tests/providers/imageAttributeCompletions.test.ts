@@ -21,7 +21,7 @@ const completeItems = (source: string, contextProgram = program) => {
   const text = source.replace("|", "");
   const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
   documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  return getCompletions(documents.get(URI), documents.tree(URI), new Map([[URI, documents.annotations(URI)]]), contextProgram, undefined, documents.get(URI)!.positionAt(offset), undefined) ?? [];
+  return getCompletions(documents.get(URI), documents.tree(URI), new Map([[URI, { annotations: documents.annotations(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]), contextProgram, undefined, documents.get(URI)!.positionAt(offset), undefined) ?? [];
 };
 const complete = (source: string, contextProgram = program) => completeItems(source, contextProgram).map((item) => item.label).sort();
 

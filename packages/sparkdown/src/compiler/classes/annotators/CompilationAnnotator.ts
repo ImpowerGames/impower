@@ -18,11 +18,6 @@ import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
-let id = 1;
-const generateUUID = () => {
-  return `${id++}`;
-};
-
 export interface InkDiagnostic {
   message: string;
   severity: ErrorType;
@@ -53,7 +48,6 @@ export interface CompiledBlock {
     components?: { [name: string]: any };
   };
   defaultDefinitions?: { [type: string]: any };
-  json?: string;
   uuid?: string;
   // Synthetic top-level knots produced by anonymous function literals
   // inside this chunk. The compile pipeline appends them to the
@@ -303,8 +297,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         // wrap, the tag-triplet would land flat in the enclosing
         // container alongside the next chunk's line-type tag, and the
         // walker would over-collect into the next line's metadata.
+        // `SparkdownCompiler.canonicalizeSyntheticFlowNames` numbers the
+        // containers in document order on every compile, so the value set
+        // here only marks the chunk.
         if (nodeRef.name === "Tags") {
-          lowered.uuid = generateUUID();
+          lowered.uuid = "tags";
         }
         annotations.push(
           SparkdownAnnotation.mark(lowered).range(nodeRef.from, nodeRef.to),
@@ -319,26 +316,5 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // handling, add a lowerer for it in `src/compiler/lower/lower.ts`.
     }
     return annotations;
-  }
-
-  override end(
-    _iterateFrom: number,
-    _iterateTo: number,
-    added: Range<SparkdownAnnotation<CompiledBlock>>[],
-    removed: Range<SparkdownAnnotation<CompiledBlock>>[],
-  ): void {
-    for (let i = 0; i < added.length; i++) {
-      const add = added[i]!;
-      const remove = removed[i];
-      if (add.value.type.uuid != null) {
-        if (add?.value.type.json === remove?.value.type.json) {
-          // No change, carry forward uuid
-          add.value.type.uuid = remove?.value.type.uuid ?? generateUUID();
-        } else {
-          // The compiled json has changed, generate a new uuid
-          add.value.type.uuid = generateUUID();
-        }
-      }
-    }
   }
 }

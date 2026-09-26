@@ -23,7 +23,7 @@ const setup = (source: string) => {
       languageId: "sparkdown",
     },
   });
-  const scriptAnnotations = new Map([[URI, documents.annotations(URI)]]);
+  const scriptAnnotations = new Map([[URI, { annotations: documents.annotations(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]);
   return { documents, scriptAnnotations };
 };
 

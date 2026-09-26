@@ -9,16 +9,25 @@ export type DeclarationScopes = {
   [path: string]: Partial<Record<DeclarationType, string[]>>;
 };
 
+/**
+ * One script's annotations with a reader over that script's own text. Its
+ * annotation ranges are offsets into that text, so they are read only
+ * through its `read`.
+ */
+export type AnnotatedScript = {
+  annotations: SparkdownAnnotations;
+  read: (from: number, to: number) => string;
+};
+
 export const getDeclarationScopes = (
-  read: (from: number, to: number) => string,
-  scriptAnnotations: Map<string, SparkdownAnnotations>,
+  scripts: Map<string, AnnotatedScript>,
 ): DeclarationScopes => {
   let scopePathParts: {
     kind: "scene" | "branch";
     name: string;
   }[] = [];
   const scopes: DeclarationScopes = {};
-  for (const [, annotations] of scriptAnnotations) {
+  for (const [, { annotations, read }] of scripts) {
     const cur = annotations.declarations?.iter();
     if (cur) {
       while (cur.value) {
