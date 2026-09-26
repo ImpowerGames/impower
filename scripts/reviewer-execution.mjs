@@ -11,6 +11,15 @@ const git = (root, args) => execFileSync("git", args, { cwd: root, encoding: "ut
 const inside = (root, file) => { const relative = path.relative(root, file); return relative && !relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative); };
 const integer = (n, min, max) => Number.isInteger(n) && n >= min && n <= max;
 
+export function executionClientCommand(root, { platform = process.platform, node = process.execPath } = {}) {
+  if (platform === "win32") {
+    const script = path.join(root, "scripts/reviewer-execution-client.ps1");
+    return `powershell.exe -NoProfile -NonInteractive -File '${script.replaceAll("'", "''")}'`;
+  }
+  const quote = value => "'" + value.replaceAll("'", "'\"'\"'") + "'";
+  return `${quote(fs.realpathSync.native(node))} ${quote(path.join(root, "scripts/reviewer-execution-client.mjs"))}`;
+}
+
 export function validateExecutionShape(step) {
   if (step.execution === undefined) return;
   if (step.role !== "review") throw new Error("execution is only supported on review steps");
@@ -135,13 +144,19 @@ export async function startExecutionService({ operations, root, directory, head 
       }).finally(() => { pending = undefined; });
     }
     const result = results.get(command.id) ?? { id: command.id, state: "not-started" };
-    let output;
+    let output, outputBytes, outputTruncated;
     if (result.log) {
       const fd = fs.openSync(result.log, "r");
-      try { const bytes = Buffer.alloc(Math.min(fs.fstatSync(fd).size, 4 * 1024 * 1024)); fs.readSync(fd, bytes, 0, bytes.length, 0); output = bytes.toString("utf8"); }
+      try {
+        outputBytes = fs.fstatSync(fd).size;
+        const bytes = Buffer.alloc(Math.min(outputBytes, 4 * 1024 * 1024));
+        fs.readSync(fd, bytes, 0, bytes.length, 0);
+        output = bytes.toString("utf8");
+        outputTruncated = outputBytes > bytes.length;
+      }
       finally { fs.closeSync(fd); }
     }
-    return reply(res, 200, { ...result, output });
+    return reply(res, 200, { ...result, output, outputBytes, outputTruncated });
   });
   server.headersTimeout = 10000;
   server.requestTimeout = 10000;

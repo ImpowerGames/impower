@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { executionCommands, executionEnvironment, startExecutionService, validateExecutionShape } from "./reviewer-execution.mjs";
+import { executionCommands, executionEnvironment, startExecutionService, validateExecutionShape, executionClientCommand } from "./reviewer-execution.mjs";
 import { requestExecution } from "./reviewer-execution-client.mjs";
 import { runHandoff } from "./agent-handoff.mjs";
 import { createReviewJob } from "./review-supervisor.mjs";
@@ -85,7 +85,19 @@ try {
   if (process.platform === "win32") {
     const output = await new Promise((resolve, reject) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", fileURLToPath(new URL("./reviewer-execution-client.ps1", import.meta.url)), "tests"], { env: { ...process.env, ...service.environment }, windowsHide: true }, (error, stdout) => error ? reject(error) : resolve(stdout)));
     assert.equal(JSON.parse(output).passed, true, "Windows client requires no sandbox access to the Node installation");
+    const quotedRoot = path.join(scratch, "client ' $(Write-Output unexpected)");
+    fs.mkdirSync(path.join(quotedRoot, "scripts"), { recursive: true });
+    fs.copyFileSync(fileURLToPath(new URL("./reviewer-execution-client.ps1", import.meta.url)), path.join(quotedRoot, "scripts/reviewer-execution-client.ps1"));
+    const quotedOutput = await new Promise((resolve, reject) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", executionClientCommand(quotedRoot) + " tests"], { env: { ...process.env, ...service.environment }, windowsHide: true }, (error, stdout) => error ? reject(error) : resolve(stdout)));
+    assert.equal(JSON.parse(quotedOutput).passed, true, "the supplied PowerShell command preserves literal shell metacharacters in paths");
   } else console.log("SKIP: Windows PowerShell client runs in the Windows matrix leg");
+  if (process.platform !== "win32") {
+    const quotedRoot = path.join(scratch, "client ' $(printf unexpected)");
+    fs.mkdirSync(path.join(quotedRoot, "scripts"), { recursive: true });
+    fs.copyFileSync(fileURLToPath(new URL("./reviewer-execution-client.mjs", import.meta.url)), path.join(quotedRoot, "scripts/reviewer-execution-client.mjs"));
+    const quotedOutput = await new Promise((resolve, reject) => execFile("sh", ["-c", executionClientCommand(quotedRoot) + " tests"], { env: { ...process.env, ...service.environment }, windowsHide: true }, (error, stdout) => error ? reject(error) : resolve(stdout)));
+    assert.equal(JSON.parse(quotedOutput).passed, true, "the supplied POSIX command preserves literal shell metacharacters in paths");
+  }
   const failed = await requestExecution("engine", options);
   assert.equal(failed.exit, 3);
   assert.equal(failed.passed, false);
@@ -104,7 +116,20 @@ await assert.rejects(requestExecution("tests", { env: changed.environment }), /w
 await assert.rejects(changed.close(), /worktree changed/);
 git("restore", "packages/example/a.test.ts");
 
-// A second operation cannot race the first, and timeout cannot be a pass.
+// Hold one admitted operation until the second request has been refused. This
+// does not race a one-second timeout against Windows process-identity probes.
+const serialDirectory = path.join(scratch, "serial"); fs.mkdirSync(serialDirectory);
+let releaseRun;
+const heldRun = new Promise(resolve => { releaseRun = resolve; });
+const serial = await startExecutionService({ operations, root, directory: serialDirectory, head }, {
+  run: async command => { await heldRun; return { id: command.id, exit: 0, signal: null }; },
+});
+try {
+  await fetch(serial.environment.IMPOWER_REVIEW_EXECUTION_URL + "/operations/preview", { method: "POST", headers: { authorization: `Bearer ${serial.environment.IMPOWER_REVIEW_EXECUTION_TOKEN}` } });
+  await assert.rejects(requestExecution("tests", { env: serial.environment }), /Another operation/);
+} finally { releaseRun(); await serial.close(); }
+
+// A real owned child timeout cannot be a pass.
 write("scripts/bench/preview-bench.mjs", `console.log("waiting"); setTimeout(()=>{}, 30000);`);
 git("add", "."); git("commit", "-m", "timeout fixture");
 const timeoutDirectory = path.join(scratch, "timeout"); fs.mkdirSync(timeoutDirectory);
@@ -112,9 +137,40 @@ const timed = await startExecutionService({ operations: [{ ...operations[2], tim
 try {
   const timedHeaders = { authorization: `Bearer ${timed.environment.IMPOWER_REVIEW_EXECUTION_TOKEN}` };
   await fetch(timed.environment.IMPOWER_REVIEW_EXECUTION_URL + "/operations/preview", { method: "POST", headers: timedHeaders });
-  await assert.rejects(requestExecution("tests", { env: timed.environment }), /Another operation/);
   const result = await requestExecution("preview", { env: timed.environment, pollMs: 10 });
   assert.equal(result.timedOut, true);
   assert.equal(result.passed, false);
 } finally { await timed.close(); }
 console.log("PASS: delegated tests and benchmarks, authentication, fixed inputs, retained failures, freeze, serial execution and drained shutdown");
+
+// The client must be told when returned output is incomplete, while the
+// coordinator retains the complete log for inspection.
+write("scripts/bench/engine-bench.mjs", `console.log("x".repeat(4 * 1024 * 1024 + 64));`);
+git("add", "."); git("commit", "-m", "large output fixture");
+const largeDirectory = path.join(scratch, "large-output"); fs.mkdirSync(largeDirectory);
+const large = await startExecutionService({ operations: [operations[1]], root, directory: largeDirectory, head: git("rev-parse", "HEAD") });
+try {
+  const result = await requestExecution("engine", { env: large.environment, pollMs: 10 });
+  assert.equal(Buffer.byteLength(result.output), 4 * 1024 * 1024);
+  assert.ok(fs.statSync(result.log).size > Buffer.byteLength(result.output), "complete output stays in the coordinator log");
+  assert.equal(result.outputTruncated, true, "reviewer is explicitly told its response is incomplete");
+  assert.equal(result.outputBytes, fs.statSync(result.log).size);
+} finally { await large.close(); }
+
+// A service failure after a command drains must not hide confirmed reviewer
+// exit or leak the machine-wide reviewer slot.
+fs.unlinkSync(path.join(root, ".git", "agent-review-job.json"));
+write("scripts/bench/preview-bench.mjs", `import fs from "node:fs"; fs.writeFileSync("unexpected-output", "dirty");`);
+git("add", "."); git("commit", "-m", "dirty command fixture");
+const dirtyHead = git("rev-parse", "HEAD"), dirtyJournal = path.join(scratch, "dirty-journal.jsonl");
+fs.writeFileSync(reviewer, `import fs from "node:fs"; import assert from "node:assert/strict"; import { requestExecution } from ${JSON.stringify(new URL("./reviewer-execution-client.mjs", import.meta.url).href)}; let prompt=""; for await(const c of process.stdin) prompt+=c; const result=await requestExecution("preview"); assert.equal(result.passed,false); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(prompt)[1],JSON.stringify({head:${JSON.stringify(dirtyHead)},next:null,commentIds:[],summary:"service failure observed"}));`);
+const dirtyPlan = JSON.parse(fs.readFileSync(planFile));
+dirtyPlan.journal = dirtyJournal;
+dirtyPlan.steps.review.execution = [operations[2]];
+fs.writeFileSync(planFile, JSON.stringify(dirtyPlan));
+await assert.rejects(runHandoff(planFile, { jobRoot: scratch, slotRoot: path.join(scratch, "dirty-slots") }), /worktree changed/);
+const dirtyRows = fs.readFileSync(dirtyJournal, "utf8").trim().split("\n").map(JSON.parse);
+assert.equal(dirtyRows.find(row => row.event === "exited")?.code, 0, "service failure retains the confirmed reviewer exit");
+assert.equal(fs.readdirSync(path.join(scratch, "dirty-slots")).length, 0, "drained service failure releases the exited reviewer's slot");
+assert.equal(fs.existsSync(path.join(root, ".git", "agent-handoff.lock")), false);
+console.log("PASS: service failure preserves diagnosis and confirmed exit without leaking reviewer capacity");

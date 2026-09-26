@@ -9,7 +9,7 @@ import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable 
 import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer } from "./reviewer-defaults.mjs";
 import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
-import { validateExecutionShape, executionCommands, startExecutionService } from "./reviewer-execution.mjs";
+import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -223,10 +223,15 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         slot.append({phase:"launching",head,output,completion,journal});
         append({event:"reserved",index,slot:slot.file,token:slot.token,owner:slot.owner});
       }
-      let child,childError,exited,launchError,executionService;
-      const executionClient = process.platform === "win32"
-        ? `powershell.exe -NoProfile -NonInteractive -File "${path.join(cwd, "scripts/reviewer-execution-client.ps1")}"`
-        : `${JSON.stringify(fs.realpathSync.native(process.execPath))} ${JSON.stringify(path.join(cwd, "scripts/reviewer-execution-client.mjs"))}`;
+      let child,childError,exited,launchError,executionService,executionClose,executionFailure;
+      // Service errors are reported only after the owned command has drained.
+      // They must not bypass confirmed reviewer-exit journalling or slot release.
+      const drainExecution = async () => {
+        if (!executionService) return;
+        executionClose ??= executionService.close().catch(error => { executionFailure = error; });
+        await executionClose;
+      };
+      const executionClient = executionClientCommand(cwd);
       const executionPrompt = step.execution ? `\nLauncher execution service: the caller authorized these operations: ${step.execution.map(op => op.id).join(", ")}. Use the command ${executionClient} with no argument to list their exact commands, or one operation ID to request and await its result. Requests execute outside the reviewer sandbox through the coordinator, against reviewed head ${head}; Vitest retains its machine-wide reservation and process census. Each ID runs once and later requests return its retained result. Read the actual test summaries or benchmark report in output; exit zero alone does not establish coverage. Do not print the service environment token. Other commands, arbitrary flags, external projects and reviewer-authored probes are not delegated.\n` : "";
       try {
         const env=step.role==='review'?nativeReviewerEnvironment(step,artifacts,process.env,{worktree:cwd}):{...process.env};
@@ -246,7 +251,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         if(automaticJob)await retryBusy(()=>{if(child)throw new Error('Spawn completed but admission cleanup failed; preserve owned child');return withJob(automaticJob.jobDir,rows=>{if(rows.some(row=>row.event==='workflow-cancelled'))throw new Error('Automatic review workflow cancelled');launch();});});else launch();
       } catch(error){
         if(child)launchError=error;
-        else {closeLogs();if(executionService)await executionService.close();if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message+=`; reservation retained at ${slot.file}: ${releaseError.message}`;}}throw error;}
+        else {closeLogs();await drainExecution();if(executionFailure)error.message+=`; delegated execution: ${executionFailure.message}`;if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message+=`; reservation retained at ${slot.file}: ${releaseError.message}`;}}throw error;}
       }
       let result;
       try {
@@ -279,6 +284,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         terminate();
         let stopped=await waitForClose(5000);
         if(!stopped){terminate("SIGKILL");stopped=await waitForClose(5000);}
+        await drainExecution();
+        if(executionFailure)error.message += `; delegated execution: ${executionFailure.message}`;
         if(stopped){
           activeChild=null;
           if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
@@ -289,7 +296,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         }
         if(childError)error.message += `; child process error: ${childError}`;
         throw error;
-      } finally { closeLogs(); if(executionService)await executionService.close(); }
+      } finally { closeLogs(); await drainExecution(); }
       try { append({ event: "exited", index, step: current, ...result }); }
       catch(error){
         error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;
@@ -297,6 +304,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         throw error;
       }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run`);}}
+      if(executionFailure)throw executionFailure;
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if(step.nativeResult)verifyNativeReviewResult(output,step.nativeResult);
       if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
