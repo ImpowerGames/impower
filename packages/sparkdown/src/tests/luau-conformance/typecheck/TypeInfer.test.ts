@@ -403,7 +403,9 @@ end
   },
   {
     // TypeInfer.test.cpp:621 TEST_CASE_FIXTURE(Fixture, "tc_after_error_recovery")
-    // Upstream checks that `a` is the primitive type `number`.
+    // Upstream checks that `a` is the primitive type `number`. Luau rejects the
+    // snippet (`local x =` has no value); Sparkdown reads it without complaint,
+    // so the error is left to the checker.
     name: "tc_after_error_recovery",
     fixture: "Fixture",
     source: `
@@ -414,6 +416,8 @@ end
   },
   {
     // TypeInfer.test.cpp:634 TEST_CASE_FIXTURE(Fixture, "tc_after_error_recovery_no_assert")
+    // Luau rejects the snippet (`function +()` has no name); Sparkdown reads it
+    // without complaint, so the error is left to the checker.
     name: "tc_after_error_recovery_no_assert",
     fixture: "Fixture",
     source: `function +() local _ = true end`,
@@ -529,6 +533,8 @@ end`,
   },
   {
     // TypeInfer.test.cpp:752 TEST_CASE_FIXTURE(Fixture, "dont_report_type_errors_within_an_AstStatError")
+    // Luau rejects the snippet (a bare `foo` is not a statement); Sparkdown
+    // reads it without complaint, so the error is left to the checker.
     name: "dont_report_type_errors_within_an_AstStatError",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
@@ -639,7 +645,7 @@ end`,
     name: "infer_type_assertion_value_type",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
+    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
 local function f()
     return {4, "b", 3} :: {string|number}
@@ -1618,7 +1624,7 @@ end
     // TypeInfer.test.cpp:2018 TEST_CASE_FIXTURE(Fixture, "assert_allows_singleton_union_or_intersection")
     name: "assert_allows_singleton_union_or_intersection",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
+    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         local x = 42 :: | number
         local y = 42 :: & number
