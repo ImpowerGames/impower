@@ -66,3 +66,28 @@ describe("an unknown global read at the top level", () => {
     expect(textAt(source, ranges[0]!)).toBe("& print(foo)");
   });
 });
+
+// A read whose statement carries no position of its own inherits the
+// position of the scene, branch or function declared around it. That line is
+// not where the read is, so no diagnostic is placed on it.
+describe("a read placed only by the flow around it", () => {
+  test.each([
+    [
+      "a match in a scene",
+      "scene start()\n  Hello.\nend\n\nmatch (foo)\n  | other = A recruit.\nend\n",
+      "scene start()",
+    ],
+    [
+      "an if in a branch",
+      "scene start()\n  branch first\n    if foo >= 1 then\n      Yes.\n    end\n  end\nend\n",
+      "  branch first",
+    ],
+  ])("%s is not reported on the declaration", (_name, source, header) => {
+    const headerLine = source.split("\n").indexOf(header);
+    expect(headerLine).toBeGreaterThanOrEqual(0);
+    const onHeader = diagnoseDetailed(source).filter(
+      (d) => (d.range as Range).start.line === headerLine,
+    );
+    expect(onHeader).toEqual([]);
+  });
+});

@@ -368,25 +368,8 @@ export class Divert extends ParsedObject {
           );
 
           if (resolveResult.found) {
-            // Make sure that the flow was typed correctly, given that we know that this
-            // is meant to be a divert target
-            if (
-              resolveResult.isArgument &&
-              resolveResult.ownerFlow &&
-              resolveResult.ownerFlow.args
-            ) {
-              let argument = resolveResult.ownerFlow.args.find(
-                (a) => a.identifier?.name == variableTargetName,
-              );
-
-              if (argument && !argument.isDivertTarget) {
-                this.Error(
-                  `Since \`${argument.identifier}\` is used as a variable divert target (on ${this.debugMetadata}), it should be marked as: -> ${argument.identifier}`,
-                  resolveResult.ownerFlow,
-                );
-              }
-            }
-
+            // A parameter needs no divert-target marking to be diverted to:
+            // parameters are untyped, and `name: ->` is only an annotation.
             this.runtimeDivert.variableDivertName = variableTargetName;
             this._variableDivertEpoch = currentCompileEpoch();
             return;
@@ -525,7 +508,9 @@ export class Divert extends ParsedObject {
       isExternal = context.IsExternal(this.target.firstComponent);
 
       if (isBuiltIn || isExternal) {
-        if (!this.isFunctionCall) {
+        // A scene or branch may share a builtin's name (`scene next`), and a
+        // divert that found it goes there.
+        if (!this.isFunctionCall && !targetWasFound) {
           super.Error(
             `${this.target.firstComponent} must be called as a function: ~ ${this.target.firstComponent}()`,
           );

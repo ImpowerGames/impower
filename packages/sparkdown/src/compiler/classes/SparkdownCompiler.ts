@@ -3984,7 +3984,7 @@ export class SparkdownCompiler {
             endLine = existingEndLine;
             endColumn = existingEndColumn;
           }
-          if (endColumn <= 0 && endLine > startLine) {
+          if (endColumn === 0 && endLine > startLine) {
             // If range stretches to only the start of a line,
             // limit the range to the end of the previous line,
             // (So that the document blinking cursor doesn't confusingly appear
@@ -4001,7 +4001,7 @@ export class SparkdownCompiler {
                 const endPositionWithoutLastNewline = document.positionAt(
                   document.offsetAt({
                     line: endLine,
-                    character: Math.max(endColumn, 0),
+                    character: 0,
                   }) - 1,
                 );
                 endLine = endPositionWithoutLastNewline.line;

@@ -33,6 +33,37 @@ import { ObjectExpression } from "./Expression/ObjectExpression";
 import { VariableReference } from "./Variable/VariableReference";
 
 export class Story extends FlowBase {
+  // Whether the only position `source` has is that of a scene, branch or
+  // function around it: it inherits that position, or from a weave that
+  // copies it, rather than having one of its own or a statement's. That
+  // position is the flow's declaration, not the code the diagnostic is
+  // about. A diagnostic about the flow itself has the flow as its source and
+  // keeps the flow's position.
+  public static readonly LocatedOnlyByEnclosingFlow = (
+    source: ParsedObject,
+  ): boolean => {
+    const position = source.debugMetadata;
+    if (!position) {
+      return false;
+    }
+    for (let node = source.parent; node; node = node.parent) {
+      if (node instanceof FlowBase) {
+        const flowPosition = node.debugMetadata;
+        if (
+          flowPosition &&
+          flowPosition.filePath === position.filePath &&
+          flowPosition.startLineNumber === position.startLineNumber &&
+          flowPosition.startCharacterNumber === position.startCharacterNumber &&
+          flowPosition.endLineNumber === position.endLineNumber &&
+          flowPosition.endCharacterNumber === position.endCharacterNumber
+        ) {
+          return true;
+        }
+      }
+    }
+    return false;
+  };
+
   public static readonly IsReservedKeyword = (name?: string): boolean => {
     switch (name) {
       case "true":
@@ -871,6 +902,15 @@ export class Story extends FlowBase {
     }
 
     if (this._errorHandler !== null) {
+      if (
+        source instanceof ParsedObject &&
+        Story.LocatedOnlyByEnclosingFlow(source)
+      ) {
+        // The only position this diagnostic has is the declaration of the
+        // flow around it, which does not point at what it reports, so it is
+        // not shown.
+        return;
+      }
       const debugMetadata =
         source instanceof DebugMetadata ? source : source?.debugMetadata;
       const metadata = debugMetadata
@@ -981,8 +1021,14 @@ export class Story extends FlowBase {
           // preserve top-level safety — `var print = 1` would silently
           // break every `print(...)` call in the story. Function
           // parameters (Arg) also permit shadowing since they're
-          // scoped to the function body.
-          if (symbolType === SymbolType.Temp || symbolType === SymbolType.Arg) {
+          // scoped to the function body. A scene or branch may also take a
+          // builtin's name: it is only diverted to, never called, so
+          // `scene next` leaves every `next(...)` call reading the builtin.
+          if (
+            symbolType === SymbolType.Temp ||
+            symbolType === SymbolType.Arg ||
+            (obj instanceof FlowBase && !obj.isFunction)
+          ) {
             continue;
           }
           obj.Error(
