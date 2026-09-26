@@ -97,7 +97,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   // the cache on real structural changes.
   private _globalCallableNames?: Set<string>;
   private _globalCallableNamesTree?: unknown;
-  // The callable names `staleRanges` last checked every chunk against.
+  // The callable names every chunk was last confirmed to agree with (see
+  // `markGlobalCallableNamesChecked`).
   private _checkedGlobalCallableNames?: Set<string>;
 
   /**
@@ -146,16 +147,16 @@ export class CompilationAnnotator extends SparkdownAnnotator<
    * The ranges of chunks whose lowering read a global callable name the
    * current document answers differently. An incremental pass lowers only
    * the chunks its reparse rebuilt, so a carried chunk keeps the answers it
-   * got when it was lowered; the caller lowers these again.
+   * got when it was lowered; the caller lowers these again and then calls
+   * `markGlobalCallableNamesChecked`.
    *
-   * Every chunk agrees with the set this method last checked against, so
-   * when the document's set is unchanged since then nothing can be stale and
-   * the walk is skipped.
+   * Every chunk agrees with the set last marked as checked, so when the
+   * document's set is unchanged since then nothing can be stale and the walk
+   * is skipped.
    */
   staleRanges(): { from: number; to: number }[] {
     const names = this.computeGlobalCallableNames();
     const checked = this._checkedGlobalCallableNames;
-    this._checkedGlobalCallableNames = names;
     if (checked === names) {
       return [];
     }
@@ -186,6 +187,15 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       iter.next();
     }
     return stale;
+  }
+
+  /**
+   * Record that every chunk now agrees with the document's current callable
+   * names: after a full rebuild, or after the chunks `staleRanges` returned
+   * have been lowered again.
+   */
+  markGlobalCallableNamesChecked(): void {
+    this._checkedGlobalCallableNames = this.computeGlobalCallableNames();
   }
 
   private computeDefineTypeNames(): ReadonlySet<string> {

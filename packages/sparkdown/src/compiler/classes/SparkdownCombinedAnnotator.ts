@@ -363,10 +363,8 @@ export class SparkdownCombinedAnnotator {
         }
       }
       if (!annotate || annotate.has("compilations")) {
-        // Every chunk was just lowered against the current document, so this
-        // finds nothing; it records the names the next edit is checked
-        // against.
-        this.relowerStaleCompilations(tree, iteratingFrom, iteratingTo);
+        // Every chunk was just lowered against the current document.
+        this.current.compilations.markGlobalCallableNamesChecked();
       }
       return this.current;
     }
@@ -439,7 +437,7 @@ export class SparkdownCombinedAnnotator {
       changeDesc,
     );
     if (!annotate || annotate.has("compilations")) {
-      this.relowerStaleCompilations(tree, iteratingFrom, iteratingTo);
+      this.relowerStaleCompilations(tree);
     }
     return this.current;
   }
@@ -450,24 +448,15 @@ export class SparkdownCombinedAnnotator {
    * `CompilationAnnotator.staleRanges`). Each is re-annotated as a window of
    * its own, for the compilation annotator only.
    */
-  protected relowerStaleCompilations(
-    tree: Tree,
-    iteratingFrom: number,
-    iteratingTo: number,
-  ) {
+  protected relowerStaleCompilations(tree: Tree) {
+    const compilations = this.current.compilations;
     const compilationsOnly = new Set<keyof SparkdownAnnotators>([
       "compilations",
     ]);
-    for (const { from, to } of this.current.compilations.staleRanges()) {
-      this.reannotate(
-        tree,
-        from,
-        to,
-        iteratingFrom,
-        iteratingTo,
-        compilationsOnly,
-      );
+    for (const { from, to } of compilations.staleRanges()) {
+      this.reannotate(tree, from, to, from, to, compilationsOnly);
     }
+    compilations.markGlobalCallableNamesChecked();
   }
 
   /**

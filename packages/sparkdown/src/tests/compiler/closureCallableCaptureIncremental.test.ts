@@ -83,7 +83,9 @@ function diagnostics(program: any): string[] {
 
 // Six scenes keep the function's chunk outside the region an edit at the top
 // of the document reparses, so the incremental compile carries it.
-const SCENES = [1, 2, 3, 4, 5, 6].flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]);
+const scenes = (numbers: number[]) =>
+  numbers.flatMap((i) => [`scene s${i}`, `  Line ${i}.`, "end", ""]);
+const SCENES = scenes([1, 2, 3, 4, 5, 6]);
 
 const BODY = [
   "-> s0",
@@ -109,6 +111,19 @@ describe("a carried closure follows the document's top-level functions", () => {
   it("calls a top-level function an edit declares above it", () => {
     const incremental = incrementalAfterEdit(BODY, 0, 0, HELPER);
     const cold = coldCompile(HELPER + BODY);
+    expect(run(cold)).toEqual({ output: "Result 7.\n", errors: [] });
+    expect(run(incremental)).toEqual(run(cold));
+    expect(diagnostics(incremental)).toEqual(diagnostics(cold));
+    expect(JSON.stringify(incremental.compiled)).toBe(JSON.stringify(cold.compiled));
+  });
+
+  it("calls a top-level function an edit declares at the end of the document", () => {
+    // The scenes after the closure keep its chunk before the region an edit
+    // at the end of the document reparses.
+    const base = BODY + ["", ...scenes([7, 8, 9, 10, 11, 12])].join("\n");
+    const insert = ["", "function helper()", "  return 7", "end", ""].join("\n");
+    const incremental = incrementalAfterEdit(base, base.length, base.length, insert);
+    const cold = coldCompile(base + insert);
     expect(run(cold)).toEqual({ output: "Result 7.\n", errors: [] });
     expect(run(incremental)).toEqual(run(cold));
     expect(diagnostics(incremental)).toEqual(diagnostics(cold));
