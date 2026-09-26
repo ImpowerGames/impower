@@ -40,6 +40,7 @@ const LINES = [
   "HERO: Go -> a -> b > After",
   "+ [Go] -> a -> b > After",
   "queue\n  | -> a -> b > y\n  | c\nend",
+  "x .. queue|-> A >end z|b .. z",
 ];
 
 // Each line with the stray text it holds, which runs from its first character
@@ -62,8 +63,13 @@ const STRAY: [string, string][] = [
   ["x .. queue|-> A > {y}|b .. z", "> {y}"],
   ["x .. queue|-> A > #y|b .. z", "> #y"],
   ["queue\n  | -> a -> b > y\n  | c\nend", "> y"],
+  // In the glued form `end` closes nothing, so it stays the arm's text.
+  ["x .. queue|-> A >end z|b .. z", ">"],
 ];
 
+// The tree parses each line with LF and with CRLF endings. The engine
+// comparison takes LF only: `compareEnginesFull` normalizes line endings
+// before either engine sees the source.
 const CASES = LINES.flatMap((line) =>
   ["\n", "\r\n"].map((eol) => ({
     line,
@@ -73,8 +79,8 @@ const CASES = LINES.flatMap((line) =>
 );
 
 describe("text after a tunnel chain or an arm divert", () => {
-  test.each(CASES)("$line (eol $eol) scopes the same in both engines", async ({ source }) => {
-    const result = await compareEnginesFull(source);
+  test.each(LINES)("%j scopes the same in both engines", async (line) => {
+    const result = await compareEnginesFull(`${line}\n`);
     expect(
       result.divergences,
       formatDivergences(result.source, result.divergences),
@@ -104,7 +110,7 @@ describe("text after a tunnel chain or an arm divert", () => {
       const at = `${JSON.stringify(source[offset])} @ ${offset}`;
       const inStray = offset >= from && offset < to;
       for (const [engine, scopes] of [
-        ["vscode", vscode[offset] ?? []],
+        ["vscode", vscode[offset]!],
         ["tree", treeScopeStackAt(tree, offset)],
       ] as const) {
         expect(

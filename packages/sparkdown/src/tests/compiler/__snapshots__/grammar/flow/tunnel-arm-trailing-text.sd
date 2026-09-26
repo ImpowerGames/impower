@@ -14,6 +14,7 @@ x .. queue|-> A > y z|b .. z
 queue | -> A > blend x | b end
 queue | -> A > y end
 queue | -> A >end
+x .. queue|-> A >end z|b .. z
 x .. queue|-> A > {y}|b .. z
 HERO: Go -> a -> b > After
 queue
