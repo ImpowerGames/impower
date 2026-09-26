@@ -32,6 +32,7 @@ The rules read the syntax tree the editor highlights with, which is not a Luau A
 - `LocalUnused` does not check locals outside functions. Top-level code is narrative with embedded logic, and a top-level local can be read from places the rule cannot scope.
 - `LocalUnused` counts a read in the declaration's own initializer as a read of the new local, so `local x = x + 1` with the new `x` never read is not reported. On one line the grammar can nest the statements that follow a declaration inside it, and starting the scope early keeps reads there from being missed.
 - `LocalUnused` does not report a name declared twice in one statement (`local a, a = ...`).
+- `ForRange` does not report a bound such as `#t ^ 2`. Luau reads it as `#(t ^ 2)`, a bare length, because `^` binds tighter than `#`, but the grammar places `^ 2` after the operand like any other arithmetic, and the rule treats arithmetic after `#t` as making the bound something other than a length.
 - `DuplicateCondition` does not compare an `if` expression used as an `if` statement's condition: the grammar reads the expression as running on through the statement's `then` and `elseif`s.
 - `UnreachableCode` reports an expression on the line after a bare `return`. In Luau that expression is the returned value; sparkdown ends the `return` at its line, so the expression never runs.
 

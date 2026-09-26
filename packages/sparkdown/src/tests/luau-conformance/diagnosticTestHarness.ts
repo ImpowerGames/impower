@@ -18,7 +18,10 @@
 // `diagnoseWithLints`, `diagnoseWithLintsInFunction` or `lintInFunction`.
 
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { LUAU_LINT_CODES } from "../../compiler/lint/collectLuauLints";
+import {
+  LUAU_LINT_CODES,
+  type LuauLintCode,
+} from "../../compiler/lint/collectLuauLints";
 
 export interface DetailedDiagnostic {
   message: string;
@@ -69,10 +72,13 @@ function isLint(d: DetailedDiagnostic) {
   return LINT_CODES.has(String(d.code));
 }
 
+// The one lint the parser and compiler ports leave out.
+const UNUSED_LOCAL: LuauLintCode = "LocalUnused";
+
 /** The messages of every diagnostic except the unused-local lint. */
 export function diagnose(source: string): string[] {
   return diagnoseDetailed(source)
-    .filter((d) => d.code !== "LocalUnused")
+    .filter((d) => d.code !== UNUSED_LOCAL)
     .map((d) => d.message);
 }
 
