@@ -12,6 +12,7 @@ describe("formatting stray text after a divert", () => {
     "A -> later ! After",
     "+ [Go] -> later > After",
     "A -> later more words",
+    "A -> later    > After",
   ]) {
     test(`leaves ${JSON.stringify(line)} as written`, () => {
       const source = `${line}\n`;
