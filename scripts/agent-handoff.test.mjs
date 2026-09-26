@@ -47,6 +47,7 @@ const malformed = [
   ["missing first", (plan) => { delete plan.first; plan.firstStep = "first"; }, /top-level first/],
   ["empty first", (plan) => { plan.first = ""; }, /top-level first/],
   ["unknown first", (plan) => { plan.first = "frist"; }, /Unknown step: frist/],
+  ["execution grant on writer", (plan) => { plan.steps.first.execution = [{ id: "tests", kind: "vitest", package: "packages/sparkdown", files: ["a.test.ts"] }]; }, /execution is only supported on review steps/],
   ["step-level completedReviewRound", (plan) => { delete plan.completedReviewRound; plan.steps.first.completedReviewRound = 0; }, /Move completedReviewRound from step first to the top level/],
 ];
 for (const [label, change, message] of malformed) {

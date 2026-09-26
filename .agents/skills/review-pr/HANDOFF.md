@@ -22,6 +22,24 @@ Recovery, new scope, a new head, and a new journal never reset the cycle count. 
 
 Never start two coordinators for the same worktree. An existing journal is refused. After interruption, inspect the journal's last launch, PID plus start time, log and completion file, and the PR's paginated comments. A running or uncertain child must be awaited, not relaunched. Once exit is confirmed, author a new recovery plan continuing after verified work; preserve the original journal. A completed comment with a still-running process is not a handoff.
 
+## Delegated tests and benchmarks
+
+When a reviewer cannot execute required tests or build benchmarks in its sandbox, the caller may add an `execution` array to its review step (or to a supervised plan's corresponding `reviews` entry). This authorizes those repository commands to run in the coordinator's environment. Approve only trusted reviewed code: the service is an execution delegation, not a sandbox for repository tests or dependencies. Reviewer output cannot extend the plan. Example:
+
+```json
+"execution": [
+  { "id": "regression", "kind": "vitest", "package": "packages/sparkdown", "files": ["src/tests/compiler/constDeclarationValidity.test.ts"] },
+  { "id": "engine-step", "kind": "engine-bench", "mode": "step", "samples": 2, "warmup": 1 },
+  { "id": "preview", "kind": "preview-bench", "mode": "both", "samples": 2, "warmup": 1 }
+]
+```
+
+The launcher validates 1–20 unique IDs, literal tracked test paths contained in their package, known benchmark modes, 1–100 samples and 0–100 warmups. Optional `timeoutSeconds` is 1–1800 (default 600). Benchmarks currently use generated fixtures only; external projects, profiling flags and reviewer-authored probes are not delegated. Vitest uses `scripts/test-suite.mjs run` with `--wait 300`, the existing machine-wide reservation and process census. The reviewer receives a command for `scripts/reviewer-execution-client.mjs`: no argument lists operations; one ID requests and awaits that operation. Each ID runs once per reviewer launch and subsequent requests return retained evidence. A new run requires a new caller-authored launch, preserving review-round accounting.
+
+The service binds only to loopback and authenticates with a random token delegated in memory. Requests carry only IDs, never code, arguments, environment or paths. Repository commands receive a minimal environment without report/account tokens, Node preload options or Git overrides. Commands run serially; the service verifies the frozen head and clean worktree before and after each. It retains command output and observed exit/signal/timeout results under the launcher's private artifact directory; responses include up to the first 4 MiB of output. Read complete test summaries and benchmark reports, and disclose truncation or gaps. A successful process exit is not independent proof of assertions or measurement quality.
+
+Reviewer exit stops admission and drains the active command before the launcher releases its review freeze. Timeouts request termination of the owned command tree and still await actual close; an unconfirmed exit leaves the coordinator waiting. A killed suite runner may leave its reservation requiring the existing recovery procedure. A coordinator crash makes the service unavailable and does not prove command exit; preserve its journal, execution artifacts and machine reservation rather than retrying blindly. Tokens are not retained in the journal. No reviewer filesystem grant or sandbox restriction is changed.
+
 ## Machine-wide reviewer reservations
 
 The launcher reserves one of eight exclusive slot files before spawning a review role. The shared store is `%ProgramData%\Impower\reviewer-slots` on Windows and `/var/tmp/impower-reviewer-slots` on Linux, independent of worktree and journal location. These operating systems provide the supported process identity probes. All participating local coordinators use that store; no production plan field or environment override selects a private pool. Store access failure blocks launch with the filesystem error; coordinate access to the shared store rather than changing to a per-worktree location. Other OSes, including macOS, are unsupported and the launcher blocks the plan; keep the review draft and arrange a caller-authorized Windows or Linux execution route. Native agent tasks, remote tasks and direct CLI launches are outside this mechanism's coverage. The limit counts review roles; implementation, adjudication and coordinator sessions are not reviewer reservations.

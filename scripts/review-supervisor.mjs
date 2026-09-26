@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { runHandoff,checkReviewRound,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute,validateSlotWait } from './agent-handoff.mjs';
 import { reviewerEnvironment } from './reviewer-security.mjs';
+import { executionCommands } from './reviewer-execution.mjs';
 import { checkWriterEffort } from './reviewer-defaults.mjs';
 import { verifyClaimConfiguration } from './continuation-host.mjs';
 import { processIdentity } from './reviewer-slots.mjs';
@@ -47,6 +48,7 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
   if(!Number.isInteger(plan.completedReviewRound)||plan.completedReviewRound<0)throw new Error('Recorded review round required');
   const ids=new Set(),reviewerRoots=[];
   for(const review of plan.reviews) {
+    if(review.execution !== undefined) executionCommands(review.execution, plan.worktree);
     if(!/^[a-z][a-z0-9-]{0,63}$/.test(review.id??'')||ids.has(review.id)||!path.isAbsolute(review.executable??'')||!path.isAbsolute(review.prompt??'')||!review.effort||!Array.isArray(review.args)||!review.args.every(a=>typeof a==='string'))throw new Error('Explicit independent reviewer coverage and launch required');
     ids.add(review.id);
     const at=review.args.findIndex(a=>a==='--model'||a==='-m');
@@ -84,7 +86,7 @@ export async function createReviewJob(input,host,{verifyExecutable=verifyReviewe
   writeExclusive(path.join(plan.jobDir,'plan.json'),plan);
   writeExclusive(path.join(plan.jobDir,'events.jsonl'),{version:1,sequence:1,eventId:randomUUID(),jobId:plan.jobId,time:new Date().toISOString(),event:'accepted',capability});
   try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));return jobStatus(plan.jobDir);}
-  const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,next:[plan.reviews[index+1]?.id??null]}]));
+  const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,execution:review.execution,next:[plan.reviews[index+1]?.id??null]}]));
   writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,slotWaitSeconds:plan.slotWaitSeconds,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
