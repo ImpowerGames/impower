@@ -81,6 +81,7 @@ function isSkippableName(name: string): boolean {
     name === "ExtraWhitespace" ||
     name === "Whitespace" ||
     name === "Newline" ||
+    name === "LuauReturnLineBreak" ||
     name === "LuauComment" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace"
