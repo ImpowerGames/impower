@@ -32,13 +32,14 @@ text.source.sparkdown [0..140]
  ├─ string.display.text.chunk.sd [33..38]
  │   └─ markup.raw.text.sd [33..38]: "Hello"
  ├─ Newline [38..39]: "\n"
- ├─ string.display.text.chunk.sd [39..52]
- │   └─ meta.image.sd [39..52]
+ ├─ string.display.text.chunk.sd [39..53]
+ │   └─ meta.image.sd [39..53]
  │       ├─ keyword.operator.expression.begin.image.sd [39..41]: "[["
  │       ├─ variable.other.constant.asset.file.sd [41..50]: "cg_sunset"
- │       └─ keyword.operator.expression.end.image.sd [50..52]: "]]"
- ├─ meta.break.sd [52..54]
- │   └─ keyword.other.break.sd [52..54]: " >"
+ │       ├─ keyword.operator.expression.end.image.sd [50..52]: "]]"
+ │       └─ punctuation.whitespace.optional.sd [52..53]: " "
+ ├─ meta.break.sd [53..54]
+ │   └─ keyword.other.break.sd [53..54]: ">"
  ├─ Newline [54..55]: "\n"
  ├─ string.display.text.chunk.sd [55..61]
  │   ├─ markup.raw.text.sd [55..56]: "A"

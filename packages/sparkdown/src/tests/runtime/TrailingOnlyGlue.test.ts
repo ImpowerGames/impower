@@ -326,22 +326,6 @@ describe("a trailing `..` joins the next line that begins with `..`", () => {
     }
   });
 
-  test("a `>` that touches the word before a line-ending `..` is text and warned", () => {
-    const ctx = makeRuntimeStoryFromSource(`Abso>..\n..lutely.\n`);
-    expect(ctx.errorMessages).toEqual([]);
-    expect(ctx.warningMessages).toEqual([
-      "This `>` touches the word before it, so it is text, not a break. Put a space before it to make it a break.",
-    ]);
-    expect(texts(ctx.story)).toEqual(["Abso>lutely.\n"]);
-    const inBlock = makeRuntimeStoryFromSource(
-      `:\n  Abso>..\n  ..lutely.\n  Next.\n`,
-    );
-    expect(inBlock.warningMessages).toEqual(ctx.warningMessages);
-    for (const quiet of [`Abso .. >\n..lutely.\n`, `A\\>..\n..B\n`]) {
-      expect(makeRuntimeStoryFromSource(quiet).warningMessages).toEqual([]);
-    }
-  });
-
   test("a tag after the mark on a block's last line keeps the join", () => {
     for (const [first, joined] of [
       ["A .. # marker", ["A B\n"]],

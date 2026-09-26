@@ -1,4 +1,4 @@
-// A spaced `>` anywhere in a display line is a break: the text before it and
+// A `>` anywhere in a display line is a break: the text before it and
 // the text after it are separate beats, each its own `Continue()` and its own
 // `display()` call. A line holding only `>` is a pause: outside a block it is
 // a beat with no text, and inside a block it splits the block. `\>` is a
@@ -226,15 +226,14 @@ $: E > F
     ]);
   });
 
-  test("`>` stays literal where it is not a spaced break", () => {
-    const ctx = makeRuntimeStoryFromSource(`HERO: a>b, c >> d, e >= f.\n`);
+  test("each `>` of `>>` and the `>` of `>=` is a break", () => {
+    const ctx = makeRuntimeStoryFromSource(`HERO: c >> d, e >= f.\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(continueBeats(ctx.story)).toEqual([
-      {
-        text: "a>b, c >> d, e >= f.\n",
-        routing: "dialogue:HERO",
-        pause: false,
-      },
+      { text: "c\n", routing: "dialogue:HERO", pause: true },
+      { text: "\n", routing: "dialogue:HERO", pause: true },
+      { text: "d, e\n", routing: "dialogue:HERO", pause: true },
+      { text: "= f.\n", routing: "dialogue:HERO", pause: false },
     ]);
   });
 

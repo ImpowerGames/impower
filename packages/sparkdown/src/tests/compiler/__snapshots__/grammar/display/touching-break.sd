@@ -1,0 +1,83 @@
+A > B
+A >
+>
+A>B
+A> B
+A >B
+A>
+>Hello
+Abso>..
+lutely.
+Abso>..lutely.
+A>.. B
+A > > B
+A >> B
+A>>B
+A -> b
+->->
+x >= y
+x>=y
+A-->B
+A \> B
+A\>B
+Before > -> later
+Before>->later
+-> later
+Alpha..>=beta
+Gamma..>>delta
+Epsilon..>zeta
+Go <wait 1> now.
+Go <b>bold</b> now.
+Go <wait 1 > now.
+Mike<wait 1>November
+HERO (cheerful) [>]:
+  Hi.
+HERO: {a > b} [[cg > 1]] ((sfx > 2)) # tag > x
+HERO: {a>b} [[cg>1]] ((sfx>2)) # tag>x
+HERO: a > b // a > b
+^: C>D
+$: E>F
+%: G>H
+@ portrait: I>J
+^:
+  K>L
+HERO:
+  Hi.># first
+HERO: -> later
+HERO:
+  A > B
+  A >
+  >
+  A>B
+  A> B
+  A >B
+  A>
+  >Hello
+  Abso>..
+  lutely.
+  Abso>..lutely.
+  A>.. B
+  A > > B
+  A >> B
+  A>>B
+  A -> b
+  x >= y
+  x>=y
+  A-->B
+  A \> B
+  A\>B
+  Before > -> later
+  Before>->later
+  -> later
+  Alpha..>=beta
+  Gamma..>>delta
+  Epsilon..>zeta
+  Go <wait 1> now.
+  Go <b>bold</b> now.
+  Go <wait 1 > now.
+  Mike<wait 1>November
+  (softly) > x
+  (softly)>x
+  (softly) >=z
+  (softly) >> y
+  (softly) -->z

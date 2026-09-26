@@ -65,20 +65,20 @@ sparkdown [0..140]
  │   │   │   └─ RequiredWhitespace [22..23]: " "
  │   │   └─ InlineDialogue_begin_c5 23
  │   ├─ InlineDialogue_content [23..28]
- │   │   └─ LineBreak [23..28]
- │   │       ├─ LineBreak_c1 23
- │   │       │   └─ OptionalWhitespace 23
- │   │       ├─ LineBreak_c2 [23..26]
- │   │       │   └─ TextChunk [23..26]
- │   │       │       ├─ TextChunk_begin 23
- │   │       │       ├─ TextChunk_content [23..26]
- │   │       │       │   ├─ Word [23..25]: "Hi"
- │   │       │       │   └─ Punctuation [25..26]: "."
- │   │       │       └─ TextChunk_end 26
- │   │       ├─ LineBreak_c3 [26..28]
+ │   │   └─ LineEnd [23..28]
+ │   │       ├─ LineEnd_begin 23
+ │   │       │   └─ LineEnd_begin_c1 23
+ │   │       │       └─ OptionalWhitespace 23
+ │   │       ├─ LineEnd_content [23..28]
+ │   │       │   ├─ TextChunk [23..26]
+ │   │       │   │   ├─ TextChunk_begin 23
+ │   │       │   │   ├─ TextChunk_content [23..26]
+ │   │       │   │   │   ├─ Word [23..25]: "Hi"
+ │   │       │   │   │   └─ Punctuation [25..26]: "."
+ │   │       │   │   └─ TextChunk_end 26
  │   │       │   └─ Break [26..28]
  │   │       │       └─ Break_c1 [26..28]: " >"
- │   │       └─ LineBreak_c4 28
+ │   │       └─ LineEnd_end 28
  │   └─ InlineDialogue_end 28
  ├─ Newline [28..29]: "\n"
  ├─ ImplicitAction [29..30]
@@ -86,14 +86,14 @@ sparkdown [0..140]
  │   │   └─ ImplicitAction_begin_c1 29
  │   │       └─ OptionalWhitespace 29
  │   ├─ ImplicitAction_content [29..30]
- │   │   └─ LineBreak [29..30]
- │   │       ├─ LineBreak_c1 29
- │   │       │   └─ OptionalWhitespace 29
- │   │       ├─ LineBreak_c2 29
- │   │       ├─ LineBreak_c3 [29..30]
+ │   │   └─ LineEnd [29..30]
+ │   │       ├─ LineEnd_begin 29
+ │   │       │   └─ LineEnd_begin_c1 29
+ │   │       │       └─ OptionalWhitespace 29
+ │   │       ├─ LineEnd_content [29..30]
  │   │       │   └─ Break [29..30]
  │   │       │       └─ Break_c1 [29..30]: ">"
- │   │       └─ LineBreak_c4 30
+ │   │       └─ LineEnd_end 30
  │   └─ ImplicitAction_end 30
  ├─ Newline [30..31]: "\n"
  ├─ ImplicitAction [31..38]
@@ -121,45 +121,45 @@ sparkdown [0..140]
  │   │   └─ ImplicitAction_begin_c1 39
  │   │       └─ OptionalWhitespace 39
  │   ├─ ImplicitAction_content [39..54]
- │   │   └─ LineBreak [39..54]
- │   │       ├─ LineBreak_c1 39
- │   │       │   └─ OptionalWhitespace 39
- │   │       ├─ LineBreak_c2 [39..52]
- │   │       │   └─ TextChunk [39..52]
- │   │       │       ├─ TextChunk_begin 39
- │   │       │       ├─ TextChunk_content [39..52]
- │   │       │       │   └─ ImageCommand [39..52]
- │   │       │       │       ├─ ImageCommand_begin [39..41]
- │   │       │       │       │   ├─ ImageCommand_begin_c1 [39..41]
- │   │       │       │       │   │   └─ ImageBeginMark [39..41]: "[["
- │   │       │       │       │   └─ ImageCommand_begin_c2 41
- │   │       │       │       ├─ ImageCommand_content [41..50]
- │   │       │       │       │   └─ ImageCommandContent [41..50]
- │   │       │       │       │       └─ ImageCommandContent_c1 [41..50]
- │   │       │       │       │           └─ AssetCommandContent [41..50]
- │   │       │       │       │               ├─ AssetCommandContent_c1 [41..50]
- │   │       │       │       │               │   └─ AssetCommandInstruction [41..50]
- │   │       │       │       │               │       ├─ AssetCommandInstruction_c1 41
- │   │       │       │       │               │       ├─ AssetCommandInstruction_c2 41
- │   │       │       │       │               │       ├─ AssetCommandInstruction_c3 41
- │   │       │       │       │               │       ├─ AssetCommandInstruction_c4 41
- │   │       │       │       │               │       └─ AssetCommandInstruction_c5 [41..50]
- │   │       │       │       │               │           └─ AssetCommandName [41..50]
- │   │       │       │       │               │               └─ AssetCommandName_c1 [41..50]
- │   │       │       │       │               │                   └─ AssetCommandFileName [41..50]: "cg_sunset"
- │   │       │       │       │               └─ AssetCommandContent_c2 50
- │   │       │       │       └─ ImageCommand_end [50..52]
- │   │       │       │           ├─ ImageCommand_end_c1 50
- │   │       │       │           ├─ ImageCommand_end_c2 [50..52]
- │   │       │       │           │   └─ ImageEndMark [50..52]: "]]"
- │   │       │       │           └─ ImageCommand_end_c3 52
- │   │       │       │               └─ ImageCommand_end_c3 52
- │   │       │       │                   └─ OptionalWhitespace 52
- │   │       │       └─ TextChunk_end 52
- │   │       ├─ LineBreak_c3 [52..54]
- │   │       │   └─ Break [52..54]
- │   │       │       └─ Break_c1 [52..54]: " >"
- │   │       └─ LineBreak_c4 54
+ │   │   └─ LineEnd [39..54]
+ │   │       ├─ LineEnd_begin 39
+ │   │       │   └─ LineEnd_begin_c1 39
+ │   │       │       └─ OptionalWhitespace 39
+ │   │       ├─ LineEnd_content [39..54]
+ │   │       │   ├─ TextChunk [39..53]
+ │   │       │   │   ├─ TextChunk_begin 39
+ │   │       │   │   ├─ TextChunk_content [39..53]
+ │   │       │   │   │   └─ ImageCommand [39..53]
+ │   │       │   │   │       ├─ ImageCommand_begin [39..41]
+ │   │       │   │   │       │   ├─ ImageCommand_begin_c1 [39..41]
+ │   │       │   │   │       │   │   └─ ImageBeginMark [39..41]: "[["
+ │   │       │   │   │       │   └─ ImageCommand_begin_c2 41
+ │   │       │   │   │       ├─ ImageCommand_content [41..50]
+ │   │       │   │   │       │   └─ ImageCommandContent [41..50]
+ │   │       │   │   │       │       └─ ImageCommandContent_c1 [41..50]
+ │   │       │   │   │       │           └─ AssetCommandContent [41..50]
+ │   │       │   │   │       │               ├─ AssetCommandContent_c1 [41..50]
+ │   │       │   │   │       │               │   └─ AssetCommandInstruction [41..50]
+ │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c1 41
+ │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c2 41
+ │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c3 41
+ │   │       │   │   │       │               │       ├─ AssetCommandInstruction_c4 41
+ │   │       │   │   │       │               │       └─ AssetCommandInstruction_c5 [41..50]
+ │   │       │   │   │       │               │           └─ AssetCommandName [41..50]
+ │   │       │   │   │       │               │               └─ AssetCommandName_c1 [41..50]
+ │   │       │   │   │       │               │                   └─ AssetCommandFileName [41..50]: "cg_sunset"
+ │   │       │   │   │       │               └─ AssetCommandContent_c2 50
+ │   │       │   │   │       └─ ImageCommand_end [50..53]
+ │   │       │   │   │           ├─ ImageCommand_end_c1 50
+ │   │       │   │   │           ├─ ImageCommand_end_c2 [50..52]
+ │   │       │   │   │           │   └─ ImageEndMark [50..52]: "]]"
+ │   │       │   │   │           └─ ImageCommand_end_c3 [52..53]
+ │   │       │   │   │               └─ ImageCommand_end_c3 [52..53]
+ │   │       │   │   │                   └─ OptionalWhitespace [52..53]: " "
+ │   │       │   │   └─ TextChunk_end 53
+ │   │       │   └─ Break [53..54]
+ │   │       │       └─ Break_c1 [53..54]: ">"
+ │   │       └─ LineEnd_end 54
  │   └─ ImplicitAction_end 54
  ├─ Newline [54..55]: "\n"
  ├─ ImplicitAction [55..61]
@@ -367,15 +367,16 @@ sparkdown [0..140]
          │   └─ BlockLineContinue_end 126
          │       └─ BlockLineContinue_end_c1 126
          ├─ Newline [126..127]: "\n"
-         ├─ BlockLineBreak [127..130]
-         │   ├─ BlockLineBreak_c1 [127..129]
-         │   │   └─ OptionalWhitespace [127..129]: "  "
-         │   ├─ BlockLineBreak_c2 129
-         │   ├─ BlockLineBreak_c3 129
-         │   ├─ BlockLineBreak_c4 [129..130]
+         ├─ BlockLineContinue [127..130]
+         │   ├─ BlockLineContinue_begin [127..129]
+         │   │   ├─ BlockLineContinue_begin_c1 [127..129]
+         │   │   │   └─ OptionalWhitespace [127..129]: "  "
+         │   │   └─ BlockLineContinue_begin_c2 129
+         │   ├─ BlockLineContinue_content [129..130]
          │   │   └─ Break [129..130]
          │   │       └─ Break_c1 [129..130]: ">"
-         │   └─ BlockLineBreak_c5 130
+         │   └─ BlockLineContinue_end 130
+         │       └─ BlockLineContinue_end_c1 130
          ├─ Newline [130..131]: "\n"
          ├─ BlockLineContinue [131..139]
          │   ├─ BlockLineContinue_begin [131..133]
