@@ -44,13 +44,13 @@ end
 // Luau: UnknownGlobal
 // "Unknown global 'foo'; consider assigning to it first"
 //
-// Inside a function sparkdown reports nothing for an unknown global. At the
-// top level the read is checked, with sparkdown's wording (adapted below).
-describe.skip("an unknown global read inside a function (diverges: not reported)", () => {
+// Sparkdown reports the read with its own wording, inside a function and at
+// the top level (adapted below).
+describe("an unknown global read inside a function (adapted)", () => {
   test("return foo", () => {
-    expect(diagnoseWithLintsInFunction("return foo")).toContain(
-      "Unknown global 'foo'; consider assigning to it first",
-    );
+    expect(diagnoseWithLintsInFunction("return foo")).toEqual([
+      "Cannot find variable named `foo`",
+    ]);
   });
 });
 
@@ -135,11 +135,12 @@ type InputData = {
 });
 
 // Luau: TestStringInterpolation
-// Upstream expects the unknown global inside the interpolation to warn; in a
-// function sparkdown reports no unknown globals (see UnknownGlobal above).
-describe.skip("an unknown global inside interpolation (diverges: not reported in a function)", () => {
+// The unknown global inside the interpolation warns.
+describe("an unknown global inside interpolation", () => {
   test("local _ = `unknown {foo}`", () => {
-    expect(diagnoseWithLintsInFunction("local _ = `unknown {foo}`")).toHaveLength(1);
+    expect(diagnoseWithLintsInFunction("local _ = `unknown {foo}`")).toEqual([
+      "Cannot find variable named `foo`",
+    ]);
   });
 });
 

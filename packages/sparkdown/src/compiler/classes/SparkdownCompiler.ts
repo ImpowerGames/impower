@@ -3993,13 +3993,8 @@ export class SparkdownCompiler {
             // resolves that line to its own path rather than to the statement
             // that merely stops at its first column.)
             // A range reaching only the start of `endLine` records an end
-            // column of either 0 or -1, and which one depends on the stamping
-            // convention behind the metadata: the 1-based character numbers
-            // this pipeline assumes give 0, while `buildDebugMetadata`'s
-            // default 0-based stamps give -1. Both say the range stops at or
-            // before `endLine`'s first column, so both are pulled back. The
-            // `endLine > startLine` guard keeps a single-line range from being
-            // pulled back before its own start.
+            // column of 0. The `endLine > startLine` guard keeps a
+            // single-line range from being pulled back before its own start.
             if (uri) {
               const document = this.documents.get(uri);
               if (document) {
@@ -5544,19 +5539,15 @@ export class SparkdownCompiler {
     uri: string,
   ): void {
     const reported = new Set<string>();
-    // `characterBias` is what the stamp adds to a 0-based column: the
-    // lowering dispatcher stamps flows with 0-based character numbers, and
-    // a divert's target identifiers carry 1-based ones (see
-    // lower/utils/debugMetadata.ts and lowerDivertPath.ts); line numbers are
-    // 1-based in both, and getDiagnostic takes 0-based positions on both
-    // axes. A target identifier's stamp is the name itself and is used as
-    // is. A flow's stamp covers its declaration line (a scene) or its whole
-    // body (a function), so that range narrows to the name when the name is
-    // on the stamp's first line.
+    // Stamps carry 1-based line and character numbers (see
+    // lower/utils/debugMetadata.ts), and getDiagnostic takes 0-based
+    // positions on both axes. A target identifier's stamp is the name itself
+    // and is used as is. A flow's stamp covers its declaration line (a scene)
+    // or its whole body (a function), so that range narrows to the name when
+    // the name is on the stamp's first line.
     const report = (
       message: string,
       dm: DebugMetadata | null | undefined,
-      characterBias: number,
       name: string,
       exact: boolean,
       severity: DiagnosticSeverity = DiagnosticSeverity.Error,
@@ -5566,9 +5557,9 @@ export class SparkdownCompiler {
       }
       const diagUri = dm.filePath || uri;
       const line = dm.startLineNumber - 1;
-      let startCharacter = dm.startCharacterNumber - characterBias;
+      let startCharacter = dm.startCharacterNumber - 1;
       let endLine = dm.endLineNumber - 1;
-      let endCharacter = dm.endCharacterNumber - characterBias;
+      let endCharacter = dm.endCharacterNumber - 1;
       if (!exact) {
         const lineText = this.documents.get(diagUri)?.getText({
           start: { line, character: 0 },
@@ -5610,7 +5601,6 @@ export class SparkdownCompiler {
           report(
             `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`,
             child.debugMetadata,
-            0,
             name,
             false,
           );
@@ -5627,7 +5617,6 @@ export class SparkdownCompiler {
           ? `\`${name}\` is a builtin global; unless the \`${name}\` this divert reads holds a divert target when it runs, the divert binds to the builtin and cannot reach a scene, branch, or label named \`${name}\``
           : `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``,
         stamped ?? divert.debugMetadata,
-        stamped ? 1 : 0,
         name,
         stamped !== null,
         warning ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error,
