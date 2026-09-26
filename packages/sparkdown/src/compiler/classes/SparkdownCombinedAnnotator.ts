@@ -1,4 +1,5 @@
 import {
+  ChangeDesc,
   ChangeSet,
   type ChangeSpec,
   Range,
@@ -105,9 +106,12 @@ export class SparkdownCombinedAnnotator {
     return this._defineTypeNames.names;
   }
 
-  protected maintainsDefineTypeNames(
-    annotate?: Set<keyof SparkdownAnnotators>,
-  ): boolean {
+  /**
+   * Whether an update with this `annotate` set runs the compilation
+   * annotator. The define-type-name index and the re-lowering of chunks whose
+   * callable-name reads went stale are kept only then.
+   */
+  protected runsCompilations(annotate?: Set<keyof SparkdownAnnotators>): boolean {
     return !annotate || annotate.has("compilations");
   }
 
@@ -341,9 +345,9 @@ export class SparkdownCombinedAnnotator {
         annotator.update(tree, text, uri);
       }
     }
-    const maintainDefineTypeNames = this.maintainsDefineTypeNames(annotate);
+    const runsCompilations = this.runsCompilations(annotate);
     if (!changes || reparsedFrom == null) {
-      if (maintainDefineTypeNames) {
+      if (runsCompilations) {
         this._defineTypeNames.rebuild(tree, text);
       } else {
         this._defineTypeNames.invalidate();
@@ -360,6 +364,10 @@ export class SparkdownCombinedAnnotator {
             annotator.end(iteratingFrom, iteratingTo, add as any, []);
           }
         }
+      }
+      if (runsCompilations) {
+        // Every chunk was just lowered against the current document.
+        this.current.compilations.markGlobalCallableNamesChecked();
       }
       return this.current;
     }
@@ -390,7 +398,7 @@ export class SparkdownCombinedAnnotator {
     // annotators are about to re-run over. It has to be complete before
     // `annotate` starts, because the first chunk `CompilationAnnotator` lowers
     // already reads it.
-    if (maintainDefineTypeNames) {
+    if (runsCompilations) {
       this._defineTypeNames.update(
         tree,
         text,
@@ -421,65 +429,77 @@ export class SparkdownCombinedAnnotator {
     // 97.2ms per edit event on a 21KB script), because it re-annotates the
     // whole block on every keystroke. Annotators that depend on preceding
     // context rebuild it in `begin()` instead; see `SemanticAnnotator`.
-    const windowFrom = editStart;
-    if (reparsedTo == null) {
-      // Only rebuild annotations after `editStart`
-      for (const [key, add] of Object.entries(
-        this.annotate(tree, windowFrom, undefined, annotate),
-      )) {
-        if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
-          const annotator = this.current[key as keyof SparkdownAnnotators];
-          if (annotator) {
-            const removed: Range<typeof annotator._annotationType>[] = [];
-            annotator.current = annotator.current.map(changeDesc);
-            const kept = this.pruneRedundant(
-              add as any,
-              annotator.current,
-              windowFrom,
-              Infinity,
-            );
-            annotator.current = annotator.current.update({
-              filter: (from, to, value) => {
-                if (to < windowFrom) {
-                  return true;
-                }
-                removed.push(value.range(from, to));
-                this.remove(from, to, value, annotate);
-                return false;
-              },
-              add: kept,
-              sort: true,
-            });
-            annotator.end(
-              iteratingFrom,
-              iteratingTo,
-              kept as any,
-              removed as any,
-            );
-          }
-        }
-      }
-      return this.current;
+    // Without `reparsedTo` the window runs to the end of the document.
+    this.reannotate(
+      tree,
+      editStart,
+      reparsedTo ?? undefined,
+      iteratingFrom,
+      iteratingTo,
+      annotate,
+      changeDesc,
+    );
+    if (runsCompilations) {
+      this.relowerStaleCompilations(tree);
     }
-    // Only rebuild annotations between `windowFrom` and `windowTo`
-    const windowTo = reparsedTo;
+    return this.current;
+  }
+
+  /**
+   * Lower again every chunk outside the edit's window whose lowering read a
+   * document-wide answer the edit changed (see
+   * `CompilationAnnotator.staleRanges`). Each is re-annotated as a window of
+   * its own, for the compilation annotator only.
+   */
+  protected relowerStaleCompilations(tree: Tree) {
+    const compilations = this.current.compilations;
+    const compilationsOnly = new Set<keyof SparkdownAnnotators>([
+      "compilations",
+    ]);
+    for (const { from, to } of compilations.staleRanges()) {
+      this.reannotate(tree, from, to, from, to, compilationsOnly);
+    }
+    compilations.markGlobalCallableNamesChecked();
+  }
+
+  /**
+   * Re-run the annotators over `[windowFrom, windowTo]` (to the end of the
+   * document when `windowTo` is undefined) and replace the annotations that
+   * window overlaps. `iteratingFrom` and `iteratingTo` are only reported to
+   * each annotator's `end`; the window alone bounds the walk. `changes`, when
+   * given, first maps the carried annotations through the edit; it is applied
+   * once per update.
+   */
+  protected reannotate(
+    tree: Tree,
+    windowFrom: number,
+    windowTo: number | undefined,
+    iteratingFrom: number,
+    iteratingTo: number,
+    annotate?: Set<keyof SparkdownAnnotators>,
+    changes?: ChangeDesc,
+  ) {
+    const filterTo = windowTo ?? Infinity;
     for (const [key, add] of Object.entries(
       this.annotate(tree, windowFrom, windowTo, annotate),
     )) {
       if (!annotate || annotate?.has(key as keyof SparkdownAnnotators)) {
-        const annotator = this.current[key as keyof SparkdownAnnotators];
+        const annotator: SparkdownAnnotator<SparkdownAnnotation<any>> =
+          this.current[key as keyof SparkdownAnnotators];
         if (annotator) {
-          const removed: Range<typeof annotator._annotationType>[] = [];
-          annotator.current = annotator.current.map(changeDesc);
+          const removed: Range<SparkdownAnnotation<any>>[] = [];
+          if (changes) {
+            annotator.current = annotator.current.map(changes);
+          }
           const kept = this.pruneRedundant(
             add as any,
             annotator.current,
             windowFrom,
-            windowTo,
+            filterTo,
           );
           annotator.current = annotator.current.update({
             filter: (from, to, value) => {
-              if (to < windowFrom || from > windowTo) {
+              if (to < windowFrom || from > filterTo) {
                 return true;
               }
               removed.push(value.range(from, to));
@@ -498,6 +518,5 @@ export class SparkdownCombinedAnnotator {
         }
       }
     }
-    return this.current;
   }
 }

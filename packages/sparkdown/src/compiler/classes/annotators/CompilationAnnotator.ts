@@ -54,6 +54,11 @@ export interface CompiledBlock {
   // story's `topLevelFlowBaseObjs` so the `DivertTarget(__anon_fn_…)`
   // references emitted at the literal's source position can resolve.
   hoistedKnots?: ParsedObject[];
+  // Every name this chunk's lowering looked up in the document's global
+  // callable names, with the answer it got. A chunk the incremental parse
+  // carries keeps what it lowered, so when an edit elsewhere changes one of
+  // these answers the chunk is lowered again (see `staleRanges`).
+  globalCallableReads?: Map<string, boolean>;
 }
 
 export interface CompilationConfig {
@@ -86,6 +91,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   // the cache on real structural changes.
   private _globalCallableNames?: Set<string>;
   private _globalCallableNamesTree?: unknown;
+  // The callable names every chunk was last confirmed to agree with (see
+  // `markGlobalCallableNamesChecked`).
+  private _checkedGlobalCallableNames?: Set<string>;
 
   /**
    * The document's define TYPE names — every `define`/`animation`/`theme`
@@ -127,6 +135,61 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     this._globalCallableNames = set;
     this._globalCallableNamesTree = this.tree;
     return set;
+  }
+
+  /**
+   * The ranges of chunks whose lowering read a global callable name the
+   * current document answers differently. An incremental pass lowers only
+   * the chunks its reparse rebuilt, so a carried chunk keeps the answers it
+   * got when it was lowered; the caller lowers these again and then calls
+   * `markGlobalCallableNamesChecked`.
+   *
+   * Every chunk agrees with the set last marked as checked, so when the
+   * document's set is unchanged since then nothing can be stale and the walk
+   * is skipped.
+   */
+  staleRanges(): { from: number; to: number }[] {
+    const names = this.computeGlobalCallableNames();
+    const checked = this._checkedGlobalCallableNames;
+    if (checked === names) {
+      return [];
+    }
+    if (checked && checked.size === names.size) {
+      let same = true;
+      for (const name of names) {
+        if (!checked.has(name)) {
+          same = false;
+          break;
+        }
+      }
+      if (same) {
+        return [];
+      }
+    }
+    const stale: { from: number; to: number }[] = [];
+    const iter = this.current.iter();
+    while (iter.value) {
+      const reads = iter.value.type.globalCallableReads;
+      if (reads) {
+        for (const [name, found] of reads) {
+          if (names.has(name) !== found) {
+            stale.push({ from: iter.from, to: iter.to });
+            break;
+          }
+        }
+      }
+      iter.next();
+    }
+    return stale;
+  }
+
+  /**
+   * Record that every chunk now agrees with the document's current callable
+   * names: after a full rebuild, or after the chunks `staleRanges` returned
+   * have been lowered again.
+   */
+  markGlobalCallableNamesChecked(): void {
+    this._checkedGlobalCallableNames = this.computeGlobalCallableNames();
   }
 
   private computeDefineTypeNames(): ReadonlySet<string> {
@@ -252,6 +315,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // these names from inner closures must skip upval capture so the
       // call site resolves via FunctionCall + static `PackTuple`.
       const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
+      const callableNames = this.computeGlobalCallableNames();
+      const globalCallableReads = new Map<string, boolean>();
       const lowered = lower(nodeRef, {
         // The document being lowered. Absent here until now, which made
         // `ctx.filePath` undefined on the PRODUCTION path — so anything
@@ -272,7 +337,13 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         functionScopeStack,
         loopStack,
         diagnostics: chunkDiagnostics,
-        globalCallableNames: this.computeGlobalCallableNames(),
+        globalCallableNames: {
+          has: (name) => {
+            const found = callableNames.has(name);
+            globalCallableReads.set(name, found);
+            return found;
+          },
+        },
         defineTypeNames: this.computeDefineTypeNames(),
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
@@ -280,6 +351,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       });
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;
+      }
+      if (lowered && globalCallableReads.size > 0) {
+        lowered.globalCallableReads = globalCallableReads;
       }
       if (lowered && chunkDiagnostics.length > 0) {
         // Merge any deep-nested-lowerer diagnostics with whatever
