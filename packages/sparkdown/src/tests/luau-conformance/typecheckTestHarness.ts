@@ -18,6 +18,7 @@ import { vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import type { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
+import type { SparkdownNodeName } from "../../compiler/types/SparkdownNodeName";
 import { nodeNameSet } from "../../compiler/utils/nodeNameSet";
 import { diagnosticMessage } from "./diagnosticTestHarness";
 
@@ -267,9 +268,12 @@ const NEUTRAL_NODES = nodeNameSet([
 ]);
 
 // A string's or comment's contents are text, whatever the grammar calls them,
-// except the Luau inside an interpolated string's braces.
+// except the Luau inside a backtick string's braces. Luau interpolates only
+// backtick strings; Sparkdown also interpolates double-quoted ones, where
+// Luau reads the braces as text (DIVERGENCES.md).
 const TEXT_NODES = /^Luau\w*(String|Comment)$/;
-const INTERPOLATION_NODES = /^Luau\w*StringInterpolation$/;
+const LUAU_INTERPOLATION: SparkdownNodeName = "LuauBacktickStringInterpolation";
+const SPARKDOWN_INTERPOLATION: SparkdownNodeName = "LuauDoubleQuotedStringInterpolation";
 
 function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocumentRegistry): LuauDiagnostic[] {
   const found: LuauDiagnostic[] = [];
@@ -319,10 +323,13 @@ function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocume
     }
     for (let child = node.firstChild; child; child = child.nextSibling) visit(child);
   };
-  // Within text, only an interpolation and an unfinished node are read.
+  // Within text, a backtick string's interpolation is read as Luau, and a
+  // double-quoted string's interpolation and an unfinished node are reported.
   const visitInterpolations = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.type.isError || INTERPOLATION_NODES.test(child.name)) visit(child);
+      if (child.name === SPARKDOWN_INTERPOLATION) {
+        report(child.from, child.to, `Sparkdown read ${quote(child.from, child.to)} as an interpolation, where Luau reads string text`);
+      } else if (child.type.isError || child.name === LUAU_INTERPOLATION) visit(child);
       else visitInterpolations(child);
     }
   };

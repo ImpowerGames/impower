@@ -66,12 +66,24 @@ describe("syntax diagnostics", () => {
     ]);
   });
 
-  test("the Luau inside an interpolated string's braces is read like any other", () => {
-    for (const quote of ["`", '"']) {
-      expect(checkLuau(`local s = ${quote}a {x} b {y + 1}${quote}`).syntaxDiagnostics).toEqual([]);
-      const [first] = checkLuau(`local s = ${quote}a {-> elsewhere} b${quote}`).syntaxDiagnostics;
-      expect(first).toMatchObject({ line: 0, column: 14, code: "SyntaxError", message: `Sparkdown read "->" as DivertMark, not Luau` });
-    }
+  test("the Luau inside a backtick string's braces is read like any other", () => {
+    expect(checkLuau("local s = `a {x} b {y + 1}`").syntaxDiagnostics).toEqual([]);
+    const [first] = checkLuau("local s = `a {-> elsewhere} b`").syntaxDiagnostics;
+    expect(first).toMatchObject({ line: 0, column: 14, code: "SyntaxError", message: `Sparkdown read "->" as DivertMark, not Luau` });
+  });
+
+  test("braces Sparkdown interpolates in a double-quoted string, which Luau reads as text, are reported", () => {
+    expect(checkLuau(`local s = "a {missing} b"`).syntaxDiagnostics).toEqual([
+      {
+        line: 0,
+        column: 13,
+        endLine: 0,
+        endColumn: 22,
+        message: `Sparkdown read "{missing}" as an interpolation, where Luau reads string text`,
+        code: "SyntaxError",
+      },
+    ]);
+    expect(checkLuau(`local s = 'a {missing} b'`).syntaxDiagnostics).toEqual([]);
   });
 
   test("a validator diagnostic keeps Luau's wording", () => {
@@ -457,12 +469,13 @@ describe("checking a port against the manifest", () => {
       { source: "", unparsed: { defect: 0 }, expect: [] },
       { source: "", unparsed: { divergence: "Not a section" }, expect: [] },
       { source: "", unparsed: { divergence: "Type annotations are parsed but ignored" }, expect: [] },
+      { source: "", unparsed: { divergence: "`\"...\"` interpolates; `'...'` does not" }, expect: [] },
       { source: "", module: "", expect: [] },
     ] as PortedCheck[];
     expect(portProblems("X.test.cpp", withCase(0, { name: "a", fixture: "Fixture", checks }), MANIFEST)).toEqual([
       "case a check 0 records an unparsed defect that is not an issue number",
       'case a check 1 names a divergence "Not a section" that is not a heading in DIVERGENCES.md',
-      "case a check 3 has an empty module name",
+      "case a check 4 has an empty module name",
     ]);
   });
 });

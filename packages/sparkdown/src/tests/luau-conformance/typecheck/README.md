@@ -55,7 +55,8 @@ Sparkdown's grammar recovers from Luau it cannot read without a diagnostic: it r
 
 - each diagnostic the syntax validator gives the snippet (malformed strings, numbers, escapes and comments, in Luau's wording);
 - each node the parser could not finish;
-- each node inside the snippet that is not Luau, such as narrative text or a divert, outside the text of strings and comments (the Luau inside an interpolated string's braces is read like any other);
+- each node inside the snippet that is not Luau, such as narrative text or a divert, outside the text of strings and comments (the Luau inside a backtick string's braces is read like any other);
+- each pair of braces in a double-quoted string, which Sparkdown interpolates and Luau reads as text; a snippet with one records the divergence by its heading, `` `"..."` interpolates; `'...'` does not ``;
 - the function `run` wraps the snippet in closing before the snippet ends.
 
 The parse check asks only whether Sparkdown reads the snippet as Luau. An error Luau's parser reports for a reason the grammar does not look for, such as a `const` assigned a second time, is recorded in `expect` as a `SyntaxError` like any other error, for the checker to report.
