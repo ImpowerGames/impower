@@ -25835,6 +25835,11 @@
             "layer": "portrait"
           }
         },
+        "typecheck": {
+          "$name": "typecheck",
+          "$type": "config",
+          "mode": "nonstrict"
+        },
         "ui": {
           "$name": "ui",
           "$type": "config",
@@ -160388,6 +160393,11 @@
             "channel": "sound",
             "layer": "portrait"
           }
+        },
+        "typecheck": {
+          "$name": "typecheck",
+          "$type": "config",
+          "mode": "nonstrict"
         },
         "ui": {
           "$name": "ui",

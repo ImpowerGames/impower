@@ -163,6 +163,8 @@ describe("checkLuau", () => {
 // ---------------------------------------------------------------------------
 
 const FILE = "TypeInfer.primitives.test.cpp";
+// An upstream file no area switch names, so its cases are off unless forced.
+const AREA_OFF_FILE = "Other.test.cpp";
 const SYNTAX_ERROR: LuauDiagnostic = { line: 0, column: 0, endLine: 0, endColumn: 1, message: "bad", code: "SyntaxError" };
 
 function stub(overrides: Partial<LuauCheckResult> = {}): LuauCheckResult {
@@ -181,9 +183,9 @@ function stub(overrides: Partial<LuauCheckResult> = {}): LuauCheckResult {
   };
 }
 
-function run(c: PortedCase, result: LuauCheckResult | ((source: string) => LuauCheckResult)) {
+function run(c: PortedCase, result: LuauCheckResult | ((source: string) => LuauCheckResult), file = FILE) {
   const skip = vi.fn();
-  runPortedCase(FILE, c, skip, (source) => (typeof result === "function" ? result(source) : result));
+  runPortedCase(file, c, skip, (source) => (typeof result === "function" ? result(source) : result));
   return skip;
 }
 
@@ -219,8 +221,8 @@ describe("running a ported case", () => {
   test("with its area off, a case checks that its snippets parse, then skips", () => {
     vi.stubEnv("LUAU_TYPECHECK_AREAS", "");
     const c: PortedCase = { name: "a", source: "x", expect: [{ type: "x", equals: "number" }] };
-    expect(() => run(c, stub({ checked: true, syntaxDiagnostics: [SYNTAX_ERROR] }))).toThrow(/did not read the snippet as Luau/);
-    expect(run(c, stub({ checked: true }))).toHaveBeenCalledOnce();
+    expect(() => run(c, stub({ checked: true, syntaxDiagnostics: [SYNTAX_ERROR] }), AREA_OFF_FILE)).toThrow(/did not read the snippet as Luau/);
+    expect(run(c, stub({ checked: true }), AREA_OFF_FILE)).toHaveBeenCalledOnce();
   });
 
   test("with its area on, a case runs its assertions against the checker", () => {
@@ -269,7 +271,7 @@ describe("running a ported case", () => {
     };
     runPortedCase(FILE, c, vi.fn(), (source, options) => {
       seen.push([source, options]);
-      return stub();
+      return stub({ checked: true });
     });
     expect(seen).toEqual([
       ["x", { mode: "nonstrict", fixture: "BuiltinsFixture" }],
