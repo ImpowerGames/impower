@@ -16,7 +16,10 @@
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import type { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
+import type { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { nodeNameSet } from "../../compiler/utils/nodeNameSet";
+import { diagnosticMessage } from "./diagnosticTestHarness";
 
 export type LuauMode = "strict" | "nonstrict" | "nocheck";
 
@@ -85,6 +88,8 @@ export interface CheckedType {
   results?: CheckedType[];
   /** For a type alias: how many type parameters it declares. */
   typeParameterCount?: number;
+  /** For a table: how many properties it has. */
+  propertyCount?: number;
 }
 
 export interface LuauCheckResult {
@@ -98,7 +103,10 @@ export interface LuauCheckResult {
   checked: boolean;
   /** Every diagnostic for the snippet, syntax and type alike, as Luau's `CheckResult::errors`. */
   diagnostics: LuauDiagnostic[];
-  /** The type of a module-level binding, printed as Luau's `toString` prints it. */
+  /**
+   * The type of a module-level binding, printed as Luau's `toString` prints
+   * it: `find({ type: name }).print(options)`.
+   */
   typeOf(name: string, options?: LuauToStringOptions): string;
   /** The type a selector names. */
   find(selector: TypeSelector): CheckedType;
@@ -167,26 +175,22 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
     warn.mockRestore();
   }
 
-  const documents = (compiler as unknown as { documents: SnippetDocuments }).documents;
+  const documents = compiler.documents;
   const wrapped = wrappedSnippet(documents, source);
   const syntaxDiagnostics = syntaxDiagnosticsOf(wrapped, documents);
 
   const compilerMessages = [...logged];
-  for (const d of program.diagnostics?.[wrapped.uri] ?? []) {
-    const raw = (d as { message?: unknown }).message;
-    compilerMessages.push(typeof raw === "string" ? raw : ((raw as { value?: string } | undefined)?.value ?? ""));
-  }
+  for (const d of program.diagnostics?.[wrapped.uri] ?? []) compilerMessages.push(diagnosticMessage(d));
 
+  const find = (selector: TypeSelector): CheckedType => {
+    throw new NotImplemented(`the type of ${JSON.stringify(selector)}`);
+  };
   return {
     syntaxDiagnostics,
     checked: false,
     diagnostics: syntaxDiagnostics,
-    typeOf(name) {
-      throw new NotImplemented(`typeOf(${JSON.stringify(name)})`);
-    },
-    find(selector) {
-      throw new NotImplemented(`the type of ${JSON.stringify(selector)}`);
-    },
+    typeOf: (name, options) => find({ type: name }).print(options),
+    find,
     compilerMessages,
   };
 }
@@ -199,29 +203,9 @@ export function describeDiagnostic(d: LuauDiagnostic): string {
 // Reading the snippet back out of the compiler
 // ---------------------------------------------------------------------------
 
-interface SnippetDocument {
-  getText(): string;
-  positionAt(offset: number): { line: number; character: number };
-}
-
-interface SnippetDocuments {
-  keys(): Iterable<string>;
-  get(uri: string): SnippetDocument | undefined;
-  tree(uri: string): Tree | undefined;
-  annotations(uri: string): {
-    validations: {
-      between(
-        from: number,
-        to: number,
-        f: (from: number, to: number, value: { type: { message?: string } }) => void,
-      ): void;
-    };
-  };
-}
-
 interface WrappedSnippet {
   uri: string;
-  document: SnippetDocument;
+  document: SparkdownDocument;
   tree: Tree;
   /** Where the snippet starts in the wrapped document, and how many lines precede it. */
   offset: number;
@@ -233,7 +217,7 @@ interface WrappedSnippet {
 // the file's text, and `end`, in a document of its own. Find that document
 // and check the snippet sits in it unchanged, so that a change to how `run`
 // wraps a file fails here rather than skewing every position.
-function wrappedSnippet(documents: SnippetDocuments, source: string): WrappedSnippet {
+function wrappedSnippet(documents: SparkdownDocumentRegistry, source: string): WrappedSnippet {
   const uris = [...documents.keys()].filter((uri) => uri.startsWith(`${SNIPPET_URI}?run=`));
   if (uris.length !== 1) {
     throw new Error(`expected one document for the snippet run by main.sd, found ${JSON.stringify(uris)}`);
@@ -282,10 +266,12 @@ const NEUTRAL_NODES = nodeNameSet([
   "PunctuationStringSingleQuoteClose",
 ]);
 
-// A string's or comment's contents are text, whatever the grammar calls them.
+// A string's or comment's contents are text, whatever the grammar calls them,
+// except the Luau inside an interpolated string's braces.
 const TEXT_NODES = /^Luau\w*(String|Comment)$/;
+const INTERPOLATION_NODES = /^Luau\w*StringInterpolation$/;
 
-function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SnippetDocuments): LuauDiagnostic[] {
+function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocumentRegistry): LuauDiagnostic[] {
   const found: LuauDiagnostic[] = [];
   const text = wrapped.document.getText();
   const snippetEnd = wrapped.offset + wrapped.length;
@@ -327,8 +313,18 @@ function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SnippetDocument
       report(node.from, node.to, `Sparkdown read ${quote(node.from, node.to)} as ${node.name}, not Luau`);
       return;
     }
-    if (TEXT_NODES.test(node.name)) return;
+    if (TEXT_NODES.test(node.name)) {
+      visitInterpolations(node);
+      return;
+    }
     for (let child = node.firstChild; child; child = child.nextSibling) visit(child);
+  };
+  // Within text, only an interpolation and an unfinished node are read.
+  const visitInterpolations = (node: SyntaxNode) => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (child.type.isError || INTERPOLATION_NODES.test(child.name)) visit(child);
+      else visitInterpolations(child);
+    }
   };
   for (let child = fn.firstChild; child; child = child.nextSibling) visit(child);
   // The parser can leave several unfinished nodes at one place.

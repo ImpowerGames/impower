@@ -66,6 +66,14 @@ describe("syntax diagnostics", () => {
     ]);
   });
 
+  test("the Luau inside an interpolated string's braces is read like any other", () => {
+    for (const quote of ["`", '"']) {
+      expect(checkLuau(`local s = ${quote}a {x} b {y + 1}${quote}`).syntaxDiagnostics).toEqual([]);
+      const [first] = checkLuau(`local s = ${quote}a {-> elsewhere} b${quote}`).syntaxDiagnostics;
+      expect(first).toMatchObject({ line: 0, column: 14, code: "SyntaxError", message: `Sparkdown read "->" as DivertMark, not Luau` });
+    }
+  });
+
   test("a validator diagnostic keeps Luau's wording", () => {
     const [first] = checkLuau('local s = "abc\nlocal t = 1').syntaxDiagnostics;
     expect(first).toEqual({
@@ -84,8 +92,8 @@ describe("checkLuau before the checker exists", () => {
     const result = checkLuau("local x = 1 )");
     expect(result.checked).toBe(false);
     expect(result.diagnostics).toEqual(result.syntaxDiagnostics);
-    expect(() => result.typeOf("x")).toThrow(NotImplemented);
-    expect(() => result.find({ type: "x" })).toThrow(/^not implemented: .* needs the type checker \(#599\)$/);
+    expect(() => result.find({ alias: "T" })).toThrow(NotImplemented);
+    expect(() => result.typeOf("x")).toThrow(/^not implemented: the type of \{"type":"x"\} needs the type checker \(#599\)$/);
   });
 
   test("a diagnostic the compiler only logs is kept with the result, not printed", () => {
@@ -135,11 +143,6 @@ describe("running a ported case", () => {
     expect(() => run(c, stub({ syntaxDiagnostics: [SYNTAX_ERROR] }))).toThrow(/Sparkdown did not read the snippet as Luau/);
   });
 
-  test("a malformed snippet's syntax is not checked", () => {
-    const c: PortedCase = { name: "a", source: "x", malformed: "an error on purpose", expect: [] };
-    expect(() => run(c, stub({ syntaxDiagnostics: [SYNTAX_ERROR] }))).not.toThrow();
-  });
-
   test("a snippet recorded as unparsed skips its case while it still fails to parse", () => {
     const c: PortedCase = { name: "a", source: "x", unparsed: { defect: 875 }, expect: [{ errors: 0 }] };
     expect(run(c, stub({ syntaxDiagnostics: [SYNTAX_ERROR] }))).toHaveBeenCalledOnce();
@@ -156,9 +159,11 @@ describe("running a ported case", () => {
     expect(run(c, stub())).toHaveBeenCalledOnce();
   });
 
-  test("with its area off, a case checks only that its snippets parse", () => {
+  test("with its area off, a case checks that its snippets parse, then skips", () => {
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "");
     const c: PortedCase = { name: "a", source: "x", expect: [{ type: "x", equals: "number" }] };
-    expect(run(c, stub({ checked: true }))).not.toHaveBeenCalled();
+    expect(() => run(c, stub({ checked: true, syntaxDiagnostics: [SYNTAX_ERROR] }))).toThrow(/did not read the snippet as Luau/);
+    expect(run(c, stub({ checked: true }))).toHaveBeenCalledOnce();
   });
 
   test("with its area on, a case runs its assertions, which fail as not implemented before the checker exists", () => {
@@ -265,9 +270,9 @@ describe("assertions", () => {
     expect(assertOn(result, [{ errors: 1 }])).toThrow();
   });
 
-  test("a type's printed text with its options, its class, its identity, its results and its type parameters", () => {
+  test("a type's printed text with its options, its class, its identity, its results, its type parameters and its properties", () => {
     const number = checkedType("number");
-    const alias = checkedType("{ [number]: T }", { kind: "TableType", typeParameterCount: 1 });
+    const alias = checkedType("{ [number]: T }", { kind: "TableType", typeParameterCount: 1, propertyCount: 0 });
     const fn = checkedType("() -> number", { kind: "FunctionType", results: [number] });
     const selected: unknown[] = [];
     const find: LuauCheckResult["find"] = (selector) => {
@@ -283,6 +288,7 @@ describe("assertions", () => {
         { type: "x", sameAs: { typeAt: [1, 2] } },
         { type: "f", results: ["number"] },
         { alias: "Array", path: [{ indexer: "result" }], typeParameters: 1 },
+        { alias: "Array", properties: 0 },
       ]),
     ).not.toThrow();
     expect(selected).toEqual([
@@ -292,12 +298,14 @@ describe("assertions", () => {
       { typeAt: [1, 2] },
       { type: "f" },
       { alias: "Array", path: [{ indexer: "result" }] },
+      { alias: "Array" },
     ]);
     expect(assertOn({ find }, [{ type: "x", equals: "string" }])).toThrow();
     expect(assertOn({ find }, [{ type: "x", kind: "TableType" }])).toThrow();
     expect(assertOn({ find }, [{ type: "x", sameAs: { alias: "Array" } }])).toThrow(/same type as/);
     expect(assertOn({ find }, [{ type: "f", results: ["string"] }])).toThrow();
     expect(assertOn({ find }, [{ alias: "Array", typeParameters: 2 }])).toThrow();
+    expect(assertOn({ find }, [{ alias: "Array", properties: 1 }])).toThrow();
   });
 });
 
@@ -446,19 +454,15 @@ describe("checking a port against the manifest", () => {
 
   test("each check is checked for how its parse is recorded", () => {
     const checks = [
-      { source: "", malformed: "", expect: [] },
-      { source: "", malformed: "an error", unparsed: { defect: 875 }, expect: [] },
       { source: "", unparsed: { defect: 0 }, expect: [] },
       { source: "", unparsed: { divergence: "Not a section" }, expect: [] },
       { source: "", unparsed: { divergence: "Type annotations are parsed but ignored" }, expect: [] },
       { source: "", module: "", expect: [] },
     ] as PortedCheck[];
     expect(portProblems("X.test.cpp", withCase(0, { name: "a", fixture: "Fixture", checks }), MANIFEST)).toEqual([
-      "case a check 0 is malformed with no description of its syntax error",
-      "case a check 1 is both malformed and unparsed; the parse check skips a malformed snippet",
-      "case a check 2 records an unparsed defect that is not an issue number",
-      'case a check 3 names a divergence "Not a section" that is not a heading in DIVERGENCES.md',
-      "case a check 5 has an empty module name",
+      "case a check 0 records an unparsed defect that is not an issue number",
+      'case a check 1 names a divergence "Not a section" that is not a heading in DIVERGENCES.md',
+      "case a check 3 has an empty module name",
     ]);
   });
 });

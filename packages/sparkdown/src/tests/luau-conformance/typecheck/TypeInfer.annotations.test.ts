@@ -583,9 +583,9 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
   },
   {
     // TypeInfer.annotations.test.cpp:699 TEST_CASE_FIXTURE(Fixture, "generic_aliases_are_cloned_properly")
-    // Upstream also checks that the alias's table has no properties and sits in
-    // the module's interface arena; the arena is Luau's memory management, with
-    // no counterpart here.
+    // Upstream also checks that the alias's table sits in the module's
+    // interface arena, which is Luau's memory management, with no counterpart
+    // here.
     name: "generic_aliases_are_cloned_properly",
     fixture: "Fixture",
     source: `
@@ -595,6 +595,7 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
       { errors: 0 },
       { alias: "Array", typeParameters: 1 },
       { alias: "Array", kind: "TableType" },
+      { alias: "Array", properties: 0 },
       { alias: "Array", path: [{ indexer: "result" }], sameAs: { alias: "Array", path: [{ typeParameter: 0 }] } },
     ],
   },

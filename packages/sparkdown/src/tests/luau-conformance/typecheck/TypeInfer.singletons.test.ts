@@ -330,7 +330,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:346 TEST_CASE_FIXTURE(Fixture, "table_properties_alias_or_parens_is_indexer")
     name: "table_properties_alias_or_parens_is_indexer",
     fixture: "Fixture",
-    malformed: "Cannot have more than one table indexer",
     source: `
         --!strict
         type S = "bar"

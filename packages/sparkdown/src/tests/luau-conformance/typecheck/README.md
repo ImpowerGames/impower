@@ -4,7 +4,7 @@ This directory ports Luau's own type-checker tests, from `tests/` in [luau-lang/
 
 ## What runs
 
-Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. Until the checker exists (#599), every type assertion that runs fails with "not implemented", which shows the assertions are wired. From the repository root:
+Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. Until the checker exists (#599), every type assertion that runs fails with "not implemented", which shows the assertions are wired. From the repository root:
 
 ```bash
 LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/tests/luau-conformance/typecheck/TypeInfer.primitives.test.ts --wait 900
@@ -32,7 +32,7 @@ Each check's `expect` lists what upstream asserts about its result, in upstream 
 - `{ errors: n }` for `LUAU_REQUIRE_ERROR_COUNT(n, result)`, and `{ errors: 0 }` for `LUAU_REQUIRE_NO_ERRORS`; `{ errors: "some" }` for `LUAU_REQUIRE_ERRORS`.
 - `{ error: i, ... }` for facts about `result.errors[i]`: its `code` (the error kind, from `get<Kind>`), its `message` (the text of `toString(result.errors[i])`, or `{ oneOf: [...] }` when upstream accepts either of several), its `location` (`[beginLine, beginColumn, endLine, endColumn]`, counted from 0 within the snippet as Luau's `Location` is), its `line` (the line it begins on, when that is all upstream checks), and its `fields` (the error struct's fields by their upstream names, with types printed).
 - `{ anyError: Kind }` and `{ noError: Kind }` for `LUAU_REQUIRE_ERROR(result, Kind)` and `LUAU_REQUIRE_NO_ERROR(result, Kind)`.
-- A type assertion names a module-level binding (`type`, as `requireType` finds it), a type alias (`alias`, as `lookupType` finds it) or the type at a position (`typeAt`, as `requireTypeAtPosition` finds it), with an optional `path` into it: a table property's read type, a function's argument or result, an indexer's key or result, or an alias's type parameter. It then states the type's printed text (`equals`, with `options` for Luau's `ToStringOptions`), its Luau class (`kind`, for `get<FunctionType>(...)` and the like), that it is the same type as another selector's (`sameAs`, for comparing `TypeId`s), a function's return pack (`results`), or an alias's number of type parameters (`typeParameters`).
+- A type assertion names a module-level binding (`type`, as `requireType` finds it), a type alias (`alias`, as `lookupType` finds it) or the type at a position (`typeAt`, as `requireTypeAtPosition` finds it), with an optional `path` into it: a table property's read type, a function's argument or result, an indexer's key or result, or an alias's type parameter. It then states the type's printed text (`equals`, with `options` for Luau's `ToStringOptions`), its Luau class (`kind`, for `get<FunctionType>(...)` and the like), that it is the same type as another selector's (`sameAs`, for comparing `TypeId`s), a function's return pack (`results`), an alias's number of type parameters (`typeParameters`), or a table's number of properties (`properties`).
 - A comparison with one of Luau's builtin types (`getBuiltins()->numberType`) is ported as the type printing as that builtin's name, and a comment on the case says so.
 
 A case upstream asserts nothing about still has a check with an empty `expect`: once its file is switched on, the checker has to run on it.
@@ -45,10 +45,7 @@ A case's `skip` says why its type assertions never run:
 - `{ notApplicable: "..." }`, with the specific reason, for a case that cannot apply to Sparkdown.
 - `{ disabledUpstream: true }` for a case upstream never compiles, in an `#if 0` region or a comment.
 
-A snippet can also carry a record of how Sparkdown reads it:
-
-- `malformed: "..."` names the Luau syntax error the snippet contains on purpose. The parse check does not apply to it.
-- `unparsed: { defect: N }` names the filed Bug for a snippet Sparkdown cannot parse yet, and `unparsed: { divergence: "..." }` names the `packages/sparkdown/docs/runtime/DIVERGENCES.md` section, by its heading, that documents why it never will. The parse check then expects the snippet to fail, so the test fails, and the record has to go, once the snippet parses. A snippet that fails to parse for any other reason is a defect, to be fixed or filed.
+A snippet Sparkdown cannot parse yet carries a record of why: `unparsed: { defect: N }` names the filed Bug, and `unparsed: { divergence: "..." }` names the `packages/sparkdown/docs/runtime/DIVERGENCES.md` section, by its heading, that documents why it never will. The parse check then expects the snippet to fail, so the test fails, and the record has to go, once the snippet parses. A snippet that fails to parse for any other reason is a defect, to be fixed or filed.
 
 A case with a skip or an unparsed snippet still runs its parse check, then reports as skipped.
 
@@ -58,5 +55,7 @@ Sparkdown's grammar recovers from Luau it cannot read without a diagnostic: it r
 
 - each diagnostic the syntax validator gives the snippet (malformed strings, numbers, escapes and comments, in Luau's wording);
 - each node the parser could not finish;
-- each node inside the snippet that is not Luau, such as narrative text or a divert;
+- each node inside the snippet that is not Luau, such as narrative text or a divert, outside the text of strings and comments (the Luau inside an interpolated string's braces is read like any other);
 - the function `run` wraps the snippet in closing before the snippet ends.
+
+The parse check asks only whether Sparkdown reads the snippet as Luau. An error Luau's parser reports for a reason the grammar does not look for, such as a `const` assigned a second time, is recorded in `expect` as a `SyntaxError` like any other error, for the checker to report.

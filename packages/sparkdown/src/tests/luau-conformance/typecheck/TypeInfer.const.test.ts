@@ -19,7 +19,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     name: "reassignments_dont_affect_type_state",
     fixture: "Fixture",
     flags: { LuauExportValueSyntax: true },
-    malformed: "Variable 'PI' is constant and may not be reassigned",
     source: `
         const PI = 3.14
         PI = "apple"
@@ -34,7 +33,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     // TypeInfer.const.test.cpp:40 TEST_CASE_FIXTURE(Fixture, "empty_domain_is_ok")
     name: "empty_domain_is_ok",
     fixture: "Fixture",
-    malformed: "Missing initializer in const declaration",
     source: `
         const PI
 
@@ -69,7 +67,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     // TypeInfer.const.test.cpp:83 TEST_CASE_FIXTURE(Fixture, "const_extra_lvalues_are_nil_and_syntax_error_from_underfill")
     name: "const_extra_lvalues_are_nil_and_syntax_error_from_underfill",
     fixture: "Fixture",
-    malformed: "Missing initializer in const declaration",
     source: `
         const X, Y, Z = 42, 13
 
@@ -86,7 +83,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     // must finish.
     name: "const_syntax_error_in_annotation",
     fixture: "Fixture",
-    malformed: "a table type with two fields and no separator",
     source: `
         const foo: {
             bar
@@ -102,7 +98,6 @@ portUpstreamFile("TypeInfer.const.test.cpp", [
     name: "assign_different_values_to_const_x",
     fixture: "Fixture",
     flags: { LuauExportValueSyntax: true },
-    malformed: "Variable 'x' is constant and may not be reassigned",
     source: `
         const x: string? = nil
         local a = x

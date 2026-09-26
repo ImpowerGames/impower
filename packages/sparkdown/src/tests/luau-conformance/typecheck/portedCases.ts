@@ -14,6 +14,7 @@ import {
   type LuauCheckResult,
   type LuauMode,
   type LuauToStringOptions,
+  type TypePathStep,
   type TypeSelector,
 } from "../typecheckTestHarness";
 
@@ -37,7 +38,7 @@ export type Assertion =
   | { anyError: string }
   /** `LUAU_REQUIRE_NO_ERROR(result, Kind)`. */
   | { noError: string }
-  /** A fact about a type: printed text, class, identity, return pack or type parameter count. */
+  /** A fact about a type: printed text, class, identity, return pack, type parameter count or property count. */
   | (TypeSelector & {
       equals?: string;
       options?: LuauToStringOptions;
@@ -45,6 +46,7 @@ export type Assertion =
       sameAs?: TypeSelector;
       results?: string[];
       typeParameters?: number;
+      properties?: number;
     });
 
 /**
@@ -65,11 +67,6 @@ export interface PortedCheck {
   fixture?: string;
   /** Upstream calls `ignoreMissingAnnotations(result)`: drop `TypeAnnotationRequired` errors first. */
   ignoreMissingAnnotations?: true;
-  /**
-   * The Luau syntax error the snippet contains on purpose. Sparkdown's
-   * reading of a malformed snippet is not part of the parse check.
-   */
-  malformed?: string;
   /**
    * Sparkdown cannot parse the snippet yet. The parse check then expects it
    * to fail, so the record goes as soon as the snippet parses.
@@ -118,8 +115,8 @@ export function checksOf(c: PortedCase): PortedCheck[] {
 
 /**
  * The upstream files whose type assertions run. Each file's area is turned
- * on by the checker slice that implements it; until then its cases check only
- * that their snippets parse.
+ * on by the checker slice that implements it; until then its cases check that
+ * their snippets parse, then report as skipped.
  */
 export const CHECKED_AREAS: readonly string[] = [];
 
@@ -200,27 +197,55 @@ export const LUAU_TYPE_KINDS: readonly string[] = [
 // Checking a port against the manifest and itself
 // ---------------------------------------------------------------------------
 
-const ASSERTION_KEYS: Record<string, readonly string[]> = {
-  errors: ["errors"],
-  error: ["error", "code", "message", "location", "line", "fields"],
-  anyError: ["anyError"],
-  noError: ["noError"],
-  type: ["type", "alias", "typeAt", "path", "equals", "options", "kind", "sameAs", "results", "typeParameters"],
+// The keys of every member of a union.
+type KeysOf<T> = T extends unknown ? keyof T : never;
+
+// A type's keys, written out as an object so that the compiler rejects a list
+// that leaves one out or names one the type lacks.
+function keyList<T>(keys: Record<KeysOf<T>, true>): string[] {
+  return Object.keys(keys);
+}
+
+const ASSERTION_KEYS = {
+  errors: keyList<Extract<Assertion, { errors: unknown }>>({ errors: true }),
+  error: keyList<Extract<Assertion, { error: unknown }>>({
+    error: true,
+    code: true,
+    message: true,
+    location: true,
+    line: true,
+    fields: true,
+  }),
+  anyError: keyList<Extract<Assertion, { anyError: unknown }>>({ anyError: true }),
+  noError: keyList<Extract<Assertion, { noError: unknown }>>({ noError: true }),
+  type: keyList<Extract<Assertion, TypeSelector>>({
+    type: true,
+    alias: true,
+    typeAt: true,
+    path: true,
+    equals: true,
+    options: true,
+    kind: true,
+    sameAs: true,
+    results: true,
+    typeParameters: true,
+    properties: true,
+  }),
 };
 
-const PATH_STEPS = ["property", "argument", "result", "indexer", "typeParameter"];
+const PATH_STEPS = keyList<TypePathStep>({ property: true, argument: true, result: true, indexer: true, typeParameter: true });
 
-const TO_STRING_OPTIONS: readonly (keyof LuauToStringOptions)[] = [
-  "exhaustive",
-  "useLineBreaks",
-  "functionTypeArguments",
-  "hideTableKind",
-  "hideNamedFunctionTypeParameters",
-  "hideFunctionSelfArgument",
-  "hideTableAliasExpansions",
-  "useQuestionMarks",
-  "ignoreSyntheticName",
-];
+const TO_STRING_OPTIONS = keyList<LuauToStringOptions>({
+  exhaustive: true,
+  useLineBreaks: true,
+  functionTypeArguments: true,
+  hideTableKind: true,
+  hideNamedFunctionTypeParameters: true,
+  hideFunctionSelfArgument: true,
+  hideTableAliasExpansions: true,
+  useQuestionMarks: true,
+  ignoreSyntheticName: true,
+});
 
 function assertionShape(a: Assertion): keyof typeof ASSERTION_KEYS {
   if ("errors" in a) return "errors";
@@ -246,7 +271,7 @@ function selectorProblems(s: TypeSelector, where: string): string[] {
 function assertionProblems(a: Assertion, where: string, errorKinds: ReadonlySet<string>): string[] {
   const problems: string[] = [];
   const shape = assertionShape(a);
-  const unknown = Object.keys(a).filter((key) => !ASSERTION_KEYS[shape]!.includes(key));
+  const unknown = Object.keys(a).filter((key) => !ASSERTION_KEYS[shape].includes(key));
   if (unknown.length) problems.push(`${where} has keys ${unknown.join(", ")} that a ${shape} assertion does not take`);
   if ("error" in a && a.code !== undefined && !errorKinds.has(a.code)) problems.push(`${where} names ${a.code}, which is not a Luau error kind`);
   if ("anyError" in a && !errorKinds.has(a.anyError)) problems.push(`${where} names ${a.anyError}, which is not a Luau error kind`);
@@ -256,7 +281,7 @@ function assertionProblems(a: Assertion, where: string, errorKinds: ReadonlySet<
     problems.push(...selectorProblems(t, where));
     if (t.sameAs) problems.push(...selectorProblems(t.sameAs, `${where} sameAs`));
     if (t.kind !== undefined && !LUAU_TYPE_KINDS.includes(t.kind)) problems.push(`${where} names ${t.kind}, which is not a Luau type class`);
-    const badOptions = Object.keys(t.options ?? {}).filter((o) => !TO_STRING_OPTIONS.includes(o as keyof LuauToStringOptions));
+    const badOptions = Object.keys(t.options ?? {}).filter((o) => !TO_STRING_OPTIONS.includes(o));
     if (badOptions.length) problems.push(`${where} has toString options ${badOptions.join(", ")} that Luau does not have`);
     if (t.options && t.equals === undefined) problems.push(`${where} has toString options but nothing printed to compare`);
   }
@@ -266,8 +291,6 @@ function assertionProblems(a: Assertion, where: string, errorKinds: ReadonlySet<
 function checkProblems(check: PortedCheck, where: string, errorKinds: ReadonlySet<string>): string[] {
   const problems: string[] = [];
   if (typeof check.source !== "string") problems.push(`${where} has no source`);
-  if (check.malformed !== undefined && !check.malformed) problems.push(`${where} is malformed with no description of its syntax error`);
-  if (check.malformed && check.unparsed) problems.push(`${where} is both malformed and unparsed; the parse check skips a malformed snippet`);
   if (check.unparsed && "defect" in check.unparsed && !(Number.isInteger(check.unparsed.defect) && check.unparsed.defect > 0)) {
     problems.push(`${where} records an unparsed defect that is not an issue number`);
   }
@@ -349,7 +372,8 @@ function upstreamProblems(c: PortedCase, up: ManifestCase, where: string): strin
 /**
  * Runs a case outside vitest's registration: the parse check on every
  * snippet, then the type assertions when nothing skips the case and its area
- * is on. `check` compiles a snippet; tests give a stand-in.
+ * is on, or `skip` otherwise. `check` compiles a snippet; tests give a
+ * stand-in.
  */
 export function runPortedCase(
   file: string,
@@ -366,7 +390,6 @@ export function runPortedCase(
   // A snippet recorded as unparsed must still fail to parse, so the record
   // goes as soon as the defect is fixed or the divergence removed.
   for (const { check: ch, result } of results) {
-    if (ch.malformed) continue;
     if (ch.unparsed) {
       expect(
         result.syntaxDiagnostics.length,
@@ -377,11 +400,10 @@ export function runPortedCase(
     }
   }
 
-  if (c.skip || checks.some((ch) => ch.unparsed)) {
+  if (c.skip || checks.some((ch) => ch.unparsed) || !areaIsChecked(file)) {
     skip();
     return;
   }
-  if (!areaIsChecked(file)) return;
   for (const { check: ch, result } of results) {
     if (ch.doesNotPassNewSolver) continue;
     runAssertions(result, ch);
@@ -422,6 +444,7 @@ export function runAssertions(result: LuauCheckResult, check: PortedCheck): void
       if (a.sameAs) expect(t.is(result.find(selectorOf(a.sameAs))), `same type as ${JSON.stringify(a.sameAs)}`).toBe(true);
       if (a.results) expect(t.results?.map((r) => r.print())).toEqual(a.results);
       if (a.typeParameters !== undefined) expect(t.typeParameterCount).toBe(a.typeParameters);
+      if (a.properties !== undefined) expect(t.propertyCount).toBe(a.properties);
     }
   }
 }

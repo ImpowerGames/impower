@@ -11,6 +11,12 @@
 // the few cases that need the top level.
 
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+
+/** A diagnostic's message as text, whether the compiler gave it as text or as markup. */
+export function diagnosticMessage(d: SparkDiagnostic): string {
+  return typeof d.message === "string" ? d.message : d.message.value;
+}
 
 export interface DetailedDiagnostic {
   message: string;
@@ -39,12 +45,8 @@ export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   const result = compiler.compile({ textDocument: { uri } });
   const out: DetailedDiagnostic[] = [];
   for (const ds of Object.values(result.program.diagnostics ?? {})) {
-    for (const d of ds as any[]) {
-      out.push({
-        message:
-          typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
-        range: d?.range,
-      });
+    for (const d of ds) {
+      out.push({ message: diagnosticMessage(d), range: d.range });
     }
   }
   return out;
