@@ -6,6 +6,7 @@
 
 import { describe, expect, test } from "vitest";
 import {
+  collectDiagnostics,
   continueShowedSomething,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
@@ -164,10 +165,45 @@ describe("a `>` break that touches the words around it", () => {
   });
 
   test("a touching break splits a CRLF line as it splits an LF one", () => {
-    expect(run(`A>B\r\nC>\r\nD\r\n`).steps).toEqual(run(`A>B\nC>\nD\n`).steps);
-    expect(
-      run(`HERO:\r\n  A>B\r\n  C>\r\n  D\r\n`).steps,
-    ).toEqual(run(`HERO:\n  A>B\n  C>\n  D\n`).steps);
+    // Each is also compared with its spaced LF form, which a `>` that
+    // stopped breaking would no longer match.
+    const inline = run(`A>B\r\nC>\r\nD\r\n`).steps;
+    expect(inline).toEqual(run(`A>B\nC>\nD\n`).steps);
+    expect(inline).toEqual(run(`A > B\nC >\nD\n`).steps);
+    expect(inline.map((step) => step.text)).toEqual([
+      "A\n",
+      "B\n",
+      "C\n",
+      "D\n",
+    ]);
+    // In a block, the lines between two breaks are one beat.
+    const block = run(`HERO:\r\n  A>B\r\n  C>\r\n  D\r\n`).steps;
+    expect(block).toEqual(run(`HERO:\n  A>B\n  C>\n  D\n`).steps);
+    expect(block).toEqual(run(`HERO:\n  A > B\n  C >\n  D\n`).steps);
+    expect(block.map((step) => step.text)).toEqual(["A\n", "B\nC\n", "D\n"]);
+  });
+
+  test("a parenthetical before a touching break stays a parenthetical", () => {
+    for (const [touching, spaced] of [
+      [`HERO:\n  (softly)>Quiet.\n`, `HERO:\n  (softly) > Quiet.\n`],
+      [`HERO:\n  (softly)>=z\n`, `HERO:\n  (softly) > =z\n`],
+    ]) {
+      const result = run(touching!);
+      expect(result).toEqual(run(spaced!));
+      expect(result.steps.length).toBe(2);
+      expect(result.steps[0]).toMatchObject({ pause: true });
+    }
+  });
+
+  test("a line's tags stay with the beat a touching line-end break ends", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `HERO:\n  Hi.># first\n  Bye. # second\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.Continue()).toBe("Hi.\n");
+    expect(ctx.story.currentTags).toEqual(["first"]);
+    expect(ctx.story.Continue()).toBe("Bye.\n");
+    expect(ctx.story.currentTags).toEqual(["second"]);
   });
 
   test("each `>` of `>>` is a break, and so is the `>` of `>=`", () => {
@@ -220,6 +256,11 @@ describe("a `>` break that touches the words around it", () => {
         { text: shown, target: "action" },
       ]);
     }
+    // The word after `-->` is a divert target, so one that names no scene
+    // is a compile error, as it is after `->`.
+    const dashed = collectDiagnostics(`A-->nowhere\n`).errorMessages;
+    expect(dashed).not.toEqual([]);
+    expect(dashed).toEqual(collectDiagnostics(`A->nowhere\n`).errorMessages);
   });
 
   // A divert that begins the text after a break, a cue's colon or a block's

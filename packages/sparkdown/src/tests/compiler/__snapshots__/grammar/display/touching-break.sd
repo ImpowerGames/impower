@@ -35,6 +35,14 @@ HERO (cheerful) [>]:
 HERO: {a > b} [[cg > 1]] ((sfx > 2)) # tag > x
 HERO: {a>b} [[cg>1]] ((sfx>2)) # tag>x
 HERO: a > b // a > b
+^: C>D
+$: E>F
+%: G>H
+@ portrait: I>J
+^:
+  K>L
+HERO:
+  Hi.># first
 HERO: -> later
 HERO:
   A > B

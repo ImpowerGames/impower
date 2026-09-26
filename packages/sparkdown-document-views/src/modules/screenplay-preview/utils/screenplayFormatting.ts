@@ -634,9 +634,10 @@ export const decorate = (
         hideInlineRange(nodeRef);
         return false;
       } else if (name === "Break") {
-        // BREAK marker (`>` at end of a dialogue/action line) is a logical
-        // continuation marker, never displayed. The PDF parser drops it
-        // before token text is emitted; the preview must too.
+        // A `>` break, anywhere in a display line (`Hi.>Bye.`, `A > B`, a
+        // line-ending `A >`), is a click the player waits for, never
+        // displayed. The PDF parser drops it before token text is emitted;
+        // the preview must too.
         hideInlineRange(nodeRef);
         return false;
       } else if (name === "ColonSeparator") {
