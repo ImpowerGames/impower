@@ -19,7 +19,9 @@ sparkdown [0..323]
  │   │   │   │       │       └─ DivertPartName [3..8]: "later"
  │   │   │   │       └─ DivertPath_end 8
  │   │   │   └─ DivertTarget_end 8
- │   │   ├─ ExtraWhitespace [8..9]: " "
+ │   │   ├─ DivertStrayTextSpace [8..9]
+ │   │   │   └─ DivertStrayTextSpace_c1 [8..9]
+ │   │   │       └─ Whitespace [8..9]: " "
  │   │   └─ Unknown [9..16]: "> After"
  │   └─ Divert_end 16
  ├─ Newline [16..17]: "\n"
@@ -57,7 +59,9 @@ sparkdown [0..323]
  │   │       │       │       │   │   │       │       └─ DivertPartName [22..27]: "later"
  │   │       │       │       │   │   │       └─ DivertPath_end 27
  │   │       │       │       │   │   └─ DivertTarget_end 27
- │   │       │       │       │   ├─ ExtraWhitespace [27..28]: " "
+ │   │       │       │       │   ├─ DivertStrayTextSpace [27..28]
+ │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [27..28]
+ │   │       │       │       │   │       └─ Whitespace [27..28]: " "
  │   │       │       │       │   └─ Unknown [28..35]: "> After"
  │   │       │       │       └─ Divert_end 35
  │   │       │       └─ TextChunk_end 35
@@ -155,7 +159,9 @@ sparkdown [0..323]
  │   │       │       │       │   │   │       │       └─ DivertPartName [65..70]: "later"
  │   │       │       │       │   │   │       └─ DivertPath_end 70
  │   │       │       │       │   │   └─ DivertTarget_end 70
- │   │       │       │       │   ├─ ExtraWhitespace [70..71]: " "
+ │   │       │       │       │   ├─ DivertStrayTextSpace [70..71]
+ │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [70..71]
+ │   │       │       │       │   │       └─ Whitespace [70..71]: " "
  │   │       │       │       │   └─ Unknown [71..78]: "> After"
  │   │       │       │       └─ Divert_end 78
  │   │       │       └─ TextChunk_end 78
@@ -208,7 +214,9 @@ sparkdown [0..323]
  │   │               │   │   │       │       └─ DivertPartName [89..94]: "later"
  │   │               │   │   │       └─ DivertPath_end 94
  │   │               │   │   └─ DivertTarget_end 94
- │   │               │   ├─ ExtraWhitespace [94..95]: " "
+ │   │               │   ├─ DivertStrayTextSpace [94..95]
+ │   │               │   │   └─ DivertStrayTextSpace_c1 [94..95]
+ │   │               │   │       └─ Whitespace [94..95]: " "
  │   │               │   └─ Unknown [95..102]: "> After"
  │   │               └─ Divert_end 102
  │   └─ Choice_end 102
@@ -255,7 +263,9 @@ sparkdown [0..323]
  │   │               │   │   │       │       └─ DivertPartName [111..116]: "later"
  │   │               │   │   │       └─ DivertPath_end 116
  │   │               │   │   └─ DivertTarget_end 116
- │   │               │   ├─ ExtraWhitespace [116..117]: " "
+ │   │               │   ├─ DivertStrayTextSpace [116..117]
+ │   │               │   │   └─ DivertStrayTextSpace_c1 [116..117]
+ │   │               │   │       └─ Whitespace [116..117]: " "
  │   │               │   └─ Unknown [117..124]: "> After"
  │   │               └─ Divert_end 124
  │   └─ Choice_end 124
@@ -294,7 +304,9 @@ sparkdown [0..323]
  │   │       │       │       │   │   │       │       └─ DivertPartName [130..135]: "later"
  │   │       │       │       │   │   │       └─ DivertPath_end 135
  │   │       │       │       │   │   └─ DivertTarget_end 135
- │   │       │       │       │   ├─ ExtraWhitespace [135..136]: " "
+ │   │       │       │       │   ├─ DivertStrayTextSpace [135..136]
+ │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [135..136]
+ │   │       │       │       │   │       └─ Whitespace [135..136]: " "
  │   │       │       │       │   └─ Unknown [136..143]: "! After"
  │   │       │       │       └─ Divert_end 143
  │   │       │       └─ TextChunk_end 143
@@ -542,7 +554,9 @@ sparkdown [0..323]
  │   │       │       │       │   │   │       │               └─ PunctuationParenClose [245..246]: ")"
  │   │       │       │       │   │   │       └─ LuauFunctionCall_end 246
  │   │       │       │       │   │   └─ DivertTarget_end 246
- │   │       │       │       │   ├─ ExtraWhitespace [246..247]: " "
+ │   │       │       │       │   ├─ DivertStrayTextSpace [246..247]
+ │   │       │       │       │   │   └─ DivertStrayTextSpace_c1 [246..247]
+ │   │       │       │       │   │       └─ Whitespace [246..247]: " "
  │   │       │       │       │   └─ Unknown [247..254]: "> After"
  │   │       │       │       └─ Divert_end 254
  │   │       │       └─ TextChunk_end 254
@@ -576,7 +590,9 @@ sparkdown [0..323]
  │   │   │   │       │       └─ DivertPartName [263..268]: "later"
  │   │   │   │       └─ DivertPath_end 268
  │   │   │   └─ DivertTarget_end 268
- │   │   ├─ ExtraWhitespace [268..269]: " "
+ │   │   ├─ DivertStrayTextSpace [268..269]
+ │   │   │   └─ DivertStrayTextSpace_c1 [268..269]
+ │   │   │       └─ Whitespace [268..269]: " "
  │   │   └─ Unknown [269..276]: "> After"
  │   └─ Divert_end 276
  ├─ Newline [276..277]: "\n"
@@ -587,7 +603,9 @@ sparkdown [0..323]
  │   │   └─ Divert_begin_c2 [277..281]
  │   │       └─ TunnelMark [277..281]: "->->"
  │   ├─ Divert_content [281..289]
- │   │   ├─ ExtraWhitespace [281..282]: " "
+ │   │   ├─ DivertStrayTextSpace [281..282]
+ │   │   │   └─ DivertStrayTextSpace_c1 [281..282]
+ │   │   │       └─ Whitespace [281..282]: " "
  │   │   └─ Unknown [282..289]: "> After"
  │   └─ Divert_end 289
  ├─ Newline [289..290]: "\n"

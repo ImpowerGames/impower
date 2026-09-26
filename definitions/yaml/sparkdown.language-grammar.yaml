@@ -1196,6 +1196,7 @@ repository:
       # It comes before `ExtraWhitespace` so the space before `//` is the
       # comment's own, which the formatter keeps as one space.
       - { include: "#SparkdownInlineComment" }
+      - { include: "#DivertStrayTextSpace" }
       - { include: "#ExtraWhitespace" }
       # The divert ends its line, so anything else after the targets
       # (`> After`, stray punctuation) is stray text. Tile it so the rule
@@ -1203,6 +1204,17 @@ repository:
       # (GRAMMAR.md §17).
       - { include: "#Unknown" }
     end: (?=$)
+
+  # The space between a divert's targets and stray text after them
+  # (`-> later > After`) is the author's spacing, so it is `Whitespace`, which
+  # the formatter keeps as written. Whitespace that ends the line is still
+  # `ExtraWhitespace`.
+  DivertStrayTextSpace:
+    match: ({{WS}}+)(?=\S)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
 
   # `-> load NAME`: preload NAME's scene (and world) behind the loading layout
   # before diverting to it. Listed before DivertTarget so the keyword is not
