@@ -22,6 +22,12 @@ import {
   LUAU_LINT_CODES,
   type LuauLintCode,
 } from "../../compiler/lint/collectLuauLints";
+import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+
+/** A diagnostic's message as text, whether the compiler gave it as text or as markup. */
+export function diagnosticMessage(d: SparkDiagnostic): string {
+  return typeof d.message === "string" ? d.message : d.message.value;
+}
 
 export interface DetailedDiagnostic {
   message: string;
@@ -53,13 +59,12 @@ export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   const result = compiler.compile({ textDocument: { uri } });
   const out: DetailedDiagnostic[] = [];
   for (const ds of Object.values(result.program.diagnostics ?? {})) {
-    for (const d of ds as any[]) {
+    for (const d of ds) {
       out.push({
-        message:
-          typeof d?.message === "string" ? d.message : (d?.message?.value ?? ""),
-        code: d?.code,
-        severity: d?.severity,
-        range: d?.range,
+        message: diagnosticMessage(d),
+        code: d.code,
+        severity: d.severity,
+        range: d.range,
       });
     }
   }
