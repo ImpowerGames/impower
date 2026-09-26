@@ -1,0 +1,17 @@
+function f(x)
+  if x then return
+  end
+  for i = 1, 1 do return
+  end
+  repeat return
+  until true
+end
+
+scene a
+  if x then return
+  Hello there.
+  end
+  & repeat return
+  Hello again.
+  & y = if c then 1 else return
+  Goodbye.

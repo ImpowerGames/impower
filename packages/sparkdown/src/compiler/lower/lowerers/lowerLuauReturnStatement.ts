@@ -14,10 +14,14 @@ import {
 //                                   the N values into a MultiValue at runtime
 // `return`            (no value) → ReturnType { null } — produces Void
 //
-// Multi-return is detected by walking the LuauReturnStatement_content
+// Multi-return is detected by walking the statement's `_content`
 // children: if more than one comma-separated expression group is
 // present, emit `MultiReturnType`. Otherwise fall through to the
 // existing single-expression `ReturnType` path.
+//
+// Lowers both `LuauReturnStatement` (Luau code) and
+// `LuauSparkdownReturnStatement` (narrative bodies); they differ only in
+// whether the value may start on the next line.
 
 export function lowerLuauReturnStatement(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -25,7 +29,7 @@ export function lowerLuauReturnStatement(
 ): CompiledBlock {
   const contentNode = findChildByName(
     nodeRef.node,
-    "LuauReturnStatement_content",
+    `${nodeRef.node.name}_content`,
   );
   if (contentNode) {
     const groups = splitContentOnCommas(contentNode);
@@ -77,6 +81,7 @@ function isSkippableName(name: string): boolean {
     name === "ExtraWhitespace" ||
     name === "Whitespace" ||
     name === "Newline" ||
+    name === "LuauReturnLineBreak" ||
     name === "LuauComment" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace"

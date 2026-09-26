@@ -1,0 +1,14 @@
+& return
+Hello there.
+
+scene a
+  & return
+  Hello there.
+  & f() return
+  Goodbye.
+  & local x = 5 return
+  See you.
+  if x then
+    & return
+    Hello again.
+  end

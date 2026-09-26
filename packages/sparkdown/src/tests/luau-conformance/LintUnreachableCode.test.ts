@@ -275,20 +275,25 @@ end
   });
 });
 
-// In Luau an expression on the line after a bare `return` is the value it
-// returns. Sparkdown ends the `return` at its line and never evaluates the
-// next one (the function returns nothing), so the lint reports that line as
-// dead, which is what it is in sparkdown.
-describe("a value on the line after a bare return", () => {
-  test("return, then an expression on the next line", () => {
+// As in Luau, an expression on the line after a bare `return` is the value it
+// returns, and a statement there is not.
+describe("the line after a bare return", () => {
+  test("an expression on the next line is the returned value", () => {
     expect(
       lintInFunction(`
 local a1 = 1
 return
   a1 + 1
 `),
-    ).toEqual([
-      { line: 3, message: "Unreachable code (previous statement always returns)" },
+    ).toEqual([]);
+  });
+
+  test.each([
+    ["a local", "\nreturn\n  local _b = 2\n"],
+    ["a do block", "\nreturn\n  do print(1) end\n"],
+  ])("%s on the next line is unreachable", (_name, body) => {
+    expect(lintInFunction(body)).toEqual([
+      { line: 2, message: "Unreachable code (previous statement always returns)" },
     ]);
   });
 });

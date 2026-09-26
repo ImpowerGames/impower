@@ -1,0 +1,17 @@
+function h(x, y)
+  repeat
+    return
+  until true
+  if x then
+    return
+  elseif y then
+    return
+      1, 2
+  end
+  local t = 1 return
+  return
+
+    {
+      k = t,
+    }
+end
