@@ -157,6 +157,62 @@ end
     expect(resolutions(source, "x")).toEqual(["L3 read -> parameter@L1"]);
   });
 
+  test("a local the grammar nests inside another statement is still a local", () => {
+    const source = `function run()
+  local a = {} local b = a
+  & local x = 5
+  return b, x
+end
+`;
+    expect(resolutions(source, "b")).toEqual(["L4 read -> local@L2"]);
+    expect(resolutions(source, "x")).toEqual(["L4 read -> local@L3"]);
+    expect([...namesOf(source).globalOccurrences.keys()]).toEqual([]);
+  });
+
+  test("keywords and names in types are not occurrences", () => {
+    const source = `function run(t)
+  for _, v in t do if v then continue end end
+  type Point = { x: number }
+  local p: Point = nil
+  store w = 2
+  return p
+end
+`;
+    const names = namesOf(source);
+    expect(
+      names.functions[0]!.occurrences.map((o) => o.name),
+    ).toEqual(["t", "v", "p"]);
+    expect([...names.globalOccurrences.keys()]).toEqual([]);
+  });
+
+  test("`self` is a method's parameter, or a local of that name", () => {
+    const source = `function run()
+  local q = {}
+  function q:m() return self end
+  local self = q
+  return self
+end
+`;
+    expect(resolutions(source, "self")).toEqual([
+      "L3 read -> parameter@L3",
+      "L5 read -> local@L4",
+    ]);
+  });
+
+  test("`store` inside a function defines the global, not a read of a local", () => {
+    const source = `function run()
+  local w = 1
+  store w = 2
+end
+`;
+    const names = namesOf(source);
+    expect(resolutions(source, "w")).toEqual([]);
+    expect(names.globalDefinitions.map((d) => `${d.name}:${d.kind}`)).toEqual([
+      "run:function",
+      "w:store",
+    ]);
+  });
+
   test("a function that is not closed has no occurrences", () => {
     const source = `function run()
   local x = 1

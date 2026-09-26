@@ -18,38 +18,30 @@
 //   node packages/sparkdown/scripts/lintCorpus.mjs [--project <dir>] > findings.txt
 //
 // The compiler is TypeScript that imports grammar JSON, so this bundles
-// `lintCorpus.ts` with the repository's esbuild into a temporary directory and
-// runs the bundle.
+// `lintCorpus.ts` into a temporary directory the way the benchmarks under
+// `scripts/bench` are bundled, and runs the bundle.
 
 import { mkdtempSync, rmSync } from "node:fs";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { bundleBench, value } from "../../../scripts/bench/benchLauncher.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.resolve(HERE, "..", "..", "..");
-const esbuild = createRequire(path.join(REPO, "package.json"))("esbuild");
+
+const args = process.argv.slice(2);
+let project;
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--project") project = path.resolve(value(args, i++, "--project"));
+  else throw new Error(`Unknown argument: ${args[i]}`);
+}
 
 const scratch = mkdtempSync(path.join(os.tmpdir(), "lint-corpus-"));
 try {
-  const outfile = path.join(scratch, "lintCorpus.mjs");
-  await esbuild.build({
-    entryPoints: [path.join(HERE, "lintCorpus.ts")],
-    outfile,
-    bundle: true,
-    platform: "node",
-    format: "esm",
-    target: "node22",
-    logLevel: "warning",
-    // The compiler imports its built-in scripts as text (`builtins.sd?raw`).
-    loader: { ".sd": "text", ".luau": "text" },
-    banner: {
-      js: "import { createRequire as __cr } from 'node:module'; const require = __cr(import.meta.url);",
-    },
-  });
+  const outfile = await bundleBench(path.join(HERE, "lintCorpus.ts"), scratch);
   const { main } = await import(pathToFileURL(outfile).href);
-  main(REPO, process.argv.slice(2));
+  main(REPO, project);
 } finally {
   rmSync(scratch, { recursive: true, force: true });
 }

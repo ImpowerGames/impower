@@ -54,6 +54,10 @@ export interface Declaration {
   /** In `[hidesFrom, scopeTo)` the name no longer means an outer one. */
   hidesFrom: number;
   scopeTo: number;
+  /** Whether the grammar nested the declaring statement inside another
+   *  (`local a = 1 local b = a`, or `& local x = 5` in a function), so its
+   *  scope is taken to run to the end of the nearest enclosing block. */
+  nested: boolean;
 }
 
 /**
@@ -151,7 +155,20 @@ function blockEnd(stmt: SyntaxNode): number | null {
   return block.to;
 }
 
-const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
+/** Where the scope of a declaration made by `stmt` ends, and whether the
+ *  grammar nested `stmt` inside another statement, whose block it then takes;
+ *  or null when no Luau block encloses it within its function. */
+function scopeEnd(stmt: SyntaxNode) {
+  const end = blockEnd(stmt);
+  if (end !== null) return { end, nested: false };
+  for (let p = stmt.parent; p && p.name !== "LuauFunctionDefinition"; p = p.parent) {
+    const outer = blockEnd(p);
+    if (outer !== null) return { end: outer, nested: true };
+  }
+  return null;
+}
+
+const IDENTIFIER =/^[A-Za-z_][A-Za-z0-9_]*/;
 const IDENTIFIERS = /\b[A-Za-z_][A-Za-z0-9_]*\b/g;
 
 // Luau's reserved words, which are never a name.
@@ -229,6 +246,7 @@ function readDeclarations(
     readsFrom: number,
     hidesFrom: number,
     scopeTo: number,
+    nested = false,
   ) => {
     const found = nameAt(token, src);
     if (!found) return;
@@ -240,6 +258,7 @@ function readDeclarations(
       readsFrom,
       hidesFrom,
       scopeTo,
+      nested,
     });
   };
   const cursor = fn.cursor();
@@ -260,25 +279,45 @@ function readDeclarations(
     }
     if (node.name === "LuauFunctionDefinition") {
       const content = contentOf(node);
-      const params = contentOf(childNamed(content, "LuauFunctionParameters"));
-      for (const p of childrenOf(params)) {
+      const paramsNode = childNamed(content, "LuauFunctionParameters");
+      for (const p of childrenOf(contentOf(paramsNode))) {
         if (p.name === "LuauFunctionParameter") {
           add(p, "parameter", p.to, p.to, node.to);
         }
       }
+      // A method (`function t:m()`, whose name the grammar reads as an access
+      // path) has `self` as a parameter it does not write; its declaration is
+      // the `:`.
+      const colon =
+        content && paramsNode
+          ? src.read(content.from, paramsNode.from).indexOf(":")
+          : -1;
+      if (content && paramsNode && colon >= 0) {
+        const at = content.from + colon;
+        declarations.push({
+          name: "self",
+          kind: "parameter",
+          nameFrom: at,
+          nameTo: at,
+          readsFrom: paramsNode.from,
+          hidesFrom: paramsNode.from,
+          scopeTo: node.to,
+          nested: false,
+        });
+      }
       const nameNode = childNamed(content, "LuauFunctionDeclarationName");
-      const end = isLocalFunction(node, src) ? blockEnd(node) : null;
-      if (nameNode && end !== null) {
-        add(nameNode, "localFunction", nameNode.to, nameNode.to, end);
+      const scope =isLocalFunction(node, src) ? scopeEnd(node) : null;
+      if (nameNode && scope) {
+        add(nameNode, "localFunction", nameNode.to, nameNode.to, scope.end, scope.nested);
       }
     } else if (node.name === "LuauVariableDefinition") {
       if (scopeOf(node, src) !== "local") continue;
-      const end = blockEnd(node);
-      if (end === null) continue;
+      const scope = scopeEnd(node);
+      if (!scope) continue;
       const names = declaredNames(node);
       const readsFrom = names.length > 0 ? names[names.length - 1]!.to : node.to;
       for (const token of names) {
-        add(token, "local", readsFrom, node.to, end);
+        add(token, "local", readsFrom, node.to, scope.end, scope.nested);
       }
     } else if (node.name === "LuauForLoop") {
       const header = contentOf(childNamed(contentOf(node), "LuauForCondition"));
@@ -317,9 +356,22 @@ function resolve(candidates: Declaration[] | undefined, pos: number) {
     .sort((a, b) => b.nameFrom - a.nameFrom);
 }
 
+// A keyword, including the contextual `continue` and `type`, a scope word
+// such as `store`, a primitive type (`number`) or a field of a table type;
+// the grammar marks the text a token captures with a `_c<n>` suffix. `self`
+// is a keyword token too, but it names a local or a method's parameter.
+const NOT_A_NAME =
+  /^Luau(?:(?!Self)\w*(?:Keyword|Modifier)|PrimitiveType|TypePropertyName)(?:_c\d+)?$/;
+
+// A named type (`Point` in `local p: Point`). A local of that name counts as
+// used there, as in Luau; a global of that name does not.
+const TYPE_NAME = /^LuauTypeName(?:_c\d+)?$/;
+
 // Tokens whose text is never a use of a variable.
 function isNonReference(token: SyntaxNode): boolean {
-  if (token.name === "LuauPropertyName") return true;
+  if (token.name === "LuauPropertyName" || NOT_A_NAME.test(token.name)) {
+    return true;
+  }
   if (
     token.name === "LuauFunctionName" &&
     token.parent?.name === "LuauFunctionAccessor"
@@ -436,16 +488,22 @@ function readOccurrences(
     const candidates = byName.get(name);
     for (const pos of positions) {
       if (skip.has(pos)) continue;
-      const kind = functionNames.has(pos)
-        ? "functionName"
-        : useAt(pos, tokenAt(pos), src);
+      let kind: OccurrenceKind | null = "functionName";
+      let typeName = false;
+      if (!functionNames.has(pos)) {
+        const token = tokenAt(pos);
+        kind = useAt(pos, token, src);
+        typeName = TYPE_NAME.test(token.name);
+      }
       if (!kind) continue;
+      const declarations = resolve(candidates, pos);
+      if (typeName && declarations.length === 0) continue;
       fn.occurrences.push({
         name,
         from: pos,
         to: pos + name.length,
         kind,
-        declarations: resolve(candidates, pos),
+        declarations,
       });
     }
   }

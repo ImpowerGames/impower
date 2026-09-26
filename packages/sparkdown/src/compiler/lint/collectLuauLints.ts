@@ -234,8 +234,10 @@ function lintUnreachable(
 // LocalUnused
 
 // Parameters, loop variables and local functions only hide outer names; an
-// unused one is not reported. A write does not use a local; every other
-// occurrence that can refer to it does.
+// unused one is not reported, nor is a local whose statement the grammar
+// nested inside another, since where that statement ends is uncertain. A
+// write does not use a local; every other occurrence that can refer to it
+// does.
 function lintUnusedLocals(names: ScriptNames, out: LuauLint[]) {
   for (const fn of names.functions) {
     if (!fn.closed) continue;
@@ -245,7 +247,7 @@ function lintUnusedLocals(names: ScriptNames, out: LuauLint[]) {
       for (const d of occurrence.declarations) used.add(d.nameFrom);
     }
     for (const d of fn.declarations) {
-      if (d.kind !== "local" || d.name.startsWith("_")) continue;
+      if (d.kind !== "local" || d.nested || d.name.startsWith("_")) continue;
       if (used.has(d.nameFrom)) continue;
       out.push({
         code: "LocalUnused",

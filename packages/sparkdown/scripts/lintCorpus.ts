@@ -3,7 +3,7 @@
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { join, relative } from "node:path";
 import { SparkdownCompiler } from "../src/compiler/classes/SparkdownCompiler";
 import { LUAU_LINT_CODES } from "../src/compiler/lint/collectLuauLints";
 import type { SparkDiagnostic } from "../src/compiler/types/SparkDiagnostic";
@@ -102,15 +102,9 @@ function walk(dir: string, out: string[] = []) {
 
 const slash = (path: string) => path.split("\\").join("/");
 
-export function main(repo: string, args: string[]) {
-  let project: string | undefined;
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--project" && args[i + 1] && !args[i + 1]!.startsWith("--")) {
-      project = resolve(args[++i]!);
-    } else {
-      throw new Error(`Unknown argument: ${args[i]}`);
-    }
-  }
+/** Prints the findings for the repository at `repo` and, when given, the
+ *  project directory `project`. */
+export function main(repo: string, project?: string) {
   const findings: Finding[] = [];
   const counts: string[] = [];
   const run = (name: string, list: Finding[], files: number) => {
