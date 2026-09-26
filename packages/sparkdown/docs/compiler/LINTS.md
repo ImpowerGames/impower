@@ -34,7 +34,6 @@ The rules read the syntax tree the editor highlights with, which is not a Luau A
 - `LocalUnused` does not report a name declared twice in one statement (`local a, a = ...`).
 - `ForRange` does not report a bound such as `#t ^ 2`. Luau reads it as `#(t ^ 2)`, a bare length, because `^` binds tighter than `#`, but the grammar places `^ 2` after the operand like any other arithmetic, and the rule treats arithmetic after `#t` as making the bound something other than a length.
 - `DuplicateCondition` does not compare an `if` expression used as an `if` statement's condition: the grammar reads the expression as running on through the statement's `then` and `elseif`s.
-- `UnreachableCode` reports an expression on the line after a bare `return`. In Luau that expression is the returned value; sparkdown ends the `return` at its line, so the expression never runs.
 
 Because the pass runs over whole scripts on every compile (a lint depends on lines far from the one it reports), it finds the constructs it checks from their keywords in the text rather than by walking the tree, and caches each script's result until the script changes. It takes about 3 ms on a 210 KB narrative script and 30 to 45 ms on 40 KB of dense Luau in a single function.
 

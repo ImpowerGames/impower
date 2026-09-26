@@ -523,6 +523,10 @@ Standard Luau requires `function name() ... end`. Sparkdown's grammar adds a
 `name()` is still a function-call expression. Note: the lowerer currently
 drops these methods (see DEFERRED.md _Function members in defines_).
 
+### No `class` declarations
+
+Luau's user-defined classes (`class Name ... end`, `class Child extends Base`, with `public` fields) are an experiment behind its `DebugLuauUserDefinedClasses` flag and not part of the language Luau ships. Sparkdown does not read them: `class` is an ordinary name, so `class Name` is two names in a row, which the grammar cannot finish reading. Sparkdown's classes are `define` blocks (`define Name as Base with ... end`). Upstream's `classes.luau` conformance fixture is skipped for this reason, and so are the type-checker cases that declare a class.
+
 ### Loops are stubbed
 
 `for` / `while` / `repeat` / `do ... end` parse correctly and produce a
@@ -636,6 +640,12 @@ Two literal cases are deliberately different:
 - Luau's "Malformed integer" / "Integer overflow" cases (`123i`, `0xABii`) are "Malformed number" here: there is no integer literal type, so the `i` suffix is just a letter after a number.
 
 Statement-level diagnostics (a missing `end`, an unexpected token, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. Type-annotation diagnostics are not applicable at all (see "Type annotations are parsed but ignored" above) and are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
+
+### A value on the line after `return` counts only when `return` starts its line
+
+In Luau, `return` reads an expression list that may begin on the next line. Sparkdown does the same when `return` is the whole of its line (a comment may follow it): the next non-blank line is the returned value unless it begins with `end`, `else`, `elseif`, `until`, `local`, `return`, `break`, `do`, `while`, `repeat`, `for` or `;`. A line beginning with `if` or `function` is read as the value, because both can start an expression. A `return` after any other code on its line, such as `if x then return`, `for i = 1, 3 do return`, `local t = 1 return` or `function f() return`, ends at that line, so a value written on the next line is not returned and never runs, and no error reports it (the `UnreachableCode` lint warns about it only in some layouts). Write the value on the `return` line, or start a new line with `return`.
+
+The grammar decides this from the `return`'s own line, and narrative code reaches the same rule through `&` statements, where the next line is prose: `& return`, `& f() return`, and forms that put a block keyword before `return`, such as `& repeat return` and `& y = if c then 1 else return`. So a `return` after other code has to end at its line.
 
 ### Four of Luau's lints, and no lint directives
 

@@ -272,6 +272,7 @@ function lowerInner(
     case "LuauIfBlock":
       return lowerLuauIfBlock(nodeRef, ctx);
     case "LuauReturnStatement":
+    case "LuauSparkdownReturnStatement":
       return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);

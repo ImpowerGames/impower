@@ -1,0 +1,94 @@
+text.source.sparkdown [0..146]
+ ├─ meta.function.luau [0..12]
+ │   ├─ keyword.control.luau [0..8]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
+ │   ├─ entity.name.function.luau [9..10]: "f"
+ │   └─ meta.parameter.luau [10..12]
+ │       ├─ punctuation.definition.template-expression.begin.sd [10..11]: "("
+ │       └─ punctuation.definition.template-expression.end.sd [11..12]: ")"
+ ├─ Newline [12..13]: "\n"
+ ├─ meta.function.luau [13..21]
+ │   └─ meta.function.body.luau [13..21]
+ │       └─ meta.function.luau [13..21]
+ │           ├─ punctuation.whitespace.optional.sd [13..15]: "  "
+ │           └─ keyword.control.luau [15..21]: "return"
+ ├─ Newline [21..22]: "\n"
+ ├─ meta.function.luau [22..31]
+ │   └─ meta.function.body.luau [22..31]
+ │       └─ meta.function.luau [22..31]
+ │           ├─ punctuation.whitespace.extra.sd [22..26]: "    "
+ │           ├─ constant.numeric.decimal.luau [26..27]: "1"
+ │           ├─ punctuation.whitespace.optional.sd [27..28]: " "
+ │           ├─ keyword.operator.arithmetic.luau [28..29]: "+"
+ │           ├─ punctuation.whitespace.optional.sd [29..30]: " "
+ │           └─ constant.numeric.decimal.luau [30..31]: "2"
+ ├─ Newline [31..32]: "\n"
+ ├─ meta.function.luau [32..35]
+ │   └─ keyword.control.end.luau [32..35]: "end"
+ ├─ Newline [35..36]: "\n"
+ ├─ Newline [36..37]: "\n"
+ ├─ meta.function.luau [37..50]
+ │   ├─ keyword.control.luau [37..45]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [45..46]: " "
+ │   ├─ entity.name.function.luau [46..47]: "g"
+ │   └─ meta.parameter.luau [47..50]
+ │       ├─ punctuation.definition.template-expression.begin.sd [47..48]: "("
+ │       ├─ variable.parameter.function.luau [48..49]: "x"
+ │       └─ punctuation.definition.template-expression.end.sd [49..50]: ")"
+ ├─ Newline [50..51]: "\n"
+ ├─ meta.function.luau [51..62]
+ │   └─ meta.function.body.luau [51..62]
+ │       ├─ punctuation.whitespace.optional.sd [51..53]: "  "
+ │       ├─ keyword.control.if.luau [53..55]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [55..56]: " "
+ │       ├─ variable.other.readwrite.luau [56..57]: "x"
+ │       ├─ punctuation.whitespace.optional.sd [57..58]: " "
+ │       └─ keyword.control.then.luau [58..62]: "then"
+ ├─ Newline [62..63]: "\n"
+ ├─ meta.function.luau [63..73]
+ │   └─ meta.function.body.luau [63..73]
+ │       └─ meta.function.luau [63..73]
+ │           ├─ punctuation.whitespace.optional.sd [63..67]: "    "
+ │           └─ keyword.control.luau [67..73]: "return"
+ ├─ Newline [73..74]: "\n"
+ ├─ meta.function.luau [74..80]
+ │   └─ meta.function.body.luau [74..80]
+ │       ├─ meta.function.luau [74..76]
+ │       │   └─ punctuation.whitespace.extra.sd [74..76]: "  "
+ │       └─ keyword.control.else.luau [76..80]: "else"
+ ├─ Newline [80..81]: "\n"
+ ├─ meta.function.luau [81..102]
+ │   └─ meta.function.body.luau [81..102]
+ │       └─ meta.function.luau [81..102]
+ │           ├─ punctuation.whitespace.optional.sd [81..85]: "    "
+ │           ├─ keyword.control.luau [85..91]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [91..92]: " "
+ │           └─ comment.line.double-dash.luau [92..102]
+ │               ├─ comment.luau [92..94]: "--"
+ │               └─ punctuation.definition.comment.content.sd [94..102]: " nothing"
+ ├─ Newline [102..103]: "\n"
+ ├─ meta.function.luau [103..108]
+ │   └─ meta.function.body.luau [103..108]
+ │       ├─ meta.function.luau [103..105]
+ │       │   └─ punctuation.whitespace.extra.sd [103..105]: "  "
+ │       └─ keyword.control.end.luau [105..108]: "end"
+ ├─ Newline [108..109]: "\n"
+ ├─ meta.function.luau [109..112]
+ │   └─ keyword.control.end.luau [109..112]: "end"
+ ├─ Newline [112..113]: "\n"
+ ├─ Newline [113..114]: "\n"
+ ├─ keyword.control.scene.sd [114..119]: "scene"
+ ├─ punctuation.whitespace.required.sd [119..120]: " "
+ ├─ keyword.control.section.sd [120..121]: "a"
+ ├─ Newline [121..122]: "\n"
+ ├─ meta.function.luau [122..130]
+ │   ├─ punctuation.whitespace.optional.sd [122..124]: "  "
+ │   └─ keyword.control.luau [124..130]: "return"
+ ├─ Newline [130..131]: "\n"
+ ├─ punctuation.whitespace.optional.sd [131..133]: "  "
+ ├─ string.display.text.chunk.sd [133..145]
+ │   ├─ markup.raw.text.sd [133..138]: "Hello"
+ │   ├─ markup.raw.space.sd [138..139]: " "
+ │   ├─ markup.raw.text.sd [139..144]: "there"
+ │   └─ markup.raw.punctuation.sd [144..145]: "."
+ └─ Newline [145..146]: "\n"
