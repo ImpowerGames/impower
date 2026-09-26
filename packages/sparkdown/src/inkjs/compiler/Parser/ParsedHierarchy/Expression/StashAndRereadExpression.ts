@@ -44,3 +44,27 @@ export class StashAndRereadExpression extends Expression {
   public override readonly toString = (): string =>
     `(${this.tempName} = ${this.innerExpression})`;
 }
+
+// A companion read of a `StashAndRereadExpression` temp. The stash binds
+// the temp only at runtime, so a parsed `VariableReference` to it would
+// fail compile-time name resolution and warn about a name the author never
+// wrote. This read emits the runtime reference directly. Like the stash, it
+// holds the name as a plain `tempName` string, which the compiler's
+// synthetic-name pass renames in lockstep with the stash.
+export class StashedTempReadExpression extends Expression {
+  constructor(public readonly tempName: string) {
+    super();
+  }
+
+  override get typeName(): string {
+    return "StashedTempRead";
+  }
+
+  public readonly GenerateIntoContainer = (
+    container: RuntimeContainer,
+  ): void => {
+    container.AddContent(new RuntimeVariableReference(this.tempName));
+  };
+
+  public override readonly toString = (): string => this.tempName;
+}
