@@ -202,6 +202,17 @@ describe("Sparkle binding diagnostic range", () => {
     );
   });
 
+  test("an undefined single-name iterable reports at the binding", () => {
+    const src = `layout main with\n  for item in missingList do\n    text "{item}"\n  end\nend\n`;
+    const ds = diagnose(src);
+    const d = ds.find((x) => x.message.includes("`missingList`"));
+    expect(d).toBeDefined();
+    expect(d!.line).toBe(1);
+    expect(src.split("\n")[d!.line]!.slice(d!.from, d!.to)).toBe(
+      "missingList",
+    );
+  });
+
   test("an undefined reference in an interpolation points at the exact token", () => {
     const src = `store count = 0\nlayout main with\n  text "Count: {cont}"\nend\n`;
     const ds = diagnose(src);

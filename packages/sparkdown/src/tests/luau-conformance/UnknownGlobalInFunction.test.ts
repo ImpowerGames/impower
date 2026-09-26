@@ -1,6 +1,7 @@
 // A read of a global that nothing declares or assigns is reported inside a
 // function body the same way as at the top level, and the warning's range
-// covers the statement's own columns, whatever its indentation.
+// covers the statement from its first character to its last, whatever its
+// indentation.
 
 import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "./diagnosticTestHarness";
@@ -11,15 +12,6 @@ type Range = {
   start: { line: number; character: number };
   end: { line: number; character: number };
 };
-
-function textAt(source: string, range: Range): string {
-  const lines = source.split("\n");
-  expect(range.start.line).toBe(range.end.line);
-  return lines[range.start.line]!.slice(
-    range.start.character,
-    range.end.character,
-  );
-}
 
 function unknownGlobalRanges(source: string): Range[] {
   return diagnoseDetailed(source)
@@ -40,54 +32,53 @@ describe("an unknown global read inside a function", () => {
     "  local _ = `unknown {foo}`",
     "  local x = foo + 1",
     "  if foo then end",
-  ])("%j is reported on its own columns", (body) => {
+  ])("%j is reported on the statement", (body) => {
     const source = `function run()\n${body}\nend\n`;
-    const ranges = unknownGlobalRanges(source);
-    expect(ranges).toHaveLength(1);
-    expect(ranges[0]!.start.line).toBe(1);
-    expect(textAt(source, ranges[0]!).trim()).toBe(body.trim());
-    expect(ranges[0]!.end.character).toBe(body.length);
+    const indentation = body.length - body.trimStart().length;
+    expect(unknownGlobalRanges(source)).toEqual([
+      {
+        start: { line: 1, character: indentation },
+        end: { line: 1, character: body.length },
+      },
+    ]);
   });
 
   test("a second statement on the line is reported on its own columns", () => {
     const body = "local y = 1; local x = foo";
     const source = `function run()\n${body}\nend\n`;
-    const ranges = unknownGlobalRanges(source);
-    expect(ranges).toHaveLength(1);
-    expect(textAt(source, ranges[0]!)).toBe("local x = foo");
+    const start = body.indexOf("local x");
+    expect(unknownGlobalRanges(source)).toEqual([
+      {
+        start: { line: 1, character: start },
+        end: { line: 1, character: body.length },
+      },
+    ]);
   });
 });
 
 describe("an unknown global read at the top level", () => {
   test("keeps the range of the explicit statement", () => {
-    const source = "& print(foo)\n";
-    const ranges = unknownGlobalRanges(source);
-    expect(ranges).toHaveLength(1);
-    expect(textAt(source, ranges[0]!)).toBe("& print(foo)");
+    expect(unknownGlobalRanges("& print(foo)\n")).toEqual([
+      { start: { line: 0, character: 0 }, end: { line: 0, character: 12 } },
+    ]);
   });
 });
 
-// A read whose statement carries no position of its own inherits the
-// position of the scene, branch or function declared around it. That line is
-// not where the read is, so no diagnostic is placed on it.
+// A read whose statement has no position of its own inherits the position of
+// the scene or branch declared around it. That line is not where the read is,
+// so the warning is not reported at all until those statements get positions
+// of their own (#944).
 describe("a read placed only by the flow around it", () => {
   test.each([
     [
       "a match in a scene",
       "scene start()\n  Hello.\nend\n\nmatch (foo)\n  | other = A recruit.\nend\n",
-      "scene start()",
     ],
     [
       "an if in a branch",
       "scene start()\n  branch first\n    if foo >= 1 then\n      Yes.\n    end\n  end\nend\n",
-      "  branch first",
     ],
-  ])("%s is not reported on the declaration", (_name, source, header) => {
-    const headerLine = source.split("\n").indexOf(header);
-    expect(headerLine).toBeGreaterThanOrEqual(0);
-    const onHeader = diagnoseDetailed(source).filter(
-      (d) => (d.range as Range).start.line === headerLine,
-    );
-    expect(onHeader).toEqual([]);
+  ])("%s is not reported", (_name, source) => {
+    expect(unknownGlobalRanges(source)).toEqual([]);
   });
 });

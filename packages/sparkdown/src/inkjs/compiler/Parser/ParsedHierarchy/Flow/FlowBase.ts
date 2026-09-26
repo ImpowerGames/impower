@@ -594,8 +594,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       }
 
       // Separately, check for duplicate arugment names, since they aren't Parsed.Objects,
-      // so have to be checked independently. `_` is Luau's name for an
-      // unused parameter and may repeat (`function(_, _, value)`).
+      // so have to be checked independently. The bare `_` is Luau's name for
+      // an unused parameter and may repeat (`function(_, _, value)`); any
+      // other name, one starting with `_` included, may not.
       for (let ii = 0; ii < this.args.length; ii += 1) {
         for (let jj = ii + 1; jj < this.args.length; jj += 1) {
           const name = this.args[ii]!.identifier?.name;

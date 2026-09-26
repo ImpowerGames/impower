@@ -32,38 +32,43 @@ import { Stitch } from "./Stitch";
 import { ObjectExpression } from "./Expression/ObjectExpression";
 import { VariableReference } from "./Variable/VariableReference";
 
-export class Story extends FlowBase {
-  // Whether the only position `source` has is that of a scene, branch or
-  // function around it: it inherits that position, or from a weave that
-  // copies it, rather than having one of its own or a statement's. That
-  // position is the flow's declaration, not the code the diagnostic is
-  // about. A diagnostic about the flow itself has the flow as its source and
-  // keeps the flow's position.
-  public static readonly LocatedOnlyByEnclosingFlow = (
-    source: ParsedObject,
-  ): boolean => {
-    const position = source.debugMetadata;
-    if (!position) {
-      return false;
-    }
-    for (let node = source.parent; node; node = node.parent) {
-      if (node instanceof FlowBase) {
-        const flowPosition = node.debugMetadata;
-        if (
-          flowPosition &&
-          flowPosition.filePath === position.filePath &&
-          flowPosition.startLineNumber === position.startLineNumber &&
-          flowPosition.startCharacterNumber === position.startCharacterNumber &&
-          flowPosition.endLineNumber === position.endLineNumber &&
-          flowPosition.endCharacterNumber === position.endCharacterNumber
-        ) {
-          return true;
-        }
+const samePosition = (a: DebugMetadata, b: DebugMetadata): boolean =>
+  a.filePath === b.filePath &&
+  a.startLineNumber === b.startLineNumber &&
+  a.startCharacterNumber === b.startCharacterNumber &&
+  a.endLineNumber === b.endLineNumber &&
+  a.endCharacterNumber === b.endCharacterNumber;
+
+// Whether the only position `source` has is that of a scene, branch or
+// function around it. A source stamped with its own position always keeps
+// it. Otherwise it inherits from the nearest object that has one: the flow
+// itself, or a weave the assembly gave the flow's position. That position is
+// the flow's declaration, not the code the diagnostic is about. A diagnostic
+// about the flow itself has the flow as its source and keeps its position.
+const locatedOnlyByEnclosingFlow = (source: ParsedObject): boolean => {
+  let owner: ParsedObject | null = source;
+  while (owner && !owner.ownDebugMetadata) {
+    owner = owner.parent;
+  }
+  if (!owner || owner === source) {
+    return false;
+  }
+  if (owner instanceof FlowBase) {
+    return true;
+  }
+  const position = owner.ownDebugMetadata!;
+  for (let node = owner.parent; node; node = node.parent) {
+    if (node instanceof FlowBase) {
+      const flowPosition = node.debugMetadata;
+      if (flowPosition && samePosition(flowPosition, position)) {
+        return true;
       }
     }
-    return false;
-  };
+  }
+  return false;
+};
 
+export class Story extends FlowBase {
   public static readonly IsReservedKeyword = (name?: string): boolean => {
     switch (name) {
       case "true":
@@ -902,13 +907,13 @@ export class Story extends FlowBase {
     }
 
     if (this._errorHandler !== null) {
-      if (
-        source instanceof ParsedObject &&
-        Story.LocatedOnlyByEnclosingFlow(source)
-      ) {
+      if (source instanceof ParsedObject && locatedOnlyByEnclosingFlow(source)) {
         // The only position this diagnostic has is the declaration of the
         // flow around it, which does not point at what it reports, so it is
-        // not shown.
+        // not passed to the handler. It still counts above: it sets
+        // `hadError` or `hadWarning`, and during generation it marks its flow
+        // in `flowsWithGenerationDiagnostics`, which keeps that flow from
+        // being reused.
         return;
       }
       const debugMetadata =
