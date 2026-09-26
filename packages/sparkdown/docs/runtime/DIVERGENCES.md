@@ -467,13 +467,9 @@ extends `#` to also work on `ObjectValue` (returning the entry count), so
 `NilValue` is deferred until a scenario actually needs to distinguish nil
 from numeric zero.
 
-### Type annotations are parsed but ignored
+### A malformed type annotation is not reported
 
-`local x: number = 1` and `function f(x: number): string ... end` parse
-correctly — the annotation lives in `LuauTypeAnnotationOperation` /
-`LuauTypeCastOperation` nodes — but the lowerer drops them. Typecheck-only
-use is fine; runtime behavior is the same as if the annotations weren't
-there.
+`local x: number = 1` and `function f(x: number): string ... end` are checked by the type checker ([`docs/compiler/TYPECHECK.md`](../compiler/TYPECHECK.md)), which warns where a value does not match its annotation; as in Luau, an annotation never changes a value at runtime, and the lowerer drops it. Luau's parser also reports an annotation it cannot read, such as `local a: (number, number)`, which lacks the `->` of a function type. Sparkdown's grammar reads an annotation only far enough to find where it ends, and the type checker leaves syntax to the grammar, so a malformed annotation gets no diagnostic.
 
 ### TypeCast (`::`) is a no-op at runtime
 
@@ -639,7 +635,7 @@ Two literal cases are deliberately different:
 - `\u{110000}` through `\u{7FFFFFFF}` are valid in Luau (it encodes them as extended UTF-8) and are accepted here too, but a JS string cannot hold a code point above U+10FFFF, so they lower to U+FFFD.
 - Luau's "Malformed integer" / "Integer overflow" cases (`123i`, `0xABii`) are "Malformed number" here: there is no integer literal type, so the `i` suffix is just a letter after a number.
 
-Statement-level diagnostics (a missing `end`, an unexpected token, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. Type-annotation diagnostics are not applicable at all (see "Type annotations are parsed but ignored" above) and are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
+Statement-level diagnostics (a missing `end`, an unexpected token, a bare `break` outside a loop, an ambiguous call across a newline, a non-variable assignment target, a `const` without an initializer) are not reported. The grammar recovers from an unexpected token by reading the rest of the line as narrative text, so it has no point at which it expected one token and saw another. Those cases are the `describe.skip` groups in `StatementErrors.test.ts`, `FunctionErrors.test.ts` and `TableErrors.test.ts`. A malformed type annotation is not reported (see "A malformed type annotation is not reported" above), and Luau's tests for those are recorded in `TypeAnnotationErrors.test.ts`; Luau's compiler-side errors about register limits and `continue` jumping over a local are recorded in `CompilerErrors.test.ts`.
 
 ### A value on the line after `return` counts only when `return` starts its line
 

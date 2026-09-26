@@ -62,6 +62,15 @@ define interpreter as config with
   fallbacks = { layer = "portrait", channel = "sound" }
 end
 
+define typecheck as config with
+  -- How strictly Luau code is type checked: "nonstrict" reports what is
+  -- certainly wrong, "strict" also infers the types of unannotated code and
+  -- reports every mismatch, and "nocheck" checks nothing. A `.sd` file's
+  -- `typecheck:` front matter field, or a `.luau` file's `--!strict`,
+  -- `--!nonstrict` or `--!nocheck` first line, sets it for that file alone.
+  mode = "nonstrict"
+end
+
 define assets as config with
   -- Beats ahead of the current one whose assets keep loading in the
   -- background, through every branch. 0 means the rest of the current scene.

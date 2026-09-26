@@ -14,6 +14,11 @@ import {
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
 import { collectLuauLints, type LuauLint } from "../lint/collectLuauLints";
+import { modeFromName } from "../typecheck/LuauDocumentChecker";
+import { Mode } from "../typecheck/Module";
+import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
+import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
+import { STDLIB } from "../../inkjs/engine/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -92,7 +97,7 @@ import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
@@ -334,6 +339,14 @@ function indexOfWord(text: string, word: string): number {
   }
   return -1;
 }
+
+/** Whether a position lies within a range, its ends included. */
+function rangeContains(range: Range, position: { line: number; character: number }): boolean {
+  const { start, end } = range;
+  const afterStart = position.line > start.line || (position.line === start.line && position.character >= start.character);
+  const beforeEnd = position.line < end.line || (position.line === end.line && position.character <= end.character);
+  return afterStart && beforeEnd;
+}
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 /**
@@ -485,6 +498,9 @@ export class SparkdownCompiler {
   /** Lints of each script's current tree. A tree is replaced whenever its
    *  script changes, so an unchanged included script is not walked again. */
   protected _lintsByTree = new WeakMap<object, LuauLint[]>();
+
+  // Type checks each document's Luau, keeping results between compiles.
+  protected _typechecker = new SparkdownTypechecker();
 
   protected _files = new SparkdownFileRegistry();
   get files() {
@@ -2424,6 +2440,7 @@ export class SparkdownCompiler {
       this.validateImageAttributes(program);
       this.validateMorphs(program);
       this.validateLints(program);
+      this.validateTypes(program);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -6323,6 +6340,107 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "validateLints", uri);
+  }
+
+  /**
+   * Type checks the Luau of every script in the program and reports what the
+   * checker finds as warnings. The project's mode is `config.typecheck.mode`
+   * ("nonstrict" unless a define changes it); a `.sd` file's `typecheck:`
+   * front matter field overrides it for that file, and a `.luau` file's own
+   * `--!` first line does for that file.
+   */
+  validateTypes(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateTypes", uri);
+    // Plain text: a type's printed form (`<T>(T) -> T`, `*error-type*`) is not markdown.
+    const warn = (scriptUri: string, range: Range, code: string, message: string) => {
+      ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+        range,
+        code,
+        severity: DiagnosticSeverity.Warning,
+        message,
+        source: LANGUAGE_NAME,
+      });
+    };
+    const userScripts = Object.keys(program.scripts).filter((scriptUri) => scriptUri !== BUILTINS_PRELUDE_URI);
+
+    let projectMode = Mode.Nonstrict;
+    const configured = (program.context?.["config"] as any)?.["typecheck"]?.["mode"];
+    if (configured !== undefined) {
+      const mode = typeof configured === "string" ? modeFromName(configured) : undefined;
+      if (mode !== undefined) {
+        projectMode = mode;
+      } else {
+        // Point at the define that sets it.
+        const message = unknownModeMessage(String(configured));
+        let placed = false;
+        for (const scriptUri of userScripts) {
+          const doc = this.documents.get(scriptUri);
+          const tree = this.documents.tree(scriptUri);
+          const setting = doc && tree ? configTypecheckSetting(tree, (from, to) => doc.read(from, to)) : undefined;
+          if (doc && setting) {
+            warn(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", message);
+            placed = true;
+          }
+        }
+        if (!placed) warn(uri, { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, "UnknownTypecheckMode", message);
+      }
+    }
+
+    this._typechecker.beginCompile(this.typecheckGlobalNames(program));
+    for (const scriptUri of userScripts) {
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      const read = (from: number, to: number) => doc.read(from, to);
+      let mode = projectMode;
+      const setting = frontMatterTypecheckSetting(tree, read);
+      if (setting) {
+        const fileMode = modeFromName(setting.value);
+        if (fileMode !== undefined) mode = fileMode;
+        else warn(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", unknownModeMessage(setting.value));
+      }
+      // A name Sparkdown's own resolver cannot find is already reported there.
+      const unresolved: { name: string; range: Range }[] = [];
+      for (const d of program.diagnostics?.[scriptUri] ?? []) {
+        const message = typeof d.message === "string" ? d.message : d.message.value;
+        const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
+        if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
+      }
+      for (const d of this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode)) {
+        if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
+        warn(scriptUri, { start: d.start, end: d.end }, d.code, d.message);
+      }
+    }
+    this._typechecker.endCompile();
+    profile("end", this._profilerId, "validateTypes", uri);
+  }
+
+  /**
+   * The names Luau code may use without declaring them: every name the
+   * program declares in Sparkdown, and the namespaces Sparkdown's runtime
+   * adds to Luau's standard library.
+   */
+  protected typecheckGlobalNames(program: SparkProgram): string[] {
+    const names: string[] = [];
+    // A census entry is `<uri>|<kind>:<name>`.
+    for (const entry of this._censusEntries ?? []) names.push(entry.slice(entry.indexOf(":", entry.indexOf("|")) + 1));
+    for (const [type, structs] of Object.entries(program.context ?? {})) {
+      names.push(type);
+      if (structs && typeof structs === "object") names.push(...Object.keys(structs));
+    }
+    names.push(
+      ...Object.keys(program.functionLocations ?? {}),
+      ...Object.keys(program.sceneLocations ?? {}),
+      ...Object.keys(program.knotLocations ?? {}),
+    );
+    for (const key of Object.keys(STDLIB)) names.push(key.split(".")[0]!);
+    return names.filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
+  }
+
+  /** The type checker's counts of the units the last compile checked and reused. */
+  get typecheckStats() {
+    return this._typechecker.stats;
   }
 
   validateReferences(program: SparkProgram) {

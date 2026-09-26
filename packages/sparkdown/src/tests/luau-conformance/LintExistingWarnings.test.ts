@@ -26,9 +26,9 @@ end
 });
 
 // Luau: type_function_fully_reduces
-// Upstream checks that the type solver reduces this without a warning.
-// Type annotations are parsed but ignored (DIVERGENCES.md), so here it pins
-// only that the snippet is clean.
+// Upstream checks that the type solver reduces this without a warning. The
+// lint helpers leave the type checker's warnings out (its own ports cover
+// them), so here it pins only that the snippet is lint-clean.
 describe("an and/or return that mixes types has no warnings", () => {
   test("return n < 2 or fib(n-2)", () => {
     expect(
