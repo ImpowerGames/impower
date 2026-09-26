@@ -33,6 +33,13 @@ const LINES = [
   "x .. queue|-> A > y z|b .. z",
   "queue | -> A > blend x | b end",
   "queue | -> A > y end",
+  "queue | -> A >end",
+  "queue | -> a -> b >end",
+  "x .. queue|-> A > {y}|b .. z",
+  "x .. queue|-> A > #y|b .. z",
+  "HERO: Go -> a -> b > After",
+  "+ [Go] -> a -> b > After",
+  "queue\n  | -> a -> b > y\n  | c\nend",
 ];
 
 // Each line with the stray text it holds, which runs from its first character
@@ -40,6 +47,8 @@ const LINES = [
 const STRAY: [string, string][] = [
   ["-> a -> b > After", "> After"],
   ["A -> a -> b > c", "> c"],
+  ["HERO: Go -> a -> b > After", "> After"],
+  ["+ [Go] -> a -> b > After", "> After"],
   ["-> a -> > After", "> After"],
   ["x .. queue|-> A > y|b .. z", "> y"],
   ["x .. queue|-> A > y z|b .. z", "> y z"],
@@ -48,20 +57,33 @@ const STRAY: [string, string][] = [
   ["queue | -> a -> b > y | c end", "> y"],
   ["queue | -> A > blend x | b end", "> blend x"],
   ["queue | -> A > y end", "> y"],
+  ["queue | -> A >end", ">"],
+  ["queue | -> a -> b >end", ">"],
+  ["x .. queue|-> A > {y}|b .. z", "> {y}"],
+  ["x .. queue|-> A > #y|b .. z", "> #y"],
+  ["queue\n  | -> a -> b > y\n  | c\nend", "> y"],
 ];
 
+const CASES = LINES.flatMap((line) =>
+  ["\n", "\r\n"].map((eol) => ({
+    line,
+    eol,
+    source: `${line.replace(/\n/g, eol)}${eol}`,
+  })),
+);
+
 describe("text after a tunnel chain or an arm divert", () => {
-  test.each(LINES)("%j scopes the same in both engines", async (line) => {
-    const result = await compareEnginesFull(`${line}\n`);
+  test.each(CASES)("$line (eol $eol) scopes the same in both engines", async ({ source }) => {
+    const result = await compareEnginesFull(source);
     expect(
       result.divergences,
       formatDivergences(result.source, result.divergences),
     ).toEqual([]);
   });
 
-  test.each(LINES)("%j parses without error nodes", (line) => {
+  test.each(CASES)("$line (eol $eol) parses without error nodes", ({ source }) => {
     const errors: string[] = [];
-    parseSource(`${line}\n`).iterate({
+    parseSource(source).iterate({
       enter: (node) => {
         if (node.type.isError || node.name.startsWith("ERROR")) {
           errors.push(`${node.name} @ ${node.from}`);
@@ -75,13 +97,14 @@ describe("text after a tunnel chain or an arm divert", () => {
     const source = `${line}\n`;
     const vscode = await vscodeScopeStacksPerChar(source);
     const tree = parseSource(source);
-    const from = line.indexOf(stray);
+    // The stray text follows the last divert mark, whose own `>` comes first.
+    const from = line.lastIndexOf(stray);
     const to = from + stray.length;
     for (let offset = 0; offset < line.length; offset++) {
       const at = `${JSON.stringify(source[offset])} @ ${offset}`;
       const inStray = offset >= from && offset < to;
       for (const [engine, scopes] of [
-        ["vscode", vscode[offset]],
+        ["vscode", vscode[offset] ?? []],
         ["tree", treeScopeStackAt(tree, offset)],
       ] as const) {
         expect(

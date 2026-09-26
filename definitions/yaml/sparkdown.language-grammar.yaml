@@ -752,10 +752,13 @@ repository:
       - { include: "#ArmUnknown" }
     end: (?=[|]|{{END}}(?:$|{{WS}})|$|{{NL}}|{{WS}}+{{ALTERNATOR_GLUE}})
 
-  # A `->` after a target inside `ArmDivert`. It is `Tunnel` with the
-  # arm's end: the line-ending `Tunnel` would run past the arm's `|`,
-  # `end` or closing `..`, and read the next arm as another target.
-  # `buildDivert` walks `ArmTunnel` and `Tunnel` nodes alike.
+  # A `->` after a target inside `ArmDivert`. It is `Tunnel` bounded by
+  # the arm: the line-ending `Tunnel` would run past the arm's `|`, `end`
+  # or closing `..`, and read the next arm as another target. For the
+  # same reason it takes stray text as `ArmUnknown`, and it has no `//`
+  # comment rule: inside an arm `//` is display text, and a comment would
+  # run to the line end over the arm's boundaries. `buildDivert` walks
+  # `ArmTunnel` and `Tunnel` nodes alike.
   ArmTunnel:
     begin: ({{WS}}*)([-][>])
     beginCaptures:
@@ -778,12 +781,13 @@ repository:
   # Stray text after an arm divert's targets: the rest of the arm, up to
   # the `|`, the ` end` or the closing ` ..` that ends `ArmDivert` and
   # `ArmTunnel`, as `Unknown` takes the rest of a `Divert` line. Spaces
-  # before that boundary are left to `ExtraWhitespace`. An `end` counts only after a
-  # space, so a word such as `blend` stays stray text.
+  # before that boundary are left to `ExtraWhitespace`. An `end` counts at
+  # the start of a word, as it does in plain arm text (`>end` closes the
+  # alternator), so a word such as `blend` stays stray text.
   ArmUnknown:
     tag: invalid
     name: invalid.illegal.unknown-statement.sd
-    match: ((?:(?!{{WS}}*[|]|{{WS}}+{{ALTERNATOR_GLUE}}|{{WS}}+end(?:$|{{WS}})|{{WS}}*$)[^\r\n])+)
+    match: ((?:(?!{{WS}}*[|]|{{WS}}+{{ALTERNATOR_GLUE}}|{{WS}}*\bend(?:$|{{WS}})|{{WS}}*$)[^\r\n])+)
 
   # Context-bounded `# tag` annotation for alternator arms. The
   # standard `Tag` rule terminates at end-of-line, which inside an

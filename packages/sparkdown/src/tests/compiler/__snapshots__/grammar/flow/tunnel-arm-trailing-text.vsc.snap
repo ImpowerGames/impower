@@ -1,4 +1,4 @@
-text.source.sparkdown [0..356]
+text.source.sparkdown [0..464]
  ├─ keyword.control.divert.mark.sd [0..2]: "->"
  ├─ keyword.control.divert.path.sd [2..4]
  │   ├─ punctuation.whitespace.optional.sd [2..3]: " "
@@ -293,4 +293,90 @@ text.source.sparkdown [0..356]
  │   └─ invalid.illegal.unknown-statement.sd [348..351]: "> y"
  ├─ punctuation.whitespace.optional.sd [351..352]: " "
  ├─ keyword.control.end.luau [352..355]: "end"
- └─ Newline [355..356]: "\n"
+ ├─ Newline [355..356]: "\n"
+ ├─ keyword.control.luau [356..361]: "queue"
+ ├─ punctuation.whitespace.optional.sd [361..362]: " "
+ ├─ keyword.operator.alternator.luau [362..363]: "|"
+ ├─ punctuation.whitespace.optional.sd [363..364]: " "
+ ├─ meta.divert [364..370]
+ │   ├─ keyword.control.divert.mark.sd [364..366]: "->"
+ │   ├─ keyword.control.divert.path.sd [366..368]
+ │   │   ├─ punctuation.whitespace.optional.sd [366..367]: " "
+ │   │   └─ keyword.control.divert.path.sd [367..368]
+ │   │       └─ keyword.control.divert.path.sd [367..368]: "A"
+ │   ├─ punctuation.whitespace.extra.sd [368..369]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [369..370]: ">"
+ ├─ keyword.control.end.luau [370..373]: "end"
+ ├─ Newline [373..374]: "\n"
+ ├─ string.display.text.chunk.sd [374..375]
+ │   └─ markup.raw.text.sd [374..375]: "x"
+ ├─ punctuation.whitespace.sd [375..376]: " "
+ ├─ keyword.other.glue.sd [376..378]: ".."
+ ├─ punctuation.whitespace.extra.sd [378..379]: " "
+ ├─ keyword.control.luau [379..384]: "queue"
+ ├─ keyword.operator.alternator.luau [384..385]: "|"
+ ├─ meta.divert [385..395]
+ │   ├─ keyword.control.divert.mark.sd [385..387]: "->"
+ │   ├─ keyword.control.divert.path.sd [387..389]
+ │   │   ├─ punctuation.whitespace.optional.sd [387..388]: " "
+ │   │   └─ keyword.control.divert.path.sd [388..389]
+ │   │       └─ keyword.control.divert.path.sd [388..389]: "A"
+ │   ├─ punctuation.whitespace.extra.sd [389..390]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [390..395]: "> {y}"
+ ├─ keyword.operator.alternator.luau [395..396]: "|"
+ ├─ markup.raw.text.sd [396..397]: "b"
+ ├─ punctuation.whitespace.extra.sd [397..398]: " "
+ ├─ keyword.other.glue.sd [398..400]: ".."
+ ├─ string.display.text.chunk.sd [400..402]
+ │   ├─ markup.raw.space.sd [400..401]: " "
+ │   └─ markup.raw.text.sd [401..402]: "z"
+ ├─ Newline [402..403]: "\n"
+ ├─ string.display.dialogue.inline.sd [403..429]
+ │   ├─ entity.name.type.dialogue.character.name.sd [403..407]
+ │   │   └─ markup.raw.text.sd [403..407]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [407..408]: ":"
+ │   ├─ punctuation.whitespace.required.sd [408..409]: " "
+ │   └─ string.display.text.chunk.sd [409..429]
+ │       ├─ markup.raw.text.sd [409..411]: "Go"
+ │       ├─ punctuation.whitespace.optional.sd [411..412]: " "
+ │       ├─ keyword.control.divert.mark.sd [412..414]: "->"
+ │       ├─ keyword.control.divert.path.sd [414..416]
+ │       │   ├─ punctuation.whitespace.optional.sd [414..415]: " "
+ │       │   └─ keyword.control.divert.path.sd [415..416]
+ │       │       └─ keyword.control.divert.path.sd [415..416]: "a"
+ │       ├─ punctuation.whitespace.optional.sd [416..417]: " "
+ │       ├─ keyword.control.divert.mark.sd [417..419]: "->"
+ │       ├─ keyword.control.divert.path.sd [419..421]
+ │       │   ├─ punctuation.whitespace.optional.sd [419..420]: " "
+ │       │   └─ keyword.control.divert.path.sd [420..421]
+ │       │       └─ keyword.control.divert.path.sd [420..421]: "b"
+ │       ├─ punctuation.whitespace.extra.sd [421..422]: " "
+ │       └─ invalid.illegal.unknown-statement.sd [422..429]: "> After"
+ ├─ Newline [429..430]: "\n"
+ ├─ keyword.control.luau [430..435]: "queue"
+ ├─ Newline [435..436]: "\n"
+ ├─ punctuation.whitespace.extra.sd [436..438]: "  "
+ ├─ keyword.operator.alternator.luau [438..439]: "|"
+ ├─ punctuation.whitespace.optional.sd [439..440]: " "
+ ├─ keyword.control.divert.mark.sd [440..442]: "->"
+ ├─ keyword.control.divert.path.sd [442..444]
+ │   ├─ punctuation.whitespace.optional.sd [442..443]: " "
+ │   └─ keyword.control.divert.path.sd [443..444]
+ │       └─ keyword.control.divert.path.sd [443..444]: "a"
+ ├─ punctuation.whitespace.optional.sd [444..445]: " "
+ ├─ keyword.control.divert.mark.sd [445..447]: "->"
+ ├─ keyword.control.divert.path.sd [447..449]
+ │   ├─ punctuation.whitespace.optional.sd [447..448]: " "
+ │   └─ keyword.control.divert.path.sd [448..449]
+ │       └─ keyword.control.divert.path.sd [448..449]: "b"
+ ├─ punctuation.whitespace.extra.sd [449..450]: " "
+ ├─ invalid.illegal.unknown-statement.sd [450..453]: "> y"
+ ├─ Newline [453..454]: "\n"
+ ├─ punctuation.whitespace.extra.sd [454..456]: "  "
+ ├─ keyword.operator.alternator.luau [456..457]: "|"
+ ├─ punctuation.whitespace.optional.sd [457..458]: " "
+ ├─ string.display.text.chunk.sd [458..459]
+ │   └─ markup.raw.text.sd [458..459]: "c"
+ ├─ Newline [459..460]: "\n"
+ ├─ keyword.control.end.luau [460..463]: "end"
+ └─ Newline [463..464]: "\n"

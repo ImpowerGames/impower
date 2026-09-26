@@ -13,3 +13,10 @@ queue | -> a -> b | c end
 x .. queue|-> A > y z|b .. z
 queue | -> A > blend x | b end
 queue | -> A > y end
+queue | -> A >end
+x .. queue|-> A > {y}|b .. z
+HERO: Go -> a -> b > After
+queue
+  | -> a -> b > y
+  | c
+end

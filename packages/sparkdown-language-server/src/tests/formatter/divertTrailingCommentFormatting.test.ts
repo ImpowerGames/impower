@@ -21,6 +21,16 @@ describe("formatting a `//` comment after a divert", () => {
     });
   }
 
+  for (const line of [
+    "x .. queue|-> A > y|b .. z",
+    "queue | -> a -> b > y | c end",
+  ]) {
+    test(`leaves the stray text in ${JSON.stringify(line)} as written`, () => {
+      const source = `${line}\n`;
+      expect(formatSource(source)).toBe(source);
+    });
+  }
+
   test("brings the space before the comment to one", () => {
     expect(formatSource("A -> later    // note\n")).toBe(
       "A -> later // note\n",

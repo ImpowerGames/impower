@@ -11,7 +11,7 @@ const story = (line: string) =>
     [
       "-> main",
       "scene main",
-      `  ${line}`,
+      `  ${line.replace(/\n/g, "\n  ")}`,
       "  done",
       "",
       "end",
@@ -37,6 +37,14 @@ describe("text after a tunnel chain or an arm divert", () => {
     ["-> a -> c // note", "-> a -> c", "In a.\nIn c.\n"],
     ["-> a -> b -> > After", "-> a -> b ->", "In a.\nIn b.\n"],
     ["-> a -> > After", "-> a ->", "In a.\n"],
+    ["A -> a -> c > y", "A -> a -> c", "A In a.\nIn c.\n"],
+    ["HERO: Go -> a -> c > y", "HERO: Go -> a -> c", "Go In a.\nIn c.\n"],
+    ["queue | -> c >end", "queue | -> c end", "In c.\n"],
+    [
+      "queue\n| -> a -> c > y\n| b\nend",
+      "queue\n| -> a -> c\n| b\nend",
+      "In a.\nIn c.\n",
+    ],
     ["x .. queue|-> c > y|b .. z", "x .. queue|-> c|b .. z", "x In c.\n"],
     [
       "x .. queue|-> a -> c > y|b .. z",
