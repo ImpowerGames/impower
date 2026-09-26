@@ -523,8 +523,8 @@ function lintForRanges(found: Found, src: Source, out: LuauLint[]) {
 
 export interface LuauScriptLints {
   lints: LuauLint[];
-  /** The script's names, which the lints that look at the whole program
-   *  combine with other scripts' (see `indexProgramNames`). */
+  /** The script's names, which `indexProgramNames` combines with other
+   *  scripts' for a rule that looks at the whole program. */
   names: ScriptNames;
 }
 

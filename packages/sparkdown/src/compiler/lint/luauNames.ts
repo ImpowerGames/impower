@@ -5,8 +5,8 @@
 //
 // A script's facts (`ScriptNames`) depend only on its own tree, so the
 // compiler keeps them with the script's lints until the script changes. The
-// program-wide index (`indexProgramNames`) combines the scripts' facts, and is
-// rebuilt on every compile.
+// program-wide index (`indexProgramNames`) combines the facts of every script
+// for a rule that looks at the whole program; no rule calls it yet.
 //
 // Like the lints themselves, the model errs toward silence where the tree is
 // uncertain: an occurrence that might be a read counts as one, and one that
@@ -55,8 +55,10 @@ export interface Declaration {
   hidesFrom: number;
   scopeTo: number;
   /** Whether the grammar nested the declaring statement inside another
-   *  (`local a = 1 local b = a`, or `& local x = 5` in a function), so its
-   *  scope is taken to run to the end of the nearest enclosing block. */
+   *  (`local a = 1 local b = a`, or `& local x = 5` in a function). Its scope
+   *  is taken to run to the end of the nearest enclosing block, and since
+   *  where its statement ends is uncertain, it hides no outer declaration:
+   *  a later occurrence of the name can refer to either. */
   nested: boolean;
 }
 
@@ -168,7 +170,7 @@ function scopeEnd(stmt: SyntaxNode) {
   return null;
 }
 
-const IDENTIFIER =/^[A-Za-z_][A-Za-z0-9_]*/;
+const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
 const IDENTIFIERS = /\b[A-Za-z_][A-Za-z0-9_]*\b/g;
 
 // Luau's reserved words, which are never a name.
@@ -256,7 +258,7 @@ function readDeclarations(
       nameFrom: found.from,
       nameTo: found.from + found.name.length,
       readsFrom,
-      hidesFrom,
+      hidesFrom: nested ? scopeTo : hidesFrom,
       scopeTo,
       nested,
     });
@@ -306,9 +308,10 @@ function readDeclarations(
         });
       }
       const nameNode = childNamed(content, "LuauFunctionDeclarationName");
-      const scope =isLocalFunction(node, src) ? scopeEnd(node) : null;
+      const scope = isLocalFunction(node, src) ? scopeEnd(node) : null;
       if (nameNode && scope) {
-        add(nameNode, "localFunction", nameNode.to, nameNode.to, scope.end, scope.nested);
+        const at = nameNode.to;
+        add(nameNode, "localFunction", at, at, scope.end, scope.nested);
       }
     } else if (node.name === "LuauVariableDefinition") {
       if (scopeOf(node, src) !== "local") continue;
@@ -356,22 +359,48 @@ function resolve(candidates: Declaration[] | undefined, pos: number) {
     .sort((a, b) => b.nameFrom - a.nameFrom);
 }
 
-// A keyword, including the contextual `continue` and `type`, a scope word
-// such as `store`, a primitive type (`number`) or a field of a table type;
-// the grammar marks the text a token captures with a `_c<n>` suffix. `self`
-// is a keyword token too, but it names a local or a method's parameter.
-const NOT_A_NAME =
-  /^Luau(?:(?!Self)\w*(?:Keyword|Modifier)|PrimitiveType|TypePropertyName)(?:_c\d+)?$/;
+// A keyword or scope word: the contextual `continue` and `type`, `store`,
+// and every Sparkdown structural word (`style`, `layout`, `match`), which the
+// grammar marks as the keyword of its construct even where the word is only
+// a name (`print(style)`). The grammar marks the text a token captures with a
+// `_c<n>` suffix. `self` is a keyword token too, but it always names a local
+// or a method's parameter.
+const KEYWORD = /^Luau(?!Self)\w*(?:Keyword|Modifier)(?:_c\d+)?$/;
 
-// A named type (`Point` in `local p: Point`). A local of that name counts as
-// used there, as in Luau; a global of that name does not.
-const TYPE_NAME = /^LuauTypeName(?:_c\d+)?$/;
+// A name in a type: a named type (`Point`), a primitive type (`number`) or a
+// field of a table type.
+const TYPE_WORD =
+  /^Luau(?:TypeName|PrimitiveType|TypePropertyName)(?:_c\d+)?$/;
+
+/** Whether a keyword token begins its statement (`continue`, `type X = ...`,
+ *  `store x = 1`), where it is the keyword of the statement rather than a
+ *  name in an expression. */
+function beginsStatement(token: SyntaxNode, src: Source) {
+  for (let p: SyntaxNode | null = token; p; p = p.parent) {
+    if (p.name === "LuauFunctionDefinition") break;
+    // An `if` or `elseif` block's condition sits in the block's content
+    // beside its statements, but is an expression.
+    if (p.name.endsWith("Condition")) continue;
+    if (p.parent && BLOCK_CONTENTS.has(p.parent.name)) {
+      return trimmedRange(p, src).from === trimmedRange(token, src).from;
+    }
+  }
+  return true;
+}
+
+/** Whether an occurrence whose token is a keyword or a name in a type is a
+ *  use. It is one when it refers to a local, as a local named `style` or
+ *  `number` is read there. Otherwise a name in a type is never a global use,
+ *  and a keyword is one only inside an expression. */
+function isWordUse(token: SyntaxNode, resolved: boolean, src: Source) {
+  if (resolved) return true;
+  if (TYPE_WORD.test(token.name)) return false;
+  return !KEYWORD.test(token.name) || !beginsStatement(token, src);
+}
 
 // Tokens whose text is never a use of a variable.
 function isNonReference(token: SyntaxNode): boolean {
-  if (token.name === "LuauPropertyName" || NOT_A_NAME.test(token.name)) {
-    return true;
-  }
+  if (token.name === "LuauPropertyName") return true;
   if (
     token.name === "LuauFunctionName" &&
     token.parent?.name === "LuauFunctionAccessor"
@@ -489,15 +518,13 @@ function readOccurrences(
     for (const pos of positions) {
       if (skip.has(pos)) continue;
       let kind: OccurrenceKind | null = "functionName";
-      let typeName = false;
+      const declarations = resolve(candidates, pos);
       if (!functionNames.has(pos)) {
         const token = tokenAt(pos);
         kind = useAt(pos, token, src);
-        typeName = TYPE_NAME.test(token.name);
+        if (kind && !isWordUse(token, declarations.length > 0, src)) continue;
       }
       if (!kind) continue;
-      const declarations = resolve(candidates, pos);
-      if (typeName && declarations.length === 0) continue;
       fn.occurrences.push({
         name,
         from: pos,

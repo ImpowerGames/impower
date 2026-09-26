@@ -78,6 +78,13 @@ describe("reads the rule recognizes", () => {
     // these shapes are from Luau's conformance suite.
     ["a read later on the same line", "\nlocal s, r = pcall(print) return s, r\n"],
     ["a read in a function statement on the same line", "\nlocal a = 1 function foo() return a end return foo()\n"],
+    ["a read after a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(x, a)\n"],
+    // The grammar marks Sparkdown's structural words as keywords even where
+    // they are names.
+    ["a read of a local named `style`", "\nlocal style = {}\nsetStyle(style)\n"],
+    ["a read of a local named `layout`", "\nlocal layout = {}\nreturn layout.x\n"],
+    ["a read of a local named `match` in a condition", "\nlocal match = true\nif match then return 1 end\n"],
+    ["a local named in a primitive type annotation", "\nlocal number = 1\nlocal x: number = 2\nreturn x\n"],
   ])("%s", (_name, body) => {
     expect(lintInFunction(body)).toEqual([]);
   });

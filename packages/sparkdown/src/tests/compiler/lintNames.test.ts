@@ -185,6 +185,36 @@ end
     expect([...names.globalOccurrences.keys()]).toEqual([]);
   });
 
+  test("a nested local hides no outer local of the same name", () => {
+    const source = `function run()
+  local x = 1
+  local a = {} local x = 3
+  print(x, a)
+end
+`;
+    expect(resolutions(source, "x")).toEqual(["L4 read -> local@L3, local@L2"]);
+  });
+
+  test("a structural word is a name where it is used as one", () => {
+    const source = `function run(t)
+  local style = t.s
+  setStyle(style)
+  print(layout)
+  if screen then setStyle(style) end
+end
+`;
+    expect(resolutions(source, "style")).toEqual([
+      "L3 read -> local@L2",
+      "L5 read -> local@L2",
+    ]);
+    expect([...namesOf(source).globalOccurrences.keys()].sort()).toEqual([
+      "layout",
+      "print",
+      "screen",
+      "setStyle",
+    ]);
+  });
+
   test("`self` is a method's parameter, or a local of that name", () => {
     const source = `function run()
   local q = {}
