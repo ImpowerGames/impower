@@ -1150,9 +1150,11 @@ repository:
       - { include: "#DivertLoad" }
       - { include: "#Tunnel" }
       - { include: "#DivertTarget" }
-      - { include: "#ExtraWhitespace" }
       # A `// note` after the targets is a comment, as on any display line.
+      # It comes before `ExtraWhitespace` so the space before `//` is the
+      # comment's own, which the formatter keeps as one space.
       - { include: "#SparkdownInlineComment" }
+      - { include: "#ExtraWhitespace" }
       # The divert ends its line, so anything else after the targets
       # (`> After`, stray punctuation) is stray text. Tile it so the rule
       # always reaches `end` instead of closing ERROR_INCOMPLETE mid-line

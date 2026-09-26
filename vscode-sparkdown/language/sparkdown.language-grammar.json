@@ -1572,10 +1572,10 @@
           "include": "#DivertTarget"
         },
         {
-          "include": "#ExtraWhitespace"
+          "include": "#SparkdownInlineComment"
         },
         {
-          "include": "#SparkdownInlineComment"
+          "include": "#ExtraWhitespace"
         },
         {
           "include": "#Unknown"

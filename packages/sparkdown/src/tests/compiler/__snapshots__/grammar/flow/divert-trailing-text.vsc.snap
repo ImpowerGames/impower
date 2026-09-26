@@ -1,4 +1,4 @@
-text.source.sparkdown [0..234]
+text.source.sparkdown [0..323]
  ├─ keyword.control.divert.mark.sd [0..2]: "->"
  ├─ keyword.control.divert.path.sd [2..8]
  │   ├─ punctuation.whitespace.optional.sd [2..3]: " "
@@ -59,82 +59,140 @@ text.source.sparkdown [0..234]
  │   ├─ punctuation.whitespace.extra.sd [94..95]: " "
  │   └─ invalid.illegal.unknown-statement.sd [95..102]: "> After"
  ├─ Newline [102..103]: "\n"
- ├─ string.display.text.chunk.sd [103..121]
- │   ├─ markup.raw.text.sd [103..104]: "A"
- │   ├─ punctuation.whitespace.optional.sd [104..105]: " "
- │   ├─ keyword.control.divert.mark.sd [105..107]: "->"
- │   ├─ keyword.control.divert.path.sd [107..113]
- │   │   ├─ punctuation.whitespace.optional.sd [107..108]: " "
- │   │   └─ keyword.control.divert.path.sd [108..113]
- │   │       └─ keyword.control.divert.path.sd [108..113]: "later"
- │   ├─ punctuation.whitespace.extra.sd [113..114]: " "
- │   └─ invalid.illegal.unknown-statement.sd [114..121]: "! After"
- ├─ Newline [121..122]: "\n"
- ├─ string.display.text.chunk.sd [122..140]
- │   ├─ markup.raw.text.sd [122..123]: "A"
- │   ├─ punctuation.whitespace.optional.sd [123..124]: " "
- │   ├─ keyword.control.divert.mark.sd [124..126]: "->"
- │   ├─ keyword.control.divert.path.sd [126..132]
- │   │   ├─ punctuation.whitespace.optional.sd [126..127]: " "
- │   │   └─ keyword.control.divert.path.sd [127..132]
- │   │       └─ keyword.control.divert.path.sd [127..132]: "later"
- │   ├─ punctuation.whitespace.extra.sd [132..133]: " "
- │   └─ comment.line.double-slash.sd [133..140]
- │       ├─ punctuation.definition.comment.sd [133..135]: "//"
- │       └─ comment.line.double-slash.content.sd [135..140]: " note"
- ├─ Newline [140..141]: "\n"
- ├─ string.display.text.chunk.sd [141..165]
- │   ├─ markup.raw.text.sd [141..142]: "A"
- │   ├─ punctuation.whitespace.optional.sd [142..143]: " "
- │   ├─ keyword.control.divert.mark.sd [143..145]: "->"
- │   ├─ keyword.control.divert.path.sd [145..157]
- │   │   ├─ punctuation.whitespace.optional.sd [145..146]: " "
- │   │   ├─ entity.name.function.luau [146..151]: "later"
- │   │   └─ meta.parameter.luau [151..157]
- │   │       ├─ punctuation.definition.template-expression.begin.sd [151..152]: "("
- │   │       ├─ constant.numeric.decimal.luau [152..153]: "1"
- │   │       ├─ keyword.operator.comma.luau [153..154]: ","
- │   │       ├─ punctuation.whitespace.optional.sd [154..155]: " "
- │   │       ├─ constant.numeric.decimal.luau [155..156]: "2"
- │   │       └─ punctuation.definition.template-expression.end.sd [156..157]: ")"
- │   ├─ punctuation.whitespace.extra.sd [157..158]: " "
- │   └─ invalid.illegal.unknown-statement.sd [158..165]: "> After"
- ├─ Newline [165..166]: "\n"
- ├─ keyword.control.divert.mark.sd [166..168]: "->"
- ├─ punctuation.whitespace.optional.sd [168..169]: " "
- ├─ keyword.control.divert.load.sd [169..173]: "load"
- ├─ punctuation.whitespace.required.sd [173..174]: " "
- ├─ keyword.control.divert.path.sd [174..179]
- │   └─ keyword.control.divert.path.sd [174..179]
- │       └─ keyword.control.divert.path.sd [174..179]: "later"
- ├─ punctuation.whitespace.extra.sd [179..180]: " "
- ├─ invalid.illegal.unknown-statement.sd [180..187]: "> After"
- ├─ Newline [187..188]: "\n"
- ├─ keyword.control.divert.mark.sd [188..192]: "->->"
- ├─ punctuation.whitespace.extra.sd [192..193]: " "
- ├─ invalid.illegal.unknown-statement.sd [193..200]: "> After"
- ├─ Newline [200..201]: "\n"
- ├─ string.display.text.chunk.sd [201..222]
- │   ├─ markup.raw.text.sd [201..202]: "A"
- │   ├─ punctuation.whitespace.optional.sd [202..203]: " "
- │   ├─ keyword.control.divert.mark.sd [203..205]: "->"
- │   └─ keyword.control.divert.path.sd [205..222]
- │       ├─ punctuation.whitespace.optional.sd [205..206]: " "
- │       ├─ keyword.control.divert.path.sd [206..211]
- │       │   └─ keyword.control.divert.path.sd [206..211]: "later"
- │       ├─ punctuation.whitespace.optional.sd [211..212]: " "
- │       ├─ keyword.control.divert.path.sd [212..216]
- │       │   └─ keyword.control.divert.path.sd [212..216]: "more"
- │       ├─ punctuation.whitespace.optional.sd [216..217]: " "
- │       └─ keyword.control.divert.path.sd [217..222]
- │           └─ keyword.control.divert.path.sd [217..222]: "words"
- ├─ Newline [222..223]: "\n"
- ├─ string.display.text.chunk.sd [223..233]
- │   ├─ markup.raw.text.sd [223..224]: "A"
- │   ├─ punctuation.whitespace.optional.sd [224..225]: " "
- │   ├─ keyword.control.divert.mark.sd [225..227]: "->"
- │   └─ keyword.control.divert.path.sd [227..233]
- │       ├─ punctuation.whitespace.optional.sd [227..228]: " "
- │       └─ keyword.control.divert.path.sd [228..233]
- │           └─ keyword.control.divert.path.sd [228..233]: "later"
- └─ Newline [233..234]: "\n"
+ ├─ entity.choice.sd [103..124]
+ │   ├─ keyword.operator.expression.list.sd [103..105]: "+ "
+ │   ├─ string.choice.sd [105..107]
+ │   │   └─ markup.raw.text.sd [105..107]: "Go"
+ │   ├─ punctuation.whitespace.required.sd [107..108]: " "
+ │   ├─ keyword.control.divert.mark.sd [108..110]: "->"
+ │   ├─ keyword.control.divert.path.sd [110..116]
+ │   │   ├─ punctuation.whitespace.optional.sd [110..111]: " "
+ │   │   └─ keyword.control.divert.path.sd [111..116]
+ │   │       └─ keyword.control.divert.path.sd [111..116]: "later"
+ │   ├─ punctuation.whitespace.extra.sd [116..117]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [117..124]: "> After"
+ ├─ Newline [124..125]: "\n"
+ ├─ string.display.text.chunk.sd [125..143]
+ │   ├─ markup.raw.text.sd [125..126]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [126..127]: " "
+ │   ├─ keyword.control.divert.mark.sd [127..129]: "->"
+ │   ├─ keyword.control.divert.path.sd [129..135]
+ │   │   ├─ punctuation.whitespace.optional.sd [129..130]: " "
+ │   │   └─ keyword.control.divert.path.sd [130..135]
+ │   │       └─ keyword.control.divert.path.sd [130..135]: "later"
+ │   ├─ punctuation.whitespace.extra.sd [135..136]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [136..143]: "! After"
+ ├─ Newline [143..144]: "\n"
+ ├─ string.display.text.chunk.sd [144..162]
+ │   ├─ markup.raw.text.sd [144..145]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [145..146]: " "
+ │   ├─ keyword.control.divert.mark.sd [146..148]: "->"
+ │   ├─ keyword.control.divert.path.sd [148..154]
+ │   │   ├─ punctuation.whitespace.optional.sd [148..149]: " "
+ │   │   └─ keyword.control.divert.path.sd [149..154]
+ │   │       └─ keyword.control.divert.path.sd [149..154]: "later"
+ │   └─ comment.line.double-slash.sd [154..162]
+ │       ├─ punctuation.whitespace.optional.sd [154..155]: " "
+ │       ├─ punctuation.definition.comment.sd [155..157]: "//"
+ │       └─ comment.line.double-slash.content.sd [157..162]: " note"
+ ├─ Newline [162..163]: "\n"
+ ├─ keyword.control.divert.mark.sd [163..165]: "->"
+ ├─ keyword.control.divert.path.sd [165..171]
+ │   ├─ punctuation.whitespace.optional.sd [165..166]: " "
+ │   └─ keyword.control.divert.path.sd [166..171]
+ │       └─ keyword.control.divert.path.sd [166..171]: "later"
+ ├─ comment.line.double-slash.sd [171..179]
+ │   ├─ punctuation.whitespace.optional.sd [171..172]: " "
+ │   ├─ punctuation.definition.comment.sd [172..174]: "//"
+ │   └─ comment.line.double-slash.content.sd [174..179]: " note"
+ ├─ Newline [179..180]: "\n"
+ ├─ string.display.dialogue.inline.sd [180..205]
+ │   ├─ entity.name.type.dialogue.character.name.sd [180..184]
+ │   │   └─ markup.raw.text.sd [180..184]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [184..185]: ":"
+ │   ├─ punctuation.whitespace.required.sd [185..186]: " "
+ │   └─ string.display.text.chunk.sd [186..205]
+ │       ├─ markup.raw.text.sd [186..188]: "Go"
+ │       ├─ punctuation.whitespace.optional.sd [188..189]: " "
+ │       ├─ keyword.control.divert.mark.sd [189..191]: "->"
+ │       ├─ keyword.control.divert.path.sd [191..197]
+ │       │   ├─ punctuation.whitespace.optional.sd [191..192]: " "
+ │       │   └─ keyword.control.divert.path.sd [192..197]
+ │       │       └─ keyword.control.divert.path.sd [192..197]: "later"
+ │       └─ comment.line.double-slash.sd [197..205]
+ │           ├─ punctuation.whitespace.optional.sd [197..198]: " "
+ │           ├─ punctuation.definition.comment.sd [198..200]: "//"
+ │           └─ comment.line.double-slash.content.sd [200..205]: " note"
+ ├─ Newline [205..206]: "\n"
+ ├─ entity.choice.sd [206..229]
+ │   ├─ keyword.operator.expression.list.sd [206..208]: "+ "
+ │   ├─ punctuation.definition.template-expression.begin.choice.suppression.sd [208..209]: "["
+ │   ├─ string.choice.sd [209..211]
+ │   │   └─ markup.raw.text.sd [209..211]: "Go"
+ │   ├─ punctuation.definition.template-expression.end.choice.suppression.sd [211..212]: "]"
+ │   ├─ punctuation.whitespace.required.sd [212..213]: " "
+ │   ├─ keyword.control.divert.mark.sd [213..215]: "->"
+ │   ├─ keyword.control.divert.path.sd [215..221]
+ │   │   ├─ punctuation.whitespace.optional.sd [215..216]: " "
+ │   │   └─ keyword.control.divert.path.sd [216..221]
+ │   │       └─ keyword.control.divert.path.sd [216..221]: "later"
+ │   └─ comment.line.double-slash.sd [221..229]
+ │       ├─ punctuation.whitespace.optional.sd [221..222]: " "
+ │       ├─ punctuation.definition.comment.sd [222..224]: "//"
+ │       └─ comment.line.double-slash.content.sd [224..229]: " note"
+ ├─ Newline [229..230]: "\n"
+ ├─ string.display.text.chunk.sd [230..254]
+ │   ├─ markup.raw.text.sd [230..231]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [231..232]: " "
+ │   ├─ keyword.control.divert.mark.sd [232..234]: "->"
+ │   ├─ keyword.control.divert.path.sd [234..246]
+ │   │   ├─ punctuation.whitespace.optional.sd [234..235]: " "
+ │   │   ├─ entity.name.function.luau [235..240]: "later"
+ │   │   └─ meta.parameter.luau [240..246]
+ │   │       ├─ punctuation.definition.template-expression.begin.sd [240..241]: "("
+ │   │       ├─ constant.numeric.decimal.luau [241..242]: "1"
+ │   │       ├─ keyword.operator.comma.luau [242..243]: ","
+ │   │       ├─ punctuation.whitespace.optional.sd [243..244]: " "
+ │   │       ├─ constant.numeric.decimal.luau [244..245]: "2"
+ │   │       └─ punctuation.definition.template-expression.end.sd [245..246]: ")"
+ │   ├─ punctuation.whitespace.extra.sd [246..247]: " "
+ │   └─ invalid.illegal.unknown-statement.sd [247..254]: "> After"
+ ├─ Newline [254..255]: "\n"
+ ├─ keyword.control.divert.mark.sd [255..257]: "->"
+ ├─ punctuation.whitespace.optional.sd [257..258]: " "
+ ├─ keyword.control.divert.load.sd [258..262]: "load"
+ ├─ punctuation.whitespace.required.sd [262..263]: " "
+ ├─ keyword.control.divert.path.sd [263..268]
+ │   └─ keyword.control.divert.path.sd [263..268]
+ │       └─ keyword.control.divert.path.sd [263..268]: "later"
+ ├─ punctuation.whitespace.extra.sd [268..269]: " "
+ ├─ invalid.illegal.unknown-statement.sd [269..276]: "> After"
+ ├─ Newline [276..277]: "\n"
+ ├─ keyword.control.divert.mark.sd [277..281]: "->->"
+ ├─ punctuation.whitespace.extra.sd [281..282]: " "
+ ├─ invalid.illegal.unknown-statement.sd [282..289]: "> After"
+ ├─ Newline [289..290]: "\n"
+ ├─ string.display.text.chunk.sd [290..311]
+ │   ├─ markup.raw.text.sd [290..291]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [291..292]: " "
+ │   ├─ keyword.control.divert.mark.sd [292..294]: "->"
+ │   └─ keyword.control.divert.path.sd [294..311]
+ │       ├─ punctuation.whitespace.optional.sd [294..295]: " "
+ │       ├─ keyword.control.divert.path.sd [295..300]
+ │       │   └─ keyword.control.divert.path.sd [295..300]: "later"
+ │       ├─ punctuation.whitespace.optional.sd [300..301]: " "
+ │       ├─ keyword.control.divert.path.sd [301..305]
+ │       │   └─ keyword.control.divert.path.sd [301..305]: "more"
+ │       ├─ punctuation.whitespace.optional.sd [305..306]: " "
+ │       └─ keyword.control.divert.path.sd [306..311]
+ │           └─ keyword.control.divert.path.sd [306..311]: "words"
+ ├─ Newline [311..312]: "\n"
+ ├─ string.display.text.chunk.sd [312..322]
+ │   ├─ markup.raw.text.sd [312..313]: "A"
+ │   ├─ punctuation.whitespace.optional.sd [313..314]: " "
+ │   ├─ keyword.control.divert.mark.sd [314..316]: "->"
+ │   └─ keyword.control.divert.path.sd [316..322]
+ │       ├─ punctuation.whitespace.optional.sd [316..317]: " "
+ │       └─ keyword.control.divert.path.sd [317..322]
+ │           └─ keyword.control.divert.path.sd [317..322]: "later"
+ └─ Newline [322..323]: "\n"
