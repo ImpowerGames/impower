@@ -50,6 +50,7 @@ import {
   METHOD_PREFIX,
 } from "../../../inkjs/engine/StdLib";
 import { ErrorType } from "../../../inkjs/engine/Error";
+import { syntheticId } from "../utils/documentTag";
 
 // Wrap the lowerer's `new FunctionCall(name, args)` site so that
 // bare (unnamespaced) source names registered in `STDLIB`
@@ -556,7 +557,7 @@ function lowerChainedMethodCall(
   const opText = opNode ? ctx.read(opNode.from, opNode.to).trim() : ":";
   const isColonForm = opText === ":";
   if (isColonForm) {
-    const tempName = `__mcall_${chainNode.from}`;
+    const tempName = `__mcall_${syntheticId(chainNode.from, ctx)}`;
     const targetExpr = new IndexExpression(
       new StashedTempReadExpression(tempName),
       new StringExpression([new Text(methodNameText)]),
@@ -751,7 +752,7 @@ function lowerMethodCall(
   // line 47). The dot form uses the receiver only in the lookup, so
   // it generates directly.
   if (isColonForm) {
-    const tempName = `__mcall_${accessPath.from}`;
+    const tempName = `__mcall_${syntheticId(accessPath.from, ctx)}`;
     const targetExpr = new IndexExpression(
       new StashedTempReadExpression(tempName),
       new StringExpression([new Text(methodNameText)]),
@@ -1187,7 +1188,7 @@ function lowerAnonymousFunction(
   // unlowered and `(IIFE)()` returning nil at runtime.
   if (findOwnDeclarationName(node)) return null;
 
-  const synthName = `__anon_fn_${node.from}`;
+  const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   // Identify free variables (referenced inside the body but not bound
   // by the function's parameters or local declarations, and not a
   // known stdlib name). These are the closure's upvals. Captured by
@@ -1199,7 +1200,7 @@ function lowerAnonymousFunction(
   // Compound-assignment lowering (`obj[fn()] += 1`) re-lowers the LHS
   // expression for the GET side, which re-lowers any anon fn inside
   // the index expression. Both lowerings produce the same `__anon_fn_<from>`
-  // name, and a duplicate sibling triggers a hard "duplicate flow" error.
+  // name (`<from>` is `syntheticId`: the document tag, `$`, then the offset), and a duplicate sibling triggers a hard "duplicate flow" error.
   // Since the source position is identical, both produce equivalent
   // Functions — keeping the first is correct.
   const alreadyRegistered = (buf: ParsedObject[] | undefined) =>
@@ -1711,7 +1712,7 @@ export function countUserParameters(
 // Build the closure-value `ObjectExpression`. The shape is recognized
 // by `CallValueAsFunction`'s closure-aware dispatch in Story.ts:
 //   {
-//     __closure_fn: -> __anon_fn_<offset>,
+//     __closure_fn: -> __anon_fn_<syntheticId>,
 //     __closure_upvals: { "0": <upval0>, "1": <upval1>, ... },
 //     __closure_user_arity: <K>,
 //   }

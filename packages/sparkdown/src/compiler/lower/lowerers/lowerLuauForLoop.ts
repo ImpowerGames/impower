@@ -25,6 +25,7 @@ import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
+import { syntheticId } from "../utils/documentTag";
 
 // `for i = start, stop [, step] do BODY end` — Luau numeric-for.
 //
@@ -45,6 +46,9 @@ import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
 //       -> __for_<off>_loop
 //     - (__for_<off>_break)
 //   EndScope
+//
+// `<off>` is `syntheticId`: the document tag, `$`, then the loop's offset in
+// the document. The rename pass recognizes these names by that `$`.
 //
 // The scope wrap (BeginScope / EndScope) keeps the loop variable and
 // the snapshot index/stop/step temps from leaking into the enclosing
@@ -149,12 +153,13 @@ export function lowerLuauForLoop(
       ? coerce(lowerExpressionFromNodes(trailingGroups[1], ctx) ?? new NumberExpression(1, "int"))
       : new NumberExpression(1, "int");
 
-  const idxName = `__forIdx_${nodeRef.node.from}`;
-  const stopName = `__forStop_${nodeRef.node.from}`;
-  const stepName = `__forStep_${nodeRef.node.from}`;
-  const loopLabel = `__for_${nodeRef.node.from}_loop`;
-  const stepLabel = `__for_${nodeRef.node.from}_step`;
-  const breakLabel = `__for_${nodeRef.node.from}_break`;
+  const id = syntheticId(nodeRef.node.from, ctx);
+  const idxName = `__forIdx_${id}`;
+  const stopName = `__forStop_${id}`;
+  const stepName = `__forStep_${id}`;
+  const loopLabel = `__for_${id}_loop`;
+  const stepLabel = `__for_${id}_step`;
+  const breakLabel = `__for_${id}_break`;
 
   // `continue` should perform the step and loop back, so its target
   // is the step-update label, not the loop's head. The body runs

@@ -14,6 +14,7 @@ import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
+import { syntheticId } from "../utils/documentTag";
 
 // `repeat BODY until cond` — Luau's "do-while-not".
 //
@@ -32,6 +33,9 @@ import { wrapInScope } from "../utils/wrapInScope";
 //       }
 //     - (__repeat_<off>_break)
 //   EndScope
+//
+// `<off>` is `syntheticId`: the document tag, `$`, then the loop's offset in
+// the document. The rename pass recognizes these names by that `$`.
 //
 // `break` diverts to the break gather; control falls through past it
 // to the EndScope. `continue` diverts to the continue gather where
@@ -73,9 +77,10 @@ export function lowerLuauRepeatLoop(
   const condExpr = lowerExpressionFromContainer(condContent, ctx);
   if (!condExpr) return {};
 
-  const loopLabel = `__repeat_${nodeRef.node.from}_loop`;
-  const continueLabel = `__repeat_${nodeRef.node.from}_continue`;
-  const breakLabel = `__repeat_${nodeRef.node.from}_break`;
+  const id = syntheticId(nodeRef.node.from, ctx);
+  const loopLabel = `__repeat_${id}_loop`;
+  const continueLabel = `__repeat_${id}_continue`;
+  const breakLabel = `__repeat_${id}_break`;
 
   // The body runs inside the loop's own scope wrap (see the
   // `wrapInScope` in the return) — count it in `scopeDepth` so

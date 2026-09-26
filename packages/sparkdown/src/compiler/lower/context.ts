@@ -42,9 +42,9 @@ export interface LowerContext {
    * position). Each such literal compiles to a uniquely-named top-level
    * knot plus a `DivertTarget` at the literal's source position; the
    * synthetic knot has nowhere to live in the expression's parsed tree
-   * so it gets stashed here. Names are derived from the source byte
-   * offset (`__anon_fn_<from>`) so they stay unique across chunks and
-   * stable across edits. If unset, anonymous-function lowering is a
+   * so it gets stashed here. Names are derived from the document and
+   * the source byte offset within it (`__anon_fn_<syntheticId>`) so they
+   * stay unique across chunks and files. If unset, anonymous-function lowering is a
    * no-op (snapshot tools that don't care about runtime execution can
    * omit it).
    */

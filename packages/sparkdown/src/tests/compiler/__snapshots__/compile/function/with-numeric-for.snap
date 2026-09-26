@@ -24,7 +24,7 @@
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "__forIdx_42",
+          "name": "__forIdx_$42",
           "expression": {
             "type": "NumberExpression",
             "value": 1,
@@ -34,7 +34,7 @@
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "__forStop_42",
+          "name": "__forStop_$42",
           "expression": {
             "type": "FunctionCall",
             "name": "tonumber",
@@ -51,7 +51,7 @@
         {
           "type": "VariableAssignment",
           "kind": "temp",
-          "name": "__forStep_42",
+          "name": "__forStep_$42",
           "expression": {
             "type": "NumberExpression",
             "value": 1,
@@ -60,17 +60,17 @@
         },
         {
           "type": "Gather",
-          "name": "__for_42_loop",
+          "name": "__for_$42_loop",
           "depth": 1
         },
         {
           "type": "Gather",
-          "name": "__for_42_step",
+          "name": "__for_$42_step",
           "depth": 1
         },
         {
           "type": "Gather",
-          "name": "__for_42_break",
+          "name": "__for_$42_break",
           "depth": 1
         },
         {

@@ -37,6 +37,7 @@ import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { stripTrailingLineComment } from "../utils/stripTrailingLineComment";
+import { syntheticId } from "../utils/documentTag";
 
 // `define` is sparkdown's unified OOP type/instance construct. Every
 // define — whether it has properties, methods, or both — lowers to a
@@ -549,7 +550,7 @@ function lowerDefineMethod(
   const content = getFunctionBodyContent(node);
   if (!content) return null;
 
-  const synthName = `__define_fn_${node.from}`;
+  const synthName = `__define_fn_${syntheticId(node.from, ctx)}`;
   const userArgs = lowerArguments(node, ctx);
   const upvals = scanFreeVariables(node, ctx).filter((n) => n !== "self");
   const upvalArgs = upvals.map(
