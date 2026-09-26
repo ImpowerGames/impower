@@ -31,6 +31,7 @@ import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { syntheticId } from "../utils/documentTag";
 
 // `function name(args) BODY end` → Knot(name, [], args, isFunction=true) with
 // the body content placed in the Knot's _rootWeave. parseIncrementally
@@ -239,7 +240,7 @@ function lowerNestedNamedFunction(
   enclosingScope: ParsedObject[],
   isLocal: boolean,
 ): CompiledBlock {
-  const synthName = `__anon_fn_${node.from}`;
+  const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   const upvals = scanFreeVariables(node, ctx);
 
   // Detect self-recursion: if the body calls the declared name, add
@@ -402,7 +403,7 @@ function lowerNestedAsSubFlow(
   // assign-a-global semantics.
   const knotName =
     enclosingSiblingFrame?.has(identifier.name ?? "")
-      ? `${identifier.name}__redef_${node.from}`
+      ? `${identifier.name}__redef_${syntheticId(node.from, ctx)}`
       : (identifier.name ?? "");
   const knotIdentifier =
     knotName === identifier.name ? identifier : new Identifier(knotName);
@@ -524,7 +525,7 @@ function lowerPropertyTargetFunctionDefinition(
   // the enclosing scope's buffer (or hoistedKnots at the chunk top).
   // For the colon form, prepend `self` as an implicit first parameter
   // so the body's `self` references resolve as a parameter read.
-  const synthName = `__anon_fn_${node.from}`;
+  const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   const userArgs = lowerArguments(node, ctx);
 
   // Upvalue capture — `function Class.new()` bodies routinely

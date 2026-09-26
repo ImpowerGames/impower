@@ -13,6 +13,7 @@ import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
+import { syntheticId } from "../utils/documentTag";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
 // the loop's source position in the enclosing weave. The tail-jump is
@@ -27,6 +28,9 @@ import { findChildByName } from "../utils/alternatorArms";
 //       BODY
 //       -> __while_<offset>_loop
 //     }
+//
+// `<offset>` is `syntheticId`: the document tag, `$`, then the loop's offset
+// in the document. The rename pass recognizes these names by that `$`.
 //
 // Why this works without a synthetic knot / stitch:
 //
@@ -83,10 +87,12 @@ export function lowerLuauWhileLoop(
   if (!condNode || !bodyContent) return {};
 
   // The gather's name must be unique across the enclosing flow's
-  // named weave points. Tagging with the source offset gives us that
-  // without needing a counter on the context.
-  const loopLabel = `__while_${nodeRef.node.from}_loop`;
-  const breakLabel = `__while_${nodeRef.node.from}_break`;
+  // named weave points. Tagging with the document and the source offset
+  // within it (`syntheticId`) gives us that without needing a counter on
+  // the context.
+  const id = syntheticId(nodeRef.node.from, ctx);
+  const loopLabel = `__while_${id}_loop`;
+  const breakLabel = `__while_${id}_break`;
 
   const condExpr = lowerExpressionFromContainer(condNode, ctx);
 

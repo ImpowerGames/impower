@@ -13,6 +13,7 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
+import { collectLuauLints, type LuauLint } from "../lint/collectLuauLints";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -480,6 +481,10 @@ export class SparkdownCompiler {
     }
     return this._documents;
   }
+
+  /** Lints of each script's current tree. A tree is replaced whenever its
+   *  script changes, so an unchanged included script is not walked again. */
+  protected _lintsByTree = new WeakMap<object, LuauLint[]>();
 
   protected _files = new SparkdownFileRegistry();
   get files() {
@@ -2418,6 +2423,7 @@ export class SparkdownCompiler {
       this.validateReferences(program);
       this.validateImageAttributes(program);
       this.validateMorphs(program);
+      this.validateLints(program);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -3551,22 +3557,27 @@ export class SparkdownCompiler {
   // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
   // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
   // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
-  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Those
-  // offset-based names are FROZEN into the per-chunk lowered IR that the
-  // incremental pipeline reuses-and-shifts WITHOUT re-lowering (only
-  // `debugMetadata` line numbers are rebased). So a carried-forward shifted
-  // chunk keeps a stale offset (`__define_fn_143`) while a cold compile of the
-  // same text re-derives the current one (`__define_fn_144`) — and since these
-  // names become runtime container names (keys/paths in `program.compiled`),
-  // the bytecode diverges between an incremental and a cold compile.
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Each
+  // `<from>` is `syntheticId`: the document's tag, `$`, then the offset within
+  // it, so two files never mint one raw name. The incremental pipeline carries
+  // an unchanged chunk's lowered IR into the next compile WITHOUT re-lowering
+  // it (only `debugMetadata` line numbers are rebased), so an offset baked into
+  // a carried name would stay what it was before an edit shifted the chunk
+  // while a cold compile of the same text derives the current offset, and
+  // since these names become runtime container names (keys/paths in
+  // `program.compiled`) the bytecode would diverge.
   //
   // This pass runs over the FULLY-ASSEMBLED tree on EVERY compile (both cold
   // and incremental, before ExportRuntime) and renumbers each distinct synthetic
-  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance. Numbering by
-  // ORDER (not by the offset value) is what makes the result identical between a
-  // cold parse and an incremental parse of the same text: a carried node sits at
-  // the same tree position either way, so it gets the same ordinal regardless of
-  // any stale offset baked into its name. A given synthetic name's definition
+  // name to `__synth_<n>` by DOCUMENT-ORDER of first appearance, rewriting the
+  // IR in place. A carried chunk therefore holds the `__synth_<n>` names an
+  // earlier compile gave it, beside the raw names of freshly lowered chunks;
+  // a raw name always has a `$` and a canonical one never does, so the two
+  // never share a string. Numbering by ORDER (not by the offset value) is what
+  // makes the result identical between a cold parse and an incremental parse
+  // of the same text: a carried node sits at the same tree position either
+  // way, so it gets the same ordinal regardless of the ordinal it carries from
+  // the earlier compile. A given synthetic name's definition
   // and all of its references share the exact same string and are emitted within
   // the same chunk, so a uniform string→string remap suffices (no need to link
   // references back to definitions).
@@ -3586,8 +3597,11 @@ export class SparkdownCompiler {
     // renumbered too: when an edit adds/removes a synthetic earlier in the
     // document, a carried `__synth_k`'s ordinal is stale and only re-running it
     // through the document-order numbering matches what a cold compile derives.
+    // A raw name carries `syntheticId`: the document tag, `$`, then the
+    // offset. An author's identifier cannot contain `$`, so requiring it keeps
+    // the pass off authored names such as `f__redef_x__1`.
     const SYNTH =
-      /^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__synth_)\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\d+_[A-Za-z]+$|__redef_\d+$/;
+      /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|__redef_\w*\$\d+$/;
     const remap = new Map<string, string>();
     // True once any collected name maps to a DIFFERENT canonical name. In the
     // steady state (carried names already canonical and ordinals unchanged —
@@ -3655,9 +3669,10 @@ export class SparkdownCompiler {
     };
     // A few nodes hold a synthetic name as a PLAIN STRING (not an Identifier) and
     // emit runtime variable refs straight from it — `StashAndRereadExpression.tempName`
-    // (the `__mcall_<from>` receiver stash) and `VariablePointerExpression.variableName`.
-    // Their Identifier-shaped counterparts get renamed above, so the string side
-    // must be kept in lockstep or the temp's declaration and its read diverge.
+    // (the `__mcall_<from>` receiver stash), `StashedTempReadExpression.tempName`
+    // (the method lookup's read of that stash) and `VariablePointerExpression.variableName`.
+    // They share one remap with the Identifier-shaped names renamed above, so a
+    // temp's stash, its reads and any Identifier naming it stay in lockstep.
     // Only SYNTH-matching values are touched, so user strings/display text are safe.
     // Only a node's own data property is a plain-string name: `VariableAssignment`
     // exposes `variableName` as a read-only getter over its identifier, which the
@@ -6281,6 +6296,33 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "validateMorphs", uri);
+  }
+
+  /** Luau lints (unused locals, unreachable code, repeated conditions,
+   *  suspicious numeric `for` ranges); see `collectLuauLints`. */
+  validateLints(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateLints", uri);
+    for (const scriptUri of Object.keys(program.scripts)) {
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      let lints = this._lintsByTree.get(tree);
+      if (!lints) {
+        lints = collectLuauLints(tree, (from, to) => doc.read(from, to));
+        this._lintsByTree.set(tree, lints);
+      }
+      for (const lint of lints) {
+        ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+          range: doc.range(lint.from, lint.to),
+          code: lint.code,
+          severity: DiagnosticSeverity.Warning,
+          message: { kind: "markdown", value: lint.message },
+          source: LANGUAGE_NAME,
+        });
+      }
+    }
+    profile("end", this._profilerId, "validateLints", uri);
   }
 
   validateReferences(program: SparkProgram) {

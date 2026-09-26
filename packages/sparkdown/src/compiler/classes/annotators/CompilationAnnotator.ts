@@ -221,8 +221,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // anonymous-function literals during this chunk's lowering. Each
       // chunk's `enter` reruns from scratch (rebuilt on edit), so a
       // chunk-local list naturally tracks the chunk's current state.
-      // Names use the source position rather than a counter, so they
-      // stay unique across chunks and stable across edits.
+      // Names come from the document and the source position within it
+      // (`syntheticId`) rather than a counter, so they stay unique across
+      // chunks and files.
       const hoistedKnots: ParsedObject[] = [];
       // Stack of nested-callable buffers. Starts empty (top-level
       // scope). Function-definition lowerers push/pop their own buffer

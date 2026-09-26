@@ -8,7 +8,6 @@ import { AbsContextService } from "./IContextService";
 const IN_TEXT_SYMBOLS: SparkdownNodeName[] = [
   "Space",
   "Word",
-  "EmDash",
   "Punctuation",
 ];
 
