@@ -13,7 +13,7 @@ import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
 import { getCodeLenses } from "./utils/providers/getCodeLenses";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
-import { type AnnotatedScript } from "./utils/annotations/getDeclarationScopes";
+import { getAnnotatedScripts } from "./utils/annotations/getAnnotatedScripts";
 import { getCompletions } from "./utils/providers/getCompletions";
 import {
   resolveCompletion,
@@ -254,17 +254,7 @@ try {
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
     const config = workspace.compilerConfig;
-    const scriptUris = program?.scripts ? Object.keys(program.scripts) : [uri];
-    const scripts = new Map<string, AnnotatedScript>();
-    for (const scriptUri of scriptUris) {
-      const scriptDocument = workspace.document(scriptUri);
-      if (scriptDocument) {
-        scripts.set(scriptUri, {
-          annotations: workspace.annotations(scriptUri),
-          read: (from, to) => scriptDocument.read(from, to),
-        });
-      }
-    }
+    const scripts = getAnnotatedScripts(uri, program?.scripts, workspace);
     const result = profiled("lsp: onCompletion", uri, () =>
       getCompletions(
         document,

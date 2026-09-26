@@ -210,7 +210,6 @@ const traverse = <T>(
 
 const rankMostRecentTexts = (
   type: keyof SparkdownAnnotations,
-  read: (from: number, to: number) => string,
   scripts: Map<string, AnnotatedScript>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
@@ -235,8 +234,9 @@ const rankMostRecentTexts = (
   const afterScriptEntries = scriptEntries.slice(
     currentScriptIndex + 1,
   );
+  const currentRead = scriptEntries[currentScriptIndex]![1].read;
   const currentText = contentNode
-    ? read(contentNode.from, contentNode.to)?.trim()
+    ? currentRead(contentNode.from, contentNode.to)?.trim()
     : "";
   for (const [, { annotations, read }] of beforeScriptEntries) {
     const cur = annotations[type]?.iter();
@@ -253,7 +253,7 @@ const rankMostRecentTexts = (
       }
     }
   }
-  for (const [, { annotations }] of currentScriptEntries) {
+  for (const [, { annotations, read }] of currentScriptEntries) {
     const cur = annotations[type]?.iter();
     if (cur) {
       while (cur.value) {
@@ -316,7 +316,6 @@ const rankMostRecentTexts = (
 
 const addCharacterCompletions = (
   completions: Map<string, CompletionItem>,
-  read: (from: number, to: number) => string,
   scripts: Map<string, AnnotatedScript>,
   uri: string,
   contentNode: GrammarSyntaxNode<SparkdownNodeName> | undefined,
@@ -327,7 +326,6 @@ const addCharacterCompletions = (
 ) => {
   const mostRecentTexts = rankMostRecentTexts(
     "characters",
-    read,
     scripts,
     uri,
     contentNode,
@@ -1509,7 +1507,6 @@ export const getCompletions = (
     if (isCursorAfterNodeText(dialogueCharacterNode)) {
       addCharacterCompletions(
         completions,
-        read,
         scripts,
         document.uri,
         dialogueCharacterNode,
@@ -2248,7 +2245,6 @@ export const getCompletions = (
         } else {
           addCharacterCompletions(
             completions,
-            read,
             scripts,
             document.uri,
             contentNode,
