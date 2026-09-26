@@ -1,0 +1,16 @@
+function f()
+  return
+    1 + 2
+end
+
+function g(x)
+  if x then
+    return
+  else
+    return -- nothing
+  end
+end
+
+scene a
+  return
+  Hello there.
