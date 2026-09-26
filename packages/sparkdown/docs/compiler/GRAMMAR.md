@@ -351,7 +351,7 @@ The wrong approach works — but it puts the language's semantics in a place no 
 
 **Two corollaries.**
 
-1. **A construct with distinct meaning gets a distinct node name.** Choices come in flavors (`ChoiceWithSuppressedText`, `ChoiceWithNoSuppressedText`), not one node with a `hasBrackets` flag. `Divert` and `ArmDivert` are separate rules because their end boundaries differ.
+1. **A construct with distinct meaning gets a distinct node name.** Choices come in flavors (`ChoiceWithSuppressedText`, `ChoiceWithNoSuppressedText`), not one node with a `hasBrackets` flag. `Divert` and `ArmDivert` are separate rules because their end boundaries differ, and so are `Tunnel` and `ArmTunnel`.
 2. **Begin and end captures should give every meaningful sub-token its own child.** Don't lump "the operator + the trailing space" into one capture if the formatter or lowerer wants to address them separately.
 
 ### 5.1 The clearest symptom of a violation: a regex (or string scan) in a lowerer

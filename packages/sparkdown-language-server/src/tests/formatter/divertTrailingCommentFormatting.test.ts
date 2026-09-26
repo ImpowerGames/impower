@@ -12,6 +12,8 @@ describe("formatting a `//` comment after a divert", () => {
     "-> later // note",
     "HERO: Go -> later // note",
     "+ [Go] -> later // note",
+    "-> a -> later // note",
+    "A -> a -> later // note",
   ]) {
     test(`leaves ${JSON.stringify(line)} as written`, () => {
       const source = `${line}\n`;
@@ -22,6 +24,9 @@ describe("formatting a `//` comment after a divert", () => {
   test("brings the space before the comment to one", () => {
     expect(formatSource("A -> later    // note\n")).toBe(
       "A -> later // note\n",
+    );
+    expect(formatSource("-> a -> later    // note\n")).toBe(
+      "-> a -> later // note\n",
     );
   });
 });

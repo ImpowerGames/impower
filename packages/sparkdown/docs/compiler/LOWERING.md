@@ -66,7 +66,7 @@ export function lower(
 Two important conventions:
 
 1. **A `case` returns `CompiledBlock | undefined`.** `undefined` means "I don't handle this node type, skip it." Returning `{}` means "I handle this but there's nothing to emit."
-2. **Multiple node names can share a handler.** `Divert` and `ArmDivert` route to the same `lowerDivert` because they're structurally identical — only their grammar end boundaries differ. The lowerer doesn't care about the boundary; it just needs the parts.
+2. **Multiple node names can share a handler.** `Divert` and `ArmDivert` route to the same `lowerDivert` because they're structurally identical — only their grammar end boundaries differ. The lowerer doesn't care about the boundary; it just needs the parts. Their tunnel chains, `Tunnel` and `ArmTunnel`, differ the same way, and `buildDivert` walks either.
 
 After the switch, `lower.ts` stamps `DebugMetadata` on the returned objects so diagnostics can route back to source positions.
 

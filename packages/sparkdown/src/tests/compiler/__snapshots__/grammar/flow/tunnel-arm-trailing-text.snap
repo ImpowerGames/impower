@@ -1,0 +1,1136 @@
+sparkdown [0..356]
+ ├─ Divert [0..17]
+ │   ├─ Divert_begin [0..2]
+ │   │   ├─ Divert_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   └─ Divert_begin_c2 [0..2]
+ │   │       └─ DivertMark [0..2]: "->"
+ │   ├─ Divert_content [2..17]
+ │   │   ├─ DivertTarget [2..4]
+ │   │   │   ├─ DivertTarget_begin [2..3]
+ │   │   │   │   └─ DivertTarget_begin_c1 [2..3]
+ │   │   │   │       └─ DivertTarget_begin_c1 [2..3]
+ │   │   │   │           └─ OptionalWhitespace [2..3]: " "
+ │   │   │   ├─ DivertTarget_content [3..4]
+ │   │   │   │   └─ DivertPath [3..4]
+ │   │   │   │       ├─ DivertPath_begin 3
+ │   │   │   │       ├─ DivertPath_content [3..4]
+ │   │   │   │       │   └─ DivertPart [3..4]
+ │   │   │   │       │       └─ DivertPartName [3..4]: "a"
+ │   │   │   │       └─ DivertPath_end 4
+ │   │   │   └─ DivertTarget_end 4
+ │   │   └─ Tunnel [4..17]
+ │   │       ├─ Tunnel_begin [4..7]
+ │   │       │   ├─ Tunnel_begin_c1 [4..5]
+ │   │       │   │   └─ Tunnel_begin_c1 [4..5]
+ │   │       │   │       └─ OptionalWhitespace [4..5]: " "
+ │   │       │   └─ Tunnel_begin_c2 [5..7]
+ │   │       │       └─ DivertMark [5..7]: "->"
+ │   │       ├─ Tunnel_content [7..17]
+ │   │       │   ├─ DivertTarget [7..9]
+ │   │       │   │   ├─ DivertTarget_begin [7..8]
+ │   │       │   │   │   └─ DivertTarget_begin_c1 [7..8]
+ │   │       │   │   │       └─ DivertTarget_begin_c1 [7..8]
+ │   │       │   │   │           └─ OptionalWhitespace [7..8]: " "
+ │   │       │   │   ├─ DivertTarget_content [8..9]
+ │   │       │   │   │   └─ DivertPath [8..9]
+ │   │       │   │   │       ├─ DivertPath_begin 8
+ │   │       │   │   │       ├─ DivertPath_content [8..9]
+ │   │       │   │   │       │   └─ DivertPart [8..9]
+ │   │       │   │   │       │       └─ DivertPartName [8..9]: "b"
+ │   │       │   │   │       └─ DivertPath_end 9
+ │   │       │   │   └─ DivertTarget_end 9
+ │   │       │   ├─ ExtraWhitespace [9..10]: " "
+ │   │       │   └─ Unknown [10..17]: "> After"
+ │   │       └─ Tunnel_end 17
+ │   └─ Divert_end 17
+ ├─ Newline [17..18]: "\n"
+ ├─ ImplicitAction [18..33]
+ │   ├─ ImplicitAction_begin 18
+ │   │   └─ ImplicitAction_begin_c1 18
+ │   │       └─ OptionalWhitespace 18
+ │   ├─ ImplicitAction_content [18..33]
+ │   │   └─ LineEnd [18..33]
+ │   │       ├─ LineEnd_begin 18
+ │   │       │   └─ LineEnd_begin_c1 18
+ │   │       │       └─ OptionalWhitespace 18
+ │   │       ├─ LineEnd_content [18..33]
+ │   │       │   └─ TextChunk [18..33]
+ │   │       │       ├─ TextChunk_begin 18
+ │   │       │       ├─ TextChunk_content [18..33]
+ │   │       │       │   ├─ Word [18..19]: "A"
+ │   │       │       │   └─ Divert [19..33]
+ │   │       │       │       ├─ Divert_begin [19..22]
+ │   │       │       │       │   ├─ Divert_begin_c1 [19..20]
+ │   │       │       │       │   │   └─ OptionalWhitespace [19..20]: " "
+ │   │       │       │       │   └─ Divert_begin_c2 [20..22]
+ │   │       │       │       │       └─ DivertMark [20..22]: "->"
+ │   │       │       │       ├─ Divert_content [22..33]
+ │   │       │       │       │   ├─ DivertTarget [22..24]
+ │   │       │       │       │   │   ├─ DivertTarget_begin [22..23]
+ │   │       │       │       │   │   │   └─ DivertTarget_begin_c1 [22..23]
+ │   │       │       │       │   │   │       └─ DivertTarget_begin_c1 [22..23]
+ │   │       │       │       │   │   │           └─ OptionalWhitespace [22..23]: " "
+ │   │       │       │       │   │   ├─ DivertTarget_content [23..24]
+ │   │       │       │       │   │   │   └─ DivertPath [23..24]
+ │   │       │       │       │   │   │       ├─ DivertPath_begin 23
+ │   │       │       │       │   │   │       ├─ DivertPath_content [23..24]
+ │   │       │       │       │   │   │       │   └─ DivertPart [23..24]
+ │   │       │       │       │   │   │       │       └─ DivertPartName [23..24]: "a"
+ │   │       │       │       │   │   │       └─ DivertPath_end 24
+ │   │       │       │       │   │   └─ DivertTarget_end 24
+ │   │       │       │       │   └─ Tunnel [24..33]
+ │   │       │       │       │       ├─ Tunnel_begin [24..27]
+ │   │       │       │       │       │   ├─ Tunnel_begin_c1 [24..25]
+ │   │       │       │       │       │   │   └─ Tunnel_begin_c1 [24..25]
+ │   │       │       │       │       │   │       └─ OptionalWhitespace [24..25]: " "
+ │   │       │       │       │       │   └─ Tunnel_begin_c2 [25..27]
+ │   │       │       │       │       │       └─ DivertMark [25..27]: "->"
+ │   │       │       │       │       ├─ Tunnel_content [27..33]
+ │   │       │       │       │       │   ├─ DivertTarget [27..29]
+ │   │       │       │       │       │   │   ├─ DivertTarget_begin [27..28]
+ │   │       │       │       │       │   │   │   └─ DivertTarget_begin_c1 [27..28]
+ │   │       │       │       │       │   │   │       └─ DivertTarget_begin_c1 [27..28]
+ │   │       │       │       │       │   │   │           └─ OptionalWhitespace [27..28]: " "
+ │   │       │       │       │       │   │   ├─ DivertTarget_content [28..29]
+ │   │       │       │       │       │   │   │   └─ DivertPath [28..29]
+ │   │       │       │       │       │   │   │       ├─ DivertPath_begin 28
+ │   │       │       │       │       │   │   │       ├─ DivertPath_content [28..29]
+ │   │       │       │       │       │   │   │       │   └─ DivertPart [28..29]
+ │   │       │       │       │       │   │   │       │       └─ DivertPartName [28..29]: "b"
+ │   │       │       │       │       │   │   │       └─ DivertPath_end 29
+ │   │       │       │       │       │   │   └─ DivertTarget_end 29
+ │   │       │       │       │       │   ├─ ExtraWhitespace [29..30]: " "
+ │   │       │       │       │       │   └─ Unknown [30..33]: "> c"
+ │   │       │       │       │       └─ Tunnel_end 33
+ │   │       │       │       └─ Divert_end 33
+ │   │       │       └─ TextChunk_end 33
+ │   │       └─ LineEnd_end 33
+ │   └─ ImplicitAction_end 33
+ ├─ Newline [33..34]: "\n"
+ ├─ Divert [34..49]
+ │   ├─ Divert_begin [34..36]
+ │   │   ├─ Divert_begin_c1 34
+ │   │   │   └─ OptionalWhitespace 34
+ │   │   └─ Divert_begin_c2 [34..36]
+ │   │       └─ DivertMark [34..36]: "->"
+ │   ├─ Divert_content [36..49]
+ │   │   ├─ DivertTarget [36..38]
+ │   │   │   ├─ DivertTarget_begin [36..37]
+ │   │   │   │   └─ DivertTarget_begin_c1 [36..37]
+ │   │   │   │       └─ DivertTarget_begin_c1 [36..37]
+ │   │   │   │           └─ OptionalWhitespace [36..37]: " "
+ │   │   │   ├─ DivertTarget_content [37..38]
+ │   │   │   │   └─ DivertPath [37..38]
+ │   │   │   │       ├─ DivertPath_begin 37
+ │   │   │   │       ├─ DivertPath_content [37..38]
+ │   │   │   │       │   └─ DivertPart [37..38]
+ │   │   │   │       │       └─ DivertPartName [37..38]: "a"
+ │   │   │   │       └─ DivertPath_end 38
+ │   │   │   └─ DivertTarget_end 38
+ │   │   └─ Tunnel [38..49]
+ │   │       ├─ Tunnel_begin [38..41]
+ │   │       │   ├─ Tunnel_begin_c1 [38..39]
+ │   │       │   │   └─ Tunnel_begin_c1 [38..39]
+ │   │       │   │       └─ OptionalWhitespace [38..39]: " "
+ │   │       │   └─ Tunnel_begin_c2 [39..41]
+ │   │       │       └─ DivertMark [39..41]: "->"
+ │   │       ├─ Tunnel_content [41..49]
+ │   │       │   ├─ ExtraWhitespace [41..42]: " "
+ │   │       │   └─ Unknown [42..49]: "> After"
+ │   │       └─ Tunnel_end 49
+ │   └─ Divert_end 49
+ ├─ Newline [49..50]: "\n"
+ ├─ Divert [50..67]
+ │   ├─ Divert_begin [50..52]
+ │   │   ├─ Divert_begin_c1 50
+ │   │   │   └─ OptionalWhitespace 50
+ │   │   └─ Divert_begin_c2 [50..52]
+ │   │       └─ DivertMark [50..52]: "->"
+ │   ├─ Divert_content [52..67]
+ │   │   ├─ DivertTarget [52..54]
+ │   │   │   ├─ DivertTarget_begin [52..53]
+ │   │   │   │   └─ DivertTarget_begin_c1 [52..53]
+ │   │   │   │       └─ DivertTarget_begin_c1 [52..53]
+ │   │   │   │           └─ OptionalWhitespace [52..53]: " "
+ │   │   │   ├─ DivertTarget_content [53..54]
+ │   │   │   │   └─ DivertPath [53..54]
+ │   │   │   │       ├─ DivertPath_begin 53
+ │   │   │   │       ├─ DivertPath_content [53..54]
+ │   │   │   │       │   └─ DivertPart [53..54]
+ │   │   │   │       │       └─ DivertPartName [53..54]: "a"
+ │   │   │   │       └─ DivertPath_end 54
+ │   │   │   └─ DivertTarget_end 54
+ │   │   └─ Tunnel [54..67]
+ │   │       ├─ Tunnel_begin [54..57]
+ │   │       │   ├─ Tunnel_begin_c1 [54..55]
+ │   │       │   │   └─ Tunnel_begin_c1 [54..55]
+ │   │       │   │       └─ OptionalWhitespace [54..55]: " "
+ │   │       │   └─ Tunnel_begin_c2 [55..57]
+ │   │       │       └─ DivertMark [55..57]: "->"
+ │   │       ├─ Tunnel_content [57..67]
+ │   │       │   ├─ DivertTarget [57..59]
+ │   │       │   │   ├─ DivertTarget_begin [57..58]
+ │   │       │   │   │   └─ DivertTarget_begin_c1 [57..58]
+ │   │       │   │   │       └─ DivertTarget_begin_c1 [57..58]
+ │   │       │   │   │           └─ OptionalWhitespace [57..58]: " "
+ │   │       │   │   ├─ DivertTarget_content [58..59]
+ │   │       │   │   │   └─ DivertPath [58..59]
+ │   │       │   │   │       ├─ DivertPath_begin 58
+ │   │       │   │   │       ├─ DivertPath_content [58..59]
+ │   │       │   │   │       │   └─ DivertPart [58..59]
+ │   │       │   │   │       │       └─ DivertPartName [58..59]: "b"
+ │   │       │   │   │       └─ DivertPath_end 59
+ │   │       │   │   └─ DivertTarget_end 59
+ │   │       │   └─ SparkdownInlineComment [59..67]
+ │   │       │       ├─ SparkdownInlineComment_c1 [59..60]
+ │   │       │       │   └─ OptionalWhitespace [59..60]: " "
+ │   │       │       ├─ SparkdownInlineComment_c2 [60..62]: "//"
+ │   │       │       └─ SparkdownInlineComment_c3 [62..67]: " note"
+ │   │       └─ Tunnel_end 67
+ │   └─ Divert_end 67
+ ├─ Newline [67..68]: "\n"
+ ├─ Divert [68..91]
+ │   ├─ Divert_begin [68..70]
+ │   │   ├─ Divert_begin_c1 68
+ │   │   │   └─ OptionalWhitespace 68
+ │   │   └─ Divert_begin_c2 [68..70]
+ │   │       └─ DivertMark [68..70]: "->"
+ │   ├─ Divert_content [70..91]
+ │   │   ├─ DivertTarget [70..72]
+ │   │   │   ├─ DivertTarget_begin [70..71]
+ │   │   │   │   └─ DivertTarget_begin_c1 [70..71]
+ │   │   │   │       └─ DivertTarget_begin_c1 [70..71]
+ │   │   │   │           └─ OptionalWhitespace [70..71]: " "
+ │   │   │   ├─ DivertTarget_content [71..72]
+ │   │   │   │   └─ DivertPath [71..72]
+ │   │   │   │       ├─ DivertPath_begin 71
+ │   │   │   │       ├─ DivertPath_content [71..72]
+ │   │   │   │       │   └─ DivertPart [71..72]
+ │   │   │   │       │       └─ DivertPartName [71..72]: "a"
+ │   │   │   │       └─ DivertPath_end 72
+ │   │   │   └─ DivertTarget_end 72
+ │   │   └─ Tunnel [72..91]
+ │   │       ├─ Tunnel_begin [72..75]
+ │   │       │   ├─ Tunnel_begin_c1 [72..73]
+ │   │       │   │   └─ Tunnel_begin_c1 [72..73]
+ │   │       │   │       └─ OptionalWhitespace [72..73]: " "
+ │   │       │   └─ Tunnel_begin_c2 [73..75]
+ │   │       │       └─ DivertMark [73..75]: "->"
+ │   │       ├─ Tunnel_content [75..91]
+ │   │       │   ├─ DivertTarget [75..83]
+ │   │       │   │   ├─ DivertTarget_begin [75..76]
+ │   │       │   │   │   └─ DivertTarget_begin_c1 [75..76]
+ │   │       │   │   │       └─ DivertTarget_begin_c1 [75..76]
+ │   │       │   │   │           └─ OptionalWhitespace [75..76]: " "
+ │   │       │   │   ├─ DivertTarget_content [76..83]
+ │   │       │   │   │   └─ LuauFunctionCall [76..83]
+ │   │       │   │   │       ├─ LuauFunctionCall_begin [76..77]
+ │   │       │   │   │       │   ├─ LuauFunctionCall_begin_c1 [76..77]
+ │   │       │   │   │       │   │   └─ LuauFunctionName [76..77]: "b"
+ │   │       │   │   │       │   └─ LuauFunctionCall_begin_c2 77
+ │   │       │   │   │       ├─ LuauFunctionCall_content [77..83]
+ │   │       │   │   │       │   └─ LuauFunctionCallParameters [77..83]
+ │   │       │   │   │       │       ├─ LuauFunctionCallParameters_begin [77..78]
+ │   │       │   │   │       │       │   └─ LuauFunctionCallParameters_begin_c1 [77..78]
+ │   │       │   │   │       │       │       └─ PunctuationParenOpen [77..78]: "("
+ │   │       │   │   │       │       ├─ LuauFunctionCallParameters_content [78..82]
+ │   │       │   │   │       │       │   ├─ LuauNumericDecimal [78..79]
+ │   │       │   │   │       │       │   │   ├─ LuauNumericDecimal_c1 [78..79]: "1"
+ │   │       │   │   │       │       │   │   └─ LuauNumericDecimal_c2 79
+ │   │       │   │   │       │       │   ├─ LuauCommaSeparator [79..81]
+ │   │       │   │   │       │       │   │   ├─ LuauCommaSeparator_c1 79
+ │   │       │   │   │       │       │   │   ├─ LuauCommaSeparator_c2 [79..80]: ","
+ │   │       │   │   │       │       │   │   └─ LuauCommaSeparator_c3 [80..81]
+ │   │       │   │   │       │       │   │       └─ LuauCommaSeparator_c3 [80..81]
+ │   │       │   │   │       │       │   │           └─ OptionalWhitespace [80..81]: " "
+ │   │       │   │   │       │       │   └─ LuauNumericDecimal [81..82]
+ │   │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [81..82]: "2"
+ │   │       │   │   │       │       │       └─ LuauNumericDecimal_c2 82
+ │   │       │   │   │       │       └─ LuauFunctionCallParameters_end [82..83]
+ │   │       │   │   │       │           └─ LuauFunctionCallParameters_end_c1 [82..83]
+ │   │       │   │   │       │               └─ PunctuationParenClose [82..83]: ")"
+ │   │       │   │   │       └─ LuauFunctionCall_end 83
+ │   │       │   │   └─ DivertTarget_end 83
+ │   │       │   ├─ ExtraWhitespace [83..84]: " "
+ │   │       │   └─ Unknown [84..91]: "> After"
+ │   │       └─ Tunnel_end 91
+ │   └─ Divert_end 91
+ ├─ Newline [91..92]: "\n"
+ ├─ Divert [92..106]
+ │   ├─ Divert_begin [92..94]
+ │   │   ├─ Divert_begin_c1 92
+ │   │   │   └─ OptionalWhitespace 92
+ │   │   └─ Divert_begin_c2 [92..94]
+ │   │       └─ DivertMark [92..94]: "->"
+ │   ├─ Divert_content [94..106]
+ │   │   ├─ DivertTarget [94..96]
+ │   │   │   ├─ DivertTarget_begin [94..95]
+ │   │   │   │   └─ DivertTarget_begin_c1 [94..95]
+ │   │   │   │       └─ DivertTarget_begin_c1 [94..95]
+ │   │   │   │           └─ OptionalWhitespace [94..95]: " "
+ │   │   │   ├─ DivertTarget_content [95..96]
+ │   │   │   │   └─ DivertPath [95..96]
+ │   │   │   │       ├─ DivertPath_begin 95
+ │   │   │   │       ├─ DivertPath_content [95..96]
+ │   │   │   │       │   └─ DivertPart [95..96]
+ │   │   │   │       │       └─ DivertPartName [95..96]: "a"
+ │   │   │   │       └─ DivertPath_end 96
+ │   │   │   └─ DivertTarget_end 96
+ │   │   └─ Tunnel [96..106]
+ │   │       ├─ Tunnel_begin [96..99]
+ │   │       │   ├─ Tunnel_begin_c1 [96..97]
+ │   │       │   │   └─ Tunnel_begin_c1 [96..97]
+ │   │       │   │       └─ OptionalWhitespace [96..97]: " "
+ │   │       │   └─ Tunnel_begin_c2 [97..99]
+ │   │       │       └─ DivertMark [97..99]: "->"
+ │   │       ├─ Tunnel_content [99..106]
+ │   │       │   ├─ DivertTarget [99..101]
+ │   │       │   │   ├─ DivertTarget_begin [99..100]
+ │   │       │   │   │   └─ DivertTarget_begin_c1 [99..100]
+ │   │       │   │   │       └─ DivertTarget_begin_c1 [99..100]
+ │   │       │   │   │           └─ OptionalWhitespace [99..100]: " "
+ │   │       │   │   ├─ DivertTarget_content [100..101]
+ │   │       │   │   │   └─ DivertPath [100..101]
+ │   │       │   │   │       ├─ DivertPath_begin 100
+ │   │       │   │   │       ├─ DivertPath_content [100..101]
+ │   │       │   │   │       │   └─ DivertPart [100..101]
+ │   │       │   │   │       │       └─ DivertPartName [100..101]: "b"
+ │   │       │   │   │       └─ DivertPath_end 101
+ │   │       │   │   └─ DivertTarget_end 101
+ │   │       │   └─ Tunnel [101..106]
+ │   │       │       ├─ Tunnel_begin [101..104]
+ │   │       │       │   ├─ Tunnel_begin_c1 [101..102]
+ │   │       │       │   │   └─ Tunnel_begin_c1 [101..102]
+ │   │       │       │   │       └─ OptionalWhitespace [101..102]: " "
+ │   │       │       │   └─ Tunnel_begin_c2 [102..104]
+ │   │       │       │       └─ DivertMark [102..104]: "->"
+ │   │       │       ├─ Tunnel_content [104..106]
+ │   │       │       │   └─ Tunnel [104..106]
+ │   │       │       │       ├─ Tunnel_begin [104..106]
+ │   │       │       │       │   ├─ Tunnel_begin_c1 104
+ │   │       │       │       │   │   └─ Tunnel_begin_c1 104
+ │   │       │       │       │   │       └─ OptionalWhitespace 104
+ │   │       │       │       │   └─ Tunnel_begin_c2 [104..106]
+ │   │       │       │       │       └─ DivertMark [104..106]: "->"
+ │   │       │       │       └─ Tunnel_end 106
+ │   │       │       └─ Tunnel_end 106
+ │   │       └─ Tunnel_end 106
+ │   └─ Divert_end 106
+ ├─ Newline [106..107]: "\n"
+ ├─ ImplicitAction [107..133]
+ │   ├─ ImplicitAction_begin 107
+ │   │   └─ ImplicitAction_begin_c1 107
+ │   │       └─ OptionalWhitespace 107
+ │   ├─ ImplicitAction_content [107..133]
+ │   │   └─ LineEnd [107..133]
+ │   │       ├─ LineEnd_begin 107
+ │   │       │   └─ LineEnd_begin_c1 107
+ │   │       │       └─ OptionalWhitespace 107
+ │   │       ├─ LineEnd_content [107..133]
+ │   │       │   ├─ TextChunk [107..108]
+ │   │       │   │   ├─ TextChunk_begin 107
+ │   │       │   │   ├─ TextChunk_content [107..108]
+ │   │       │   │   │   └─ Word [107..108]: "x"
+ │   │       │   │   └─ TextChunk_end 108
+ │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock [108..131]
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [108..117]
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 [108..109]
+ │   │       │   │   │   │   └─ Whitespace [108..109]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [109..111]
+ │   │       │   │   │   │   └─ AlternatorGlue [109..111]: ".."
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [111..112]
+ │   │       │   │   │   │   └─ ExtraWhitespace [111..112]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 112
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 112
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [112..117]
+ │   │       │   │   │   │   └─ LuauControlKeyword [112..117]: "queue"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 117
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 117
+ │   │       │   │   │           └─ OptionalWhitespace 117
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [117..128]
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [117..118]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 117
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [117..118]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 118
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 118
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 118
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 118
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 118
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 118
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 118
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm [118..126]
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 118
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [118..126]
+ │   │       │   │   │   │   │   └─ ArmDivert [118..126]
+ │   │       │   │   │   │   │       ├─ ArmDivert_begin [118..120]
+ │   │       │   │   │   │   │       │   ├─ ArmDivert_begin_c1 118
+ │   │       │   │   │   │   │       │   │   └─ OptionalWhitespace 118
+ │   │       │   │   │   │   │       │   └─ ArmDivert_begin_c2 [118..120]
+ │   │       │   │   │   │   │       │       └─ DivertMark [118..120]: "->"
+ │   │       │   │   │   │   │       ├─ ArmDivert_content [120..126]
+ │   │       │   │   │   │   │       │   ├─ DivertTarget [120..122]
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_begin [120..121]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [120..121]
+ │   │       │   │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [120..121]
+ │   │       │   │   │   │   │       │   │   │           └─ OptionalWhitespace [120..121]: " "
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_content [121..122]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertPath [121..122]
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_begin 121
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_content [121..122]
+ │   │       │   │   │   │   │       │   │   │       │   └─ DivertPart [121..122]
+ │   │       │   │   │   │   │       │   │   │       │       └─ DivertPartName [121..122]: "A"
+ │   │       │   │   │   │   │       │   │   │       └─ DivertPath_end 122
+ │   │       │   │   │   │   │       │   │   └─ DivertTarget_end 122
+ │   │       │   │   │   │   │       │   ├─ ExtraWhitespace [122..123]: " "
+ │   │       │   │   │   │   │       │   └─ ArmUnknown [123..126]: "> y"
+ │   │       │   │   │   │   │       └─ ArmDivert_end 126
+ │   │       │   │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 126
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [126..127]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 126
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [126..127]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 127
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 127
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 127
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 127
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 127
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 127
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 127
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm [127..128]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 127
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [127..128]
+ │   │       │   │   │       │   └─ Word [127..128]: "b"
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedAlternatorArm_end 128
+ │   │       │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [128..131]
+ │   │       │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [128..129]
+ │   │       │   │       │   └─ ExtraWhitespace [128..129]: " "
+ │   │       │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [129..131]
+ │   │       │   │           └─ AlternatorGlue [129..131]: ".."
+ │   │       │   └─ TextChunk [131..133]
+ │   │       │       ├─ TextChunk_begin 131
+ │   │       │       ├─ TextChunk_content [131..133]
+ │   │       │       │   ├─ Space [131..132]: " "
+ │   │       │       │   └─ Word [132..133]: "z"
+ │   │       │       └─ TextChunk_end 133
+ │   │       └─ LineEnd_end 133
+ │   └─ ImplicitAction_end 133
+ ├─ Newline [133..134]: "\n"
+ ├─ ImplicitAction [134..165]
+ │   ├─ ImplicitAction_begin 134
+ │   │   └─ ImplicitAction_begin_c1 134
+ │   │       └─ OptionalWhitespace 134
+ │   ├─ ImplicitAction_content [134..165]
+ │   │   └─ LineEnd [134..165]
+ │   │       ├─ LineEnd_begin 134
+ │   │       │   └─ LineEnd_begin_c1 134
+ │   │       │       └─ OptionalWhitespace 134
+ │   │       ├─ LineEnd_content [134..165]
+ │   │       │   ├─ TextChunk [134..135]
+ │   │       │   │   ├─ TextChunk_begin 134
+ │   │       │   │   ├─ TextChunk_content [134..135]
+ │   │       │   │   │   └─ Word [134..135]: "x"
+ │   │       │   │   └─ TextChunk_end 135
+ │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock [135..163]
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [135..144]
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 [135..136]
+ │   │       │   │   │   │   └─ Whitespace [135..136]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [136..138]
+ │   │       │   │   │   │   └─ AlternatorGlue [136..138]: ".."
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [138..139]
+ │   │       │   │   │   │   └─ ExtraWhitespace [138..139]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 139
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 139
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [139..144]
+ │   │       │   │   │   │   └─ LuauControlKeyword [139..144]: "queue"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 144
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 144
+ │   │       │   │   │           └─ OptionalWhitespace 144
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [144..160]
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [144..145]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 144
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [144..145]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 145
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 145
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 145
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 145
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 145
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 145
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 145
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm [145..158]
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 145
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [145..158]
+ │   │       │   │   │   │   │   └─ ArmDivert [145..158]
+ │   │       │   │   │   │   │       ├─ ArmDivert_begin [145..147]
+ │   │       │   │   │   │   │       │   ├─ ArmDivert_begin_c1 145
+ │   │       │   │   │   │   │       │   │   └─ OptionalWhitespace 145
+ │   │       │   │   │   │   │       │   └─ ArmDivert_begin_c2 [145..147]
+ │   │       │   │   │   │   │       │       └─ DivertMark [145..147]: "->"
+ │   │       │   │   │   │   │       ├─ ArmDivert_content [147..158]
+ │   │       │   │   │   │   │       │   ├─ DivertTarget [147..149]
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_begin [147..148]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [147..148]
+ │   │       │   │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [147..148]
+ │   │       │   │   │   │   │       │   │   │           └─ OptionalWhitespace [147..148]: " "
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_content [148..149]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertPath [148..149]
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_begin 148
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_content [148..149]
+ │   │       │   │   │   │   │       │   │   │       │   └─ DivertPart [148..149]
+ │   │       │   │   │   │   │       │   │   │       │       └─ DivertPartName [148..149]: "a"
+ │   │       │   │   │   │   │       │   │   │       └─ DivertPath_end 149
+ │   │       │   │   │   │   │       │   │   └─ DivertTarget_end 149
+ │   │       │   │   │   │   │       │   └─ ArmTunnel [149..158]
+ │   │       │   │   │   │   │       │       ├─ ArmTunnel_begin [149..152]
+ │   │       │   │   │   │   │       │       │   ├─ ArmTunnel_begin_c1 [149..150]
+ │   │       │   │   │   │   │       │       │   │   └─ ArmTunnel_begin_c1 [149..150]
+ │   │       │   │   │   │   │       │       │   │       └─ OptionalWhitespace [149..150]: " "
+ │   │       │   │   │   │   │       │       │   └─ ArmTunnel_begin_c2 [150..152]
+ │   │       │   │   │   │   │       │       │       └─ DivertMark [150..152]: "->"
+ │   │       │   │   │   │   │       │       ├─ ArmTunnel_content [152..158]
+ │   │       │   │   │   │   │       │       │   ├─ DivertTarget [152..154]
+ │   │       │   │   │   │   │       │       │   │   ├─ DivertTarget_begin [152..153]
+ │   │       │   │   │   │   │       │       │   │   │   └─ DivertTarget_begin_c1 [152..153]
+ │   │       │   │   │   │   │       │       │   │   │       └─ DivertTarget_begin_c1 [152..153]
+ │   │       │   │   │   │   │       │       │   │   │           └─ OptionalWhitespace [152..153]: " "
+ │   │       │   │   │   │   │       │       │   │   ├─ DivertTarget_content [153..154]
+ │   │       │   │   │   │   │       │       │   │   │   └─ DivertPath [153..154]
+ │   │       │   │   │   │   │       │       │   │   │       ├─ DivertPath_begin 153
+ │   │       │   │   │   │   │       │       │   │   │       ├─ DivertPath_content [153..154]
+ │   │       │   │   │   │   │       │       │   │   │       │   └─ DivertPart [153..154]
+ │   │       │   │   │   │   │       │       │   │   │       │       └─ DivertPartName [153..154]: "b"
+ │   │       │   │   │   │   │       │       │   │   │       └─ DivertPath_end 154
+ │   │       │   │   │   │   │       │       │   │   └─ DivertTarget_end 154
+ │   │       │   │   │   │   │       │       │   ├─ ExtraWhitespace [154..155]: " "
+ │   │       │   │   │   │   │       │       │   └─ ArmUnknown [155..158]: "> y"
+ │   │       │   │   │   │   │       │       └─ ArmTunnel_end 158
+ │   │       │   │   │   │   │       └─ ArmDivert_end 158
+ │   │       │   │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 158
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [158..159]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 158
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [158..159]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 159
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 159
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 159
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 159
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 159
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 159
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 159
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm [159..160]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 159
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [159..160]
+ │   │       │   │   │       │   └─ Word [159..160]: "c"
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedAlternatorArm_end 160
+ │   │       │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [160..163]
+ │   │       │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [160..161]
+ │   │       │   │       │   └─ ExtraWhitespace [160..161]: " "
+ │   │       │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [161..163]
+ │   │       │   │           └─ AlternatorGlue [161..163]: ".."
+ │   │       │   └─ TextChunk [163..165]
+ │   │       │       ├─ TextChunk_begin 163
+ │   │       │       ├─ TextChunk_content [163..165]
+ │   │       │       │   ├─ Space [163..164]: " "
+ │   │       │       │   └─ Word [164..165]: "z"
+ │   │       │       └─ TextChunk_end 165
+ │   │       └─ LineEnd_end 165
+ │   └─ ImplicitAction_end 165
+ ├─ Newline [165..166]: "\n"
+ ├─ ImplicitAction [166..193]
+ │   ├─ ImplicitAction_begin 166
+ │   │   └─ ImplicitAction_begin_c1 166
+ │   │       └─ OptionalWhitespace 166
+ │   ├─ ImplicitAction_content [166..193]
+ │   │   └─ LineEnd [166..193]
+ │   │       ├─ LineEnd_begin 166
+ │   │       │   └─ LineEnd_begin_c1 166
+ │   │       │       └─ OptionalWhitespace 166
+ │   │       ├─ LineEnd_content [166..193]
+ │   │       │   ├─ TextChunk [166..167]
+ │   │       │   │   ├─ TextChunk_begin 166
+ │   │       │   │   ├─ TextChunk_content [166..167]
+ │   │       │   │   │   └─ Word [166..167]: "x"
+ │   │       │   │   └─ TextChunk_end 167
+ │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock [167..191]
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [167..176]
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 [167..168]
+ │   │       │   │   │   │   └─ Whitespace [167..168]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [168..170]
+ │   │       │   │   │   │   └─ AlternatorGlue [168..170]: ".."
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [170..171]
+ │   │       │   │   │   │   └─ ExtraWhitespace [170..171]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 171
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 171
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [171..176]
+ │   │       │   │   │   │   └─ LuauControlKeyword [171..176]: "queue"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 176
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 176
+ │   │       │   │   │           └─ OptionalWhitespace 176
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [176..188]
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [176..177]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 176
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [176..177]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 177
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 177
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 177
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 177
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 177
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 177
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 177
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm [177..186]
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 177
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [177..186]
+ │   │       │   │   │   │   │   └─ ArmDivert [177..186]
+ │   │       │   │   │   │   │       ├─ ArmDivert_begin [177..179]
+ │   │       │   │   │   │   │       │   ├─ ArmDivert_begin_c1 177
+ │   │       │   │   │   │   │       │   │   └─ OptionalWhitespace 177
+ │   │       │   │   │   │   │       │   └─ ArmDivert_begin_c2 [177..179]
+ │   │       │   │   │   │   │       │       └─ DivertMark [177..179]: "->"
+ │   │       │   │   │   │   │       ├─ ArmDivert_content [179..186]
+ │   │       │   │   │   │   │       │   ├─ DivertTarget [179..181]
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_begin [179..180]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [179..180]
+ │   │       │   │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [179..180]
+ │   │       │   │   │   │   │       │   │   │           └─ OptionalWhitespace [179..180]: " "
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_content [180..181]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertPath [180..181]
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_begin 180
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_content [180..181]
+ │   │       │   │   │   │   │       │   │   │       │   └─ DivertPart [180..181]
+ │   │       │   │   │   │   │       │   │   │       │       └─ DivertPartName [180..181]: "a"
+ │   │       │   │   │   │   │       │   │   │       └─ DivertPath_end 181
+ │   │       │   │   │   │   │       │   │   └─ DivertTarget_end 181
+ │   │       │   │   │   │   │       │   └─ ArmTunnel [181..186]
+ │   │       │   │   │   │   │       │       ├─ ArmTunnel_begin [181..184]
+ │   │       │   │   │   │   │       │       │   ├─ ArmTunnel_begin_c1 [181..182]
+ │   │       │   │   │   │   │       │       │   │   └─ ArmTunnel_begin_c1 [181..182]
+ │   │       │   │   │   │   │       │       │   │       └─ OptionalWhitespace [181..182]: " "
+ │   │       │   │   │   │   │       │       │   └─ ArmTunnel_begin_c2 [182..184]
+ │   │       │   │   │   │   │       │       │       └─ DivertMark [182..184]: "->"
+ │   │       │   │   │   │   │       │       ├─ ArmTunnel_content [184..186]
+ │   │       │   │   │   │   │       │       │   └─ DivertTarget [184..186]
+ │   │       │   │   │   │   │       │       │       ├─ DivertTarget_begin [184..185]
+ │   │       │   │   │   │   │       │       │       │   └─ DivertTarget_begin_c1 [184..185]
+ │   │       │   │   │   │   │       │       │       │       └─ DivertTarget_begin_c1 [184..185]
+ │   │       │   │   │   │   │       │       │       │           └─ OptionalWhitespace [184..185]: " "
+ │   │       │   │   │   │   │       │       │       ├─ DivertTarget_content [185..186]
+ │   │       │   │   │   │   │       │       │       │   └─ DivertPath [185..186]
+ │   │       │   │   │   │   │       │       │       │       ├─ DivertPath_begin 185
+ │   │       │   │   │   │   │       │       │       │       ├─ DivertPath_content [185..186]
+ │   │       │   │   │   │   │       │       │       │       │   └─ DivertPart [185..186]
+ │   │       │   │   │   │   │       │       │       │       │       └─ DivertPartName [185..186]: "b"
+ │   │       │   │   │   │   │       │       │       │       └─ DivertPath_end 186
+ │   │       │   │   │   │   │       │       │       └─ DivertTarget_end 186
+ │   │       │   │   │   │   │       │       └─ ArmTunnel_end 186
+ │   │       │   │   │   │   │       └─ ArmDivert_end 186
+ │   │       │   │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 186
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [186..187]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 186
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [186..187]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 187
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 187
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 187
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 187
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 187
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 187
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 187
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm [187..188]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 187
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [187..188]
+ │   │       │   │   │       │   └─ Word [187..188]: "c"
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedAlternatorArm_end 188
+ │   │       │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [188..191]
+ │   │       │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [188..189]
+ │   │       │   │       │   └─ ExtraWhitespace [188..189]: " "
+ │   │       │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [189..191]
+ │   │       │   │           └─ AlternatorGlue [189..191]: ".."
+ │   │       │   └─ TextChunk [191..193]
+ │   │       │       ├─ TextChunk_begin 191
+ │   │       │       ├─ TextChunk_content [191..193]
+ │   │       │       │   ├─ Space [191..192]: " "
+ │   │       │       │   └─ Word [192..193]: "z"
+ │   │       │       └─ TextChunk_end 193
+ │   │       └─ LineEnd_end 193
+ │   └─ ImplicitAction_end 193
+ ├─ Newline [193..194]: "\n"
+ ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [194..218]
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [194..200]
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c1 194
+ │   │   │   └─ OptionalWhitespace 194
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c2 194
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c3 194
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c4 [194..199]
+ │   │   │   └─ LuauControlKeyword [194..199]: "queue"
+ │   │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [199..200]
+ │   │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [199..200]
+ │   │           └─ OptionalWhitespace [199..200]: " "
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_content [200..214]
+ │   │   ├─ LuauAlternatorSeparator [200..202]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 200
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [200..201]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [201..202]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [201..202]
+ │   │   │   │       └─ OptionalWhitespace [201..202]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 202
+ │   │   │   ├─ LuauAlternatorSeparator_c5 202
+ │   │   │   ├─ LuauAlternatorSeparator_c6 202
+ │   │   │   └─ LuauAlternatorSeparator_c7 202
+ │   │   ├─ LuauSparkdownAlternatorArm [202..211]
+ │   │   │   ├─ LuauSparkdownAlternatorArm_begin 202
+ │   │   │   ├─ LuauSparkdownAlternatorArm_content [202..211]
+ │   │   │   │   └─ ArmDivert [202..211]
+ │   │   │   │       ├─ ArmDivert_begin [202..204]
+ │   │   │   │       │   ├─ ArmDivert_begin_c1 202
+ │   │   │   │       │   │   └─ OptionalWhitespace 202
+ │   │   │   │       │   └─ ArmDivert_begin_c2 [202..204]
+ │   │   │   │       │       └─ DivertMark [202..204]: "->"
+ │   │   │   │       ├─ ArmDivert_content [204..211]
+ │   │   │   │       │   ├─ DivertTarget [204..206]
+ │   │   │   │       │   │   ├─ DivertTarget_begin [204..205]
+ │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [204..205]
+ │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [204..205]
+ │   │   │   │       │   │   │           └─ OptionalWhitespace [204..205]: " "
+ │   │   │   │       │   │   ├─ DivertTarget_content [205..206]
+ │   │   │   │       │   │   │   └─ DivertPath [205..206]
+ │   │   │   │       │   │   │       ├─ DivertPath_begin 205
+ │   │   │   │       │   │   │       ├─ DivertPath_content [205..206]
+ │   │   │   │       │   │   │       │   └─ DivertPart [205..206]
+ │   │   │   │       │   │   │       │       └─ DivertPartName [205..206]: "A"
+ │   │   │   │       │   │   │       └─ DivertPath_end 206
+ │   │   │   │       │   │   └─ DivertTarget_end 206
+ │   │   │   │       │   ├─ ExtraWhitespace [206..207]: " "
+ │   │   │   │       │   ├─ ArmUnknown [207..210]: "> y"
+ │   │   │   │       │   └─ ExtraWhitespace [210..211]: " "
+ │   │   │   │       └─ ArmDivert_end 211
+ │   │   │   └─ LuauSparkdownAlternatorArm_end 211
+ │   │   ├─ LuauAlternatorSeparator [211..213]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 211
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [211..212]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [212..213]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [212..213]
+ │   │   │   │       └─ OptionalWhitespace [212..213]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 213
+ │   │   │   ├─ LuauAlternatorSeparator_c5 213
+ │   │   │   ├─ LuauAlternatorSeparator_c6 213
+ │   │   │   └─ LuauAlternatorSeparator_c7 213
+ │   │   └─ LuauSparkdownAlternatorArm [213..214]
+ │   │       ├─ LuauSparkdownAlternatorArm_begin 213
+ │   │       ├─ LuauSparkdownAlternatorArm_content [213..214]
+ │   │       │   └─ Word [213..214]: "b"
+ │   │       └─ LuauSparkdownAlternatorArm_end 214
+ │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end [214..218]
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [214..215]
+ │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [214..215]
+ │       │       └─ OptionalWhitespace [214..215]: " "
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [215..218]
+ │           └─ LuauEndKeyword [215..218]: "end"
+ ├─ Newline [218..219]: "\n"
+ ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [219..248]
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [219..225]
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c1 219
+ │   │   │   └─ OptionalWhitespace 219
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c2 219
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c3 219
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c4 [219..224]
+ │   │   │   └─ LuauControlKeyword [219..224]: "queue"
+ │   │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [224..225]
+ │   │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [224..225]
+ │   │           └─ OptionalWhitespace [224..225]: " "
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_content [225..244]
+ │   │   ├─ LuauAlternatorSeparator [225..227]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 225
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [225..226]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [226..227]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [226..227]
+ │   │   │   │       └─ OptionalWhitespace [226..227]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 227
+ │   │   │   ├─ LuauAlternatorSeparator_c5 227
+ │   │   │   ├─ LuauAlternatorSeparator_c6 227
+ │   │   │   └─ LuauAlternatorSeparator_c7 227
+ │   │   ├─ LuauSparkdownAlternatorArm [227..241]
+ │   │   │   ├─ LuauSparkdownAlternatorArm_begin 227
+ │   │   │   ├─ LuauSparkdownAlternatorArm_content [227..241]
+ │   │   │   │   └─ ArmDivert [227..241]
+ │   │   │   │       ├─ ArmDivert_begin [227..229]
+ │   │   │   │       │   ├─ ArmDivert_begin_c1 227
+ │   │   │   │       │   │   └─ OptionalWhitespace 227
+ │   │   │   │       │   └─ ArmDivert_begin_c2 [227..229]
+ │   │   │   │       │       └─ DivertMark [227..229]: "->"
+ │   │   │   │       ├─ ArmDivert_content [229..241]
+ │   │   │   │       │   ├─ DivertTarget [229..231]
+ │   │   │   │       │   │   ├─ DivertTarget_begin [229..230]
+ │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [229..230]
+ │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [229..230]
+ │   │   │   │       │   │   │           └─ OptionalWhitespace [229..230]: " "
+ │   │   │   │       │   │   ├─ DivertTarget_content [230..231]
+ │   │   │   │       │   │   │   └─ DivertPath [230..231]
+ │   │   │   │       │   │   │       ├─ DivertPath_begin 230
+ │   │   │   │       │   │   │       ├─ DivertPath_content [230..231]
+ │   │   │   │       │   │   │       │   └─ DivertPart [230..231]
+ │   │   │   │       │   │   │       │       └─ DivertPartName [230..231]: "a"
+ │   │   │   │       │   │   │       └─ DivertPath_end 231
+ │   │   │   │       │   │   └─ DivertTarget_end 231
+ │   │   │   │       │   └─ ArmTunnel [231..241]
+ │   │   │   │       │       ├─ ArmTunnel_begin [231..234]
+ │   │   │   │       │       │   ├─ ArmTunnel_begin_c1 [231..232]
+ │   │   │   │       │       │   │   └─ ArmTunnel_begin_c1 [231..232]
+ │   │   │   │       │       │   │       └─ OptionalWhitespace [231..232]: " "
+ │   │   │   │       │       │   └─ ArmTunnel_begin_c2 [232..234]
+ │   │   │   │       │       │       └─ DivertMark [232..234]: "->"
+ │   │   │   │       │       ├─ ArmTunnel_content [234..241]
+ │   │   │   │       │       │   ├─ DivertTarget [234..236]
+ │   │   │   │       │       │   │   ├─ DivertTarget_begin [234..235]
+ │   │   │   │       │       │   │   │   └─ DivertTarget_begin_c1 [234..235]
+ │   │   │   │       │       │   │   │       └─ DivertTarget_begin_c1 [234..235]
+ │   │   │   │       │       │   │   │           └─ OptionalWhitespace [234..235]: " "
+ │   │   │   │       │       │   │   ├─ DivertTarget_content [235..236]
+ │   │   │   │       │       │   │   │   └─ DivertPath [235..236]
+ │   │   │   │       │       │   │   │       ├─ DivertPath_begin 235
+ │   │   │   │       │       │   │   │       ├─ DivertPath_content [235..236]
+ │   │   │   │       │       │   │   │       │   └─ DivertPart [235..236]
+ │   │   │   │       │       │   │   │       │       └─ DivertPartName [235..236]: "b"
+ │   │   │   │       │       │   │   │       └─ DivertPath_end 236
+ │   │   │   │       │       │   │   └─ DivertTarget_end 236
+ │   │   │   │       │       │   ├─ ExtraWhitespace [236..237]: " "
+ │   │   │   │       │       │   ├─ ArmUnknown [237..240]: "> y"
+ │   │   │   │       │       │   └─ ExtraWhitespace [240..241]: " "
+ │   │   │   │       │       └─ ArmTunnel_end 241
+ │   │   │   │       └─ ArmDivert_end 241
+ │   │   │   └─ LuauSparkdownAlternatorArm_end 241
+ │   │   ├─ LuauAlternatorSeparator [241..243]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 241
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [241..242]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [242..243]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [242..243]
+ │   │   │   │       └─ OptionalWhitespace [242..243]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 243
+ │   │   │   ├─ LuauAlternatorSeparator_c5 243
+ │   │   │   ├─ LuauAlternatorSeparator_c6 243
+ │   │   │   └─ LuauAlternatorSeparator_c7 243
+ │   │   └─ LuauSparkdownAlternatorArm [243..244]
+ │   │       ├─ LuauSparkdownAlternatorArm_begin 243
+ │   │       ├─ LuauSparkdownAlternatorArm_content [243..244]
+ │   │       │   └─ Word [243..244]: "c"
+ │   │       └─ LuauSparkdownAlternatorArm_end 244
+ │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end [244..248]
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [244..245]
+ │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [244..245]
+ │       │       └─ OptionalWhitespace [244..245]: " "
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [245..248]
+ │           └─ LuauEndKeyword [245..248]: "end"
+ ├─ Newline [248..249]: "\n"
+ ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [249..274]
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [249..255]
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c1 249
+ │   │   │   └─ OptionalWhitespace 249
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c2 249
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c3 249
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c4 [249..254]
+ │   │   │   └─ LuauControlKeyword [249..254]: "queue"
+ │   │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [254..255]
+ │   │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [254..255]
+ │   │           └─ OptionalWhitespace [254..255]: " "
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_content [255..270]
+ │   │   ├─ LuauAlternatorSeparator [255..257]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 255
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [255..256]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [256..257]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [256..257]
+ │   │   │   │       └─ OptionalWhitespace [256..257]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 257
+ │   │   │   ├─ LuauAlternatorSeparator_c5 257
+ │   │   │   ├─ LuauAlternatorSeparator_c6 257
+ │   │   │   └─ LuauAlternatorSeparator_c7 257
+ │   │   ├─ LuauSparkdownAlternatorArm [257..267]
+ │   │   │   ├─ LuauSparkdownAlternatorArm_begin 257
+ │   │   │   ├─ LuauSparkdownAlternatorArm_content [257..267]
+ │   │   │   │   └─ ArmDivert [257..267]
+ │   │   │   │       ├─ ArmDivert_begin [257..259]
+ │   │   │   │       │   ├─ ArmDivert_begin_c1 257
+ │   │   │   │       │   │   └─ OptionalWhitespace 257
+ │   │   │   │       │   └─ ArmDivert_begin_c2 [257..259]
+ │   │   │   │       │       └─ DivertMark [257..259]: "->"
+ │   │   │   │       ├─ ArmDivert_content [259..267]
+ │   │   │   │       │   ├─ DivertTarget [259..261]
+ │   │   │   │       │   │   ├─ DivertTarget_begin [259..260]
+ │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [259..260]
+ │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [259..260]
+ │   │   │   │       │   │   │           └─ OptionalWhitespace [259..260]: " "
+ │   │   │   │       │   │   ├─ DivertTarget_content [260..261]
+ │   │   │   │       │   │   │   └─ DivertPath [260..261]
+ │   │   │   │       │   │   │       ├─ DivertPath_begin 260
+ │   │   │   │       │   │   │       ├─ DivertPath_content [260..261]
+ │   │   │   │       │   │   │       │   └─ DivertPart [260..261]
+ │   │   │   │       │   │   │       │       └─ DivertPartName [260..261]: "a"
+ │   │   │   │       │   │   │       └─ DivertPath_end 261
+ │   │   │   │       │   │   └─ DivertTarget_end 261
+ │   │   │   │       │   └─ ArmTunnel [261..267]
+ │   │   │   │       │       ├─ ArmTunnel_begin [261..264]
+ │   │   │   │       │       │   ├─ ArmTunnel_begin_c1 [261..262]
+ │   │   │   │       │       │   │   └─ ArmTunnel_begin_c1 [261..262]
+ │   │   │   │       │       │   │       └─ OptionalWhitespace [261..262]: " "
+ │   │   │   │       │       │   └─ ArmTunnel_begin_c2 [262..264]
+ │   │   │   │       │       │       └─ DivertMark [262..264]: "->"
+ │   │   │   │       │       ├─ ArmTunnel_content [264..267]
+ │   │   │   │       │       │   ├─ DivertTarget [264..266]
+ │   │   │   │       │       │   │   ├─ DivertTarget_begin [264..265]
+ │   │   │   │       │       │   │   │   └─ DivertTarget_begin_c1 [264..265]
+ │   │   │   │       │       │   │   │       └─ DivertTarget_begin_c1 [264..265]
+ │   │   │   │       │       │   │   │           └─ OptionalWhitespace [264..265]: " "
+ │   │   │   │       │       │   │   ├─ DivertTarget_content [265..266]
+ │   │   │   │       │       │   │   │   └─ DivertPath [265..266]
+ │   │   │   │       │       │   │   │       ├─ DivertPath_begin 265
+ │   │   │   │       │       │   │   │       ├─ DivertPath_content [265..266]
+ │   │   │   │       │       │   │   │       │   └─ DivertPart [265..266]
+ │   │   │   │       │       │   │   │       │       └─ DivertPartName [265..266]: "b"
+ │   │   │   │       │       │   │   │       └─ DivertPath_end 266
+ │   │   │   │       │       │   │   └─ DivertTarget_end 266
+ │   │   │   │       │       │   └─ ExtraWhitespace [266..267]: " "
+ │   │   │   │       │       └─ ArmTunnel_end 267
+ │   │   │   │       └─ ArmDivert_end 267
+ │   │   │   └─ LuauSparkdownAlternatorArm_end 267
+ │   │   ├─ LuauAlternatorSeparator [267..269]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 267
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [267..268]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [268..269]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [268..269]
+ │   │   │   │       └─ OptionalWhitespace [268..269]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 269
+ │   │   │   ├─ LuauAlternatorSeparator_c5 269
+ │   │   │   ├─ LuauAlternatorSeparator_c6 269
+ │   │   │   └─ LuauAlternatorSeparator_c7 269
+ │   │   └─ LuauSparkdownAlternatorArm [269..270]
+ │   │       ├─ LuauSparkdownAlternatorArm_begin 269
+ │   │       ├─ LuauSparkdownAlternatorArm_content [269..270]
+ │   │       │   └─ Word [269..270]: "c"
+ │   │       └─ LuauSparkdownAlternatorArm_end 270
+ │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end [270..274]
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [270..271]
+ │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [270..271]
+ │       │       └─ OptionalWhitespace [270..271]: " "
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [271..274]
+ │           └─ LuauEndKeyword [271..274]: "end"
+ ├─ Newline [274..275]: "\n"
+ ├─ ImplicitAction [275..303]
+ │   ├─ ImplicitAction_begin 275
+ │   │   └─ ImplicitAction_begin_c1 275
+ │   │       └─ OptionalWhitespace 275
+ │   ├─ ImplicitAction_content [275..303]
+ │   │   └─ LineEnd [275..303]
+ │   │       ├─ LineEnd_begin 275
+ │   │       │   └─ LineEnd_begin_c1 275
+ │   │       │       └─ OptionalWhitespace 275
+ │   │       ├─ LineEnd_content [275..303]
+ │   │       │   ├─ TextChunk [275..276]
+ │   │       │   │   ├─ TextChunk_begin 275
+ │   │       │   │   ├─ TextChunk_content [275..276]
+ │   │       │   │   │   └─ Word [275..276]: "x"
+ │   │       │   │   └─ TextChunk_end 276
+ │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock [276..301]
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [276..285]
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 [276..277]
+ │   │       │   │   │   │   └─ Whitespace [276..277]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [277..279]
+ │   │       │   │   │   │   └─ AlternatorGlue [277..279]: ".."
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [279..280]
+ │   │       │   │   │   │   └─ ExtraWhitespace [279..280]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 280
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 280
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [280..285]
+ │   │       │   │   │   │   └─ LuauControlKeyword [280..285]: "queue"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 285
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 285
+ │   │       │   │   │           └─ OptionalWhitespace 285
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [285..298]
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [285..286]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 285
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [285..286]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 286
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 286
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 286
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 286
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 286
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 286
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 286
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm [286..296]
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 286
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [286..296]
+ │   │       │   │   │   │   │   └─ ArmDivert [286..296]
+ │   │       │   │   │   │   │       ├─ ArmDivert_begin [286..288]
+ │   │       │   │   │   │   │       │   ├─ ArmDivert_begin_c1 286
+ │   │       │   │   │   │   │       │   │   └─ OptionalWhitespace 286
+ │   │       │   │   │   │   │       │   └─ ArmDivert_begin_c2 [286..288]
+ │   │       │   │   │   │   │       │       └─ DivertMark [286..288]: "->"
+ │   │       │   │   │   │   │       ├─ ArmDivert_content [288..296]
+ │   │       │   │   │   │   │       │   ├─ DivertTarget [288..290]
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_begin [288..289]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [288..289]
+ │   │       │   │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [288..289]
+ │   │       │   │   │   │   │       │   │   │           └─ OptionalWhitespace [288..289]: " "
+ │   │       │   │   │   │   │       │   │   ├─ DivertTarget_content [289..290]
+ │   │       │   │   │   │   │       │   │   │   └─ DivertPath [289..290]
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_begin 289
+ │   │       │   │   │   │   │       │   │   │       ├─ DivertPath_content [289..290]
+ │   │       │   │   │   │   │       │   │   │       │   └─ DivertPart [289..290]
+ │   │       │   │   │   │   │       │   │   │       │       └─ DivertPartName [289..290]: "A"
+ │   │       │   │   │   │   │       │   │   │       └─ DivertPath_end 290
+ │   │       │   │   │   │   │       │   │   └─ DivertTarget_end 290
+ │   │       │   │   │   │   │       │   ├─ ExtraWhitespace [290..291]: " "
+ │   │       │   │   │   │   │       │   └─ ArmUnknown [291..296]: "> y z"
+ │   │       │   │   │   │   │       └─ ArmDivert_end 296
+ │   │       │   │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 296
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [296..297]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 296
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [296..297]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 297
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 297
+ │   │       │   │   │   │   │       └─ OptionalWhitespace 297
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 297
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 297
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 297
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 297
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm [297..298]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 297
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [297..298]
+ │   │       │   │   │       │   └─ Word [297..298]: "b"
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedAlternatorArm_end 298
+ │   │       │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [298..301]
+ │   │       │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [298..299]
+ │   │       │   │       │   └─ ExtraWhitespace [298..299]: " "
+ │   │       │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [299..301]
+ │   │       │   │           └─ AlternatorGlue [299..301]: ".."
+ │   │       │   └─ TextChunk [301..303]
+ │   │       │       ├─ TextChunk_begin 301
+ │   │       │       ├─ TextChunk_content [301..303]
+ │   │       │       │   ├─ Space [301..302]: " "
+ │   │       │       │   └─ Word [302..303]: "z"
+ │   │       │       └─ TextChunk_end 303
+ │   │       └─ LineEnd_end 303
+ │   └─ ImplicitAction_end 303
+ ├─ Newline [303..304]: "\n"
+ ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [304..334]
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [304..310]
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c1 304
+ │   │   │   └─ OptionalWhitespace 304
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c2 304
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c3 304
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c4 [304..309]
+ │   │   │   └─ LuauControlKeyword [304..309]: "queue"
+ │   │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [309..310]
+ │   │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [309..310]
+ │   │           └─ OptionalWhitespace [309..310]: " "
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_content [310..330]
+ │   │   ├─ LuauAlternatorSeparator [310..312]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 310
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [310..311]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [311..312]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [311..312]
+ │   │   │   │       └─ OptionalWhitespace [311..312]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 312
+ │   │   │   ├─ LuauAlternatorSeparator_c5 312
+ │   │   │   ├─ LuauAlternatorSeparator_c6 312
+ │   │   │   └─ LuauAlternatorSeparator_c7 312
+ │   │   ├─ LuauSparkdownAlternatorArm [312..327]
+ │   │   │   ├─ LuauSparkdownAlternatorArm_begin 312
+ │   │   │   ├─ LuauSparkdownAlternatorArm_content [312..327]
+ │   │   │   │   └─ ArmDivert [312..327]
+ │   │   │   │       ├─ ArmDivert_begin [312..314]
+ │   │   │   │       │   ├─ ArmDivert_begin_c1 312
+ │   │   │   │       │   │   └─ OptionalWhitespace 312
+ │   │   │   │       │   └─ ArmDivert_begin_c2 [312..314]
+ │   │   │   │       │       └─ DivertMark [312..314]: "->"
+ │   │   │   │       ├─ ArmDivert_content [314..327]
+ │   │   │   │       │   ├─ DivertTarget [314..316]
+ │   │   │   │       │   │   ├─ DivertTarget_begin [314..315]
+ │   │   │   │       │   │   │   └─ DivertTarget_begin_c1 [314..315]
+ │   │   │   │       │   │   │       └─ DivertTarget_begin_c1 [314..315]
+ │   │   │   │       │   │   │           └─ OptionalWhitespace [314..315]: " "
+ │   │   │   │       │   │   ├─ DivertTarget_content [315..316]
+ │   │   │   │       │   │   │   └─ DivertPath [315..316]
+ │   │   │   │       │   │   │       ├─ DivertPath_begin 315
+ │   │   │   │       │   │   │       ├─ DivertPath_content [315..316]
+ │   │   │   │       │   │   │       │   └─ DivertPart [315..316]
+ │   │   │   │       │   │   │       │       └─ DivertPartName [315..316]: "A"
+ │   │   │   │       │   │   │       └─ DivertPath_end 316
+ │   │   │   │       │   │   └─ DivertTarget_end 316
+ │   │   │   │       │   ├─ ExtraWhitespace [316..317]: " "
+ │   │   │   │       │   ├─ ArmUnknown [317..326]: "> blend x"
+ │   │   │   │       │   └─ ExtraWhitespace [326..327]: " "
+ │   │   │   │       └─ ArmDivert_end 327
+ │   │   │   └─ LuauSparkdownAlternatorArm_end 327
+ │   │   ├─ LuauAlternatorSeparator [327..329]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 327
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [327..328]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [328..329]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [328..329]
+ │   │   │   │       └─ OptionalWhitespace [328..329]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 329
+ │   │   │   ├─ LuauAlternatorSeparator_c5 329
+ │   │   │   ├─ LuauAlternatorSeparator_c6 329
+ │   │   │   └─ LuauAlternatorSeparator_c7 329
+ │   │   └─ LuauSparkdownAlternatorArm [329..330]
+ │   │       ├─ LuauSparkdownAlternatorArm_begin 329
+ │   │       ├─ LuauSparkdownAlternatorArm_content [329..330]
+ │   │       │   └─ Word [329..330]: "b"
+ │   │       └─ LuauSparkdownAlternatorArm_end 330
+ │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end [330..334]
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [330..331]
+ │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [330..331]
+ │       │       └─ OptionalWhitespace [330..331]: " "
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [331..334]
+ │           └─ LuauEndKeyword [331..334]: "end"
+ ├─ Newline [334..335]: "\n"
+ ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [335..355]
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin [335..341]
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c1 335
+ │   │   │   └─ OptionalWhitespace 335
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c2 335
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c3 335
+ │   │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c4 [335..340]
+ │   │   │   └─ LuauControlKeyword [335..340]: "queue"
+ │   │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [340..341]
+ │   │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_begin_c5 [340..341]
+ │   │           └─ OptionalWhitespace [340..341]: " "
+ │   ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_content [341..351]
+ │   │   ├─ LuauAlternatorSeparator [341..343]
+ │   │   │   ├─ LuauAlternatorSeparator_c1 341
+ │   │   │   ├─ LuauAlternatorSeparator_c2 [341..342]: "|"
+ │   │   │   ├─ LuauAlternatorSeparator_c3 [342..343]
+ │   │   │   │   └─ LuauAlternatorSeparator_c3 [342..343]
+ │   │   │   │       └─ OptionalWhitespace [342..343]: " "
+ │   │   │   ├─ LuauAlternatorSeparator_c4 343
+ │   │   │   ├─ LuauAlternatorSeparator_c5 343
+ │   │   │   ├─ LuauAlternatorSeparator_c6 343
+ │   │   │   └─ LuauAlternatorSeparator_c7 343
+ │   │   └─ LuauSparkdownAlternatorArm [343..351]
+ │   │       ├─ LuauSparkdownAlternatorArm_begin 343
+ │   │       ├─ LuauSparkdownAlternatorArm_content [343..351]
+ │   │       │   └─ ArmDivert [343..351]
+ │   │       │       ├─ ArmDivert_begin [343..345]
+ │   │       │       │   ├─ ArmDivert_begin_c1 343
+ │   │       │       │   │   └─ OptionalWhitespace 343
+ │   │       │       │   └─ ArmDivert_begin_c2 [343..345]
+ │   │       │       │       └─ DivertMark [343..345]: "->"
+ │   │       │       ├─ ArmDivert_content [345..351]
+ │   │       │       │   ├─ DivertTarget [345..347]
+ │   │       │       │   │   ├─ DivertTarget_begin [345..346]
+ │   │       │       │   │   │   └─ DivertTarget_begin_c1 [345..346]
+ │   │       │       │   │   │       └─ DivertTarget_begin_c1 [345..346]
+ │   │       │       │   │   │           └─ OptionalWhitespace [345..346]: " "
+ │   │       │       │   │   ├─ DivertTarget_content [346..347]
+ │   │       │       │   │   │   └─ DivertPath [346..347]
+ │   │       │       │   │   │       ├─ DivertPath_begin 346
+ │   │       │       │   │   │       ├─ DivertPath_content [346..347]
+ │   │       │       │   │   │       │   └─ DivertPart [346..347]
+ │   │       │       │   │   │       │       └─ DivertPartName [346..347]: "A"
+ │   │       │       │   │   │       └─ DivertPath_end 347
+ │   │       │       │   │   └─ DivertTarget_end 347
+ │   │       │       │   ├─ ExtraWhitespace [347..348]: " "
+ │   │       │       │   └─ ArmUnknown [348..351]: "> y"
+ │   │       │       └─ ArmDivert_end 351
+ │   │       └─ LuauSparkdownAlternatorArm_end 351
+ │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end [351..355]
+ │       ├─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [351..352]
+ │       │   └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c1 [351..352]
+ │       │       └─ OptionalWhitespace [351..352]: " "
+ │       └─ LuauSparkdownSingleLineSequentialAlternatorBlock_end_c2 [352..355]
+ │           └─ LuauEndKeyword [352..355]: "end"
+ └─ Newline [355..356]: "\n"

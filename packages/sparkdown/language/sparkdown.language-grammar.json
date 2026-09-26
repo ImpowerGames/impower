@@ -932,7 +932,7 @@
           "include": "#Annotation"
         },
         {
-          "include": "#Tunnel"
+          "include": "#ArmTunnel"
         },
         {
           "include": "#DivertLoad"
@@ -942,9 +942,58 @@
         },
         {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#ArmUnknown"
         }
       ],
       "end": "(?=[|]|(?:(?:[^\\S\\n\\r])*(?:end)\\b)(?:$|(?:[^\\S\\n\\r]))|$|(?:\\r\\n|\\r|\\n)|(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))"
+    },
+    "ArmTunnel": {
+      "begin": "((?:[^\\S\\n\\r])*)([-][>])",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#DivertMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#Annotation"
+        },
+        {
+          "include": "#ArmTunnel"
+        },
+        {
+          "include": "#DivertLoad"
+        },
+        {
+          "include": "#DivertTarget"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#ArmUnknown"
+        }
+      ],
+      "end": "(?=[|]|(?:(?:[^\\S\\n\\r])*(?:end)\\b)(?:$|(?:[^\\S\\n\\r]))|$|(?:\\r\\n|\\r|\\n)|(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r]))))"
+    },
+    "ArmUnknown": {
+      "tag": "invalid",
+      "name": "invalid.illegal.unknown-statement.sd",
+      "match": "((?:(?!(?:[^\\S\\n\\r])*[|]|(?:[^\\S\\n\\r])+(?:(?<=^|(?:[^\\S\\n\\r]))[.][.](?=$|(?:[^\\S\\n\\r])))|(?:[^\\S\\n\\r])+end(?:$|(?:[^\\S\\n\\r]))|(?:[^\\S\\n\\r])*$)[^\\r\\n])+)"
     },
     "ArmTag": {
       "tag": "docComment",
@@ -1647,7 +1696,13 @@
           "include": "#DivertTarget"
         },
         {
+          "include": "#SparkdownInlineComment"
+        },
+        {
           "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Unknown"
         }
       ],
       "end": "(?=$)"

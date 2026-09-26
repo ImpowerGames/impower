@@ -1,0 +1,15 @@
+-> a -> b > After
+A -> a -> b > c
+-> a -> > After
+-> a -> b // note
+-> a -> b(1, 2) > After
+-> a -> b ->->
+x .. queue|-> A > y|b .. z
+x .. queue|-> a -> b > y|c .. z
+x .. queue|-> a -> b|c .. z
+queue | -> A > y | b end
+queue | -> a -> b > y | c end
+queue | -> a -> b | c end
+x .. queue|-> A > y z|b .. z
+queue | -> A > blend x | b end
+queue | -> A > y end
