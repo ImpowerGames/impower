@@ -727,8 +727,8 @@ repository:
   # chain) but with an end pattern that stops at the alternator
   # boundaries. The lowerer dispatch sees the same `Divert` node name
   # via the `name:` field below, so `buildDivert` handles it uniformly.
-  # Unlike `Divert`, it has no stray-text rule after its targets: one here
-  # must stop at the arm's boundaries rather than eat the line (#926).
+  # Its tunnel chain is `ArmTunnel`, and its stray text `ArmUnknown`, both
+  # bounded by the same alternator boundaries.
   ArmDivert:
     name: meta.divert
     begin: ({{WS}}*)([-][>][-][>]|[-][>])
@@ -742,11 +742,52 @@ repository:
           - { include: "#DivertMark" }
     patterns:
       - { include: "#Annotation" }
-      - { include: "#Tunnel" }
+      - { include: "#ArmTunnel" }
       - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
       - { include: "#ExtraWhitespace" }
+      # Anything else after the targets (`> y`, stray punctuation) is stray
+      # text. Tile it so the rule always reaches `end` instead of closing
+      # ERROR_INCOMPLETE mid-arm (GRAMMAR.md §17).
+      - { include: "#ArmUnknown" }
     end: (?=[|]|{{END}}(?:$|{{WS}})|$|{{NL}}|{{WS}}+{{ALTERNATOR_GLUE}})
+
+  # A `->` after a target inside `ArmDivert`. It is `Tunnel` bounded by
+  # the arm: the line-ending `Tunnel` would run past the arm's `|`, `end`
+  # or closing `..`, and read the next arm as another target. For the
+  # same reason it takes stray text as `ArmUnknown`, and it has no `//`
+  # comment rule: inside an arm `//` is display text, and a comment would
+  # run to the line end over the arm's boundaries. `buildDivert` walks
+  # `ArmTunnel` and `Tunnel` nodes alike.
+  ArmTunnel:
+    begin: ({{WS}}*)([-][>])
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#DivertMark" }
+    patterns:
+      - { include: "#Annotation" }
+      - { include: "#ArmTunnel" }
+      - { include: "#DivertLoad" }
+      - { include: "#DivertTarget" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#ArmUnknown" }
+    end: (?=[|]|{{END}}(?:$|{{WS}})|$|{{NL}}|{{WS}}+{{ALTERNATOR_GLUE}})
+
+  # Stray text after an arm divert's targets: the rest of the arm, up to
+  # the `|`, the ` end` or the closing ` ..` that ends `ArmDivert` and
+  # `ArmTunnel`, as `Unknown` takes the rest of a `Divert` line. Spaces
+  # before that boundary are left to `ExtraWhitespace`. An `end` counts at
+  # the start of a word, as it does in plain arm text (`>end` closes the
+  # alternator), so a word such as `blend` stays stray text.
+  ArmUnknown:
+    tag: invalid
+    name: invalid.illegal.unknown-statement.sd
+    match: ((?:(?!{{WS}}*[|]|{{WS}}+{{ALTERNATOR_GLUE}}|{{WS}}*\bend(?:$|{{WS}})|{{WS}}*$)[^\r\n])+)
 
   # Context-bounded `# tag` annotation for alternator arms. The
   # standard `Tag` rule terminates at end-of-line, which inside an
@@ -1198,7 +1239,11 @@ repository:
       - { include: "#Tunnel" }
       - { include: "#DivertLoad" }
       - { include: "#DivertTarget" }
+      # A tunnel chain ends its line as `Divert` does, so the same `// note`
+      # comment and stray-text rules follow its targets.
+      - { include: "#SparkdownInlineComment" }
       - { include: "#ExtraWhitespace" }
+      - { include: "#Unknown" }
     end: (?=$)
 
   Thread:

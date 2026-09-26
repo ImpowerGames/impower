@@ -251,7 +251,9 @@ function collectDivertChain(divertNode: SyntaxNode): DivertChain {
       trailingArrows++;
     }
     pastInitialMark = true;
-    const nextTunnel = directChild(cursor, "Tunnel");
+    // An alternator arm's divert chains `ArmTunnel` nodes instead.
+    const nextTunnel: SyntaxNode | null =
+      directChild(cursor, "Tunnel") ?? directChild(cursor, "ArmTunnel");
     if (!nextTunnel) break;
     cursor = nextTunnel;
   }
