@@ -523,6 +523,10 @@ Standard Luau requires `function name() ... end`. Sparkdown's grammar adds a
 `name()` is still a function-call expression. Note: the lowerer currently
 drops these methods (see DEFERRED.md _Function members in defines_).
 
+### No `class` declarations
+
+Luau's user-defined classes (`class Name ... end`, `class Child extends Base`, with `public` fields) are an experiment behind its `DebugLuauUserDefinedClasses` flag and not part of the language Luau ships. Sparkdown does not read them: `class` is an ordinary name, so `class Name` is two names in a row, which the grammar cannot finish reading. Sparkdown's classes are `define` blocks (`define Name as Base with ... end`). Upstream's `classes.luau` conformance fixture is skipped for this reason, and so are the type-checker cases that declare a class.
+
 ### Loops are stubbed
 
 `for` / `while` / `repeat` / `do ... end` parse correctly and produce a

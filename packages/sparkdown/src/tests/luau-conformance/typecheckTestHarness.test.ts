@@ -166,6 +166,13 @@ describe("running a ported case", () => {
     expect(() => run(c, stub())).toThrow(/the snippet now parses cleanly, so remove its record \{"defect":875\}/);
   });
 
+  test("a snippet Luau rejects must be rejected here too, and its case is not skipped", () => {
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "all");
+    const c: PortedCase = { name: "a", source: "x", malformed: "no name after the dot", expect: [{ errors: 1 }] };
+    expect(() => run(c, stub())).toThrow(/Luau rejects the snippet \(no name after the dot\), but Sparkdown reports nothing/);
+    expect(() => run(c, stub({ syntaxDiagnostics: [SYNTAX_ERROR] }))).toThrow(NotImplemented);
+  });
+
   test("a skipped case still checks that its snippets parse, then skips", () => {
     const c: PortedCase = { name: "a", skip: { notApplicable: "a reason" }, source: "x", expect: [{ errors: 0 }] };
     expect(() => run(c, stub({ syntaxDiagnostics: [SYNTAX_ERROR] }))).toThrow(/did not read the snippet as Luau/);
@@ -472,11 +479,16 @@ describe("checking a port against the manifest", () => {
       { source: "", unparsed: { divergence: "Type annotations are parsed but ignored" }, expect: [] },
       { source: "", unparsed: { divergence: "`\"...\"` interpolates; `'...'` does not" }, expect: [] },
       { source: "", module: "", expect: [] },
+      { source: "", malformed: "", expect: [] },
+      { source: "", malformed: "a reason", unparsed: { defect: 875 }, expect: [] },
+      { source: "", malformed: "a reason", expect: [] },
     ] as PortedCheck[];
     expect(portProblems("X.test.cpp", withCase(0, { name: "a", fixture: "Fixture", checks }), MANIFEST)).toEqual([
       "case a check 0 records an unparsed defect that is not an issue number",
       'case a check 1 names a divergence "Not a section" that is not a heading in DIVERGENCES.md',
       "case a check 4 has an empty module name",
+      "case a check 5 has an empty malformed reason",
+      "case a check 6 is recorded as both malformed and unparsed",
     ]);
   });
 });
