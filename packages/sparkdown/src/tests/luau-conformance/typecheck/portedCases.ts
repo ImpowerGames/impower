@@ -72,6 +72,12 @@ export interface PortedCheck {
    * to fail, so the record goes as soon as the snippet parses.
    */
   unparsed?: Unparsed;
+  /**
+   * Luau's parser rejects the snippet too, for the reason given. The parse
+   * check then expects Sparkdown to report a syntax diagnostic, and the
+   * assertions still run.
+   */
+  malformed?: string;
   /** This check sits in a block of its own under `DOES_NOT_PASS_NEW_SOLVER_GUARD`. */
   doesNotPassNewSolver?: true;
   expect: Assertion[];
@@ -297,6 +303,8 @@ function checkProblems(check: PortedCheck, where: string, errorKinds: ReadonlySe
   if (check.unparsed && "divergence" in check.unparsed && !divergenceHeadings().includes(check.unparsed.divergence)) {
     problems.push(`${where} names a divergence "${check.unparsed.divergence}" that is not a heading in DIVERGENCES.md`);
   }
+  if (check.malformed !== undefined && !check.malformed) problems.push(`${where} has an empty malformed reason`);
+  if (check.malformed && check.unparsed) problems.push(`${where} is recorded as both malformed and unparsed`);
   if (check.module !== undefined && !check.module) problems.push(`${where} has an empty module name`);
   check.expect.forEach((a, j) => problems.push(...assertionProblems(a, `${where} assertion ${j}`, errorKinds)));
   return problems;
@@ -388,12 +396,18 @@ export function runPortedCase(
   }));
 
   // A snippet recorded as unparsed must still fail to parse, so the record
-  // goes as soon as the defect is fixed or the divergence removed.
+  // goes as soon as the defect is fixed or the divergence removed. A snippet
+  // Luau rejects must be rejected here too.
   for (const { check: ch, result } of results) {
     if (ch.unparsed) {
       expect(
         result.syntaxDiagnostics.length,
         `the snippet now parses cleanly, so remove its record ${JSON.stringify(ch.unparsed)}`,
+      ).toBeGreaterThan(0);
+    } else if (ch.malformed) {
+      expect(
+        result.syntaxDiagnostics.length,
+        `Luau rejects the snippet (${ch.malformed}), but Sparkdown reports nothing; remove its malformed record and expect the error from the checker`,
       ).toBeGreaterThan(0);
     } else {
       expect(result.syntaxDiagnostics.map(describeDiagnostic), "Sparkdown did not read the snippet as Luau").toEqual([]);

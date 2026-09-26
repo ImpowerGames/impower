@@ -22,8 +22,9 @@ LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/
 - `mode` is the mode passed to `check(mode, source)`. Without one, a snippet is checked in strict mode, as Luau's test fixture checks it, and a `--!` directive in the snippet overrides that as it does in Luau.
 - `flags` records the `ScopedFastFlag`s the case sets, other than the solver switch.
 - `ignoreMissingAnnotations: true` stands for `ignoreMissingAnnotations(result)`: `TypeAnnotationRequired` errors are dropped before any assertion.
-- Where a case branches on `FFlag::DebugLuauForceOldSolver`, only the new-solver branch is ported.
-- Upstream checks about Luau's internals rather than the checked program (which type arena holds a type, internal-error handlers, the print hook) are left out, and a comment on the case names them.
+- Where a case branches on `FFlag::DebugLuauForceOldSolver`, only the new-solver branch is ported. A branch on any other flag, or an `#if 0` block, is resolved as Luau's CI runs the new solver, with `--fflags=true`: every flag the case does not set is on, except the `Debug` and `Test` flags, and the `#else` part is the one compiled.
+- A source upstream builds in C++ (repeating a fragment up to a recursion limit, or appending generated declarations) is built the same way in TypeScript, with the limit Luau uses in an optimized build without sanitizers.
+- Upstream checks about Luau's internals rather than the checked program (which type arena holds a type, internal-error handlers, the print hook) are left out, and a comment on the case names them. So are checks about the program that the expectations below cannot state (whether one type is a subtype of another, the type a module returns, the source printed with every inferred type), and a comment on the case says what upstream checks.
 
 ### Expectations
 
@@ -46,6 +47,8 @@ A case's `skip` says why its type assertions never run:
 - `{ disabledUpstream: true }` for a case upstream never compiles, in an `#if 0` region or a comment.
 
 A snippet Sparkdown cannot parse yet carries a record of why: `unparsed: { defect: N }` names the filed Bug, and `unparsed: { divergence: "..." }` names the `packages/sparkdown/docs/runtime/DIVERGENCES.md` section, by its heading, that documents why it never will. The parse check then expects the snippet to fail, so the test fails, and the record has to go, once the snippet parses. A snippet that fails to parse for any other reason is a defect, to be fixed or filed.
+
+A snippet Luau's own parser rejects, such as `return t.` or an `if` expression with no `else`, carries `malformed` with what upstream writes wrong. The parse check then expects Sparkdown to report a syntax diagnostic too, and the case's assertions still run, since Luau's error counts include the parse errors. A malformed snippet Sparkdown reads without complaint has no record, and the error sits in `expect` for the checker to report (see below).
 
 A case with a skip or an unparsed snippet still runs its parse check, then reports as skipped.
 
