@@ -259,7 +259,6 @@ end
     name: "weird_fail_to_unify_type_pack",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
-    unparsed: { defect: 920 }, // return followed by end on the same line
     source: `
         local function f() return end
         local g = function() return f() end
