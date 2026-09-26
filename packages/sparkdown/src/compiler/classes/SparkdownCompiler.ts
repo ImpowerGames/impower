@@ -3590,6 +3590,12 @@ export class SparkdownCompiler {
   // The pass renumbers those to `__group_<n>` in a sequence of their own, so
   // adding a continuation leaves the synthetic names after it as they were,
   // and the other way round.
+  //
+  // A tag line's `Statement` container (and a choice that carries its
+  // chunk's uuid) is named `id-<uuid>`, and the pass numbers those uuids
+  // in document order in a third sequence, so a container's name depends
+  // only on the tag lines above it and an edit below it leaves the name, and
+  // any path through the container, as it was.
   protected canonicalizeSyntheticFlowNames(
     root: ParsedObject,
   ): Set<ParsedObject> | undefined {
@@ -3635,6 +3641,8 @@ export class SparkdownCompiler {
     const groupRemap = new Map<string, string>();
     const matchedGroups: Array<{ group: ContinuationGroup; next: string }> = [];
     const seenGroups = new Set<ContinuationGroup>();
+    const matchedUuids: Array<{ node: Statement | Choice; next: string }> = [];
+    const seenUuids = new Set<Statement | Choice>();
 
     const considerName = (name: string) => {
       let next = remap.get(name);
@@ -3768,6 +3776,19 @@ export class SparkdownCompiler {
         considerGroup(node);
       }
       if (
+        (node instanceof Statement || node instanceof Choice) &&
+        node.uuid &&
+        !seenUuids.has(node)
+      ) {
+        found = true;
+        seenUuids.add(node);
+        const next = `${seenUuids.size - 1}`;
+        if (next !== node.uuid) {
+          changed = true;
+        }
+        matchedUuids.push({ node, next });
+      }
+      if (
         node instanceof FlowBase &&
         (node._subFlowsByName.size > 0 || node.variableDeclarations.size > 0)
       ) {
@@ -3830,6 +3851,12 @@ export class SparkdownCompiler {
       if (next !== group.text) {
         markRenamed(group);
         group.text = next;
+      }
+    }
+    for (const { node, next } of matchedUuids) {
+      if (next !== node.uuid) {
+        markRenamed(node);
+        node.uuid = next;
       }
     }
     for (const flow of flowsToRekey) {

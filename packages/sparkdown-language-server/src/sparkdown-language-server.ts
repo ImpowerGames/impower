@@ -1,4 +1,3 @@
-import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import {
   type InitializeResult,
   type ServerCapabilities,
@@ -14,6 +13,7 @@ import { profiled } from "./utils/logging/profiled";
 import { canRename } from "./utils/providers/canRename";
 import { getCodeLenses } from "./utils/providers/getCodeLenses";
 import { getColorPresentations } from "./utils/providers/getColorPresentations";
+import { getAnnotatedScripts } from "./utils/annotations/getAnnotatedScripts";
 import { getCompletions } from "./utils/providers/getCompletions";
 import {
   resolveCompletion,
@@ -254,16 +254,12 @@ try {
     const tree = workspace.tree(uri);
     const program = workspace.program(uri);
     const config = workspace.compilerConfig;
-    const scripts = program?.scripts || [uri];
-    const scriptAnnotations = new Map<string, SparkdownAnnotations>();
-    for (const uri of Object.keys(scripts)) {
-      scriptAnnotations.set(uri, workspace.annotations(uri));
-    }
+    const scripts = getAnnotatedScripts(uri, program?.scripts, workspace);
     const result = profiled("lsp: onCompletion", uri, () =>
       getCompletions(
         document,
         tree,
-        scriptAnnotations,
+        scripts,
         program,
         config,
         params.position,
