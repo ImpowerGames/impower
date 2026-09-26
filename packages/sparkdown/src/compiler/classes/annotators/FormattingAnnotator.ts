@@ -611,6 +611,14 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "ExtraWhitespace") {
       if (isInsideInlineAlternator(nodeRef, (from, to) => this.read(from, to)))
         return annotations;
+      // Inside a divert, whitespace followed by more text on the line
+      // separates the target from stray text after it (`-> later > After`);
+      // removing it would join the text to the target.
+      if (
+        nodeRef.node.parent?.name === "Divert_content" &&
+        !/^\n?$/.test(this.read(nodeRef.to, nodeRef.to + 1))
+      )
+        return annotations;
       annotations.push(
         SparkdownAnnotation.mark<FormatType>("extra").range(
           nodeRef.from,
