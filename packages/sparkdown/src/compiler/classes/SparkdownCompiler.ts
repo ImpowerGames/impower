@@ -13,7 +13,10 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { collectLuauLints, type LuauLint } from "../lint/collectLuauLints";
+import {
+  collectLuauLints,
+  type LuauScriptLints,
+} from "../lint/collectLuauLints";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -482,9 +485,10 @@ export class SparkdownCompiler {
     return this._documents;
   }
 
-  /** Lints of each script's current tree. A tree is replaced whenever its
-   *  script changes, so an unchanged included script is not walked again. */
-  protected _lintsByTree = new WeakMap<object, LuauLint[]>();
+  /** Lints and names of each script's current tree. A tree is replaced
+   *  whenever its script changes, so an unchanged included script is not
+   *  walked again. */
+  protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
 
   protected _files = new SparkdownFileRegistry();
   get files() {
@@ -6307,12 +6311,12 @@ export class SparkdownCompiler {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
       if (!doc || !tree) continue;
-      let lints = this._lintsByTree.get(tree);
-      if (!lints) {
-        lints = collectLuauLints(tree, (from, to) => doc.read(from, to));
-        this._lintsByTree.set(tree, lints);
+      let script = this._lintsByTree.get(tree);
+      if (!script) {
+        script = collectLuauLints(tree, (from, to) => doc.read(from, to));
+        this._lintsByTree.set(tree, script);
       }
-      for (const lint of lints) {
+      for (const lint of script.lints) {
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
           range: doc.range(lint.from, lint.to),
           code: lint.code,
