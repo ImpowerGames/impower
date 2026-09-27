@@ -37,7 +37,7 @@ Any code correction reopens regression and live/tooling verification. Commit by 
 
 ## 5. Readiness gate
 
-Before `gh pr ready`, require every reviewer process to exit; all required coverage and full reports for the frozen head; every finding and verification gap adjudicated; all accepted fixes committed, pushed and reverified; CI started on the final head with no failed check, each check recorded as passed or pending in the PR body; and independent review of behavior-changing corrections. Only verified, disclosed non-behavioral corrections qualify for the next section's exception. Read back `number,isDraft,reviewDecision`. Missing coverage, blockers, or material verification gaps keep the PR draft; report what remains.
+Before `gh pr ready`, require every reviewer process to exit; all required coverage and full reports for the frozen head; every finding and verification gap adjudicated; all accepted fixes committed, pushed and reverified; CI started on the final head with no failed check, each check recorded as passed, failed or pending in the PR body; and independent review of behavior-changing corrections. Only verified, disclosed non-behavioral corrections qualify for the next section's exception. Read back `number,isDraft,reviewDecision`. Missing coverage, blockers, or material verification gaps keep the PR draft; report what remains.
 
 ## 6. Later changes
 
