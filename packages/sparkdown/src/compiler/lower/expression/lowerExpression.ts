@@ -35,7 +35,7 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { LowerContext,SiblingSubFlowInfo } from "../context";
-import { stampDebugMetadata } from "../utils/debugMetadata";
+import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerDivertPath } from "../utils/lowerDivertPath";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -2166,9 +2166,7 @@ export function lowerSimpleAccessPath(
           getDescendent("LuauStdLibGlobals", inner) ??
           getDescendent("LuauSelfKeyword", inner);
         if (nameNode) {
-          identifiers.push(
-            new Identifier(ctx.read(nameNode.from, nameNode.to)),
-          );
+          identifiers.push(identifierAt(nameNode, ctx));
         }
         break;
       }
@@ -2179,9 +2177,7 @@ export function lowerSimpleAccessPath(
           getDescendent("LuauPropertyName", inner) ??
           getDescendent("LuauStdLibMethods", inner);
         if (nameNode) {
-          identifiers.push(
-            new Identifier(ctx.read(nameNode.from, nameNode.to)),
-          );
+          identifiers.push(identifierAt(nameNode, ctx));
         }
         break;
       }
@@ -2370,7 +2366,7 @@ export function lowerValueChainAccessPath(
           getDescendent("LuauStdLibGlobals", inner) ??
           getDescendent("LuauSelfKeyword", inner);
         if (nameNode) {
-          leading.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+          leading.push(identifierAt(nameNode, ctx));
         }
         continue;
       }
@@ -2379,7 +2375,7 @@ export function lowerValueChainAccessPath(
           getDescendent("LuauPropertyName", inner) ??
           getDescendent("LuauStdLibMethods", inner);
         if (nameNode) {
-          leading.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+          leading.push(identifierAt(nameNode, ctx));
         }
         continue;
       }

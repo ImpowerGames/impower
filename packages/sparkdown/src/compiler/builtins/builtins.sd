@@ -33,6 +33,7 @@ define metadata with
   cc = ""
   bl = ""
   br = ""
+  typecheck = ""
 end
 
 define world with
@@ -60,6 +61,15 @@ end
 define interpreter as config with
   directives = { title = "^", heading = "$", transitional = "%", action = "" }
   fallbacks = { layer = "portrait", channel = "sound" }
+end
+
+define typecheck as config with
+  -- How strictly Luau code is type checked: "nonstrict" reports what is
+  -- certainly wrong, "strict" also infers the types of unannotated code and
+  -- reports every mismatch, and "nocheck" checks nothing. A `.sd` file's
+  -- `typecheck:` front matter field, or a `.luau` file's `--!strict`,
+  -- `--!nonstrict` or `--!nocheck` first line, sets it for that file alone.
+  mode = "nonstrict"
 end
 
 define assets as config with

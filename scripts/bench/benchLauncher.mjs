@@ -23,17 +23,17 @@ export function count(text, name, min) {
   return n;
 }
 
-// Bundles `entry` (a file beside this one) into `outDir`. With `mapDir`, the
-// run is being profiled: the bundle keeps the names its functions were given
-// and gets a source map, copied into `mapDir` for profile-shares.mjs. Keeping
-// names makes the story engine 15 to 35 percent slower, so a bundle that is
-// timed never has them.
+// Bundles `entry` (a file beside this one, or an absolute path) into
+// `outDir`. With `mapDir`, the run is being profiled: the bundle keeps the
+// names its functions were given and gets a source map, copied into `mapDir`
+// for profile-shares.mjs. Keeping names makes the story engine 15 to 35
+// percent slower, so a bundle that is timed never has them.
 export async function bundleBench(entry, outDir, mapDir) {
   const require = createRequire(path.join(HERE, "..", "..", "package.json"));
   const esbuild = require("esbuild");
-  const outfile = path.join(outDir, entry.replace(/\.ts$/, ".mjs"));
+  const outfile = path.join(outDir, path.basename(entry).replace(/\.ts$/, ".mjs"));
   await esbuild.build({
-    entryPoints: [path.join(HERE, entry)],
+    entryPoints: [path.resolve(HERE, entry)],
     outfile,
     bundle: true,
     platform: "node",

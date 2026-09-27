@@ -124,12 +124,19 @@ export function checksOf(c: PortedCase): PortedCheck[] {
  * on by the checker slice that implements it; until then its cases check that
  * their snippets parse, then report as skipped.
  */
-export const CHECKED_AREAS: readonly string[] = [];
+export const CHECKED_AREAS: readonly string[] = [
+  "TypeInfer.primitives.test.cpp",
+  "TypeInfer.const.test.cpp",
+  "TypeInfer.negations.test.cpp",
+  "TypeInfer.anyerror.test.cpp",
+  "TypeInfer.unknownnever.test.cpp",
+  "TypeInfer.singletons.test.cpp",
+  "TypeInfer.annotations.test.cpp",
+];
 
 /**
  * `LUAU_TYPECHECK_AREAS=all`, or a comma-separated list of upstream files,
- * turns areas on without editing `CHECKED_AREAS`. Before the checker exists,
- * that proves the assertions are wired: each fails with "not implemented".
+ * turns areas on without editing `CHECKED_AREAS`.
  */
 export function areaIsChecked(file: string, env: Record<string, string | undefined> = process.env): boolean {
   const forced = env["LUAU_TYPECHECK_AREAS"]?.split(",").map((f) => f.trim()) ?? [];

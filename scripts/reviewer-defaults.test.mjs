@@ -158,7 +158,7 @@ fs.writeFileSync(path.join(worktree, ".claude", "agents", "reviewer-fixture.md")
 git("init");
 commitConfig();
 const child = path.join(scratch, "child.mjs");
-fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:null,commentIds:[],summary:"complete"}));`);
+fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; if(p.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);} const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:null,commentIds:[],summary:"complete"}));`);
 const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
 const file = path.join(scratch, "plan.json");

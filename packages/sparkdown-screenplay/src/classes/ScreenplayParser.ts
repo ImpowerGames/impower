@@ -5,6 +5,10 @@ import { TextmateGrammarParser } from "../../../textmate-grammar-tree/src/tree/c
 import { ScreenplayToken } from "../types/ScreenplayToken";
 import { MetadataTokenType } from "../types/ScreenplayTokenType";
 
+// Front matter fields that tell the compiler how to check the script rather
+// than describe it, so they never reach the title page.
+const COMPILER_FIELDS = new Set(["typecheck"]);
+
 export default class ScreenplayParser {
   protected _parser = new TextmateGrammarParser(GRAMMAR_DEFINITION);
 
@@ -249,7 +253,7 @@ export default class ScreenplayParser {
       leave: (nodeRef) => {
         const name = nodeRef.name as SparkdownNodeName;
         // FrontMatter
-        if (name === "FrontMatterField") {
+        if (name === "FrontMatterField" && !COMPILER_FIELDS.has(frontMatterKey)) {
           tokens.push({
             tag: ("meta:" + frontMatterKey) as MetadataTokenType,
             text: frontMatterValue,

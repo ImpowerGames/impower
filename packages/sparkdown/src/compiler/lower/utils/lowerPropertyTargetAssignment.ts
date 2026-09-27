@@ -1,3 +1,4 @@
+import { identifierAt } from "./debugMetadata";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
@@ -184,9 +185,7 @@ function lowerBaseFromParts(
     getDescendent("LuauVariableName", firstInner) ??
     getDescendent("LuauSelfKeyword", firstInner);
   if (!nameNode) return null;
-  current = new VariableReference([
-    new Identifier(ctx.read(nameNode.from, nameNode.to)),
-  ]);
+  current = new VariableReference([identifierAt(nameNode, ctx)]);
   i = 1;
 
   for (; i < parts.length; i++) {

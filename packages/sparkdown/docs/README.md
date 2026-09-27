@@ -19,6 +19,7 @@ Parser, grammar, and the lowerer (sparkdown source → inkjs runtime IR).
 | [`GRAMMAR.md`](./compiler/GRAMMAR.md) | TextMate-grammar conventions, scope/boundary rules, the encoding "Golden Rule" |
 | [`LOWERING.md`](./compiler/LOWERING.md) | The lowerer's per-construct desugaring rules — how sparkdown source becomes inkjs runtime IR |
 | [`LINTS.md`](./compiler/LINTS.md) | Which of Luau's lints sparkdown reports, lacks and omits, and how its rules differ |
+| [`TYPECHECK.md`](./compiler/TYPECHECK.md) | How the port of Luau's type checker reads a document's Luau, its modes, its warnings and its cache |
 
 ## Runtime — [`runtime/`](./runtime/)
 

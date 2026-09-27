@@ -35,7 +35,31 @@ The rules read the syntax tree the editor highlights with, which is not a Luau A
 - `ForRange` does not report a bound such as `#t ^ 2`. Luau reads it as `#(t ^ 2)`, a bare length, because `^` binds tighter than `#`, but the grammar places `^ 2` after the operand like any other arithmetic, and the rule treats arithmetic after `#t` as making the bound something other than a length.
 - `DuplicateCondition` does not compare an `if` expression used as an `if` statement's condition: the grammar reads the expression as running on through the statement's `then` and `elseif`s.
 
-Because the pass runs over whole scripts on every compile (a lint depends on lines far from the one it reports), it finds the constructs it checks from their keywords in the text rather than by walking the tree, and caches each script's result until the script changes. It takes about 3 ms on a 210 KB narrative script and 30 to 45 ms on 40 KB of dense Luau in a single function.
+Because the pass runs over whole scripts on every compile (a lint depends on lines far from the one it reports), it finds the constructs it checks from their keywords in the text rather than by walking the tree, and caches each script's result until the script changes. It takes about 3 ms on a 210 KB narrative script and 25 to 60 ms on 40 KB of dense Luau in a single function, where every name is resolved.
+
+## Names and scopes
+
+The rules about names read one model of them, in `src/compiler/lint/luauNames.ts`, rather than the tree.
+
+For each outermost function, the model lists every declaration (locals, parameters including a method's implicit `self`, loop variables and local functions, with the range each is visible in) and every occurrence of a name, marked as a read, a plain write (`x = ...`), a compound write (`x += ...`) or the name of a `function x()` statement that assigns a local. Each occurrence lists the declarations it can refer to: none for a global, one where the tree is certain, and two inside a `local` statement after its names, where the tree cannot tell the initializer (`local x = x + 1`, the outer `x`) from a statement the grammar nested there on one line (the new `x`). A `local` the grammar nested inside another statement (`local a = {} local b = a`, or `& local x = 5` in a function) is visible to the end of the nearest enclosing block. Since where its statement ends is uncertain, it hides no outer local of the same name, and `LocalUnused` does not report it. Inside a function, any occurrence the tree does not mark as a field, method, string or comment counts, so a use is never missed. A keyword token or a name in a type counts when it names a local: the grammar marks Sparkdown's structural words (`style`, `layout`, `match`) as keywords even where the author meant a name (`print(style)`), and a local named in a type annotation is used, as in Luau. A keyword or a name in a type that names no local is never a use: the compiler reads no variable for a structural word, so a global named `style`, `match` or `continue` has no uses in the model, and neither do `continue`, `type X = ...` and `store x = 1` as statements. A function missing its `end` has declarations up to the break and no occurrences.
+
+Across the program, `indexProgramNames` lists every global by name: its definitions (global functions, `store` and `const` declarations) and every use from any script, whether in a function, a narrative logic line (`& f()`), an interpolation (`{hp}`) or a Sparkle handler (`@click=f`). Outside functions only Luau variable, function and handler names count, since most of that text is prose; a structural word there (`{match}`, `{queue | A | B end}`, `& layout("x")`) is the keyword of its construct, and the compiler reads no variable for it. A top-level `local` of the same name is not told apart from the global. A global's uses outside functions are looked for only when asked for, one name at a time. The compiler keeps each script's facts with its lints until the script changes; a rule that looks at the whole program passes the cached facts of every script to `indexProgramNames`.
+
+`LocalUnused` reads the model, so four shapes are reported that a pass counting every occurrence of the name would miss, as Luau's linter reports them:
+- a `store` or `const` inside a function defines the global, so its name there is not a read of a local of the same name;
+- inside a method (`function t:m()`), `self` is the method's own parameter, not a local of that name outside it;
+- a write from a narrative logic line in a function (`& hp = 5`) is a write, not a read;
+- a nested redeclaration's name (`local a = {} local x = 3`) is a declaration, not a read of the outer `x`.
+
+## Checking for false positives
+
+Every change to a lint runs the corpus script and reads what it reports:
+
+```bash
+node packages/sparkdown/scripts/lintCorpus.mjs --project <path-to-R&B>/project > findings.txt
+```
+
+It compiles every tracked `.sd` file in the repository, Luau's vendored conformance files (each wrapped in a function, with line numbers still those of the `.luau` file) and, when `--project` is given, a project such as R&B as one program. It prints each lint as `file:line:column Code message`, in a stable order, and a count per corpus on stderr. Every finding it prints is read in context, and the output is diffed against a run on the base commit to see exactly what a change added or removed.
 
 ## Rules sparkdown lacks
 
@@ -51,7 +75,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 
 These depend on Luau features sparkdown does not have, and are listed with their reasons in `LintNotApplicable.test.ts`:
 
-- `--!` directive comments: `--!nolint`, `--!strict`, `--!optimize`, and the `WrongComment` lint that checks them.
+- `--!` directive comments: `--!nolint`, `--!optimize`, and the `WrongComment` lint that checks them. A `.luau` file's `--!strict`, `--!nonstrict` and `--!nocheck` set its type checking mode, and the type checker reports the half of that lint that concerns them (`CommentDirective`, see `TYPECHECK.md`).
 - `@deprecated` and `@native` function attributes, and `RedundantNativeAttribute`.
 - Lints that need the type checker (#589): `UnknownType`, the typed half of `DeprecatedApi`, `TableOperations` on indexers, typed `FormatString`, read/write table type properties.
 - `ImportUnused`, which is about `require`; sparkdown has no modules.

@@ -88,7 +88,11 @@ import { lowerSparkdownSequentialAlternatorBlock } from "./lowerers/lowerSparkdo
 import { lowerTags } from "./lowerers/lowerTags";
 import { lowerThread } from "./lowerers/lowerThread";
 import { lowerVariableDefinition } from "./lowerers/lowerVariableDefinition";
-import { headerLineRange, stampDebugMetadata } from "./utils/debugMetadata";
+import {
+  headerLineRange,
+  identifierAt,
+  stampDebugMetadata,
+} from "./utils/debugMetadata";
 
 // Nodes whose lowerer returns a weave holding one control-flow statement (an
 // `if`, or an alternator such as `match`) with its arms nested inside it.
@@ -309,13 +313,20 @@ function lowerInner(
       return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
+    // A loop or `do` block in a function body parses as the `Luau…` rule; one
+    // in a scene or at the top level parses as the `LuauSparkdown…` rule,
+    // whose body also accepts display lines. Both lower the same way.
     case "LuauWhileLoop":
+    case "LuauSparkdownWhileLoop":
       return lowerLuauWhileLoop(nodeRef, ctx);
     case "LuauDoBlock":
+    case "LuauSparkdownDoBlock":
       return lowerLuauDoBlock(nodeRef, ctx);
     case "LuauForLoop":
+    case "LuauSparkdownForLoop":
       return lowerLuauForLoop(nodeRef, ctx);
     case "LuauRepeatLoop":
+    case "LuauSparkdownRepeatLoop":
       return lowerLuauRepeatLoop(nodeRef, ctx);
     case "LuauUntilStatement":
       // No-op — the until-statement is consumed by the sibling
@@ -712,7 +723,7 @@ function lowerMultiTargetReassignment(
     for (const t of multi.targets) {
       const nameNode = getDescendent("LuauVariableName", t);
       if (!nameNode) return {};
-      targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+      targetIdents.push(identifierAt(nameNode, ctx));
     }
     return wrapInWeave([
       new MultiVariableAssignment(targetIdents, expressions, false),
@@ -823,7 +834,7 @@ function buildTargetWrite(
       getDescendent("LuauSelfKeyword", inner);
     if (!nameNode) return null;
     return new VariableAssignment({
-      variableIdentifier: new Identifier(ctx.read(nameNode.from, nameNode.to)),
+      variableIdentifier: identifierAt(nameNode, ctx),
       assignedExpression: valueExpr,
       isTemporaryNewDeclaration: false,
     });
@@ -930,7 +941,7 @@ function buildBaseFromParts(
     getDescendent("LuauSelfKeyword", firstInner);
   if (!nameNode) return null;
   let current: Expression = new VariableReference([
-    new Identifier(ctx.read(nameNode.from, nameNode.to)),
+    identifierAt(nameNode, ctx),
   ]);
   for (let i = 1; i < parts.length; i++) {
     const inner = parts[i]!.firstChild;
