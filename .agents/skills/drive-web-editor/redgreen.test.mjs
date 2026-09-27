@@ -28,6 +28,9 @@ const WIN = process.platform === "win32";
 const SCRATCH = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "impower-redgreen-checks-")));
 console.log(`Scratch directory: ${SCRATCH}`);
 process.on("exit", () => fs.rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+// os.tmpdir() reads these on every call, so a run given no snapshotDir makes
+// its redgreen-* directory under SCRATCH too.
+for (const name of ["TEMP", "TMP", "TMPDIR"]) process.env[name] = SCRATCH;
 
 let failures = 0;
 const check = (name, fn) => {
@@ -91,6 +94,18 @@ check("an honest test fails on the base and passes on the fix, and the restore m
   assert.equal(r.files[0].snapshotSha, sha256(Buffer.from(NEW)));
   assert.match(r.baseCommit, /^[0-9a-f]{40}$/);
   assert.equal(libText(dir), NEW);
+});
+
+check("a snapshot directory the run makes itself names the run's process in owner.json, and one the caller supplies is left as given", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const made = run(dir, { snapshotDir: undefined });
+  assert.equal(made.ok, true, JSON.stringify(made.problems));
+  assert.match(path.basename(made.snapshotDir), /^redgreen-/);
+  assert.ok(made.snapshotDir.startsWith(SCRATCH), `the run made ${made.snapshotDir} outside the scratch directory`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(made.snapshotDir, "owner.json"), "utf8")), { pid: process.pid });
+  const given = run(dir);
+  assert.ok(!fs.existsSync(path.join(given.snapshotDir, "owner.json")), "owner.json was written into a caller's snapshot directory");
 });
 
 // Vitest renders a failing assertion's received value ten levels deep before

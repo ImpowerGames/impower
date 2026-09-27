@@ -1714,6 +1714,7 @@ await check("journalPids reads every recorded pid and refuses a line that is not
   make(path.join(tmp, "redgreen-old"), { "red.log": "red", "green.log": "green" }, 30 * HOUR);
   make(path.join(tmp, "redgreen-young"), { "red.log": "red" }, 2 * HOUR);
   make(path.join(tmp, "redgreen-named"), { "red.log": "red" }, 48 * HOUR);
+  make(path.join(tmp, "redgreen-running"), { "owner.json": JSON.stringify({ pid: LIVE }), "01-lib.mjs": "old" }, 48 * HOUR);
   make(path.join(tmp, "unrelated-old"), {}, 48 * HOUR);
   const run = (r) => JSON.stringify({ version: 1, attempts: [], ...r });
   make(path.join(suites, "finished"), { "run.json": run({ active: false, owner: { pid: LIVE } }) });
@@ -1741,14 +1742,15 @@ await check("journalPids reads every recorded pid and refuses a line that is not
       assert.match(decisionOf("redgreen-old"), /^remove\s+redgreen-old\s+8 B\s+a redgreen snapshot last written 30\.0 h ago/);
       assert.match(decisionOf("redgreen-young"), /^keep\s+redgreen-young\s.*written 2\.0 h ago, under the 24\.0 h threshold/);
       assert.match(decisionOf("redgreen-named"), /^keep\s+redgreen-named\s.*its path is on the command line of pid 777 \(node\.exe\)/);
+      assert.match(decisionOf("redgreen-running"), /^keep\s+redgreen-running\s.*its owner\.json names pid 4343, which is running/);
       assert.equal(decisionOf("unrelated-old"), "", "a directory not named redgreen-* was listed");
       assert.match(decisionOf("finished"), /^remove\s+finished\s.*a finished test-suite run/);
       assert.match(decisionOf("dead-owner"), /^remove\s+dead-owner\s.*coordinator pid 9101 is dead/);
       assert.match(decisionOf("live-owner"), /^keep\s+live-owner\s.*its coordinator pid 4343 is running/);
       assert.match(decisionOf("live-child"), /^keep\s+live-child\s.*an unfinished attempt's child is still running \(pid 4343\)/);
       assert.match(decisionOf("no-run-json"), /^keep\s+no-run-json\s.*its run\.json could not be read/);
-      assert.ok(lines.some((l) => /^3 directories: 1 to remove \(8 B\), 2 kept\.$/.test(l)), lines.join("\n"));
-      for (const d of ["redgreen-old", "redgreen-young", "redgreen-named"]) assert.ok(fs.existsSync(path.join(tmp, d)), `the dry run removed ${d}`);
+      assert.ok(lines.some((l) => /^4 directories: 1 to remove \(8 B\), 3 kept\.$/.test(l)), lines.join("\n"));
+      for (const d of ["redgreen-old", "redgreen-young", "redgreen-named", "redgreen-running"]) assert.ok(fs.existsSync(path.join(tmp, d)), `the dry run removed ${d}`);
       for (const d of ["finished", "dead-owner"]) assert.ok(fs.existsSync(path.join(suites, d)), `the dry run removed ${d}`);
       assert.equal(recorded.length, 0, "the dry run recorded a row");
     });
@@ -1758,10 +1760,21 @@ await check("journalPids reads every recorded pid and refuses a line that is not
       const result = await cleanScratch(ctx, deps, true, (r) => recorded.push(r));
       assert.equal(result.failed, 0, lines.join("\n"));
       for (const d of [path.join(tmp, "redgreen-old"), path.join(suites, "finished"), path.join(suites, "dead-owner")]) assert.ok(!fs.existsSync(d), `the removable ${d} is still there`);
-      for (const d of [path.join(tmp, "redgreen-young"), path.join(tmp, "redgreen-named"), path.join(tmp, "unrelated-old"), path.join(suites, "live-owner"), path.join(suites, "live-child"), path.join(suites, "no-run-json")]) assert.ok(fs.existsSync(d), `the apply run removed the retained ${d}`);
+      for (const d of [path.join(tmp, "redgreen-young"), path.join(tmp, "redgreen-named"), path.join(tmp, "redgreen-running"), path.join(tmp, "unrelated-old"), path.join(suites, "live-owner"), path.join(suites, "live-child"), path.join(suites, "no-run-json")]) assert.ok(fs.existsSync(d), `the apply run removed the retained ${d}`);
       assert.deepEqual(recorded.filter((r) => r.decision === "removed").map((r) => path.basename(r.path)).sort(), ["dead-owner", "finished", "redgreen-old"]);
       assert.deepEqual(recorded.filter((r) => r.decision === "removing").map((r) => path.basename(r.path)).sort(), ["dead-owner", "finished", "redgreen-old"]);
-      assert.equal(recorded.filter((r) => r.decision === "kept").length, 5);
+      assert.equal(recorded.filter((r) => r.decision === "kept").length, 6);
+    });
+
+    await check("a scratch removal that throws is a failed row, counted, with the directory's state", async () => {
+      const doomed = make(path.join(suites, "undeletable"), { "run.json": run({ active: false, owner: { pid: 9103 } }) });
+      lines.length = 0;
+      recorded.length = 0;
+      const result = await cleanScratch(ctx, { ...deps, removeScratch: () => { throw new Error("EBUSY: resource busy"); } }, true, (r) => recorded.push(r));
+      assert.equal(result.failed, 1, lines.join("\n"));
+      assert.match(decisionOf("undeletable"), /^failed\s+undeletable\s.*EBUSY: resource busy; the directory is still there; a finished test-suite run/);
+      assert.deepEqual(recorded.filter((r) => r.decision === "failed").map((r) => path.basename(r.path)), ["undeletable"]);
+      assert.ok(fs.existsSync(doomed));
     });
 
     await check("an unlisted process table keeps every scratch directory", () => {

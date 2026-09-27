@@ -807,11 +807,8 @@ export function classifyJob(name, dir, deps, ctx) {
     else for (const pid of pids) if (pid !== deps.pid() && deps.pidAlive(pid)) live.add(pid);
   }
   if (live.size) keep.push(`its journal records ${n(live.size, "process", "processes")} still running (pid ${[...live].join(", ")})`);
-  if (!ctx.processes.ok) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
-  else {
-    const users = usersOf(dir, ctx.processes.list, deps.pid());
-    if (users.length) keep.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
-  }
+  const using = commandLineReason(dir, deps, ctx);
+  if (using) keep.push(using);
   // A test's scratch directory names its own process in an owner journal
   // when it is created; without one, whose it is cannot be told.
   if (test && !journals.length) keep.push("a test directory with no journal naming its process; left for a person");
@@ -901,7 +898,7 @@ export function cleanJobs(ctx, deps, apply, record) {
 // green logs, and leaves it for the report to cite. `test-suite.mjs start`
 // writes each run under <git-dir>/test-suites/<uuid>/; a linked worktree's git
 // dir goes with the worktree, and the main checkout's is pruned here.
-export const REDGREEN_AGE_MS = 24 * 60 * 60 * 1000;
+const REDGREEN_AGE_MS = 24 * 60 * 60 * 1000;
 
 // Shared by both: a directory named on a running command line is in use.
 function commandLineReason(dir, deps, ctx) {
@@ -918,6 +915,17 @@ export function classifyRedgreen(dir, deps, ctx) {
   const age = mtime == null ? null : Date.parse(deps.now()) - mtime;
   if (age == null) keep.push("its age could not be read");
   else if (age < REDGREEN_AGE_MS) keep.push(`written ${hours(age)} ago, under the ${hours(REDGREEN_AGE_MS)} threshold; a run's report may still cite its logs`);
+  // runRedGreen names its own process in owner.json; its command line never
+  // names the directory it generated, so this is what shows a run still
+  // holding the snapshot it restores from. A directory without the file is
+  // judged by age alone.
+  let owner = null;
+  try {
+    owner = JSON.parse(deps.readFile(path.join(dir, "owner.json")))?.pid;
+  } catch {
+    /* no owner record */
+  }
+  if (deps.pidAlive(owner) && owner !== deps.pid()) keep.push(`its owner.json names pid ${owner}, which is running; a red/green run may still be restoring from it`);
   const using = commandLineReason(dir, deps, ctx);
   if (using) keep.push(using);
   if (keep.length) return { remove: false, reason: keep.join("; ") };
