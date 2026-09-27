@@ -113,9 +113,10 @@ const PRODUCERS: Record<string, [body: string, lines: number[]]> = {
     [6, 7, 8, 12, 13, 18],
   ],
   "a load arrow": [`  -> load later`, [6, 7, 11, 12, 17]],
+  // The alternator line (7) covers its own line with its statement (#944).
   "a single-line alternator": [
     `  queue | A # t | B end\n  After the alternator.`,
-    [6, 8, 12, 13, 18],
+    [6, 7, 8, 12, 13, 18],
   ],
   "a bare {expr} line and a chain": [
     `  {1 + 2}\n  {1}{2}\n  After the expressions.`,
@@ -202,8 +203,9 @@ describe("pathLocation coverage", () => {
     });
   }
 
+  // The `if true then` line (13) covers its own line with its statement (#944).
   test("a glued chain covers its source lines", () => {
-    expect(coveredLines(GLUED)).toEqual([6, 7, 8, 9, 10, 11, 12, 14, 16]);
+    expect(coveredLines(GLUED)).toEqual([6, 7, 8, 9, 10, 11, 12, 13, 14, 16]);
   });
 
   test("each display line type covers its source line", () => {
