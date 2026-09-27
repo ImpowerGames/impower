@@ -4,7 +4,7 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 6. Later changes send the PR back to draft
 
-A PR marked ready does not stay ready through its next code change. Whenever more work lands on the branch (the user gives feedback, a human reviewer asks for something, a late reviewer finally reports, you find a defect yourself) put the PR back into draft before you start:
+A PR marked ready does not stay ready through its next code change. Whenever more work lands on the branch (the user gives feedback, a human reviewer asks for something, a late reviewer finally reports, a CI check that was pending at readiness fails, you find a defect yourself) put the PR back into draft before you start:
 
 ```bash
 gh pr ready --undo

@@ -5,7 +5,7 @@ description: Independently review an open PR, record and adjudicate every findin
 
 # Review a pull request
 
-Keep the PR draft until review, corrections and current-head CI are complete. Never edit the reviewed head or worktree while any reviewer process remains active.
+Keep the PR draft until review and corrections are complete and CI has started on the final head with no failed check; pending checks do not hold readiness. Never edit the reviewed head or worktree while any reviewer process remains active.
 
 ## 1. Size the review
 
@@ -37,7 +37,7 @@ Any code correction reopens regression and live/tooling verification. Commit by 
 
 ## 5. Readiness gate
 
-Before `gh pr ready`, require every reviewer process to exit; all required coverage and full reports for the frozen head; every finding and verification gap adjudicated; all accepted fixes committed, pushed and reverified; current-head CI green, including every Test Suite workflow job for the reviewed head; and independent review of behavior-changing corrections. Only verified, disclosed non-behavioral corrections qualify for the next section's exception. Read back `number,isDraft,reviewDecision`. Missing coverage, blockers, or material verification gaps keep the PR draft; report what remains.
+Before `gh pr ready`, require every reviewer process to exit; all required coverage and full reports for the frozen head; every finding and verification gap adjudicated; all accepted fixes committed, pushed and reverified; CI started on the final head with no failed check, each check recorded as passed, failed or pending in the PR body; and independent review of behavior-changing corrections. Only verified, disclosed non-behavioral corrections qualify for the next section's exception. Read back `number,isDraft,reviewDecision`. Missing coverage, blockers, or material verification gaps keep the PR draft; report what remains.
 
 ## 6. Later changes
 
