@@ -211,6 +211,9 @@ await check("missingBuildEntries names the workbench entry files a build with on
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, "version"), `vscode-web-stable-${commit}`);
   assert.deepEqual(missingBuildEntries(scratch, commit), { dir, missing: BUILD_ENTRY_FILES });
+  fs.mkdirSync(path.dirname(path.join(dir, BUILD_ENTRY_FILES[0])), { recursive: true });
+  fs.writeFileSync(path.join(dir, BUILD_ENTRY_FILES[0]), "x");
+  assert.deepEqual(missingBuildEntries(scratch, commit), { dir, missing: [BUILD_ENTRY_FILES[1]] }, "a build with the script but not the stylesheet is still incomplete");
   for (const f of BUILD_ENTRY_FILES) {
     fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
     fs.writeFileSync(path.join(dir, f), "x");
@@ -975,13 +978,13 @@ const inPage = (fn, arg, doc) => new Function(`return ${fn.toString()}`)()(arg, 
 // hover appears once Ctrl+K Ctrl+I was pressed, on the `hoverAfterReads`th
 // read after it, as a real one takes time to open. `tabTitle` names the
 // editor that opens when it is not the row clicked.
-function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, hoverAfterReads = 3, tabTitle = null, splitSuffix = false, explorer = DEFAULT_EXPLORER, crumbs = () => ["main.sd", "…"], activated = true, extensionId = EXT_ID } = {}) {
+function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, hoverAfterReads = 3, tabTitle = null, splitSuffix = false, suffixLate = false, explorer = DEFAULT_EXPLORER, crumbs = () => ["main.sd", "…"], activated = true, extensionId = EXT_ID } = {}) {
   const lineEls = lines.map((text, i) => ({ style: { top: `${i * LINE_H}px` }, textContent: text, childNodes: [{ nodeType: 1, childNodes: monacoNodes(text) }], rect: { x: 100, y: 50 + i * LINE_H } }));
   const domOrder = [...lineEls].reverse();
   const numberEls = (numbers ?? lines.map((_, i) => String(i + 1))).map((n, i) => ({ textContent: n, parentElement: { style: { top: `${i * LINE_H}px` } } }));
   const numberOrder = [...numberEls.slice(1), ...numberEls.slice(0, 1)];
   const doc = {
-    state: { problems, squiggles, cursor, caretX, hover, hoverShown: false, hoverReads: 0, hoverAfterReads, marked: null, tabTitle, splitSuffix, explorer, crumbs, activated, extensionId, tabs: [{ title: "Welcome", active: false }] },
+    state: { problems, squiggles, cursor, caretX, hover, hoverShown: false, hoverReads: 0, hoverAfterReads, marked: null, tabTitle, splitSuffix, suffixLate, suffixWaited: false, explorer, crumbs, activated, extensionId, tabs: [{ title: "Welcome", active: false }] },
     querySelector(sel) {
       return this.querySelectorAll(sel)[0] ?? null;
     },
@@ -1378,7 +1381,17 @@ function fakePage(doc, acts, readCost = () => {}) {
     }
     if (sel === ".tabs-container .tab.active .label-suffix") {
       const t = active();
-      return { allTextContents: async () => (dot(t) < 0 ? [] : [t.slice(dot(t))]) };
+      // With `suffixLate` the suffix renders only once something waits for it.
+      const shown = () => (dot(t) < 0 || (s.suffixLate && !s.suffixWaited) ? [] : [t.slice(dot(t))]);
+      const suffixLocator = {
+        first: () => suffixLocator,
+        waitFor: async () => {
+          s.suffixWaited = true;
+          if (dot(t) < 0) throw new Error("Timeout 5000ms exceeded.");
+        },
+        allTextContents: async () => shown(),
+      };
+      return suffixLocator;
     }
     if (sel === ".tabs-container .tab .label-name") return text(s.tabs[0]?.title ?? null);
     if (sel === "[data-drive-hover]") return { first: () => locator(sel), screenshot: async ({ path: p }) => acts.push(["shot", sel, p]) };
@@ -1639,6 +1652,10 @@ await check("a file that does not open, or opens under another title, is a failu
   const split = verifyDeps(fakeDocument({ lines: rendered, splitSuffix: true }));
   r = await verify([], split);
   assert.equal(r.report.opened, true, "a tab whose extension sits in .label-suffix is the file that opened");
+  assert.equal(r.report.editor, "main.sd");
+  const late = verifyDeps(fakeDocument({ lines: rendered, splitSuffix: true, suffixLate: true }));
+  r = await verify([], late);
+  assert.equal(r.report.opened, true, "a suffix that renders after the name is waited for");
   assert.equal(r.report.editor, "main.sd");
   r = await verify([], verifyDeps(fakeDocument({ lines: rendered, tabTitle: "other.sd", splitSuffix: true })));
   assert.deepEqual(r.report.failed, ['the editor that opened is titled "other.sd", not main.sd']);  const dotted = verifyDeps(fakeDocument({ lines: rendered, explorer: [{ name: "a+b.sd", level: 1 }, { name: "a.b.sd", level: 1 }] }));

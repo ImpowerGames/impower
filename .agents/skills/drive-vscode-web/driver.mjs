@@ -1423,9 +1423,12 @@ async function openFile(page, file, report, fail) {
     return;
   }
   // Some builds render the extension outside `.label-name`, in a sibling
-  // `.label-suffix`, so the title is the two joined.
+  // `.label-suffix`, so the title is the two joined. A name that is not the
+  // whole file name waits for the suffix, which can render after it.
   const name = (await page.locator(".tabs-container .tab.active .label-name").first().textContent({ timeout: 10_000 }).catch(() => null))?.trim() ?? null;
-  const suffix = name == null ? "" : (await page.locator(".tabs-container .tab.active .label-suffix").allTextContents().catch(() => [])).join("").trim();
+  const suffixes = page.locator(".tabs-container .tab.active .label-suffix");
+  if (name != null && name !== file) await suffixes.first().waitFor({ timeout: 5_000 }).catch(() => {});
+  const suffix = name == null ? "" : (await suffixes.allTextContents().catch(() => [])).join("").trim();
   const title = name == null ? null : name + suffix;
   report.editor = title;
   report.opened = editorOpened(title, file);
