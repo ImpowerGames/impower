@@ -273,6 +273,18 @@ await test('unknown problems, changed skills and marker comments stay intact wit
   assert.deepEqual(plan.ignored.map(item => [item.id, item.reason.slice(0, 29)]), [[1, 'Unknown problem F-9; referenc'], [2, 'Skill for F-5 does not match ']]);
   assert.deepEqual(plan.skipped.map(item => item.id), [3]);
   assert.deepEqual(plan.comments.map(item => item.id), [4]);
+  assert.match(plan.ignored[1].reason, /copy the saved target verbatim: review-pr, section 3/);
+});
+
+await test('a repeat whose target names the saved skill in other words is counted', () => {
+  const text = withLedger(body, [problem('F-5', 'ticketed #737')]);
+  const repeats = ['review-pr, section 3 (Adversarial review) and references/recovery.md', 'review-pr section 4', '`review-pr`'];
+  const plan = makePlan(text, repeats.map((skill, i) => reported(i + 1, `codex:s${i}`, 'F-5', 'x', skill)), undefined, hydrateReports(text, []));
+  assert.deepEqual(plan.ignored, []);
+  assert.deepEqual(plan.comments.map(item => item.id), [1, 2, 3]);
+  const row = plan.rows.find(item => item.problemId === 'F-5');
+  assert.equal(row.skill, 'review-pr, section 3');
+  assert.deepEqual(row.sessions, ['codex:alpha', 'codex:s0', 'codex:s1', 'codex:s2']);
 });
 
 await test('changed body, changed intake, and changed references stop before mutations', async () => {
