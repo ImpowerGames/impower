@@ -66,9 +66,8 @@ function lowerExplicitStatementContent(
   // return off the eval stack.
 
   // Stylistic diagnostic: inside a function body, the `&` prefix is
-  // redundant. Route via `ctx.diagnostics` so it survives the
-  // unwrapping in `lowerStatements`/`appendBlockContent` (which only
-  // copies `content`, not `diagnostics`, from nested blocks).
+  // redundant. Pushed to `ctx.diagnostics`, which the chunk-level
+  // annotator collects.
   const diagnostics = validateExplicitStatement(nodeRef.node, ctx);
   if (diagnostics.length > 0 && ctx.diagnostics) {
     ctx.diagnostics.push(...diagnostics);

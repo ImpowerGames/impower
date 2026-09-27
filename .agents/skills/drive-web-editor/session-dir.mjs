@@ -25,6 +25,16 @@ export const driverHome = (env = process.env) => env.IMPOWER_DRIVER_HOME || path
 // Every session of one checkout lives under the checkout's own directory.
 export const checkoutDir = (root, env = process.env) => path.join(driverHome(env), shortHash(path.resolve(root)));
 
+// Every session directory holds `state.json` while its servers run and
+// `profile/`, whose claim file names the session that last opened it and when.
+// A claim younger than PROFILE_CLAIM_MS keeps other sessions (and
+// clean-worktrees) off the profile.
+export const PROFILE_CLAIM_MS = 30 * 60_000;
+export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
+// A claim's lock file older than this was left by a launch that died
+// mid-claim (the claim itself takes milliseconds).
+export const PROFILE_LOCK_STALE_MS = 30_000;
+
 export function sessionDir({ root, session = driverSession(), env = process.env } = {}) {
   return path.join(checkoutDir(root, env), session ? shortHash(session) : "shared");
 }

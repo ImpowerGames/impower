@@ -10,7 +10,7 @@ const NOT_APPLICABLE: [name: string, reason: string][] = [
   // Luau: IgnoreLintSpecific
   ["IgnoreLintSpecific", "`--!nolint <rule>` directive comments"],
   // Luau: WrongComment
-  ["WrongComment", "validates `--!` directive comments, which sparkdown does not read"],
+  ["WrongComment", "validates `--!nolint`, `--!optimize` and `--!native`, which sparkdown does not read; the mode directives' half is the type checker's (typecheckModes.test.ts)"],
   // Luau: WrongCommentMuteSelf
   ["WrongCommentMuteSelf", "`--!nolint` directive comments"],
   // Luau: WrongCommentOptimize
@@ -38,7 +38,7 @@ const NOT_APPLICABLE: [name: string, reason: string][] = [
   // Luau: read_write_table_props
   ["read_write_table_props", "`read`/`write` table type properties need the type checker (#589)"],
   // Luau: DisableUnknownGlobalWithTypeChecking
-  ["DisableUnknownGlobalWithTypeChecking", "`--!strict` mode, which sparkdown does not have"],
+  ["DisableUnknownGlobalWithTypeChecking", "Luau's linter drops its UnknownGlobal lint when the type checker runs; sparkdown's lints have no such rule, since its resolver and the type checker report unknown names"],
   // Luau: use_all_parent_scopes_for_globals
   ["use_all_parent_scopes_for_globals", "module environments and definition files"],
   // Luau: DeprecatedGlobalNoReplacement

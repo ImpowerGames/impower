@@ -313,13 +313,20 @@ function lowerInner(
       return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
+    // A loop or `do` block in a function body parses as the `Luau…` rule; one
+    // in a scene or at the top level parses as the `LuauSparkdown…` rule,
+    // whose body also accepts display lines. Both lower the same way.
     case "LuauWhileLoop":
+    case "LuauSparkdownWhileLoop":
       return lowerLuauWhileLoop(nodeRef, ctx);
     case "LuauDoBlock":
+    case "LuauSparkdownDoBlock":
       return lowerLuauDoBlock(nodeRef, ctx);
     case "LuauForLoop":
+    case "LuauSparkdownForLoop":
       return lowerLuauForLoop(nodeRef, ctx);
     case "LuauRepeatLoop":
+    case "LuauSparkdownRepeatLoop":
       return lowerLuauRepeatLoop(nodeRef, ctx);
     case "LuauUntilStatement":
       // No-op — the until-statement is consumed by the sibling
@@ -395,14 +402,14 @@ export function lowerStatements(
         const multi = scanMultiTargetReassignment(child);
         if (multi) {
           const block = lowerMultiTargetReassignment(multi, ctx);
-          appendBlockContent(result, block);
+          appendBlockContent(result, block, ctx);
           child = multi.lastNode.nextSibling;
           continue;
         }
         const opSibling = findAssignmentOperationAfter(child);
         if (opSibling) {
           const block = lowerReassignment(child, opSibling, ctx);
-          appendBlockContent(result, block);
+          appendBlockContent(result, block, ctx);
           child = opSibling.nextSibling;
           continue;
         }
@@ -445,7 +452,7 @@ export function lowerStatements(
         };
         if (callExpr instanceof FunctionCall) {
           callExpr.shouldPopReturnedValue = true;
-          appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx));
+          appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx), ctx);
           child = (consumedParen ?? child).nextSibling;
           continue;
         }
@@ -454,7 +461,7 @@ export function lowerStatements(
         // statement-context treatment: pop the unused return value.
         if (callExpr instanceof CallValueExpression) {
           callExpr.shouldPopReturnedValue = true;
-          appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx));
+          appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx), ctx);
           child = (consumedParen ?? child).nextSibling;
           continue;
         }
@@ -495,7 +502,7 @@ export function lowerStatements(
           if (links.length > 0 && scanStore?.name === "LuauAssignmentOperation") {
             const block = lowerParenTargetStore(child, links, scanStore, ctx);
             if (block) {
-              appendBlockContent(result, block);
+              appendBlockContent(result, block, ctx);
               child = scanStore.nextSibling;
               continue;
             }
@@ -527,6 +534,7 @@ export function lowerStatements(
                 { from: child.from, to: lastNode.to },
                 ctx,
               ),
+              ctx,
             );
             child = lastNode.nextSibling;
             continue;
@@ -534,8 +542,8 @@ export function lowerStatements(
         }
       }
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
-      if (block?.content) {
-        appendBlockContent(result, block);
+      if (block) {
+        appendBlockContent(result, block, ctx);
       }
     }
     child = child.nextSibling;
@@ -967,10 +975,17 @@ function buildBaseFromParts(
   return current;
 }
 
+// Unwraps a nested statement's block into `result`. The block's own
+// diagnostics move to `ctx.diagnostics`, where the chunk-level annotator
+// collects them, since the nested block itself is discarded.
 function appendBlockContent(
   result: ParsedObject[],
   block: CompiledBlock,
+  ctx: LowerContext,
 ): void {
+  if (block.diagnostics?.length) {
+    ctx.diagnostics?.push(...block.diagnostics);
+  }
   if (!block.content) return;
   for (const obj of block.content) {
     if (obj instanceof Weave) {

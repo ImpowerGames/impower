@@ -41,6 +41,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { PROFILE_CLAIM_FILE, checkoutDir } from "../drive-web-editor/session-dir.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
@@ -1224,7 +1225,7 @@ try {
   await control("directories that are not worktrees are not listed", [["const strayPaths = strayDirs(entries, ctx.root, deps.listDirs);", "const strayPaths = [];"]], ["no row for impower.worktrees"]);
   await control("the rows are not recorded for the next run", [["if (!row.stray) record({ decision: row.decision, path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });", ""]], [`row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say`]);
   await control("a stray row is recorded over the removal it reports", [["if (!row.stray) record({ decision: row.decision,", "record({ decision: row.decision,"]], ["the log does not hold every worktree row, or holds a stray one", `row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say '; its branch fix/14-grabbed is still local'`]);
-  await control("a failed removal exits 0", [["return failed || jobs.failed || scratch.failed ? 1 : 0;", "return jobs.failed || scratch.failed ? 1 : 0;"]], ["exit code 0 though a removal failed"]);
+  await control("a failed removal exits 0", [["return failed || drivers.failed || jobs.failed || scratch.failed ? 1 : 0;", "return drivers.failed || jobs.failed || scratch.failed ? 1 : 0;"]], ["exit code 0 though a removal failed"]);
   await control("a tree that turned dirty after classification is removed", [["if (dirty > 0) return kept(", "if (false) return kept("]], ["fix/25-dirty-late: expected kept, got removed"]);
   await control("the older driver location is not looked at", [['".agents/skills/resolve-issue/driver.mjs"', '".agents/skills/resolve-issue/driver-elsewhere.mjs"']], ["fix/26-old-driver-up: expected keep, got remove"]);
   await control("the VS Code driver is not asked", [['  { driver: ".agents/skills/drive-vscode-web/driver.mjs", states: [".agents/skills/drive-vscode-web/.state.json", ".claude/skills/drive-vscode-web/.state.json"] },\n', ""]], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
@@ -1271,11 +1272,13 @@ const root = path.join(scratch, "impower.worktrees");
 // machine's real temp directory is never listed or pruned by a check.
 const scratchTemp = path.join(scratch, "temp");
 fs.mkdirSync(scratchTemp);
+const driverHome = path.join(scratch, "driver-home");
 const env = {
   ...process.env,
   TEMP: scratchTemp,
   TMP: scratchTemp,
   TMPDIR: scratchTemp,
+  IMPOWER_DRIVER_HOME: driverHome,
   GIT_AUTHOR_NAME: "check",
   GIT_AUTHOR_EMAIL: "check@example.invalid",
   GIT_COMMITTER_NAME: "check",
@@ -1394,6 +1397,51 @@ try {
   if (WIN) assert.equal(git(wt("fix/15-junction"), "status", "--porcelain", "--ignored=matching"), "!! node_modules/", "the junction is not an ignored directory to git");
   else assert.equal(git(wt("fix/15-junction"), "status", "--porcelain", "--ignored=matching"), "!! node_modules", "git reports the ignored POSIX symlink as a file-type entry");
 
+  // The web editor driver's directories, under the scratch driver home: the
+  // merged fix/1-merged-gone's holds a session whose profile claim is two
+  // hours old, fix/12-ff-merged's one claimed a minute ago, fix/14-base's a
+  // server record naming this process, and fix/3-dirty, which stays, one of
+  // its own; one more directory matches no worktree.
+  const driverDir = (branch) => checkoutDir(wt(branch), { IMPOWER_DRIVER_HOME: driverHome });
+  const session = (branch, { claimAt, pid }) => {
+    const profile = path.join(driverDir(branch), "abc123", "profile");
+    fs.mkdirSync(path.join(profile, "Default"), { recursive: true });
+    fs.writeFileSync(path.join(profile, "Default", "cache.bin"), Buffer.alloc(4096));
+    if (claimAt != null) fs.writeFileSync(path.join(profile, PROFILE_CLAIM_FILE), JSON.stringify({ session: "s", at: claimAt }));
+    if (pid != null) fs.writeFileSync(path.join(driverDir(branch), "abc123", "state.json"), JSON.stringify({ pid, url: "http://localhost:1" }));
+  };
+  session("fix/1-merged-gone", { claimAt: Date.now() - 2 * 60 * 60_000 });
+  session("fix/12-ff-merged", { claimAt: Date.now() - 60_000 });
+  session("fix/14-base", { pid: process.pid });
+  session("fix/3-dirty", { claimAt: Date.now() - 2 * 60 * 60_000 });
+  // More sessions under fix/1-merged-gone, none in use: a claim lock an hour
+  // old, which a launch that died mid-claim leaves. More under
+  // fix/12-ff-merged, each a reason to keep on its own: a lock written now,
+  // a claim that is not JSON, and a server record that is a dangling link.
+  // fix/14-base's directory is also on a running process's command line.
+  const extra = (branch, name) => {
+    const profile = path.join(driverDir(branch), name, "profile");
+    fs.mkdirSync(profile, { recursive: true });
+    return profile;
+  };
+  const staleLock = path.join(extra("fix/1-merged-gone", "lockstale"), `${PROFILE_CLAIM_FILE}.lock`);
+  fs.writeFileSync(staleLock, "123-dead");
+  fs.utimesSync(staleLock, new Date(Date.now() - 60 * 60_000), new Date(Date.now() - 60 * 60_000));
+  fs.writeFileSync(path.join(extra("fix/12-ff-merged", "lockfresh"), `${PROFILE_CLAIM_FILE}.lock`), "456-live");
+  fs.writeFileSync(path.join(extra("fix/12-ff-merged", "badclaim"), PROFILE_CLAIM_FILE), '{"session":');
+  extra("fix/12-ff-merged", "linkrecord");
+  let linked = true;
+  try {
+    fs.symlinkSync(path.join(scratch, "no-such-record.json"), path.join(driverDir("fix/12-ff-merged"), "linkrecord", "state.json"), "file");
+  } catch (err) {
+    if (err.code !== "EPERM") throw err;
+    linked = false;
+  }
+  const profileUser = hold(scratch, path.join(driverDir("fix/14-base"), "abc123", "profile"));
+  const orphan = path.join(driverHome, "0123456789ab");
+  fs.mkdirSync(path.join(orphan, "shared", "profile"), { recursive: true });
+  const driverRow = (out, dir) => out.split(/\r?\n/).find((l) => l.includes(`  ${path.basename(dir)}  `));
+
   await check("as a command, --apply on a repository that never recorded origin/HEAD exits 1 and touches nothing, until `git remote set-head` records it", () => {
     const r = cli(mainRoot, "--apply", "--root", mainRoot);
     assert.equal(r.status, 1, r.out);
@@ -1453,6 +1501,18 @@ try {
     assert.ok(fs.existsSync(wt("fix/1-merged-gone")), "the dry run removed a directory");
     assert.equal(worktreePaths(), before);
     assert.ok(!fs.existsSync(path.join(mainRoot, ".git", LOG_NAME)), "the dry run wrote the log");
+    assert.match(r.out, new RegExp(`web editor driver directories under ${driverHome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`));
+    assert.match(driverRow(r.out, driverDir("fix/1-merged-gone")) ?? "", /^remove\s+\S+\s+4\.0 KB\s+the driver directory of .*fix.1-merged-gone, which would be removed; no session in it is in use$/);
+    assert.match(driverRow(r.out, driverDir("fix/12-ff-merged")) ?? "", /^keep\s.*session abc123: its profile was claimed 1 min ago, under the driver's 30 min/);
+    const kept12 = driverRow(r.out, driverDir("fix/12-ff-merged")) ?? "";
+    assert.match(kept12, /session lockfresh: a launch holds its profile claim lock/);
+    assert.match(kept12, /session badclaim: its profile claim could not be read/);
+    if (linked) assert.match(kept12, /session linkrecord: its server record is a link/);
+    else console.log("SKIP: a dangling server record link (creating a symlink needs a privilege this account lacks)");
+    assert.match(driverRow(r.out, driverDir("fix/14-base")) ?? "", new RegExp(`^keep\\s.*session abc123: its server record names pid ${process.pid}, still running.*its path is on the command line of pid ${profileUser.pid} \\(`));
+    assert.match(driverRow(r.out, orphan) ?? "", /^keep\s.*matches no worktree/);
+    assert.equal(driverRow(r.out, driverDir("fix/3-dirty")), undefined, "the directory of a worktree that stays was listed");
+    assert.ok(fs.existsSync(driverDir("fix/1-merged-gone")), "the dry run removed a driver directory");
   });
 
   await check("as a command, --apply removes the merged worktrees and their branches, finishes the one git could not, keeps the dirty one, the fresh ones, the expired one and a held tree untouched, and records every row with a removing row before each removal", () => {
@@ -1485,10 +1545,15 @@ try {
     // Windows then refuses the rename while the holder has the directory open,
     // so it survives --apply there and is removed here.
     const removed = ["fix/1-merged-gone", "fix/12-ff-merged", "fix/14-base", ...(WIN ? ["fix/9-deep"] : ["fix/7-held"])].sort();
-    assert.deepEqual(logged.filter((row) => row.decision === "removed").map((row) => row.branch).sort(), removed);
-    assert.deepEqual(logged.filter((row) => row.decision === "removing").map((row) => row.branch).sort(), [...removed, ...(WIN ? ["fix/7-held"] : [])].sort(), "a removing row is missing or extra");
+    assert.deepEqual(logged.filter((row) => row.decision === "removed" && row.branch).map((row) => row.branch).sort(), removed);
+    assert.deepEqual(logged.filter((row) => row.decision === "removing" && row.branch).map((row) => row.branch).sort(), [...removed, ...(WIN ? ["fix/7-held"] : [])].sort(), "a removing row is missing or extra");
     for (const b of removed) assert.ok(logged.findIndex((row) => row.decision === "removing" && row.branch === b) < logged.findIndex((row) => row.decision === "removed" && row.branch === b), `the removing row for ${b} is not before its outcome`);
-    assert.match(logged.at(-1).summary, /^Removed \d worktrees/);
+    assert.match(logged.findLast((row) => row.summary).summary, /^Removed \d worktrees/);
+    assert.match(driverRow(r.out, driverDir("fix/1-merged-gone")) ?? "", /^removed\s/);
+    assert.equal(fs.existsSync(driverDir("fix/1-merged-gone")), false, "the removed worktree's driver directory is still there");
+    for (const b of ["fix/12-ff-merged", "fix/14-base", "fix/3-dirty"]) assert.ok(fs.existsSync(path.join(driverDir(b), "abc123", "profile", "Default", "cache.bin")), `the driver directory of ${b} lost its profile`);
+    assert.ok(fs.existsSync(orphan), "the unmatched driver directory was removed");
+    assert.ok(logged.some((row) => row.decision === "removed" && row.path === driverDir("fix/1-merged-gone")), "the driver directory's removal was not recorded");
     if (!WIN) return skip("the held tree and the part-way failure under --apply", "it depends on the system refusing a rename or a long path");
     expectRows(r.out, [
       ["fix/7-held", "kept", "the directory could not be renamed (EPERM), which on Windows happens while a process has a file open or its current directory inside it; no process names the path"],

@@ -17,4 +17,5 @@ export type SparkFrontMatterKeyword =
   | "contact_info"
   | "contact info"
   | "header"
-  | "footer";
+  | "footer"
+  | "typecheck";

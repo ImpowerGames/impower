@@ -25835,6 +25835,11 @@
             "layer": "portrait"
           }
         },
+        "typecheck": {
+          "$name": "typecheck",
+          "$type": "config",
+          "mode": "nonstrict"
+        },
         "ui": {
           "$name": "ui",
           "$type": "config",
@@ -26596,6 +26601,7 @@
           "title": "",
           "tl": "",
           "tr": "",
+          "typecheck": "",
           "watermark": ""
         }
       },
@@ -160470,6 +160476,11 @@
             "layer": "portrait"
           }
         },
+        "typecheck": {
+          "$name": "typecheck",
+          "$type": "config",
+          "mode": "nonstrict"
+        },
         "ui": {
           "$name": "ui",
           "$type": "config",
@@ -161231,6 +161242,7 @@
           "title": "",
           "tl": "",
           "tr": "",
+          "typecheck": "",
           "watermark": ""
         }
       },

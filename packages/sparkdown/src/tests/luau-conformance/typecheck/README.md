@@ -4,7 +4,7 @@ This directory ports Luau's own type-checker tests, from `tests/` in [luau-lang/
 
 ## What runs
 
-Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. Until the checker exists (#599), every type assertion that runs fails with "not implemented", which shows the assertions are wired. From the repository root:
+Every case checks that Sparkdown reads its snippets as Luau: the parse check. A case's type assertions run only when its upstream file is switched on, in `CHECKED_AREAS` in `portedCases.ts`; each checker slice switches on the files it implements. A case whose file is off reports as skipped once its parse check passes. Setting `LUAU_TYPECHECK_AREAS` to `all`, or to a comma-separated list of upstream files, switches files on for one run. The checker is the port of Luau's type checker in `src/compiler/typecheck/`; `checkLuau` checks a snippet with the globals of the case's fixture (`Fixture`, `BuiltinsFixture` or `NegationFixture`). From the repository root:
 
 ```bash
 LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/tests/luau-conformance/typecheck/TypeInfer.primitives.test.ts --wait 900
