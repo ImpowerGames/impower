@@ -122,7 +122,9 @@ export function validateSlotWait(value) {
 
 // Provider messages that mean the route itself cannot answer: usage and rate
 // limits, rejected credentials, and a CLI too old for the requested model.
-const routeFailurePattern = /hit your .*limit|usage limit|rate limit|too many requests|\b429\b|\b401\b|unauthori[sz]ed|incorrect api key|invalid api key|not logged in|please run .*login|authentication|API Error: 400|requires (a newer|claude code|version)|update claude code|model .*(not found|not available|not supported|does not exist)|quota/i;
+// Status codes count only as a status line renders them, and authentication
+// only beside a failure word, so a benign line naming either is not a cause.
+const routeFailurePattern = /hit your .*limit|usage limit|rate limit|too many requests|\b(401|429)\s+(unauthori[sz]ed|too many)|(status|http|error)\W{0,3}(401|429)\b|unauthori[sz]ed|incorrect api key|invalid api key|not logged in|please run .*login|failed to authenticate|authentication (failed|error|required|expired)|API Error: 400|requires (a newer|claude code|version)|update claude code|model .*(not found|not available|not supported|does not exist)|quota exceeded|exceeded .*quota/i;
 export const reviewerProbePrompt = "Reviewer route probe: reply with the single word OK and do nothing else.";
 
 export function routeFailure(text) {
@@ -147,12 +149,15 @@ export function exitFailure(name, output, diagnostics) {
 }
 
 // A probe with the review step's own executable, arguments and environment
-// shows whether the route answers before a reviewer slot is reserved. The
-// Codex report file is left out so the real launch still creates it.
+// shows whether the route answers before a reviewer slot is reserved. A route
+// answers only when it exits 0 and its output carries the requested OK. Every
+// Codex step's report file is left out so the probe never writes the report
+// the real launch creates.
 export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120000 }) {
+  const codex = step.nativeResult === "codex-jsonl" || step.args[0] === "exec";
   const probeArgs = [];
   for (let index = 0; index < args.length; index++) {
-    if (["--output-last-message", "-o"].includes(args[index]) && step.nativeResult === "codex-jsonl") index++;
+    if (codex && ["--output-last-message", "-o"].includes(args[index])) index++;
     else probeArgs.push(args[index]);
   }
   const child = spawn(step.executable, probeArgs, { cwd, env, shell: false, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
@@ -168,10 +173,11 @@ export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120
     child.once("close", (exitCode) => resolve({ code: exitCode }));
   });
   clearTimeout(timer);
-  if (code === 0 && !timedOut) return;
-  const detail = error ? error.message : timedOut ? `no answer within ${Math.round(timeoutMs / 1000)} seconds` : routeFailure(text) ?? text.trim().split(/\r?\n/).at(-1)?.slice(0, 400) ?? `exit code ${code}`;
+  const answered = /\bOK\b/i.test(text);
+  if (code === 0 && !timedOut && answered) return;
+  const detail = error ? error.message : timedOut ? `no answer within ${Math.round(timeoutMs / 1000)} seconds` : routeFailure(text) ?? (code === 0 ? `exited 0 without answering OK${text.trim() ? `: ${text.trim().split(/\r?\n/).at(-1).slice(0, 400)}` : " (no output)"}` : text.trim().split(/\r?\n/).at(-1)?.slice(0, 400));
   let version = "";
-  if (!step.nativeResult?.startsWith("codex") && step.args[0] !== "exec") {
+  if (!codex) {
     try { version = `; installed CLI ${execFileSync(step.executable, ["--version"], { encoding: "utf8", timeout: 15000, windowsHide: true }).trim()}`; } catch {}
   }
   throw new Error(`Reviewer route ${step.model} unavailable before slot reservation: ${detail || `exit code ${code}`}${version}; choose another route or wait for it to recover`);
