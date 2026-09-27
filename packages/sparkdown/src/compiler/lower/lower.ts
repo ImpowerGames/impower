@@ -313,13 +313,20 @@ function lowerInner(
       return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
+    // A loop or `do` block in a function body parses as the `Luau…` rule; one
+    // in a scene or at the top level parses as the `LuauSparkdown…` rule,
+    // whose body also accepts display lines. Both lower the same way.
     case "LuauWhileLoop":
+    case "LuauSparkdownWhileLoop":
       return lowerLuauWhileLoop(nodeRef, ctx);
     case "LuauDoBlock":
+    case "LuauSparkdownDoBlock":
       return lowerLuauDoBlock(nodeRef, ctx);
     case "LuauForLoop":
+    case "LuauSparkdownForLoop":
       return lowerLuauForLoop(nodeRef, ctx);
     case "LuauRepeatLoop":
+    case "LuauSparkdownRepeatLoop":
       return lowerLuauRepeatLoop(nodeRef, ctx);
     case "LuauUntilStatement":
       // No-op — the until-statement is consumed by the sibling
