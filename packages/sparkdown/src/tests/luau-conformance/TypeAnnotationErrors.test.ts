@@ -2,17 +2,17 @@
 // (`luau/tests/Parser.test.cpp`). Snippets and expected messages are quoted
 // verbatim; the upstream test-case name is in the comment above each group.
 //
-// Every group here is N/A rather than a todo: sparkdown parses a type
-// annotation only far enough to skip it and never interprets it (see
-// "Type annotations are parsed but ignored" in DIVERGENCES.md), so there is
-// no type parser to report a malformed one. They are recorded so the gap is
+// Every group here is N/A rather than a todo: sparkdown's grammar reads a type
+// annotation only far enough to find where it ends, and the type checker
+// leaves syntax to the grammar (see "A malformed type annotation is not
+// reported" in DIVERGENCES.md), so nothing reports a malformed one. They are recorded so the gap is
 // visible, and so that a future type parser has its cases ready.
 
 import { describe, expect, test } from "vitest";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
 
 // Luau: parse_error_messages
-describe.skip("function and table types (N/A: type annotations are ignored)", () => {
+describe.skip("function and table types (N/A: a malformed annotation is not reported)", () => {
   test.each([
     [
       "local a: (number, number) -> (string",
@@ -52,7 +52,7 @@ describe.skip("function and table types (N/A: type annotations are ignored)", ()
 });
 
 // Luau: mixed_intersection_and_union_not_allowed
-describe.skip("mixed union and intersection (N/A: type annotations are ignored)", () => {
+describe.skip("mixed union and intersection (N/A: a malformed annotation is not reported)", () => {
   test("type A = number & string | boolean", () => {
     expect(
       diagnoseInFunction("type A = number & string | boolean"),
@@ -63,7 +63,7 @@ describe.skip("mixed union and intersection (N/A: type annotations are ignored)"
 });
 
 // Luau: parse_error_type_annotation / parse_error_missing_type_annotation
-describe.skip("a value where a type is expected (N/A: type annotations are ignored)", () => {
+describe.skip("a value where a type is expected (N/A: a malformed annotation is not reported)", () => {
   test("local a : 2 = 2", () => {
     expect(diagnoseInFunction("local a : 2 = 2")).toContain(
       "Expected type, got '2'",
@@ -76,7 +76,7 @@ describe.skip("a value where a type is expected (N/A: type annotations are ignor
 });
 
 // Luau: type_alias_error_messages
-describe.skip("type alias headers (N/A: type annotations are ignored)", () => {
+describe.skip("type alias headers (N/A: a malformed annotation is not reported)", () => {
   test.each([
     ["type 5 = number", "Expected identifier when parsing type name, got '5'"],
     ["type A", "Expected '=' when parsing type alias, got <eof>"],
@@ -88,7 +88,7 @@ describe.skip("type alias headers (N/A: type annotations are ignored)", () => {
 });
 
 // Luau: unparenthesized_function_return_type_list
-describe.skip("unparenthesized return type list (N/A: type annotations are ignored)", () => {
+describe.skip("unparenthesized return type list (N/A: a malformed annotation is not reported)", () => {
   test.each([
     ["function foo(): string, number end"],
     ["function foo(): (number) -> string, string"],
@@ -101,7 +101,7 @@ describe.skip("unparenthesized return type list (N/A: type annotations are ignor
 
 // Luau: short_array_types_must_be_alone /
 // short_array_types_are_not_field_names_when_complex / nil_can_not_be_a_field_name
-describe.skip("table type fields (N/A: type annotations are ignored)", () => {
+describe.skip("table type fields (N/A: a malformed annotation is not reported)", () => {
   test.each([
     [
       "local n: {string, number}",
@@ -133,7 +133,7 @@ describe.skip("table type fields (N/A: type annotations are ignored)", () => {
 });
 
 // Luau: extra_table_indexer_recovery — exactly one error.
-describe.skip("second table indexer (N/A: type annotations are ignored)", () => {
+describe.skip("second table indexer (N/A: a malformed annotation is not reported)", () => {
   test("local a : { [string] : number, [number] : string, count: number }", () => {
     expect(
       diagnoseInFunction(

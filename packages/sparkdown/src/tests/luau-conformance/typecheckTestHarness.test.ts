@@ -20,10 +20,12 @@ import {
 } from "./typecheck/portedCases";
 import {
   checkLuau,
+  describeDiagnostic,
   NotImplemented,
   type CheckedType,
   type LuauCheckResult,
   type LuauDiagnostic,
+  type LuauMode,
 } from "./typecheckTestHarness";
 
 afterEach(() => {
@@ -100,13 +102,54 @@ describe("syntax diagnostics", () => {
   });
 });
 
-describe("checkLuau before the checker exists", () => {
-  test("it reports the syntax diagnostics as the diagnostics, and every type query is not implemented", () => {
+describe("checkLuau", () => {
+  test("it checks the snippet in strict mode and reports what the checker finds in the snippet's own lines and columns", () => {
+    const result = checkLuau("local x: number = 1\nlocal y: string = x");
+    expect(result.checked).toBe(true);
+    expect(result.syntaxDiagnostics).toEqual([]);
+    expect(result.diagnostics.map(describeDiagnostic)).toEqual(["1:18-1:19 TypeMismatch: Expected this to be 'string', but got 'number'"]);
+    expect(result.diagnostics[0]?.data).toMatchObject({ wantedType: "string", givenType: "number" });
+  });
+
+  test("a case's mode applies unless the snippet's own directive sets another", () => {
+    const codes = (source: string, mode?: LuauMode) => checkLuau(source, { mode }).diagnostics.map((d) => d.code);
+    expect(codes("local y: string = 1", "nonstrict")).toEqual([]);
+    expect(codes("local y: string = 1", "nocheck")).toEqual([]);
+    expect(codes("--!nocheck\nlocal y: string = 1")).toEqual([]);
+    expect(codes("--!strict\nlocal y: string = 1", "nonstrict")).toEqual(["TypeMismatch"]);
+  });
+
+  test("Luau's parse errors are among the diagnostics, as they are among Luau's", () => {
     const result = checkLuau("local x = 1 )");
+    expect(result.syntaxDiagnostics.length).toBeGreaterThan(0);
+    expect(result.diagnostics.map(describeDiagnostic)).toEqual(["0:12-0:13 SyntaxError: Expected identifier when parsing expression, got ')'"]);
+  });
+
+  test("a type is found by binding, alias or position, and by a path into it", () => {
+    const result = checkLuau(
+      'type Pair<T> = { first: T, second: T }\nlocal p: Pair<number> = { first = 1, second = 2 }\nlocal function f(a: string): number return #a end\nlocal n = f("x")',
+    );
+    expect(result.typeOf("f")).toBe("(string) -> number");
+    expect(result.find({ alias: "Pair" }).typeParameterCount).toBe(1);
+    expect(result.find({ type: "p", path: [{ property: "first" }] }).print()).toBe("number");
+    expect(result.find({ type: "f", path: [{ argument: 0 }] }).print()).toBe("string");
+    expect(result.find({ typeAt: [3, 10] }).kind).toBe("FunctionType");
+    expect(result.find({ type: "n" }).is(result.find({ type: "f", path: [{ result: 0 }] }))).toBe(true);
+    expect(() => result.find({ type: "missing" })).toThrow(/no type for/);
+  });
+
+  test("the fixture decides the globals", () => {
+    const codes = (source: string, fixture: string) => checkLuau(source, { fixture }).diagnostics.map((d) => d.code);
+    expect(codes("print(1)", "Fixture")).toEqual(["UnknownSymbol"]);
+    expect(codes("print(1)", "BuiltinsFixture")).toEqual([]);
+    expect(codes("local x: Not<nil> = 1", "NegationFixture")).toEqual([]);
+  });
+
+  test("a fixture the harness does not build leaves the snippet unchecked, and a type query names the fixture", () => {
+    const result = checkLuau("local x = 1", { fixture: "ExternTypeFixture" });
     expect(result.checked).toBe(false);
     expect(result.diagnostics).toEqual(result.syntaxDiagnostics);
-    expect(() => result.find({ alias: "T" })).toThrow(NotImplemented);
-    expect(() => result.typeOf("x")).toThrow(/^not implemented: the type of \{"type":"x"\} needs the type checker \(#599\)$/);
+    expect(() => result.typeOf("x")).toThrow(/^not implemented: the globals of the fixture ExternTypeFixture$/);
   });
 
   test("a diagnostic the compiler only logs is kept with the result, not printed", () => {
@@ -126,6 +169,8 @@ describe("checkLuau before the checker exists", () => {
 // ---------------------------------------------------------------------------
 
 const FILE = "TypeInfer.primitives.test.cpp";
+// An upstream file no area switch names, so its cases are off unless forced.
+const AREA_OFF_FILE = "Other.test.cpp";
 const SYNTAX_ERROR: LuauDiagnostic = { line: 0, column: 0, endLine: 0, endColumn: 1, message: "bad", code: "SyntaxError" };
 
 function stub(overrides: Partial<LuauCheckResult> = {}): LuauCheckResult {
@@ -144,9 +189,9 @@ function stub(overrides: Partial<LuauCheckResult> = {}): LuauCheckResult {
   };
 }
 
-function run(c: PortedCase, result: LuauCheckResult | ((source: string) => LuauCheckResult)) {
+function run(c: PortedCase, result: LuauCheckResult | ((source: string) => LuauCheckResult), file = FILE) {
   const skip = vi.fn();
-  runPortedCase(FILE, c, skip, (source) => (typeof result === "function" ? result(source) : result));
+  runPortedCase(file, c, skip, (source) => (typeof result === "function" ? result(source) : result));
   return skip;
 }
 
@@ -182,20 +227,38 @@ describe("running a ported case", () => {
   test("with its area off, a case checks that its snippets parse, then skips", () => {
     vi.stubEnv("LUAU_TYPECHECK_AREAS", "");
     const c: PortedCase = { name: "a", source: "x", expect: [{ type: "x", equals: "number" }] };
-    expect(() => run(c, stub({ checked: true, syntaxDiagnostics: [SYNTAX_ERROR] }))).toThrow(/did not read the snippet as Luau/);
-    expect(run(c, stub({ checked: true }))).toHaveBeenCalledOnce();
+    expect(() => run(c, stub({ checked: true, syntaxDiagnostics: [SYNTAX_ERROR] }), AREA_OFF_FILE)).toThrow(/did not read the snippet as Luau/);
+    expect(run(c, stub({ checked: true }), AREA_OFF_FILE)).toHaveBeenCalledOnce();
   });
 
-  test("with its area on, a case runs its assertions, which fail as not implemented before the checker exists", () => {
-    vi.stubEnv("LUAU_TYPECHECK_AREAS", FILE);
-    const c: PortedCase = { name: "a", source: "local x = 1", expect: [{ errors: 0 }] };
-    expect(() => runPortedCase(FILE, c, vi.fn())).toThrow(NotImplemented);
+  test("with its area off, a case whose fixture the harness does not build still checks its parse, then skips", () => {
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "");
+    const c: PortedCase = { name: "a", fixture: "IsSubtypeFixture", source: "local x = 1", expect: [{ errors: 0 }] };
+    const skip = vi.fn();
+    runPortedCase(AREA_OFF_FILE, c, skip);
+    expect(skip).toHaveBeenCalledOnce();
   });
 
-  test("with its area on, even a case upstream asserts nothing about needs the checker to run", () => {
+  test("with its area on, a case runs its assertions against the checker", () => {
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "Other.test.cpp");
+    const holds: PortedCase = { name: "a", source: "local x: string = 1", expect: [{ errors: 1 }, { error: 0, code: "TypeMismatch" }] };
+    const wrong: PortedCase = { name: "a", source: "local x = 1", expect: [{ errors: 1 }] };
+    const skip = vi.fn();
+    runPortedCase("Other.test.cpp", holds, skip);
+    expect(skip).not.toHaveBeenCalled();
+    expect(() => runPortedCase("Other.test.cpp", wrong, vi.fn())).toThrow(/expected 1 errors/);
+  });
+
+  test("with its area on, even a case upstream asserts nothing about runs the checker", () => {
     vi.stubEnv("LUAU_TYPECHECK_AREAS", "all");
     const c: PortedCase = { name: "a", source: "local x = 1", expect: [] };
-    expect(() => runPortedCase(FILE, c, vi.fn())).toThrow(NotImplemented);
+    const skip = vi.fn();
+    runPortedCase(FILE, c, skip, (source, options) => {
+      const result = checkLuau(source, options);
+      expect(result.checked).toBe(true);
+      return result;
+    });
+    expect(skip).not.toHaveBeenCalled();
   });
 
   test("a check upstream runs on the old solver only is not asserted", () => {
@@ -222,7 +285,7 @@ describe("running a ported case", () => {
     };
     runPortedCase(FILE, c, vi.fn(), (source, options) => {
       seen.push([source, options]);
-      return stub();
+      return stub({ checked: true });
     });
     expect(seen).toEqual([
       ["x", { mode: "nonstrict", fixture: "BuiltinsFixture" }],
@@ -476,7 +539,7 @@ describe("checking a port against the manifest", () => {
     const checks = [
       { source: "", unparsed: { defect: 0 }, expect: [] },
       { source: "", unparsed: { divergence: "Not a section" }, expect: [] },
-      { source: "", unparsed: { divergence: "Type annotations are parsed but ignored" }, expect: [] },
+      { source: "", unparsed: { divergence: "A malformed type annotation is not reported" }, expect: [] },
       { source: "", unparsed: { divergence: "`\"...\"` interpolates; `'...'` does not" }, expect: [] },
       { source: "", module: "", expect: [] },
       { source: "", malformed: "", expect: [] },
