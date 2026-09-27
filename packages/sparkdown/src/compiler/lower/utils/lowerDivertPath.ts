@@ -8,10 +8,9 @@ import { buildDebugMetadata } from "./debugMetadata";
 // instead, lowered separately by `lowerDoneOrFin`. So this helper
 // just walks `DivertPartName` segments and turns them into Identifiers.
 //
-// Each identifier carries the position of its own segment, with 1-based
-// character numbers: diagnostics attributed to a divert's target (`target
-// not found`, a divert captured by a builtin global) go through the
-// compiler's diagnostic handler, which reads that convention. The divert
+// Each identifier carries the position of its own segment, where diagnostics
+// attributed to a divert's target (`target not found`, a divert captured by a
+// builtin global) are reported. The divert
 // node itself inherits its statement's or its scene's position, so the
 // target's name is the only precise anchor a divert has. The incremental
 // restamp (`restampContent`) offsets these along with the node's own.
@@ -52,6 +51,6 @@ export function divertPartIdentifier(
   ctx: LowerContext,
 ): Identifier {
   const identifier = new Identifier(ctx.read(part.from, part.to));
-  identifier.debugMetadata = buildDebugMetadata(part.from, part.to, ctx, true);
+  identifier.debugMetadata = buildDebugMetadata(part.from, part.to, ctx);
   return identifier;
 }

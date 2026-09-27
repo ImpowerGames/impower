@@ -31,6 +31,8 @@ For baseline comparison, start separate runs on the base and fix, confirm identi
 
 ## Single-file and reproduction runs
 
+A sandboxed reviewer whose process census or reservation write is denied can request caller-approved test files through the launcher's [delegated execution service](../../review-pr/HANDOFF.md#delegated-tests-and-benchmarks). The coordinator runs this same `run` command outside the reviewer sandbox, retaining the census, reservation and caps. Inspect its returned output and exit result. Merely reading an absent reservation file is not admission; direct unlocked execution remains unsupported.
+
 Run the test files under work with `run`, naming one or more; it refuses a call with none, and a whole-package local result comes from `start` above. Test paths are relative to the package directory:
 
 ```bash

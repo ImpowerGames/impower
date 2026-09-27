@@ -18,6 +18,7 @@ import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "./context";
 import { findChildByName } from "./utils/alternatorArms";
+import { syntheticId } from "./utils/documentTag";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
@@ -109,9 +110,17 @@ export function lower(
     // PAST the content. That made a dialogue beat's pathLocation claim the
     // action line right after it (e.g. `RAFFLES:` beat ending on the `Danby
     // picks…` action line), so clicking that action previewed the dialogue.
-    const text = ctx.read(nodeRef.from, nodeRef.to);
-    const to = nodeRef.from + text.replace(/\s+$/, "").length;
-    stampDebugMetadata(block.content, nodeRef.from, to, ctx);
+    // Leading spaces and tabs are clamped off too: a statement's node starts
+    // with its line's indentation, and its range starts at its first
+    // character.
+    const text = ctx.read(nodeRef.from, nodeRef.to).replace(/\s+$/, "");
+    const indentation = text.length - text.replace(/^[ \t]+/, "").length;
+    stampDebugMetadata(
+      block.content,
+      nodeRef.from + indentation,
+      nodeRef.from + text.length,
+      ctx,
+    );
   }
   return block;
 }
@@ -692,9 +701,9 @@ function lowerMultiTargetReassignment(
   // colliding. The MultiVariableAssignment handles PackTuple +
   // UnpackTuple semantics — including spreading a multi-return f()
   // in the LAST RHS expression across as many temps as we declare.
-  const offset = multi.targets[0]!.from;
+  const id = syntheticId(multi.targets[0]!.from, ctx);
   const tempIdents = multi.targets.map(
-    (_, i) => new Identifier(`__mt_${offset}_${i}`),
+    (_, i) => new Identifier(`__mt_${id}_${i}`),
   );
   const tempDecl = new MultiVariableAssignment(tempIdents, expressions, true);
 
@@ -713,8 +722,8 @@ function lowerMultiTargetReassignment(
     const tempRef = new VariableReference([tempIdents[i]!]);
     const decomposed = decomposeTargetBaseAndKey(target, ctx);
     if (decomposed) {
-      const baseTemp = new Identifier(`__mt_base_${offset}_${i}`);
-      const keyTemp = new Identifier(`__mt_key_${offset}_${i}`);
+      const baseTemp = new Identifier(`__mt_base_${id}_${i}`);
+      const keyTemp = new Identifier(`__mt_key_${id}_${i}`);
       preStores.push(
         new VariableAssignment({
           variableIdentifier: baseTemp,

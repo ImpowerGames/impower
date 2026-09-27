@@ -28,7 +28,8 @@ assert(obj.inner.count == 15, "got " .. tostring(obj.inner.count))`);
 
   test("multiple compound assignments don't temp-collide", () => {
     // Each access path's source offset is unique, so the auto-generated
-    // temp names (`__pa_base_<offset>`, `__pa_key_<offset>`) shouldn't
+    // temp names (`__pa_base_<id>`, `__pa_key_<id>`, where `<id>` carries
+    // the offset) shouldn't
     // collide across statements in the same function body.
     const r = runConformanceSource(`local a = { x = 1 }
 local b = { x = 2 }

@@ -148,8 +148,12 @@ export interface LowerContext {
    * can find on its own". Stdlib names are NOT in this set — the
    * grammar tags them under `LuauStdLibFunctions` / `LuauStdLibConstants`
    * and the scanner already skips those.
+   *
+   * Only `has` is offered: `CompilationAnnotator` records every lookup a
+   * chunk makes so it can lower that chunk again when an edit elsewhere
+   * changes one of the answers.
    */
-  globalCallableNames?: ReadonlySet<string>;
+  globalCallableNames?: Pick<ReadonlySet<string>, "has">;
   /**
    * Names that are used as a TYPE somewhere in the document — every
    * `define`/`animation`/`theme` PARENT (`LuauDefineParentName`) AND every
@@ -166,8 +170,10 @@ export interface LowerContext {
    * no scan: a `T` with members is always an as-parent. See
    * [[project_define_namespace_scoping]]. When absent, treated as the empty
    * set (every typed define is a leaf → scoped).
+   *
+   * Only `has` is offered, recorded per chunk like `globalCallableNames`.
    */
-  defineTypeNames?: ReadonlySet<string>;
+  defineTypeNames?: Pick<ReadonlySet<string>, "has">;
   /**
    * Stack of per-enclosing-function-scope local declarations. Each
    * frame holds the names declared via `local` / `store` / `const`

@@ -3573,8 +3573,11 @@ export class SparkdownCompiler {
   // Canonicalize compiler-synthesized identifier names that are minted from a
   // node's ABSOLUTE source offset at lowering time — anonymous/define/redef
   // function knots (`__anon_fn_<from>`, `__define_fn_<from>`,
-  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`), and
-  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …). Each
+  // `<name>__redef_<from>`), method-call receiver temps (`__mcall_<from>`),
+  // loop variables/labels (`__forIdx_<from>`, `__for_<from>_loop`, …),
+  // compound property assignment temps (`__pa_base_<from>`, `__pa_key_<from>`)
+  // and multi-target assignment temps (`__mt_<from>_<i>`, `__mt_base_<from>_<i>`,
+  // `__mt_key_<from>_<i>`). Each
   // `<from>` is `syntheticId`: the document's tag, `$`, then the offset within
   // it, so two files never mint one raw name. The incremental pipeline carries
   // an unchanged chunk's lowered IR into the next compile WITHOUT re-lowering
@@ -3624,7 +3627,7 @@ export class SparkdownCompiler {
     // offset. An author's identifier cannot contain `$`, so requiring it keeps
     // the pass off authored names such as `f__redef_x__1`.
     const SYNTH =
-      /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|__redef_\w*\$\d+$/;
+      /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
     const remap = new Map<string, string>();
     // True once any collected name maps to a DIFFERENT canonical name. In the
     // steady state (carried names already canonical and ordinals unchanged —
@@ -3802,7 +3805,10 @@ export class SparkdownCompiler {
         }
         matchedUuids.push({ node, next });
       }
-      if (node instanceof FlowBase && node._subFlowsByName.size > 0) {
+      if (
+        node instanceof FlowBase &&
+        (node._subFlowsByName.size > 0 || node.variableDeclarations.size > 0)
+      ) {
         // Only flows that actually contain a synthetic can need re-keying,
         // and a skipped subtree contains none by construction.
         flowsToRekey.push(node);
@@ -3826,8 +3832,8 @@ export class SparkdownCompiler {
     }
 
     // Rewrite phase: only the recorded matches, then re-key each FlowBase's
-    // `_subFlowsByName` index (built from the pre-rename identifiers at
-    // lowering time) after all names are final. Every node whose name
+    // `_subFlowsByName` index and `variableDeclarations` map (both keyed by
+    // pre-rename names) after all names are final. Every node whose name
     // actually CHANGED marks its enclosing top-level flow — the caller uses
     // that to demote reused flows and lapse stale serialized-JSON entries.
     const renamedTopLevelFlows = new Set<ParsedObject>();
@@ -3879,6 +3885,19 @@ export class SparkdownCompiler {
         }
       }
       flow._subFlowsByName = next;
+      // A carried flow keeps the temps it declared in an earlier compile under
+      // their names from then. Left there, an old `__synth_<n>` key shadows
+      // whatever now holds that name, such as a loop label, whose back edge
+      // then resolves as a divert to an undeclared variable. Each synthetic
+      // entry is keyed by its declaration's name, which the rewrite above
+      // has already made final.
+      if ([...flow.variableDeclarations.keys()].some((k) => SYNTH.test(k))) {
+        const decls: typeof flow.variableDeclarations = new Map();
+        for (const [key, decl] of flow.variableDeclarations) {
+          decls.set(SYNTH.test(key) ? (decl.variableName ?? key) : key, decl);
+        }
+        flow.variableDeclarations = decls;
+      }
     }
     return renamedTopLevelFlows;
   }
@@ -4028,7 +4047,7 @@ export class SparkdownCompiler {
             endLine = existingEndLine;
             endColumn = existingEndColumn;
           }
-          if (endColumn <= 0 && endLine > startLine) {
+          if (endColumn === 0 && endLine > startLine) {
             // If range stretches to only the start of a line,
             // limit the range to the end of the previous line,
             // (So that the document blinking cursor doesn't confusingly appear
@@ -4037,20 +4056,15 @@ export class SparkdownCompiler {
             // resolves that line to its own path rather than to the statement
             // that merely stops at its first column.)
             // A range reaching only the start of `endLine` records an end
-            // column of either 0 or -1, and which one depends on the stamping
-            // convention behind the metadata: the 1-based character numbers
-            // this pipeline assumes give 0, while `buildDebugMetadata`'s
-            // default 0-based stamps give -1. Both say the range stops at or
-            // before `endLine`'s first column, so both are pulled back. The
-            // `endLine > startLine` guard keeps a single-line range from being
-            // pulled back before its own start.
+            // column of 0. The `endLine > startLine` guard keeps a
+            // single-line range from being pulled back before its own start.
             if (uri) {
               const document = this.documents.get(uri);
               if (document) {
                 const endPositionWithoutLastNewline = document.positionAt(
                   document.offsetAt({
                     line: endLine,
-                    character: Math.max(endColumn, 0),
+                    character: 0,
                   }) - 1,
                 );
                 endLine = endPositionWithoutLastNewline.line;
@@ -5588,19 +5602,15 @@ export class SparkdownCompiler {
     uri: string,
   ): void {
     const reported = new Set<string>();
-    // `characterBias` is what the stamp adds to a 0-based column: the
-    // lowering dispatcher stamps flows with 0-based character numbers, and
-    // a divert's target identifiers carry 1-based ones (see
-    // lower/utils/debugMetadata.ts and lowerDivertPath.ts); line numbers are
-    // 1-based in both, and getDiagnostic takes 0-based positions on both
-    // axes. A target identifier's stamp is the name itself and is used as
-    // is. A flow's stamp covers its declaration line (a scene) or its whole
-    // body (a function), so that range narrows to the name when the name is
-    // on the stamp's first line.
+    // Stamps carry 1-based line and character numbers (see
+    // lower/utils/debugMetadata.ts), and getDiagnostic takes 0-based
+    // positions on both axes. A target identifier's stamp is the name itself
+    // and is used as is. A flow's stamp covers its declaration line (a scene)
+    // or its whole body (a function), so that range narrows to the name when
+    // the name is on the stamp's first line.
     const report = (
       message: string,
       dm: DebugMetadata | null | undefined,
-      characterBias: number,
       name: string,
       exact: boolean,
       severity: DiagnosticSeverity = DiagnosticSeverity.Error,
@@ -5610,9 +5620,9 @@ export class SparkdownCompiler {
       }
       const diagUri = dm.filePath || uri;
       const line = dm.startLineNumber - 1;
-      let startCharacter = dm.startCharacterNumber - characterBias;
+      let startCharacter = dm.startCharacterNumber - 1;
       let endLine = dm.endLineNumber - 1;
-      let endCharacter = dm.endCharacterNumber - characterBias;
+      let endCharacter = dm.endCharacterNumber - 1;
       if (!exact) {
         const lineText = this.documents.get(diagUri)?.getText({
           start: { line, character: 0 },
@@ -5654,7 +5664,6 @@ export class SparkdownCompiler {
           report(
             `\`${name}\` is a builtin global, so it cannot also be the name of a scene or function`,
             child.debugMetadata,
-            0,
             name,
             false,
           );
@@ -5671,7 +5680,6 @@ export class SparkdownCompiler {
           ? `\`${name}\` is a builtin global; unless the \`${name}\` this divert reads holds a divert target when it runs, the divert binds to the builtin and cannot reach a scene, branch, or label named \`${name}\``
           : `\`${name}\` is a builtin global, so this divert binds to it and cannot reach a scene, branch, or label named \`${name}\``,
         stamped ?? divert.debugMetadata,
-        stamped ? 1 : 0,
         name,
         stamped !== null,
         warning ? DiagnosticSeverity.Warning : DiagnosticSeverity.Error,

@@ -18,7 +18,7 @@ Read each ticket's scope, evidence, dependencies and verification work. Use curr
 
 Effort includes reproduction, implementation, regression and platform verification; it is an estimate, not a time commitment. Record a concise rationale for the estimate and note meaningful uncertainty.
 
-When triaging the feedback inbox, recurrence informs Priority but does not determine it alone. Record a brief reason for each Priority estimate, especially a changed existing value. Keep triage decisions in a separate private artifact without adding unsupported properties to the triage plan. When filing needs approval, present the estimates with the proposed tickets and continue authorized inbox maintenance using `defer` groups.
+When triaging the feedback inbox, recurrence informs Priority but does not determine it alone. Record a brief reason for each Priority estimate, especially a changed existing value. Keep triage decisions in a separate private artifact without adding unsupported properties to the triage plan. Present the estimates with the Tasks the triage files.
 
 ## Publish and verify
 

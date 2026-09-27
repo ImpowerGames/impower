@@ -32,6 +32,42 @@ import { Stitch } from "./Stitch";
 import { ObjectExpression } from "./Expression/ObjectExpression";
 import { VariableReference } from "./Variable/VariableReference";
 
+const samePosition = (a: DebugMetadata, b: DebugMetadata): boolean =>
+  a.filePath === b.filePath &&
+  a.startLineNumber === b.startLineNumber &&
+  a.startCharacterNumber === b.startCharacterNumber &&
+  a.endLineNumber === b.endLineNumber &&
+  a.endCharacterNumber === b.endCharacterNumber;
+
+// Whether the only position `source` has is that of a scene, branch or
+// function around it. A source stamped with its own position always keeps
+// it. Otherwise it inherits from the nearest object that has one: the flow
+// itself, or a weave the assembly gave the flow's position. That position is
+// the flow's declaration, not the code the diagnostic is about. A diagnostic
+// about the flow itself has the flow as its source and keeps its position.
+const locatedOnlyByEnclosingFlow = (source: ParsedObject): boolean => {
+  let owner: ParsedObject | null = source;
+  while (owner && !owner.ownDebugMetadata) {
+    owner = owner.parent;
+  }
+  if (!owner || owner === source) {
+    return false;
+  }
+  if (owner instanceof FlowBase) {
+    return true;
+  }
+  const position = owner.ownDebugMetadata!;
+  for (let node = owner.parent; node; node = node.parent) {
+    if (node instanceof FlowBase) {
+      const flowPosition = node.debugMetadata;
+      if (flowPosition && samePosition(flowPosition, position)) {
+        return true;
+      }
+    }
+  }
+  return false;
+};
+
 export class Story extends FlowBase {
   public static readonly IsReservedKeyword = (name?: string): boolean => {
     switch (name) {
@@ -871,6 +907,29 @@ export class Story extends FlowBase {
     }
 
     if (this._errorHandler !== null) {
+      if (source instanceof ParsedObject && locatedOnlyByEnclosingFlow(source)) {
+        // The only position this diagnostic has is the declaration of the
+        // flow around it, which does not point at what it reports, so it is
+        // not passed to the handler. It is logged the way the compiler's
+        // `getDiagnostic` logs a diagnostic it drops, with the severity and
+        // the 0-based position it would have had, so tests and maintainers
+        // can still find it. It also still counts above: it sets `hadError`
+        // or `hadWarning`, and during generation it marks its flow in
+        // `flowsWithGenerationDiagnostics`, which keeps that flow from being
+        // reused.
+        const position = source.debugMetadata;
+        console.warn(
+          "HIDDEN",
+          message,
+          errorType,
+          position?.filePath,
+          position ? position.startLineNumber - 1 : 0,
+          position ? position.startCharacterNumber - 1 : 0,
+          position ? position.endLineNumber - 1 : 0,
+          position ? position.endCharacterNumber - 1 : 0,
+        );
+        return;
+      }
       const debugMetadata =
         source instanceof DebugMetadata ? source : source?.debugMetadata;
       const metadata = debugMetadata
@@ -981,8 +1040,14 @@ export class Story extends FlowBase {
           // preserve top-level safety — `var print = 1` would silently
           // break every `print(...)` call in the story. Function
           // parameters (Arg) also permit shadowing since they're
-          // scoped to the function body.
-          if (symbolType === SymbolType.Temp || symbolType === SymbolType.Arg) {
+          // scoped to the function body. A scene or branch may also take a
+          // builtin's name: it is only diverted to, never called, so
+          // `scene next` leaves every `next(...)` call reading the builtin.
+          if (
+            symbolType === SymbolType.Temp ||
+            symbolType === SymbolType.Arg ||
+            (obj instanceof FlowBase && !obj.isFunction)
+          ) {
             continue;
           }
           obj.Error(

@@ -12,6 +12,11 @@
 // cache, missed cross-flow invalidation — visit counts, divert paths, renames,
 // line shifts) flips this.
 //
+// A name minted from a source offset shows here only when an edit leaves the
+// chunk holding it outside the reparse window; `shiftEquivalence.test.ts`
+// finds such a name directly, by compiling each fixture cold with blank lines
+// above it.
+//
 // This is the gold-standard safety net the incremental work is built against;
 // it uses a screenplay with cross-flow coupling (diverts between scenes,
 // read-counts, defines/tables, chained dialogue) — exactly where naive
@@ -19,61 +24,7 @@
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-
-// A structurally varied screenplay with cross-flow references. Uses the
-// `scene NAME ... end` syntax (not `= knot`) so each scene is a top-level NAMED
-// runtime flow (in mainContentContainer.namedOnlyContent) — that is exactly what
-// the per-flow location cache (Design A) and ToJson memo (Design B) reuse, so
-// the diverse edits below genuinely exercise the reuse paths.
-//
-// Each scene also holds a glued continuation with a break. Lowering names a
-// continuation's `group` by the offset its statement starts at, which an edit
-// above it moves.
-function coupledScreenplay(): string {
-  const L: string[] = [];
-  L.push("title: Incr Fixture");
-  L.push("author: Anonymous");
-  L.push("");
-  L.push("define hero as character with");
-  L.push(`  name = "Hero"`);
-  L.push(`  color = "#3366cc"`);
-  L.push("end");
-  L.push("");
-  L.push("define cfg as object with");
-  L.push("  speed = 5");
-  L.push("  items = { sword = 1, shield = 2 }");
-  L.push("end");
-  L.push("");
-  L.push("store trust = 0");
-  L.push("store visited_count = 0");
-  L.push("");
-  L.push("function bonus(x):");
-  L.push("  return x * 2 + 1");
-  L.push("");
-  const SC = 14;
-  for (let s = 0; s < SC; s++) {
-    L.push(`scene scene_${s}`);
-    L.push(`= INT. ROOM ${s} - DAY`);
-    L.push(":");
-    L.push(`  Action describing room ${s} in some detail here.`);
-    L.push(`hero:`);
-    L.push(`  Line one of dialogue in scene ${s}.`);
-    L.push(`  Second line with {trust} and read-count {scene_${(s + 1) % SC}} here.`);
-    L.push(`hero: Glued in scene ${s} ..`);
-    L.push(`.. carried on > and broken.`);
-    L.push("if trust > 2 then");
-    L.push(`  hero: I trust you in scene ${s}.`);
-    L.push("else");
-    L.push(`  hero: Not yet in scene ${s}.`);
-    L.push("end");
-    L.push(`& trust = bonus(trust)`);
-    // Cross-flow divert to another scene.
-    L.push(`-> scene_${(s + 3) % SC}`);
-    L.push("end");
-    L.push("");
-  }
-  return L.join("\n");
-}
+import { coupledScreenplay } from "./fixtures/coupledScreenplay";
 
 // Each edit is a single find -> replace applied to the FIRST occurrence, turned
 // into a minimal-range contentChange so only the affected region reparses.

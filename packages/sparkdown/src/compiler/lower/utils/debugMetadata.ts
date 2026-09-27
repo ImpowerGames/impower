@@ -18,16 +18,6 @@ export function buildDebugMetadata(
   from: number,
   to: number,
   ctx: LowerContext,
-  // The diagnostics/pathLocations pipeline treats character numbers as 1-based
-  // (every consumer does `startCharacterNumber - 1`), so the CORRECT value is
-  // `characterNumber + 1`. Historically this helper emitted 0-based characters,
-  // leaving stamped diagnostics one column early AND (because
-  // `getDiagnostic` drops `startCharacter < 0`) silently hiding column-0
-  // diagnostics. Fixing that globally shifts every stamped column and unhides
-  // column-0 diagnostics program-wide — out of scope here — so the correction is
-  // opt-in. Sparkle binding stamps pass `true` (their token-precise ranges are
-  // the ones users see); un-audited callers keep the legacy 0-based behavior.
-  oneBasedCharacter = false,
 ): DebugMetadata {
   const dm = new DebugMetadata();
   // `DebugMetadata.startLineNumber` is **1-based** by the compiler's
@@ -41,9 +31,11 @@ export function buildDebugMetadata(
   // positions were systematically off by one vs the legacy compiler).
   dm.startLineNumber = ctx.lineNumber(from) + 1;
   dm.endLineNumber = ctx.lineNumber(to) + 1;
-  const charBias = oneBasedCharacter ? 1 : 0;
-  dm.startCharacterNumber = ctx.characterNumber(from) + charBias;
-  dm.endCharacterNumber = ctx.characterNumber(to) + charBias;
+  // Character numbers are 1-based too: every consumer subtracts 1, and
+  // `getDiagnostic` drops a diagnostic whose start character comes out
+  // negative, since only a node the compiler synthesized has one.
+  dm.startCharacterNumber = ctx.characterNumber(from) + 1;
+  dm.endCharacterNumber = ctx.characterNumber(to) + 1;
   if (ctx.filePath) {
     dm.filePath = ctx.filePath;
   }
@@ -61,10 +53,9 @@ export function stampDebugMetadata(
   from: number,
   to: number,
   ctx: LowerContext,
-  oneBasedCharacter = false,
 ): void {
   if (!objects || objects.length === 0) return;
-  const dm = buildDebugMetadata(from, to, ctx, oneBasedCharacter);
+  const dm = buildDebugMetadata(from, to, ctx);
   for (const obj of objects) {
     if (!obj.debugMetadata) {
       obj.debugMetadata = dm;
