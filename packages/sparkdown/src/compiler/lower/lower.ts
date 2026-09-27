@@ -90,19 +90,15 @@ import { lowerThread } from "./lowerers/lowerThread";
 import { lowerVariableDefinition } from "./lowerers/lowerVariableDefinition";
 import { stampDebugMetadata } from "./utils/debugMetadata";
 
-// Nodes whose lowerer returns a weave holding one control-flow statement
-// (`if`, `match`, an alternator, a loop, `do`) with the body nested inside it.
-const BLOCK_STATEMENTS = new Set([
+// Nodes whose lowerer returns a weave holding one control-flow statement (an
+// `if`, or an alternator such as `match`) with its arms nested inside it.
+const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
   "LuauSparkdownIfBlock",
   "LuauIfBlock",
   "LuauSparkdownConditionalAlternatorBlock",
   "LuauSparkdownSingleLineConditionalAlternatorBlock",
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSparkdownSingleLineSequentialAlternatorBlock",
-  "LuauWhileLoop",
-  "LuauDoBlock",
-  "LuauForLoop",
-  "LuauRepeatLoop",
 ]);
 
 export function lower(
@@ -135,14 +131,20 @@ export function lower(
     // A block statement's weave is unwrapped wherever it is placed, as an
     // explicit statement's is (see `lowerExplicitStatement`), so the weave's
     // range would not reach the statement it holds. Give the statement the
-    // range itself, so a diagnostic raised inside it, such as an
-    // unknown name in its condition, is reported on it rather than on the
-    // enclosing scene or branch, and `program.pathLocations` places it on its
-    // own lines.
+    // range of its header line, so a diagnostic raised in its condition, such
+    // as an unknown name, is reported on that line rather than on the
+    // enclosing scene or branch. Only the header: the lines of its arms own
+    // their own paths, and a range covering them would make
+    // `program.pathLocations` resolve those lines to the statement instead.
     if (BLOCK_STATEMENTS.has(nodeRef.name)) {
+      const headerEnd = text.indexOf("\n", indentation);
+      const headerTo =
+        headerEnd < 0
+          ? to
+          : nodeRef.from + text.slice(0, headerEnd).trimEnd().length;
       for (const obj of block.content) {
         if (obj instanceof Weave) {
-          stampDebugMetadata(obj.content, from, to, ctx);
+          stampDebugMetadata(obj.content, from, headerTo, ctx);
         }
       }
     }
