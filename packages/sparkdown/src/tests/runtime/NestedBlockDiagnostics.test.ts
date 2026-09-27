@@ -20,7 +20,15 @@ const message = (d: any): string =>
 
 // The zero-based start lines of every diagnostic whose message holds
 // `fragment`.
-const diagnosticLines = (source: string, fragment: string) => {
+const diagnosticLines = (source: string, fragment: string) =>
+  diagnostics(source, fragment).map((d: any) => d.range.start.line);
+
+// The zero-based start and end lines of every diagnostic whose message holds
+// `fragment`.
+const diagnosticRanges = (source: string, fragment: string) =>
+  diagnostics(source, fragment).map((d: any) => [d.range.start.line, d.range.end.line]);
+
+const diagnostics = (source: string, fragment: string) => {
   const uri = "file:///main.sd";
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -31,8 +39,7 @@ const diagnosticLines = (source: string, fragment: string) => {
   const program = compiler.compile({ textDocument: { uri } } as never).program;
   return Object.values(program.diagnostics ?? {})
     .flat()
-    .filter((d: any) => message(d).includes(fragment))
-    .map((d: any) => d.range.start.line);
+    .filter((d: any) => message(d).includes(fragment));
 };
 
 const IN_IF = "  if n == 0 then\n    * [Pick]\n      Picked.\n  end";
@@ -102,4 +109,63 @@ describe("diagnostics from statements inside alternator arms and choose blocks",
       expect(diagnosticLines(scene(body), EMPTY_DIVERT)).toEqual([line]);
     },
   );
+});
+
+const UNREACHABLE = "Unreachable statement detected.";
+const LOAD_CHAIN = "`load` applies to a single target";
+
+const TARGETS = "\nscene Far\n  Far.\nend\n\nscene Near\n  Near.\nend\n";
+
+// Each case is [description, diagnostic fragment, body, zero-based line of
+// the statement the diagnostic belongs to].
+const OTHER_NESTED_DIAGNOSTICS: [string, string, string, number][] = [
+  [
+    "a choice mark on a line of a queue arm's body",
+    CHOICE_MARK,
+    "  queue\n  | A\n    * [Pick]\n      Picked.\n  | B\n  end",
+    5,
+  ],
+  [
+    "a line after fin in a queue arm's body",
+    UNREACHABLE,
+    "  queue\n  | A\n    fin\n    Never.\n  | B\n  end",
+    6,
+  ],
+  [
+    "a line after fin in a choice's body inside choose",
+    UNREACHABLE,
+    "  choose\n    * [A]\n      fin\n      Never.\n  end",
+    6,
+  ],
+  [
+    "a load chain on a line of a queue arm's body",
+    LOAD_CHAIN,
+    "  queue\n  | A\n    -> load Far -> Near\n  | B\n  end",
+    5,
+  ],
+  ["a load chain as a queue arm", LOAD_CHAIN, "  queue\n  | -> load Far -> Near\n  | B\n  end", 4],
+  ["a load chain as an arm of a single-line queue", LOAD_CHAIN, "  queue | A | -> load Far -> Near | C end", 3],
+  [
+    "a load chain in a choose block's preamble",
+    LOAD_CHAIN,
+    "  choose\n    -> load Far -> Near\n    * [A]\n      Picked.\n  end",
+    4,
+  ],
+];
+
+// A thread (`<- load Far -> Near`) has no case: the grammar never parses a
+// thread with a chain or a tunnel-onwards, so `lowerThread`'s load-shape
+// warning cannot be raised from source, even directly in a scene.
+describe("other diagnostics from statements inside alternator arms and choose blocks", () => {
+  test.each(OTHER_NESTED_DIAGNOSTICS)("%s reports its diagnostic once, starting on its own line", (_, fragment, body, line) => {
+    expect(diagnosticLines(scene(body) + TARGETS, fragment)).toEqual([line]);
+  });
+
+  // The range currently runs through the next arm's line (#1030).
+  test.fails("the unreachable range after fin in a queue arm ends before the next arm", () => {
+    // Line 6 is `    Never.`; line 7 is `  | B`, a reachable arm.
+    expect(diagnosticRanges(scene("  queue\n  | A\n    fin\n    Never.\n  | B\n  end"), UNREACHABLE)).toEqual([
+      [6, 6],
+    ]);
+  });
 });
