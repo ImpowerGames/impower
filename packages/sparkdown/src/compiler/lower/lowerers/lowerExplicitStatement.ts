@@ -15,7 +15,7 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
-import { stampDebugMetadata } from "../utils/debugMetadata";
+import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
 import { validateExplicitStatement } from "../utils/validateExplicitStatement";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -252,7 +252,7 @@ function tryLowerMultiTargetReassignment(
   for (const tNode of targets) {
     const nameNode = getDescendent("LuauVariableName", tNode);
     if (!nameNode) return null;
-    targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+    targetIdents.push(identifierAt(nameNode, ctx));
   }
 
   // Collect RHS expressions: the first from the assignment op, and any

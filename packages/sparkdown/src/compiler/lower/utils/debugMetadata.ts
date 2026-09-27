@@ -1,4 +1,5 @@
 import { DebugMetadata } from "../../../inkjs/engine/DebugMetadata";
+import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { LowerContext } from "../context";
 
@@ -40,6 +41,17 @@ export function buildDebugMetadata(
     dm.filePath = ctx.filePath;
   }
   return dm;
+}
+
+// An Identifier holding the source text of `node`, positioned at it, so a
+// diagnostic about the name points at the name.
+export function identifierAt(
+  node: { from: number; to: number },
+  ctx: LowerContext,
+): Identifier {
+  const identifier = new Identifier(ctx.read(node.from, node.to));
+  identifier.debugMetadata = buildDebugMetadata(node.from, node.to, ctx);
+  return identifier;
 }
 
 // Stamps the given ParsedObjects with debug metadata derived from the

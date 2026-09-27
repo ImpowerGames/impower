@@ -88,7 +88,7 @@ import { lowerSparkdownSequentialAlternatorBlock } from "./lowerers/lowerSparkdo
 import { lowerTags } from "./lowerers/lowerTags";
 import { lowerThread } from "./lowerers/lowerThread";
 import { lowerVariableDefinition } from "./lowerers/lowerVariableDefinition";
-import { stampDebugMetadata } from "./utils/debugMetadata";
+import { identifierAt, stampDebugMetadata } from "./utils/debugMetadata";
 
 export function lower(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -688,7 +688,7 @@ function lowerMultiTargetReassignment(
     for (const t of multi.targets) {
       const nameNode = getDescendent("LuauVariableName", t);
       if (!nameNode) return {};
-      targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+      targetIdents.push(identifierAt(nameNode, ctx));
     }
     return wrapInWeave([
       new MultiVariableAssignment(targetIdents, expressions, false),
@@ -799,7 +799,7 @@ function buildTargetWrite(
       getDescendent("LuauSelfKeyword", inner);
     if (!nameNode) return null;
     return new VariableAssignment({
-      variableIdentifier: new Identifier(ctx.read(nameNode.from, nameNode.to)),
+      variableIdentifier: identifierAt(nameNode, ctx),
       assignedExpression: valueExpr,
       isTemporaryNewDeclaration: false,
     });
@@ -906,7 +906,7 @@ function buildBaseFromParts(
     getDescendent("LuauSelfKeyword", firstInner);
   if (!nameNode) return null;
   let current: Expression = new VariableReference([
-    new Identifier(ctx.read(nameNode.from, nameNode.to)),
+    identifierAt(nameNode, ctx),
   ]);
   for (let i = 1; i < parts.length; i++) {
     const inner = parts[i]!.firstChild;

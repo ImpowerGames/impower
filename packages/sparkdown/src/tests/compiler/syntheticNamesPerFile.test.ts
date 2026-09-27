@@ -58,6 +58,27 @@ function errors(program: any): string[] {
   );
 }
 
+// Each reserved-name error as `<zero-based line>:<name>`, in line order.
+function reservedAt(program: any): string[] {
+  return Object.values(program.diagnostics ?? {})
+    .flatMap((list: any) => list)
+    .filter((d: any) => d.severity === 1)
+    .map((d: any) => ({
+      line: d.range.start.line as number,
+      message:
+        typeof d.message === "string" ? d.message : (d.message?.value ?? ""),
+    }))
+    .flatMap(({ line, message }) => {
+      const m =
+        /^'(__synth_\d+)' is reserved for names the compiler generates$/.exec(
+          message,
+        );
+      return m ? [{ line, name: m[1]! }] : [];
+    })
+    .sort((a, b) => a.line - b.line || a.name.localeCompare(b.name))
+    .map(({ line, name }) => `${line}:${name}`);
+}
+
 function globalAfterRun(program: any, name: string): unknown {
   const story = new RuntimeStory(program.compiled as Record<string, any>);
   quiet(() => story.ContinueMaximally());
@@ -298,12 +319,13 @@ describe("authored names shaped like synthetic ones", () => {
         "",
       ].join("\n"),
     });
-    const reserved = errors(program).filter((m) => m.includes("reserved"));
-    expect(reserved).toEqual([
-      "'__synth_0' is reserved for names the compiler generates",
-      "'__synth_0' is reserved for names the compiler generates",
-      "'__synth_4' is reserved for names the compiler generates",
+    expect(reservedAt(program)).toEqual([
+      "1:__synth_0",
+      "2:__synth_0",
+      "3:__synth_4",
     ]);
+    // The name keeps its value; the anonymous function is numbered past it.
+    expect(globalAfterRun(program, "__synth_0")).toBe(9);
   });
 
   it("report the canonical synthetic form as reserved in flow names", () => {
@@ -320,30 +342,66 @@ describe("authored names shaped like synthetic ones", () => {
         "branch __synth_2",
         "  label __synth_3",
         "  Bye.",
+        "end",
         "",
       ].join("\n"),
     });
-    const reserved = errors(program).filter((m) => m.includes("reserved"));
-    expect(reserved).toEqual([
-      "'__synth_1' is reserved for names the compiler generates",
-      "'__synth_1' is reserved for names the compiler generates",
-      "'__synth_1' is reserved for names the compiler generates",
-      "'__synth_2' is reserved for names the compiler generates",
-      "'__synth_2' is reserved for names the compiler generates",
-      "'__synth_3' is reserved for names the compiler generates",
+    expect(reservedAt(program)).toEqual([
+      "2:__synth_1",
+      "4:__synth_1",
+      "6:__synth_1",
+      "6:__synth_2",
+      "8:__synth_2",
+      "9:__synth_3",
     ]);
   });
 
-  // A match arm's key lowers to a string compared at runtime, which the
-  // synthetic-name pass never renames.
-  it("keep a match key of the canonical form", () => {
+  it("report the canonical synthetic form as reserved in a property read", () => {
     const program = compileOnce({
       main: [
+        "store f = function() return 1 end",
+        'store obj = { ["__synth_1"] = 5 }',
+        "store y = obj.__synth_1",
+        "",
+      ].join("\n"),
+    });
+    expect(reservedAt(program)).toEqual(["2:__synth_1"]);
+  });
+
+  it("report the canonical synthetic form as reserved in a define", () => {
+    const program = compileOnce({
+      main: [
+        "store f = function() return 1 end",
+        "define __synth_5 as character with",
+        '  name = "Bob"',
+        "end",
+        "",
+      ].join("\n"),
+    });
+    expect(reservedAt(program)).toEqual(["1:__synth_5"]);
+  });
+
+  // These names reach the program as strings the synthetic-name pass never
+  // renames, so they keep their names without a report.
+  it("keep a match key, a layout and a component of the canonical form", () => {
+    const program = compileOnce({
+      main: [
+        "store f = function() return 1 end",
         'store x = "__synth_0"',
         'store y = ""',
         "match (x)",
         '  | __synth_0 = y = "matched"',
         '  | other = y = "unmatched"',
+        "end",
+        "",
+        "layout __synth_6 with",
+        "  text",
+        "    `hi`",
+        "end",
+        "",
+        "component __synth_7 with",
+        "  text",
+        "    `hi`",
         "end",
         "",
       ].join("\n"),

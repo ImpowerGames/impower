@@ -143,12 +143,13 @@ import {
 import type { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentMessage";
 import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
-import { CANONICAL_SYNTH_NAME } from "../utils/canonicalSynthName";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
-// Names of the `CANONICAL_SYNTH_NAME` form are POSITIONAL (document-order
-// ordinals), so a name can refer to a different flow after an edit —
-// name-keyed caches must never reuse entries for flows matching it.
+// The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
+// identifiers to. These names are POSITIONAL (document-order ordinals), so a
+// name can refer to a different flow after an edit — name-keyed caches must
+// never reuse entries for flows matching this.
+const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
 
 // Reseed the binary string table once it is half again its live size, provided
 // the absolute slack is worth a full re-serialization. A ratio rather than a
@@ -861,6 +862,15 @@ export class SparkdownCompiler {
   // children. Comparing the length on lookup catches that in O(1); a subtree
   // whose own nodes changed gets a new identity anyway.
   protected _synthFreeSubtrees = new WeakMap<object, number>();
+  // What `canonicalizeSyntheticFlowNames` has named, kept across compiles
+  // because carried nodes keep the names it gave them.
+  protected _canonicalSynthIds = new WeakSet<Identifier>();
+  protected _canonicalSynthStrings = new WeakMap<object, Set<string>>();
+  // The canonical-form names its last run found and did not give.
+  protected _authoredCanonicalNames: Array<{
+    name: string;
+    debugMetadata: DebugMetadata | null;
+  }> = [];
   // [container, previous parent] for every container committed to reuse this
   // compile — restored if the compile throws, so the previous RuntimeStory
   // (still live in the checkpoint-builder Game) isn't left holding containers
@@ -2247,6 +2257,23 @@ export class SparkdownCompiler {
       profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       const renamedTopLevel = this.canonicalizeSyntheticFlowNames(parsedStory);
       profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      // One name can sit in several Identifiers over one source range (a
+      // declaration and the reference lowered beside it), so each range and
+      // name is reported once.
+      const reportedNames = new Set<string>();
+      for (const named of this._authoredCanonicalNames) {
+        const m = named.debugMetadata;
+        const key = `${named.name}@${m?.filePath}:${m?.startLineNumber}:${m?.startCharacterNumber}:${m?.endLineNumber}:${m?.endCharacterNumber}`;
+        if (reportedNames.has(key)) {
+          continue;
+        }
+        reportedNames.add(key);
+        onDiagnostic(
+          `'${named.name}' is reserved for names the compiler generates`,
+          ErrorType.Error,
+          named.debugMetadata,
+        );
+      }
       // Positional synthetic renames can land INSIDE an unchanged flow
       // (adding an anonymous fn earlier renumbers every later `__synth_<n>`).
       // Names are baked into runtime objects at GENERATION time, so a REUSED
@@ -2569,6 +2596,14 @@ export class SparkdownCompiler {
       metadata.filePath = uri;
     };
 
+    // A node's positioned name: its `identifier`, or the `variableIdentifier`
+    // an assignment names its target with.
+    const ownIdentifiers = (c: ParsedObject): Identifier[] =>
+      [(c as any).identifier, (c as any).variableIdentifier].filter(
+        (id): id is Identifier =>
+          id instanceof Identifier && !!id.debugMetadata,
+      );
+
     const remapContent = (
       content: ParsedObject[],
       lineNumberOffset: number,
@@ -2578,13 +2613,9 @@ export class SparkdownCompiler {
         if (c.debugMetadata) {
           restamp(c.debugMetadata, lineNumberOffset);
         }
-        if (
-          "identifier" in c &&
-          c.identifier instanceof Identifier &&
-          c.identifier?.debugMetadata
-        ) {
-          restamp(c.identifier.debugMetadata, lineNumberOffset);
-          c.identifier.ResetRuntime();
+        for (const id of ownIdentifiers(c)) {
+          restamp(id.debugMetadata!, lineNumberOffset);
+          id.ResetRuntime();
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
@@ -2610,12 +2641,8 @@ export class SparkdownCompiler {
         if (c.debugMetadata) {
           restamp(c.debugMetadata, lineNumberOffset);
         }
-        if (
-          "identifier" in c &&
-          c.identifier instanceof Identifier &&
-          c.identifier?.debugMetadata
-        ) {
-          restamp(c.identifier.debugMetadata, lineNumberOffset);
+        for (const id of ownIdentifiers(c)) {
+          restamp(id.debugMetadata!, lineNumberOffset);
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
@@ -3607,7 +3634,23 @@ export class SparkdownCompiler {
     // through the document-order numbering matches what a cold compile derives.
     // A raw name carries `syntheticId`: the document tag, `$`, then the
     // offset. An author's identifier cannot contain `$`, so requiring it keeps
-    // the pass off authored names such as `f__redef_x__1`.
+    // the pass off authored names such as `f__redef_x__1`. An author can write
+    // the canonical form, so the pass remembers every Identifier and string
+    // field it has given a canonical name (`_canonicalSynthIds`,
+    // `_canonicalSynthStrings`) and leaves any other canonical name alone,
+    // recording it in `_authoredCanonicalNames` for the caller to report.
+    this._authoredCanonicalNames = [];
+    const authored = this._authoredCanonicalNames;
+    // Many Identifiers carry no source position of their own; the nearest
+    // node above them that does is where the author wrote the name.
+    const sourceOf = (node: ParsedObject | null): DebugMetadata | null => {
+      for (let n = node; n; n = n.parent) {
+        if (n.debugMetadata) {
+          return n.debugMetadata;
+        }
+      }
+      return null;
+    };
     const SYNTH =
       /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
     const remap = new Map<string, string>();
@@ -3644,13 +3687,9 @@ export class SparkdownCompiler {
     const seenUuids = new Set<Statement | Choice>();
 
     const considerName = (name: string) => {
-      let next = remap.get(name);
-      if (next === undefined) {
-        next = `__synth_${remap.size}`;
-        remap.set(name, next);
-        if (next !== name) {
-          changed = true;
-        }
+      // Numbered once the walk has found every authored canonical name.
+      if (!remap.has(name)) {
+        remap.set(name, "");
       }
     };
     const considerGroup = (group: ContinuationGroup) => {
@@ -3672,6 +3711,20 @@ export class SparkdownCompiler {
     const considerId = (id: Identifier, owner: ParsedObject) => {
       const name = id.name;
       if (name && SYNTH.test(name) && !seenIds.has(id)) {
+        // A canonical name this pass never gave is one the author wrote.
+        // It keeps its name and is reported, since a synthetic numbered
+        // the same would collide with it.
+        if (
+          CANONICAL_SYNTH_NAME.test(name) &&
+          !this._canonicalSynthIds.has(id)
+        ) {
+          seenIds.add(id);
+          authored.push({
+            name,
+            debugMetadata: id.debugMetadata ?? sourceOf(owner),
+          });
+          return;
+        }
         seenIds.add(id);
         considerName(name);
         matchedIds.push({ id, owner });
@@ -3758,6 +3811,21 @@ export class SparkdownCompiler {
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
           found = true;
+          if (
+            CANONICAL_SYNTH_NAME.test(v) &&
+            !this._canonicalSynthStrings.get(node)?.has(f)
+          ) {
+            if (!seenStrings.get(node)?.has(f)) {
+              authored.push({ name: v, debugMetadata: sourceOf(node) });
+            }
+            let fields = seenStrings.get(node);
+            if (!fields) {
+              fields = new Set();
+              seenStrings.set(node, fields);
+            }
+            fields.add(f);
+            continue;
+          }
           let fields = seenStrings.get(node);
           if (!fields) {
             fields = new Set();
@@ -3809,6 +3877,20 @@ export class SparkdownCompiler {
       return found;
     };
     collect(root);
+    // Document order of first appearance, skipping every ordinal an author's
+    // name already holds so no synthetic takes that name too.
+    const taken = new Set(authored.map((a) => a.name));
+    let ordinal = 0;
+    for (const name of remap.keys()) {
+      let next = `__synth_${ordinal++}`;
+      while (taken.has(next)) {
+        next = `__synth_${ordinal++}`;
+      }
+      remap.set(name, next);
+      if (next !== name) {
+        changed = true;
+      }
+    }
     if (!changed) {
       return undefined;
     }
@@ -3835,6 +3917,7 @@ export class SparkdownCompiler {
           markRenamed(owner);
         }
         id.name = next;
+        this._canonicalSynthIds.add(id);
       }
     }
     for (const { node, field, name } of matchedStrings) {
@@ -3844,6 +3927,12 @@ export class SparkdownCompiler {
           markRenamed(node);
         }
         node[field] = next;
+        let fields = this._canonicalSynthStrings.get(node);
+        if (!fields) {
+          fields = new Set();
+          this._canonicalSynthStrings.set(node, fields);
+        }
+        fields.add(field);
       }
     }
     for (const { group, next } of matchedGroups) {
