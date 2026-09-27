@@ -19,4 +19,5 @@ export interface Metadata extends Reference<"metadata"> {
   cc: string;
   bl: string;
   br: string;
+  typecheck: string;
 }

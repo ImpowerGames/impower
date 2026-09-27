@@ -16,12 +16,17 @@
 // other lints stay in: on these malformed snippets any of them would be a
 // false warning, which the parser ports then catch. The linter ports use
 // `diagnoseWithLints`, `diagnoseWithLintsInFunction` or `lintInFunction`.
+//
+// None of those upstream tests runs Luau's type checker either, so no helper
+// here reports its warnings; the ports of Luau's type-checker tests in
+// `typecheck/` cover them.
 
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
   LUAU_LINT_CODES,
   type LuauLintCode,
 } from "../../compiler/lint/collectLuauLints";
+import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
 import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
 
 /** A diagnostic's message as text, whether the compiler gave it as text or as markup. */
@@ -39,7 +44,7 @@ export interface DetailedDiagnostic {
   };
 }
 
-/** Every diagnostic of the compile, lint warnings included. */
+/** Every diagnostic of the compile but the type checker's, lint warnings included. */
 export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   const compiler = new SparkdownCompiler();
   const uri = "inmemory:///main.sd";
@@ -60,6 +65,7 @@ export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   const out: DetailedDiagnostic[] = [];
   for (const ds of Object.values(result.program.diagnostics ?? {})) {
     for (const d of ds) {
+      if (TYPE_ERROR_KINDS.has(String(d.code))) continue;
       out.push({
         message: diagnosticMessage(d),
         code: d.code,

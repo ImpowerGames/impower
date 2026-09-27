@@ -7,7 +7,9 @@
 // loaded with `run` (the compiler wraps its body in a function, the way
 // `runConformanceSource` wraps a runtime fixture by hand). The snippet is
 // therefore a Luau file in its own right, and a `--!strict`, `--!nonstrict`
-// or `--!nocheck` line in it is Luau's own mode directive for that file.
+// or `--!nocheck` line in it is Luau's own mode directive for that file. It
+// then type checks the file as the compiler hands it over, with the globals
+// of the upstream fixture the case names.
 //
 // Sparkdown's grammar recovers from Luau it cannot read by reading the rest
 // of the line as narrative text, without a diagnostic, so the parse check
@@ -16,6 +18,25 @@
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { vi } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { findTypeAtPosition } from "../../compiler/typecheck/AstQuery";
+import { addGlobalBinding, registerBuiltinGlobals } from "../../compiler/typecheck/BuiltinDefinitions";
+import { errorFields, errorToString, type LuauTypeError } from "../../compiler/typecheck/Error";
+import { Frontend } from "../../compiler/typecheck/Frontend";
+import { Position } from "../../compiler/typecheck/Location";
+import { checkLuauUnit, modeFromName, runFileUnit } from "../../compiler/typecheck/LuauDocumentChecker";
+import type { Module, SourceModule } from "../../compiler/typecheck/Module";
+import { toString } from "../../compiler/typecheck/ToString";
+import {
+  flatten,
+  follow,
+  genericType,
+  get,
+  metatableType,
+  negationType,
+  Polarity,
+  TypeFun,
+  type TypeId,
+} from "../../compiler/typecheck/Type";
 import type { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import type { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import type { SparkdownNodeName } from "../../compiler/types/SparkdownNodeName";
@@ -126,10 +147,10 @@ export interface CheckLuauOptions {
   fixture?: string;
 }
 
-/** Thrown by every type query until #599 implements the checker. */
+/** Thrown by a type query the harness cannot answer. */
 export class NotImplemented extends Error {
   constructor(what: string) {
-    super(`not implemented: ${what} needs the type checker (#599)`);
+    super(`not implemented: ${what}`);
     this.name = "NotImplemented";
   }
 }
@@ -137,10 +158,10 @@ export class NotImplemented extends Error {
 const SNIPPET_NAME = "snippet";
 const MAIN_URI = "inmemory:///main.sd";
 const SNIPPET_URI = `inmemory:///${SNIPPET_NAME}.luau`;
+// The name Luau's test fixture gives the module it checks.
+const MAIN_MODULE_NAME = "MainModule";
 
 export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauCheckResult {
-  // The checker (#599) reads the mode and the fixture; nothing does yet.
-  void options;
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [
@@ -183,17 +204,164 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
   const compilerMessages = [...logged];
   for (const d of program.diagnostics?.[wrapped.uri] ?? []) compilerMessages.push(diagnosticMessage(d));
 
+  // The checker reads the snippet as the compiler hands it over, with the
+  // globals of the upstream fixture the case names.
+  const unit = runFileUnit(wrapped.uri, wrapped.document.getText());
+  if (!unit) throw new Error(`the checker does not read ${wrapped.uri} as a run file`);
+  const frontend = fixtureFrontend(options.fixture);
+  if (!frontend) {
+    // Without the fixture's globals nothing is checked: the snippet's parse
+    // still counts, and a type query says which fixture is missing.
+    const missing = (): never => {
+      throw new NotImplemented(`the globals of the fixture ${options.fixture}`);
+    };
+    return { syntaxDiagnostics, checked: false, diagnostics: syntaxDiagnostics, typeOf: missing, find: missing, compilerMessages };
+  }
+  const mode = modeFromName(options.mode ?? "strict")!;
+  const checked = checkLuauUnit(frontend, MAIN_MODULE_NAME, unit, mode);
+  const diagnostics = checked.errors.map(toLuauDiagnostic);
+
   const find = (selector: TypeSelector): CheckedType => {
-    throw new NotImplemented(`the type of ${JSON.stringify(selector)}`);
+    const ty = selectType(checked.module, checked.sourceModule, selector);
+    if (!ty) throw new Error(`no type for ${JSON.stringify(selector)}`);
+    return ty;
   };
   return {
     syntaxDiagnostics,
-    checked: false,
-    diagnostics: syntaxDiagnostics,
+    checked: true,
+    diagnostics,
     typeOf: (name, options) => find({ type: name }).print(options),
     find,
     compilerMessages,
   };
+}
+
+function toLuauDiagnostic(error: LuauTypeError): LuauDiagnostic {
+  return {
+    line: error.location.begin.line,
+    column: error.location.begin.column,
+    endLine: error.location.end.line,
+    endColumn: error.location.end.column,
+    message: errorToString(error),
+    code: error.data.kind,
+    data: errorFields(error),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// The fixtures' globals
+// ---------------------------------------------------------------------------
+
+// A fixture's globals never change once built, so each is built once.
+const fixtureFrontends = new Map<string, Frontend>();
+
+/**
+ * The globals an upstream fixture checks with: `Fixture` has only Luau's
+ * builtin type names and the string metatable, `BuiltinsFixture` adds
+ * Luau's builtin globals and the test's own (`game`, `workspace`, `script`),
+ * and `NegationFixture` adds the hidden types (`Not<T>` and the others). A
+ * fixture the harness does not build yet has none.
+ */
+function fixtureFrontend(fixture = "Fixture"): Frontend | undefined {
+  let frontend = fixtureFrontends.get(fixture);
+  if (frontend) return frontend;
+  frontend = new Frontend();
+  switch (fixture) {
+    case "Fixture":
+      break;
+    case "BuiltinsFixture":
+      registerBuiltinGlobals(frontend, frontend.globals);
+      for (const name of ["game", "workspace", "script"]) addGlobalBinding(frontend.globals, name, frontend.builtinTypes.anyType, "@luau");
+      break;
+    case "NegationFixture":
+      registerHiddenTypes(frontend);
+      break;
+    default:
+      return undefined;
+  }
+  fixtureFrontends.set(fixture, frontend);
+  return frontend;
+}
+
+// Luau's `registerHiddenTypes`, from its test fixture.
+function registerHiddenTypes(frontend: Frontend): void {
+  const globals = frontend.globals;
+  const t = globals.globalTypes.addType(genericType({ name: "T", polarity: Polarity.Mixed }));
+  const u = globals.globalTypes.addType(genericType({ name: "U", polarity: Polarity.Mixed }));
+  const scope = globals.globalScope;
+  scope.exportedTypeBindings.set("Not", new TypeFun(globals.globalTypes.addType(negationType(t)), [{ ty: t }]));
+  scope.exportedTypeBindings.set("Mt", new TypeFun(globals.globalTypes.addType(metatableType(t, u)), [{ ty: t }, { ty: u }]));
+  scope.exportedTypeBindings.set("fun", new TypeFun(frontend.builtinTypes.functionType));
+  scope.exportedTypeBindings.set("cls", new TypeFun(frontend.builtinTypes.externType));
+  scope.exportedTypeBindings.set("err", new TypeFun(frontend.builtinTypes.errorType));
+  scope.exportedTypeBindings.set("tbl", new TypeFun(frontend.builtinTypes.tableType));
+}
+
+// ---------------------------------------------------------------------------
+// Answering type queries
+// ---------------------------------------------------------------------------
+
+function selectType(module: Module, sourceModule: SourceModule, selector: TypeSelector): CheckedType | undefined {
+  let ty: TypeId | undefined;
+  let alias: TypeFun | undefined;
+  if ("type" in selector) {
+    // Luau's `requireType`: the first binding of the name, searching the module scope.
+    const binding = module.getModuleScope().linearSearchForBinding(selector.type);
+    ty = binding ? follow(binding.typeId) : undefined;
+  } else if ("alias" in selector) {
+    alias = module.getModuleScope().lookupType(selector.alias);
+    ty = alias?.type;
+  } else {
+    const [line, column] = selector.typeAt;
+    ty = findTypeAtPosition(module, sourceModule, new Position(line, column));
+  }
+  for (const step of selector.path ?? []) {
+    if (!ty) return undefined;
+    ty = stepInto(ty, step, alias);
+    alias = undefined;
+  }
+  return ty ? checkedType(ty, alias) : undefined;
+}
+
+function stepInto(ty: TypeId, step: TypePathStep, alias: TypeFun | undefined): TypeId | undefined {
+  if ("typeParameter" in step) return alias?.typeParams[step.typeParameter]?.ty;
+  const t = follow(ty);
+  if ("property" in step) {
+    const readTy = get(t, "TableType")?.props.get(step.property)?.readTy;
+    return readTy ? follow(readTy) : undefined;
+  }
+  if ("indexer" in step) {
+    const indexer = get(t, "TableType")?.indexer;
+    if (!indexer) return undefined;
+    return follow(step.indexer === "key" ? indexer.indexType : indexer.indexResultType);
+  }
+  const fn = get(t, "FunctionType");
+  if (!fn) return undefined;
+  const head = flatten("argument" in step ? fn.argTypes : fn.retTypes).head;
+  const at = head["argument" in step ? step.argument : step.result];
+  return at ? follow(at) : undefined;
+}
+
+// The type behind each answer, for comparing two answers' identities.
+const typeOfAnswer = new WeakMap<CheckedType, TypeId>();
+
+function checkedType(ty: TypeId, alias?: TypeFun): CheckedType {
+  const followed = follow(ty);
+  const fn = get(followed, "FunctionType");
+  const table = get(followed, "TableType");
+  const answer: CheckedType = {
+    print: (options?: LuauToStringOptions) => toString(ty, options ?? {}),
+    kind: followed.ty.kind,
+    is: (other) => {
+      const otherTy = typeOfAnswer.get(other);
+      return otherTy !== undefined && follow(otherTy) === followed;
+    },
+    results: fn ? flatten(fn.retTypes).head.map((r) => checkedType(r)) : undefined,
+    typeParameterCount: alias?.typeParams.length,
+    propertyCount: table?.props.size,
+  };
+  typeOfAnswer.set(answer, ty);
+  return answer;
 }
 
 export function describeDiagnostic(d: LuauDiagnostic): string {

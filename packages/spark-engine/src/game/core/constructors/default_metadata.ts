@@ -23,4 +23,5 @@ export const default_metadata: Create<Metadata> = (obj) => ({
   cc: "",
   bl: "",
   br: "",
+  typecheck: "",
 });

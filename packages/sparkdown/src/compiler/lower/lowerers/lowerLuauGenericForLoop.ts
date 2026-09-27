@@ -24,6 +24,7 @@ import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
+import { findLoopDoBlock } from "../utils/loopDoBlock";
 
 // `for v1, v2, ... in iter_expr do BODY end` — Luau's generic-for.
 //
@@ -77,13 +78,13 @@ export function lowerLuauGenericForLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const condNode = getDescendent("LuauForCondition", nodeRef.node);
-  const doBlock = getDescendent("LuauDoBlock", nodeRef.node);
+  const doBlock = findLoopDoBlock(nodeRef, ctx);
   // An EMPTY body (`for x in t do end`) has no `_content` child —
   // the loop must still lower (the iterand evaluates, and
   // `for x in 42 do end` must raise "attempt to iterate" through
   // pcall — iter.luau line 164). `lowerStatements(null)` yields [].
   const bodyContent = doBlock
-    ? findChildByName(doBlock, "LuauDoBlock_content")
+    ? findChildByName(doBlock, `${doBlock.name}_content`)
     : null;
   if (!condNode || !doBlock) return {};
 
