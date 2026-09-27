@@ -2209,10 +2209,39 @@ export class SparkdownCompiler {
         this._unchangedFlowShapeAtRisk = true;
       }
       this._prevCensusKey = censusKey;
+      // Canonicalize offset-derived synthetic names over the fully-assembled
+      // tree so incremental compiles emit byte-identical bytecode to cold ones
+      // (see method doc) — must run before ExportRuntime resolves references.
+      profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      const renamedTopLevel = this.canonicalizeSyntheticFlowNames(parsedStory);
+      profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      // Positional synthetic renames can land INSIDE an unchanged flow
+      // (adding an anonymous fn earlier renumbers every later `__synth_<n>`).
+      // Names are baked into runtime objects at GENERATION time, so a REUSED
+      // flow touched by a rename must be regenerated — and any renamed flow's
+      // serialized-JSON cache entry must lapse (the cross-flow fingerprint
+      // records nothing for pure content, so it can't catch the rename).
+      if (renamedTopLevel) {
+        for (const flow of renamedTopLevel) {
+          if (this._reusedFlowsThisCompile?.has(flow as FlowBase)) {
+            this.resetSubtreeRuntime(flow);
+            this._reusedFlowsThisCompile?.delete(flow as FlowBase);
+          }
+          const flowName =
+            flow instanceof FlowBase ? flow.identifier?.name : undefined;
+          if (flowName) {
+            (this._renamedFlowNames ??= new Set()).add(flowName);
+          }
+        }
+      }
       // Compared unconditionally: a signature change is one of the things
       // `_unchangedFlowShapeAtRisk` has to know about, so short-circuiting on
       // an already-disabled construction reuse would let a caller's stale
       // serialized bytecode be served while the callee's parameters changed.
+      // Collected after the canonicalization above, so a synthetic flow is
+      // keyed by its `__synth_<n>` name in every compile: a freshly lowered
+      // chunk holds its offset name until the rename, and a carried chunk
+      // already holds the canonical one.
       const flowSignatures = this.collectFlowSignatures(parsedStory);
       if (this._prevFlowSignatures) {
         const prev = this._prevFlowSignatures;
@@ -2241,31 +2270,6 @@ export class SparkdownCompiler {
           this.resetSubtreeRuntime(flow);
         }
         this._reusedFlowsThisCompile.clear();
-      }
-      // Canonicalize offset-derived synthetic names over the fully-assembled
-      // tree so incremental compiles emit byte-identical bytecode to cold ones
-      // (see method doc) — must run before ExportRuntime resolves references.
-      profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
-      const renamedTopLevel = this.canonicalizeSyntheticFlowNames(parsedStory);
-      profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
-      // Positional synthetic renames can land INSIDE an unchanged flow
-      // (adding an anonymous fn earlier renumbers every later `__synth_<n>`).
-      // Names are baked into runtime objects at GENERATION time, so a REUSED
-      // flow touched by a rename must be regenerated — and any renamed flow's
-      // serialized-JSON cache entry must lapse (the cross-flow fingerprint
-      // records nothing for pure content, so it can't catch the rename).
-      if (renamedTopLevel) {
-        for (const flow of renamedTopLevel) {
-          if (this._reusedFlowsThisCompile?.has(flow as FlowBase)) {
-            this.resetSubtreeRuntime(flow);
-            this._reusedFlowsThisCompile?.delete(flow as FlowBase);
-          }
-          const flowName =
-            flow instanceof FlowBase ? flow.identifier?.name : undefined;
-          if (flowName) {
-            (this._renamedFlowNames ??= new Set()).add(flowName);
-          }
-        }
       }
       // An unseeded compile has no runtime table for any builtin define, but
       // every host seeds them at runtime, so their names must still resolve.

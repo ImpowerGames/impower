@@ -411,6 +411,70 @@ describe("a global that shadows a flow name", () => {
   });
 });
 
+// An anonymous function is lowered under a name derived from its source
+// offset and renamed to `__synth_<n>` before the program is exported. The
+// flow-signature detector has to compare the same name on both sides of an
+// edit, or a function whose parameters never changed reads as a changed
+// callee and every untouched flow is regenerated.
+describe("a script holding an anonymous function", () => {
+  const script = () =>
+    [
+      "scene s0",
+      "  Hi.",
+      "end",
+      "",
+      "scene s1",
+      "  There.",
+      "end",
+      "",
+      "store f = function(n) return n end",
+    ].join("\n");
+  // The scenes the reuse decision names, leaving out the flows the builtins
+  // prelude contributes.
+  const reusedScenes = (compiler: Probe) =>
+    [...compiler.lastBytecodeReuse!.reusable].filter((n) => /^s\d+$/.test(n));
+
+  it("the first edit after a cold compile reuses the untouched flow", () => {
+    quiet(() => {
+      let text = script();
+      const compiler = configured(new Probe(), text);
+      compiler.compile({ textDocument: { uri: URI } } as any);
+      const verdicts: { reusable: string[]; ok: boolean }[] = [];
+      for (const version of [2, 3]) {
+        text = edit(compiler, text, "Hi.", "Hi.", version);
+        const compiled = compiledOf(compiler);
+        verdicts.push({
+          reusable: reusedScenes(compiler),
+          ok: compiler.lastBytecodeReuse!.ok,
+        });
+        expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
+      }
+      expect(verdicts).toEqual([
+        { reusable: ["s1"], ok: true },
+        { reusable: ["s1"], ok: true },
+      ]);
+    });
+  });
+
+  // The same detector must still see a real change to the function's
+  // parameter list through the rename.
+  it("changing the function's parameter list refuses reuse", () => {
+    quiet(() => {
+      let text = script();
+      const compiler = configured(new Probe(), text);
+      compiler.compile({ textDocument: { uri: URI } } as any);
+      text = edit(compiler, text, "Hi.", "Hi!", 2);
+      compiler.compile({ textDocument: { uri: URI } } as any);
+
+      text = edit(compiler, text, "function(n)", "function(n, m)", 3);
+      const compiled = compiledOf(compiler);
+      expect(compiler.lastBytecodeReuse?.ok).toBe(false);
+      expect(compiler.lastBytecodeReuse?.reusable.size).toBe(0);
+      expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
+    });
+  });
+});
+
 // The remaining reachable detectors, one test each, so a feed that stops
 // firing turns this file red rather than passing quietly. (The list detector
 // has no test because authored Sparkdown has no list syntax — see the

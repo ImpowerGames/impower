@@ -251,11 +251,10 @@ describe("compiler cumulative incremental equivalence", () => {
       // comparisons above covered it outside the reparse window.
       expect(Object.keys(CONSTRUCT_MARKERS).filter((c) => !carried.get(c))).toEqual([]);
       // A guard that refused reuse on every compile would pass the
-      // comparisons without testing it. The floor sits well under the 27 of
+      // comparisons without testing it. The floor sits well under the 57 of
       // 200 compiles measured with this seed: a random edit that declares a
-      // name, or lowers again a chunk holding an anonymous function (#977),
-      // correctly or needlessly refuses reuse, which drops the cache, and the
-      // compile after it serves nothing while it rebuilds.
+      // name correctly refuses reuse, which drops the cache, and the compile
+      // after it serves nothing while it rebuilds.
       expect(reusing, "compiles that served flows from the cache").toBeGreaterThan(EDITS / 20);
     } finally {
       console.warn = realWarn;

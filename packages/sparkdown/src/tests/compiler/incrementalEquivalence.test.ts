@@ -159,7 +159,6 @@ const carriedEdits: CarriedEdit[] = [
     replace: "The rest of the scene runs on and on here.",
     carries: ["tag line", "store named after an edit's define", "store holding a method", "layout with bindings"],
     flowReuse: true,
-    reuseBug: "#977",
   },
   {
     name: "edit a loop body inside a function",
@@ -168,7 +167,6 @@ const carriedEdits: CarriedEdit[] = [
     replace: "    t.a = t.a + i * 2",
     carries: ["tag line", "tagged scene", "choose with a then clause", "store named after an edit's define", "store holding a method"],
     flowReuse: true,
-    reuseBug: "#977",
   },
   {
     name: "edit a layout binding",
@@ -327,13 +325,11 @@ const warmText = (text: string) => WARM_EDITS.reduce((t, [find, replace]) => t.r
 
 // Configures `c` with the scripts of `texts`, compiles `URI`, then makes the
 // warm-up edits to the main script, compiling after each, and returns the
-// texts after them. The first incremental compile after a cold compile of a
-// script holding an anonymous function refuses flow reuse (#977), which drops
-// the serialized-flow cache, and the compile after that rebuilds it without
-// serving anything; only a third compile can serve flows. Without these edits
-// a test that starts from a fresh compiler would compare a full
-// regeneration with a cold compile. The edits keep the text's length, so
-// offsets into the fixture stay valid.
+// texts after them. An edit in an editor session reaches a compiler whose
+// chunks and serialized-flow cache were left by earlier incremental compiles,
+// not by a cold one, and these edits put the compiler in that state before
+// the edit under test. The edits keep the text's length, so offsets into the
+// fixture stay valid.
 function warmed<T extends SparkdownCompiler>(c: T, texts: Record<string, string>): Record<string, string> {
   c.configure({ files: filesOf(texts) });
   c.compile({ textDocument: { uri: URI } });
