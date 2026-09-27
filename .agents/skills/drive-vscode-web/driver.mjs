@@ -1142,7 +1142,11 @@ export async function up(args, deps = liveDeps) {
 // rewrites the file it serves; anything that would need a different server
 // is refused, including `--data` against a record that does not say which
 // data directory its server uses.
-function serveInto(existing, opts, deps) {
+async function serveInto(existing, opts, deps) {
+  // A server answering on a build whose files were since removed still
+  // serves its page, and every workbench request 404s.
+  const commit = existing.builds ? (existing.commit ?? deps.unpackedCommit(existing.builds)) : null;
+  if (commit) await refuseEmptiedBuild(existing.builds, commit, `\`down\`, then `, deps);
   if (opts["--fresh"]) deps.die(`already serving ${existing.project} → ${existing.url}; \`down\` first to download a new build`);
   if (opts["--quality"] && opts["--quality"] !== existing.quality) {
     deps.die(`already serving ${existing.quality} → ${existing.url}; \`down\` first to serve ${opts["--quality"]}`);
@@ -1160,6 +1164,19 @@ function serveInto(existing, opts, deps) {
     return;
   }
   deps.log(`already up → ${existing.url} (serving ${existing.project})`);
+}
+
+// Refuses a build that kept its `version` file but lost the workbench entry
+// files, naming the directory and the recovery. `first` is what to do before
+// that recovery (`down` for a server that is already running on the build).
+async function refuseEmptiedBuild(builds, commit, first, deps) {
+  const { dir, missing } = deps.missingBuildEntries(builds, commit);
+  if (!missing.length) return;
+  const users = await sharedBuildUsers(deps.otherWorktreeRecords(), builds, deps.recordStands);
+  const recovery = users.length
+    ? `${users.map((u) => `${u.worktree} (pid ${u.pid})`).join(" and ")} serves from that directory, so ${first}run \`up\` with a private \`--data <dir>\`, which downloads its own copy`
+    : `${first}run \`up --fresh\` to download it again`;
+  deps.die(`up: the build ${dir} has a version file but is missing ${missing.join(" and ")}, so the workbench would not load; ${recovery}`);
 }
 
 async function launch(opts, deps) {
@@ -1182,16 +1199,7 @@ async function launch(opts, deps) {
     if (users.length) deps.die(`up --fresh would delete ${first.builds}, which ${users.map((u) => `${u.worktree} (pid ${u.pid}, ${u.url})`).join(" and ")} serves from; \`down\` there first, or run \`up\` without --fresh to serve the build already unpacked`);
   }
   const commit = opts["--fresh"] ? null : deps.unpackedCommit(first.builds);
-  if (commit) {
-    const { dir, missing } = deps.missingBuildEntries(first.builds, commit);
-    if (missing.length) {
-      const users = await sharedBuildUsers(deps.otherWorktreeRecords(), first.builds, deps.recordStands);
-      const recovery = users.length
-        ? `${users.map((u) => `${u.worktree} (pid ${u.pid})`).join(" and ")} serves from that directory, so run \`up\` with a private \`--data <dir>\`, which downloads its own copy`
-        : "run `up --fresh` to download it again";
-      deps.die(`up: the build ${dir} has a version file but is missing ${missing.join(" and ")}, so the workbench would not load; ${recovery}`);
-    }
-  }
+  if (commit) await refuseEmptiedBuild(first.builds, commit, "", deps);
   const plan = launchPlan({ ...base, commit });
   if (plan.error) deps.die(`up: ${plan.error}`);
   // Only a launch with no commit to pin downloads, and only a download can

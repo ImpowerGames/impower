@@ -930,6 +930,19 @@ await check("while its server is up, up --sd rewrites the served file and nothin
   await refuses(up(["--sd", "a.sd"], folder), /which --sd does not write into; `down` first/);
 });
 
+await check("while its server is up on a build that has since lost its workbench entry files, up refuses rather than reusing it", async () => {
+  const emptied = { missingBuildEntries: (b, commit) => ({ dir: path.join(b, `vscode-web-stable-${commit}`), missing: BUILD_ENTRY_FILES }) };
+  const deps = upDeps({ state: serving(), ...emptied });
+  await refuses(up(["--sd", "other.sd"], deps), /^up: the build .*vscode-web-stable-c{40} has a version file but is missing .*workbench\.web\.main\.internal\.js .*; `down`, then run `up --fresh` to download it again$/);
+  assert.ok(!names(deps).includes("writeProjectSd"), "the served file was rewritten for a workbench that cannot load");
+  // A record from a launch that downloaded carries no commit; the build it
+  // unpacked is found the way a launch finds it.
+  const downloaded = upDeps({ state: serving({ commit: null }), ...emptied });
+  await refuses(up(["--sd", "other.sd"], downloaded), /has a version file but is missing/);
+  const shared = upDeps({ state: serving(), ...emptied, otherWorktreeRecords: () => [{ worktree: path.join(FIXTURE_ROOT, "w2"), pid: 1, builds: path.join(DATA, "builds", "stable"), url: "http://localhost:7" }] });
+  await refuses(up([], shared), /serves from that directory, so `down`, then run `up` with a private `--data <dir>`, which downloads its own copy$/);
+});
+
 await check("up --data against a record that does not name its data directory is refused rather than compared", async () => {
   const { data, ...rest } = serving();
   const deps = upDeps({ state: rest });
