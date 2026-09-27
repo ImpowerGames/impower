@@ -143,7 +143,13 @@ describe("checkLuau", () => {
     expect(codes("print(1)", "Fixture")).toEqual(["UnknownSymbol"]);
     expect(codes("print(1)", "BuiltinsFixture")).toEqual([]);
     expect(codes("local x: Not<nil> = 1", "NegationFixture")).toEqual([]);
-    expect(() => checkLuau("local x = 1", { fixture: "ExternTypeFixture" })).toThrow(NotImplemented);
+  });
+
+  test("a fixture the harness does not build leaves the snippet unchecked, and a type query names the fixture", () => {
+    const result = checkLuau("local x = 1", { fixture: "ExternTypeFixture" });
+    expect(result.checked).toBe(false);
+    expect(result.diagnostics).toEqual(result.syntaxDiagnostics);
+    expect(() => result.typeOf("x")).toThrow(/^not implemented: the globals of the fixture ExternTypeFixture$/);
   });
 
   test("a diagnostic the compiler only logs is kept with the result, not printed", () => {
@@ -223,6 +229,14 @@ describe("running a ported case", () => {
     const c: PortedCase = { name: "a", source: "x", expect: [{ type: "x", equals: "number" }] };
     expect(() => run(c, stub({ checked: true, syntaxDiagnostics: [SYNTAX_ERROR] }), AREA_OFF_FILE)).toThrow(/did not read the snippet as Luau/);
     expect(run(c, stub({ checked: true }), AREA_OFF_FILE)).toHaveBeenCalledOnce();
+  });
+
+  test("with its area off, a case whose fixture the harness does not build still checks its parse, then skips", () => {
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "");
+    const c: PortedCase = { name: "a", fixture: "IsSubtypeFixture", source: "local x = 1", expect: [{ errors: 0 }] };
+    const skip = vi.fn();
+    runPortedCase(AREA_OFF_FILE, c, skip);
+    expect(skip).toHaveBeenCalledOnce();
   });
 
   test("with its area on, a case runs its assertions against the checker", () => {

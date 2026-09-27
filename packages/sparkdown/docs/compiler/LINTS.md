@@ -51,7 +51,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 
 These depend on Luau features sparkdown does not have, and are listed with their reasons in `LintNotApplicable.test.ts`:
 
-- `--!` directive comments: `--!nolint`, `--!strict`, `--!optimize`, and the `WrongComment` lint that checks them.
+- `--!` directive comments: `--!nolint`, `--!optimize`, and the `WrongComment` lint that checks them. A `.luau` file's `--!strict`, `--!nonstrict` and `--!nocheck` set its type checking mode, and the type checker reports the half of that lint that concerns them (`CommentDirective`, see `TYPECHECK.md`).
 - `@deprecated` and `@native` function attributes, and `RedundantNativeAttribute`.
 - Lints that need the type checker (#589): `UnknownType`, the typed half of `DeprecatedApi`, `TableOperations` on indexers, typed `FormatString`, read/write table type properties.
 - `ImportUnused`, which is about `require`; sparkdown has no modules.

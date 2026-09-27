@@ -151,4 +151,26 @@ describe("type checking modes", () => {
     ]);
     expect(typeWarnings(fronted, MAIN)).toEqual(STRICT);
   });
+
+  test("a .luau file's directive Luau would not read is warned about as Luau's linter warns, and the project's mode applies", () => {
+    const directives = (program: SparkProgram) =>
+      (program.diagnostics?.[HELPER] ?? [])
+        .filter((d) => d.code === "CommentDirective")
+        .map((d) => `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${d.message}`);
+
+    const misspelt = compile({ config: "nocheck", luau: `--!strictt\n${LUAU}` });
+    expect(directives(misspelt)).toEqual(["0:0-0:10 Unknown comment directive 'strictt'; did you mean 'strict'?"]);
+    expect(typeWarnings(misspelt, HELPER)).toEqual(NOCHECK);
+
+    const late = compile({ luau: `--!strict\n--!nocheck\n${LUAU}--!nocheck\n` });
+    expect(directives(late)).toEqual([
+      "1:0-1:10 Comment directive with the type checking mode has already been used",
+      "4:0-4:10 Comment directive is ignored because it is placed after the first non-comment token",
+    ]);
+    expect(typeWarnings(late, HELPER)).toEqual(STRICT);
+
+    const extra = compile({ luau: `--!strict please\n${LUAU}` });
+    expect(directives(extra)).toEqual(["0:0-0:16 Comment directive with the type checking mode has extra symbols at the end of the line"]);
+    expect(typeWarnings(extra, HELPER)).toEqual(NONSTRICT);
+  });
 });

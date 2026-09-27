@@ -18,6 +18,7 @@ import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
 import { errorToString, UnknownSymbolContext } from "./Error";
 import { Frontend } from "./Frontend";
+import { lintComments } from "./Linter";
 import { Location } from "./Location";
 import {
   checkLuauUnit,
@@ -38,7 +39,7 @@ import { follow, persist, TypeArena, TypeFun, type TypeId } from "./Type";
 export interface TypecheckDiagnostic {
   start: { line: number; character: number };
   end: { line: number; character: number };
-  /** The Luau error kind, such as `TypeMismatch`. */
+  /** The Luau error kind, such as `TypeMismatch`, or `CommentDirective` for Luau's comment directive lint. */
   code: string;
   message: string;
   /** For an `UnknownSymbol` that is not a type, the name. */
@@ -135,7 +136,17 @@ export class SparkdownTypechecker {
 
     const fileUnit = isLuauFile(uri) ? luauFileUnit(text) : runFileUnit(uri, text);
     if (fileUnit) {
-      report(this.checkUnit(uri, fileUnit, mode, program.scope, program.key, false), fileUnit);
+      const entry = this.checkUnit(uri, fileUnit, mode, program.scope, program.key, false);
+      report(entry, fileUnit);
+      // A `--!` directive Luau does not know, or would not read, is warned about as Luau's linter warns.
+      for (const warning of lintComments(entry.check.sourceModule.hotcomments)) {
+        diagnostics.push({
+          start: documentPosition(fileUnit, warning.location.begin),
+          end: documentPosition(fileUnit, warning.location.end),
+          code: "CommentDirective",
+          message: warning.text,
+        });
+      }
       return diagnostics;
     }
 
@@ -195,7 +206,11 @@ export class SparkdownTypechecker {
       const typeFun = aliases.get(name)!;
       persist(typeFun.type);
       scope.privateTypeBindings.set(name, typeFun);
-      const parameters = [...typeFun.typeParams.map((p) => toString(p.ty)), ...typeFun.typePackParams.map((p) => toStringPack(p.tp))];
+      // A parameter's default is part of the alias: `A` alone means `A<number>` under `type A<T = number>`.
+      const parameters = [
+        ...typeFun.typeParams.map((p) => toString(p.ty) + (p.defaultValue ? ` = ${toString(p.defaultValue, { exhaustive: true })}` : "")),
+        ...typeFun.typePackParams.map((p) => toStringPack(p.tp) + (p.defaultValue ? ` = ${toStringPack(p.defaultValue, { exhaustive: true })}` : "")),
+      ];
       key.push(`type ${name}<${parameters.join(", ")}> = ${toString(typeFun.type, { exhaustive: true })}`);
     }
     return { scope, key: key.join("\n") };

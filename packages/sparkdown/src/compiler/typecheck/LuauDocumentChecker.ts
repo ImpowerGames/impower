@@ -9,13 +9,14 @@
 //
 // A document's Luau is checked in units. A `.luau` file is one unit. A `.sd`
 // file is its prelude (the Luau outside any flow, and its functions) and one
-// unit per scene and branch, each checked as the body of a function whose
-// parameters are the flow's, with the prelude's names in scope. A unit keeps
-// the whole source lines of its statements, with narrative left out, the
-// parts of a line that are Sparkdown's own blanked and Sparkdown's own
-// expressions written as `_G()`, together with the document line of each of
-// its lines; so a unit's text, and the result of checking it, do not change
-// when lines move around it.
+// unit per scene, with the branches inside it, and per branch outside any
+// scene, each checked as the body of a function whose parameters are the
+// flow's, with the prelude's names in scope. A unit keeps the whole source
+// lines of its statements, with narrative left out, the parts of a line that
+// are Sparkdown's own blanked and Sparkdown's own expressions written as
+// `_G()`, together with the document line of each of its lines; so a unit's
+// text, and the result of checking it, do not change when lines move around
+// it.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { AstStatBlock } from "./Ast";
@@ -54,10 +55,34 @@ export interface LuauUnit {
   lines: number[];
 }
 
-/** The document position of a position in a unit's text. */
+// Each unit's text split into lines, once, for turning Luau's columns into the document's.
+const unitTextLines = new WeakMap<LuauUnit, string[]>();
+
+/**
+ * The document position of a position in a unit's text. Luau counts a column
+ * in UTF-8 bytes and the document in UTF-16 code units; a unit's line holds
+ * each of its characters at the character's document column.
+ */
 export function documentPosition(unit: LuauUnit, position: Position): { line: number; character: number } {
-  const line = unit.lines[Math.min(Math.max(position.line, 0), unit.lines.length - 1)] ?? 0;
-  return { line, character: position.column };
+  const index = Math.min(Math.max(position.line, 0), unit.lines.length - 1);
+  let lines = unitTextLines.get(unit);
+  if (!lines) {
+    lines = unit.text.split("\n");
+    unitTextLines.set(unit, lines);
+  }
+  return { line: unit.lines[index] ?? 0, character: utf16Column(lines[index] ?? "", position.column) };
+}
+
+/** The UTF-16 column of the character a UTF-8 byte column points at. */
+function utf16Column(text: string, byteColumn: number): number {
+  let bytes = 0;
+  let column = 0;
+  while (column < text.length && bytes < byteColumn) {
+    const code = text.codePointAt(column)!;
+    bytes += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
+    column += code > 0xffff ? 2 : 1;
+  }
+  return column + Math.max(0, byteColumn - bytes);
 }
 
 const RUN_QUERY = "?run=";
@@ -198,15 +223,27 @@ class LineIndex {
 /**
  * Builds a unit's lines: whole document lines, holding only the characters
  * kept, each at its column. A line left with nothing but whitespace is left
- * out, so narrative added inside a Luau block does not change the unit.
+ * out, so narrative added inside a Luau block does not change the unit;
+ * the lines of a string or comment that spans lines are kept as written,
+ * since their text is the string's value.
  */
 class UnitLines {
   // Each line's kept columns, as sorted, disjoint `[from, to)` pairs laid end to end.
   private readonly spans = new Map<number, number[]>();
   // Text written over each line's columns, in the order written.
   private readonly writes = new Map<number, { column: number; text: string }[]>();
+  // The lines of strings and comments that span lines.
+  private readonly verbatim = new Set<number>();
 
   constructor(private readonly index: LineIndex) {}
+
+  /** Keeps the lines of a string or comment that spans lines as written, blank lines and trailing spaces included. */
+  keepVerbatim(from: number, to: number): void {
+    const first = this.index.lineAt(from);
+    const last = this.index.lineAt(Math.max(from, to - 1));
+    if (first === last) return;
+    for (let line = first; line <= last; line++) this.verbatim.add(line);
+  }
 
   /** Keeps the characters of a range, or blanks them. */
   mark(from: number, to: number, keep: boolean): void {
@@ -234,7 +271,7 @@ class UnitLines {
 
   /** The lines that kept something, in document order, with their line numbers. */
   build(): { text: string[]; lines: number[] } {
-    const numbers = [...new Set([...this.spans.keys(), ...this.writes.keys()])].sort((a, b) => a - b);
+    const numbers = [...new Set([...this.spans.keys(), ...this.writes.keys(), ...this.verbatim])].sort((a, b) => a - b);
     const text: string[] = [];
     const lines: number[] = [];
     for (const line of numbers) {
@@ -247,8 +284,10 @@ class UnitLines {
       for (const { column, text: written } of this.writes.get(line) ?? []) {
         out = out.slice(0, column).padEnd(column) + written + out.slice(column + written.length);
       }
-      out = out.trimEnd();
-      if (out.trim().length === 0) continue;
+      if (!this.verbatim.has(line)) {
+        out = out.trimEnd();
+        if (out.trim().length === 0) continue;
+      }
       text.push(out);
       lines.push(line);
     }
@@ -296,8 +335,8 @@ function removeSpan(spans: number[], from: number, to: number): number[] {
 
 /**
  * A `.sd` file's Luau as units: its prelude, with the Luau statements
- * outside any flow and every function definition, and a unit per scene or
- * branch that holds Luau statements.
+ * outside any flow and every function definition, and a unit per scene (its
+ * branches included) or branch outside any scene that holds Luau statements.
  */
 export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits {
   const index = new LineIndex(documentText);
@@ -314,8 +353,10 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     lines.mark(node.from, node.to, true);
     const blankWithin = (n: SyntaxNode) => {
       for (let child = n.firstChild; child; child = child.nextSibling) {
-        if (child.name === "LuauInterpolatedString") keepInterpolations(child);
-        else if (ATOMIC.test(child.name)) continue;
+        if (child.name === "LuauInterpolatedString") {
+          lines.keepVerbatim(child.from, child.to);
+          keepInterpolations(child);
+        } else if (ATOMIC.test(child.name)) lines.keepVerbatim(child.from, child.to);
         else if (SPARKDOWN_EXPRESSIONS.has(child.name)) replaceWithAny(child);
         else if (isSparkdownOnly(child)) lines.mark(child.from, child.to, false);
         else blankWithin(child);
@@ -342,6 +383,18 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     blankWithin(node);
   };
 
+  // A branch's parameters, as a `local` on its header line with each
+  // parameter at its column: `branch inner(k: number)` reads as
+  // `local        k: number`.
+  const declareParameters = (body: UnitLines, header: SyntaxNode) => {
+    const parameters = findDescendant(header, "LuauFunctionParameters");
+    if (!parameters || !findDescendant(parameters, "LuauFunctionParameter") || findDescendant(parameters, "LuauVariadicParameter")) return;
+    if (documentText[parameters.from] !== "(" || documentText[parameters.to - 1] !== ")") return;
+    body.mark(parameters.from + 1, parameters.to - 1, true);
+    const text = documentText.slice(header.from, header.to);
+    body.write(header.from + text.length - text.trimStart().length, "local");
+  };
+
   // A flow runs from its header to the `end` that closes it; a branch sits
   // inside a scene, so the flows open at a point form a stack.
   const prelude = new UnitLines(index);
@@ -349,9 +402,18 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
   const open: { header: SyntaxNode; body: UnitLines }[] = [];
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (FLOW_HEADERS.has(node.name)) {
-      const flow = { header: node, body: new UnitLines(index) };
-      flows.push(flow);
-      open.push(flow);
+      const enclosing = open[open.length - 1];
+      if (enclosing && node.name === "Branch") {
+        // A branch runs in its scene's call-stack element, where the scene's
+        // locals and those its other branches set are visible, so it is
+        // checked as part of the flow it sits in.
+        declareParameters(enclosing.body, node);
+        open.push({ header: node, body: enclosing.body });
+      } else {
+        const flow = { header: node, body: new UnitLines(index) };
+        flows.push(flow);
+        open.push(flow);
+      }
     } else if (node.name === "LuauEndKeyword") {
       open.pop();
     } else if (node.name === "LuauFunctionDefinition") {

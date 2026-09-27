@@ -208,8 +208,17 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
   // globals of the upstream fixture the case names.
   const unit = runFileUnit(wrapped.uri, wrapped.document.getText());
   if (!unit) throw new Error(`the checker does not read ${wrapped.uri} as a run file`);
+  const frontend = fixtureFrontend(options.fixture);
+  if (!frontend) {
+    // Without the fixture's globals nothing is checked: the snippet's parse
+    // still counts, and a type query says which fixture is missing.
+    const missing = (): never => {
+      throw new NotImplemented(`the globals of the fixture ${options.fixture}`);
+    };
+    return { syntaxDiagnostics, checked: false, diagnostics: syntaxDiagnostics, typeOf: missing, find: missing, compilerMessages };
+  }
   const mode = modeFromName(options.mode ?? "strict")!;
-  const checked = checkLuauUnit(fixtureFrontend(options.fixture), MAIN_MODULE_NAME, unit, mode);
+  const checked = checkLuauUnit(frontend, MAIN_MODULE_NAME, unit, mode);
   const diagnostics = checked.errors.map(toLuauDiagnostic);
 
   const find = (selector: TypeSelector): CheckedType => {
@@ -250,9 +259,10 @@ const fixtureFrontends = new Map<string, Frontend>();
  * The globals an upstream fixture checks with: `Fixture` has only Luau's
  * builtin type names and the string metatable, `BuiltinsFixture` adds
  * Luau's builtin globals and the test's own (`game`, `workspace`, `script`),
- * and `NegationFixture` adds the hidden types (`Not<T>` and the others).
+ * and `NegationFixture` adds the hidden types (`Not<T>` and the others). A
+ * fixture the harness does not build yet has none.
  */
-function fixtureFrontend(fixture = "Fixture"): Frontend {
+function fixtureFrontend(fixture = "Fixture"): Frontend | undefined {
   let frontend = fixtureFrontends.get(fixture);
   if (frontend) return frontend;
   frontend = new Frontend();
@@ -267,7 +277,7 @@ function fixtureFrontend(fixture = "Fixture"): Frontend {
       registerHiddenTypes(frontend);
       break;
     default:
-      throw new NotImplemented(`the globals of the fixture ${fixture}`);
+      return undefined;
   }
   fixtureFrontends.set(fixture, frontend);
   return frontend;

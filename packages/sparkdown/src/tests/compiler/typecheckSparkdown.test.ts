@@ -50,6 +50,54 @@ end
     expect(typeWarnings(program)).toEqual(["8:31-8:32 Expected this to be 'string', but got 'number'"]);
   });
 
+  test("a branch is checked in its scene, seeing the scene's locals and an earlier branch's, with its parameters' types", () => {
+    const program = compile(`scene start(n: number)
+  local value: number = n
+  branch inner(k: number)
+    local copy: number = value + k
+    local wrong: string = k
+  end
+  branch other
+    local seen: number = copy
+  end
+end
+`);
+    // A branch runs in its scene's call-stack element, so `value` and `copy`
+    // are in scope, as at runtime.
+    expect(typeWarnings(program)).toEqual(["8:26-8:27 Expected this to be 'string', but got 'number'"]);
+  });
+
+  test("a string that spans lines is checked as written, blank lines and trailing spaces included", () => {
+    const program = compile(
+      [
+        'local blank: "a\\n\\nb" = [[a',
+        "",
+        "b]]",
+        'local spaced: "a \\nb" = [[a ',
+        "b]]",
+        'local wrong: "a\\nb" = [[a',
+        "",
+        "b]]",
+        "",
+      ].join("\n"),
+    );
+    expect(typeWarnings(program)).toEqual(["9:22-11:3 Expected this to be '\"a\\nb\"', but got '\"a\\n\\nb\"'"]);
+  });
+
+  test("a range after a character outside ASCII is in the document's columns", () => {
+    const program = compile(`function f(a: string, b: string) end
+
+scene start
+  & f("é", 42)
+  local wide: number = "é"
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "7:11-7:13 Expected this to be 'string', but got 'number'",
+      "8:23-8:26 Expected this to be 'number', but got 'string'",
+    ]);
+  });
+
   test("Sparkdown's own expressions are not Luau's to warn about, and the Luau around them is checked", () => {
     const program = compile(`scene place
 end

@@ -33,6 +33,7 @@ define metadata with
   cc = ""
   bl = ""
   br = ""
+  typecheck = ""
 end
 
 define world with

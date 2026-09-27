@@ -169,4 +169,12 @@ describe("incremental type checking", () => {
     expect(warm.warnings).toEqual(["7:23-7:24 TypeMismatch: Expected this to be 'string', but got 'number'"]);
     expect(stats).toEqual({ checked: 2, reused: 0 });
   });
+
+  test("changing only a type alias parameter's default checks the flows that use it again", () => {
+    const session = new Session("---\ntypecheck: strict\n---\n\ntype Box<T = number> = T\n\nscene alpha\n  local value: Box = 1\nend\n");
+    const { warm, cold, stats } = session.edit("T = number", "T = string");
+    expect(warm).toEqual(cold);
+    expect(warm.warnings).toEqual(["7:21-7:22 TypeMismatch: Expected this to be 'string', but got 'number'"]);
+    expect(stats).toEqual({ checked: 2, reused: 0 });
+  });
 });

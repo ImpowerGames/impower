@@ -15,6 +15,7 @@ Read in order:
 9. **[Loading & Preloading](./Loading.md)** — what loads ahead of need, the `load` arrow, and the loading screen.
 10. **[Character Portraits](./Portraits.md)** — layered portraits and backgrounds, attributes, named looks, and image-file layers.
 11. **[Previewing Suggestions](./SuggestionPreview.md)** — the Game Preview shows an autocomplete suggestion before you accept it.
+12. **[Type Checking](./TypeChecking.md)** — warnings about the types in your Luau, and how strict they are.
 
 > Syntax at a glance: element lines are `element [ classes ] [ "content" ] [ #prop=value ] [ @event=handler ] [:]`; classes are **space-separated**; inline props take a **`#`**; blocks are `keyword name with … end`; control flow uses `then` / `do` / `end`.
 
