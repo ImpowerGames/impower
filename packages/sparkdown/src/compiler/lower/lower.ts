@@ -88,7 +88,7 @@ import { lowerSparkdownSequentialAlternatorBlock } from "./lowerers/lowerSparkdo
 import { lowerTags } from "./lowerers/lowerTags";
 import { lowerThread } from "./lowerers/lowerThread";
 import { lowerVariableDefinition } from "./lowerers/lowerVariableDefinition";
-import { stampDebugMetadata } from "./utils/debugMetadata";
+import { headerLineRange, stampDebugMetadata } from "./utils/debugMetadata";
 
 // Nodes whose lowerer returns a weave holding one control-flow statement (an
 // `if`, or an alternator such as `match`) with its arms nested inside it.
@@ -137,14 +137,10 @@ export function lower(
     // their own paths, and a range covering them would make
     // `program.pathLocations` resolve those lines to the statement instead.
     if (BLOCK_STATEMENTS.has(nodeRef.name)) {
-      const headerEnd = text.indexOf("\n", indentation);
-      const headerTo =
-        headerEnd < 0
-          ? to
-          : nodeRef.from + text.slice(0, headerEnd).trimEnd().length;
+      const header = headerLineRange(from, to, ctx);
       for (const obj of block.content) {
         if (obj instanceof Weave) {
-          stampDebugMetadata(obj.content, from, headerTo, ctx);
+          stampDebugMetadata(obj.content, header.from, header.to, ctx);
         }
       }
     }

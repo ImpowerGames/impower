@@ -80,7 +80,17 @@ describe("an unknown global read in a block statement", () => {
       "scene start()\n  branch first\n    if foo >= 1 then\n      Yes.\n    end\n  end\nend\n",
       2,
     ],
-    ["a match in a scene", "scene start()\n  match (foo)\n    | other = A recruit.\n  end\nend\n", 1],
+    [
+      "an elseif after a valid if in a scene",
+      "store known = false\nscene start()\n  if known then\n    First.\n  elseif foo then\n    Second.\n  end\nend\n",
+      4,
+    ],
+    [
+      "an elseif after a valid if in a function",
+      "function run()\n  if true then\n    print(1)\n  elseif foo then\n    print(2)\n  end\nend\n",
+      3,
+    ],
+    ["a match in a scene","scene start()\n  match (foo)\n    | other = A recruit.\n  end\nend\n", 1],
     [
       "a top-level match after a scene",
       "scene start()\n  Hello.\nend\n\nmatch (foo)\n  | other = A recruit.\nend\n",
