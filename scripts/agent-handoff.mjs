@@ -300,10 +300,11 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       try { append({ event: "exited", index, step: current, ...result }); }
       catch(error){
         error.message=`Child exit confirmed (code ${result.code}); exit journal write failed: ${error.message}; completion and report validation has not run`;
+        if(executionFailure)error.message += `; delegated execution: ${executionFailure.message}`;
         if(slot){try{releaseReviewerSlot(slot);}catch(releaseError){error.message += `; reservation retained at ${slot.file}: ${releaseError.message}`;}}
         throw error;
       }
-      if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run`);}}
+      if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run${executionFailure ? `; delegated execution: ${executionFailure.message}` : ""}`);}}
       if(executionFailure)throw executionFailure;
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if(step.nativeResult)verifyNativeReviewResult(output,step.nativeResult);

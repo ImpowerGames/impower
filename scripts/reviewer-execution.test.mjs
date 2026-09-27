@@ -174,3 +174,32 @@ assert.equal(dirtyRows.find(row => row.event === "exited")?.code, 0, "service fa
 assert.equal(fs.readdirSync(path.join(scratch, "dirty-slots")).length, 0, "drained service failure releases the exited reviewer's slot");
 assert.equal(fs.existsSync(path.join(root, ".git", "agent-handoff.lock")), false);
 console.log("PASS: service failure preserves diagnosis and confirmed exit without leaking reviewer capacity");
+
+// A second cleanup error must retain the delegated command's failure too.
+for (const mode of ["journal", "slot", "both"]) {
+  fs.unlinkSync(path.join(root, "unexpected-output"));
+  const combinedJournal = path.join(scratch, `combined-${mode}.jsonl`);
+  const combinedSlots = path.join(scratch, `combined-${mode}-slots`);
+  dirtyPlan.journal = combinedJournal;
+  fs.writeFileSync(planFile, JSON.stringify(dirtyPlan));
+  const writeSync = fs.writeSync;
+  fs.writeSync = (fd, data, ...args) => {
+    if (typeof data === "string") {
+      if (mode !== "slot" && data.includes('"event":"exited"')) throw new Error("injected exit journal failure");
+      if (mode !== "journal" && data.includes('"phase":"exited"')) throw new Error("injected slot release failure");
+    }
+    return writeSync(fd, data, ...args);
+  };
+  try {
+    await assert.rejects(runHandoff(planFile, { jobRoot: scratch, slotRoot: combinedSlots }), error => {
+      assert.match(error.message, /worktree changed/, "the delegated failure survives later cleanup failures");
+      assert.match(error.message, /Child exit confirmed/);
+      if (mode !== "slot") assert.match(error.message, /injected exit journal failure/);
+      if (mode !== "journal") assert.match(error.message, /injected slot release failure/);
+      return true;
+    });
+  } finally { fs.writeSync = writeSync; }
+  assert.equal(fs.existsSync(path.join(root, ".git", "agent-handoff.lock")), false);
+  assert.equal(fs.readdirSync(combinedSlots).length, mode === "journal" ? 0 : 1, "only a failed slot release retains its reservation");
+}
+console.log("PASS: combined service, exit-journal and slot-release failures preserve every diagnosis");
