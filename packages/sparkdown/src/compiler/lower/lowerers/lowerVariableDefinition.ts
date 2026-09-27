@@ -16,9 +16,9 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
-import { buildDebugMetadata } from "../utils/debugMetadata";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
+import { identifierAt } from "../utils/debugMetadata";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Statement-like nodes that can appear as siblings inside a
@@ -65,11 +65,9 @@ export function lowerVariableDefinition(
     nodeRef.node,
     "LuauVariableDefinition_content",
   );
-  const targets: {
-    name: string;
-    nameNode: SyntaxNode;
-    assignNode: SyntaxNode;
-  }[] = [];
+  const targets: { name: string; assignNode: SyntaxNode; nameNode?: SyntaxNode }[] = [];
+  const targetIdentifier = (t: (typeof targets)[number]) =>
+    t.nameNode ? identifierAt(t.nameNode, ctx) : new Identifier(t.name);
   const trailingRhsGroups: SyntaxNode[][] = [];
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
@@ -100,8 +98,8 @@ export function lowerVariableDefinition(
         if (nameNode) {
           targets.push({
             name: ctx.read(nameNode.from, nameNode.to),
-            nameNode,
             assignNode: child,
+            nameNode,
           });
         }
         const opNode = getDescendent("LuauAssignmentOperation", child);
@@ -136,7 +134,7 @@ export function lowerVariableDefinition(
       ) {
         const bareName = bareVariableNameFromAccessPath(child, ctx);
         if (bareName) {
-          targets.push({ name: bareName, nameNode: child, assignNode: child });
+          targets.push({ name: bareName, assignNode: child });
           child = child.nextSibling;
           continue;
         }
@@ -174,18 +172,6 @@ export function lowerVariableDefinition(
     // Fallback for an unrecognized shape — bail without emitting.
     return {};
   }
-
-  // A `store` target's name, positioned so the story's diagnostics about the
-  // declared name, such as a duplicate declaration of it, locate it.
-  const globalIdentifier = (target: (typeof targets)[number]): Identifier => {
-    const identifier = new Identifier(target.name);
-    identifier.debugMetadata = buildDebugMetadata(
-      target.nameNode.from,
-      target.nameNode.to,
-      ctx,
-    );
-    return identifier;
-  };
 
   // Global declarations (`store` / `const`) that reuse a define TYPE name
   // shadow the type's bare Luau global — warn. Covers every downstream path
@@ -238,7 +224,7 @@ export function lowerVariableDefinition(
     if (targets.length !== 1 || expressions.length !== 1) return {};
     return wrapInWeave(
       withTrailingStatements(
-        [new ConstantDeclaration(new Identifier(lastTarget.name), expressions[0]!)],
+        [new ConstantDeclaration(targetIdentifier(lastTarget), expressions[0]!)],
         trailingStatements,
         ctx,
       ),
@@ -264,7 +250,7 @@ export function lowerVariableDefinition(
   //   `const a, b = …` is rejected — `const` requires single-target.
   if (targets.length > 1) {
     if (scope === "local") {
-      const targetIdents = targets.map((t) => new Identifier(t.name));
+      const targetIdents = targets.map(targetIdentifier);
       // Bare multi-declaration (`local a, b` with no `= …`): give
       // UnpackTuple one NullExpression to unpack — it pads the
       // remaining slots with nil. With zero expressions it would pop
@@ -285,7 +271,7 @@ export function lowerVariableDefinition(
       const vas = targets.map((t, i) => {
         const e = expressions[i] ?? null;
         return new VariableAssignment({
-          variableIdentifier: globalIdentifier(t),
+          variableIdentifier: targetIdentifier(t),
           assignedExpression: e ?? undefined,
           isGlobalDeclaration: true,
         });
@@ -308,13 +294,11 @@ export function lowerVariableDefinition(
   // pushed before the `RuntimeVariableAssignment`. Without the
   // synthetic init, the binding bytecode would pop whatever junk
   // happened to be on the eval stack.
+  const identifier = targetIdentifier(lastTarget);
+  const expr = expressions[0] ?? (sawAssignmentOp ? null : new NullExpression());
+
   const isGlobal = scope === "store";
   const isTemp = scope === "local";
-
-  const identifier = isGlobal
-    ? globalIdentifier(lastTarget)
-    : new Identifier(lastTarget.name);
-  const expr = expressions[0] ?? (sawAssignmentOp ? null : new NullExpression());
 
   const va = new VariableAssignment({
     variableIdentifier: identifier,

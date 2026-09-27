@@ -13,7 +13,15 @@ import {
   collectMorphIssues,
   type MorphScript,
 } from "../morph/collectMorphDiagnostics";
-import { collectLuauLints, type LuauLint } from "../lint/collectLuauLints";
+import {
+  collectLuauLints,
+  type LuauScriptLints,
+} from "../lint/collectLuauLints";
+import { modeFromName } from "../typecheck/LuauDocumentChecker";
+import { Mode } from "../typecheck/Module";
+import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
+import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
+import { STDLIB } from "../../inkjs/engine/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
 import { diagnoseRareAttributeOptions, type AttributeVocabulary } from "../../attributes";
 import GRAMMAR_DEFINITION from "../../../language/sparkdown.language-grammar.json";
@@ -92,7 +100,7 @@ import { rebaseSparkleSpans } from "../utils/rebaseSparkleSpans";
 import { scanAssetDirectives } from "../utils/scanAssetDirectives";
 import { VariableAssignment } from "../../inkjs/engine/VariableAssignment";
 import type { SparkDeclaration } from "../types/SparkDeclaration";
-import { DiagnosticSeverity, type SparkDiagnostic } from "../types/SparkDiagnostic";
+import { DiagnosticSeverity, type Range, type SparkDiagnostic } from "../types/SparkDiagnostic";
 import type { SparkdownCompilerConfig } from "../types/SparkdownCompilerConfig";
 import type { SparkdownCompilerState } from "../types/SparkdownCompilerState";
 import type { ProgramChangeSummary } from "../types/ProgramChangeSummary";
@@ -334,6 +342,14 @@ function indexOfWord(text: string, word: string): number {
   }
   return -1;
 }
+
+/** Whether a position lies within a range, its ends included. */
+function rangeContains(range: Range, position: { line: number; character: number }): boolean {
+  const { start, end } = range;
+  const afterStart = position.line > start.line || (position.line === start.line && position.character >= start.character);
+  const beforeEnd = position.line < end.line || (position.line === end.line && position.character <= end.character);
+  return afterStart && beforeEnd;
+}
 const FILE_TYPES = GRAMMAR_DEFINITION.fileTypes;
 
 /**
@@ -482,9 +498,13 @@ export class SparkdownCompiler {
     return this._documents;
   }
 
-  /** Lints of each script's current tree. A tree is replaced whenever its
-   *  script changes, so an unchanged included script is not walked again. */
-  protected _lintsByTree = new WeakMap<object, LuauLint[]>();
+  /** Lints and names of each script's current tree. A tree is replaced
+   *  whenever its script changes, so an unchanged included script is not
+   *  walked again. */
+  protected _lintsByTree = new WeakMap<object, LuauScriptLints>();
+
+  // Type checks each document's Luau, keeping results between compiles.
+  protected _typechecker = new SparkdownTypechecker();
 
   protected _files = new SparkdownFileRegistry();
   get files() {
@@ -862,6 +882,15 @@ export class SparkdownCompiler {
   // children. Comparing the length on lookup catches that in O(1); a subtree
   // whose own nodes changed gets a new identity anyway.
   protected _synthFreeSubtrees = new WeakMap<object, number>();
+  // What `canonicalizeSyntheticFlowNames` has named, kept across compiles
+  // because carried nodes keep the names it gave them.
+  protected _canonicalSynthIds = new WeakSet<Identifier>();
+  protected _canonicalSynthStrings = new WeakMap<object, Set<string>>();
+  // The canonical-form names its last run found and did not give.
+  protected _authoredCanonicalNames: Array<{
+    name: string;
+    debugMetadata: DebugMetadata | null;
+  }> = [];
   // [container, previous parent] for every container committed to reuse this
   // compile — restored if the compile throws, so the previous RuntimeStory
   // (still live in the checkpoint-builder Game) isn't left holding containers
@@ -2248,6 +2277,32 @@ export class SparkdownCompiler {
       profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       const renamedTopLevel = this.canonicalizeSyntheticFlowNames(parsedStory);
       profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      // One name can sit in several Identifiers over one source range (a
+      // declaration and the reference lowered beside it), so each range and
+      // name is reported once. A copy the lowerers made with no position
+      // anywhere is reported only when no occurrence of that name has one.
+      const positionedNames = new Set(
+        this._authoredCanonicalNames
+          .filter((named) => named.debugMetadata)
+          .map((named) => named.name),
+      );
+      const reportedNames = new Set<string>();
+      for (const named of this._authoredCanonicalNames) {
+        const m = named.debugMetadata;
+        if (!m && positionedNames.has(named.name)) {
+          continue;
+        }
+        const key = `${named.name}@${m?.filePath}:${m?.startLineNumber}:${m?.startCharacterNumber}:${m?.endLineNumber}:${m?.endCharacterNumber}`;
+        if (reportedNames.has(key)) {
+          continue;
+        }
+        reportedNames.add(key);
+        onDiagnostic(
+          `'${named.name}' is reserved for names the compiler generates`,
+          ErrorType.Error,
+          named.debugMetadata,
+        );
+      }
       // Positional synthetic renames can land INSIDE an unchanged flow
       // (adding an anonymous fn earlier renumbers every later `__synth_<n>`).
       // Names are baked into runtime objects at GENERATION time, so a REUSED
@@ -2424,6 +2479,7 @@ export class SparkdownCompiler {
       this.validateImageAttributes(program);
       this.validateMorphs(program);
       this.validateLints(program);
+      this.validateTypes(program);
     }
     if (this._config.workspace !== undefined) {
       program.workspace = this._config.workspace;
@@ -2570,6 +2626,14 @@ export class SparkdownCompiler {
       metadata.filePath = uri;
     };
 
+    // A node's positioned name: its `identifier`, or the `variableIdentifier`
+    // an assignment names its target with.
+    const ownIdentifiers = (c: ParsedObject): Identifier[] =>
+      [(c as any).identifier, (c as any).variableIdentifier].filter(
+        (id): id is Identifier =>
+          id instanceof Identifier && !!id.debugMetadata,
+      );
+
     const remapContent = (
       content: ParsedObject[],
       lineNumberOffset: number,
@@ -2579,13 +2643,9 @@ export class SparkdownCompiler {
         if (c.debugMetadata) {
           restamp(c.debugMetadata, lineNumberOffset);
         }
-        if (
-          "identifier" in c &&
-          c.identifier instanceof Identifier &&
-          c.identifier?.debugMetadata
-        ) {
-          restamp(c.identifier.debugMetadata, lineNumberOffset);
-          c.identifier.ResetRuntime();
+        for (const id of ownIdentifiers(c)) {
+          restamp(id.debugMetadata!, lineNumberOffset);
+          id.ResetRuntime();
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
@@ -2611,12 +2671,8 @@ export class SparkdownCompiler {
         if (c.debugMetadata) {
           restamp(c.debugMetadata, lineNumberOffset);
         }
-        if (
-          "identifier" in c &&
-          c.identifier instanceof Identifier &&
-          c.identifier?.debugMetadata
-        ) {
-          restamp(c.identifier.debugMetadata, lineNumberOffset);
+        for (const id of ownIdentifiers(c)) {
+          restamp(id.debugMetadata!, lineNumberOffset);
         }
         if ("pathIdentifiers" in c && Array.isArray(c.pathIdentifiers)) {
           for (const p of c.pathIdentifiers) {
@@ -3608,7 +3664,13 @@ export class SparkdownCompiler {
     // through the document-order numbering matches what a cold compile derives.
     // A raw name carries `syntheticId`: the document tag, `$`, then the
     // offset. An author's identifier cannot contain `$`, so requiring it keeps
-    // the pass off authored names such as `f__redef_x__1`.
+    // the pass off authored names such as `f__redef_x__1`. An author can write
+    // the canonical form, so the pass remembers every Identifier and string
+    // field it has given a canonical name (`_canonicalSynthIds`,
+    // `_canonicalSynthStrings`) and leaves any other canonical name alone,
+    // recording it in `_authoredCanonicalNames` for the caller to report.
+    this._authoredCanonicalNames = [];
+    const authored = this._authoredCanonicalNames;
     const SYNTH =
       /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
     const remap = new Map<string, string>();
@@ -3645,13 +3707,9 @@ export class SparkdownCompiler {
     const seenUuids = new Set<Statement | Choice>();
 
     const considerName = (name: string) => {
-      let next = remap.get(name);
-      if (next === undefined) {
-        next = `__synth_${remap.size}`;
-        remap.set(name, next);
-        if (next !== name) {
-          changed = true;
-        }
+      // Numbered once the walk has found every authored canonical name.
+      if (!remap.has(name)) {
+        remap.set(name, "");
       }
     };
     const considerGroup = (group: ContinuationGroup) => {
@@ -3673,6 +3731,23 @@ export class SparkdownCompiler {
     const considerId = (id: Identifier, owner: ParsedObject) => {
       const name = id.name;
       if (name && SYNTH.test(name) && !seenIds.has(id)) {
+        // A canonical name this pass never gave is one the author wrote.
+        // It keeps its name and is reported, since a synthetic numbered
+        // the same would collide with it.
+        if (
+          CANONICAL_SYNTH_NAME.test(name) &&
+          !this._canonicalSynthIds.has(id)
+        ) {
+          seenIds.add(id);
+          // An Identifier with no position of its own falls back to its
+          // node's, which a node inherits from its nearest positioned
+          // ancestor.
+          authored.push({
+            name,
+            debugMetadata: id.debugMetadata ?? owner.debugMetadata,
+          });
+          return;
+        }
         seenIds.add(id);
         considerName(name);
         matchedIds.push({ id, owner });
@@ -3759,6 +3834,21 @@ export class SparkdownCompiler {
         const v = (node as any)[f];
         if (typeof v === "string" && SYNTH.test(v)) {
           found = true;
+          if (
+            CANONICAL_SYNTH_NAME.test(v) &&
+            !this._canonicalSynthStrings.get(node)?.has(f)
+          ) {
+            if (!seenStrings.get(node)?.has(f)) {
+              authored.push({ name: v, debugMetadata: node.debugMetadata });
+            }
+            let fields = seenStrings.get(node);
+            if (!fields) {
+              fields = new Set();
+              seenStrings.set(node, fields);
+            }
+            fields.add(f);
+            continue;
+          }
           let fields = seenStrings.get(node);
           if (!fields) {
             fields = new Set();
@@ -3810,6 +3900,20 @@ export class SparkdownCompiler {
       return found;
     };
     collect(root);
+    // Document order of first appearance, skipping every ordinal an author's
+    // name already holds so no synthetic takes that name too.
+    const taken = new Set(authored.map((a) => a.name));
+    let ordinal = 0;
+    for (const name of remap.keys()) {
+      let next = `__synth_${ordinal++}`;
+      while (taken.has(next)) {
+        next = `__synth_${ordinal++}`;
+      }
+      remap.set(name, next);
+      if (next !== name) {
+        changed = true;
+      }
+    }
     if (!changed) {
       return undefined;
     }
@@ -3836,6 +3940,7 @@ export class SparkdownCompiler {
           markRenamed(owner);
         }
         id.name = next;
+        this._canonicalSynthIds.add(id);
       }
     }
     for (const { node, field, name } of matchedStrings) {
@@ -3845,6 +3950,12 @@ export class SparkdownCompiler {
           markRenamed(node);
         }
         node[field] = next;
+        let fields = this._canonicalSynthStrings.get(node);
+        if (!fields) {
+          fields = new Set();
+          this._canonicalSynthStrings.set(node, fields);
+        }
+        fields.add(field);
       }
     }
     for (const { group, next } of matchedGroups) {
@@ -6342,12 +6453,12 @@ export class SparkdownCompiler {
       const doc = this.documents.get(scriptUri);
       const tree = this.documents.tree(scriptUri);
       if (!doc || !tree) continue;
-      let lints = this._lintsByTree.get(tree);
-      if (!lints) {
-        lints = collectLuauLints(tree, (from, to) => doc.read(from, to));
-        this._lintsByTree.set(tree, lints);
+      let script = this._lintsByTree.get(tree);
+      if (!script) {
+        script = collectLuauLints(tree, (from, to) => doc.read(from, to));
+        this._lintsByTree.set(tree, script);
       }
-      for (const lint of lints) {
+      for (const lint of script.lints) {
         ((program.diagnostics ??= {})[scriptUri] ??= []).push({
           range: doc.range(lint.from, lint.to),
           code: lint.code,
@@ -6358,6 +6469,107 @@ export class SparkdownCompiler {
       }
     }
     profile("end", this._profilerId, "validateLints", uri);
+  }
+
+  /**
+   * Type checks the Luau of every script in the program and reports what the
+   * checker finds as warnings. The project's mode is `config.typecheck.mode`
+   * ("nonstrict" unless a define changes it); a `.sd` file's `typecheck:`
+   * front matter field overrides it for that file, and a `.luau` file's own
+   * `--!` first line does for that file.
+   */
+  validateTypes(program: SparkProgram) {
+    const uri = program.uri;
+    profile("start", this._profilerId, "validateTypes", uri);
+    // Plain text: a type's printed form (`<T>(T) -> T`, `*error-type*`) is not markdown.
+    const warn = (scriptUri: string, range: Range, code: string, message: string) => {
+      ((program.diagnostics ??= {})[scriptUri] ??= []).push({
+        range,
+        code,
+        severity: DiagnosticSeverity.Warning,
+        message,
+        source: LANGUAGE_NAME,
+      });
+    };
+    const userScripts = Object.keys(program.scripts).filter((scriptUri) => scriptUri !== BUILTINS_PRELUDE_URI);
+
+    let projectMode = Mode.Nonstrict;
+    const configured = (program.context?.["config"] as any)?.["typecheck"]?.["mode"];
+    if (configured !== undefined) {
+      const mode = typeof configured === "string" ? modeFromName(configured) : undefined;
+      if (mode !== undefined) {
+        projectMode = mode;
+      } else {
+        // Point at the define that sets it.
+        const message = unknownModeMessage(String(configured));
+        let placed = false;
+        for (const scriptUri of userScripts) {
+          const doc = this.documents.get(scriptUri);
+          const tree = this.documents.tree(scriptUri);
+          const setting = doc && tree ? configTypecheckSetting(tree, (from, to) => doc.read(from, to)) : undefined;
+          if (doc && setting) {
+            warn(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", message);
+            placed = true;
+          }
+        }
+        if (!placed) warn(uri, { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, "UnknownTypecheckMode", message);
+      }
+    }
+
+    this._typechecker.beginCompile(this.typecheckGlobalNames(program));
+    for (const scriptUri of userScripts) {
+      const doc = this.documents.get(scriptUri);
+      const tree = this.documents.tree(scriptUri);
+      if (!doc || !tree) continue;
+      const read = (from: number, to: number) => doc.read(from, to);
+      let mode = projectMode;
+      const setting = frontMatterTypecheckSetting(tree, read);
+      if (setting) {
+        const fileMode = modeFromName(setting.value);
+        if (fileMode !== undefined) mode = fileMode;
+        else warn(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", unknownModeMessage(setting.value));
+      }
+      // A name Sparkdown's own resolver cannot find is already reported there.
+      const unresolved: { name: string; range: Range }[] = [];
+      for (const d of program.diagnostics?.[scriptUri] ?? []) {
+        const message = typeof d.message === "string" ? d.message : d.message.value;
+        const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
+        if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
+      }
+      for (const d of this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode)) {
+        if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
+        warn(scriptUri, { start: d.start, end: d.end }, d.code, d.message);
+      }
+    }
+    this._typechecker.endCompile();
+    profile("end", this._profilerId, "validateTypes", uri);
+  }
+
+  /**
+   * The names Luau code may use without declaring them: every name the
+   * program declares in Sparkdown, and the namespaces Sparkdown's runtime
+   * adds to Luau's standard library.
+   */
+  protected typecheckGlobalNames(program: SparkProgram): string[] {
+    const names: string[] = [];
+    // A census entry is `<uri>|<kind>:<name>`.
+    for (const entry of this._censusEntries ?? []) names.push(entry.slice(entry.indexOf(":", entry.indexOf("|")) + 1));
+    for (const [type, structs] of Object.entries(program.context ?? {})) {
+      names.push(type);
+      if (structs && typeof structs === "object") names.push(...Object.keys(structs));
+    }
+    names.push(
+      ...Object.keys(program.functionLocations ?? {}),
+      ...Object.keys(program.sceneLocations ?? {}),
+      ...Object.keys(program.knotLocations ?? {}),
+    );
+    for (const key of Object.keys(STDLIB)) names.push(key.split(".")[0]!);
+    return names.filter((name) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(name));
+  }
+
+  /** The type checker's counts of the units the last compile checked and reused. */
+  get typecheckStats() {
+    return this._typechecker.stats;
   }
 
   validateReferences(program: SparkProgram) {

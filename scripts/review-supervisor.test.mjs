@@ -31,7 +31,7 @@ git('init','--quiet');git('-c','user.name=test','-c','user.email=test@example.in
 const head=git('rev-parse','HEAD').trim();
 const prompt=path.join(scratch,'prompt.txt');fs.writeFileSync(prompt,'fixture');
 const child=path.join(scratch,'child.mjs');
-fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:null,commentIds:[],summary:'fixture'}));`);
+fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c; if(text.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);}fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:null,commentIds:[],summary:'fixture'}));`);
 const plan={worktree:repo,pr:548,journal:path.join(scratch,'legacy.jsonl'),writer:'writer',writerEffort:'medium',reviewer:'reviewer',completedReviewRound:0,maxSteps:1,first:'work',continuation:{destination:'unavailable'},steps:{work:{role:'implement',model:'writer',executable:process.execPath,args:[child,'--model','writer'],prompt,next:[null]}}};
 const file=path.join(scratch,'legacy.json');fs.writeFileSync(file,JSON.stringify(plan));
 try {
@@ -288,7 +288,7 @@ try {
   }
   {
     const f=await fixture();
-    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;const completion=/Write (.*?) with the editor tool/.exec(text)[1];fs.writeFileSync(completion+'.env',JSON.stringify(Object.keys(process.env).filter(key=>/^CODEX_APP_|^CLAUDE_CODE_MESSAGING_|^CODEX_HOME$/i.test(key))));fs.writeFileSync(completion,JSON.stringify({head:'${head}',next:null,commentIds:[101],summary:'fixture review',event:'forged',step:'forged'}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,stop_reason:'end_turn'}));console.error('late shutdown diagnostic');`);
+    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c; if(text.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);}const completion=/Write (.*?) with the editor tool/.exec(text)[1];fs.writeFileSync(completion+'.env',JSON.stringify(Object.keys(process.env).filter(key=>/^CODEX_APP_|^CLAUDE_CODE_MESSAGING_|^CODEX_HOME$/i.test(key))));fs.writeFileSync(completion,JSON.stringify({head:'${head}',next:null,commentIds:[101],summary:'fixture review',event:'forged',step:'forged'}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,stop_reason:'end_turn'}));console.error('late shutdown diagnostic');`);
     withJob(f.jobDir,()=>appendEvent(f.jobDir,'worker-launch-intent'));
     const original=childProcess.execFileSync;
     childProcess.execFileSync=(exe,args,options)=>exe==='gh'?JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:`Fixture report for ${head}`,created_at:new Date().toISOString()}):original(exe,args,options);
@@ -302,7 +302,8 @@ try {
     await advanceReviewJob(f.jobDir,f.host,{identify});assert.equal(f.sends,1);
     const lost=await fixture();let captured,closed=false;
     const originalSpawn=childProcess.spawn;
-    childProcess.spawn=(...args)=>{captured=originalSpawn(...args);captured.once('close',()=>{closed=true;});fs.unlinkSync(path.join(lost.jobDir,'mutation.lock'));return captured;};syncBuiltinESMExports();
+    // The route probe pipes its output; only the reviewer launch writes to its log file.
+    childProcess.spawn=(...args)=>{if(args[2]?.stdio?.[1]==='pipe')return originalSpawn(...args);captured=originalSpawn(...args);captured.once('close',()=>{closed=true;});fs.unlinkSync(path.join(lost.jobDir,'mutation.lock'));return captured;};syncBuiltinESMExports();
     try{
       await assert.rejects(runHandoff(path.join(lost.jobDir,'handoff.json'),{jobRoot:scratch,slotRoot:path.join(scratch,'lost-slot'),automaticJob:{jobId:lost.p.jobId,jobDir:lost.jobDir}}),/ENOENT/);
       assert.equal(closed,true,'post-spawn admission cleanup failure must retain and await the actual child handle');
@@ -318,7 +319,7 @@ try {
   for(const boundary of ['between-reviewers','admission']) {
     const f=await fixture(),config=readJson(path.join(f.jobDir,'handoff.json'));
     config.maxSteps=2;config.steps.second={...config.steps.correctness,next:[null]};config.steps.correctness.next=['second'];fs.writeFileSync(path.join(f.jobDir,'handoff.json'),JSON.stringify(config));
-    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c;fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:text.includes('Allowed next steps: ["second"]')?'second':null,commentIds:[101],summary:'fixture review'}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,stop_reason:'end_turn'}));`);
+    fs.writeFileSync(child,`import fs from 'node:fs';let text='';for await(const c of process.stdin)text+=c; if(text.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);}fs.writeFileSync(/Write (.*?) with the editor tool/.exec(text)[1],JSON.stringify({head:'${head}',next:text.includes('Allowed next steps: ["second"]')?'second':null,commentIds:[101],summary:'fixture review'}));console.log(JSON.stringify({type:'result',subtype:'success',is_error:false,stop_reason:'end_turn'}));`);
     const originalExec=childProcess.execFileSync,originalOpen=fs.openSync;let cancelled=false;
     const cancel=()=>{if(!cancelled){cancelled=true;withJob(f.jobDir,()=>appendEvent(f.jobDir,'workflow-cancelled'));}};
     childProcess.execFileSync=(exe,args,options)=>{if(exe!=='gh')return originalExec(exe,args,options);if(boundary==='between-reviewers')cancel();return JSON.stringify({issue_url:'https://api.github.com/repos/ImpowerGames/impower/issues/547',body:head,created_at:new Date().toISOString()});};

@@ -29,10 +29,7 @@ import {
 } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
-import {
-  buildDebugMetadata,
-  stampDebugMetadata,
-} from "../utils/debugMetadata";
+import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
@@ -303,19 +300,10 @@ export function lowerLuauDefine(
   ctx.diagnostics?.push(...validateDefineStructure(nodeRef.node, ctx));
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return {};
-  const nameIdentifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
-  // Locates the diagnostics about the declared name, such as a duplicate
-  // declaration of it.
-  nameIdentifier.debugMetadata = buildDebugMetadata(
-    nameNode.from,
-    nameNode.to,
-    ctx,
-  );
+  const nameIdentifier = identifierAt(nameNode, ctx);
 
   const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
-  const parentIdentifier = parentNode
-    ? new Identifier(ctx.read(parentNode.from, parentNode.to))
-    : null;
+  const parentIdentifier = parentNode ? identifierAt(parentNode, ctx) : null;
 
   const content = findChildByName(nodeRef.node, "LuauDefine_content");
   const properties: DefineProperty[] = [];

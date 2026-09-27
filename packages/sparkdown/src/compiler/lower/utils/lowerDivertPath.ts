@@ -1,7 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import type { LowerContext } from "../context";
-import { buildDebugMetadata } from "./debugMetadata";
+import { identifierAt } from "./debugMetadata";
 
 // The terminator names `END` / `DONE` are no longer part of divert
 // syntax — sparkdown uses the bare `fin` / `done` statement keywords
@@ -50,7 +50,5 @@ export function divertPartIdentifier(
   part: SyntaxNode,
   ctx: LowerContext,
 ): Identifier {
-  const identifier = new Identifier(ctx.read(part.from, part.to));
-  identifier.debugMetadata = buildDebugMetadata(part.from, part.to, ctx);
-  return identifier;
+  return identifierAt(part, ctx);
 }

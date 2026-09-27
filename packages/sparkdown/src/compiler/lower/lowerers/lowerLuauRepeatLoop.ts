@@ -14,6 +14,7 @@ import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { wrapInScope } from "../utils/wrapInScope";
+import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
 
 // `repeat BODY until cond` — Luau's "do-while-not".
@@ -69,7 +70,7 @@ export function lowerLuauRepeatLoop(
   ctx: LowerContext,
 ): CompiledBlock {
   const bodyContent =
-    findChildByName(nodeRef.node, "LuauRepeatLoop_content") ?? nodeRef.node;
+    findChildByName(nodeRef.node, `${nodeRef.node.name}_content`) ?? nodeRef.node;
   const untilNode = findNextUntilSibling(nodeRef.node);
   if (!untilNode) return {};
   const condContent =
@@ -124,9 +125,9 @@ export function lowerLuauRepeatLoop(
   // Break gather: sentinel for natural exit and `break` divert.
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
-  return {
-    content: wrapInScope([loopGather, continueGather, breakGather]),
-  };
+  // A chunk's content reaches the enclosing scene or top-level flow only
+  // as a Weave; inside a body, `lowerStatements` unwraps it again.
+  return wrapInWeave(wrapInScope([loopGather, continueGather, breakGather]));
 }
 
 // Walk forward from `repeatNode` through whitespace / newline / etc.
