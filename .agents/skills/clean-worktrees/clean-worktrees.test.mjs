@@ -1576,6 +1576,43 @@ try {
     assert.ok(fs.existsSync(liveJob) && fs.existsSync(path.join(jobs, "pr-5")), "--apply removed a retained job directory");
     assert.equal(fs.readFileSync(path.join(outside, "node_modules", "kept.js"), "utf8"), "kept", "removing the job directory deleted the junction's target");
   });
+
+  await check("as a command, the dry run lists the scratch temp root's redgreen snapshots and the main checkout's test-suite runs, and --apply removes only the removable ones and logs them", () => {
+    const dayAgo = new Date(Date.now() - 30 * 3_600_000);
+    const redgreen = (name, files) => {
+      const dir = path.join(scratchTemp, name);
+      fs.mkdirSync(dir);
+      for (const [rel, text] of Object.entries(files)) fs.writeFileSync(path.join(dir, rel), text);
+      fs.utimesSync(dir, dayAgo, dayAgo);
+      return dir;
+    };
+    const dead = spawnSync(process.execPath, ["-e", ""], { windowsHide: true }).pid;
+    const oldSnap = redgreen("redgreen-cmdold", { "red.log": "red", "owner.json": JSON.stringify({ pid: dead }) });
+    const heldSnap = redgreen("redgreen-cmdheld", { "owner.json": JSON.stringify({ pid: process.pid }) });
+    const suites = path.join(mainRoot, ".git", "test-suites");
+    const finished = path.join(suites, "finished-run");
+    const live = path.join(suites, "live-run");
+    fs.mkdirSync(finished, { recursive: true });
+    fs.writeFileSync(path.join(finished, "run.json"), JSON.stringify({ version: 1, active: false, owner: { pid: dead }, attempts: [] }));
+    fs.mkdirSync(live, { recursive: true });
+    fs.writeFileSync(path.join(live, "run.json"), JSON.stringify({ version: 1, active: true, owner: { pid: process.pid }, attempts: [] }));
+    const dry = cli(mainRoot);
+    assert.match(dry.out, new RegExp(`redgreen snapshots under ${scratchTemp.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`));
+    assert.match(dry.out, /^remove\s+redgreen-cmdold\s+\S+ B\s+a redgreen snapshot last written 30\.0 h ago/m);
+    assert.match(dry.out, new RegExp(`^keep\\s+redgreen-cmdheld\\s.*its owner\\.json names pid ${process.pid}, which is running`, "m"));
+    assert.match(dry.out, /^remove\s+finished-run\s.*a finished test-suite run/m);
+    assert.match(dry.out, new RegExp(`^keep\\s+live-run\\s.*its coordinator pid ${process.pid} is running`, "m"));
+    assert.ok(fs.existsSync(oldSnap) && fs.existsSync(finished), "the dry run removed a scratch directory");
+    const applied = cli(mainRoot, "--apply", "--root", mainRoot);
+    assert.match(applied.out, /^removed\s+redgreen-cmdold/m);
+    assert.match(applied.out, /^removed\s+finished-run/m);
+    assert.match(applied.out, /^kept\s+redgreen-cmdheld/m);
+    assert.match(applied.out, /^kept\s+live-run/m);
+    assert.ok(!fs.existsSync(oldSnap) && !fs.existsSync(finished), "--apply left a removable scratch directory");
+    assert.ok(fs.existsSync(heldSnap) && fs.existsSync(live), "--apply removed a retained scratch directory");
+    const logged = readLogRows(fs.readFileSync(path.join(mainRoot, ".git", LOG_NAME), "utf8")).filter((r) => r.decision === "removed").map((r) => path.basename(r.path));
+    assert.ok(logged.includes("redgreen-cmdold") && logged.includes("finished-run"), `the log does not record the scratch removals: ${logged.join(", ")}`);
+  });
 } finally {
   for (const h of holders) await stopHolder(h);
   fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
