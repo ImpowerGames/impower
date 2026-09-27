@@ -5,7 +5,9 @@
 // names the line a cold compile gives it. The edit sits above or below a
 // `choose … then … end` or an `if … else … end`, the two blocks a scene's
 // closing lines usually follow, or a `choose` block nested in an `if` or in
-// another block's preamble, or inside those nested blocks.
+// another block's preamble, or inside those nested blocks. It also sits above,
+// below or inside a loop written in the scene: `while`, numeric `for`,
+// `repeat`, `do`, a loop nested in a loop, and a loop whose body displays.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -54,6 +56,50 @@ const BLOCKS: Record<string, string[]> = {
     "  end",
   ],
 };
+
+// Loops written in the scene's body. Each is its own top-level chunk, and its
+// gathers are named from its document offset, so an edit above it renames
+// them. `inside` is an edit to a line of the loop's body.
+const LOOPS: Record<string, { lines: string[]; inside: [string, string] }> = {
+  "a while loop": {
+    lines: ["  while trust < 2 do", "    trust = trust + 1", "  end"],
+    inside: ["trust = trust + 1", "trust = trust + 2"],
+  },
+  "a numeric for loop": {
+    lines: ["  for i = 1, 3 do", "    trust = trust + i", "  end"],
+    inside: ["trust = trust + i", "trust = trust + i * 2"],
+  },
+  "a repeat loop": {
+    lines: ["  repeat", "    trust = trust + 1", "  until trust >= 3"],
+    inside: ["trust = trust + 1", "trust = trust + 2"],
+  },
+  "a do block": {
+    lines: ["  do", "    trust = trust + 5", "  end"],
+    inside: ["trust = trust + 5", "trust = trust + 6"],
+  },
+  "a loop nested in a loop": {
+    lines: [
+      "  while trust < 2 do",
+      "    trust = trust + 1",
+      "    for i = 1, 3 do",
+      "      key = not key",
+      "    end",
+      "  end",
+    ],
+    inside: ["key = not key", "key = true"],
+  },
+  "a loop whose body holds a display line": {
+    lines: [
+      "  while trust < 3 do",
+      "    trust = trust + 1",
+      "    Step {trust}.",
+      "  end",
+    ],
+    inside: ["Step {trust}.", "Step {trust}, again."],
+  },
+};
+
+for (const [name, loop] of Object.entries(LOOPS)) BLOCKS[name] = loop.lines;
 
 function screenplay(block: string[]): string {
   const L: string[] = [];
@@ -119,7 +165,15 @@ function compilerFor(text: string, version = 1) {
 const compileOf = (c: SparkdownCompiler) =>
   quiet(() => c.compile({ textDocument: { uri: URI } })).program;
 
-const posAt = (text: string, offset: number) => {
+/** The message of every error-severity diagnostic, in every file. */
+const errorsOf = (p: any): string[] =>
+  Object.values(p.diagnostics ?? {}).flatMap((list) =>
+    (list as any[])
+      .filter((d) => d.severity === 1)
+      .map((d) => (typeof d.message === "string" ? d.message : d.message?.value)),
+  );
+
+const posAt =(text: string, offset: number) => {
   const before = text.slice(0, offset).split("\n");
   return { line: before.length - 1, character: before.at(-1)!.length };
 };
@@ -167,6 +221,82 @@ describe("an incremental compile of an edit in a scene", () => {
         );
       });
     }
+  }
+
+  for (const [loopName, loop] of Object.entries(LOOPS)) {
+    it(`is the cold compile of the edited text (inside ${loopName})`, () => {
+      const base = screenplay(loop.lines);
+      const c = compilerFor(base);
+      // The loop compiles, so the comparison is between two working programs.
+      expect(errorsOf(compileOf(c))).toEqual([]);
+      const { contentChanges, after } = change(base, ...loop.inside);
+
+      c.updateDocument({
+        textDocument: { uri: URI, version: 2 },
+        contentChanges,
+      } as never);
+
+      expect(stable(pick(compileOf(c)))).toBe(
+        stable(pick(compileOf(compilerFor(after)))),
+      );
+    });
+
+    // The edit sits in another scene above, so the loop's scene is carried
+    // unchanged into the incremental compile while its offset moves.
+    it(`is the cold compile when lines added to a scene above move ${loopName}`, () => {
+      let text = screenplay(loop.lines).replace(
+        "scene act_one",
+        "scene prologue\n  Opening beat.\nend\n\nscene act_one",
+      );
+      const c = compilerFor(text);
+      compileOf(c);
+      const edits = [
+        ["Opening beat.", "Opening beat.\n  Second opening beat.\n  Third opening beat."],
+        ["Second opening beat.", "Second opening beat, changed."],
+        loop.inside,
+      ] as const;
+      let version = 1;
+      for (const [find, replace] of edits) {
+        const { contentChanges, after } = change(text, find, replace);
+        text = after;
+        version += 1;
+
+        c.updateDocument({
+          textDocument: { uri: URI, version },
+          contentChanges,
+        } as never);
+
+        expect(stable(pick(compileOf(c))), `after "${replace}"`).toBe(
+          stable(pick(compileOf(compilerFor(text)))),
+        );
+      }
+    });
+
+    it(`is the cold compile after lines added above ${loopName}, then an edit inside it`, () => {
+      let text = screenplay(loop.lines);
+      const c = compilerFor(text);
+      compileOf(c);
+      const edits = [
+        ["Beat 1 before.", "Beat 1 before.\n  An added beat.\n  Another added beat."],
+        loop.inside,
+        ["Beat 1 after.", "Beat 1 after, changed."],
+      ] as const;
+      let version = 1;
+      for (const [find, replace] of edits) {
+        const { contentChanges, after } = change(text, find, replace);
+        text = after;
+        version += 1;
+
+        c.updateDocument({
+          textDocument: { uri: URI, version },
+          contentChanges,
+        } as never);
+
+        expect(stable(pick(compileOf(c))), `after "${replace}"`).toBe(
+          stable(pick(compileOf(compilerFor(text)))),
+        );
+      }
+    });
   }
 
   it("is the cold compile when lines added above move a scene with a choose block", () => {
