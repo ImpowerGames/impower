@@ -3,7 +3,7 @@
 // covers the statement from its first character to its last, whatever its
 // indentation.
 
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import { diagnoseDetailed } from "./diagnosticTestHarness";
 
 const WARNING = "Cannot find variable named `foo`";
@@ -64,31 +64,45 @@ describe("an unknown global read at the top level", () => {
   });
 });
 
-// A read whose statement has no position of its own inherits the position of
-// the scene or branch declared around it. That line is not where the read is,
-// so the warning is not reported until those statements get positions of their
-// own (#944); it is only logged, as the compiler logs every diagnostic it
-// drops.
-describe("a read placed only by the flow around it", () => {
+// A block statement in a scene, a branch, a function or at the top level is
+// reported on its header line, the line that holds the read, from its first
+// character to its last (#944).
+describe("an unknown global read in a block statement", () => {
   test.each([
     [
-      "a match in a scene",
-      "scene start()\n  Hello.\nend\n\nmatch (foo)\n  | other = A recruit.\nend\n",
+      "an if in a function",
+      "function run()\n  if foo then\n    print(1)\n  end\nend\n",
+      1,
     ],
+    ["an if in a scene", "scene start()\n  if foo >= 1 then\n    Yes.\n  end\nend\n", 1],
     [
       "an if in a branch",
       "scene start()\n  branch first\n    if foo >= 1 then\n      Yes.\n    end\n  end\nend\n",
+      2,
     ],
-  ])("%s is not reported, only logged as hidden", (_name, source) => {
-    const hidden: unknown[][] = [];
-    const warn = vi.spyOn(console, "warn").mockImplementation((...args) => {
-      if (args[0] === "HIDDEN") hidden.push(args);
-    });
-    try {
-      expect(unknownGlobalRanges(source)).toEqual([]);
-    } finally {
-      warn.mockRestore();
-    }
-    expect(hidden.map((args) => [args[1], args[2]])).toEqual([[WARNING, 2]]);
+    [
+      "an elseif after a valid if in a scene",
+      "store known = false\nscene start()\n  if known then\n    First.\n  elseif foo then\n    Second.\n  end\nend\n",
+      4,
+    ],
+    [
+      "an elseif after a valid if in a function",
+      "function run()\n  if true then\n    print(1)\n  elseif foo then\n    print(2)\n  end\nend\n",
+      3,
+    ],
+    ["a match in a scene","scene start()\n  match (foo)\n    | other = A recruit.\n  end\nend\n", 1],
+    [
+      "a top-level match after a scene",
+      "scene start()\n  Hello.\nend\n\nmatch (foo)\n  | other = A recruit.\nend\n",
+      4,
+    ],
+  ])("%s is reported on its header line", (_name, source, line) => {
+    const text = source.split("\n")[line]!;
+    expect(unknownGlobalRanges(source)).toEqual([
+      {
+        start: { line, character: text.length - text.trimStart().length },
+        end: { line, character: text.length },
+      },
+    ]);
   });
 });

@@ -42,6 +42,21 @@ export function buildDebugMetadata(
   return dm;
 }
 
+// The range of the first line of the source in `[from, to)`, from its first
+// character to its last: the header line of a block statement such as `if`,
+// `elseif` or `match`, the line its condition or subject is on.
+export function headerLineRange(
+  from: number,
+  to: number,
+  ctx: LowerContext,
+): { from: number; to: number } {
+  const text = ctx.read(from, to);
+  const start = text.length - text.trimStart().length;
+  const newline = text.indexOf("\n", start);
+  const line = newline < 0 ? text : text.slice(0, newline);
+  return { from: from + start, to: from + line.trimEnd().length };
+}
+
 // Stamps the given ParsedObjects with debug metadata derived from the
 // absolute byte range `[from, to]`. Existing metadata on a child is left
 // alone so a more-specific lowerer can override the dispatcher-level
