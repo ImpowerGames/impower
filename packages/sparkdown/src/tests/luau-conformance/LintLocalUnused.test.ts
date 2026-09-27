@@ -78,6 +78,13 @@ describe("reads the rule recognizes", () => {
     // these shapes are from Luau's conformance suite.
     ["a read later on the same line", "\nlocal s, r = pcall(print) return s, r\n"],
     ["a read in a function statement on the same line", "\nlocal a = 1 function foo() return a end return foo()\n"],
+    ["a read after a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(x, a)\n"],
+    // The grammar marks Sparkdown's structural words as keywords even where
+    // they are names.
+    ["a read of a local named `style`", "\nlocal style = {}\nsetStyle(style)\n"],
+    ["a read of a local named `layout`", "\nlocal layout = {}\nreturn layout.x\n"],
+    ["a read of a local named `match` in a condition", "\nlocal match = true\nif match then return 1 end\n"],
+    ["a local named in a primitive type annotation", "\nlocal number = 1\nlocal x: number = 2\nreturn x\n"],
   ])("%s", (_name, body) => {
     expect(lintInFunction(body)).toEqual([]);
   });
@@ -88,6 +95,8 @@ describe("reads the rule recognizes", () => {
     ["the name in a string", "\nlocal x = 1\nreturn 'x'\n", 1],
     ["the name in a comment", "\nlocal x = 1\n-- x\n", 1],
     ["a local in a then arm read only in the else arm", "\nlocal c = true\nif c then\n    local y = 1\nelse\n    print(y)\nend\n", 3],
+    ["a write from a narrative logic line", "\nlocal hp = 1\n& hp = 5\n", 1],
+    ["a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(a)\n", 1],
   ])("%s is not a read", (_name, body, line) => {
     expect(lintInFunction(body)).toEqual([
       {
