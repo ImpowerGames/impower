@@ -44,7 +44,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, classifyJob, removeJobDir, liveDeps } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -661,6 +661,9 @@ function makeWorld() {
     cwd: () => w.cwd,
     pid: () => SELF_PID,
     now: () => NOW,
+    // A temp directory the fixture's disk holds nothing under, so the scratch
+    // prunes list no rows here; their own checks are at the end.
+    tmpdir: () => path.join(MAIN, "..", "fixture-temp"),
     processes: () => (w.processesFail ? { ok: false, err: "powershell.exe not found" } : { ok: true, list: w.processes }),
     exec(cmd, args, cwd) {
       const a = args.join(" ");
@@ -1221,7 +1224,7 @@ try {
   await control("directories that are not worktrees are not listed", [["const strayPaths = strayDirs(entries, ctx.root, deps.listDirs);", "const strayPaths = [];"]], ["no row for impower.worktrees"]);
   await control("the rows are not recorded for the next run", [["if (!row.stray) record({ decision: row.decision, path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });", ""]], [`row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say`]);
   await control("a stray row is recorded over the removal it reports", [["if (!row.stray) record({ decision: row.decision,", "record({ decision: row.decision,"]], ["the log does not hold every worktree row, or holds a stray one", `row for ${rel(R("impower.worktrees/fix/14-grabbed"))} does not say '; its branch fix/14-grabbed is still local'`]);
-  await control("a failed removal exits 0", [["return failed || jobs.failed ? 1 : 0;", "return jobs.failed ? 1 : 0;"]], ["exit code 0 though a removal failed"]);
+  await control("a failed removal exits 0", [["return failed || jobs.failed || scratch.failed ? 1 : 0;", "return jobs.failed || scratch.failed ? 1 : 0;"]], ["exit code 0 though a removal failed"]);
   await control("a tree that turned dirty after classification is removed", [["if (dirty > 0) return kept(", "if (false) return kept("]], ["fix/25-dirty-late: expected kept, got removed"]);
   await control("the older driver location is not looked at", [['".agents/skills/resolve-issue/driver.mjs"', '".agents/skills/resolve-issue/driver-elsewhere.mjs"']], ["fix/26-old-driver-up: expected keep, got remove"]);
   await control("the VS Code driver is not asked", [['  { driver: ".agents/skills/drive-vscode-web/driver.mjs", states: [".agents/skills/drive-vscode-web/.state.json", ".claude/skills/drive-vscode-web/.state.json"] },\n', ""]], ["row for fix/47-two-servers does not say 'dev servers up at http://localhost:6 (pid 1) through drive-vscode-web'"]);
@@ -1263,8 +1266,16 @@ const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "cl
 console.log(`Scratch repository: ${scratch}`);
 const mainRoot = path.join(scratch, "impower");
 const root = path.join(scratch, "impower.worktrees");
+// The command's scratch prunes read the system temp directory, so the runs
+// here get one of their own inside the scratch repository's parent; the
+// machine's real temp directory is never listed or pruned by a check.
+const scratchTemp = path.join(scratch, "temp");
+fs.mkdirSync(scratchTemp);
 const env = {
   ...process.env,
+  TEMP: scratchTemp,
+  TMP: scratchTemp,
+  TMPDIR: scratchTemp,
   GIT_AUTHOR_NAME: "check",
   GIT_AUTHOR_EMAIL: "check@example.invalid",
   GIT_COMMITTER_NAME: "check",
@@ -1679,6 +1690,89 @@ await check("journalPids reads every recorded pid and refuses a line that is not
       if (fs.existsSync(dir)) removeJobDir(dir);
     }
     fs.rmSync(jobScratch, { recursive: true, force: true });
+  }
+}
+
+// ---------------------------------------------------- scratch directories ---
+
+{
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-clean-scratch-"));
+  console.log(`Scratch temp root and git dir parent: ${scratch}`);
+  const tmp = path.join(scratch, "temp");
+  const mainRoot = path.join(scratch, "repo");
+  const suites = path.join(mainRoot, ".git", "test-suites");
+  const NOW_MS = Date.parse("2026-09-27T12:00:00.000Z");
+  const HOUR = 3_600_000;
+  const LIVE = 4343;
+  const make = (dir, files = {}, ageMs = 0) => {
+    fs.mkdirSync(dir, { recursive: true });
+    for (const [rel, text] of Object.entries(files)) fs.writeFileSync(path.join(dir, rel), text);
+    const t = new Date(NOW_MS - ageMs);
+    fs.utimesSync(dir, t, t);
+    return dir;
+  };
+  make(path.join(tmp, "redgreen-old"), { "red.log": "red", "green.log": "green" }, 30 * HOUR);
+  make(path.join(tmp, "redgreen-young"), { "red.log": "red" }, 2 * HOUR);
+  make(path.join(tmp, "redgreen-named"), { "red.log": "red" }, 48 * HOUR);
+  make(path.join(tmp, "unrelated-old"), {}, 48 * HOUR);
+  const run = (r) => JSON.stringify({ version: 1, attempts: [], ...r });
+  make(path.join(suites, "finished"), { "run.json": run({ active: false, owner: { pid: LIVE } }) });
+  make(path.join(suites, "dead-owner"), { "run.json": run({ active: true, owner: { pid: 9101 } }) });
+  make(path.join(suites, "live-owner"), { "run.json": run({ active: true, owner: { pid: LIVE } }) });
+  make(path.join(suites, "live-child"), { "run.json": run({ active: false, owner: { pid: 9102 }, attempts: [{ status: "running", child: { pid: LIVE } }] }) });
+  make(path.join(suites, "no-run-json"));
+  const lines = [];
+  const recorded = [];
+  const processes = [{ pid: 777, name: "node.exe", cmd: `node inspect.mjs "${path.join(tmp, "redgreen-named", "red.log")}"` }];
+  const deps = {
+    ...liveDeps,
+    tmpdir: () => tmp,
+    now: () => new Date(NOW_MS).toISOString(),
+    pid: () => 1,
+    pidAlive: (pid) => pid === LIVE,
+    log: (...a) => lines.push(a.join(" ")),
+  };
+  const ctx = { mainRoot, processes: { ok: true, list: processes } };
+  const decisionOf = (name) => lines.find((l) => new RegExp(`^\\S+\\s+${name}\\s`).test(l)) ?? "";
+  try {
+    await check("the scratch dry run lists old redgreen snapshots and finished test-suite runs with sizes, and keeps the rest with reasons", async () => {
+      const result = await cleanScratch(ctx, deps, false, (r) => recorded.push(r));
+      assert.equal(result.failed, 0);
+      assert.match(decisionOf("redgreen-old"), /^remove\s+redgreen-old\s+8 B\s+a redgreen snapshot last written 30\.0 h ago/);
+      assert.match(decisionOf("redgreen-young"), /^keep\s+redgreen-young\s.*written 2\.0 h ago, under the 24\.0 h threshold/);
+      assert.match(decisionOf("redgreen-named"), /^keep\s+redgreen-named\s.*its path is on the command line of pid 777 \(node\.exe\)/);
+      assert.equal(decisionOf("unrelated-old"), "", "a directory not named redgreen-* was listed");
+      assert.match(decisionOf("finished"), /^remove\s+finished\s.*a finished test-suite run/);
+      assert.match(decisionOf("dead-owner"), /^remove\s+dead-owner\s.*coordinator pid 9101 is dead/);
+      assert.match(decisionOf("live-owner"), /^keep\s+live-owner\s.*its coordinator pid 4343 is running/);
+      assert.match(decisionOf("live-child"), /^keep\s+live-child\s.*an unfinished attempt's child is still running \(pid 4343\)/);
+      assert.match(decisionOf("no-run-json"), /^keep\s+no-run-json\s.*its run\.json could not be read/);
+      assert.ok(lines.some((l) => /^3 directories: 1 to remove \(8 B\), 2 kept\.$/.test(l)), lines.join("\n"));
+      for (const d of ["redgreen-old", "redgreen-young", "redgreen-named"]) assert.ok(fs.existsSync(path.join(tmp, d)), `the dry run removed ${d}`);
+      for (const d of ["finished", "dead-owner"]) assert.ok(fs.existsSync(path.join(suites, d)), `the dry run removed ${d}`);
+      assert.equal(recorded.length, 0, "the dry run recorded a row");
+    });
+
+    await check("the scratch apply run removes only the removable directories and records each removal", async () => {
+      lines.length = 0;
+      const result = await cleanScratch(ctx, deps, true, (r) => recorded.push(r));
+      assert.equal(result.failed, 0, lines.join("\n"));
+      for (const d of [path.join(tmp, "redgreen-old"), path.join(suites, "finished"), path.join(suites, "dead-owner")]) assert.ok(!fs.existsSync(d), `the removable ${d} is still there`);
+      for (const d of [path.join(tmp, "redgreen-young"), path.join(tmp, "redgreen-named"), path.join(tmp, "unrelated-old"), path.join(suites, "live-owner"), path.join(suites, "live-child"), path.join(suites, "no-run-json")]) assert.ok(fs.existsSync(d), `the apply run removed the retained ${d}`);
+      assert.deepEqual(recorded.filter((r) => r.decision === "removed").map((r) => path.basename(r.path)).sort(), ["dead-owner", "finished", "redgreen-old"]);
+      assert.deepEqual(recorded.filter((r) => r.decision === "removing").map((r) => path.basename(r.path)).sort(), ["dead-owner", "finished", "redgreen-old"]);
+      assert.equal(recorded.filter((r) => r.decision === "kept").length, 5);
+    });
+
+    await check("an unlisted process table keeps every scratch directory", () => {
+      const verdict = classifyRedgreen(path.join(tmp, "redgreen-young"), { ...deps, now: () => new Date(NOW_MS + 100 * HOUR).toISOString() }, { mainRoot, processes: { ok: false, err: "fixture" } });
+      assert.equal(verdict.remove, false);
+      assert.match(verdict.reason, /the processes on this machine could not be listed/);
+      const run = classifyTestRun(path.join(suites, "live-child"), { ...deps, pidAlive: () => false }, { mainRoot, processes: { ok: false, err: "fixture" } });
+      assert.equal(run.remove, false);
+    });
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
   }
 }
 
