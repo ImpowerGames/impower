@@ -36,10 +36,9 @@ const URI = "inmemory:///main.sd";
 
 /**
  * Tells whether the last compile served any flow from the serialized-flow
- * cache. `computeFlowReuse` only says which flows may be served: a compile
- * after one that refused reuse finds the cache dropped and serves nothing. A
- * served flow's cache entry holds the very value the previous compile cached,
- * so value identity tells the two apart.
+ * cache. `computeFlowReuse` only says which flows may be served, not whether
+ * the cache held them. A served flow's cache entry holds the very value the
+ * previous compile cached, so value identity tells the two apart.
  */
 class Probe extends SparkdownCompiler {
   private previousCache?: Map<string, { value: unknown }>;
@@ -251,10 +250,10 @@ describe("compiler cumulative incremental equivalence", () => {
       // comparisons above covered it outside the reparse window.
       expect(Object.keys(CONSTRUCT_MARKERS).filter((c) => !carried.get(c))).toEqual([]);
       // A guard that refused reuse on every compile would pass the
-      // comparisons without testing it. The floor sits well under the 57 of
+      // comparisons without testing it. The floor sits well under the 158 of
       // 200 compiles measured with this seed: a random edit that declares a
-      // name correctly refuses reuse, which drops the cache, and the compile
-      // after it serves nothing while it rebuilds.
+      // name correctly refuses reuse, so that compile serves nothing, though
+      // it reseeds the cache for the compile after it.
       expect(reusing, "compiles that served flows from the cache").toBeGreaterThan(EDITS / 20);
     } finally {
       console.warn = realWarn;

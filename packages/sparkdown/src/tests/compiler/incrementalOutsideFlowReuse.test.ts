@@ -56,12 +56,29 @@ const file = (text: string, version: number): File => ({
  */
 class Probe extends SparkdownCompiler {
   lastBytecodeReuse?: { reusable: Set<string>; ok: boolean };
+  private previousFlowCache?: Map<string, { value: unknown }>;
 
   captures(): Map<string, unknown> {
     return new Map(this._flowAssetAccum ?? []);
   }
 
+  /**
+   * The flows the last compile served from the serialized-flow cache. The
+   * reuse decision only says which flows may be served; a served flow's cache
+   * entry holds the very value the previous compile cached.
+   */
+  servedFlows(): string[] {
+    const served: string[] = [];
+    for (const [name, entry] of this._flowJsonCache ?? []) {
+      if (this.previousFlowCache?.get(name)?.value === entry.value) {
+        served.push(name);
+      }
+    }
+    return served;
+  }
+
   protected override computeFlowReuse(story: RuntimeStory) {
+    this.previousFlowCache = this._flowJsonCache;
     const result = super.computeFlowReuse(story);
     this.lastBytecodeReuse = {
       reusable: new Set(result.reusable),
@@ -382,10 +399,11 @@ describe("a global that shadows a flow name", () => {
 
   // The callee's parameter list is baked into its CALLERS' bytecode at their
   // generation time, so changing it has to invalidate flows whose own source
-  // is untouched. That is the flow-signature detector, and this is the only
-  // test that reaches it: nothing else here changes a signature, so if its
-  // feed into the shape-risk field were removed, every other test would still
-  // pass while the callers were served pre-change bytecode.
+  // is untouched. That is the flow-signature detector. This test and the
+  // anonymous function's parameter-list test below are the two that reach it:
+  // nothing else here changes a signature, so if its feed into the shape-risk
+  // field were removed, every other test would still pass while the callers
+  // were served pre-change bytecode.
   it("changing a callee's parameter list refuses reuse for its callers", () => {
     quiet(() => {
       let text = shadowFixture();
@@ -439,19 +457,20 @@ describe("a script holding an anonymous function", () => {
       let text = script();
       const compiler = configured(new Probe(), text);
       compiler.compile({ textDocument: { uri: URI } } as any);
-      const verdicts: { reusable: string[]; ok: boolean }[] = [];
+      const verdicts: { reusable: string[]; served: string[]; ok: boolean }[] = [];
       for (const version of [2, 3]) {
         text = edit(compiler, text, "Hi.", "Hi.", version);
         const compiled = compiledOf(compiler);
         verdicts.push({
           reusable: reusedScenes(compiler),
+          served: compiler.servedFlows().filter((n) => /^s\d+$/.test(n)),
           ok: compiler.lastBytecodeReuse!.ok,
         });
         expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
       }
       expect(verdicts).toEqual([
-        { reusable: ["s1"], ok: true },
-        { reusable: ["s1"], ok: true },
+        { reusable: ["s1"], served: ["s1"], ok: true },
+        { reusable: ["s1"], served: ["s1"], ok: true },
       ]);
     });
   });
@@ -465,6 +484,7 @@ describe("a script holding an anonymous function", () => {
       compiler.compile({ textDocument: { uri: URI } } as any);
       text = edit(compiler, text, "Hi.", "Hi!", 2);
       compiler.compile({ textDocument: { uri: URI } } as any);
+      expect(compiler.lastBytecodeReuse?.ok).toBe(true);
 
       text = edit(compiler, text, "function(n)", "function(n, m)", 3);
       const compiled = compiledOf(compiler);
