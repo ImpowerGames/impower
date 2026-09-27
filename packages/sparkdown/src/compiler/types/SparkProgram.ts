@@ -1,4 +1,6 @@
 import type { ProgramBuffer } from "../../binary/programBinary";
+import type { ProgramFallback } from "../../program/ChunkStore";
+import type { ProgramRoot } from "../../program/ProgramRoot";
 import { type File } from "./File";
 import type { ProgramChangeSummary } from "./ProgramChangeSummary";
 import { type SceneAssets } from "./SceneAssets";
@@ -75,6 +77,19 @@ export interface SparkProgram {
    * single self-describing blob is actually what is needed.
    */
   compiledBuffer?: ProgramBuffer;
+  /**
+   * The root of the statement chunks the compile built, with
+   * `SparkdownCompilerConfig.programChunks` on and no construct to fall back
+   * for. It is read by reference by a game in the compiler's worker, and never
+   * crosses a worker boundary: the transport and the summary leave it out.
+   */
+  chunks?: ProgramRoot;
+  /**
+   * The construct that made a compile with `programChunks` on fall back to the
+   * current engine as a whole, with the script and line of the statement that
+   * holds it.
+   */
+  fallback?: ProgramFallback;
   workspace?: string;
   startFrom?: { file: string; line: number };
   /** Where this compile can differ from the one before it, and whether that is

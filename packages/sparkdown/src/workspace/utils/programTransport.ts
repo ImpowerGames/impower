@@ -130,6 +130,8 @@ export class ProgramTransportEncoder {
       return out;
     };
     const out: SparkProgram = { ...program };
+    // The statement chunks are read by reference in the compiler's worker.
+    delete out.chunks;
     if (program.files) {
       out.files = mapTable(program.files, encodeVocabulary) as SparkProgram["files"];
     }

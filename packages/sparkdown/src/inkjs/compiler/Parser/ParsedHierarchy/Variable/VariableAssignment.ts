@@ -13,6 +13,7 @@ import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../engine/TypeAssertion";
 import { StructDefinition } from "../Struct/StructDefinition";
 import { currentCompileEpoch } from "../CompileEpoch";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 
 export class VariableAssignment extends ParsedObject {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
@@ -155,6 +156,17 @@ export class VariableAssignment extends ParsedObject {
       this.expression = constantExpression;
       this.isConstantDeclaration = true;
       this.isGlobalDeclaration = true;
+    }
+  }
+
+  // A global declaration runs nothing where it is written, as it generates
+  // nothing there: the story initializes every global when its state is
+  // reset. Until the declaration sequence is emitted, that initialization is
+  // the current engine's (see `ProgramStory`). Any other assignment is not
+  // emitted yet.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (!this.isGlobalDeclaration) {
+      emitter.unsupported(this.typeName);
     }
   }
 

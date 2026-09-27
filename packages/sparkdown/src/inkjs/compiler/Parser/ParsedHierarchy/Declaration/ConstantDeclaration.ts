@@ -5,6 +5,7 @@ import { Story } from "../Story";
 import { SymbolType } from "../SymbolType";
 import { Identifier } from "../Identifier";
 import { VariableReference } from "../Variable/VariableReference";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 
 export class ConstantDeclaration extends ParsedObject {
   get constantName(): string | undefined {
@@ -35,6 +36,10 @@ export class ConstantDeclaration extends ParsedObject {
   override get typeName(): string {
     return "const";
   }
+
+  // A constant runs nothing where it is written; it initializes with the
+  // globals (see `VariableAssignment.EmitProgram`).
+  public override EmitProgram(_emitter: ProgramEmitter): void {}
 
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {
     // Global declarations don't generate actual procedural

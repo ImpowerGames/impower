@@ -5,6 +5,7 @@
 //
 //   node scripts/bench/preview-bench.mjs --project <dir> --line <N> --word <text>
 //   node scripts/bench/preview-bench.mjs --fixture
+//   node scripts/bench/preview-bench.mjs --project <dir> --mode coverage
 //
 // Options:
 //   --project <dir>     a project directory holding main.sd
@@ -15,7 +16,12 @@
 //                       identifier around it is what gets replaced
 //   --options <a,b,..>  replacements, whole identifiers; default: every image
 //                       file whose name starts like the identifier
-//   --mode <m>          preview | edit | both (default both)
+//   --mode <m>          preview | edit | both (default both), or coverage: no
+//                       timing, but how many of the project's statements the
+//                       binary program's writer emits and, counted by
+//                       construct, which ones make the program fall back to
+//                       the current engine (programCoverage.ts, #694); it
+//                       needs no --line or --word
 //   --samples <K>       measured samples per mode (default 12)
 //   --warmup <W>        discarded samples first (default 4)
 //   --json <file>       also write each mode's full report, as <file>.<mode>.json
@@ -61,7 +67,7 @@ export function parseBenchArgs(args) {
         break;
       case "--mode": {
         const mode = value(args, i++, name);
-        if (!["preview", "edit", "both"].includes(mode)) throw new Error("--mode is preview, edit or both");
+        if (!["preview", "edit", "both", "coverage"].includes(mode)) throw new Error("--mode is preview, edit, both or coverage");
         out.mode = mode;
         break;
       }
@@ -83,7 +89,7 @@ export function parseBenchArgs(args) {
   }
   if (out.project && out.fixture) throw new Error("--project and --fixture are exclusive");
   if (!out.project && !out.fixture) throw new Error("pass --project <dir> or --fixture");
-  if (out.project && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
+  if (out.project && out.mode !== "coverage" && (out.line == null || out.word == null)) throw new Error("--project needs --line and --word");
   return out;
 }
 
@@ -130,6 +136,13 @@ async function main(args) {
       console.log(`fixture: ${project}`);
     }
     project = path.resolve(project);
+    if (options.mode === "coverage") {
+      const script = await bundleBench("programCoverage.ts", scratch, null);
+      const json = options.json && path.resolve(`${options.json}.coverage.json`);
+      const run = spawnSync(process.execPath, ["--max-old-space-size=4096", script, JSON.stringify({ project, json })], { stdio: "inherit", windowsHide: true });
+      process.exitCode = run.status === 0 ? 0 : 1;
+      return;
+    }
     const lineText = fs.readFileSync(path.join(project, "main.sd"), "utf8").split(/\r?\n/)[line - 1] ?? "";
     const around = tokenAround(lineText, word);
     if (!around) throw new Error(`"${word}" is not on line ${line}: ${JSON.stringify(lineText)}`);

@@ -18,6 +18,8 @@ import { Path } from "../Path";
 import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
 import { DivertTarget } from "./DivertTarget";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export class Divert extends ParsedObject {
   public readonly args: Expression[] = [];
@@ -98,6 +100,19 @@ export class Divert extends ParsedObject {
 
   override get typeName(): string {
     return "Divert";
+  }
+
+  // The two built-in targets are instructions of their own, as they are
+  // control commands of the runtime tree. A divert anywhere else is not
+  // emitted yet.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (this.isEnd) {
+      emitter.emit(Op.End);
+    } else if (this.isDone) {
+      emitter.emit(Op.Done);
+    } else {
+      emitter.unsupported(this.typeName);
+    }
   }
 
   public readonly GenerateRuntimeObject = () => {

@@ -152,6 +152,12 @@ import type { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocu
 import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
+import { ChunkStore, type ProgramBuild } from "../../program/ChunkStore";
+import {
+  programFlows,
+  type StatementRecord,
+} from "../../program/programFlows";
+import type { CompiledBlock } from "./annotators/CompilationAnnotator";
 
 // The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
 // identifiers to. These names are POSITIONAL (document-order ordinals), so a
@@ -729,6 +735,25 @@ export class SparkdownCompiler {
   // regrowing geometrically. The program is nearly the same size every edit.
   protected _binarySlotHint = 0;
 
+  // ---- Statement chunks (`programChunks`, #694) ---------------------------
+  // The store a compile builds its root of statement chunks from, kept for the
+  // compiler's lifetime so that a statement keeps its chunk across compiles.
+  protected _chunkStore?: ChunkStore;
+  // The compiled block each object the assembly placed in a weave came from.
+  // Keyed by the placed object, so a flow carried from an earlier compile,
+  // whose objects this compile's assembly does not place again, still
+  // answers.
+  protected _placedBy = new WeakMap<ParsedObject, object>();
+  // What this compile knows of each compiled block: its script and line, its
+  // syntax and the lowering inputs it recorded.
+  protected _statementRecords = new Map<object, StatementRecord>();
+  // Set while `previewCompile` compiles, so the root it builds is dropped and
+  // the store's current root stays the last real compile's.
+  protected _previewing = false;
+  /** What the last compile with `programChunks` on built: its root or the
+   *  construct it fell back for, and how many statements it emitted. */
+  lastProgramBuild?: ProgramBuild & { declarations: number; functions: number };
+
   // ---- Incremental ExportRuntime: constructed-flow reuse ------------------
   // A top-level flow (knot/scene/function, plus its stitches) is assembled
   // from a RUN of chunks: the declaration chunk plus every body chunk that
@@ -1078,6 +1103,12 @@ export class SparkdownCompiler {
       config.simulationOptions !== this._config.simulationOptions
     ) {
       this._config.simulationOptions = config.simulationOptions;
+    }
+    if (
+      config.programChunks !== undefined &&
+      config.programChunks !== this._config.programChunks
+    ) {
+      this._config.programChunks = config.programChunks;
     }
     if (!this._documents) {
       this._documents = new SparkdownDocumentRegistry(
@@ -1792,6 +1823,8 @@ export class SparkdownCompiler {
       this.noteDocumentEdits(textDocument.uri, contentChanges);
     }
     let compiled: ReturnType<SparkdownCompiler["compileStory"]>;
+    // The root of statement chunks a preview builds is dropped with it.
+    this._previewing = true;
     try {
       compiled = this.compileStory({ textDocument: root, startFrom });
       if (compiled.program.scripts[textDocument.uri] == null) {
@@ -1800,6 +1833,7 @@ export class SparkdownCompiler {
         compiled = this.compileStory({ textDocument, startFrom });
       }
     } finally {
+      this._previewing = false;
       if (applied) {
         this.documents.update({
           textDocument: {
@@ -1866,7 +1900,8 @@ export class SparkdownCompiler {
         emitCompiledProgram &&
         cached.story &&
         !cached.program.compiled &&
-        !cached.program.compiledBuffer
+        !cached.program.compiledBuffer &&
+        !cached.program.chunks
       ) {
         this.serializeCompiledProgram(cached.story, cached.program, uri);
       } else if (
@@ -2040,6 +2075,7 @@ export class SparkdownCompiler {
     // `populateAllLocations`, finalized below.
     this._compilationIds = new Set();
     this._changedChunkRanges = [];
+    this._statementRecords = new Map();
     // Fresh per-compile record of what the chunks contribute to the context
     // and of the identities that key the assembled base (#654).
     this._contextContributions = [];
@@ -2361,6 +2397,11 @@ export class SparkdownCompiler {
         this._disableFlowReuseNextCompile = true;
       }
       if (story) {
+        // A program whose statements all have chunks runs from them, and its
+        // runtime story is not serialized.
+        const chunked =
+          !!this._config.programChunks &&
+          this.buildProgramChunks(parsedStory, story, program, uri);
         // #345: hosts that never read the bytecode skip SERIALIZATION only.
         // Everything else in this block still has to run — `state.story`, and
         // `populateAllLocations` below, which walks the runtime tree for
@@ -2371,7 +2412,7 @@ export class SparkdownCompiler {
         // bytecode, and can be re-requested per compile. Everything else in
         // this block still runs — `state.story`, and `populateAllLocations`
         // below, which walks the runtime tree for `pathLocations`.
-        if (emitCompiledProgram) {
+        if (emitCompiledProgram && !chunked) {
           this.serializeCompiledProgram(story, program, uri);
           flowShapesNoted = true;
         } else {
@@ -3096,6 +3137,12 @@ export class SparkdownCompiler {
         const chunkEnd = document?.lineAt(rec.to) ?? chunkStart;
         this._changedChunkRanges?.push([chunkStart, chunkEnd, uri]);
       }
+      if (this._config.programChunks) {
+        this._statementRecords.set(
+          compiledBlock,
+          this.statementRecord(rec.block, rec.from, rec.to, lineNumberOffset, uri),
+        );
+      }
       // Anonymous function literals lowered at chunk-top-level (i.e.
       // outside any enclosing function definition) produce synthetic
       // FlowBase objects that need to land at the story's top level.
@@ -3348,6 +3395,9 @@ export class SparkdownCompiler {
               topLevelFlowBaseObjs.push(knot);
               topLevelContent.push(knot);
               startRun(knot, compiledBlock);
+              if (this._config.programChunks) {
+                this._placedBy.set(knot, compiledBlock);
+              }
             } else if (flow instanceof Stitch) {
               const rootWeave = new Weave([]);
               const stitch = new Stitch(
@@ -3361,6 +3411,9 @@ export class SparkdownCompiler {
               stitch._rootWeave = rootWeave;
               stitch.AddContent(rootWeave);
               rootWeave.debugMetadata = flow.debugMetadata;
+              if (this._config.programChunks) {
+                this._placedBy.set(stitch, compiledBlock);
+              }
               const last = lastStoryEntry(topLevelContent);
               if (last instanceof Knot) {
                 if (stitch.identifier?.name) {
@@ -3385,6 +3438,9 @@ export class SparkdownCompiler {
               const weave = new Weave([flow]);
               topLevelWeaveObjs.push(weave);
               topLevelContent.push(weave);
+              if (this._config.programChunks) {
+                this._placedBy.set(flow, compiledBlock);
+              }
             } else if (flow instanceof Weave) {
               // This chunk's body weave is about to be UNWRAPPED — its children
               // are re-parented directly under the closest existing weave (e.g.
@@ -3430,6 +3486,11 @@ export class SparkdownCompiler {
                 uuid && !isWeavePoint
                   ? [new Statement(uuid, flow.content)] // Wrap non-choice/gather statements in a stably named container
                   : withAssemblyWeaves(flow.content);
+              if (this._config.programChunks) {
+                for (const placed of flowContent) {
+                  this._placedBy.set(placed, compiledBlock);
+                }
+              }
               const closestWeave = getClosestWeave(topLevelContent);
               if (closestWeave) {
                 const lastContent = closestWeave.content.at(-1);
@@ -4317,6 +4378,97 @@ export class SparkdownCompiler {
       this._flowChunkCache = undefined;
       this._binaryTableBaseline = 0;
     }
+  }
+
+  /** What the chunk store needs of a compiled block, read at its current
+   *  place in its script. Its syntax (the node's name, the column it starts
+   *  at and its text) is read only when the store compares it. The column
+   *  belongs to it because a statement that shares its first line with
+   *  another, such as tags after inline text, moves along the line when the
+   *  other one changes, and its chunk's line rows hold columns. */
+  protected statementRecord(
+    block: CompiledBlock,
+    from: number,
+    to: number,
+    line: number,
+    uri: string,
+  ): StatementRecord {
+    let source: string | undefined;
+    let syntax: string | undefined;
+    const sourceOf = () =>
+      (source ??= this.documents.get(uri)?.getText().slice(from, to) ?? "");
+    const columnOf = () =>
+      this.documents.get(uri)?.positionAt(from).character ?? 0;
+    const first = block.content?.[0];
+    return {
+      uri,
+      line,
+      source: sourceOf,
+      syntax: () =>
+        (syntax ??= `${block.node ?? ""}\u0000${columnOf()}\u0000${sourceOf()}`),
+      reads: JSON.stringify([
+        [...(block.globalCallableReads ?? [])],
+        [...(block.defineTypeReads ?? [])],
+        block.reads ?? [],
+      ]),
+      range: first?.ownDebugMetadata ?? null,
+    };
+  }
+
+  /**
+   * Builds the program's statement chunks from the assembled parsed story
+   * (`programChunks`), and records on `program` the root, or the construct
+   * the program falls back for. A preview compile's root is not made the
+   * store's current one. Returns whether the program has its chunks.
+   */
+  protected buildProgramChunks(
+    parsedStory: Story,
+    story: RuntimeStory,
+    program: SparkProgram,
+    uri: string,
+  ): boolean {
+    profile("start", this._profilerId, "program/chunks", uri);
+    const flows = programFlows({
+      story: parsedStory,
+      uri,
+      preludeUri: BUILTINS_PRELUDE_URI,
+      blockOf: (obj) => this._placedBy.get(obj),
+      record: (block) => this._statementRecords.get(block),
+      lineCount: (scriptUri) => {
+        const document = this.documents.get(scriptUri);
+        return document ? document.lineAt(document.getText().length) + 1 : 0;
+      },
+    });
+    this._chunkStore ??= new ChunkStore();
+    const build = this._chunkStore.build(
+      flows.flows,
+      !this._previewing && !flows.fallback,
+      story,
+    );
+    const fallback = flows.fallback ?? build.fallback;
+    for (const [construct, count] of Object.entries(flows.unsupported)) {
+      build.coverage.unsupported[construct] =
+        (build.coverage.unsupported[construct] ?? 0) + count;
+    }
+    this.lastProgramBuild = {
+      ...build,
+      root: fallback ? undefined : build.root,
+      fallback,
+      declarations: flows.declarations,
+      functions: flows.functions,
+    };
+    if (fallback) {
+      program.fallback = fallback;
+    } else {
+      program.chunks = build.root;
+    }
+    profile("end", this._profilerId, "program/chunks", uri);
+    return !fallback;
+  }
+
+  /** The chunk store of a compiler that compiles with `programChunks` on. */
+  get chunkStore(): ChunkStore | undefined {
+    return this._chunkStore;
   }
 
   /**

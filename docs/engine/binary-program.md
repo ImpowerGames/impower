@@ -1,6 +1,6 @@
 # The binary program
 
-This is the design of record for the binary program of #692: the form a compiled story takes, the instructions it is made of, the symbols and addresses that name positions in it, and the state of the engine that runs it. Every slice of #692 builds against this document. It specifies and ships no engine.
+This is the design of record for the binary program of #692: the form a compiled story takes, the instructions it is made of, the symbols and addresses that name positions in it, and the state of the engine that runs it. Every slice of #692 builds against this document; [What #694 builds](#what-694-builds) says what the first slice runs today and where it settles what the design leaves open.
 
 Where a choice rests on a number, the number comes from a throwaway prototype under `scripts/bench` (`chunkProgram.ts`, `chunkStepper.ts`) measured beside #664's. [Measurements](#measurements) gives the figures and the command that reproduces each. Nothing under `packages/*/src` imports the prototype, and `scripts/bench/engine-bench.test.mjs` asserts that.
 
@@ -340,7 +340,7 @@ Every instruction runs once, in order. Logic after a line's newline runs when th
 
 A continue that ends at a newline returns with the position just after the instruction that wrote it. A statement whose last instruction wrote it rests at offset 0 of the next chunk, which is the address a consumer sees for "after this beat".
 
-`LineStart` names a beat's address (section 8); executing it does nothing. The writer puts it first in the chunk of every statement that displays and is not a continuation, ahead of its tags and its argument. A statement is a continuation when the statement before it in the same sequence ends with an open call. The first display statement of a body or of a flow is not one, because whether the call before it is open depends on how the flow got there, so a line that a trailing `..` joins through an `if` or a divert carries a `LineStart` of its own.
+`LineStart` names a beat's address (section 8); executing it does nothing. The writer puts one ahead of every display call that starts a beat, before the call's argument: every call but one whose table carries `continues`, which is what a line written with a leading `..` lowers to and which joins the beat before it. A statement that a `>` break splits into two beats holds a call for each, and each has its `LineStart`. Whether a line joins the one before it through a trailing `..` depends on how the flow got there, through an `if` or a divert, so the line after an open call carries a `LineStart` of its own, and a beat that such a join makes runs two.
 
 Choice presentation needs from the engine what it has today: each choice's text and tags, its index, whether it is an invisible default, the address of its `Choice` instruction as its identity, its target, and the thread it was raised in. A choice's text is built in a capture and stays flat text; how choices are transported is outside #685.
 
@@ -473,7 +473,7 @@ Within a session, when a root arrives, a checkpoint's address whose chunk the ne
 
 ### The fallback
 
-The writer emits what it can. The first parsed object it has no emit path for, at any depth, makes the whole compile fall back: the program is compiled and run by the current engine, and `program.fallback` holds the construct's name (the parsed class's `typeName`, or the builtin's or command's name), the script and the line. The game constructs the current `Story` when `program.fallback` is set. `preview-bench.mjs` reports the statements emitted and the fallbacks counted by construct.
+The writer emits what it can. The first parsed object it has no emit path for, at any depth, makes the whole compile fall back: the program is compiled and run by the current engine, and `program.fallback` holds the construct's name (the parsed class's `typeName`, or the builtin's or command's name), the script and the line. The game constructs the current `Story` when `program.fallback` is set. `preview-bench.mjs --mode coverage` reports the statements emitted and every statement the writer has no emit path for, counted by construct.
 
 ### The chunk store
 
@@ -661,13 +661,82 @@ The guidance the article gives authors follows from the mechanism, and the same 
 
 | Slice | Builds |
 | --- | --- |
-| #694 | the config fields, the fallback, the store, `LineStart`, the output and value instructions, `MakeTable`, `CallStd` with its open flag, the beat boundary of section 6, the `Story` surface a beat needs |
+| #694 | the config fields, the fallback, the store, the identity rule with the recording of lowering reads and the reference table, the line table rows of the statements it emits, `LineStart`, the output and value instructions, `MakeTable`, `CallStd` with its open flag, the beat boundary of section 6, the `Story` surface a beat needs |
 | #695 | `Native`, `GetVar`, `SetVar`, the jumps, the decision sites, scopes, `Leave`, blocks for `if` and loops with hidden temporaries named from nothing outside the statement, the declaration sequence |
 | #696 | symbols and their definitions, `JumpSym`, `JumpVar`, `Call` and `TunnelReturn` for tunnels, `Thread`, `Visit` and the counts, `VisitIndex`, `ShuffleIndex`, the flow entry rule over the sequence and chunk tables |
 | #697 | `Choice`, the `choose` chunk, anonymous count symbols, choices in a thread, a presentation that writes nothing of the writer's own |
 | #698 | `Sym` and symbol values, `Call`, `CallVar`, `CallValue`, `Return`, `Pack`, `Unpack`, `VarPtr`, function-body blocks, the builtin surface |
 | #699 | the write barrier, images taken at the newline with the choices raised before it, checkpoints, the save format with its beats, windows, part listings and layout hashes, the saved form, the loader's matching, search, pairing, layout check and fall back |
 | #700 | line tables, `addressAt`, `locationOf`, the planner and the readers on addresses |
-| #701 | identity, reference tables, the incremental passes over them, reuse inside blocks |
+| #701 | the reverse index of the reference tables and the incremental passes over it, reuse inside blocks |
 | #702 | the frames view, `onExecute(address)`, breakpoints as address sets |
 | #703 to #705 | parity and the default, the language server, the deletion |
+
+## What #694 builds
+
+The first slice runs a program's display beats from statement chunks when `programChunks` is on (section 9) and falls back to the current engine for everything else. Its code is under `packages/sparkdown/src/program/`. A compile with the field off builds no chunks and records no statements.
+
+### Flows and statements
+
+A flow is the top-level content of the script the compile starts from, named by the empty string, or a scene or a branch, named by its qualified name (`programFlows.ts`). Each flow is one sequence. Its line starts count from the line after the flow's header, and its span runs to the next header in its script or to the script's end. A statement is a block the compilation annotator lowered, with the parsed objects the assembled story placed for it. The compiler ends a flow that does not end itself with a `-> DONE`, ends the top level with a gather and a `done`, and writes a newline where an included script's content ends; a sequence that runs out ends its flow as those do, so they are left out. A flow with parameters, top-level content of an included script other than declarations, and an object no statement placed make the compile fall back, naming `Argument`, `IncludedFile` and the object's `typeName`.
+
+### What the writer emits
+
+| Class | Emits |
+| --- | --- |
+| `Text` | `Text`, or `Newline` for a newline |
+| `Tag` | `BeginTag` or `EndTag` |
+| `StringExpression` of text alone | one `Str` of the joined text |
+| `NumberExpression` | `Int`, `Num` or `Const` |
+| `ObjectExpression` with literal keys | each key's `Str` and its value, then `MakeTable` |
+| `FunctionCall` of `display` or `__unjoined` whose value is discarded | the arguments, then `CallStd` with the discard flag; a `display` whose table carries `open`, `glue` or `caption` sets the open flag as well |
+| `Divert` to `DONE` or `END` | `Done` or `End` |
+| `Weave` that is not a `choose` block | its content's code |
+| `VariableAssignment` that declares a global, `ConstantDeclaration`, `AuthorWarning` | nothing |
+
+Every other class keeps `ParsedObject.EmitProgram`, which names its `typeName`, and the emit paths above name what they leave out: `choose`, what an interpolated string interpolates, `computed table key`, `output of an expression`, a builtin other than those two by its name, and an operand too large for its field.
+
+A chunk's line table holds the statement's own row and a row for each object with a range of its own, anchored at the statement's first line. Its reference table holds the facts about each symbol its code refers to; no instruction the writer emits refers to one yet, so a test statement exercises the table. Export and block tables are empty. The fingerprint hashes the statement's source with each line trimmed and blank lines left out; removing comments and collapsing the whitespace between tokens, as section 1 specifies, belong with the save format (#699), which is the first reader of fingerprints. The layout hash covers the code, with each id read as what it names.
+
+### Globals and functions
+
+The declaration sequence (#695) and functions (#698) are not emitted yet. A root holds the current engine's story of the compile that built it (`ProgramRoot.runtimeStory`). `ProgramStory.ResetState` resets that story, which runs the program's declarations and the builtins', and takes its `VariablesState` as its own, so a display table reads and writes the globals the current engine would. `HasFunction` and `EvaluateFunction`, which the UI module calls, run on that story against the same globals, and `listDefinitions` and `structDefinitions` are that story's.
+
+### The engine
+
+`ProgramStory` presents the members of `Story` that `Game.ts` uses to start a game, continue it, read a beat and run a preview compile's program, under the same names, with `ProgramStoryState` as its `state`. It runs a chunk's instructions from an integer cursor. `CallStd` calls the builtin's `STDLIB` entry with the story as its receiver, so `display` builds its instruction and applies `open`, `glue`, `caption`, `extend` and `continues` from its table as it does on the current engine; the engine does not read the open flag, which repeats what the table says. The output rules are the current engine's: `PushToOutputStream`, the pending line end and the join, the cut at a line's newline with the step carried past it into the next continue, `CleanOutputWhitespace` and the continue loop. A runtime error or warning is prefixed with the script and line of the line table row that covers the instruction, as the current engine prefixes it from debug metadata. `ChoosePathString` takes a flow's qualified name, `""` or `"0"` for the top level, or a path that the compile's path locations place at a line, and runs from the last `LineStart` at or above that line in the statement holding it. A saved state holds its position as a chunk id, entry, offset and sequence id, and `LoadJson` finds the chunk in the root it runs on. A program with choices falls back (`choose`), so `currentChoices` is empty and `ChooseChoiceIndex` throws.
+
+### Identity
+
+The rule of section 1 holds for every statement the writer emits (`ChunkStore`). A statement whose compiled block is the one the store emitted a chunk for keeps that chunk. The statements the reparse window lowered again are aligned with the previous root's, every flow's statements as one list, so a statement keeps its chunk when an edit renames its flow or moves it into another: between two statements that kept their chunks, the old and new ones are matched from both ends and then in order by their syntax, which is the node's name, the column it starts at and its text. The column belongs to the syntax because a statement that shares its first line with another, such as tags written after inline text, moves along the line when the other one changes, and its line rows hold columns. A matched statement takes the old chunk when the lowering inputs it recorded read the same: the global callable names and define type names it consulted, and the routing of the line that a continuation after a `>` break joins, which `lowerDisplay` reads outside the continuation's own syntax and records as a `LoweringRead`; the compilation annotator lowers a block again when the answer it recorded disagrees with the tree. A chunk is kept while the values its emission recorded read the same, which are the texts the compiler names by document order after lowering (a continuation's group, `__group_<n>`), and while the hash of the facts about each symbol in its reference table is unchanged (its kind and whether the program defines it). No chunk stands in two places of one root, and chunk, sequence and root ids come from counters that never go back.
+
+### Where it runs
+
+`Game` builds a `ProgramStory` when `GameConfiguration.programChunks` is on and the program has chunks, and the current `Story` otherwise. The player's worker does not turn the field on: its route planner, checkpoints and debugger read runtime paths and the call stack, which come with #699, #700 and #702, so the editor's preview and PLAY run the current engine. A preview compile builds a root of its own and leaves the store's current root as it was.
+
+### Coverage and the differential run
+
+```bash
+node scripts/bench/preview-bench.mjs --project <dir> --mode coverage
+SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
+```
+
+The coverage report counts the statements of the program's flows, the ones the writer emits, and every statement it has no emit path for by the construct it names, beside the construct the program falls back for and the declarations and functions that run on the current engine. On 2026-09-27 the preview fixture had 407 statements, of which the writer emits 406, and falls back for the `choose` whose `then` clause holds its last 1,112 lines; the Raffles and Bunny project had 1,486, of which the writer emits 1,479, and falls back for the `-> TEASER` at `main.sd` line 35, with 5 `choose` blocks and 2 diverts in all.
+
+The differential run is kept out of the ordinary suite. It compiles each shared fixture under `src/tests/runtime/fixtures` for both engines and compares, for each program that has its chunks, every beat's text, tags and display tables and the errors and warnings with their lines: 16 of the 186 fixtures have their chunks and all show the same, and the others fall back, 90 of them for a divert. It runs the beats fixture and a screenplay of the constructs the writer emits scene by scene, checks that a writer broken on purpose fails it, and makes randomized edits to that screenplay, one per fresh compiler and 120 through one compiler, comparing each incremental compile's chunks by content and its diagnostics with a cold compile's and checking that every statement an edit did not touch keeps its chunk.
+
+### Measured
+
+```bash
+node scripts/bench/engine-bench.mjs --fixture --mode program
+```
+
+The `program` mode runs the program engine beside the current engine on the scene `buildBeatsFixture` writes (`scripts/bench/preview-fixture.mjs`), from the top of `MAIN` to its end, one candidate per process, continuing either one step or one line per call. It fails unless all four candidates produce the same digest of every line's text, tags and display tables, and unless the program engine takes one step per instruction of the scene's chunks plus the step that finds the scene over, which is how it shows that each display beat ran once. Taken 2026-09-27 on an Intel i7-9750H, Windows 11, Node 23.6.0, with processor load from other sessions at about 80 percent, 12 samples after 4 warm-up, min / median / max:
+
+| The beats scene, top to end: 748 lines, 748 display tables | Engine | Program engine |
+| --- | --- | --- |
+| Steps | 15,709 | 5,985, over 5,984 instructions |
+| One call per step | 28.49 / 36.07 / 47.55 ms; 38.1 / 48.2 / 63.6 microseconds per line | 4.21 / 5.99 / 10.74 ms; 5.6 / 8.0 / 14.4 microseconds per line |
+| One call per line | 16.84 / 20.08 / 25.84 ms; 22.5 / 26.9 / 34.5 microseconds per line | 4.08 / 5.31 / 8.66 ms; 5.5 / 7.1 / 11.6 microseconds per line |
+
+A display beat is 8 instructions here, where the engine steps through 21 runtime objects, and a line costs the program engine about a quarter of what it costs the engine by the medians. The comparison covers stepping alone: the program engine starts from a compile that has already built its chunks, and the time a compile spends building them is part of the compile's `program/chunks` profile.

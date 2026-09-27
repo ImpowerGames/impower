@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Pins the story engine measurements of #664 and #693: the benchmark's
-// arguments, the comparisons that make a prototype's timing mean something, the
-// profile arithmetic, and that the prototypes stay out of everything that
-// ships. Run:
+// Pins the story engine measurements of #664, #693 and #694: the benchmark's
+// arguments, the comparisons that make a prototype's or the program engine's
+// timing mean something, the profile arithmetic, and that the prototypes stay
+// out of everything that ships. Run:
 //   node scripts/bench/engine-bench.test.mjs
 //
 // No dependencies; the end-to-end run needs the workspace install and says so
@@ -14,7 +14,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { MODES, outputMismatch, parseEngineBenchArgs, protoMismatch } from "./engine-bench.mjs";
+import { MODES, outputMismatch, parseEngineBenchArgs, programMismatch, protoMismatch } from "./engine-bench.mjs";
 import { buildBeatsFixture, buildChunksFixture } from "./preview-fixture.mjs";
 import { STEPPING } from "./profile-groups.mjs";
 import { parseShareArgs, profileShares, summarizeShares } from "./profile-shares.mjs";
@@ -49,6 +49,13 @@ await check("the prototype comparison fails on a different output, a different s
   assert.match(protoMismatch([report("engine-step", "aa", 100), report("buffer-step", "ab", 100)]), /outputs differ: engine-step aa, buffer-step ab/);
   assert.match(protoMismatch([report("engine-step", "aa", 100), report("buffer-step", "aa", 99)]), /step counts differ: engine-step 100, buffer-step 99/);
   assert.match(protoMismatch([report("engine-step", "aa", 0, 0), report("buffer-step", "aa", 0, 0)]), /no lines/);
+});
+
+await check("the program engine comparison fails on a different output, or a display beat that ran twice", () => {
+  const report = (candidate, outputDigest, steps, instructions, lines = 748) => ({ candidate, outputDigest, steps, instructions, lines });
+  assert.equal(programMismatch([report("engine-step", "aa", 15709), report("program-step", "aa", 5985, 5984), report("engine-line", "aa", 15709), report("program-line", "aa", 5985, 5984)]), undefined);
+  assert.match(programMismatch([report("engine-step", "aa", 15709), report("program-step", "ab", 5985, 5984)]), /outputs differ: engine-step aa, program-step ab/);
+  assert.match(programMismatch([report("engine-step", "aa", 15709), report("program-step", "aa", 5992, 5984)]), /program-step took 5992 steps over 5984 instructions/);
 });
 
 await check("the chunk comparison fails on a different output or no output, and lets the step counts differ", () => {
@@ -188,6 +195,7 @@ if (!esbuildInstalled) {
     assert.match(run.stdout, /mode step as-planner:[^]*per step \(microseconds\)/);
     assert.match(run.stdout, /mode step hooked:/);
     assert.match(run.stdout, /proto: the 4 candidates produced identical lines \(\d{3,} display tables\), and both engines took \d{4,} steps/);
+    assert.match(run.stdout, /program: the 4 candidates produced identical lines \(\d{3,} lines, \d{3,} display tables\); the program engine ran each of the scene's \d{4,} instructions once \(\d{4,} steps\), and the engine took \d{4,}/);
     assert.match(run.stdout, /candidate tree: \d+ records, of which \d+ in MAIN/);
     assert.match(run.stdout, /candidate story-buffer:[^]*materialize tree[^]*retained once ready/);
     assert.match(run.stdout, /candidate buffer:[^]*build index[^]*retained once ready/);

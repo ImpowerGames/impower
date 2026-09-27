@@ -106,8 +106,16 @@ function buildDisplayCalls(
 
   // A continuation's beats after a break route by the line it continues: the
   // beat the run joined it to, and failing that the line the source reads
-  // before it.
-  const joined = isContinuation ? lexicalRouting(parent, ctx) : null;
+  // before it. That line is outside this statement, so its routing is
+  // recorded as a read, once a beat takes it.
+  let joined: ReturnType<typeof lexicalRouting> | undefined;
+  const joinedRouting = () => {
+    if (joined === undefined) {
+      joined = lexicalRouting(parent, ctx);
+      ctx.recordRead?.({ kind: "routing", value: JSON.stringify(joined) });
+    }
+    return joined;
+  };
   const ranges = splitBodyRangeAtBreaks(parent, bodyStart, bodyEnd, ctx, mode);
   const calls: ParsedObject[] = [];
   for (let i = 0; i < ranges.length; i++) {
@@ -190,8 +198,8 @@ function buildDisplayCalls(
       // line reads.
       calls.push(
         buildDisplayCall(
-          isContinuation && i > 0 ? joined?.target : target,
-          isContinuation && i > 0 ? joined?.character : character,
+          isContinuation && i > 0 ? joinedRouting()?.target : target,
+          isContinuation && i > 0 ? joinedRouting()?.character : character,
           body,
           stamped,
           ctx,
@@ -1141,6 +1149,15 @@ const DISPLAY_LINE_TYPES: Record<string, string> = {
   InlineWrite: "write",
   BlockWrite: "write",
 };
+
+/** The `routing` read (`LoweringRead`) of the continuation lowered from
+ *  `node`, as the document now answers it. */
+export function continuationRoutingRead(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): string {
+  return JSON.stringify(lexicalRouting(node, ctx));
+}
 
 // The routing of the line a glued continuation continues, as the SOURCE reads
 // it: the display line before it, or the line that one continues in turn. The

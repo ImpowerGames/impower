@@ -3,6 +3,12 @@ import { Expression } from "./Expression";
 import { BoolValue, FloatValue, IntValue } from "../../../../engine/Value";
 import { asOrNull } from "../../../../engine/TypeAssertion";
 import { ParsedObject } from "../Object";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import {
+  ConstValue,
+  NUM_FLOAT,
+  Op,
+} from "../../../../../program/ProgramInstructions";
 
 // This class is named Number in the C# codebase
 // but this conflict with the built-in Number class
@@ -46,6 +52,28 @@ export class NumberExpression extends Expression {
       container.AddContent(new BoolValue(this.value as boolean));
     }
   };
+
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (this.outputWhenComplete) {
+      emitter.unsupported("output of an expression");
+    }
+    if (this.isBool()) {
+      emitter.emit(
+        Op.Const,
+        0,
+        this.value ? ConstValue.True : ConstValue.False,
+      );
+    } else if (this.isInt() && (this.value as number) === ((this.value as number) | 0)) {
+      emitter.emit(Op.Int, this.value as number);
+    } else if (this.isInt() || this.isFloat()) {
+      emitter.emit(
+        Op.Num,
+        emitter.number(this.value as number),
+        0,
+        this.isFloat() ? NUM_FLOAT : 0,
+      );
+    }
+  }
 
   public override readonly toString = (): string => String(this.value);
 

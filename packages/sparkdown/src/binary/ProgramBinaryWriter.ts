@@ -35,17 +35,25 @@ import {
 } from "./programBinary";
 
 /**
- * String and number tables shared across compiles.
+ * String, number and symbol tables shared across compiles.
  *
  * Append-only by construction: an id, once handed out, must stay valid for as
  * long as any cached chunk references it. `generation` is bumped when the
  * table is reseeded, which invalidates every chunk minted against the old one.
+ *
+ * Symbols are what a statement chunk of the binary program refers to outside
+ * itself (docs/engine/binary-program.md, section 2): `symbols` holds each
+ * one's qualified name and `symbolKinds` its kind (`SymbolKind` in
+ * `src/program`).
  */
 export interface ProgramTable {
   strings: string[];
   stringIds: Map<string, number>;
   numbers: number[];
   numberIds: Map<number, number>;
+  symbols: string[];
+  symbolIds: Map<string, number>;
+  symbolKinds: number[];
   generation: number;
 }
 
@@ -54,6 +62,9 @@ export const createProgramTable = (): ProgramTable => ({
   stringIds: new Map(),
   numbers: [],
   numberIds: new Map(),
+  symbols: [],
+  symbolIds: new Map(),
+  symbolKinds: [],
   generation: 0,
 });
 
@@ -69,6 +80,9 @@ export const reseedProgramTable = (table: ProgramTable): void => {
   table.stringIds = new Map();
   table.numbers = [];
   table.numberIds = new Map();
+  table.symbols = [];
+  table.symbolIds = new Map();
+  table.symbolKinds = [];
   table.generation += 1;
 };
 

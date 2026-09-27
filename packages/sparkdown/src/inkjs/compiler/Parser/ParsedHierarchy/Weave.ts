@@ -19,6 +19,7 @@ import { Text } from "./Text";
 import { TunnelOnwards } from "./TunnelOnwards";
 import { VariableAssignment } from "./Variable/VariableAssignment";
 import { asOrNull } from "../../../engine/TypeAssertion";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 
 type BadTerminationHandler = (terminatingObj: ParsedObject) => void;
 
@@ -126,6 +127,18 @@ export class Weave extends ParsedObject {
 
   override get typeName(): string {
     return "Weave";
+  }
+
+  // A block statement's weave holds the statement, which names what it is: a
+  // conditional, an alternator, a choice or a gather. A `choose` block's
+  // weave is the block itself. Neither is emitted yet.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (this.isChooseBlock) {
+      emitter.unsupported("choose");
+    }
+    for (const obj of this.content) {
+      obj.EmitProgram(emitter);
+    }
   }
 
   public readonly ResolveWeavePointNaming = (): void => {

@@ -11,8 +11,8 @@
 //   --fixture         generate the fixture project (preview-fixture.mjs) into a
 //                     temporary directory and measure its target line
 //   --line <N>        the line of main.sd the route ends at, counting from one
-//   --mode <m,..>     any of kinds, step, proto, emit, ready, chunks, symbols,
-//                     order, or all (the default); see MODES below
+//   --mode <m,..>     any of kinds, step, proto, program, emit, ready, chunks,
+//                     symbols, order, or all (the default); see MODES below
 //   --samples <K>     measured samples per mode (default 12)
 //   --warmup <W>      discarded samples first (default 4)
 //   --cpu-prof <dir>  also write a V8 CPU profile of each candidate's process
@@ -36,13 +36,15 @@ import { buildBeatsFixture, buildChunksFixture, writePreviewFixture } from "./pr
 // Each mode: the entry that implements it, the candidates it runs (each in a
 // process of its own) and the project it runs on. `route` is the project named
 // on the command line; `beats` is always the generated beats-only scene, the
-// one scene both engines of `proto` can run, and `chunks` the generated scene
-// of mixed statements that both engines of `chunks` can run. What each measures
-// is in .agents/skills/drive-web-editor/references/performance.md.
+// one scene both engines of `proto` and of `program` can run, and `chunks` the
+// generated scene of mixed statements that both engines of `chunks` can run.
+// What each measures is in
+// .agents/skills/drive-web-editor/references/performance.md.
 export const MODES = {
   kinds: { entry: "engineBench.ts", project: "route" },
   step: { entry: "engineBench.ts", project: "route", candidates: ["as-planner", "hooked"] },
   proto: { entry: "bufferStepBench.ts", project: "beats", candidates: ["engine-step", "buffer-step", "engine-line", "buffer-line"] },
+  program: { entry: "programStepBench.ts", project: "beats", candidates: ["engine-step", "program-step", "engine-line", "program-line"] },
   chunks: { entry: "chunkStepBench.ts", project: "chunks", candidates: ["engine-step", "chunk-step", "engine-line", "chunk-line"] },
   symbols: { entry: "chunkSymbolBench.ts", project: "route", candidates: ["symbol", "direct"] },
   order: { entry: "chunkOrderBench.ts", project: "route", candidates: ["flat-copy", "flat-splice", "tree-copy", "records-splice"] },
@@ -103,6 +105,19 @@ export function protoMismatch(reports) {
   return undefined;
 }
 
+// Why the candidates of `program` did not do the same work, or undefined: the
+// lines must be the same, and the program engine must have run each
+// instruction of the scene's chunks once, and the step that finds the scene
+// ended, so that every display beat ran once.
+export function programMismatch(reports) {
+  const problem = outputMismatch(reports);
+  if (problem) return problem;
+  for (const report of reports.filter((r) => r.instructions != null)) {
+    if (report.steps !== report.instructions + 1) return `${report.candidate} took ${report.steps} steps over ${report.instructions} instructions`;
+  }
+  return undefined;
+}
+
 // Why the candidates did not produce the same lines, or undefined. This is all
 // `chunks` asks: its two engines take different numbers of steps by design.
 export function outputMismatch(reports) {
@@ -155,6 +170,18 @@ async function main(args) {
           failed = true;
         } else {
           console.log(`proto: the ${reports.length} candidates produced identical lines (${reports[0].displayTables} display tables), and both engines took ${reports[0].steps} steps`);
+          console.log("");
+        }
+      }
+      if (mode === "program" && reports.length === candidates.length) {
+        const problem = programMismatch(reports);
+        if (problem) {
+          console.error(`program: ${problem}`);
+          failed = true;
+        } else {
+          const report = (candidate) => reports.find((r) => r.candidate === candidate);
+          const program = report("program-step");
+          console.log(`program: the ${reports.length} candidates produced identical lines (${reports[0].lines} lines, ${reports[0].displayTables} display tables); the program engine ran each of the scene's ${program.instructions} instructions once (${program.steps} steps), and the engine took ${report("engine-step").steps}`);
           console.log("");
         }
       }

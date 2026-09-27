@@ -12,6 +12,15 @@ import { Void as RuntimeVoid } from "../../../engine/Void";
 import { VariableReference } from "./Variable/VariableReference";
 import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../engine/TypeAssertion";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
+import {
+  AUX_MAX,
+  CALL_DISCARD,
+  CALL_OPEN,
+  Op,
+} from "../../../../program/ProgramInstructions";
+import { PROGRAM_BUILTINS } from "../../../../program/ProgramBuiltins";
+import { displayLeavesLineOpen } from "../../../../program/displayCallFlags";
 
 export class FunctionCall extends Expression {
   public static readonly IsBuiltIn = (name: string): boolean => {
@@ -293,6 +302,34 @@ export class FunctionCall extends Expression {
       container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
     }
   };
+
+  // A statement's call of a builtin the program engine dispatches: its
+  // arguments, then `CallStd`, whose discard flag stands for the pop after
+  // it. A `display` table that writes no newline sets the open flag. Any
+  // other call is named by the builtin, or is a call of a function.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (!this.isStateAwareStdLib) {
+      emitter.unsupported(this.typeName);
+    }
+    if (!PROGRAM_BUILTINS.has(this.name)) {
+      emitter.unsupported(this.name);
+    }
+    if (
+      !this.shouldPopReturnedValue ||
+      this.outputWhenComplete ||
+      this.args.length > AUX_MAX
+    ) {
+      emitter.unsupported(this.name);
+    }
+    for (const arg of this.args) {
+      arg.EmitProgram(emitter);
+    }
+    let flags = CALL_DISCARD;
+    if (this.name === "display" && displayLeavesLineOpen(this.args)) {
+      flags |= CALL_OPEN;
+    }
+    emitter.emit(Op.CallStd, emitter.string(this.name), this.args.length, flags);
+  }
 
   public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);
