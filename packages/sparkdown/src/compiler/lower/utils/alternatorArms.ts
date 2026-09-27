@@ -9,13 +9,13 @@ import {
 } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
-import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { Tag as RuntimeTag } from "../../../inkjs/engine/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { lowerPrimary } from "../expression/lowerExpression";
 import { lower } from "../lower";
+import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 
 // Build a statement-form `Divert` ParsedObject from a
 // `LuauDivertTargetLiteral` syntax node. Mirrors what
@@ -116,14 +116,10 @@ export function lowerArms(
       }
 
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+      // A statement can lower to diagnostics alone, such as an empty divert.
+      forwardBlockDiagnostics(block, ctx);
       if (block?.content) {
-        for (const obj of block.content) {
-          if (obj instanceof Weave) {
-            for (const inner of obj.content) current.body.push(inner);
-          } else {
-            current.body.push(obj);
-          }
-        }
+        current.body.push(...unwrapBlockContent(block));
       } else {
         // `lower()` returned `undefined` — the child isn't a top-level
         // statement node. This is the common case in *inline* alternators
@@ -267,15 +263,8 @@ function lowerArmContent(
       // dispatch (`lower.ts`) treats `ArmDivert` exactly like `Divert`.
       flushText(true);
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
-      if (block?.content) {
-        for (const obj of block.content) {
-          if (obj instanceof Weave) {
-            for (const inner of obj.content) out.push(inner);
-          } else {
-            out.push(obj);
-          }
-        }
-      }
+      forwardBlockDiagnostics(block, ctx);
+      out.push(...unwrapBlockContent(block));
     } else {
       // Plain text child (Word / Space / Punctuation / Escape /
       // interpolation result, etc.). Accumulate the raw source text;

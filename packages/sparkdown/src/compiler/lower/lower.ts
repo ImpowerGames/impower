@@ -93,6 +93,7 @@ import {
   identifierAt,
   stampDebugMetadata,
 } from "./utils/debugMetadata";
+import { forwardBlockDiagnostics } from "./utils/unwrapBlock";
 
 // Nodes whose lowerer returns a weave holding one control-flow statement (an
 // `if`, or an alternator such as `match`) with its arms nested inside it.
@@ -983,9 +984,7 @@ function appendBlockContent(
   block: CompiledBlock,
   ctx: LowerContext,
 ): void {
-  if (block.diagnostics?.length) {
-    ctx.diagnostics?.push(...block.diagnostics);
-  }
+  forwardBlockDiagnostics(block, ctx);
   if (!block.content) return;
   for (const obj of block.content) {
     if (obj instanceof Weave) {

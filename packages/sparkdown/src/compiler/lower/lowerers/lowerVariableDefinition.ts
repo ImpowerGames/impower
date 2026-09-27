@@ -7,7 +7,6 @@ import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHi
 import { NullExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/NullExpression";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
-import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
@@ -19,6 +18,10 @@ import {
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
+import {
+  forwardBlockDiagnostics,
+  unwrapBlockContent,
+} from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Statement-like nodes that can appear as siblings inside a
@@ -325,16 +328,8 @@ function withTrailingStatements(
   const out: ParsedObject[] = [...head];
   for (const stmt of trailingStatements) {
     const block = lower(stmt as unknown as SparkdownSyntaxNodeRef, ctx);
-    if (!block?.content) continue;
-    for (const obj of block.content) {
-      // Unwrap inner Weave returned by some statement lowerers so
-      // every entry in the final Weave is a leaf statement.
-      if (obj instanceof Weave) {
-        for (const inner of obj.content) out.push(inner);
-      } else {
-        out.push(obj);
-      }
-    }
+    forwardBlockDiagnostics(block, ctx);
+    out.push(...unwrapBlockContent(block));
   }
   return out;
 }
