@@ -102,8 +102,9 @@ end
 });
 
 // The third line of the same upstream case: a member `table` does not have
-// is not a deprecation, so Luau's linter says nothing about it.
-describe.skip("a missing stdlib member (diverges: reported as a missing `table`)", () => {
+// is not a deprecation, so Luau's linter says nothing about it. Sparkdown
+// reports the missing member with its dotted-path warning.
+describe("a missing stdlib member (diverges: reported as a missing path)", () => {
   test("table.nogetn()", () => {
     expect(
       diagnoseWithLintsInFunction(`
@@ -111,7 +112,7 @@ return function ()
     print(table.nogetn()) -- verify that we correctly handle non-existent members
 end
 `),
-    ).toEqual([]);
+    ).toEqual(["Cannot find item or path named `table.nogetn`"]);
   });
 });
 
