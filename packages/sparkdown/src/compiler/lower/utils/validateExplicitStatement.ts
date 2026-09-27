@@ -1,8 +1,9 @@
 import { type SyntaxNode } from "@lezer/common";
-import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../inkjs/engine/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
 import { findChildByName } from "./alternatorArms";
+import { statementSource } from "./statementSource";
 
 // LSP `DiagnosticTag.Unnecessary` — VS Code renders the affected
 // range faded/struck-through so the user sees at a glance that the
@@ -28,8 +29,8 @@ export function validateExplicitStatement(
   if (!isInsideFunctionBody(stmtNode)) return [];
   // Range the diagnostic on the `& ` prefix itself, not the whole
   // statement. The `_begin` capture spans optional leading ws + the
-  // `&` mark + required trailing ws — perfect for "this is the part
-  // you can delete."
+  // `&` mark + required trailing ws; the source skips the leading ws, so
+  // the range is the `& ` the author can delete, not the indentation.
   const beginNode =
     findChildByName(stmtNode, "LuauExplicitStatement_begin") ?? stmtNode;
   return [
@@ -37,7 +38,7 @@ export function validateExplicitStatement(
       message:
         "The `&` discard prefix is unnecessary inside function bodies — statement-level Luau forms compile the same without it. Reserve `&` for top-level main-flow code where it disambiguates Luau from display text.",
       severity: ErrorType.Information,
-      source: makeSource(beginNode, ctx),
+      source: statementSource(beginNode, ctx),
       tags: [DIAGNOSTIC_TAG_UNNECESSARY],
     },
   ];
@@ -57,15 +58,4 @@ function isInsideFunctionBody(node: SyntaxNode): boolean {
     ancestor = ancestor.parent;
   }
   return false;
-}
-
-function makeSource(node: SyntaxNode, ctx: LowerContext): SourceMetadata {
-  return {
-    fileName: null,
-    filePath: ctx.filePath ?? null,
-    startLineNumber: ctx.lineNumber(node.from) + 1,
-    endLineNumber: ctx.lineNumber(node.to) + 1,
-    startCharacterNumber: ctx.characterNumber(node.from) + 1,
-    endCharacterNumber: ctx.characterNumber(node.to) + 1,
-  };
 }

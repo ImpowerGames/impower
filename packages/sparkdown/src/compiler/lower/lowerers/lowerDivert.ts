@@ -8,6 +8,7 @@ import {
   divertLoadShapeProblem,
   withDivertLoad,
 } from "../utils/buildDivert";
+import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 export function lowerDivert(
@@ -16,14 +17,7 @@ export function lowerDivert(
 ): CompiledBlock {
   const objects = buildDivert(nodeRef.node, ctx);
   const block = wrapInWeave(withDivertLoad(nodeRef.node, objects, ctx));
-  const source = {
-    fileName: null,
-    filePath: ctx.filePath ?? null,
-    startLineNumber: ctx.lineNumber(nodeRef.from) + 1,
-    endLineNumber: ctx.lineNumber(nodeRef.to) + 1,
-    startCharacterNumber: ctx.characterNumber(nodeRef.from) + 1,
-    endCharacterNumber: ctx.characterNumber(nodeRef.to) + 1,
-  };
+  const source = statementSource(nodeRef, ctx);
   // `->` with no target outside of a choice is meaningless — there's
   // nothing to divert to. Inkjs's parser emits the same diagnostic.
   // Inside a choice, `* ->` is the fallback-choice form and `lowerChoice`
