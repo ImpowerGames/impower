@@ -58,14 +58,8 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //   - No `ctx.hoistedKnots` push — the gather lives at its source
 //     position.
 //
-// V1 limitations (unchanged from before):
-//   - No `break` / `continue`. Adding `break` is straightforward in
-//     this shape: append a second labeled gather after the loop and
-//     divert to it from the break-site. `continue` is a divert to
-//     the loop gather (same as the tail jump).
-//   - No numeric `for i = 1, 10`. Same gather-and-conditional pattern
-//     works; the lowerer just emits the init / step / bound checks.
-//   - No generic `for k, v in pairs(t)`. Needs the iterator protocol.
+// `break` diverts to a second labeled gather after the loop, and
+// `continue` diverts to the loop gather, the same as the tail jump.
 
 const WHILE_BODY_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauWhileCondition",
@@ -82,13 +76,16 @@ export function lowerLuauWhileLoop(
   //   LuauWhileLoop > LuauWhileLoop_content > [ LuauWhileCondition, LuauDoBlock ]
   // The body lives inside LuauDoBlock > LuauDoBlock_content. A loop in a
   // scene or at the top level parses as `LuauSparkdownWhileLoop` holding a
-  // `LuauSparkdownDoBlock`, in the same shape.
+  // `LuauSparkdownDoBlock`, in the same shape. An EMPTY body
+  // (`while tick() do end`) has no `_content` child; the loop must still
+  // lower, since its condition runs on every iteration.
+  // `lowerStatements(null)` yields [].
   const condNode = getDescendent("LuauWhileCondition", nodeRef.node);
   const doBlock = findLoopDoBlock(nodeRef, ctx);
   const bodyContent = doBlock
     ? findChildByName(doBlock, `${doBlock.name}_content`)
     : null;
-  if (!condNode || !bodyContent) return {};
+  if (!condNode || !doBlock) return {};
 
   // The gather's name must be unique across the enclosing flow's
   // named weave points. Tagging with the document and the source offset
