@@ -23,7 +23,7 @@ function rangesOf(source: string, message: string): Range[] {
 function nameRange(source: string, line: number, name: string): Range {
   const text = source.split("\n")[line]!;
   const matches = [
-    ...text.matchAll(new RegExp(`(?<![A-Za-z0-9_.])${name.replace(".", "[.]")}(?![A-Za-z0-9_])`, "g")),
+    ...text.matchAll(new RegExp(`(?<![A-Za-z0-9_.])${name.replaceAll(".", "[.]")}(?![A-Za-z0-9_])`, "g")),
   ];
   const at = matches.at(-1)!.index!;
   return {

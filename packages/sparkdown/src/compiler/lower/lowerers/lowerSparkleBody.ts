@@ -1388,9 +1388,9 @@ export function buildSparkleBody(
 ): BodyNode[] {
   const lines = collectNodeLines(contentNode, ctx);
   if (lines.length === 0) return [];
-  // Stamp per-token metadata on binding expression nodes so a resolution error
-  // lands on the exact identifier rather than the whole binding span (scoped to
-  // Sparkle bodies — see LowerContext.stampExpressionSpans).
+  // Stamp per-token metadata on binding expression nodes, which the synthetic
+  // functions bindings are hoisted into cannot inherit from a statement
+  // (scoped to Sparkle bodies — see LowerContext.stampExpressionSpans).
   const prevStamp = ctx.stampExpressionSpans;
   ctx.stampExpressionSpans = true;
   try {

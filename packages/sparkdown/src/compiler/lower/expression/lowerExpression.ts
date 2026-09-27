@@ -2291,8 +2291,9 @@ export function lowerSimpleAccessPath(
       }
     }
     const ref = new VariableReference(identifiers);
-    // In a Sparkle binding, stamp the reference with its own token span so an
-    // unresolved-variable error lands on the identifier, not the whole binding.
+    // In a Sparkle binding, stamp the reference with its own token span, which
+    // its hoisted binding function has no statement to inherit from (see
+    // LowerContext.stampExpressionSpans).
     if (ctx.stampExpressionSpans && parts.length > 0) {
       stampDebugMetadata([ref], parts[0]!.from, parts[parts.length - 1]!.to, ctx);
     }
