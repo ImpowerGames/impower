@@ -109,7 +109,7 @@ export class SparkdownCombinedAnnotator {
   /**
    * Whether an update with this `annotate` set runs the compilation
    * annotator. The define-type-name index and the re-lowering of chunks whose
-   * callable-name reads went stale are kept only then.
+   * callable-name or define-type-name reads went stale are kept only then.
    */
   protected runsCompilations(annotate?: Set<keyof SparkdownAnnotators>): boolean {
     return !annotate || annotate.has("compilations");
@@ -367,7 +367,7 @@ export class SparkdownCombinedAnnotator {
       }
       if (runsCompilations) {
         // Every chunk was just lowered against the current document.
-        this.current.compilations.markGlobalCallableNamesChecked();
+        this.current.compilations.markDocumentNamesChecked();
       }
       return this.current;
     }
@@ -459,7 +459,7 @@ export class SparkdownCombinedAnnotator {
     for (const { from, to } of compilations.staleRanges()) {
       this.reannotate(tree, from, to, from, to, compilationsOnly);
     }
-    compilations.markGlobalCallableNamesChecked();
+    compilations.markDocumentNamesChecked();
   }
 
   /**

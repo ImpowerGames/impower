@@ -317,5 +317,8 @@ describe("define type names are collected incrementally (#649)", () => {
     expect(JSON.stringify(incrementalProgram.context)).toEqual(
       JSON.stringify(coldProgram.context),
     );
+    expect(JSON.stringify(incrementalProgram.diagnostics)).toEqual(
+      JSON.stringify(coldProgram.diagnostics),
+    );
   });
 });

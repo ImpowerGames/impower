@@ -59,6 +59,9 @@ export interface CompiledBlock {
   // carries keeps what it lowered, so when an edit elsewhere changes one of
   // these answers the chunk is lowered again (see `staleRanges`).
   globalCallableReads?: Map<string, boolean>;
+  // The same record for the document's define type names, which decide the
+  // shadow warning a `store` or `const` of a type's name raises.
+  defineTypeReads?: Map<string, boolean>;
 }
 
 export interface CompilationConfig {
@@ -69,6 +72,38 @@ export interface CompilationConfig {
       };
     };
   };
+}
+
+function sameNames(
+  checked: ReadonlySet<string> | undefined,
+  names: ReadonlySet<string>,
+): boolean {
+  if (checked === names) {
+    return true;
+  }
+  if (!checked || checked.size !== names.size) {
+    return false;
+  }
+  for (const name of names) {
+    if (!checked.has(name)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function readsDisagree(
+  reads: Map<string, boolean> | undefined,
+  names: ReadonlySet<string>,
+): boolean {
+  if (reads) {
+    for (const [name, found] of reads) {
+      if (names.has(name) !== found) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 export class CompilationAnnotator extends SparkdownAnnotator<
@@ -91,9 +126,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   // the cache on real structural changes.
   private _globalCallableNames?: Set<string>;
   private _globalCallableNamesTree?: unknown;
-  // The callable names every chunk was last confirmed to agree with (see
-  // `markGlobalCallableNamesChecked`).
+  // The callable names and define type names every chunk was last confirmed
+  // to agree with (see `markDocumentNamesChecked`).
   private _checkedGlobalCallableNames?: Set<string>;
+  private _checkedDefineTypeNames?: Set<string>;
 
   /**
    * The document's define TYPE names — every `define`/`animation`/`theme`
@@ -138,45 +174,39 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * The ranges of chunks whose lowering read a global callable name the
-   * current document answers differently. An incremental pass lowers only
-   * the chunks its reparse rebuilt, so a carried chunk keeps the answers it
-   * got when it was lowered; the caller lowers these again and then calls
-   * `markGlobalCallableNamesChecked`.
+   * The ranges of chunks whose lowering read a global callable name or a
+   * define type name the current document answers differently. An
+   * incremental pass lowers only the chunks its reparse rebuilt, so a carried
+   * chunk keeps the answers (and the diagnostics) it got when it was lowered;
+   * the caller lowers these again and then calls `markDocumentNamesChecked`.
    *
-   * Every chunk agrees with the set last marked as checked, so when the
-   * document's set is unchanged since then nothing can be stale and the walk
-   * is skipped.
+   * Every chunk agrees with the sets last marked as checked, so when both sets
+   * are unchanged since then nothing can be stale and the walk is skipped.
    */
   staleRanges(): { from: number; to: number }[] {
-    const names = this.computeGlobalCallableNames();
-    const checked = this._checkedGlobalCallableNames;
-    if (checked === names) {
+    const callableNames = this.computeGlobalCallableNames();
+    const typeNames = this.computeDefineTypeNames();
+    const callableNamesChanged = !sameNames(
+      this._checkedGlobalCallableNames,
+      callableNames,
+    );
+    const typeNamesChanged = !sameNames(
+      this._checkedDefineTypeNames,
+      typeNames,
+    );
+    if (!callableNamesChanged && !typeNamesChanged) {
       return [];
-    }
-    if (checked && checked.size === names.size) {
-      let same = true;
-      for (const name of names) {
-        if (!checked.has(name)) {
-          same = false;
-          break;
-        }
-      }
-      if (same) {
-        return [];
-      }
     }
     const stale: { from: number; to: number }[] = [];
     const iter = this.current.iter();
     while (iter.value) {
-      const reads = iter.value.type.globalCallableReads;
-      if (reads) {
-        for (const [name, found] of reads) {
-          if (names.has(name) !== found) {
-            stale.push({ from: iter.from, to: iter.to });
-            break;
-          }
-        }
+      const block = iter.value.type;
+      if (
+        (callableNamesChanged &&
+          readsDisagree(block.globalCallableReads, callableNames)) ||
+        (typeNamesChanged && readsDisagree(block.defineTypeReads, typeNames))
+      ) {
+        stale.push({ from: iter.from, to: iter.to });
       }
       iter.next();
     }
@@ -185,11 +215,13 @@ export class CompilationAnnotator extends SparkdownAnnotator<
 
   /**
    * Record that every chunk now agrees with the document's current callable
-   * names: after a full rebuild, or after the chunks `staleRanges` returned
-   * have been lowered again.
+   * names and define type names: after a full rebuild, or after the chunks
+   * `staleRanges` returned have been lowered again.
    */
-  markGlobalCallableNamesChecked(): void {
+  markDocumentNamesChecked(): void {
     this._checkedGlobalCallableNames = this.computeGlobalCallableNames();
+    // The index may replace or refill its set, so keep a copy.
+    this._checkedDefineTypeNames = new Set(this.computeDefineTypeNames());
   }
 
   private computeDefineTypeNames(): ReadonlySet<string> {
@@ -317,6 +349,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
       const callableNames = this.computeGlobalCallableNames();
       const globalCallableReads = new Map<string, boolean>();
+      const typeNames = this.computeDefineTypeNames();
+      const defineTypeReads = new Map<string, boolean>();
       const lowered = lower(nodeRef, {
         // The document being lowered. Absent here until now, which made
         // `ctx.filePath` undefined on the PRODUCTION path — so anything
@@ -344,7 +378,13 @@ export class CompilationAnnotator extends SparkdownAnnotator<
             return found;
           },
         },
-        defineTypeNames: this.computeDefineTypeNames(),
+        defineTypeNames: {
+          has: (name) => {
+            const found = typeNames.has(name);
+            defineTypeReads.set(name, found);
+            return found;
+          },
+        },
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
@@ -354,6 +394,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       }
       if (lowered && globalCallableReads.size > 0) {
         lowered.globalCallableReads = globalCallableReads;
+      }
+      if (lowered && defineTypeReads.size > 0) {
+        lowered.defineTypeReads = defineTypeReads;
       }
       if (lowered && chunkDiagnostics.length > 0) {
         // Merge any deep-nested-lowerer diagnostics with whatever
