@@ -14,7 +14,7 @@ Run the whole cycle through the driver, from the repo root, naming the test invo
 node .agents/skills/drive-web-editor/driver.mjs redgreen --test "node scripts/test-suite.mjs run packages/sparkdown src/tests/compiler/FilterImageLayers.test.ts --wait 600" --files packages/sparkdown/src/compiler/utils/filterImage.ts
 ```
 
-`--test` is the test command, run twice from the repo root (it may `cd` into the package itself); `--files` takes every changed source the test exercises, one path or several, and never the test file; `--base` is the revision the pre-fix content comes from, `HEAD` by default and `origin/main` once the fix is committed.
+`--test` is the test command, run twice from the repo root (it may `cd` into the package itself); `--files` takes every changed source the test exercises, one path or several, and never the test file; `--base` names where the pre-fix content comes from, `HEAD` by default and `origin/main` once the fix is committed. The driver reads the files at the merge base of that revision and HEAD, reported as `baseCommit`, because the pre-fix version of a file is its content at the branch point: once `origin/main` has moved past it, its tip can hold a newer file whose imports do not match the branch.
 
 It snapshots the files, reverts them to the base revision, runs the test and requires it to fail, restores the files from the snapshot, proves each restore by content hash, and runs the test again. Verified output shape:
 

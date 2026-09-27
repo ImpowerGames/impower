@@ -77,7 +77,15 @@ export function sameDir(a, b) {
   return norm(a) === norm(b);
 }
 
-/** Throws when `base` does not name a commit, so a typo cannot read as "absent at base". */
+/**
+ * The commit the pre-fix content comes from: the merge base of `base` and
+ * HEAD. A fix is written against its branch point, so when `base` has moved
+ * on (origin/main after a fetch, with another PR merged) its tip holds files
+ * the branch never saw; the merge base does not. For HEAD, or a base HEAD
+ * already contains, the merge base is the base itself. Throws when `base`
+ * does not name a commit, so a typo cannot read as "absent at base", and when
+ * it shares no history with HEAD.
+ */
 export function resolveBase(repoRoot, base) {
   const r = git(repoRoot, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]);
   if (r.status !== 0) {
@@ -85,7 +93,11 @@ export function resolveBase(repoRoot, base) {
       `redgreen: --base "${base}" does not resolve to a commit in this repository (git: ${String(r.stderr).trim() || "no such revision"}). Check the spelling, and fetch first if it is a remote branch.`,
     );
   }
-  return String(r.stdout).trim();
+  const m = git(repoRoot, ["merge-base", "HEAD", String(r.stdout).trim()]);
+  if (m.status !== 0) {
+    throw new Error(`redgreen: --base "${base}" shares no history with HEAD (git: ${String(m.stderr).trim() || "no merge base"}).`);
+  }
+  return String(m.stdout).trim();
 }
 
 /**

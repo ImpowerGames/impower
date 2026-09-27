@@ -86,6 +86,34 @@ check("an honest test fails on the base and passes on the fix, and the restore m
   assert.equal(libText(dir), NEW);
 });
 
+// A base that has moved on since the branch point (origin/main after a fetch,
+// with another PR merged) holds a newer file than the one the fix was written
+// against. The pre-fix content is the file at the merge base (#972).
+check("a base that moved past the branch point reverts to the merge base, not the base's tip", () => {
+  const dir = makeRepo();
+  // The checkouts below rewrite lib.mjs; keep its bytes as committed.
+  git(dir, "config", "core.autocrlf", "false");
+  const branchPoint = git(dir, "rev-parse", "HEAD").trim();
+  git(dir, "branch", "upstream");
+  // The branch commits the fix.
+  applyFix(dir);
+  git(dir, "commit", "-q", "-am", "fix");
+  // Upstream moves on and rewrites the same file so it no longer loads here.
+  git(dir, "checkout", "-q", "upstream");
+  fs.writeFileSync(path.join(dir, "lib.mjs"), 'export { value } from "./moved-away.mjs";\n');
+  git(dir, "commit", "-q", "-am", "upstream rewrite");
+  git(dir, "checkout", "-q", "-");
+  assert.equal(libText(dir), NEW);
+
+  const r = run(dir, { base: "upstream" });
+  assert.equal(r.ok, true, JSON.stringify(r.problems));
+  assert.equal(r.base, "upstream");
+  assert.equal(r.baseCommit, branchPoint);
+  assert.equal(r.red.reason, "assertion");
+  assert.equal(r.green.outcome, "passed");
+  assert.equal(libText(dir), NEW);
+});
+
 // A vitest run reporting several failures prints the "Test Files" / "Tests"
 // summary lines well before the end of its output, followed by trailing
 // per-test detail; `tail` (the last 40 lines) then ends on that detail, not
