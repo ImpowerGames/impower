@@ -100,7 +100,10 @@ check("an out-of-memory red run names the large-object failure message as a caus
   const r = run(dir);
   assert.equal(r.ok, false);
   assert.equal(r.red.reason, "crash");
-  assert.match(r.problems.join("\n"), /failing assertion on a large object/);
+  const problems = r.problems.join("\n");
+  assert.match(problems, /failing assertion on a large object/);
+  assert.match(problems, /Vitest prints the received value, before any length cap applies/);
+  assert.match(problems, /assert on an identity or a boolean instead/);
 });
 
 // A base that has moved on since the branch point (origin/main after a fetch,
