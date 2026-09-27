@@ -744,16 +744,13 @@ describe("compiler incremental equivalence", () => {
     });
   }
 
-  // A name declared twice stops the cold compile resolving the rest of the
-  // script (#979), while the incremental compile keeps the diagnostics of the
-  // scenes it carries. Here the fixture ends with one `define dup` and a scene
-  // after it holding a divert to a missing target, and the edit declares
-  // `dup` again at the top. The carried `define dup` below was generated as
-  // the first declaration, so the incremental compile resolves past it, while
-  // the cold compile stops there and never reaches the scene after it. The
-  // first test holds whatever the fix: the cold compile reports the
-  // duplicate, and the incremental one the missing target. The second asks
-  // for the two to agree, and fails until #979 is fixed.
+  // A name declared a second time (#979). The fixture ends with one
+  // `define dup` and a scene after it holding a divert to a missing target,
+  // and the edit declares `dup` again at the top. The cold compile refuses the
+  // carried `define dup` below as the duplicate and resolves past it to the
+  // scene, while the incremental compile carries that define and scene from a
+  // compile in which the define was the first declaration. Both compiles
+  // report the duplicate and the missing target, and their diagnostics agree.
   describe("an edit that declares a name a second time", () => {
     const base = () =>
       coupledScreenplay() + "\ndefine dup with\n  x = 1\nend\n\nscene tail\n  Tail line.\n  -> nowhere\nend\n";
@@ -788,13 +785,13 @@ describe("compiler incremental equivalence", () => {
       }
     };
 
-    it("the cold compile reports the duplicate and the incremental compile the missing target", () => {
-      const { incr, cold } = outcomeOf();
+    it("the cold compile reports the duplicate and the missing target", () => {
+      const { cold } = outcomeOf();
       expect(messages(cold).some((m) => m.startsWith("Duplicate identifier `dup`"))).toBe(true);
-      expect(messages(incr).some((m) => m.includes("target not found: `-> nowhere`"))).toBe(true);
+      expect(messages(cold).some((m) => m.includes("target not found: `-> nowhere`"))).toBe(true);
     });
 
-    it.fails("incremental == cold diagnostics, failing until #979 is fixed", () => {
+    it("incremental == cold diagnostics", () => {
       const { incr, cold } = outcomeOf();
       expect(stable(incr.diagnostics)).toBe(stable(cold.diagnostics));
     });
