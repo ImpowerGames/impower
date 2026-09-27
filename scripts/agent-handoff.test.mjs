@@ -221,6 +221,14 @@ assert.equal(fs.existsSync(config.journal), false);
   const blocked = fs.readFileSync(damaged.journal, "utf8").trim().split("\n").map(JSON.parse).at(-1);
   assert.equal(blocked.event, "blocked");
   assert.match(blocked.reason, /@impower\/sparkdown/);
+  // The same fingerprint as a command, for reviewers the launcher does not start.
+  const cli = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "reviewed-install.mjs");
+  const snapshot = path.join(scratch, "install-snapshot.json");
+  execFileSync(process.execPath, [cli, "snapshot", worktree, snapshot], { windowsHide: true });
+  assert.match(execFileSync(process.execPath, [cli, "compare", worktree, snapshot], { encoding: "utf8", windowsHide: true }), /Reviewed install unchanged/);
+  fs.unlinkSync(link);
+  fs.symlinkSync(path.join(packages, "sparkdown"), link, "junction");
+  assert.throws(() => execFileSync(process.execPath, [cli, "compare", worktree, snapshot], { encoding: "utf8", windowsHide: true, stdio: "pipe" }), (error) => error.status === 1 && error.stdout.includes(`@impower/sparkdown resolves to ${fs.realpathSync.native(path.join(packages, "sparkdown"))}`));
   fs.unlinkSync(link);
   fs.rmSync(path.join(worktree, "node_modules"), { recursive: true });
 }

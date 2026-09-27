@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 // The reviewed worktree's install is gitignored, so `git status` cannot see a
 // reviewer that relinks, junctions through or deletes it. This fingerprint is
@@ -45,4 +46,19 @@ export function installChanges(before, after) {
     else changes.push(`@impower/${name} resolves to ${now}${was ? ` instead of ${was}` : ""}`);
   }
   return changes;
+}
+
+// For reviewers the launcher does not start: `snapshot <worktree> <file>` before
+// launch, `compare <worktree> <file>` after exit; compare exits 1 naming changes.
+if (process.argv[1] && fs.realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const [command, worktree, file] = process.argv.slice(2);
+  if (command === "snapshot" && worktree && file) fs.writeFileSync(file, JSON.stringify(installFingerprint(worktree)));
+  else if (command === "compare" && worktree && file) {
+    const changes = installChanges(JSON.parse(fs.readFileSync(file, "utf8")), installFingerprint(worktree));
+    console.log(changes.length ? `Reviewed install changed: ${changes.join("; ")}` : "Reviewed install unchanged");
+    if (changes.length) process.exitCode = 1;
+  } else {
+    console.error("Usage: node scripts/reviewed-install.mjs snapshot|compare <worktree> <file>");
+    process.exitCode = 2;
+  }
 }
