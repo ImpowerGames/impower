@@ -53,3 +53,4 @@ The editor underlines `42`, with the warning "Expected this to be 'string', but 
 
 - A name you declare in Sparkdown (a scene, a `define`, a `store`, a function in another file) is accepted wherever you use it, as any type.
 - Sparkdown's own expressions, such as `plural(n)|one="is"|other="are"` or `-> start`, are accepted as any type too.
+- A scene and its branches share one `...`. Where they give it different types, such as `branch first(...: string)` and `branch second(...: number)`, `...` is accepted as any type in that scene.

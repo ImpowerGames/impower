@@ -1,7 +1,7 @@
 // Incremental type checking (#599). The checker caches each unit's result (a
 // `.sd` file's prelude, and each scene or branch) and reuses it when the unit
-// and what it can see are unchanged; a change to a prelude name's type (a
-// signature) or to a prelude type alias checks every flow again. These tests
+// and what it can see are unchanged; a change to the prelude checks every
+// flow of its file again. These tests
 // edit a document between compiles and prove that each warm check gives the
 // same warnings and types as a cold check of the same text, and that it
 // reuses what it should.
@@ -156,10 +156,27 @@ describe("incremental type checking", () => {
     ]);
     expect(stats).toEqual({ checked: 3, reused: 0 });
 
-    // A body edit that leaves the signature alone reuses the callers.
+    // A body edit changes the prelude too, and a flow sees the prelude only
+    // through its check, so the callers are checked again.
     const body = session.edit('  return "Hi " .. name', '  return "Hello " .. tostring(name)');
     expect(body.warm).toEqual(body.cold);
-    expect(body.stats).toEqual({ checked: 1, reused: 2 });
+    expect(body.stats).toEqual({ checked: 3, reused: 0 });
+  });
+
+  test("swapping a prelude type between two aliases of the same shape checks the flows that use it again", () => {
+    const aliases = "---\ntypecheck: strict\n---\n\ntype A = { value: number }\ntype B = { value: number }\n";
+    // A prelude value's annotation.
+    const value = new Session(`${aliases}local item: A = { value = 1 }\n\nscene alpha\n  local wrong: string = item\nend\n`);
+    let step = value.edit("local item: A", "local item: B");
+    expect(step.warm).toEqual(step.cold);
+    expect(step.warm.warnings).toEqual(["9:24-9:28 TypeMismatch: Expected this to be 'string', but got 'B'"]);
+    expect(step.stats).toEqual({ checked: 2, reused: 0 });
+    // An alias parameter's default.
+    const defaults = new Session(`${aliases}type Box<T = A> = T\n\nscene alpha\n  local item: Box = { value = 1 }\n  local wrong: string = item\nend\n`);
+    step = defaults.edit("T = A", "T = B");
+    expect(step.warm).toEqual(step.cold);
+    expect(step.warm.warnings).toEqual(["10:24-10:28 TypeMismatch: Expected this to be 'string', but got 'B'"]);
+    expect(step.stats).toEqual({ checked: 2, reused: 0 });
   });
 
   test("changing a type alias checks the flows that use it again", () => {

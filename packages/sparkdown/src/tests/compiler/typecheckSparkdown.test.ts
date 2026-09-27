@@ -179,7 +179,7 @@ end
     });
   });
 
-  test("a branch's parameters before its `...` are declared, and its `...` has the type the branch gives it", () => {
+  test("a branch's parameters before its `...` are declared, and its `...` has the type the branch gives it, past any comment", () => {
     const program = compile(`scene start(a: number)
   branch inner(k: number, ...: boolean)
     local first: boolean = ...
@@ -193,21 +193,71 @@ scene other
     local wrong: string = ...
   end
 end
+
+scene commented
+  branch inner(... --[[args]] : boolean)
+    local wrong: string = ...
+  end
+end
 `);
     expect(typeWarnings(program)).toEqual([
       "7:26-7:27 Expected this to be 'string', but got 'number'",
       "14:26-14:29 Expected this to be 'string', but got 'number'",
+      "20:26-20:29 Expected this to be 'string', but got 'boolean'",
     ]);
   });
 
-  test("where a scene and a branch in it give `...` different types, `...` has neither", () => {
-    const program = compile(`scene start(...: string)
-  local mine: string = ...
-  branch other(...: number)
+  test("where branches in a scene give `...` different types, as written, `...` has neither, and the scene is still checked", () => {
+    const program = compile(`scene start
+  branch first(...: string)
+    local mine: string = ...
+  end
+  branch second(...: number)
     local theirs: number = ...
+  end
+  local bad: string = 1
+end
+
+scene singletons
+  branch one(...: "a  b")
+    local mine: "a  b" = ...
+  end
+  branch two(...: "a b")
+    local theirs: "a b" = ...
+  end
+  local bad: string = 1
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "11:22-11:23 Expected this to be 'string', but got 'number'",
+      "21:22-21:23 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
+  test("a branch's parameter without an annotation holds a value of any type, as an argument does", () => {
+    const program = compile(`scene start
+  branch inner(k)
+    local sum: number = k + 1
+    & k()
+    local bad: string = 1
   end
 end
 `);
-    expect(typeWarnings(program)).toEqual([]);
+    expect(typeWarnings(program)).toEqual(["8:24-8:25 Expected this to be 'string', but got 'number'"]);
+  });
+
+  test("a parameter list the grammar ends early is read as the runtime binds it", () => {
+    const program = compile(`scene start(a: number)
+  branch inner(f: (...any) -> (), k: number)
+    & f()
+    & print(any)
+    local wrong: string = k
+  end
+end
+`);
+    // The grammar ends the list at the `)` inside `f`'s type (#876), so the
+    // runtime binds `f`, `any` and `...` and not `k`, and Sparkdown's own
+    // resolver reports `k` where it can place the read.
+    expect(typeWarnings(program)).toEqual(["8:26-8:27 Unknown global 'k'; consider assigning to it first"]);
   });
 });

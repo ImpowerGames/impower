@@ -188,6 +188,9 @@ const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace
 // string's interpolations are the exception (see `keepInterpolations`).
 const ATOMIC = /^Luau\w*(String|Comment)$/;
 
+// Comments, which may stand anywhere in a parameter list, `...` and its annotation included.
+const COMMENT = /^Luau\w*Comment$/;
+
 /** The Luau a `.sd` file holds, as units. */
 export interface SparkdownUnits {
   prelude: LuauUnit;
@@ -260,13 +263,13 @@ class UnitLines {
     }
   }
 
-  /** Writes text over the characters from an offset, as far as its line goes. */
-  write(offset: number, text: string): void {
+  /** Writes text over the characters from an offset, as far as its line goes, or past its end when `pastEnd` says so. */
+  write(offset: number, text: string, pastEnd = false): void {
     const line = this.index.lineAt(offset);
     const column = offset - this.index.starts[line]!;
     const room = this.index.lineEnd(line) - offset;
     const writes = this.writes.get(line) ?? this.writes.set(line, []).get(line)!;
-    writes.push({ column, text: text.slice(0, Math.max(room, 0)) });
+    writes.push({ column, text: pastEnd ? text : text.slice(0, Math.max(room, 0)) });
   }
 
   /** The lines that kept something, in document order, with their line numbers. */
@@ -324,9 +327,18 @@ interface Vararg {
   type: string;
 }
 
+/**
+ * How a header's parameter list is read: whole, as written, or, where the
+ * grammar ends it early, as the names the runtime binds for it, typed `any`.
+ */
+type ParameterReading =
+  | { node: SyntaxNode; whole: true; vararg: Vararg | undefined }
+  | { node: SyntaxNode; whole: false; names: string[]; vararg: Vararg | undefined };
+
 /** A scene, or a branch outside any scene, with the branches in it. */
 interface Flow {
   header: SyntaxNode;
+  parameters: ParameterReading | undefined;
   body: UnitLines;
   /** The `...` parameters of the flow and of the branches in it, in document order. */
   varargs: Vararg[];
@@ -400,37 +412,64 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     blankWithin(node);
   };
 
-  // The `...` a parameter list ends with, if it has one.
-  const varargOf = (parameters: SyntaxNode | undefined): Vararg | undefined => {
-    const dots = parameters && findDescendant(parameters, "LuauVariadicParameter");
+  // A header's parameter list. The grammar can end a list early and leave the
+  // rest of its header unparsed, as a `...` inside a parameter's function type
+  // makes it do; the runtime then binds the names the list holds, and `...` if
+  // one is in it (`lowerArguments`), so such a list is read the same way, each
+  // name typed `any`. A list the grammar reads whole is kept as written.
+  const readParameters = (header: SyntaxNode): ParameterReading | undefined => {
+    const node = findDescendant(header, "LuauFunctionParameters");
+    if (!node) return undefined;
+    if (documentText[node.from] === "(" && documentText[node.to - 1] === ")" && !findDescendant(header, "Unknown")) {
+      return { node, whole: true, vararg: varargOf(node) };
+    }
+    const dots = findDescendant(node, "LuauVariadicParameter");
+    const names = findAll(node, "LuauFunctionParameter").map((name) => documentText.slice(name.from, name.to));
+    return { node, whole: false, names, vararg: dots ? { dots, annotation: undefined, type: "" } : undefined };
+  };
+
+  // The `...` a whole parameter list takes, if it takes one: an entry of the
+  // list itself, not of a parameter's annotation, with the annotation that
+  // follows it (past any comment) and that annotation's type as written. Two
+  // spellings of one type then count as two types, which leaves `...` untyped
+  // (see below), where rewriting them could count two types as one.
+  const varargOf = (parameters: SyntaxNode): Vararg | undefined => {
+    const dots = findInList(parameters, "LuauVariadicParameter");
     if (!dots) return undefined;
     let annotation = dots.nextSibling;
-    while (annotation && NEUTRAL.test(annotation.name)) annotation = annotation.nextSibling;
+    while (annotation && (NEUTRAL.test(annotation.name) || COMMENT.test(annotation.name))) annotation = annotation.nextSibling;
     if (annotation?.name !== "LuauTypeAnnotationOperation") return { dots, annotation: undefined, type: "" };
-    const type = documentText.slice(annotation.from, annotation.to).replace(/^\s*:/, "").replace(/\s+/g, " ").trim();
-    return { dots, annotation, type };
+    return { dots, annotation, type: documentText.slice(annotation.from, annotation.to).replace(/^\s*:/, "").trim() };
   };
 
   // A branch's named parameters, as a `local` on its header line with each
-  // parameter at its column: `branch inner(k: number)` reads as
-  // `local        k: number`. Its `...` is the flow's (see below).
+  // parameter at its column, holding a value of type `any` as an argument
+  // does: `branch inner(k: number, m)` reads as
+  // `local        k: number, m = _G, _G`. Its `...` is the flow's (see below).
   const declareParameters = (flow: Flow, header: SyntaxNode) => {
-    const parameters = findDescendant(header, "LuauFunctionParameters");
-    if (!parameters || documentText[parameters.from] !== "(" || documentText[parameters.to - 1] !== ")") return;
-    const vararg = varargOf(parameters);
-    let end = parameters.to - 1;
-    if (vararg) {
-      flow.varargs.push(vararg);
-      // The named parameters end at the comma before the `...`.
-      let separator = vararg.dots.prevSibling;
-      while (separator && separator.name !== "LuauCommaSeparator") separator = separator.prevSibling;
-      end = separator ? separator.from : vararg.dots.from;
-    }
-    const named = findDescendant(parameters, "LuauFunctionParameter");
-    if (!named || named.from >= end) return;
-    flow.body.mark(parameters.from + 1, end, true);
+    const parameters = readParameters(header);
+    if (!parameters) return;
+    if (parameters.vararg) flow.varargs.push(parameters.vararg);
     const text = documentText.slice(header.from, header.to);
-    flow.body.write(header.from + text.length - text.trimStart().length, "local");
+    const start = header.from + text.length - text.trimStart().length;
+    if (!parameters.whole) {
+      // Each typed `any`, as an argument the runtime binds is; untyped, a `local` would be `nil`.
+      if (parameters.names.length) flow.body.write(start, `local ${parameters.names.map((name) => `${name}: any`).join(", ")}`, true);
+      return;
+    }
+    // The named parameters end at the comma before the `...`.
+    let end = parameters.node.to - 1;
+    if (parameters.vararg) {
+      let separator = parameters.vararg.dots.prevSibling;
+      while (separator && separator.name !== "LuauCommaSeparator") separator = separator.prevSibling;
+      end = separator ? separator.from : parameters.vararg.dots.from;
+    }
+    const named = findAll(parameters.node, "LuauFunctionParameter", true).filter((name) => name.from < end);
+    if (!named.length) return;
+    flow.body.mark(parameters.node.from + 1, end, true);
+    flow.body.write(start, "local");
+    // Without a value, a `local` with no annotation would be `nil`.
+    flow.body.write(end, ` = ${named.map(() => "_G").join(", ")}`, true);
   };
 
   // A flow runs from its header to the `end` that closes it; a branch sits
@@ -448,8 +487,9 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
         declareParameters(enclosing, node);
         open.push(enclosing);
       } else {
-        const own = varargOf(findDescendant(node, "LuauFunctionParameters"));
-        const flow: Flow = { header: node, body: new UnitLines(index), varargs: own ? [own] : [], variadic: own !== undefined };
+        const parameters = readParameters(node);
+        const own = parameters?.vararg;
+        const flow: Flow = { header: node, parameters, body: new UnitLines(index), varargs: own ? [own] : [], variadic: own !== undefined };
         flows.push(flow);
         open.push(flow);
       }
@@ -478,16 +518,19 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     // branches took a `...` last. Here they are one function, whose `...` has
     // the type they all give theirs, or no type where they differ.
     const agreed = new Set(flow.varargs.map((vararg) => vararg.type)).size === 1;
-    // The flow's parameters, at their columns in the header line.
-    const parameters = findDescendant(flow.header, "LuauFunctionParameters");
-    if (parameters) {
+    // The flow's parameters: a whole list at its columns in the header line,
+    // one the grammar ends early as the runtime reads it.
+    const parameters = flow.parameters;
+    if (parameters?.whole) {
       const line = new UnitLines(index);
-      line.mark(parameters.from, parameters.to, true);
+      line.mark(parameters.node.from, parameters.node.to, true);
       const own = flow.variadic ? flow.varargs[0] : undefined;
       if (own?.annotation && !agreed) line.mark(own.annotation.from, own.annotation.to, false);
       const built = line.build();
       text.push(...built.text);
       lines.push(...built.lines);
+    } else if (parameters) {
+      text[0] += `(${[...parameters.names.map((name) => `${name}: any`), ...(flow.variadic ? ["..."] : [])].join(", ")})`;
     } else {
       text[0] += "()";
     }
@@ -495,7 +538,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     // branch's header line, as the function's last parameter.
     const branchVararg = flow.variadic ? undefined : flow.varargs[0];
     if (branchVararg) {
-      const named = parameters && findDescendant(parameters, "LuauFunctionParameter");
+      const named = parameters && (parameters.whole ? findInList(parameters.node, "LuauFunctionParameter") : parameters.names.length > 0);
       text[text.length - 1] = text[text.length - 1]!.replace(/\)$/, named ? "," : "");
       const line = new UnitLines(index);
       line.mark(branchVararg.dots.from, branchVararg.dots.to, true);
@@ -519,6 +562,26 @@ function findDescendant(node: SyntaxNode, name: string): SyntaxNode | undefined 
     if (found) return found;
   }
   return undefined;
+}
+
+/** The first node of a kind in a parameter list, outside its parameters' annotations. */
+function findInList(node: SyntaxNode, name: string): SyntaxNode | undefined {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === name) return child;
+    if (child.name === "LuauTypeAnnotationOperation") continue;
+    const found = findInList(child, name);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** Every node of a kind under a node, in document order, outside parameters' annotations when `outsideAnnotations` says so. */
+function findAll(node: SyntaxNode, name: string, outsideAnnotations = false, found: SyntaxNode[] = []): SyntaxNode[] {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === name) found.push(child);
+    else if (!outsideAnnotations || child.name !== "LuauTypeAnnotationOperation") findAll(child, name, outsideAnnotations, found);
+  }
+  return found;
 }
 
 /** The result of checking one unit. */

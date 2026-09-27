@@ -7,11 +7,12 @@
 // as a type. A flow also sees its file's prelude: the prelude's names and
 // type aliases, with the types the prelude's check gave them.
 //
-// A unit's result is cached under its document, its text, its mode and the
-// names and types it can see. An edit changes only the units whose text
-// changes, unless it changes a prelude name's type (a signature) or a prelude
-// type alias, which checks every flow of that file again. So a check that
-// reuses results always gives what a check from scratch gives.
+// A unit's result is cached under its document, its text, its mode and what
+// it can see: the program's names, and for a flow the check of its file's
+// prelude. An edit checks again only the units whose text changes, and every
+// flow of a file whose prelude's text changes, since a flow sees the prelude
+// only through that check. So a check that reuses results always gives what a
+// check from scratch gives.
 
 import type { Tree } from "@lezer/common";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
@@ -32,12 +33,7 @@ import {
 } from "./LuauDocumentChecker";
 import { Mode } from "./Module";
 import { Scope } from "./Scope";
-import { toString, toStringPack } from "./ToString";
-import { follow, persist, TypeArena, TypeFun, type TypeId } from "./Type";
-
-// How a cache key prints a type: in full, a named table as its fields, and
-// never cut short, so that the key holds the whole of every type.
-const KEY_PRINTING = { exhaustive: true, maxTypeLength: 0, maxTableLength: 0 };
+import { follow, persist, TypeArena, TypeFun } from "./Type";
 
 /** A type warning, in document lines and characters. */
 export interface TypecheckDiagnostic {
@@ -52,8 +48,8 @@ export interface TypecheckDiagnostic {
 
 interface CachedUnit {
   check: LuauUnitCheck;
-  /** For a prelude: its names and their types, and a key naming them. */
-  exports?: { scope: Scope; key: string };
+  /** For a prelude: the scope its file's flows see, and a number no other prelude check has. */
+  exports?: { scope: Scope; id: number };
 }
 
 /** Counts of the units the last compile checked and reused. */
@@ -68,6 +64,7 @@ export class SparkdownTypechecker {
   private cache = new Map<string, CachedUnit>();
   private used = new Set<string>();
   private documentChecks = new Map<string, LuauUnitCheck[]>();
+  private nextPreludeId = 0;
   stats: TypecheckStats = { checked: 0, reused: 0 };
 
   /** Luau's builtin globals, loaded on first use. */
@@ -159,7 +156,7 @@ export class SparkdownTypechecker {
     report(prelude, units.prelude);
     const exports = prelude.exports!;
     for (const flow of units.flows) {
-      report(this.checkUnit(uri, flow, mode, exports.scope, `${program.key}\u0000${exports.key}`, false), flow);
+      report(this.checkUnit(uri, flow, mode, exports.scope, `prelude ${exports.id}`, false), flow);
     }
     return diagnostics;
   }
@@ -175,7 +172,7 @@ export class SparkdownTypechecker {
     this.stats.checked++;
     const check = checkLuauUnit(this.frontend, uri, unit, mode, environment);
     const entry: CachedUnit = { check };
-    if (isPrelude) entry.exports = this.preludeExports(check, environment);
+    if (isPrelude) entry.exports = { scope: this.preludeScope(check, environment), id: this.nextPreludeId++ };
     this.cache.set(key, entry);
     return entry;
   }
@@ -185,38 +182,20 @@ export class SparkdownTypechecker {
    * the types its check gave them, copied out of the prelude's module so that
    * checking a flow cannot change them.
    */
-  private preludeExports(check: LuauUnitCheck, environment: Scope): { scope: Scope; key: string } {
-    const arena = new TypeArena();
-    const cloner = new TypeCloner(arena, this.frontend.builtinTypes);
+  private preludeScope(check: LuauUnitCheck, environment: Scope): Scope {
+    const cloner = new TypeCloner(new TypeArena(), this.frontend.builtinTypes);
     const moduleScope = check.module.getModuleScope();
-    const values = new Map<string, TypeId>();
-    for (const [symbol, binding] of moduleScope.bindings) {
-      const name = typeof symbol === "string" ? symbol : symbol.name;
-      values.set(name, cloner.clone(follow(binding.typeId)));
-    }
-    const aliases = new Map<string, TypeFun>();
-    for (const [name, typeFun] of [...moduleScope.exportedTypeBindings, ...moduleScope.privateTypeBindings]) {
-      aliases.set(name, cloneTypeFun(typeFun, cloner));
-    }
     const scope = Scope.child(environment);
-    const key: string[] = [];
-    for (const name of [...values.keys()].sort()) {
-      const ty = values.get(name)!;
+    for (const [symbol, binding] of moduleScope.bindings) {
+      const ty = cloner.clone(follow(binding.typeId));
       persist(ty);
-      scope.bindings.set(name, { typeId: ty, location: new Location() });
-      key.push(`${name}: ${toString(ty, KEY_PRINTING)}`);
+      scope.bindings.set(typeof symbol === "string" ? symbol : symbol.name, { typeId: ty, location: new Location() });
     }
-    for (const name of [...aliases.keys()].sort()) {
-      const typeFun = aliases.get(name)!;
-      persist(typeFun.type);
-      scope.privateTypeBindings.set(name, typeFun);
-      // A parameter's default is part of the alias: `A` alone means `A<number>` under `type A<T = number>`.
-      const parameters = [
-        ...typeFun.typeParams.map((p) => toString(p.ty, KEY_PRINTING) + (p.defaultValue ? ` = ${toString(p.defaultValue, KEY_PRINTING)}` : "")),
-        ...typeFun.typePackParams.map((p) => toStringPack(p.tp, KEY_PRINTING) + (p.defaultValue ? ` = ${toStringPack(p.defaultValue, KEY_PRINTING)}` : "")),
-      ];
-      key.push(`type ${name}<${parameters.join(", ")}> = ${toString(typeFun.type, KEY_PRINTING)}`);
+    for (const [name, typeFun] of [...moduleScope.exportedTypeBindings, ...moduleScope.privateTypeBindings]) {
+      const copy = cloneTypeFun(typeFun, cloner);
+      persist(copy.type);
+      scope.privateTypeBindings.set(name, copy);
     }
-    return { scope, key: key.join("\n") };
+    return scope;
   }
 }
