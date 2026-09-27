@@ -90,6 +90,28 @@ print({_ = _})
     ).toEqual([{ line: 2, message: PLACEHOLDER_READ }]);
   });
 
+  test("a comment beside a table key leaves it a field name", () => {
+    expect(
+      lintInFunction(`
+print({
+  -- the discarded field
+  _ = 1,
+  _ -- after the key
+  = 2,
+  --[[ before the key ]] _ = 3,
+})
+`),
+    ).toEqual([]);
+  });
+
+  test("a table index `[_]` reads the placeholder", () => {
+    expect(
+      lintInFunction(`
+print({[_] = 1})
+`),
+    ).toEqual([{ line: 1, message: PLACEHOLDER_READ }]);
+  });
+
   test("a longer name starting with `_` is not the placeholder", () => {
     expect(
       lintMessagesInFunction(`

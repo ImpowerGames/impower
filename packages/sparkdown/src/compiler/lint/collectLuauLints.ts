@@ -29,7 +29,9 @@ import {
   isBinaryOperation,
   isTrivia,
   outermostFunction,
+  soleVariableName,
   type Source,
+  type TokenAt,
   tokenFinder,
   trimmedRange,
 } from "./luauTree";
@@ -266,20 +268,19 @@ function lintUnusedLocals(names: ScriptNames, out: LuauLint[]) {
 // A read of `_`, whether it names a local or a global. A plain write is the
 // placeholder's purpose; a compound write (`_ += 1`) also reads it. The model
 // counts a table constructor's key (`{_ = 1}`) as an occurrence so that no
-// use is missed, but a key is a field name, so `_` standing between `{`, `,`
-// or `;` and `=` is not reported.
+// use is missed, but a key is a field name and is not reported.
 function lintPlaceholderReads(
   names: ScriptNames,
-  text: string,
+  tokenAt: TokenAt,
   out: LuauLint[],
 ) {
   for (const fn of names.functions) {
     for (const occurrence of fn.occurrences) {
-      if (occurrence.name !== "_") continue;
+      if (occurrence.name !== "_") continue; // not a node name
       if (occurrence.kind === "write" || occurrence.kind === "functionName") {
         continue;
       }
-      if (isTableKey(text, occurrence.from, occurrence.to)) continue;
+      if (isTableKey(tokenAt(occurrence.from))) continue;
       out.push({
         code: "PlaceholderRead",
         from: occurrence.from,
@@ -291,16 +292,21 @@ function lintPlaceholderReads(
   }
 }
 
-function isTableKey(text: string, from: number, to: number) {
-  let before = from - 1;
-  while (before >= 0 && /\s/.test(text[before]!)) before--;
-  let after = to;
-  while (after < text.length && /\s/.test(text[after]!)) after++;
-  return (
-    "{,;".includes(text[before] ?? "") &&
-    text[after] === "=" &&
-    text[after + 1] !== "="
-  );
+/** Whether `token` is the name of a table constructor field, `name = value`:
+ *  a bare name directly in the table whose next sibling, past any comments
+ *  and line breaks, is the field's `= value`. */
+function isTableKey(token: SyntaxNode) {
+  // A bare name's path is five levels up: its content, the part, the
+  // variable and the variable's capture wrap the name.
+  let path: SyntaxNode | null = token;
+  for (let up = 0; path && path.name !== "LuauAccessPath"; up++) {
+    path = up < 5 ? path.parent : null;
+  }
+  if (!path || path.parent?.name !== "LuauTable_content") return false;
+  if (soleVariableName(path)?.from !== token.from) return false;
+  let next = path.nextSibling;
+  while (next && isTrivia(next)) next = next.nextSibling;
+  return next?.name === "LuauAssignmentOperation";
 }
 
 // ---------------------------------------------------------------------------
@@ -589,7 +595,7 @@ export function collectLuauLints(
     closedByFrom.get(outermostFunction(fn)?.from ?? -1) ?? false;
   const out: LuauLint[] = [];
   lintUnusedLocals(names, out);
-  lintPlaceholderReads(names, text, out);
+  lintPlaceholderReads(names, tokenAt, out);
   lintUnreachable(found.functions, closed, src, out);
   lintDuplicateConditions(found, src, out);
   lintForRanges(found, src, out);
