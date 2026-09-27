@@ -33,6 +33,7 @@ import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { coupledScreenplay, includedChapter } from "./fixtures/coupledScreenplay";
+import { servedFlowNames } from "./servedFlows";
 
 // Each edit is a single find -> replace applied to the FIRST occurrence, turned
 // into a minimal-range contentChange so only the affected region reparses.
@@ -176,14 +177,7 @@ const carriedEdits: CarriedEdit[] = [
   },
 ];
 
-/**
- * Counts the flows the last compile served from the serialized-flow cache. A
- * flow served from the cache and a flow rebuilt from scratch compile to the
- * same bytes, so the compiled output alone cannot show that reuse happened,
- * and `computeFlowReuse` only says which flows may be served, not whether the
- * cache held them. A served flow's cache entry holds the very value the
- * previous compile cached, so value identity tells the two apart.
- */
+/** Counts the flows the last compile served from the serialized-flow cache. */
 class Probe extends SparkdownCompiler {
   private previousCache?: Map<string, { value: unknown }>;
 
@@ -194,11 +188,7 @@ class Probe extends SparkdownCompiler {
 
   /** How many flows the last compile served from the cache. */
   served(): number {
-    let served = 0;
-    for (const [name, entry] of this._flowJsonCache ?? []) {
-      if (this.previousCache?.get(name)?.value === entry.value) served += 1;
-    }
-    return served;
+    return servedFlowNames(this._flowJsonCache, this.previousCache).length;
   }
 }
 

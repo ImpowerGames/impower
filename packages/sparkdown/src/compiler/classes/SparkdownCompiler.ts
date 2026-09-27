@@ -1355,8 +1355,12 @@ export class SparkdownCompiler {
   ): void {
     profile("start", this._profilerId, "ink/json", uri);
     // #314: the binary writer answers the SAME streaming write events as
-    // SimpleJson.Writer, but appends records instead of building a JS
-    // object tree — so on the no-memo path it does strictly less work.
+    // SimpleJson.Writer, but appends records instead of building a JS object
+    // tree. Through the per-flow memo below, which every compile uses, a flow
+    // it cannot splice from the cache is built as a JS object tree first and
+    // then encoded into records, so a compile that serves nothing (a cold
+    // compile, or one whose reuse guard failed) costs it more than the JSON
+    // writer.
     const binary = this._config.binaryProgram === true;
     const writer = binary
       ? new ProgramBinaryWriter(this._binaryTable, this._binarySlotHint)
@@ -4409,6 +4413,9 @@ export class SparkdownCompiler {
         start0: md ? md.startLineNumber - 1 : -1,
       });
     }
+    // A failed guard returns before `reusable` is filled, and
+    // `serializeCompiledProgram` relies on that emptiness, not on `ok`, to
+    // serve nothing on such a compile while it reseeds the flow caches.
     if (this._unchangedFlowShapeAtRisk) {
       return { reusable, settled, ok: false };
     }

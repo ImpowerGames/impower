@@ -31,6 +31,7 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { servedFlowNames } from "./servedFlows";
 
 const URI = "file://proj/main.sd";
 const SCENES = 12;
@@ -62,19 +63,9 @@ class Probe extends SparkdownCompiler {
     return new Map(this._flowAssetAccum ?? []);
   }
 
-  /**
-   * The flows the last compile served from the serialized-flow cache. The
-   * reuse decision only says which flows may be served; a served flow's cache
-   * entry holds the very value the previous compile cached.
-   */
+  /** The flows the last compile served from the serialized-flow cache. */
   servedFlows(): string[] {
-    const served: string[] = [];
-    for (const [name, entry] of this._flowJsonCache ?? []) {
-      if (this.previousFlowCache?.get(name)?.value === entry.value) {
-        served.push(name);
-      }
-    }
-    return served;
+    return servedFlowNames(this._flowJsonCache, this.previousFlowCache);
   }
 
   protected override computeFlowReuse(story: RuntimeStory) {

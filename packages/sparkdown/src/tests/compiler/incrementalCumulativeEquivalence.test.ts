@@ -31,15 +31,11 @@ import { describe, it, expect } from "vitest";
 import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { servedFlowNames } from "./servedFlows";
 
 const URI = "inmemory:///main.sd";
 
-/**
- * Tells whether the last compile served any flow from the serialized-flow
- * cache. `computeFlowReuse` only says which flows may be served, not whether
- * the cache held them. A served flow's cache entry holds the very value the
- * previous compile cached, so value identity tells the two apart.
- */
+/** Tells whether the last compile served any flow from the serialized-flow cache. */
 class Probe extends SparkdownCompiler {
   private previousCache?: Map<string, { value: unknown }>;
 
@@ -49,10 +45,7 @@ class Probe extends SparkdownCompiler {
   }
 
   get reused(): boolean {
-    for (const [name, entry] of this._flowJsonCache ?? []) {
-      if (this.previousCache?.get(name)?.value === entry.value) return true;
-    }
-    return false;
+    return servedFlowNames(this._flowJsonCache, this.previousCache).length > 0;
   }
 }
 
@@ -250,11 +243,13 @@ describe("compiler cumulative incremental equivalence", () => {
       // comparisons above covered it outside the reparse window.
       expect(Object.keys(CONSTRUCT_MARKERS).filter((c) => !carried.get(c))).toEqual([]);
       // A guard that refused reuse on every compile would pass the
-      // comparisons without testing it. The floor sits well under the 158 of
-      // 200 compiles measured with this seed: a random edit that declares a
-      // name correctly refuses reuse, so that compile serves nothing, though
-      // it reseeds the cache for the compile after it.
-      expect(reusing, "compiles that served flows from the cache").toBeGreaterThan(EDITS / 20);
+      // comparisons without testing it, and so would a cache that a refusing
+      // compile dropped instead of reseeding. With this seed 158 of 200
+      // compiles serve flows: a random edit that declares a name correctly
+      // refuses reuse, so that compile serves nothing, though it reseeds the
+      // cache for the compile after it. The floor sits below that count, but
+      // above what a refusing compile that dropped the cache leaves (57).
+      expect(reusing, "compiles that served flows from the cache").toBeGreaterThan(EDITS / 2);
     } finally {
       console.warn = realWarn;
       console.error = realError;
