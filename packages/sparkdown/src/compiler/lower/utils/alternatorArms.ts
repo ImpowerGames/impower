@@ -1,6 +1,7 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
+import { emptyDivertDiagnostic } from "../lowerers/lowerDivert";
 import { lowerDivertPath } from "./lowerDivertPath";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import {
@@ -32,6 +33,20 @@ function buildDivertFromTargetLiteral(
   const parts = lowerDivertPath(node, ctx);
   if (parts.length === 0) return null;
   return new Divert(parts);
+}
+
+// The source range of the `->` when an inline arm's expression is a bare `->`
+// with no target, which the expression grammar parses as a
+// `LuauArithmeticOperation`.
+function emptyDivertRange(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): { from: number; to: number } | null {
+  if (node.name !== "LuauArithmeticOperation") return null;
+  const text = ctx.read(node.from, node.to);
+  if (text.trim() !== "->") return null;
+  const from = node.from + text.indexOf("->");
+  return { from, to: from + 2 };
 }
 
 export interface AlternatorArm {
@@ -113,6 +128,18 @@ export function lowerArms(
           child = child.nextSibling;
           continue;
         }
+      }
+      // A `->` with no target does not match `LuauDivertTargetLiteral`, so
+      // the expression grammar parses it as an arithmetic operation that
+      // lowers to nothing. It reports the empty-divert warning the other
+      // alternator forms report, and the arm stays empty.
+      const emptyDivert = emptyDivertRange(child, ctx);
+      if (emptyDivert) {
+        ctx.diagnostics?.push(
+          emptyDivertDiagnostic(emptyDivert.from, emptyDivert.to, ctx),
+        );
+        child = child.nextSibling;
+        continue;
       }
 
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
