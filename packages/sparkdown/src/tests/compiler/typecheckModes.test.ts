@@ -162,6 +162,11 @@ describe("type checking modes", () => {
     expect(directives(misspelt)).toEqual(["0:0-0:10 Unknown comment directive 'strictt'; did you mean 'strict'?"]);
     expect(typeWarnings(misspelt, HELPER)).toEqual(NOCHECK);
 
+    // The directive is quoted as written, though Luau matches it byte by byte.
+    const accented = compile({ luau: `--!stríct\n${LUAU}` });
+    expect(directives(accented)).toEqual(["0:0-0:9 Unknown comment directive 'stríct'; did you mean 'strict'?"]);
+    expect(typeWarnings(accented, HELPER)).toEqual(NONSTRICT);
+
     const late = compile({ luau: `--!strict\n--!nocheck\n${LUAU}--!nocheck\n` });
     expect(directives(late)).toEqual([
       "1:0-1:10 Comment directive with the type checking mode has already been used",

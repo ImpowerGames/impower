@@ -141,21 +141,73 @@ end
     expect(typeWarnings(program)).toEqual(["8:34-8:39 Expected this to be 'number', but got 'string'"]);
   });
 
-  test("an unknown name is reported once", () => {
+  test("an unknown name is reported once, on the line that reads it", () => {
     const program = compile(`function lookup()
   return missingInFunction
 end
 
+& print(missingAtTop)
+
 scene start
   & print(missingInScene)
+  local copy = missingInSceneLocal
+  branch first
+    if missingInBranch then
+      Yes.
+    end
+  end
 end
 `);
-    // Sparkdown's resolver reports a name it cannot find outside a function,
-    // so the checker does not report it again; inside a function only the
-    // checker reports it.
-    expect(typeWarnings(program)).toEqual(["5:9-5:26 Unknown global 'missingInFunction'; consider assigning to it first"]);
-    expect(describeDiagnostics(program, false).filter((d) => d.includes("missing"))).toEqual([
-      "9:0-9:25 Cannot find variable named `missingInScene`",
+    // Sparkdown's resolver reports a read it can place, and the checker leaves
+    // that read out; a read the resolver cannot place yet (#944), such as one
+    // in a scene's `local` or `if`, is the checker's to report.
+    const diagnostics = [...describeDiagnostics(program, true), ...describeDiagnostics(program, false)];
+    const lines = (name: string) =>
+      diagnostics.filter((d) => d.includes(`\`${name}\``) || d.includes(`'${name}'`)).map((d) => Number(d.split(":")[0]));
+    expect({
+      missingInFunction: lines("missingInFunction"),
+      missingAtTop: lines("missingAtTop"),
+      missingInScene: lines("missingInScene"),
+      missingInSceneLocal: lines("missingInSceneLocal"),
+      missingInBranch: lines("missingInBranch"),
+    }).toEqual({
+      missingInFunction: [5],
+      missingAtTop: [8],
+      missingInScene: [11],
+      missingInSceneLocal: [12],
+      missingInBranch: [14],
+    });
+  });
+
+  test("a branch's parameters before its `...` are declared, and its `...` has the type the branch gives it", () => {
+    const program = compile(`scene start(a: number)
+  branch inner(k: number, ...: boolean)
+    local first: boolean = ...
+    local wrong: string = k
+  end
+end
+
+scene other
+  branch only(...: number)
+    local fine: number = ...
+    local wrong: string = ...
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "7:26-7:27 Expected this to be 'string', but got 'number'",
+      "14:26-14:29 Expected this to be 'string', but got 'number'",
     ]);
+  });
+
+  test("where a scene and a branch in it give `...` different types, `...` has neither", () => {
+    const program = compile(`scene start(...: string)
+  local mine: string = ...
+  branch other(...: number)
+    local theirs: number = ...
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual([]);
   });
 });

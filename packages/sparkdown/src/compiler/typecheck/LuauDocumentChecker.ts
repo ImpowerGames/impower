@@ -317,6 +317,23 @@ function addSpan(spans: number[], from: number, to: number): number[] {
   return out;
 }
 
+/** A `...` parameter, with its annotation and the type that writes ("" for none). */
+interface Vararg {
+  dots: SyntaxNode;
+  annotation: SyntaxNode | undefined;
+  type: string;
+}
+
+/** A scene, or a branch outside any scene, with the branches in it. */
+interface Flow {
+  header: SyntaxNode;
+  body: UnitLines;
+  /** The `...` parameters of the flow and of the branches in it, in document order. */
+  varargs: Vararg[];
+  /** Whether the flow's own parameters end with `...`, which is then the first of `varargs`. */
+  variadic: boolean;
+}
+
 /** Removes `[from, to)` from sorted, disjoint spans. */
 function removeSpan(spans: number[], from: number, to: number): number[] {
   const out: number[] = [];
@@ -383,23 +400,44 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     blankWithin(node);
   };
 
-  // A branch's parameters, as a `local` on its header line with each
+  // The `...` a parameter list ends with, if it has one.
+  const varargOf = (parameters: SyntaxNode | undefined): Vararg | undefined => {
+    const dots = parameters && findDescendant(parameters, "LuauVariadicParameter");
+    if (!dots) return undefined;
+    let annotation = dots.nextSibling;
+    while (annotation && NEUTRAL.test(annotation.name)) annotation = annotation.nextSibling;
+    if (annotation?.name !== "LuauTypeAnnotationOperation") return { dots, annotation: undefined, type: "" };
+    const type = documentText.slice(annotation.from, annotation.to).replace(/^\s*:/, "").replace(/\s+/g, " ").trim();
+    return { dots, annotation, type };
+  };
+
+  // A branch's named parameters, as a `local` on its header line with each
   // parameter at its column: `branch inner(k: number)` reads as
-  // `local        k: number`.
-  const declareParameters = (body: UnitLines, header: SyntaxNode) => {
+  // `local        k: number`. Its `...` is the flow's (see below).
+  const declareParameters = (flow: Flow, header: SyntaxNode) => {
     const parameters = findDescendant(header, "LuauFunctionParameters");
-    if (!parameters || !findDescendant(parameters, "LuauFunctionParameter") || findDescendant(parameters, "LuauVariadicParameter")) return;
-    if (documentText[parameters.from] !== "(" || documentText[parameters.to - 1] !== ")") return;
-    body.mark(parameters.from + 1, parameters.to - 1, true);
+    if (!parameters || documentText[parameters.from] !== "(" || documentText[parameters.to - 1] !== ")") return;
+    const vararg = varargOf(parameters);
+    let end = parameters.to - 1;
+    if (vararg) {
+      flow.varargs.push(vararg);
+      // The named parameters end at the comma before the `...`.
+      let separator = vararg.dots.prevSibling;
+      while (separator && separator.name !== "LuauCommaSeparator") separator = separator.prevSibling;
+      end = separator ? separator.from : vararg.dots.from;
+    }
+    const named = findDescendant(parameters, "LuauFunctionParameter");
+    if (!named || named.from >= end) return;
+    flow.body.mark(parameters.from + 1, end, true);
     const text = documentText.slice(header.from, header.to);
-    body.write(header.from + text.length - text.trimStart().length, "local");
+    flow.body.write(header.from + text.length - text.trimStart().length, "local");
   };
 
   // A flow runs from its header to the `end` that closes it; a branch sits
   // inside a scene, so the flows open at a point form a stack.
   const prelude = new UnitLines(index);
-  const flows: { header: SyntaxNode; body: UnitLines }[] = [];
-  const open: { header: SyntaxNode; body: UnitLines }[] = [];
+  const flows: Flow[] = [];
+  const open: Flow[] = [];
   for (let node = tree.topNode.firstChild; node; node = node.nextSibling) {
     if (FLOW_HEADERS.has(node.name)) {
       const enclosing = open[open.length - 1];
@@ -407,10 +445,11 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
         // A branch runs in its scene's call-stack element, where the scene's
         // locals and those its other branches set are visible, so it is
         // checked as part of the flow it sits in.
-        declareParameters(enclosing.body, node);
-        open.push({ header: node, body: enclosing.body });
+        declareParameters(enclosing, node);
+        open.push(enclosing);
       } else {
-        const flow = { header: node, body: new UnitLines(index) };
+        const own = varargOf(findDescendant(node, "LuauFunctionParameters"));
+        const flow: Flow = { header: node, body: new UnitLines(index), varargs: own ? [own] : [], variadic: own !== undefined };
         flows.push(flow);
         open.push(flow);
       }
@@ -428,23 +467,43 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     prelude: { kind: "prelude", text: preludeLines.text.join("\n"), lines: preludeLines.lines },
     flows: [],
   };
-  for (const { header, body } of flows) {
-    const bodyLines = body.build();
+  for (const flow of flows) {
+    const bodyLines = flow.body.build();
     // A flow whose statements are all Sparkdown's own has no Luau to check.
     if (bodyLines.text.length === 0) continue;
-    const headerLine = index.lineAt(header.from);
+    const headerLine = index.lineAt(flow.header.from);
     const text: string[] = ["local function __flow"];
     const lines: number[] = [headerLine];
+    // At runtime `...` reads the arguments of whichever of the flow and its
+    // branches took a `...` last. Here they are one function, whose `...` has
+    // the type they all give theirs, or no type where they differ.
+    const agreed = new Set(flow.varargs.map((vararg) => vararg.type)).size === 1;
     // The flow's parameters, at their columns in the header line.
-    const parameters = findDescendant(header, "LuauFunctionParameters");
+    const parameters = findDescendant(flow.header, "LuauFunctionParameters");
     if (parameters) {
       const line = new UnitLines(index);
       line.mark(parameters.from, parameters.to, true);
+      const own = flow.variadic ? flow.varargs[0] : undefined;
+      if (own?.annotation && !agreed) line.mark(own.annotation.from, own.annotation.to, false);
       const built = line.build();
       text.push(...built.text);
       lines.push(...built.lines);
     } else {
       text[0] += "()";
+    }
+    // A branch's `...` where the flow has none, written at its columns in the
+    // branch's header line, as the function's last parameter.
+    const branchVararg = flow.variadic ? undefined : flow.varargs[0];
+    if (branchVararg) {
+      const named = parameters && findDescendant(parameters, "LuauFunctionParameter");
+      text[text.length - 1] = text[text.length - 1]!.replace(/\)$/, named ? "," : "");
+      const line = new UnitLines(index);
+      line.mark(branchVararg.dots.from, branchVararg.dots.to, true);
+      if (branchVararg.annotation && agreed) line.mark(branchVararg.annotation.from, branchVararg.annotation.to, true);
+      const built = line.build();
+      built.text[built.text.length - 1] += ")";
+      text.push(...built.text);
+      lines.push(...built.lines);
     }
     text.push(...bodyLines.text, "end");
     lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);

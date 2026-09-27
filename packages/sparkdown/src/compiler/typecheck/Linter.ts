@@ -34,6 +34,13 @@ function fuzzyMatch(str: string, array: readonly string[]): string | undefined {
 
 const HOT_COMMENTS = ["nolint", "nocheck", "nonstrict", "strict", "optimize", "native"];
 
+const utf8Decoder = new TextDecoder();
+
+/** Text held as one character per UTF-8 byte, as a hot comment's is, decoded for a message. */
+function decodeBytes(bytes: string): string {
+  return utf8Decoder.decode(Uint8Array.from(bytes, (c) => c.charCodeAt(0)));
+}
+
 /** Luau's `lintComments`, for the checks that concern a module's mode (see above). */
 export function lintComments(hotcomments: readonly HotComment[]): LintWarning[] {
   const warnings: LintWarning[] = [];
@@ -59,9 +66,10 @@ export function lintComments(hotcomments: readonly HotComment[]): LintWarning[] 
       }
     } else if (!HOT_COMMENTS.includes(first)) {
       const suggestion = fuzzyMatch(first, HOT_COMMENTS);
+      const written = decodeBytes(first);
       warnings.push({
         location: hc.location,
-        text: suggestion ? `Unknown comment directive '${first}'; did you mean '${suggestion}'?` : `Unknown comment directive '${first}'`,
+        text: suggestion ? `Unknown comment directive '${written}'; did you mean '${suggestion}'?` : `Unknown comment directive '${written}'`,
       });
     }
   }

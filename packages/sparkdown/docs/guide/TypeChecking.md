@@ -29,13 +29,7 @@ typecheck: strict
 ---
 ```
 
-For a `.luau` file you load with `run`, write Luau's own directive on its first line:
-
-```luau
---!strict
-```
-
-A script's front matter applies to that script, and a `.luau` file's first line to that file; either takes the place of the project's `define` there. A mode the editor does not know is warned about where you wrote it, and ignored.
+A script's front matter applies to that script, in place of the project's `define`. A mode the editor does not know is warned about where you wrote it, and ignored.
 
 ## An example
 

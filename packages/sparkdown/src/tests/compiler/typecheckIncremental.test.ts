@@ -177,4 +177,16 @@ describe("incremental type checking", () => {
     expect(warm.warnings).toEqual(["7:21-7:22 TypeMismatch: Expected this to be 'string', but got 'number'"]);
     expect(stats).toEqual({ checked: 2, reused: 0 });
   });
+
+  test("changing the end of a type alias default longer than a message prints checks the flows that use it again", () => {
+    // Forty fields print to more than the 500 characters Luau's messages stop at.
+    const fields = Array.from({ length: 40 }, (_, i) => `f${String(i).padStart(2, "0")}: number`).join(", ");
+    const session = new Session(
+      `---\ntypecheck: strict\n---\n\ntype Box<T = { ${fields}, z: number }> = T\n\nscene alpha\n  local item: Box = {} :: any\n  local value: number = item.z\nend\n`,
+    );
+    const { warm, cold, stats } = session.edit("z: number", "z: string");
+    expect(warm).toEqual(cold);
+    expect(warm.warnings).toEqual(["8:24-8:30 TypeMismatch: Expected this to be 'number', but got 'string'"]);
+    expect(stats).toEqual({ checked: 2, reused: 0 });
+  });
 });

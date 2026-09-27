@@ -35,6 +35,10 @@ import { Scope } from "./Scope";
 import { toString, toStringPack } from "./ToString";
 import { follow, persist, TypeArena, TypeFun, type TypeId } from "./Type";
 
+// How a cache key prints a type: in full, a named table as its fields, and
+// never cut short, so that the key holds the whole of every type.
+const KEY_PRINTING = { exhaustive: true, maxTypeLength: 0, maxTableLength: 0 };
+
 /** A type warning, in document lines and characters. */
 export interface TypecheckDiagnostic {
   start: { line: number; character: number };
@@ -200,7 +204,7 @@ export class SparkdownTypechecker {
       const ty = values.get(name)!;
       persist(ty);
       scope.bindings.set(name, { typeId: ty, location: new Location() });
-      key.push(`${name}: ${toString(ty, { exhaustive: true })}`);
+      key.push(`${name}: ${toString(ty, KEY_PRINTING)}`);
     }
     for (const name of [...aliases.keys()].sort()) {
       const typeFun = aliases.get(name)!;
@@ -208,10 +212,10 @@ export class SparkdownTypechecker {
       scope.privateTypeBindings.set(name, typeFun);
       // A parameter's default is part of the alias: `A` alone means `A<number>` under `type A<T = number>`.
       const parameters = [
-        ...typeFun.typeParams.map((p) => toString(p.ty) + (p.defaultValue ? ` = ${toString(p.defaultValue, { exhaustive: true })}` : "")),
-        ...typeFun.typePackParams.map((p) => toStringPack(p.tp) + (p.defaultValue ? ` = ${toStringPack(p.defaultValue, { exhaustive: true })}` : "")),
+        ...typeFun.typeParams.map((p) => toString(p.ty, KEY_PRINTING) + (p.defaultValue ? ` = ${toString(p.defaultValue, KEY_PRINTING)}` : "")),
+        ...typeFun.typePackParams.map((p) => toStringPack(p.tp, KEY_PRINTING) + (p.defaultValue ? ` = ${toStringPack(p.defaultValue, KEY_PRINTING)}` : "")),
       ];
-      key.push(`type ${name}<${parameters.join(", ")}> = ${toString(typeFun.type, { exhaustive: true })}`);
+      key.push(`type ${name}<${parameters.join(", ")}> = ${toString(typeFun.type, KEY_PRINTING)}`);
     }
     return { scope, key: key.join("\n") };
   }
