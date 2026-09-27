@@ -56,9 +56,11 @@ const newGame = (program: any) =>
     verifyCheckpoints: false,
   } as never);
 
+// Each search targets the edited line: the conditional before the edit, the
+// line of action after it.
 const search = (game: Game, compiler: SparkdownCompiler) => {
   const log = new RouteSearchLog();
-  game.setStartFrom({ file: URI, line: 0 });
+  game.setStartFrom({ file: URI, line: 5 });
   searchRouteTo(game, game.startPath!, log, { config: compiler.config } as any);
   return {
     reachedTarget: log.last?.reachedTarget,

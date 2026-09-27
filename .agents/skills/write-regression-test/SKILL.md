@@ -24,7 +24,7 @@ At most one vitest run at a time across worktrees. Run the test file with `node 
 
 ## 2. Prove red/green
 
-For full verification, read [redgreen execution and recovery](references/redgreen.md) before the driver temporarily changes source files. Never use the shared stash. Name every changed source the test exercises, not the test itself. Use HEAD before committing and the pre-fix base (normally origin/main) after committing.
+For full verification, read [redgreen execution and recovery](references/redgreen.md) before the driver temporarily changes source files. Never use the shared stash. Name every changed source the test exercises, not the test itself. Use HEAD before committing and origin/main after committing; the driver reverts to its merge base with HEAD.
 
 Inspect the actual failing assertion and full saved logs; a nonzero exit or unrelated failure proves nothing. Require restoration hashes to match before proceeding. After interruption, preserve snapshots and compare source/restoration evidence before resuming. Import-breaking reverts and mutation proofs use the reference's controlled fallback.
 

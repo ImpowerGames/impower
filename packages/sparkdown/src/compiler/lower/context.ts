@@ -170,8 +170,10 @@ export interface LowerContext {
    * no scan: a `T` with members is always an as-parent. See
    * [[project_define_namespace_scoping]]. When absent, treated as the empty
    * set (every typed define is a leaf → scoped).
+   *
+   * Only `has` is offered, recorded per chunk like `globalCallableNames`.
    */
-  defineTypeNames?: ReadonlySet<string>;
+  defineTypeNames?: Pick<ReadonlySet<string>, "has">;
   /**
    * Stack of per-enclosing-function-scope local declarations. Each
    * frame holds the names declared via `local` / `store` / `const`
