@@ -1,4 +1,4 @@
-﻿import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type {
   CompiledBlock,

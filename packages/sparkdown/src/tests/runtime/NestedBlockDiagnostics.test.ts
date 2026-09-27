@@ -95,7 +95,8 @@ const NESTED_EMPTY_DIVERTS: [string, string, number][] = [
   ["on a line of a queue arm's body", "  queue\n  | A\n    ->\n  | B\n  end", 5],
   ["as an arm of a single-line queue", "  queue | A | -> | C end", 3],
   ["as an arm of an inline-glued queue", "  Before .. queue|A|->|C .. After.", 3],
-  ["as an arm of a braced queue", '  Two {queue | -> | "b" end} tail', 3],  ["in a choose block's preamble", "  choose\n    ->\n    * [A]\n      Picked.\n  end", 4],
+  ["as an arm of a braced queue", '  Two {queue | -> | "b" end} tail', 3],
+  ["in a choose block's preamble", "  choose\n    ->\n    * [A]\n      Picked.\n  end", 4],
   ["in a choice's body inside choose", "  choose\n    * [A]\n      Picked.\n      ->\n  end", 6],
 ];
 
