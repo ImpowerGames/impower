@@ -114,6 +114,56 @@ check("a base that moved past the branch point reverts to the merge base, not th
   assert.equal(libText(dir), NEW);
 });
 
+// Each case below leaves no single merge base to read from, and each is
+// refused before the working tree is touched.
+check("a base with two merge bases (a criss-cross merge) is refused, naming both", () => {
+  const dir = makeRepo();
+  git(dir, "config", "core.autocrlf", "false");
+  git(dir, "branch", "other");
+  fs.writeFileSync(path.join(dir, "lib.mjs"), 'export const value = "a";\n');
+  git(dir, "commit", "-q", "-am", "a");
+  const a = git(dir, "rev-parse", "HEAD").trim();
+  git(dir, "checkout", "-q", "other");
+  fs.writeFileSync(path.join(dir, "lib.mjs"), 'export const value = "b";\n');
+  git(dir, "commit", "-q", "-am", "b");
+  git(dir, "merge", "-q", "-s", "ours", "--no-edit", a);
+  git(dir, "checkout", "-q", "-");
+  git(dir, "merge", "-q", "-s", "ours", "--no-edit", "other~1");
+  applyFix(dir);
+  assert.throws(() => run(dir, { base: "other" }), /2 merge bases .*Pass the intended one as --base/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a base with no shared history is refused", () => {
+  const dir = makeRepo();
+  const home = git(dir, "rev-parse", "--abbrev-ref", "HEAD").trim();
+  git(dir, "checkout", "-q", "--orphan", "stranger");
+  git(dir, "commit", "-q", "-m", "unrelated");
+  git(dir, "checkout", "-q", home);
+  applyFix(dir);
+  assert.throws(() => run(dir, { base: "stranger" }), /shares no history with HEAD/);
+  assert.equal(libText(dir), NEW);
+});
+
+check("a shallow clone cut above the branch point is refused with how to deepen it", () => {
+  const origin = makeRepo();
+  git(origin, "branch", "upstream");
+  fs.writeFileSync(path.join(origin, "lib.mjs"), NEW);
+  git(origin, "commit", "-q", "-am", "fix");
+  git(origin, "checkout", "-q", "upstream");
+  fs.writeFileSync(path.join(origin, "other.mjs"), "export {};\n");
+  git(origin, "add", "other.mjs");
+  git(origin, "commit", "-q", "-m", "upstream moves");
+  git(origin, "checkout", "-q", "-");
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-shallow-")));
+  git(dir, "clone", "-q", "--depth", "1", "--no-single-branch", `file://${origin.replace(/\\/g, "/")}`, "c");
+  const clone = path.join(dir, "c");
+  assert.throws(
+    () => runRedGreen({ repoRoot: clone, test: `${NODE} check.mjs`, files: ["lib.mjs"], base: "origin/upstream", snapshotDir: snapshotDir() }),
+    /shallow clone.*--unshallow/,
+  );
+});
+
 // A vitest run reporting several failures prints the "Test Files" / "Tests"
 // summary lines well before the end of its output, followed by trailing
 // per-test detail; `tail` (the last 40 lines) then ends on that detail, not
