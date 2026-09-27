@@ -205,7 +205,7 @@ export class VariableReference extends Expression {
       // back to `NullValue` for property reads (`_G.bar`,
       // `unknown.field`, ...). The diagnostic still surfaces in the
       // IDE as a probable typo / forgotten declaration.
-      this.Error(errorMsg, this, true);
+      this.Error(errorMsg, this.unresolvedSource, true);
 
       return;
     }
@@ -218,10 +218,17 @@ export class VariableReference extends Expression {
       // Story.PerformLogicAndFlowControl's variable-reference branch).
       this.Error(
         `Cannot find variable named \`${this.name}\``,
-        this,
+        this.unresolvedSource,
         true,
       );
     }
+  }
+
+  // Where an unresolved reference is reported: the name or path itself when
+  // the lowerer gave its names positions (merged into `identifier` by the
+  // constructor), otherwise the nearest position up the parent chain.
+  private get unresolvedSource(): ParsedObject | Identifier {
+    return this.identifier?.debugMetadata ? this.identifier : this;
   }
 
   public override readonly toString = (): string => `{${this.path.join(".")}}`;
