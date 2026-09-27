@@ -31,6 +31,7 @@ import {
   separateTags,
 } from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
+import { forwardBlockDiagnostics } from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerSparkdownConditionalAlternatorBlock } from "./lowerSparkdownConditionalAlternatorBlock";
 import { lowerSparkdownSequentialAlternatorBlock } from "./lowerSparkdownSequentialAlternatorBlock";
@@ -557,6 +558,7 @@ function processDisplayBody(
               makeAltNodeRef(seg.node),
               ctx,
             );
+      forwardBlockDiagnostics(lowered, ctx);
       if (lowered.content) {
         for (const obj of lowered.content) out.push(obj);
       }
@@ -1630,6 +1632,7 @@ function tryLowerInlineAlternator(
       makeAltNodeRef(seq),
       ctx,
     );
+    forwardBlockDiagnostics(lowered, ctx);
     return lowered.content ?? null;
   }
   const cond =
@@ -1640,6 +1643,7 @@ function tryLowerInlineAlternator(
       makeAltNodeRef(cond),
       ctx,
     );
+    forwardBlockDiagnostics(lowered, ctx);
     return lowered.content ?? null;
   }
   return null;

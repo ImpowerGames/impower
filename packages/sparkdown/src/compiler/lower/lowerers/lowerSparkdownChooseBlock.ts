@@ -114,6 +114,9 @@ export function lowerSparkdownChooseBlock(
     // choices are offered.
     (ctx as MutableCtx).inChoosePreamble = currentChoice === null;
     const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
+    if (block?.diagnostics) {
+      diagnostics.push(...block.diagnostics);
+    }
     // A construct that holds a choice (a conditional whose branches offer
     // them) holds the block's first choice when no choice came before it, so
     // the display statements before it are the caption.

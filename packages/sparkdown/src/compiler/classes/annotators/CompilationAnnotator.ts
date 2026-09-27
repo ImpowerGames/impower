@@ -325,9 +325,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       const loopStack: { continueLabel: string; breakLabel: string }[] = [];
       // Diagnostics collected by lowerers nested below the chunk's
       // dispatch level. They're attached to the chunk's annotation
-      // after lowering completes — `appendBlockContent` in
-      // `lowerStatements` doesn't propagate per-block diagnostics, so
-      // nested lowerers route through this buffer instead.
+      // after lowering completes. A site that unwraps a nested block and
+      // discards it moves the block's diagnostics here through
+      // `forwardBlockDiagnostics`, and some lowerers push to it directly.
       const chunkDiagnostics: InkDiagnostic[] = [];
       // Fresh per-chunk stack of declared-locals frames. Pushed/popped
       // by `lowerLuauFunctionDefinition` (and the anonymous-fn lowerer)
