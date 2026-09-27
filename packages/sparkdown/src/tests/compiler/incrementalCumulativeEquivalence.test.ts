@@ -34,14 +34,26 @@ import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const URI = "inmemory:///main.sd";
 
-/** Records whether each compile served flows from the reuse cache. */
+/**
+ * Tells whether the last compile served any flow from the serialized-flow
+ * cache. `computeFlowReuse` only says which flows may be served: a compile
+ * after one that refused reuse finds the cache dropped and serves nothing. A
+ * served flow's cache entry holds the very value the previous compile cached,
+ * so value identity tells the two apart.
+ */
 class Probe extends SparkdownCompiler {
-  reused = false;
+  private previousCache?: Map<string, { value: unknown }>;
 
   protected override computeFlowReuse(story: RuntimeStory) {
-    const result = super.computeFlowReuse(story);
-    this.reused = result.ok && result.reusable.size > 0;
-    return result;
+    this.previousCache = this._flowJsonCache;
+    return super.computeFlowReuse(story);
+  }
+
+  get reused(): boolean {
+    for (const [name, entry] of this._flowJsonCache ?? []) {
+      if (this.previousCache?.get(name)?.value === entry.value) return true;
+    }
+    return false;
   }
 }
 
