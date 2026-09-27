@@ -4545,12 +4545,16 @@ export class SparkdownCompiler {
         // above still sees them) but never REUSED by name: their names are
         // positional ordinals that can rebind to a different flow across
         // compiles (see the ToJson flow-memo exclusion in `compile()`).
+        // A flow holding a synthetic container renamed this compile has
+        // cached paths that name the old container, so it is recomputed, as
+        // the serialization cache recomputes it.
         const reusable =
           f.container != null &&
           f.start0 >= 0 &&
           f.uri !== "" &&
           f.name !== "global decl" && // not a node name
           !CANONICAL_SYNTH_NAME.test(f.name) &&
+          !this._renamedFlowNames?.has(f.name) &&
           effPrevCache != null;
         if (reusable) {
           const cached = effPrevCache!.get(f.name);
