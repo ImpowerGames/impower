@@ -900,7 +900,10 @@ export class JsonSerialisation {
       let pushesToStack = false;
       let divPushType = PushPopType.Function;
       let external = false;
-      if ((propValue = obj["->"])) {
+      // A divert whose target did not resolve at compile time is written with
+      // a null target, so `->` is tested by presence rather than truthiness.
+      if ("->" in obj) {
+        propValue = obj["->"];
         isDivert = true;
       } else if ((propValue = obj["f()"])) {
         isDivert = true;
@@ -923,7 +926,7 @@ export class JsonSerialisation {
         divert.stackPushType = divPushType;
         divert.isExternal = external;
 
-        let target = propValue.toString();
+        let target = propValue == null ? null : propValue.toString();
 
         if ((propValue = obj["var"])) divert.variableDivertName = target;
         else divert.targetPathString = target;
