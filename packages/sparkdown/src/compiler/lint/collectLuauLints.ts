@@ -40,6 +40,7 @@ export const LUAU_LINT_CODES = [
   "UnreachableCode",
   "DuplicateCondition",
   "ForRange",
+  "PlaceholderRead",
 ] as const;
 
 export type LuauLintCode = (typeof LUAU_LINT_CODES)[number];
@@ -257,6 +258,49 @@ function lintUnusedLocals(names: ScriptNames, out: LuauLint[]) {
       });
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// PlaceholderRead
+
+// A read of `_`, whether it names a local or a global. A plain write is the
+// placeholder's purpose; a compound write (`_ += 1`) also reads it. The model
+// counts a table constructor's key (`{_ = 1}`) as an occurrence so that no
+// use is missed, but a key is a field name, so `_` standing between `{`, `,`
+// or `;` and `=` is not reported.
+function lintPlaceholderReads(
+  names: ScriptNames,
+  text: string,
+  out: LuauLint[],
+) {
+  for (const fn of names.functions) {
+    for (const occurrence of fn.occurrences) {
+      if (occurrence.name !== "_") continue;
+      if (occurrence.kind === "write" || occurrence.kind === "functionName") {
+        continue;
+      }
+      if (isTableKey(text, occurrence.from, occurrence.to)) continue;
+      out.push({
+        code: "PlaceholderRead",
+        from: occurrence.from,
+        to: occurrence.to,
+        message:
+          "Placeholder value '_' is read here; consider using a named variable",
+      });
+    }
+  }
+}
+
+function isTableKey(text: string, from: number, to: number) {
+  let before = from - 1;
+  while (before >= 0 && /\s/.test(text[before]!)) before--;
+  let after = to;
+  while (after < text.length && /\s/.test(text[after]!)) after++;
+  return (
+    "{,;".includes(text[before] ?? "") &&
+    text[after] === "=" &&
+    text[after + 1] !== "="
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -545,6 +589,7 @@ export function collectLuauLints(
     closedByFrom.get(outermostFunction(fn)?.from ?? -1) ?? false;
   const out: LuauLint[] = [];
   lintUnusedLocals(names, out);
+  lintPlaceholderReads(names, text, out);
   lintUnreachable(found.functions, closed, src, out);
   lintDuplicateConditions(found, src, out);
   lintForRanges(found, src, out);
