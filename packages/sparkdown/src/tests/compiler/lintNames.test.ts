@@ -195,7 +195,7 @@ end
     expect(resolutions(source, "x")).toEqual(["L4 read -> local@L3, local@L2"]);
   });
 
-  test("a structural word is a name where it is used as one", () => {
+  test("a structural word can name a local but never a global", () => {
     const source = `function run(t)
   local style = t.s
   setStyle(style)
@@ -207,10 +207,9 @@ end
       "L3 read -> local@L2",
       "L5 read -> local@L2",
     ]);
+    // The compiler reads no variable for `layout` or `screen` there.
     expect([...namesOf(source).globalOccurrences.keys()].sort()).toEqual([
-      "layout",
       "print",
-      "screen",
       "setStyle",
     ]);
   });
@@ -366,18 +365,20 @@ end
     });
   });
 
-  test("a global named after a Sparkdown word, in an interpolation and a logic line", () => {
-    expect(
-      usesAcross(
-        {
-          "a.sd": `store match = 1\n`,
-          "b.sd": `It was a match.\nYou have {match} left.\n& match("you")\n`,
-        },
-        "match",
-      ),
-    ).toEqual({
+  test("a Sparkdown word in narrative Luau is its construct, not a use", () => {
+    // `{match}` is an alternator, `{queue | A | B end}` is one with arms, and
+    // the compiler reads no variable for either or for `& match = 5`.
+    const scripts = {
+      "a.sd": `store match = 1\nstore queue = 1\n`,
+      "b.sd": `It was a match.\nYou have {match} left.\n& match = 5\nThe radio: {queue | A | B end}\n`,
+    };
+    expect(usesAcross(scripts, "match")).toEqual({
       definitions: ["a.sd:L1 store"],
-      uses: ["b.sd:L2 read in top level", "b.sd:L3 read in top level"],
+      uses: [],
+    });
+    expect(usesAcross(scripts, "queue")).toEqual({
+      definitions: ["a.sd:L2 store"],
+      uses: [],
     });
   });
 

@@ -359,55 +359,24 @@ function resolve(candidates: Declaration[] | undefined, pos: number) {
     .sort((a, b) => b.nameFrom - a.nameFrom);
 }
 
-// A keyword or scope word: the contextual `continue` and `type`, `store`,
-// and every Sparkdown structural word (`style`, `layout`, `match`), which the
-// grammar marks as the keyword of its construct even where the word is only
-// a name (`print(style)`). The grammar marks the text a token captures with a
-// `_c<n>` suffix. `self` is a keyword token too, but it always names a local
-// or a method's parameter.
-const KEYWORD = /^Luau(?!Self)\w*(?:Keyword|Modifier)(?:_c\d+)?$/;
+// A token that is a keyword or a name in a type rather than a variable: the
+// contextual `continue` and `type`, a scope word (`store`), a Sparkdown
+// structural word (`style`, `layout`, `match`), a named or primitive type
+// (`Point`, `number`) or a field of a table type. The grammar marks a
+// structural word as the keyword of its construct even where the author
+// meant a name (`print(style)`), and the compiler then reads no variable
+// there, so such a token is never a use of a global. The grammar marks the
+// text a token captures with a `_c<n>` suffix. `self` is a keyword token too,
+// but it always names a local or a method's parameter.
+const NOT_A_VARIABLE =
+  /^Luau(?:(?!Self)\w*(?:Keyword|Modifier)|TypeName|PrimitiveType|TypePropertyName)(?:_c\d+)?$/;
 
-// A name in a type: a named type (`Point`), a primitive type (`number`) or a
-// field of a table type.
-const TYPE_WORD =
-  /^Luau(?:TypeName|PrimitiveType|TypePropertyName)(?:_c\d+)?$/;
-
-// The statements a keyword begins, which the grammar can also nest inside the
-// statement before them on one line (`local a = {} store x = 1`).
-const KEYWORD_STATEMENTS = new Set([
-  "LuauVariableDefinition",
-  "LuauContinueStatement",
-  "LuauDataTypeDeclaration",
-]);
-
-/** Whether a keyword token begins its statement (`continue`, `type X = ...`,
- *  `store x = 1`), where it is the keyword of the statement rather than a
- *  name in an expression. */
-function beginsStatement(token: SyntaxNode, src: Source) {
-  const at = trimmedRange(token, src).from;
-  for (let p: SyntaxNode | null = token; p; p = p.parent) {
-    if (p.name === "LuauFunctionDefinition") break;
-    // An `if` or `elseif` block's condition sits in the block's content
-    // beside its statements, but is an expression.
-    if (p.name.endsWith("Condition")) continue;
-    if (KEYWORD_STATEMENTS.has(p.name) && trimmedRange(p, src).from === at) {
-      return true;
-    }
-    if (p.parent && BLOCK_CONTENTS.has(p.parent.name)) {
-      return trimmedRange(p, src).from === at;
-    }
-  }
-  return true;
-}
-
-/** Whether an occurrence whose token is a keyword or a name in a type is a
- *  use. It is one when it refers to a local, as a local named `style` or
- *  `number` is read there. Otherwise a name in a type is never a global use,
- *  and a keyword is one only inside an expression. */
-function isWordUse(token: SyntaxNode, resolved: boolean, src: Source) {
-  if (resolved) return true;
-  if (TYPE_WORD.test(token.name)) return false;
-  return !KEYWORD.test(token.name) || !beginsStatement(token, src);
+/** Whether an occurrence is a use, given whether it refers to a local. A
+ *  keyword or a name in a type that refers to a local counts as a read of it,
+ *  so a local named `style` or `number` is not reported unused; one that
+ *  refers to no local is not a use. */
+function isUse(token: SyntaxNode, resolved: boolean) {
+  return resolved || !NOT_A_VARIABLE.test(token.name);
 }
 
 // Tokens whose text is never a use of a variable.
@@ -480,33 +449,14 @@ function useAt(pos: number, token: SyntaxNode, src: Source) {
   return op === null ? "read" : op === "=" ? "write" : "compoundWrite";
 }
 
-// Outside functions, the tokens that name a variable or function.
+// Outside functions, the tokens that name a variable or function. A
+// structural word there (`{match}`, `& layout("x")`) is a keyword token, and
+// the compiler reads no variable for it.
 const REFERENCES = new Set([
   "LuauVariableName",
   "LuauFunctionName",
   "LuauSparkleEventHandlerName",
 ]);
-
-// Outside functions, the Luau code in narrative text: an interpolation, a
-// logic line and a Sparkle handler.
-const EMBEDDED_LUAU = new Set([
-  "LuauInterpolatedStringExpression",
-  "LuauExplicitStatement",
-  "LuauEventAttribute",
-]);
-
-/** Whether a token outside functions names a variable or function. The
- *  grammar marks Sparkdown's structural words as keywords there too
- *  (`{match}`, `& layout("x")`); inside embedded Luau such a word is a name,
- *  while elsewhere it is the keyword of a narrative construct. */
-function isReferenceOutside(token: SyntaxNode) {
-  if (REFERENCES.has(token.name)) return true;
-  if (!/Keyword(?:_c\d+)?$/.test(token.name)) return false;
-  for (let p = token.parent; p; p = p.parent) {
-    if (EMBEDDED_LUAU.has(p.name)) return true;
-  }
-  return false;
-}
 
 /** A single-name `function name()` statement's name token and name, or null
  *  for a `local function`, a field (`function a.b()`) or a method. */
@@ -555,7 +505,7 @@ function readOccurrences(
       if (!functionNames.has(pos)) {
         const token = tokenAt(pos);
         kind = useAt(pos, token, src);
-        if (kind && !isWordUse(token, declarations.length > 0, src)) continue;
+        if (kind && !isUse(token, declarations.length > 0)) continue;
       }
       if (!kind) continue;
       fn.occurrences.push({
@@ -682,7 +632,7 @@ export function readScriptNames(
       if (isWordChar(text[i - 1]) || isWordChar(text[i + name.length])) continue;
       if (skip.has(i) || inClosedFunction(i)) continue;
       const token = tokenAt(i);
-      if (!isReferenceOutside(token)) continue;
+      if (!REFERENCES.has(token.name)) continue;
       const kind = useAt(i, token, src);
       if (!kind) continue;
       list.push({ name, from: i, to: i + name.length, kind, declarations: [] });
