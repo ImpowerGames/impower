@@ -50,8 +50,10 @@ export default function AssetInspectorPane() {
 
   return (
     <div class="flex h-full w-full flex-col bg-engine-800 text-foreground">
-      {/* Header: name + close (→ back to game preview). */}
-      <div class="flex flex-none flex-row items-center gap-2 px-4 py-3">
+      {/* Header: name + close (→ back to game preview). As tall as the Assets
+          browser's tab row beside it (h-12), so the two panes' content starts
+          on the same line. */}
+      <div class="flex h-12 flex-none flex-row items-center gap-2 px-4">
         <div class="min-w-0 flex-1 truncate text-sm font-semibold">
           {asset.name}
         </div>
