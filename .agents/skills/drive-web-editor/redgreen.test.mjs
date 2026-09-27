@@ -22,6 +22,16 @@ import { classifyRedFailure, parseRedGreenArgs, parseVitestSummary, runRedGreen,
 
 const WIN = process.platform === "win32";
 
+// Every repository, snapshot and link the cases make goes under one scratch
+// directory, removed when the check ends, so running it leaves no redgreen-*
+// directory in the system temp directory.
+const SCRATCH = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "impower-redgreen-checks-")));
+console.log(`Scratch directory: ${SCRATCH}`);
+process.on("exit", () => fs.rmSync(SCRATCH, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
+// os.tmpdir() reads these on every call, so a run given no snapshotDir makes
+// its redgreen-* directory under SCRATCH too.
+for (const name of ["TEMP", "TMP", "TMPDIR"]) process.env[name] = SCRATCH;
+
 let failures = 0;
 const check = (name, fn) => {
   try {
@@ -46,7 +56,7 @@ const NEW = 'export const value = "new";\n';
 
 /** A repo whose HEAD holds the pre-fix module and a check that wants the fix. */
 function makeRepo() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-test-")));
+  const dir = fs.mkdtempSync(path.join(SCRATCH, "redgreen-test-"));
   git(dir, "init", "-q");
   git(dir, "config", "user.email", "test@example.com");
   git(dir, "config", "user.name", "redgreen test");
@@ -67,7 +77,7 @@ function makeRepo() {
 
 const applyFix = (dir) => fs.writeFileSync(path.join(dir, "lib.mjs"), NEW);
 const libText = (dir) => fs.readFileSync(path.join(dir, "lib.mjs"), "utf8");
-const snapshotDir = () => fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-snap-"));
+const snapshotDir = () => fs.mkdtempSync(path.join(SCRATCH, "redgreen-snap-"));
 const run = (dir, extra = {}) =>
   runRedGreen({ repoRoot: dir, test: `${NODE} check.mjs`, files: ["lib.mjs"], snapshotDir: snapshotDir(), ...extra });
 
@@ -84,6 +94,18 @@ check("an honest test fails on the base and passes on the fix, and the restore m
   assert.equal(r.files[0].snapshotSha, sha256(Buffer.from(NEW)));
   assert.match(r.baseCommit, /^[0-9a-f]{40}$/);
   assert.equal(libText(dir), NEW);
+});
+
+check("a snapshot directory the run makes itself names the run's process in owner.json, and one the caller supplies is left as given", () => {
+  const dir = makeRepo();
+  applyFix(dir);
+  const made = run(dir, { snapshotDir: undefined });
+  assert.equal(made.ok, true, JSON.stringify(made.problems));
+  assert.match(path.basename(made.snapshotDir), /^redgreen-/);
+  assert.ok(made.snapshotDir.startsWith(SCRATCH), `the run made ${made.snapshotDir} outside the scratch directory`);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(made.snapshotDir, "owner.json"), "utf8")), { pid: process.pid });
+  const given = run(dir);
+  assert.ok(!fs.existsSync(path.join(given.snapshotDir, "owner.json")), "owner.json was written into a caller's snapshot directory");
 });
 
 // Vitest renders a failing assertion's received value ten levels deep before
@@ -175,7 +197,7 @@ check("a shallow clone cut above the branch point is refused with how to deepen 
   git(origin, "add", "other.mjs");
   git(origin, "commit", "-q", "-m", "upstream moves");
   git(origin, "checkout", "-q", "-");
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-shallow-")));
+  const dir = fs.mkdtempSync(path.join(SCRATCH, "redgreen-shallow-"));
   git(dir, "clone", "-q", "--depth", "1", "--no-single-branch", `file://${origin.replace(/\\/g, "/")}`, "c");
   const clone = path.join(dir, "c");
   assert.throws(
@@ -740,7 +762,7 @@ check("a file deleted while it was reverted is recreated from the snapshot and n
 check("a repository root reached through a directory link is accepted and its target preserved", () => {
   const dir = makeRepo();
   applyFix(dir);
-  const link = path.join(os.tmpdir(), `redgreen-link-${process.pid}-${Date.now()}`);
+  const link = path.join(SCRATCH, `redgreen-link-${process.pid}-${Date.now()}`);
   console.log(`scratch repository: ${dir}; directory link: ${link}`);
   fs.symlinkSync(dir, link, WIN ? "junction" : "dir");
   try {

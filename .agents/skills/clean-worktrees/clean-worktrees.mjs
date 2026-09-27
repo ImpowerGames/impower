@@ -60,7 +60,9 @@
 //
 // After those, the review job directories under
 // <parent>/<repo>.review-jobs are classified and, under --apply, the
-// removable ones removed; the review-jobs section below says how.
+// removable ones removed; the review-jobs section below says how. Then the
+// redgreen snapshots under the system temp directory and the test-suite runs
+// under the main checkout's .git/test-suites, as the scratch section says.
 //
 // Everything that touches the system goes through `deps` (git, the drivers
 // and the process listing through `exec` and `processes`, the file system
@@ -70,6 +72,7 @@
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
@@ -190,6 +193,17 @@ export const liveDeps = {
   },
   processes: () => listProcesses(liveDeps.exec),
   exists: (p) => fs.existsSync(p),
+  tmpdir: () => os.tmpdir(),
+  mtimeMs: (p) => {
+    try {
+      return fs.statSync(p).mtimeMs;
+    } catch {
+      return null;
+    }
+  },
+  // A scratch directory is removed the way a job directory is, unlinking any
+  // link inside it first so no target is followed.
+  removeScratch: (p) => removeJobDir(p),
   readFile: (p) => fs.readFileSync(p, "utf8"),
   listDirs: (p) => {
     try {
@@ -966,11 +980,8 @@ export function classifyJob(name, dir, deps, ctx) {
     else for (const pid of pids) if (pid !== deps.pid() && deps.pidAlive(pid)) live.add(pid);
   }
   if (live.size) keep.push(`its journal records ${n(live.size, "process", "processes")} still running (pid ${[...live].join(", ")})`);
-  if (!ctx.processes.ok) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
-  else {
-    const users = usersOf(dir, ctx.processes.list, deps.pid());
-    if (users.length) keep.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
-  }
+  const using = commandLineReason(dir, deps, ctx);
+  if (using) keep.push(using);
   // A test's scratch directory names its own process in an owner journal
   // when it is created; without one, whose it is cannot be told.
   if (test && !journals.length) keep.push("a test directory with no journal naming its process; left for a person");
@@ -1049,6 +1060,126 @@ export function cleanJobs(ctx, deps, apply, record) {
   }
   const removable = rows.filter((r) => r.decision === "remove" || r.decision === "removed" || r.decision === "failed").length;
   log(`${n(rows.length, "job directory", "job directories")}: ${removable} ${apply ? "removable" : "to remove"}, ${rows.length - removable} kept.`);
+  return { failed, rows };
+}
+
+// ------------------------------------------------------ scratch directories ---
+
+// Two scratch locations the regression workflow writes and nothing else
+// removes. `runRedGreen` (drive-web-editor/redgreen.mjs) makes a redgreen-*
+// directory under the system temp directory for its snapshot and its red and
+// green logs, and leaves it for the report to cite. `test-suite.mjs start`
+// writes each run under <git-dir>/test-suites/<uuid>/; a linked worktree's git
+// dir goes with the worktree, and the main checkout's is pruned here.
+const REDGREEN_AGE_MS = 24 * 60 * 60 * 1000;
+
+// Shared by both: a directory named on a running command line is in use.
+function commandLineReason(dir, deps, ctx) {
+  if (!ctx.processes.ok) return "the processes on this machine could not be listed, so whether one is using it is unknown";
+  const users = usersOf(dir, ctx.processes.list, deps.pid());
+  return users.length ? `its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}` : null;
+}
+
+const hours = (ms) => `${(ms / 3_600_000).toFixed(1)} h`;
+
+export function classifyRedgreen(dir, deps, ctx) {
+  const keep = [];
+  const mtime = deps.mtimeMs(dir);
+  const age = mtime == null ? null : Date.parse(deps.now()) - mtime;
+  if (age == null) keep.push("its age could not be read");
+  else if (age < REDGREEN_AGE_MS) keep.push(`written ${hours(age)} ago, under the ${hours(REDGREEN_AGE_MS)} threshold; a run's report may still cite its logs`);
+  // runRedGreen names its own process in owner.json; its command line never
+  // names the directory it generated, so this is what shows a run still
+  // holding the snapshot it restores from. A directory without the file is
+  // judged by age alone.
+  let owner = null;
+  try {
+    owner = JSON.parse(deps.readFile(path.join(dir, "owner.json")))?.pid;
+  } catch {
+    /* no owner record */
+  }
+  if (deps.pidAlive(owner) && owner !== deps.pid()) keep.push(`its owner.json names pid ${owner}, which is running; a red/green run may still be restoring from it`);
+  const using = commandLineReason(dir, deps, ctx);
+  if (using) keep.push(using);
+  if (keep.length) return { remove: false, reason: keep.join("; ") };
+  return { remove: true, reason: `a redgreen snapshot last written ${hours(age)} ago` };
+}
+
+// A run is finished when run.json says its coordinator released it (`active`
+// false, written before the reservation is released) or the coordinator it
+// names is dead, and no attempt's child it records is still running. A
+// missing or unreadable run.json keeps the directory: `start` writes it right
+// after creating the directory, so its absence may be a run starting.
+export function classifyTestRun(dir, deps, ctx) {
+  let run;
+  try {
+    run = JSON.parse(deps.readFile(path.join(dir, "run.json")));
+  } catch (err) {
+    return { remove: false, reason: `its run.json could not be read (${err.code ?? String(err.message).split("\n")[0]}); a run may be starting` };
+  }
+  const keep = [];
+  const ownerPid = run?.owner?.pid;
+  if (run?.active !== false) {
+    if (deps.pidAlive(ownerPid)) keep.push(`run.json reports it active and its coordinator pid ${ownerPid} is running`);
+    else if (!Number.isInteger(ownerPid)) keep.push("run.json reports it active and names no coordinator pid");
+  }
+  const children = (Array.isArray(run?.attempts) ? run.attempts : []).filter((a) => !["passed", "failed", "interrupted"].includes(a?.status)).map((a) => a?.child?.pid).filter((pid) => deps.pidAlive(pid));
+  if (children.length) keep.push(`an unfinished attempt's child is still running (pid ${children.join(", ")})`);
+  const using = commandLineReason(dir, deps, ctx);
+  if (using) keep.push(using);
+  if (keep.length) return { remove: false, reason: keep.join("; ") };
+  return { remove: true, reason: run.active === false ? "a finished test-suite run" : `a test-suite run whose coordinator pid ${ownerPid} is dead` };
+}
+
+// The redgreen directories under the temp directory and the runs under the
+// main checkout's .git/test-suites, each classified, printed with its size,
+// and under --apply removed when removable. Returns the count of failures.
+export async function cleanScratch(ctx, deps, apply, record) {
+  const log = deps.log;
+  const tmp = deps.tmpdir();
+  const suites = path.join(ctx.mainRoot, ".git", "test-suites");
+  const groups = [
+    { label: `redgreen snapshots under ${tmp}`, root: tmp, names: deps.listDirs(tmp).filter((d) => /^redgreen-/.test(d)), classify: classifyRedgreen },
+    { label: `test-suite runs under ${suites}`, root: suites, names: deps.listDirs(suites), classify: classifyTestRun },
+  ];
+  let failed = 0;
+  const rows = [];
+  for (const g of groups) {
+    if (!g.names.length) continue;
+    log("");
+    log(`${g.label}:`);
+    let removable = 0;
+    let bytes = 0;
+    for (const name of g.names) {
+      const dir = path.join(g.root, name);
+      const verdict = g.classify(dir, deps, ctx);
+      const size = await deps.scan(dir).then((s) => s.bytes, () => null);
+      let decision = verdict.remove ? "remove" : "keep";
+      let why = verdict.reason;
+      if (verdict.remove) {
+        removable++;
+        bytes += size ?? 0;
+      }
+      if (apply) {
+        if (!verdict.remove) decision = "kept";
+        else {
+          record({ decision: "removing", path: dir, why });
+          try {
+            deps.removeScratch(dir);
+            decision = "removed";
+          } catch (err) {
+            failed++;
+            decision = "failed";
+            why = `${err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
+          }
+        }
+        record({ decision, path: dir, why });
+      }
+      rows.push({ path: dir, decision, why, size });
+      log(`${decision.padEnd(DECISION_WIDTH)}  ${name}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${why}`);
+    }
+    log(`${n(g.names.length, "directory", "directories")}: ${removable} ${apply ? "removable" : "to remove"} (${formatBytes(bytes)}), ${g.names.length - removable} kept.`);
+  }
   return { failed, rows };
 }
 
@@ -1230,7 +1361,8 @@ export async function main(argv, deps = liveDeps) {
   }
   const drivers = await cleanDriverDirs(ctx, deps, apply, record, rows);
   const jobs = cleanJobs(ctx, deps, apply, record);
-  return failed || drivers.failed || jobs.failed ? 1 : 0;
+  const scratch = await cleanScratch(ctx, deps, apply, record);
+  return failed || drivers.failed || jobs.failed || scratch.failed ? 1 : 0;
 }
 
 if (process.argv[1] && samePath(fs.realpathSync(fileURLToPath(import.meta.url)), fs.realpathSync(process.argv[1]))) {

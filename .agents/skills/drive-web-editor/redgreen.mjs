@@ -391,7 +391,11 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
   }
   const { commit: baseCommit, label: baseLabel } = resolveBase(repoRoot, base);
 
+  // A directory made here names this process in owner.json, so the
+  // clean-worktrees prune keeps it while the run that holds the snapshot is
+  // alive, however long its test takes.
   const dir = snapshotDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-"));
+  if (!snapshotDir) fs.writeFileSync(path.join(dir, "owner.json"), JSON.stringify({ pid: process.pid }) + "\n");
   const report = {
     ok: false,
     base,
