@@ -133,7 +133,6 @@ const carriedEdits: CarriedEdit[] = [
     replace: "# opening\n\ndefine hero as character with",
     carries: ALL_CONSTRUCTS,
     flowReuse: true,
-    knownBug: "#978",
   },
   {
     name: "change a function's parameter list",
