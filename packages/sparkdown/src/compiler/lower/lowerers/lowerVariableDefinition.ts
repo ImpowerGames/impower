@@ -18,7 +18,10 @@ import {
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
-import { unwrapBlockContent } from "../utils/unwrapBlock";
+import {
+  forwardBlockDiagnostics,
+  unwrapBlockContent,
+} from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Statement-like nodes that can appear as siblings inside a
@@ -325,7 +328,8 @@ function withTrailingStatements(
   const out: ParsedObject[] = [...head];
   for (const stmt of trailingStatements) {
     const block = lower(stmt as unknown as SparkdownSyntaxNodeRef, ctx);
-    out.push(...unwrapBlockContent(block, ctx));
+    forwardBlockDiagnostics(block, ctx);
+    out.push(...unwrapBlockContent(block));
   }
   return out;
 }

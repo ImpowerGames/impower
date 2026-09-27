@@ -92,8 +92,10 @@ export interface LowerContext {
    * diagnostics directly to their returned `CompiledBlock`, which the
    * annotator picks up from the chunk-level dispatch. Statement-level
    * lowerers reached through `lowerStatements` may push here directly
-   * or attach to their block: `appendBlockContent` moves a nested
-   * block's `diagnostics` into this buffer when it unwraps the block.
+   * or attach to their block. Every site that unwraps a nested block
+   * and discards it (`appendBlockContent`, the alternator arm lowerers,
+   * a variable definition's trailing statements) moves the block's
+   * `diagnostics` here with `forwardBlockDiagnostics`.
    * The chunk-level annotator collects everything before finalizing.
    */
   diagnostics?: import("../classes/annotators/CompilationAnnotator").InkDiagnostic[];

@@ -5,8 +5,9 @@ import type { LowerContext } from "../context";
 
 // Moves a nested block's diagnostics to `ctx.diagnostics`, where the
 // chunk-level annotator collects them. Every site that keeps a nested block's
-// content but discards the block itself calls this, or the diagnostics the
-// nested lowerer raised are lost.
+// content but discards the block itself calls this once for the block,
+// whether or not the block has content, or the diagnostics the nested lowerer
+// raised are lost.
 export function forwardBlockDiagnostics(
   block: CompiledBlock | undefined,
   ctx: LowerContext,
@@ -17,13 +18,11 @@ export function forwardBlockDiagnostics(
 }
 
 // The content of a nested statement's block with its `Weave` wrappers
-// unwrapped, so every entry is a leaf statement. The block's diagnostics move
-// to `ctx.diagnostics`.
+// unwrapped, so every entry is a leaf statement. The block's diagnostics are
+// left to `forwardBlockDiagnostics`.
 export function unwrapBlockContent(
   block: CompiledBlock | undefined,
-  ctx: LowerContext,
 ): ParsedObject[] {
-  forwardBlockDiagnostics(block, ctx);
   const out: ParsedObject[] = [];
   for (const obj of block?.content ?? []) {
     if (obj instanceof Weave) {

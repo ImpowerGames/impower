@@ -15,7 +15,7 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import { lowerPrimary } from "../expression/lowerExpression";
 import { lower } from "../lower";
-import { unwrapBlockContent } from "./unwrapBlock";
+import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 
 // Build a statement-form `Divert` ParsedObject from a
 // `LuauDivertTargetLiteral` syntax node. Mirrors what
@@ -117,9 +117,9 @@ export function lowerArms(
 
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
       // A statement can lower to diagnostics alone, such as an empty divert.
-      const body = unwrapBlockContent(block, ctx);
+      forwardBlockDiagnostics(block, ctx);
       if (block?.content) {
-        current.body.push(...body);
+        current.body.push(...unwrapBlockContent(block));
       } else {
         // `lower()` returned `undefined` — the child isn't a top-level
         // statement node. This is the common case in *inline* alternators
@@ -263,7 +263,8 @@ function lowerArmContent(
       // dispatch (`lower.ts`) treats `ArmDivert` exactly like `Divert`.
       flushText(true);
       const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
-      out.push(...unwrapBlockContent(block, ctx));
+      forwardBlockDiagnostics(block, ctx);
+      out.push(...unwrapBlockContent(block));
     } else {
       // Plain text child (Word / Space / Punctuation / Escape /
       // interpolation result, etc.). Accumulate the raw source text;
