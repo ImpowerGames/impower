@@ -30,7 +30,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
-import { SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
+import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
@@ -94,8 +94,7 @@ export function profilePathProblem(dir, platform = process.platform) {
 // A profile records which session last opened it. Another session opening it
 // within PROFILE_CLAIM_MS would write into the OPFS project that session is
 // working on, so the launch is refused; an older claim is taken over.
-export const PROFILE_CLAIM_MS = 30 * 60_000;
-export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
+export { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS };
 export function profileClaimConflict(claim, session = SESSION, now = Date.now(), dir = PROFILE_DIR) {
   if (!claim || typeof claim.at !== "number") return null;
   if ((claim.session ?? null) === (session ?? null)) return null;
