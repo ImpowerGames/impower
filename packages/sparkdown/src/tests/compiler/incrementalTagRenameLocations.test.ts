@@ -53,4 +53,9 @@ describe("path locations after a synthetic tag container rename (#978)", () => {
     lines.splice(line, 0, inserted.slice(0, -1));
     insertAndCompare(SCRIPT, line, inserted, lines.join("\n"));
   });
+
+  it("names the carried tag's renumbered container when a top-level tag line is added after the last scene", () => {
+    const line = SCRIPT.split("\n").length - 1;
+    insertAndCompare(SCRIPT, line, "# closing\n", SCRIPT + "# closing\n");
+  });
 });
