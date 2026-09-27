@@ -29,7 +29,10 @@ import {
 } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
-import { stampDebugMetadata } from "../utils/debugMetadata";
+import {
+  buildDebugMetadata,
+  stampDebugMetadata,
+} from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
@@ -301,6 +304,13 @@ export function lowerLuauDefine(
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return {};
   const nameIdentifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
+  // Locates the diagnostics about the declared name, such as a duplicate
+  // declaration of it.
+  nameIdentifier.debugMetadata = buildDebugMetadata(
+    nameNode.from,
+    nameNode.to,
+    ctx,
+  );
 
   const parentNode = getDescendent("LuauDefineParentName", nodeRef.node);
   const parentIdentifier = parentNode

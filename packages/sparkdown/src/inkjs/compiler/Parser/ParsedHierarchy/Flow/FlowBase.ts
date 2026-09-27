@@ -310,6 +310,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
       // debugMetadata, so reporting here too would only add an
       // indistinguishable duplicate pointing at a null location.
       if (varab.isConstantDeclaration && !varDecl.isConstantDeclaration) {
+        varDecl.RefuseAsDuplicate();
         return;
       }
 
@@ -322,6 +323,7 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         );
       }
 
+      varDecl.RefuseAsDuplicate();
       return;
     }
 

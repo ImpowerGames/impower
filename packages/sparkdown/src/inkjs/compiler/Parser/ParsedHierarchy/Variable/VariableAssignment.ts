@@ -12,6 +12,7 @@ import { VariableReference } from "./VariableReference";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../engine/TypeAssertion";
 import { StructDefinition } from "../Struct/StructDefinition";
+import { currentCompileEpoch } from "../CompileEpoch";
 
 export class VariableAssignment extends ParsedObject {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
@@ -43,6 +44,21 @@ export class VariableAssignment extends ParsedObject {
    *  overriding a builtin" (allowed) from "two authored defines collide"
    *  (an error). See {@link FlowBase.AddNewVariableDeclaration}. */
   public isPreludeDeclaration: boolean = false;
+
+  // The compile epoch (see CompileEpoch.ts) in which the story refused this
+  // global declaration because its name was already declared. A refused
+  // declaration is never generated, so its contents have no runtime objects
+  // to resolve against. Parsed nodes are reused across compiles, so the
+  // refusal holds only for the compile that made it.
+  private _refusedEpoch: number = 0;
+
+  public RefuseAsDuplicate(): void {
+    this._refusedEpoch = currentCompileEpoch();
+  }
+
+  get isRefusedAsDuplicate(): boolean {
+    return this._refusedEpoch === currentCompileEpoch();
+  }
 
   override get typeName() {
     if (this.isConstantDeclaration) {
@@ -181,7 +197,12 @@ export class VariableAssignment extends ParsedObject {
   };
 
   public override ResolveReferences(context: Story): void {
-    super.ResolveReferences(context);
+    // Resolving a refused declaration's contents would read the runtime
+    // objects generation never made (a `define`'s `__def` call throws on its
+    // missing divert) and end resolution for the rest of the story.
+    if (!this.isRefusedAsDuplicate) {
+      super.ResolveReferences(context);
+    }
 
     // List and struct definitions are checked for conflicts separately
     if (
