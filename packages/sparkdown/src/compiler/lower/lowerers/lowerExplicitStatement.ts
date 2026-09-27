@@ -182,15 +182,14 @@ function lowerExplicitStatementContent(
 
   const nameNode = getDescendent("LuauVariableName", lhsPath);
   if (!nameNode) return {};
-  const variableName = ctx.read(nameNode.from, nameNode.to);
-  const identifier = new Identifier(variableName);
+  const identifier = identifierAt(nameNode, ctx);
 
   let expr = lowerExpressionFromContainer(opNode, ctx);
 
   // Compound assignment desugaring (V1 supports the value operators).
   if (opText && opText !== "=" && expr) {
     const binOp = opText.slice(0, -1);
-    const lhsRef = new VariableReference([new Identifier(variableName)]);
+    const lhsRef = new VariableReference([identifierAt(nameNode, ctx)]);
     expr = new BinaryExpression(lhsRef, expr, binOp);
   }
 

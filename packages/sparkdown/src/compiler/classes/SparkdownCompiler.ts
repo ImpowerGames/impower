@@ -2259,10 +2259,19 @@ export class SparkdownCompiler {
       profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       // One name can sit in several Identifiers over one source range (a
       // declaration and the reference lowered beside it), so each range and
-      // name is reported once.
+      // name is reported once. A copy the lowerers made with no position
+      // anywhere is reported only when no occurrence of that name has one.
+      const positionedNames = new Set(
+        this._authoredCanonicalNames
+          .filter((named) => named.debugMetadata)
+          .map((named) => named.name),
+      );
       const reportedNames = new Set<string>();
       for (const named of this._authoredCanonicalNames) {
         const m = named.debugMetadata;
+        if (!m && positionedNames.has(named.name)) {
+          continue;
+        }
         const key = `${named.name}@${m?.filePath}:${m?.startLineNumber}:${m?.startCharacterNumber}:${m?.endLineNumber}:${m?.endCharacterNumber}`;
         if (reportedNames.has(key)) {
           continue;
@@ -3641,16 +3650,6 @@ export class SparkdownCompiler {
     // recording it in `_authoredCanonicalNames` for the caller to report.
     this._authoredCanonicalNames = [];
     const authored = this._authoredCanonicalNames;
-    // Many Identifiers carry no source position of their own; the nearest
-    // node above them that does is where the author wrote the name.
-    const sourceOf = (node: ParsedObject | null): DebugMetadata | null => {
-      for (let n = node; n; n = n.parent) {
-        if (n.debugMetadata) {
-          return n.debugMetadata;
-        }
-      }
-      return null;
-    };
     const SYNTH =
       /^__synth_\d+$|^(?:__anon_fn_|__define_fn_|__mcall_|__forIdx_|__forStop_|__forStep_|__pa_base_|__pa_key_)\w*\$\d+$|^(?:__for_|__forIn_|__while_|__repeat_)\w*\$\d+_[A-Za-z]+$|^__mt_\w*\$\d+_\d+$|__redef_\w*\$\d+$/;
     const remap = new Map<string, string>();
@@ -3719,9 +3718,12 @@ export class SparkdownCompiler {
           !this._canonicalSynthIds.has(id)
         ) {
           seenIds.add(id);
+          // An Identifier with no position of its own falls back to its
+          // node's, which a node inherits from its nearest positioned
+          // ancestor.
           authored.push({
             name,
-            debugMetadata: id.debugMetadata ?? sourceOf(owner),
+            debugMetadata: id.debugMetadata ?? owner.debugMetadata,
           });
           return;
         }
@@ -3816,7 +3818,7 @@ export class SparkdownCompiler {
             !this._canonicalSynthStrings.get(node)?.has(f)
           ) {
             if (!seenStrings.get(node)?.has(f)) {
-              authored.push({ name: v, debugMetadata: sourceOf(node) });
+              authored.push({ name: v, debugMetadata: node.debugMetadata });
             }
             let fields = seenStrings.get(node);
             if (!fields) {

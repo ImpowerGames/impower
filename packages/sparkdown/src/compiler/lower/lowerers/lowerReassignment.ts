@@ -1,7 +1,7 @@
+import { identifierAt } from "../utils/debugMetadata";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
@@ -67,7 +67,7 @@ export function lowerReassignment(
     getDescendent("LuauSelfKeyword", lhsPath);
   if (!nameNode) return {};
   const variableName = ctx.read(nameNode.from, nameNode.to);
-  const identifier = new Identifier(variableName);
+  const identifier = identifierAt(nameNode, ctx);
 
   // `f = <expr>` REBINDS the name to a runtime value (Lua's
   // `function f` is itself sugar for this kind of assignment —
@@ -106,7 +106,7 @@ export function lowerReassignment(
 
   if (opText && opText !== "=" && expr) {
     const binOp = opText.slice(0, -1);
-    const lhsRef = new VariableReference([new Identifier(variableName)]);
+    const lhsRef = new VariableReference([identifierAt(nameNode, ctx)]);
     expr = new BinaryExpression(lhsRef, expr, binOp);
   }
 
