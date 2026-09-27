@@ -5,7 +5,7 @@ description: Independently review an open PR, record and adjudicate every findin
 
 # Review a pull request
 
-Keep the PR draft until review, corrections and current-head CI are complete. Never edit the reviewed head or worktree while any reviewer process remains active.
+Keep the PR draft until review and corrections are complete and CI has started on the final head with no failed check; pending checks do not hold readiness. Never edit the reviewed head or worktree while any reviewer process remains active.
 
 ## 1. Size the review
 
