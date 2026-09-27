@@ -10,6 +10,7 @@ import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './re
 import { resolveReviewer, applyResolvedReviewer } from "./reviewer-defaults.mjs";
 import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
+import { installFingerprint, installChanges } from "./reviewed-install.mjs";
 
 const read = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
 const gitHead = (cwd) => git(cwd,['rev-parse','HEAD']);
@@ -200,6 +201,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections, reviewRoundLimit);
       const head = gitHead(cwd), status = gitStatus(cwd);
       if (status) throw new Error("Handoff requires a clean committed worktree");
+      const install = step.role === "review" ? installFingerprint(cwd) : null;
       if (step.role === "review" && step.round === completedRound && head !== reviewedHead) throw new Error("A pending lens in the same round requires the recorded reviewed head; corrections need a new round");
       const artifacts = fs.mkdtempSync(path.join(path.dirname(journal), `handoff-${index}-${step.role}-`));
       if(step.nativeResult==='codex-jsonl')protectPrivatePath(artifacts);
@@ -308,7 +310,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if(executionFailure)throw executionFailure;
       if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
       if(step.nativeResult)verifyNativeReviewResult(output,step.nativeResult);
-      if (step.role === "review" && (gitHead(cwd) !== head || gitStatus(cwd) !== status)) throw new Error("Review changed the frozen head or worktree");
+      if (step.role === "review") {
+        const changedPaths = gitStatus(cwd).split("\n").filter(Boolean).length;
+        if (gitHead(cwd) !== head || changedPaths) throw new Error(`Review changed the frozen head or worktree${changedPaths ? ` (${changedPaths} changed paths; restore them before trusting any evidence)` : ""}`);
+        const damage = installChanges(install, installFingerprint(cwd));
+        if (damage.length) throw new Error(`Review changed the reviewed install: ${damage.join("; ")}; restore these before any later step or local test`);
+      }
       let done;
       try { done = read(completion); }
       catch (error) {
