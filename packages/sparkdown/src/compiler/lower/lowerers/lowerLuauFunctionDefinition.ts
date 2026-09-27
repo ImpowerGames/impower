@@ -1,3 +1,4 @@
+import { identifierAt } from "../utils/debugMetadata";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
@@ -91,7 +92,7 @@ export function lowerLuauFunctionDefinition(
   }
   const nameNode = getDescendent("LuauFunctionName", declName);
   if (!nameNode) return {};
-  const identifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
+  const identifier = identifierAt(nameNode, ctx);
 
   // Detect whether this definition itself is lexically nested —
   // i.e. it lives inside another function's body. If so, we treat
@@ -635,7 +636,7 @@ function lowerBaseExpression(
     getDescendent("LuauVariableName", firstInner);
   if (!nameNode) return null;
   let current: Expression = new VariableReference([
-    new Identifier(ctx.read(nameNode.from, nameNode.to)),
+    identifierAt(nameNode, ctx),
   ]);
   // Subsequent parts must be LuauPropertyAccessor — fold into
   // IndexExpression chain.

@@ -15,7 +15,7 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
-import { stampDebugMetadata } from "../utils/debugMetadata";
+import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
 import { validateExplicitStatement } from "../utils/validateExplicitStatement";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -182,15 +182,14 @@ function lowerExplicitStatementContent(
 
   const nameNode = getDescendent("LuauVariableName", lhsPath);
   if (!nameNode) return {};
-  const variableName = ctx.read(nameNode.from, nameNode.to);
-  const identifier = new Identifier(variableName);
+  const identifier = identifierAt(nameNode, ctx);
 
   let expr = lowerExpressionFromContainer(opNode, ctx);
 
   // Compound assignment desugaring (V1 supports the value operators).
   if (opText && opText !== "=" && expr) {
     const binOp = opText.slice(0, -1);
-    const lhsRef = new VariableReference([new Identifier(variableName)]);
+    const lhsRef = new VariableReference([identifierAt(nameNode, ctx)]);
     expr = new BinaryExpression(lhsRef, expr, binOp);
   }
 
@@ -252,7 +251,7 @@ function tryLowerMultiTargetReassignment(
   for (const tNode of targets) {
     const nameNode = getDescendent("LuauVariableName", tNode);
     if (!nameNode) return null;
-    targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+    targetIdents.push(identifierAt(nameNode, ctx));
   }
 
   // Collect RHS expressions: the first from the assignment op, and any
