@@ -1,4 +1,5 @@
 import { DebugMetadata } from "../../../inkjs/engine/DebugMetadata";
+import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { LowerContext } from "../context";
 
@@ -40,6 +41,32 @@ export function buildDebugMetadata(
     dm.filePath = ctx.filePath;
   }
   return dm;
+}
+
+// An Identifier holding the source text of `node`, positioned at it, so a
+// diagnostic about the name points at the name.
+export function identifierAt(
+  node: { from: number; to: number },
+  ctx: LowerContext,
+): Identifier {
+  const identifier = new Identifier(ctx.read(node.from, node.to));
+  identifier.debugMetadata = buildDebugMetadata(node.from, node.to, ctx);
+  return identifier;
+}
+
+// The range of the first line of the source in `[from, to)`, from its first
+// character to its last: the header line of a block statement such as `if`,
+// `elseif` or `match`, the line its condition or subject is on.
+export function headerLineRange(
+  from: number,
+  to: number,
+  ctx: LowerContext,
+): { from: number; to: number } {
+  const text = ctx.read(from, to);
+  const start = text.length - text.trimStart().length;
+  const newline = text.indexOf("\n", start);
+  const line = newline < 0 ? text : text.slice(0, newline);
+  return { from: from + start, to: from + line.trimEnd().length };
 }
 
 // Stamps the given ParsedObjects with debug metadata derived from the

@@ -21,10 +21,18 @@
 // it uses a screenplay with cross-flow coupling (diverts between scenes,
 // read-counts, defines/tables, chained dialogue) — exactly where naive
 // per-chunk reuse breaks — not the uniform perf fixture.
+//
+// The screenplay ends with the constructs of `constructs()`, and a second copy
+// sits in an included script. The seeded edits check by chunk identity that
+// each construct's chunk was carried rather than lowered again, and count the
+// flows served from the serialized-flow cache,
+// so that a comparison cannot pass over a construct the compile lowered again,
+// or while a guard has turned reuse off.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { coupledScreenplay } from "./fixtures/coupledScreenplay";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { coupledScreenplay, includedChapter } from "./fixtures/coupledScreenplay";
 
 // Each edit is a single find -> replace applied to the FIRST occurrence, turned
 // into a minimal-range contentChange so only the affected region reparses.
@@ -46,8 +54,191 @@ const edits: Edit[] = [
   { name: "edit store initial value", find: "store trust = 0", replace: "store trust = 1" },
   { name: "rename a scene (cross-flow divert target)", find: "scene scene_4", replace: "scene scene_renamed" },
   { name: "delete a whole line above many flows", find: "store visited_count = 0\n", replace: "" },
-  { name: "append a whole new scene at end", find: "-> scene_2\nend\n", replace: "-> scene_2\nend\n\nscene scene_extra\n= INT. NEW - DAY\n:\n  Brand new action.\n-> DONE\nend\n" },
+  // The layout is the last block of the fixture, so this appends at the end
+  // of the document.
+  { name: "append a whole new scene at end", find: 'layout hud with\n  text "{trust} {t.a}"\nend\n', replace: 'layout hud with\n  text "{trust} {t.a}"\nend\n\nscene scene_extra\n= INT. NEW - DAY\n:\n  Brand new action.\n-> DONE\nend\n' },
 ];
+
+// A string that starts each construct of `constructs(p)` and occurs once in
+// the fixture, keyed by the construct.
+const constructMarkers = (p = "") => ({
+  "tag line": `# ${p}chapter marker`,
+  "tagged scene": `scene ${p}deep_choice # arc`,
+  "choose with a then clause": "  choose\n  + [Press on]",
+  "store named after an edit's define": `store ${p}thing = 1`,
+  "store holding a method": `store ${p}acc =`,
+  "function with assignments, loops and a closure": `function ${p}reckon()`,
+  "layout with bindings": `layout ${p}hud with`,
+});
+
+type Construct = keyof ReturnType<typeof constructMarkers>;
+
+const ALL_CONSTRUCTS = Object.keys(constructMarkers()) as Construct[];
+
+const except = (...left: Construct[]) => ALL_CONSTRUCTS.filter((c) => !left.includes(c));
+
+// An edit far enough from the constructs that the chunks named in `carries`
+// are carried into the incremental compile, not lowered again. `flowReuse`
+// says whether the compile serves flows from the serialized-flow cache; an
+// edit that declares or renames a name, or changes a parameter list,
+// correctly refuses it. `knownBug` names the open Bug the
+// edit's comparison with a cold compile fails on, and `reuseBug` the one
+// its reuse verdict fails on; each such test is expected to fail until that
+// Bug is fixed, and the sequential run leaves out an edit with a `knownBug`.
+interface CarriedEdit extends Edit {
+  bugs: string;
+  carries: Construct[];
+  flowReuse: boolean;
+  knownBug?: string;
+  reuseBug?: string;
+}
+
+const FUNCTION_AT_TOP = "function later()\n  return 7\nend\n\n";
+// `sidekick` makes `thing` a define type name, which the store of that name
+// then shadows.
+const DEFINE_AT_TOP = "define thing with\n  x = 1\nend\n\ndefine sidekick as thing with\n  x = 2\nend\n\n";
+
+const carriedEdits: CarriedEdit[] = [
+  {
+    name: "edit a line of dialogue in the first scene",
+    bugs: "any stale carried chunk",
+    find: "Line one of dialogue in scene 0.",
+    replace: "Line one of dialogue in scene 0, changed.",
+    carries: ALL_CONSTRUCTS,
+    flowReuse: true,
+  },
+  {
+    // The closure in `reckon` calls `later`, which this declares; the fix of
+    // #935 lowers that chunk again, and leaves the others carried.
+    name: "insert a top-level function at the top of the file",
+    bugs: "#912, #935",
+    find: "define hero as character with",
+    replace: FUNCTION_AT_TOP + "define hero as character with",
+    carries: except("function with assignments, loops and a closure"),
+    flowReuse: false,
+  },
+  {
+    // The store `thing` now shadows a define type; the fix of #936 lowers its
+    // chunk again, and leaves the others carried.
+    name: "insert a define at the top of the file",
+    bugs: "#936",
+    find: "define hero as character with",
+    replace: DEFINE_AT_TOP + "define hero as character with",
+    carries: except("store named after an edit's define"),
+    flowReuse: false,
+  },
+  {
+    name: "insert a tag line at the top of the file",
+    bugs: "#937",
+    find: "define hero as character with",
+    replace: "# opening\n\ndefine hero as character with",
+    carries: ALL_CONSTRUCTS,
+    flowReuse: true,
+    knownBug: "#978",
+  },
+  {
+    name: "change a function's parameter list",
+    bugs: "#841",
+    find: "function bonus(x):",
+    replace: "function bonus(x, y):",
+    carries: ALL_CONSTRUCTS,
+    flowReuse: false,
+  },
+  {
+    name: "rename a callee",
+    bugs: "#841",
+    find: "function bonus(",
+    replace: "function bonus_renamed(",
+    carries: ALL_CONSTRUCTS,
+    flowReuse: false,
+  },
+  {
+    name: "edit a line of the then clause below a choice",
+    bugs: "#668, #674",
+    find: "The rest of the scene runs on here.",
+    replace: "The rest of the scene runs on and on here.",
+    carries: ["tag line", "store named after an edit's define", "store holding a method", "layout with bindings"],
+    flowReuse: true,
+    reuseBug: "#977",
+  },
+  {
+    name: "edit a loop body inside a function",
+    bugs: "#870, #912",
+    find: "    t.a = t.a + i",
+    replace: "    t.a = t.a + i * 2",
+    carries: ["tag line", "tagged scene", "choose with a then clause", "store named after an edit's define", "store holding a method"],
+    flowReuse: true,
+    reuseBug: "#977",
+  },
+  {
+    name: "edit a layout binding",
+    bugs: "#848, #858",
+    find: '  text "{trust} {t.a}"',
+    replace: '  text "{trust} {t.b}"',
+    carries: except("layout with bindings"),
+    flowReuse: true,
+  },
+];
+
+/**
+ * Counts the flows the last compile served from the serialized-flow cache. A
+ * flow served from the cache and a flow rebuilt from scratch compile to the
+ * same bytes, so the compiled output alone cannot show that reuse happened,
+ * and `computeFlowReuse` only says which flows may be served: a compile after
+ * one that refused reuse finds the cache dropped and serves nothing. A served
+ * flow's cache entry holds the very value the previous compile cached, so
+ * value identity tells the two apart.
+ */
+class Probe extends SparkdownCompiler {
+  private previousCache?: Map<string, { value: unknown }>;
+
+  protected override computeFlowReuse(story: RuntimeStory) {
+    this.previousCache = this._flowJsonCache;
+    return super.computeFlowReuse(story);
+  }
+
+  /** How many flows the last compile served from the cache. */
+  served(): number {
+    let served = 0;
+    for (const [name, entry] of this._flowJsonCache ?? []) {
+      if (this.previousCache?.get(name)?.value === entry.value) served += 1;
+    }
+    return served;
+  }
+}
+
+// Every compilation chunk of `uri`, with the source range it covers.
+function chunkRanges(c: SparkdownCompiler, uri: string) {
+  const out: { from: number; to: number; chunk: object }[] = [];
+  const cur = c.documents.annotations(uri).compilations.iter();
+  while (cur.value) {
+    out.push({ from: cur.from, to: cur.to, chunk: cur.value.type });
+    cur.next();
+  }
+  return out;
+}
+
+// The chunk each construct of `markers` starts in, in `text` as last compiled.
+function constructChunks(c: SparkdownCompiler, uri: string, text: string, markers: Record<string, string>) {
+  const ranges = chunkRanges(c, uri);
+  const out = new Map<string, object>();
+  for (const [construct, marker] of Object.entries(markers)) {
+    const start = text.indexOf(marker);
+    expect(start, `marker ${JSON.stringify(marker)} present`).toBeGreaterThanOrEqual(0);
+    // A chunk starts at a line's first non-blank character.
+    const at = start + marker.length - marker.trimStart().length;
+    const found = ranges.find((r) => r.from <= at && at < r.to);
+    expect(found, `a chunk holds ${construct}`).toBeDefined();
+    out.set(construct, found!.chunk);
+  }
+  return out;
+}
+
+// The constructs of `before` whose chunk the compiler still holds for `uri`.
+function carriedConstructs(c: SparkdownCompiler, uri: string, before: Map<string, object>) {
+  const now = new Set(chunkRanges(c, uri).map((r) => r.chunk));
+  return [...before].filter(([, chunk]) => now.has(chunk)).map(([construct]) => construct);
+}
 
 function pick(p: any) {
   return {
@@ -113,6 +304,58 @@ function posAt(text: string, offset: number) {
   return { line, character: offset - lineStart };
 }
 
+// The script files of a project given as texts by URI.
+const filesOf = (texts: Record<string, string>) =>
+  Object.entries(texts).map(([uri, text]) => ({
+    uri,
+    type: "script",
+    name: uri.slice("inmemory:///".length, -".sd".length),
+    ext: "sd",
+    text,
+    version: 1,
+    languageId: "sparkdown",
+  }));
+
+// The warm-up edits of `warmed`, each one character of a line of dialogue.
+const WARM_EDITS: [string, string][] = [
+  ["Line one of dialogue in scene 3.", "Line one of dialogue in scene 3!"],
+  ["Line one of dialogue in scene 4.", "Line one of dialogue in scene 4!"],
+];
+
+// `text` with the warm-up edits applied.
+const warmText = (text: string) => WARM_EDITS.reduce((t, [find, replace]) => t.replace(find, replace), text);
+
+// Configures `c` with the scripts of `texts`, compiles `URI`, then makes the
+// warm-up edits to the main script, compiling after each, and returns the
+// texts after them. The first incremental compile after a cold compile of a
+// script holding an anonymous function refuses flow reuse (#977), which drops
+// the serialized-flow cache, and the compile after that rebuilds it without
+// serving anything; only a third compile can serve flows. Without these edits
+// a test that starts from a fresh compiler would compare a full
+// regeneration with a cold compile. The edits keep the text's length, so
+// offsets into the fixture stay valid.
+function warmed<T extends SparkdownCompiler>(c: T, texts: Record<string, string>): Record<string, string> {
+  c.configure({ files: filesOf(texts) });
+  c.compile({ textDocument: { uri: URI } });
+  let main = texts[URI]!;
+  let version = 1;
+  for (const [find, replace] of WARM_EDITS) {
+    const offset = main.indexOf(find);
+    expect(offset, `the warm-up line "${find}" is present`).toBeGreaterThanOrEqual(0);
+    version += 1;
+    c.updateDocument({
+      textDocument: { uri: URI, version },
+      contentChanges: [{ range: { start: posAt(main, offset), end: posAt(main, offset + find.length) }, text: replace }],
+    });
+    main = main.slice(0, offset) + replace + main.slice(offset + find.length);
+    c.compile({ textDocument: { uri: URI } });
+  }
+  return { ...texts, [URI]: main };
+}
+
+// The version of the first edit after `warmed`.
+const AFTER_WARM = WARM_EDITS.length + 2;
+
 describe("compiler incremental equivalence", () => {
   it("the fixture's continuations carry a group, one per continuation", () => {
     // The edits below move and add continuations; this keeps them from
@@ -125,8 +368,16 @@ describe("compiler incremental equivalence", () => {
     expect(new Set(groups).size).toBe(continuations);
   });
 
+  it("the end-of-document append edit appends at the end of the fixture", () => {
+    // The sequential run below pins a reuse-ahead edit followed by an append
+    // at the end of the document; an append with chunks after it would not.
+    const append = edits.find((e) => e.name === "append a whole new scene at end")!;
+    expect(coupledScreenplay().endsWith(append.find)).toBe(true);
+  });
+
   // Each diverse edit is applied as a SINGLE minimal-range incremental update
-  // from a freshly-configured compiler, then compared to a cold compile of the
+  // from a freshly-configured compiler (after the warm-up edit of `warmed`),
+  // then compared to a cold compile of the
   // resulting text. This isolates per-edit-type correctness (exactly what the
   // per-chunk caching must preserve). The cumulative path (many edits on ONE
   // persistent compiler) is separately stressed by the sequential + fuzz tests.
@@ -137,20 +388,15 @@ describe("compiler incremental equivalence", () => {
       console.warn = () => {};
       console.error = () => {};
       try {
-        const base = coupledScreenplay();
+        const incr = new SparkdownCompiler();
+        const base = warmed(incr, { [URI]: coupledScreenplay() })[URI]!;
         const offset = base.indexOf(edit.find);
         expect(offset, `find "${edit.find}" present`).toBeGreaterThanOrEqual(0);
         const start = posAt(base, offset);
         const end = posAt(base, offset + edit.find.length);
         const after = base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length);
-
-        const incr = new SparkdownCompiler();
-        incr.configure({
-          files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
-        });
-        incr.compile({ textDocument: { uri: URI } });
         incr.updateDocument({
-          textDocument: { uri: URI, version: 2 },
+          textDocument: { uri: URI, version: AFTER_WARM },
           contentChanges: [{ range: { start, end }, text: edit.replace }],
         });
         const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
@@ -162,6 +408,73 @@ describe("compiler incremental equivalence", () => {
       }
     });
   }
+
+  // Each edit leaves the chunks it names carried, asserted by chunk identity,
+  // so the comparison with a cold compile covers a construct that the
+  // incremental compile did not lower again. Without that check an edit that
+  // happened to reach a construct's chunk, or a guard that disabled reuse,
+  // would let the comparison pass without testing the carried chunk.
+  //
+  // The reuse verdict is a test of its own, over the same compile, so that
+  // an edit whose verdict an open Bug gets wrong still has its output and its
+  // carried chunks checked.
+  const outcomes = new Map<CarriedEdit, { equal: boolean; carried: string[]; reused: boolean }>();
+  const outcomeOf = (edit: CarriedEdit) => {
+    let outcome = outcomes.get(edit);
+    if (outcome) return outcome;
+    const realWarn = console.warn;
+    const realError = console.error;
+    console.warn = () => {};
+    console.error = () => {};
+    try {
+      const incr = new Probe();
+      const base = warmed(incr, { [URI]: coupledScreenplay() })[URI]!;
+      const offset = base.indexOf(edit.find);
+      expect(offset, `find "${edit.find}" present`).toBeGreaterThanOrEqual(0);
+      const after = base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length);
+      const before = constructChunks(incr, URI, base, constructMarkers());
+      incr.updateDocument({
+        textDocument: { uri: URI, version: AFTER_WARM },
+        contentChanges: [
+          { range: { start: posAt(base, offset), end: posAt(base, offset + edit.find.length) }, text: edit.replace },
+        ],
+      });
+      const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+      outcome = {
+        equal: stable(incrProg) === stable(coldCompile(after)),
+        carried: carriedConstructs(incr, URI, before),
+        reused: incr.served() > 0,
+      };
+      outcomes.set(edit, outcome);
+      return outcome;
+    } finally {
+      console.warn = realWarn;
+      console.error = realError;
+    }
+  };
+  const failingUntil = (bug: string | undefined) => (bug ? `, failing until ${bug} is fixed` : "");
+
+  for (const edit of carriedEdits) {
+    (edit.knownBug ? it.fails : it)(
+      `incremental == cold with the constructs carried, for edit: ${edit.name} (${edit.bugs})${failingUntil(edit.knownBug)}`,
+      () => {
+        const outcome = outcomeOf(edit);
+        expect(outcome.equal, "incremental == cold").toBe(true);
+        expect(outcome.carried).toEqual(expect.arrayContaining(edit.carries));
+      },
+    );
+    (edit.reuseBug ? it.fails : it)(
+      `flows ${edit.flowReuse ? "are" : "are not"} served from the cache, for edit: ${edit.name}${failingUntil(edit.reuseBug)}`,
+      () => {
+        expect(outcomeOf(edit).reused).toBe(edit.flowReuse);
+      },
+    );
+  }
+
+  it("every construct is carried by at least one seeded edit", () => {
+    const covered = new Set(carriedEdits.flatMap((e) => e.carries));
+    expect(ALL_CONSTRUCTS.filter((c) => !covered.has(c))).toEqual([]);
+  });
 
   it("incremental == cold across the full diverse edit sequence on ONE compiler", () => {
     // Drives all diverse edits SEQUENTIALLY through one persistent compiler,
@@ -180,7 +493,7 @@ describe("compiler incremental equivalence", () => {
       });
       incr.compile({ textDocument: { uri: URI } });
       let version = 1;
-      for (const edit of edits) {
+      for (const edit of [...edits, ...carriedEdits.filter((e) => !e.knownBug)]) {
         const offset = text.indexOf(edit.find);
         expect(offset, `find "${edit.find}" present`).toBeGreaterThanOrEqual(0);
         const start = posAt(text, offset);
@@ -431,6 +744,186 @@ describe("compiler incremental equivalence", () => {
     });
   }
 
+  // A name declared twice stops the cold compile resolving the rest of the
+  // script (#979), while the incremental compile keeps the diagnostics of the
+  // scenes it carries. Here the fixture ends with one `define dup` and a scene
+  // after it holding a divert to a missing target, and the edit declares
+  // `dup` again at the top. The carried `define dup` below was generated as
+  // the first declaration, so the incremental compile resolves past it, while
+  // the cold compile stops there and never reaches the scene after it. The
+  // first test holds whatever the fix: the cold compile reports the
+  // duplicate, and the incremental one the missing target. The second asks
+  // for the two to agree, and fails until #979 is fixed.
+  describe("an edit that declares a name a second time", () => {
+    const base = () =>
+      coupledScreenplay() + "\ndefine dup with\n  x = 1\nend\n\nscene tail\n  Tail line.\n  -> nowhere\nend\n";
+    const DUPLICATE = "define dup with\n  x = 2\nend\n\n";
+    const messages = (p: any): string[] =>
+      Object.values(p.diagnostics ?? {})
+        .flat()
+        .map((d: any) => (typeof d.message === "string" ? d.message : (d.message?.value ?? "")));
+    let outcome: { incr: any; cold: any } | undefined;
+    const outcomeOf = () => {
+      if (outcome) return outcome;
+      const realWarn = console.warn;
+      const realError = console.error;
+      console.warn = () => {};
+      console.error = () => {};
+      try {
+        const incr = new Probe();
+        const text = warmed(incr, { [URI]: base() })[URI]!;
+        const anchor = "define hero as character with";
+        const offset = text.indexOf(anchor);
+        const at = posAt(text, offset);
+        incr.updateDocument({
+          textDocument: { uri: URI, version: AFTER_WARM },
+          contentChanges: [{ range: { start: at, end: at }, text: DUPLICATE }],
+        });
+        const after = text.slice(0, offset) + DUPLICATE + text.slice(offset);
+        outcome = { incr: pick(incr.compile({ textDocument: { uri: URI } }).program), cold: coldCompile(after) };
+        return outcome;
+      } finally {
+        console.warn = realWarn;
+        console.error = realError;
+      }
+    };
+
+    it("the cold compile reports the duplicate and the incremental compile the missing target", () => {
+      const { incr, cold } = outcomeOf();
+      expect(messages(cold).some((m) => m.startsWith("Duplicate identifier `dup`"))).toBe(true);
+      expect(messages(incr).some((m) => m.includes("target not found: `-> nowhere`"))).toBe(true);
+    });
+
+    it.fails("incremental == cold diagnostics, failing until #979 is fixed", () => {
+      const { incr, cold } = outcomeOf();
+      expect(stable(incr.diagnostics)).toBe(stable(cold.diagnostics));
+    });
+  });
+
+  // A project of three scripts: `main` includes `chapter` and `side`, and
+  // `side` includes `chapter` again (#872). `chapter` holds a second copy of
+  // the constructs below six short scenes, so an edit at its top, or any edit
+  // in `main`, leaves their chunks carried (#404).
+  describe("across included scripts", () => {
+    const CHAPTER_URI = "inmemory:///chapter.sd";
+    const SIDE_URI = "inmemory:///side.sd";
+    const project = () => ({
+      [URI]: coupledScreenplay().replace(
+        "define hero as character with",
+        "include chapter.sd\ninclude side.sd\n\ndefine hero as character with",
+      ),
+      [CHAPTER_URI]: includedChapter(),
+      [SIDE_URI]: "include chapter.sd\n\nscene side_one\n  Side line.\nend\n",
+    });
+    const coldProject = (texts: Record<string, string>) => {
+      const c = new SparkdownCompiler();
+      c.configure({ files: filesOf(texts) });
+      return pick(c.compile({ textDocument: { uri: URI } }).program);
+    };
+
+    // `carries` names the constructs of the edited script whose chunks the
+    // edit leaves carried, `otherCarries` those of the other script that holds
+    // a copy (`chapter` for an edit to `main`, `main` otherwise).
+    const projectEdits: (Edit & {
+      uri: string;
+      bugs: string;
+      carries: Construct[];
+      otherCarries: Construct[];
+      flowReuse: boolean;
+    })[] = [
+      {
+        name: "edit a line of dialogue in the including script",
+        bugs: "#404",
+        uri: URI,
+        find: "Line one of dialogue in scene 0.",
+        replace: "Line one of dialogue in scene 0, changed.",
+        carries: ALL_CONSTRUCTS,
+        otherCarries: ALL_CONSTRUCTS,
+        flowReuse: true,
+      },
+      {
+        name: "edit a line at the top of the included script",
+        bugs: "#404, #872",
+        uri: CHAPTER_URI,
+        find: "Chapter line 0.",
+        replace: "Chapter line 0, changed.",
+        carries: ALL_CONSTRUCTS,
+        otherCarries: ALL_CONSTRUCTS,
+        flowReuse: true,
+      },
+      {
+        name: "declare the included closure's callee at the top of the included script",
+        bugs: "#935",
+        uri: CHAPTER_URI,
+        find: "scene chapter_0",
+        replace: "function ch_later()\n  return 7\nend\n\nscene chapter_0",
+        carries: except("function with assignments, loops and a closure"),
+        otherCarries: ALL_CONSTRUCTS,
+        flowReuse: false,
+      },
+      {
+        name: "declare the included closure's callee in the including script",
+        bugs: "#935",
+        uri: URI,
+        find: "define hero as character with",
+        replace: "function ch_later()\n  return 7\nend\n\ndefine hero as character with",
+        carries: ALL_CONSTRUCTS,
+        otherCarries: except("function with assignments, loops and a closure"),
+        flowReuse: false,
+      },
+      {
+        name: "insert a define the included store is named after, in the including script",
+        bugs: "#936",
+        uri: URI,
+        find: "define hero as character with",
+        replace: "define ch_thing with\n  x = 1\nend\n\ndefine ch_sidekick as ch_thing with\n  x = 2\nend\n\ndefine hero as character with",
+        carries: ALL_CONSTRUCTS,
+        otherCarries: except("store named after an edit's define"),
+        flowReuse: false,
+      },
+    ];
+
+    const markersOf = (uri: string) => constructMarkers(uri === URI ? "" : "ch_");
+
+    for (const edit of projectEdits) {
+      it(`incremental == cold for edit: ${edit.name} (${edit.bugs})`, () => {
+        const realWarn = console.warn;
+        const realError = console.error;
+        console.warn = () => {};
+        console.error = () => {};
+        try {
+          const incr = new Probe();
+          const texts = warmed(incr, project());
+          const base = texts[edit.uri]!;
+          const offset = base.indexOf(edit.find);
+          expect(offset, `find "${edit.find}" present`).toBeGreaterThanOrEqual(0);
+          const other = edit.uri === URI ? CHAPTER_URI : URI;
+          const editedBefore = constructChunks(incr, edit.uri, base, markersOf(edit.uri));
+          const otherBefore = constructChunks(incr, other, texts[other]!, markersOf(other));
+          incr.updateDocument({
+            textDocument: { uri: edit.uri, version: AFTER_WARM },
+            contentChanges: [
+              { range: { start: posAt(base, offset), end: posAt(base, offset + edit.find.length) }, text: edit.replace },
+            ],
+          });
+          const after = { ...texts, [edit.uri]: base.slice(0, offset) + edit.replace + base.slice(offset + edit.find.length) };
+          const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+          expect(stable(incrProg)).toBe(stable(coldProject(after)));
+          expect(carriedConstructs(incr, edit.uri, editedBefore), "edited script").toEqual(
+            expect.arrayContaining(edit.carries),
+          );
+          expect(carriedConstructs(incr, other, otherBefore), "other script").toEqual(
+            expect.arrayContaining(edit.otherCarries),
+          );
+          expect(incr.served() > 0, "flows served from the cache").toBe(edit.flowReuse);
+        } finally {
+          console.warn = realWarn;
+          console.error = realError;
+        }
+      });
+    }
+  });
+
   it("incremental == cold under randomized structural edits (fuzz, full surface)", () => {
     // Each random edit (structural inserts AND mid-content deletions) is applied
     // as a SINGLE incremental update from a freshly configured compiler and
@@ -443,14 +936,22 @@ describe("compiler incremental equivalence", () => {
     console.warn = () => {};
     console.error = () => {};
     try {
-      const base = coupledScreenplay();
+      // The warm-up edit is the same for every compiler, so its text is the
+      // base every random edit applies to.
+      const base = warmText(coupledScreenplay());
+      let compiles = 0;
+      let reusing = 0;
+      const failures: string[] = [];
       // Deterministic LCG so the fuzz is reproducible (no Math.random).
       let seed = 0x2f6e2b1;
       const rand = () => {
         seed = (seed * 1103515245 + 12345) & 0x7fffffff;
         return seed / 0x7fffffff;
       };
-      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", ""];
+      // The last seven write pieces of the fixture's constructs: a tag, a
+      // `then`, a method call, a compound assignment, a binding, a closure
+      // and a `define` header.
+      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "# t", "then", ":add(1)", " += 1", "{t.a}", "function() return 1 end", "\ndefine thing with\n"];
       for (let n = 0; n < 120; n++) {
         const insert = inserts[Math.floor(rand() * inserts.length)]!;
         const delLen = rand() < 0.4 ? Math.min(1 + Math.floor(rand() * 8), 14) : 0;
@@ -460,22 +961,28 @@ describe("compiler incremental equivalence", () => {
         const end = posAt(base, Math.min(offset + delLen, base.length));
         const after = base.slice(0, offset) + insert + base.slice(offset + delLen);
 
-        const incr = new SparkdownCompiler();
-        incr.configure({
-          files: [{ uri: URI, type: "script", name: "main", ext: "sd", text: base, version: 1, languageId: "sparkdown" }],
-        });
-        incr.compile({ textDocument: { uri: URI } });
+        const incr = new Probe();
+        warmed(incr, { [URI]: coupledScreenplay() });
         incr.updateDocument({
-          textDocument: { uri: URI, version: 2 },
+          textDocument: { uri: URI, version: AFTER_WARM },
           contentChanges: [{ range: { start, end }, text: insert }],
         });
         const incrProg = pick(incr.compile({ textDocument: { uri: URI } }).program);
+        compiles += 1;
+        if (incr.served() > 0) reusing += 1;
         const coldProg = coldCompile(after);
-        expect(
-          stable(incrProg),
-          `after fuzz edit #${n} insert ${JSON.stringify(insert)} del ${delLen} @${offset}`,
-        ).toBe(stable(coldProg));
+        const diverged = (Object.keys(coldProg) as (keyof typeof coldProg)[]).filter(
+          (f) => stable(incrProg[f]) !== stable(coldProg[f]),
+        );
+        if (diverged.length) {
+          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${delLen} @${offset} fields={${diverged.join(",")}}`);
+        }
       }
+      expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+      // Most random edits declare no name and change no signature, so most
+      // compiles serve flows from the cache; a guard that refused reuse on
+      // every compile would pass the comparisons above without testing it.
+      expect(reusing, `compiles that served flows from the cache, of ${compiles}`).toBeGreaterThan(compiles / 2);
     } finally {
       console.warn = realWarn;
       console.error = realError;

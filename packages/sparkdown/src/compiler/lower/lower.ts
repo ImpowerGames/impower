@@ -88,7 +88,22 @@ import { lowerSparkdownSequentialAlternatorBlock } from "./lowerers/lowerSparkdo
 import { lowerTags } from "./lowerers/lowerTags";
 import { lowerThread } from "./lowerers/lowerThread";
 import { lowerVariableDefinition } from "./lowerers/lowerVariableDefinition";
-import { stampDebugMetadata } from "./utils/debugMetadata";
+import {
+  headerLineRange,
+  identifierAt,
+  stampDebugMetadata,
+} from "./utils/debugMetadata";
+
+// Nodes whose lowerer returns a weave holding one control-flow statement (an
+// `if`, or an alternator such as `match`) with its arms nested inside it.
+const BLOCK_STATEMENTS: ReadonlySet<string> = nodeNameSet([
+  "LuauSparkdownIfBlock",
+  "LuauIfBlock",
+  "LuauSparkdownConditionalAlternatorBlock",
+  "LuauSparkdownSingleLineConditionalAlternatorBlock",
+  "LuauSparkdownSequentialAlternatorBlock",
+  "LuauSparkdownSingleLineSequentialAlternatorBlock",
+]);
 
 export function lower(
   nodeRef: SparkdownSyntaxNodeRef,
@@ -115,12 +130,25 @@ export function lower(
     // character.
     const text = ctx.read(nodeRef.from, nodeRef.to).replace(/\s+$/, "");
     const indentation = text.length - text.replace(/^[ \t]+/, "").length;
-    stampDebugMetadata(
-      block.content,
-      nodeRef.from + indentation,
-      nodeRef.from + text.length,
-      ctx,
-    );
+    const from = nodeRef.from + indentation;
+    const to = nodeRef.from + text.length;
+    // A block statement's weave is unwrapped wherever it is placed, as an
+    // explicit statement's is (see `lowerExplicitStatement`), so the weave's
+    // range would not reach the statement it holds. Give the statement the
+    // range of its header line, so a diagnostic raised in its condition, such
+    // as an unknown name, is reported on that line rather than on the
+    // enclosing scene or branch. Only the header: the lines of its arms own
+    // their own paths, and a range covering them would make
+    // `program.pathLocations` resolve those lines to the statement instead.
+    if (BLOCK_STATEMENTS.has(nodeRef.name)) {
+      const header = headerLineRange(from, to, ctx);
+      for (const obj of block.content) {
+        if (obj instanceof Weave) {
+          stampDebugMetadata(obj.content, header.from, header.to, ctx);
+        }
+      }
+    }
+    stampDebugMetadata(block.content, from, to, ctx);
   }
   return block;
 }
@@ -688,7 +716,7 @@ function lowerMultiTargetReassignment(
     for (const t of multi.targets) {
       const nameNode = getDescendent("LuauVariableName", t);
       if (!nameNode) return {};
-      targetIdents.push(new Identifier(ctx.read(nameNode.from, nameNode.to)));
+      targetIdents.push(identifierAt(nameNode, ctx));
     }
     return wrapInWeave([
       new MultiVariableAssignment(targetIdents, expressions, false),
@@ -799,7 +827,7 @@ function buildTargetWrite(
       getDescendent("LuauSelfKeyword", inner);
     if (!nameNode) return null;
     return new VariableAssignment({
-      variableIdentifier: new Identifier(ctx.read(nameNode.from, nameNode.to)),
+      variableIdentifier: identifierAt(nameNode, ctx),
       assignedExpression: valueExpr,
       isTemporaryNewDeclaration: false,
     });
@@ -906,7 +934,7 @@ function buildBaseFromParts(
     getDescendent("LuauSelfKeyword", firstInner);
   if (!nameNode) return null;
   let current: Expression = new VariableReference([
-    new Identifier(ctx.read(nameNode.from, nameNode.to)),
+    identifierAt(nameNode, ctx),
   ]);
   for (let i = 1; i < parts.length; i++) {
     const inner = parts[i]!.firstChild;

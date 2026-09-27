@@ -86,6 +86,8 @@ import {
   stampGap,
   status,
   unpackedCommit,
+  missingBuildEntries,
+  BUILD_ENTRY_FILES,
   up,
   usableReading,
   verify,
@@ -201,6 +203,22 @@ await check("unpackedCommit reads the commit of a build whose download completed
   fs.writeFileSync(path.join(scratch, `vscode-web-stable-${commit}`, "version"), `vscode-web-stable-${commit}`);
   assert.equal(unpackedCommit(scratch), commit);
   assert.equal(unpackedCommit(path.join(scratch, "missing")), null);
+});
+
+await check("missingBuildEntries names the workbench entry files a build with only its version file lacks, and none once they are there", () => {
+  const commit = "d".repeat(40);
+  const dir = path.join(scratch, `vscode-web-stable-${commit}`);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "version"), `vscode-web-stable-${commit}`);
+  assert.deepEqual(missingBuildEntries(scratch, commit), { dir, missing: BUILD_ENTRY_FILES });
+  fs.mkdirSync(path.dirname(path.join(dir, BUILD_ENTRY_FILES[0])), { recursive: true });
+  fs.writeFileSync(path.join(dir, BUILD_ENTRY_FILES[0]), "x");
+  assert.deepEqual(missingBuildEntries(scratch, commit), { dir, missing: [BUILD_ENTRY_FILES[1]] }, "a build with the script but not the stylesheet is still incomplete");
+  for (const f of BUILD_ENTRY_FILES) {
+    fs.mkdirSync(path.dirname(path.join(dir, f)), { recursive: true });
+    fs.writeFileSync(path.join(dir, f), "x");
+  }
+  assert.deepEqual(missingBuildEntries(scratch, commit), { dir, missing: [] });
 });
 
 await check("sharedBuildUsers names the other worktrees' records that still stand and serve from the directory, whatever the path's case", async () => {
@@ -623,6 +641,7 @@ const upDeps = (over = {}) => {
     pickPort: async () => 34123,
     otherWorktreeRecords: () => [],
     unpackedCommit: () => "c".repeat(40),
+    missingBuildEntries: (builds, commit) => ({ dir: path.join(builds, `vscode-web-stable-${commit}`), missing: [] }),
     takeDownloadLock: async (lockPath, record) => {
       calls.push(["takeDownloadLock", lockPath, record]);
       return { held: true };
@@ -692,6 +711,21 @@ await check("a stale build, or a missing server entry, ends up before anything i
   const noEntry = upDeps({ exists: () => false });
   await refuses(up(["--sd", "repro.sd"], noEntry), /index\.js is missing; run PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install/);
   assert.deepEqual(names(noEntry), ["removeState", "die"]);
+});
+
+await check("up refuses an unpacked build missing its workbench entry files, naming the directory and the recovery that fits", async () => {
+  const builds = path.join(DATA, "builds", "stable");
+  const emptied = (records) =>
+    upDeps({
+      otherWorktreeRecords: () => records,
+      missingBuildEntries: (b, commit) => ({ dir: path.join(b, `vscode-web-stable-${commit}`), missing: BUILD_ENTRY_FILES }),
+    });
+  const alone = emptied([]);
+  await refuses(up(["--sd", "repro.sd"], alone), /^up: the build .*vscode-web-stable-c{40} has a version file but is missing out\/vs\/workbench\/workbench\.web\.main\.internal\.js and out\/vs\/workbench\/workbench\.web\.main\.internal\.css, so the workbench would not load; run `up --fresh` to download it again$/);
+  assert.ok(!names(alone).includes("spawn"));
+  const shared = emptied([{ worktree: path.join(FIXTURE_ROOT, "w2"), pid: 1, builds, url: "http://localhost:7" }]);
+  await refuses(up(["--sd", "repro.sd"], shared), /; (?:[A-Za-z]:)?[\\/]w2 \(pid 1\) serves from that directory, so run `up` with a private `--data <dir>`, which downloads its own copy$/);
+  assert.ok(!names(shared).includes("spawn"));
 });
 
 await check("up --fresh is refused while another worktree's standing record serves from the quality's directory, and otherwise launches without a commit pin", async () => {
@@ -896,6 +930,19 @@ await check("while its server is up, up --sd rewrites the served file and nothin
   await refuses(up(["--sd", "a.sd"], folder), /which --sd does not write into; `down` first/);
 });
 
+await check("while its server is up on a build that has since lost its workbench entry files, up refuses rather than reusing it", async () => {
+  const emptied = { missingBuildEntries: (b, commit) => ({ dir: path.join(b, `vscode-web-stable-${commit}`), missing: BUILD_ENTRY_FILES }) };
+  const deps = upDeps({ state: serving(), ...emptied });
+  await refuses(up(["--sd", "other.sd"], deps), /^up: the build .*vscode-web-stable-c{40} has a version file but is missing .*workbench\.web\.main\.internal\.js .*; `down`, then run `up --fresh` to download it again$/);
+  assert.ok(!names(deps).includes("writeProjectSd"), "the served file was rewritten for a workbench that cannot load");
+  // A record from a launch that downloaded carries no commit; the build it
+  // unpacked is found the way a launch finds it.
+  const downloaded = upDeps({ state: serving({ commit: null }), ...emptied });
+  await refuses(up(["--sd", "other.sd"], downloaded), /has a version file but is missing/);
+  const shared = upDeps({ state: serving(), ...emptied, otherWorktreeRecords: () => [{ worktree: path.join(FIXTURE_ROOT, "w2"), pid: 1, builds: path.join(DATA, "builds", "stable"), url: "http://localhost:7" }] });
+  await refuses(up([], shared), /serves from that directory, so `down`, then run `up` with a private `--data <dir>`, which downloads its own copy$/);
+});
+
 await check("up --data against a record that does not name its data directory is refused rather than compared", async () => {
   const { data, ...rest } = serving();
   const deps = upDeps({ state: rest });
@@ -944,13 +991,13 @@ const inPage = (fn, arg, doc) => new Function(`return ${fn.toString()}`)()(arg, 
 // hover appears once Ctrl+K Ctrl+I was pressed, on the `hoverAfterReads`th
 // read after it, as a real one takes time to open. `tabTitle` names the
 // editor that opens when it is not the row clicked.
-function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, hoverAfterReads = 3, tabTitle = null, explorer = DEFAULT_EXPLORER, crumbs = () => ["main.sd", "…"], activated = true, extensionId = EXT_ID } = {}) {
+function fakeDocument({ lines = [], numbers, problems = () => "0 0", squiggles = {}, cursor = "Ln 1, Col 1", caretX = null, hover = null, hoverAfterReads = 3, tabTitle = null, splitSuffix = false, suffixLate = false, explorer = DEFAULT_EXPLORER, crumbs = () => ["main.sd", "…"], activated = true, extensionId = EXT_ID } = {}) {
   const lineEls = lines.map((text, i) => ({ style: { top: `${i * LINE_H}px` }, textContent: text, childNodes: [{ nodeType: 1, childNodes: monacoNodes(text) }], rect: { x: 100, y: 50 + i * LINE_H } }));
   const domOrder = [...lineEls].reverse();
   const numberEls = (numbers ?? lines.map((_, i) => String(i + 1))).map((n, i) => ({ textContent: n, parentElement: { style: { top: `${i * LINE_H}px` } } }));
   const numberOrder = [...numberEls.slice(1), ...numberEls.slice(0, 1)];
   const doc = {
-    state: { problems, squiggles, cursor, caretX, hover, hoverShown: false, hoverReads: 0, hoverAfterReads, marked: null, tabTitle, explorer, crumbs, activated, extensionId, tabs: [{ title: "Welcome", active: false }] },
+    state: { problems, squiggles, cursor, caretX, hover, hoverShown: false, hoverReads: 0, hoverAfterReads, marked: null, tabTitle, splitSuffix, suffixLate, suffixWaited: false, explorer, crumbs, activated, extensionId, tabs: [{ title: "Welcome", active: false }] },
     querySelector(sel) {
       return this.querySelectorAll(sel)[0] ?? null;
     },
@@ -1337,7 +1384,28 @@ function fakePage(doc, acts, readCost = () => {}) {
   const locator = (sel, opts) => {
     if (sel.startsWith(".explorer-folders-view .monaco-list-row")) return rowLocator(sel, null);
     if (sel === ".label-name") return { sel, hasText: opts?.hasText };
-    if (sel === ".tabs-container .tab.active .label-name") return text(s.tabs.find((t) => t.active)?.title ?? null);
+    // With `splitSuffix` the tab renders the extension in a sibling
+    // `.label-suffix`, as stable build 04c0d99f4f does.
+    const active = () => s.tabs.find((t) => t.active)?.title ?? null;
+    const dot = (t) => (s.splitSuffix && t != null && t.lastIndexOf(".") > 0 ? t.lastIndexOf(".") : -1);
+    if (sel === ".tabs-container .tab.active .label-name") {
+      const t = active();
+      return text(dot(t) < 0 ? t : t.slice(0, dot(t)));
+    }
+    if (sel === ".tabs-container .tab.active .label-suffix") {
+      const t = active();
+      // With `suffixLate` the suffix renders only once something waits for it.
+      const shown = () => (dot(t) < 0 || (s.suffixLate && !s.suffixWaited) ? [] : [t.slice(dot(t))]);
+      const suffixLocator = {
+        first: () => suffixLocator,
+        waitFor: async () => {
+          s.suffixWaited = true;
+          if (dot(t) < 0) throw new Error("Timeout 5000ms exceeded.");
+        },
+        allTextContents: async () => shown(),
+      };
+      return suffixLocator;
+    }
     if (sel === ".tabs-container .tab .label-name") return text(s.tabs[0]?.title ?? null);
     if (sel === "[data-drive-hover]") return { first: () => locator(sel), screenshot: async ({ path: p }) => acts.push(["shot", sel, p]) };
     throw new Error(`the scripted page has no ${sel}`);
@@ -1594,7 +1662,16 @@ await check("a file that does not open, or opens under another title, is a failu
   assert.deepEqual(other.acts.find((a) => a[0] === "open"), ["open", "other.sd", 1]);
   r = await verify([], verifyDeps(fakeDocument({ lines: rendered, tabTitle: "other.sd" })));
   assert.deepEqual(r.report.failed, ['the editor that opened is titled "other.sd", not main.sd']);
-  const dotted = verifyDeps(fakeDocument({ lines: rendered, explorer: [{ name: "a+b.sd", level: 1 }, { name: "a.b.sd", level: 1 }] }));
+  const split = verifyDeps(fakeDocument({ lines: rendered, splitSuffix: true }));
+  r = await verify([], split);
+  assert.equal(r.report.opened, true, "a tab whose extension sits in .label-suffix is the file that opened");
+  assert.equal(r.report.editor, "main.sd");
+  const late = verifyDeps(fakeDocument({ lines: rendered, splitSuffix: true, suffixLate: true }));
+  r = await verify([], late);
+  assert.equal(r.report.opened, true, "a suffix that renders after the name is waited for");
+  assert.equal(r.report.editor, "main.sd");
+  r = await verify([], verifyDeps(fakeDocument({ lines: rendered, tabTitle: "other.sd", splitSuffix: true })));
+  assert.deepEqual(r.report.failed, ['the editor that opened is titled "other.sd", not main.sd']);  const dotted = verifyDeps(fakeDocument({ lines: rendered, explorer: [{ name: "a+b.sd", level: 1 }, { name: "a.b.sd", level: 1 }] }));
   r = await verify(["--file", "a.b.sd"], dotted);
   assert.deepEqual(dotted.acts.find((a) => a[0] === "open"), ["open", "a.b.sd", 1], "the name is matched as text, not as a pattern");
 });

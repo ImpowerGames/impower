@@ -1,8 +1,8 @@
+import { identifierAt } from "../utils/debugMetadata";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Choice } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Choice";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import type { CompiledBlock,InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
@@ -205,9 +205,7 @@ function buildGatherFromThenClause(
   // Optional `(label)` after `then` is captured as a `Label` child by
   // the begin pattern — find its `LabelDeclarationName` descendant.
   const label = getDescendent("LabelDeclarationName", thenClause);
-  const identifier = label
-    ? new Identifier(ctx.read(label.from, label.to))
-    : null;
+  const identifier = label ? identifierAt(label, ctx) : null;
 
   const body = findChildByName(
     thenClause,

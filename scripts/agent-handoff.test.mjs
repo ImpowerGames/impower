@@ -194,6 +194,45 @@ delete config.reviewedHead;
 write(); await assert.rejects(runHandoff(file), /Supply reviewedHead/);
 assert.equal(fs.existsSync(config.journal), false);
 
+// A reviewer that relinks a workspace package or deletes install entries leaves
+// `git status` clean, because node_modules is gitignored. The launcher names each
+// change and blocks before the next step can run on the damaged install.
+{
+  fs.writeFileSync(path.join(worktree, ".gitignore"), "node_modules\n");
+  git("add", ".gitignore");
+  git("commit", "-m", "ignore the install");
+  const packages = path.join(scratch, "install-packages");
+  for (const name of ["sparkdown", "elsewhere"]) fs.mkdirSync(path.join(packages, name), { recursive: true });
+  fs.mkdirSync(path.join(worktree, "node_modules", "@impower"), { recursive: true });
+  fs.mkdirSync(path.join(worktree, "node_modules", ".bin"));
+  fs.writeFileSync(path.join(worktree, "node_modules", ".bin", "vitest"), "");
+  const link = path.join(worktree, "node_modules", "@impower", "sparkdown");
+  fs.symlinkSync(path.join(packages, "sparkdown"), link, "junction");
+  const damagingChild = path.join(scratch, "damaging-reviewer.mjs");
+  fs.writeFileSync(damagingChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; fs.unlinkSync(${JSON.stringify(link)}); fs.symlinkSync(${JSON.stringify(path.join(packages, "elsewhere"))}, ${JSON.stringify(link)}, "junction"); fs.rmSync(${JSON.stringify(path.join(worktree, "node_modules", ".bin", "vitest"))}); const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1], JSON.stringify({head,next:"second",commentIds:[],summary:"nothing changed"}));`);
+  const damaged = { ...structuredClone(config), completedReviewRound: 0, finalCorrections: false, journal: path.join(scratch, "damaged-install.jsonl"), steps: {
+    first: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [damagingChild, "--model", "reviewer-test"], prompt, next: ["second"] },
+    second: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [markingChild, "--model", "reviewer-test"], prompt, next: [null] },
+  } };
+  delete damaged.reviewedHead;
+  fs.writeFileSync(file, JSON.stringify(damaged));
+  await assert.rejects(runHandoff(file), (error) => /Review changed the reviewed install/.test(error.message) && error.message.includes(`@impower/sparkdown resolves to ${fs.realpathSync.native(path.join(packages, "elsewhere"))}`) && error.message.includes("node_modules/.bin removed 1 (vitest)"));
+  assert.equal(fs.existsSync(launchMarker), false, "the next reviewer must not start on a damaged install");
+  const blocked = fs.readFileSync(damaged.journal, "utf8").trim().split("\n").map(JSON.parse).at(-1);
+  assert.equal(blocked.event, "blocked");
+  assert.match(blocked.reason, /@impower\/sparkdown/);
+  // The same fingerprint as a command, for reviewers the launcher does not start.
+  const cli = path.join(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "reviewed-install.mjs");
+  const snapshot = path.join(scratch, "install-snapshot.json");
+  execFileSync(process.execPath, [cli, "snapshot", worktree, snapshot], { windowsHide: true });
+  assert.match(execFileSync(process.execPath, [cli, "compare", worktree, snapshot], { encoding: "utf8", windowsHide: true }), /Reviewed install unchanged/);
+  fs.unlinkSync(link);
+  fs.symlinkSync(path.join(packages, "sparkdown"), link, "junction");
+  assert.throws(() => execFileSync(process.execPath, [cli, "compare", worktree, snapshot], { encoding: "utf8", windowsHide: true, stdio: "pipe" }), (error) => error.status === 1 && error.stdout.includes(`@impower/sparkdown resolves to ${fs.realpathSync.native(path.join(packages, "sparkdown"))}`));
+  fs.unlinkSync(link);
+  fs.rmSync(path.join(worktree, "node_modules"), { recursive: true });
+}
+
 // Finish a real third-round lens, recover its recorded state, then make a
 // correction. Only the GitHub read is stubbed; children, commits and journals
 // use the scratch repository and the real launcher.

@@ -18,6 +18,7 @@ import {
 } from "../expression/lowerExpression";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
+import { identifierAt } from "../utils/debugMetadata";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Statement-like nodes that can appear as siblings inside a
@@ -64,7 +65,9 @@ export function lowerVariableDefinition(
     nodeRef.node,
     "LuauVariableDefinition_content",
   );
-  const targets: { name: string; assignNode: SyntaxNode }[] = [];
+  const targets: { name: string; assignNode: SyntaxNode; nameNode?: SyntaxNode }[] = [];
+  const targetIdentifier = (t: (typeof targets)[number]) =>
+    t.nameNode ? identifierAt(t.nameNode, ctx) : new Identifier(t.name);
   const trailingRhsGroups: SyntaxNode[][] = [];
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
@@ -96,6 +99,7 @@ export function lowerVariableDefinition(
           targets.push({
             name: ctx.read(nameNode.from, nameNode.to),
             assignNode: child,
+            nameNode,
           });
         }
         const opNode = getDescendent("LuauAssignmentOperation", child);
@@ -220,7 +224,7 @@ export function lowerVariableDefinition(
     if (targets.length !== 1 || expressions.length !== 1) return {};
     return wrapInWeave(
       withTrailingStatements(
-        [new ConstantDeclaration(new Identifier(lastTarget.name), expressions[0]!)],
+        [new ConstantDeclaration(targetIdentifier(lastTarget), expressions[0]!)],
         trailingStatements,
         ctx,
       ),
@@ -246,7 +250,7 @@ export function lowerVariableDefinition(
   //   `const a, b = …` is rejected — `const` requires single-target.
   if (targets.length > 1) {
     if (scope === "local") {
-      const targetIdents = targets.map((t) => new Identifier(t.name));
+      const targetIdents = targets.map(targetIdentifier);
       // Bare multi-declaration (`local a, b` with no `= …`): give
       // UnpackTuple one NullExpression to unpack — it pads the
       // remaining slots with nil. With zero expressions it would pop
@@ -267,7 +271,7 @@ export function lowerVariableDefinition(
       const vas = targets.map((t, i) => {
         const e = expressions[i] ?? null;
         return new VariableAssignment({
-          variableIdentifier: new Identifier(t.name),
+          variableIdentifier: targetIdentifier(t),
           assignedExpression: e ?? undefined,
           isGlobalDeclaration: true,
         });
@@ -290,7 +294,7 @@ export function lowerVariableDefinition(
   // pushed before the `RuntimeVariableAssignment`. Without the
   // synthetic init, the binding bytecode would pop whatever junk
   // happened to be on the eval stack.
-  const identifier = new Identifier(lastTarget.name);
+  const identifier = targetIdentifier(lastTarget);
   const expr = expressions[0] ?? (sawAssignmentOp ? null : new NullExpression());
 
   const isGlobal = scope === "store";

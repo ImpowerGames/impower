@@ -77,7 +77,19 @@ export function sameDir(a, b) {
   return norm(a) === norm(b);
 }
 
-/** Throws when `base` does not name a commit, so a typo cannot read as "absent at base". */
+/**
+ * The commit the pre-fix content comes from: the merge base of `base` and
+ * HEAD. A fix is written against its branch point, so when `base` has moved
+ * on (origin/main after a fetch, with another PR merged) its tip holds files
+ * the branch never saw; the merge base does not. For HEAD, or a base HEAD
+ * already contains, the merge base is the base itself. Throws when `base`
+ * does not name a commit, so a typo cannot read as "absent at base"; when no
+ * merge base is found (a shallow clone cut above the branch point, or
+ * unrelated histories); and when there is more than one (a criss-cross
+ * merge), since the candidates can hold different pre-fix bytes.
+ *
+ * Returns `{ commit, label }`: the merge base, and how messages name it.
+ */
 export function resolveBase(repoRoot, base) {
   const r = git(repoRoot, ["rev-parse", "--verify", "--quiet", `${base}^{commit}`]);
   if (r.status !== 0) {
@@ -85,7 +97,25 @@ export function resolveBase(repoRoot, base) {
       `redgreen: --base "${base}" does not resolve to a commit in this repository (git: ${String(r.stderr).trim() || "no such revision"}). Check the spelling, and fetch first if it is a remote branch.`,
     );
   }
-  return String(r.stdout).trim();
+  const tip = String(r.stdout).trim();
+  const m = git(repoRoot, ["merge-base", "--all", "HEAD", tip]);
+  const found = String(m.stdout).trim().split(/\s+/).filter(Boolean);
+  if (found.length === 0) {
+    const shallow = String(git(repoRoot, ["rev-parse", "--is-shallow-repository"]).stdout).trim() === "true";
+    throw new Error(
+      shallow
+        ? `redgreen: no merge base of --base "${base}" and HEAD is reachable in this shallow clone. Deepen it until the branch point is present (git fetch --unshallow, or --deepen=<n>), then run redgreen again.`
+        : `redgreen: --base "${base}" shares no history with HEAD (git: ${String(m.stderr).trim() || "no merge base"}).`,
+    );
+  }
+  if (found.length > 1) {
+    throw new Error(
+      `redgreen: --base "${base}" and HEAD have ${found.length} merge bases (${found.map((c) => c.slice(0, 9)).join(", ")}), which can hold different pre-fix content. Pass the intended one as --base.`,
+    );
+  }
+  const commit = found[0];
+  const label = commit === tip ? base : `the merge base of ${base} and HEAD (${commit.slice(0, 9)})`;
+  return { commit, label };
 }
 
 /**
@@ -359,7 +389,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
   if (!sameDir(top, repoRoot)) {
     throw new Error(`redgreen: run from the repository root (${top}), not from ${repoRoot}; git resolves rev:path from the root.`);
   }
-  const baseCommit = resolveBase(repoRoot, base);
+  const { commit: baseCommit, label: baseLabel } = resolveBase(repoRoot, base);
 
   const dir = snapshotDir ?? fs.mkdtempSync(path.join(os.tmpdir(), "redgreen-"));
   const report = {
@@ -408,7 +438,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
     };
     if (entry.baseSha === entry.snapshotSha) {
       report.problems.push(
-        `${entry.path} is identical to ${base}; there is nothing to revert, so the red run does not exercise a change in this file. If the fix is committed, pass --base origin/main; otherwise this file is not where the fix lives.`,
+        `${entry.path} is identical to ${baseLabel}; there is nothing to revert, so the red run does not exercise a change in this file. If the fix is committed, pass --base origin/main; otherwise this file is not where the fix lives.`,
       );
     }
     entries.push(entry);
@@ -439,7 +469,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
           } else if (nowSha !== e.baseSha) {
             e.changedDuringRed = true;
             report.problems.push(
-              `${e.path} changed while it was reverted (expected the ${base} content, found something else). Not restored, so that edit is not lost: the file now holds the ${base} content plus the edit, and the snapshot of the fix is at ${e.snapshotPath}. Merge the two by hand, then run redgreen again.`,
+              `${e.path} changed while it was reverted (expected the ${baseLabel} content, found something else). Not restored, so that edit is not lost: the file now holds the ${baseLabel} content plus the edit, and the snapshot of the fix is at ${e.snapshotPath}. Merge the two by hand, then run redgreen again.`,
             );
             continue;
           }
@@ -495,16 +525,16 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
     for (const e of entries) {
       try {
         if (e.baseBytes == null) {
-          log(`revert  ${e.path}  (absent at ${base}; removing)`);
+          log(`revert  ${e.path}  (absent at ${baseLabel}; removing)`);
           fs.rmSync(e.abs, { force: true });
         } else {
-          log(`revert  ${e.path}  → ${base}`);
+          log(`revert  ${e.path}  → ${baseLabel}`);
           fs.writeFileSync(e.abs, e.baseBytes);
         }
         e.reverted = true;
       } catch (err) {
         revertFailed = true;
-        report.problems.push(`${e.path} could not be reverted to ${base} (${String(err.message || err)}). The red run was not attempted.`);
+        report.problems.push(`${e.path} could not be reverted to ${baseLabel} (${String(err.message || err)}). The red run was not attempted.`);
         break;
       }
     }
@@ -529,7 +559,7 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
       if (report.red.logError) report.problems.push(`The red output could not be saved: ${report.red.logError}. The exit status and excerpts remain in this report.`);
       if (red.exit === 0) {
         report.problems.push(
-          `The test passed against ${base}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
+          `The test passed against ${baseLabel}. It pins nothing: either it does not assert the ticket's behaviour, or the files listed are not where the fix lives.`,
         );
       } else if (redReason === "notrun") {
         report.problems.push(
@@ -551,6 +581,8 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         report.problems.push(
           red.launchError === "ENOBUFS"
             ? `The test exceeded the 64 MiB output buffer and was terminated. Partial output proves nothing about the defect. Reduce output or split the run, then run again.`
+            : /heap out of memory/i.test(red.output)
+            ? `The runner ran out of heap on the base, which proves nothing about the defect. A failing assertion on a large object (a Game, a Story, a program) can exhaust the heap while Vitest prints the received value, before any length cap applies; assert on an identity or a boolean instead (expect(x == null).toBe(true), expect(a === b).toBe(true)). Otherwise lower the caps or split the run, then run again.`
             : `The runner crashed on the base (a killed worker, an out-of-memory, a fatal error), which proves nothing about the defect. Lower the caps or split the run, then run again.`,
         );
       } else if (redReason === "unknown") {

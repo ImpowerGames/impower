@@ -1,3 +1,4 @@
+import { identifierAt } from "../utils/debugMetadata";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
@@ -9,7 +10,6 @@ import {
 import { ContentList } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ContentList";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { Expression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/Expression";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
@@ -83,9 +83,7 @@ export function lowerChoice(
   const depth = (markText.match(/[*+]/g) ?? []).length || 1;
 
   const labelName = getDescendent("LabelDeclarationName", nodeRef.node);
-  const identifier = labelName
-    ? new Identifier(ctx.read(labelName.from, labelName.to))
-    : null;
+  const identifier = labelName ? identifierAt(labelName, ctx) : null;
 
   const startContent = new ContentList();
   const choiceOnlyContent = new ContentList();
