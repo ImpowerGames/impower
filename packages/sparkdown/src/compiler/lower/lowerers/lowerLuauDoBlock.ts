@@ -15,11 +15,11 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //
 // Grammar shape:
 //   LuauDoBlock > LuauDoBlock_content > [body statements]
+// (`LuauSparkdownDoBlock` in a scene or at the top level, same shape).
 //
-// `while` and `for` use `LuauDoBlock` internally for their body
-// region, but those constructs handle the do-block themselves via
-// `getDescendent("LuauDoBlock", ...)` and never dispatch through this
-// lowerer. This handler is reached only when `do ... end` appears as
+// `while` and `for` use a do-block internally for their body region,
+// but those constructs handle the do-block themselves via
+// `findLoopDoBlock` and never dispatch through this lowerer. This handler is reached only when `do ... end` appears as
 // a STATEMENT in its own right.
 
 const DO_BLOCK_SKIP: ReadonlySet<string> = nodeNameSet([
@@ -32,7 +32,7 @@ export function lowerLuauDoBlock(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
-  const bodyContent = findChildByName(nodeRef.node, "LuauDoBlock_content");
+  const bodyContent = findChildByName(nodeRef.node, `${nodeRef.node.name}_content`);
   if (!bodyContent) return {};
   // Bump `ctx.scopeDepth` around the body lowering so a `break` /
   // `continue` inside the block knows to emit an EndScope for this

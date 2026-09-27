@@ -14,6 +14,8 @@ import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { syntheticId } from "../utils/documentTag";
+import { findLoopDoBlock } from "../utils/loopDoBlock";
+import { wrapInWeave } from "../utils/wrapInWeave";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
 // the loop's source position in the enclosing weave. The tail-jump is
@@ -78,11 +80,13 @@ export function lowerLuauWhileLoop(
 ): CompiledBlock {
   // Grammar shape:
   //   LuauWhileLoop > LuauWhileLoop_content > [ LuauWhileCondition, LuauDoBlock ]
-  // The body lives inside LuauDoBlock > LuauDoBlock_content.
+  // The body lives inside LuauDoBlock > LuauDoBlock_content. A loop in a
+  // scene or at the top level parses as `LuauSparkdownWhileLoop` holding a
+  // `LuauSparkdownDoBlock`, in the same shape.
   const condNode = getDescendent("LuauWhileCondition", nodeRef.node);
-  const doBlock = getDescendent("LuauDoBlock", nodeRef.node);
+  const doBlock = findLoopDoBlock(nodeRef, ctx);
   const bodyContent = doBlock
-    ? findChildByName(doBlock, "LuauDoBlock_content")
+    ? findChildByName(doBlock, `${doBlock.name}_content`)
     : null;
   if (!condNode || !bodyContent) return {};
 
@@ -144,5 +148,7 @@ export function lowerLuauWhileLoop(
   // enclosing weave.
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
-  return { content: [gather, breakGather] };
+  // A chunk's content reaches the enclosing scene or top-level flow only
+  // as a Weave; inside a body, `lowerStatements` unwraps it again.
+  return wrapInWeave([gather, breakGather]);
 }
