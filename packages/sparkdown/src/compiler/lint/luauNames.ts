@@ -367,7 +367,8 @@ function resolve(candidates: Declaration[] | undefined, pos: number) {
 // meant a name (`print(style)`), and the compiler then reads no variable
 // there, so such a token is never a use of a global. The grammar marks the
 // text a token captures with a `_c<n>` suffix. `self` is a keyword token too,
-// but it always names a local or a method's parameter.
+// but it is a variable: it names a local, a method's parameter or, failing
+// both, a global the compiler reads.
 const NOT_A_VARIABLE =
   /^Luau(?:(?!Self)\w*(?:Keyword|Modifier)|TypeName|PrimitiveType|TypePropertyName)(?:_c\d+)?$/;
 

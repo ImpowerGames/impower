@@ -214,7 +214,7 @@ end
     ]);
   });
 
-  test("a keyword statement nested on another's line is not a use", () => {
+  test("keyword statements and type names never reach the global index", () => {
     const source = `function run()
   local a = {} store x = 1
   local b = {} type T = { y: number }
@@ -237,6 +237,14 @@ end
       "L3 read -> parameter@L3",
       "L5 read -> local@L4",
     ]);
+  });
+
+  test("`self` outside a method and without a local is a global", () => {
+    const source = `function run()
+  return self
+end
+`;
+    expect(resolutions(source, "self")).toEqual(["L2 read -> global"]);
   });
 
   test("`store` inside a function defines the global, not a read of a local", () => {
@@ -367,10 +375,11 @@ end
 
   test("a Sparkdown word in narrative Luau is its construct, not a use", () => {
     // `{match}` is an alternator, `{queue | A | B end}` is one with arms, and
-    // the compiler reads no variable for either or for `& match = 5`.
+    // the compiler reads no variable for either, for `& match = 5` or for a
+    // call `& match("you")`.
     const scripts = {
       "a.sd": `store match = 1\nstore queue = 1\n`,
-      "b.sd": `It was a match.\nYou have {match} left.\n& match = 5\nThe radio: {queue | A | B end}\n`,
+      "b.sd": `It was a match.\nYou have {match} left.\n& match = 5\n& match("you")\nThe radio: {queue | A | B end}\n`,
     };
     expect(usesAcross(scripts, "match")).toEqual({
       definitions: ["a.sd:L1 store"],
