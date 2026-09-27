@@ -7,6 +7,7 @@ import {
   divertLoadShapeProblem,
   withDivertLoad,
 } from "../utils/buildDivert";
+import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 export function lowerThread(
@@ -21,14 +22,7 @@ export function lowerThread(
       {
         message: loadProblem,
         severity: ErrorType.Warning,
-        source: {
-          fileName: null,
-          filePath: ctx.filePath ?? null,
-          startLineNumber: ctx.lineNumber(nodeRef.from) + 1,
-          endLineNumber: ctx.lineNumber(nodeRef.to) + 1,
-          startCharacterNumber: ctx.characterNumber(nodeRef.from) + 1,
-          endCharacterNumber: ctx.characterNumber(nodeRef.to) + 1,
-        },
+        source: statementSource(nodeRef, ctx),
       },
     ];
   }

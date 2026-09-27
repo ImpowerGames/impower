@@ -135,9 +135,7 @@ export function lowerArms(
       // alternator forms report, and the arm stays empty.
       const emptyDivert = emptyDivertRange(child, ctx);
       if (emptyDivert) {
-        ctx.diagnostics?.push(
-          emptyDivertDiagnostic(emptyDivert.from, emptyDivert.to, ctx),
-        );
+        ctx.diagnostics?.push(emptyDivertDiagnostic(emptyDivert, ctx));
         child = child.nextSibling;
         continue;
       }
