@@ -159,8 +159,8 @@ scene start
 end
 `);
     // Sparkdown's resolver reports a read it can place, and the checker leaves
-    // that read out; a read the resolver cannot place yet (#944), such as one
-    // in a scene's `local` or `if`, is the checker's to report.
+    // that read out; a read the resolver does not report yet, one in a scene's
+    // `local` (#992), is the checker's to report.
     const diagnostics = [...describeDiagnostics(program, true), ...describeDiagnostics(program, false)];
     const lines = (name: string) =>
       diagnostics.filter((d) => d.includes(`\`${name}\``) || d.includes(`'${name}'`)).map((d) => Number(d.split(":")[0]));
