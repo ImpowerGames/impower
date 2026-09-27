@@ -1355,8 +1355,12 @@ export class SparkdownCompiler {
   ): void {
     profile("start", this._profilerId, "ink/json", uri);
     // #314: the binary writer answers the SAME streaming write events as
-    // SimpleJson.Writer, but appends records instead of building a JS
-    // object tree — so on the no-memo path it does strictly less work.
+    // SimpleJson.Writer, but appends records instead of building a JS object
+    // tree. Through the per-flow memo below, which every compile uses, a flow
+    // it cannot splice from the cache is built as a JS object tree first and
+    // then encoded into records, so a compile that serves nothing (a cold
+    // compile, or one whose reuse guard failed) costs it more than the JSON
+    // writer.
     const binary = this._config.binaryProgram === true;
     const writer = binary
       ? new ProgramBinaryWriter(this._binaryTable, this._binarySlotHint)
@@ -1366,11 +1370,15 @@ export class SparkdownCompiler {
     // (#f flags + resolved divert/reference paths) is unchanged. Content is
     // covered by the chunk-unchanged signal; the fingerprint covers the
     // cross-flow bits that change without the flow's own source changing.
-    const {
-      reusable: reusableFlows,
-      settled: settledFlows,
-      ok: flowReuseOk,
-    } = this.computeFlowReuse(story);
+    //
+    // A compile whose global guard failed (`_unchangedFlowShapeAtRisk`, which
+    // every cold compile has) gets an empty `reusable` set, so it serves
+    // nothing, and it still goes through the memo below: every flow is
+    // serialized fresh and the cache is rebuilt from those values. The next
+    // compile can then serve its untouched flows, so the first edit after a
+    // cold compile is served from the cache rather than only reseeding it.
+    const { reusable: reusableFlows, settled: settledFlows } =
+      this.computeFlowReuse(story);
     const shapes = this.startFlowShapes(settledFlows);
     if (this._renamedFlowNames?.size) {
       // A synthetic rename inside a flow changes its serialized bytes in
@@ -1380,22 +1388,7 @@ export class SparkdownCompiler {
         reusableFlows.delete(renamed);
       }
     }
-    if (!flowReuseOk) {
-      // The global guard failed (`_unchangedFlowShapeAtRisk`: something this
-      // compile can change the shape of a flow whose own chunks are
-      // unchanged): no flow can be reused this compile. Take the exact
-      // baseline path — no fingerprinting, which would otherwise be pure
-      // overhead — and let the cache lapse so the next reuse-eligible edit
-      // reseeds from a fresh serialization.
-      story.ToJson(writer as never);
-      this._flowJsonCache = undefined;
-      this._flowChunkCache = undefined;
-      // The memo is what normally fingerprints each flow, and it did not run.
-      // Walking for them anyway is the difference between the NEXT compile
-      // being able to tell a settled flow apart from an unknown one and not,
-      // and it costs a fraction of the serialization this branch just did.
-      this.noteEveryFlowShape(story, shapes);
-    } else if (binary) {
+    if (binary) {
       // Binary twin of the JSON memo below. The reuse GUARDS are shared —
       // `reusableFlows` and the `_renamedFlowNames` subtraction are
       // computed once above — so the two paths can never disagree about
@@ -2220,12 +2213,6 @@ export class SparkdownCompiler {
       // carried-forward chunk re-emits the same diagnostics a cold compile
       // would, without a per-compile tree walk.)
       //
-      // A callee's signature is baked into its CALLERS' bytecode at their
-      // generation time, so a signature change invalidates reuse of flows
-      // whose own chunks are untouched (see `_prevFlowSignatures`). The
-      // current signatures aren't known until assembly finishes, so this is
-      // a post-hoc check that feeds the same demotion path as a
-      // late-discovered global change.
       // Declared-name census across every file of this compile — see
       // `_censusEntries`. Compared here (not per file) so includes can't
       // clobber each other's census.
@@ -2238,39 +2225,6 @@ export class SparkdownCompiler {
         this._unchangedFlowShapeAtRisk = true;
       }
       this._prevCensusKey = censusKey;
-      // Compared unconditionally: a signature change is one of the things
-      // `_unchangedFlowShapeAtRisk` has to know about, so short-circuiting on
-      // an already-disabled construction reuse would let a caller's stale
-      // serialized bytecode be served while the callee's parameters changed.
-      const flowSignatures = this.collectFlowSignatures(parsedStory);
-      if (this._prevFlowSignatures) {
-        const prev = this._prevFlowSignatures;
-        let signaturesChanged = flowSignatures.size !== prev.size;
-        if (!signaturesChanged) {
-          for (const [name, sig] of flowSignatures) {
-            if (prev.get(name) !== sig) {
-              signaturesChanged = true;
-              break;
-            }
-          }
-        }
-        if (signaturesChanged) {
-          this._flowReuseDisabled = true;
-          this._unchangedFlowShapeAtRisk = true;
-        }
-      }
-      this._prevFlowSignatures = flowSignatures;
-      // Late-discovered global change (e.g. a mid-file `run` whose .luau
-      // source changed re-lowered its virtual file's root region), or a
-      // callee-signature change discovered just above: demote any reuse
-      // already committed before the discovery so this compile regenerates
-      // those flows from their (intact) parsed content.
-      if (this._flowReuseDisabled && this._reusedFlowsThisCompile?.size) {
-        for (const flow of this._reusedFlowsThisCompile) {
-          this.resetSubtreeRuntime(flow);
-        }
-        this._reusedFlowsThisCompile.clear();
-      }
       // Canonicalize offset-derived synthetic names over the fully-assembled
       // tree so incremental compiles emit byte-identical bytecode to cold ones
       // (see method doc) — must run before ExportRuntime resolves references.
@@ -2321,6 +2275,58 @@ export class SparkdownCompiler {
             (this._renamedFlowNames ??= new Set()).add(flowName);
           }
         }
+      }
+      // A callee's signature is baked into its CALLERS' bytecode at their
+      // generation time, so a signature change invalidates reuse of flows
+      // whose own chunks are untouched (see `_prevFlowSignatures`). The
+      // current signatures aren't known until assembly finishes, so this is
+      // a post-hoc check that feeds the same demotion path as a
+      // late-discovered global change.
+      //
+      // Compared unconditionally: a signature change is one of the things
+      // `_unchangedFlowShapeAtRisk` has to know about, so short-circuiting on
+      // an already-disabled construction reuse would let a caller's stale
+      // serialized bytecode be served while the callee's parameters changed.
+      // Collected after the canonicalization above, so a synthetic flow is
+      // keyed by its `__synth_<n>` name in every compile: a freshly lowered
+      // chunk holds its offset name until the rename, and a carried chunk
+      // already holds the canonical one.
+      //
+      // Those names are positional, the reason both flow caches refuse to
+      // serve a `__synth_<n>` entry, but a positional key is sound here. A
+      // synthetic name is minted and referenced within one chunk, and a call
+      // through a variable holding the function resolves no flow, so no
+      // caller in another chunk bakes a synthetic callee's parameter list; a
+      // rebinding inside one chunk regenerates that chunk's flows through
+      // the rename demotion above.
+      const flowSignatures = this.collectFlowSignatures(parsedStory);
+      if (this._prevFlowSignatures) {
+        const prev = this._prevFlowSignatures;
+        let signaturesChanged = flowSignatures.size !== prev.size;
+        if (!signaturesChanged) {
+          for (const [name, sig] of flowSignatures) {
+            if (prev.get(name) !== sig) {
+              signaturesChanged = true;
+              break;
+            }
+          }
+        }
+        if (signaturesChanged) {
+          this._flowReuseDisabled = true;
+          this._unchangedFlowShapeAtRisk = true;
+        }
+      }
+      this._prevFlowSignatures = flowSignatures;
+      // Late-discovered global change (e.g. a mid-file `run` whose .luau
+      // source changed re-lowered its virtual file's root region), or a
+      // callee-signature change discovered just above: demote any reuse
+      // already committed before the discovery so this compile regenerates
+      // those flows from their (intact) parsed content.
+      if (this._flowReuseDisabled && this._reusedFlowsThisCompile?.size) {
+        for (const flow of this._reusedFlowsThisCompile) {
+          this.resetSubtreeRuntime(flow);
+        }
+        this._reusedFlowsThisCompile.clear();
       }
       // An unseeded compile has no runtime table for any builtin define, but
       // every host seeds them at runtime, so their names must still resolve.
@@ -2454,6 +2460,11 @@ export class SparkdownCompiler {
       // declared-name change — the one signal the downstream caches lean on
       // hardest. Refuse them that compile rather than serve a flow whose
       // codegen may have moved under an undetectable name change.
+      //
+      // `_prevFlowSignatures` is kept: a throw before the signatures are
+      // collected leaves the table of an older compile, which the next compile
+      // compares against. That compile refuses reuse through the two switches
+      // above whatever the comparison says, and records a fresh table.
       this._riskFlowShapeNextCompile = true;
     }
     carriedRuntime.record = null;
@@ -4402,6 +4413,9 @@ export class SparkdownCompiler {
         start0: md ? md.startLineNumber - 1 : -1,
       });
     }
+    // A failed guard returns before `reusable` is filled, and
+    // `serializeCompiledProgram` relies on that emptiness, not on `ok`, to
+    // serve nothing on such a compile while it reseeds the flow caches.
     if (this._unchangedFlowShapeAtRisk) {
       return { reusable, settled, ok: false };
     }

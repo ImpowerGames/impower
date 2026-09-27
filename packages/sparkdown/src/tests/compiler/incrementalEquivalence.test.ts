@@ -33,6 +33,7 @@ import { describe, it, expect } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { coupledScreenplay, includedChapter } from "./fixtures/coupledScreenplay";
+import { servedFlowNames } from "./servedFlows";
 
 // Each edit is a single find -> replace applied to the FIRST occurrence, turned
 // into a minimal-range contentChange so only the affected region reparses.
@@ -81,16 +82,14 @@ const except = (...left: Construct[]) => ALL_CONSTRUCTS.filter((c) => !left.incl
 // are carried into the incremental compile, not lowered again. `flowReuse`
 // says whether the compile serves flows from the serialized-flow cache; an
 // edit that declares or renames a name, or changes a parameter list,
-// correctly refuses it. `knownBug` names the open Bug the
-// edit's comparison with a cold compile fails on, and `reuseBug` the one
-// its reuse verdict fails on; each such test is expected to fail until that
+// correctly refuses it. `knownBug` names the open Bug the edit's comparison
+// with a cold compile fails on; such a test is expected to fail until that
 // Bug is fixed, and the sequential run leaves out an edit with a `knownBug`.
 interface CarriedEdit extends Edit {
   bugs: string;
   carries: Construct[];
   flowReuse: boolean;
   knownBug?: string;
-  reuseBug?: string;
 }
 
 const FUNCTION_AT_TOP = "function later()\n  return 7\nend\n\n";
@@ -159,7 +158,6 @@ const carriedEdits: CarriedEdit[] = [
     replace: "The rest of the scene runs on and on here.",
     carries: ["tag line", "store named after an edit's define", "store holding a method", "layout with bindings"],
     flowReuse: true,
-    reuseBug: "#977",
   },
   {
     name: "edit a loop body inside a function",
@@ -168,7 +166,6 @@ const carriedEdits: CarriedEdit[] = [
     replace: "    t.a = t.a + i * 2",
     carries: ["tag line", "tagged scene", "choose with a then clause", "store named after an edit's define", "store holding a method"],
     flowReuse: true,
-    reuseBug: "#977",
   },
   {
     name: "edit a layout binding",
@@ -180,15 +177,7 @@ const carriedEdits: CarriedEdit[] = [
   },
 ];
 
-/**
- * Counts the flows the last compile served from the serialized-flow cache. A
- * flow served from the cache and a flow rebuilt from scratch compile to the
- * same bytes, so the compiled output alone cannot show that reuse happened,
- * and `computeFlowReuse` only says which flows may be served: a compile after
- * one that refused reuse finds the cache dropped and serves nothing. A served
- * flow's cache entry holds the very value the previous compile cached, so
- * value identity tells the two apart.
- */
+/** Counts the flows the last compile served from the serialized-flow cache. */
 class Probe extends SparkdownCompiler {
   private previousCache?: Map<string, { value: unknown }>;
 
@@ -199,11 +188,7 @@ class Probe extends SparkdownCompiler {
 
   /** How many flows the last compile served from the cache. */
   served(): number {
-    let served = 0;
-    for (const [name, entry] of this._flowJsonCache ?? []) {
-      if (this.previousCache?.get(name)?.value === entry.value) served += 1;
-    }
-    return served;
+    return servedFlowNames(this._flowJsonCache, this.previousCache).length;
   }
 }
 
@@ -327,12 +312,11 @@ const warmText = (text: string) => WARM_EDITS.reduce((t, [find, replace]) => t.r
 
 // Configures `c` with the scripts of `texts`, compiles `URI`, then makes the
 // warm-up edits to the main script, compiling after each, and returns the
-// texts after them. The first incremental compile after a cold compile of a
-// script holding an anonymous function refuses flow reuse (#977), which drops
-// the serialized-flow cache, and the compile after that rebuilds it without
-// serving anything; only a third compile can serve flows. Without these edits
-// a test that starts from a fresh compiler would compare a full
-// regeneration with a cold compile. The edits keep the text's length, so
+// texts after them. Most edits in an editor session reach a compiler whose
+// chunks and serialized-flow cache were left by earlier incremental compiles,
+// not by a cold one, and these edits put the compiler in that state before
+// the edit under test; the first edit after a cold compile is pinned in
+// `incrementalOutsideFlowReuse.test.ts`. The edits keep the text's length, so
 // offsets into the fixture stay valid.
 function warmed<T extends SparkdownCompiler>(c: T, texts: Record<string, string>): Record<string, string> {
   c.configure({ files: filesOf(texts) });
@@ -463,8 +447,8 @@ describe("compiler incremental equivalence", () => {
         expect(outcome.carried).toEqual(expect.arrayContaining(edit.carries));
       },
     );
-    (edit.reuseBug ? it.fails : it)(
-      `flows ${edit.flowReuse ? "are" : "are not"} served from the cache, for edit: ${edit.name}${failingUntil(edit.reuseBug)}`,
+    it(
+      `flows ${edit.flowReuse ? "are" : "are not"} served from the cache, for edit: ${edit.name}`,
       () => {
         expect(outcomeOf(edit).reused).toBe(edit.flowReuse);
       },

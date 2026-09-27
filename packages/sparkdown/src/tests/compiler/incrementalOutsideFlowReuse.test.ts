@@ -31,6 +31,7 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { File } from "../../compiler/types/File";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { servedFlowNames } from "./servedFlows";
 
 const URI = "file://proj/main.sd";
 const SCENES = 12;
@@ -56,12 +57,19 @@ const file = (text: string, version: number): File => ({
  */
 class Probe extends SparkdownCompiler {
   lastBytecodeReuse?: { reusable: Set<string>; ok: boolean };
+  private previousFlowCache?: Map<string, { value: unknown }>;
 
   captures(): Map<string, unknown> {
     return new Map(this._flowAssetAccum ?? []);
   }
 
+  /** The flows the last compile served from the serialized-flow cache. */
+  servedFlows(): string[] {
+    return servedFlowNames(this._flowJsonCache, this.previousFlowCache);
+  }
+
   protected override computeFlowReuse(story: RuntimeStory) {
+    this.previousFlowCache = this._flowJsonCache;
     const result = super.computeFlowReuse(story);
     this.lastBytecodeReuse = {
       reusable: new Set(result.reusable),
@@ -382,10 +390,11 @@ describe("a global that shadows a flow name", () => {
 
   // The callee's parameter list is baked into its CALLERS' bytecode at their
   // generation time, so changing it has to invalidate flows whose own source
-  // is untouched. That is the flow-signature detector, and this is the only
-  // test that reaches it: nothing else here changes a signature, so if its
-  // feed into the shape-risk field were removed, every other test would still
-  // pass while the callers were served pre-change bytecode.
+  // is untouched. That is the flow-signature detector. This test and the
+  // anonymous function's parameter-list test below are the two that reach it:
+  // nothing else here changes a signature, so if its feed into the shape-risk
+  // field were removed, every other test would still pass while the callers
+  // were served pre-change bytecode.
   it("changing a callee's parameter list refuses reuse for its callers", () => {
     quiet(() => {
       let text = shadowFixture();
@@ -404,6 +413,72 @@ describe("a global that shadows a flow name", () => {
       );
       const compiled = compiledOf(compiler);
 
+      expect(compiler.lastBytecodeReuse?.ok).toBe(false);
+      expect(compiler.lastBytecodeReuse?.reusable.size).toBe(0);
+      expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
+    });
+  });
+});
+
+// An anonymous function is lowered under a name derived from its source
+// offset and renamed to `__synth_<n>` before the program is exported. The
+// flow-signature detector has to compare the same name on both sides of an
+// edit, or a function whose parameters never changed reads as a changed
+// callee and every untouched flow is regenerated.
+describe("a script holding an anonymous function", () => {
+  const script = () =>
+    [
+      "scene s0",
+      "  Hi.",
+      "end",
+      "",
+      "scene s1",
+      "  There.",
+      "end",
+      "",
+      "store f = function(n) return n end",
+    ].join("\n");
+  // The scenes the reuse decision names, leaving out the flows the builtins
+  // prelude contributes.
+  const reusedScenes = (compiler: Probe) =>
+    [...compiler.lastBytecodeReuse!.reusable].filter((n) => /^s\d+$/.test(n));
+
+  it("the first edit after a cold compile reuses the untouched flow", () => {
+    quiet(() => {
+      let text = script();
+      const compiler = configured(new Probe(), text);
+      compiler.compile({ textDocument: { uri: URI } } as any);
+      const verdicts: { reusable: string[]; served: string[]; ok: boolean }[] = [];
+      for (const version of [2, 3]) {
+        text = edit(compiler, text, "Hi.", "Hi.", version);
+        const compiled = compiledOf(compiler);
+        verdicts.push({
+          reusable: reusedScenes(compiler),
+          served: compiler.servedFlows().filter((n) => /^s\d+$/.test(n)),
+          ok: compiler.lastBytecodeReuse!.ok,
+        });
+        expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
+      }
+      expect(verdicts).toEqual([
+        { reusable: ["s1"], served: ["s1"], ok: true },
+        { reusable: ["s1"], served: ["s1"], ok: true },
+      ]);
+    });
+  });
+
+  // The same detector must still see a real change to the function's
+  // parameter list through the rename.
+  it("changing the function's parameter list refuses reuse", () => {
+    quiet(() => {
+      let text = script();
+      const compiler = configured(new Probe(), text);
+      compiler.compile({ textDocument: { uri: URI } } as any);
+      text = edit(compiler, text, "Hi.", "Hi!", 2);
+      compiler.compile({ textDocument: { uri: URI } } as any);
+      expect(compiler.lastBytecodeReuse?.ok).toBe(true);
+
+      text = edit(compiler, text, "function(n)", "function(n, m)", 3);
+      const compiled = compiledOf(compiler);
       expect(compiler.lastBytecodeReuse?.ok).toBe(false);
       expect(compiler.lastBytecodeReuse?.reusable.size).toBe(0);
       expect(stable(compiled)).toEqual(stable(coldCompiledOf(text)));
