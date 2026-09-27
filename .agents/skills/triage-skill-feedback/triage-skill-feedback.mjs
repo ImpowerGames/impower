@@ -68,7 +68,7 @@ export function keyOf(skill) {
 }
 
 // A repeat names its problem by ID, so its target only has to name the same skill; section and wording may differ.
-export function skillNameOf(skill) {
+function skillNameOf(skill) {
   return keyOf(skill).match(/^[^\s,]+/)?.[0] ?? '';
 }
 
