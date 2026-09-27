@@ -1119,20 +1119,6 @@ function lowerTernaryExpression(
     } else if (child.name === "LuauThenExpression") {
       const value = lowerExpressionFromNodes(collectClauseBody(child), ctx);
       if (!value) return null;
-      // Unparenthesized ternary-in-condition (`if if C then a else b
-      // then x else y`): the grammar can't bracket the inner ternary
-      // (no counting), so its clause list comes out FLAT — the
-      // already-complete chain (ending in an else branch) followed by
-      // extra then/else clauses. Those extras belong to the ENCLOSING
-      // level: fold the completed chain into a nested
-      // TernaryExpression and use it as this clause's condition.
-      if (
-        pendingCond === null &&
-        branches.length > 0 &&
-        branches[branches.length - 1]!.condition === null
-      ) {
-        pendingCond = new TernaryExpression(branches.splice(0));
-      }
       branches.push({ condition: pendingCond, value });
       pendingCond = null;
     } else if (child.name === "LuauElseExpression") {
@@ -1143,13 +1129,7 @@ function lowerTernaryExpression(
     child = child.nextSibling;
   }
 
-  if (branches.length === 0) {
-    // No then/else clauses of our own: the condition swallowed the
-    // entire clause chain (the outer node of the flat nested-ternary
-    // mis-parse above). The folded condition IS the expression.
-    return pendingCond;
-  }
-  if (branches[0]!.condition === null) return null;
+  if (branches.length === 0 || branches[0]!.condition === null) return null;
   return new TernaryExpression(branches);
 }
 

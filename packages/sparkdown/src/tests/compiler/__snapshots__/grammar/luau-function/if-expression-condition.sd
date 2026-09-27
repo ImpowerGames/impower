@@ -1,0 +1,11 @@
+function f(c, n)
+  if if c then 1 else nil then
+    n = 1
+  elseif if c then nil else 2 then
+    n = 2
+  end
+  while if n < 3 then true else false do
+    n += 1
+  end
+  local v = if if c then false else true then 10 else 20
+end

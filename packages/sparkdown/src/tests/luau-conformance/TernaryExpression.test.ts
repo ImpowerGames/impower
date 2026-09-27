@@ -3,13 +3,12 @@
 // (TernaryExpression.ts) that emits conditional content-pointer
 // jumps via the `sc:if` / `sc:jump` ControlCommand ops — only the
 // taken arm's value ops execute (verified by the side-effect test).
-// The unparenthesized nested-condition form parses FLAT (the grammar
-// can't bracket without counting); the lowerer reconstructs the
-// nesting by folding a completed chain into the enclosing clause's
-// condition — see lowerTernaryExpression.
+// An unparenthesized if expression in a condition ends before the
+// enclosing `then` or `do` once its else arm is complete.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { runConformanceSource } from "./conformanceTestHarness";
 
 function compileAndCapture(source: string): {
   errors: string[];
@@ -131,5 +130,106 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([20, 20, 10]);
+  });
+});
+
+// An unparenthesized if expression is a valid condition for an if statement
+// or a while loop; the statement's own `then` or `do` follows the
+// expression's else arm.
+describe("if expression as a statement condition", () => {
+  test("issue sources through the conformance harness", () => {
+    const cases = [
+      `local r = "none"\nif if true then true else false then\n  r = "a"\nend\nassert(r == "a", r)`,
+      `local c = true\nlocal r = "none"\nif if c then 1 else nil then\n  r = "a"\nend\nassert(r == "a", r)`,
+      `local r = "none"\nif if true then false else true then\n  r = "wrong"\nelseif true then\n  r = "b"\nend\nassert(r == "b", r)`,
+    ];
+    const results = cases.map((source) => {
+      const r = runConformanceSource(source);
+      return [r.returnedOK, r.errorMessages];
+    });
+    expect(results).toEqual([
+      [true, []],
+      [true, []],
+      [true, []],
+    ]);
+  });
+
+  test("if statement takes the then branch when the expression is true", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local c = true
+local r = "none"
+if if true then true else false then
+  r = "a"
+end
+host_record(r)
+if if c then 1 else nil then
+  r = "b"
+end
+host_record(r)
+if if c then nil else 1 then
+  r = "wrong"
+else
+  r = "c"
+end
+host_record(r)
+if if c then false else true then
+  r = "wrong"
+elseif if c then true else false then
+  r = "d"
+end
+host_record(r)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["a", "b", "c", "d"]);
+  });
+
+  test("elseif chains and nested else arms inside the condition", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local c = false
+local r = "none"
+if if c then false elseif true then 2 else nil then
+  r = "a"
+end
+host_record(r)
+if if c then nil else if c then nil else 3 then
+  r = "b"
+end
+host_record(r)
+if if c then nil else (if true then 4 else nil) then
+  r = "c"
+end
+host_record(r)
+local v = if (if c then 1 else 2) == 2 then "d" else "wrong"
+host_record(v)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["a", "b", "c", "d"]);
+  });
+
+  test("while loop runs while the expression is true", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local n = 0
+while if n < 3 then true else false do
+  n += 1
+end
+host_record(n)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([3]);
   });
 });
