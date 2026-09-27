@@ -30,7 +30,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
-import { SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
+import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
@@ -94,8 +94,7 @@ export function profilePathProblem(dir, platform = process.platform) {
 // A profile records which session last opened it. Another session opening it
 // within PROFILE_CLAIM_MS would write into the OPFS project that session is
 // working on, so the launch is refused; an older claim is taken over.
-export const PROFILE_CLAIM_MS = 30 * 60_000;
-export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
+export { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS };
 export function profileClaimConflict(claim, session = SESSION, now = Date.now(), dir = PROFILE_DIR) {
   if (!claim || typeof claim.at !== "number") return null;
   if ((claim.session ?? null) === (session ?? null)) return null;
@@ -116,7 +115,7 @@ export function profileClaimConflict(claim, session = SESSION, now = Date.now(),
 // therefore writes nothing: the lock it reads back belongs to whoever took it
 // over, and it refuses. Taking a stale lock over replaces exactly the holder
 // that was read, so a lock acquired in between is never removed.
-export const PROFILE_LOCK_STALE_MS = 30_000;
+export { PROFILE_LOCK_STALE_MS };
 export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now(), beforeWrite, beforeTakeover } = {}) {
   const file = path.join(dir, PROFILE_CLAIM_FILE);
   const lock = file + ".lock";

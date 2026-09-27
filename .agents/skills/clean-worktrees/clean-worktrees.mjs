@@ -54,7 +54,11 @@
 // branch goes with -D after that re-verification, and an empty type directory
 // goes with it.
 //
-// After the worktrees, the review job directories under
+// After the worktrees, the web editor driver's directory for each worktree
+// the run removes goes too, unless a session in it may still be in use; the
+// driver-profiles section below says how.
+//
+// After those, the review job directories under
 // <parent>/<repo>.review-jobs are classified and, under --apply, the
 // removable ones removed; the review-jobs section below says how.
 //
@@ -68,7 +72,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkoutStateFiles } from "../drive-web-editor/session-dir.mjs";
+import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 
 // Windows paths compare without case, and git prints them with forward slashes.
@@ -211,6 +215,12 @@ export const liveDeps = {
     }
   },
   pidAlive,
+  // Where the web editor driver keeps each checkout's session directories,
+  // and the reads that judge them; both throw on any error, so an entry that
+  // cannot be read is never taken for one that is not there.
+  driverHome: () => driverHome(),
+  readEntries: (p) => fs.readdirSync(p, { withFileTypes: true }),
+  lstat: (p) => fs.lstatSync(p),
   // The record of every --apply run, one JSON object per line, in the main
   // checkout's .git so it is never committed.
   readLog: (p) => {
@@ -695,6 +705,169 @@ async function removeWorktree(entry, ctx, deps) {
   return { outcome: "removed", note: notes.join("; "), remaining: 0 };
 }
 
+// ------------------------------------------------------ driver profiles ---
+
+// The web editor driver keeps a directory per checkout under driverHome(),
+// named by a hash of the checkout's path, holding one directory per agent
+// session with its server record (state.json) and its Chromium profile
+// (drive-web-editor/session-dir.mjs). A hash cannot be read back into a path,
+// so a directory is tied to a worktree only by hashing that worktree's path.
+// The driver hashes the path it was started from, whose drive letter may be
+// in either case, so both spellings are hashed.
+export function checkoutSpellings(p) {
+  const r = path.resolve(p);
+  const out = new Set([r]);
+  if (/^[a-zA-Z]:/.test(r)) {
+    out.add(r[0].toUpperCase() + r.slice(1));
+    out.add(r[0].toLowerCase() + r.slice(1));
+  }
+  return [...out];
+}
+
+// Why a checkout's driver directory must stay, one reason per session that
+// may still be in use: a server record naming a live pid, a profile claim
+// younger than the driver's takeover window, a claim lock younger than the
+// driver's stale-lock window, a running process whose command line names the
+// directory (a browser names its profile), or anything that cannot be read:
+// the directory's or a session's entries, a record or claim, or one of them
+// that is a link rather than a file. Empty when it can go.
+export function driverDirKeeps(dir, deps, nowMs, processes) {
+  const keep = [];
+  const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
+  // A file's lstat, null when it is not there; a link, dangling or not, and
+  // anything but ENOENT are reasons to keep.
+  const inspect = (file, label) => {
+    try {
+      const st = deps.lstat(file);
+      if (st.isSymbolicLink()) return { keep: `${label} is a link` };
+      return { st };
+    } catch (err) {
+      if (err?.code === "ENOENT") return { st: null };
+      return { keep: `${label} could not be inspected (${why(err)})` };
+    }
+  };
+  const readJson = (file) => {
+    try {
+      return { value: JSON.parse(deps.readFile(file)) };
+    } catch (err) {
+      return { err: why(err) };
+    }
+  };
+  let entries;
+  try {
+    entries = deps.readEntries(dir);
+  } catch (err) {
+    return [`its sessions could not be listed (${why(err)})`];
+  }
+  for (const entry of entries) {
+    const name = entry.name;
+    if (!entry.isDirectory()) {
+      keep.push(`${name} is not a session directory; left for a person`);
+      continue;
+    }
+    const session = path.join(dir, name);
+    try {
+      deps.readEntries(session);
+    } catch (err) {
+      keep.push(`session ${name}: its entries could not be listed (${why(err)})`);
+      continue;
+    }
+    const state = path.join(session, "state.json");
+    const stateAt = inspect(state, `session ${name}: its server record`);
+    if (stateAt.keep) keep.push(stateAt.keep);
+    else if (stateAt.st) {
+      const r = readJson(state);
+      if (r.err) keep.push(`session ${name}: its server record could not be read (${r.err})`);
+      else if (deps.pidAlive(r.value?.pid)) keep.push(`session ${name}: its server record names pid ${r.value.pid}, still running`);
+    }
+    const claim = path.join(session, "profile", PROFILE_CLAIM_FILE);
+    const lockAt = inspect(`${claim}.lock`, `session ${name}: its profile claim lock`);
+    if (lockAt.keep) keep.push(lockAt.keep);
+    else if (lockAt.st && nowMs - lockAt.st.mtimeMs <= PROFILE_LOCK_STALE_MS) keep.push(`session ${name}: a launch holds its profile claim lock`);
+    const claimAt = inspect(claim, `session ${name}: its profile claim`);
+    if (claimAt.keep) keep.push(claimAt.keep);
+    else if (claimAt.st) {
+      const r = readJson(claim);
+      if (r.err || typeof r.value?.at !== "number") keep.push(`session ${name}: its profile claim could not be read${r.err ? ` (${r.err})` : ""}`);
+      else if (nowMs - r.value.at < PROFILE_CLAIM_MS) keep.push(`session ${name}: its profile was claimed ${Math.max(0, Math.round((nowMs - r.value.at) / 60_000))} min ago, under the driver's ${PROFILE_CLAIM_MS / 60_000} min`);
+    }
+  }
+  if (!processes.ok) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
+  else {
+    const users = usersOf(dir, processes.list, deps.pid());
+    if (users.length) keep.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
+  }
+  return keep;
+}
+
+// Lists every checkout directory under the driver home that belongs to no
+// worktree left after this run. One whose worktree this run removes (or, in
+// a dry run, would remove) goes under --apply unless driverDirKeeps names a
+// reason; one that matches no worktree at all is listed with its size and
+// left for a person, since which checkout it served cannot be told. The
+// directories of worktrees that stay are not listed. Returns the count of
+// failed removals.
+export async function cleanDriverDirs(ctx, deps, apply, record, rows) {
+  const home = deps.driverHome?.();
+  if (!home) return { failed: 0, rows: [] };
+  const names = deps.listDirs(home);
+  if (!names.length) return { failed: 0, rows: [] };
+  const env = { IMPOWER_DRIVER_HOME: home };
+  const hashes = (p) => checkoutSpellings(p).map((s) => path.basename(checkoutDir(s, env)));
+  const worktrees = rows.filter((r) => !r.stray);
+  const goes = (r) => (apply ? r.decision === "removed" : r.decision === "remove");
+  const owner = new Map();
+  for (const r of worktrees.filter((r) => !goes(r))) for (const h of hashes(r.entry.path)) owner.set(h, null);
+  for (const r of worktrees.filter(goes)) for (const h of hashes(r.entry.path)) if (!owner.has(h)) owner.set(h, r.entry.path);
+  const rel = (p) => path.relative(path.dirname(ctx.mainRoot), path.resolve(p));
+  const nowMs = Date.parse(deps.now());
+  const out = [];
+  let failed = 0;
+  for (const name of names) {
+    if (owner.get(name) === null) continue;
+    const dir = path.join(home, name);
+    const worktree = owner.get(name);
+    const size = await deps.scan(dir).then((s) => s.bytes, () => null);
+    let decision;
+    let why;
+    if (worktree === undefined) {
+      decision = apply ? "kept" : "keep";
+      why = "matches no worktree, so which checkout it served cannot be told; delete it by hand once no session uses it";
+    } else {
+      const keep = driverDirKeeps(dir, deps, nowMs, ctx.processes);
+      if (keep.length) {
+        decision = apply ? "kept" : "keep";
+        why = `the driver directory of ${rel(worktree)}, which ${apply ? "was" : "would be"} removed; ${keep.join("; ")}`;
+      } else if (!apply) {
+        decision = "remove";
+        why = `the driver directory of ${rel(worktree)}, which would be removed; no session in it is in use`;
+      } else {
+        why = `the driver directory of ${rel(worktree)}, which was removed; no session in it is in use`;
+        record({ decision: "removing", path: dir, why });
+        try {
+          deps.removeDir(dir);
+          decision = deps.exists(dir) ? "failed" : "removed";
+          if (decision === "failed") why = `the directory is still there; ${why}`;
+        } catch (err) {
+          decision = "failed";
+          why = `${err.code ?? err.message}; the directory is ${deps.exists(dir) ? "still there" : "gone"}; ${why}`;
+        }
+        if (decision === "failed") failed++;
+      }
+    }
+    if (apply) record({ decision, path: dir, why });
+    out.push({ name, decision, size, why });
+  }
+  if (!out.length) return { failed: 0, rows: [] };
+  const log = deps.log;
+  log("");
+  log(`web editor driver directories under ${home}:`);
+  for (const r of out) log(`${r.decision.padEnd(DECISION_WIDTH)}  ${r.name}  ${formatBytes(r.size).padEnd(SIZE_WIDTH)}  ${r.why}`);
+  const gone = out.filter((r) => r.decision === "remove" || r.decision === "removed");
+  log(`${n(out.length, "driver directory", "driver directories")}: ${gone.length} ${apply ? "removed" : "to remove"} (${formatBytes(gone.reduce((s, r) => s + (r.size ?? 0), 0))}), ${out.length - gone.length} kept.`);
+  return { failed, rows: out };
+}
+
 // ---------------------------------------------------------- review jobs ---
 
 // Review job directories live in <parent>/<repo>.review-jobs/pr-<P>/, one per
@@ -1055,8 +1228,9 @@ export async function main(argv, deps = liveDeps) {
     log(summary);
     record({ summary });
   }
+  const drivers = await cleanDriverDirs(ctx, deps, apply, record, rows);
   const jobs = cleanJobs(ctx, deps, apply, record);
-  return failed || jobs.failed ? 1 : 0;
+  return failed || drivers.failed || jobs.failed ? 1 : 0;
 }
 
 if (process.argv[1] && samePath(fs.realpathSync(fileURLToPath(import.meta.url)), fs.realpathSync(process.argv[1]))) {
