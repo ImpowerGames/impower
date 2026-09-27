@@ -581,6 +581,8 @@ export function runRedGreen({ repoRoot, test, files, base = "HEAD", snapshotDir,
         report.problems.push(
           red.launchError === "ENOBUFS"
             ? `The test exceeded the 64 MiB output buffer and was terminated. Partial output proves nothing about the defect. Reduce output or split the run, then run again.`
+            : /heap out of memory/i.test(red.output)
+            ? `The runner ran out of heap on the base, which proves nothing about the defect. A failing assertion on a large object (a Game, a Story, a program) can exhaust the heap while Vitest prints the received value, before any length cap applies; assert on an identity or a boolean instead (expect(x == null).toBe(true), expect(a === b).toBe(true)). Otherwise lower the caps or split the run, then run again.`
             : `The runner crashed on the base (a killed worker, an out-of-memory, a fatal error), which proves nothing about the defect. Lower the caps or split the run, then run again.`,
         );
       } else if (redReason === "unknown") {

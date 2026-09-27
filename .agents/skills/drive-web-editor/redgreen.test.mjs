@@ -86,6 +86,26 @@ check("an honest test fails on the base and passes on the fix, and the restore m
   assert.equal(libText(dir), NEW);
 });
 
+// Vitest renders a failing assertion's received value ten levels deep before
+// any length cap applies, so a red assertion on an engine object (a Game, a
+// Story, a program) exhausts the heap exactly when red/green needs it (#968).
+check("an out-of-memory red run names the large-object failure message as a cause", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'console.error("FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"); process.exit(134);\n',
+  );
+  git(dir, "commit", "-q", "-am", "crashing check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "crash");
+  const problems = r.problems.join("\n");
+  assert.match(problems, /failing assertion on a large object/);
+  assert.match(problems, /Vitest prints the received value, before any length cap applies/);
+  assert.match(problems, /assert on an identity or a boolean instead/);
+});
+
 // A base that has moved on since the branch point (origin/main after a fetch,
 // with another PR merged) holds a newer file than the one the fix was written
 // against. The pre-fix content is the file at the merge base (#972).
