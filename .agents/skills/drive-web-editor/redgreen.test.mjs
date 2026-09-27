@@ -86,6 +86,23 @@ check("an honest test fails on the base and passes on the fix, and the restore m
   assert.equal(libText(dir), NEW);
 });
 
+// Vitest renders a failing assertion's received value ten levels deep before
+// any length cap applies, so a red assertion on an engine object (a Game, a
+// Story, a program) exhausts the heap exactly when red/green needs it (#968).
+check("an out-of-memory red run names the large-object failure message as a cause", () => {
+  const dir = makeRepo();
+  fs.writeFileSync(
+    path.join(dir, "check.mjs"),
+    'console.error("FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory"); process.exit(134);\n',
+  );
+  git(dir, "commit", "-q", "-am", "crashing check");
+  applyFix(dir);
+  const r = run(dir);
+  assert.equal(r.ok, false);
+  assert.equal(r.red.reason, "crash");
+  assert.match(r.problems.join("\n"), /failing assertion on a large object/);
+});
+
 // A vitest run reporting several failures prints the "Test Files" / "Tests"
 // summary lines well before the end of its output, followed by trailing
 // per-test detail; `tail` (the last 40 lines) then ends on that detail, not
