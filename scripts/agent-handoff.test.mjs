@@ -19,7 +19,7 @@ const git = (...args) => execFileSync("git", args, { cwd: worktree, encoding: "u
 git("init");
 git("commit", "--allow-empty", "-m", "fixture");
 const child = path.join(scratch, "child.mjs");
-fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:process.argv[2]==="first"?"second":null,commentIds:[],summary:"complete"}));`);
+fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:process.argv[2]==="first"?"second":null,commentIds:[],summary:"complete"}));`);
 const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
 const config = { worktree, pr: 531, completedReviewRound: 0, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", maxSteps: 2, first: "first", journal: path.join(scratch, "journal.jsonl"), steps: {
@@ -209,7 +209,7 @@ assert.equal(fs.existsSync(config.journal), false);
   const link = path.join(worktree, "node_modules", "@impower", "sparkdown");
   fs.symlinkSync(path.join(packages, "sparkdown"), link, "junction");
   const damagingChild = path.join(scratch, "damaging-reviewer.mjs");
-  fs.writeFileSync(damagingChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; fs.unlinkSync(${JSON.stringify(link)}); fs.symlinkSync(${JSON.stringify(path.join(packages, "elsewhere"))}, ${JSON.stringify(link)}, "junction"); fs.rmSync(${JSON.stringify(path.join(worktree, "node_modules", ".bin", "vitest"))}); const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1], JSON.stringify({head,next:"second",commentIds:[],summary:"nothing changed"}));`);
+  fs.writeFileSync(damagingChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} fs.unlinkSync(${JSON.stringify(link)}); fs.symlinkSync(${JSON.stringify(path.join(packages, "elsewhere"))}, ${JSON.stringify(link)}, "junction"); fs.rmSync(${JSON.stringify(path.join(worktree, "node_modules", ".bin", "vitest"))}); const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1], JSON.stringify({head,next:"second",commentIds:[],summary:"nothing changed"}));`);
   const damaged = { ...structuredClone(config), completedReviewRound: 0, finalCorrections: false, journal: path.join(scratch, "damaged-install.jsonl"), steps: {
     first: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [damagingChild, "--model", "reviewer-test"], prompt, next: ["second"] },
     second: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [markingChild, "--model", "reviewer-test"], prompt, next: [null] },
@@ -237,7 +237,7 @@ assert.equal(fs.existsSync(config.journal), false);
 // correction. Only the GitHub read is stubbed; children, commits and journals
 // use the scratch repository and the real launcher.
 const lifecycleChild = path.join(scratch, "round-lifecycle.mjs");
-fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement" && process.argv[2]!=="noop")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"],{windowsHide:true}); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8",windowsHide:true}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":process.argv[2]==="first-review"?"next-review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
+fs.writeFileSync(lifecycleChild, `import fs from "node:fs"; import {execFileSync} from "node:child_process"; let p=""; for await (const c of process.stdin) p+=c; if(p.startsWith("Reviewer route probe")){console.log("OK");process.exit(0);} const role=/role=(\\w+)/.exec(p)[1]; if(role==="implement" && process.argv[2]!=="noop")execFileSync("git",["-c","user.name=test","-c","user.email=test@example.invalid","commit","--allow-empty","-m","verified correction"],{windowsHide:true}); const head=execFileSync("git",["rev-parse","HEAD"],{encoding:"utf8",windowsHide:true}).trim(); fs.writeFileSync(/Write (.*?) with the editor tool/.exec(p)[1],JSON.stringify({head,next:role==="implement"?"review":process.argv[2]==="first-review"?"next-review":null,commentIds:role==="review"?[123]:[],summary:"fixture completed"}));`);
 const lifecycle = { ...config, pr:531, first:"review", maxSteps:2, reviewedHead:git("rev-parse","HEAD").trim(), journal:path.join(scratch,"completed-third.jsonl"), steps:{
   review:{role:"review",round:3,model:"reviewer-test",executable:process.execPath,args:[lifecycleChild,"--model","reviewer-test"],prompt,next:[null]},
   implement:{role:"implement",model:"writer-test",executable:process.execPath,args:[lifecycleChild,"--model","writer-test"],prompt,next:["review"]},
@@ -362,7 +362,7 @@ console.log("PASS: a bounded slot wait refuses after its deadline, reports the w
 const pool = path.join(scratch, "machine-slots");
 const release = path.join(scratch, "release-reviewers");
 const reviewer = path.join(scratch, "holding-reviewer.mjs");
-fs.writeFileSync(reviewer, `import fs from 'node:fs'; fs.writeFileSync(process.argv[2], 'review posted'); setTimeout(()=>process.exit(2),60000).unref(); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
+fs.writeFileSync(reviewer, `import fs from 'node:fs'; let p=''; for await (const c of process.stdin) p+=c; if(p.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);} fs.writeFileSync(process.argv[2], 'review posted'); setTimeout(()=>process.exit(2),60000).unref(); const timer=setInterval(()=>{if(fs.existsSync(process.argv[3])){clearInterval(timer);process.exit(0)}},25);`);
 const coordinator = path.join(scratch, "coordinator.mjs");
 fs.writeFileSync(coordinator, `import {runHandoff} from ${JSON.stringify(pathToFileURL(path.resolve("scripts/agent-handoff.mjs")).href)}; runHandoff(process.argv[2], {jobRoot:${JSON.stringify(scratch)},slotRoot:process.argv[3],identifyProcess:process.argv[4]==='uncertain'?()=>{throw new Error('fixture registration failure')}:undefined}).catch(e=>{console.error(e.message);process.exitCode=1});`);
 const launched = [];
@@ -497,7 +497,7 @@ console.log("PASS: interrupted coordinator retains live children, uncertain regi
 
 config.steps.second.role="implement";config.steps.second.model="writer-test";config.steps.second.args=[child,"second","--model","writer-test"];
 config.steps.first.role="review";config.steps.first.round=1;config.steps.first.model="reviewer-test";config.steps.first.next=[null];
-config.steps.first.args=["-e","process.exit(0)","--","--model","reviewer-test"];
+config.steps.first.args=["-e","process.stdout.write('OK',()=>process.exit(0))","--","--model","reviewer-test"];
 config.journal=path.join(scratch,"fast-exit.jsonl");write();
 await assert.rejects(handoff(file,{jobRoot:scratch,slotRoot:path.join(scratch,"fast-slots"),identifyProcess:(pid)=>{
   const end=Date.now()+10000;while(processIdentity(pid)!==null){if(Date.now()>end)throw new Error("fast child did not exit");Atomics.wait(new Int32Array(new SharedArrayBuffer(4)),0,0,10);}return null;
@@ -532,7 +532,7 @@ assert.equal(fs.readdirSync(path.join(scratch,"fast-slots")).length,0);
   } finally {childProcess.execFileSync=realExec;syncBuiltinESMExports();}
 }
 console.log("PASS: a cleanly exited review without its completion artifact completes from its one posted report");
-config.steps.first.args=["-e","setTimeout(()=>process.exit(2),60000).unref();process.stdin.resume()","--","--model","reviewer-test"];
+config.steps.first.args=["-e","setTimeout(()=>process.exit(2),60000).unref();let p='';process.stdin.on('data',c=>p+=c);process.stdin.on('end',()=>{if(p.startsWith('Reviewer route probe'))console.log('OK');})","--","--model","reviewer-test"];
 config.journal=path.join(scratch,"journal-failure.jsonl");write();
 let ownedPid;
 const writeSync=fs.writeSync;
@@ -612,7 +612,7 @@ console.log("PASS: absent recovery creates no marker; successful child exit rema
 for(const mode of ["already-exited","uncertain-exit-journal"]){
   const pool=path.join(scratch,mode+"-slots");
   config.journal=path.join(scratch,mode+".jsonl");
-  config.steps.first.args=["-e","process.exit(0)","--","--model","reviewer-test"];write();
+  config.steps.first.args=["-e","process.stdout.write('OK',()=>process.exit(0))","--","--model","reviewer-test"];write();
   let exitedPid;
   try{
     fs.writeSync=(fd,data,...args)=>{
@@ -637,3 +637,59 @@ for(const mode of ["already-exited","uncertain-exit-journal"]){
   assert.equal(fs.existsSync(lock),false);
 }
 console.log("PASS: real already-exited children have no false termination warning; uncertain registration plus exit-journal failure releases capacity");
+
+// A reviewer route that cannot answer is refused before a slot is reserved,
+// and a reviewer that fails on its route names the provider's message.
+{
+  const { routeFailure } = await import("./agent-handoff.mjs");
+  assert.equal(routeFailure("working\nYou've hit your weekly limit - resets Sep 28\n"), "You've hit your weekly limit - resets Sep 28");
+  assert.match(routeFailure('{"type":"error","message":"401 Unauthorized: Incorrect API key provided: sk-svcac***"}'), /401 Unauthorized/);
+  assert.match(routeFailure("API Error: 400 claude-opus-5-5 requires Claude Code 2.1.280 or later"), /2\.1\.280/);
+  assert.equal(routeFailure("TypeError: cannot read properties of undefined"), undefined, "an ordinary crash is not a route failure");
+  for (const benign of ["GitHub authentication configured", "processed 401 files", "listening on port 429", "authentication succeeded"]) assert.equal(routeFailure(`crash\n${benign}`), undefined, `a benign line is not a route failure: ${benign}`);
+  for (const failing of ["HTTP 429 from the API", "error: status 401", "Failed to authenticate: OAuth session expired and could not be refreshed", "authentication failed for this account"]) assert.equal(routeFailure(`working\n${failing}\n`), failing, `a route failure is named: ${failing}`);
+  const routeChild = path.join(scratch, "route-child.mjs");
+  const launchedMarker = path.join(scratch, "route-child-launched");
+  fs.writeFileSync(routeChild, `import fs from "node:fs"; let p=""; for await (const c of process.stdin) p+=c; const mode=process.argv[2]; const probe=p.startsWith("Reviewer route probe");
+if(probe&&mode==="limited"){console.error("You've hit your weekly limit - resets Sep 28");process.exit(1);}
+if(probe&&mode==="silent"){setInterval(()=>{},1000);}
+else if(probe&&mode==="mute"){process.exit(0);}
+else if(probe){console.log("OK");process.exit(0);}
+else{fs.writeFileSync(${JSON.stringify(launchedMarker)},"launched");console.log("reviewing");console.error("401 Unauthorized: Incorrect API key provided");process.exit(1);}`);
+  const routeSlots = path.join(scratch, "route-slots");
+  const plan = (mode) => ({ worktree, pr: 531, writer: "writer-test", writerEffort: "medium", reviewer: "reviewer-test", completedReviewRound: 0, maxSteps: 1, first: "review", journal: path.join(scratch, `route-${mode}.jsonl`), steps: { review: { role: "review", round: 1, model: "reviewer-test", executable: process.execPath, args: [routeChild, mode, "--model", "reviewer-test"], prompt, next: [null] } } });
+  const journalRows = (mode) => fs.readFileSync(path.join(scratch, `route-${mode}.jsonl`), "utf8").trim().split("\n").map(JSON.parse);
+  const run = (mode) => { const planFile = path.join(scratch, `route-${mode}.json`); fs.writeFileSync(planFile, JSON.stringify(plan(mode))); return handoff(planFile, { jobRoot: scratch, slotRoot: routeSlots, probeTimeoutMs: 2000 }); };
+
+  await assert.rejects(run("limited"), /Reviewer route reviewer-test unavailable before slot reservation: You've hit your weekly limit/);
+  let rows = journalRows("limited");
+  assert.equal(rows.some((row) => row.event === "reserved"), false, "a failed probe reserves no slot");
+  assert.equal(fs.existsSync(launchedMarker), false, "a failed probe launches no reviewer");
+  assert.match(rows.at(-1).reason, /weekly limit/, "the blocked row names the route's own error");
+
+  await assert.rejects(run("silent"), /unavailable before slot reservation: no answer within 2 seconds/);
+  assert.equal(journalRows("silent").some((row) => row.event === "reserved"), false, "a probe timeout reserves no slot");
+
+  await assert.rejects(run("mute"), /unavailable before slot reservation: exited 0 without answering OK \(no output\)/);
+  assert.equal(journalRows("mute").some((row) => row.event === "reserved"), false, "a clean exit without an answer reserves no slot");
+  assert.equal(fs.existsSync(launchedMarker), false, "a clean exit without an answer launches no reviewer");
+
+  // Every Codex step shape, awaited or native, probes without its report file.
+  const { probeReviewerRoute } = await import("./agent-handoff.mjs");
+  const codexDir = fs.mkdtempSync(path.join(scratch, "probe-codex-"));
+  fs.writeFileSync(path.join(codexDir, "exec"), `const i=process.argv.indexOf("-o");if(i>0)require("fs").writeFileSync(process.argv[i+1],"probe wrote the report");console.log("OK");`);
+  for (const [label, extra] of [["awaited", {}], ["native", { nativeResult: "codex-jsonl" }]]) {
+    const report = path.join(codexDir, `${label}-final.md`);
+    const args = ["exec", "--json", "-o", report, "-"];
+    await probeReviewerRoute({ model: "gpt-test", executable: process.execPath, args, ...extra }, args, { cwd: codexDir, env: process.env, timeoutMs: 10000 });
+    assert.equal(fs.existsSync(report), false, `the ${label} Codex probe leaves the reviewer's report file unwritten`);
+  }
+
+  await assert.rejects(run("failing"), /Role review failed; route unavailable: 401 Unauthorized: Incorrect API key provided; inspect /);
+  rows = journalRows("failing");
+  assert.ok(rows.findIndex((row) => row.event === "route-probed") < rows.findIndex((row) => row.event === "reserved"), "the probe answers before the slot is reserved");
+  assert.equal(fs.existsSync(launchedMarker), true);
+  assert.match(rows.at(-1).reason, /route unavailable: 401 Unauthorized/, "the blocked row names the route failure from the process log");
+  assert.equal(fs.readdirSync(routeSlots).length, 0, "the failed reviewer's slot is released");
+}
+console.log("PASS: an unanswering reviewer route is refused before slot reservation with its own error, and a reviewer's route failure is named in the blocked row");

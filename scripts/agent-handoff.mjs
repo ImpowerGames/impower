@@ -121,9 +121,72 @@ export function validateSlotWait(value) {
   if (value !== undefined && (!Number.isInteger(value) || value < 0 || value > 3600)) throw new Error("slotWaitSeconds must be an integer from 0 through 3600");
 }
 
+// Provider messages that mean the route itself cannot answer: usage and rate
+// limits, rejected credentials, and a CLI too old for the requested model.
+// Status codes count only as a status line renders them, and authentication
+// only beside a failure word, so a benign line naming either is not a cause.
+const routeFailurePattern = /hit your .*limit|usage limit|rate limit|too many requests|\b(401|429)\s+(unauthori[sz]ed|too many)|(status|http|error)\W{0,3}(401|429)\b|unauthori[sz]ed|incorrect api key|invalid api key|not logged in|please run .*login|failed to authenticate|authentication (failed|error|required|expired)|API Error: 400|requires (a newer|claude code|version)|update claude code|model .*(not found|not available|not supported|does not exist)|quota exceeded|exceeded .*quota/i;
+export const reviewerProbePrompt = "Reviewer route probe: reply with the single word OK and do nothing else.";
+
+export function routeFailure(text) {
+  const line = text.split(/\r?\n/).reverse().find((candidate) => routeFailurePattern.test(candidate));
+  return line?.trim().slice(0, 400);
+}
+
+function logTail(file, bytes = 16384) {
+  try {
+    const fd = fs.openSync(file, "r");
+    try {
+      const size = fs.fstatSync(fd).size, length = Math.min(size, bytes), buffer = Buffer.alloc(length);
+      fs.readSync(fd, buffer, 0, length, size - length);
+      return buffer.toString("utf8");
+    } finally { fs.closeSync(fd); }
+  } catch { return ""; }
+}
+
+export function exitFailure(name, output, diagnostics) {
+  const found = routeFailure(logTail(output) + (diagnostics === output ? "" : "\n" + logTail(diagnostics)));
+  return new Error(`Role ${name} failed${found ? `; route unavailable: ${found}` : ""}; inspect ${output}`);
+}
+
+// A probe with the review step's own executable, arguments and environment
+// shows whether the route answers before a reviewer slot is reserved. A route
+// answers only when it exits 0 and its output carries the requested OK. Every
+// Codex step's report file is left out so the probe never writes the report
+// the real launch creates.
+export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120000 }) {
+  const codex = step.nativeResult === "codex-jsonl" || step.args[0] === "exec";
+  const probeArgs = [];
+  for (let index = 0; index < args.length; index++) {
+    if (codex && ["--output-last-message", "-o"].includes(args[index])) index++;
+    else probeArgs.push(args[index]);
+  }
+  const child = spawn(step.executable, probeArgs, { cwd, env, shell: false, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+  let text = "";
+  child.stdout.on("data", (chunk) => { text = (text + chunk).slice(-65536); });
+  child.stderr.on("data", (chunk) => { text = (text + chunk).slice(-65536); });
+  child.stdin.on("error", () => {});
+  child.stdin.end(reviewerProbePrompt + "\n");
+  let timedOut = false;
+  const timer = setTimeout(() => { timedOut = true; child.kill("SIGKILL"); }, timeoutMs);
+  const { code, error } = await new Promise((resolve) => {
+    child.once("error", (spawnError) => resolve({ code: null, error: spawnError }));
+    child.once("close", (exitCode) => resolve({ code: exitCode }));
+  });
+  clearTimeout(timer);
+  const answered = /\bOK\b/i.test(text);
+  if (code === 0 && !timedOut && answered) return;
+  const detail = error ? error.message : timedOut ? `no answer within ${Math.round(timeoutMs / 1000)} seconds` : routeFailure(text) ?? (code === 0 ? `exited 0 without answering OK${text.trim() ? `: ${text.trim().split(/\r?\n/).at(-1).slice(0, 400)}` : " (no output)"}` : text.trim().split(/\r?\n/).at(-1)?.slice(0, 400));
+  let version = "";
+  if (!codex) {
+    try { version = `; installed CLI ${execFileSync(step.executable, ["--version"], { encoding: "utf8", timeout: 15000, windowsHide: true }).trim()}`; } catch {}
+  }
+  throw new Error(`Reviewer route ${step.model} unavailable before slot reservation: ${detail || `exit code ${code}`}${version}; choose another route or wait for it to recover`);
+}
+
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
-export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments } = {}) {
+export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs } = {}) {
   const config = read(configFile);
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   validatePlanShape(config);
@@ -218,7 +281,16 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
       const closeLogs=()=>{try{fs.closeSync(log);}finally{if(stderr!==log)fs.closeSync(stderr);}};
-      let slot;
+      let slot,env;
+      try {
+        env=step.role==='review'?nativeReviewerEnvironment(step,artifacts,process.env,{worktree:cwd}):{...process.env};
+        // Never inherit a service grant from a parent review or unrelated task.
+        for (const key of Object.keys(env)) if (/^IMPOWER_REVIEW_EXECUTION_/i.test(key)) delete env[key];
+        if (step.role === "review") {
+          await probeReviewerRoute(step, args, { cwd, env, timeoutMs: probeTimeoutMs });
+          append({event:"route-probed",index,model:step.model});
+        }
+      } catch (error) { closeLogs(); throw error; }
       try { slot = step.role === "review" ? await reserveWithinBound(slotRoot, slotWaitSeconds, (occupied) => append({event:"waiting",index,slotWaitSeconds,occupied})) : null; }
       catch (error) { closeLogs(); throw error; }
       if (slot) {
@@ -236,9 +308,6 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const executionClient = executionClientCommand(cwd);
       const executionPrompt = step.execution ? `\nLauncher execution service: the caller authorized these operations: ${step.execution.map(op => op.id).join(", ")}. Use the command ${executionClient} with no argument to list their exact commands, or one operation ID to request and await its result. Requests execute outside the reviewer sandbox through the coordinator, against reviewed head ${head}; Vitest retains its machine-wide reservation and process census. Each ID runs once and later requests return its retained result. Read the actual test summaries or benchmark report in output; exit zero alone does not establish coverage. Do not print the service environment token. Other commands, arbitrary flags, external projects and reviewer-authored probes are not delegated.\n` : "";
       try {
-        const env=step.role==='review'?nativeReviewerEnvironment(step,artifacts,process.env,{worktree:cwd}):{...process.env};
-        // Never inherit a service grant from a parent review or unrelated task.
-        for (const key of Object.keys(env)) if (/^IMPOWER_REVIEW_EXECUTION_/i.test(key)) delete env[key];
         if (step.execution) {
           const directory = fs.mkdtempSync(path.join(artifacts, "execution-"));
           executionService = await startExecutionService({ operations: step.execution, root: cwd, directory, head });
@@ -308,7 +377,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       if(slot){try{releaseReviewerSlot(slot);}catch(error){throw new Error(`Child exit confirmed (code ${result.code}); reservation retained at ${slot.file}: ${error.message}; completion and report validation has not run${executionFailure ? `; delegated execution: ${executionFailure.message}` : ""}`);}}
       if(executionFailure)throw executionFailure;
-      if (result.code !== 0) throw new Error(`Role ${current} failed; inspect ${output}`);
+      if (result.code !== 0) throw exitFailure(current, output, diagnostics);
       if(step.nativeResult)verifyNativeReviewResult(output,step.nativeResult);
       if (step.role === "review") {
         const changedPaths = gitStatus(cwd).split("\n").filter(Boolean).length;
