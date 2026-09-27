@@ -1,5 +1,5 @@
+import { identifierAt } from "../utils/debugMetadata";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Stitch } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -19,7 +19,7 @@ export function lowerBranch(
   if (!nameNode) {
     return {};
   }
-  const identifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
+  const identifier = identifierAt(nameNode, ctx);
   const args = lowerArguments(nodeRef.node, ctx);
   const stitch = new Stitch(identifier, [], args, false);
   return { content: [stitch] };

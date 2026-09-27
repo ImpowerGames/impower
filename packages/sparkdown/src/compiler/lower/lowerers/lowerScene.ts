@@ -1,5 +1,5 @@
+import { identifierAt } from "../utils/debugMetadata";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { Knot } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
@@ -21,7 +21,7 @@ export function lowerScene(
   if (!nameNode) {
     return {};
   }
-  const identifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
+  const identifier = identifierAt(nameNode, ctx);
   const args = lowerArguments(nodeRef.node, ctx);
   const knot = new Knot(identifier, [], args, false);
   return { content: [knot] };
