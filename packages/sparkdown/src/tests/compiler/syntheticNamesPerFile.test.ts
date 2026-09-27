@@ -283,4 +283,34 @@ describe("authored names shaped like synthetic ones", () => {
     expect(JSON.stringify(program.compiled)).toContain('"__pa_base_1"');
     expect(JSON.stringify(program.compiled)).toContain('"__mt_1_0"');
   });
+
+  // `__synth_<n>` is the form the compiler gives its own synthetic names, so
+  // an author's name of that shape would join their numbering and be renamed.
+  it("report the canonical synthetic form as reserved", () => {
+    const program = compileOnce({
+      main: [
+        "store f = function() return 1 end",
+        "store __synth_0 = 9",
+        "store g = __synth_0",
+        "function __synth_4()",
+        "  return 2",
+        "end",
+        "",
+      ].join("\n"),
+    });
+    const reserved = errors(program).filter((m) => m.includes("reserved"));
+    expect(reserved).toEqual([
+      "'__synth_0' is reserved for names the compiler generates",
+      "'__synth_0' is reserved for names the compiler generates",
+      "'__synth_4' is reserved for names the compiler generates",
+    ]);
+  });
+
+  it("keep their names when only the prefix matches", () => {
+    const program = compileOnce({
+      main: ["store f = function() return 1 end", "store __synth_x = 9", ""].join("\n"),
+    });
+    expect(errors(program)).toEqual([]);
+    expect(globalAfterRun(program, "__synth_x")).toBe(9);
+  });
 });

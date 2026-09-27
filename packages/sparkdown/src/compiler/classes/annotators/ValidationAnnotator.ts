@@ -166,6 +166,12 @@ function firstDescendant(node: any, names: Set<string>): any {
 // so no conditional node appears there). Only the asset-command validations
 // below remain live.
 
+const LUAU_NAME_NODE = /^Luau\w*Name$/;
+
+// Matches the pattern `SparkdownCompiler.canonicalizeSyntheticFlowNames`
+// collects as its own output.
+const CANONICAL_SYNTHETIC_NAME = /^__synth_\d+$/;
+
 export interface Diagnostic {
   message?: string;
   severity?: "info" | "warning" | "error";
@@ -337,6 +343,30 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
     if (this.validateLuauLiteral(annotations, nodeRef)) {
       return annotations;
+    }
+    // The compiler renumbers every name of the form `__synth_<n>` as one of
+    // its own synthetic names, so an author's name of that form would be
+    // renamed in the program.
+    if (
+      LUAU_NAME_NODE.test(nodeRef.name as string) &&
+      nodeRef.name !== "LuauPropertyName"
+    ) {
+      const text = this.read(nodeRef.from, nodeRef.to);
+      // A declaration's name node encloses another name node over the same
+      // text, which the previous annotation already reports.
+      const last = annotations.at(-1);
+      if (
+        CANONICAL_SYNTHETIC_NAME.test(text) &&
+        (last?.from !== nodeRef.from || last?.to !== nodeRef.to)
+      ) {
+        this.error(
+          annotations,
+          `'${text}' is reserved for names the compiler generates`,
+          nodeRef.from,
+          nodeRef.to,
+        );
+        return annotations;
+      }
     }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
