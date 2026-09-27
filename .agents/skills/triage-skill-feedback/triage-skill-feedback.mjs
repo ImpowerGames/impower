@@ -67,6 +67,11 @@ export function keyOf(skill) {
   return numbered ? `${numbered[1]}, section ${numbered[2]}` : value.replace(/\.$/, '');
 }
 
+// A repeat names its problem by ID, so its target only has to name the same skill; section and wording may differ.
+export function skillNameOf(skill) {
+  return keyOf(skill).match(/^[^\s,]+/)?.[0] ?? '';
+}
+
 // Targets whose reports predate problem IDs; a counted problem at one of them has an incomplete count.
 function historicalTargets(body) {
   body = body.replace(/\r\n/g, '\n');
@@ -172,7 +177,7 @@ export function fold(body, comments, references = { prs: {}, issues: {} }, saved
       }
       const saved = byId.get(report.problemId) || ledger[report.problemId];
       if (!saved && !report.newProblem) throw new Error(`Unknown problem ${report.problemId}; reference a counted problem or report a distinct new one.`);
-      if (saved && keyOf(saved.skill) !== keyOf(report.skill)) throw new Error(`Skill for ${report.problemId} does not match its saved problem.`);
+      if (saved && skillNameOf(saved.skill) !== skillNameOf(report.skill)) throw new Error(`Skill for ${report.problemId} does not match its saved problem; copy the saved target verbatim: ${saved.skill}`);
       if (!saved) {
         track({ skill: report.skill, friction: report.friction, edit: report.edit, status: 'open', problemId: report.problemId, sessions: [report.session], historyIncomplete: false });
       } else {
