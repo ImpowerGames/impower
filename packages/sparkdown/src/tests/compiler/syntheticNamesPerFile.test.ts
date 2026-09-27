@@ -306,6 +306,51 @@ describe("authored names shaped like synthetic ones", () => {
     ]);
   });
 
+  it("report the canonical synthetic form as reserved in flow names", () => {
+    const program = compileOnce({
+      main: [
+        "store obj = { add = function(self, n) return self end }",
+        "",
+        "-> __synth_1",
+        "",
+        "scene __synth_1",
+        "  Hello.",
+        "  -> __synth_1.__synth_2",
+        "",
+        "branch __synth_2",
+        "  label __synth_3",
+        "  Bye.",
+        "",
+      ].join("\n"),
+    });
+    const reserved = errors(program).filter((m) => m.includes("reserved"));
+    expect(reserved).toEqual([
+      "'__synth_1' is reserved for names the compiler generates",
+      "'__synth_1' is reserved for names the compiler generates",
+      "'__synth_1' is reserved for names the compiler generates",
+      "'__synth_2' is reserved for names the compiler generates",
+      "'__synth_2' is reserved for names the compiler generates",
+      "'__synth_3' is reserved for names the compiler generates",
+    ]);
+  });
+
+  // A match arm's key lowers to a string compared at runtime, which the
+  // synthetic-name pass never renames.
+  it("keep a match key of the canonical form", () => {
+    const program = compileOnce({
+      main: [
+        'store x = "__synth_0"',
+        'store y = ""',
+        "match (x)",
+        '  | __synth_0 = y = "matched"',
+        '  | other = y = "unmatched"',
+        "end",
+        "",
+      ].join("\n"),
+    });
+    expect(errors(program)).toEqual([]);
+  });
+
   it("keep their names when only the prefix matches", () => {
     const program = compileOnce({
       main: ["store f = function() return 1 end", "store __synth_x = 9", ""].join("\n"),

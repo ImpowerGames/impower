@@ -9,6 +9,7 @@ import {
 } from "../../constants/dataAttributeProps";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { CANONICAL_SYNTH_NAME } from "../../utils/canonicalSynthName";
 import { formatList } from "../../utils/formatList";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -166,11 +167,21 @@ function firstDescendant(node: any, names: Set<string>): any {
 // so no conditional node appears there). Only the asset-command validations
 // below remain live.
 
-const LUAU_NAME_NODE = /^Luau\w*Name$/;
-
-// Matches the pattern `SparkdownCompiler.canonicalizeSyntheticFlowNames`
-// collects as its own output.
-const CANONICAL_SYNTHETIC_NAME = /^__synth_\d+$/;
+// The name nodes whose text the lowerers turn into the identifiers that
+// `SparkdownCompiler.canonicalizeSyntheticFlowNames` renumbers. Other name
+// nodes, such as a table's property key or a match arm's key, lower to
+// strings that pass leaves alone.
+const RENUMBERED_NAME_NODES = nodeNameSet([
+  "LuauVariableName",
+  "LuauFunctionName",
+  "LuauDefineName",
+  "LuauDefineParentName",
+  "LuauNewClassName",
+  "SceneDeclarationName",
+  "BranchDeclarationName",
+  "LabelDeclarationName",
+  "DivertPartName",
+]);
 
 export interface Diagnostic {
   message?: string;
@@ -347,16 +358,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // The compiler renumbers every name of the form `__synth_<n>` as one of
     // its own synthetic names, so an author's name of that form would be
     // renamed in the program.
-    if (
-      LUAU_NAME_NODE.test(nodeRef.name as string) &&
-      nodeRef.name !== "LuauPropertyName"
-    ) {
+    if (RENUMBERED_NAME_NODES.has(nodeRef.name)) {
       const text = this.read(nodeRef.from, nodeRef.to);
       // A declaration's name node encloses another name node over the same
       // text, which the previous annotation already reports.
       const last = annotations.at(-1);
       if (
-        CANONICAL_SYNTHETIC_NAME.test(text) &&
+        CANONICAL_SYNTH_NAME.test(text) &&
         (last?.from !== nodeRef.from || last?.to !== nodeRef.to)
       ) {
         this.error(

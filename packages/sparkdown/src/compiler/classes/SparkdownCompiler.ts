@@ -143,13 +143,12 @@ import {
 import type { UpdateCompilerDocumentParams } from "./messages/UpdateCompilerDocumentMessage";
 import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMessage";
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
+import { CANONICAL_SYNTH_NAME } from "../utils/canonicalSynthName";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 
-// The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
-// identifiers to. These names are POSITIONAL (document-order ordinals), so a
-// name can refer to a different flow after an edit — name-keyed caches must
-// never reuse entries for flows matching this.
-const CANONICAL_SYNTH_NAME = /^__synth_\d+$/;
+// Names of the `CANONICAL_SYNTH_NAME` form are POSITIONAL (document-order
+// ordinals), so a name can refer to a different flow after an edit —
+// name-keyed caches must never reuse entries for flows matching it.
 
 // Reseed the binary string table once it is half again its live size, provided
 // the absolute slack is worth a full re-serialization. A ratio rather than a
