@@ -14,7 +14,6 @@ import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Obj
 import { Tag } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Tag";
 import { Text } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Text";
 import { TunnelOnwards } from "../../../inkjs/compiler/Parser/ParsedHierarchy/TunnelOnwards";
-import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import type {
 CompiledBlock,
 InkDiagnostic,
@@ -32,6 +31,7 @@ import {
   buildOrderedDisplayCall,
 } from "../utils/displayCall";
 import { lowerTagContent } from "../utils/lowerTagContent";
+import { statementSource } from "../utils/statementSource";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // Lowers a single `*` (once-only) or `+` (sticky) choice. Captures the
@@ -252,7 +252,7 @@ export function lowerChoice(
       message:
         "Choice mark (`*` / `+`) must appear inside a `choose ... end` block. Wrap the choices in `choose` or remove the mark.",
       severity: ErrorType.Error,
-      source: makeSource(nodeRef.node, ctx),
+      source: statementSource(nodeRef.node, ctx),
     });
   }
   const onlyHasAutoNewline =
@@ -268,7 +268,7 @@ export function lowerChoice(
       message:
         "Choice is completely empty. Interpreting as a default fallback choice. Add a divert arrow to remove this warning: * ->",
       severity: ErrorType.Warning,
-      source: makeSource(nodeRef.node, ctx),
+      source: statementSource(nodeRef.node, ctx),
     });
   }
   if (
@@ -280,7 +280,7 @@ export function lowerChoice(
       message:
         "Blank choice - if you intended a default fallback choice, use the `* ->` syntax",
       severity: ErrorType.Warning,
-      source: makeSource(nodeRef.node, ctx),
+      source: statementSource(nodeRef.node, ctx),
     });
   }
 
@@ -291,7 +291,7 @@ export function lowerChoice(
     diagnostics.push({
       message: loadProblem,
       severity: ErrorType.Warning,
-      source: makeSource(divertNode!, ctx),
+      source: statementSource(divertNode!, ctx),
     });
   }
 
@@ -357,17 +357,6 @@ function chosenTextAsDisplayCall(
   const out: ParsedObject[] = [call];
   if (arrow.length > 0) out.push(...tail);
   return { inner: out, startEcho, repeatsStartContent: !tagged };
-}
-
-function makeSource(choiceNode: SyntaxNode, ctx: LowerContext): SourceMetadata {
-  return {
-    fileName: null,
-    filePath: ctx.filePath ?? null,
-    startLineNumber: ctx.lineNumber(choiceNode.from) + 1,
-    endLineNumber: ctx.lineNumber(choiceNode.to) + 1,
-    startCharacterNumber: ctx.characterNumber(choiceNode.from) + 1,
-    endCharacterNumber: ctx.characterNumber(choiceNode.to) + 1,
-  };
 }
 
 function collectChoiceCondition(

@@ -2,6 +2,7 @@ import { nodeNameSet } from "../../utils/nodeNameSet";
 import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
+import { statementSource } from "../utils/statementSource";
 import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
@@ -332,14 +333,7 @@ function diagnose(
   sink.push({
     message,
     severity: ErrorType.Error,
-    source: {
-      fileName: null,
-      filePath: ctx.filePath ?? null,
-      startLineNumber: ctx.lineNumber(node.from) + 1,
-      endLineNumber: ctx.lineNumber(node.to) + 1,
-      startCharacterNumber: ctx.characterNumber(node.from) + 1,
-      endCharacterNumber: ctx.characterNumber(node.to) + 1,
-    },
+    source: statementSource(node, ctx),
   });
 }
 

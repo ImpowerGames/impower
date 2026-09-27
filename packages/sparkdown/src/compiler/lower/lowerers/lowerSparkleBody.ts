@@ -1,6 +1,7 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
+import { statementSource } from "../utils/statementSource";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { Argument } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Argument";
 import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Function";
@@ -333,14 +334,7 @@ function warnOrphanLine(node: SyntaxNode, ctx: LowerContext): void {
     message:
       "This line's indentation doesn't match any element above it, so it isn't part of the layout. Line it up with the block you meant to nest it under.",
     severity: ErrorType.Warning,
-    source: {
-      fileName: null,
-      filePath: ctx.filePath ?? null,
-      startLineNumber: ctx.lineNumber(node.from) + 1,
-      endLineNumber: ctx.lineNumber(node.to) + 1,
-      startCharacterNumber: ctx.characterNumber(node.from) + 1,
-      endCharacterNumber: ctx.characterNumber(node.to) + 1,
-    },
+    source: statementSource(node, ctx),
   });
 }
 

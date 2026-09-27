@@ -1,7 +1,8 @@
 import { type SyntaxNode } from "@lezer/common";
-import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
+import { ErrorType } from "../../../inkjs/engine/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
+import { statementSource } from "./statementSource";
 
 // Scope-rule validation for `Scene` and `Branch` declarations. Scenes
 // and branches are boundary-only Scoped rules in the grammar (see
@@ -20,17 +21,6 @@ import type { LowerContext } from "../context";
 // Both checks are linear sibling walks over the parse tree, which
 // keeps them out of the parser and avoids wrapping potentially-large
 // regions in Scoped rules.
-
-function makeSource(node: SyntaxNode, ctx: LowerContext): SourceMetadata {
-  return {
-    fileName: null,
-    filePath: ctx.filePath ?? null,
-    startLineNumber: ctx.lineNumber(node.from) + 1,
-    endLineNumber: ctx.lineNumber(node.to) + 1,
-    startCharacterNumber: ctx.characterNumber(node.from) + 1,
-    endCharacterNumber: ctx.characterNumber(node.to) + 1,
-  };
-}
 
 // Walks forward from `decl` over root-level siblings, tracking
 // scene/branch nesting depth (start at 1 — `decl` itself is the
@@ -90,7 +80,7 @@ export function validateScene(
         message:
           "Scene is missing its closing `end` keyword. Every `scene` block must be terminated by an explicit `end` at the same indentation as the `scene` keyword.",
         severity: ErrorType.Error,
-        source: makeSource(decl, ctx),
+        source: statementSource(decl, ctx),
       },
     ];
   }
@@ -107,7 +97,7 @@ export function validateBranch(
       message:
         "Branches are only allowed inside a `scene` block. Move this branch inside an enclosing `scene ... end`, or change it to a scene.",
       severity: ErrorType.Error,
-      source: makeSource(decl, ctx),
+      source: statementSource(decl, ctx),
     });
   }
   if (!findsMatchingEnd(decl)) {
@@ -115,7 +105,7 @@ export function validateBranch(
       message:
         "Branch is missing its closing `end` keyword. Every `branch` block must be terminated by an explicit `end` at the same indentation as the `branch` keyword.",
       severity: ErrorType.Error,
-      source: makeSource(decl, ctx),
+      source: statementSource(decl, ctx),
     });
   }
   return diagnostics;
