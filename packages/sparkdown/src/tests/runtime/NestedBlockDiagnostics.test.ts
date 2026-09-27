@@ -103,3 +103,54 @@ describe("diagnostics from statements inside alternator arms and choose blocks",
     },
   );
 });
+
+const UNREACHABLE = "Unreachable statement detected.";
+const LOAD_CHAIN = "`load` applies to a single target";
+
+const TARGETS = "\nscene Far\n  Far.\nend\n\nscene Near\n  Near.\nend\n";
+
+// Each case is [description, diagnostic fragment, body, zero-based line of
+// the statement the diagnostic belongs to].
+const OTHER_NESTED_DIAGNOSTICS: [string, string, string, number][] = [
+  [
+    "a choice mark on a line of a queue arm's body",
+    CHOICE_MARK,
+    "  queue\n  | A\n    * [Pick]\n      Picked.\n  | B\n  end",
+    5,
+  ],
+  [
+    "a line after fin in a queue arm's body",
+    UNREACHABLE,
+    "  queue\n  | A\n    fin\n    Never.\n  | B\n  end",
+    6,
+  ],
+  [
+    "a line after fin in a choice's body inside choose",
+    UNREACHABLE,
+    "  choose\n    * [A]\n      fin\n      Never.\n  end",
+    6,
+  ],
+  [
+    "a load chain on a line of a queue arm's body",
+    LOAD_CHAIN,
+    "  queue\n  | A\n    -> load Far -> Near\n  | B\n  end",
+    5,
+  ],
+  ["a load chain as a queue arm", LOAD_CHAIN, "  queue\n  | -> load Far -> Near\n  | B\n  end", 4],
+  ["a load chain as an arm of a single-line queue", LOAD_CHAIN, "  queue | A | -> load Far -> Near | C end", 3],
+  [
+    "a load chain in a choose block's preamble",
+    LOAD_CHAIN,
+    "  choose\n    -> load Far -> Near\n    * [A]\n      Picked.\n  end",
+    4,
+  ],
+];
+
+// A thread (`<- load Far -> Near`) has no case: the grammar never parses a
+// thread with a chain or a tunnel-onwards, so `lowerThread`'s load-shape
+// warning cannot be raised from source, even directly in a scene.
+describe("other diagnostics from statements inside alternator arms and choose blocks", () => {
+  test.each(OTHER_NESTED_DIAGNOSTICS)("%s reports its diagnostic once, on its own line", (_, fragment, body, line) => {
+    expect(diagnosticLines(scene(body) + TARGETS, fragment)).toEqual([line]);
+  });
+});
