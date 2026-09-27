@@ -13,10 +13,10 @@
 // scene, each checked as the body of a function whose parameters are the
 // flow's, with the prelude's names in scope. A unit keeps the whole source
 // lines of its statements, with narrative left out, the parts of a line that
-// are Sparkdown's own blanked and Sparkdown's own expressions written as
-// `_G()`, together with the document line of each of its lines; so a unit's
-// text, and the result of checking it, do not change when lines move around
-// it.
+// are Sparkdown's own blanked and Sparkdown's own expressions written as a
+// call of an `any` value (`_G()`), together with the document line of each of
+// its lines; so a unit's text, and the result of checking it, do not change
+// when lines move around it.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import { AstStatBlock } from "./Ast";
@@ -171,9 +171,10 @@ const SPARKDOWN_ONLY = new Set([
 ]);
 
 // Sparkdown's own expressions, which Luau has no syntax for: alternators,
-// divert targets and regular expressions. Each is checked as a call of
-// Luau's `_G`, which is typed `any` (as `_G` where the expression is too
-// short for the call), so the rest of its statement is checked as written.
+// divert targets and regular expressions. Each is checked as a call of the
+// checker's `any` value, `_G` unless the document writes that name itself
+// (see `ANY_NAMES`), or as the value alone where the expression is too short
+// for the call, so the rest of its statement is checked as written.
 const SPARKDOWN_EXPRESSIONS = new Set([
   "LuauConditionalAlternatorBlock",
   "LuauSequentialAlternatorBlock",
@@ -191,11 +192,41 @@ const ATOMIC = /^Luau\w*(String|Comment)$/;
 // Comments, which may stand anywhere in a parameter list, `...` and its annotation included.
 const COMMENT = /^Luau\w*Comment$/;
 
+// The names the checker writes its own `any` values with, in the order it
+// tries them: Luau's `_G`, which is typed `any`, then short names Luau does
+// not define. A document gets the first it never writes itself, since a name
+// the author writes may be bound to something else.
+const ANY_NAMES = ["_G", "_H", "_J", "_K", "_Q", "_V", "_W", "_X", "_Y", "_Z"];
+
+/** Whether a text holds a name as a whole identifier. */
+function namesIdentifier(text: string, name: string): boolean {
+  for (let at = text.indexOf(name); at >= 0; at = text.indexOf(name, at + 1)) {
+    if (!/\w/.test(text[at - 1] ?? "") && !/\w/.test(text[at + name.length] ?? "")) return true;
+  }
+  return false;
+}
+
+// Whether a parameter list's text parses as Luau's, by its text.
+const wholeLists = new Map<string, boolean>();
+
+/** Whether a parameter list's text, brackets included, is a Luau parameter list as written. */
+function parsesAsParameters(text: string): boolean {
+  let whole = wholeLists.get(text);
+  if (whole === undefined) {
+    whole = parseLuau(`local function __parameters${text} end`).errors.length === 0;
+    if (wholeLists.size >= 1000) wholeLists.clear();
+    wholeLists.set(text, whole);
+  }
+  return whole;
+}
+
 /** The Luau a `.sd` file holds, as units. */
 export interface SparkdownUnits {
   prelude: LuauUnit;
   /** One unit per scene or branch that holds Luau statements. */
   flows: LuauUnit[];
+  /** The name the units write the checker's own `any` values with (see `ANY_NAMES`); one other than `_G` must be bound to `any` for them. */
+  anyName: string;
 }
 
 /** The line starts of a text, for finding the line an offset is on. */
@@ -369,6 +400,7 @@ function removeSpan(spans: number[], from: number, to: number): number[] {
  */
 export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits {
   const index = new LineIndex(documentText);
+  const anyName = ANY_NAMES.find((name) => !namesIdentifier(documentText, name)) ?? ANY_NAMES[0]!;
   const isSparkdownOnly = (node: SyntaxNode): boolean => {
     const name = node.name;
     if (SPARKDOWN_ONLY.has(name)) return true;
@@ -407,22 +439,21 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
       const text = documentText.slice(expression.from, expression.to);
       const at = expression.from + text.length - text.trimStart().length;
       const room = Math.min(expression.to, index.lineEnd(index.lineAt(at))) - at;
-      lines.write(at, room >= 4 ? "_G()" : room >= 2 ? "_G" : "");
+      lines.write(at, room >= 4 ? `${anyName}()` : room >= 2 ? anyName : "");
     };
     blankWithin(node);
   };
 
-  // A header's parameter list. The grammar can end a list early and leave the
-  // rest of its header unparsed, as a `...` inside a parameter's function type
-  // makes it do; the runtime then binds the names the list holds, and `...` if
-  // one is in it (`lowerArguments`), so such a list is read the same way, each
-  // name typed `any`. A list the grammar reads whole is kept as written.
+  // A header's parameter list. The grammar can end a list early, as a `...`
+  // inside a parameter's function type makes it do, and then the list's text
+  // is not a Luau parameter list; the runtime binds the names the list holds,
+  // and `...` if one is in it (`lowerArguments`), so such a list is read the
+  // same way, each name typed `any`. A list whose text is Luau's is kept as
+  // written, whatever follows it in the header.
   const readParameters = (header: SyntaxNode): ParameterReading | undefined => {
     const node = findDescendant(header, "LuauFunctionParameters");
     if (!node) return undefined;
-    if (documentText[node.from] === "(" && documentText[node.to - 1] === ")" && !findDescendant(header, "Unknown")) {
-      return { node, whole: true, vararg: varargOf(node) };
-    }
+    if (parsesAsParameters(documentText.slice(node.from, node.to))) return { node, whole: true, vararg: varargOf(node) };
     const dots = findDescendant(node, "LuauVariadicParameter");
     const names = findAll(node, "LuauFunctionParameter").map((name) => documentText.slice(name.from, name.to));
     return { node, whole: false, names, vararg: dots ? { dots, annotation: undefined, type: "" } : undefined };
@@ -434,7 +465,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
   // spellings of one type then count as two types, which leaves `...` untyped
   // (see below), where rewriting them could count two types as one.
   const varargOf = (parameters: SyntaxNode): Vararg | undefined => {
-    const dots = findInList(parameters, "LuauVariadicParameter");
+    const dots = findAll(parameters, "LuauVariadicParameter", true)[0];
     if (!dots) return undefined;
     let annotation = dots.nextSibling;
     while (annotation && (NEUTRAL.test(annotation.name) || COMMENT.test(annotation.name))) annotation = annotation.nextSibling;
@@ -443,7 +474,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
   };
 
   // A branch's named parameters, as a `local` on its header line with each
-  // parameter at its column, holding a value of type `any` as an argument
+  // parameter at its column, holding the checker's `any` value as an argument
   // does: `branch inner(k: number, m)` reads as
   // `local        k: number, m = _G, _G`. Its `...` is the flow's (see below).
   const declareParameters = (flow: Flow, header: SyntaxNode) => {
@@ -469,7 +500,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     flow.body.mark(parameters.node.from + 1, end, true);
     flow.body.write(start, "local");
     // Without a value, a `local` with no annotation would be `nil`.
-    flow.body.write(end, ` = ${named.map(() => "_G").join(", ")}`, true);
+    flow.body.write(end, ` = ${named.map(() => anyName).join(", ")}`, true);
   };
 
   // A flow runs from its header to the `end` that closes it; a branch sits
@@ -506,6 +537,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
   const units: SparkdownUnits = {
     prelude: { kind: "prelude", text: preludeLines.text.join("\n"), lines: preludeLines.lines },
     flows: [],
+    anyName,
   };
   for (const flow of flows) {
     const bodyLines = flow.body.build();
@@ -538,7 +570,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     // branch's header line, as the function's last parameter.
     const branchVararg = flow.variadic ? undefined : flow.varargs[0];
     if (branchVararg) {
-      const named = parameters && (parameters.whole ? findInList(parameters.node, "LuauFunctionParameter") : parameters.names.length > 0);
+      const named = parameters && (parameters.whole ? findAll(parameters.node, "LuauFunctionParameter", true).length > 0 : parameters.names.length > 0);
       text[text.length - 1] = text[text.length - 1]!.replace(/\)$/, named ? "," : "");
       const line = new UnitLines(index);
       line.mark(branchVararg.dots.from, branchVararg.dots.to, true);
@@ -559,17 +591,6 @@ function findDescendant(node: SyntaxNode, name: string): SyntaxNode | undefined 
   for (let child = node.firstChild; child; child = child.nextSibling) {
     if (child.name === name) return child;
     const found = findDescendant(child, name);
-    if (found) return found;
-  }
-  return undefined;
-}
-
-/** The first node of a kind in a parameter list, outside its parameters' annotations. */
-function findInList(node: SyntaxNode, name: string): SyntaxNode | undefined {
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) return child;
-    if (child.name === "LuauTypeAnnotationOperation") continue;
-    const found = findInList(child, name);
     if (found) return found;
   }
   return undefined;

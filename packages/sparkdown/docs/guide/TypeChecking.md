@@ -54,3 +54,4 @@ The editor underlines `42`, with the warning "Expected this to be 'string', but 
 - A name you declare in Sparkdown (a scene, a `define`, a `store`, a function in another file) is accepted wherever you use it, as any type.
 - Sparkdown's own expressions, such as `plural(n)|one="is"|other="are"` or `-> start`, are accepted as any type too.
 - A scene and its branches share one `...`. Where they give it different types, such as `branch first(...: string)` and `branch second(...: number)`, `...` is accepted as any type in that scene.
+- A parameter whose type is a function that takes `...`, such as `f: (...any) -> ()`, ends its scene's or branch's parameters for now (#876): the parameters after it are not parameters when the story runs, and a line that reads one is warned about as an unknown name. Writing the value to that name makes the warning go away but does not pass the argument, so move such a parameter to the end of the list, or give it a type without `...`.

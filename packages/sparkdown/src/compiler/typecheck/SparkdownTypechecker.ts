@@ -152,7 +152,16 @@ export class SparkdownTypechecker {
     }
 
     const units = sparkdownUnits(tree, text);
-    const prelude = this.checkUnit(uri, units.prelude, mode, program.scope, program.key, true);
+    // A document that writes `_G` itself gets another name for the checker's
+    // `any` values (see `sparkdownUnits`), bound for its units alone.
+    let environment = program.scope;
+    let environmentKey = program.key;
+    if (units.anyName !== "_G") {
+      environment = Scope.child(program.scope);
+      environment.bindings.set(units.anyName, { typeId: this.frontend.builtinTypes.anyType, location: new Location() });
+      environmentKey = `${program.key}\u0000${units.anyName}`;
+    }
+    const prelude = this.checkUnit(uri, units.prelude, mode, environment, environmentKey, true);
     report(prelude, units.prelude);
     const exports = prelude.exports!;
     for (const flow of units.flows) {

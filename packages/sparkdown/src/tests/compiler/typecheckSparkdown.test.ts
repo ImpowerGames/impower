@@ -246,6 +246,37 @@ end
     expect(typeWarnings(program)).toEqual(["8:24-8:25 Expected this to be 'string', but got 'number'"]);
   });
 
+  test("the checker's own `any` values stay `any` where the script binds `_G`", () => {
+    const program = compile(`scene start
+  local _G: number = 1
+  local target = -> start
+  branch inner(k: string, m)
+    local copy: string = k
+    & m()
+    local bad: string = 1
+  end
+end
+`);
+    expect(typeWarnings(program)).toEqual(["10:24-10:25 Expected this to be 'string', but got 'number'"]);
+  });
+
+  test("a parameter list followed by more text in its header keeps its annotations", () => {
+    const program = compile(`scene start(n: number) -- how many times
+  Hello.
+  local wrong: string = n
+  branch inner(k: number) oops
+    local alsoWrong: string = k
+  end
+  local bad: string = 1
+end
+`);
+    expect(typeWarnings(program)).toEqual([
+      "6:24-6:25 Expected this to be 'string', but got 'number'",
+      "8:30-8:31 Expected this to be 'string', but got 'number'",
+      "10:22-10:23 Expected this to be 'string', but got 'number'",
+    ]);
+  });
+
   test("a parameter list the grammar ends early is read as the runtime binds it", () => {
     const program = compile(`scene start(a: number)
   branch inner(f: (...any) -> (), k: number)
