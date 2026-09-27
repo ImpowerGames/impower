@@ -19,12 +19,74 @@
 //      SKIPPED warnings a cold compile emits (e.g. the DivertTarget "Can't use a
 //      divert target like that" hint). Fixed by `resetParsedRuntimeState`. Was
 //      ~185/400 edits divergent.
+//
+// The fixture ends with the constructs of `constructs()`. A fifth of the edits
+// are whole edit shapes rather than random keystrokes, and the test counts,
+// by chunk identity, the shaped edits that left each construct's chunk
+// carried, and the compiles that served flows from the reuse cache, so that
+// it cannot pass over constructs the compile always lowered again, or while
+// a guard has turned reuse off.
 import "../../inkjs/engine/Container";
 import { describe, it, expect } from "vitest";
 import { cumulativeScreenplay } from "./fixtures/coupledScreenplay";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 
 const URI = "inmemory:///main.sd";
+
+/** Records whether each compile served flows from the reuse cache. */
+class Probe extends SparkdownCompiler {
+  reused = false;
+
+  protected override computeFlowReuse(story: RuntimeStory) {
+    const result = super.computeFlowReuse(story);
+    this.reused = result.ok && result.reusable.size > 0;
+    return result;
+  }
+}
+
+// A string that starts each construct of the fixture's `constructs()`.
+const CONSTRUCT_MARKERS: Record<string, string> = {
+  "tag line": "# chapter marker",
+  "tagged scene": "scene deep_choice # arc",
+  "choose with a then clause": "choose\n  + [Press on]",
+  "store named after an edit's define": "store thing = 1",
+  "store holding a method": "store acc =",
+  "function with assignments, loops and a closure": "function reckon()",
+  "layout with bindings": "layout hud with",
+};
+
+// The compilation chunk each construct still present in `text` starts in.
+function constructChunks(c: SparkdownCompiler, text: string) {
+  const ranges: { from: number; to: number; chunk: object }[] = [];
+  const cur = c.documents.annotations(URI).compilations.iter();
+  while (cur.value) {
+    ranges.push({ from: cur.from, to: cur.to, chunk: cur.value.type });
+    cur.next();
+  }
+  const out = new Map<string, object>();
+  for (const [construct, marker] of Object.entries(CONSTRUCT_MARKERS)) {
+    const at = text.indexOf(marker);
+    const found = at < 0 ? undefined : ranges.find((r) => r.from <= at && at < r.to);
+    if (found) out.set(construct, found.chunk);
+  }
+  return { out, all: new Set(ranges.map((r) => r.chunk)) };
+}
+
+// Edit shapes applied whole, each a pair of texts the edit toggles between:
+// a function or a define inserted at the top of the file (#912's carried
+// chunk shape, #935, #936), a change to a parameter list (#841), and a
+// rename of a callee. A pair neither of whose texts the random edits have
+// left intact is skipped.
+const SHAPED_EDITS: [string, string][] = [
+  ["store trust = 0", "function later()\n  return 7\nend\n\nstore trust = 0"],
+  [
+    "define hero as character with",
+    "define thing with\n  x = 1\nend\n\ndefine sidekick as thing with\n  x = 2\nend\n\ndefine hero as character with",
+  ],
+  ["function bonus(x):", "function bonus(x, y):"],
+  ["function bonus(", "function bonus_b("],
+];
 
 // Per-field stable stringify (sorted keys; arrays kept in order). Each program
 // field is compared independently so a failure names the diverging field.
@@ -100,7 +162,7 @@ describe("compiler cumulative incremental equivalence", () => {
     console.error = () => {};
     try {
       let text = cumulativeScreenplay();
-      const incr = new SparkdownCompiler();
+      const incr = new Probe();
       incr.configure({
         files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
       });
@@ -117,16 +179,39 @@ describe("compiler cumulative incremental equivalence", () => {
       // synthetic-name renumbering + the name-keyed flow caches — without it,
       // no edit ever creates or destroys a synthetic name and drift class 1
       // goes untested.
-      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5", "\n& f = function() return 9 end\n"];
+      //
+      // The last six write pieces of the fixture's constructs: a `then`, a
+      // method call, a compound assignment, a binding, a closure and a
+      // `define` header. The header takes a name of its own on each edit,
+      // because a name declared twice stops the cold compile resolving the
+      // rest of the script (#979).
+      const DEFINE_HEADER = "\ndefine header with\n";
+      const inserts = ["x", "\n", " ", "1", "}", "{", "{trust}", "// c", "->", "end", ")", "", "{scene_2}", "hero:", "-> scene_5", "\n& f = function() return 9 end\n", "then", ":add(1)", " += 1", "{t.a}", "function() return 1 end", DEFINE_HEADER];
 
       let version = 1;
       const failures: string[] = [];
+      // How many shaped edits left each construct's chunk carried, and how
+      // many compiles served flows from the reuse cache.
+      const carried = new Map<string, number>();
+      let reusing = 0;
       const EDITS = 200;
       for (let n = 0; n < EDITS; n++) {
-        const insert = inserts[Math.floor(rand() * inserts.length)]!;
-        const delLen = rand() < 0.4 ? Math.min(1 + Math.floor(rand() * 10), 16) : 0;
+        let insert = inserts[Math.floor(rand() * inserts.length)]!;
+        if (insert === DEFINE_HEADER) insert = `\ndefine header_${n} with\n`;
+        let delLen = rand() < 0.4 ? Math.min(1 + Math.floor(rand() * 10), 16) : 0;
+        let offset = Math.floor(rand() * text.length);
+        let shaped = false;
+        if (rand() < 0.2) {
+          const [a, b] = SHAPED_EDITS[Math.floor(rand() * SHAPED_EDITS.length)]!;
+          const [find, replace] = text.includes(b) ? [b, a] : [a, b];
+          if (!text.includes(find)) continue;
+          offset = text.indexOf(find);
+          delLen = find.length;
+          insert = replace;
+          shaped = true;
+        }
         if (insert === "" && delLen === 0) continue;
-        const offset = Math.floor(rand() * text.length);
+        const before = shaped ? constructChunks(incr, text) : undefined;
         const start = posAt(text, offset);
         const end = posAt(text, Math.min(offset + delLen, text.length));
         version += 1;
@@ -136,6 +221,13 @@ describe("compiler cumulative incremental equivalence", () => {
         });
         text = text.slice(0, offset) + insert + text.slice(offset + delLen);
         const incrSig = fieldSig(incr.compile({ textDocument: { uri: URI } }).program);
+        if (incr.reused) reusing += 1;
+        if (before) {
+          const now = constructChunks(incr, text).all;
+          for (const [construct, chunk] of before.out) {
+            if (now.has(chunk)) carried.set(construct, (carried.get(construct) ?? 0) + 1);
+          }
+        }
         const coldSig = fieldSig(coldProgram(text));
         const diverged = Object.keys(incrSig).filter((f) => incrSig[f] !== coldSig[f]);
         if (diverged.length) {
@@ -143,6 +235,15 @@ describe("compiler cumulative incremental equivalence", () => {
         }
       }
       expect(failures, `incremental-vs-cold divergences:\n${failures.join("\n")}`).toEqual([]);
+      // Each construct was carried through at least one shaped edit, so the
+      // comparisons above covered it outside the reparse window.
+      expect(Object.keys(CONSTRUCT_MARKERS).filter((c) => !carried.get(c))).toEqual([]);
+      // A guard that refused reuse on every compile would pass the
+      // comparisons without testing it. The floor sits well under the 48 of
+      // 200 compiles measured with this seed: a random edit that declares a
+      // name, or lowers again a chunk holding an anonymous function (#977),
+      // correctly or needlessly refuses reuse, and the edits pile up.
+      expect(reusing, "compiles that served flows from the cache").toBeGreaterThan(EDITS / 10);
     } finally {
       console.warn = realWarn;
       console.error = realError;
