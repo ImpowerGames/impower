@@ -2081,6 +2081,10 @@ export class Story extends InkObject {
           currentDivert.externalArgs,
         );
         return true;
+      } else if (currentDivert.targetPath == null) {
+        // The compiler reported this target as not found; reaching it at
+        // runtime is a story error rather than a crash.
+        this.Error("Divert target not found.");
       } else {
         this.state.divertedPointer = currentDivert.targetPointer.copy();
         // Spread last-arg MultiValue for non-variadic static-dispatch
