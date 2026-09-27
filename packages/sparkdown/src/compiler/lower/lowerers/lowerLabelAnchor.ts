@@ -1,6 +1,6 @@
+import { identifierAt } from "../utils/debugMetadata";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { Gather } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
-import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
@@ -20,7 +20,7 @@ export function lowerLabelAnchor(
 ): CompiledBlock {
   const nameNode = getDescendent("LabelDeclarationName", nodeRef.node);
   if (!nameNode) return {};
-  const identifier = new Identifier(ctx.read(nameNode.from, nameNode.to));
+  const identifier = identifierAt(nameNode, ctx);
   const gather = new Gather(identifier, 0);
   return wrapInWeave([gather]);
 }
