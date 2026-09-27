@@ -48,7 +48,7 @@ function completeAt(source: string, triggerCharacter?: string) {
   };
   const documents = new SparkdownDocumentRegistry(["characters", "declarations", "references"]);
   documents.set({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
-  const scriptAnnotations = new Map([[URI, { annotations: documents.annotations(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]);
+  const scriptAnnotations = new Map([[URI, { annotations: documents.annotations(URI), tree: documents.tree(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]);
   return (
     getCompletions(
       documents.get(URI),
@@ -275,7 +275,7 @@ end
       getCompletions(
         documents.get(URI),
         documents.tree(URI),
-        new Map([[URI, { annotations: documents.annotations(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]),
+        new Map([[URI, { annotations: documents.annotations(URI), tree: documents.tree(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]),
         inherited as any,
         undefined,
         position,

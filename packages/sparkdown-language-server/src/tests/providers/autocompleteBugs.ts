@@ -4,8 +4,6 @@
 export const BUG = {
   /** A divert misses a label its scene declares after a branch closes. */
   labelAfterBranch: 459,
-  /** Luau locals and parameters are offered outside their scope and before their declaration. */
-  localScope: 860,
   /** Function and define names are never offered. */
   functions: 861,
   /** The standard library (`table`, `math`, `string`) and its functions are never offered. */

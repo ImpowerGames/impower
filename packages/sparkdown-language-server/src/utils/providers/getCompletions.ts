@@ -1988,7 +1988,10 @@ export const getCompletions = (
         valueCursorOffset,
       );
     } else {
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, {
+        uri: document.uri,
+        offset: documentCursorOffset,
+      });
       const scopePath = getParentSectionPath(leftStack, read).join(".");
       addMutableAccessPathCompletions(
         completions,
@@ -2023,7 +2026,10 @@ export const getCompletions = (
     )
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, {
+        uri: document.uri,
+        offset: documentCursorOffset,
+      });
       addDivertPathKeywords(completions, "", 0, " ");
       addDivertPathCompletions(
         completions,
@@ -2044,7 +2050,10 @@ export const getCompletions = (
     ).trim()
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, {
+        uri: document.uri,
+        offset: documentCursorOffset,
+      });
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
@@ -2060,7 +2069,10 @@ export const getCompletions = (
     if (isCursorAfterNodeText(leftStack[0])) {
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, {
+        uri: document.uri,
+        offset: documentCursorOffset,
+      });
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
@@ -2081,7 +2093,10 @@ export const getCompletions = (
     if (isCursorAfterNodeText(divertPathNode)) {
       const valueText = getNodeText(divertPathNode);
       const valueCursorOffset = getCursorOffset(divertPathNode);
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, {
+        uri: document.uri,
+        offset: documentCursorOffset,
+      });
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
