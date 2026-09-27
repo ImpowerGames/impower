@@ -122,4 +122,7 @@ Additional content printed in the \`bottom right\` of the screenplay's title pag
 \`\`\`
 `.trim(),
   },
+  typecheck: {
+    "": `How strictly this file's Luau is type checked: \`nonstrict\` warns about what is certainly wrong, \`strict\` also warns about every mismatch in code it infers the types of, and \`nocheck\` checks nothing. For this file, it takes the place of the project's \`config.typecheck.mode\`.`,
+  },
 });
