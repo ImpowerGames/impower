@@ -34,7 +34,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // `<offset>` is `syntheticId`: the document tag, `$`, then the loop's offset
 // in the document. The rename pass recognizes these names by that `$`.
 //
-// Why this works without a synthetic knot / stitch:
+// Why this works:
 //
 //   - The labeled `Gather` auto-enters when execution reaches it,
 //     since no choices precede it in the parent weave.
@@ -51,12 +51,8 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //     parent Weave` and finds the gather via the weave's
 //     `namedWeavePoints`. `FlowBase.ResolveWeavePointNaming` populates
 //     that map before any divert is resolved.
-//
-// Compared to the previous synthetic-knot+stitch approach:
-//   - No upval scanning. The body sees outer scope naturally.
-//   - No by-reference argument shoveling.
-//   - No `ctx.hoistedKnots` push — the gather lives at its source
-//     position.
+//   - The gather lives at its source position, so the body sees the
+//     enclosing scope directly and needs no hoisted container.
 //
 // `break` diverts to a second labeled gather after the loop, and
 // `continue` diverts to the loop gather, the same as the tail jump.
