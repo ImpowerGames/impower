@@ -901,19 +901,23 @@ export class JsonSerialisation {
       let divPushType = PushPopType.Function;
       let external = false;
       // A divert whose target did not resolve at compile time is written with
-      // a null target, so `->` is tested by presence rather than truthiness.
+      // a null target, so each divert key is tested by presence rather than
+      // truthiness.
       if ("->" in obj) {
         propValue = obj["->"];
         isDivert = true;
-      } else if ((propValue = obj["f()"])) {
+      } else if ("f()" in obj) {
+        propValue = obj["f()"];
         isDivert = true;
         pushesToStack = true;
         divPushType = PushPopType.Function;
-      } else if ((propValue = obj["->t->"])) {
+      } else if ("->t->" in obj) {
+        propValue = obj["->t->"];
         isDivert = true;
         pushesToStack = true;
         divPushType = PushPopType.Tunnel;
-      } else if ((propValue = obj["x()"])) {
+      } else if ("x()" in obj) {
+        propValue = obj["x()"];
         isDivert = true;
         external = true;
         pushesToStack = false;

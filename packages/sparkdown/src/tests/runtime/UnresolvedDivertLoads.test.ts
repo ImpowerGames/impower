@@ -23,6 +23,16 @@ describe("a program with an unresolved divert target", () => {
     expect(ctx.story).toBeDefined();
   });
 
+  test("loads when the tunnel itself is unresolved", () => {
+    const source = `-> main\nscene main\n  HERO: Hi -> nope -> there.\n  done\nend\n`;
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([
+      "target not found: `-> nope`",
+      "target not found: `-> there`",
+    ]);
+    expect(ctx.story).toBeDefined();
+  });
+
   test("runs the content that does not reach the unresolved divert", () => {
     const source = `-> main
 scene main
