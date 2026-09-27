@@ -95,6 +95,8 @@ describe("reads the rule recognizes", () => {
     ["the name in a string", "\nlocal x = 1\nreturn 'x'\n", 1],
     ["the name in a comment", "\nlocal x = 1\n-- x\n", 1],
     ["a local in a then arm read only in the else arm", "\nlocal c = true\nif c then\n    local y = 1\nelse\n    print(y)\nend\n", 3],
+    ["a write from a narrative logic line", "\nlocal hp = 1\n& hp = 5\n", 1],
+    ["a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(a)\n", 1],
   ])("%s is not a read", (_name, body, line) => {
     expect(lintInFunction(body)).toEqual([
       {

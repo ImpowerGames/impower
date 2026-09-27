@@ -372,17 +372,29 @@ const KEYWORD = /^Luau(?!Self)\w*(?:Keyword|Modifier)(?:_c\d+)?$/;
 const TYPE_WORD =
   /^Luau(?:TypeName|PrimitiveType|TypePropertyName)(?:_c\d+)?$/;
 
+// The statements a keyword begins, which the grammar can also nest inside the
+// statement before them on one line (`local a = {} store x = 1`).
+const KEYWORD_STATEMENTS = new Set([
+  "LuauVariableDefinition",
+  "LuauContinueStatement",
+  "LuauDataTypeDeclaration",
+]);
+
 /** Whether a keyword token begins its statement (`continue`, `type X = ...`,
  *  `store x = 1`), where it is the keyword of the statement rather than a
  *  name in an expression. */
 function beginsStatement(token: SyntaxNode, src: Source) {
+  const at = trimmedRange(token, src).from;
   for (let p: SyntaxNode | null = token; p; p = p.parent) {
     if (p.name === "LuauFunctionDefinition") break;
     // An `if` or `elseif` block's condition sits in the block's content
     // beside its statements, but is an expression.
     if (p.name.endsWith("Condition")) continue;
+    if (KEYWORD_STATEMENTS.has(p.name) && trimmedRange(p, src).from === at) {
+      return true;
+    }
     if (p.parent && BLOCK_CONTENTS.has(p.parent.name)) {
-      return trimmedRange(p, src).from === trimmedRange(token, src).from;
+      return trimmedRange(p, src).from === at;
     }
   }
   return true;
@@ -474,6 +486,27 @@ const REFERENCES = new Set([
   "LuauFunctionName",
   "LuauSparkleEventHandlerName",
 ]);
+
+// Outside functions, the Luau code in narrative text: an interpolation, a
+// logic line and a Sparkle handler.
+const EMBEDDED_LUAU = new Set([
+  "LuauInterpolatedStringExpression",
+  "LuauExplicitStatement",
+  "LuauEventAttribute",
+]);
+
+/** Whether a token outside functions names a variable or function. The
+ *  grammar marks Sparkdown's structural words as keywords there too
+ *  (`{match}`, `& layout("x")`); inside embedded Luau such a word is a name,
+ *  while elsewhere it is the keyword of a narrative construct. */
+function isReferenceOutside(token: SyntaxNode) {
+  if (REFERENCES.has(token.name)) return true;
+  if (!/Keyword(?:_c\d+)?$/.test(token.name)) return false;
+  for (let p = token.parent; p; p = p.parent) {
+    if (EMBEDDED_LUAU.has(p.name)) return true;
+  }
+  return false;
+}
 
 /** A single-name `function name()` statement's name token and name, or null
  *  for a `local function`, a field (`function a.b()`) or a method. */
@@ -649,7 +682,7 @@ export function readScriptNames(
       if (isWordChar(text[i - 1]) || isWordChar(text[i + name.length])) continue;
       if (skip.has(i) || inClosedFunction(i)) continue;
       const token = tokenAt(i);
-      if (!REFERENCES.has(token.name)) continue;
+      if (!isReferenceOutside(token)) continue;
       const kind = useAt(i, token, src);
       if (!kind) continue;
       list.push({ name, from: i, to: i + name.length, kind, declarations: [] });

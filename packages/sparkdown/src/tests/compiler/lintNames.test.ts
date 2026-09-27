@@ -215,6 +215,17 @@ end
     ]);
   });
 
+  test("a keyword statement nested on another's line is not a use", () => {
+    const source = `function run()
+  local a = {} store x = 1
+  local b = {} type T = { y: number }
+  for i = 1, 3 do local c = 1 continue end
+  return a, b
+end
+`;
+    expect([...namesOf(source).globalOccurrences.keys()]).toEqual([]);
+  });
+
   test("`self` is a method's parameter, or a local of that name", () => {
     const source = `function run()
   local q = {}
@@ -352,6 +363,21 @@ end
         "b.sd:L1 read in top level",
         "b.sd:L2 write in top level",
       ],
+    });
+  });
+
+  test("a global named after a Sparkdown word, in an interpolation and a logic line", () => {
+    expect(
+      usesAcross(
+        {
+          "a.sd": `store match = 1\n`,
+          "b.sd": `It was a match.\nYou have {match} left.\n& match("you")\n`,
+        },
+        "match",
+      ),
+    ).toEqual({
+      definitions: ["a.sd:L1 store"],
+      uses: ["b.sd:L2 read in top level", "b.sd:L3 read in top level"],
     });
   });
 
