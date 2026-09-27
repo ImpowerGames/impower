@@ -72,7 +72,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
+import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
 
 // Windows paths compare without case, and git prints them with forward slashes.
@@ -215,8 +215,12 @@ export const liveDeps = {
     }
   },
   pidAlive,
-  // Where the web editor driver keeps each checkout's session directories.
+  // Where the web editor driver keeps each checkout's session directories,
+  // and the reads that judge them; both throw on any error, so an entry that
+  // cannot be read is never taken for one that is not there.
   driverHome: () => driverHome(),
+  readEntries: (p) => fs.readdirSync(p, { withFileTypes: true }),
+  lstat: (p) => fs.lstatSync(p),
   // The record of every --apply run, one JSON object per line, in the main
   // checkout's .git so it is never committed.
   readLog: (p) => {
@@ -722,31 +726,76 @@ export function checkoutSpellings(p) {
 
 // Why a checkout's driver directory must stay, one reason per session that
 // may still be in use: a server record naming a live pid, a profile claim
-// younger than the driver's takeover window, a claim lock held by a launch,
-// or a record or claim that cannot be read. Empty when it can go.
-export function driverDirKeeps(dir, deps, nowMs) {
+// younger than the driver's takeover window, a claim lock younger than the
+// driver's stale-lock window, a running process whose command line names the
+// directory (a browser names its profile), or anything that cannot be read:
+// the directory's or a session's entries, a record or claim, or one of them
+// that is a link rather than a file. Empty when it can go.
+export function driverDirKeeps(dir, deps, nowMs, processes) {
   const keep = [];
+  const why = (err) => String(err?.code ?? err?.message ?? err).split("\n")[0];
+  // A file's lstat, null when it is not there; a link, dangling or not, and
+  // anything but ENOENT are reasons to keep.
+  const inspect = (file, label) => {
+    try {
+      const st = deps.lstat(file);
+      if (st.isSymbolicLink()) return { keep: `${label} is a link` };
+      return { st };
+    } catch (err) {
+      if (err?.code === "ENOENT") return { st: null };
+      return { keep: `${label} could not be inspected (${why(err)})` };
+    }
+  };
   const readJson = (file) => {
     try {
       return { value: JSON.parse(deps.readFile(file)) };
     } catch (err) {
-      return { err: String(err.message).split("\n")[0] };
+      return { err: why(err) };
     }
   };
-  for (const name of deps.listDirs(dir)) {
-    const state = path.join(dir, name, "state.json");
-    if (deps.exists(state)) {
+  let entries;
+  try {
+    entries = deps.readEntries(dir);
+  } catch (err) {
+    return [`its sessions could not be listed (${why(err)})`];
+  }
+  for (const entry of entries) {
+    const name = entry.name;
+    if (!entry.isDirectory()) {
+      keep.push(`${name} is not a session directory; left for a person`);
+      continue;
+    }
+    const session = path.join(dir, name);
+    try {
+      deps.readEntries(session);
+    } catch (err) {
+      keep.push(`session ${name}: its entries could not be listed (${why(err)})`);
+      continue;
+    }
+    const state = path.join(session, "state.json");
+    const stateAt = inspect(state, `session ${name}: its server record`);
+    if (stateAt.keep) keep.push(stateAt.keep);
+    else if (stateAt.st) {
       const r = readJson(state);
       if (r.err) keep.push(`session ${name}: its server record could not be read (${r.err})`);
       else if (deps.pidAlive(r.value?.pid)) keep.push(`session ${name}: its server record names pid ${r.value.pid}, still running`);
     }
-    const claim = path.join(dir, name, "profile", PROFILE_CLAIM_FILE);
-    if (deps.exists(`${claim}.lock`)) keep.push(`session ${name}: a launch holds its profile claim lock`);
-    if (deps.exists(claim)) {
+    const claim = path.join(session, "profile", PROFILE_CLAIM_FILE);
+    const lockAt = inspect(`${claim}.lock`, `session ${name}: its profile claim lock`);
+    if (lockAt.keep) keep.push(lockAt.keep);
+    else if (lockAt.st && nowMs - lockAt.st.mtimeMs <= PROFILE_LOCK_STALE_MS) keep.push(`session ${name}: a launch holds its profile claim lock`);
+    const claimAt = inspect(claim, `session ${name}: its profile claim`);
+    if (claimAt.keep) keep.push(claimAt.keep);
+    else if (claimAt.st) {
       const r = readJson(claim);
       if (r.err || typeof r.value?.at !== "number") keep.push(`session ${name}: its profile claim could not be read${r.err ? ` (${r.err})` : ""}`);
       else if (nowMs - r.value.at < PROFILE_CLAIM_MS) keep.push(`session ${name}: its profile was claimed ${Math.max(0, Math.round((nowMs - r.value.at) / 60_000))} min ago, under the driver's ${PROFILE_CLAIM_MS / 60_000} min`);
     }
+  }
+  if (!processes.ok) keep.push("the processes on this machine could not be listed, so whether one is using it is unknown");
+  else {
+    const users = usersOf(dir, processes.list, deps.pid());
+    if (users.length) keep.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
   return keep;
 }
@@ -785,7 +834,7 @@ export async function cleanDriverDirs(ctx, deps, apply, record, rows) {
       decision = apply ? "kept" : "keep";
       why = "matches no worktree, so which checkout it served cannot be told; delete it by hand once no session uses it";
     } else {
-      const keep = driverDirKeeps(dir, deps, nowMs);
+      const keep = driverDirKeeps(dir, deps, nowMs, ctx.processes);
       if (keep.length) {
         decision = apply ? "kept" : "keep";
         why = `the driver directory of ${rel(worktree)}, which ${apply ? "was" : "would be"} removed; ${keep.join("; ")}`;

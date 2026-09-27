@@ -22,7 +22,7 @@ Before interpreting a keep/refusal, manually reconciling a link, or recovering i
 
 ## Web editor driver directories
 
-The web editor driver keeps a directory per checkout under `%LOCALAPPDATA%\impower-driver` (system temp elsewhere; `IMPOWER_DRIVER_HOME` overrides it), named by a hash of the checkout path, with each session's server record and browser profile inside. The run lists the directory of every worktree it removes, with its size, and removes it under apply unless a session in it has a server record naming a live pid, a profile claim under 30 minutes old, a held claim lock, or a record or claim that cannot be read. A directory that matches no worktree is listed with its size and retained, since the hash cannot say which checkout it served. Directories of retained worktrees are not listed.
+The web editor driver keeps a directory per checkout under `%LOCALAPPDATA%\impower-driver` (system temp elsewhere; `IMPOWER_DRIVER_HOME` overrides it), named by a hash of the checkout path, with each session's server record and browser profile inside. The run lists the directory of every worktree it removes, with its size, and removes it under apply unless a session in it has a server record naming a live pid, a profile claim under 30 minutes old, or a claim lock under 30 seconds old, a running process's command line names the directory, or anything in it that the decision reads (its entries, a record, a claim) cannot be read or is a link. A directory that matches no worktree is listed with its size and retained, since the hash cannot say which checkout it served. Directories of retained worktrees are not listed.
 
 ## Review job directories
 

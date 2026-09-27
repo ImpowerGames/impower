@@ -31,6 +31,9 @@ export const checkoutDir = (root, env = process.env) => path.join(driverHome(env
 // clean-worktrees) off the profile.
 export const PROFILE_CLAIM_MS = 30 * 60_000;
 export const PROFILE_CLAIM_FILE = "impower-driver-session.json";
+// A claim's lock file older than this was left by a launch that died
+// mid-claim (the claim itself takes milliseconds).
+export const PROFILE_LOCK_STALE_MS = 30_000;
 
 export function sessionDir({ root, session = driverSession(), env = process.env } = {}) {
   return path.join(checkoutDir(root, env), session ? shortHash(session) : "shared");

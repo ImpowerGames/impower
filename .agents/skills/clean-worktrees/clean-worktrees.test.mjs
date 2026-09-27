@@ -1403,6 +1403,30 @@ try {
   session("fix/12-ff-merged", { claimAt: Date.now() - 60_000 });
   session("fix/14-base", { pid: process.pid });
   session("fix/3-dirty", { claimAt: Date.now() - 2 * 60 * 60_000 });
+  // More sessions under fix/1-merged-gone, none in use: a claim lock an hour
+  // old, which a launch that died mid-claim leaves. More under
+  // fix/12-ff-merged, each a reason to keep on its own: a lock written now,
+  // a claim that is not JSON, and a server record that is a dangling link.
+  // fix/14-base's directory is also on a running process's command line.
+  const extra = (branch, name) => {
+    const profile = path.join(driverDir(branch), name, "profile");
+    fs.mkdirSync(profile, { recursive: true });
+    return profile;
+  };
+  const staleLock = path.join(extra("fix/1-merged-gone", "lockstale"), `${PROFILE_CLAIM_FILE}.lock`);
+  fs.writeFileSync(staleLock, "123-dead");
+  fs.utimesSync(staleLock, new Date(Date.now() - 60 * 60_000), new Date(Date.now() - 60 * 60_000));
+  fs.writeFileSync(path.join(extra("fix/12-ff-merged", "lockfresh"), `${PROFILE_CLAIM_FILE}.lock`), "456-live");
+  fs.writeFileSync(path.join(extra("fix/12-ff-merged", "badclaim"), PROFILE_CLAIM_FILE), '{"session":');
+  extra("fix/12-ff-merged", "linkrecord");
+  let linked = true;
+  try {
+    fs.symlinkSync(path.join(scratch, "no-such-record.json"), path.join(driverDir("fix/12-ff-merged"), "linkrecord", "state.json"), "file");
+  } catch (err) {
+    if (err.code !== "EPERM") throw err;
+    linked = false;
+  }
+  const profileUser = hold(scratch, path.join(driverDir("fix/14-base"), "abc123", "profile"));
   const orphan = path.join(driverHome, "0123456789ab");
   fs.mkdirSync(path.join(orphan, "shared", "profile"), { recursive: true });
   const driverRow = (out, dir) => out.split(/\r?\n/).find((l) => l.includes(`  ${path.basename(dir)}  `));
@@ -1469,7 +1493,12 @@ try {
     assert.match(r.out, new RegExp(`web editor driver directories under ${driverHome.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`));
     assert.match(driverRow(r.out, driverDir("fix/1-merged-gone")) ?? "", /^remove\s+\S+\s+4\.0 KB\s+the driver directory of .*fix.1-merged-gone, which would be removed; no session in it is in use$/);
     assert.match(driverRow(r.out, driverDir("fix/12-ff-merged")) ?? "", /^keep\s.*session abc123: its profile was claimed 1 min ago, under the driver's 30 min/);
-    assert.match(driverRow(r.out, driverDir("fix/14-base")) ?? "", new RegExp(`^keep\\s.*session abc123: its server record names pid ${process.pid}, still running`));
+    const kept12 = driverRow(r.out, driverDir("fix/12-ff-merged")) ?? "";
+    assert.match(kept12, /session lockfresh: a launch holds its profile claim lock/);
+    assert.match(kept12, /session badclaim: its profile claim could not be read/);
+    if (linked) assert.match(kept12, /session linkrecord: its server record is a link/);
+    else console.log("SKIP: a dangling server record link (creating a symlink needs a privilege this account lacks)");
+    assert.match(driverRow(r.out, driverDir("fix/14-base")) ?? "", new RegExp(`^keep\\s.*session abc123: its server record names pid ${process.pid}, still running.*its path is on the command line of pid ${profileUser.pid} \\(`));
     assert.match(driverRow(r.out, orphan) ?? "", /^keep\s.*matches no worktree/);
     assert.equal(driverRow(r.out, driverDir("fix/3-dirty")), undefined, "the directory of a worktree that stays was listed");
     assert.ok(fs.existsSync(driverDir("fix/1-merged-gone")), "the dry run removed a driver directory");

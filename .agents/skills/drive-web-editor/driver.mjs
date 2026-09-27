@@ -30,7 +30,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnDetached } from "../../../scripts/detached-launch.mjs";
 import { gitTopLevel, parseRedGreenArgs, runRedGreen, sameDir } from "./redgreen.mjs";
-import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
+import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, SESSION_VARIABLES, checkoutStateFiles, driverSession, sessionDir } from "./session-dir.mjs";
 
 const SKILL_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SKILL_DIR, "..", "..", "..");
@@ -115,7 +115,7 @@ export function profileClaimConflict(claim, session = SESSION, now = Date.now(),
 // therefore writes nothing: the lock it reads back belongs to whoever took it
 // over, and it refuses. Taking a stale lock over replaces exactly the holder
 // that was read, so a lock acquired in between is never removed.
-export const PROFILE_LOCK_STALE_MS = 30_000;
+export { PROFILE_LOCK_STALE_MS };
 export function claimProfile(dir = PROFILE_DIR, { session = SESSION, now = Date.now(), beforeWrite, beforeTakeover } = {}) {
   const file = path.join(dir, PROFILE_CLAIM_FILE);
   const lock = file + ".lock";
