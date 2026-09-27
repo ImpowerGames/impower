@@ -79,12 +79,15 @@ export function lowerLuauWhileLoop(
   // Grammar shape:
   //   LuauWhileLoop > LuauWhileLoop_content > [ LuauWhileCondition, LuauDoBlock ]
   // The body lives inside LuauDoBlock > LuauDoBlock_content.
+  // An empty one-line body (`while step() do end`) has no `_content`
+  // child; the loop must still lower so its condition is resolved and
+  // evaluated on every iteration. `lowerStatements(null)` yields [].
   const condNode = getDescendent("LuauWhileCondition", nodeRef.node);
   const doBlock = getDescendent("LuauDoBlock", nodeRef.node);
   const bodyContent = doBlock
     ? findChildByName(doBlock, "LuauDoBlock_content")
     : null;
-  if (!condNode || !bodyContent) return {};
+  if (!condNode || !doBlock) return {};
 
   // The gather's name must be unique across the enclosing flow's
   // named weave points. Tagging with the document and the source offset
