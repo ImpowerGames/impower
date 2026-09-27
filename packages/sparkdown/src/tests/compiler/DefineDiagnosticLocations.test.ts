@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 // Diagnostics raised from inside a `define` property's value expression must
-// point at that expression. They come from the ink compiler (VariableReference
-// reports itself as the diagnostic source), so they only carry a location if
-// the lowerer stamped `debugMetadata` on the expression it synthesized.
+// point at that expression. They come from the ink compiler, which reports an
+// unresolved name on the `VariableReference`'s identifier when its names carry
+// positions and otherwise on the reference, so they only carry a location if
+// the lowerer positioned the names or stamped `debugMetadata` on the
+// expression it synthesized.
 //
 // Without that stamp the compiler's diagnostic callback falls back to the
 // ENTRY document at 0:0 -- which silently piles every such warning at the top

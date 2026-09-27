@@ -287,8 +287,10 @@ end
 end
 `);
     // The grammar ends the list at the `)` inside `f`'s type (#876), so the
-    // runtime binds `f`, `any` and `...` and not `k`, and Sparkdown's own
-    // resolver reports `k` where it can place the read.
-    expect(typeWarnings(program)).toEqual(["8:26-8:27 Unknown global 'k'; consider assigning to it first"]);
+    // runtime binds `f`, `any` and `...` and not `k`. Sparkdown's own resolver
+    // reports the read of `k` on the name (#990), so the type checker's
+    // unknown-global warning for the same read is left out.
+    expect(typeWarnings(program)).toEqual([]);
+    expect(describeDiagnostics(program, false)).toEqual(["8:26-8:27 Cannot find variable named `k`"]);
   });
 });

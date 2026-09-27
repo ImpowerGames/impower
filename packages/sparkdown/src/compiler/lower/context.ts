@@ -63,13 +63,15 @@ export interface LowerContext {
   sparkleLoopVars?: string[];
   /**
    * When set, expression lowerers stamp per-node `DebugMetadata` (currently the
-   * `VariableReference` for an identifier chain) with the token's own source
-   * span, so a resolution error (`Cannot find variable named X`) points at the
-   * exact token rather than falling back to the enclosing binding's whole span.
-   * Enabled only while lowering a Sparkle binding body (`buildSparkleBody`),
-   * where bindings are hoisted into synthetic functions with no natural
-   * statement-level metadata to inherit — so this stays scoped to Sparkle and
-   * doesn't perturb ranges (or pathLocations) for ordinary Luau expressions.
+   * `VariableReference` for an identifier chain) with the chain's own source
+   * span. Enabled only while lowering a Sparkle binding body
+   * (`buildSparkleBody`), where bindings are hoisted into synthetic functions
+   * with no natural statement-level metadata to inherit, so the reference and
+   * the runtime objects it compiles to get the binding's own position. It stays
+   * scoped to Sparkle because a reference's `DebugMetadata` feeds its runtime
+   * objects and `pathLocations`. Unresolved-name warnings do not depend on it:
+   * `VariableReference` reports them on its positioned `identifier` in every
+   * expression.
    */
   stampExpressionSpans?: boolean;
   /**
