@@ -13,6 +13,7 @@ import type { LowerContext } from "../context";
 import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
+import { headerLineRange, stampDebugMetadata } from "../utils/debugMetadata";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -87,6 +88,13 @@ function lowerIfBlock(
       ? findChildByName(elseifContent, "LuauElseifBlockCondition")
       : null;
     const ecExpr = ec ? lowerExpressionFromContainer(ec, ctx) : null;
+    // `lower()` gives the whole statement the `if` header's position, so the
+    // condition carries its own `elseif` line: a diagnostic about it, such as
+    // an unknown name, is then reported where it is written.
+    if (ecExpr) {
+      const header = headerLineRange(elseifNode.from, elseifNode.to, ctx);
+      stampDebugMetadata([ecExpr], header.from, header.to, ctx);
+    }
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(
       lowerStatements(elseifContent, ctx, ELSEIF_BODY_SKIP),

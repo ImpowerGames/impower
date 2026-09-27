@@ -231,6 +231,20 @@ export function unpackedCommit(buildsDir) {
   return null;
 }
 
+// The workbench entry files the served page loads from a build, relative to
+// the build directory. A build directory can keep its `version` file after
+// its contents are gone, and a server pinned to it answers while every
+// workbench request 404s, so `up` checks these before serving it.
+export const BUILD_ENTRY_FILES = ["out/vs/workbench/workbench.web.main.internal.js", "out/vs/workbench/workbench.web.main.internal.css"];
+
+// The directory of the build for `commit` under a quality's builds
+// directory, and which of its entry files are missing.
+export function missingBuildEntries(buildsDir, commit, io = fs) {
+  const entry = io.existsSync(buildsDir) ? io.readdirSync(buildsDir).find((e) => /^vscode-web-[a-z]+-[0-9a-f]{40}$/.test(e) && e.endsWith(`-${commit}`)) : undefined;
+  const dir = path.join(buildsDir, entry ?? `vscode-web-${commit}`);
+  return { dir, missing: BUILD_ENTRY_FILES.filter((f) => !io.existsSync(path.join(dir, ...f.split("/")))) };
+}
+
 // The records, among other worktrees' state files, of a live server whose
 // build directory is `buildsDir`: the servers a download into that directory
 // would pull the build out from under. `stands` says whether a record still
@@ -1003,6 +1017,7 @@ export const liveDeps = {
   pickPort,
   otherWorktreeRecords,
   unpackedCommit,
+  missingBuildEntries: (buildsDir, commit) => missingBuildEntries(buildsDir, commit),
   takeDownloadLock: (lockPath, record) => takeDownloadLock(lockPath, record, lockIo, stands),
   releaseDownloadLock: (lockPath) => lockIo.removeLock(lockPath),
   writeProjectSd,
@@ -1127,7 +1142,11 @@ export async function up(args, deps = liveDeps) {
 // rewrites the file it serves; anything that would need a different server
 // is refused, including `--data` against a record that does not say which
 // data directory its server uses.
-function serveInto(existing, opts, deps) {
+async function serveInto(existing, opts, deps) {
+  // A server answering on a build whose files were since removed still
+  // serves its page, and every workbench request 404s.
+  const commit = existing.builds ? (existing.commit ?? deps.unpackedCommit(existing.builds)) : null;
+  if (commit) await refuseEmptiedBuild(existing.builds, commit, `\`down\`, then `, deps);
   if (opts["--fresh"]) deps.die(`already serving ${existing.project} → ${existing.url}; \`down\` first to download a new build`);
   if (opts["--quality"] && opts["--quality"] !== existing.quality) {
     deps.die(`already serving ${existing.quality} → ${existing.url}; \`down\` first to serve ${opts["--quality"]}`);
@@ -1145,6 +1164,19 @@ function serveInto(existing, opts, deps) {
     return;
   }
   deps.log(`already up → ${existing.url} (serving ${existing.project})`);
+}
+
+// Refuses a build that kept its `version` file but lost the workbench entry
+// files, naming the directory and the recovery. `first` is what to do before
+// that recovery (`down` for a server that is already running on the build).
+async function refuseEmptiedBuild(builds, commit, first, deps) {
+  const { dir, missing } = deps.missingBuildEntries(builds, commit);
+  if (!missing.length) return;
+  const users = await sharedBuildUsers(deps.otherWorktreeRecords(), builds, deps.recordStands);
+  const recovery = users.length
+    ? `${users.map((u) => `${u.worktree} (pid ${u.pid})`).join(" and ")} serves from that directory, so ${first}run \`up\` with a private \`--data <dir>\`, which downloads its own copy`
+    : `${first}run \`up --fresh\` to download it again`;
+  deps.die(`up: the build ${dir} has a version file but is missing ${missing.join(" and ")}, so the workbench would not load; ${recovery}`);
 }
 
 async function launch(opts, deps) {
@@ -1167,6 +1199,7 @@ async function launch(opts, deps) {
     if (users.length) deps.die(`up --fresh would delete ${first.builds}, which ${users.map((u) => `${u.worktree} (pid ${u.pid}, ${u.url})`).join(" and ")} serves from; \`down\` there first, or run \`up\` without --fresh to serve the build already unpacked`);
   }
   const commit = opts["--fresh"] ? null : deps.unpackedCommit(first.builds);
+  if (commit) await refuseEmptiedBuild(first.builds, commit, "", deps);
   const plan = launchPlan({ ...base, commit });
   if (plan.error) deps.die(`up: ${plan.error}`);
   // Only a launch with no commit to pin downloads, and only a download can
@@ -1397,7 +1430,14 @@ async function openFile(page, file, report, fail) {
     fail(`could not open ${file} from the explorer: ${firstLine(err)}; \`status\` names the served folder, so check it exists and holds ${file} at its top level, since a file of that name in a subfolder is never clicked, then \`down\` and \`up\` again`);
     return;
   }
-  const title = (await page.locator(".tabs-container .tab.active .label-name").first().textContent({ timeout: 10_000 }).catch(() => null))?.trim() ?? null;
+  // Some builds render the extension outside `.label-name`, in a sibling
+  // `.label-suffix`, so the title is the two joined. A name that is not the
+  // whole file name waits for the suffix, which can render after it.
+  const name = (await page.locator(".tabs-container .tab.active .label-name").first().textContent({ timeout: 10_000 }).catch(() => null))?.trim() ?? null;
+  const suffixes = page.locator(".tabs-container .tab.active .label-suffix");
+  if (name != null && name !== file) await suffixes.first().waitFor({ timeout: 5_000 }).catch(() => {});
+  const suffix = name == null ? "" : (await suffixes.allTextContents().catch(() => [])).join("").trim();
+  const title = name == null ? null : name + suffix;
   report.editor = title;
   report.opened = editorOpened(title, file);
   if (!report.opened) fail(`the editor that opened is titled ${JSON.stringify(title)}, not ${file}`);

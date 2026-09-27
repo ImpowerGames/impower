@@ -6,6 +6,67 @@
 // both hold cross-flow references (diverts between scenes, read-counts,
 // defines, chained dialogue), where naive per-chunk reuse breaks.
 
+// The constructs whose incremental reuse bugs were found outside the oracles,
+// written after the scenes so that an edit near the top of the file leaves
+// each of their chunks carried. `p` prefixes every declared name, so a second
+// copy can sit in an included script. The bug each construct would have shown:
+//
+// - the `# tag` line and the tag on the scene line: #937
+// - the `choose ... then ... end` holding the rest of its scene: #668, #674
+// - the compound and multi-target assignments: #912
+// - the colon method calls and their receiver temps: #848, #871
+// - the anonymous function in a scene and the one in a function: #870, #913
+// - the `for` and `while` loops, whose hidden temporaries are named from the
+//   loop's offset
+// - the closure calling `later`, which an edit can declare as a top-level
+//   function: #935
+// - the store named `thing`, which an edit can make a define type name: #936
+// - the layout's bindings: #848, #858
+export function constructs(p = ""): string[] {
+  return [
+    `store ${p}t = { a = 0, b = 0 }`,
+    `store ${p}acc = { n = 0, add = function(self, n) return self end }`,
+    `store ${p}thing = 1`,
+    "",
+    `# ${p}chapter marker`,
+    "",
+    `scene ${p}deep_choice # arc`,
+    "  Beat before the choice.",
+    "  choose",
+    "  + [Press on]",
+    "    You press on.",
+    "  + [Hold back]",
+    "    You hold back.",
+    "  then",
+    "    The way opens.",
+    "    The rest of the scene runs on here.",
+    `    & ${p}t.a += 1`,
+    `    & ${p}acc = ${p}acc:add(1):add(2)`,
+    "    & local f = function(n) return n + 1 end",
+    "  end",
+    "end",
+    "",
+    `function ${p}reckon()`,
+    `  ${p}t.a += 1`,
+    "  local x",
+    `  x, ${p}t.b = 1, 2`,
+    "  for i = 1, 2 do",
+    `    ${p}t.a = ${p}t.a + i`,
+    "  end",
+    `  while ${p}t.b < 3 do`,
+    `    ${p}t.b = ${p}t.b + 1`,
+    "  end",
+    `  local g = function() return ${p}later() end`,
+    `  return g() + ${p}acc:add(3).n + x`,
+    "end",
+    "",
+    `layout ${p}hud with`,
+    `  text "{trust} {${p}t.a}"`,
+    "end",
+    "",
+  ];
+}
+
 // The single-edit oracle's fixture. Each scene also holds a glued
 // continuation with a break. Lowering names a continuation's `group` by the
 // offset its statement starts at, which an edit above it moves.
@@ -52,6 +113,7 @@ export function coupledScreenplay(): string {
     L.push("end");
     L.push("");
   }
+  L.push(...constructs());
   return L.join("\n");
 }
 
@@ -92,5 +154,22 @@ export function cumulativeScreenplay(): string {
     L.push("end");
     L.push("");
   }
+  L.push(...constructs());
+  return L.join("\n");
+}
+
+// A script the single-edit oracle's fixture includes: short scenes above a
+// second copy of the constructs, so an edit at its top leaves their chunks
+// carried.
+export function includedChapter(): string {
+  const L: string[] = [];
+  for (let s = 0; s < 6; s++) {
+    L.push(`scene chapter_${s}`);
+    L.push(`  Chapter line ${s}.`);
+    L.push(`-> chapter_${(s + 1) % 6}`);
+    L.push("end");
+    L.push("");
+  }
+  L.push(...constructs("ch_"));
   return L.join("\n");
 }
