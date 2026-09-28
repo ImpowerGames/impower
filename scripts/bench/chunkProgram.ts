@@ -394,8 +394,19 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
     // for each later choice and for `then`, and what each body takes.
     let lines = TAIL_LINES;
     const named: Record<string, any[]> = item.at(-1);
+    if (Object.keys(named).some((key) => !/^c-\d+$/.test(key))) throw new UnsupportedConstruct("a choose block with named content other than its choices");
+    // The block holds its choices, a hold, and its end: a gather entered
+    // inline, holding the `then` clause's statements or none. The hold stops
+    // the flow when the block offered one of its own choices. Every choice the
+    // writer takes is offered, having no condition and not being once only, so
+    // the hold always stops, as `Done` does.
+    const hold = item.findIndex((t) => typeof t === "string" && /^hold:\d+$/.test(t));
+    if (hold < 0) throw new UnsupportedConstruct("a choose block with no hold");
+    const end: unknown = item[hold + 1];
+    const endName = Array.isArray(end) && isObject(end.at(-1)) ? end.at(-1)["#n"] : undefined;
+    if (hold + 3 !== item.length || typeof endName !== "string" || !/^g-\d+$/.test(endName) || Object.keys((end as any[]).at(-1)).length !== 1) throw new UnsupportedConstruct("a choose block whose end is not one unlabelled gather");
     const points: { at: number; count: number; start: string[]; body: any[]; name: string }[] = [];
-    for (const choice of item.slice(0, -1) as any[][]) {
+    for (const choice of item.slice(0, hold) as any[][]) {
       const star = Array.isArray(choice) ? choice.find((t) => isObject(t) && typeof t["*"] === "string") : undefined;
       if (!star) throw new UnsupportedConstruct("content beside the choices of a choose block");
       const flags: number = star.flg ?? 0;
@@ -420,8 +431,6 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       points.push({ at: b.emit(Op.Choice, flags), count, start, body: named[name]!, name });
     }
     b.emit(Op.Done);
-    const gathers = Object.keys(named).filter((key) => /^g-\d+$/.test(key));
-    if (gathers.length > 1) throw new UnsupportedConstruct("a choose block with more than one gather");
     const toThen: number[] = [];
     for (const point of points) {
       b.land(point.at);
@@ -444,11 +453,14 @@ export function writeChunkProgram(compiled: Record<string, any>, options: { reso
       lines += gap + child.lines;
     }
     for (const at of toThen) b.land(at);
-    if (gathers.length) {
-      b.emit(Op.Visit, 0, 0, symbol(`${symbolNames[flow]}#${id}.${gathers[0]}`));
+    // The tree does not say whether an empty end had a `then` line; the
+    // writer counts none, as for a block without `then`.
+    const thenBody = (end as any[]).slice(0, -1);
+    if (thenBody.length) {
+      b.emit(Op.Visit, 0, 0, symbol(`${symbolNames[flow]}#${id}.${endName}`));
       const child = newSequence(id, b.blocks.length / BLOCK_ROW, flow);
       b.enterBlock(child.id, 1);
-      statements(child, named[gathers[0]!]!.slice(0, -1), flow);
+      statements(child, thenBody, flow);
       lines += 1 + child.lines;
     }
     add(seq, b, id, lines);
