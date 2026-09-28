@@ -240,8 +240,9 @@ sparkdown [0..195]
  │   │       │   │   │   │   │       ├─ LuauTypeName_c1 114
  │   │       │   │   │   │   │       ├─ LuauTypeName_c2 114
  │   │       │   │   │   │   │       ├─ LuauTypeName_c3 [114..115]: "T"
- │   │       │   │   │   │   │       └─ LuauTypeName_c4 [115..116]
- │   │       │   │   │   │   │           └─ LuauTypeName_c4 [115..116]
+ │   │       │   │   │   │   │       ├─ LuauTypeName_c4 115
+ │   │       │   │   │   │   │       └─ LuauTypeName_c5 [115..116]
+ │   │       │   │   │   │   │           └─ LuauTypeName_c5 [115..116]
  │   │       │   │   │   │   │               └─ OptionalWhitespace [115..116]: " "
  │   │       │   │   │   │   └─ LuauTypeLiteral_end 116
  │   │       │   │   │   └─ LuauTypeAssignment [116..139]
