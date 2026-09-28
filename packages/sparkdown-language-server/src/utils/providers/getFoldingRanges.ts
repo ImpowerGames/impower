@@ -1,7 +1,12 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { type Tree } from "@lezer/common";
 import { Range, type FoldingRange } from "vscode-languageserver";
+import {
+  getDeclarationHeadings,
+  type DeclarationHeading,
+} from "../annotations/getDeclarationHeadings";
 
 const INDENT_REGEX = /^([ \t]+)/;
 
@@ -9,6 +14,7 @@ export const getFoldingRanges = (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations,
   program: SparkProgram | undefined,
+  tree: Tree | undefined,
 ): FoldingRange[] => {
   const indentFolding: FoldingRange[] = [];
   if (!document) {
@@ -67,75 +73,22 @@ export const getFoldingRanges = (
   if (!program) {
     return indentFolding;
   }
+  // Each scene, branch and function folds over the same extent the outline
+  // gives it.
   const headingFolding: FoldingRange[] = [];
-  const cur = annotations.declarations?.iter();
-  if (cur) {
-    while (cur.value) {
-      if (cur.value.type === "function") {
-        const line = document.positionAt(cur.from).line;
-        const lastTop = headingFolding.findLast(
-          (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
-        );
-        if (lastTop) {
-          lastTop.endLine = line - 1;
-        }
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading) {
-          prevHeading.endLine = line - 1;
-        }
+  const addFolds = (headings: DeclarationHeading[]) => {
+    for (const heading of headings) {
+      if (heading.type !== "label") {
         headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "function",
+          startLine: heading.nameRange.start.line,
+          endLine: heading.end.line,
+          kind: heading.type,
         });
       }
-      if (cur.value.type === "scene") {
-        const line = document.positionAt(cur.from).line;
-        const lastTop = headingFolding.findLast(
-          (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
-        );
-        if (lastTop) {
-          lastTop.endLine = line - 1;
-        }
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading) {
-          prevHeading.endLine = line - 1;
-        }
-        headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "scene",
-        });
-      }
-      if (cur.value.type === "branch") {
-        const line = document.positionAt(cur.from).line;
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading?.kind === "branch" || prevHeading?.kind === "stitch") {
-          prevHeading.endLine = line - 1;
-        }
-        headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "branch",
-        });
-      }
-      cur.next();
+      addFolds(heading.children);
     }
-  }
-  const lastTop = headingFolding.findLast(
-    (h) => h.kind === "function" || h.kind === "scene" || h.kind === "knot",
-  );
-  if (lastTop && lastTop.endLine === lastTop.startLine) {
-    lastTop.endLine = document.lineCount - 1;
-  }
-  const lastNested = headingFolding.findLast(
-    (h) => h.kind === "branch" || h.kind === "stitch",
-  );
-  if (lastNested && lastNested.endLine === lastNested.startLine) {
-    lastNested.endLine = document.lineCount - 1;
-  }
+  };
+  addFolds(getDeclarationHeadings(document, annotations, tree));
   const result = [...indentFolding, ...headingFolding].sort(
     (a, b) => a.startLine - b.startLine,
   );

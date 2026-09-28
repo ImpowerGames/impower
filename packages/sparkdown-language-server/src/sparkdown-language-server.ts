@@ -184,7 +184,7 @@ try {
       return cached.result;
     }
     const result = profiled("lsp: onFoldingRanges", uri, () =>
-      getFoldingRanges(document, annotations, program),
+      getFoldingRanges(document, annotations, program, workspace.tree(uri)),
     );
     if (document) {
       foldingRangeCache.set(uri, {
@@ -222,7 +222,7 @@ try {
     const document = workspace.document(uri);
     const annotations = workspace.annotations(uri);
     const result = profiled("lsp: onDocumentSymbol", uri, () =>
-      getDocumentSymbols(document, annotations),
+      getDocumentSymbols(document, annotations, workspace.tree(uri)),
     );
     return result;
   });
