@@ -53,6 +53,22 @@ describe("scene and branch as names inside a define", () => {
     expect(settings).not.toHaveProperty("branch");
   });
 
+  it("properties named scene and branch stay on the define", () => {
+    const settings = defaults(
+      [
+        "define settings with",
+        '  scene = "none"',
+        '  branch = "b"',
+        "  x = 1",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(settings?.scene).toBe("none");
+    expect(settings?.branch).toBe("b");
+    expect(settings?.x).toBe(1);
+  });
+
   it("a define directly followed by a scene declaration still ends there", () => {
     const program = compile(
       [
@@ -90,6 +106,27 @@ describe("scene and branch as names inside a function", () => {
     const { output, errors } = run(program);
     expect(errors).toEqual([]);
     expect(output).toContain("Got ok.");
+  });
+
+  it("assignments to a parameter named scene or branch stay in the function body", () => {
+    const program = compile(
+      [
+        "-> start",
+        "function pick(scene, branch)",
+        '  scene = "left"',
+        "  branch += 1",
+        "  return scene .. branch",
+        "end",
+        "scene start",
+        ":",
+        '  Got {pick("x", 1)}.',
+        "end",
+        "",
+      ].join("\n"),
+    );
+    const { output, errors } = run(program);
+    expect(errors).toEqual([]);
+    expect(output).toContain("Got left2.");
   });
 });
 

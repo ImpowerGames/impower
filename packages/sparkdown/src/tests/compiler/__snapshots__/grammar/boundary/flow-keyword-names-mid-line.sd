@@ -1,13 +1,22 @@
 define settings with
   t = { x = 1, scene = "", branch = "b", y = 2 }
+  scene = "none"
+  branch = 1
   z = 3
 end
-function enter(scene)
-  local branch = scene
+function enter(scene, branch)
+  local other = scene
+  scene = other
+  branch += 1
   go(scene, branch)
 end
 define after with
   a = 1
 scene Start
   Real content.
+  define inner with
+    b = 2
+  branch Next
+    More content.
+  end
 end
