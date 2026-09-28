@@ -520,6 +520,19 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     //
     // NOT flagged inside a `#prop` value: rich text is only parsed in element
     // CONTENT, so `<b>` in a placeholder is inert rather than misspelled.
+    // A type name with more than one module prefix (`types.ui.Button`). Luau
+    // reads at most `module.Type`, so the segments after it are a syntax
+    // error; the grammar keeps them inside the type so this can report them.
+    if (nodeRef.name === "LuauTypeNameExtraQualifier") {
+      annotations.push(
+        SparkdownAnnotation.mark<Diagnostic>({
+          message:
+            "A type name takes at most one module prefix, as in `module.Type`\n> Luau cannot read a type name with more than one `.`",
+          severity: "error",
+        }).range(nodeRef.from, nodeRef.to),
+      );
+      return annotations;
+    }
     if (nodeRef.name === "SparkleRichTextTagUnknown") {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");

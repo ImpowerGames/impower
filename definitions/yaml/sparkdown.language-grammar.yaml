@@ -8690,9 +8690,12 @@ repository:
     name: storage.type.luau
 
   # A type reference is `Name` or a module-qualified `Name.Name`, as in Luau,
-  # which also allows whitespace around the `.`.
+  # which also allows whitespace around the `.`. Luau rejects any further
+  # `.Name` segment; they are still read into the type, as
+  # `LuauTypeNameExtraQualifier`, so the validator can report them and the
+  # rest of the line stays inside the enclosing scope.
   LuauTypeName:
-    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}})((?:{{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*{{LUAU_IDENTIFIER}})+)?{{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
         patterns:
@@ -8705,9 +8708,17 @@ repository:
         tag: typeName
         name: entity.name.type.luau
       4:
+        patterns:
+          - { include: "#LuauTypeNameExtraQualifier" }
+      5:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+
+  LuauTypeNameExtraQualifier:
+    tag: invalid
+    name: invalid.illegal.type-name-qualifier.luau
+    match: (.+)
 
   LuauTypeLiteral:
     begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
