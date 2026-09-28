@@ -12,9 +12,13 @@ import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import type { LowerContext } from "../context";
 import { lower } from "../lower";
 import {
-  lowerExpressionFromContainer,
+  lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import {
+  reportUntakenLineContinuation,
+  takeLineContinuation,
+} from "../utils/lineContinuation";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
@@ -50,6 +54,9 @@ export function lowerVariableDefinition(
 ): CompiledBlock {
   const scopeNode = getDescendent("LuauScopeModifier", nodeRef.node);
   const scope = scopeNode ? ctx.read(scopeNode.from, scopeNode.to).trim() : "";
+  // The lines that continue the last value (`local y = t` then `.a`), or
+  // the last target's type (`local x: types` then `.Button = 1`).
+  const continuation = takeLineContinuation(ctx);
 
   // Walk `LuauVariableDefinition_content`. After the multi-RHS grammar
   // fix, the content holds:
@@ -207,13 +214,41 @@ export function lowerVariableDefinition(
   // The LAST target's `LuauAssignmentOperation` carries the first
   // RHS value. Subsequent RHS values are at the def-content level.
   const lastTarget = targets[targets.length - 1]!;
-  const firstRhsOp = getDescendent(
+  let firstRhsOp: SyntaxNode | undefined = getDescendent(
     "LuauAssignmentOperation",
     lastTarget.assignNode,
   );
+  // The continuation's first comma group continues the last value; its
+  // later groups are further values.
+  const [continued = [], ...continuedRhsGroups] =
+    splitOnCommas(continuation);
+  let firstRhsContinuation: SyntaxNode[] = [];
+  if (!firstRhsOp && continued.length > 0) {
+    // `local x: types` then `.Button = 1`: the continuation's access
+    // parts qualify the type, which does not reach the runtime, and its
+    // assignment gives the value.
+    const opAt = continued.findIndex(
+      (n) => n.name === "LuauAssignmentOperation",
+    );
+    if (opAt >= 0) {
+      firstRhsOp = continued[opAt]!;
+      firstRhsContinuation = continued.slice(opAt + 1);
+    } else {
+      reportUntakenLineContinuation(continued, ctx);
+    }
+  } else if (trailingRhsGroups.length > 0) {
+    trailingRhsGroups[trailingRhsGroups.length - 1]!.push(...continued);
+  } else {
+    firstRhsContinuation = continued;
+  }
+  trailingRhsGroups.push(...continuedRhsGroups);
   if (firstRhsOp) validateAssignmentValue(firstRhsOp, ctx);
   const firstRhs = firstRhsOp
-    ? lowerExpressionFromContainer(firstRhsOp, ctx)
+    ? lowerExpressionFromContainerAndContinuation(
+        firstRhsOp,
+        firstRhsContinuation,
+        ctx,
+      )
     : null;
   const trailingExprs = trailingRhsGroups
     .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
@@ -367,6 +402,15 @@ function bareVariableNameFromAccessPath(
   if (inner?.name !== "LuauVariable") return null;
   const nameNode = getDescendent("LuauVariableName", inner);
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
+}
+
+function splitOnCommas(nodes: SyntaxNode[]): SyntaxNode[][] {
+  const groups: SyntaxNode[][] = [[]];
+  for (const node of nodes) {
+    if (node.name === "LuauCommaSeparator") groups.push([]);
+    else if (!isSkippableName(node.name)) groups[groups.length - 1]!.push(node);
+  }
+  return nodes.length > 0 ? groups : [];
 }
 
 function isSkippableName(name: string): boolean {

@@ -236,6 +236,10 @@ variables:
   LUAU_ALTERNATOR_OPERATOR: (?:[|])
   LUAU_TYPE_ANNOTATION_OPERATOR: (?<![:])(?:[:])(?![:])
   LUAU_ACCESSOR_OPERATOR: (?:[.]|[:])
+  # The start of a line that continues the expression on the line before it,
+  # as Luau reads `t` then `.a` as `t.a` and `s` then `:upper()` as
+  # `s:upper()`.
+  LUAU_LINE_CONTINUATION: (?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}})
   # The `.` after a type's module name, with the whitespace Luau allows before
   # it. Every type rule that reads or yields to a qualified name uses this.
   LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
@@ -6059,6 +6063,7 @@ repository:
   # author writes one we'd rather highlight it than emit an `UNRECOGNIZED`.
   LuauBlockBody:
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauControlBlock" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -7483,6 +7488,28 @@ repository:
       - { include: "#LuauPropertyIndexer" }
     end: (?!{{WS}}*(?:[.]{{LUAU_IDENTIFIER}}|\[))
 
+  # A line of Luau code that begins with `.name` or `:name` continues the
+  # expression on the line before it: its access parts, and the call
+  # arguments and indexers after them. The statement or expression that
+  # ended on the previous line has already closed, because no rule can see
+  # the next line when its line ends, so this node is that statement's
+  # sibling and the lowerer joins the two (GRAMMAR.md §11.6).
+  #
+  # Only Luau-only contexts include it: in a body that also holds display
+  # lines, a line starting with `.` is prose.
+  LuauLineContinuation:
+    begin: ^({{WS}}*)(?={{LUAU_LINE_CONTINUATION}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauAccessPart" }
+      - { include: "#LuauParenthetical" }
+      - { include: "#LuauString" }
+      - { include: "#LuauTable" }
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[))
+
   LuauFunctionCall:
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
     beginCaptures:
@@ -7516,6 +7543,7 @@ repository:
         patterns:
           - { include: "#PunctuationParenOpen" }
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -7569,6 +7597,7 @@ repository:
         patterns:
           - { include: "#PunctuationBracketOpen" }
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -8182,6 +8211,7 @@ repository:
         patterns:
           - { include: "#PunctuationBraceOpen" }
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#LuauTableIndexDeclaration" }
@@ -8206,6 +8236,7 @@ repository:
         patterns:
           - { include: "#PunctuationBracketOpen" }
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -8228,6 +8259,7 @@ repository:
         patterns:
           - { include: "#PunctuationParenOpen" }
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }

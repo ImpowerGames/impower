@@ -1,0 +1,10 @@
+function f(t, s)
+  local y = t -- note
+    .a
+    :m(1)
+  local x: types
+    .Button = 1
+  return string
+    .upper(s), { t
+    .b }
+end

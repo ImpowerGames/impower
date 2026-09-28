@@ -837,6 +837,14 @@ For `if\n  a == 1 and\n  b == 2\n  then …`, the begin fires right after `if`, 
 
 > IMPORTANT: textmate-grammar-tree, the runtime parser we use for compiling scripts, happens to be more permissive than vscode's textmate highlighter — a `begin:` like `if\b\s*` can in fact consume past `\n` there. **Don't rely on that.** The same grammar ships to VS Code, where the extra match silently fails and highlighting diverges from the runtime tree.
 
+### 11.6 A line that continues the line before it
+
+Luau reads `t` followed by a line `.a` as `t.a`, and `s` followed by `:upper()` as `s:upper()`. The scope that held `t` cannot stay open for that: whether it should is decided by the next line, which no pattern on `t`'s line can see, and closing it at column 0 of the next line cannot be told apart from a rule that begins there with a zero-width `begin` (`LuauReassignment` on an unindented line). So the statement ends at its line as usual, and the next line is its own node: `LuauLineContinuation` begins at a line start whose first token is `.name` or `:name`, and holds that line's access parts, call arguments and indexers.
+
+The lowerer joins the two, as §11.4 describes. `lowerStatements` hands a statement's lowerer the continuation lines after it through `ctx.lineContinuation` (`lower/utils/lineContinuation.ts`), and the lowerer adds them to its last value, where `lowerExpressionFromNodes` merges their access parts into a preceding `LuauAccessPath` or folds them onto the last operand. A continuation line that no statement takes is reported as an error. Bracketed values (`(`, `[`, `{`, call arguments) span lines already, so the continuation is a sibling of the value inside them.
+
+Only Luau-only contexts include `LuauLineContinuation`: `LuauBlockBody` and the bracket rules. In a body that also holds display lines, a line that begins with `.` is prose.
+
 ## 12. Whitespace classes — picking the right one
 
 The auto-formatter (`FormattingAnnotator`) decides how to normalize whitespace by **position first, node name second**. Whitespace runs at the **start of a line** are treated as indent regardless of which capture they sit under; runs at the **end of a line** are treated as trailing whitespace the same way. Only mid-line runs need their node name to disambiguate.

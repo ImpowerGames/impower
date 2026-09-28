@@ -265,6 +265,7 @@
     "LUAU_ALTERNATOR_OPERATOR": "(?:[|])",
     "LUAU_TYPE_ANNOTATION_OPERATOR": "(?<![:])(?:[:])(?![:])",
     "LUAU_ACCESSOR_OPERATOR": "(?:[.]|[:])",
+    "LUAU_LINE_CONTINUATION": "(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}})",
     "LUAU_TYPE_QUALIFIER_DOT": "{{WS}}*[.]",
     "LUAU_TYPE_BINARY_OPERATORS": "(?:[?]|[&]|[|]|[-][>])",
     "LUAU_VALUE_BINARY_OPERATORS": "(?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})",
@@ -9358,6 +9359,9 @@
     "LuauBlockBody": {
       "patterns": [
         {
+          "include": "#LuauLineContinuation"
+        },
+        {
           "include": "#LuauControlBlock"
         },
         {
@@ -11478,6 +11482,33 @@
       ],
       "end": "(?!(?:[^\\S\\n\\r])*(?:[.](?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|\\[))"
     },
+    "LuauLineContinuation": {
+      "begin": "^((?:[^\\S\\n\\r])*)(?=(?:(?:[^\\S\\n\\r])*(?:[.]|[:])(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauAccessPart"
+        },
+        {
+          "include": "#LuauParenthetical"
+        },
+        {
+          "include": "#LuauString"
+        },
+        {
+          "include": "#LuauTable"
+        }
+      ],
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?!(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:<<|[({\"']|\\[\\[)|\\[))"
+    },
     "LuauFunctionCall": {
       "begin": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)(?=(?:<<|[({\"']|\\[\\[))",
       "beginCaptures": {
@@ -11528,6 +11559,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauLineContinuation"
+        },
         {
           "include": "#LuauComment"
         },
@@ -11632,6 +11666,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauLineContinuation"
+        },
         {
           "include": "#LuauCommaSeparator"
         },
@@ -12621,6 +12658,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauLineContinuation"
+        },
+        {
           "include": "#LuauCommaSeparator"
         },
         {
@@ -12672,6 +12712,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauLineContinuation"
+        },
+        {
           "include": "#LuauCommaSeparator"
         },
         {
@@ -12708,6 +12751,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauLineContinuation"
+        },
         {
           "include": "#LuauCommaSeparator"
         },
