@@ -708,22 +708,21 @@ function lowerMethodCall(
           return call;
         }
         // `table.nogetn()`: a dot call on a stdlib library with no such
-        // builtin. A stdlib constant (`math.pi()`) is called as its value,
-        // which fails at run time as a non-function. Otherwise the callee is
-        // the dotted path itself, so an unresolved path reports the member
-        // (`Cannot find item or path named \`table.nogetn\``) rather than
-        // the library, which exists.
+        // builtin. The callee is the dotted path itself, so an unresolved
+        // path reports the member (`Cannot find item or path named
+        // \`table.nogetn\``) rather than the library, which exists. A local
+        // that shadows the library resolves the path at run time.
         const opNode = getDescendent("LuauAccessorOperator", methodAccessor);
         const isDotForm =
           !!opNode && ctx.read(opNode.from, opNode.to).trim() === ".";
         if (isDotForm && stdlibNode.name === "LuauStdLibConstants") {
-          const callee =
-            stdLibConstantExpression(`${receiverName}.${methodNameText}`) ??
+          return new CallValueExpression(
             new VariableReference([
               identifierAt(stdlibNode, ctx),
               identifierAt(methodNameNode, ctx),
-            ]);
-          return new CallValueExpression(callee, callArgs);
+            ]),
+            callArgs,
+          );
         }
       }
     }
@@ -785,25 +784,6 @@ function lowerMethodCall(
     new StringExpression([new Text(methodNameText)]),
   );
   return new CallValueExpression(targetExpr, callArgs);
-}
-
-// A registered stdlib constant (`math.pi`, `math.huge`, `_VERSION`, ...) as
-// a literal, or null when `dotted` names no constant.
-function stdLibConstantExpression(dotted: string): Expression | null {
-  const constVal = lookupStdLibConstant(dotted);
-  if (typeof constVal === "number") {
-    return new NumberExpression(
-      constVal,
-      Number.isInteger(constVal) && Number.isFinite(constVal) ? "int" : "float",
-    );
-  }
-  if (typeof constVal === "string") {
-    return new StringExpression([new Text(constVal)]);
-  }
-  if (typeof constVal === "boolean") {
-    return new NumberExpression(constVal, "bool");
-  }
-  return null;
 }
 
 function lowerPartsAsExpression(
@@ -2311,10 +2291,22 @@ export function lowerSimpleAccessPath(
     // emit the value directly instead of a `VariableReference` that
     // would fail to resolve at runtime. Compile-time substitution —
     // no runtime dispatch needed.
-    const constExpr = stdLibConstantExpression(
-      identifiers.map((id) => id.name).join("."),
-    );
-    if (constExpr) return constExpr;
+    const dotted = identifiers.map((id) => id.name).join(".");
+    const constVal = lookupStdLibConstant(dotted);
+    if (constVal !== undefined) {
+      if (typeof constVal === "number") {
+        return new NumberExpression(
+          constVal,
+          Number.isInteger(constVal) && Number.isFinite(constVal) ? "int" : "float",
+        );
+      }
+      if (typeof constVal === "string") {
+        return new StringExpression([new Text(constVal)]);
+      }
+      if (typeof constVal === "boolean") {
+        return new NumberExpression(constVal, "bool");
+      }
+    }
     const ref = new VariableReference(identifiers);
     // In a Sparkle binding, stamp the reference with its own token span, which
     // its hoisted binding function has no statement to inherit from (see

@@ -72,6 +72,13 @@ assert(okPi == false, "math.pi() succeeded")`);
     expect(r.returnedOK).toBe(true);
   });
 
+  test("a local that shadows a library calls its own member named like a constant", () => {
+    const r = runConformanceSource(`local math = { pi = function() return 1 end }
+assert(math.pi() == 1, "got " .. tostring(math.pi()))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
   test("a local that shadows a library still calls its own member", () => {
     const r = runConformanceSource(`local table = { nogetn = function() return 1 end }
 assert(table.nogetn() == 1, "got " .. tostring(table.nogetn()))`);
