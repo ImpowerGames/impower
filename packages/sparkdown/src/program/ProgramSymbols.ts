@@ -1,7 +1,9 @@
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
 
 /** What a symbol names (docs/engine/binary-program.md, section 2). The build
- *  out interns the kinds it has reached; the others follow with their slices. */
+ *  out defines the kinds it has reached; the others follow with their slices.
+ *  A root records the kind its program defines each flow as
+ *  (`SequenceRow.kind`). */
 export const SymbolKind = {
   /** The flow of a script's top-level content, named by the empty string. */
   Root: 0,
@@ -14,22 +16,16 @@ export type SymbolKindValue = (typeof SymbolKind)[keyof typeof SymbolKind];
 /** The name the flow of the top-level content is registered under. */
 export const ROOT_FLOW_NAME = "";
 
-/** The id of the symbol named `name`, interned when it is new, which the
- *  program being built defines as `kind`. A name defined again as another
- *  kind, as when an edit turns a scene into a branch, takes the new kind, so
- *  the facts a chunk records about the symbol change with it (`ChunkStore`). */
-export const internSymbol = (
-  table: ProgramTable,
-  name: string,
-  kind: SymbolKindValue,
-): number => {
+/** The id of the symbol named `name`, interned when it is new. The id is the
+ *  name's in every root the table serves, whatever each root's program
+ *  defines it as. */
+export const internSymbol = (table: ProgramTable, name: string): number => {
   let id = table.symbolIds.get(name);
   if (id === undefined) {
     id = table.symbols.length;
     table.symbols.push(name);
     table.symbolIds.set(name, id);
   }
-  table.symbolKinds[id] = kind;
   return id;
 };
 

@@ -136,7 +136,7 @@ export function describeRoot(root: ProgramRoot): string[] {
   );
   for (const flow of flows) {
     out.push(
-      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${root.table.symbolKinds[flow.flow]} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
+      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${flow.kind} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
     );
     flow.arrays.chunks.forEach((chunk, entry) => {
       const rows: number[][] = [];

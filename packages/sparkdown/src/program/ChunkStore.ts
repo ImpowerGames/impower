@@ -169,11 +169,11 @@ export class ChunkStore {
     const flowIds = new Map<number, number>();
     const scriptFlows = new Map<string, number[]>();
     // Symbols are interned first, so a reference table's facts see every flow
-    // this program defines.
-    const symbols = flows.map((flow) =>
-      internSymbol(this.table, flow.name, flow.kind),
+    // this program defines, as the kind this program defines it as.
+    const symbols = flows.map((flow) => internSymbol(this.table, flow.name));
+    this._definedKinds = new Map(
+      flows.map((flow, f) => [symbols[f]!, flow.kind]),
     );
-    this._defined = new Set(symbols);
     // The program's statements, flow after flow, are aligned with the
     // previous root's as one list, so a statement keeps its chunk when an
     // edit renames its flow or moves it into another, as when a scene's
@@ -211,6 +211,7 @@ export class ChunkStore {
         id: before?.id ?? this._nextSequenceId++,
         arrays,
         flow: symbol,
+        kind: flow.kind,
         owner: -1,
         block: -1,
         uri: flow.uri,
@@ -253,19 +254,16 @@ export class ChunkStore {
     return { root, coverage };
   }
 
-  // The flows the build in progress defines, and the chunks it has placed, so
-  // that no chunk stands in two places of one root.
-  protected _defined = new Set<number>();
+  // The flows the build in progress defines, each with its kind, and the
+  // chunks it has placed, so that no chunk stands in two places of one root.
+  protected _definedKinds = new Map<number, SymbolKindValue>();
   protected _used = new Set<StatementChunk>();
 
   /** What a chunk that refers to `symbol` depends on: the kind the program
-   *  defines it as, or that the program does not define it. A symbol's kind
-   *  counts only while it is defined, so the facts never depend on what an
-   *  earlier compile defined it as. */
+   *  being built defines it as, or that the program does not define it. */
   protected factsOf(symbol: number): string {
-    return this._defined.has(symbol)
-      ? `defined:${this.table.symbolKinds[symbol]}`
-      : "undefined";
+    const kind = this._definedKinds.get(symbol);
+    return kind === undefined ? "undefined" : `defined:${kind}`;
   }
 
   protected buildSequence(

@@ -43,8 +43,9 @@ import {
  *
  * Symbols are what a statement chunk of the binary program refers to outside
  * itself (docs/engine/binary-program.md, section 2): `symbols` holds each
- * one's qualified name and `symbolKinds` the kind the program last built
- * defines it as (`SymbolKind` in `src/program`), which an edit can change.
+ * one's qualified name. What a program defines a symbol as belongs to the
+ * program's root (`SequenceRow.kind` in `src/program`), since every root reads
+ * this one table and an edit can define a name as another kind.
  */
 export interface ProgramTable {
   strings: string[];
@@ -53,7 +54,6 @@ export interface ProgramTable {
   numberIds: Map<number, number>;
   symbols: string[];
   symbolIds: Map<string, number>;
-  symbolKinds: number[];
   generation: number;
 }
 
@@ -64,7 +64,6 @@ export const createProgramTable = (): ProgramTable => ({
   numberIds: new Map(),
   symbols: [],
   symbolIds: new Map(),
-  symbolKinds: [],
   generation: 0,
 });
 
@@ -82,7 +81,6 @@ export const reseedProgramTable = (table: ProgramTable): void => {
   table.numberIds = new Map();
   table.symbols = [];
   table.symbolIds = new Map();
-  table.symbolKinds = [];
   table.generation += 1;
 };
 

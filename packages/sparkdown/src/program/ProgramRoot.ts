@@ -1,5 +1,6 @@
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
 import type { Story } from "../inkjs/engine/Story";
+import type { SymbolKindValue } from "./ProgramSymbols";
 import { chunkId, type StatementChunk } from "./StatementChunk";
 
 /**
@@ -20,6 +21,11 @@ export interface SequenceRow {
   readonly arrays: SequenceArrays;
   /** The flow's symbol. */
   readonly flow: number;
+  /** What this root's program defines the flow as. The kind is the root's,
+   *  like where the flow is defined: the table every root reads holds names
+   *  only, and an edit, or a preview of one, can define a name as another
+   *  kind while roots built before it are still in use. */
+  readonly kind: SymbolKindValue;
   /** The owner's chunk id, or -1 for a flow's own sequence. */
   readonly owner: number;
   /** The block index in the owner's block table, or -1. */

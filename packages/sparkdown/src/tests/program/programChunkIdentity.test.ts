@@ -326,7 +326,7 @@ describe("a reference table", () => {
   // the flows of a program that defines TARGET as `kind`, or not at all.
   const refersToTarget = () => {
     const store = new ChunkStore();
-    const target = internSymbol(store.table, "TARGET", SymbolKind.Scene);
+    const target = internSymbol(store.table, "TARGET");
     const statement = {
       block: {},
       objects: [new RefersTo(target)],
@@ -373,8 +373,12 @@ describe("a reference table", () => {
 });
 
 describe("a flow's kind", () => {
+  const text = "Intro.\nscene SAME\n  One.\nend\n";
+  // Whether a root's description gives the flow SAME the kind.
+  const describesSameAs = (root: ProgramRoot, kind: SymbolKindValue) =>
+    describeRoot(root).some((line) => line.startsWith(`flow "SAME" kind ${kind} `));
+
   it("is the kind a cold compile gives after an edit turns a scene into a branch", () => {
-    const text = "Intro.\nscene SAME\n  One.\nend\n";
     const s = session({ [MAIN]: text });
     s.edit("Intro.", "Intro!");
     const after = s.edit("scene SAME", "branch SAME");
@@ -385,9 +389,37 @@ describe("a flow's kind", () => {
       { programChunks: true, seedBuiltinsIntoStory: true },
     ).compile().program.chunks!;
     expect(describeRoot(after)).toEqual(describeRoot(cold));
-    expect(after.table.symbolKinds[after.table.symbolIds.get("SAME")!]).toBe(
-      SymbolKind.Branch,
-    );
+    expect(describesSameAs(after, SymbolKind.Branch)).toBe(true);
+  });
+
+  // Every root reads one table, so the kind is each root's own: a preview that
+  // turns the scene into a branch, and then the edit itself, leave a root
+  // built before them as it was.
+  it("stays as a root built before an edit to it gave it", () => {
+    const s = session({ [MAIN]: text });
+    const held = s.root;
+    const described = describeRoot(held);
+    expect(describesSameAs(held, SymbolKind.Scene)).toBe(true);
+    const offset = text.indexOf("scene SAME");
+    const preview = s.compiler.previewCompile({
+      textDocument: { uri: MAIN, version: 1 },
+      contentChanges: [
+        {
+          range: {
+            start: posAt(text, offset),
+            end: posAt(text, offset + "scene".length),
+          },
+          text: "branch",
+        },
+      ],
+      root: { uri: MAIN },
+      startFrom: { file: MAIN, line: 0 },
+    });
+    expect(describesSameAs(preview.program!.chunks!, SymbolKind.Branch)).toBe(true);
+    expect(describeRoot(held)).toEqual(described);
+    const after = s.edit("scene SAME", "branch SAME");
+    expect(describesSameAs(after, SymbolKind.Branch)).toBe(true);
+    expect(describeRoot(held)).toEqual(described);
   });
 });
 
