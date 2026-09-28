@@ -64,7 +64,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labels).toContain("myLocal");
   });
 
-  upstreamCase.bug(BUG.localScope, "dont_suggest_local_before_its_definition", "a local is offered only after its declaration and inside its block", () => {
+  upstreamCase("dont_suggest_local_before_its_definition", "a local is offered only after its declaration and inside its block", () => {
     // Upstream's cursors are on empty lines; these type a first letter so the
     // case isolates scoping from the empty-statement gap tested above.
     const source = [
@@ -131,7 +131,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(one.detail("test")).toBe("param");
   });
 
-  upstreamCase.bug(BUG.localScope, "function_parameters", "a parameter is not offered in another function's body", () => {
+  upstreamCase("function_parameters", "a parameter is not offered in another function's body", () => {
     const labels = labelsAt("function a(p1)\nend\nfunction b()\n  return p@1\nend\n");
     expect(labels).not.toContain("p1");
   });
@@ -318,7 +318,7 @@ describe("autocomplete · scope and visibility", () => {
     expect(labelsAt("store name = 1\nfunction main()\n  local function @1\nend\n")).toEqual([]);
   });
 
-  upstreamCase.bug(BUG.localScope, "skip_current_local", "the local being declared is not offered in its own value", () => {
+  upstreamCase("skip_current_local", "the local being declared is not offered in its own value", () => {
     const one = labelsAt("function main()\n  local other = 1\n  local name = na@1\nend\n");
     expect(one).not.toContain("name");
     expect(one).toContain("other");

@@ -1,3 +1,4 @@
+import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
@@ -126,20 +127,6 @@ function normalizeStylePropName(name: string): string {
     .replace(/_/g, "-")
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .toLowerCase();
-}
-
-// Bounded parent walk: nearest ancestor whose name is in `names`, else null.
-function ancestorMatching(
-  node: { parent?: any } | undefined,
-  names: Set<string>,
-  max = 10,
-): any {
-  let cur = node?.parent;
-  for (let depth = 0; depth < max && cur; depth++) {
-    if (names.has(cur.name)) return cur;
-    cur = cur.parent;
-  }
-  return null;
 }
 
 // DFS in-order: first descendant (or self) whose name is in `names`, else null.
