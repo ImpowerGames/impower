@@ -8714,20 +8714,27 @@ repository:
     match: ([-][>])
 
   # The suffix ends the type it follows, so it matches only after the end
-  # of a type (a name, a closing bracket or quote, or another `?`). It
-  # takes in the whitespace after it only when a binary type operator
-  # follows on the same line (`number? | string`), so a line break or the
-  # next statement's first word is never read as part of the type.
+  # of a type (a name, a closing bracket or quote, or another `?`). The
+  # scope closes straight after the `?` unless the type goes on: a binary
+  # type operator later on the same line (`number? | string`), or a line
+  # that starts with `|` after the line break (`number?` then `| string`),
+  # in which case it takes in the whitespace and line breaks up to that
+  # operator. Any other line break or word after the `?` is left to the
+  # next statement. Only `|` continues across a line: at the start of a
+  # line `&` and `->` are Sparkdown statements. The end's lookahead to the
+  # next line is visible to the Sparkdown parser; VS Code's line-by-line
+  # engine closes the scope at the line end (GRAMMAR.md §11.5), so there
+  # the next line's union is only coloured, not joined.
   LuauTypeOptionalOperator:
-    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
-    captures:
+    begin: (?<={{LUAU_TYPE_END}}{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})
+    beginCaptures:
       1:
         tag: typeOperator
         name: keyword.operator.type.luau
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{LUAU_TYPE_BINARY_OPERATORS}})|(?!{{WS}}*{{LUAU_TYPE_BINARY_OPERATORS}}|{{WS}}*{{NL}}(?:{{WS}}*{{NL}})*{{WS}}*[|](?![|]))
 
   # A `?` with no type before it (`|?`, `= ?`, `: ?number`), which Luau
   # rejects. It is read as one token so the rest of the line still parses,

@@ -13482,21 +13482,22 @@
       "match": "([-][>])"
     },
     "LuauTypeOptionalOperator": {
-      "match": "(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)((?:[?]))(?:((?:[^\\S\\n\\r])*)(?=(?:[&]|[|]|[-][>])))?",
-      "captures": {
+      "begin": "(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)((?:[?]))",
+      "beginCaptures": {
         "1": {
           "tag": "typeOperator",
           "name": "keyword.operator.type.luau"
-        },
-        "2": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
         }
-      }
+      },
+      "patterns": [
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:[&]|[|]|[-][>]))|(?!(?:[^\\S\\n\\r])*(?:[&]|[|]|[-][>])|(?:[^\\S\\n\\r])*(?:\\r\\n|\\r|\\n)(?:(?:[^\\S\\n\\r])*(?:\\r\\n|\\r|\\n))*(?:[^\\S\\n\\r])*[|](?![|]))"
     },
     "LuauTypeStrayOptionalOperator": {
       "tag": "invalid",
