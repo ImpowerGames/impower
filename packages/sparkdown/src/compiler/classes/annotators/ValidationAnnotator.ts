@@ -106,6 +106,8 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
+const TYPE_NAME_EXTRA_QUALIFIER =
+  "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -345,6 +347,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
       return annotations;
     }
+    // A type name with more than one module prefix (`types.ui.Button`). Luau
+    // reads at most `module.Type`, so the segments after it are a syntax
+    // error; the grammar keeps them inside the type so this can report them.
+    if (nodeRef.name === "LuauTypeNameExtraQualifier") {
+      this.error(
+        annotations,
+        TYPE_NAME_EXTRA_QUALIFIER,
+        nodeRef.from,
+        nodeRef.to,
+      );
+      return annotations;
+    }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
       // Report invalid image/screen control
@@ -527,19 +541,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     //
     // NOT flagged inside a `#prop` value: rich text is only parsed in element
     // CONTENT, so `<b>` in a placeholder is inert rather than misspelled.
-    // A type name with more than one module prefix (`types.ui.Button`). Luau
-    // reads at most `module.Type`, so the segments after it are a syntax
-    // error; the grammar keeps them inside the type so this can report them.
-    if (nodeRef.name === "LuauTypeNameExtraQualifier") {
-      annotations.push(
-        SparkdownAnnotation.mark<Diagnostic>({
-          message:
-            "A type name takes at most one module prefix, as in `module.Type`\n> Luau cannot read a type name with more than one `.`",
-          severity: "error",
-        }).range(nodeRef.from, nodeRef.to),
-      );
-      return annotations;
-    }
     if (nodeRef.name === "SparkleRichTextTagUnknown") {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");
