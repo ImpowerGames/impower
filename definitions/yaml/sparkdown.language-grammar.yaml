@@ -2949,8 +2949,11 @@ repository:
     # trailing `(WS*)` is required so that, when this literal is used
     # mid-expression (e.g. `if -> X == -> Y then`), the LuauIfBlockCondition's
     # `(?=WS)` end-lookahead doesn't fire between the literal and the
-    # following operator.
-    match: ({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
+    # following operator. A Luau keyword is never a target, so in
+    # `{queue | "a" | -> end}` the `->` is an empty divert and `end` closes
+    # the alternator; a name that only begins with one (`end-game`) is still
+    # a target.
+    match: ({{WS}}*)([-][>])({{WS}}*)((?!{{LUAU_TERMINATOR_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}])){{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
     captures:
       1:
         patterns:

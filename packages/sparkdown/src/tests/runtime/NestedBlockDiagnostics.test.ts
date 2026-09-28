@@ -147,6 +147,46 @@ describe("an empty divert as an arm of a braced inline alternator", () => {
   });
 });
 
+describe("an empty divert as the last arm of a braced inline alternator", () => {
+  const TARGET_NOT_FOUND = "target not found";
+  const T = "\nscene t\n  Target.\n  fin\nend\n";
+  const visitTwice = (line: string) =>
+    `store n = 0\n-> s\nscene s\n  n = n + 1\n${line}\n  if n < 2 then\n    -> s\n  end\n  fin\nend\n${T}`;
+
+  test.each([
+    // `  Two {queue | "a" | ` is 21 characters, so the `->` covers 21 to 23.
+    ["-> end", '  Two {queue | "a" | -> end} tail'],
+    ["->end", '  Two {queue | "a" | ->end} tail'],
+  ])("written `%s`, `end` closes the alternator and the warning spans the `->`", (_, line) => {
+    const source = scene(line) + T;
+    expect(diagnostics(source, TARGET_NOT_FOUND)).toEqual([]);
+    expect(diagnosticSpans(source, EMPTY_DIVERT)).toEqual([{ line: 3, from: 21, to: 23 }]);
+  });
+
+  test.each([
+    ["-> end", '  Two {queue | "a" | -> end} tail'],
+    ["->end", '  Two {queue | "a" | ->end} tail'],
+  ])("written `%s`, the arm outputs nothing when it runs", (_, line) => {
+    const ctx = makeRuntimeStoryFromSource(visitTwice(line));
+    expect(ctx.errorMessages).toEqual([]);
+    expect(runToEnd(ctx.story)).toBe("Two a tail\nTwo tail\n");
+  });
+
+  test("a last arm with a target still diverts and reports no warning", () => {
+    const ctx = makeRuntimeStoryFromSource(visitTwice('  Two {queue | "a" | -> t end} tail'));
+    expect(count(ctx.warningMessages, EMPTY_DIVERT)).toBe(0);
+    expect(runToEnd(ctx.story)).toBe("Two a tail\nTwo Target.\n");
+  });
+
+  test("a target whose name begins with a keyword still diverts", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `-> s\nscene s\n  Two {queue | -> end-game end} tail\n  fin\nend\n\nscene end-game\n  Over.\n  fin\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(runToEnd(ctx.story)).toBe("Two Over.\n");
+  });
+});
+
 const UNREACHABLE = "Unreachable statement detected.";
 const LOAD_CHAIN = "`load` applies to a single target";
 
