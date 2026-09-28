@@ -64,7 +64,10 @@ function firstDescendant(node: any, names: Set<string>): any {
 }
 
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
-const FUNCTION_DEFINITION = nodeNameSet(["LuauFunctionDefinition"]);
+const PARAMETER_OWNER = nodeNameSet([
+  "LuauFunctionDefinition",
+  "LuauFunctionTypeDeclaration",
+]);
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
 const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
@@ -298,14 +301,19 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "LuauFunctionParameter") {
       // Scope the param symbol under its enclosing function's name, matching
       // the pre-port `funcName.param` id. The name lives at
-      // LuauFunctionDefinition > LuauFunctionDeclarationName > LuauFunctionName.
-      const definition = ancestorMatching(nodeRef.node, FUNCTION_DEFINITION);
-      const declName = definition
-        ? getDescendent("LuauFunctionDeclarationName", definition)
-        : null;
-      const functionNameNode = declName
-        ? getDescendent("LuauFunctionName", declName)
-        : null;
+      // LuauFunctionDefinition > LuauFunctionDeclarationName > LuauFunctionName,
+      // or for a type function at LuauFunctionTypeDeclaration >
+      // LuauTypeFunctionName.
+      const definition = ancestorMatching(nodeRef.node, PARAMETER_OWNER);
+      let functionNameNode = null;
+      if (definition?.name === "LuauFunctionTypeDeclaration") {
+        functionNameNode = getDescendent("LuauTypeFunctionName", definition);
+      } else if (definition?.name === "LuauFunctionDefinition") {
+        const declName = getDescendent("LuauFunctionDeclarationName", definition);
+        functionNameNode = declName
+          ? getDescendent("LuauFunctionName", declName)
+          : null;
+      }
       const fnName = functionNameNode
         ? this.read(functionNameNode.from, functionNameNode.to).trim()
         : "";
