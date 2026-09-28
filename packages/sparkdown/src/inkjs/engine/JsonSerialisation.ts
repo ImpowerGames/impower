@@ -8,6 +8,7 @@ import {
   VariablePointerValue,
   ListValue,
   BoolValue,
+  MultiValue,
   NullValue,
   ObjectValue,
   AbstractValue,
@@ -348,6 +349,20 @@ export class JsonSerialisation {
     let listVal = asOrNull(obj, ListValue);
     if (listVal) {
       this.WriteInkList(writer, listVal);
+      return;
+    }
+
+    // Checked after the scalars, which are far more common and never packed.
+    let multiVal = asOrNull(obj, MultiValue);
+    if (multiVal) {
+      // A tuple — the `__varargs__` pack of a vararg function's frame,
+      // or a multi-return result on the evaluation stack — writes its
+      // inner values in order, so the arity survives a save.
+      writer.WriteObjectStart();
+      writer.WritePropertyStart("tuple");
+      this.WriteListRuntimeObjs(writer, multiVal.values);
+      writer.WritePropertyEnd();
+      writer.WriteObjectEnd();
       return;
     }
 
@@ -1009,6 +1024,18 @@ export class JsonSerialisation {
         }
 
         return new ListValue(rawList);
+      }
+
+      // Tuple (see the writer side). The array length is the arity that
+      // `select("#", ...)` reports, so an element that does not read back
+      // as a value becomes nil rather than being dropped.
+      if (Array.isArray(obj["tuple"])) {
+        const values: AbstractValue[] = [];
+        for (const t of obj["tuple"]) {
+          const v = asOrNull(this.JTokenToRuntimeObject(t), AbstractValue);
+          values.push(v ?? new NullValue());
+        }
+        return new MultiValue(values);
       }
 
       // Reference to a table materialized elsewhere in this load
