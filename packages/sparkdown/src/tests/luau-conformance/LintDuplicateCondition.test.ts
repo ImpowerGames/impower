@@ -78,11 +78,7 @@ end
 });
 
 // Luau: DuplicateConditionsIfStatAndExpr
-//
-// The grammar reads an if expression in this position as running on through
-// the statement's own `then` and every following `elseif`, so the statement
-// has one condition and nothing to compare.
-describe.skip("an if expression as an if statement's condition (diverges: the grammar merges it into the statement)", () => {
+describe("an if expression as an if statement's condition", () => {
   test("the same if expression twice in one chain", () => {
     expect(
       lintMessagesInFunction(`

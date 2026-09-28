@@ -6381,14 +6381,30 @@ repository:
         patterns:
           - { include: "#LuauThenKeyword" }
 
+  # A condition takes the whitespace before its own `then`, so the enclosing
+  # `LuauTernaryExpression` stands directly on that `then` and only meets
+  # whitespace followed by `then` after a completed arm (see its `end`).
+  # It also takes the whitespace after `elseif`, so an expression whose own
+  # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
+  # literal) still lands inside the condition rather than beside it.
   LuauTernaryExpressionCondition:
-    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    end: ({{WS}}+)(?=then\b)|(?={{BEAT}})|(?=$|{{WS}})
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   # ----------------------------------------------------------------------------
   # Elseif Block
@@ -6668,7 +6684,13 @@ repository:
     # the clause rules (`LuauThenExpression` / `LuauElseExpression`)
     # already end at `$` themselves, so a line break mid-ternary was
     # never parseable anyway.
-    end: (?={{BEAT}}|$|[)}\],;])
+    #
+    # The last alternative ends the expression before the `then` of an if
+    # statement or the `do` of a while loop whose condition it is:
+    # `if if c then 1 else 2 then`. Each condition takes the whitespace
+    # before its own `then`, so whitespace followed by `then` or `do` at
+    # this level only follows a completed arm.
+    end: (?={{BEAT}}|$|[)}\],;]|{{WS}}+(?:then|do)\b)
 
   LuauThenExpression:
     begin: (?=(?:then)\b)
