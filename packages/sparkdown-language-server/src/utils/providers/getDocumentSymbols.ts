@@ -31,157 +31,126 @@ export const getDocumentSymbols = (
   if (!document || !annotations) {
     return symbols;
   }
-  const headingMarks: DocumentSymbolMark[] = [];
   const topMarks: DocumentSymbolMark[] = [];
-  // Scenes and branches whose `end` has been reached. Their range ends at that
-  // `end`, and later declarations are no longer placed inside them.
-  const closed = new Set<DocumentSymbolMark>();
-  // Ends a still-open heading's range on the line before a following heading.
-  const endBefore = (mark: DocumentSymbolMark | undefined, line: number) => {
-    if (mark && !closed.has(mark)) {
-      mark.symbol.range.end.line = line - 1;
-      mark.symbol.range.end.character = document.positionAt(
-        line - 1,
-      ).character;
+  // Scenes and branches not yet closed, outermost first. A root-level `end`
+  // closes the innermost one; a new scene closes every open one and a new
+  // branch closes an open branch, since neither nests inside its own kind.
+  const open: DocumentSymbolMark[] = [];
+  const lineText = (line: number) =>
+    document.getText({
+      start: { line, character: 0 },
+      end: { line: line + 1, character: 0 },
+    });
+  const lineEnd = (line: number): Position => ({
+    line,
+    character: lineText(line).replace(/\r?\n$/, "").length,
+  });
+  const indentOf = (text: string) => text.match(/^[ \t]*/)![0].length;
+  // The line holding the `end` that closes the function declared on `line`:
+  // the first later non-blank line indented no deeper than the declaration.
+  // The declarations channel records no function extent, so indentation
+  // stands in for it.
+  const functionEndLine = (line: number) => {
+    const indent = indentOf(lineText(line));
+    for (let i = line + 1; i < document.lineCount; i += 1) {
+      const text = lineText(i);
+      if (text.trim() && indentOf(text) <= indent) {
+        return /^\s*end\b/.test(text) ? i : i - 1;
+      }
     }
+    return document.lineCount - 1;
+  };
+  // Adds a symbol to the innermost open scene or branch, or to the top level.
+  const place = (mark: DocumentSymbolMark) => {
+    const parent = open.at(-1);
+    if (parent) {
+      parent.symbol.children ??= [];
+      parent.symbol.children.push(mark.symbol);
+    } else {
+      topMarks.push(mark);
+    }
+  };
+  // Ends a heading that closes without its own `end` on the line before the
+  // declaration that closes it.
+  const closeBefore = (mark: DocumentSymbolMark, line: number) => {
+    mark.symbol.range.end = lineEnd(Math.max(line - 1, 0));
   };
   const cur = annotations.declarations?.iter();
   if (cur) {
     while (cur.value) {
       const nameRange = document.range(cur.from, cur.to);
+      const line = nameRange.start.line;
       const lineRange = {
         start: {
-          line: nameRange.start.line,
+          line,
           character: 0,
         },
         end: {
           line: nameRange.end.line,
           character: nameRange.end.character,
         },
-      }; // FUNCTION
+      };
+      const heading = (
+        type: DocumentSymbolMark["type"],
+        kind: SymbolKind,
+      ): DocumentSymbolMark => ({
+        type,
+        symbol: {
+          name: document.getText(nameRange),
+          kind,
+          range: structuredClone(lineRange),
+          selectionRange: lineRange,
+        },
+      });
+      // FUNCTION
       if (cur.value.type === "function") {
-        const name = document.getText(nameRange);
-        const line = document.positionAt(cur.from).line;
-        const mark: DocumentSymbolMark = {
-          type: "function",
-          symbol: {
-            name,
-            kind: SymbolKind.Function,
-            range: structuredClone(lineRange),
-            selectionRange: lineRange,
-          },
-        };
-        endBefore(headingMarks.at(-1), line);
-        topMarks.push(mark);
-        headingMarks.push(mark);
+        const mark = heading("function", SymbolKind.Function);
+        mark.symbol.range.end = lineEnd(functionEndLine(line));
+        place(mark);
       }
       // SCENE
       if (cur.value.type === "scene") {
-        const name = document.getText(nameRange);
-        const line = document.positionAt(cur.from).line;
-        const mark: DocumentSymbolMark = {
-          type: "scene",
-          symbol: {
-            name,
-            kind: SymbolKind.Class,
-            range: structuredClone(lineRange),
-            selectionRange: lineRange,
-          },
-        };
-        endBefore(topMarks.at(-1), line);
-        endBefore(
-          headingMarks.findLast((m) => m.type === "branch"),
-          line,
-        );
-        topMarks.push(mark);
-        headingMarks.push(mark);
+        for (const o of open.splice(0)) {
+          closeBefore(o, line);
+        }
+        const mark = heading("scene", SymbolKind.Class);
+        place(mark);
+        open.push(mark);
       }
       // BRANCH
       if (cur.value.type === "branch") {
-        const name = document.getText(nameRange);
-        const line = document.positionAt(cur.from).line;
-        const mark: DocumentSymbolMark = {
-          type: "branch",
-          symbol: {
-            name,
-            kind: SymbolKind.Interface,
-            range: structuredClone(lineRange),
-            selectionRange: lineRange,
-          },
-        };
-        const lastTopHeading = headingMarks.findLast(
-          (m) =>
-            (m.type === "function" || m.type === "scene") && !closed.has(m),
-        );
-        if (lastTopHeading?.type === "scene") {
-          lastTopHeading.symbol.children ??= [];
-          lastTopHeading.symbol.children.push(mark.symbol);
-        } else {
-          topMarks.push(mark);
+        if (open.at(-1)?.type === "branch") {
+          closeBefore(open.pop()!, line);
         }
-        endBefore(
-          headingMarks.findLast((m) => m.type === "branch"),
-          line,
-        );
-        headingMarks.push(mark);
+        const mark = heading("branch", SymbolKind.Interface);
+        place(mark);
+        open.push(mark);
       }
       // LABEL
       if (cur.value.type === "label") {
-        const name = document.getText(nameRange);
-        const mark: DocumentSymbolMark = {
+        place({
           type: "label",
           symbol: {
-            name,
+            name: document.getText(nameRange),
             kind: SymbolKind.EnumMember,
             range: structuredClone(nameRange),
             selectionRange: nameRange,
           },
-        };
-        const lastHeading = headingMarks.findLast(
-          (m) => m.type !== "label" && !closed.has(m),
-        );
-        if (lastHeading) {
-          lastHeading.symbol.children ??= [];
-          lastHeading.symbol.children.push(mark.symbol);
-        }
-        headingMarks.push(mark);
+        });
       }
       // END
       if (cur.value.type === "end") {
-        const open = headingMarks.findLast(
-          (m) => (m.type === "scene" || m.type === "branch") && !closed.has(m),
-        );
-        if (open) {
-          open.symbol.range.end = document.range(cur.from, cur.to).end;
-          closed.add(open);
+        const closed = open.pop();
+        if (closed) {
+          closed.symbol.range.end = nameRange.end;
         }
       }
       cur.next();
     }
   }
-  const lastTop = headingMarks.findLast(
-    (m) => m.type === "function" || m.type === "scene",
-  );
-  if (
-    lastTop &&
-    lastTop.symbol.range.end.line === lastTop.symbol.range.start.line
-  ) {
-    lastTop.symbol.range.end.line = document.lineCount - 1;
-    lastTop.symbol.range.end.character = document.positionAt(
-      document.lineCount - 1,
-    ).character;
-  }
-  const lastNested = headingMarks.findLast(
-    (m) => m.type === "branch",
-  );
-  if (
-    lastNested &&
-    lastNested.symbol.range.end.line === lastNested.symbol.range.start.line
-  ) {
-    lastNested.symbol.range.end.line = document.lineCount - 1;
-    lastNested.symbol.range.end.character = document.positionAt(
-      document.lineCount - 1,
-    ).character;
+  // A scene or branch missing its `end` runs to the end of the document.
+  for (const o of open) {
+    o.symbol.range.end = lineEnd(document.lineCount - 1);
   }
   const result = topMarks
     .filter(

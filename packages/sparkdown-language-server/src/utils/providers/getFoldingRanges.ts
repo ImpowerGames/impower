@@ -68,84 +68,56 @@ export const getFoldingRanges = (
     return indentFolding;
   }
   const headingFolding: FoldingRange[] = [];
-  // Scenes and branches whose `end` has been reached; their fold ends there.
-  const closed = new Set<FoldingRange>();
-  // Ends a still-open fold on the line before a following heading.
-  const endBefore = (fold: FoldingRange | undefined, line: number) => {
-    if (fold && !closed.has(fold)) {
-      fold.endLine = line - 1;
-    }
-  };
+  // Scene and branch folds not yet closed, outermost first. A root-level `end`
+  // closes the innermost one; a new scene closes every open one and a new
+  // branch closes an open branch, since neither nests inside its own kind.
+  const open: FoldingRange[] = [];
+  // A function declared outside any scene or branch folds until the next
+  // scene or function. One declared inside a scene or branch gets no heading
+  // fold of its own: its body is indented, so indentation folding covers it.
+  let topFunction: FoldingRange | undefined;
   const cur = annotations.declarations?.iter();
   if (cur) {
     while (cur.value) {
-      if (cur.value.type === "function") {
-        const line = document.positionAt(cur.from).line;
-        endBefore(
-          headingFolding.findLast(
-            (h) =>
-              h.kind === "function" || h.kind === "scene" || h.kind === "knot",
-          ),
-          line,
-        );
-        endBefore(headingFolding.at(-1), line);
-        headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "function",
-        });
+      const line = document.positionAt(cur.from).line;
+      if (cur.value.type === "function" || cur.value.type === "scene") {
+        if (topFunction) {
+          topFunction.endLine = line - 1;
+          topFunction = undefined;
+        }
+      }
+      if (cur.value.type === "function" && open.length === 0) {
+        topFunction = { startLine: line, endLine: line, kind: "function" };
+        headingFolding.push(topFunction);
       }
       if (cur.value.type === "scene") {
-        const line = document.positionAt(cur.from).line;
-        endBefore(
-          headingFolding.findLast(
-            (h) =>
-              h.kind === "function" || h.kind === "scene" || h.kind === "knot",
-          ),
-          line,
-        );
-        endBefore(headingFolding.at(-1), line);
-        headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "scene",
-        });
+        for (const o of open.splice(0)) {
+          o.endLine = line - 1;
+        }
+        const fold = { startLine: line, endLine: line, kind: "scene" };
+        headingFolding.push(fold);
+        open.push(fold);
       }
       if (cur.value.type === "branch") {
-        const line = document.positionAt(cur.from).line;
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading?.kind === "branch" || prevHeading?.kind === "stitch") {
-          endBefore(prevHeading, line);
+        if (open.at(-1)?.kind === "branch") {
+          open.pop()!.endLine = line - 1;
         }
-        headingFolding.push({
-          startLine: line,
-          endLine: line,
-          kind: "branch",
-        });
+        const fold = { startLine: line, endLine: line, kind: "branch" };
+        headingFolding.push(fold);
+        open.push(fold);
       }
       if (cur.value.type === "end") {
-        const open = headingFolding.findLast(
-          (h) => (h.kind === "scene" || h.kind === "branch") && !closed.has(h),
-        );
-        if (open) {
-          open.endLine = document.positionAt(cur.from).line;
-          closed.add(open);
+        const closed = open.pop();
+        if (closed) {
+          closed.endLine = line;
         }
       }
       cur.next();
     }
   }
-  const lastTop = headingFolding.findLast(
-    (h) => h.kind === "function" || h.kind === "scene" || h.kind === "knot",
-  );
-  if (lastTop && lastTop.endLine === lastTop.startLine) {
-    lastTop.endLine = document.lineCount - 1;
-  }
-  const lastNested = headingFolding.findLast(
-    (h) => h.kind === "branch" || h.kind === "stitch",
-  );
-  if (lastNested && lastNested.endLine === lastNested.startLine) {
-    lastNested.endLine = document.lineCount - 1;
+  // A fold still open at the end of the document runs to its last line.
+  for (const fold of topFunction ? [...open, topFunction] : open) {
+    fold.endLine = document.lineCount - 1;
   }
   const result = [...indentFolding, ...headingFolding].sort(
     (a, b) => a.startLine - b.startLine,

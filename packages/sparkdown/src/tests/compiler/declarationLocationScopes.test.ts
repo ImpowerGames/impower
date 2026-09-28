@@ -70,3 +70,25 @@ describe("declaration locations after a closed branch", () => {
     ]);
   });
 });
+
+describe("declaration locations around a function inside a branch", () => {
+  const program = compile(`scene A
+  branch x
+    function helper()
+      return 1
+    end
+  end
+  choose
+    * Again
+      Again.
+  then (after)
+    After.
+  end
+end
+`);
+
+  it("keys a label after the branch's end under the scene", () => {
+    expect(Object.keys(program.labelLocations ?? {})).toEqual(["A.after"]);
+    expect(Object.keys(program.functionLocations ?? {})).toContain("helper");
+  });
+});

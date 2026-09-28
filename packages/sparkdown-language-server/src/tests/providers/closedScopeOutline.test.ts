@@ -88,3 +88,69 @@ describe("provider · outline and folding after a closed branch", () => {
     ]);
   });
 });
+
+// A function inside a branch, a label in the scene after the branch closes,
+// and a label outside every scene.
+const NESTED_FUNCTION = `scene A
+  branch x
+    function helper()
+      return 1
+    end
+  end
+  choose
+    * Again
+      Again.
+  then (after)
+    After.
+  end
+end
+choose
+  * Top
+    Top.
+then (toplabel)
+  Top.
+end
+`;
+
+describe("provider · outline and folding around a nested function", () => {
+  test("a function inside a branch is nested there and ends at its own end", () => {
+    const { document, annotations } = setup(NESTED_FUNCTION);
+    const symbols = getDocumentSymbols(document, annotations);
+    expect(symbols.map((s) => s.name)).toEqual(["A", "toplabel"]);
+    const [scene] = symbols;
+    expect([scene?.range.start.line, scene?.range.end.line]).toEqual([0, 12]);
+    expect(scene?.children?.map((s) => s.name)).toEqual(["x", "after"]);
+    const x = scene?.children?.[0];
+    expect([x?.range.start.line, x?.range.end.line]).toEqual([1, 5]);
+    expect(x?.children?.map((s) => s.name)).toEqual(["helper"]);
+    const helper = x?.children?.[0];
+    expect([helper?.range.start.line, helper?.range.end.line]).toEqual([2, 4]);
+  });
+
+  test("a stray end does not reopen a scene the next scene already closed", () => {
+    // Scene A is missing its `end`; the last `end` is stray.
+    const { document, annotations } = setup(
+      "scene A\n  Hi.\nscene B\n  Bye.\nend\nend\n",
+    );
+    const ranges = getDocumentSymbols(document, annotations).map((s) => [
+      s.name,
+      s.range.start.line,
+      s.range.end.line,
+    ]);
+    expect(ranges).toEqual([
+      ["A", 0, 1],
+      ["B", 2, 4],
+    ]);
+  });
+
+  test("a function inside a branch gets no heading fold of its own", () => {
+    const { document, annotations } = setup(NESTED_FUNCTION);
+    const folds = getFoldingRanges(document, annotations, {} as SparkProgram)
+      .filter((f) => f.kind !== "indent")
+      .map((f) => [f.kind, f.startLine, f.endLine]);
+    expect(folds).toEqual([
+      ["scene", 0, 12],
+      ["branch", 1, 5],
+    ]);
+  });
+});

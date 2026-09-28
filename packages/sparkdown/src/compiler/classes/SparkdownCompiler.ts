@@ -5328,11 +5328,19 @@ export class SparkdownCompiler {
             const name = doc.read(cur.from, cur.to);
             const range = doc.range(cur.from, cur.to);
             if (cur.value.type === "function") {
-              scopePathParts = [];
-              scopePathParts.push({
-                kind: "function",
-                name: doc.read(cur.from, cur.to),
-              });
+              // A function declared inside a scene or branch leaves that scope
+              // open for the declarations after the function's own `end`.
+              if (
+                !scopePathParts.some(
+                  (p) => p.kind === "scene" || p.kind === "branch",
+                )
+              ) {
+                scopePathParts = [];
+                scopePathParts.push({
+                  kind: "function",
+                  name: doc.read(cur.from, cur.to),
+                });
+              }
               program.functionLocations ??= {};
               program.functionLocations[name] = [
                 scriptIndex,
