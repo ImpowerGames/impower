@@ -269,6 +269,7 @@
     "LUAU_TYPE_OPTIONAL_OPERATOR": "(?:[?])",
     "LUAU_TYPE_END": "(?:[\\w)}\\]>\"'`?])",
     "LUAU_TYPE_BINARY_OPERATORS": "(?:[&]|[|]|[-][>])",
+    "LUAU_TYPE_LINE_BREAK": "(?:^{{WS}}*[^|\\s])",
     "LUAU_VALUE_BINARY_OPERATORS": "(?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})",
     "LUAU_BINARY_OPERATORS": "(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})",
     "LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD": "(?:{{LUAU_VALUE_BINARY_OPERATORS}}|[?]|[&]|[-][>])",
@@ -9036,13 +9037,13 @@
           "include": "#LuauFunctionReturnType"
         },
         {
+          "include": "#LuauFunctionBody"
+        },
+        {
           "include": "#LuauFunctionDeclarationName"
         },
         {
           "include": "#LuauFunctionParameters"
-        },
-        {
-          "include": "#LuauFunctionBody"
         },
         {
           "include": "#LuauBlockBody"
@@ -9070,7 +9071,7 @@
     "LuauFunctionBody": {
       "tag": "meta",
       "name": "meta.function.body.luau",
-      "begin": "(?<=(?:[\\w)}\\]>\"'`?]))(?:[^\\S\\n\\r])*\\n",
+      "begin": "(?<=(?:[\\w)}\\]>\"'`?]))(?:[^\\S\\n\\r])*\\n|^(?!(?:[^\\S\\n\\r])*\\b(?:end|scene|branch)\\b)",
       "patterns": [
         {
           "include": "#LuauBlockBody"
@@ -9177,7 +9178,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:^(?:[^\\S\\n\\r])*[^|\\s])|$|(?:[^\\S\\n\\r]))"
     },
     "LuauFunctionName": {
       "tag": "function(name)",
@@ -9224,8 +9225,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "applyEndPatternLast": true,
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])*(?!(?:[-][-])))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=^|$)|(?<!(?:\\b(?:store|local|const)\\b|[,])(?:[^\\S\\n\\r])*)(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])|[,=]))"
     },
     "LuauVariableAssignment": {
       "begin": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)(?=(?:[^\\S\\n\\r])*(?:[,:=]|--|\\n|\\r|$))",
@@ -9256,7 +9256,7 @@
           "include": "#LuauFunctionDefinition"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|,)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=^|$|(?:[^\\S\\n\\r])|,)"
     },
     "LuauSparkdownControlBlock": {
       "patterns": [
@@ -13331,13 +13331,13 @@
           "include": "#LuauFunctionReturnType"
         },
         {
+          "include": "#LuauFunctionBody"
+        },
+        {
           "include": "#LuauTypeFunctionName"
         },
         {
           "include": "#LuauFunctionParameters"
-        },
-        {
-          "include": "#LuauFunctionBody"
         },
         {
           "include": "#LuauBlockBody"
@@ -13428,7 +13428,7 @@
           "include": "#LuauTypeAssignment"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:[^\\S\\n\\r])*(?:$|(?!(?:[-][-])|(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|[=])))"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:^(?:[^\\S\\n\\r])*[^|\\s])|(?:[^\\S\\n\\r])*(?:$|(?!(?:[-][-])|(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|[=])))"
     },
     "LuauTypeAssignment": {
       "begin": "([=])((?:[^\\S\\n\\r])*)",
@@ -13451,7 +13451,7 @@
           "include": "#LuauTypeLiteral"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}>=])"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:^(?:[^\\S\\n\\r])*[^|\\s])|$|(?:[^\\S\\n\\r])|[,;)\\]}>=])"
     },
     "LuauTypeAssignmentOperator": {
       "match": "([=])((?:[^\\S\\n\\r])*)",
@@ -13558,9 +13558,15 @@
         },
         {
           "include": "#LuauTypeName"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}>=])"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=[,;)\\]}>=]|(?:^(?:[^\\S\\n\\r])*[^|\\s]))|(?<=\\S)(?=(?:[^\\S\\n\\r])+\\S)"
     },
     "LuauDivertTargetType": {
       "tag": "standard(typeName)",
@@ -13611,7 +13617,7 @@
           "include": "#LuauTypeLiteral"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}>=])"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:^(?:[^\\S\\n\\r])*[^|\\s])|$|(?:[^\\S\\n\\r])|[,;)\\]}>=])"
     },
     "LuauTypeBinaryOperator": {
       "begin": "((?:[^\\S\\n\\r])*)((?:[&]|[|]|[-][>]))((?:[^\\S\\n\\r])*)",
@@ -13668,7 +13674,7 @@
           "include": "#LuauTypeLiteral"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}>=])"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=(?:^(?:[^\\S\\n\\r])*[^|\\s])|$|(?:[^\\S\\n\\r])|[,;)\\]}>=])"
     },
     "LuauTypeAnnotationOperator": {
       "begin": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)",

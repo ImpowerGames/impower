@@ -598,17 +598,20 @@ You need this when:
 Real example:
 
 ```yaml
-LuauVariableDefinition:
+LuauPropertyDefinition:
   patterns:
     - { include: "#LuauComment" }
+    - { include: "#LuauBracketKeyAssignment" }
     - { include: "#LuauVariableAssignment" }
   applyEndPatternLast: true
   end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 ```
 
-`LuauVariableAssignment` can consume across-line text. The end pattern is a lookahead for "end of line, unless a comment follows" — without `applyEndPatternLast`, the assignment would be cut short at the first line boundary even when the user meant to continue.
+The end pattern matches almost everywhere: at the end of the line, and at any point a comment does not follow. Checked first, it would close the rule straight after its `begin:`. Checked last, the property's key and value and a trailing comment are read first, and the rule closes at the first point none of them can take.
 
 **Rule of thumb:** if you find yourself reaching for negative lookaheads in the end pattern, ask first whether `applyEndPatternLast: true` would let you drop them.
+
+**The limit:** with `applyEndPatternLast`, any inner pattern that matches wins over the end, including at the start of a line. A rule that has to close at the start of the next line (§11.5, "A construct that may go on at the next line") cannot use it when one of its patterns can match there. `LuauVariableDefinition` is such a rule: its `LuauExpression` pattern would read the next statement as another value, so its end pattern states where the definition goes on instead.
 
 The full list of rule properties lives in `packages/textmate-grammar-tree/src/grammar/types/GrammarDefinition.ts`.
 
@@ -836,6 +839,23 @@ For `if\n  a == 1 and\n  b == 2\n  then …`, the begin fires right after `if`, 
 - **A scope-end pattern like `(?=$|{{WS}})` is a single-line bound.** It terminates the scope as soon as the first whitespace or end-of-line is hit on the opening line — useful for "one-line construct" rules, fatal for "spans newlines" rules. When making a rule newline-flexible, drop the `$|{{WS}}` half of the end pattern and replace with a specific terminator (a keyword, a BEAT, a closing delimiter) so the scope can survive intermediate whitespace.
 
 > IMPORTANT: textmate-grammar-tree, the runtime parser we use for compiling scripts, happens to be more permissive than vscode's textmate highlighter — a `begin:` like `if\b\s*` can in fact consume past `\n` there. **Don't rely on that.** The same grammar ships to VS Code, where the extra match silently fails and highlighting diverges from the runtime tree.
+
+**A construct that may go on at the next line.** The Operation / Operator split works because the line ends on the operator, which says the construct goes on. A Luau type is the harder case: `local v: number?` may be the whole type, or the next line may start with `| string` and continue it as a union. Nothing on the first line decides it, and no pattern may look past the line break to find out. So the type does not end at the line break; it takes the break in and lets the next line decide:
+
+```yaml
+LuauTypeLiteral:
+  patterns:
+    - ...
+    - { include: "#LuauTypeBinaryOperation" } # `| string` on the next line
+    - ...
+    - { include: "#ExtraWhitespace" }
+    - { include: "#Newline" }
+  end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{WS}}+\S)
+```
+
+`LUAU_TYPE_LINE_BREAK` is `^{{WS}}*[^|\s]`: the start of a line with text that does not begin with `|`. Each pattern looks only at the line it is on. A line starting with `|` continues the type, a blank line is taken in as well, and any other line ends the type at its first column, before its indentation.
+
+The cost is that every rule around a type is still open when the type ends there, so each one also needs an end at the start of the line. The rules that contain a type (`LuauTypeBinaryOperation`, `LuauTypeAnnotationOperation`, `LuauTypeAssignment`, `LuauFunctionReturnType`, `LuauDataTypeDeclaration`) end at `LUAU_TYPE_LINE_BREAK` too; a bare `^` would close `LuauTypeBinaryOperation` as it opens on an unindented `| string` line. The statements they sit in (`LuauVariableAssignment`, `LuauVariableDefinition`) end at `^`, since they only reach a line start once the type has ended. A rule that misses its line-start end takes the next line's statement as more of itself, and an unindented next line is where that shows. `LuauFunctionBody` normally opens on the line break after its header; after a return type, the type has taken that break, so the body also opens at the start of the next line.
 
 ## 12. Whitespace classes — picking the right one
 

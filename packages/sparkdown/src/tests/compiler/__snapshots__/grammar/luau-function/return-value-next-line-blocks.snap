@@ -191,7 +191,7 @@ sparkdown [0..177]
  │   │       │   │       └─ LuauIfBlock_end_c2 [113..116]
  │   │       │   │           └─ LuauEndKeyword [113..116]: "end"
  │   │       │   ├─ Newline [116..117]: "\n"
- │   │       │   ├─ LuauVariableDefinition [117..137]
+ │   │       │   ├─ LuauVariableDefinition [117..130]
  │   │       │   │   ├─ LuauVariableDefinition_begin [117..125]
  │   │       │   │   │   ├─ LuauVariableDefinition_begin_c1 [117..119]
  │   │       │   │   │   │   └─ OptionalWhitespace [117..119]: "  "
@@ -200,43 +200,43 @@ sparkdown [0..177]
  │   │       │   │   │   └─ LuauVariableDefinition_begin_c3 [124..125]
  │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [124..125]
  │   │       │   │   │           └─ OptionalWhitespace [124..125]: " "
- │   │       │   │   ├─ LuauVariableDefinition_content [125..137]
- │   │       │   │   │   ├─ LuauVariableAssignment [125..130]
- │   │       │   │   │   │   ├─ LuauVariableAssignment_begin [125..127]
- │   │       │   │   │   │   │   ├─ LuauVariableAssignment_begin_c1 [125..126]
- │   │       │   │   │   │   │   │   └─ LuauVariableName [125..126]: "t"
- │   │       │   │   │   │   │   └─ LuauVariableAssignment_begin_c2 [126..127]
- │   │       │   │   │   │   │       └─ OptionalWhitespace [126..127]: " "
- │   │       │   │   │   │   ├─ LuauVariableAssignment_content [127..130]
- │   │       │   │   │   │   │   └─ LuauAssignmentOperation [127..130]
- │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_begin 127
- │   │       │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 127
- │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_content [127..130]
- │   │       │   │   │   │   │       │   ├─ LuauAssignmentOperator [127..129]
- │   │       │   │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [127..129]
- │   │       │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 127
- │   │       │   │   │   │   │       │   │   │   │   └─ OptionalWhitespace 127
- │   │       │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [127..128]: "="
- │   │       │   │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [128..129]
- │   │       │   │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [128..129]
- │   │       │   │   │   │   │       │   │   │           └─ OptionalWhitespace [128..129]: " "
- │   │       │   │   │   │   │       │   │   └─ LuauAssignmentOperator_end 129
- │   │       │   │   │   │   │       │   └─ LuauNumericDecimal [129..130]
- │   │       │   │   │   │   │       │       ├─ LuauNumericDecimal_c1 [129..130]: "1"
- │   │       │   │   │   │   │       │       └─ LuauNumericDecimal_c2 130
- │   │       │   │   │   │   │       └─ LuauAssignmentOperation_end 130
- │   │       │   │   │   │   └─ LuauVariableAssignment_end 130
- │   │       │   │   │   └─ LuauReturnStatement [130..137]
- │   │       │   │   │       ├─ LuauReturnStatement_begin [130..137]
- │   │       │   │   │       │   ├─ LuauReturnStatement_begin_c1 [130..131]
- │   │       │   │   │       │   │   └─ OptionalWhitespace [130..131]: " "
- │   │       │   │   │       │   ├─ LuauReturnStatement_begin_c2 [131..137]
- │   │       │   │   │       │   │   └─ LuauControlKeyword [131..137]: "return"
- │   │       │   │   │       │   └─ LuauReturnStatement_begin_c3 137
- │   │       │   │   │       │       └─ LuauReturnStatement_begin_c3 137
- │   │       │   │   │       │           └─ OptionalWhitespace 137
- │   │       │   │   │       └─ LuauReturnStatement_end 137
- │   │       │   │   └─ LuauVariableDefinition_end 137
+ │   │       │   │   ├─ LuauVariableDefinition_content [125..130]
+ │   │       │   │   │   └─ LuauVariableAssignment [125..130]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [125..127]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [125..126]
+ │   │       │   │   │       │   │   └─ LuauVariableName [125..126]: "t"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [126..127]
+ │   │       │   │   │       │       └─ OptionalWhitespace [126..127]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [127..130]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [127..130]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 127
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 127
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [127..130]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [127..129]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [127..129]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 127
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 127
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [127..128]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [128..129]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [128..129]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [128..129]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 129
+ │   │       │   │   │       │       │   └─ LuauNumericDecimal [129..130]
+ │   │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [129..130]: "1"
+ │   │       │   │   │       │       │       └─ LuauNumericDecimal_c2 130
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 130
+ │   │       │   │   │       └─ LuauVariableAssignment_end 130
+ │   │       │   │   └─ LuauVariableDefinition_end 130
+ │   │       │   ├─ LuauReturnStatement [130..137]
+ │   │       │   │   ├─ LuauReturnStatement_begin [130..137]
+ │   │       │   │   │   ├─ LuauReturnStatement_begin_c1 [130..131]
+ │   │       │   │   │   │   └─ OptionalWhitespace [130..131]: " "
+ │   │       │   │   │   ├─ LuauReturnStatement_begin_c2 [131..137]
+ │   │       │   │   │   │   └─ LuauControlKeyword [131..137]: "return"
+ │   │       │   │   │   └─ LuauReturnStatement_begin_c3 137
+ │   │       │   │   │       └─ LuauReturnStatement_begin_c3 137
+ │   │       │   │   │           └─ OptionalWhitespace 137
+ │   │       │   │   └─ LuauReturnStatement_end 137
  │   │       │   ├─ Newline [137..138]: "\n"
  │   │       │   ├─ LuauReturnStatement [138..172]
  │   │       │   │   ├─ LuauReturnStatement_begin [138..146]

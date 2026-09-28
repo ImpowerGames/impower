@@ -44,46 +44,47 @@ sparkdown [0..56]
  │   │   │   └─ LuauFunctionParameters_end [28..29]
  │   │   │       └─ LuauFunctionParameters_end_c1 [28..29]
  │   │   │           └─ PunctuationParenClose [28..29]: ")"
- │   │   ├─ LuauFunctionReturnType [29..40]
+ │   │   ├─ LuauFunctionReturnType [29..41]
  │   │   │   ├─ LuauFunctionReturnType_begin [29..31]
  │   │   │   │   ├─ LuauFunctionReturnType_begin_c1 [29..30]
  │   │   │   │   │   └─ LuauTypeOperator [29..30]: ":"
  │   │   │   │   └─ LuauFunctionReturnType_begin_c2 [30..31]
  │   │   │   │       └─ LuauFunctionReturnType_begin_c2 [30..31]
  │   │   │   │           └─ OptionalWhitespace [30..31]: " "
- │   │   │   ├─ LuauFunctionReturnType_content [31..40]
- │   │   │   │   └─ LuauTypeLiteral [31..40]
+ │   │   │   ├─ LuauFunctionReturnType_content [31..41]
+ │   │   │   │   └─ LuauTypeLiteral [31..41]
  │   │   │   │       ├─ LuauTypeLiteral_begin 31
- │   │   │   │       ├─ LuauTypeLiteral_content [31..40]
- │   │   │   │       │   └─ LuauTypeofFunction [31..40]
- │   │   │   │       │       ├─ LuauTypeofFunction_begin [31..37]
- │   │   │   │       │       │   ├─ LuauTypeofFunction_begin_c1 [31..37]
- │   │   │   │       │       │   │   └─ LuauTypeofFunctionName [31..37]: "typeof"
- │   │   │   │       │       │   └─ LuauTypeofFunction_begin_c2 37
- │   │   │   │       │       ├─ LuauTypeofFunction_content [37..40]
- │   │   │   │       │       │   └─ LuauTypeofFunctionParameters [37..40]
- │   │   │   │       │       │       ├─ LuauTypeofFunctionParameters_begin [37..38]
- │   │   │   │       │       │       │   └─ LuauTypeofFunctionParameters_begin_c1 [37..38]
- │   │   │   │       │       │       │       └─ PunctuationParenOpen [37..38]: "("
- │   │   │   │       │       │       ├─ LuauTypeofFunctionParameters_content [38..39]
- │   │   │   │       │       │       │   └─ LuauAccessPath [38..39]
- │   │   │   │       │       │       │       ├─ LuauAccessPath_begin 38
- │   │   │   │       │       │       │       ├─ LuauAccessPath_content [38..39]
- │   │   │   │       │       │       │       │   └─ LuauAccessPart [38..39]
- │   │   │   │       │       │       │       │       └─ LuauVariable [38..39]
- │   │   │   │       │       │       │       │           └─ LuauVariable_c1 [38..39]
- │   │   │   │       │       │       │       │               └─ LuauVariableName [38..39]: "x"
- │   │   │   │       │       │       │       └─ LuauAccessPath_end 39
- │   │   │   │       │       │       │           └─ LuauAccessPath_end_c1 39
- │   │   │   │       │       │       └─ LuauTypeofFunctionParameters_end [39..40]
- │   │   │   │       │       │           ├─ LuauTypeofFunctionParameters_end_c1 [39..40]
- │   │   │   │       │       │           │   └─ PunctuationParenClose [39..40]: ")"
- │   │   │   │       │       │           └─ LuauTypeofFunctionParameters_end_c2 40
- │   │   │   │       │       └─ LuauTypeofFunction_end 40
- │   │   │   │       └─ LuauTypeLiteral_end 40
- │   │   │   └─ LuauFunctionReturnType_end 40
- │   │   └─ LuauFunctionBody [40..52]
- │   │       ├─ LuauFunctionBody_begin [40..41]: "\n"
+ │   │   │   │       ├─ LuauTypeLiteral_content [31..41]
+ │   │   │   │       │   ├─ LuauTypeofFunction [31..40]
+ │   │   │   │       │   │   ├─ LuauTypeofFunction_begin [31..37]
+ │   │   │   │       │   │   │   ├─ LuauTypeofFunction_begin_c1 [31..37]
+ │   │   │   │       │   │   │   │   └─ LuauTypeofFunctionName [31..37]: "typeof"
+ │   │   │   │       │   │   │   └─ LuauTypeofFunction_begin_c2 37
+ │   │   │   │       │   │   ├─ LuauTypeofFunction_content [37..40]
+ │   │   │   │       │   │   │   └─ LuauTypeofFunctionParameters [37..40]
+ │   │   │   │       │   │   │       ├─ LuauTypeofFunctionParameters_begin [37..38]
+ │   │   │   │       │   │   │       │   └─ LuauTypeofFunctionParameters_begin_c1 [37..38]
+ │   │   │   │       │   │   │       │       └─ PunctuationParenOpen [37..38]: "("
+ │   │   │   │       │   │   │       ├─ LuauTypeofFunctionParameters_content [38..39]
+ │   │   │   │       │   │   │       │   └─ LuauAccessPath [38..39]
+ │   │   │   │       │   │   │       │       ├─ LuauAccessPath_begin 38
+ │   │   │   │       │   │   │       │       ├─ LuauAccessPath_content [38..39]
+ │   │   │   │       │   │   │       │       │   └─ LuauAccessPart [38..39]
+ │   │   │   │       │   │   │       │       │       └─ LuauVariable [38..39]
+ │   │   │   │       │   │   │       │       │           └─ LuauVariable_c1 [38..39]
+ │   │   │   │       │   │   │       │       │               └─ LuauVariableName [38..39]: "x"
+ │   │   │   │       │   │   │       │       └─ LuauAccessPath_end 39
+ │   │   │   │       │   │   │       │           └─ LuauAccessPath_end_c1 39
+ │   │   │   │       │   │   │       └─ LuauTypeofFunctionParameters_end [39..40]
+ │   │   │   │       │   │   │           ├─ LuauTypeofFunctionParameters_end_c1 [39..40]
+ │   │   │   │       │   │   │           │   └─ PunctuationParenClose [39..40]: ")"
+ │   │   │   │       │   │   │           └─ LuauTypeofFunctionParameters_end_c2 40
+ │   │   │   │       │   │   └─ LuauTypeofFunction_end 40
+ │   │   │   │       │   └─ Newline [40..41]: "\n"
+ │   │   │   │       └─ LuauTypeLiteral_end 41
+ │   │   │   └─ LuauFunctionReturnType_end 41
+ │   │   └─ LuauFunctionBody [41..52]
+ │   │       ├─ LuauFunctionBody_begin 41
  │   │       ├─ LuauFunctionBody_content [41..52]
  │   │       │   ├─ LuauReturnStatement [41..51]
  │   │       │   │   ├─ LuauReturnStatement_begin [41..50]
