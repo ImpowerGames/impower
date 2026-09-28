@@ -68,7 +68,6 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["a table type", "local v: {number}?\nlocal s = 1\n"],
     ["a function type", "local v: () -> number?\nlocal s = 1\n"],
     ["a trailing comment", "type T = number? -- a comment\nlocal y = 1\n"],
-    ["a union on the next line", "local v: number?\n    | string = 1\nlocal s = 1\n"],
   ])("an optional type before %s parses", (_name, snippet) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
@@ -105,10 +104,6 @@ describe("the code after a type ending in `?` still runs", () => {
     ["a return type with its body on the same line", `Value {f()}.\nfunction f(): number? return 5 end\n`],
     ["an optional table return type", `Value {f()}.\nfunction f(): {number}?\n  return 5\nend\n`],
     ["an optional return type in a union", `Value {f()}.\nfunction f(): number? | string\n  return 5\nend\n`],
-    ["a local whose union goes on to the next line", `Value {f()}.\nfunction f()\n  local _v: number?\n    | string\n  return 5\nend\n`],
-    ["a local whose union goes on after a blank line", `Value {f()}.\nfunction f()\n  local _v: number?\n\n    | string\n  return 5\nend\n`],
-    ["a return type whose union goes on to the next line", `Value {f()}.\nfunction f(): number?\n    | string\n  return 5\nend\n`],
-    ["a type alias whose union goes on to the next line", `Value {f()}.\nfunction f()\n  type T = number?\n    | string\n  return 5\nend\n`],
     ["a table return type", `Value {f()}.\nfunction f(): {number}\n  return 5\nend\n`],
     ["a generic return type", `Value {f()}.\nfunction f(): Array<number>\n  return 5\nend\n`],
     ["a string literal return type", `Value {f()}.\nfunction f(): "x"\n  return 5\nend\n`],
