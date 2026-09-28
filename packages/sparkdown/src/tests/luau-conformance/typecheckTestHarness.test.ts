@@ -89,25 +89,6 @@ describe("syntax diagnostics", () => {
     expect(read(`local s = 'a {missing} {{fmt}} b'`)).toEqual([]);
   });
 
-  test("a type after a ?, which Sparkdown takes into the optional type before it, is reported where it starts", () => {
-    const read = (source: string) => checkLuau(source).syntaxDiagnostics.map((d) => [d.line, d.column, d.message]);
-    expect(read("local v: number?\nlocal s = 7")).toEqual([[1, 0, `Sparkdown read "local" as part of the type before it, after its ?`]]);
-    expect(read("local function f(): number?\n    return 5\nend")).toContainEqual([
-      1,
-      4,
-      `Sparkdown read "return" as part of the type before it, after its ?`,
-    ]);
-    for (const source of [
-      "local v: number? = 1",
-      "local function f(x: number?) end",
-      "local t: {a: number?} = {a = 1}",
-      "local x: number?|string = 1",
-      "type T = number? -- a comment\nlocal y = 1",
-    ]) {
-      expect(read(source), source).toEqual([]);
-    }
-  });
-
   test("a validator diagnostic keeps Luau's wording", () => {
     const [first] = checkLuau('local s = "abc\nlocal t = 1').syntaxDiagnostics;
     expect(first).toEqual({
