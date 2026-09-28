@@ -75,8 +75,8 @@ function format(
   return applyEdits(doc, edits);
 }
 
-// A multi-construct document: external decl, define, function, and two
-// scenes with dialogue + a branch — so there are several scene_begin /
+// A multi-construct document: external decl, define, function, type
+// function, and two scenes with dialogue + a branch — so there are several scene_begin /
 // top_level_begin boundaries to scope between.
 const CANONICAL = format(`external host_record(v)
 
@@ -108,6 +108,10 @@ scene intro
     HERO: Waving.
   end
   done
+end
+
+type function Wrapped(t)
+  return t
 end
 
 scene outro
@@ -144,6 +148,7 @@ const CORRUPTIONS: { label: string; lineMatch: RegExp; mutate: (l: string) => st
   { label: "define store prop (spacing)", lineMatch: /store trust/, mutate: (l) => l.replace(/\s*=\s*/, "=") },
   { label: "define method body (extra indent)", lineMatch: /print\("hi"\)/, mutate: (l) => "        " + l.trim() },
   { label: "top-level external (bad spacing)", lineMatch: /external host_record/, mutate: (l) => l.replace("(", " ( ") },
+  { label: "type function body (under-indent)", lineMatch: /return t$/, mutate: (l) => l.trim() },
   { label: "style prop (under-indent)", lineMatch: /bg-color/, mutate: (l) => l.trim() },
   { label: "screen element (bad attr spacing)", lineMatch: /#class=title/, mutate: (l) => l.replace("=", " = ") },
 ];

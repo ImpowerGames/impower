@@ -1,0 +1,14 @@
+scene intro
+  N: First line.
+
+type function F(t)
+return t
+end
+
+N: Second line.
+
+function g()
+return 1
+end
+
+N: Third line.
