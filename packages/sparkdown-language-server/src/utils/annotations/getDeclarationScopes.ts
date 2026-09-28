@@ -94,6 +94,11 @@ const FUNCTION_PARAMETERS = nodeNameSet(["LuauFunctionParameters"]);
  * `validateSceneBranchScope` checks. A local in a scene's or branch's body
  * is visible up to the `end` of the innermost one still open above it, and a
  * local at the top of a script, inside no scene, to the end of the script.
+ *
+ * The walks mirror `isInsideScene` and `findsMatchingEnd` there, with one
+ * deliberate difference: a `Scene` met inside an open section ends the
+ * local's span here, since that section is missing its `end`, where
+ * `findsMatchingEnd` counts it as nesting.
  */
 const getSectionEnd = (tree: Tree, definition: Node) => {
   let statement: Node = definition;
@@ -180,6 +185,11 @@ const getVariableScope = (
   let to: number | undefined;
   let block: Node | null = definition;
   for (; block && !LUAU_BLOCKS.has(block.name); block = block.parent as Node | null) {
+    // Branches and alternator arms never sit at the root, so a root-level
+    // statement's later siblings, the rest of the script, are not scanned.
+    if (!block.parent?.parent) {
+      continue;
+    }
     for (let next = block.nextSibling; to === undefined && next; next = next.nextSibling) {
       if (LUAU_BRANCHES.has(next.name)) {
         to = next.from;

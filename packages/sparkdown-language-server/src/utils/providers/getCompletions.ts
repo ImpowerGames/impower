@@ -1046,10 +1046,7 @@ const addMutableAccessPathCompletions = (
     if (scopes) {
       const types: DeclarationType[] = ["var", "param"];
       for (const [path, declarations] of Object.entries(scopes)) {
-        if (
-          (parts.length <= 1 && isWithinSection(scopePath, path)) ||
-          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
-        ) {
+        if (parts.length <= 1 && isWithinSection(scopePath, path)) {
           for (const type of types) {
             if (declarations[type]) {
               for (const name of declarations[type]) {
@@ -1089,10 +1086,7 @@ const addImmutableAccessPathCompletions = (
     if (scopes) {
       const types: DeclarationType[] = ["const"];
       for (const [path, declarations] of Object.entries(scopes)) {
-        if (
-          (parts.length <= 1 && isWithinSection(scopePath, path)) ||
-          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
-        ) {
+        if (parts.length <= 1 && isWithinSection(scopePath, path)) {
           for (const type of types) {
             if (declarations[type]) {
               for (const name of declarations[type]) {
