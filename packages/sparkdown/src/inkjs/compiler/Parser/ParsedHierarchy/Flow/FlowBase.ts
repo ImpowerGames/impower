@@ -57,17 +57,27 @@ function functionValueSite(
     : null;
 }
 
-// Where the sub-flow `flow` is written among the content of its parent flow:
-// before the first object of the parent's weave, from the same script, that
-// starts after it, or just after the object it followed when the parent
-// split its content (`_definedAfter`), whichever comes first. The two orders
-// are compared as a walk of the weave that visits each object before what it
-// holds. A flow the lowering moves after all of its parent's content (a
-// function written as a top-level statement, or one nested in a function) is
-// bounded by the first object after it, which lies outside every block it
-// could be written in. A flow that keeps its place among a block's objects
-// (a function written inside a top-level `do` block) is bounded by the object
-// it followed. Null when the parent has no weave or the flow no position.
+// Where the sub-flow `flow` is written among the content of its parent flow,
+// found from the flow's source position. Null when the parent has no weave
+// or the flow no position.
+//
+// In the story, a flow is bounded by the first object of the weave, from the
+// same script, that starts after it, or by the object it followed when the
+// story split its content (`_definedAfter`), whichever comes first in a walk
+// of the weave that visits each object before what it holds. A function
+// written as a top-level statement joins the content after all of it and is
+// outside every top-level block, so the first object after it bounds it; a
+// function written inside a top-level `do` block keeps its place among the
+// block's objects, so the object it followed bounds it.
+//
+// In a function, a nested flow joins the content after all of it wherever it
+// is written, and neither a `do` block nor an `if` or loop statement shows
+// where it ends (a conditional's position covers only its first line), so
+// the flow is placed just after the last object that ends before it,
+// entering every conditional and every object that encloses its position. A
+// `local` in a block that closes just before the flow, with no statement
+// between, then still counts as in scope: the check misses that warning
+// rather than reporting one for a local that is in scope.
 function definitionSite(
   parentFlow: FlowBase,
   flow: FlowBase,
@@ -77,6 +87,51 @@ function definitionSite(
   if (!root || !start) {
     return null;
   }
+  const startsAfter = (dm: DebugMetadata) =>
+    dm.fileName === start.fileName &&
+    (dm.startLineNumber > start.startLineNumber ||
+      (dm.startLineNumber === start.startLineNumber &&
+        dm.startCharacterNumber > start.startCharacterNumber));
+  const endsBefore = (dm: DebugMetadata) =>
+    dm.fileName !== start.fileName ||
+    dm.endLineNumber < start.startLineNumber ||
+    (dm.endLineNumber === start.startLineNumber &&
+      dm.endCharacterNumber <= start.startCharacterNumber);
+  const position = (obj: ParsedObject) =>
+    obj.ownDebugMetadata ?? obj.identifier?.debugMetadata;
+
+  if (parentFlow !== parentFlow.story) {
+    let lastBefore = null as ParsedObject | null;
+    let passed = false;
+    const visit = (obj: ParsedObject) => {
+      for (const child of obj.content) {
+        if (passed) {
+          return;
+        }
+        if (child instanceof FlowBase) {
+          continue;
+        }
+        const childStart = position(child);
+        if (!childStart) {
+          visit(child);
+        } else if (startsAfter(childStart)) {
+          passed = true;
+        } else if (child instanceof Conditional || !endsBefore(childStart)) {
+          visit(child);
+        } else {
+          lastBefore = child;
+        }
+      }
+    };
+    visit(root);
+    return lastBefore?.parent
+      ? {
+          parent: lastBefore.parent,
+          end: lastBefore.parent.content.indexOf(lastBefore) + 1,
+        }
+      : { parent: root, end: 0 };
+  }
+
   const order: ParsedObject[] = [];
   let firstAfter = null as ParsedObject | null;
   const visit = (obj: ParsedObject) => {
@@ -85,17 +140,10 @@ function definitionSite(
         continue;
       }
       order.push(child);
-      const childStart =
-        child.ownDebugMetadata ?? child.identifier?.debugMetadata;
+      const childStart = position(child);
       if (!childStart) {
         visit(child);
-      } else if (
-        firstAfter === null &&
-        childStart.fileName === start.fileName &&
-        (childStart.startLineNumber > start.startLineNumber ||
-          (childStart.startLineNumber === start.startLineNumber &&
-            childStart.startCharacterNumber > start.startCharacterNumber))
-      ) {
+      } else if (firstAfter === null && startsAfter(childStart)) {
         firstAfter = child;
       }
     }

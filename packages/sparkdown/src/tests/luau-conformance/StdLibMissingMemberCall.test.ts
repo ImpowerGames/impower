@@ -199,6 +199,35 @@ describe("a local named like a library", () => {
     }
   });
 
+  test.each([
+    ["a variadic function", "function f(...)\n            return table.nogetn()\n        end"],
+    ["a named function", "function f()\n            return table.nogetn()\n        end"],
+  ])("%s written in an if arm of a function follows its place in the arm", (_, fn) => {
+    const outer = (arm: string) =>
+      `function outer()\n    if true then\n        ${arm}\n    end\nend\n`;
+    expect(
+      diagnoseWithLints(outer(`${SHADOW}\n        ${fn}`)).filter(
+        (m) => !m.includes("never used"),
+      ),
+    ).toEqual([]);
+    expect(
+      diagnoseWithLints(outer(`${fn}\n        ${SHADOW}`)).filter(
+        (m) => !m.includes("never used"),
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test("a define method follows the top level around the define", () => {
+    const define =
+      "define Penguin with\n  swim()\n    print(table.nogetn())\n  end\nend\n";
+    expect(diagnoseWithLints(define)).toEqual(MISSING);
+    expect(diagnoseWithLints(`${define}${SHADOW}\n`)).toEqual(MISSING);
+    expect(diagnoseWithLints(`do\n  ${SHADOW}\nend\n${define}`)).toEqual(
+      MISSING,
+    );
+    expect(diagnoseWithLints(`${SHADOW}\n${define}`)).toEqual([]);
+  });
+
   test("a scene follows the top level before it and its own content", () => {
     const scene = (body: string) => `scene start\n  ${body}\nend\n`;
     expect(diagnoseWithLints(scene("& print(table.nogetn)"))).toEqual(MISSING);
