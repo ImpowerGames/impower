@@ -14,6 +14,18 @@ node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root <absolute
 
 The dry run fetches origin with prune and prints remove/keep reasons and sizes. Inspect every proposed removal, including ignored paths such as browser profiles and node_modules; move valuable ignored data out before applying. Apply requires the explicit absolute main root and removes eligible worktrees and local branches. It records outcomes in the main checkout's `.git/clean-worktrees.log`.
 
+## Dead records and one named directory
+
+`--apply` first runs `git worktree prune`, so a record whose directory is gone never blocks a branch deletion or shows as a row that only says to run it. It waits, and says so, when a `<path>.removing` sits beside a dead record: the record that leftover points at must survive until it is renamed back. A dry run prunes nothing.
+
+To give one directory back whatever its branch has merged (an abandoned ticket, an open pull request), or to clear a leftover git no longer sees as a worktree:
+
+```sh
+node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root <absolute-main-checkout> --remove <absolute-directory>
+```
+
+It refuses a path outside the worktrees root or holding another worktree, the default branch, a locked worktree, uncommitted changes, a process or driver using it, a link inside it that leads outside (named), a directory it cannot read, and a `.removing` probe. Otherwise it unlinks every link inside without following it, removes the tree (through `git worktree remove` while git knows it, directly after) and leaves the branch. It records the removal in the log like `--apply`, and prints a `failed` row with what remains when the tree cannot be finished.
+
 ## Eligibility and preservation
 
 Only clean, idle worktrees whose branch and remote commits are on origin/main qualify. Preserve uncommitted/untracked work, unmerged/unpushed commits, fresh branches, uncertain process state, external symlink/junction targets and unreadable directories. Main/default branches and paths outside the managed worktree root stay.
