@@ -11,10 +11,12 @@ export class Argument {
     // expression reads this local. Set on the synthetic Argument
     // emitted by `lowerArguments` when it sees a `LuauVariadicParameter`.
     public isVararg: boolean = false,
-    // A closure's captured variable, prepended to its parameters by
-    // `buildAnonymousFunction`. The call binds it to a pointer at the
-    // variable the enclosing scope resolved the name to, so a write through
-    // it lands on that outer binding rather than on a local of the closure.
+    // A function's captured variable, prepended to its parameters when the
+    // function is lowered inside another (`buildAnonymousFunction`, a
+    // variadic nested function, a `function a.f` or `function a:m`
+    // definition). The call binds it to a pointer at the variable the
+    // enclosing scope resolved the name to, so a write through it lands on
+    // that outer binding rather than on a local of the function.
     public isUpvalue: boolean = false,
   ) {}
 

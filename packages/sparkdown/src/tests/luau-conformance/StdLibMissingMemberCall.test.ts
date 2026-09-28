@@ -147,6 +147,72 @@ describe("a local named like a library", () => {
     ).toEqual(MISSING);
   });
 
+  // Each function is written in `run` and returned, with the local between.
+  const NESTED = [
+    ["a variadic function", "function f(...)\n        return table.nogetn()\n    end"],
+    ["a function stored on a table", "local obj = {}\n    function obj.f()\n        return table.nogetn()\n    end"],
+    ["a method", "local obj = {}\n    function obj:f()\n        return table.nogetn()\n    end"],
+    ["a named function", "function f()\n        return table.nogetn()\n    end"],
+  ];
+
+  test.each(NESTED)("does not hide a missing member in %s written before it", (_, fn) => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    ${fn}\n    ${SHADOW}\n    return table\nend\n`,
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test.each(NESTED)("provides its own member inside %s written after it", (_, fn) => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    ${SHADOW}\n    ${fn}\n    return table\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test.each([
+    ["one level", "local function inner()\n        return table.nogetn()\n    end\n    return inner()"],
+    ["two levels", "local function mid()\n        local function inner()\n            return table.nogetn()\n        end\n        return inner()\n    end\n    return mid()"],
+  ])("a local function nested %s in a function follows the top level around that function", (_, body) => {
+    const outer = `function outer()\n    ${body}\nend\n`;
+    expect(diagnoseWithLints(`${outer}${SHADOW}\n`)).toEqual(MISSING);
+    expect(diagnoseWithLints(`do\n    ${SHADOW}\nend\n${outer}`)).toEqual(MISSING);
+    expect(diagnoseWithLints(`${SHADOW}\n${outer}`)).toEqual([]);
+  });
+
+  test.each([
+    ["an if arm", "if true then", "else"],
+    ["a while body", "while false do", null],
+  ])("a function written inside %s at the top level follows its place in it", (_, opener, other) => {
+    const fn = "function inner()\n        print(table.nogetn())\n    end";
+    expect(
+      diagnoseWithLints(`${opener}\n    ${SHADOW}\n    ${fn}\nend\n`),
+    ).toEqual([]);
+    expect(diagnoseWithLints(`${opener}\n    ${fn}\nend\n${SHADOW}\n`)).toEqual(
+      MISSING,
+    );
+    if (other) {
+      expect(
+        diagnoseWithLints(`${opener}\n    ${SHADOW}\n${other}\n    ${fn}\nend\n`),
+      ).toEqual(MISSING);
+    }
+  });
+
+  test("a scene follows the top level before it and its own content", () => {
+    const scene = (body: string) => `scene start\n  ${body}\nend\n`;
+    expect(diagnoseWithLints(scene("& print(table.nogetn)"))).toEqual(MISSING);
+    expect(
+      diagnoseWithLints(`${SHADOW}\n${scene("& print(table.nogetn)")}`),
+    ).toEqual([]);
+    expect(
+      diagnoseWithLints(scene(`${SHADOW}\n  & print(table.nogetn)`)),
+    ).toEqual([]);
+    expect(
+      diagnoseWithLints(scene(`& print(table.nogetn)\n  ${SHADOW}`)),
+    ).toEqual(MISSING);
+  });
+
   test("does not hide a missing member in a closure created after the block that declares it", () => {
     expect(
       diagnoseWithLints(

@@ -420,7 +420,7 @@ function lowerNestedAsSubFlow(
   // ENCLOSING declared-locals stack for what needs capturing.
   const upvals = scanFreeVariables(node, ctx);
   const upvalArgs = upvals.map(
-    (n) => new Argument(new Identifier(n), false, false),
+    (n) => new Argument(new Identifier(n), false, false, false, true),
   );
   if (enclosingSiblingFrame && identifier.name) {
     enclosingSiblingFrame.set(identifier.name, {
@@ -542,7 +542,7 @@ function lowerPropertyTargetFunctionDefinition(
     (n) => !(isColonForm && n === "self"),
   );
   const upvalArgs = upvals.map(
-    (n) => new Argument(new Identifier(n), false, false),
+    (n) => new Argument(new Identifier(n), false, false, false, true),
   );
   const finalArgs: Argument[] = isColonForm
     ? [
