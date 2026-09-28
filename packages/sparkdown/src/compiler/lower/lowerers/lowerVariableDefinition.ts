@@ -16,7 +16,9 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import {
-  reportUntakenLineContinuation,
+  isTypeQualifierContinuation,
+  markLineContinuationUsed,
+  splitOnCommas,
   takeLineContinuation,
 } from "../utils/lineContinuation";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
@@ -219,22 +221,30 @@ export function lowerVariableDefinition(
     lastTarget.assignNode,
   );
   // The continuation's first comma group continues the last value; its
-  // later groups are further values.
+  // later groups are further values. When statements share the line after
+  // the declaration, the continuation continues the last of them instead.
   const [continued = [], ...continuedRhsGroups] =
-    splitOnCommas(continuation);
+    trailingStatements.length > 0 ? [] : splitOnCommas(continuation);
   let firstRhsContinuation: SyntaxNode[] = [];
   if (!firstRhsOp && continued.length > 0) {
-    // `local x: types` then `.Button = 1`: the continuation's access
-    // parts qualify the type, which does not reach the runtime, and its
-    // assignment gives the value.
+    // `local x: types` then `.Button`, or `.Button = 1`: the
+    // continuation's access parts qualify the type, which does not reach
+    // the runtime, and its assignment gives the value. Any other
+    // continuation is left unused, and reported.
     const opAt = continued.findIndex(
       (n) => n.name === "LuauAssignmentOperation",
     );
-    if (opAt >= 0) {
-      firstRhsOp = continued[opAt]!;
-      firstRhsContinuation = continued.slice(opAt + 1);
-    } else {
-      reportUntakenLineContinuation(continued, ctx);
+    const qualifiers = opAt >= 0 ? continued.slice(0, opAt) : continued;
+    const typed = getDescendent(
+      "LuauTypeAnnotationOperation",
+      lastTarget.assignNode,
+    );
+    if (typed && isTypeQualifierContinuation(qualifiers)) {
+      markLineContinuationUsed(qualifiers, ctx);
+      if (opAt >= 0) {
+        firstRhsOp = continued[opAt]!;
+        firstRhsContinuation = continued.slice(opAt + 1);
+      }
     }
   } else if (trailingRhsGroups.length > 0) {
     trailingRhsGroups[trailingRhsGroups.length - 1]!.push(...continued);
@@ -264,6 +274,7 @@ export function lowerVariableDefinition(
       withTrailingStatements(
         [new ConstantDeclaration(targetIdentifier(lastTarget), expressions[0]!)],
         trailingStatements,
+        continuation,
         ctx,
       ),
     );
@@ -301,6 +312,7 @@ export function lowerVariableDefinition(
         withTrailingStatements(
           [new MultiVariableAssignment(targetIdents, multiExprs, true)],
           trailingStatements,
+          continuation,
           ctx,
         ),
       );
@@ -314,7 +326,7 @@ export function lowerVariableDefinition(
           isGlobalDeclaration: true,
         });
       });
-      return wrapInWeave(withTrailingStatements(vas, trailingStatements, ctx));
+      return wrapInWeave(withTrailingStatements(vas, trailingStatements, continuation, ctx));
     }
     // `const a, b = …` — not supported.
     return {};
@@ -345,7 +357,7 @@ export function lowerVariableDefinition(
     isTemporaryNewDeclaration: isTemp,
   });
 
-  return wrapInWeave(withTrailingStatements([va], trailingStatements, ctx));
+  return wrapInWeave(withTrailingStatements([va], trailingStatements, continuation, ctx));
 }
 
 // Lower each trailing-statement node via the main `lower()` dispatcher
@@ -354,15 +366,22 @@ export function lowerVariableDefinition(
 // share a source line with following statements (e.g.
 // `local x = 5 return x end` — the `return x` is a sibling, not part
 // of the RHS).
+//
+// The last of them is offered the declaration's continuation lines, which
+// continue the line's last statement (`local x = 1 local y = t` then `.a`).
 function withTrailingStatements(
   head: ParsedObject[],
   trailingStatements: SyntaxNode[],
+  continuation: SyntaxNode[],
   ctx: LowerContext,
 ): ParsedObject[] {
   if (trailingStatements.length === 0) return head;
   const out: ParsedObject[] = [...head];
-  for (const stmt of trailingStatements) {
+  for (const [index, stmt] of trailingStatements.entries()) {
+    ctx.lineContinuation =
+      index === trailingStatements.length - 1 ? continuation : null;
     const block = lower(stmt as unknown as SparkdownSyntaxNodeRef, ctx);
+    ctx.lineContinuation = null;
     forwardBlockDiagnostics(block, ctx);
     out.push(...unwrapBlockContent(block));
   }
@@ -402,15 +421,6 @@ function bareVariableNameFromAccessPath(
   if (inner?.name !== "LuauVariable") return null;
   const nameNode = getDescendent("LuauVariableName", inner);
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
-}
-
-function splitOnCommas(nodes: SyntaxNode[]): SyntaxNode[][] {
-  const groups: SyntaxNode[][] = [[]];
-  for (const node of nodes) {
-    if (node.name === "LuauCommaSeparator") groups.push([]);
-    else if (!isSkippableName(node.name)) groups[groups.length - 1]!.push(node);
-  }
-  return nodes.length > 0 ? groups : [];
 }
 
 function isSkippableName(name: string): boolean {

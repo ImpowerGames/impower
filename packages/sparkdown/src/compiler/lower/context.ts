@@ -272,9 +272,16 @@ export interface LowerContext {
    * `LuauLineContinuation` after it (`t` then `.a`) and the rest of that
    * line. `lowerStatements` sets it before lowering the statement; the
    * statement's lowerer takes it with `takeLineContinuation` and joins it to
-   * its last value. One left untaken is reported as an error.
+   * its last value.
    */
   lineContinuation?: SyntaxNode[] | null;
+  /**
+   * The start offsets of the continuation lines used while lowering the
+   * current statement (see `lower/utils/lineContinuation.ts`).
+   * `lowerStatements` reports each of the statement's continuation lines
+   * that is not among them.
+   */
+  usedLineContinuations?: Set<number> | null;
 }
 
 /**

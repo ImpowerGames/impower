@@ -237,9 +237,12 @@ variables:
   LUAU_TYPE_ANNOTATION_OPERATOR: (?<![:])(?:[:])(?![:])
   LUAU_ACCESSOR_OPERATOR: (?:[.]|[:])
   # The start of a line that continues the expression on the line before it,
-  # as Luau reads `t` then `.a` as `t.a` and `s` then `:upper()` as
-  # `s:upper()`.
-  LUAU_LINE_CONTINUATION: (?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}})
+  # as Luau reads `t` then `.a` as `t.a`, `s` then `:upper()` as
+  # `s:upper()`, and `y` then `.. "b"` as `y .. "b"`: an access, or a binary
+  # operator that cannot begin an expression. `-` can (`{ 1,` then `-2 }`),
+  # so a line that begins with it is not a continuation.
+  LUAU_LINE_CONTINUATION_OPERATOR: (?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|(?:and|or)\b)
+  LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   # The `.` after a type's module name, with the whitespace Luau allows before
   # it. Every type rule that reads or yields to a qualified name uses this.
   LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
@@ -6128,6 +6131,7 @@ repository:
     # newlines until the `do` keyword closes it.
     begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauInKeyword" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -6189,6 +6193,7 @@ repository:
     # See `LuauIfBlockCondition` for the multi-line trick.
     begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
@@ -6381,6 +6386,7 @@ repository:
     # before this rule's end pattern fires.
     begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
@@ -6472,6 +6478,7 @@ repository:
     # See `LuauIfBlockCondition` for the multi-line trick.
     begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
@@ -7148,15 +7155,18 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)
+    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)|(?=^{{LUAU_LINE_CONTINUATION}})
 
+  # A line that continues the line before it (`LuauLineContinuation`) is not
+  # the returned value, so the break ends at its start and leaves it to the
+  # body, which reports it.
   LuauReturnLineBreak:
     begin: (?<=^{{WS}}*return{{WS}}*)(?=$|{{LUAU_COMMENT_START}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
+    end: (?={{BEAT}})|(?=^{{LUAU_LINE_CONTINUATION}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
 
   # A `return` in a narrative body (a scene, or a sparkdown `if`, loop or
   # `choose` around dialogue and actions) ends at its line: the next line
@@ -7488,9 +7498,10 @@ repository:
       - { include: "#LuauPropertyIndexer" }
     end: (?!{{WS}}*(?:[.]{{LUAU_IDENTIFIER}}|\[))
 
-  # A line of Luau code that begins with `.name` or `:name` continues the
-  # expression on the line before it: its access parts, and the call
-  # arguments and indexers after them. The statement or expression that
+  # A line of Luau code that begins with `.name`, `:name` or a binary
+  # operator continues the expression on the line before it: its access
+  # parts, the call arguments and indexers after them, and the operations
+  # that follow. The statement or expression that
   # ended on the previous line has already closed, because no rule can see
   # the next line when its line ends, so this node is that statement's
   # sibling and the lowerer joins the two (GRAMMAR.md §11.6).
@@ -7508,7 +7519,11 @@ repository:
       - { include: "#LuauParenthetical" }
       - { include: "#LuauString" }
       - { include: "#LuauTable" }
-    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[))
+      - { include: "#LuauArithmeticOperation" }
+      - { include: "#LuauCompareOperation" }
+      - { include: "#LuauConcatOperation" }
+      - { include: "#LuauLogicalOperation" }
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
   LuauFunctionCall:
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})

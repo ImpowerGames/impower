@@ -205,7 +205,7 @@ export function lowerExpressionFromNodes(
   ctx: LowerContext,
 ): Expression | null {
   // A continuation line's parts (`t` then `.a`) follow the value before them.
-  nodes = expandLineContinuations(nodes);
+  nodes = expandLineContinuations(nodes, ctx);
   const tokens: Token[] = [];
   // Mirrors the method-call pair detection in `collectTokens`: an arg like
   // `math.ceil(1.2)` arrives here as two adjacent siblings (LuauAccessPath +
@@ -226,6 +226,27 @@ export function lowerExpressionFromNodes(
       if (expr) {
         tokens.push({ kind: "operand", expr });
         if (hasArgs) i = k;
+        continue;
+      }
+    }
+    // A type-only construct is skipped, with the `.Name` parts of the lines
+    // that continue its type (`t :: types` then `.Button` casts to
+    // `types.Button`), which are not accesses on the value.
+    if (TYPE_ONLY_WRAPPERS.has(node.name)) {
+      let last = i;
+      for (let k = i + 1; k < nodes.length; k++) {
+        const next = nodes[k]!;
+        if (
+          next.name === "LuauAccessPart" &&
+          next.firstChild?.name === "LuauPropertyAccessor"
+        ) {
+          last = k;
+        } else if (!isSkippableName(next.name)) {
+          break;
+        }
+      }
+      if (last > i) {
+        i = last;
         continue;
       }
     }

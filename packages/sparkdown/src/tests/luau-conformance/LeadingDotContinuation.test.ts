@@ -118,6 +118,62 @@ test.each([
     "local x: types\n  .Button = 1\nreturn x",
     "1",
   ],
+  [
+    "qualified type name with no value",
+    "local x: types\n  .Button\nx = 1\nreturn x",
+    "1",
+  ],
+  [
+    "qualified type alias",
+    "type Alias = types\n  .Button\nreturn 1",
+    "1",
+  ],
+  [
+    "qualified type cast",
+    "local t = { Button = 7 }\nlocal y = t :: types\n  .Button\nreturn type(y)",
+    "table",
+  ],
+  [
+    "operator line after a continued member",
+    "local t = { a = 5 }\nlocal y = t\n  .a\n  + 1\nreturn y",
+    "6",
+  ],
+  ["operator line", "local y = 1\n  + 2 * 3\nreturn y", "7"],
+  [
+    "concatenation line",
+    'local y = "a"\nlocal z = y\n  .. "b"\nreturn z',
+    "ab",
+  ],
+  [
+    "if condition",
+    "local t = { a = false }\nif t\n  .a then\n  return 1\nend\nreturn 2",
+    "2",
+  ],
+  [
+    "elseif condition",
+    "local t = { a = true }\nif false then\n  return 1\nelseif t\n  .a then\n  return 2\nend\nreturn 3",
+    "2",
+  ],
+  [
+    "while condition",
+    "local t = { a = 0 }\nwhile t\n  .a < 3 do\n  t.a = t.a + 1\nend\nreturn t.a",
+    "3",
+  ],
+  [
+    "for range",
+    "local t = { n = 3 }\nlocal s = 0\nfor i = 1, t\n  .n do\n  s = s + i\nend\nreturn s",
+    "6",
+  ],
+  [
+    "last of two statements on a line",
+    "local t = { a = 5 }\nlocal x = { a = 7 } local y = t\n  .a\nreturn type(x) .. y",
+    "table5",
+  ],
+  [
+    "parenthesized method call statement",
+    "local t = { n = 1 }\nfunction t.bump(self) self.n = self.n + 1 end\n(t)\n  :bump()\nreturn t.n",
+    "2",
+  ],
 ])("%s runs", (_name, body, value) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
   expect(ctx.errorMessages).toEqual([]);
@@ -136,11 +192,6 @@ test.each([
     "local t = { a = 5 }\nlocal y = t\n-- .a\nreturn y.a",
     "5",
   ],
-  [
-    "concatenation at the start of a line",
-    'local y = "a"\nlocal z = y\n  .. "b"\nreturn z',
-    "a",
-  ],
 ])("a line %s keeps its statements apart", (_name, body, value) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
   expect(ctx.errorMessages).toEqual([]);
@@ -153,6 +204,9 @@ test.each([
   ["after `end`", "if true then\nend\n  .a\nreturn 1"],
   ["at the start of a body", "  .a\nreturn 1"],
   ["after a bare local", "local x\n  .a\nreturn 1"],
+  ["after `local` with no name", "local\n  .a\nreturn 1"],
+  ["after a bare return", "if true then\n  return\n    .a\nend\nreturn 1"],
+  ["as the first call argument", "return tostring(\n  .a)"],
 ])("a continuation line %s is reported", (_name, body) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
   expect(ctx.errorMessages).toEqual([

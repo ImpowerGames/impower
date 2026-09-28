@@ -27,7 +27,11 @@ import {
 import { wrapInWeave } from "./utils/wrapInWeave";
 import {
   collectLineContinuation,
+  isLineContinuationUsed,
+  isTypeQualifierContinuation,
+  markLineContinuationUsed,
   reportUntakenLineContinuation,
+  splitOnCommas,
   takeLineContinuation,
 } from "./utils/lineContinuation";
 import { validateAssignmentValue } from "./utils/validateAssignmentValue";
@@ -320,6 +324,18 @@ function lowerInner(
       return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
+    case "LuauDataTypeDeclaration":
+    case "LuauFunctionTypeDeclaration": {
+      // A type declaration does not reach the runtime. The `.Name` parts of
+      // the lines that continue a type name it ends with qualify that name
+      // (`type Alias = types` then `.Button`).
+      const continuation = takeLineContinuation(ctx);
+      const text = ctx.read(nodeRef.from, nodeRef.to).trimEnd();
+      if (/\w$/.test(text) && isTypeQualifierContinuation(continuation)) {
+        markLineContinuationUsed(continuation, ctx);
+      }
+      return {};
+    }
     // A loop or `do` block in a function body parses as the `Luau…` rule; one
     // in a scene or at the top level parses as the `LuauSparkdown…` rule,
     // whose body also accepts display lines. Both lower the same way.
@@ -390,26 +406,28 @@ export function lowerStatements(
   if (!parent) return [];
   const result: ParsedObject[] = [];
   // Lower the statement that ends at `end`, offering its lowerer the lines
-  // that continue it (`ctx.lineContinuation`). Returns the node to go on
-  // from: past those lines when the lowerer took them, or else the next
-  // sibling, so the loop reports them as lines no value took. The
-  // enclosing statement's own continuation is kept aside meanwhile.
+  // that continue it (`ctx.lineContinuation`), and report each of those
+  // lines its lowering did not use. Returns the node to go on from, past
+  // those lines. The enclosing statement's own continuation is kept aside
+  // meanwhile.
   const enclosingContinuation = ctx.lineContinuation;
+  const enclosingUsed = ctx.usedLineContinuations;
   const lowerContinued = <T,>(
     end: SyntaxNode,
     lowerStatement: () => T,
   ): { lowered: T; next: SyntaxNode | null } => {
     const continuation = collectLineContinuation(end);
     ctx.lineContinuation = continuation;
+    ctx.usedLineContinuations = new Set();
     const lowered = lowerStatement();
-    const taken = continuation.length > 0 && ctx.lineContinuation === null;
+    reportUntakenLineContinuation(
+      continuation.filter((node) => !isLineContinuationUsed(node, ctx)),
+      ctx,
+    );
     ctx.lineContinuation = null;
-    return {
-      lowered,
-      next: taken
-        ? continuation[continuation.length - 1]!.nextSibling
-        : end.nextSibling,
-    };
+    ctx.usedLineContinuations = null;
+    const last = continuation[continuation.length - 1];
+    return { lowered, next: (last ?? end).nextSibling };
   };
   let child = parent.firstChild;
   while (child) {
@@ -563,6 +581,10 @@ export function lowerStatements(
           lastNode = scan;
           scan = scan.nextSibling;
         }
+        // The lines that continue the call (`(t)` then `:bump()`).
+        const continuation = collectLineContinuation(lastNode);
+        callNodes.push(...continuation);
+        lastNode = continuation[continuation.length - 1] ?? lastNode;
         if (callNodes.length > 1) {
           const callExpr = lowerExpressionFromNodes(callNodes, ctx);
           if (
@@ -597,6 +619,7 @@ export function lowerStatements(
     child = child.nextSibling;
   }
   ctx.lineContinuation = enclosingContinuation;
+  ctx.usedLineContinuations = enclosingUsed;
   return result;
 }
 
@@ -765,12 +788,9 @@ function lowerMultiTargetReassignment(
   // The lines that continue the last value; their commas separate further
   // values.
   const trailingExprGroups = multi.trailingExprGroups.map((g) => [...g]);
-  const continuationGroups: SyntaxNode[][] = [[]];
-  for (const node of takeLineContinuation(ctx)) {
-    if (node.name === "LuauCommaSeparator") continuationGroups.push([]);
-    else continuationGroups[continuationGroups.length - 1]!.push(node);
-  }
-  const [continued = [], ...continuedGroups] = continuationGroups;
+  const [continued = [], ...continuedGroups] = splitOnCommas(
+    takeLineContinuation(ctx),
+  );
   const lastGroup = trailingExprGroups[trailingExprGroups.length - 1];
   if (lastGroup) lastGroup.push(...continued);
   trailingExprGroups.push(...continuedGroups);

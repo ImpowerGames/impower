@@ -2,11 +2,17 @@ import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 
-// A `LuauLineContinuation` is a line of Luau code that begins with `.name` or
-// `:name` and so continues the expression on the line before it (`t` then
-// `.a` reads as `t.a`). The grammar cannot nest it in the expression, which
-// has already closed at its own line's end, so it is a sibling of the
-// statement that line ended, and the lowerer joins the two.
+// A `LuauLineContinuation` is a line of Luau code that begins with `.name`,
+// `:name` or a binary operator and so continues the expression on the line
+// before it (`t` then `.a` reads as `t.a`). The grammar cannot nest it in the
+// expression, which has already closed at its own line's end, so it is a
+// sibling of the statement that line ended, and the lowerer joins the two.
+//
+// A statement's lowerer receives the lines that continue it through
+// `ctx.lineContinuation`. A line counts as taken only once its parts are
+// lowered into a value (`expandLineContinuations`) or read as a type
+// qualifier (`markLineContinuationUsed`); `lowerStatements` reports every line
+// that was not.
 
 const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
   "Newline",
@@ -16,8 +22,17 @@ const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
   "LuauBlockComment",
 ]);
 
+const SKIPPABLE: ReadonlySet<string> = new Set([
+  ...CONTINUATION_BRIDGE,
+  "Whitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "LuauComment",
+  "LuauReturnLineBreak",
+]);
+
 // The lines that continue the statement `node`: each `LuauLineContinuation`
-// after it, with the rest of its line (`.a + 1`), across any blank or comment
+// after it, with the rest of its line (`.a = 1`), across any blank or comment
 // lines between them, as Luau reads them. Empty when the next line of code
 // does not continue it.
 export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
@@ -41,9 +56,29 @@ export function takeLineContinuation(ctx: LowerContext): SyntaxNode[] {
   return nodes;
 }
 
+// Record that the continuation lines among `nodes` were used.
+export function markLineContinuationUsed(
+  nodes: SyntaxNode[],
+  ctx: LowerContext,
+): void {
+  for (const node of nodes) {
+    if (node.name === "LuauLineContinuation") {
+      ctx.usedLineContinuations?.add(node.from);
+    }
+  }
+}
+
+// Whether the continuation line `node` was used.
+export function isLineContinuationUsed(
+  node: SyntaxNode,
+  ctx: LowerContext,
+): boolean {
+  return ctx.usedLineContinuations?.has(node.from) ?? false;
+}
+
 // Report continuation lines that no value on the line before them takes:
-// one after a statement that does not end in a value (`end`, `break`), or
-// with no statement before it in its block.
+// one after a statement that does not end in a value (`end`, a bare
+// `return`), or with no statement before it in its block.
 export function reportUntakenLineContinuation(
   nodes: SyntaxNode[],
   ctx: LowerContext,
@@ -54,7 +89,7 @@ export function reportUntakenLineContinuation(
     const text = raw.trim();
     const from = node.from + raw.length - raw.trimStart().length;
     ctx.diagnostics?.push({
-      message: `\`${text}\` continues the line before it, which does not end in a value to access. Join it to the value it reads from.`,
+      message: `\`${text}\` continues the line before it, which does not end in a value it can continue. Join it to the value it continues.`,
       severity: ErrorType.Error,
       source: {
         fileName: null,
@@ -68,24 +103,81 @@ export function reportUntakenLineContinuation(
   }
 }
 
-// Replace each `LuauLineContinuation` in `nodes` with the access parts,
-// call arguments and indexers it holds, so that they read as the parts
-// that follow the value before them.
-export function expandLineContinuations(nodes: SyntaxNode[]): SyntaxNode[] {
+// Replace each `LuauLineContinuation` in `nodes` with the access parts, call
+// arguments, indexers and operations it holds, so that they read as the parts
+// that follow the value before them. A continuation line with no value before
+// it in `nodes` (the first value of a group, or the first after a comma or an
+// assignment operator) is reported and left out.
+export function expandLineContinuations(
+  nodes: SyntaxNode[],
+  ctx: LowerContext,
+): SyntaxNode[] {
   if (!nodes.some((n) => n.name === "LuauLineContinuation")) return nodes;
   const expanded: SyntaxNode[] = [];
+  let hasValue = false;
   for (const node of nodes) {
     if (node.name !== "LuauLineContinuation") {
       expanded.push(node);
+      if (
+        node.name === "LuauCommaSeparator" ||
+        node.name === "LuauAssignmentOperator"
+      ) {
+        hasValue = false;
+      } else if (!SKIPPABLE.has(node.name)) {
+        hasValue = true;
+      }
       continue;
     }
-    let content = node.firstChild;
-    while (content && content.name !== "LuauLineContinuation_content") {
-      content = content.nextSibling;
+    if (!hasValue) {
+      reportUntakenLineContinuation([node], ctx);
+      markLineContinuationUsed([node], ctx);
+      continue;
     }
-    for (let part = content?.firstChild; part; part = part.nextSibling) {
+    markLineContinuationUsed([node], ctx);
+    for (let part = lineContinuationContent(node); part; part = part.nextSibling) {
       expanded.push(part);
     }
   }
   return expanded;
+}
+
+// Whether `nodes` are continuation lines that only qualify a type name
+// (`types` then `.Button`), which Luau reads as one qualified type.
+export function isTypeQualifierContinuation(nodes: SyntaxNode[]): boolean {
+  let lines = 0;
+  for (const node of nodes) {
+    if (SKIPPABLE.has(node.name)) continue;
+    if (node.name !== "LuauLineContinuation") return false;
+    lines++;
+    for (let part = lineContinuationContent(node); part; part = part.nextSibling) {
+      if (SKIPPABLE.has(part.name)) continue;
+      if (
+        part.name !== "LuauAccessPart" ||
+        part.firstChild?.name !== "LuauPropertyAccessor"
+      ) {
+        return false;
+      }
+    }
+  }
+  return lines > 0;
+}
+
+// Split `nodes` into its comma-separated groups, leaving out line breaks,
+// whitespace and comments. The first group continues the value before the
+// continuation; each later group is a further value.
+export function splitOnCommas(nodes: SyntaxNode[]): SyntaxNode[][] {
+  if (nodes.length === 0) return [];
+  const groups: SyntaxNode[][] = [[]];
+  for (const node of nodes) {
+    if (node.name === "LuauCommaSeparator") groups.push([]);
+    else if (!SKIPPABLE.has(node.name)) groups[groups.length - 1]!.push(node);
+  }
+  return groups;
+}
+
+function lineContinuationContent(node: SyntaxNode): SyntaxNode | null {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauLineContinuation_content") return child.firstChild;
+  }
+  return null;
 }

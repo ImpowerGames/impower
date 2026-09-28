@@ -16,7 +16,7 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import {
-  reportUntakenLineContinuation,
+  splitOnCommas,
   takeLineContinuation,
 } from "../utils/lineContinuation";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
@@ -117,10 +117,7 @@ function lowerExplicitStatementContent(
   if (multiTargetResult) return multiTargetResult;
 
   const lhsPath = getDescendent("LuauAccessPath", nodeRef.node);
-  if (!lhsPath) {
-    reportUntakenLineContinuation(continuation, ctx);
-    return {};
-  }
+  if (!lhsPath) return {};
   // Look for the assignment operator as a SIBLING of `lhsPath`, not a
   // descendant — `getDescendent` is greedy and would otherwise walk into
   // the access path itself (e.g. into a table literal inside call args
@@ -321,15 +318,6 @@ function tryLowerMultiTargetReassignment(
   return wrapInWeave([
     new MultiVariableAssignment(targetIdents, expressions, false),
   ]);
-}
-
-function splitOnCommas(nodes: SyntaxNode[]): SyntaxNode[][] {
-  const groups: SyntaxNode[][] = [[]];
-  for (const node of nodes) {
-    if (node.name === "LuauCommaSeparator") groups.push([]);
-    else if (!isSkippableName(node.name)) groups[groups.length - 1]!.push(node);
-  }
-  return nodes.length > 0 ? groups : [];
 }
 
 function isSkippableName(name: string): boolean {
