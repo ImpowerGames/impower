@@ -86,6 +86,11 @@ describe("completion across scripts (#891)", () => {
     expect(labels).not.toContain("gift");
   });
 
+  test("a local at the top of the open script is offered after another script's scene", () => {
+    const labels = labelsAt("local topLevel = 1\n{t|}\n", CHAPTER_FIRST);
+    expect(labels).toContain("topLevel");
+  });
+
   test("a divert in a short script offers the other script's scene", () => {
     const labels = labelsAt("-> |\n", CHAPTER_FIRST);
     expect(labels).toContain("chapter_scene");

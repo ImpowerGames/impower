@@ -137,6 +137,29 @@ describe("completion · Luau local scope", () => {
     expect(labels).not.toContain("inner");
   });
 
+  test("a local in a scene's body is offered in the scene's later branches and body", () => {
+    const source = [
+      "scene play",
+      "  branch one",
+      "    Hello.",
+      "  end",
+      "  local mid = 1",
+      "  branch two",
+      "    {m@1}",
+      "  end",
+      "  {m@2}",
+      "end",
+      "",
+      "scene other",
+      "  {m@3}",
+      "end",
+      "",
+    ].join("\n");
+    expect(labelsAt(source, { at: "1" })).toContain("mid");
+    expect(labelsAt(source, { at: "2" })).toContain("mid");
+    expect(labelsAt(source, { at: "3" })).not.toContain("mid");
+  });
+
   test("a scene's local is not offered in a scene whose name it prefixes", () => {
     const labels = labelsAt(
       "scene intro\n  local mood = 1\nend\n\nscene introduction\n  {m@1}\nend\n",

@@ -19,7 +19,7 @@ export type DeclarationType =
 
 // Bounded parent walk: nearest ancestor whose name is in `names`, else null.
 // Bounded so a pathological parent chain stays O(1), not O(file).
-function ancestorMatching(
+export function ancestorMatching(
   node: { parent?: any } | undefined,
   names: Set<string>,
   max = 10,
