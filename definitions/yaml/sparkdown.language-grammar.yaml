@@ -8588,6 +8588,10 @@ repository:
       6:
         patterns:
           - { include: "#LuauFunctionKeyword" }
+      7:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
     # A type function is written as a function is: a header, then a body of
     # statements that ends at its own `end`. The body runs only while types
     # are checked, so the compiler emits nothing for the declaration.
@@ -8610,9 +8614,14 @@ repository:
           - { include: "#LuauEndKeyword" }
 
   LuauTypeFunctionName:
-    tag: typeName
-    name: entity.name.type.luau
-    match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    captures:
+      1:
+        tag: typeName
+        name: entity.name.type.luau
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauDataTypeDeclaration:
     # Positive lookahead `(?={{WS}}+{{LUAU_IDENTIFIER}})` requires
