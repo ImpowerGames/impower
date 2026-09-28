@@ -2,11 +2,13 @@ import { describe, expect, test } from "vitest";
 import { labelsAt } from "./completionHarness";
 
 // A Luau `local` is offered from the statement after its declaration to the
-// end of the block it is declared in, and a function or method parameter
-// inside its function's body. A `local` in a scene's body is offered after
-// it within that scene. A `store` or `const` is global wherever it is
-// written. The upstream cases in autocompleteScope.test.ts cover function
-// bodies; these cover the other blocks and the declarations that stay global.
+// end of the block it is declared in, whether the block is written in a
+// function, in a scene's body or at the top of a script, and a function or
+// method parameter inside its function's body. A `local` written directly in
+// a scene's body is offered after it within that scene. A `store` or `const`
+// is global wherever it is written. The upstream cases in
+// autocompleteScope.test.ts cover function bodies; these cover the other
+// blocks and the declarations that stay global.
 
 describe("completion · Luau local scope", () => {
   test("a local in an if branch is offered later in that branch and not in the next branch or after the if", () => {
@@ -81,6 +83,65 @@ describe("completion · Luau local scope", () => {
     const other = labelsAt(source, { at: "2" });
     expect(other).not.toContain("tune");
     expect(other).not.toContain("volume");
+  });
+
+  test("a local with no initializer is offered in a statement that follows it on the same line", () => {
+    expect(labelsAt("function main()\n  local foo return f@1\nend\n")).toContain("foo");
+    expect(
+      labelsAt("function main()\n  local foo if f@1 then end\nend\n"),
+    ).toContain("foo");
+  });
+
+  test("a local in a block written at the top of a script or in a scene is not offered after the block", () => {
+    for (const [open, close] of [
+      ["do", "end"],
+      ["if true then", "end"],
+      ["for i = 1, 3 do", "end"],
+      ["while true do", "end"],
+      ["repeat", "until true"],
+    ]) {
+      const top = `${open}\n  local inner = 1\n  {i@1}\n${close}\n{i@2}\n`;
+      expect(labelsAt(top, { at: "1" }), `top: ${open}`).toContain("inner");
+      expect(labelsAt(top, { at: "2" }), `top: ${open}`).not.toContain("inner");
+      const scene = `scene one\n  ${open}\n    local inner = 1\n    {i@1}\n  ${close}\n  {i@2}\nend\n`;
+      expect(labelsAt(scene, { at: "1" }), `scene: ${open}`).toContain("inner");
+      expect(labelsAt(scene, { at: "2" }), `scene: ${open}`).not.toContain("inner");
+    }
+  });
+
+  test("a local in a narrative if branch is not offered in the next branch, and a repeat's is offered in its until", () => {
+    const source = [
+      "scene one",
+      "  if true then",
+      "    local thenLocal = 1",
+      "  elseif false then",
+      "    {t@1}",
+      "  else",
+      "    {t@2}",
+      "  end",
+      "  repeat",
+      "    local done = true",
+      "  until d@3",
+      "end",
+      "",
+    ].join("\n");
+    expect(labelsAt(source, { at: "1" })).not.toContain("thenLocal");
+    expect(labelsAt(source, { at: "2" })).not.toContain("thenLocal");
+    expect(labelsAt(source, { at: "3" })).toContain("done");
+  });
+
+  test("a local in a Sparkle handler closure is not offered outside it", () => {
+    const labels = labelsAt(
+      'layout main with\n  button "x" @click={ local inner = 1 }\nend\nfunction after()\n  return i@1\nend\n',
+    );
+    expect(labels).not.toContain("inner");
+  });
+
+  test("a scene's local is not offered in a scene whose name it prefixes", () => {
+    const labels = labelsAt(
+      "scene intro\n  local mood = 1\nend\n\nscene introduction\n  {m@1}\nend\n",
+    );
+    expect(labels).not.toContain("mood");
   });
 
   test("a local in a scene's body is offered after its declaration in that scene only", () => {

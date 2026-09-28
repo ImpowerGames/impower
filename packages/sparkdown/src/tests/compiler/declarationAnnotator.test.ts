@@ -80,4 +80,19 @@ end
     expect(decls.filter((d) => d.text === "score").length).toBe(1);
     expect(has(decls, "var", "score")).toBe(true);
   });
+
+  test("a local with no initializer that another statement follows on its line is a declaration", () => {
+    const decls = collectDeclarations(`function main()
+  local first return first
+  local second if second then end
+  local third, fourth return third
+end
+`);
+    expect(has(decls, "var", "first")).toBe(true);
+    expect(has(decls, "var", "second")).toBe(true);
+    expect(has(decls, "var", "third")).toBe(true);
+    expect(has(decls, "var", "fourth")).toBe(true);
+    // The statement after the name is read, not declared.
+    expect(decls.filter((d) => d.text === "first").length).toBe(1);
+  });
 });

@@ -1024,6 +1024,14 @@ const addStructPropertyValueCompletions = (
   }
 };
 
+/**
+ * Whether a cursor in the section `scopePath` is inside the section `path`:
+ * the same section or one nested in it. The global path `""` holds every
+ * section.
+ */
+const isWithinSection = (scopePath: string, path: string) =>
+  !path || scopePath === path || scopePath.startsWith(path + ".");
+
 const addMutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
   scopes: DeclarationScopes,
@@ -1039,7 +1047,7 @@ const addMutableAccessPathCompletions = (
       const types: DeclarationType[] = ["var", "param"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
-          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length <= 1 && isWithinSection(scopePath, path)) ||
           (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
@@ -1082,7 +1090,7 @@ const addImmutableAccessPathCompletions = (
       const types: DeclarationType[] = ["const"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
-          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length <= 1 && isWithinSection(scopePath, path)) ||
           (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
@@ -1200,7 +1208,7 @@ const addDivertPathCompletions = (
       const types: DeclarationType[] = ["scene", "branch", "label"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
-          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length <= 1 && isWithinSection(scopePath, path)) ||
           (parts.length > 1 && path === parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {

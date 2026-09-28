@@ -1,5 +1,7 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { soleVariableName } from "../../lint/luauTree";
 import { Range } from "@codemirror/state";
+import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
@@ -31,6 +33,38 @@ function ancestorMatching(
 }
 
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
+const ACCESS_PATH = nodeNameSet(["LuauAccessPath"]);
+// What can come before a bare declaration target in its definition: earlier
+// targets, their separators and whitespace, but no assignment.
+const BEFORE_BARE_TARGET = nodeNameSet([
+  "LuauVariableAssignment",
+  "LuauAccessPath",
+  "LuauCommaSeparator",
+  "OptionalWhitespace",
+  "ExtraWhitespace",
+  "RequiredWhitespace",
+]);
+
+// A declaration with no initializer that another statement follows on the
+// same line (`local a return a`, `local a if a then … end`): the grammar
+// writes its name as a bare access path in the definition's content rather
+// than as an assignment, as `lowerVariableDefinition` reads it. A path after
+// an `=` is a value, not a target.
+function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
+  const path = ancestorMatching(node, ACCESS_PATH, 6);
+  if (path?.parent?.name !== "LuauVariableDefinition_content") return false;
+  if (soleVariableName(path)?.from !== node?.from) return false;
+  for (let prev = path.prevSibling; prev; prev = prev.prevSibling) {
+    if (!BEFORE_BARE_TARGET.has(prev.name)) return false;
+    if (
+      prev.name === "LuauVariableAssignment" &&
+      getDescendent("LuauAssignmentOperation", prev)
+    ) {
+      return false;
+    }
+  }
+  return true;
+}
 const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 
@@ -97,7 +131,10 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     // not the latter, so it's correctly excluded). const vs var comes from the
     // definition's LuauScopeModifier.
     if (nodeRef.name === "LuauVariableName") {
-      if (!ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6)) {
+      if (
+        !ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
+        !isBareDeclarationTarget(nodeRef.node)
+      ) {
         return annotations;
       }
       const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION);

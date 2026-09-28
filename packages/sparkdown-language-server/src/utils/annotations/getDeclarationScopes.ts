@@ -32,29 +32,57 @@ export type AnnotatedScript = {
 
 /**
  * Where a local is visible: after `from` and up to `to`, in its own script.
- * A local written outside any Luau block, such as in a scene's body, is
- * filed under its section rather than globally.
+ * A local written directly in a scene's body or at the top of a script, in
+ * no block, is filed under its section rather than globally.
  */
 type LocalScope = { from: number; to: number; inSection: boolean };
 
-/** The Luau blocks that end the scope of a local declared inside them. */
+/**
+ * The constructs that end the scope of a local declared inside them: every
+ * grammar rule that holds a block body. A block written in a function or
+ * method body is a `Luau…` node, and the same block written in a scene's
+ * body or at the top of a script is a `LuauSparkdown…` node.
+ */
 const LUAU_BLOCKS = nodeNameSet([
   "LuauFunctionBody",
   "LuauFunctionDefinition",
   "LuauMethodDefinition",
-  "LuauBlockBody",
+  "LuauSparkleHandlerClosure",
+  "LuauDefine",
   "LuauDoBlock",
   "LuauIfBlock",
   "LuauElseifBlock",
   "LuauElseBlock",
+  "LuauForLoop",
+  "LuauWhileLoop",
   "LuauRepeatLoop",
+  "LuauConditionalAlternatorBlock",
+  "LuauSequentialAlternatorBlock",
+  "LuauSparkdownDoBlock",
+  "LuauSparkdownIfBlock",
+  "LuauSparkdownElseifBlock",
+  "LuauSparkdownElseBlock",
+  "LuauSparkdownForLoop",
+  "LuauSparkdownWhileLoop",
+  "LuauSparkdownRepeatLoop",
+  "LuauSparkdownConditionalAlternatorBlock",
+  "LuauSparkdownSequentialAlternatorBlock",
 ]);
 
-/** The branches that end the scope of a local declared in the branch before them. */
+/**
+ * The siblings that end the scope of a local declared before them in the
+ * same block: the next branch of an `if`, and the next arm of an
+ * alternator.
+ */
 const LUAU_BRANCHES = nodeNameSet([
   "LuauElseifBlock",
   "LuauElseBlock",
+  "LuauSparkdownElseifBlock",
+  "LuauSparkdownElseBlock",
+  "LuauAlternatorSeparator",
 ]);
+
+const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
 
 /**
  * The nearest ancestor of `node`, itself included, named `name`, within the
@@ -75,11 +103,12 @@ const declaringAncestor = (node: Node | null, name: SparkdownNodeName) => {
  * statement ends, so it is not offered in its own initializer; when the
  * grammar nests the statements that follow on the same line inside the
  * declaration (`local a = 1 return a`), it starts at the first of them. It
- * ends at the end of its block, or at the next branch of an `if`, and a
- * `repeat` loop's locals stay visible in its `until` condition. A local
- * outside any Luau block is visible to the end of the script, within its
- * section. Undefined for a `store` or `const`, which is global wherever it
- * is written.
+ * ends at the end of its block (one of `LUAU_BLOCKS`), or at the next
+ * branch of an `if` or arm of an alternator, and a `repeat` loop's locals
+ * stay visible in its `until` condition. A local in no block, written
+ * directly in a scene's body or at the top of a script, is visible to the
+ * end of the script within its section. Undefined for a `store` or
+ * `const`, which is global wherever it is written.
  */
 const getVariableScope = (
   tree: Tree,
@@ -104,7 +133,8 @@ const getVariableScope = (
     }
   }
   // The walk up to the block passes the statement that holds the
-  // declaration, whose later siblings include the `if` branches after it.
+  // declaration, whose later siblings include the `if` branches or
+  // alternator arms after it.
   let to: number | undefined;
   let block: Node | null = definition;
   for (; block && !LUAU_BLOCKS.has(block.name); block = block.parent as Node | null) {
@@ -117,11 +147,14 @@ const getVariableScope = (
   if (!block) {
     return { from: start, to: tree.length, inSection: true };
   }
-  if (
-    block.name === "LuauRepeatLoop" &&
-    block.nextSibling?.name === "LuauUntilStatement"
-  ) {
-    to = block.nextSibling.to;
+  if (REPEAT_LOOPS.has(block.name)) {
+    let after = block.nextSibling;
+    while (after && (after.name === "Newline" || after.name.endsWith("Whitespace"))) {
+      after = after.nextSibling;
+    }
+    if (after?.name === "LuauUntilStatement") {
+      to = after.to;
+    }
   }
   return { from: start, to: to ?? block.to, inSection: false };
 };
