@@ -193,7 +193,13 @@ variables:
   # End Of Keyword
   EOK: "(?:$|{{WS}}+|(?=[:]|{{TAG_START}}|{{COMMENT_START}}))"
 
-  BEAT: (?:{{WS}}*{{FLOW_BEAT_KEYWORDS}})
+  # A line that declares a scene or branch. Luau blocks end before it. It
+  # starts like the `Scene` and `Branch` declaration headers, with the keyword
+  # first on the line and followed by `EOK`, but unlike those headers it
+  # refuses a keyword followed by an assignment operator: inside a block,
+  # `scene = "none"` or `branch += 1` assigns a name and must not end the
+  # block. A `scene` or `branch` later in a line is also an ordinary name.
+  BEAT: (?:^{{WS}}*{{FLOW_BEAT_KEYWORDS}}{{EOK}}(?!{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))
   END: (?:{{WS}}*(?:end)\b)
   # Just after an operand that a keyword can follow with no space between
   # them: a closing bracket, a quote, a backtick, the vararg `...`, or the
@@ -5845,8 +5851,8 @@ repository:
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
-    # owns that. Stop at `end` / `scene` / `branch`.
-    end: (?=(?:{{WS}}*\b(?:end|scene|branch)\b))
+    # owns that. Stop at `end` or at a scene or branch declaration.
+    end: (?={{BEAT}}|{{WS}}*\bend\b)
 
   LuauFunctionParameters:
     tag: meta
