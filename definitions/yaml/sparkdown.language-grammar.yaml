@@ -5795,8 +5795,8 @@ repository:
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
       # `LuauFunctionBody` opens AFTER the close-paren of the param
-      # list (or after a return-type annotation), so its `(?<=\w|\))`
-      # lookbehind anchors on the last header char. Keeping body in
+      # list (or after a return-type annotation), so its lookbehind
+      # anchors on the last header char. Keeping body in
       # its own rule lets `bare-assignment-in-body` style content
       # (e.g. `& x = expr`) parse without polluting the function-
       # header context. `LuauBlockBody` then matches statements inside.
@@ -8706,12 +8706,14 @@ repository:
     name: support.type.divert-target.sd
     match: ([-][>])
 
-  # The suffix ends the type it follows: it takes in the whitespace after
-  # it only when a binary type operator follows on the same line
-  # (`number? | string`), so a line break or the next statement's first
-  # word is never read as part of the type.
+  # The suffix ends the type it follows, so it matches only after the end
+  # of a type (a name, a closing bracket or quote, or another `?`); a `?`
+  # with no type before it (`|?`, `= ?`) is left unread and reported. It
+  # takes in the whitespace after it only when a binary type operator
+  # follows on the same line (`number? | string`), so a line break or the
+  # next statement's first word is never read as part of the type.
   LuauTypeOptionalOperator:
-    match: ({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
+    match: (?<=[\w)}\]>"'`?]{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
     captures:
       1:
         tag: typeOperator

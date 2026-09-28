@@ -2640,7 +2640,6 @@ c = b
     // TypeInfer.tables.test.cpp:3383 TEST_CASE_FIXTURE(Fixture, "table_indexing_error_location")
     name: "table_indexing_error_location",
     fixture: "Fixture",
-    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
 local foo = {42}
 local bar: number?
@@ -5104,7 +5103,6 @@ end
     // TypeInfer.tables.test.cpp:6304 TEST_CASE_FIXTURE(BuiltinsFixture, "oss_1914_access_after_assignment_with_assertion")
     name: "oss_1914_access_after_assignment_with_assertion",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         --!strict
 
@@ -5733,7 +5731,6 @@ end
     name: "basic_data_like_array_3",
     fixture: "Fixture",
     flags: { LuauRelateIndexersTypo: true },
-    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         local v: number?
         local t1 = {
@@ -5756,7 +5753,6 @@ end
     name: "basic_data_like_array_4",
     fixture: "Fixture",
     flags: { LuauRelateIndexersTypo: true },
-    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         local v: number?
         local s: string?
@@ -5775,7 +5771,6 @@ end
     name: "basic_data_like_array_5",
     fixture: "Fixture",
     flags: { LuauRelateIndexersTypo: true },
-    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         local v: number?
         local t = {

@@ -71,6 +71,15 @@ describe("a type ending in `?` ends at the `?`", () => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
+  // Luau rejects each of these: a `?` only ends the type before it.
+  test.each([
+    ["after a leading bar", "type Bar = |?\n"],
+    ["alone", "type Baz = ?\n"],
+    ["before its type", "local v: ?number\n"],
+  ])("a `?` with no type before it, %s, is reported", (_name, snippet) => {
+    expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.length).toBeGreaterThan(0);
+  });
+
   test.each([
     ["a spaced union", "local v: number? | string = 1\n"],
     ["an unspaced union", "local v: number?|string = 1\n"],
@@ -84,6 +93,8 @@ describe("the code after a type ending in `?` still runs", () => {
   test.each([
     ["a local", `Value {f()}.\nfunction f()\n  local v: number?\n  return 5\nend\n`],
     ["a local and a blank line", `Value {f()}.\nfunction f()\n  local v: number?\n\n  return 5\nend\n`],
+    ["a local with a statement on the same line", `Value {f()}.\nfunction f()\n  local v: number? return 5\nend\n`],
+    ["a type alias with a statement on the same line", `Value {f()}.\nfunction f()\n  type T = number? return 5\nend\n`],
     ["a return type", `Value {f()}.\nfunction f(): number?\n  return 5\nend\n`],
     ["a return type and a blank line", `Value {f()}.\nfunction f(): number?\n\n  return 5\nend\n`],
     ["a return type with its body on the same line", `Value {f()}.\nfunction f(): number? return 5 end\n`],
