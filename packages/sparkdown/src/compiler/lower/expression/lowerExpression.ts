@@ -707,22 +707,30 @@ function lowerMethodCall(
           }
           return call;
         }
-        // `table.nogetn()`: a dot call on a stdlib library with no such
-        // builtin. The callee is the dotted path itself, so an unresolved
-        // path reports the member (`Cannot find item or path named
-        // \`table.nogetn\``) rather than the library, which exists. A local
-        // that shadows the library resolves the path at run time.
-        const opNode = getDescendent("LuauAccessorOperator", methodAccessor);
-        const isDotForm =
-          !!opNode && ctx.read(opNode.from, opNode.to).trim() === ".";
-        if (isDotForm && stdlibNode.name === "LuauStdLibConstants") {
-          return new CallValueExpression(
-            new VariableReference([
-              identifierAt(stdlibNode, ctx),
-              identifierAt(methodNameNode, ctx),
-            ]),
-            callArgs,
-          );
+        // `table.nogetn()` / `table:nogetn()`: a call on a stdlib library
+        // with no such builtin. The callee is the dotted path itself, so an
+        // unresolved path reports the member (`Cannot find item or path
+        // named \`table.nogetn\``) rather than the library, which exists. A
+        // local that shadows the library resolves the path at run time.
+        if (stdlibNode.name === "LuauStdLibConstants") {
+          const callee = new VariableReference([
+            identifierAt(stdlibNode, ctx),
+            identifierAt(methodNameNode, ctx),
+          ]);
+          const opNode = getDescendent("LuauAccessorOperator", methodAccessor);
+          const isDotForm =
+            !!opNode && ctx.read(opNode.from, opNode.to).trim() === ".";
+          if (isDotForm) {
+            return new CallValueExpression(callee, callArgs);
+          }
+          // The colon form threads the library as `self`. Reading a plain
+          // variable has no side effects, so reading it for the argument
+          // and again inside the path is one evaluation as far as the
+          // script can tell. The argument resolves exactly when the path's
+          // base does, so the path's diagnostic already covers it.
+          const self = new VariableReference([identifierAt(stdlibNode, ctx)]);
+          self.reportsUnresolved = false;
+          return new CallValueExpression(callee, [self, ...callArgs]);
         }
       }
     }

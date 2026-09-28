@@ -60,6 +60,44 @@ describe("calling a missing stdlib member", () => {
   });
 });
 
+describe("calling a missing stdlib member with a colon", () => {
+  test("names the member at top level", () => {
+    expect(spans("& print(table:nogetn())\n")).toEqual([
+      [
+        "Cannot find item or path named `table.nogetn`",
+        { line: 0, character: 8 },
+        { line: 0, character: 20 },
+      ],
+    ]);
+  });
+
+  test("names the member inside a returned anonymous function", () => {
+    expect(
+      diagnoseWithLints(
+        "function run()\nreturn function ()\n    print(table:nogetn())\nend\nend\n",
+      ),
+    ).toEqual(["Cannot find item or path named `table.nogetn`"]);
+  });
+
+  test("an existing member reports nothing", () => {
+    expect(diagnoseWithLints('& print(table:concat({"a"}))\n')).toEqual([]);
+  });
+
+  test("the call fails at run time and pcall catches it", () => {
+    const r = runConformanceSource(`local ok = pcall(function() return table:nogetn() end)
+assert(ok == false, "table:nogetn() succeeded")`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("a local that shadows a library receives itself as self", () => {
+    const r = runConformanceSource(`local table = { tag = 7, nogetn = function(self, n) return self.tag + n end }
+assert(table:nogetn(1) == 8, "got " .. tostring(table:nogetn(1)))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+});
+
 describe("at run time", () => {
   test("the call fails and pcall catches it", () => {
     const r = runConformanceSource(`local ok = pcall(function() return table.nogetn() end)
