@@ -230,6 +230,9 @@ variables:
   LUAU_ALTERNATOR_OPERATOR: (?:[|])
   LUAU_TYPE_ANNOTATION_OPERATOR: (?<![:])(?:[:])(?![:])
   LUAU_ACCESSOR_OPERATOR: (?:[.]|[:])
+  # The `.` after a type's module name, with the whitespace Luau allows before
+  # it. Every type rule that reads or yields to a qualified name uses this.
+  LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
   LUAU_TYPE_BINARY_OPERATORS: (?:[?]|[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
@@ -8664,7 +8667,7 @@ repository:
   # A type reference is `Name` or a module-qualified `Name.Name`, as in Luau,
   # which also allows whitespace around the `.`.
   LuauTypeName:
-    match: (?:({{LUAU_IDENTIFIER}})({{WS}}*[.]{{WS}}*))?({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
         patterns:
@@ -8789,10 +8792,10 @@ repository:
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
-  # `(?!{{WS}}*[.])` leaves a module named like a primitive (`string.Button`)
-  # to LuauTypeName.
+  # `(?!{{LUAU_TYPE_QUALIFIER_DOT}})` leaves a module named like a primitive
+  # (`string.Button`) to LuauTypeName.
   LuauPrimitiveType:
-    match: ({{LUAU_PRIMITIVE_TYPES}})(?!{{WS}}*[.]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: ({{LUAU_PRIMITIVE_TYPES}})(?!{{LUAU_TYPE_QUALIFIER_DOT}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: standard(typeName)
@@ -8914,7 +8917,7 @@ repository:
   # (`{ read types.Button }`). It comes before LuauTypeTableProperty, which
   # would otherwise take the modifier itself as a property name.
   LuauTypeTableElementAccessModifier:
-    match: ({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}+)(?={{LUAU_IDENTIFIER}}{{WS}}*[.])
+    match: ({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}+)(?={{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIER_DOT}})
     captures:
       1:
         patterns:
@@ -8924,9 +8927,9 @@ repository:
           - { include: "#Whitespace" }
 
   LuauTypeTableProperty:
-    # `(?!{{WS}}*[.])` leaves a qualified type name (`{ types.Button }`) to
-    # LuauTypeLiteral as an array element.
-    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?!{{WS}}*[.])
+    # `(?!{{LUAU_TYPE_QUALIFIER_DOT}})` leaves a qualified type name
+    # (`{ types.Button }`) to LuauTypeLiteral as an array element.
+    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?!{{LUAU_TYPE_QUALIFIER_DOT}})
     captures:
       1:
         patterns:
