@@ -6463,7 +6463,8 @@ export class SparkdownCompiler {
   }
 
   /** Luau lints (unused locals, unreachable code, repeated conditions,
-   *  suspicious numeric `for` ranges); see `collectLuauLints`. */
+   *  suspicious numeric `for` ranges, reads of the placeholder `_`); see
+   *  `collectLuauLints`. */
   validateLints(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateLints", uri);

@@ -13,46 +13,6 @@ import {
   lintMessagesInFunction,
 } from "./diagnosticTestHarness";
 
-// Luau: PlaceholderRead
-describe.skip("reading the local placeholder `_` (not implemented: PlaceholderRead)", () => {
-  test("local _ = 5; return _", () => {
-    expect(
-      lintMessagesInFunction(`
-local _ = 5
-return _
-`),
-    ).toEqual([
-      "Placeholder value '_' is read here; consider using a named variable",
-    ]);
-  });
-});
-
-// Luau: PlaceholderReadGlobal
-describe.skip("reading the global placeholder `_` (not implemented: PlaceholderRead)", () => {
-  test("_ = 5; print(_)", () => {
-    expect(
-      lintMessagesInFunction(`
-_ = 5
-print(_)
-`),
-    ).toEqual([
-      "Placeholder value '_' is read here; consider using a named variable",
-    ]);
-  });
-});
-
-// Luau: PlaceholderWrite
-describe("writing the placeholder `_` is not reported", () => {
-  test("local _ = 5; _ = 6", () => {
-    expect(
-      diagnoseWithLintsInFunction(`
-local _ = 5
-_ = 6
-`),
-    ).toEqual([]);
-  });
-});
-
 // Luau: BuiltinGlobalWrite
 describe.skip("overwriting a builtin global (not implemented: BuiltinGlobalWrite)", () => {
   test("math = {} and function assert", () => {

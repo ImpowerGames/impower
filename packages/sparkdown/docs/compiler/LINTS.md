@@ -12,6 +12,7 @@ The rules are in `src/compiler/lint/collectLuauLints.ts`, and the compiler repor
 | `UnreachableCode` | The statement after one that always returns, breaks, continues or errors (`error(...)`, `assert(false)`). | Function bodies |
 | `DuplicateCondition` | A condition repeated in one `if`/`elseif` chain, one `if` expression, or one `and`/`or` chain. `a and b or c` is exempt. | Luau `if` statements and expressions and Luau `and`/`or` |
 | `ForRange` | A numeric `for` without a step that runs backwards, stops short of a fractional end, or starts or ends at 0 over a table's length (a bare `#t`, as in Luau). | Luau `for` loops |
+| `PlaceholderRead` | A read of the placeholder `_`, local or global, including a compound write (`_ += 1`). A plain write is not reported. | Inside functions |
 
 Sparkdown's narrative `if`/`elseif` blocks around dialogue and actions, and loops in Sparkle `layout` blocks, are separate constructs in the grammar and are not checked.
 
@@ -28,12 +29,13 @@ The warnings sparkdown gives for its own syntax (unknown Sparkle events and prop
 
 The rules read the syntax tree the editor highlights with, which is not a Luau AST, and every rule is written to stay silent where the tree does not have the shape it expects. So each rule misses some cases Luau's linter catches, and should never report one that Luau's would not.
 
-- A function missing its `end`, whether being typed or cut short by a parse error, is not checked by `LocalUnused` or `UnreachableCode`: the tree ends it early, and the lines after the break are parsed as top-level code.
+- A function missing its `end`, whether being typed or cut short by a parse error, is not checked by `LocalUnused`, `UnreachableCode` or `PlaceholderRead`: the tree ends it early, and the lines after the break are parsed as top-level code.
 - `LocalUnused` does not check locals outside functions. Top-level code is narrative with embedded logic, and a top-level local can be read from places the rule cannot scope.
 - `LocalUnused` counts a read in the declaration's own initializer as a read of the new local, so `local x = x + 1` with the new `x` never read is not reported. On one line the grammar can nest the statements that follow a declaration inside it, and starting the scope early keeps reads there from being missed.
 - `LocalUnused` does not report a name declared twice in one statement (`local a, a = ...`).
 - `ForRange` does not report a bound such as `#t ^ 2`. Luau reads it as `#(t ^ 2)`, a bare length, because `^` binds tighter than `#`, but the grammar places `^ 2` after the operand like any other arithmetic, and the rule treats arithmetic after `#t` as making the bound something other than a length.
 - `DuplicateCondition` does not compare an `if` expression used as an `if` statement's condition: the grammar reads the expression as running on through the statement's `then` and `elseif`s.
+- `PlaceholderRead` does not check reads outside functions (narrative logic lines, interpolations, Sparkle handlers), for the same reason `LocalUnused` does not check top-level locals.
 
 Because the pass runs over whole scripts on every compile (a lint depends on lines far from the one it reports), it finds the constructs it checks from their keywords in the text rather than by walking the tree, and caches each script's result until the script changes. It takes about 3 ms on a 210 KB narrative script and 25 to 60 ms on 40 KB of dense Luau in a single function, where every name is resolved.
 
@@ -67,7 +69,7 @@ Each has its upstream cases ported as skipped tests, ready to be enabled by an i
 
 | Luau lint | Test file |
 | --- | --- |
-| `PlaceholderRead`, `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
+| `BuiltinGlobalWrite`, `GlobalAsLocal`, `LocalShadow`, `FunctionUnused`, `UninitializedLocal`, `DuplicateFunction`, `DuplicateLocal` | `LintCandidatesScope.test.ts` |
 | `MultiLineStatement`, `UnbalancedAssignment`, `ImplicitReturn`, `MisleadingAndOr`, `ComparisonPrecedence`, `IntegerParsing` | `LintCandidatesStyle.test.ts` |
 | `FormatString`, `TableLiteral`, `TableOperations`, `DeprecatedApi` for `getfenv`/`setfenv` | `LintCandidatesStdlib.test.ts` |
 
