@@ -17,6 +17,13 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
  * scene. A scene also closes everything before it and a branch every branch
  * before it, as they do in `getDeclarationScopes`, so a scene or branch left
  * without its `end` is not reopened once a later one has been passed.
+ *
+ * The compiler's `isInsideScene` (`validateSceneBranchScope.ts` in
+ * `@impower/sparkdown`) walks the same siblings to decide whether a branch sits
+ * inside a scene. It only has to reject a misplaced branch, and a script
+ * missing an `end` already has an error there, so on such a script the two can
+ * answer differently; this walk's rule is the one completion and the outline
+ * share.
  */
 export const getParentSectionPath = (
   stack: GrammarSyntaxNode<SparkdownNodeName>[],

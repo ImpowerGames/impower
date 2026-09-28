@@ -1,8 +1,12 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { type Tree } from "@lezer/common";
 import { Range, type FoldingRange } from "vscode-languageserver";
-import { getFunctionEndLine } from "../syntax/getFunctionEndLine";
+import {
+  getDeclarationHeadings,
+  type DeclarationHeading,
+} from "../annotations/getDeclarationHeadings";
 
 const INDENT_REGEX = /^([ \t]+)/;
 
@@ -10,6 +14,7 @@ export const getFoldingRanges = (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations,
   program: SparkProgram | undefined,
+  tree: Tree | undefined,
 ): FoldingRange[] => {
   const indentFolding: FoldingRange[] = [];
   if (!document) {
@@ -68,54 +73,22 @@ export const getFoldingRanges = (
   if (!program) {
     return indentFolding;
   }
+  // Each scene, branch and function folds over the same extent the outline
+  // gives it.
   const headingFolding: FoldingRange[] = [];
-  // Scene and branch folds not yet closed, outermost first. A root-level `end`
-  // closes the innermost one; a new scene closes every open one and a new
-  // branch closes an open branch, since neither nests inside its own kind.
-  const open: FoldingRange[] = [];
-  const cur = annotations.declarations?.iter();
-  if (cur) {
-    while (cur.value) {
-      const line = document.positionAt(cur.from).line;
-      // A function declared outside any scene or branch folds up to its own
-      // `end`, the range the outline gives it. One declared inside a scene or
-      // branch gets no heading fold of its own: indentation folding covers it.
-      if (cur.value.type === "function" && open.length === 0) {
+  const addFolds = (headings: DeclarationHeading[]) => {
+    for (const heading of headings) {
+      if (heading.type !== "label") {
         headingFolding.push({
-          startLine: line,
-          endLine: getFunctionEndLine(document, line),
-          kind: "function",
+          startLine: heading.nameRange.start.line,
+          endLine: heading.end.line,
+          kind: heading.type,
         });
       }
-      if (cur.value.type === "scene") {
-        for (const o of open.splice(0)) {
-          o.endLine = line - 1;
-        }
-        const fold = { startLine: line, endLine: line, kind: "scene" };
-        headingFolding.push(fold);
-        open.push(fold);
-      }
-      if (cur.value.type === "branch") {
-        if (open.at(-1)?.kind === "branch") {
-          open.pop()!.endLine = line - 1;
-        }
-        const fold = { startLine: line, endLine: line, kind: "branch" };
-        headingFolding.push(fold);
-        open.push(fold);
-      }
-      if (cur.value.type === "end") {
-        const closed = open.pop();
-        if (closed) {
-          closed.endLine = line;
-        }
-      }
-      cur.next();
+      addFolds(heading.children);
     }
-  }
-  // A scene or branch missing its `end` folds to the end of the document.
-  for (const fold of open) {
-    fold.endLine = document.lineCount - 1;
-  }
+  };
+  addFolds(getDeclarationHeadings(document, annotations, tree));
   const result = [...indentFolding, ...headingFolding].sort(
     (a, b) => a.startLine - b.startLine,
   );

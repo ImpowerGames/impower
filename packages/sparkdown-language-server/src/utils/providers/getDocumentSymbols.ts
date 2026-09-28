@@ -1,13 +1,12 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
+import { type Tree } from "@lezer/common";
 import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 import { Position, Range } from "vscode-languageserver-textdocument";
-import { getFunctionEndLine } from "../syntax/getFunctionEndLine";
-
-export interface DocumentSymbolMark {
-  type: "function" | "scene" | "branch" | "label";
-  symbol: DocumentSymbol;
-}
+import {
+  getDeclarationHeadings,
+  type DeclarationHeading,
+} from "../annotations/getDeclarationHeadings";
 
 export const isRangeContained = (outer: Range, inner: Range): boolean => {
   const isAfterOrSame = (pos1: Position, pos2: Position): boolean =>
@@ -24,142 +23,51 @@ export const isRangeContained = (outer: Range, inner: Range): boolean => {
   );
 };
 
+const SYMBOL_KINDS: Record<DeclarationHeading["type"], SymbolKind> = {
+  scene: SymbolKind.Class,
+  branch: SymbolKind.Interface,
+  function: SymbolKind.Function,
+  label: SymbolKind.EnumMember,
+};
+
+const toSymbol = (heading: DeclarationHeading): DocumentSymbol => {
+  const { nameRange } = heading;
+  // A label is just its name; a scene, branch or function spans from the
+  // start of its declaration line to where its extent ends.
+  const selectionRange =
+    heading.type === "label"
+      ? nameRange
+      : {
+          start: { line: nameRange.start.line, character: 0 },
+          end: nameRange.end,
+        };
+  const symbol: DocumentSymbol = {
+    name: heading.name,
+    kind: SYMBOL_KINDS[heading.type],
+    range:
+      heading.type === "label"
+        ? structuredClone(nameRange)
+        : { start: structuredClone(selectionRange.start), end: heading.end },
+    selectionRange,
+  };
+  if (heading.children.length) {
+    symbol.children = heading.children.map(toSymbol);
+  }
+  return symbol;
+};
+
 export const getDocumentSymbols = (
   document: SparkdownDocument | undefined,
   annotations: SparkdownAnnotations | undefined,
+  tree: Tree | undefined,
 ): DocumentSymbol[] => {
-  const symbols: DocumentSymbol[] = [];
   if (!document || !annotations) {
-    return symbols;
+    return [];
   }
-  const topMarks: DocumentSymbolMark[] = [];
-  // Scenes and branches not yet closed, outermost first. A root-level `end`
-  // closes the innermost one; a new scene closes every open one and a new
-  // branch closes an open branch, since neither nests inside its own kind.
-  const open: DocumentSymbolMark[] = [];
-  const lineText = (line: number) =>
-    document.getText({
-      start: { line, character: 0 },
-      end: { line: line + 1, character: 0 },
-    });
-  const lineEnd = (line: number): Position => ({
-    line,
-    character: lineText(line).replace(/\r?\n$/, "").length,
-  });
-  // Functions whose range may still contain the next declaration, outermost
-  // first. A function declared inside one of them is that function's child.
-  const functions: DocumentSymbolMark[] = [];
-  // Adds a symbol to the innermost open scene or branch, or to the top level.
-  const place = (mark: DocumentSymbolMark) => {
-    const parent = open.at(-1);
-    if (parent) {
-      parent.symbol.children ??= [];
-      parent.symbol.children.push(mark.symbol);
-    } else {
-      topMarks.push(mark);
-    }
-  };
-  // Ends a heading that closes without its own `end` on the line before the
-  // declaration that closes it.
-  const closeBefore = (mark: DocumentSymbolMark, line: number) => {
-    mark.symbol.range.end = lineEnd(Math.max(line - 1, 0));
-  };
-  const cur = annotations.declarations?.iter();
-  if (cur) {
-    while (cur.value) {
-      const nameRange = document.range(cur.from, cur.to);
-      const line = nameRange.start.line;
-      const lineRange = {
-        start: {
-          line,
-          character: 0,
-        },
-        end: {
-          line: nameRange.end.line,
-          character: nameRange.end.character,
-        },
-      };
-      const heading = (
-        type: DocumentSymbolMark["type"],
-        kind: SymbolKind,
-      ): DocumentSymbolMark => ({
-        type,
-        symbol: {
-          name: document.getText(nameRange),
-          kind,
-          range: structuredClone(lineRange),
-          selectionRange: lineRange,
-        },
-      });
-      // FUNCTION
-      if (cur.value.type === "function") {
-        const mark = heading("function", SymbolKind.Function);
-        mark.symbol.range.end = lineEnd(getFunctionEndLine(document, line));
-        while (
-          functions.length &&
-          functions.at(-1)!.symbol.range.end.line < line
-        ) {
-          functions.pop();
-        }
-        const outer = functions.at(-1);
-        if (outer) {
-          outer.symbol.children ??= [];
-          outer.symbol.children.push(mark.symbol);
-        } else {
-          place(mark);
-        }
-        functions.push(mark);
-      }
-      // SCENE
-      if (cur.value.type === "scene") {
-        for (const o of open.splice(0)) {
-          closeBefore(o, line);
-        }
-        const mark = heading("scene", SymbolKind.Class);
-        place(mark);
-        open.push(mark);
-      }
-      // BRANCH
-      if (cur.value.type === "branch") {
-        if (open.at(-1)?.type === "branch") {
-          closeBefore(open.pop()!, line);
-        }
-        const mark = heading("branch", SymbolKind.Interface);
-        place(mark);
-        open.push(mark);
-      }
-      // LABEL
-      if (cur.value.type === "label") {
-        place({
-          type: "label",
-          symbol: {
-            name: document.getText(nameRange),
-            kind: SymbolKind.EnumMember,
-            range: structuredClone(nameRange),
-            selectionRange: nameRange,
-          },
-        });
-      }
-      // END
-      if (cur.value.type === "end") {
-        const closed = open.pop();
-        if (closed) {
-          closed.symbol.range.end = nameRange.end;
-        }
-      }
-      cur.next();
-    }
-  }
-  // A scene or branch missing its `end` runs to the end of the document.
-  for (const o of open) {
-    o.symbol.range.end = lineEnd(document.lineCount - 1);
-  }
-  const result = topMarks
+  return getDeclarationHeadings(document, annotations, tree)
+    .map(toSymbol)
     .filter(
       (s) =>
-        Boolean(s.symbol.name) &&
-        Boolean(isRangeContained(s.symbol.range, s.symbol.selectionRange)),
-    )
-    .map((s) => s.symbol);
-  return result;
+        Boolean(s.name) && Boolean(isRangeContained(s.range, s.selectionRange)),
+    );
 };

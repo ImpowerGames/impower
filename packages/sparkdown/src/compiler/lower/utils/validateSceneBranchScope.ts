@@ -46,6 +46,9 @@ function findsMatchingEnd(decl: SyntaxNode): boolean {
 // `end` depth (we want to find a `Scene` declaration that hasn't yet
 // been closed). Returns `true` iff a `Scene` is found "above" us in
 // source order with no matching `end` between it and the branch.
+// The language server's `getParentSectionPath` walks the same siblings
+// to find the cursor's scene and branch; on a script missing an `end`
+// (which `findsMatchingEnd` reports) the two may answer differently.
 function isInsideScene(branch: SyntaxNode): boolean {
   let pendingEnds = 0;
   let cur = branch.prevSibling;

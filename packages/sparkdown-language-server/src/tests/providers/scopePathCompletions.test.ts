@@ -217,6 +217,14 @@ end
     expect(scopePathAt(atMarker("##"))).toEqual([]);
   });
 
+  test("divert completion after a scene's end does not offer the scene's labels", () => {
+    const labels = completionLabelsAt(atMarker("##").replace("|", "-> |"));
+    expect(labels).toContain("A");
+    expect(labels).not.toContain("first");
+    expect(labels).not.toContain("after");
+    expect(labels).not.toContain("inside");
+  });
+
   test("divert completion in the scene offers its labels on both sides of the branch", () => {
     const labels = completionLabelsAt(atMarker("|"));
     expect(labels).toContain("first");
