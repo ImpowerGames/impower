@@ -24,7 +24,7 @@ To give one directory back whatever its branch has merged (an abandoned ticket, 
 node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root <absolute-main-checkout> --remove <absolute-directory>
 ```
 
-It refuses a path outside the worktrees root or holding another worktree, the default branch, a locked worktree, uncommitted changes, a process or driver using it, a link inside it that leads outside (named), a directory it cannot read, and a `.removing` probe. Otherwise it unlinks every link inside without following it, removes the tree (through `git worktree remove` while git knows it, directly after) and leaves the branch. It records the removal in the log like `--apply`, and prints a `failed` row with what remains when the tree cannot be finished.
+It refuses the main checkout, a path outside the worktrees root, one holding another worktree or inside one (name the worktree itself), the default branch, a locked worktree, uncommitted changes, a process or driver using it (the shells that ran the command do not count), a directory the rename probe finds held, a link inside it that leads outside (named), a directory it cannot read, and a `.removing` probe. Otherwise it unlinks every link inside without following it, removes the tree (through `git worktree remove` while git knows it, directly after) and leaves the branch. There is no dry run and it does not list the ignored paths it takes (`node_modules/`, `.env.local`): check `git status --ignored` in the tree first. It records the removal in the log like `--apply`, and prints a `failed` row with what remains when the tree cannot be finished.
 
 ## Eligibility and preservation
 

@@ -173,13 +173,13 @@ export function linkReason(scan, dir) {
 function listProcesses(exec) {
   const r =
     process.platform === "win32"
-      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
-      : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,comm=,args="], undefined, 60_000);
+      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
+      : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,ppid=,comm=,args="], undefined, 60_000);
   if (r.status !== 0) return { ok: false, err: r.err || `exit ${r.status}` };
   const list = [];
   for (const line of r.out.split(/\r?\n/)) {
-    const m = process.platform === "win32" ? /^(\d+)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\S+)\s*(.*)$/.exec(line);
-    if (m) list.push({ pid: Number(m[1]), name: m[2], cmd: m[3] });
+    const m = process.platform === "win32" ? /^(\d+)\t(\d*)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\d+)\s+(\S+)\s*(.*)$/.exec(line);
+    if (m) list.push({ pid: Number(m[1]), ppid: m[2] === "" ? null : Number(m[2]), name: m[3], cmd: m[4] });
   }
   return { ok: true, list };
 }
@@ -649,6 +649,90 @@ function registration(abs, ctx, deps) {
   return { known: true, registered: parseWorktreeList(r.out).some((e) => samePath(e.path, abs)) };
 }
 
+// The rename probe, the check git lacks on Windows: the system refuses to
+// rename a directory while any process has a file open or its current
+// directory inside it, and refuses without touching a file, where `git
+// worktree remove` deletes what sorts before the held entry and drops its
+// record before it reports the failure. Null when nothing holds the directory,
+// otherwise the outcome that stops the removal.
+async function probeHeld(abs, deps) {
+  const kept = (note) => ({ outcome: "kept", note, remaining: null });
+  const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
+  const probe = `${abs}${PROBE_SUFFIX}`;
+  if (deps.exists(probe)) return kept(`${probe} already exists, which is what an interrupted run leaves beside a worktree; check it and rename it back or delete it by hand, then run again`);
+  try {
+    deps.rename(abs, probe);
+  } catch (err) {
+    return kept(`the directory could not be renamed (${err.code ?? err.message}), which on Windows happens while a process has a file open or its current directory inside it; no process names the path, so find what has a file open in it (an editor, an indexer, a shell) and run again`);
+  }
+  try {
+    deps.rename(probe, abs);
+  } catch (err) {
+    return failed(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back (${err.code ?? err.message}); rename it back by hand`, await bytesUnder(probe, deps));
+  }
+  return null;
+}
+
+// Removes what is left of a directory git no longer treats as a worktree and
+// returns the bytes still there, or null when it is gone.
+async function removeDirect(abs, deps) {
+  try {
+    deps.removeDir(abs);
+  } catch {
+    /* reported from what is left */
+  }
+  return deps.exists(abs) ? bytesUnder(abs, deps) : null;
+}
+
+// `git worktree remove` and what follows a refusal or a part-way stop. Null
+// when the directory is gone and git holds no record of it, otherwise the
+// outcome that stops the removal; `notes` collects what happened on the way,
+// and `afterHand` ends the advice for a directory that could not be finished.
+async function gitRemoveTree(abs, ctx, deps, notes, afterHand) {
+  const kept = (note) => ({ outcome: "kept", note, remaining: null });
+  const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
+  const rm = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
+  if (rm.status === 0) return null;
+  const gitErr = rm.err || rm.out;
+  if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
+  else {
+    const reg = registration(abs, ctx, deps);
+    if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand${afterHand ? "; the branch stays until then" : ""}`, await bytesUnder(abs, deps));
+    if (reg.registered) {
+      // Git checks the lock, the submodules and the tree's changes before
+      // it deletes anything and drops its record after deleting, so a
+      // record still there is a refusal; nothing more is done to the tree.
+      return kept(`git worktree remove refused (${gitErr}) and kept its record; nothing more was touched`);
+    }
+    // Git deleted the directory's entries in order until one it could not
+    // delete, then dropped its record: the directory is no longer a
+    // worktree, whatever is left in it, so the rest goes directly.
+    const remaining = await removeDirect(abs, deps);
+    if (remaining !== null) return failed(`git worktree remove stopped part-way (${gitErr}) and dropped its record, so ${abs} is no longer a worktree; ${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it${afterHand}`, remaining);
+    notes.push(`git worktree remove stopped part-way (${gitErr}) and dropped its record; the rest of the directory was removed directly`);
+  }
+  // Git drops the record itself when it fails past its checks; when the
+  // record is still there, removing the now-missing path drops it.
+  if (registration(abs, ctx, deps).registered !== false) {
+    const again = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
+    if (again.status !== 0) notes.push(`its record could not be dropped (${again.err || again.out}); \`git worktree prune\` drops it`);
+  }
+  return null;
+}
+
+// The type directory an emptied worktree leaves behind goes with it.
+function removeEmptyParent(abs, ctx, deps, notes) {
+  const parent = path.dirname(abs);
+  if (!isUnder(parent, ctx.root) || !deps.isEmptyDir(parent)) return;
+  const rel = `${path.relative(ctx.root, parent)}${path.sep}`;
+  try {
+    deps.removeEmptyDir(parent);
+    notes.push(`removed the empty ${rel}`);
+  } catch (err) {
+    notes.push(`the empty ${rel} could not be removed (${err.code ?? err.message})`);
+  }
+}
+
 async function removeWorktree(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const kept = (note) => ({ outcome: "kept", note, remaining: null });
@@ -664,65 +748,14 @@ async function removeWorktree(entry, ctx, deps) {
   if (head.status !== 0 || head.out !== ref) return kept(`changed since it was classified: ${head.status === 0 && head.out ? `now on ${head.out.replace(/^refs\/heads\//, "")}` : "detached head"}; the tree is untouched`);
   const own = deps.exec("git", ["rev-list", "--count", ref, "^refs/remotes/origin/main"], ctx.mainRoot);
   if (own.status !== 0 || Number(own.out) > 0) return kept(`changed since it was classified: ${own.status === 0 ? `${n(Number(own.out), "commit")} not on origin/main` : own.err || own.out}; the tree is untouched`);
-  const probe = `${abs}${PROBE_SUFFIX}`;
-  if (deps.exists(probe)) return kept(`${probe} already exists, which is what an interrupted run leaves beside a worktree; check it and rename it back or delete it by hand, then run again`);
-  try {
-    deps.rename(abs, probe);
-  } catch (err) {
-    return kept(`the directory could not be renamed (${err.code ?? err.message}), which on Windows happens while a process has a file open or its current directory inside it; no process names the path, so find what has a file open in it (an editor, an indexer, a shell) and run again`);
-  }
-  try {
-    deps.rename(probe, abs);
-  } catch (err) {
-    return failed(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back (${err.code ?? err.message}); rename it back by hand`, await bytesUnder(probe, deps));
-  }
+  const held = await probeHeld(abs, deps);
+  if (held) return held;
   const notes = [];
-  const rm = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
-  if (rm.status !== 0) {
-    const gitErr = rm.err || rm.out;
-    if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
-    else {
-      const reg = registration(abs, ctx, deps);
-      if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand; the branch stays until then`, await bytesUnder(abs, deps));
-      if (reg.registered) {
-        // Git checks the lock, the submodules and the tree's changes before
-        // it deletes anything and drops its record after deleting, so a
-        // record still there is a refusal; nothing more is done to the tree.
-        return kept(`git worktree remove refused (${gitErr}) and kept its record; nothing more was touched`);
-      }
-      // Git deleted the directory's entries in order until one it could not
-      // delete, then dropped its record: the directory is no longer a
-      // worktree, whatever is left in it, so the rest goes directly.
-      try {
-        deps.removeDir(abs);
-      } catch {
-        /* reported below from what is left */
-      }
-      if (deps.exists(abs)) {
-        const remaining = await bytesUnder(abs, deps);
-        return failed(`git worktree remove stopped part-way (${gitErr}) and dropped its record, so ${abs} is no longer a worktree; ${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it, then \`git branch -D ${entry.branch}\`; the branch stays until then`, remaining);
-      }
-      notes.push(`git worktree remove stopped part-way (${gitErr}) and dropped its record; the rest of the directory was removed directly`);
-    }
-    // Git drops the record itself when it fails past its checks; when the
-    // record is still there, removing the now-missing path drops it.
-    if (registration(abs, ctx, deps).registered !== false) {
-      const again = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
-      if (again.status !== 0) notes.push(`its record could not be dropped (${again.err || again.out}); \`git worktree prune\` drops it`);
-    }
-  }
+  const stopped = await gitRemoveTree(abs, ctx, deps, notes, `, then \`git branch -D ${entry.branch}\`; the branch stays until then`);
+  if (stopped) return stopped;
   const del = deps.exec("git", ["branch", "-D", entry.branch], ctx.mainRoot);
   if (del.status !== 0) return failed(`the directory is gone; git branch -D ${entry.branch} failed (${del.err || del.out}), so delete the branch by hand${notes.length ? `; ${notes.join("; ")}` : ""}`, 0);
-  const parent = path.dirname(abs);
-  if (isUnder(parent, ctx.root) && deps.isEmptyDir(parent)) {
-    const rel = `${path.relative(ctx.root, parent)}${path.sep}`;
-    try {
-      deps.removeEmptyDir(parent);
-      notes.push(`removed the empty ${rel}`);
-    } catch (err) {
-      notes.push(`the empty ${rel} could not be removed (${err.code ?? err.message})`);
-    }
-  }
+  removeEmptyParent(abs, ctx, deps, notes);
   return { outcome: "removed", note: notes.join("; "), remaining: 0 };
 }
 
@@ -750,23 +783,27 @@ export function pruneDeadRecords(entries, ctx, deps) {
 // `--apply --root <main> --remove <path>`: removes the one directory named,
 // registered worktree or leftover, and never its branch, so a ticket whose
 // pull request is still open or abandoned can give its disk back. It refuses
-// what must not be done: a path outside the worktrees root or holding another
-// worktree, the main checkout and the default branch, a locked worktree, one
-// with uncommitted changes, one a process or driver is using, one holding a
-// link that leads outside it (named) or a directory that cannot be read.
-// Otherwise every link inside is unlinked without being followed, and the
-// tree goes: through `git worktree remove` when git still knows it, directly
-// when git has already dropped it. Returns the exit code; a refusal is thrown
-// before anything is touched.
+// what must not be done: the main checkout, a path outside the worktrees root,
+// one holding another worktree or sitting inside one, the default branch, a
+// locked worktree, one with uncommitted changes, one a process or driver is
+// using (the caller's own shells, which name the path on the command line
+// that ran this, do not count) or that the rename probe finds held, one
+// holding a link that leads outside it (named) or a directory that cannot be
+// read. Otherwise every link inside is unlinked without being followed, and
+// the tree goes: through `git worktree remove` when git still knows it,
+// directly when git has already dropped it. Returns the exit code; a refusal
+// is thrown before anything is touched.
 export async function removeOne(target, ctx, deps, entries, record) {
   const log = deps.log;
   const abs = path.resolve(target);
   const rel = path.relative(path.dirname(ctx.mainRoot), abs);
+  if (samePath(abs, ctx.mainRoot)) die("that is the main checkout; nothing was touched");
   if (!isUnder(abs, ctx.root)) die(`${abs} is not under ${ctx.root}; nothing was touched`);
   if (abs.endsWith(PROBE_SUFFIX)) die(`${abs} is the directory an interrupted run's probe renamed; rename it back by hand instead, since removing it would leave the record it points at`);
   if (entries.some((e) => isUnder(e.path, abs))) die(`${abs} holds another worktree; name that worktree instead`);
+  const inside = entries.find((e) => isUnder(abs, e.path));
+  if (inside) die(`${rel} is inside the worktree ${path.relative(path.dirname(ctx.mainRoot), path.resolve(inside.path))}; name the worktree itself, since removing part of a tree deletes uncommitted work the status check never sees; nothing was touched`);
   const entry = entries.find((e) => samePath(e.path, abs));
-  if (entry && samePath(entry.path, ctx.mainRoot)) die("that is the main checkout; nothing was touched");
   if (entry?.branch && ctx.defaultBranches.has(entry.branch)) die(`${rel} holds the default branch ${entry.branch}, which is never removed; nothing was touched`);
   if (entry?.locked) die(`${rel} is locked (${entry.locked}); nothing was touched`);
   if (!deps.exists(abs)) die(entry ? `${abs} is already gone and git still holds its record; run this without --remove and it prunes the record` : `${abs} does not exist; nothing was touched`);
@@ -780,7 +817,10 @@ export async function removeOne(target, ctx, deps, entries, record) {
   const holds = [];
   if (!ctx.processes.ok) holds.push("the processes on this machine could not be listed, so whether one is using it is unknown");
   else {
-    const users = usersOf(abs, ctx.processes.list, deps.pid());
+    // The shells that ran this command name the path they were typed with,
+    // and the same path is the argument they hand it; they are not users.
+    const mine = ancestorsOf(deps.pid(), ctx.processes.list);
+    const users = usersOf(abs, ctx.processes.list, deps.pid()).filter((p) => !mine.has(p.pid));
     if (users.length) holds.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
   for (const s of serverRows(probeServers(abs, deps))) holds.push(`its ${s.driver ?? "driver"} reports ${s.state === "unknown" ? `an unknown server state (${s.detail})` : `dev servers ${s.state}${s.url ? ` at ${s.url}` : ""}`}; the driver's \`down\` settles it`);
@@ -788,16 +828,24 @@ export async function removeOne(target, ctx, deps, entries, record) {
   const scan = await deps.scan(abs);
   const blocked = linkReason(scan, abs);
   if (blocked) die(`${rel}: ${blocked}; nothing was touched`);
-
-  const what = live ? "worktree" : "directory";
-  const why = `${what} ${rel} removed by name${entry?.branch ? `; its branch ${entry.branch} stays` : ""}`;
-  record({ decision: "removing", path: abs, why });
   const finish = (decision, note, size) => {
     const line = `${decision.padEnd(DECISION_WIDTH)}  ${rel}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${note}`.trimEnd();
     log(line);
     record({ decision, path: abs, why: note });
     return decision === "failed" ? 1 : 0;
   };
+  // Before anything is unlinked or deleted: a directory a process holds is
+  // refused whole, where git would delete what sorts before the held entry.
+  const held = await probeHeld(abs, deps);
+  if (held?.outcome === "kept") die(`${rel}: ${held.note}; nothing was touched`);
+  if (held) {
+    record({ decision: "removing", path: abs, why: `${entry ? "worktree" : "directory"} ${rel} removed by name` });
+    return finish("failed", held.note, scan.bytes);
+  }
+
+  const what = live ? "worktree" : "directory";
+  const why = `${what} ${rel} removed by name${entry?.branch ? `; its branch ${entry.branch} stays` : ""}`;
+  record({ decision: "removing", path: abs, why });
   let unlinked = 0;
   try {
     unlinked = deps.unlinkLinks(abs);
@@ -806,35 +854,32 @@ export async function removeOne(target, ctx, deps, entries, record) {
   }
   const notes = [];
   if (unlinked) notes.push(`${n(unlinked, "link")} unlinked first, targets untouched`);
+  const said = () => (notes.length ? `${notes.join("; ")}; ` : "");
   if (live) {
-    const rm = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
-    if (rm.status !== 0) {
-      const gitErr = rm.err || rm.out;
-      const reg = registration(abs, ctx, deps);
-      if (!reg.known) return finish("failed", `git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (${reg.err}); check the directory and \`git worktree list\` by hand`, scan.bytes);
-      if (reg.registered) return finish("failed", `git worktree remove refused (${gitErr}) and kept its record; ${notes.join("; ")}${notes.length ? "; " : ""}nothing more was touched`, scan.bytes);
-      notes.push(`git worktree remove stopped part-way (${gitErr}) and dropped its record`);
-    }
+    const stopped = await gitRemoveTree(abs, ctx, deps, notes, "");
+    if (stopped) return finish("failed", `${said()}${stopped.note}`, scan.bytes);
+  } else {
+    const remaining = await removeDirect(abs, deps);
+    if (remaining !== null) return finish("failed", `${said()}${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it`, scan.bytes);
+    notes.unshift(entry ? "git no longer saw it as a worktree" : "not a registered worktree");
   }
-  if (deps.exists(abs)) {
-    try {
-      deps.removeDir(abs);
-    } catch {
-      /* reported below from what is left */
-    }
+  removeEmptyParent(abs, ctx, deps, notes);
+  // A dead record git still lists keeps blocking its branch until it is pruned.
+  if (entry?.prunable) {
+    const dropped = pruneDeadRecords(entries, ctx, deps);
+    notes.push(dropped.pruned.length ? "its dead record was pruned" : `its dead record stays: ${dropped.waiting}`);
   }
-  if (deps.exists(abs)) return finish("failed", `${[...notes, `${formatBytes(await bytesUnder(abs, deps))} remain there`].join("; ")}; delete the directory by hand once nothing holds it`, scan.bytes);
-  const parent = path.dirname(abs);
-  if (isUnder(parent, ctx.root) && deps.isEmptyDir(parent)) {
-    try {
-      deps.removeEmptyDir(parent);
-      notes.push(`removed the empty ${path.relative(ctx.root, parent)}${path.sep}`);
-    } catch (err) {
-      notes.push(`the empty ${path.relative(ctx.root, parent)}${path.sep} could not be removed (${err.code ?? err.message})`);
-    }
-  }
-  if (!live) notes.unshift("not a registered worktree");
   return finish("removed", [...notes, entry?.branch ? `its branch ${entry.branch} stays` : ""].filter(Boolean).join("; "), scan.bytes);
+}
+
+// The pids of a process and every parent above it in the process list, which
+// carries each process's parent for exactly this.
+export function ancestorsOf(pid, list) {
+  const byPid = new Map(list.map((p) => [p.pid, p]));
+  const chain = new Set();
+  for (let p = byPid.get(pid); p && !chain.has(p.pid); p = byPid.get(p.ppid)) chain.add(p.pid);
+  chain.add(pid);
+  return chain;
 }
 
 // ------------------------------------------------------ driver profiles ---
