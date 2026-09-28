@@ -194,9 +194,9 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
     expect(runToEnd(ctx.story)).toBe("Same.\n");
   });
 
-  test("a divert-target value may name a label called then", () => {
+  test.each(["then", "end"])("a divert-target value may name a label called %s", (label) => {
     const ctx = makeRuntimeStoryFromSource(
-      `-> s\nscene s\n  choose\n    + (then) Pick\n  then\n    {count.turns(-> then)} turns\n    fin\n  end\nend\n`,
+      `-> s\nscene s\n  choose\n    + (${label}) Pick\n  then\n    {count.turns(-> ${label})} turns\n    fin\n  end\nend\n`,
       undefined,
       { countAllVisits: true },
     );
