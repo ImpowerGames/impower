@@ -38,9 +38,10 @@ export class VariableReference extends Expression {
   // Only known after GenerateIntoContainer has run
   public isListItemReference: boolean = false;
 
-  // False when another reference already reports this name unresolved, such
-  // as the `self` argument of `table:nogetn()`, whose path names the member.
-  public reportsUnresolved: boolean = true;
+  // The member a colon call reads from this reference, as in `table:nogetn()`.
+  // When set, an unresolved name reports the member path (`table.nogetn`)
+  // across both names, as the dot form's path reference does.
+  public unresolvedMember: Identifier | null = null;
 
   get runtimeVarRef() {
     return this._runtimeVarRef;
@@ -222,10 +223,15 @@ export class VariableReference extends Expression {
       return;
     }
 
-    if (
-      this.reportsUnresolved &&
-      !context.ResolveVariableWithName(this.name, this).found
-    ) {
+    if (!context.ResolveVariableWithName(this.name, this).found) {
+      if (this.unresolvedMember) {
+        this.Error(
+          `Cannot find item or path named \`${this.name}.${this.unresolvedMember.name}\``,
+          new Identifier(this.identifier!, this.unresolvedMember),
+          true,
+        );
+        return;
+      }
       // Luau-superset semantics: undefined names resolve to `nil` at
       // runtime, not a compile error. Downgraded to a warning so it
       // still surfaces in the IDE as a probable typo / forgotten

@@ -674,6 +674,7 @@ function lowerMethodCall(
   // The receiver name lives under `LuauStdLibConstants` for stdlib names
   // (the `LuauVariable` rule's captures try stdlib before plain variable),
   // so we look for that descendent first.
+  let stdlibMember: Identifier | null = null;
   if (receiverParts.length === 1) {
     const onlyPart = receiverParts[0]!.firstChild;
     if (onlyPart?.name === "LuauVariable") {
@@ -707,30 +708,29 @@ function lowerMethodCall(
           }
           return call;
         }
-        // `table.nogetn()` / `table:nogetn()`: a call on a stdlib library
-        // with no such builtin. The callee is the dotted path itself, so an
-        // unresolved path reports the member (`Cannot find item or path
-        // named \`table.nogetn\``) rather than the library, which exists. A
-        // local that shadows the library resolves the path at run time.
+        // `table.nogetn()`: a dot call on a stdlib library with no such
+        // builtin. The callee is the dotted path itself, so an unresolved
+        // path reports the member (`Cannot find item or path named
+        // \`table.nogetn\``) rather than the library, which exists. A local
+        // that shadows the library resolves the path at run time.
+        const opNode = getDescendent("LuauAccessorOperator", methodAccessor);
+        const isDotForm =
+          !!opNode && ctx.read(opNode.from, opNode.to).trim() === ".";
+        if (isDotForm && stdlibNode.name === "LuauStdLibConstants") {
+          return new CallValueExpression(
+            new VariableReference([
+              identifierAt(stdlibNode, ctx),
+              identifierAt(methodNameNode, ctx),
+            ]),
+            callArgs,
+          );
+        }
+        // `table:nogetn()` lowers like any other colon call below, so a
+        // local that shadows the library keeps builtin method dispatch and
+        // its receiver is evaluated once. The receiver names the member, so
+        // an unresolved library reports `table.nogetn` as the dot form does.
         if (stdlibNode.name === "LuauStdLibConstants") {
-          const callee = new VariableReference([
-            identifierAt(stdlibNode, ctx),
-            identifierAt(methodNameNode, ctx),
-          ]);
-          const opNode = getDescendent("LuauAccessorOperator", methodAccessor);
-          const isDotForm =
-            !!opNode && ctx.read(opNode.from, opNode.to).trim() === ".";
-          if (isDotForm) {
-            return new CallValueExpression(callee, callArgs);
-          }
-          // The colon form threads the library as `self`. Reading a plain
-          // variable has no side effects, so reading it for the argument
-          // and again inside the path is one evaluation as far as the
-          // script can tell. The argument resolves exactly when the path's
-          // base does, so the path's diagnostic already covers it.
-          const self = new VariableReference([identifierAt(stdlibNode, ctx)]);
-          self.reportsUnresolved = false;
-          return new CallValueExpression(callee, [self, ...callArgs]);
+          stdlibMember = identifierAt(methodNameNode, ctx);
         }
       }
     }
@@ -740,6 +740,9 @@ function lowerMethodCall(
   // on a synthetic parts list (no method accessor, no trailing call).
   const receiver = lowerPartsAsExpression(receiverParts, ctx);
   if (!receiver) return null;
+  if (stdlibMember && receiver instanceof VariableReference) {
+    receiver.unresolvedMember = stdlibMember;
+  }
 
   // Builtin method dispatch (`s:upper()`, `t:find(x)`, `t:union(other)`,
   // ...). When the method name matches a registered builtin in

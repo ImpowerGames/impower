@@ -96,6 +96,34 @@ assert(table:nogetn(1) == 8, "got " .. tostring(table:nogetn(1)))`);
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
   });
+
+  test("the receiver is evaluated once, before the arguments", () => {
+    const r = runConformanceSource(`local table = { tag = 1, nogetn = function(self, _) return self.tag end }
+local replace = function()
+  table = { tag = 2, nogetn = function(self, _) return 99 end }
+  return 0
+end
+local got = table:nogetn(replace())
+assert(got == 1, "got " .. tostring(got))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("a local that shadows a library keeps its builtin methods", () => {
+    const r = runConformanceSource(`local table = { "a", "b", "c" }
+assert(table:len() == 3, "len got " .. tostring(table:len()))
+assert(table:at(1) == "a", "at got " .. tostring(table:at(1)))
+local string = "ab"
+assert(string:padstart(4, "-") == "--ab", "padstart got " .. tostring(string:padstart(4, "-")))`);
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("a builtin method name on an unshadowed library names the member", () => {
+    expect(diagnoseWithLints("& print(table:len())\n")).toEqual([
+      "Cannot find item or path named `table.len`",
+    ]);
+  });
 });
 
 describe("at run time", () => {
