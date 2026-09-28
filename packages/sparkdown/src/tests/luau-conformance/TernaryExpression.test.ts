@@ -282,6 +282,25 @@ end
   });
 });
 
+describe("a name ending in if as an arm", () => {
+  test("evaluates to the name's value", () => {
+    const r = runConformanceSource(`local motif = 7
+assert((if true then motif else 2) == 7)
+print(if true then motif else 2)
+local v = if false then 1 elseif true then motif else 2
+assert(v == 7)
+if motif == 7 then
+  local w = if false then 1 else motif
+  assert(w == 7)
+end`);
+    expect({
+      returnedOK: r.returnedOK,
+      errors: r.errorMessages,
+      warnings: r.warningMessages,
+    }).toEqual({ returnedOK: true, errors: [], warnings: [] });
+  });
+});
+
 describe("clause-less if in display text", () => {
   test("shows its condition's value", () => {
     const { errors, text } = compileAndCapture(`The value is {if pick()}.

@@ -6365,7 +6365,7 @@ repository:
     # `then` keyword closes it. Critically, `then` is excluded from
     # `LuauKeyword` so the inner `LuauExpression` can't snatch it
     # before this rule's end pattern fires.
-    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|then\b)
+    begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -6381,6 +6381,8 @@ repository:
         patterns:
           - { include: "#LuauThenKeyword" }
 
+  # The `if` or `elseif` before a condition must start a word, so a name
+  # ending in `if` (`motif`) never opens a condition after itself.
   # A condition takes the whitespace before its own `then`, so the enclosing
   # `LuauTernaryExpression` stands directly on that `then` and only meets
   # whitespace followed by `then` after a completed arm (see its `end`).
@@ -6388,7 +6390,7 @@ repository:
   # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
   # literal) still lands inside the condition rather than beside it.
   LuauTernaryExpressionCondition:
-    begin: (?<=if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
     beginCaptures:
       1:
         emit: true
@@ -6448,7 +6450,7 @@ repository:
 
   LuauElseifBlockCondition:
     # See `LuauIfBlockCondition` for the multi-line trick.
-    begin: (?<=elseif\b{{WS}}*)(?!{{BEAT}}|then\b)
+    begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
