@@ -71,13 +71,16 @@ describe("a type ending in `?` ends at the `?`", () => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
-  // Luau rejects each of these: a `?` only ends the type before it.
+  // Luau rejects each of these: a `?` only ends the type before it. The `?` is
+  // reported in Luau's wording, and nothing else is, so the rest reads as Luau.
   test.each([
-    ["after a leading bar", "type Bar = |?\n"],
-    ["alone", "type Baz = ?\n"],
-    ["before its type", "local v: ?number\n"],
-  ])("a `?` with no type before it, %s, is reported", (_name, snippet) => {
-    expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.length).toBeGreaterThan(0);
+    ["after a leading bar", "type Bar = |?\n", 12],
+    ["alone", "type Baz = ?\n", 11],
+    ["before its type", "local v: ?number\n", 9],
+  ])("a `?` with no type before it, %s, is reported", (_name, snippet, column) => {
+    expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
+      `1:${column}-1:${column + 1} SyntaxError: Expected type, got '?'`,
+    ]);
   });
 
   test.each([
@@ -106,6 +109,15 @@ describe("the code after a type ending in `?` still runs", () => {
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
+
+  test.each([["type Bar = |?"], ["type Baz = ?"], ["local _v: ?number"]])(
+    "after `%s`, which is reported, the rest of the function still runs",
+    (line) => {
+      const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  ${line}\n  return 5\nend\n`);
+      expect(ctx.errorMessages).toEqual(["Expected type, got '?'"]);
+      expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
+    },
+  );
 
   test("a local declared after one with an optional type stays local", () => {
     const ctx = makeRuntimeStoryFromSource(

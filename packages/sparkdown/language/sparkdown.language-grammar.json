@@ -13437,6 +13437,9 @@
           "include": "#LuauTypeOptionalOperator"
         },
         {
+          "include": "#LuauTypeStrayOptionalOperator"
+        },
+        {
           "include": "#LuauTypeBinaryOperation"
         },
         {
@@ -13493,6 +13496,11 @@
           ]
         }
       }
+    },
+    "LuauTypeStrayOptionalOperator": {
+      "tag": "invalid",
+      "name": "invalid.illegal.luau",
+      "match": "((?:[?]))"
     },
     "LuauTypeBinaryOperation": {
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:[&]|[|]|[-][>]))",

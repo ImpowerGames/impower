@@ -8680,6 +8680,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeOptionalOperator" }
+      - { include: "#LuauTypeStrayOptionalOperator" }
       - { include: "#LuauTypeBinaryOperation" }
       - { include: "#LuauTypeTableStruct" }
       - { include: "#LuauString" }
@@ -8707,8 +8708,7 @@ repository:
     match: ([-][>])
 
   # The suffix ends the type it follows, so it matches only after the end
-  # of a type (a name, a closing bracket or quote, or another `?`); a `?`
-  # with no type before it (`|?`, `= ?`) is left unread and reported. It
+  # of a type (a name, a closing bracket or quote, or another `?`). It
   # takes in the whitespace after it only when a binary type operator
   # follows on the same line (`number? | string`), so a line break or the
   # next statement's first word is never read as part of the type.
@@ -8722,6 +8722,14 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+
+  # A `?` with no type before it (`|?`, `= ?`, `: ?number`), which Luau
+  # rejects. It is read as one token so the rest of the line still parses,
+  # and the validator reports it.
+  LuauTypeStrayOptionalOperator:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{LUAU_TYPE_OPTIONAL_OPERATOR}})
 
   LuauTypeBinaryOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}})

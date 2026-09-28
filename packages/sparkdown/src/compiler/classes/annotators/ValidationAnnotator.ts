@@ -338,6 +338,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (this.validateLuauLiteral(annotations, nodeRef)) {
       return annotations;
     }
+    // A `?` only ends the type before it; the grammar reads one with no type
+    // before it as its own token. The wording is Luau's parser's.
+    if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
+      this.error(annotations, "Expected type, got '?'", nodeRef.from, nodeRef.to);
+      return annotations;
+    }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);
       // Report invalid image/screen control
