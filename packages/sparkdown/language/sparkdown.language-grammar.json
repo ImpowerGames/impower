@@ -265,6 +265,7 @@
     "LUAU_TYPE_ANNOTATION_OPERATOR": "(?<![:])(?:[:])(?![:])",
     "LUAU_ACCESSOR_OPERATOR": "(?:[.]|[:])",
     "LUAU_TYPE_OPTIONAL_OPERATOR": "(?:[?])",
+    "LUAU_TYPE_END": "(?:[\\w)}\\]>\"'`?])",
     "LUAU_TYPE_BINARY_OPERATORS": "(?:[&]|[|]|[-][>])",
     "LUAU_VALUE_BINARY_OPERATORS": "(?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})",
     "LUAU_BINARY_OPERATORS": "(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})",
@@ -9067,7 +9068,7 @@
     "LuauFunctionBody": {
       "tag": "meta",
       "name": "meta.function.body.luau",
-      "begin": "(?<=\\w|\\)|[?])(?:[^\\S\\n\\r])*\\n",
+      "begin": "(?<=(?:[\\w)}\\]>\"'`?]))(?:[^\\S\\n\\r])*\\n",
       "patterns": [
         {
           "include": "#LuauBlockBody"
@@ -13481,7 +13482,7 @@
       "match": "([-][>])"
     },
     "LuauTypeOptionalOperator": {
-      "match": "(?<=[\\w)}\\]>\"'`?](?:[^\\S\\n\\r])*)((?:[?]))(?:((?:[^\\S\\n\\r])*)(?=(?:[&]|[|]|[-][>])))?",
+      "match": "(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)((?:[?]))(?:((?:[^\\S\\n\\r])*)(?=(?:[&]|[|]|[-][>])))?",
       "captures": {
         "1": {
           "tag": "typeOperator",

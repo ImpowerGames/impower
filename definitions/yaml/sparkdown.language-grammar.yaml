@@ -233,6 +233,9 @@ variables:
   # `?` is a postfix suffix (`number?`) that takes no right operand, so it
   # is not one of the binary type operators.
   LUAU_TYPE_OPTIONAL_OPERATOR: (?:[?])
+  # The last character of a type: a name, a closing bracket or quote, or an
+  # optional type's `?`.
+  LUAU_TYPE_END: (?:[\w)}\]>"'`?])
   LUAU_TYPE_BINARY_OPERATORS: (?:[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
@@ -5816,11 +5819,12 @@ repository:
     tag: meta
     name: meta.function.body.luau
     # Anchored: opens once the function header (params / return type)
-    # is closed and at least one newline has passed. The lookbehind on
-    # `\w`, `)` or an optional return type's `?` keeps this from firing
-    # inside `function f<T>` (where the `>` is followed by params), and
-    # `\n` requires the body to start on a new line.
-    begin: (?<=\w|\)|[?]){{WS}}*\n
+    # is closed and at least one newline has passed. The lookbehind takes
+    # the header's last character: the parameter list's `)` or the end of
+    # a return type (`number`, `number?`, `{number}`, `Array<T>`, `"x"`).
+    # `\n` requires the body to start on a new line, so the `>` of
+    # `function f<T>`, which params follow on the same line, never opens it.
+    begin: (?<={{LUAU_TYPE_END}}){{WS}}*\n
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -8713,7 +8717,7 @@ repository:
   # follows on the same line (`number? | string`), so a line break or the
   # next statement's first word is never read as part of the type.
   LuauTypeOptionalOperator:
-    match: (?<=[\w)}\]>"'`?]{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
+    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
     captures:
       1:
         tag: typeOperator

@@ -67,6 +67,7 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["a closing brace", "local v: {a: number?} = {}\n"],
     ["a table type", "local v: {number}?\nlocal s = 1\n"],
     ["a function type", "local v: () -> number?\nlocal s = 1\n"],
+    ["a trailing comment", "type T = number? -- a comment\nlocal y = 1\n"],
   ])("an optional type before %s parses", (_name, snippet) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
@@ -103,6 +104,9 @@ describe("the code after a type ending in `?` still runs", () => {
     ["a return type with its body on the same line", `Value {f()}.\nfunction f(): number? return 5 end\n`],
     ["an optional table return type", `Value {f()}.\nfunction f(): {number}?\n  return 5\nend\n`],
     ["an optional return type in a union", `Value {f()}.\nfunction f(): number? | string\n  return 5\nend\n`],
+    ["a table return type", `Value {f()}.\nfunction f(): {number}\n  return 5\nend\n`],
+    ["a generic return type", `Value {f()}.\nfunction f(): Array<number>\n  return 5\nend\n`],
+    ["a string literal return type", `Value {f()}.\nfunction f(): "x"\n  return 5\nend\n`],
     ["a type alias", `Value {f()}.\nfunction f()\n  type T = number?\n  return 5\nend\n`],
   ])("after %s", (_name, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
