@@ -8661,13 +8661,20 @@ repository:
     tag: definitionKeyword
     name: storage.type.luau
 
+  # A type reference is `Name` or a module-qualified `Name.Name`, as in Luau.
   LuauTypeName:
-    match: ({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})([.]))?({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
+        patterns:
+          - { include: "#LuauVariableName" }
+      2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+      3:
         tag: typeName
         name: entity.name.type.luau
-      2:
+      4:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
@@ -8899,7 +8906,8 @@ repository:
           - { include: "#PunctuationBracketClose" }
 
   LuauTypeTableProperty:
-    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})
+    # `(?![.])` leaves a qualified type name (`{ types.Button }`) to LuauTypeLiteral.
+    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?![.])
     captures:
       1:
         patterns:
