@@ -8,12 +8,18 @@ type Site = { from: number; to: number; name: string };
 type Declaration = Site & { scope: number; kind: BindingKind };
 type Reference = Site & { scopes: number[]; declaration: boolean };
 
-/** Scope identities are the starts of enclosing function definitions. Global
- * scope is -1. These are the same function-only scopes SemanticAnnotator uses. */
+/** Scope identities are the starts of enclosing function definitions and type
+ * function declarations. Global scope is -1. These are the same scopes
+ * SemanticAnnotator uses. */
 function scopesAt(node: SyntaxNode): number[] {
   const scopes: number[] = [];
   for (let parent = node.parent; parent; parent = parent.parent) {
-    if (parent.name === "LuauFunctionDefinition") scopes.push(parent.from);
+    if (
+      parent.name === "LuauFunctionDefinition" ||
+      parent.name === "LuauFunctionTypeDeclaration"
+    ) {
+      scopes.push(parent.from);
+    }
   }
   scopes.push(-1);
   return scopes;
