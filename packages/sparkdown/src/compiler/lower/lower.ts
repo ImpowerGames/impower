@@ -27,6 +27,7 @@ import {
 import { wrapInWeave } from "./utils/wrapInWeave";
 import {
   collectLineContinuation,
+  endsInTypeName,
   isLineContinuationUsed,
   isTypeQualifierContinuation,
   markLineContinuationUsed,
@@ -330,8 +331,10 @@ function lowerInner(
       // the lines that continue a type name it ends with qualify that name
       // (`type Alias = types` then `.Button`).
       const continuation = takeLineContinuation(ctx);
-      const text = ctx.read(nodeRef.from, nodeRef.to).trimEnd();
-      if (/\w$/.test(text) && isTypeQualifierContinuation(continuation)) {
+      if (
+        endsInTypeName(nodeRef.node) &&
+        isTypeQualifierContinuation(continuation)
+      ) {
         markLineContinuationUsed(continuation, ctx);
       }
       return {};

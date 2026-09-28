@@ -16,6 +16,7 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import {
+  endsInTypeName,
   isTypeQualifierContinuation,
   markLineContinuationUsed,
   splitOnCommas,
@@ -239,7 +240,11 @@ export function lowerVariableDefinition(
       "LuauTypeAnnotationOperation",
       lastTarget.assignNode,
     );
-    if (typed && isTypeQualifierContinuation(qualifiers)) {
+    if (
+      typed &&
+      endsInTypeName(typed) &&
+      isTypeQualifierContinuation(qualifiers)
+    ) {
       markLineContinuationUsed(qualifiers, ctx);
       if (opAt >= 0) {
         firstRhsOp = continued[opAt]!;

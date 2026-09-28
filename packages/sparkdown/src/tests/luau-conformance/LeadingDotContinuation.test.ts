@@ -129,6 +129,11 @@ test.each([
     "1",
   ],
   [
+    "qualified type alias after a comment",
+    "type Alias = types -- note.\n  .Button\nreturn 1",
+    "1",
+  ],
+  [
     "qualified type cast",
     "local t = { Button = 7 }\nlocal y = t :: types\n  .Button\nreturn type(y)",
     "table",
@@ -207,6 +212,11 @@ test.each([
   ["after `local` with no name", "local\n  .a\nreturn 1"],
   ["after a bare return", "if true then\n  return\n    .a\nend\nreturn 1"],
   ["as the first call argument", "return tostring(\n  .a)"],
+  [
+    "after a table type alias",
+    "type Alias = { x: number } -- note\n  .a\nreturn 1",
+  ],
+  ["after a table type annotation", "local x: { y: number }\n  .a\nreturn 1"],
 ])("a continuation line %s is reported", (_name, body) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
   expect(ctx.errorMessages).toEqual([

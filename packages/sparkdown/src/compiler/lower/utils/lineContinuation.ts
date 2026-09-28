@@ -162,6 +162,27 @@ export function isTypeQualifierContinuation(nodes: SyntaxNode[]): boolean {
   return lines > 0;
 }
 
+// Whether the type syntax in `node` ends in a type name, leaving out any
+// comment and whitespace after it, so that a `.Name` continuation can
+// qualify it (`types` then `.Button`, but not `{ x: number }` then `.b`).
+// A `::` cast's type parses as a value, so its name is a `LuauVariable`.
+export function endsInTypeName(node: SyntaxNode): boolean {
+  for (let n = lastSignificantLeaf(node); n && n !== node; n = n.parent) {
+    if (n.name === "LuauTypeName" || n.name === "LuauVariable") return true;
+  }
+  return false;
+}
+
+function lastSignificantLeaf(node: SyntaxNode): SyntaxNode | null {
+  for (let child = node.lastChild; child; child = child.prevSibling) {
+    if (SKIPPABLE.has(child.name) || child.from === child.to) continue;
+    if (!child.firstChild) return child;
+    const leaf = lastSignificantLeaf(child);
+    if (leaf) return leaf;
+  }
+  return null;
+}
+
 // Split `nodes` into its comma-separated groups, leaving out line breaks,
 // whitespace and comments. The first group continues the value before the
 // continuation; each later group is a further value.

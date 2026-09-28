@@ -51,7 +51,10 @@ import {
 } from "../../../inkjs/engine/StdLib";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { syntheticId } from "../utils/documentTag";
-import { expandLineContinuations } from "../utils/lineContinuation";
+import {
+  endsInTypeName,
+  expandLineContinuations,
+} from "../utils/lineContinuation";
 
 // Wrap the lowerer's `new FunctionCall(name, args)` site so that
 // bare (unnamespaced) source names registered in `STDLIB`
@@ -232,7 +235,7 @@ export function lowerExpressionFromNodes(
     // A type-only construct is skipped, with the `.Name` parts of the lines
     // that continue its type (`t :: types` then `.Button` casts to
     // `types.Button`), which are not accesses on the value.
-    if (TYPE_ONLY_WRAPPERS.has(node.name)) {
+    if (TYPE_ONLY_WRAPPERS.has(node.name) && endsInTypeName(node)) {
       let last = i;
       for (let k = i + 1; k < nodes.length; k++) {
         const next = nodes[k]!;
