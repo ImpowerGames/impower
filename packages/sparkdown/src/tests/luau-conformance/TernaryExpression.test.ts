@@ -4,9 +4,8 @@
 // jumps via the `sc:if` / `sc:jump` ControlCommand ops — only the
 // taken arm's value ops execute (verified by the side-effect test).
 // An unparenthesized if expression in a condition ends before the
-// enclosing `then` or `do` once its else arm is complete; when that arm
-// is glued to the `then` with no whitespace, the clauses parse flat and
-// the lowerer rebuilds the nesting (see lowerTernaryExpression).
+// enclosing `then` or `do` once its else arm is complete, including when
+// that arm is glued to the `then` or `do` with no whitespace.
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -279,6 +278,47 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual(["B", "B", "B"]);
+  });
+
+  test("if statement and while loop with an else arm glued to their then or do", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local c = false
+local r = "none"
+if if c then false else (true)then
+  r = "a"
+end
+host_record(r)
+if if c then false else "x"then
+  r = "b"
+end
+host_record(r)
+if false then
+  r = "wrong"
+elseif if c then false else {}then
+  r = "c"
+end
+host_record(r)
+if if (c)then false else (true)then
+  r = "d"
+end
+host_record(r)
+if (not c)then
+  r = "e"
+end
+host_record(r)
+local n = 0
+while if n < 3 then true else (false)do
+  n += 1
+end
+host_record(n)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["a", "b", "c", "d", "e", 3]);
   });
 });
 

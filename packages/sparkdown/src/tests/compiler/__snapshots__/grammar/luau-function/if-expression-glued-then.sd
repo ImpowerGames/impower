@@ -1,0 +1,15 @@
+function f(c, n)
+  if if c then false else (true)then
+    n = 1
+  elseif if c then false else "x"then
+    n = 2
+  end
+  if if (c)then false else {}then
+    n = 3
+  end
+  while if n < 3 then true else (false)do
+    n += 1
+  end
+  local v = if if c then false else (true)then 10 else 20
+  local w = if (c)then 1 elseif (n)then 2 else 3
+end

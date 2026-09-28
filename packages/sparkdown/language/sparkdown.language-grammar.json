@@ -9927,13 +9927,20 @@
           "include": "#Newline"
         }
       ],
-      "end": "((?:[^\\S\\n\\r])+)(?=then\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))",
+      "end": "((?:[^\\S\\n\\r])+)(?=then\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))|(?<=[)\\]}\"'`])(then)\\b",
       "endCaptures": {
         "1": {
           "emit": true,
           "patterns": [
             {
               "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauThenKeyword"
             }
           ]
         }
@@ -10319,10 +10326,20 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|[)}\\],;]|(?:[^\\S\\n\\r])+(?:then|do)\\b)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|[)}\\],;]|(?:[^\\S\\n\\r])+(?:then|do)\\b|(?<=[)\\]}\"'`])(?:then|do)\\b)"
     },
     "LuauThenExpression": {
-      "begin": "(?=(?:then)\\b)",
+      "begin": "(?=(?:then)\\b)|(?<=[)\\]}\"'`]then)((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
       "patterns": [
         {
           "include": "#LuauThenOperator"
@@ -10378,7 +10395,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|elseif\\b|$|(?:[^\\S\\n\\r])|[)}\\],;])"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|elseif\\b|$|(?:[^\\S\\n\\r])|[)}\\],;]|(?<=[)\\]}\"'`])(?:then|do)\\b)"
     },
     "LuauElseOperator": {
       "begin": "((?:else)\\b)((?:[^\\S\\n\\r])*)",
