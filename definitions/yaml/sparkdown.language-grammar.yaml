@@ -230,9 +230,12 @@ variables:
   LUAU_ALTERNATOR_OPERATOR: (?:[|])
   LUAU_TYPE_ANNOTATION_OPERATOR: (?<![:])(?:[:])(?![:])
   LUAU_ACCESSOR_OPERATOR: (?:[.]|[:])
-  LUAU_TYPE_BINARY_OPERATORS: (?:[?]|[&]|[|]|[-][>])
+  # `?` is a postfix suffix (`number?`) that takes no right operand, so it
+  # is not one of the binary type operators.
+  LUAU_TYPE_OPTIONAL_OPERATOR: (?:[?])
+  LUAU_TYPE_BINARY_OPERATORS: (?:[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
-  LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
+  LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
   # operator (`Foo | Bar`) AND the alternator-arm separator. When a value
@@ -5814,10 +5817,10 @@ repository:
     name: meta.function.body.luau
     # Anchored: opens once the function header (params / return type)
     # is closed and at least one newline has passed. The lookbehind on
-    # `\w` or `)` keeps this from firing inside `function f<T>` (where
-    # the `>` is followed by params), and `\n` requires the body to
-    # start on a new line.
-    begin: (?<=\w|\)){{WS}}*\n
+    # `\w`, `)` or an optional return type's `?` keeps this from firing
+    # inside `function f<T>` (where the `>` is followed by params), and
+    # `\n` requires the body to start on a new line.
+    begin: (?<=\w|\)|[?]){{WS}}*\n
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -8676,6 +8679,7 @@ repository:
     begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauTypeOptionalOperator" }
       - { include: "#LuauTypeBinaryOperation" }
       - { include: "#LuauTypeTableStruct" }
       - { include: "#LuauString" }
@@ -8701,6 +8705,21 @@ repository:
     tag: standard(typeName)
     name: support.type.divert-target.sd
     match: ([-][>])
+
+  # The suffix ends the type it follows: it takes in the whitespace after
+  # it only when a binary type operator follows on the same line
+  # (`number? | string`), so a line break or the next statement's first
+  # word is never read as part of the type.
+  LuauTypeOptionalOperator:
+    match: ({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
+    captures:
+      1:
+        tag: typeOperator
+        name: keyword.operator.type.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
 
   LuauTypeBinaryOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}})
