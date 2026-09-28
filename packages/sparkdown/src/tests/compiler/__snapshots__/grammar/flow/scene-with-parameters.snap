@@ -36,8 +36,10 @@ sparkdown [0..101]
  │   │       │       │       │       ├─ LuauTypeLiteral_begin 19
  │   │       │       │       │       ├─ LuauTypeLiteral_content [19..28]
  │   │       │       │       │       │   └─ LuauTypeName [19..28]
- │   │       │       │       │       │       ├─ LuauTypeName_c1 [19..28]: "companion"
- │   │       │       │       │       │       └─ LuauTypeName_c2 28
+ │   │       │       │       │       │       ├─ LuauTypeName_c1 19
+ │   │       │       │       │       │       ├─ LuauTypeName_c2 19
+ │   │       │       │       │       │       ├─ LuauTypeName_c3 [19..28]: "companion"
+ │   │       │       │       │       │       └─ LuauTypeName_c4 28
  │   │       │       │       │       └─ LuauTypeLiteral_end 28
  │   │       │       │       └─ LuauTypeAnnotationOperation_end 28
  │   │       │       └─ LuauFunctionParameters_end [28..29]

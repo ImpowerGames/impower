@@ -1,0 +1,8 @@
+function f(self: types.Button)
+  local x: types.Button = 1
+  local t: { types.Button } = {}
+  local r: { read types.Button } = {}
+  local p: { read a: types.Button, b: number } = { a = 1, b = 2 }
+  local g: types.Foo<number>? = nil
+  return x
+end

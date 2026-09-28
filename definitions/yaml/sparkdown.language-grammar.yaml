@@ -8906,8 +8906,10 @@ repository:
           - { include: "#PunctuationBracketClose" }
 
   LuauTypeTableProperty:
-    # `(?![.])` leaves a qualified type name (`{ types.Button }`) to LuauTypeLiteral.
-    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?![.])
+    # A qualified type name (`{ types.Button }`, `{ read types.Button }`) is an
+    # array element, not a property: the name before a `.` is left to
+    # LuauTypeLiteral, and an access modifier before it is read on its own.
+    match: ({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}+)(?={{LUAU_IDENTIFIER}}[.])|(?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?![.])
     captures:
       1:
         patterns:
@@ -8916,6 +8918,12 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       3:
+        patterns:
+          - { include: "#LuauAccessModifier" }
+      4:
+        patterns:
+          - { include: "#Whitespace" }
+      5:
         patterns:
           - { include: "#LuauTypePropertyName" }
 

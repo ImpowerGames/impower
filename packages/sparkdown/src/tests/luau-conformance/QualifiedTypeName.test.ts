@@ -12,6 +12,8 @@ test.each([
   "local x: types.Foo<number>? = nil",
   "local f: { [string]: types.Button } = {}",
   "local f: { a: types.Button, read b: string } = {}",
+  "local f: { read types.Button } = {}",
+  "local x = 1 :: types.Button",
   "local f: { number } = {}",
   "local f: { a: number, read b: string } = { a = 1, b = \"\" }",
   "local f: { (self: number, lit: boolean) -> nil } = {}",

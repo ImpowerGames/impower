@@ -13838,7 +13838,7 @@
       }
     },
     "LuauTypeTableProperty": {
-      "match": "(?:(\\b(?:read|write)\\b)\\b((?:[^\\S\\n\\r])*))?((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))(?![.])",
+      "match": "(\\b(?:read|write)\\b)\\b((?:[^\\S\\n\\r])+)(?=(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)[.])|(?:(\\b(?:read|write)\\b)\\b((?:[^\\S\\n\\r])*))?((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))(?![.])",
       "captures": {
         "1": {
           "patterns": [
@@ -13855,6 +13855,20 @@
           ]
         },
         "3": {
+          "patterns": [
+            {
+              "include": "#LuauAccessModifier"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "5": {
           "patterns": [
             {
               "include": "#LuauTypePropertyName"
