@@ -8661,15 +8661,17 @@ repository:
     tag: definitionKeyword
     name: storage.type.luau
 
-  # A type reference is `Name` or a module-qualified `Name.Name`, as in Luau.
+  # A type reference is `Name` or a module-qualified `Name.Name`, as in Luau,
+  # which also allows whitespace around the `.`.
   LuauTypeName:
-    match: (?:({{LUAU_IDENTIFIER}})([.]))?({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})({{WS}}*[.]{{WS}}*))?({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
         patterns:
           - { include: "#LuauVariableName" }
       2:
         patterns:
+          - { include: "#Whitespace" }
           - { include: "#LuauAccessorOperator" }
       3:
         tag: typeName
@@ -8787,8 +8789,10 @@ repository:
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
+  # `(?!{{WS}}*[.])` leaves a module named like a primitive (`string.Button`)
+  # to LuauTypeName.
   LuauPrimitiveType:
-    match: ({{LUAU_PRIMITIVE_TYPES}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: ({{LUAU_PRIMITIVE_TYPES}})(?!{{WS}}*[.]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: standard(typeName)
@@ -8870,6 +8874,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeTableIndexer" }
+      - { include: "#LuauTypeTableElementAccessModifier" }
       - { include: "#LuauTypeTableProperty" }
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauTypeLiteral" }
@@ -8905,11 +8910,23 @@ repository:
         patterns:
           - { include: "#PunctuationBracketClose" }
 
+  # The access modifier of an array element whose type is a qualified name
+  # (`{ read types.Button }`). It comes before LuauTypeTableProperty, which
+  # would otherwise take the modifier itself as a property name.
+  LuauTypeTableElementAccessModifier:
+    match: ({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}+)(?={{LUAU_IDENTIFIER}}{{WS}}*[.])
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauAccessModifier" }
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+
   LuauTypeTableProperty:
-    # A qualified type name (`{ types.Button }`, `{ read types.Button }`) is an
-    # array element, not a property: the name before a `.` is left to
-    # LuauTypeLiteral, and an access modifier before it is read on its own.
-    match: ({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}+)(?={{LUAU_IDENTIFIER}}[.])|(?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?![.])
+    # `(?!{{WS}}*[.])` leaves a qualified type name (`{ types.Button }`) to
+    # LuauTypeLiteral as an array element.
+    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?!{{WS}}*[.])
     captures:
       1:
         patterns:
@@ -8918,12 +8935,6 @@ repository:
         patterns:
           - { include: "#Whitespace" }
       3:
-        patterns:
-          - { include: "#LuauAccessModifier" }
-      4:
-        patterns:
-          - { include: "#Whitespace" }
-      5:
         patterns:
           - { include: "#LuauTypePropertyName" }
 

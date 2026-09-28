@@ -14,6 +14,11 @@ test.each([
   "local f: { a: types.Button, read b: string } = {}",
   "local f: { read types.Button } = {}",
   "local x = 1 :: types.Button",
+  "local x: string.Button = 1",
+  "local f: { number.Button } = {}",
+  "local x: types .Button = 1",
+  "local x: types. Button = 1",
+  "local f: { read types . Button } = {}",
   "local f: { number } = {}",
   "local f: { a: number, read b: string } = { a = 1, b = \"\" }",
   "local f: { (self: number, lit: boolean) -> nil } = {}",
@@ -36,6 +41,10 @@ test.each([
   [
     "Value {f()}.\nfunction f()\n  local t: { types.Button } = { 5 }\n  return t[1]\nend\n",
     "Value 5.\n",
+  ],
+  [
+    "Value {f()}.\nfunction f()\n  local x: string.Button = 6\n  local y: types .Button = 1\n  return x + y\nend\n",
+    "Value 7.\n",
   ],
 ])("%j runs", (source, expected) => {
   const ctx = makeRuntimeStoryFromSource(source);

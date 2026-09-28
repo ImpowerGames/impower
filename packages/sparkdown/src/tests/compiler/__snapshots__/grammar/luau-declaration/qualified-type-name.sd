@@ -4,5 +4,8 @@ function f(self: types.Button)
   local r: { read types.Button } = {}
   local p: { read a: types.Button, b: number } = { a = 1, b = 2 }
   local g: types.Foo<number>? = nil
+  local s: string.Button = 1
+  local w: types . Button = 1
+  local n: number = 1
   return x
 end
