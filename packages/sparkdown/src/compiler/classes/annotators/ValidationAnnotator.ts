@@ -105,6 +105,7 @@ const MALFORMED_NUMBER = "Malformed number";
 // pins, so it is the one sparkdown uses everywhere.
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
+const STRAY_OPTIONAL = "Expected type, got '?'";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -336,6 +337,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
     if (this.validateLuauLiteral(annotations, nodeRef)) {
+      return annotations;
+    }
+    // A `?` only ends the type before it; the grammar reads one with no type
+    // before it as its own token. The wording is Luau's parser's.
+    if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
+      this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
       return annotations;
     }
     if (nodeRef.name === "AssetCommandControl") {

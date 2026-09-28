@@ -108,7 +108,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     // TypeInfer.annotations.test.cpp:129 TEST_CASE_FIXTURE(Fixture, "assignment_also_checks_subtyping")
     name: "assignment_also_checks_subtyping",
     fixture: "Fixture",
-    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         function f(): number?
             return nil
