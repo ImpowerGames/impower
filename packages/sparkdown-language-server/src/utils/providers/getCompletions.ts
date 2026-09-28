@@ -1024,10 +1024,13 @@ const addStructPropertyValueCompletions = (
   }
 };
 
-// Whether the scope at `path` encloses the cursor's scope path, comparing
-// whole dotted segments so a branch `x` does not enclose a sibling `xy`.
-const isEnclosingScope = (path: string, scopePath: string) =>
-  path === "" || scopePath === path || scopePath.startsWith(`${path}.`);
+/**
+ * Whether a cursor in the section `scopePath` is inside the section `path`:
+ * the same section or one nested in it. The global path `""` holds every
+ * section.
+ */
+const isWithinSection = (scopePath: string, path: string) =>
+  !path || scopePath === path || scopePath.startsWith(path + ".");
 
 const addMutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
@@ -1043,10 +1046,7 @@ const addMutableAccessPathCompletions = (
     if (scopes) {
       const types: DeclarationType[] = ["var", "param"];
       for (const [path, declarations] of Object.entries(scopes)) {
-        if (
-          (parts.length <= 1 && isEnclosingScope(path, scopePath)) ||
-          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
-        ) {
+        if (parts.length <= 1 && isWithinSection(scopePath, path)) {
           for (const type of types) {
             if (declarations[type]) {
               for (const name of declarations[type]) {
@@ -1086,10 +1086,7 @@ const addImmutableAccessPathCompletions = (
     if (scopes) {
       const types: DeclarationType[] = ["const"];
       for (const [path, declarations] of Object.entries(scopes)) {
-        if (
-          (parts.length <= 1 && isEnclosingScope(path, scopePath)) ||
-          (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
-        ) {
+        if (parts.length <= 1 && isWithinSection(scopePath, path)) {
           for (const type of types) {
             if (declarations[type]) {
               for (const name of declarations[type]) {
@@ -1205,7 +1202,7 @@ const addDivertPathCompletions = (
       const types: DeclarationType[] = ["scene", "branch", "label"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
-          (parts.length <= 1 && isEnclosingScope(path, scopePath)) ||
+          (parts.length <= 1 && isWithinSection(scopePath, path)) ||
           (parts.length > 1 && path === parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
@@ -1250,6 +1247,7 @@ export const getCompletions = (
   }
 
   const documentCursorOffset = document.offsetAt(position);
+  const cursor = { uri: document.uri, offset: documentCursorOffset };
 
   const completions: Map<string, CompletionItem> = new Map();
 
@@ -1993,7 +1991,7 @@ export const getCompletions = (
         valueCursorOffset,
       );
     } else {
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, cursor);
       const scopePath = getParentSectionPath(leftStack, read).join(".");
       addMutableAccessPathCompletions(
         completions,
@@ -2028,7 +2026,7 @@ export const getCompletions = (
     )
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, cursor);
       addDivertPathKeywords(completions, "", 0, " ");
       addDivertPathCompletions(
         completions,
@@ -2049,7 +2047,7 @@ export const getCompletions = (
     ).trim()
   ) {
     if (isCursorAfterNodeText(leftStack[0])) {
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, cursor);
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
@@ -2065,7 +2063,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(leftStack[0])) {
       const valueText = getNodeText(leftStack[0]);
       const valueCursorOffset = getCursorOffset(leftStack[0]);
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, cursor);
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,
@@ -2086,7 +2084,7 @@ export const getCompletions = (
     if (isCursorAfterNodeText(divertPathNode)) {
       const valueText = getNodeText(divertPathNode);
       const valueCursorOffset = getCursorOffset(divertPathNode);
-      const scopes = getDeclarationScopes(scripts);
+      const scopes = getDeclarationScopes(scripts, cursor);
       addDivertPathKeywords(completions, "", 0);
       addDivertPathCompletions(
         completions,

@@ -195,6 +195,12 @@ variables:
 
   BEAT: (?:{{WS}}*{{FLOW_BEAT_KEYWORDS}})
   END: (?:{{WS}}*(?:end)\b)
+  # Just after an operand that a keyword can follow with no space between
+  # them: a closing bracket, a quote, a backtick, the vararg `...`, or the
+  # closing `/` and flags of a regex literal (`else (x)then`, `else ...then`,
+  # `else @/x/gthen`). The flags are bounded so the lookbehind stays one
+  # Oniguruma accepts.
+  AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -230,9 +236,18 @@ variables:
   LUAU_ALTERNATOR_OPERATOR: (?:[|])
   LUAU_TYPE_ANNOTATION_OPERATOR: (?<![:])(?:[:])(?![:])
   LUAU_ACCESSOR_OPERATOR: (?:[.]|[:])
-  LUAU_TYPE_BINARY_OPERATORS: (?:[?]|[&]|[|]|[-][>])
+  # The `.` after a type's module name, with the whitespace Luau allows before
+  # it. Every type rule that reads or yields to a qualified name uses this.
+  LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
+  # `?` is a postfix suffix (`number?`) that takes no right operand, so it
+  # is not one of the binary type operators.
+  LUAU_TYPE_OPTIONAL_OPERATOR: (?:[?])
+  # The last character of a type: a name, a closing bracket or quote, or an
+  # optional type's `?`.
+  LUAU_TYPE_END: (?:[\w)}\]>"'`?])
+  LUAU_TYPE_BINARY_OPERATORS: (?:[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
-  LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
+  LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
   # operator (`Foo | Bar`) AND the alternator-arm separator. When a value
@@ -2949,8 +2964,14 @@ repository:
     # trailing `(WS*)` is required so that, when this literal is used
     # mid-expression (e.g. `if -> X == -> Y then`), the LuauIfBlockCondition's
     # `(?=WS)` end-lookahead doesn't fire between the literal and the
-    # following operator.
-    match: ({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
+    # following operator. In the last arm of a braced alternator, after a `|`
+    # (and a `name =` for match and plural arms), an `end` directly before
+    # the `}` is not a target: in `{queue | "a" | -> end}` the `->` is an
+    # empty divert and `end` closes the alternator. Labels may take keyword
+    # names, so `end` in any other position (`count.turns(-> end)`,
+    # `{ -> end }` as a table value) is a target, as is every other keyword
+    # and a name that only begins with `end` (`end-game`).
+    match: (?!(?<=[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?){{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}])({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
     captures:
       1:
         patterns:
@@ -5792,8 +5813,8 @@ repository:
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
       # `LuauFunctionBody` opens AFTER the close-paren of the param
-      # list (or after a return-type annotation), so its `(?<=\w|\))`
-      # lookbehind anchors on the last header char. Keeping body in
+      # list (or after a return-type annotation), so its lookbehind
+      # anchors on the last header char. Keeping body in
       # its own rule lets `bare-assignment-in-body` style content
       # (e.g. `& x = expr`) parse without polluting the function-
       # header context. `LuauBlockBody` then matches statements inside.
@@ -5813,11 +5834,14 @@ repository:
     tag: meta
     name: meta.function.body.luau
     # Anchored: opens once the function header (params / return type)
-    # is closed and at least one newline has passed. The lookbehind on
-    # `\w` or `)` keeps this from firing inside `function f<T>` (where
-    # the `>` is followed by params), and `\n` requires the body to
-    # start on a new line.
-    begin: (?<=\w|\)){{WS}}*\n
+    # is closed and at least one newline has passed. The lookbehind takes
+    # the header's last character: the parameter list's `)` or the end of
+    # a return type (`number`, `number?`, `{number}`, `Array<T>`, `"x"`).
+    # `\n` requires the body to start on a new line. The `>` of
+    # `function f<T>` is also a type end; it stays out of the way only
+    # because params follow it on the same line. A parameter list moved to
+    # the next line is not supported with or without generics.
+    begin: (?<={{LUAU_TYPE_END}}){{WS}}*\n
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -6365,7 +6389,7 @@ repository:
     # `then` keyword closes it. Critically, `then` is excluded from
     # `LuauKeyword` so the inner `LuauExpression` can't snatch it
     # before this rule's end pattern fires.
-    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|then\b)
+    begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -6381,14 +6405,19 @@ repository:
         patterns:
           - { include: "#LuauThenKeyword" }
 
+  # The `if` or `elseif` before a condition must start a word, so a name
+  # ending in `if` (`motif`) never opens a condition after itself.
   # A condition takes the whitespace before its own `then`, so the enclosing
   # `LuauTernaryExpression` stands directly on that `then` and only meets
   # whitespace followed by `then` after a completed arm (see its `end`).
+  # A `then` glued to the end of a condition, as in `if (c)then` (see
+  # `AFTER_LUAU_GLUEABLE_OPERAND`), is taken by the condition itself, so the
+  # enclosing expression only meets a glued `then` after its else arm.
   # It also takes the whitespace after `elseif`, so an expression whose own
   # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
   # literal) still lands inside the condition rather than beside it.
   LuauTernaryExpressionCondition:
-    begin: (?<=if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
     beginCaptures:
       1:
         emit: true
@@ -6399,12 +6428,15 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?={{BEAT}})|(?=$|{{WS}})
+    end: ({{WS}}+)(?=then\b)|(?={{BEAT}})|(?=$|{{WS}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
     endCaptures:
       1:
         emit: true
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauThenKeyword" }
 
   # ----------------------------------------------------------------------------
   # Elseif Block
@@ -6448,7 +6480,7 @@ repository:
 
   LuauElseifBlockCondition:
     # See `LuauIfBlockCondition` for the multi-line trick.
-    begin: (?<=elseif\b{{WS}}*)(?!{{BEAT}}|then\b)
+    begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -6688,12 +6720,21 @@ repository:
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
     # `if if c then 1 else 2 then`. Each condition takes the whitespace
-    # before its own `then`, so whitespace followed by `then` or `do` at
-    # this level only follows a completed arm.
-    end: (?={{BEAT}}|$|[)}\],;]|{{WS}}+(?:then|do)\b)
+    # before its own `then`, and a `then` glued to its end, so whitespace
+    # followed by `then` or `do` at this level only follows a completed arm,
+    # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
+    end: (?={{BEAT}}|$|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
 
+  # The second `begin` alternative opens the then arm after a glued `then`
+  # that its condition took (see `LuauTernaryExpressionCondition`); this
+  # expression's own level stands just after a `then` in no other case.
   LuauThenExpression:
-    begin: (?=(?:then)\b)
+    begin: (?=(?:then)\b)|(?<=\bthen)({{WS}}*)
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
@@ -6739,8 +6780,10 @@ repository:
     # closing-delimiter alternatives because inline ternary lives
     # inside `{…}` / `(…)` / `[…]` and the bare `(?=$|{{WS}})` would
     # otherwise leave the scope to be force-closed by the outer
-    # interpolation / paren / index rule.
-    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;])
+    # interpolation / paren / index rule. The glued alternative closes the
+    # arm before the `then` or `do` of the statement whose condition it
+    # ends (see `LuauTernaryExpression`'s `end`).
+    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)
@@ -8588,12 +8631,40 @@ repository:
       6:
         patterns:
           - { include: "#LuauFunctionKeyword" }
+      7:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    # A type function is written as a function is: a header, then a body of
+    # statements that ends at its own `end`. The body runs only while types
+    # are checked, so the compiler emits nothing for the declaration.
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
-      - { include: "#LuauTypeFunctionParameters" }
-      - { include: "#LuauTypeName" }
-    end: (?={{BEAT}})|(?<=[\)\-{}\[\]"'])
+      - { include: "#LuauFunctionReturnType" }
+      - { include: "#LuauTypeFunctionName" }
+      - { include: "#LuauFunctionParameters" }
+      - { include: "#LuauFunctionBody" }
+      - { include: "#LuauBlockBody" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauTypeFunctionName:
+    match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    captures:
+      1:
+        tag: typeName
+        name: entity.name.type.luau
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauDataTypeDeclaration:
     # Positive lookahead `(?={{WS}}+{{LUAU_IDENTIFIER}})` requires
@@ -8661,13 +8732,22 @@ repository:
     tag: definitionKeyword
     name: storage.type.luau
 
+  # A type reference is `Name` or a module-qualified `Name.Name`, as in Luau,
+  # which also allows whitespace around the `.`.
   LuauTypeName:
-    match: ({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
+        patterns:
+          - { include: "#LuauVariableName" }
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+          - { include: "#LuauAccessorOperator" }
+      3:
         tag: typeName
         name: entity.name.type.luau
-      2:
+      4:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
@@ -8676,6 +8756,8 @@ repository:
     begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauTypeOptionalOperator" }
+      - { include: "#LuauTypeStrayOptionalOperator" }
       - { include: "#LuauTypeBinaryOperation" }
       - { include: "#LuauTypeTableStruct" }
       - { include: "#LuauString" }
@@ -8701,6 +8783,30 @@ repository:
     tag: standard(typeName)
     name: support.type.divert-target.sd
     match: ([-][>])
+
+  # The suffix ends the type it follows, so it matches only after the end
+  # of a type (a name, a closing bracket or quote, or another `?`). It
+  # takes in the whitespace after it only when a binary type operator
+  # follows on the same line (`number? | string`), so a line break or the
+  # next statement's first word is never read as part of the type.
+  LuauTypeOptionalOperator:
+    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
+    captures:
+      1:
+        tag: typeOperator
+        name: keyword.operator.type.luau
+      2:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # A `?` with no type before it (`|?`, `= ?`, `: ?number`), which Luau
+  # rejects. It is read as one token so the rest of the line still parses,
+  # and the validator reports it.
+  LuauTypeStrayOptionalOperator:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{LUAU_TYPE_OPTIONAL_OPERATOR}})
 
   LuauTypeBinaryOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}})
@@ -8780,8 +8886,10 @@ repository:
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?!$|{{WS}})
 
+  # `(?!{{LUAU_TYPE_QUALIFIER_DOT}})` leaves a module named like a primitive
+  # (`string.Button`) to LuauTypeName.
   LuauPrimitiveType:
-    match: ({{LUAU_PRIMITIVE_TYPES}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: ({{LUAU_PRIMITIVE_TYPES}})(?!{{LUAU_TYPE_QUALIFIER_DOT}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: standard(typeName)
@@ -8863,6 +8971,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeTableIndexer" }
+      - { include: "#LuauTypeTableElementAccessModifier" }
       - { include: "#LuauTypeTableProperty" }
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauTypeLiteral" }
@@ -8898,8 +9007,23 @@ repository:
         patterns:
           - { include: "#PunctuationBracketClose" }
 
+  # The access modifier of an array element whose type is a qualified name
+  # (`{ read types.Button }`). It comes before LuauTypeTableProperty, which
+  # would otherwise take the modifier itself as a property name.
+  LuauTypeTableElementAccessModifier:
+    match: ({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}+)(?={{LUAU_IDENTIFIER}}{{LUAU_TYPE_QUALIFIER_DOT}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauAccessModifier" }
+      2:
+        patterns:
+          - { include: "#Whitespace" }
+
   LuauTypeTableProperty:
-    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})
+    # `(?!{{LUAU_TYPE_QUALIFIER_DOT}})` leaves a qualified type name
+    # (`{ types.Button }`) to LuauTypeLiteral as an array element.
+    match: (?:({{LUAU_ACCESS_MODIFIERS}})\b({{WS}}*))?({{LUAU_IDENTIFIER}})(?!{{LUAU_TYPE_QUALIFIER_DOT}})
     captures:
       1:
         patterns:

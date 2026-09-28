@@ -6,8 +6,9 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
  * The scope path of the cursor position: the names of the enclosing scene and
  * branch, outermost first. This mirrors the scope keys that
  * `getDeclarationScopes` builds, which nest only scenes and branches;
- * functions, consts and vars are global there, so a function definition does
- * not contribute a path part here either.
+ * functions and stored variables are global there, and a Luau local or
+ * function parameter is scoped to its block, so a function definition does not
+ * contribute a path part here either.
  *
  * `Scene` and `Branch` are boundary-only nodes: each covers its declaration
  * line and its body follows as root-level siblings, closed by a root-level

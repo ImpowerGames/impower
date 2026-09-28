@@ -20,7 +20,10 @@ import { statementSource } from "./statementSource";
 //
 // Both checks are linear sibling walks over the parse tree, which
 // keeps them out of the parser and avoids wrapping potentially-large
-// regions in Scoped rules.
+// regions in Scoped rules. The language server's completion scope
+// (`getSectionEnd` in sparkdown-language-server's
+// `getDeclarationScopes.ts`) pairs sections with the same walks, except
+// that it treats a `Scene` inside an open section as that section's end.
 
 // Walks forward from `decl` over root-level siblings, tracking
 // scene/branch nesting depth (start at 1 — `decl` itself is the

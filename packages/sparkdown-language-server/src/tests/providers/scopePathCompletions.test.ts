@@ -7,11 +7,12 @@ import { getCompletions } from "../../utils/providers/getCompletions";
 import { getParentSectionPath } from "../../utils/syntax/getParentSectionPath";
 
 // The scope path a completion is resolved against is the enclosing scene and
-// branch, which is how getDeclarationScopes files parameters, labels and
-// branches. A function body inside a scene resolves to that scene's path, so
-// identifier completion there offers the function's own parameters and the
-// enclosing scene's branches, and not a parameter declared under another
-// scene. A function at the top of the file resolves to the global path.
+// branch, which is how getDeclarationScopes files scene and branch
+// parameters, labels and branches. A function body inside a scene resolves to
+// that scene's path, so identifier completion there offers the enclosing
+// scene's branches. A function's own parameters are scoped to its body, so a
+// parameter of a function under another scene is not offered. A function at
+// the top of the file resolves to the global path.
 
 const URI = "file:///scope.sd";
 
@@ -24,7 +25,7 @@ function setup(source: string) {
   documents.set({
     textDocument: { uri: URI, text: source, version: 1, languageId: "sparkdown" },
   });
-  const scriptAnnotations = new Map([[URI, { annotations: documents.annotations(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]);
+  const scriptAnnotations = new Map([[URI, { annotations: documents.annotations(URI), tree: documents.tree(URI), read: (from: number, to: number) => documents.get(URI)!.read(from, to) }]]);
   return { documents, scriptAnnotations };
 }
 
@@ -167,7 +168,7 @@ const atMarker = (marker: "|" | "@@" | "##" | "none") =>
 describe("provider · scope after a closed branch", () => {
   test("the scope map files a label after a branch's end under the scene", () => {
     const { scriptAnnotations } = setup(atMarker("none"));
-    const scopes = getDeclarationScopes(scriptAnnotations);
+    const scopes = getDeclarationScopes(scriptAnnotations, { uri: URI, offset: 0 });
     expect(scopes["A"]?.label).toEqual(["first", "after"]);
     expect(scopes["A.x"]?.label).toEqual(["inside"]);
   });
@@ -188,7 +189,7 @@ describe("provider · scope after a closed branch", () => {
   end
 end
 `);
-    expect(getDeclarationScopes(scriptAnnotations)["A"]?.label).toEqual([
+    expect(getDeclarationScopes(scriptAnnotations, { uri: URI, offset: 0 })["A"]?.label).toEqual([
       "later",
     ]);
     expect(
@@ -262,13 +263,14 @@ end
           uri,
           {
             annotations: documents.annotations(uri),
+            tree: documents.tree(uri),
             read: (from: number, to: number) =>
               documents.get(uri)!.read(from, to),
           },
         ];
       }),
     );
-    expect(getDeclarationScopes(scripts)[""]?.label).toEqual(["toplabel"]);
+    expect(getDeclarationScopes(scripts, { uri: "file:///next.sd", offset: 0 })[""]?.label).toEqual(["toplabel"]);
   });
 
   test("a scene left without its end is not reopened after a later scene closes", () => {

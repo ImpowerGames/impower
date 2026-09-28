@@ -2704,10 +2704,15 @@ export class SparkdownCompiler {
       metadata.filePath = uri;
     };
 
-    // A node's positioned name: its `identifier`, or the `variableIdentifier`
-    // an assignment names its target with.
+    // A node's positioned names: its `identifier`, the `variableIdentifier`
+    // an assignment names its target with, and the `unresolvedMember` a colon
+    // call's receiver reports its warning across.
     const ownIdentifiers = (c: ParsedObject): Identifier[] =>
-      [(c as any).identifier, (c as any).variableIdentifier].filter(
+      [
+        (c as any).identifier,
+        (c as any).variableIdentifier,
+        (c as any).unresolvedMember,
+      ].filter(
         (id): id is Identifier =>
           id instanceof Identifier && !!id.debugMetadata,
       );
@@ -3865,7 +3870,8 @@ export class SparkdownCompiler {
 
     // Every Identifier-bearing field in the ParsedHierarchy (from the class
     // declarations): the base `identifier`, Divert/VariableReference
-    // `pathIdentifiers`, VariableAssignment `variableIdentifier`,
+    // `pathIdentifiers`, VariableReference `unresolvedMember`,
+    // VariableAssignment `variableIdentifier`,
     // StructDefinition `modifier`/`type`/`name`, List `itemIdentifierList`.
     // Visiting these directly instead of sweeping `Object.keys(node)` per node
     // is what keeps this pass cheap (no per-node key-array allocation over the
@@ -3875,6 +3881,7 @@ export class SparkdownCompiler {
     const IDENTIFIER_FIELDS = [
       "identifier",
       "pathIdentifiers",
+      "unresolvedMember",
       "variableIdentifier",
       "modifier",
       "type",
