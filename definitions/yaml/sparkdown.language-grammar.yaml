@@ -193,7 +193,10 @@ variables:
   # End Of Keyword
   EOK: "(?:$|{{WS}}+|(?=[:]|{{TAG_START}}|{{COMMENT_START}}))"
 
-  BEAT: (?:{{WS}}*{{FLOW_BEAT_KEYWORDS}})
+  # A line that declares a scene or branch, matched as the declaration rules
+  # match it. Luau blocks end before it; a `scene` or `branch` later in a
+  # line is an ordinary name.
+  BEAT: (?:^{{WS}}*{{FLOW_BEAT_KEYWORDS}}{{EOK}})
   END: (?:{{WS}}*(?:end)\b)
   # Just after an operand that a keyword can follow with no space between
   # them: a closing bracket, a quote, a backtick, the vararg `...`, or the

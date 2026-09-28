@@ -1,0 +1,13 @@
+define settings with
+  t = { x = 1, scene = "", branch = "b", y = 2 }
+  z = 3
+end
+function enter(scene)
+  local branch = scene
+  go(scene, branch)
+end
+define after with
+  a = 1
+scene Start
+  Real content.
+end
