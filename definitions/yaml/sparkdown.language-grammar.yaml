@@ -5822,8 +5822,10 @@ repository:
     # is closed and at least one newline has passed. The lookbehind takes
     # the header's last character: the parameter list's `)` or the end of
     # a return type (`number`, `number?`, `{number}`, `Array<T>`, `"x"`).
-    # `\n` requires the body to start on a new line, so the `>` of
-    # `function f<T>`, which params follow on the same line, never opens it.
+    # `\n` requires the body to start on a new line. The `>` of
+    # `function f<T>` is also a type end; it stays out of the way only
+    # because params follow it on the same line. A parameter list moved to
+    # the next line is not supported with or without generics.
     begin: (?<={{LUAU_TYPE_END}}){{WS}}*\n
     patterns:
       - { include: "#LuauBlockBody" }

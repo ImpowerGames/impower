@@ -107,6 +107,8 @@ describe("the code after a type ending in `?` still runs", () => {
     ["a table return type", `Value {f()}.\nfunction f(): {number}\n  return 5\nend\n`],
     ["a generic return type", `Value {f()}.\nfunction f(): Array<number>\n  return 5\nend\n`],
     ["a string literal return type", `Value {f()}.\nfunction f(): "x"\n  return 5\nend\n`],
+    ["a single-quoted string literal return type", `Value {f()}.\nfunction f(): 'x'\n  return 5\nend\n`],
+    ["a parenthesized return type", `Value {f()}.\nfunction f(): (number)\n  return 5\nend\n`],
     ["a type alias", `Value {f()}.\nfunction f()\n  type T = number?\n  return 5\nend\n`],
   ])("after %s", (_name, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
