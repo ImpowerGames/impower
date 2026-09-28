@@ -119,6 +119,10 @@ assert(string:padstart(4, "-") == "--ab", "padstart got " .. tostring(string:pad
     expect(r.returnedOK).toBe(true);
   });
 
+  test("calling a stdlib constant reports nothing at compile time", () => {
+    expect(diagnoseWithLints("& print(math:pi())\n")).toEqual([]);
+  });
+
   test("a builtin method name on an unshadowed library names the member", () => {
     expect(diagnoseWithLints("& print(table:len())\n")).toEqual([
       "Cannot find item or path named `table.len`",

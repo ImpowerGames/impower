@@ -42,6 +42,7 @@ export class VariableReference extends Expression {
   // When set, an unresolved name reports the member path (`table.nogetn`)
   // across both names, as the dot form's path reference does.
   public unresolvedMember: Identifier | null = null;
+  private _memberSource: Identifier | null = null;
 
   get runtimeVarRef() {
     return this._runtimeVarRef;
@@ -225,9 +226,20 @@ export class VariableReference extends Expression {
 
     if (!context.ResolveVariableWithName(this.name, this).found) {
       if (this.unresolvedMember) {
+        const memberPath = `${this.name}.${this.unresolvedMember.name}`;
+        // `math:pi()`: the path exists, as for the dot form above.
+        if (lookupStdLibConstant(memberPath) !== undefined) {
+          return;
+        }
+        // One source per reference, so the warning dedups across resolves
+        // like the reference's other diagnostics.
+        this._memberSource ??= new Identifier(
+          this.identifier!,
+          this.unresolvedMember,
+        );
         this.Error(
-          `Cannot find item or path named \`${this.name}.${this.unresolvedMember.name}\``,
-          new Identifier(this.identifier!, this.unresolvedMember),
+          `Cannot find item or path named \`${memberPath}\``,
+          this._memberSource,
           true,
         );
         return;
