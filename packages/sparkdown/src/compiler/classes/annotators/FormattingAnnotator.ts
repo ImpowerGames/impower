@@ -134,6 +134,10 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
     sib = sib.prevSibling;
   }
 
+  // A line that continues the line before it (`LuauLineContinuation`) takes
+  // its LHS from that line: `x + y` then `+ z` → binary.
+  if (operation.parent?.name === "LuauLineContinuation_content") return false;
+
   // Shape 1: operation's preceding sibling at its parent level.
   // For `1 + 2` (LHS sits OUTSIDE the operation as a sibling), the
   // operation has `1` as prev sibling → binary.
