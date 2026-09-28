@@ -217,6 +217,18 @@ describe("a local named like a library", () => {
     ).toEqual(MISSING);
   });
 
+  test.each([
+    ["an if arm", "if true then", "end"],
+    ["a do block", "do", "end"],
+    ["a while body", "while false do", "end"],
+  ])("a variadic function written in a function after %s that declares it does not see it", (_, opener, closer) => {
+    expect(
+      diagnoseWithLints(
+        `function outer()\n    ${opener}\n        ${SHADOW}\n    ${closer}\n    function f(...)\n        return table.nogetn()\n    end\nend\n`,
+      ).filter((m) => !m.includes("never used")),
+    ).toEqual(MISSING);
+  });
+
   test("a define method follows the top level around the define", () => {
     const define =
       "define Penguin with\n  swim()\n    print(table.nogetn())\n  end\nend\n";

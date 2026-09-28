@@ -61,23 +61,26 @@ function functionValueSite(
 // found from the flow's source position. Null when the parent has no weave
 // or the flow no position.
 //
-// In the story, a flow is bounded by the first object of the weave, from the
-// same script, that starts after it, or by the object it followed when the
-// story split its content (`_definedAfter`), whichever comes first in a walk
-// of the weave that visits each object before what it holds. A function
-// written as a top-level statement joins the content after all of it and is
-// outside every top-level block, so the first object after it bounds it; a
-// function written inside a top-level `do` block keeps its place among the
-// block's objects, so the object it followed bounds it.
+// A flow is bounded by the first object of the parent's weave, from the same
+// script, that starts after it, or by the object it followed when the parent
+// split its content (`_definedAfter`), whichever comes first in a walk of the
+// weave that visits each object before what it holds. That is exact for the
+// story and for a scene, knot or stitch: a flow written as a statement of
+// their content joins it after all of it and is outside every block, so the
+// first object after it bounds it, and a flow written inside a top-level `do`
+// block keeps its place among the block's objects, so the object it followed
+// bounds it. It is exact too for a function nested in a function outside
+// every block of it (`_outsideBlocks`).
 //
-// In a function, a nested flow joins the content after all of it wherever it
-// is written, and neither a `do` block nor an `if` or loop statement shows
-// where it ends (a conditional's position covers only its first line), so
-// the flow is placed just after the last object that ends before it,
-// entering every conditional and every object that encloses its position. A
-// `local` in a block that closes just before the flow, with no statement
-// between, then still counts as in scope: the check misses that warning
-// rather than reporting one for a local that is in scope.
+// A function nested in a function inside a block of it also joins the
+// content after all of it, and a conditional's position covers only its
+// first line, so nothing shows whether the flow is in the conditional or
+// after it. Such a flow is placed just after the last object that ends
+// before it, entering every conditional and every object that encloses its
+// position. When the flow comes right after an `if` or loop statement that
+// declared the local, with no statement between, the local then counts as in
+// scope: the check misses that warning rather than reporting one for a local
+// that is in scope.
 function definitionSite(
   parentFlow: FlowBase,
   flow: FlowBase,
@@ -100,7 +103,7 @@ function definitionSite(
   const position = (obj: ParsedObject) =>
     obj.ownDebugMetadata ?? obj.identifier?.debugMetadata;
 
-  if (parentFlow !== parentFlow.story) {
+  if (parentFlow.isFunction && !flow._outsideBlocks) {
     let lastBefore = null as ParsedObject | null;
     let passed = false;
     const visit = (obj: ParsedObject) => {
@@ -246,6 +249,10 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   // as a top-level statement joins the content after all of it, so this is
   // the last object of the weave. See `definitionSite`.
   public _definedAfter: ParsedObject | null = null;
+  // Set by the lowering on a function nested in another function when it is
+  // written directly in that function's body, outside every block of it.
+  // See `definitionSite`.
+  public _outsideBlocks = false;
   public variableDeclarations: Map<string, VariableAssignment> = new Map();
 
   get hasParameters() {

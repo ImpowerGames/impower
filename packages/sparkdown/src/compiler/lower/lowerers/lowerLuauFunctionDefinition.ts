@@ -442,14 +442,32 @@ function lowerNestedAsSubFlow(
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
-  enclosingScope.push(
-    new Function(
-      knotIdentifier,
-      [...innerHoisted, ...body, ...nested],
-      [...upvalArgs, ...args],
-    ),
+  const fn = new Function(
+    knotIdentifier,
+    [...innerHoisted, ...body, ...nested],
+    [...upvalArgs, ...args],
   );
+  fn._outsideBlocks = isWrittenInFunctionBody(node);
+  enclosingScope.push(fn);
   return {};
+}
+
+const FUNCTION_BODY_CONTENT: ReadonlySet<string> = nodeNameSet([
+  "LuauFunctionBody_content",
+  "LuauFunctionDefinition_content",
+  "LuauMethodDefinition_content",
+]);
+
+// Whether a function definition is written directly in the body of the
+// function around it, outside every block of it: the nearest content node
+// above it is that function's body, not a block's.
+function isWrittenInFunctionBody(node: SyntaxNode): boolean {
+  for (let p = node.parent; p; p = p.parent) {
+    if (p.name.endsWith("_content")) {
+      return FUNCTION_BODY_CONTENT.has(p.name);
+    }
+  }
+  return false;
 }
 
 // `function a.f(p) BODY end` and `function a:m(p) BODY end` — the
