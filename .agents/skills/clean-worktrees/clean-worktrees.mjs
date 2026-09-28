@@ -18,7 +18,10 @@
 // and any other path outside the worktrees directory, the default branch
 // (main, and whatever origin/HEAD names) wherever it is checked out, a locked
 // worktree, one git no longer sees as a worktree or whose directory is gone,
-// a detached or unborn head, uncommitted changes, commits on neither
+// an unborn head, a detached head whose commit is not on origin/main, or one
+// with an operation in progress (a stopped rebase or bisect), commits only its
+// HEAD reflog reaches, or HEAD moved within the last day (a checkout a session
+// may be about to use), uncommitted changes, commits on neither
 // origin/main nor the branch's remote, commits on the remote that are not on
 // origin/main, a branch with no commit made on it (a fresh worktree a session
 // may be working in: its tip sits on origin/main's first-parent line, where a
@@ -47,11 +50,12 @@
 // points at, wherever that is; so before it runs, the walk that sizes the
 // tree reads every link in it and keeps the tree when one leads outside it,
 // the tree is re-verified (still clean, still on its branch, still no commits
-// of its own) and the directory is renamed and renamed back, which Windows
+// of its own; a detached tree still detached at the same commit, still on
+// origin/main, still with nothing in progress) and the directory is renamed and renamed back, which Windows
 // refuses while any process has a file open or its current directory inside
 // it. When git still stops part-way, the directory is no longer a worktree,
 // the rest of it goes directly, and a row says what is left and where. The
-// branch goes with -D after that re-verification, and an empty type directory
+// branch, when there is one, goes with -D after that re-verification, and an empty type directory
 // goes with it.
 //
 // After the worktrees, the web editor driver's directory for each worktree
@@ -232,7 +236,14 @@ export const liveDeps = {
   pidAlive,
   // The start time processIdentity records for a pid: null when it is gone,
   // and it throws when it cannot be read.
-  processStart: (pid) => processIdentity(pid)?.start ?? null,
+  // Each lookup spawns PowerShell on Windows, so a pid is asked about once.
+  processStart: (() => {
+    const seen = new Map();
+    return (pid) => {
+      if (!seen.has(pid)) seen.set(pid, processIdentity(pid)?.start ?? null);
+      return seen.get(pid);
+    };
+  })(),
   // Where the web editor driver keeps each checkout's session directories,
   // and the reads that judge them; both throw on any error, so an entry that
   // cannot be read is never taken for one that is not there.
@@ -327,6 +338,16 @@ export function usersOf(dir, processes, selfPid, platform = process.platform) {
 
 const listSome = (items, max) => (items.length > max ? `${items.slice(0, max).join(", ")} and ${items.length - max} more` : items.join(", "));
 
+// Why a detached head on origin/main still stays, from detachedHistory's facts.
+export function detachedKeeps(facts) {
+  const keep = [];
+  if (facts.inProgress?.length) keep.push(`an operation is in progress in it (${facts.inProgress.join(", ")}); finish or abort it first`);
+  if (facts.headLogUnknown) keep.push(`${facts.headLogUnknown}; left for a person`);
+  if (facts.headLogOrphans > 0) keep.push(`its HEAD reflog reaches ${n(facts.headLogOrphans, "commit")} not on origin/main, which removing it would leave unreferenced`);
+  if (facts.headIdleMs != null && facts.headIdleMs < DETACHED_IDLE_MS) keep.push(`its HEAD moved ${Math.max(0, Math.round(facts.headIdleMs / 60000))} min ago, within ${DETACHED_IDLE_MS / 3600000} hours; a fresh checkout a session may be working in, so remove it by hand when it is done`);
+  return keep;
+}
+
 // The decision for one worktree from the facts gathered about it. Every
 // reason to keep is listed, so a dirty tree on a merged branch says both. The
 // main checkout is the one path outside the worktrees directory that is
@@ -346,9 +367,8 @@ export function classify(entry, facts) {
   if ((entry.branch || facts.headOnMain) && !facts.isMain && !facts.isDefault && !entry.prunable && !facts.missing && !facts.unborn) {
     const remoteState = facts.remoteExists ? `${remote} exists` : `no ${remote}`;
     if (facts.dirty > 0) keep.push(`uncommitted changes (${n(facts.dirty, "file")})`);
-    if (!entry.branch) {
-      // Nothing to compare: the merge-base check already established the commit is on origin/main.
-    } else if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
+    if (!entry.branch) keep.push(...detachedKeeps(facts));
+    else if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
     else if (facts.ownCommits > 0) keep.push(`${n(facts.ownCommits, "commit")} not on origin/main (all on ${remote}; a pull request may be open)`);
     else if (facts.remoteAhead > 0) keep.push(`${remote} has ${n(facts.remoteAhead, "commit")} not on origin/main and this branch is behind it; a pull request may be open`);
     else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
@@ -493,6 +513,51 @@ export function readReflog(text) {
   };
 }
 
+// A detached head has no branch to say what was done in the tree, so the
+// worktree's own git directory and HEAD reflog do: an operation left in
+// progress (a stopped rebase or bisect detaches HEAD at a clean commit),
+// commits made and then left behind by checking out another commit, which the
+// reflog alone still reaches, and when HEAD last moved, since a checkout made
+// moments ago is one a session may be about to use. Any answer git does not
+// give keeps the tree.
+export const DETACHED_IDLE_MS = 24 * 60 * 60 * 1000;
+const IN_PROGRESS = ["rebase-merge", "rebase-apply", "BISECT_LOG", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"];
+const MAX_HEAD_LOG = 200;
+
+export function detachedHistory(abs, ctx, deps) {
+  const facts = { inProgress: [], headLogUnknown: null, headLogOrphans: 0, headIdleMs: null };
+  for (const name of IN_PROGRESS) {
+    const r = deps.exec("git", ["rev-parse", "--git-path", name], abs);
+    if (r.status !== 0 || !r.out) {
+      facts.headLogUnknown = `git could not locate its ${name} state (${r.err || r.out || `exit ${r.status}`})`;
+      return facts;
+    }
+    if (deps.exists(path.resolve(abs, r.out))) facts.inProgress.push(name);
+  }
+  // %gd under --date=unix reads HEAD@{<when the entry was written>}; %ct would
+  // be the commit's own date, which says nothing about when HEAD moved.
+  const log = deps.exec("git", ["reflog", "show", "--date=unix", "--format=%H%x09%gd", "HEAD"], abs);
+  if (log.status !== 0) {
+    facts.headLogUnknown = `its HEAD reflog could not be read (${log.err || log.out || `exit ${log.status}`})`;
+    return facts;
+  }
+  const rows = log.out.split(/\r?\n/).filter(Boolean).map((l) => {
+    const [hash, sel] = l.split("\t");
+    return [hash, /@\{(\d+)\}$/.exec(sel ?? "")?.[1]];
+  });
+  const hashes = [...new Set(rows.map((r) => r[0]))];
+  const newest = Math.max(...rows.map((r) => Number(r[1])));
+  if (!rows.length || !Number.isFinite(newest) || hashes.length > MAX_HEAD_LOG) {
+    facts.headLogUnknown = rows.length ? "its HEAD reflog is too long or unreadable to check" : "its HEAD reflog is empty, so when it was last used cannot be told";
+    return facts;
+  }
+  facts.headIdleMs = Date.parse(deps.now()) - newest * 1000;
+  const behind = deps.exec("git", ["rev-list", "--count", ...hashes, "^refs/remotes/origin/main"], ctx.mainRoot);
+  if (behind.status !== 0) facts.headLogUnknown = `whether its HEAD reflog holds commits off origin/main could not be read (${behind.err || behind.out})`;
+  else facts.headLogOrphans = Number(behind.out);
+  return facts;
+}
+
 function gatherFacts(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const facts = {
@@ -522,6 +587,7 @@ function gatherFacts(entry, ctx, deps) {
   if (entry.detached) {
     facts.headOnMain = deps.exec("git", ["merge-base", "--is-ancestor", entry.head, "refs/remotes/origin/main"], ctx.mainRoot).status === 0;
     if (!facts.headOnMain) return facts;
+    Object.assign(facts, detachedHistory(abs, ctx, deps));
     Object.assign(facts, statusOf(abs, deps));
     facts.servers = probeServers(abs, deps);
     facts.users = ctx.processes.ok ? usersOf(abs, ctx.processes.list, deps.pid()) : null;
@@ -679,6 +745,8 @@ async function removeWorktree(entry, ctx, deps) {
     if (tip.status !== 0 || tip.out !== entry.head) return kept(`changed since it was classified: HEAD is ${tip.status === 0 ? tip.out : tip.err || tip.out}; the tree is untouched`);
     const onMain = deps.exec("git", ["merge-base", "--is-ancestor", tip.out, "refs/remotes/origin/main"], ctx.mainRoot);
     if (onMain.status !== 0) return kept("changed since it was classified: its commit is not on origin/main; the tree is untouched");
+    const why = detachedKeeps(detachedHistory(abs, ctx, deps));
+    if (why.length) return kept(`changed since it was classified: ${why.join("; ")}; the tree is untouched`);
   } else {
     if (head.status !== 0 || head.out !== ref) return kept(`changed since it was classified: ${head.status === 0 && head.out ? `now on ${head.out.replace(/^refs\/heads\//, "")}` : "detached head"}; the tree is untouched`);
     const own = deps.exec("git", ["rev-list", "--count", ref, "^refs/remotes/origin/main"], ctx.mainRoot);
@@ -945,19 +1013,14 @@ export function jobJournals(dir) {
   return { journals, unreadable };
 }
 
-// Every process id a journal records: a row's own `pid`, and the `pid` of any
-// identity object it holds (processIdentity, childIdentity, identity). Null
-// when a line is not JSON, since what that line recorded cannot be told; a
-// launcher appends whole lines, so a torn last line is treated the same way.
-export function journalPids(text) {
-  const found = journalProcesses(text);
-  return found === null ? null : [...found.keys()];
-}
-
-// The same walk keyed by pid, each with the process start times the journal
-// recorded for it (an identity object's `start`, which processIdentity writes
-// beside every coordinator and child pid). A pid with no recorded start maps
-// to an empty set and is judged by its number alone.
+// Every process a journal records, keyed by pid: a row's own `pid`, and the
+// `pid` of any identity object it holds (processIdentity, childIdentity,
+// identity), each with the process start times the journal recorded for it
+// (an identity object's `start`, which processIdentity writes beside every
+// coordinator and child pid). A pid with no recorded start maps to an empty
+// set and is judged by its number alone. Null when a line is not JSON, since
+// what that line recorded cannot be told; a launcher appends whole lines, so
+// a torn last line is treated the same way.
 export function journalProcesses(text) {
   const procs = new Map();
   const visit = (value) => {
@@ -1415,7 +1478,10 @@ export async function main(argv, deps = liveDeps) {
   } else {
     const removed = removable.filter((r) => r.decision === "removed").length;
     const free = deps.freeSpace(mainRoot);
-    summary = `Removed ${n(removed, "worktree")} and ${removed === 1 ? "its branch" : "their branches"}, freeing ${formatBytes(freed)}; ${n(removable.length - removed - failed + kept, "worktree")} kept${failed ? `; ${failed} failed (see the rows above for what is left)` : ""}${strayNote}${scanNote}.${free != null ? ` Free space now ${formatBytes(free)}.` : ""}`;
+    const detached = removable.filter((r) => r.decision === "removed" && r.entry.detached).length;
+    const withBranch = removed - detached;
+    const branches = detached === 0 ? (removed === 1 ? " and its branch" : " and their branches") : withBranch > 0 ? ` and ${n(withBranch, "branch", "branches")} (${n(detached, "detached worktree")} had none)` : " (detached, so no branch)";
+    summary = `Removed ${n(removed, "worktree")}${branches}, freeing ${formatBytes(freed)}; ${n(removable.length - removed - failed + kept, "worktree")} kept${failed ? `; ${failed} failed (see the rows above for what is left)` : ""}${strayNote}${scanNote}.${free != null ? ` Free space now ${formatBytes(free)}.` : ""}`;
     log(summary);
     record({ summary });
   }

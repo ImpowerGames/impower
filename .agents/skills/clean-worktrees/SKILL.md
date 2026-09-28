@@ -16,7 +16,7 @@ The dry run fetches origin with prune and prints remove/keep reasons and sizes. 
 
 ## Eligibility and preservation
 
-Only clean, idle worktrees whose branch and remote commits are on origin/main qualify. A detached worktree qualifies when its commit is an ancestor of origin/main and it passes the same clean, idle and link checks. Preserve uncommitted/untracked work, unmerged/unpushed commits, fresh branches, uncertain process state, external symlink/junction targets and unreadable directories. Main/default branches and paths outside the managed worktree root stay.
+Only clean, idle worktrees whose branch and remote commits are on origin/main qualify. A detached worktree qualifies when its commit is an ancestor of origin/main and it passes the same clean, idle and link checks, nothing is in progress in it (rebase, bisect, merge), its HEAD reflog reaches no commit off origin/main, and HEAD last moved over 24 hours ago. Preserve uncommitted/untracked work, unmerged/unpushed commits, fresh branches, uncertain process state, external symlink/junction targets and unreadable directories. Main/default branches and paths outside the managed worktree root stay.
 
 Before interpreting a keep/refusal, manually reconciling a link, or recovering interrupted/partial removal, read [classification and recovery](references/classification.md). Never bypass refusal with recursive deletion or remove a junction using a trailing separator. A failed removal is a recovery task; preserve its log and remaining branch/data.
 
