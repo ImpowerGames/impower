@@ -352,6 +352,30 @@ end
     expect(errors).toEqual([]);
     expect(recorded).toEqual(["A", "B", "a", "none"]);
   });
+
+  test("an else arm ending in a regex literal glued to the enclosing then", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local c = false
+local r = "none"
+if if c then false else @/x/then
+  r = "a"
+end
+host_record(r)
+if if c then false else @/x/githen
+  r = "b"
+end
+host_record(r)
+local v = if if c then false else @/x/then "A" else "B"
+host_record(v)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["a", "b", "A"]);
+  });
 });
 
 describe("clause-less if in display text", () => {

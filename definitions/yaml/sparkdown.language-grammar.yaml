@@ -196,9 +196,11 @@ variables:
   BEAT: (?:{{WS}}*{{FLOW_BEAT_KEYWORDS}})
   END: (?:{{WS}}*(?:end)\b)
   # Just after an operand that a keyword can follow with no space between
-  # them: a closing bracket, a quote, a backtick or the vararg `...`
-  # (`else (x)then`, `else ...then`).
-  AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.)
+  # them: a closing bracket, a quote, a backtick, the vararg `...`, or the
+  # closing `/` and flags of a regex literal (`else (x)then`, `else ...then`,
+  # `else @/x/gthen`). The flags are bounded so the lookbehind stays one
+  # Oniguruma accepts.
+  AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])

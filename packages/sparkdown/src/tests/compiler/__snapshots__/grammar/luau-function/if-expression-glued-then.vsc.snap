@@ -1,4 +1,4 @@
-text.source.sparkdown [0..505]
+text.source.sparkdown [0..598]
  ├─ meta.function.luau [0..16]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -310,6 +310,68 @@ text.source.sparkdown [0..505]
  │           ├─ markup.raw.text.sd [498..499]: "c"
  │           └─ punctuation.definition.string.double.end.sd [499..500]: "\""
  ├─ Newline [500..501]: "\n"
- ├─ meta.function.luau [501..504]
- │   └─ keyword.control.end.luau [501..504]: "end"
- └─ Newline [504..505]: "\n"
+ ├─ meta.function.luau [501..535]
+ │   └─ meta.function.body.luau [501..535]
+ │       ├─ punctuation.whitespace.optional.sd [501..503]: "  "
+ │       ├─ keyword.control.if.luau [503..505]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [505..506]: " "
+ │       ├─ keyword.control.if.luau [506..508]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [508..509]: " "
+ │       ├─ variable.other.readwrite.luau [509..510]: "c"
+ │       ├─ punctuation.whitespace.extra.sd [510..511]: " "
+ │       ├─ keyword.control.then.luau [511..515]: "then"
+ │       ├─ punctuation.whitespace.optional.sd [515..516]: " "
+ │       ├─ constant.language.boolean.luau [516..521]: "false"
+ │       ├─ punctuation.whitespace.extra.sd [521..522]: " "
+ │       ├─ keyword.control.else.luau [522..526]: "else"
+ │       ├─ punctuation.whitespace.optional.sd [526..527]: " "
+ │       ├─ string.regexp.sd [527..531]
+ │       │   ├─ punctuation.definition.string.begin.sd [527..528]: "@"
+ │       │   ├─ punctuation.definition.string.begin.sd [528..529]: "/"
+ │       │   ├─ string.regexp.sd [529..530]
+ │       │   │   └─ string.regexp.sd [529..530]: "x"
+ │       │   └─ punctuation.definition.string.end.sd [530..531]: "/"
+ │       └─ keyword.control.then.luau [531..535]: "then"
+ ├─ Newline [535..536]: "\n"
+ ├─ meta.function.luau [536..587]
+ │   └─ meta.function.body.luau [536..587]
+ │       ├─ punctuation.whitespace.optional.sd [536..540]: "    "
+ │       ├─ variable.other.readwrite.luau [540..541]: "s"
+ │       ├─ punctuation.whitespace.optional.sd [541..542]: " "
+ │       ├─ keyword.operator.assignment.luau [542..543]: "="
+ │       ├─ punctuation.whitespace.optional.sd [543..544]: " "
+ │       ├─ keyword.control.if.luau [544..546]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [546..547]: " "
+ │       ├─ keyword.control.if.luau [547..549]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [549..550]: " "
+ │       ├─ variable.other.readwrite.luau [550..551]: "c"
+ │       ├─ punctuation.whitespace.extra.sd [551..552]: " "
+ │       ├─ keyword.control.then.luau [552..556]: "then"
+ │       ├─ punctuation.whitespace.optional.sd [556..557]: " "
+ │       ├─ constant.language.boolean.luau [557..562]: "false"
+ │       ├─ punctuation.whitespace.extra.sd [562..563]: " "
+ │       ├─ keyword.control.else.luau [563..567]: "else"
+ │       ├─ punctuation.whitespace.optional.sd [567..568]: " "
+ │       ├─ string.regexp.sd [568..574]
+ │       │   ├─ punctuation.definition.string.begin.sd [568..569]: "@"
+ │       │   ├─ punctuation.definition.string.begin.sd [569..570]: "/"
+ │       │   ├─ string.regexp.sd [570..571]
+ │       │   │   └─ string.regexp.sd [570..571]: "x"
+ │       │   ├─ punctuation.definition.string.end.sd [571..572]: "/"
+ │       │   └─ keyword.other.regexp.flags.sd [572..574]: "gi"
+ │       ├─ keyword.control.then.luau [574..578]: "then"
+ │       ├─ punctuation.whitespace.extra.sd [578..579]: " "
+ │       ├─ constant.numeric.decimal.luau [579..580]: "1"
+ │       ├─ punctuation.whitespace.extra.sd [580..581]: " "
+ │       ├─ keyword.control.else.luau [581..585]: "else"
+ │       ├─ punctuation.whitespace.optional.sd [585..586]: " "
+ │       └─ constant.numeric.decimal.luau [586..587]: "2"
+ ├─ Newline [587..588]: "\n"
+ ├─ meta.function.luau [588..593]
+ │   └─ meta.function.body.luau [588..593]
+ │       ├─ punctuation.whitespace.optional.sd [588..590]: "  "
+ │       └─ keyword.control.end.luau [590..593]: "end"
+ ├─ Newline [593..594]: "\n"
+ ├─ meta.function.luau [594..597]
+ │   └─ keyword.control.end.luau [594..597]: "end"
+ └─ Newline [597..598]: "\n"

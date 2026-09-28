@@ -19,4 +19,7 @@ function g(c, ...)
     return if if c then false else ...then 1 else 2
   end
   local s = if c then`a`elseif ...then'b' else "c"
+  if if c then false else @/x/then
+    s = if if c then false else @/x/githen 1 else 2
+  end
 end
