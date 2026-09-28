@@ -20,6 +20,85 @@ import { ClosestFlowBase } from "./ClosestFlowBase";
 import { Identifier } from "../Identifier";
 import { asOrNull } from "../../../../engine/TypeAssertion";
 import { DebugMetadata } from "../../../../engine/DebugMetadata";
+import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
+import { Wrap } from "../Wrap";
+import { Conditional } from "../Conditional/Conditional";
+
+// Every `local` named `varName` declared at the top level of `story`, in any
+// top-level block, outside every function.
+function topLevelLocals(
+  story: ParsedObject,
+  varName: string,
+): VariableAssignment[] {
+  const found: VariableAssignment[] = [];
+  const visit = (obj: ParsedObject) => {
+    for (const child of obj.content) {
+      if (child instanceof FlowBase) {
+        continue;
+      }
+      if (
+        child instanceof VariableAssignment &&
+        child.isNewTemporaryDeclaration &&
+        child.variableName === varName
+      ) {
+        found.push(child);
+      }
+      visit(child);
+    }
+  };
+  visit(story);
+  return found;
+}
+
+// Whether `content[0..end)` declares a `local` named `varName` that is still
+// in scope at `end`. The objects are scanned backwards, and everything
+// between an `EndScope` and its `BeginScope` is skipped: that block closed
+// before `end`. A conditional is skipped too, since every branch of one is a
+// block (an `if` arm or a loop body, which a `while` loop does not wrap in
+// scope commands). Other objects are searched the same way, since a
+// declaration can sit inside an object that opens no block, such as a
+// multiple assignment or the label gather of a `repeat` body. A function is
+// a flow of its own and is never searched.
+function declaresLocal(
+  content: ParsedObject[],
+  end: number,
+  varName: string,
+): boolean {
+  let closedScopes = 0;
+  for (let i = end - 1; i >= 0; i--) {
+    const obj = content[i]!;
+    if (obj instanceof Wrap) {
+      const command = asOrNull(
+        obj.GenerateRuntimeObject(),
+        RuntimeControlCommand,
+      )?.commandType;
+      if (command === RuntimeControlCommand.CommandType.EndScope) {
+        closedScopes++;
+      } else if (
+        command === RuntimeControlCommand.CommandType.BeginScope &&
+        closedScopes > 0
+      ) {
+        closedScopes--;
+      }
+    } else if (
+      closedScopes === 0 &&
+      !(obj instanceof FlowBase) &&
+      !(obj instanceof Conditional)
+    ) {
+      if (
+        obj instanceof VariableAssignment &&
+        obj.isNewTemporaryDeclaration &&
+        obj.variableName === varName
+      ) {
+        return true;
+      }
+      if (declaresLocal(obj.content, obj.content.length, varName)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 type VariableResolveResult = {
   found: boolean;
@@ -192,6 +271,68 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     result.found = false;
 
     return result;
+  };
+
+  // Whether `fromNode` reads the variable `varName` rather than whatever the
+  // name means where no variable is in scope (a library such as `table`).
+  // `ResolveVariableWithName` finds a `local` anywhere in its flow; this
+  // also requires the reference to be in its scope. A parameter, captured
+  // upvalue or global is in scope everywhere in its flow. A `local` is in
+  // scope after its declaration, in the block that declares it and the
+  // blocks nested in it: in or under an earlier sibling of the reference or
+  // of one of its ancestors in the same flow, outside any block that closes
+  // before the reference (see `declaresLocal`). Every function is its own story-level
+  // flow, so a top-level `local` is in scope in a function when it is
+  // declared before the function, whatever top-level block it is in.
+  public IsLocalInScope = (
+    varName: string,
+    fromNode: ParsedObject,
+  ): boolean => {
+    const storyDecl = this.story.variableDeclarations.get(varName);
+    if (storyDecl && !storyDecl.isNewTemporaryDeclaration) {
+      return true;
+    }
+
+    let child = fromNode;
+    let parent = fromNode.parent;
+    while (parent && !(parent instanceof FlowBase)) {
+      const end = parent.content.indexOf(child);
+      if (declaresLocal(parent.content, end, varName)) {
+        return true;
+      }
+      child = parent;
+      parent = parent.parent;
+    }
+
+    const flow = parent as FlowBase | null;
+    if (!flow || flow === this.story) {
+      return false;
+    }
+    if (flow.args?.some((arg) => arg.identifier?.name === varName)) {
+      return true;
+    }
+    if (!storyDecl) {
+      return false;
+    }
+    const flowStart = flow.ownDebugMetadata ?? flow.identifier?.debugMetadata;
+    return topLevelLocals(this.story, varName).some((decl) => {
+      const declStart =
+        decl.ownDebugMetadata ??
+        decl.identifier?.debugMetadata ??
+        decl.expression?.ownDebugMetadata;
+      if (
+        !flowStart ||
+        !declStart ||
+        declStart.fileName !== flowStart.fileName
+      ) {
+        return true;
+      }
+      return (
+        declStart.startLineNumber < flowStart.startLineNumber ||
+        (declStart.startLineNumber === flowStart.startLineNumber &&
+          declStart.startCharacterNumber < flowStart.startCharacterNumber)
+      );
+    });
   };
 
   public AddNewVariableDeclaration = (varDecl: VariableAssignment): void => {
