@@ -11,6 +11,7 @@ import {
   pathLocation,
 } from "@impower/sparkdown/src/compiler/utils/pathLocationTable";
 import { resolveCompiledProgram } from "@impower/sparkdown/src/binary/programBinary";
+import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import {
   buildRouteSimulator,
   lastSearchStats,
@@ -428,6 +429,10 @@ export class Game<T extends M = {}> {
     return this._checkpoints;
   }
 
+  // Whether a program that carries statement chunks runs on the program
+  // engine (`GameConfiguration.programChunks`).
+  protected _programChunks = false;
+
   constructor(
     options: { program: SparkProgram; story?: Story } & GameConfiguration &
       SystemConfiguration & {
@@ -436,6 +441,7 @@ export class Game<T extends M = {}> {
         };
       },
   ) {
+    this._programChunks = options.programChunks ?? false;
     this._program = this.updateProgram(options.program, options.story);
 
     // Create connection for sending and receiving messages
@@ -576,17 +582,32 @@ export class Game<T extends M = {}> {
     // program.
     this.cancelPreview();
     this._program = program;
+    const chunks =
+      this._programChunks && !program.fallback ? program.chunks : undefined;
     // Resolved ONCE: with the binary path (#314) this materializes the buffer,
     // so testing it repeatedly would re-walk the whole program.
-    const compiled = story ? undefined : resolveCompiledProgram(program);
-    if (!story && !compiled) {
+    const compiled =
+      story || chunks ? undefined : resolveCompiledProgram(program);
+    if (!story && !compiled && !chunks) {
       throw new Error(
         "Program must be successfully compiled before it can be run",
       );
     }
     this._scripts = Object.keys(this._program.scripts);
 
-    if (story) {
+    if (chunks) {
+      // The program engine presents the members of `Story` this game reads
+      // on the paths it runs (see `ProgramStory`).
+      this._story = new ProgramStory(chunks, {
+        locate: (path) => {
+          const location = pathLocation(this._program.pathLocations, path);
+          const uri = location ? this._scripts[location[0]] : undefined;
+          return location && uri
+            ? { uri, line: location[1], column: location[2] }
+            : undefined;
+        },
+      }) as unknown as Story;
+    } else if (story) {
       this._story = story;
     } else if (compiled) {
       this._story = new Story(compiled);

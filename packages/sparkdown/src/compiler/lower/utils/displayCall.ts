@@ -20,7 +20,11 @@ import { stampDebugMetadata } from "./debugMetadata";
 // incremental compiler keeps the lowered calls of a line that did not change,
 // even when an edit above it moved the line, so only a name that does not
 // depend on the offset is the same in an incremental and a cold compile.
-export class ContinuationGroup extends Text {}
+export class ContinuationGroup extends Text {
+  override get isCompilerNamed(): boolean {
+    return true;
+  }
+}
 
 // `display({ target?, character?, text, pause?, extend?, glue?, inherit?, group?, continues? })` with
 // `shouldPopReturnedValue` — a synthesized bare-call statement (no author `&`

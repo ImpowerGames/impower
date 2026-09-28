@@ -1,7 +1,35 @@
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
 
+/**
+ * Something a statement's lowering read from outside the statement's own
+ * syntax, with the answer it got. `CompilationAnnotator` keeps the reads of
+ * each chunk it lowers and lowers the chunk again when the document answers
+ * one of them differently; the chunk store reuses a statement chunk only
+ * while its statement's reads are the ones the chunk was emitted for.
+ *
+ * `routing` is the routing of the display line a glued continuation (a line
+ * that begins with `..`) continues, which the continuation's beats after a
+ * `>` break take (`lexicalRouting` in `lowerDisplay.ts`). The node that read
+ * it is named with the read, since a continuation can stand inside a block
+ * statement below the chunk's top-level node, and the question is its own.
+ */
+export interface LoweringRead {
+  kind: "routing";
+  value: string;
+  /** The name of the node that read it. */
+  node: string;
+  /** Where that node starts in the document. */
+  from: number;
+}
+
 export interface LowerContext {
+  /**
+   * Records a read of something outside the statement being lowered (see
+   * {@link LoweringRead}). Absent for callers that keep nothing across
+   * compiles.
+   */
+  recordRead?: (read: LoweringRead) => void;
   read: (from: number, to: number) => string;
   /**
    * Returns the **chunk-relative** 0-based line number for an absolute byte

@@ -1,3 +1,4 @@
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import { Container as RuntimeContainer } from "../../../engine/Container";
 import { DebugMetadata } from "../../../engine/DebugMetadata";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
@@ -26,6 +27,14 @@ const emptyCollectSubtrees = new WeakMap<
 
 export abstract class ParsedObject {
   public abstract readonly GenerateRuntimeObject: () => RuntimeObject | null;
+
+  /** Writes this object's code into the statement chunk being emitted
+   *  (docs/engine/binary-program.md, section 3). A class the binary program
+   *  does not cover yet keeps this one, which stops the emission and names
+   *  the class, so the compile falls back to the current engine. */
+  public EmitProgram(emitter: ProgramEmitter): void {
+    emitter.unsupported(this.typeName);
+  }
 
   public identifier: Identifier | null = null;
 

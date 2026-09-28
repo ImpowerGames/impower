@@ -4,6 +4,8 @@ import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
 import { Text } from "../Text";
 import { StringExpression } from "./StringExpression";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 // An entry in an ObjectExpression. The `key` is either a plain string
 // (identifier keys, static bracket keys, array positions) or an
@@ -88,6 +90,22 @@ export class ObjectExpression extends Expression {
     }
     container.AddContent(RuntimeControlCommand.EndObject());
   };
+
+  // Each key, then its value, then `MakeTable` with the pair count, which
+  // builds the table as `EndObject` does. A computed key is not emitted yet.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (this.outputWhenComplete) {
+      emitter.unsupported("output of an expression");
+    }
+    for (const entry of this._entries) {
+      if (entry.key instanceof Expression) {
+        emitter.unsupported("computed table key");
+      }
+      emitter.emit(Op.Str, emitter.string(entry.key));
+      entry.value.EmitProgram(emitter);
+    }
+    emitter.emit(Op.MakeTable, this._entries.length);
+  }
 
   public override readonly toString = (): string => {
     if (this._entries.length === 0) return "{}";

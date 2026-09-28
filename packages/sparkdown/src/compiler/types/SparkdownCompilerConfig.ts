@@ -60,6 +60,18 @@ export interface SparkdownCompilerConfig {
    * off, since then nothing is emitted in either form.
    */
   binaryProgram?: boolean;
+  /**
+   * Compile the program to statement chunks (#692, docs/engine/binary-program.md)
+   * as well as to the runtime story, and hand a game the chunks when every
+   * statement has an emit path.
+   *
+   * Off by default, with no editor setting. With it on, a compile fills the
+   * compiler's chunk store and `program.chunks` refers to the root it built,
+   * and `program.compiled` is not emitted. A program that holds any construct
+   * the writer does not emit falls back as a whole: `program.fallback` names
+   * the construct, and the program is emitted as it is with the field off.
+   */
+  programChunks?: boolean;
   workspace?: string;
   startFrom?: { file: string; line: number };
   simulationOptions?: Record<

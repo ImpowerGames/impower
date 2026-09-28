@@ -8,12 +8,14 @@
 // explicit import preserves the load order in its place.
 import "../../../inkjs/engine/Container";
 import { Range } from "@codemirror/state";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
-import type { SiblingSubFlowInfo } from "../../lower/context";
+import type { LoweringRead, SiblingSubFlowInfo } from "../../lower/context";
 import { lower } from "../../lower/lower";
+import { continuationRoutingRead } from "../../lower/lowerers/lowerDisplay";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -62,6 +64,24 @@ export interface CompiledBlock {
   // The same record for the document's define type names, which decide the
   // shadow warning a `store` or `const` of a type's name raises.
   defineTypeReads?: Map<string, boolean>;
+  // The name of the syntax node the block was lowered from. With the node's
+  // text, it is what a statement chunk compares when the reparse window
+  // lowers an unchanged statement again (`ChunkStore`).
+  node?: string;
+  // The other reads of the chunk's lowering outside its own syntax, with the
+  // answers they got (`LoweringRead`). The chunk is lowered again when the
+  // document answers one differently (see `staleRanges`).
+  reads?: RecordedRead[];
+}
+
+// A lowering read as its chunk keeps it: the node that read it by name and by
+// its start relative to the chunk's start, which stays true while the chunk
+// is carried across edits above it.
+export interface RecordedRead {
+  kind: LoweringRead["kind"];
+  value: string;
+  node: string;
+  at: number;
 }
 
 export interface CompilationConfig {
@@ -72,6 +92,10 @@ export interface CompilationConfig {
       };
     };
   };
+  // Whether a chunk's lowering keeps the reads it makes outside its own
+  // syntax (`CompiledBlock.reads`), which only the binary program's chunk
+  // store needs (`SparkdownCompilerConfig.programChunks`).
+  recordLoweringReads?: boolean;
 }
 
 function sameNames(
@@ -104,6 +128,22 @@ function readsDisagree(
     }
   }
   return false;
+}
+
+// The node named `name` that starts at `pos`, or null.
+function nodeStartingAt(
+  tree: Tree,
+  pos: number,
+  name: string,
+): SyntaxNode | null {
+  let node: SyntaxNode | null = tree.resolveInner(pos, 1);
+  while (node && node.from === pos) {
+    if (node.name === name) {
+      return node;
+    }
+    node = node.parent;
+  }
+  return null;
 }
 
 export class CompilationAnnotator extends SparkdownAnnotator<
@@ -194,23 +234,53 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       this._checkedDefineTypeNames,
       typeNames,
     );
-    if (!callableNamesChanged && !typeNamesChanged) {
+    // Any edit can change the line a continuation continues, so a document
+    // whose chunks hold a `routing` read checks those reads on every update.
+    if (!callableNamesChanged && !typeNamesChanged && !this._hasReads) {
       return [];
     }
     const stale: { from: number; to: number }[] = [];
+    let hasReads = false;
     const iter = this.current.iter();
     while (iter.value) {
       const block = iter.value.type;
+      hasReads ||= block.reads !== undefined;
       if (
         (callableNamesChanged &&
           readsDisagree(block.globalCallableReads, callableNames)) ||
-        (typeNamesChanged && readsDisagree(block.defineTypeReads, typeNames))
+        (typeNamesChanged && readsDisagree(block.defineTypeReads, typeNames)) ||
+        (block.reads && this.loweringReadsDisagree(block.reads, iter.from))
       ) {
         stale.push({ from: iter.from, to: iter.to });
       }
       iter.next();
     }
+    this._hasReads = hasReads;
     return stale;
+  }
+
+  // Whether a chunk of the document may hold a `LoweringRead`: set when one is
+  // lowered with reads, and cleared by a walk that finds none.
+  private _hasReads = false;
+
+  /** Whether the document answers a read of the chunk that starts at `from`
+   *  differently from the answer its lowering got, asking the node that read
+   *  it. A node no longer found where the read says it starts disagrees. */
+  private loweringReadsDisagree(reads: RecordedRead[], from: number): boolean {
+    const text = this.text;
+    const tree = this.tree;
+    if (!text || !tree) {
+      return true;
+    }
+    const ctx = {
+      read: (a: number, b: number) => this.read(a, b),
+      lineNumber: (pos: number) => text.lineAt(pos).number - 1,
+      characterNumber: (pos: number) => pos - text.lineAt(pos).from,
+    };
+    return reads.some((read) => {
+      const node = nodeStartingAt(tree, from + read.at, read.node);
+      return !node || continuationRoutingRead(node, ctx) !== read.value;
+    });
   }
 
   /**
@@ -351,7 +421,18 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       const globalCallableReads = new Map<string, boolean>();
       const typeNames = this.computeDefineTypeNames();
       const defineTypeReads = new Map<string, boolean>();
+      const reads: RecordedRead[] = [];
       const lowered = lower(nodeRef, {
+        recordRead: this.config?.recordLoweringReads
+          ? (read: LoweringRead) => {
+              reads.push({
+                kind: read.kind,
+                value: read.value,
+                node: read.node,
+                at: read.from - nodeRef.from,
+              });
+            }
+          : undefined,
         // The document being lowered. Absent here until now, which made
         // `ctx.filePath` undefined on the PRODUCTION path — so anything
         // deriving identity from it silently fell back to nothing. Binding
@@ -398,6 +479,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       if (lowered && defineTypeReads.size > 0) {
         lowered.defineTypeReads = defineTypeReads;
       }
+      if (lowered && reads.length > 0) {
+        lowered.reads = reads;
+        this._hasReads = true;
+      }
       if (lowered && chunkDiagnostics.length > 0) {
         // Merge any deep-nested-lowerer diagnostics with whatever
         // diagnostics the chunk-level lowerer attached directly.
@@ -407,6 +492,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         ];
       }
       if (lowered !== undefined) {
+        lowered.node = nodeRef.name;
         // Tag-only chunks need a stable per-chunk container so the
         // runtime's `TagsForContentAtPath` walker stops at the right
         // boundary. The `uuid` field tells `SparkdownCompiler` to

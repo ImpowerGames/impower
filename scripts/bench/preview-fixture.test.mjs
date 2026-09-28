@@ -103,7 +103,9 @@ await check("the benchmark's arguments and default replacements", () => {
   });
   assert.throws(() => parseBenchArgs(["--project", "p"]), /--line and --word/);
   assert.throws(() => parseBenchArgs(["--project", "--fixture"]), /--project needs a value/);
-  assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit or both/);
+  assert.throws(() => parseBenchArgs(["--fixture", "--mode", "fast"]), /preview, edit, both or coverage/);
+  // The coverage report times nothing and edits no line.
+  assert.deepEqual(parseBenchArgs(["--project", "p", "--mode", "coverage"]), { mode: "coverage", samples: 12, warmup: 4, project: "p" });
   assert.deepEqual(tokenAround("      [[raffles_concerned:gloves]]", "concerned"), { token: "raffles_concerned", prefix: "raffles_" });
   assert.equal(tokenAround("[[bunny]]", "concerned"), null);
   assert.deepEqual(imageOptions(["a/raffles_shy.svg", "b/raffles_concerned.svg", "raffles_unsure.png", "raffles_notes.txt", "bunny_shy.svg"], "raffles_", "raffles_concerned"), ["raffles_shy", "raffles_unsure"]);
@@ -262,6 +264,20 @@ if (!esbuildInstalled) {
     } finally {
       fs.rmSync(profiles, { recursive: true, force: true });
     }
+  });
+
+  await check("the coverage report counts the fixture's statements and names what its program falls back for", () => {
+    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "coverage"], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+    assert.equal(run.status, 0, run.stdout + run.stderr);
+    const summary = run.stdout.match(/coverage: (\d+) statements in the program's flows, of which the writer emits (\d+) \(/);
+    assert.ok(summary, run.stdout);
+    const [statements, emitted] = summary.slice(1).map(Number);
+    assert.ok(statements > 100 && emitted < statements, `${emitted} of ${statements}`);
+    // The fixture's scene holds a choose, one statement over the last 1,000
+    // lines, which the writer has no emit path for yet, so the program falls
+    // back and the table counts it.
+    assert.match(run.stdout, /the program falls back for \S+ at file:\/\/\/local\/main\.sd line \d+/);
+    assert.match(run.stdout, /\n {2}choose +\d+\n/);
   });
 }
 

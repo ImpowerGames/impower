@@ -1,6 +1,8 @@
 import { ParsedObject } from "./Object";
 import { ControlCommand } from "../../../engine/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
+import { Op } from "../../../../program/ProgramInstructions";
 
 export class Tag extends ParsedObject {
   public isStart: boolean;
@@ -21,6 +23,10 @@ export class Tag extends ParsedObject {
       return ControlCommand.EndTag();
     }
   };
+
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    emitter.emit(this.isStart ? Op.BeginTag : Op.EndTag);
+  }
 
   public override readonly toString = () => {
     if (this.isStart) {
