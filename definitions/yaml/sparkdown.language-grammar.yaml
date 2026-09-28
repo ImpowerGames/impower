@@ -2958,8 +2958,14 @@ repository:
     # trailing `(WS*)` is required so that, when this literal is used
     # mid-expression (e.g. `if -> X == -> Y then`), the LuauIfBlockCondition's
     # `(?=WS)` end-lookahead doesn't fire between the literal and the
-    # following operator.
-    match: ({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
+    # following operator. In the last arm of a braced alternator, after a `|`
+    # (and a `name =` for match and plural arms), an `end` directly before
+    # the `}` is not a target: in `{queue | "a" | -> end}` the `->` is an
+    # empty divert and `end` closes the alternator. Labels may take keyword
+    # names, so `end` in any other position (`count.turns(-> end)`,
+    # `{ -> end }` as a table value) is a target, as is every other keyword
+    # and a name that only begins with `end` (`end-game`).
+    match: (?!(?<=[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?){{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}])({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
     captures:
       1:
         patterns:
@@ -8616,12 +8622,40 @@ repository:
       6:
         patterns:
           - { include: "#LuauFunctionKeyword" }
+      7:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    # A type function is written as a function is: a header, then a body of
+    # statements that ends at its own `end`. The body runs only while types
+    # are checked, so the compiler emits nothing for the declaration.
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
-      - { include: "#LuauTypeFunctionParameters" }
-      - { include: "#LuauTypeName" }
-    end: (?={{BEAT}})|(?<=[\)\-{}\[\]"'])
+      - { include: "#LuauFunctionReturnType" }
+      - { include: "#LuauTypeFunctionName" }
+      - { include: "#LuauFunctionParameters" }
+      - { include: "#LuauFunctionBody" }
+      - { include: "#LuauBlockBody" }
+    end: (?={{BEAT}})|({{WS}}*)(end)\b
+    endCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauEndKeyword" }
+
+  LuauTypeFunctionName:
+    match: (?<=\bfunction\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)
+    captures:
+      1:
+        tag: typeName
+        name: entity.name.type.luau
+      2:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauDataTypeDeclaration:
     # Positive lookahead `(?={{WS}}+{{LUAU_IDENTIFIER}})` requires

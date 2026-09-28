@@ -5610,7 +5610,6 @@ end
     name: "oss_2094_push_type_constraint_should_always_complete",
     fixture: "BuiltinsFixture",
     flags: { DebugLuauAssertOnForcedConstraint: true },
-    unparsed: { defect: 1021 }, // a type function declaration
     source: `
         type Interface<T> = {
             _t: T,
@@ -6129,7 +6128,6 @@ end
     // TypeInfer.tables.test.cpp:7389 TEST_CASE_FIXTURE(BuiltinsFixture, "bidirectional_union_via_type_function")
     name: "bidirectional_union_via_type_function",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 1021 }, // a type function declaration
     source: `
         type function Optional(t)
             return types.unionof(t, types.singleton(nil))
