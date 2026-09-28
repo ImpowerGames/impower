@@ -10,9 +10,11 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
  * not contribute a path part here either.
  *
  * `Scene` and `Branch` are boundary-only nodes: each covers its declaration
- * line and its body follows as root-level siblings. So the walk starts at the
- * root-level ancestor of the cursor and moves backwards through its siblings,
- * collecting the nearest branch and stopping at the first scene.
+ * line and its body follows as root-level siblings, closed by a root-level
+ * `end`. So the walk starts at the root-level ancestor of the cursor and moves
+ * backwards through its siblings, pairing each `end` with the scene or branch
+ * it closes, collecting the nearest open branch and stopping at the first open
+ * scene.
  */
 export const getParentSectionPath = (
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
@@ -28,8 +30,17 @@ export const getParentSectionPath = (
     | GrammarSyntaxNode<SparkdownNodeName>
     | null
     | undefined;
+  // Ends passed on the way back whose scene or branch is not reached yet.
+  let unmatchedEnds = 0;
   while (topLevelNode) {
-    if (topLevelNode.name === "Scene") {
+    if (topLevelNode.name === "LuauEndKeyword") {
+      unmatchedEnds += 1;
+    } else if (
+      (topLevelNode.name === "Scene" || topLevelNode.name === "Branch") &&
+      unmatchedEnds > 0
+    ) {
+      unmatchedEnds -= 1;
+    } else if (topLevelNode.name === "Scene") {
       const sceneNameNode = getDescendent("SceneDeclarationName", topLevelNode);
       if (sceneNameNode) {
         parentPathParts.unshift({
@@ -38,8 +49,7 @@ export const getParentSectionPath = (
         });
       }
       break;
-    }
-    if (topLevelNode.name === "Branch") {
+    } else if (topLevelNode.name === "Branch") {
       const lastPart = parentPathParts.at(-1);
       if (lastPart?.kind !== "branch") {
         const branchNameNode = getDescendent(

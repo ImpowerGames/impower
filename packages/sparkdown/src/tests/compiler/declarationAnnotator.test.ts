@@ -68,6 +68,31 @@ end
     expect(has(decls, "scene", "main")).toBe(true);
     expect(has(decls, "branch", "after")).toBe(true);
     expect(has(decls, "label", "gathered")).toBe(true);
+    // The `end` after `then` closes the choice block, not the branch.
+    expect(decls.filter((d) => d.type === "end").length).toBe(2);
+  });
+
+  test("an end is marked only where it closes a scene or branch", () => {
+    const decls = collectDeclarations(`scene main
+  if true then
+    Yes.
+  end
+  function helper()
+    return 1
+  end
+  branch after
+    Inside.
+  end
+  Later.
+end
+`);
+    expect(decls.map((d) => `${d.type} ${d.text}`)).toEqual([
+      "scene main",
+      "function helper",
+      "branch after",
+      "end end",
+      "end end",
+    ]);
   });
 
   test("reassignment is not a declaration (only the `store` definition is)", () => {

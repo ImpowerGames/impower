@@ -36,6 +36,9 @@ export const getDeclarationScopes = (
           scopePathParts = [];
           scopePathParts.push({ kind: "scene", name: text });
         }
+        if (cur.value.type === "end") {
+          scopePathParts.pop();
+        }
         if (cur.value.type === "branch") {
           const prevKind = scopePathParts.at(-1)?.kind || "";
           if (prevKind !== "scene") {

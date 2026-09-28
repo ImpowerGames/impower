@@ -2,6 +2,7 @@ import { SparkdownDocumentRegistry } from "@impower/sparkdown/src/compiler/class
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
 import { describe, expect, test } from "vitest";
+import { getDeclarationScopes } from "../../utils/annotations/getDeclarationScopes";
 import { getCompletions } from "../../utils/providers/getCompletions";
 import { getParentSectionPath } from "../../utils/syntax/getParentSectionPath";
 
@@ -123,5 +124,110 @@ describe("provider · scope path", () => {
     expect(labels).toContain("gamma");
     expect(labels).not.toContain("alpha");
     expect(labels).not.toContain("inner");
+  });
+});
+
+// Each `choose` closes with its own `end`. A branch's `end` closes the branch,
+// so a label after it belongs to the scene again, and a scene's `end` returns
+// to the global scope. `|` marks the completion point; `@@` in CLOSED_BRANCH
+// is the one inside the branch, and `##` the one after the scene's `end`.
+const CLOSED_BRANCH = `scene A
+  choose
+    * Go
+      Went.
+  then (first)
+    -> |
+  end
+  branch x
+    choose
+      * Stay
+        Stayed.
+    then (inside)
+      -> @@
+    end
+  end
+  choose
+    * Again
+      Again.
+  then (after)
+    After the branch.
+  end
+end
+##
+`;
+
+// Keeps `marker` as the `|` completion point and removes the other markers;
+// `"none"` removes all three.
+const atMarker = (marker: "|" | "@@" | "##" | "none") =>
+  ["|", "@@", "##"].reduce(
+    (script, m) => script.replace(m, m === marker ? "|" : ""),
+    CLOSED_BRANCH,
+  );
+
+describe("provider · scope after a closed branch", () => {
+  test("the scope map files a label after a branch's end under the scene", () => {
+    const { scriptAnnotations } = setup(atMarker("none"));
+    const scopes = getDeclarationScopes(scriptAnnotations);
+    expect(scopes["A"]?.label).toEqual(["first", "after"]);
+    expect(scopes["A.x"]?.label).toEqual(["inside"]);
+  });
+
+  test("an end that closes a block or function inside the scene does not close the scene", () => {
+    const { scriptAnnotations } = setup(`scene A
+  if true then
+    Yes.
+  end
+  function helper()
+    return 1
+  end
+  choose
+    * Go
+      Went.
+  then (later)
+    Later.
+  end
+end
+`);
+    expect(getDeclarationScopes(scriptAnnotations)["A"]?.label).toEqual([
+      "later",
+    ]);
+    expect(
+      scopePathAt(`scene A
+  if true then
+    Yes.
+  end
+  function helper()
+    return 1
+  end
+  Later.|
+end
+`),
+    ).toEqual(["A"]);
+  });
+
+  test("a cursor after a branch's end resolves to the scene", () => {
+    const script = atMarker("none").replace(
+      "After the branch.",
+      "After the branch.|",
+    );
+    expect(scopePathAt(script)).toEqual(["A"]);
+  });
+
+  test("a cursor after a scene's end resolves to the global scope", () => {
+    expect(scopePathAt(atMarker("##"))).toEqual([]);
+  });
+
+  test("divert completion in the scene offers its labels on both sides of the branch", () => {
+    const labels = completionLabelsAt(atMarker("|"));
+    expect(labels).toContain("first");
+    expect(labels).toContain("after");
+    expect(labels).not.toContain("inside");
+  });
+
+  test("divert completion inside the branch offers its own label and the scene's", () => {
+    const labels = completionLabelsAt(atMarker("@@"));
+    expect(labels).toContain("inside");
+    expect(labels).toContain("first");
+    expect(labels).toContain("after");
   });
 });

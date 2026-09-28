@@ -13,7 +13,11 @@ export type DeclarationType =
   | "const"
   | "var"
   | "define"
-  | "param";
+  | "param"
+  // A root-level `end`, which closes the innermost open scene or branch. It
+  // declares nothing; it lets a walk over this channel pair each scene and
+  // branch with its end.
+  | "end";
 
 // Bounded parent walk: nearest ancestor whose name is in `names`, else null.
 // Bounded so a pathological parent chain stays O(1), not O(file).
@@ -35,7 +39,8 @@ const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 
 // Records the NAME span of each declaration as a flat `(type, range)` mark in
-// the `declarations` channel, consumed by the document outline
+// the `declarations` channel, plus an `end` mark for each root-level `end`
+// that closes a scene or branch. The channel is consumed by the document outline
 // (getDocumentSymbols) and scope-aware completion (getDeclarationScopes).
 //
 // Migrated to the post-Luau-port grammar: declarations are now `LuauFunctionName`
@@ -71,6 +76,12 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "LabelDeclarationName") {
       return this.push(annotations, "label", nodeRef.from, nodeRef.to);
+    }
+    // `Scene` and `Branch` cover only their declaration line, so the `end`
+    // that closes one is a sibling at the root. An `end` nested deeper closes
+    // a function, loop or `if` block instead.
+    if (nodeRef.name === "LuauEndKeyword" && !nodeRef.node.parent?.parent) {
+      return this.push(annotations, "end", nodeRef.from, nodeRef.to);
     }
     // Define-family name (`define`/`screen`/`component`/`style`/`animation`/
     // `theme` all introduce their name via LuauDefineName, only at the
