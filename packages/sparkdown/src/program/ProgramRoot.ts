@@ -120,10 +120,11 @@ export class ProgramRoot {
     protected _chunks: ChunkTable,
     /** The table generation the chunks were minted in. */
     readonly generation: number,
-    /** The current engine's story of the compile that built this root. It
-     *  initializes the program's globals, and runs the functions a host
-     *  evaluates, until the declaration sequence (#695) and functions (#698)
-     *  are emitted as chunks (see `ProgramStory`). */
+    /** The current engine's story of the compile that built this root. Until
+     *  the declaration sequence (#695) and functions (#698) are emitted as
+     *  chunks, each engine built from the root runs its own copy of it
+     *  (`Story.CopyWithOwnState`), which initializes the program's globals and
+     *  runs the functions a host evaluates (see `ProgramStory`). */
     readonly runtimeStory: Story | null = null,
   ) {}
 

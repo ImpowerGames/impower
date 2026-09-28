@@ -361,8 +361,12 @@ describe("randomized incremental edits on the statement chunks", () => {
             },
           ],
         });
-        const incremental = c.compile().program;
+        c.compiler.lastProgramBuild = undefined;
+        const { program: incremental, story } = c.compile();
         compiles += 1;
+        if (story && !c.compiler.lastProgramBuild) {
+          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
+        }
         const incrementalSurface = surface(incremental);
         const cold = coldSurface(after);
         const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(
@@ -430,7 +434,11 @@ describe("randomized incremental edits on the statement chunks", () => {
           ],
         });
         text = text.slice(0, offset) + insert + text.slice(end);
-        const incremental = c.compile().program;
+        c.compiler.lastProgramBuild = undefined;
+        const { program: incremental, story } = c.compile();
+        if (story && !c.compiler.lastProgramBuild) {
+          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
+        }
         const incrementalSurface = surface(incremental);
         const cold = coldSurface(text);
         const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(

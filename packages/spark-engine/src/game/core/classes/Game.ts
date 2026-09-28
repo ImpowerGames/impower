@@ -602,7 +602,9 @@ export class Game<T extends M = {}> {
         locate: (path) => {
           const location = pathLocation(this._program.pathLocations, path);
           const uri = location ? this._scripts[location[0]] : undefined;
-          return location && uri ? { uri, line: location[1] } : undefined;
+          return location && uri
+            ? { uri, line: location[1], column: location[2] }
+            : undefined;
         },
       }) as unknown as Story;
     } else if (story) {

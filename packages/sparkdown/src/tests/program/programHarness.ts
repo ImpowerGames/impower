@@ -13,8 +13,11 @@ import {
   H_FINGERPRINT,
   H_LAYOUT_HASH,
   H_LINE_ROWS,
+  H_REFERENCE_ROWS,
   LINE_ROW_WORDS,
+  REFERENCE_ROW_WORDS,
   lineTableStart,
+  referenceTableStart,
 } from "../../program/StatementChunk";
 
 export const MAIN_URI = "inmemory:///main.sd";
@@ -73,8 +76,9 @@ const tableEntries = (table: ObjectValue): unknown[] =>
 
 /** A story's beats from its start, or from `from`, until it can no longer
  *  continue: each continue that showed something, with its text, tags and
- *  display tables, and the errors and warnings it reported with their type.
- *  `story` is either engine. */
+ *  display tables, the errors and warnings it reported with their type, and
+ *  how many continues it took, those that showed nothing included. `story`
+ *  is either engine. */
 export function storyBeats(
   story: Pick<
     Story,
@@ -86,7 +90,7 @@ export function storyBeats(
     | "onError"
   >,
   from?: string,
-): { beats: Beat[]; errors: string[] } {
+): { beats: Beat[]; errors: string[]; continues: number } {
   const errors: string[] = [];
   story.onError = (message, type) => {
     errors.push(`${type}: ${message}`);
@@ -95,8 +99,10 @@ export function storyBeats(
     story.ChoosePathString(from);
   }
   const beats: Beat[] = [];
+  let continues = 0;
   while (story.canContinue) {
     const text = story.Continue() ?? "";
+    continues += 1;
     if (!text && story.currentDisplayInstructions.length === 0) {
       continue;
     }
@@ -106,7 +112,7 @@ export function storyBeats(
       tables: story.currentDisplayInstructions.map(tableEntries),
     });
   }
-  return { beats, errors };
+  return { beats, errors, continues };
 }
 
 /** Every chunk of a root, flow by flow in the order of their names. */
@@ -117,10 +123,11 @@ export const rootChunks = (root: ProgramRoot): Int32Array[] =>
     )
     .flatMap((sequence) => [...sequence.arrays.chunks]);
 
-/** A root by content: per flow, its script, first line and span, and per
- *  statement its line start, its instructions with every id read as what it
- *  names, its line table, fingerprint and layout hash. Chunk ids and
- *  sequence ids are left out, since they count every chunk a store has made. */
+/** A root by content: per flow, its kind, script, first line and span, and
+ *  per statement its line start, its instructions with every id read as what
+ *  it names, its line table, its reference table with each symbol read as its
+ *  name, and its fingerprint and layout hash. Chunk ids and sequence ids are
+ *  left out, since they count every chunk a store has made. */
 export function describeRoot(root: ProgramRoot): string[] {
   const reader = new BinaryProgramReader(root);
   const out: string[] = [];
@@ -129,7 +136,7 @@ export function describeRoot(root: ProgramRoot): string[] {
   );
   for (const flow of flows) {
     out.push(
-      `flow ${JSON.stringify(root.table.symbols[flow.flow])} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
+      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${root.table.symbolKinds[flow.flow]} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
     );
     flow.arrays.chunks.forEach((chunk, entry) => {
       const rows: number[][] = [];
@@ -137,8 +144,14 @@ export function describeRoot(root: ProgramRoot): string[] {
       for (let r = 0; r < chunk[H_LINE_ROWS]!; r += 1) {
         rows.push([...chunk.subarray(start + r * LINE_ROW_WORDS, start + (r + 1) * LINE_ROW_WORDS)]);
       }
+      const references: string[] = [];
+      const refs = referenceTableStart(chunk);
+      for (let r = 0; r < chunk[H_REFERENCE_ROWS]!; r += 1) {
+        const at = refs + r * REFERENCE_ROW_WORDS;
+        references.push(`${JSON.stringify(root.table.symbols[chunk[at]!])}:${chunk[at + 1]}`);
+      }
       out.push(
-        `  ${flow.arrays.lineStarts[entry]} ${[...chunk.subarray(H_FINGERPRINT, H_LAYOUT_HASH + 2)].join(",")} rows ${JSON.stringify(rows)}`,
+        `  ${flow.arrays.lineStarts[entry]} ${[...chunk.subarray(H_FINGERPRINT, H_LAYOUT_HASH + 2)].join(",")} rows ${JSON.stringify(rows)} refs [${references.join(" ")}]`,
       );
     });
     for (const line of reader.listing(flow)) {

@@ -11,7 +11,10 @@ import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/Spark
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { Story } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
+import { storyBeats } from "@impower/sparkdown/src/tests/program/programHarness";
 import { Game } from "../../game/core/classes/Game";
+import { GameEncounteredRuntimeErrorMessage } from "../../game/core/classes/messages/GameEncounteredRuntimeError";
+import { findClosestPath } from "../../game/core/utils/findClosestPath";
 
 const MAIN = "file:///local/main.sd";
 
@@ -44,15 +47,15 @@ function compile(texts: Record<string, string>, programChunks: boolean) {
   return { program, story: story! };
 }
 
-/** Runs a game from `startFrom` until it reports that it finished, taking the
- *  first choice wherever one is offered, and returns every beat it flushed. */
-function play(
+/** A game given a compile's program and story with the worker's checkpoint
+ *  settings. */
+function createGame(
   program: SparkProgram,
   story: Story,
   programChunks: boolean,
   startFrom: { file: string; line: number },
 ) {
-  const game = new Game({
+  return new Game({
     now: () => 0,
     setTimeout: (handler: Function) => {
       handler();
@@ -68,10 +71,32 @@ function play(
     programChunks,
     startFrom,
   } as never);
+}
+
+/** Runs a game from `startFrom` until it reports that it finished, taking the
+ *  first choice wherever one is offered, and returns every beat it flushed and
+ *  every runtime error and warning it reported, with its type. `each` runs
+ *  after every turn. */
+function play(
+  program: SparkProgram,
+  story: Story,
+  programChunks: boolean,
+  startFrom: { file: string; line: number },
+  each?: (game: Game) => void,
+) {
+  const game = createGame(program, story, programChunks, startFrom);
   let finished = false;
+  const errors: string[] = [];
   game.connection.connectOutput((message) => {
-    if ((message as { method?: string }).method === "game/finished") {
+    const { method, params } = message as {
+      method?: string;
+      params?: { message?: string; type?: string };
+    };
+    if (method === "game/finished") {
       finished = true;
+    }
+    if (method === GameEncounteredRuntimeErrorMessage.method) {
+      errors.push(`${params?.type}: ${params?.message}`);
     }
   });
   const flushed: any[] = [];
@@ -85,14 +110,16 @@ function play(
     return instructions;
   };
   game.start();
+  each?.(game);
   for (let turns = 0; !finished && turns < 5000; turns += 1) {
     if (flushed.at(-1)?.choices?.length) {
       game.chosePathToContinue(0);
     } else {
       game.clickedToContinue();
     }
+    each?.(game);
   }
-  return { flushed, finished, engine: game.story, game };
+  return { flushed, errors, finished, engine: game.story, game };
 }
 
 describe("a game that runs statement chunks", () => {
@@ -245,5 +272,87 @@ describe("a game that runs statement chunks", () => {
     expect(chunks.finished).toBe(true);
     expect(chunks.flushed).toEqual(current.flushed);
     expect(chunks.flushed.some((f) => f.choices?.length)).toBe(true);
+  });
+});
+
+// A line can hold several beats (a `>` break) and several statements (tags
+// written after inline text). PLAY from a line starts at its first beat and a
+// preview of it at its last (`Game.setStartFrom`), and the program engine
+// starts where the current engine does.
+describe("a game started at a line", () => {
+  const LINES: [name: string, text: string, line: number][] = [
+    ["a line that a break splits", "Intro.\nFirst > Second.\nAfter.\n", 1],
+    [
+      "a continuation followed by tags",
+      "Intro.\nYou see a ..\n.. door# t\nAfter.\n",
+      2,
+    ],
+    [
+      "a continuation followed by tags in a scene",
+      "scene MAIN\n  You see a ..\n  .. door# t\n  HERO: Wait# mood\n  After.\nend\n",
+      2,
+    ],
+  ];
+
+  for (const [name, text, line] of LINES) {
+    it(`plays ${name} from its first beat as the current engine does`, () => {
+      const startFrom = { file: MAIN, line };
+      const on = compile({ [MAIN]: text }, true);
+      expect(on.program.fallback).toBeUndefined();
+      const chunks = play(on.program, on.story, true, startFrom);
+      expect(chunks.engine).toBeInstanceOf(ProgramStory);
+      const off = compile({ [MAIN]: text }, false);
+      const current = play(off.program, off.story, false, startFrom);
+      expect(chunks.flushed.length).toBeGreaterThan(0);
+      expect(chunks.flushed).toEqual(current.flushed);
+      expect(chunks.errors).toEqual(current.errors);
+    });
+
+    for (const beat of ["first", "last"] as const) {
+      it(`starts at the ${beat} beat of ${name} as the current engine does`, () => {
+        const shown = (programChunks: boolean) => {
+          const { program, story } = compile({ [MAIN]: text }, programChunks);
+          const path = findClosestPath(
+            { file: MAIN, line },
+            program.pathLocations,
+            Object.keys(program.scripts),
+            beat,
+          )!;
+          const game = createGame(program, story, programChunks, {
+            file: MAIN,
+            line,
+          });
+          return storyBeats(game.story, path);
+        };
+        const chunks = shown(true);
+        expect(chunks).toEqual(shown(false));
+        expect(chunks.beats.length).toBeGreaterThan(0);
+      });
+    }
+  }
+});
+
+describe("a game's save", () => {
+  // After its last beat a flow rests past its last statement, which a save
+  // names by the flow's sequence.
+  it("loads at every beat, the last included", () => {
+    const texts = { [MAIN]: "scene MAIN\n  One.\n  Two. > Three.\n  Four.\nend\n" };
+    const startFrom = { file: MAIN, line: 1 };
+    const saveAndLoad = (programChunks: boolean) => {
+      const loads: boolean[] = [];
+      const { program, story } = compile(texts, programChunks);
+      const run = play(program, story, programChunks, startFrom, (game) => {
+        loads.push(game.load(game.save()));
+      });
+      return { run, loads };
+    };
+    const chunks = saveAndLoad(true);
+    expect(chunks.run.engine).toBeInstanceOf(ProgramStory);
+    expect(chunks.run.finished).toBe(true);
+    expect(chunks.loads.length).toBeGreaterThan(4);
+    expect(chunks.loads.every((loaded) => loaded)).toBe(true);
+    const current = saveAndLoad(false);
+    expect(chunks.run.flushed).toEqual(current.run.flushed);
+    expect(chunks.loads).toEqual(current.loads);
   });
 });

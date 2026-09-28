@@ -7,12 +7,18 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { buildBeatsFixture } from "../../../../../scripts/bench/preview-fixture.mjs";
+import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
+import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { ChunkStore, type FlowSource } from "../../program/ChunkStore";
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import type { ProgramRoot } from "../../program/ProgramRoot";
-import { internSymbol, SymbolKind } from "../../program/ProgramSymbols";
+import {
+  internSymbol,
+  SymbolKind,
+  type SymbolKindValue,
+} from "../../program/ProgramSymbols";
 import { ProgramStory } from "../../program/ProgramStory";
 import {
   describeRoot,
@@ -198,6 +204,110 @@ describe("a statement that shares its first line with another", () => {
   });
 });
 
+// The main script's compiled blocks, each with its first line.
+const blockLines = (compiler: SparkdownCompiler) => {
+  const document = compiler.documents.get(MAIN)!;
+  const lines = new Map<CompiledBlock, number>();
+  const cur = compiler.documents.annotations(MAIN).compilations.iter();
+  while (cur.value) {
+    lines.set(cur.value.type as CompiledBlock, document.positionAt(cur.from).line);
+    cur.next();
+  }
+  return lines;
+};
+
+// The compiled block that covers the first `find` of the main script.
+const blockAt = (compiler: SparkdownCompiler, find: string) => {
+  const at = compiler.documents.get(MAIN)!.getText().indexOf(find);
+  const cur = compiler.documents.annotations(MAIN).compilations.iter();
+  while (cur.value) {
+    if (cur.from <= at && at < cur.to) {
+      return cur.value.type as CompiledBlock;
+    }
+    cur.next();
+  }
+  throw new Error(`no compiled block covers "${find}"`);
+};
+
+// A continuation's routing read is asked of the continuation's own node, which
+// can stand inside a block statement, below its chunk's top-level node. An
+// edit re-annotates the document from the edit onward, so an edit below the
+// block leaves the block as it was lowered, with statement chunks on or off;
+// the reads are kept only when they are on. (The writer does not emit an `if`
+// block yet, so this program falls back and only its lowering is compared.)
+describe("a continuation inside a block", () => {
+  const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
+  const text = [
+    "store x = 1",
+    "if x then",
+    "  You see a ..",
+    "  .. door. > It opens.",
+    "end",
+    ...filler,
+    "",
+  ].join("\n");
+  const BLOCK_LINE = 1;
+  const EDITED_LINE = 12;
+
+  for (const programChunks of [false, true]) {
+    it(`is not lowered again by an edit below it, with statement chunks ${programChunks ? "on" : "off"}`, () => {
+      const c = programCompiler({ [MAIN]: text }, { programChunks });
+      c.compile();
+      const before = blockLines(c.compiler);
+      expect(blockAt(c.compiler, "if x then").reads !== undefined).toBe(programChunks);
+      const find = "Filler line 7.";
+      const offset = text.indexOf(find);
+      c.compiler.updateDocument({
+        textDocument: { uri: MAIN, version: 2 },
+        contentChanges: [
+          {
+            range: {
+              start: posAt(text, offset),
+              end: posAt(text, offset + find.length),
+            },
+            text: "Filler line 7!",
+          },
+        ],
+      });
+      c.compile();
+      // The first lines of the blocks the edit lowered again. The lines are
+      // compared rather than the blocks, whose difference is too large to
+      // print.
+      const lowered = [...blockLines(c.compiler)]
+        .filter(([block]) => !before.has(block))
+        .map(([, line]) => line);
+      expect(lowered).toContain(EDITED_LINE);
+      expect(lowered).not.toContain(BLOCK_LINE);
+    });
+  }
+});
+
+// Statements lowered with statement chunks off hold no reads, so turning them
+// on lowers every statement again, and the next compile builds the root a
+// cold compile builds.
+describe("statement chunks turned on after a compile", () => {
+  it("lower every statement again, with its reads", () => {
+    const text = [
+      "HERO: Wait ..",
+      "// a comment between",
+      ".. right there. > And then more.",
+      "After.",
+      "",
+    ].join("\n");
+    const c = programCompiler({ [MAIN]: text }, { programChunks: false });
+    c.compile();
+    expect(blockAt(c.compiler, ".. right there.").reads).toBeUndefined();
+    c.compiler.configure({ programChunks: true });
+    const { program } = c.compile();
+    expect(blockAt(c.compiler, ".. right there.").reads).toHaveLength(1);
+    const cold = programCompiler({ [MAIN]: text }, { programChunks: true })
+      .compile().program;
+    expect(program.fallback).toBeUndefined();
+    expect(cold.fallback).toBeUndefined();
+    expect(describeRoot(program.chunks!)).toEqual(describeRoot(cold.chunks!));
+  });
+});
+
 // A test statement whose code refers to a symbol, as a divert will: its chunk
 // records the facts about that symbol, and is kept only while they hold.
 class RefersTo extends ParsedObject {
@@ -212,12 +322,13 @@ class RefersTo extends ParsedObject {
 }
 
 describe("a reference table", () => {
-  it("keeps a chunk while the facts about its symbols hold", () => {
+  // A store whose top level holds one statement that refers to TARGET, and
+  // the flows of a program that defines TARGET as `kind`, or not at all.
+  const refersToTarget = () => {
     const store = new ChunkStore();
     const target = internSymbol(store.table, "TARGET", SymbolKind.Scene);
-    const block = {};
     const statement = {
-      block,
+      block: {},
       objects: [new RefersTo(target)],
       range: null,
       firstLine: 0,
@@ -225,23 +336,57 @@ describe("a reference table", () => {
       syntax: () => "Divert\u0000-> TARGET",
       reads: "[]",
     };
-    const flows = (withTarget: boolean): FlowSource[] => [
+    const flows = (kind: SymbolKindValue | null): FlowSource[] => [
       { name: "", kind: SymbolKind.Root, uri: MAIN, firstLine: 0, span: 1, statements: [statement] },
-      ...(withTarget
-        ? [{ name: "TARGET", kind: SymbolKind.Scene, uri: MAIN, firstLine: 2, span: 1, statements: [] }]
+      ...(kind !== null
+        ? [{ name: "TARGET", kind, uri: MAIN, firstLine: 2, span: 1, statements: [] }]
         : []),
     ];
-    const first = store.build(flows(true), true).root!;
-    const same = store.build(flows(true), true).root!;
+    const chunk = (root: ProgramRoot) => root.flowNamed("")!.arrays.chunks[0];
+    return { store, flows, chunk };
+  };
+
+  it("keeps a chunk while the facts about its symbols hold", () => {
+    const { store, flows, chunk } = refersToTarget();
+    const first = store.build(flows(SymbolKind.Scene), true).root!;
+    const same = store.build(flows(SymbolKind.Scene), true).root!;
     expect(store.emittedLastBuild).toBe(0);
-    expect(same.flowNamed("")!.arrays.chunks[0]).toBe(
-      first.flowNamed("")!.arrays.chunks[0],
-    );
+    expect(chunk(same)).toBe(chunk(first));
     // The program no longer defines the symbol, and nothing else changed.
-    const without = store.build(flows(false), true).root!;
+    const without = store.build(flows(null), true).root!;
     expect(store.emittedLastBuild).toBe(1);
-    expect(without.flowNamed("")!.arrays.chunks[0]).not.toBe(
-      first.flowNamed("")!.arrays.chunks[0],
+    expect(chunk(without)).not.toBe(chunk(first));
+  });
+
+  // A name's kind is what the program being built defines it as, as when an
+  // edit turns a scene into a branch of the same name.
+  it("emits a chunk again when a symbol it refers to is defined as another kind", () => {
+    const { store, flows, chunk } = refersToTarget();
+    const scene = store.build(flows(SymbolKind.Scene), true).root!;
+    const branch = store.build(flows(SymbolKind.Branch), true).root!;
+    expect(store.emittedLastBuild).toBe(1);
+    expect(chunk(branch)).not.toBe(chunk(scene));
+    const again = store.build(flows(SymbolKind.Branch), true).root!;
+    expect(store.emittedLastBuild).toBe(0);
+    expect(chunk(again)).toBe(chunk(branch));
+  });
+});
+
+describe("a flow's kind", () => {
+  it("is the kind a cold compile gives after an edit turns a scene into a branch", () => {
+    const text = "Intro.\nscene SAME\n  One.\nend\n";
+    const s = session({ [MAIN]: text });
+    s.edit("Intro.", "Intro!");
+    const after = s.edit("scene SAME", "branch SAME");
+    const cold = programCompiler(
+      {
+        [MAIN]: text.replace("Intro.", "Intro!").replace("scene SAME", "branch SAME"),
+      },
+      { programChunks: true, seedBuiltinsIntoStory: true },
+    ).compile().program.chunks!;
+    expect(describeRoot(after)).toEqual(describeRoot(cold));
+    expect(after.table.symbolKinds[after.table.symbolIds.get("SAME")!]).toBe(
+      SymbolKind.Branch,
     );
   });
 });

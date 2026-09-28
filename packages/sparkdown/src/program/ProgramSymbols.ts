@@ -14,8 +14,10 @@ export type SymbolKindValue = (typeof SymbolKind)[keyof typeof SymbolKind];
 /** The name the flow of the top-level content is registered under. */
 export const ROOT_FLOW_NAME = "";
 
-/** The id of the symbol named `name`, interned with `kind` when it is new. A
- *  name interned before keeps the kind it was first given. */
+/** The id of the symbol named `name`, interned when it is new, which the
+ *  program being built defines as `kind`. A name defined again as another
+ *  kind, as when an edit turns a scene into a branch, takes the new kind, so
+ *  the facts a chunk records about the symbol change with it (`ChunkStore`). */
 export const internSymbol = (
   table: ProgramTable,
   name: string,
@@ -26,8 +28,8 @@ export const internSymbol = (
     id = table.symbols.length;
     table.symbols.push(name);
     table.symbolIds.set(name, id);
-    table.symbolKinds.push(kind);
   }
+  table.symbolKinds[id] = kind;
   return id;
 };
 

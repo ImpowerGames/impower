@@ -1,7 +1,9 @@
 import { Container } from "../inkjs/engine/Container";
+import { debugFileName } from "../compiler/utils/debugFileName";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { ErrorType, type RaisedError } from "../inkjs/engine/Error";
 import { InkObject } from "../inkjs/engine/Object";
+import { cleanOutputWhitespace } from "../inkjs/engine/outputWhitespace";
 import { lookupStateAwareStdLib } from "../inkjs/engine/StdLib";
 import { Story } from "../inkjs/engine/Story";
 import {
@@ -46,8 +48,10 @@ import {
 /** What a caller needs to place a runtime path the current engine's path
  *  locations name (`SparkProgram.pathLocations` and `scripts`). */
 export interface ProgramPathLocations {
-  /** The line of a path: the script's index and the line, counting from 0. */
-  locate(path: string): { uri: string; line: number } | undefined;
+  /** Where the content a path names starts: its script, and the line and
+   *  column, counting from 0. A line can hold several beats and statements,
+   *  and the column tells them apart. */
+  locate(path: string): { uri: string; line: number; column: number } | undefined;
 }
 
 type ErrorHandler = (
@@ -71,11 +75,12 @@ type ErrorHandler = (
  * compiles (#699), and the debugger (#702).
  *
  * The program's global declarations and the functions a host evaluates are not
- * emitted yet. Until they are (#695, #698), `ResetState` runs the
- * declarations on the current engine's story of the same compile
- * (`ProgramRoot.runtimeStory`), whose globals this engine then reads and
- * writes, and `HasFunction` and `EvaluateFunction` run on that story, against
- * the same globals.
+ * emitted yet. Until they are (#695, #698), each engine keeps its own copy of
+ * the current engine's story of the same compile (`ProgramRoot.runtimeStory`,
+ * `Story.CopyWithOwnState`): `ResetState` runs the declarations on that copy,
+ * whose globals this engine then reads and writes, and `HasFunction` and
+ * `EvaluateFunction` run on it, against the same globals. Engines built from
+ * one root share its chunks and nothing they write.
  */
 export class ProgramStory {
   collapseWhitespace = true;
@@ -116,7 +121,8 @@ export class ProgramStory {
   ) {
     this._reader = new BinaryProgramReader(root);
     this._runtimeStory =
-      root.runtimeStory ?? new Story(new Container(), null, null);
+      root.runtimeStory?.CopyWithOwnState() ??
+      new Story(new Container(), null, null);
     // An error the declarations raise while the globals initialize, or while a
     // host evaluates a function, is reported as this story's.
     this._runtimeStory.onError = (message, type, source, raised) => {
@@ -205,8 +211,13 @@ export class ProgramStory {
     this._runtimeStory.ResetState();
     const variablesState = this._runtimeStory.state.variablesState;
     variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
-    this._state = new ProgramStoryState(this.root, variablesState, (text) =>
-      this.CleanOutputWhitespace(text),
+    this._state = new ProgramStoryState(
+      this.root,
+      variablesState,
+      (text) => this.CleanOutputWhitespace(text),
+      () => {
+        this._stateIsPristine = false;
+      },
     );
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
@@ -329,6 +340,9 @@ export class ProgramStory {
    *  its script and line as the current engine prefixes it
    *  (`Story.AddError`). */
   AddError(message: string, isWarning = false, useEndLineNumber = false): void {
+    // The raised record keeps the text without the prefix, and no path: the
+    // instruction running is a chunk's word, which no runtime path names.
+    const raised: RaisedError = { message, path: null };
     const where = this.sourceOfRunning();
     const kind = isWarning ? "WARNING" : "ERROR";
     if (where) {
@@ -337,54 +351,16 @@ export class ProgramStory {
     } else {
       message = `RUNTIME ${kind}: ${message}`;
     }
-    this._state.AddError(message, isWarning, { message, path: null });
+    this._state.AddError(message, isWarning, raised);
     if (!isWarning) this._state.ForceEnd();
   }
 
   CleanOutputWhitespace(str: string): string {
-    if (this.processEscapes) {
-      const sb = new StringBuilder();
-      let escaped = false;
-      for (let i = 0; i < str.length; i++) {
-        const c = str.charAt(i);
-        if (escaped) {
-          sb.Append(c);
-          escaped = false;
-        } else {
-          const isEscape = c == "\\";
-          if (!isEscape) {
-            sb.Append(c);
-          }
-          escaped = isEscape;
-        }
-      }
-      str = sb.toString();
-    }
-    if (this.collapseWhitespace) {
-      const sb = new StringBuilder();
-      let currentWhitespaceStart = -1;
-      let startOfLine = 0;
-      for (let i = 0; i < str.length; i++) {
-        const c = str.charAt(i);
-        const isInlineWhitespace = c == " " || c == "\t";
-        if (isInlineWhitespace && currentWhitespaceStart == -1)
-          currentWhitespaceStart = i;
-        if (!isInlineWhitespace) {
-          if (
-            c != "\n" &&
-            currentWhitespaceStart > 0 &&
-            currentWhitespaceStart != startOfLine
-          ) {
-            sb.Append(" ");
-          }
-          currentWhitespaceStart = -1;
-        }
-        if (c == "\n") startOfLine = i + 1;
-        if (!isInlineWhitespace) sb.Append(c);
-      }
-      return sb.toString();
-    }
-    return str;
+    return cleanOutputWhitespace(
+      str,
+      this.processEscapes,
+      this.collapseWhitespace,
+    );
   }
 
   // ------------------------------------------------------------ continuing
@@ -713,7 +689,7 @@ export class ProgramStory {
     }
     const first = this.root.lineOf(sequence, entry);
     return {
-      file: sequence.uri.split("/").at(-1)?.split(".")[0] ?? "",
+      file: debugFileName(sequence.uri) ?? "",
       startLine: first + lineRowField(chunk, row, 2),
       endLine: first + lineRowField(chunk, row, 4),
     };
@@ -727,8 +703,14 @@ export class ProgramStory {
   } | null = null;
 
   /** The position a path names: a flow by its qualified name, the top-level
-   *  content's flow as `""` or `"0"`, or the statement at the line the path's
-   *  location gives. */
+   *  content's flow as `""` or `"0"`, or the content a path's location starts
+   *  at. A line can hold several statements (tags written after inline text)
+   *  and several beats (a `>` break), which the location's column tells
+   *  apart: of the statements that start on the line the statement holding
+   *  the location starts on, the last one that starts at or before the
+   *  location, and in it the last `LineStart` at or before the location, or
+   *  the statement's start when none is (a continuation, which joins the beat
+   *  before it, or tags). */
   protected placePath(
     path: string,
   ): { sequence: SequenceRow; entry: number; offset: number } | undefined {
@@ -745,20 +727,35 @@ export class ProgramStory {
     if (!at) {
       return undefined;
     }
-    // The beat of a statement that shows several starts at its own
-    // `LineStart`: the last one at or above the line.
-    const chunk = at.sequence.arrays.chunks[at.entry]!;
+    const sequence = at.sequence;
+    const atOrBefore = (range: { startLine: number; startColumn: number } | null) =>
+      range !== null &&
+      (range.startLine < location.line ||
+        (range.startLine === location.line && range.startColumn <= location.column));
+    // The statements that start on the same line as the one holding the
+    // location, which the line starts alone cannot order.
+    const line = this.root.lineOf(sequence, at.entry);
+    let first = at.entry;
+    while (first > 0 && this.root.lineOf(sequence, first - 1) === line) {
+      first -= 1;
+    }
+    let entry = first;
+    for (let e = first + 1; e <= at.entry; e++) {
+      if (atOrBefore(this._reader.rangeAt(sequence, e, 0))) {
+        entry = e;
+      }
+    }
+    const chunk = sequence.arrays.chunks[entry]!;
     let offset = 0;
     for (const instruction of this._reader.instructions(chunk)) {
-      if (instruction.op !== Op.LineStart) {
-        continue;
-      }
-      const range = this._reader.rangeAt(at.sequence, at.entry, instruction.offset);
-      if (range && range.startLine <= location.line) {
+      if (
+        instruction.op === Op.LineStart &&
+        atOrBefore(this._reader.rangeAt(sequence, entry, instruction.offset))
+      ) {
         offset = instruction.offset;
       }
     }
-    return { sequence: at.sequence, entry: at.entry, offset };
+    return { sequence, entry, offset };
   }
 }
 

@@ -5168,6 +5168,18 @@ export class Story extends InkObject {
   get constantNames(): Set<string> {
     return this._constantNames;
   }
+
+  /** A story over this one's compiled content, list and struct definitions
+   *  and constant names, with no state until its `ResetState`. Stories over
+   *  one content run apart: each has its own globals, call stack and
+   *  handlers. */
+  CopyWithOwnState(): Story {
+    const copy = new Story(this._mainContentContainer, null, null);
+    copy._listDefinitions = this._listDefinitions;
+    copy._structDefinitions = this._structDefinitions;
+    copy._constantNames = this._constantNames;
+    return copy;
+  }
   private _structDefinitions: Record<string, any> | null = null;
 
   private _externals: Map<string, Story.ExternalFunctionDef>;

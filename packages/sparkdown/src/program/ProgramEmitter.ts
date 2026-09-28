@@ -4,8 +4,14 @@
  * `GenerateRuntimeObject`; the others inherit `ParsedObject.EmitProgram`,
  * which reports the construct the writer does not emit.
  *
- * Only types are imported by the parsed hierarchy, so this module and the
- * writer stay out of its import graph.
+ * The parsed hierarchy imports this module's types, and values from three
+ * other modules of `src/program`: the instruction constants and the builtin
+ * names, which import nothing, and `displayCallFlags`, which imports
+ * `NumberExpression` and `ObjectExpression` back. That cycle is benign:
+ * `displayCallFlags` reads the two classes only when a call is emitted, and
+ * it loads the engine's `Container` first, as every entry to the engine does
+ * (see `CompilationAnnotator`). The writer and the store stay out of the
+ * hierarchy's import graph.
  */
 export interface ProgramEmitter {
   /** Appends one instruction. */

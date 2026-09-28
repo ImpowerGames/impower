@@ -112,7 +112,12 @@ function buildDisplayCalls(
   const joinedRouting = () => {
     if (joined === undefined) {
       joined = lexicalRouting(parent, ctx);
-      ctx.recordRead?.({ kind: "routing", value: JSON.stringify(joined) });
+      ctx.recordRead?.({
+        kind: "routing",
+        value: JSON.stringify(joined),
+        node: parent.name,
+        from: parent.from,
+      });
     }
     return joined;
   };

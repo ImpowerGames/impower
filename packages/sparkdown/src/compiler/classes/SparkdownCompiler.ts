@@ -153,11 +153,15 @@ import type { UpdateCompilerFileParams } from "./messages/UpdateCompilerFileMess
 import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 import { ChunkStore, type ProgramBuild } from "../../program/ChunkStore";
+import { debugFileName } from "../utils/debugFileName";
 import {
   programFlows,
   type StatementRecord,
 } from "../../program/programFlows";
-import type { CompiledBlock } from "./annotators/CompilationAnnotator";
+import type {
+  CompilationConfig,
+  CompiledBlock,
+} from "./annotators/CompilationAnnotator";
 
 // The canonical form `canonicalizeSyntheticFlowNames` renumbers synthetic
 // identifiers to. These names are POSITIONAL (document-order ordinals), so a
@@ -736,6 +740,10 @@ export class SparkdownCompiler {
   protected _binarySlotHint = 0;
 
   // ---- Statement chunks (`programChunks`, #694) ---------------------------
+  // What the compilation annotator is configured with, kept as one object so
+  // that a later `configure` reaches it: whether a chunk's lowering keeps its
+  // reads follows `programChunks`.
+  protected _compilationConfig: CompilationConfig = {};
   // The store a compile builds its root of statement chunks from, kept for the
   // compiler's lifetime so that a statement keeps its chunk across compiles.
   protected _chunkStore?: ChunkStore;
@@ -1109,8 +1117,29 @@ export class SparkdownCompiler {
       config.programChunks !== this._config.programChunks
     ) {
       this._config.programChunks = config.programChunks;
+      this._compilationConfig.recordLoweringReads = config.programChunks;
+      if (this._documents) {
+        // Statements lowered under the other setting hold no reads, or reads
+        // nothing checks, so every document is lowered again, and the store
+        // starts over from the chunks of the next compile.
+        this._chunkStore = undefined;
+        for (const document of [...this._documents.all()]) {
+          this._documents.set(
+            {
+              textDocument: {
+                uri: document.uri,
+                text: document.getText(),
+                version: document.version,
+                languageId: document.languageId,
+              },
+            },
+            { defer: true },
+          );
+        }
+      }
     }
     if (!this._documents) {
+      this._compilationConfig.definitions = this._config.definitions;
       this._documents = new SparkdownDocumentRegistry(
         [
           "implicits",
@@ -1119,11 +1148,7 @@ export class SparkdownCompiler {
           "validations",
           "declarations",
         ],
-        {
-          compilations: {
-            definitions: this._config.definitions,
-          },
-        },
+        { compilations: this._compilationConfig },
       );
       this._documents.profilerId = this._profilerId;
     }
@@ -2473,6 +2498,7 @@ export class SparkdownCompiler {
         "ink/compile",
         "ink/json",
         "ink/flowShapes",
+        "program/chunks",
         "populateLocations",
       ]) {
         profile("end", this._profilerId, phase, uri);
@@ -2666,7 +2692,7 @@ export class SparkdownCompiler {
         : content;
     };
 
-    const fileName = uri.split("/").at(-1)?.split(".")[0] ?? null;
+    const fileName = debugFileName(uri);
 
     // A chunk's debug metadata is shared by reference with the runtime objects
     // built from it, in every story that holds them, so a story kept runnable

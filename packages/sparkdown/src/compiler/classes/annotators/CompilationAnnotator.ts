@@ -8,6 +8,7 @@
 // explicit import preserves the load order in its place.
 import "../../../inkjs/engine/Container";
 import { Range } from "@codemirror/state";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
@@ -70,7 +71,17 @@ export interface CompiledBlock {
   // The other reads of the chunk's lowering outside its own syntax, with the
   // answers they got (`LoweringRead`). The chunk is lowered again when the
   // document answers one differently (see `staleRanges`).
-  reads?: LoweringRead[];
+  reads?: RecordedRead[];
+}
+
+// A lowering read as its chunk keeps it: the node that read it by name and by
+// its start relative to the chunk's start, which stays true while the chunk
+// is carried across edits above it.
+export interface RecordedRead {
+  kind: LoweringRead["kind"];
+  value: string;
+  node: string;
+  at: number;
 }
 
 export interface CompilationConfig {
@@ -81,6 +92,10 @@ export interface CompilationConfig {
       };
     };
   };
+  // Whether a chunk's lowering keeps the reads it makes outside its own
+  // syntax (`CompiledBlock.reads`), which only the binary program's chunk
+  // store needs (`SparkdownCompilerConfig.programChunks`).
+  recordLoweringReads?: boolean;
 }
 
 function sameNames(
@@ -113,6 +128,22 @@ function readsDisagree(
     }
   }
   return false;
+}
+
+// The node named `name` that starts at `pos`, or null.
+function nodeStartingAt(
+  tree: Tree,
+  pos: number,
+  name: string,
+): SyntaxNode | null {
+  let node: SyntaxNode | null = tree.resolveInner(pos, 1);
+  while (node && node.from === pos) {
+    if (node.name === name) {
+      return node;
+    }
+    node = node.parent;
+  }
+  return null;
 }
 
 export class CompilationAnnotator extends SparkdownAnnotator<
@@ -204,14 +235,16 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       typeNames,
     );
     // Any edit can change the line a continuation continues, so a document
-    // that has lowered a `routing` read checks its reads on every update.
+    // whose chunks hold a `routing` read checks those reads on every update.
     if (!callableNamesChanged && !typeNamesChanged && !this._hasReads) {
       return [];
     }
     const stale: { from: number; to: number }[] = [];
+    let hasReads = false;
     const iter = this.current.iter();
     while (iter.value) {
       const block = iter.value.type;
+      hasReads ||= block.reads !== undefined;
       if (
         (callableNamesChanged &&
           readsDisagree(block.globalCallableReads, callableNames)) ||
@@ -222,21 +255,21 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       }
       iter.next();
     }
+    this._hasReads = hasReads;
     return stale;
   }
 
-  // Whether any chunk this annotator lowered recorded a `LoweringRead`.
+  // Whether a chunk of the document may hold a `LoweringRead`: set when one is
+  // lowered with reads, and cleared by a walk that finds none.
   private _hasReads = false;
 
   /** Whether the document answers a read of the chunk that starts at `from`
-   *  differently from the answer its lowering got. */
-  private loweringReadsDisagree(reads: LoweringRead[], from: number): boolean {
+   *  differently from the answer its lowering got, asking the node that read
+   *  it. A node no longer found where the read says it starts disagrees. */
+  private loweringReadsDisagree(reads: RecordedRead[], from: number): boolean {
     const text = this.text;
-    let node = this.tree?.resolveInner(from, 1);
-    while (node?.parent && !node.parent.type.isTop) {
-      node = node.parent;
-    }
-    if (!text || !node || node.from !== from) {
+    const tree = this.tree;
+    if (!text || !tree) {
       return true;
     }
     const ctx = {
@@ -244,11 +277,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       lineNumber: (pos: number) => text.lineAt(pos).number - 1,
       characterNumber: (pos: number) => pos - text.lineAt(pos).from,
     };
-    return reads.some(
-      (read) =>
-        read.kind === "routing" &&
-        continuationRoutingRead(node, ctx) !== read.value,
-    );
+    return reads.some((read) => {
+      const node = nodeStartingAt(tree, from + read.at, read.node);
+      return !node || continuationRoutingRead(node, ctx) !== read.value;
+    });
   }
 
   /**
@@ -389,11 +421,18 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       const globalCallableReads = new Map<string, boolean>();
       const typeNames = this.computeDefineTypeNames();
       const defineTypeReads = new Map<string, boolean>();
-      const reads: LoweringRead[] = [];
+      const reads: RecordedRead[] = [];
       const lowered = lower(nodeRef, {
-        recordRead: (read) => {
-          reads.push(read);
-        },
+        recordRead: this.config?.recordLoweringReads
+          ? (read: LoweringRead) => {
+              reads.push({
+                kind: read.kind,
+                value: read.value,
+                node: read.node,
+                at: read.from - nodeRef.from,
+              });
+            }
+          : undefined,
         // The document being lowered. Absent here until now, which made
         // `ctx.filePath` undefined on the PRODUCTION path — so anything
         // deriving identity from it silently fell back to nothing. Binding

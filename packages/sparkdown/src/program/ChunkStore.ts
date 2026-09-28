@@ -258,10 +258,14 @@ export class ChunkStore {
   protected _defined = new Set<number>();
   protected _used = new Set<StatementChunk>();
 
-  /** What a chunk that refers to `symbol` depends on: its kind, and whether
-   *  the program defines it. */
+  /** What a chunk that refers to `symbol` depends on: the kind the program
+   *  defines it as, or that the program does not define it. A symbol's kind
+   *  counts only while it is defined, so the facts never depend on what an
+   *  earlier compile defined it as. */
   protected factsOf(symbol: number): string {
-    return `${this.table.symbolKinds[symbol]}:${this._defined.has(symbol)}`;
+    return this._defined.has(symbol)
+      ? `defined:${this.table.symbolKinds[symbol]}`
+      : "undefined";
   }
 
   protected buildSequence(

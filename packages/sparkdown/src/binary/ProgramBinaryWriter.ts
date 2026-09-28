@@ -43,8 +43,8 @@ import {
  *
  * Symbols are what a statement chunk of the binary program refers to outside
  * itself (docs/engine/binary-program.md, section 2): `symbols` holds each
- * one's qualified name and `symbolKinds` its kind (`SymbolKind` in
- * `src/program`).
+ * one's qualified name and `symbolKinds` the kind the program last built
+ * defines it as (`SymbolKind` in `src/program`), which an edit can change.
  */
 export interface ProgramTable {
   strings: string[];

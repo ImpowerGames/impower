@@ -154,6 +154,51 @@ describe("the engine", () => {
     // Seven instructions a beat, and the step that finds the flow ended.
     expect(steps).toEqual([7, 7, 7, 1]);
   });
+
+  // After its last beat a flow rests past its last statement, until the step
+  // that ends it: a position in no chunk.
+  it("restores a state saved after any beat, the last included", () => {
+    const { program } = compileScript("One.\nTwo. > Three.\nFour.\n", {
+      programChunks: true,
+    });
+    const root = program.chunks!;
+    const whole = storyBeats(new ProgramStory(root)).beats;
+    expect(whole).toHaveLength(4);
+    const story = new ProgramStory(root);
+    const saves: string[] = [];
+    while (story.canContinue) {
+      story.Continue();
+      saves.push(story.state.toJson());
+    }
+    // A save after each beat, and one after the step that ends the flow.
+    expect(saves).toHaveLength(whole.length + 1);
+    saves.forEach((saved, i) => {
+      const resumed = new ProgramStory(root);
+      resumed.state.LoadJson(saved);
+      expect(resumed.state.toJson()).toBe(saved);
+      expect(storyBeats(resumed).beats).toEqual(whole.slice(i + 1));
+    });
+  });
+
+  // Engines built from one root share its chunks and nothing they write: a
+  // function one engine evaluates reads that engine's globals.
+  it("keeps the globals of engines that share a root apart", () => {
+    const { program } = compileScript(
+      "store x = 3\nfunction read_x() return x end\nA line.\n",
+      { programChunks: true },
+    );
+    expect(program.fallback).toBeUndefined();
+    const root = program.chunks!;
+    const first = new ProgramStory(root);
+    first.variablesState.$("x", 9);
+    expect(first.EvaluateFunction("read_x")).toBe(9);
+    const second = new ProgramStory(root);
+    expect(second.variablesState.$("x")).toBe(3);
+    second.variablesState.$("x", 17);
+    expect(first.variablesState.$("x")).toBe(9);
+    expect(first.EvaluateFunction("read_x")).toBe(9);
+    expect(second.EvaluateFunction("read_x")).toBe(17);
+  });
 });
 
 describe("the fallback", () => {

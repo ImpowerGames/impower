@@ -10,11 +10,17 @@ import type { CompilationConfig } from "../classes/annotators/CompilationAnnotat
  *
  * `routing` is the routing of the display line a glued continuation (a line
  * that begins with `..`) continues, which the continuation's beats after a
- * `>` break take (`lexicalRouting` in `lowerDisplay.ts`).
+ * `>` break take (`lexicalRouting` in `lowerDisplay.ts`). The node that read
+ * it is named with the read, since a continuation can stand inside a block
+ * statement below the chunk's top-level node, and the question is its own.
  */
 export interface LoweringRead {
   kind: "routing";
   value: string;
+  /** The name of the node that read it. */
+  node: string;
+  /** Where that node starts in the document. */
+  from: number;
 }
 
 export interface LowerContext {

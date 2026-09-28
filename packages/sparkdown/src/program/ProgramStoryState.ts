@@ -11,6 +11,7 @@ import { StringBuilder } from "../inkjs/engine/StringBuilder";
 import { Tag } from "../inkjs/engine/Tag";
 import { ObjectValue, StringValue } from "../inkjs/engine/Value";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
+import { splitHeadTailWhitespace } from "../inkjs/engine/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { chunkId } from "./StatementChunk";
 
@@ -72,10 +73,13 @@ export class ProgramStoryState {
   protected _raisedErrors: RaisedError[] = [];
   protected _raisedWarnings: RaisedError[] = [];
 
+  /** `_noteChanged` tells the story its state is no longer the one a reset
+   *  made, as a load does (`Story.NoteStateChanged`). */
   constructor(
     protected _root: ProgramRoot,
     public variablesState: VariablesState,
     protected _cleanWhitespace: (text: string) => string,
+    protected _noteChanged: () => void = () => {},
   ) {
     this.storySeed = new PRNG(new Date().getTime()).next() % 100;
   }
@@ -216,56 +220,7 @@ export class ProgramStoryState {
   }
 
   TrySplittingHeadTailWhitespace(single: StringValue): StringValue[] | null {
-    const str = single.value ?? "";
-    let headFirstNewlineIdx = -1;
-    let headLastNewlineIdx = -1;
-    for (let i = 0; i < str.length; i++) {
-      const c = str[i];
-      if (c == "\n") {
-        if (headFirstNewlineIdx == -1) headFirstNewlineIdx = i;
-        headLastNewlineIdx = i;
-      } else if (c == " " || c == "\t") continue;
-      else break;
-    }
-    let tailLastNewlineIdx = -1;
-    let tailFirstNewlineIdx = -1;
-    for (let i = str.length - 1; i >= 0; i--) {
-      const c = str[i];
-      if (c == "\n") {
-        if (tailLastNewlineIdx == -1) tailLastNewlineIdx = i;
-        tailFirstNewlineIdx = i;
-      } else if (c == " " || c == "\t") continue;
-      else break;
-    }
-    if (headFirstNewlineIdx == -1 && tailLastNewlineIdx == -1) return null;
-    const listTexts: StringValue[] = [];
-    let innerStrStart = 0;
-    let innerStrEnd = str.length;
-    if (headFirstNewlineIdx != -1) {
-      if (headFirstNewlineIdx > 0) {
-        listTexts.push(new StringValue(str.substring(0, headFirstNewlineIdx)));
-      }
-      listTexts.push(new StringValue("\n"));
-      innerStrStart = headLastNewlineIdx + 1;
-    }
-    if (tailLastNewlineIdx != -1) {
-      innerStrEnd = tailFirstNewlineIdx;
-    }
-    if (innerStrEnd > innerStrStart) {
-      listTexts.push(new StringValue(str.substring(innerStrStart, innerStrEnd)));
-    }
-    if (tailLastNewlineIdx != -1 && tailFirstNewlineIdx > headLastNewlineIdx) {
-      listTexts.push(new StringValue("\n"));
-      if (tailLastNewlineIdx < str.length - 1) {
-        const numSpaces = str.length - tailLastNewlineIdx - 1;
-        listTexts.push(
-          new StringValue(
-            str.substring(tailLastNewlineIdx + 1, tailLastNewlineIdx + 1 + numSpaces),
-          ),
-        );
-      }
-    }
-    return listTexts;
+    return splitHeadTailWhitespace(single);
   }
 
   get outputStreamEndsInNewline(): boolean {
@@ -465,9 +420,13 @@ export class ProgramStoryState {
 
   ResetCountDeltaTracking(): void {}
 
-  /** The state as JSON: the position as a chunk id, its entry and offset, the
-   *  output and eval stack, the line end, and the globals. A position holds
-   *  within a session, for as long as a root holds its chunk. */
+  /** The state as JSON: the position as a chunk id, its entry and offset and
+   *  its sequence's id, the output and eval stack, the line end, and the
+   *  globals. A position past the last statement of its sequence, where a
+   *  flow rests after its last beat, has no chunk: it is written with chunk id
+   *  -1 and named by its sequence alone. A position holds within a session,
+   *  for as long as a root holds its chunk or, past the last statement, its
+   *  sequence. */
   toJson(): string {
     const writer = new SimpleJson.Writer();
     writer.WriteObjectStart();
@@ -524,24 +483,53 @@ export class ProgramStoryState {
   }
 
   /** Restores a state `toJson` wrote. The position is placed through the
-   *  root, which must still hold the chunk it names; a position in a statement
-   *  the program no longer has is refused, since placing one is the saved
-   *  form's work (docs/engine/binary-program.md, section 8). */
+   *  root, which must still hold the chunk it names, or for a position past
+   *  the last statement of its sequence, the sequence; a position in a
+   *  statement or flow the program no longer has is refused, since placing
+   *  one is the saved form's work (docs/engine/binary-program.md, section 8). */
   LoadJson(json: string): void {
     const obj = SimpleJson.TextToDictionary(json);
     if (obj["engine"] !== "program") {
       throw new Error("The save was not written by the program engine.");
     }
+    this._noteChanged();
+    // A fresh identity registry for this load, as `StoryState.LoadJsonObj`
+    // opens one: a table reference resolves against the tables this load
+    // reads, never a previous load's.
+    JsonSerialisation.ResetObjectLoadSession();
     const position = obj["position"] as number[] | null;
     if (position) {
-      const [id, entry, offset] = position as [number, number, number];
-      const placed = this._root.position(id, entry);
-      if (!placed) {
-        throw new Error(
-          "The saved position is in a statement this program no longer has.",
-        );
+      const [id, entry, offset, sequenceId] = position as [
+        number,
+        number,
+        number,
+        number,
+      ];
+      if (id === -1) {
+        const sequence = this._root.sequence(sequenceId);
+        if (!sequence) {
+          throw new Error(
+            "The saved position is in a flow this program no longer has.",
+          );
+        }
+        this.position = {
+          sequence,
+          entry: sequence.arrays.chunks.length,
+          offset: 0,
+        };
+      } else {
+        const placed = this._root.position(id, entry);
+        if (!placed) {
+          throw new Error(
+            "The saved position is in a statement this program no longer has.",
+          );
+        }
+        this.position = {
+          sequence: placed.sequence,
+          entry: placed.entry,
+          offset,
+        };
       }
-      this.position = { sequence: placed.sequence, entry: placed.entry, offset };
     } else {
       this.position = null;
     }
@@ -563,6 +551,12 @@ export class ProgramStoryState {
     this.previousRandom = obj["previousRandom"];
     this.didSafeExit = obj["didSafeExit"] === true;
     this.variablesState.SetJsonToken(obj["variablesState"]);
+    // A `new`-instance table saved with its class's name links again to the
+    // live class global, now that the globals are loaded.
+    JsonSerialisation.RelinkPendingDefineRefs((className) => {
+      const value = this.variablesState.GetVariableWithName(className);
+      return value instanceof ObjectValue ? value : null;
+    });
     this.ResetErrors();
     this.OutputStreamDirty();
   }
