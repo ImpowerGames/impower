@@ -1,0 +1,18 @@
+function f(c)
+  local a = if c
+    then 1 else 2
+  local b = if c
+    then 1
+    elseif not c
+    then 2
+    else 3
+  local d = if
+    c
+  then
+    1
+  else
+    2
+  return tostring(10 + if c
+    then a
+    else b)
+end

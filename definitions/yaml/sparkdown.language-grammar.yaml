@@ -6423,7 +6423,7 @@ repository:
   # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
   # literal) still lands inside the condition rather than beside it.
   LuauTernaryExpressionCondition:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|{{WS}})
     beginCaptures:
       1:
         emit: true
@@ -6434,7 +6434,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?={{BEAT}})|(?=$|{{WS}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
+    end: ({{WS}}+)(?=then\b)|(?={{BEAT}}|[)}\],;])|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
     endCaptures:
       1:
         emit: true
@@ -6683,8 +6683,12 @@ repository:
   # discrimination, an inline statement-position `if cond then stmt
   # end` parses as a ternary, eats the `end`, and cascades the parse
   # out of the enclosing function-body context.
+  # An `if` that follows an operator, an opening bracket, a comma or
+  # `return` on its line can only begin an expression, so it begins one
+  # whatever follows on that line; its clauses may then continue on the
+  # lines below.
   LuauTernaryExpression:
-    begin: ({{WS}}*)(if)\b({{WS}}*)(?=(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\}))
+    begin: (?:(?<=(?:[-+*/%^<>=~(\[{,]|[.][.]|\b(?:return|and|or|not)\b){{WS}}*)|(?={{WS}}*if\b(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\})))({{WS}}*)(if)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -6718,10 +6722,14 @@ repository:
     # `,` or `;`. Without the bracket alternatives, the rule would
     # only close via parent force-close (an
     # `[ScopedRule:LuauTernaryExpression] Incomplete scope` warning at
-    # parse time). The `$` alternative makes the ternary single-line;
-    # the clause rules (`LuauThenExpression` / `LuauElseExpression`)
-    # already end at `$` themselves, so a line break mid-ternary was
-    # never parseable anyway.
+    # parse time).
+    #
+    # This level only meets the end of a line once the else arm has its
+    # value, or directly after an `if` or `elseif` whose condition starts
+    # on the next line, which the lookbehind skips. The condition reads on
+    # until its `then`, the then arm until its `else` or `elseif`, and
+    # the `then` and `else` keywords take the line break after them, so
+    # while a clause is still to come, one of those rules is open.
     #
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
@@ -6729,7 +6737,7 @@ repository:
     # before its own `then`, and a `then` glued to its end, so whitespace
     # followed by `then` or `do` at this level only follows a completed arm,
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
-    end: (?={{BEAT}}|$|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
+    end: (?={{BEAT}}|(?<!\b(?:else)?if{{WS}}*)$|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -6745,14 +6753,13 @@ repository:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    # End at the next ternary clause keyword, at a BEAT, at a closing
-    # bracket / arg separator, or at the first WS after the `then`
-    # body finishes (the single-line single-token case). The `else`
-    # / `elseif` alternatives are needed because in inline ternary
-    # the surrounding `LuauTernaryExpression` no longer ends at
-    # `(?=then)`, so this rule has to relinquish the cursor at the
-    # next clause boundary on its own.
-    end: (?={{BEAT}}|else\b|elseif\b|$|{{WS}}|[)}\],;])
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # End at the next ternary clause keyword, at a BEAT, or at a closing
+    # bracket / arg separator. The arm reads across line breaks until
+    # its `else` or `elseif`, so the enclosing expression, which ends at
+    # the end of a line, stays open while that clause is still to come.
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;]))
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)

@@ -9,6 +9,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 
 function compileAndCapture(source: string): {
@@ -394,6 +395,60 @@ end`);
       errors: r.errorMessages,
       warnings: r.warningMessages,
     }).toEqual({ returnedOK: true, errors: [], warnings: [] });
+  });
+});
+
+// An if expression continues across line breaks until its else arm has a
+// value, as any Luau expression does.
+describe("if expression across lines", () => {
+  test.each([
+    [
+      "condition on its own line",
+      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1 else 2\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "one clause per line",
+      "Value {f()}.\nfunction f()\n  local x = if true\n    then 1\n    else 2\n  return x\nend\n",
+      "Value 1.\n",
+    ],
+    [
+      "else arm on the next line",
+      "Value {f()}.\nfunction f()\n  local x = if false then 1\n    else 2\n  return x\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "returned",
+      "Value {f(false)}.\nfunction f(x)\n  return if x\n    then 1\n    else 3\nend\n",
+      "Value 3.\n",
+    ],
+    [
+      "elseif chain",
+      "Value {f()}.\nfunction f()\n  local x = if false\n    then 1\n    elseif true\n    then 2\n    else 3\n  return x\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "a value on the line after each keyword",
+      "Value {f()}.\nfunction f()\n  local x = if\n    false\n  then\n    1\n  else\n    2\n  return x\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "a call argument",
+      "Value {f()}.\nfunction f()\n  return tostring(if false\n    then 1\n    else 2)\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "an operand",
+      "Value {f()}.\nfunction f()\n  local x = 10 + if false\n    then 1\n    else 2\n  return x\nend\n",
+      "Value 12.\n",
+    ],
+  ])("%s", (_name, source, expected) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect({
+      errors: ctx.errorMessages,
+      warnings: ctx.warningMessages,
+      text: ctx.story.ContinueMaximally(),
+    }).toEqual({ errors: [], warnings: [], text: expected });
   });
 });
 
