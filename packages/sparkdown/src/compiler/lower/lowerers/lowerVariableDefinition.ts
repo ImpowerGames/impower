@@ -1,4 +1,4 @@
-import { nodeNameSet } from "../../utils/nodeNameSet";
+import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
@@ -30,26 +30,6 @@ import {
   unwrapBlockContent,
 } from "../utils/unwrapBlock";
 import { wrapInWeave } from "../utils/wrapInWeave";
-
-// Statement-like nodes that can appear as siblings inside a
-// `LuauVariableDefinition_content` when sparkdown's grammar's
-// permissive expression-pattern set lets multiple statements share
-// a single source line — e.g. `local x = 5 return x end`. The
-// grammar parses these correctly; the lowerer must recognize them
-// as ADJACENT statements rather than mis-treating them as trailing
-// multi-RHS values.
-const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = nodeNameSet([
-  "LuauReturnStatement",
-  "LuauBreakStatement",
-  "LuauContinueStatement",
-  "LuauGotoStatement",
-  "LuauLabel",
-  "LuauFunctionDefinition",
-  "LuauVariableDefinition",
-  "LuauUntilStatement",
-  "LuauReassignment",
-  "LuauExplicitStatement",
-]);
 
 export function lowerVariableDefinition(
   nodeRef: SparkdownSyntaxNodeRef,

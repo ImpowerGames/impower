@@ -46,27 +46,33 @@ export interface DetailedDiagnostic {
 
 /** Every diagnostic of the compile but the type checker's, lint warnings included. */
 export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
+  return diagnoseFilesDetailed({ "main.sd": source });
+}
+
+/** As `diagnoseDetailed`, for a project of several scripts keyed by path
+ *  (`scripts/chapter.sd`). The first script is compiled; the others are what
+ *  its `include` lines reach. Each diagnostic names its script's path. */
+export function diagnoseFilesDetailed(
+  sources: Record<string, string>,
+): (DetailedDiagnostic & { file: string })[] {
   const compiler = new SparkdownCompiler();
-  const uri = "inmemory:///main.sd";
-  compiler.configure({
-    files: [
-      {
-        uri,
-        type: "script",
-        name: "main",
-        ext: "sd",
-        text: source,
-        version: 1,
-        languageId: "sparkdown",
-      },
-    ],
-  });
-  const result = compiler.compile({ textDocument: { uri } });
-  const out: DetailedDiagnostic[] = [];
-  for (const ds of Object.values(result.program.diagnostics ?? {})) {
+  const files = Object.entries(sources).map(([path, text]) => ({
+    uri: `inmemory:///${path}`,
+    type: "script" as const,
+    name: path.replace(/^.*\//, "").replace(/\.sd$/, ""),
+    ext: "sd",
+    text,
+    version: 1,
+    languageId: "sparkdown",
+  }));
+  compiler.configure({ files });
+  const result = compiler.compile({ textDocument: { uri: files[0]!.uri } });
+  const out: (DetailedDiagnostic & { file: string })[] = [];
+  for (const [uri, ds] of Object.entries(result.program.diagnostics ?? {})) {
     for (const d of ds) {
       if (TYPE_ERROR_KINDS.has(String(d.code))) continue;
       out.push({
+        file: uri.replace("inmemory:///", ""),
         message: diagnosticMessage(d),
         code: d.code,
         severity: d.severity,

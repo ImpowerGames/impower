@@ -197,7 +197,8 @@ sparkdown [0..185]
  │   │       │   │   │       │       │       │       ├─ LuauTypeName_c1 78
  │   │       │   │   │       │       │       │       ├─ LuauTypeName_c2 78
  │   │       │   │   │       │       │       │       ├─ LuauTypeName_c3 [78..83]: "types"
- │   │       │   │   │       │       │       │       └─ LuauTypeName_c4 83
+ │   │       │   │   │       │       │       │       ├─ LuauTypeName_c4 83
+ │   │       │   │   │       │       │       │       └─ LuauTypeName_c5 83
  │   │       │   │   │       │       │       └─ LuauTypeLiteral_end 83
  │   │       │   │   │       │       └─ LuauTypeAnnotationOperation_end 83
  │   │       │   │   │       └─ LuauVariableAssignment_end 83

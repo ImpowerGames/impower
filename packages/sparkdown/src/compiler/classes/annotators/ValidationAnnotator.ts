@@ -1,3 +1,4 @@
+import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
@@ -105,6 +106,9 @@ const MALFORMED_NUMBER = "Malformed number";
 // pins, so it is the one sparkdown uses everywhere.
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
+const STRAY_OPTIONAL = "Expected type, got '?'";
+const TYPE_NAME_EXTRA_QUALIFIER =
+  "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -125,20 +129,6 @@ function normalizeStylePropName(name: string): string {
     .replace(/_/g, "-")
     .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
     .toLowerCase();
-}
-
-// Bounded parent walk: nearest ancestor whose name is in `names`, else null.
-function ancestorMatching(
-  node: { parent?: any } | undefined,
-  names: Set<string>,
-  max = 10,
-): any {
-  let cur = node?.parent;
-  for (let depth = 0; depth < max && cur; depth++) {
-    if (names.has(cur.name)) return cur;
-    cur = cur.parent;
-  }
-  return null;
 }
 
 // DFS in-order: first descendant (or self) whose name is in `names`, else null.
@@ -336,6 +326,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
     if (this.validateLuauLiteral(annotations, nodeRef)) {
+      return annotations;
+    }
+    // A `?` only ends the type before it; the grammar reads one with no type
+    // before it as its own token. The wording is Luau's parser's.
+    if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
+      this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+      return annotations;
+    }
+    // A type name with more than one module prefix (`types.ui.Button`). Luau
+    // reads at most `module.Type`, so the segments after it are a syntax
+    // error; the grammar keeps them inside the type so this can report them.
+    if (nodeRef.name === "LuauTypeNameExtraQualifier") {
+      this.error(
+        annotations,
+        TYPE_NAME_EXTRA_QUALIFIER,
+        nodeRef.from,
+        nodeRef.to,
+      );
       return annotations;
     }
     if (nodeRef.name === "AssetCommandControl") {

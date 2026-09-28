@@ -824,6 +824,7 @@ function lowerMethodCall(
   // The receiver name lives under `LuauStdLibConstants` for stdlib names
   // (the `LuauVariable` rule's captures try stdlib before plain variable),
   // so we look for that descendent first.
+  let stdlibMember: Identifier | null = null;
   if (receiverParts.length === 1) {
     const onlyPart = receiverParts[0]!.firstChild;
     if (onlyPart?.name === "LuauVariable") {
@@ -874,6 +875,13 @@ function lowerMethodCall(
             callArgs,
           );
         }
+        // `table:nogetn()` lowers like any other colon call below, so a
+        // local that shadows the library keeps builtin method dispatch and
+        // its receiver is evaluated once. The receiver names the member, so
+        // an unresolved library reports `table.nogetn` as the dot form does.
+        if (stdlibNode.name === "LuauStdLibConstants") {
+          stdlibMember = identifierAt(methodNameNode, ctx);
+        }
       }
     }
   }
@@ -882,6 +890,9 @@ function lowerMethodCall(
   // on a synthetic parts list (no method accessor, no trailing call).
   const receiver = lowerPartsAsExpression(receiverParts, ctx);
   if (!receiver) return null;
+  if (stdlibMember && receiver instanceof VariableReference) {
+    receiver.unresolvedMember = stdlibMember;
+  }
 
   // Builtin method dispatch (`s:upper()`, `t:find(x)`, `t:union(other)`,
   // ...). When the method name matches a registered builtin in

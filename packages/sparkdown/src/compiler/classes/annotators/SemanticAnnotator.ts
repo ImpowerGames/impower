@@ -497,6 +497,11 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       }
       this.scopeStack.push(new Map());
     }
+    // A type function's parameters and locals are its own, as a function's
+    // are. Its name is a type, so nothing binds in the enclosing scope.
+    if (nodeRef.name === "LuauFunctionTypeDeclaration") {
+      this.scopeStack.push(new Map());
+    }
     if (nodeRef.name === "LuauFunctionParameter") {
       const name = this.read(nodeRef.from, nodeRef.to).trim();
       if (name) this.bindInCurrentScope(name, "variable");
@@ -653,7 +658,8 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<SemanticInfo>>[] {
     if (
-      nodeRef.name === "LuauFunctionDefinition" &&
+      (nodeRef.name === "LuauFunctionDefinition" ||
+        nodeRef.name === "LuauFunctionTypeDeclaration") &&
       this.scopeStack.length > 1
     ) {
       // Pop the function-body scope. Keep the outermost frame so

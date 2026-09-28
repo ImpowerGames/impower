@@ -20,7 +20,10 @@ import { statementSource } from "./statementSource";
 //
 // Both checks are linear sibling walks over the parse tree, which
 // keeps them out of the parser and avoids wrapping potentially-large
-// regions in Scoped rules.
+// regions in Scoped rules. The language server's completion scope
+// (`getSectionEnd` in sparkdown-language-server's
+// `getDeclarationScopes.ts`) pairs sections with the same walks, except
+// that it treats a `Scene` inside an open section as that section's end.
 
 // Walks forward from `decl` over root-level siblings, tracking
 // scene/branch nesting depth (start at 1 — `decl` itself is the
@@ -46,6 +49,9 @@ function findsMatchingEnd(decl: SyntaxNode): boolean {
 // `end` depth (we want to find a `Scene` declaration that hasn't yet
 // been closed). Returns `true` iff a `Scene` is found "above" us in
 // source order with no matching `end` between it and the branch.
+// The language server's `getParentSectionPath` walks the same siblings
+// to find the cursor's scene and branch; on a script missing an `end`
+// (which `findsMatchingEnd` reports) the two may answer differently.
 function isInsideScene(branch: SyntaxNode): boolean {
   let pendingEnds = 0;
   let cur = branch.prevSibling;

@@ -506,7 +506,7 @@ Variables can reference other variables, regardless of declaration order — the
 
 ```yaml
 LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|...)
-LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
+LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
 ```
 
 Build small named pieces, then compose them. A long regex like `EOL: "(?:$|{{WS}}*$|{{WS}}*{{TAG_START}}.*$)"` is readable at this level; spelled out inline it's noise.

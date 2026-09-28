@@ -66,6 +66,7 @@ const INDENTING_BLOCKS = nodeNameSet([
   "BlockDialogue",
   "BlockAction",
   "LuauFunctionDefinition",
+  "LuauFunctionTypeDeclaration",
   // `for`/`while`/`repeat` loops are NOT in this set: their grammar
   // rules end at `$` / `until`, so the inner `DoBlock` (which owns
   // the visible `end` keyword) is what we count. Listing both the

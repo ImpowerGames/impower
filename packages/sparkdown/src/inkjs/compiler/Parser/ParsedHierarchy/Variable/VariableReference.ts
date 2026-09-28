@@ -7,7 +7,11 @@ import { Story } from "../Story";
 import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Identifier } from "../Identifier";
 import { asOrNull, filterUndef } from "../../../../engine/TypeAssertion";
-import { lookupStdLibConstant } from "../../../../engine/StdLib";
+import {
+  isStdLibFunctionName,
+  isStdLibNamespaceName,
+  lookupStdLibConstant,
+} from "../../../../engine/StdLib";
 
 export class VariableReference extends Expression {
   private _runtimeVarRef: RuntimeVariableReference | null = null;
@@ -37,6 +41,12 @@ export class VariableReference extends Expression {
   }
   // Only known after GenerateIntoContainer has run
   public isListItemReference: boolean = false;
+
+  // The member a colon call reads from this reference, as in `table:nogetn()`.
+  // When set, an unresolved name reports the member path (`table.nogetn`)
+  // across both names, as the dot form's path reference does. The compiler
+  // rebases its position with the reference's other identifiers.
+  public unresolvedMember: Identifier | null = null;
 
   get runtimeVarRef() {
     return this._runtimeVarRef;
@@ -186,6 +196,11 @@ export class VariableReference extends Expression {
         const baseStruct = context.ResolveStruct(baseName);
         if (
           baseResolve.found &&
+          // A local named like a library (`local table = {...}`) is found
+          // here from anywhere in its flow, but it only shadows the library
+          // inside its scope.
+          (!isStdLibNamespaceName(baseName) ||
+            context.IsLocalInScope(baseName, this)) &&
           !context.constants.has(baseName) &&
           // `companion.O` — the base is a `define` runtime table, so
           // the dotted access walks it at runtime. Pure data structs
@@ -197,28 +212,18 @@ export class VariableReference extends Expression {
         }
       }
 
-      const pathStr = this.path.join(".");
-
-      // `math.pi()`: a call through a registered stdlib constant. The path
-      // exists, so it is not reported; the call fails at run time.
-      if (lookupStdLibConstant(pathStr) !== undefined) {
-        return;
-      }
-
-      let errorMsg = `Cannot find item or path named \`${pathStr}\``;
-
-      // Luau-superset semantics: same logic as the single-name
-      // "Cannot find variable named" diagnostic below — downgrade
-      // unresolved dotted paths to a warning so the runtime can fall
-      // back to `NullValue` for property reads (`_G.bar`,
-      // `unknown.field`, ...). The diagnostic still surfaces in the
-      // IDE as a probable typo / forgotten declaration.
-      this.Error(errorMsg, this.unresolvedSource, true);
-
+      this.ReportUnresolvedPath(this.path, this.unresolvedSource);
       return;
     }
 
     if (!context.ResolveVariableWithName(this.name, this).found) {
+      if (this.unresolvedMember) {
+        this.ReportUnresolvedPath(
+          [this.name, this.unresolvedMember.name],
+          new Identifier(this.identifier!, this.unresolvedMember),
+        );
+        return;
+      }
       // Luau-superset semantics: undefined names resolve to `nil` at
       // runtime, not a compile error. Downgraded to a warning so it
       // still surfaces in the IDE as a probable typo / forgotten
@@ -230,6 +235,34 @@ export class VariableReference extends Expression {
         true,
       );
     }
+  }
+
+  // An unresolved dotted path: `table.nogetn`, or the `table:nogetn()` a colon
+  // call reads from its receiver.
+  private ReportUnresolvedPath(
+    path: string[],
+    source: ParsedObject | Identifier,
+  ): void {
+    const pathStr = path.join(".");
+
+    // `math.pi()`: a call through a registered stdlib constant. The path
+    // exists, so it is not reported; the call fails at run time. A library
+    // function read where no local shadows its library (`table.concat`
+    // before `local table`) exists too.
+    if (
+      lookupStdLibConstant(pathStr) !== undefined ||
+      isStdLibFunctionName(pathStr)
+    ) {
+      return;
+    }
+
+    // Luau-superset semantics: same logic as the single-name
+    // "Cannot find variable named" diagnostic in `ResolveReferences` — downgrade
+    // unresolved dotted paths to a warning so the runtime can fall
+    // back to `NullValue` for property reads (`_G.bar`,
+    // `unknown.field`, ...). The diagnostic still surfaces in the
+    // IDE as a probable typo / forgotten declaration.
+    this.Error(`Cannot find item or path named \`${pathStr}\``, source, true);
   }
 
   // Where an unresolved reference is reported: the name or path itself when
