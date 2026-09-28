@@ -369,6 +369,7 @@ sparkdown [0..228]
  │   │       │       ├─ LuauTernaryExpression_content [196..216]
  │   │       │       │   ├─ LuauTernaryExpressionCondition [196..198]
  │   │       │       │   │   ├─ LuauTernaryExpressionCondition_begin 196
+ │   │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 196
  │   │       │       │   │   ├─ LuauTernaryExpressionCondition_content [196..197]
  │   │       │       │   │   │   └─ LuauAccessPath [196..197]
  │   │       │       │   │   │       ├─ LuauAccessPath_begin 196

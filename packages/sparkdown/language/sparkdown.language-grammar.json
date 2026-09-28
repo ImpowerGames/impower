@@ -9902,7 +9902,17 @@
       }
     },
     "LuauTernaryExpressionCondition": {
-      "begin": "(?<=if\\b(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
+      "begin": "(?<=if\\b(?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|(?:[^\\S\\n\\r]))",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
       "patterns": [
         {
           "include": "#LuauExpression"

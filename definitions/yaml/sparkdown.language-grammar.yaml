@@ -6384,8 +6384,16 @@ repository:
   # A condition takes the whitespace before its own `then`, so the enclosing
   # `LuauTernaryExpression` stands directly on that `then` and only meets
   # whitespace followed by `then` after a completed arm (see its `end`).
+  # It also takes the whitespace after `elseif`, so an expression whose own
+  # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
+  # literal) still lands inside the condition rather than beside it.
   LuauTernaryExpressionCondition:
-    begin: (?<=if\b{{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }

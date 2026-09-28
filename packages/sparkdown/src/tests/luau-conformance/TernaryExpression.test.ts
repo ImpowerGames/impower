@@ -4,7 +4,9 @@
 // jumps via the `sc:if` / `sc:jump` ControlCommand ops — only the
 // taken arm's value ops execute (verified by the side-effect test).
 // An unparenthesized if expression in a condition ends before the
-// enclosing `then` or `do` once its else arm is complete.
+// enclosing `then` or `do` once its else arm is complete; when that arm
+// is glued to the `then` with no whitespace, the clauses parse flat and
+// the lowerer rebuilds the nesting (see lowerTernaryExpression).
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -231,5 +233,50 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual([3]);
+  });
+
+  test("elseif conditions that begin with an operator or a function literal", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local x = false
+local y = false
+local t = {1}
+local n = 5
+host_record(if x then 1 elseif not y then 2 else 3)
+host_record(if x then 1 elseif #t then 2 else 3)
+host_record(if x then 1 elseif -n then 2 else 3)
+host_record(if x then 1 elseif function() return 1 end then 2 else 3)
+local r = "none"
+if if x then nil elseif not y then 1 else nil then
+  r = "a"
+end
+host_record(r)
+local v = if x then 1 elseif function(l0)
+  return l0
+end then 2 else 3
+host_record(v)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual([2, 2, 2, 2, "a", 2]);
+  });
+
+  test("an else arm glued to the enclosing then", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function run()
+local c = true
+host_record(if if c then false else (true)then "A" else "B")
+host_record(if if c then false else "x"then "A" else "B")
+host_record(if if c then false else {}then "A" else "B")
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["B", "B", "B"]);
   });
 });
