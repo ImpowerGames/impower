@@ -305,16 +305,15 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // or for a type function at LuauFunctionTypeDeclaration >
       // LuauTypeFunctionName.
       const definition = ancestorMatching(nodeRef.node, PARAMETER_OWNER);
-      const declName =
-        definition?.name === "LuauFunctionDefinition"
-          ? getDescendent("LuauFunctionDeclarationName", definition)
+      let functionNameNode = null;
+      if (definition?.name === "LuauFunctionTypeDeclaration") {
+        functionNameNode = getDescendent("LuauTypeFunctionName", definition);
+      } else if (definition?.name === "LuauFunctionDefinition") {
+        const declName = getDescendent("LuauFunctionDeclarationName", definition);
+        functionNameNode = declName
+          ? getDescendent("LuauFunctionName", declName)
           : null;
-      const functionNameNode =
-        definition?.name === "LuauFunctionTypeDeclaration"
-          ? getDescendent("LuauTypeFunctionName", definition)
-          : declName
-            ? getDescendent("LuauFunctionName", declName)
-            : null;
+      }
       const fnName = functionNameNode
         ? this.read(functionNameNode.from, functionNameNode.to).trim()
         : "";

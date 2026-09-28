@@ -73,7 +73,7 @@ describe("type function declaration", () => {
     ["a type alias after it", `type function F(t)\n    return t\nend\ntype C = { a: number }\n`],
     ["export", `export type function F(t)\n    return t\nend\nlocal x = 1\n`],
     ["a one-line body holding a function", `type function F(t) local function g() return t end return g() end\nlocal x = 1\n`],
-    ["a nested block",`type function F(t)\n    if t:is("number") then\n        return t\n    end\n    return t\nend\nlocal x = 1\n`],
+    ["a nested block", `type function F(t)\n    if t:is("number") then\n        return t\n    end\n    return t\nend\nlocal x = 1\n`],
   ])("reads the whole declaration with %s", (_, source) => {
     expect(checkLuau(source).syntaxDiagnostics).toEqual([]);
   });
@@ -116,7 +116,7 @@ end
     expect(recorded).toEqual([1, 2, 3]);
   });
 
-  test("its parameters are not visible after its end", () => {
+  test("the compiler does not resolve its parameters after its end", () => {
     const { warnings } = run([
       {
         uri: "inmemory:///main.sd",
@@ -134,6 +134,74 @@ end
       },
     ]);
     expect(warnings).toEqual(["Cannot find variable named `t`"]);
+  });
+
+  test("the editor does not bind its parameters after its end", () => {
+    const script = (parameter: string) => `function f()
+  type function F(${parameter})
+    return ${parameter}
+  end
+  return t
+end
+`;
+    // The last `t` is the one after `end`. With nothing bound it reads as it
+    // does when the type function's parameter has another name.
+    expect(annotationsOf(script("t"), "t").at(-1)).toEqual(annotationsOf(script("p"), "t").at(-1));
+  });
+
+  test("editing around it leaves the names after it as a cold parse reads them", () => {
+    const filler = (name: string) =>
+      Array.from({ length: 40 }, (_, i) => `  local ${name}${i} = ${i}`).join("\n");
+    let text = `function raise()
+${filler("v")}
+  type function Wrap(mat)
+    local strin = mat
+    return strin
+  end
+${filler("w")}
+  local a = math.floor(2.5)
+  local b = string.len("a")
+  return a + b
+end
+`;
+    const uri = "inmemory:///main.sd";
+    const incremental = new SparkdownDocumentRegistry(["semantics"]);
+    incremental.add({ textDocument: { uri, text, version: 1, languageId: "sparkdown" } });
+    const semanticsAfterEnd = (registry: SparkdownDocumentRegistry) => {
+      const out: string[] = [];
+      const iter = (registry.annotations(uri) as Record<string, any>)["semantics"]!.iter(text.indexOf("local a = "));
+      while (iter.value) {
+        out.push(`${iter.from}-${iter.to} ${JSON.stringify(iter.value.type)}`);
+        iter.next();
+      }
+      return out;
+    };
+    const position = (offset: number) => {
+      const before = text.slice(0, offset);
+      return { line: before.split("\n").length - 1, character: offset - (before.lastIndexOf("\n") + 1) };
+    };
+    // A digit in a value before the declaration, a space in its header, then
+    // typing its parameter and its local into `math` and `string`, which a
+    // later line uses as the standard library, and a digit after it.
+    const edits: [string, number, string][] = [
+      ["  local v3 = 3", "  local v3 = ".length, "1"],
+      ["  type function Wrap(mat)", "  type function".length, " "],
+      ["Wrap(mat)", "Wrap(mat".length, "h"],
+      ["    local strin = mat", "    local strin".length, "g"],
+      ["  local w5 = 5", "  local w5 = ".length, "1"],
+    ];
+    let version = 2;
+    for (const [line, column, inserted] of edits) {
+      const offset = text.indexOf(line) + column;
+      incremental.update({
+        textDocument: { uri, version: version++ },
+        contentChanges: [{ range: { start: position(offset), end: position(offset) }, text: inserted }],
+      });
+      text = text.slice(0, offset) + inserted + text.slice(offset);
+      const cold = new SparkdownDocumentRegistry(["semantics"]);
+      cold.add({ textDocument: { uri, text, version: 1, languageId: "sparkdown" } });
+      expect(semanticsAfterEnd(incremental), `after the edit to ${JSON.stringify(line)}`).toEqual(semanticsAfterEnd(cold));
+    }
   });
 
   test("its parameters and locals do not shadow names in the enclosing scope", () => {

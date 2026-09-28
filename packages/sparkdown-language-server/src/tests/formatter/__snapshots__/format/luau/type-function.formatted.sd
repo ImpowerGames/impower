@@ -1,0 +1,14 @@
+type function Optional(t)
+  return types.unionof(t, types.singleton(nil))
+end
+
+function raise(t)
+  type function F(t)
+    if t:is("number") then
+      return t
+    end
+    return t
+  end
+  local doubled = t * 2
+  return doubled
+end
