@@ -15,6 +15,7 @@ import { runConformanceSource } from "./conformanceTestHarness";
 function compileAndCapture(source: string): {
   errors: string[];
   recorded: unknown[];
+  text: string;
 } {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -34,7 +35,7 @@ function compileAndCapture(source: string): {
     textDocument: { uri: "inmemory:///main.sd" },
   });
   if (!result.program.compiled) {
-    return { errors: ["NO_COMPILED"], recorded: [] };
+    return { errors: ["NO_COMPILED"], recorded: [], text: "" };
   }
   const story = new RuntimeStory(result.program.compiled as Record<string, any>);
   const recorded: unknown[] = [];
@@ -44,8 +45,8 @@ function compileAndCapture(source: string): {
   });
   const errors: string[] = [];
   story.onError = (m: string) => errors.push(m);
-  story.ContinueMaximally();
-  return { errors, recorded };
+  const text = story.ContinueMaximally();
+  return { errors, recorded, text };
 }
 
 describe("if-then-else expressions", () => {
@@ -278,5 +279,19 @@ end
 `);
     expect(errors).toEqual([]);
     expect(recorded).toEqual(["B", "B", "B"]);
+  });
+});
+
+describe("clause-less if in display text", () => {
+  test("shows its condition's value", () => {
+    const { errors, text } = compileAndCapture(`The value is {if pick()}.
+done
+
+function pick()
+  return 7
+end
+`);
+    expect(errors).toEqual([]);
+    expect(text).toContain("The value is 7.");
   });
 });

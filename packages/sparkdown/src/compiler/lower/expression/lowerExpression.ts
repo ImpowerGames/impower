@@ -1122,10 +1122,10 @@ function lowerTernaryExpression(
       // An if expression in a condition whose else arm is glued to the
       // enclosing `then` (`if if C then a else (b)then x else y`) is not
       // closed by the grammar, which ends it only at whitespace before
-      // `then`, so its clauses arrive FLAT: the complete chain (ending in
-      // an else branch) followed by the enclosing level's then/else
-      // clauses. Fold the completed chain into a nested TernaryExpression
-      // and use it as this clause's condition.
+      // `then`, so its clauses arrive as one flat list: the complete
+      // chain (ending in an else branch) followed by the enclosing
+      // level's then/else clauses. Fold the completed chain into a nested
+      // TernaryExpression and use it as this clause's condition.
       if (
         pendingCond === null &&
         branches.length > 0 &&
@@ -1144,9 +1144,11 @@ function lowerTernaryExpression(
   }
 
   if (branches.length === 0) {
-    // No then/else clauses of our own: the condition took the whole flat
-    // clause chain described above, and the folded condition is the
-    // expression.
+    // No then/else clauses of our own, and the condition is the
+    // expression. Two shapes reach here: the clause-less interpolation
+    // `{if x}`, which shows the value of `x`, and the outer node of the
+    // glued flat list described above, whose condition took the whole
+    // chain and was folded into a nested TernaryExpression.
     return pendingCond;
   }
   if (branches[0]!.condition === null) return null;
