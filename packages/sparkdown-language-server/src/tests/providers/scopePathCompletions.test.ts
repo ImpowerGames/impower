@@ -263,6 +263,38 @@ end
     expect(getDeclarationScopes(scripts)[""]?.label).toEqual(["toplabel"]);
   });
 
+  test("a scene left without its end is not reopened after a later scene closes", () => {
+    expect(
+      scopePathAt("scene A\n  Hi.\nscene B\n  Bye.\nend\n|\n"),
+    ).toEqual([]);
+  });
+
+  test("a branch left without its end is not reopened after a later branch closes", () => {
+    expect(
+      scopePathAt(
+        "scene A\n  branch x\n    X.\n  branch y\n    Y.\n  end\n  |\nend\n",
+      ),
+    ).toEqual(["A"]);
+  });
+
+  test("a parameter is not offered in a branch whose name its branch prefixes", () => {
+    const labels = completionLabelsAt(`scene A
+  branch x
+    function f(alpha)
+      return alpha
+    end
+  end
+  branch xy
+    function g(beta)
+      return al|
+    end
+  end
+end
+`);
+    expect(labels).toContain("beta");
+    expect(labels).not.toContain("alpha");
+  });
+
   test("a branch's labels are not offered in a branch whose name it prefixes", () => {
     const labels = completionLabelsAt(`scene A
   branch x

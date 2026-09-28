@@ -14,7 +14,9 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
  * `end`. So the walk starts at the root-level ancestor of the cursor and moves
  * backwards through its siblings, pairing each `end` with the scene or branch
  * it closes, collecting the nearest open branch and stopping at the first open
- * scene.
+ * scene. A scene also closes everything before it and a branch every branch
+ * before it, as they do in `getDeclarationScopes`, so a scene or branch left
+ * without its `end` is not reopened once a later one has been passed.
  */
 export const getParentSectionPath = (
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
@@ -32,14 +34,20 @@ export const getParentSectionPath = (
     | undefined;
   // Ends passed on the way back whose scene or branch is not reached yet.
   let unmatchedEnds = 0;
+  // Whether a branch has been passed; any earlier branch is closed by it.
+  let passedBranch = false;
   while (topLevelNode) {
     if (topLevelNode.name === "LuauEndKeyword") {
       unmatchedEnds += 1;
-    } else if (
-      (topLevelNode.name === "Scene" || topLevelNode.name === "Branch") &&
-      unmatchedEnds > 0
-    ) {
+    } else if (topLevelNode.name === "Scene" && unmatchedEnds > 0) {
+      // A closed scene: the cursor is after it, and it closed everything
+      // before it.
+      break;
+    } else if (topLevelNode.name === "Branch" && unmatchedEnds > 0) {
       unmatchedEnds -= 1;
+      passedBranch = true;
+    } else if (topLevelNode.name === "Branch" && passedBranch) {
+      // Left without its `end`, and closed by the branch after it.
     } else if (topLevelNode.name === "Scene") {
       const sceneNameNode = getDescendent("SceneDeclarationName", topLevelNode);
       if (sceneNameNode) {
@@ -50,18 +58,16 @@ export const getParentSectionPath = (
       }
       break;
     } else if (topLevelNode.name === "Branch") {
-      const lastPart = parentPathParts.at(-1);
-      if (lastPart?.kind !== "branch") {
-        const branchNameNode = getDescendent(
-          "BranchDeclarationName",
-          topLevelNode,
-        );
-        if (branchNameNode) {
-          parentPathParts.unshift({
-            kind: "branch",
-            name: read(branchNameNode.from, branchNameNode.to),
-          });
-        }
+      passedBranch = true;
+      const branchNameNode = getDescendent(
+        "BranchDeclarationName",
+        topLevelNode,
+      );
+      if (branchNameNode) {
+        parentPathParts.unshift({
+          kind: "branch",
+          name: read(branchNameNode.from, branchNameNode.to),
+        });
       }
     }
     topLevelNode = topLevelNode.prevSibling as

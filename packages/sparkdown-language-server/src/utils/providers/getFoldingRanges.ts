@@ -2,6 +2,7 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/Sp
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
 import { Range, type FoldingRange } from "vscode-languageserver";
+import { getFunctionEndLine } from "../syntax/getFunctionEndLine";
 
 const INDENT_REGEX = /^([ \t]+)/;
 
@@ -72,23 +73,19 @@ export const getFoldingRanges = (
   // closes the innermost one; a new scene closes every open one and a new
   // branch closes an open branch, since neither nests inside its own kind.
   const open: FoldingRange[] = [];
-  // A function declared outside any scene or branch folds until the next
-  // scene or function. One declared inside a scene or branch gets no heading
-  // fold of its own: its body is indented, so indentation folding covers it.
-  let topFunction: FoldingRange | undefined;
   const cur = annotations.declarations?.iter();
   if (cur) {
     while (cur.value) {
       const line = document.positionAt(cur.from).line;
-      if (cur.value.type === "function" || cur.value.type === "scene") {
-        if (topFunction) {
-          topFunction.endLine = line - 1;
-          topFunction = undefined;
-        }
-      }
+      // A function declared outside any scene or branch folds up to its own
+      // `end`, the range the outline gives it. One declared inside a scene or
+      // branch gets no heading fold of its own: indentation folding covers it.
       if (cur.value.type === "function" && open.length === 0) {
-        topFunction = { startLine: line, endLine: line, kind: "function" };
-        headingFolding.push(topFunction);
+        headingFolding.push({
+          startLine: line,
+          endLine: getFunctionEndLine(document, line),
+          kind: "function",
+        });
       }
       if (cur.value.type === "scene") {
         for (const o of open.splice(0)) {
@@ -115,8 +112,8 @@ export const getFoldingRanges = (
       cur.next();
     }
   }
-  // A fold still open at the end of the document runs to its last line.
-  for (const fold of topFunction ? [...open, topFunction] : open) {
+  // A scene or branch missing its `end` folds to the end of the document.
+  for (const fold of open) {
     fold.endLine = document.lineCount - 1;
   }
   const result = [...indentFolding, ...headingFolding].sort(

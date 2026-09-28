@@ -92,3 +92,44 @@ end
     expect(Object.keys(program.functionLocations ?? {})).toContain("helper");
   });
 });
+
+describe("declaration locations after a top-level function", () => {
+  const program = compile(`function helper()
+  return 1
+end
+choose
+  * Top
+    Top.
+then (toplabel)
+  Top.
+end
+`);
+
+  it("keys a label after the function's end at the global scope", () => {
+    expect(Object.keys(program.labelLocations ?? {})).toEqual(["toplabel"]);
+  });
+});
+
+describe("declaration locations after a branch left without its end", () => {
+  const program = compile(`scene A
+  branch x
+    choose
+      * Stay
+        Stayed.
+    then (inside)
+      In x.
+    end
+  branch y
+    Why.
+  end
+end
+`);
+
+  it("keys the next branch as the scene's, not the open branch's", () => {
+    expect(Object.keys(program.branchLocations ?? {}).sort()).toEqual([
+      "A.x",
+      "A.y",
+    ]);
+    expect(Object.keys(program.labelLocations ?? {})).toEqual(["A.x.inside"]);
+  });
+});

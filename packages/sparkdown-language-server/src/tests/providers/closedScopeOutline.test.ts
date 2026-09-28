@@ -143,6 +143,35 @@ describe("provider · outline and folding around a nested function", () => {
     ]);
   });
 
+  test("a top-level function folds up to its own end, the range the outline gives it", () => {
+    const { document, annotations } = setup(
+      "function helper()\n  return 1\nend\nchoose\n  * Top\n    Top.\nthen (toplabel)\n  Top.\nend\n",
+    );
+    const [helper] = getDocumentSymbols(document, annotations);
+    expect([helper?.range.start.line, helper?.range.end.line]).toEqual([0, 2]);
+    const folds = getFoldingRanges(document, annotations, {} as SparkProgram)
+      .filter((f) => f.kind === "function")
+      .map((f) => [f.startLine, f.endLine]);
+    expect(folds).toEqual([[0, 2]]);
+  });
+
+  test("a function declared inside another function is its child", () => {
+    const { document, annotations } = setup(`scene A
+  function outer()
+    function inner()
+      return 1
+    end
+    return inner
+  end
+end
+`);
+    const [scene] = getDocumentSymbols(document, annotations);
+    expect(scene?.children?.map((s) => s.name)).toEqual(["outer"]);
+    const outer = scene?.children?.[0];
+    expect([outer?.range.start.line, outer?.range.end.line]).toEqual([1, 6]);
+    expect(outer?.children?.map((s) => s.name)).toEqual(["inner"]);
+  });
+
   test("a function inside a branch gets no heading fold of its own", () => {
     const { document, annotations } = setup(NESTED_FUNCTION);
     const folds = getFoldingRanges(document, annotations, {} as SparkProgram)

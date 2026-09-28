@@ -5318,9 +5318,11 @@ export class SparkdownCompiler {
       if (doc) {
         const annotations = this.documents.annotations(uri);
         const cur = annotations.declarations.iter();
+        // The open scene and branch, then the latest label under them. A
+        // function is not a path part: its body holds no labels or branches,
+        // and the channel does not mark where it ends.
         let scopePathParts: {
-          kind:
-            "" | "function" | "scene" | "branch" | "knot" | "stitch" | "label";
+          kind: "scene" | "branch" | "label";
           name: string;
         }[] = [];
         if (cur) {
@@ -5328,19 +5330,6 @@ export class SparkdownCompiler {
             const name = doc.read(cur.from, cur.to);
             const range = doc.range(cur.from, cur.to);
             if (cur.value.type === "function") {
-              // A function declared inside a scene or branch leaves that scope
-              // open for the declarations after the function's own `end`.
-              if (
-                !scopePathParts.some(
-                  (p) => p.kind === "scene" || p.kind === "branch",
-                )
-              ) {
-                scopePathParts = [];
-                scopePathParts.push({
-                  kind: "function",
-                  name: doc.read(cur.from, cur.to),
-                });
-              }
               program.functionLocations ??= {};
               program.functionLocations[name] = [
                 scriptIndex,
@@ -5376,10 +5365,10 @@ export class SparkdownCompiler {
               ];
             }
             if (cur.value.type === "branch") {
-              const prevKind = scopePathParts.at(-1)?.kind || "";
-              if (prevKind !== "scene" && prevKind !== "knot") {
-                scopePathParts.pop();
-              }
+              // A branch sits directly under its scene, closing any branch
+              // still open there along with the labels filed under it.
+              scopePathParts.length =
+                scopePathParts.findLastIndex((p) => p.kind === "scene") + 1;
               scopePathParts.push({
                 kind: "branch",
                 name: doc.read(cur.from, cur.to),
@@ -5395,14 +5384,8 @@ export class SparkdownCompiler {
               ];
             }
             if (cur.value.type === "label") {
-              const prevKind = scopePathParts.at(-1)?.kind || "";
-              if (
-                prevKind !== "function" &&
-                prevKind !== "scene" &&
-                prevKind !== "branch" &&
-                prevKind !== "knot" &&
-                prevKind !== "stitch"
-              ) {
+              // A label replaces the previous label in the same scope.
+              if (scopePathParts.at(-1)?.kind === "label") {
                 scopePathParts.pop();
               }
               scopePathParts.push({

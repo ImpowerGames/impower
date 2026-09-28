@@ -2,6 +2,7 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/Sp
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { SymbolKind, type DocumentSymbol } from "vscode-languageserver";
 import { Position, Range } from "vscode-languageserver-textdocument";
+import { getFunctionEndLine } from "../syntax/getFunctionEndLine";
 
 export interface DocumentSymbolMark {
   type: "function" | "scene" | "branch" | "label";
@@ -45,21 +46,9 @@ export const getDocumentSymbols = (
     line,
     character: lineText(line).replace(/\r?\n$/, "").length,
   });
-  const indentOf = (text: string) => text.match(/^[ \t]*/)![0].length;
-  // The line holding the `end` that closes the function declared on `line`:
-  // the first later non-blank line indented no deeper than the declaration.
-  // The declarations channel records no function extent, so indentation
-  // stands in for it.
-  const functionEndLine = (line: number) => {
-    const indent = indentOf(lineText(line));
-    for (let i = line + 1; i < document.lineCount; i += 1) {
-      const text = lineText(i);
-      if (text.trim() && indentOf(text) <= indent) {
-        return /^\s*end\b/.test(text) ? i : i - 1;
-      }
-    }
-    return document.lineCount - 1;
-  };
+  // Functions whose range may still contain the next declaration, outermost
+  // first. A function declared inside one of them is that function's child.
+  const functions: DocumentSymbolMark[] = [];
   // Adds a symbol to the innermost open scene or branch, or to the top level.
   const place = (mark: DocumentSymbolMark) => {
     const parent = open.at(-1);
@@ -105,8 +94,21 @@ export const getDocumentSymbols = (
       // FUNCTION
       if (cur.value.type === "function") {
         const mark = heading("function", SymbolKind.Function);
-        mark.symbol.range.end = lineEnd(functionEndLine(line));
-        place(mark);
+        mark.symbol.range.end = lineEnd(getFunctionEndLine(document, line));
+        while (
+          functions.length &&
+          functions.at(-1)!.symbol.range.end.line < line
+        ) {
+          functions.pop();
+        }
+        const outer = functions.at(-1);
+        if (outer) {
+          outer.symbol.children ??= [];
+          outer.symbol.children.push(mark.symbol);
+        } else {
+          place(mark);
+        }
+        functions.push(mark);
       }
       // SCENE
       if (cur.value.type === "scene") {
