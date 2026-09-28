@@ -552,7 +552,7 @@ function lowerDefineMethod(
   const userArgs = lowerArguments(node, ctx);
   const upvals = scanFreeVariables(node, ctx).filter((n) => n !== "self");
   const upvalArgs = upvals.map(
-    (n) => new Argument(new Identifier(n), false, false),
+    (n) => new Argument(new Identifier(n), false, false, false, true),
   );
   const finalArgs: Argument[] = [
     ...upvalArgs,
@@ -578,6 +578,10 @@ function lowerDefineMethod(
     [...hoistedDecls, ...body, ...nested],
     finalArgs,
   );
+  // The method's source span places it where it is written, for the scope
+  // check that decides whether a name in its body reads a local (see
+  // `FlowBase.IsLocalInScope`).
+  stampDebugMetadata([fn], node.from, node.to, ctx);
 
   const stack = ctx.functionScopeStack;
   const enclosingScope =

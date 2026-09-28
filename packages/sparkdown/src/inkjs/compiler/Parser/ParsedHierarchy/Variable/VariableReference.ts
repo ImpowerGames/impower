@@ -7,7 +7,11 @@ import { Story } from "../Story";
 import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Identifier } from "../Identifier";
 import { asOrNull, filterUndef } from "../../../../engine/TypeAssertion";
-import { lookupStdLibConstant } from "../../../../engine/StdLib";
+import {
+  isStdLibFunctionName,
+  isStdLibNamespaceName,
+  lookupStdLibConstant,
+} from "../../../../engine/StdLib";
 
 export class VariableReference extends Expression {
   private _runtimeVarRef: RuntimeVariableReference | null = null;
@@ -192,6 +196,11 @@ export class VariableReference extends Expression {
         const baseStruct = context.ResolveStruct(baseName);
         if (
           baseResolve.found &&
+          // A local named like a library (`local table = {...}`) is found
+          // here from anywhere in its flow, but it only shadows the library
+          // inside its scope.
+          (!isStdLibNamespaceName(baseName) ||
+            context.IsLocalInScope(baseName, this)) &&
           !context.constants.has(baseName) &&
           // `companion.O` — the base is a `define` runtime table, so
           // the dotted access walks it at runtime. Pure data structs
@@ -237,8 +246,13 @@ export class VariableReference extends Expression {
     const pathStr = path.join(".");
 
     // `math.pi()`: a call through a registered stdlib constant. The path
-    // exists, so it is not reported; the call fails at run time.
-    if (lookupStdLibConstant(pathStr) !== undefined) {
+    // exists, so it is not reported; the call fails at run time. A library
+    // function read where no local shadows its library (`table.concat`
+    // before `local table`) exists too.
+    if (
+      lookupStdLibConstant(pathStr) !== undefined ||
+      isStdLibFunctionName(pathStr)
+    ) {
       return;
     }
 
