@@ -79,6 +79,18 @@ describe("calling a missing stdlib member with a colon", () => {
     ).toEqual(["Cannot find item or path named `table.nogetn`"]);
   });
 
+  test("spans the call below earlier statements", () => {
+    expect(
+      spans("store n = 0\n\nfunction count()\n  n = table:nogetn()\nend\n"),
+    ).toEqual([
+      [
+        "Cannot find item or path named `table.nogetn`",
+        { line: 3, character: 6 },
+        { line: 3, character: 18 },
+      ],
+    ]);
+  });
+
   test("an existing member reports nothing", () => {
     expect(diagnoseWithLints('& print(table:concat({"a"}))\n')).toEqual([]);
   });

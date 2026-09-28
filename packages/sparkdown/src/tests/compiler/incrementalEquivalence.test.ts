@@ -780,6 +780,60 @@ describe("compiler incremental equivalence", () => {
     });
   });
 
+  // A colon call on a standard library table with no such member (#1033),
+  // carried forward below an edit that shifts it down a line. Its warning
+  // names `table.nogetn` across the receiver and the member in both compiles.
+  describe("an edit above a colon call on a missing stdlib member", () => {
+    const CALL = "  n = table:nogetn()";
+    const base = () => coupledScreenplay() + `\nfunction colon_member()\n${CALL}\nend\n`;
+    const warnings = (p: any, text: string) =>
+      Object.values(p.diagnostics ?? {})
+        .flat()
+        .filter((d: any) => (d.message?.value ?? d.message) === "Cannot find item or path named `table.nogetn`")
+        .map((d: any) => ({ range: d.range, line: text.split("\n")[d.range.start.line] }));
+    let outcome: { incr: any; cold: any; after: string } | undefined;
+    const outcomeOf = () => {
+      if (outcome) return outcome;
+      const realWarn = console.warn;
+      const realError = console.error;
+      console.warn = () => {};
+      console.error = () => {};
+      try {
+        const incr = new Probe();
+        const text = warmed(incr, { [URI]: base() })[URI]!;
+        const anchor = "define hero as character with";
+        const offset = text.indexOf(anchor);
+        const at = posAt(text, offset);
+        const INSERT = "store colon_shift = 0\n";
+        incr.updateDocument({
+          textDocument: { uri: URI, version: AFTER_WARM },
+          contentChanges: [{ range: { start: at, end: at }, text: INSERT }],
+        });
+        const after = text.slice(0, offset) + INSERT + text.slice(offset);
+        outcome = { incr: pick(incr.compile({ textDocument: { uri: URI } }).program), cold: coldCompile(after), after };
+        return outcome;
+      } finally {
+        console.warn = realWarn;
+        console.error = realError;
+      }
+    };
+
+    it("the cold compile spans the call's receiver and member", () => {
+      const { cold, after } = outcomeOf();
+      const found = warnings(cold, after);
+      expect(found).toHaveLength(1);
+      const { range, line } = found[0]!;
+      expect(range.start.line).toBe(range.end.line);
+      expect(line).toBe(CALL);
+      expect(line?.slice(range.start.character, range.end.character)).toBe("table:nogetn");
+    });
+
+    it("incremental == cold diagnostics", () => {
+      const { incr, cold } = outcomeOf();
+      expect(stable(incr.diagnostics)).toBe(stable(cold.diagnostics));
+    });
+  });
+
   // A project of three scripts: `main` includes `chapter` and `side`, and
   // `side` includes `chapter` again (#872). `chapter` holds a second copy of
   // the constructs below six short scenes, so an edit at its top, or any edit
