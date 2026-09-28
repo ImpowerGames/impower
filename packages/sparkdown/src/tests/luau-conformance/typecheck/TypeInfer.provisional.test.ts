@@ -78,6 +78,7 @@ end
     // TypeInfer.provisional.test.cpp:162 TEST_CASE_FIXTURE(Fixture, "weirditer_should_not_loop_forever")
     name: "weirditer_should_not_loop_forever",
     fixture: "Fixture",
+    limits: { LuauTypeInferTypePackLoopLimit: 50 },
     ignoreMissingAnnotations: true,
     source: `
         local function toVertexList(vertices, x, y, ...)
@@ -196,10 +197,9 @@ end
   },
   {
     // TypeInfer.provisional.test.cpp:320 TEST_CASE_FIXTURE(BuiltinsFixture, "bail_early_if_unification_is_too_complicated" * doctest::timeout(LUAU_TIMEOUT))
-    // Upstream lowers the old solver's Tarjan child limit and type inference
-    // iteration limit to 1 with ScopedFastInt for the case.
     name: "bail_early_if_unification_is_too_complicated",
     fixture: "BuiltinsFixture",
+    limits: { LuauTarjanChildLimit: 1, LuauTypeInferIterationLimit: 1 },
     source: `
         local Result
         Result = setmetatable({}, {})
@@ -668,6 +668,7 @@ end
     // TypeInfer.provisional.test.cpp:1078 TEST_CASE_FIXTURE(BuiltinsFixture, "table_unification_infinite_recursion")
     name: "table_unification_infinite_recursion",
     fixture: "BuiltinsFixture",
+    limits: { LuauTypeInferRecursionLimit: 100 },
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
     checks: [
       {
@@ -704,11 +705,11 @@ tbl:f3()
   },
   {
     // TypeInfer.provisional.test.cpp:1115 TEST_CASE_FIXTURE(BuiltinsFixture, "normalization_limit_in_unify_with_any")
-    // Upstream lowers the normalizer's cache limit to 1000 with ScopedFastInt
-    // for the case. The source declares 100 table types and an overloaded
-    // function type over all of them before the code upstream writes out.
+    // The source declares 100 table types and an overloaded function type over
+    // all of them before the code upstream writes out.
     name: "normalization_limit_in_unify_with_any",
     fixture: "BuiltinsFixture",
+    limits: { LuauNormalizeCacheLimit: 1000 },
     unparsed: { defect: 924 }, // an if expression followed by end on the same line
     source: Array.from({ length: 100 }, (_, i) => `type T${i} = { f${i}: number }\n`).join("") +
       "type Instance = { new: (('s0', extra: Instance?) -> T0)" +

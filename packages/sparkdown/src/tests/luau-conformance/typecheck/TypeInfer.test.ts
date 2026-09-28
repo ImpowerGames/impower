@@ -279,6 +279,7 @@ portUpstreamFile("TypeInfer.test.cpp", [
     // optimized build without sanitizers.
     name: "check_type_infer_recursion_count",
     fixture: "Fixture",
+    limits: { LuauCheckRecursionLimit: 600 },
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
     source: "function f() return " + "{a=".repeat(600) + "'a'" + "}".repeat(600) + " end",
     expect: [],
@@ -286,22 +287,30 @@ portUpstreamFile("TypeInfer.test.cpp", [
   {
     // TypeInfer.test.cpp:419 TEST_CASE_FIXTURE(Fixture, "check_block_recursion_limit")
     // The source nests 595 do blocks, upstream's limit for an optimized build
-    // without sanitizers. Upstream lowers Luau's recursion limits (the parser's
-    // to 1190, and the solvers' and subtyping's to 495) with ScopedFastInt for
-    // the case.
+    // without sanitizers.
     name: "check_block_recursion_limit",
     fixture: "Fixture",
+    limits: {
+      LuauRecursionLimit: 1190,
+      LuauCheckRecursionLimit: 495,
+      LuauConstraintGeneratorRecursionLimit: 495,
+      LuauSubtypingRecursionLimit: 495,
+    },
     source: "do ".repeat(595) + "local a = 1" + " end".repeat(595),
     expect: [{ errors: 1 }, { error: 0, code: "CodeTooComplex" }],
   },
   {
     // TypeInfer.test.cpp:452 TEST_CASE_FIXTURE(Fixture, "check_expr_recursion_limit")
     // The source chains 500 calls to lower, upstream's limit for an optimized
-    // build without sanitizers. Upstream lowers Luau's recursion limits (the
-    // parser's to 1000, and the solvers' and subtyping's to 400) with
-    // ScopedFastInt for the case.
+    // build without sanitizers.
     name: "check_expr_recursion_limit",
     fixture: "Fixture",
+    limits: {
+      LuauRecursionLimit: 1000,
+      LuauCheckRecursionLimit: 400,
+      LuauConstraintGeneratorRecursionLimit: 400,
+      LuauSubtypingRecursionLimit: 400,
+    },
     source: '("foo")' + ":lower()".repeat(500),
     expect: [{ errors: 1 }, { error: 0, code: "CodeTooComplex" }],
   },
@@ -934,10 +943,9 @@ end
   },
   {
     // TypeInfer.test.cpp:1225 TEST_CASE_FIXTURE(Fixture, "type_infer_recursion_limit_no_ice")
-    // Upstream lowers the old solver's type inference recursion limit to 2 with
-    // ScopedFastInt for the case.
     name: "type_infer_recursion_limit_no_ice",
     fixture: "Fixture",
+    limits: { LuauTypeInferRecursionLimit: 2 },
     unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         function complex()
@@ -955,11 +963,10 @@ end
   },
   {
     // TypeInfer.test.cpp:1247 TEST_CASE_FIXTURE(Fixture, "type_infer_recursion_limit_normalizer")
-    // Upstream lowers the old solver's type inference recursion limit to 10
-    // with ScopedFastInt for the case. It also checks each error with Luau's
-    // internal validateErrors.
+    // Upstream also checks each error with Luau's internal validateErrors.
     name: "type_infer_recursion_limit_normalizer",
     fixture: "Fixture",
+    limits: { LuauTypeInferRecursionLimit: 10 },
     source: `
         function f<a,b,c,d,e,f,g,h,i,j>()
             local x : a&b&c&d&e&f&g&h&(i?)
@@ -979,10 +986,9 @@ end
   },
   {
     // TypeInfer.test.cpp:1280 TEST_CASE_FIXTURE(Fixture, "type_infer_cache_limit_normalizer")
-    // Upstream lowers the normalizer's cache limit to 10 with ScopedFastInt for
-    // the case.
     name: "type_infer_cache_limit_normalizer",
     fixture: "Fixture",
+    limits: { LuauNormalizeCacheLimit: 10 },
     source: `
         local x : ((number) -> number) & ((string) -> string) & ((nil) -> nil) & (({}) -> {})
         local y : (number | string | nil | {}) -> (number | string | nil | {}) = x
@@ -1664,6 +1670,7 @@ end
     name: "cyclic_unification_aborts_eventually",
     fixture: "BuiltinsFixture",
     flags: { LuauInstantiateInSubtyping: true },
+    limits: { LuauTypeInferTypePackLoopLimit: 100 },
     skip: { newSolver: "sets DebugLuauForceOldSolver, so upstream runs it on the old solver only" },
     source: `pcall(table.unpack({pcall}))`,
     expect: [{ anyError: "CodeTooComplex" }],
@@ -2279,11 +2286,10 @@ do end
   },
   {
     // TypeInfer.test.cpp:2657 TEST_CASE_FIXTURE(Fixture, "constraint_generation_recursion_limit")
-    // Upstream lowers the old solver's and the constraint generator's recursion
-    // limits to 5 with ScopedFastInt for the case. It asserts only that
-    // checking does not crash.
+    // Upstream asserts only that checking does not crash.
     name: "constraint_generation_recursion_limit",
     fixture: "Fixture",
+    limits: { LuauCheckRecursionLimit: 5, LuauConstraintGeneratorRecursionLimit: 5 },
     source: `
         if true then
         elseif true then
