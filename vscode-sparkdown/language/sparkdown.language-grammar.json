@@ -4594,7 +4594,7 @@
       "match": "(.+$)"
     },
     "LuauDivertTargetLiteral": {
-      "match": "((?:[^\\S\\n\\r])*)([-][>])((?:[^\\S\\n\\r])*)((?!(?:\\b(?:end)\\b|\\b(?:do|if|for|while|repeat)\\b|\\b(?:then|elseif|else)\\b|\\b(?:break|continue)\\b|\\b(?:in)\\b|\\b(?:until)\\b|\\b(?:goto)\\b|\\b(?:return)\\b|\\b(?:and|or|not)\\b|\\b(?:define)\\b|\\b(?:local|const|function)\\b|\\b(?:require|export)\\b)(?![0-9_\\p{L}-]))(?:[_\\p{L}][0-9_\\p{L}-]*\\b)(?:[.](?:[_\\p{L}][0-9_\\p{L}-]*\\b))*)((?:[^\\S\\n\\r])*)",
+      "match": "((?:[^\\S\\n\\r])*)([-][>])((?:[^\\S\\n\\r])*)((?!\\b(?:end)\\b(?![0-9_\\p{L}-]))(?:[_\\p{L}][0-9_\\p{L}-]*\\b)(?:[.](?:[_\\p{L}][0-9_\\p{L}-]*\\b))*)((?:[^\\S\\n\\r])*)",
       "captures": {
         "1": {
           "patterns": [

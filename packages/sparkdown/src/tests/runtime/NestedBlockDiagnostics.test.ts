@@ -185,6 +185,26 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
     expect(ctx.errorMessages).toEqual([]);
     expect(runToEnd(ctx.story)).toBe("Two Over.\n");
   });
+
+  test("a divert-target value compared in an if condition still parses", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `store x = -> t\n-> s\nscene s\n  if x == -> t then\n    Same.\n  end\n  fin\nend\n${T}`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(runToEnd(ctx.story)).toBe("Same.\n");
+  });
+
+  test("a divert-target value may name a label called then", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `-> s\nscene s\n  choose\n    + (then) Pick\n  then\n    {count.turns(-> then)} turns\n    fin\n  end\nend\n`,
+      undefined,
+      { countAllVisits: true },
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    ctx.story.ContinueMaximally();
+    ctx.story.ChooseChoiceIndex(0);
+    expect(ctx.story.ContinueMaximally()).toBe("Pick\n0 turns\n");
+  });
 });
 
 const UNREACHABLE = "Unreachable statement detected.";
