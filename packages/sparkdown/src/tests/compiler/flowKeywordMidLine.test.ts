@@ -40,6 +40,7 @@ describe("scene and branch as names inside a define", () => {
     ['{ x = 1, scene = " " }', { x: 1, scene: " " }],
     ['{ branch = "b", x = 1 }', { branch: "b", x: 1 }],
     ['{ scene = "s", branch = "b", x = 1 }', { scene: "s", branch: "b", x: 1 }],
+    ["{ scene_count = 1, branch_total = 2 }", { scene_count: 1, branch_total: 2 }],
   ])("t = %s keeps every field in the table", (literal, expected) => {
     const settings = defaults(
       ["define settings with", `  t = ${literal}`, "  y = 2", "end", ""].join(
