@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { makeRuntimeStoryFromSource, runToEnd } from "./runtimeTestHarness";
 
 const CHOICE_MARK = "must appear inside a `choose ... end` block";
 const EMPTY_DIVERT = "Empty diverts (->) are only valid on choices";
@@ -27,6 +27,15 @@ const diagnosticLines = (source: string, fragment: string) =>
 // `fragment`.
 const diagnosticRanges = (source: string, fragment: string) =>
   diagnostics(source, fragment).map((d: any) => [d.range.start.line, d.range.end.line]);
+
+// The zero-based line and start and end characters of every diagnostic whose
+// message holds `fragment`.
+const diagnosticSpans = (source: string, fragment: string) =>
+  diagnostics(source, fragment).map((d: any) => ({
+    line: d.range.start.line,
+    from: d.range.start.character,
+    to: d.range.end.character,
+  }));
 
 const diagnostics = (source: string, fragment: string) => {
   const uri = "file:///main.sd";
@@ -93,6 +102,7 @@ const NESTED_EMPTY_DIVERTS: [string, string, number][] = [
   ["on a line of a queue arm's body", "  queue\n  | A\n    ->\n  | B\n  end", 5],
   ["as an arm of a single-line queue", "  queue | A | -> | C end", 3],
   ["as an arm of an inline-glued queue", "  Before .. queue|A|->|C .. After.", 3],
+  ["as an arm of a braced queue", '  Two {queue | -> | "b" end} tail', 3],
   ["in a choose block's preamble", "  choose\n    ->\n    * [A]\n      Picked.\n  end", 4],
   ["in a choice's body inside choose", "  choose\n    * [A]\n      Picked.\n      ->\n  end", 6],
 ];
@@ -109,6 +119,32 @@ describe("diagnostics from statements inside alternator arms and choose blocks",
       expect(diagnosticLines(scene(body), EMPTY_DIVERT)).toEqual([line]);
     },
   );
+});
+
+describe("an empty divert as an arm of a braced inline alternator", () => {
+  const BRACED = '  Two {queue | -> | "b" end} tail';
+
+  test("the warning spans the `->` itself", () => {
+    // `  Two {queue | ` is 15 characters, so the `->` covers 15 to 17.
+    expect(diagnosticSpans(scene(BRACED), EMPTY_DIVERT)).toEqual([
+      { line: 3, from: 15, to: 17 },
+    ]);
+  });
+
+  test("the arm outputs nothing, and the next visit takes the next arm", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `store n = 0\n-> s\nscene s\n  n = n + 1\n${BRACED}\n  if n < 2 then\n    -> s\n  end\n  fin\nend\n`,
+    );
+    expect(runToEnd(ctx.story)).toBe("Two tail\nTwo b tail\n");
+  });
+
+  test("an arm with a target still diverts and reports no warning", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `store n = 0\n-> s\nscene s\n  Two {queue | -> t | "b" end} tail\n  Done.\n  fin\nend\n\nscene t\n  Target.\n  fin\nend\n`,
+    );
+    expect(count(ctx.warningMessages, EMPTY_DIVERT)).toBe(0);
+    expect(runToEnd(ctx.story)).toBe("Two Target.\n");
+  });
 });
 
 const UNREACHABLE = "Unreachable statement detected.";
