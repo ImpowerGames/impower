@@ -243,7 +243,7 @@ export class VariableReference extends Expression {
     }
 
     // Luau-superset semantics: same logic as the single-name
-    // "Cannot find variable named" diagnostic below — downgrade
+    // "Cannot find variable named" diagnostic in `ResolveReferences` — downgrade
     // unresolved dotted paths to a warning so the runtime can fall
     // back to `NullValue` for property reads (`_G.bar`,
     // `unknown.field`, ...). The diagnostic still surfaces in the
