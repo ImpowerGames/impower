@@ -195,6 +195,12 @@ variables:
 
   BEAT: (?:{{WS}}*{{FLOW_BEAT_KEYWORDS}})
   END: (?:{{WS}}*(?:end)\b)
+  # Just after an operand that a keyword can follow with no space between
+  # them: a closing bracket, a quote, a backtick, the vararg `...`, or the
+  # closing `/` and flags of a regex literal (`else (x)then`, `else ...then`,
+  # `else @/x/gthen`). The flags are bounded so the lookbehind stays one
+  # Oniguruma accepts.
+  AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -6386,6 +6392,9 @@ repository:
   # A condition takes the whitespace before its own `then`, so the enclosing
   # `LuauTernaryExpression` stands directly on that `then` and only meets
   # whitespace followed by `then` after a completed arm (see its `end`).
+  # A `then` glued to the end of a condition, as in `if (c)then` (see
+  # `AFTER_LUAU_GLUEABLE_OPERAND`), is taken by the condition itself, so the
+  # enclosing expression only meets a glued `then` after its else arm.
   # It also takes the whitespace after `elseif`, so an expression whose own
   # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
   # literal) still lands inside the condition rather than beside it.
@@ -6401,12 +6410,15 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?={{BEAT}})|(?=$|{{WS}})
+    end: ({{WS}}+)(?=then\b)|(?={{BEAT}})|(?=$|{{WS}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
     endCaptures:
       1:
         emit: true
         patterns:
           - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauThenKeyword" }
 
   # ----------------------------------------------------------------------------
   # Elseif Block
@@ -6690,12 +6702,21 @@ repository:
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
     # `if if c then 1 else 2 then`. Each condition takes the whitespace
-    # before its own `then`, so whitespace followed by `then` or `do` at
-    # this level only follows a completed arm.
-    end: (?={{BEAT}}|$|[)}\],;]|{{WS}}+(?:then|do)\b)
+    # before its own `then`, and a `then` glued to its end, so whitespace
+    # followed by `then` or `do` at this level only follows a completed arm,
+    # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
+    end: (?={{BEAT}}|$|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
 
+  # The second `begin` alternative opens the then arm after a glued `then`
+  # that its condition took (see `LuauTernaryExpressionCondition`); this
+  # expression's own level stands just after a `then` in no other case.
   LuauThenExpression:
-    begin: (?=(?:then)\b)
+    begin: (?=(?:then)\b)|(?<=\bthen)({{WS}}*)
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
@@ -6741,8 +6762,10 @@ repository:
     # closing-delimiter alternatives because inline ternary lives
     # inside `{…}` / `(…)` / `[…]` and the bare `(?=$|{{WS}})` would
     # otherwise leave the scope to be force-closed by the outer
-    # interpolation / paren / index rule.
-    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;])
+    # interpolation / paren / index rule. The glued alternative closes the
+    # arm before the `then` or `do` of the statement whose condition it
+    # ends (see `LuauTernaryExpression`'s `end`).
+    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)

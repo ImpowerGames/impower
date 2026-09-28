@@ -237,6 +237,7 @@
     "EOK": "(?:$|{{WS}}+|(?=[:]|{{TAG_START}}|{{COMMENT_START}}))",
     "BEAT": "(?:{{WS}}*{{FLOW_BEAT_KEYWORDS}})",
     "END": "(?:{{WS}}*(?:end)\\b)",
+    "AFTER_LUAU_GLUEABLE_OPERAND": "(?<=[)\\]}\"'`]|\\.\\.\\.|/[dgimsuvy]{0,8})",
     "LUAU_TERMINATOR_KEYWORDS": "(?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})",
     "LUAU_COMMENT_START": "(?:[-][-])",
     "LUAU_IDENTIFIER": "(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)",
@@ -9927,13 +9928,20 @@
           "include": "#Newline"
         }
       ],
-      "end": "((?:[^\\S\\n\\r])+)(?=then\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))",
+      "end": "((?:[^\\S\\n\\r])+)(?=then\\b)|(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b))|(?=$|(?:[^\\S\\n\\r]))|(?<=[)\\]}\"'`]|\\.\\.\\.|/[dgimsuvy]{0,8})(then)\\b",
       "endCaptures": {
         "1": {
           "emit": true,
           "patterns": [
             {
               "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauThenKeyword"
             }
           ]
         }
@@ -10319,10 +10327,20 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|[)}\\],;]|(?:[^\\S\\n\\r])+(?:then|do)\\b)"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|$|[)}\\],;]|(?:[^\\S\\n\\r])+(?:then|do)\\b|(?<=[)\\]}\"'`]|\\.\\.\\.|/[dgimsuvy]{0,8})(?:then|do)\\b)"
     },
     "LuauThenExpression": {
-      "begin": "(?=(?:then)\\b)",
+      "begin": "(?=(?:then)\\b)|(?<=\\bthen)((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
       "patterns": [
         {
           "include": "#LuauThenOperator"
@@ -10378,7 +10396,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|elseif\\b|$|(?:[^\\S\\n\\r])|[)}\\],;])"
+      "end": "(?=(?:(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b)|elseif\\b|$|(?:[^\\S\\n\\r])|[)}\\],;]|(?<=[)\\]}\"'`]|\\.\\.\\.|/[dgimsuvy]{0,8})(?:then|do)\\b)"
     },
     "LuauElseOperator": {
       "begin": "((?:else)\\b)((?:[^\\S\\n\\r])*)",
