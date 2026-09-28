@@ -160,6 +160,52 @@ describe("completion · Luau local scope", () => {
     expect(labelsAt(source, { at: "3" })).not.toContain("mid");
   });
 
+  test("a local in a branch's body is offered only in that branch", () => {
+    const source = [
+      "scene play",
+      "  branch one",
+      "    local inBranch = 1",
+      "    {i@1}",
+      "  end",
+      "  branch two",
+      "    {i@2}",
+      "  end",
+      "  {i@3}",
+      "end",
+      "",
+    ].join("\n");
+    expect(labelsAt(source, { at: "1" })).toContain("inBranch");
+    expect(labelsAt(source, { at: "2" })).not.toContain("inBranch");
+    expect(labelsAt(source, { at: "3" })).not.toContain("inBranch");
+  });
+
+  test("a local in a scene's body is not offered after the scene's end", () => {
+    const source = [
+      "scene one",
+      "  local mood = 1",
+      "end",
+      "function after()",
+      "  return m@1",
+      "end",
+      "define D with",
+      "  meth()",
+      "    return m@2",
+      "  end",
+      "end",
+      "{m@3}",
+      "",
+    ].join("\n");
+    for (const at of ["1", "2", "3"]) {
+      expect(labelsAt(source, { at }), `@${at}`).not.toContain("mood");
+    }
+  });
+
+  test("a local at the top of a script is offered in the scenes and code below it", () => {
+    const source = "local topLocal = 1\nscene s1\n  {t@1}\nend\n{t@2}\n";
+    expect(labelsAt(source, { at: "1" })).toContain("topLocal");
+    expect(labelsAt(source, { at: "2" })).toContain("topLocal");
+  });
+
   test("a scene's local is not offered in a scene whose name it prefixes", () => {
     const labels = labelsAt(
       "scene intro\n  local mood = 1\nend\n\nscene introduction\n  {m@1}\nend\n",

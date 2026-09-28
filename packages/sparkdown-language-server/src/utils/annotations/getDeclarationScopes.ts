@@ -1,8 +1,6 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
-import {
-  ancestorMatching,
-  type DeclarationType,
-} from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
+import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
+import { ancestorMatching } from "@impower/sparkdown/src/compiler/utils/ancestorMatching";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { TRAILING_STATEMENT_NAMES } from "@impower/sparkdown/src/compiler/utils/trailingStatementNames";
@@ -90,18 +88,46 @@ const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const FUNCTION_PARAMETERS = nodeNameSet(["LuauFunctionParameters"]);
 
 /**
- * Where a scene-body or top-of-script local stops being visible: at the next
- * scene, since a scene's body runs as sibling nodes until the next one, or at
- * the end of the script.
+ * Where a local written in no block stops being visible. `Scene` and
+ * `Branch` cover only their declaration line; their body runs as root-level
+ * siblings up to a matching root-level `end`, the pairing
+ * `validateSceneBranchScope` checks. A local in a scene's or branch's body
+ * is visible up to the `end` of the innermost one still open above it, and a
+ * local at the top of a script, inside no scene, to the end of the script.
  */
 const getSectionEnd = (tree: Tree, definition: Node) => {
   let statement: Node = definition;
   while (statement.parent?.parent) {
     statement = statement.parent as Node;
   }
+  let pendingEnds = 0;
+  let open: Node | null = null;
+  for (let prev = statement.prevSibling; prev && !open; prev = prev.prevSibling) {
+    if (prev.name === "LuauEndKeyword") {
+      pendingEnds += 1;
+    } else if (prev.name === "Scene" || prev.name === "Branch") {
+      if (pendingEnds === 0) {
+        open = prev as Node;
+      } else {
+        pendingEnds -= 1;
+      }
+    }
+  }
+  if (!open) {
+    return tree.length;
+  }
+  let depth = 0;
   for (let next = statement.nextSibling; next; next = next.nextSibling) {
-    if (next.name === "Scene") {
+    if (next.name === "Branch") {
+      depth += 1;
+    } else if (next.name === "Scene") {
+      // A scene inside an open section is missing that section's `end`.
       return next.from;
+    } else if (next.name === "LuauEndKeyword") {
+      if (depth === 0) {
+        return next.from;
+      }
+      depth -= 1;
     }
   }
   return tree.length;
@@ -115,8 +141,8 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
  * ends at the end of its block (one of `LUAU_BLOCKS`), or at the next
  * branch of an `if` or arm of an alternator, and a `repeat` loop's locals
  * stay visible in its `until` condition. A local in no block, written
- * directly in a scene's body or at the top of a script, is visible up to
- * the next scene.
+ * directly in a scene's or branch's body or at the top of a script, is
+ * visible up to that section's `end` (see `getSectionEnd`).
  *
  * Undefined for a `store` or `const`, which is global wherever it is
  * written. Null for a local outside the cursor's script, which is never
@@ -161,6 +187,9 @@ const getVariableScope = (
     }
   }
   if (!block) {
+    // Outside any block, a later `elseif` or alternator arm belongs to a
+    // block the local is not in, so the branch cut found above does not
+    // apply.
     return { from: start, to: getSectionEnd(tree, definition) };
   }
   if (REPEAT_LOOPS.has(block.name)) {
