@@ -22,12 +22,14 @@ export type AnnotatedScript = {
 export const getDeclarationScopes = (
   scripts: Map<string, AnnotatedScript>,
 ): DeclarationScopes => {
-  let scopePathParts: {
-    kind: "scene" | "branch";
-    name: string;
-  }[] = [];
   const scopes: DeclarationScopes = {};
   for (const [, { annotations, read }] of scripts) {
+    // A scene cannot span scripts, so a scope left open by a script missing
+    // its `end` does not reach into the next one.
+    let scopePathParts: {
+      kind: "scene" | "branch";
+      name: string;
+    }[] = [];
     const cur = annotations.declarations?.iter();
     if (cur) {
       while (cur.value) {

@@ -68,22 +68,27 @@ export const getFoldingRanges = (
     return indentFolding;
   }
   const headingFolding: FoldingRange[] = [];
+  // Scenes and branches whose `end` has been reached; their fold ends there.
+  const closed = new Set<FoldingRange>();
+  // Ends a still-open fold on the line before a following heading.
+  const endBefore = (fold: FoldingRange | undefined, line: number) => {
+    if (fold && !closed.has(fold)) {
+      fold.endLine = line - 1;
+    }
+  };
   const cur = annotations.declarations?.iter();
   if (cur) {
     while (cur.value) {
       if (cur.value.type === "function") {
         const line = document.positionAt(cur.from).line;
-        const lastTop = headingFolding.findLast(
-          (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
+        endBefore(
+          headingFolding.findLast(
+            (h) =>
+              h.kind === "function" || h.kind === "scene" || h.kind === "knot",
+          ),
+          line,
         );
-        if (lastTop) {
-          lastTop.endLine = line - 1;
-        }
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading) {
-          prevHeading.endLine = line - 1;
-        }
+        endBefore(headingFolding.at(-1), line);
         headingFolding.push({
           startLine: line,
           endLine: line,
@@ -92,17 +97,14 @@ export const getFoldingRanges = (
       }
       if (cur.value.type === "scene") {
         const line = document.positionAt(cur.from).line;
-        const lastTop = headingFolding.findLast(
-          (h) =>
-            h.kind === "function" || h.kind === "scene" || h.kind === "knot",
+        endBefore(
+          headingFolding.findLast(
+            (h) =>
+              h.kind === "function" || h.kind === "scene" || h.kind === "knot",
+          ),
+          line,
         );
-        if (lastTop) {
-          lastTop.endLine = line - 1;
-        }
-        const prevHeading = headingFolding.at(-1);
-        if (prevHeading) {
-          prevHeading.endLine = line - 1;
-        }
+        endBefore(headingFolding.at(-1), line);
         headingFolding.push({
           startLine: line,
           endLine: line,
@@ -113,13 +115,22 @@ export const getFoldingRanges = (
         const line = document.positionAt(cur.from).line;
         const prevHeading = headingFolding.at(-1);
         if (prevHeading?.kind === "branch" || prevHeading?.kind === "stitch") {
-          prevHeading.endLine = line - 1;
+          endBefore(prevHeading, line);
         }
         headingFolding.push({
           startLine: line,
           endLine: line,
           kind: "branch",
         });
+      }
+      if (cur.value.type === "end") {
+        const open = headingFolding.findLast(
+          (h) => (h.kind === "scene" || h.kind === "branch") && !closed.has(h),
+        );
+        if (open) {
+          open.endLine = document.positionAt(cur.from).line;
+          closed.add(open);
+        }
       }
       cur.next();
     }

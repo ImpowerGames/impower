@@ -1024,6 +1024,11 @@ const addStructPropertyValueCompletions = (
   }
 };
 
+// Whether the scope at `path` encloses the cursor's scope path, comparing
+// whole dotted segments so a branch `x` does not enclose a sibling `xy`.
+const isEnclosingScope = (path: string, scopePath: string) =>
+  path === "" || scopePath === path || scopePath.startsWith(`${path}.`);
+
 const addMutableAccessPathCompletions = (
   completions: Map<string, CompletionItem>,
   scopes: DeclarationScopes,
@@ -1039,7 +1044,7 @@ const addMutableAccessPathCompletions = (
       const types: DeclarationType[] = ["var", "param"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
-          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length <= 1 && isEnclosingScope(path, scopePath)) ||
           (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
@@ -1082,7 +1087,7 @@ const addImmutableAccessPathCompletions = (
       const types: DeclarationType[] = ["const"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
-          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length <= 1 && isEnclosingScope(path, scopePath)) ||
           (parts.length > 1 && path === "." + parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {
@@ -1200,7 +1205,7 @@ const addDivertPathCompletions = (
       const types: DeclarationType[] = ["scene", "branch", "label"];
       for (const [path, declarations] of Object.entries(scopes)) {
         if (
-          (parts.length <= 1 && scopePath.startsWith(path)) ||
+          (parts.length <= 1 && isEnclosingScope(path, scopePath)) ||
           (parts.length > 1 && path === parts.slice(0, -1).join("."))
         ) {
           for (const type of types) {

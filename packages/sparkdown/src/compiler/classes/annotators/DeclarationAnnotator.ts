@@ -14,9 +14,10 @@ export type DeclarationType =
   | "var"
   | "define"
   | "param"
-  // A root-level `end`, which closes the innermost open scene or branch. It
-  // declares nothing; it lets a walk over this channel pair each scene and
-  // branch with its end.
+  // A root-level `end`. It declares nothing; in a well-formed script it closes
+  // the innermost open scene or branch, so a walk over this channel can pair
+  // each scene and branch with its end. A stray `end` is marked too and closes
+  // nothing, so consumers must not assume the marks balance.
   | "end";
 
 // Bounded parent walk: nearest ancestor whose name is in `names`, else null.
@@ -39,9 +40,12 @@ const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 
 // Records the NAME span of each declaration as a flat `(type, range)` mark in
-// the `declarations` channel, plus an `end` mark for each root-level `end`
-// that closes a scene or branch. The channel is consumed by the document outline
-// (getDocumentSymbols) and scope-aware completion (getDeclarationScopes).
+// the `declarations` channel, plus an `end` mark for each root-level `end`.
+// The channel is consumed by the document outline (getDocumentSymbols),
+// folding (getFoldingRanges), declaration locations
+// (SparkdownCompiler.populateDeclarationLocations) and scope-aware completion
+// (getDeclarationScopes); each pairs an `end` with the scene or branch it
+// closes.
 //
 // Migrated to the post-Luau-port grammar: declarations are now `LuauFunctionName`
 // (under LuauFunctionDeclarationName), `LuauVariableName` (under a

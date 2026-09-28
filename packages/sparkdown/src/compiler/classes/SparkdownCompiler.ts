@@ -5342,6 +5342,16 @@ export class SparkdownCompiler {
                 range.end.character,
               ];
             }
+            if (cur.value.type === "end") {
+              // Closes the innermost open scene or branch, along with the
+              // labels filed under it.
+              const closed = scopePathParts.findLastIndex(
+                (p) => p.kind === "scene" || p.kind === "branch",
+              );
+              if (closed >= 0) {
+                scopePathParts.length = closed;
+              }
+            }
             if (cur.value.type === "scene") {
               scopePathParts = [];
               scopePathParts.push({

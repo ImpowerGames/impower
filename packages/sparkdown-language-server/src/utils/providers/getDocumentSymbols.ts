@@ -33,6 +33,18 @@ export const getDocumentSymbols = (
   }
   const headingMarks: DocumentSymbolMark[] = [];
   const topMarks: DocumentSymbolMark[] = [];
+  // Scenes and branches whose `end` has been reached. Their range ends at that
+  // `end`, and later declarations are no longer placed inside them.
+  const closed = new Set<DocumentSymbolMark>();
+  // Ends a still-open heading's range on the line before a following heading.
+  const endBefore = (mark: DocumentSymbolMark | undefined, line: number) => {
+    if (mark && !closed.has(mark)) {
+      mark.symbol.range.end.line = line - 1;
+      mark.symbol.range.end.character = document.positionAt(
+        line - 1,
+      ).character;
+    }
+  };
   const cur = annotations.declarations?.iter();
   if (cur) {
     while (cur.value) {
@@ -59,13 +71,7 @@ export const getDocumentSymbols = (
             selectionRange: lineRange,
           },
         };
-        const lastHeading = headingMarks.at(-1);
-        if (lastHeading) {
-          lastHeading.symbol.range.end.line = line - 1;
-          lastHeading.symbol.range.end.character = document.positionAt(
-            line - 1,
-          ).character;
-        }
+        endBefore(headingMarks.at(-1), line);
         topMarks.push(mark);
         headingMarks.push(mark);
       }
@@ -82,20 +88,11 @@ export const getDocumentSymbols = (
             selectionRange: lineRange,
           },
         };
-        const lastTopHeading = topMarks.at(-1);
-        if (lastTopHeading) {
-          lastTopHeading.symbol.range.end.line = line - 1;
-          lastTopHeading.symbol.range.end.character = document.positionAt(
-            line - 1,
-          ).character;
-        }
-        const lastNested = headingMarks.findLast((m) => m.type === "branch");
-        if (lastNested) {
-          lastNested.symbol.range.end.line = line - 1;
-          lastNested.symbol.range.end.character = document.positionAt(
-            line - 1,
-          ).character;
-        }
+        endBefore(topMarks.at(-1), line);
+        endBefore(
+          headingMarks.findLast((m) => m.type === "branch"),
+          line,
+        );
         topMarks.push(mark);
         headingMarks.push(mark);
       }
@@ -113,23 +110,19 @@ export const getDocumentSymbols = (
           },
         };
         const lastTopHeading = headingMarks.findLast(
-          (m) => m.type === "function" || m.type === "scene",
+          (m) =>
+            (m.type === "function" || m.type === "scene") && !closed.has(m),
         );
-        if (lastTopHeading) {
-          if (lastTopHeading.type === "function") {
-            topMarks.push(mark);
-          } else {
-            lastTopHeading.symbol.children ??= [];
-            lastTopHeading.symbol.children.push(mark.symbol);
-          }
+        if (lastTopHeading?.type === "scene") {
+          lastTopHeading.symbol.children ??= [];
+          lastTopHeading.symbol.children.push(mark.symbol);
+        } else {
+          topMarks.push(mark);
         }
-        const lastNested = headingMarks.findLast((m) => m.type === "branch");
-        if (lastNested) {
-          lastNested.symbol.range.end.line = line - 1;
-          lastNested.symbol.range.end.character = document.positionAt(
-            line - 1,
-          ).character;
-        }
+        endBefore(
+          headingMarks.findLast((m) => m.type === "branch"),
+          line,
+        );
         headingMarks.push(mark);
       }
       // LABEL
@@ -144,12 +137,24 @@ export const getDocumentSymbols = (
             selectionRange: nameRange,
           },
         };
-        const lastHeading = headingMarks.findLast((m) => m.type !== "label");
+        const lastHeading = headingMarks.findLast(
+          (m) => m.type !== "label" && !closed.has(m),
+        );
         if (lastHeading) {
           lastHeading.symbol.children ??= [];
           lastHeading.symbol.children.push(mark.symbol);
         }
         headingMarks.push(mark);
+      }
+      // END
+      if (cur.value.type === "end") {
+        const open = headingMarks.findLast(
+          (m) => (m.type === "scene" || m.type === "branch") && !closed.has(m),
+        );
+        if (open) {
+          open.symbol.range.end = document.range(cur.from, cur.to).end;
+          closed.add(open);
+        }
       }
       cur.next();
     }

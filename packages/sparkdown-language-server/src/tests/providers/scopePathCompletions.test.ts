@@ -230,4 +230,60 @@ end
     expect(labels).toContain("first");
     expect(labels).toContain("after");
   });
+
+  test("a scope left open by one script does not reach into the next", () => {
+    // `unclosed.sd` is missing both of its `end`s.
+    const documents = new SparkdownDocumentRegistry(["declarations"]);
+    const scripts = new Map(
+      Object.entries({
+        "file:///unclosed.sd": "scene B\n  branch y\n    Why.\n",
+        "file:///next.sd": `choose
+  * Go
+    Went.
+then (toplabel)
+  Top.
+end
+scene C
+end
+`,
+      }).map(([uri, text]) => {
+        documents.set({
+          textDocument: { uri, text, version: 1, languageId: "sparkdown" },
+        });
+        return [
+          uri,
+          {
+            annotations: documents.annotations(uri),
+            read: (from: number, to: number) =>
+              documents.get(uri)!.read(from, to),
+          },
+        ];
+      }),
+    );
+    expect(getDeclarationScopes(scripts)[""]?.label).toEqual(["toplabel"]);
+  });
+
+  test("a branch's labels are not offered in a branch whose name it prefixes", () => {
+    const labels = completionLabelsAt(`scene A
+  branch x
+    choose
+      * Stay
+        Stayed.
+    then (inx)
+      In x.
+    end
+  end
+  branch xy
+    choose
+      * Stay
+        Stayed.
+    then (inxy)
+      -> |
+    end
+  end
+end
+`);
+    expect(labels).toContain("inxy");
+    expect(labels).not.toContain("inx");
+  });
 });
