@@ -74,8 +74,11 @@ function countStatements(items: any[], out: number[]): number {
         if (items[i] !== "nop") i--;
         count++;
       } else if (bodies.length > 0) {
-        // A `choose` block: the bodies of its choices and its `then` clause.
+        // A `choose` block: the bodies of its choices and its `then` clause,
+        // which is the gather that ends the block, entered inline and marked
+        // by its name. A block without `then` ends in an empty one.
         for (const [, body] of bodies) countSequences(body.slice(0, -1), out);
+        for (const part of item.slice(0, -1)) if (Array.isArray(part) && part.length > 1 && isObject(part.at(-1)) && /^g-[0-9]+$/.test(part.at(-1)["#n"] ?? "")) countSequences(part.slice(0, -1), out);
         count++;
       } else {
         // A container the engine walks straight through, such as the one a
