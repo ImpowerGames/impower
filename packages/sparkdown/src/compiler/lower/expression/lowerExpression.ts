@@ -54,6 +54,7 @@ import { syntheticId } from "../utils/documentTag";
 import {
   endsInTypeName,
   expandLineContinuations,
+  reportUntakenLineContinuation,
 } from "../utils/lineContinuation";
 
 // Wrap the lowerer's `new FunctionCall(name, args)` site so that
@@ -232,23 +233,29 @@ export function lowerExpressionFromNodes(
         continue;
       }
     }
-    // A type-only construct is skipped, with the `.Name` parts of the lines
-    // that continue its type (`t :: types` then `.Button` casts to
-    // `types.Button`), which are not accesses on the value.
-    if (TYPE_ONLY_WRAPPERS.has(node.name) && endsInTypeName(node)) {
+    // A type-only construct is skipped, with the access parts of the lines
+    // that continue it, which are not accesses on the value: `.Name` parts
+    // qualify a type that ends in a name (`t :: types` then `.Button` casts
+    // to `types.Button`), and any other type (`t :: { x: number }` then `.a`)
+    // cannot take them, so they are reported.
+    if (TYPE_ONLY_WRAPPERS.has(node.name)) {
+      const qualifiable = endsInTypeName(node);
+      const parts: SyntaxNode[] = [];
       let last = i;
       for (let k = i + 1; k < nodes.length; k++) {
         const next = nodes[k]!;
-        if (
-          next.name === "LuauAccessPart" &&
-          next.firstChild?.name === "LuauPropertyAccessor"
-        ) {
+        if (next.name === "LuauAccessPart") {
+          parts.push(next);
           last = k;
         } else if (!isSkippableName(next.name)) {
           break;
         }
       }
       if (last > i) {
+        const qualifies =
+          qualifiable &&
+          parts.every((p) => p.firstChild?.name === "LuauPropertyAccessor");
+        if (!qualifies) reportUntakenLineContinuation(parts, ctx);
         i = last;
         continue;
       }

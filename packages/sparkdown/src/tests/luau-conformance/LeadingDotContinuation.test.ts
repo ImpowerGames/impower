@@ -134,6 +134,21 @@ test.each([
     "1",
   ],
   [
+    "qualified type named like a primitive",
+    "local b: string\n  .Button = 1\nreturn b",
+    "1",
+  ],
+  [
+    "qualified type alias named like a primitive",
+    "type A = string\n  .Button\nreturn 1",
+    "1",
+  ],
+  [
+    "type cast line and a line qualifying its type",
+    "local y = 1\n  :: types\n  .Button\nreturn y",
+    "1",
+  ],
+  [
     "qualified type cast",
     "local t = { Button = 7 }\nlocal y = t :: types\n  .Button\nreturn type(y)",
     "table",
@@ -217,9 +232,23 @@ test.each([
     "type Alias = { x: number } -- note\n  .a\nreturn 1",
   ],
   ["after a table type annotation", "local x: { y: number }\n  .a\nreturn 1"],
+  [
+    "after a cast to a table type",
+    "local t = { a = 4 }\nlocal y = t :: { x: number }\n  .a\nreturn 1",
+  ],
 ])("a continuation line %s is reported", (_name, body) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
   expect(ctx.errorMessages).toEqual([
+    expect.stringContaining("`.a` continues the line before it"),
+  ]);
+});
+
+test("a type cast line after `end` is reported with the line after it", () => {
+  const ctx = makeRuntimeStoryFromSource(
+    inFunction("if true then\nend\n  :: number\n  .a\nreturn 1"),
+  );
+  expect(ctx.errorMessages).toEqual([
+    expect.stringContaining("`:: number` continues the line before it"),
     expect.stringContaining("`.a` continues the line before it"),
   ]);
 });

@@ -76,15 +76,18 @@ export function isLineContinuationUsed(
   return ctx.usedLineContinuations?.has(node.from) ?? false;
 }
 
-// Report continuation lines that no value on the line before them takes:
-// one after a statement that does not end in a value (`end`, a bare
-// `return`), or with no statement before it in its block.
+// Report continuation lines, or the access parts of one, that nothing on
+// the line before them takes: one after a statement that does not end in a
+// value (`end`, a bare `return`), with no statement before it in its block,
+// or after a type that is not a name (`t :: { x: number }` then `.a`).
 export function reportUntakenLineContinuation(
   nodes: SyntaxNode[],
   ctx: LowerContext,
 ): void {
   for (const node of nodes) {
-    if (node.name !== "LuauLineContinuation") continue;
+    if (node.name !== "LuauLineContinuation" && node.name !== "LuauAccessPart") {
+      continue;
+    }
     const raw = ctx.read(node.from, node.to);
     const text = raw.trim();
     const from = node.from + raw.length - raw.trimStart().length;
@@ -165,10 +168,18 @@ export function isTypeQualifierContinuation(nodes: SyntaxNode[]): boolean {
 // Whether the type syntax in `node` ends in a type name, leaving out any
 // comment and whitespace after it, so that a `.Name` continuation can
 // qualify it (`types` then `.Button`, but not `{ x: number }` then `.b`).
-// A `::` cast's type parses as a value, so its name is a `LuauVariable`.
+// A `::` cast's type parses as a value, so its name is a `LuauVariable`, and a
+// module named like a primitive (`string` then `.Button`) reads as a
+// `LuauPrimitiveType` until its qualifier is on the same line.
+const TYPE_NAME_NODES: ReadonlySet<string> = new Set([
+  "LuauTypeName",
+  "LuauPrimitiveType",
+  "LuauVariable",
+]);
+
 export function endsInTypeName(node: SyntaxNode): boolean {
   for (let n = lastSignificantLeaf(node); n && n !== node; n = n.parent) {
-    if (n.name === "LuauTypeName" || n.name === "LuauVariable") return true;
+    if (TYPE_NAME_NODES.has(n.name)) return true;
   }
   return false;
 }

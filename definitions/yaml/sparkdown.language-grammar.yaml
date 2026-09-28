@@ -247,7 +247,7 @@ variables:
   # `s:upper()`, and `y` then `.. "b"` as `y .. "b"`: an access, or a binary
   # operator that cannot begin an expression. `-` can (`{ 1,` then `-2 }`),
   # so a line that begins with it is not a continuation.
-  LUAU_LINE_CONTINUATION_OPERATOR: (?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|(?:and|or)\b)
+  LUAU_LINE_CONTINUATION_OPERATOR: (?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:]|(?:and|or)\b)
   LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   # The `.` after a type's module name, with the whitespace Luau allows before
   # it. Every type rule that reads or yields to a qualified name uses this.
@@ -7544,6 +7544,7 @@ repository:
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
       - { include: "#LuauLogicalOperation" }
+      - { include: "#LuauTypeCastOperation" }
     end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
   LuauFunctionCall:
