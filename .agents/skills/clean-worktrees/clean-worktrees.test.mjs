@@ -45,7 +45,7 @@ import { PROFILE_CLAIM_FILE, checkoutDir } from "../drive-web-editor/session-dir
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, journalProcesses, recordedProcessAlive, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -180,9 +180,20 @@ await check("commits on the remote but not on origin/main are kept as an open pu
   kept(entry(), facts({ remoteExists: true, remoteAhead: 2 }), "origin/fix/1-x has 2 commits not on origin/main and this branch is behind it; a pull request may be open");
 });
 
-await check("a detached head is kept and nothing else about it is judged", () => {
+await check("a detached head not known to be on origin/main is kept and nothing else about it is judged", () => {
   const v = kept(entry({ branch: null, detached: true }), facts({ dirty: 9, servers: [{ state: "up", url: "u", pid: 1 }] }), "detached head");
   assert.equal(v.reasons.length, 1);
+});
+
+await check("a clean idle detached head on origin/main is removed; a dirty, served or in-use one is kept", () => {
+  const det = entry({ branch: null, detached: true });
+  const v = classify(det, facts({ headOnMain: true }));
+  assert.equal(v.remove, true);
+  assert.match(v.reasons[0], /^detached head at a commit already on origin\/main/);
+  kept(det, facts({ headOnMain: true, dirty: 2 }), "uncommitted changes (2 files)");
+  kept(det, facts({ headOnMain: true, servers: [{ state: "up", url: "u", pid: 1 }] }), "dev servers up at u (pid 1)");
+  kept(det, facts({ headOnMain: true, users: [{ pid: 9, name: "node.exe" }] }), "its path is on the command line of pid 9 (node.exe)");
+  kept(det, facts({ headOnMain: true, users: null }), "could not be listed");
 });
 
 await check("an unborn branch is kept and nothing else about it is judged", () => {
@@ -687,6 +698,8 @@ function makeWorld() {
       if (a === "symbolic-ref -q refs/remotes/origin/HEAD") return w.noOriginHead ? fail("") : ok("refs/remotes/origin/trunk");
       if (a === "fetch --prune origin") return w.fetched++, ok();
       if (a === "rev-list --first-parent refs/remotes/origin/main") return ok("m3\nm2\nm1");
+      // No detached head in the stub world is on origin/main.
+      if (/^merge-base --is-ancestor \S+ refs\/remotes\/origin\/main$/.test(a)) return fail("");
       if (a === "status --porcelain --ignored=matching") return gitStatus(cwd, true);
       if (a === "status --porcelain") return gitStatus(cwd, false);
       if (a === "symbolic-ref -q HEAD") {
@@ -1171,6 +1184,7 @@ const control = async (label, cuts, names) => {
     // pointed at the modules they name from beside this check.
     let text = source.replace('"../drive-web-editor/session-dir.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "drive-web-editor", "session-dir.mjs")).href));
     text = text.replace('"../../../scripts/review-job-root.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "review-job-root.mjs")).href));
+    text = text.replace('"../../../scripts/reviewer-slots.mjs"', () => JSON.stringify(pathToFileURL(path.join(here, "..", "..", "..", "scripts", "reviewer-slots.mjs")).href));
     for (const [needle, replacement] of cuts) {
       assert.ok(text.includes(needle), `the fixture was not built: the script no longer contains ${JSON.stringify(needle)}`);
       text = text.replace(needle, () => replacement);
@@ -1197,10 +1211,10 @@ try {
   await control("a fresh worktree stacked on a merged tip, or fast-forwarded onto one, is not told by its reflog reaching its creation", [freshCuts[1]], ["row for fix/29-stacked-fresh does not say", "row for fix/37-stacked-ff does not say"]);
   await control("a branch whose reflog can tell neither is removed as merged", [freshCuts[2]], ["fix/21-no-reflog: expected keep, got remove", "fix/38-partial-reflog: expected keep, got remove"]);
   await control("the default branch is not refused", [["if (facts.isDefault) keep.push(", "if (false) keep.push("]], [`${rel(R("impower.worktrees/main-copy"))}: expected keep, got remove`]);
-  await control("the default branch is removed once the classification lets it through", [["if (facts.isDefault) keep.push(", "if (false) keep.push("], ["if (ctx.defaultBranches.has(entry.branch)) return kept(", "if (false) return kept("]], [`${rel(R("impower.worktrees/main-copy"))}: expected kept, got removed`]);
+  await control("the default branch is removed once the classification lets it through", [["if (facts.isDefault) keep.push(", "if (false) keep.push("], ["if (entry.branch && ctx.defaultBranches.has(entry.branch)) return kept(", "if (false) return kept("]], [`${rel(R("impower.worktrees/main-copy"))}: expected kept, got removed`]);
   await control("a relative --root is accepted", [["if (!path.isAbsolute(opts.root)) die(", "if (false) die("]], ["--apply with a relative --root is refused before anything is fetched"]);
   await control("the probe's leftover beside a missing worktree is not seen", [["facts.probeLeft = facts.missing && deps.exists(`${abs}${PROBE_SUFFIX}`);", "facts.probeLeft = false;"]], ["row for fix/41-probe-left does not say"]);
-  await control("a detached head is not refused", [['if (entry.detached) keep.push("detached head', 'if (false) keep.push("detached head']], ["(detached): expected keep, got remove"]);
+  await control("a detached head is not refused", [['if (entry.detached && !facts.headOnMain) keep.push("detached head', 'if (false) keep.push("detached head']], ["(detached): expected keep, got remove"]);
   await control("an unborn branch is not refused", [['if (facts.unborn) keep.push("unborn branch', 'if (false) keep.push("unborn branch']], ["fix/18-unborn: expected keep, got remove"]);
   await control("a locked worktree is not refused", [["if (entry.locked) keep.push", "if (false) keep.push"]], ["fix/12-locked: expected keep, got remove"]);
   await control("the main checkout and a path outside the root are not refused", [["if (!facts.insideRoot) keep.push", "if (false) keep.push"]], ["main: expected keep, got remove", "fix/13-outside: expected keep, got remove"]);
@@ -1234,7 +1248,7 @@ try {
   await control("a driver that cannot answer loses its row to another driver's down", [['  return results.filter((s) => s.state !== "down");', '  return results.some((s) => s.state === "down") ? [] : results.filter((s) => s.state !== "down");']], ["fix/49-recorded-server: expected keep, got remove", "fix/50-unknown-state: expected keep, got remove"]);
   await control("a driver that cannot answer is not judged by its state file", [['    const judged = answer.state === "unknown" ? recordedServers([stateFileOf(worktree, d, deps.exists), ...(d.sessions ? (deps.sessionStates ?? checkoutStateFiles)(worktree) : [])], deps, answer.detail) : answer;', "    const judged = answer;"]], ["fix/48-crashed-driver: expected remove, got keep", "row for fix/49-recorded-server does not say", "row for fix/51-web-old-state does not say"]);
   await control("a worktree git cannot answer for stops the run", [["      verdict = { remove: false, reasons: [`git could not judge it (${err.message}); left for a person`] };", "      throw err;"]], ["the dry run classifies every worktree and removes nothing"]);
-  await control("a worktree git no longer sees, or whose directory is gone, is asked for its status", [["if (facts.isMain || facts.isDefault || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;", "if (facts.isMain || facts.isDefault || entry.detached || facts.unborn) return facts;"]], ["row for fix/19-broken does not say", "row for fix/20-missing does not say"]);
+  await control("a worktree git no longer sees, or whose directory is gone, is asked for its status", [["if (facts.isMain || facts.isDefault || entry.prunable || facts.missing || facts.unborn) return facts;", "if (facts.isMain || facts.isDefault || facts.unborn) return facts;"]], ["row for fix/19-broken does not say", "row for fix/20-missing does not say"]);
   await control("a link leading outside the tree is not refused", [["if (out.length) return `", "if (false) return `"]], ["fix/44-link-out: expected keep, got remove"]);
   await control("a directory the walk cannot read is not refused", [["if (scan.unreadable.length) return `", "if (false) return `"]], ["fix/46-unreadable: expected keep, got remove"]);
   await control("a probe that could not be renamed back is reported as kept", [["return failed(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back", "return kept(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back"]], ["fix/43-rename-back-fails: expected failed, got kept"]);
@@ -1690,6 +1704,38 @@ await check("journalPids reads every recorded pid and refuses a line that is not
   assert.deepEqual(journalPids(rows.map((r) => JSON.stringify(r)).join("\n") + "\n").sort(), [11, 12, 13]);
   assert.deepEqual(journalPids(""), []);
   assert.equal(journalPids(`${JSON.stringify(rows[0])}\n{"event":"runn`), null, "a torn line must make the journal unreadable");
+});
+
+await check("a journal's recorded process still counts only while the pid's start time matches; a bare pid or an unreadable start keeps the number's word", () => {
+  const rows = [{ event: "coordinator", pid: 21, processIdentity: { pid: 21, start: "t1" } }, { event: "bare", pid: 22 }];
+  const procs = journalProcesses(rows.map((r) => JSON.stringify(r)).join("\n"));
+  assert.deepEqual([...procs.get(21)], ["t1"]);
+  assert.deepEqual([...procs.get(22)], []);
+  const deps = (start) => ({ pidAlive: () => true, processStart: () => start });
+  assert.equal(recordedProcessAlive(21, procs.get(21), deps("t1")), true, "the same process");
+  assert.equal(recordedProcessAlive(21, procs.get(21), deps("t2")), false, "a recycled pid");
+  assert.equal(recordedProcessAlive(21, procs.get(21), deps(null)), false, "gone between the two checks");
+  assert.equal(recordedProcessAlive(21, procs.get(21), deps(undefined)), true, "start time unavailable");
+  assert.equal(recordedProcessAlive(21, procs.get(21), { pidAlive: () => true, processStart: () => { throw new Error("x"); } }), true, "start time unreadable");
+  assert.equal(recordedProcessAlive(22, procs.get(22), deps("t9")), true, "a bare pid is judged by its number");
+  assert.equal(recordedProcessAlive(21, procs.get(21), { pidAlive: () => false, processStart: () => "t1" }), false, "no such pid");
+});
+
+await check("a merged review job whose recorded pid was recycled is removed; one whose process is still the recorded one is kept", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "cw-recycled-"));
+  try {
+    const row = { event: "coordinator", pid: 4242, processIdentity: { pid: 4242, start: "original" } };
+    fs.writeFileSync(path.join(dir, "round-1.journal.jsonl"), `${JSON.stringify(row)}\n`);
+    const base = { exec: () => ({ status: 0, out: "MERGED", err: "" }), pid: () => 1, pidAlive: () => true, listDirs: () => [] };
+    const ctx = { mainRoot: dir, processes: { ok: true, list: [] } };
+    const recycled = classifyJob("pr-9", dir, { ...base, processStart: () => "someone-else" }, ctx);
+    assert.equal(recycled.remove, true, recycled.reason);
+    const same = classifyJob("pr-9", dir, { ...base, processStart: () => "original" }, ctx);
+    assert.equal(same.remove, false);
+    assert.match(same.reason, /still running \(pid 4242\)/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 {
