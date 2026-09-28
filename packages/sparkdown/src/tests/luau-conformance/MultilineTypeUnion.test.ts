@@ -62,3 +62,19 @@ describe("a type at the end of a line still ends at the next line's code", () =>
     expect(ctx.story.ContinueMaximally()).toBe(output);
   });
 });
+
+// The function body opens on the header's line when a statement follows it
+// there, so the statements on that line run with the ones after it; a
+// declaration's values keep their call arguments.
+describe("every statement of a function runs", () => {
+  test.each([
+    ["a typed local on the header's line", `Value {f()}.\nfunction f() local x: number = 5\n  return x\nend\n`, "Value 5.\n"],
+    ["statements separated by semicolons on the header's line", `Value {f(3)}.\nfunction f(n) local x = {}; for i = 1, n do x[i] = i end;\n  return #x\nend\n`, "Value 3.\n"],
+    ["a header ending in a colon", `Value {f(4)}.\nfunction f(x):\n  local y = x + 1\n  return y\nend\n`, "Value 5.\n"],
+    ["call values after a comma", `Value {f()}.\nfunction f()\n  local a, b = math.sqrt(4), math.sqrt(9)\n  return a + b\nend\n`, "Value 5.\n"],
+  ])("with %s", (_name, source, output) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(output);
+  });
+});

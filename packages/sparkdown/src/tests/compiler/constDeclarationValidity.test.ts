@@ -13,6 +13,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 
 const URI = "inmemory:///main.sd";
 
@@ -121,5 +122,30 @@ describe("const declaration validity", () => {
     );
     expect(r.hasProgram).toBe(true);
     expect(r.errors).toBe(0);
+  });
+
+  it.each([
+    ["a local in a function", "function f()\n  local SHOW = 1\n  return SHOW\nend"],
+    ["a local in a function with a return type", "function f(): number\n  local SHOW = 1\n  return SHOW\nend"],
+    ["a local on the header's line", "function f() local SHOW = 1 return SHOW end"],
+    ["a parameter", "function f(SHOW)\n  return SHOW\nend"],
+  ])("%s of the same name shadows without a spurious const error", (_name, fn) => {
+    const r = check(`const SHOW = 5\n${fn}`);
+    expect(r.hasProgram).toBe(true);
+    expect(r.errors).toBe(0);
+  });
+
+  it("a local at the top level next to a const of the same name is an error", () => {
+    const r = check("const SHOW = 5\nlocal SHOW = 1");
+    expect(r.hasProgram).toBe(true);
+    expect(r.errors).toBeGreaterThan(0);
+  });
+
+  it("a shadowing local is read inside its function, and the const outside it", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      "const SHOW = 5\nValue {f(2)} {SHOW}.\nfunction f(n)\n  local SHOW = n\n  return SHOW\nend\n",
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 2 5.\n");
   });
 });

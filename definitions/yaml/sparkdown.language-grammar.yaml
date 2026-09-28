@@ -5849,17 +5849,19 @@ repository:
     tag: meta
     name: meta.function.body.luau
     # Anchored: opens once the function header (params / return type)
-    # is closed and at least one newline has passed. The lookbehind takes
-    # the header's last character: the parameter list's `)` or the end of
-    # a return type (`number`, `number?`, `{number}`, `Array<T>`, `"x"`).
-    # `\n` requires the body to start on a new line. The `>` of
-    # `function f<T>` is also a type end; it stays out of the way only
-    # because params follow it on the same line. A parameter list moved to
-    # the next line is not supported with or without generics. A return
-    # type takes in the line break after it, as any type does, so the body
-    # also opens at the start of a line, unless that line closes the
-    # function.
-    begin: (?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{WS}}*\b(?:end|scene|branch)\b)
+    # is closed, so every statement of the function is inside it. The
+    # lookbehind takes the header's last character: the parameter list's
+    # `)` or the end of a return type (`number`, `number?`, `{number}`,
+    # `Array<T>`, `"x"`). The body opens there when a statement follows on
+    # the same line (`function f() return 1 end`), or on the line break
+    # after it. The `>` of `function f<T>` is also a type end; it stays
+    # out of the way only because params follow it on the same line. A
+    # parameter list moved to the next line is not supported with or
+    # without generics. A return type takes in the line break after it,
+    # as any type does, so the body also opens at the start of a line,
+    # unless that line closes the function; a line start is only reached
+    # with the body still unopened when nothing followed the header.
+    begin: (?<={{LUAU_TYPE_END}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:(<])\S)|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -5976,15 +5978,18 @@ repository:
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    # The definition goes on only where one of its parts can: a target or
-    # value right after the modifier or a comma, and a comment, a comma or
-    # the `=` before the values after a target or value (a target with a
-    # type annotation ends before its ` = value`). It ends anywhere else
-    # on the line, and at the start of the next line, where the line break
-    # was taken in by a type annotation that could have gone on as a
-    # union. That end has to win over `LuauExpression`, which would read
-    # the next line as a value, so it is checked before the patterns are.
-    end: (?={{BEAT}})|(?=^|$)|(?<!(?:{{LUAU_SCOPE_MODIFIERS}}|[,]){{WS}}*)(?!{{WS}}*(?:{{LUAU_COMMENT_START}}|[,=]))
+    # The definition's parts follow one another directly (a value's call
+    # arguments are a sibling `LuauParenthetical`), or after whitespace
+    # when the next part is a comment, a comma or the `=` before the values
+    # (a target with a type annotation ends before its ` = value`). It
+    # ends at whitespace before anything else, so a statement later on the
+    # line is the definition's sibling; at a `;` or a closing bracket; at
+    # the end of the line; and at the start of the next line, where the
+    # line break was taken in by a type annotation that could have gone on
+    # as a union. That last end has to win over `LuauExpression`, which
+    # would read the next line as a value, so the end is checked before
+    # the patterns are.
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{LUAU_COMMENT_START}}|[,=]))
 
   LuauVariableAssignment:
     # The lookahead distinguishes a TARGET identifier from an

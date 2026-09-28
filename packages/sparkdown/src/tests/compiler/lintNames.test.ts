@@ -185,14 +185,14 @@ end
     expect([...names.globalOccurrences.keys()]).toEqual([]);
   });
 
-  test("a nested local hides no outer local of the same name", () => {
+  test("a redeclaration after another statement on its line hides the earlier local", () => {
     const source = `function run()
   local x = 1
   local a = {} local x = 3
   print(x, a)
 end
 `;
-    expect(resolutions(source, "x")).toEqual(["L4 read -> local@L3, local@L2"]);
+    expect(resolutions(source, "x")).toEqual(["L4 read -> local@L3"]);
   });
 
   test("a structural word can name a local but never a global", () => {

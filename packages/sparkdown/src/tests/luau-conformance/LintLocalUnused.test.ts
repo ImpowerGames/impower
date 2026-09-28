@@ -74,11 +74,10 @@ describe("reads the rule recognizes", () => {
     ["a read in a repeat's until", "\nrepeat\n    local done = true\nuntil done\n"],
     ["a call through the local", "\nlocal f = print\nf(1)\n"],
     ["an index through the local", "\nlocal t = {}\nt.k = 1\n"],
-    // On one line the grammar nests what follows a declaration inside it;
-    // these shapes are from Luau's conformance suite.
+    // Statements after a declaration on its line; these shapes are from
+    // Luau's conformance suite.
     ["a read later on the same line", "\nlocal s, r = pcall(print) return s, r\n"],
     ["a read in a function statement on the same line", "\nlocal a = 1 function foo() return a end return foo()\n"],
-    ["a read after a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(x, a)\n"],
     // The grammar marks Sparkdown's structural words as keywords even where
     // they are names.
     ["a read of a local named `style`", "\nlocal style = {}\nsetStyle(style)\n"],
@@ -96,7 +95,7 @@ describe("reads the rule recognizes", () => {
     ["the name in a comment", "\nlocal x = 1\n-- x\n", 1],
     ["a local in a then arm read only in the else arm", "\nlocal c = true\nif c then\n    local y = 1\nelse\n    print(y)\nend\n", 3],
     ["a write from a narrative logic line", "\nlocal hp = 1\n& hp = 5\n", 1],
-    ["a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(a)\n", 1],
+    ["a redeclaration after another statement on its line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(x, a)\n", 1],
   ])("%s is not a read", (_name, body, line) => {
     expect(lintInFunction(body)).toEqual([
       {
