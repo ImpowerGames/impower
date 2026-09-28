@@ -145,8 +145,11 @@ end
 end
 `;
     // The last `t` is the one after `end`. With nothing bound it reads as it
-    // does when the type function's parameter has another name.
-    expect(annotationsOf(script("t"), "t").at(-1)).toEqual(annotationsOf(script("p"), "t").at(-1));
+    // does when the type function's parameter has another name: a reference
+    // to an unresolved name.
+    const control = annotationsOf(script("p"), "t").at(-1);
+    expect(control).toHaveProperty("references");
+    expect(annotationsOf(script("t"), "t").at(-1)).toEqual(control);
   });
 
   test("editing around it leaves the names after it as a cold parse reads them", () => {
