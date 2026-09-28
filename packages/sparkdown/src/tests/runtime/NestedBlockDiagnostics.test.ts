@@ -205,6 +205,24 @@ describe("an empty divert as the last arm of a braced inline alternator", () => 
     ctx.story.ChooseChoiceIndex(0);
     expect(ctx.story.ContinueMaximally()).toBe("Pick\n0 turns\n");
   });
+
+  test("a table value may hold a divert target to a label called end", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `-> s\nscene s\n  choose\n    + (end) Pick\n  then\n    local targets = { -> end }\n    if targets[1] == -> end then\n      Same.\n    end\n    fin\n  end\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    ctx.story.ContinueMaximally();
+    ctx.story.ChooseChoiceIndex(0);
+    expect(ctx.story.ContinueMaximally()).toBe("Pick\nSame.\n");
+  });
+
+  test("a named last arm of a braced match alternator is an empty divert too", () => {
+    // `  Two {match (n) | 0 = "a" | other = ` is 37 characters, so the `->`
+    // covers 37 to 39.
+    const source = scene('  Two {match (n) | 0 = "a" | other = -> end} tail') + T;
+    expect(diagnostics(source, TARGET_NOT_FOUND)).toEqual([]);
+    expect(diagnosticSpans(source, EMPTY_DIVERT)).toEqual([{ line: 3, from: 37, to: 39 }]);
+  });
 });
 
 const UNREACHABLE = "Unreachable statement detected.";
