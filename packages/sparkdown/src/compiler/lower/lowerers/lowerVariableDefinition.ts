@@ -122,6 +122,20 @@ export function lowerVariableDefinition(
           continue;
         }
       }
+      // An anonymous function directly after a comma is a value in the
+      // list (`local a, g = 1, function() ... end`), not a statement:
+      // treating it as one drops the slot and shifts every later value
+      // one target left. Named functions stay trailing statements.
+      if (
+        child.name === "LuauFunctionDefinition" &&
+        sawAssignmentOp &&
+        !findChildByName(child, "LuauFunctionDeclarationName") &&
+        previousContentSibling(child)?.name === "LuauCommaSeparator"
+      ) {
+        currentRhsGroup.push(child);
+        child = child.nextSibling;
+        continue;
+      }
       // Statement-like node — sparkdown's grammar lets these share a
       // single source line with the variable definition (e.g.
       // `local x = 5 return x end`). The VA captures everything up
@@ -321,6 +335,12 @@ function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
     child = child.nextSibling;
   }
   return null;
+}
+
+function previousContentSibling(node: SyntaxNode): SyntaxNode | null {
+  let prev = node.prevSibling;
+  while (prev && isSkippableName(prev.name)) prev = prev.prevSibling;
+  return prev;
 }
 
 // Returns the variable name when the access path is exactly ONE
