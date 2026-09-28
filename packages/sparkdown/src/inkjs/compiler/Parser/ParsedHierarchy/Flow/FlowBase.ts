@@ -23,31 +23,111 @@ import { DebugMetadata } from "../../../../engine/DebugMetadata";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
+import { VariablePointerExpression } from "../Expression/VariablePointerExpression";
 
-// Every `local` named `varName` declared at the top level of `story`, in any
-// top-level block, outside every function.
-function topLevelLocals(
+// Where the enclosing code creates the closure `flow`: the pointer through
+// which the closure value captures `varName`, beside the function value that
+// names `flow`. Null when no closure value names `flow`.
+function captureSite(
   story: ParsedObject,
+  flow: FlowBase,
   varName: string,
-): VariableAssignment[] {
-  const found: VariableAssignment[] = [];
+): ParsedObject | null {
+  const flowName = flow.identifier?.name;
+  const findPointer = (obj: ParsedObject): ParsedObject | null => {
+    for (const child of obj.content) {
+      if (
+        child instanceof VariablePointerExpression &&
+        child.variableName === varName
+      ) {
+        return child;
+      }
+      const found = findPointer(child);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  };
+  const findClosure = (obj: ParsedObject): ParsedObject | null => {
+    for (const child of obj.content) {
+      if (
+        child instanceof DivertTarget &&
+        child.isFunctionValue &&
+        child.divert.target?.dotSeparatedComponents === flowName
+      ) {
+        return findPointer(obj);
+      }
+      const found = findClosure(child);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  };
+  return flowName ? findClosure(story) : null;
+}
+
+// Where `flow`, written at the story's top level, sits among the top-level
+// content: before the first top-level object of its script that starts after
+// it, or just after the object it followed when the story split its content
+// (`_definedAfter`), whichever comes first. A flow written as a top-level
+// statement is outside every top-level block, and its script's objects start
+// in the order they are written, so the first one after it bounds it. A flow
+// written inside a top-level block keeps its place among the block's objects,
+// and the object it followed bounds it inside the block. Null when the flow
+// has no position.
+function definitionSite(
+  story: FlowBase,
+  flow: FlowBase,
+): { parent: ParsedObject; end: number } | null {
+  const root = story._rootWeave;
+  const start = flow.ownDebugMetadata ?? flow.identifier?.debugMetadata;
+  if (!root || !start) {
+    return null;
+  }
+  const order: ParsedObject[] = [];
+  let firstAfter = null as ParsedObject | null;
   const visit = (obj: ParsedObject) => {
     for (const child of obj.content) {
       if (child instanceof FlowBase) {
         continue;
       }
-      if (
-        child instanceof VariableAssignment &&
-        child.isNewTemporaryDeclaration &&
-        child.variableName === varName
+      order.push(child);
+      const childStart =
+        child.ownDebugMetadata ?? child.identifier?.debugMetadata;
+      if (!childStart) {
+        visit(child);
+      } else if (
+        firstAfter === null &&
+        childStart.fileName === start.fileName &&
+        (childStart.startLineNumber > start.startLineNumber ||
+          (childStart.startLineNumber === start.startLineNumber &&
+            childStart.startCharacterNumber > start.startCharacterNumber))
       ) {
-        found.push(child);
+        firstAfter = child;
       }
-      visit(child);
     }
   };
-  visit(story);
-  return found;
+  visit(root);
+  const after = flow._definedAfter;
+  const afterIndex = after ? order.indexOf(after) : -1;
+  const firstAfterIndex = firstAfter
+    ? order.indexOf(firstAfter)
+    : order.length;
+  if (after?.parent && afterIndex >= 0 && afterIndex < firstAfterIndex) {
+    return {
+      parent: after.parent,
+      end: after.parent.content.indexOf(after) + 1,
+    };
+  }
+  if (firstAfter?.parent) {
+    return {
+      parent: firstAfter.parent,
+      end: firstAfter.parent.content.indexOf(firstAfter),
+    };
+  }
+  return { parent: root, end: root.content.length };
 }
 
 // Whether `content[0..end)` declares a `local` named `varName` that is still
@@ -121,6 +201,12 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
   public _startingSubFlowDivert: RuntimeDivert | null = null;
   public _startingSubFlowRuntime: RuntimeObject | null = null;
   public _firstChildFlow: FlowBase | null = null;
+  // The object this flow followed in its parent's content when the parent
+  // split that content into its weave and its flows. A flow written inside a
+  // top-level block keeps its place among the block's objects; a flow written
+  // as a top-level statement joins the content after all of it, so this is
+  // the last object of the weave. See `definitionSite`.
+  public _definedAfter: ParsedObject | null = null;
   public variableDeclarations: Map<string, VariableAssignment> = new Map();
 
   get hasParameters() {
@@ -191,6 +277,12 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
         }
 
         subFlowObjs.push(obj);
+        // An included story's flows come first in the including story's
+        // content, so an empty `weaveObjs` keeps the site the included
+        // story recorded.
+        if (weaveObjs.length > 0) {
+          subFlow._definedAfter = weaveObjs[weaveObjs.length - 1]!;
+        }
         if (subFlow.identifier?.name) {
           this._subFlowsByName.set(subFlow.identifier?.name, subFlow);
         }
@@ -275,15 +367,9 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   // Whether `fromNode` reads the variable `varName` rather than whatever the
   // name means where no variable is in scope (a library such as `table`).
-  // `ResolveVariableWithName` finds a `local` anywhere in its flow; this
-  // also requires the reference to be in its scope. A parameter, captured
-  // upvalue or global is in scope everywhere in its flow. A `local` is in
-  // scope after its declaration, in the block that declares it and the
-  // blocks nested in it: in or under an earlier sibling of the reference or
-  // of one of its ancestors in the same flow, outside any block that closes
-  // before the reference (see `declaresLocal`). Every function is its own story-level
-  // flow, so a top-level `local` is in scope in a function when it is
-  // declared before the function, whatever top-level block it is in.
+  // `ResolveVariableWithName` finds a `local` anywhere in its flow, and a
+  // top-level `local` from every flow; this also requires the reference to
+  // be in its scope, as `IsLocalInScopeAt` decides.
   public IsLocalInScope = (
     varName: string,
     fromNode: ParsedObject,
@@ -292,47 +378,55 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
     if (storyDecl && !storyDecl.isNewTemporaryDeclaration) {
       return true;
     }
+    const parent = fromNode.parent;
+    return (
+      parent !== null &&
+      this.IsLocalInScopeAt(varName, parent, parent.content.indexOf(fromNode))
+    );
+  };
 
-    let child = fromNode;
-    let parent = fromNode.parent;
-    while (parent && !(parent instanceof FlowBase)) {
-      const end = parent.content.indexOf(child);
-      if (declaresLocal(parent.content, end, varName)) {
+  // Whether a `local` named `varName` is in scope just before
+  // `parent.content[end]`. It is when it is declared in or under an earlier
+  // object of that content, or of an ancestor's content up to the enclosing
+  // flow, outside any block that closes first (see `declaresLocal`). A
+  // parameter of the enclosing flow is in scope throughout it. A variable a
+  // closure captures is in scope where the enclosing code creates the
+  // closure. A flow of the story's top level reads a top-level `local` in
+  // scope where the flow is written (see `definitionSite`).
+  public IsLocalInScopeAt = (
+    varName: string,
+    parent: ParsedObject,
+    end: number,
+  ): boolean => {
+    let node: ParsedObject | null = parent;
+    while (node && !(node instanceof FlowBase)) {
+      if (declaresLocal(node.content, end, varName)) {
         return true;
       }
-      child = parent;
-      parent = parent.parent;
+      const child: ParsedObject = node;
+      node = node.parent;
+      end = node ? node.content.indexOf(child) : -1;
     }
 
-    const flow = parent as FlowBase | null;
+    const flow = node as FlowBase | null;
     if (!flow || flow === this.story) {
       return false;
     }
-    if (flow.args?.some((arg) => arg.identifier?.name === varName)) {
-      return true;
+    const arg = flow.args?.find((a) => a.identifier?.name === varName);
+    if (arg) {
+      const capture = arg.isUpvalue
+        ? captureSite(this.story, flow, varName)
+        : null;
+      return capture === null || this.IsLocalInScope(varName, capture);
     }
-    if (!storyDecl) {
+    if (!this.story.variableDeclarations.has(varName)) {
       return false;
     }
-    const flowStart = flow.ownDebugMetadata ?? flow.identifier?.debugMetadata;
-    return topLevelLocals(this.story, varName).some((decl) => {
-      const declStart =
-        decl.ownDebugMetadata ??
-        decl.identifier?.debugMetadata ??
-        decl.expression?.ownDebugMetadata;
-      if (
-        !flowStart ||
-        !declStart ||
-        declStart.fileName !== flowStart.fileName
-      ) {
-        return true;
-      }
-      return (
-        declStart.startLineNumber < flowStart.startLineNumber ||
-        (declStart.startLineNumber === flowStart.startLineNumber &&
-          declStart.startCharacterNumber < flowStart.startCharacterNumber)
-      );
-    });
+    const site =
+      flow.parent === this.story ? definitionSite(this.story, flow) : null;
+    return (
+      site === null || this.IsLocalInScopeAt(varName, site.parent, site.end)
+    );
   };
 
   public AddNewVariableDeclaration = (varDecl: VariableAssignment): void => {
