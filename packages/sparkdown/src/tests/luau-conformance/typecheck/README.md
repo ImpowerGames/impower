@@ -21,6 +21,7 @@ LUAU_TYPECHECK_AREAS=all node scripts/test-suite.mjs run packages/sparkdown src/
 - The Luau source is carried verbatim. A case with one check writes it as `source`; a case that checks several sources, or needs a field on one of them, lists them under `checks`. `module` records the name upstream gives a source it resolves with `require`.
 - `mode` is the mode passed to `check(mode, source)`. Without one, a snippet is checked in strict mode, as Luau's test fixture checks it, and a `--!` directive in the snippet overrides that as it does in Luau.
 - `flags` records the `ScopedFastFlag`s the case sets, other than the solver switch.
+- `limits` records the `ScopedFastInt`s the case sets, each named without its `FInt::` or `DFInt::` prefix and given the value upstream sets for an optimized build without sanitizers. The harness cannot set them, so once the case's area is on it fails as not implemented rather than asserting what upstream sees only under those limits.
 - `ignoreMissingAnnotations: true` stands for `ignoreMissingAnnotations(result)`: `TypeAnnotationRequired` errors are dropped before any assertion.
 - Where a case branches on `FFlag::DebugLuauForceOldSolver`, only the new-solver branch is ported. A branch on any other flag, or an `#if 0` block, is resolved as Luau's CI runs the new solver, with `--fflags=true`: every flag the case does not set is on, except the `Debug` and `Test` flags, and the `#else` part is the one compiled.
 - A source upstream builds in C++ (repeating a fragment up to a recursion limit, or appending generated declarations) is built the same way in TypeScript, with the limit Luau uses in an optimized build without sanitizers.
@@ -46,6 +47,8 @@ A case's `skip` says why its type assertions never run:
 - `{ notApplicable: "..." }`, with the specific reason, for a case that cannot apply to Sparkdown.
 - `{ disabledUpstream: true }` for a case upstream never compiles, in an `#if 0` region or a comment.
 
+A check within a case that cannot apply to Sparkdown, when the case's other checks can, carries `notApplicable` with the specific reason instead: its snippet still gets the parse check, and only its own assertions never run.
+
 A snippet Sparkdown cannot parse yet carries a record of why: `unparsed: { defect: N }` names the filed Bug, and `unparsed: { divergence: "..." }` names the `packages/sparkdown/docs/runtime/DIVERGENCES.md` section, by its heading, that documents why it never will. The parse check then expects the snippet to fail, so the test fails, and the record has to go, once the snippet parses. A snippet that fails to parse for any other reason is a defect, to be fixed or filed.
 
 A snippet Luau's own parser rejects, such as `return t.` or an `if` expression with no `else`, carries `malformed` with what upstream writes wrong. The parse check then expects Sparkdown to report a syntax diagnostic too, and the case's assertions still run, since Luau's error counts include the parse errors. A malformed snippet Sparkdown reads without complaint has no record, and the error sits in `expect` for the checker to report (see below).
@@ -60,6 +63,7 @@ Sparkdown's grammar recovers from Luau it cannot read without a diagnostic: it r
 - each node the parser could not finish;
 - each node inside the snippet that is not Luau, such as narrative text or a divert, outside the text of strings and comments (the Luau inside a backtick string's braces is read like any other);
 - each pair of braces in a string that Sparkdown reads as an expression and Luau does not: interpolation in a double-quoted string, which Luau reads as text, and the `{{name}}` call shorthand, which Luau reads as text in a double-quoted string and rejects in a backtick string; a snippet with one records the divergence by its heading, `` `"..."` interpolates; `'...'` does not ``;
+- a type written after a `?`, which Sparkdown takes into the optional type before it, even from the next line (#1023), where Luau's `?` only ends a type;
 - the function `run` wraps the snippet in closing before the snippet ends.
 
 The parse check asks only whether Sparkdown reads the snippet as Luau. An error Luau's parser reports for a reason the grammar does not look for, such as a `const` assigned a second time, is recorded in `expect` as a `SyntaxError` like any other error, for the checker to report.

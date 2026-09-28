@@ -1461,11 +1461,9 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:1926 TEST_CASE_FIXTURE(Fixture, "type_mismatch_on_massive_table_is_cut_short")
-    // Upstream lowers the length at which Luau cuts a printed table type short
-    // (LuauTableTypeMaximumStringifierLength) to 40 with ScopedFastInt for the
-    // case.
     name: "type_mismatch_on_massive_table_is_cut_short",
     fixture: "Fixture",
+    limits: { LuauTableTypeMaximumStringifierLength: 40 },
     source: `
         local t: {a: number,b: number, c: number, d: number, e: number, f: number} = nil :: any
         t = 1
@@ -1479,12 +1477,10 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:1950 TEST_CASE_FIXTURE(Fixture, "ok_to_set_nil_even_on_non_lvalue_base_expr")
-    // The last two checks use an extern type that upstream declares with
-    // loadDefinition; the first three need nothing Sparkdown lacks, but a skip
-    // covers the whole case.
+    // Upstream declares the extern type FancyHashtable with loadDefinition
+    // before the last two checks.
     name: "ok_to_set_nil_even_on_non_lvalue_base_expr",
     fixture: "Fixture",
-    skip: { notApplicable: "declares extern types, which a Luau host defines in C++ or a definition file; Sparkdown has neither" },
     checks: [
       {
         source: `
@@ -1522,6 +1518,7 @@ end
         ],
       },
       {
+        notApplicable: "uses an extern type, which a Luau host defines in C++ or a definition file; Sparkdown has neither",
         source: `
         local function removekey(fh: FancyHashtable, other_key: string)
             fh["hmmm"] = nil
@@ -1532,6 +1529,7 @@ end
         expect: [{ errors: 0 }],
       },
       {
+        notApplicable: "uses an extern type, which a Luau host defines in C++ or a definition file; Sparkdown has neither",
         source: `
         local function removekey(fh: FancyHashtable)
             fh.real_property = nil
@@ -2640,11 +2638,9 @@ c = b
   },
   {
     // TypeInfer.tables.test.cpp:3383 TEST_CASE_FIXTURE(Fixture, "table_indexing_error_location")
-    // Sparkdown reads the type of `local bar: number?` on into the next line's
-    // first word (#1023), so the snippet passes the parse check on a wrong
-    // syntax tree.
     name: "table_indexing_error_location",
     fixture: "Fixture",
+    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
 local foo = {42}
 local bar: number?
@@ -4841,11 +4837,9 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:6022 TEST_CASE_FIXTURE(Fixture, "disable_singleton_inference_on_large_tables")
-    // Upstream lowers the number of table items Luau infers singleton types for
-    // (LuauPrimitiveInferenceInTableLimit) to 2 with ScopedFastInt for the
-    // case.
     name: "disable_singleton_inference_on_large_tables",
     fixture: "Fixture",
+    limits: { LuauPrimitiveInferenceInTableLimit: 2 },
     unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Word = "foo" | "bar"
@@ -4855,11 +4849,9 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:6036 TEST_CASE_FIXTURE(Fixture, "disable_singleton_inference_on_large_nested_tables")
-    // Upstream lowers the number of table items Luau infers singleton types for
-    // (LuauPrimitiveInferenceInTableLimit) to 2 with ScopedFastInt for the
-    // case.
     name: "disable_singleton_inference_on_large_nested_tables",
     fixture: "Fixture",
+    limits: { LuauPrimitiveInferenceInTableLimit: 2 },
     unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Word = "foo" | "bar"
@@ -4869,11 +4861,9 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:6048 TEST_CASE_FIXTURE(Fixture, "large_table_inference_does_not_bleed")
-    // Upstream lowers the number of table items Luau infers singleton types for
-    // (LuauPrimitiveInferenceInTableLimit) to 2 with ScopedFastInt for the
-    // case.
     name: "large_table_inference_does_not_bleed",
     fixture: "Fixture",
+    limits: { LuauPrimitiveInferenceInTableLimit: 2 },
     unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Word = "foo" | "bar"
@@ -5112,11 +5102,9 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:6304 TEST_CASE_FIXTURE(BuiltinsFixture, "oss_1914_access_after_assignment_with_assertion")
-    // Sparkdown reads the type of `local baseWall: WallHolder?` on into the
-    // next line's first word (#1023), so the snippet passes the parse check on
-    // a wrong syntax tree.
     name: "oss_1914_access_after_assignment_with_assertion",
     fixture: "BuiltinsFixture",
+    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         --!strict
 
@@ -5153,6 +5141,7 @@ end
     fixture: "BuiltinsFixture",
     source: `
         local res = { ${'"foo",'.repeat(100)} }
+
         local function check(index: number)
             if res[index] == "foo" then
                 print("found a foo!")
@@ -5741,12 +5730,10 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:6962 TEST_CASE_FIXTURE(Fixture, "basic_data_like_array_3")
-    // Sparkdown reads the type of `local v: number?` on into the next line's
-    // first word (#1023), so the snippet passes the parse check on a wrong
-    // syntax tree.
     name: "basic_data_like_array_3",
     fixture: "Fixture",
     flags: { LuauRelateIndexersTypo: true },
+    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         local v: number?
         local t1 = {
@@ -5769,7 +5756,7 @@ end
     name: "basic_data_like_array_4",
     fixture: "Fixture",
     flags: { LuauRelateIndexersTypo: true },
-    unparsed: { defect: 1023 }, // a type ending in ? takes in the next word, even on the next line
+    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         local v: number?
         local s: string?
@@ -5785,12 +5772,10 @@ end
   },
   {
     // TypeInfer.tables.test.cpp:7003 TEST_CASE_FIXTURE(Fixture, "basic_data_like_array_5")
-    // Sparkdown reads the type of `local v: number?` on into the next line's
-    // first word (#1023), so the snippet passes the parse check on a wrong
-    // syntax tree.
     name: "basic_data_like_array_5",
     fixture: "Fixture",
     flags: { LuauRelateIndexersTypo: true },
+    unparsed: { defect: 1023 }, // a type ending in ? with a word after it, even on the next line
     source: `
         local v: number?
         local t = {

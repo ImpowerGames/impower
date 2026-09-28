@@ -439,6 +439,8 @@ const NEUTRAL_NODES = nodeNameSet([
 // except the Luau inside a backtick string's braces.
 const TEXT_NODES = /^Luau\w*(String|Comment)$/;
 const LUAU_INTERPOLATION: SparkdownNodeName = "LuauBacktickStringInterpolation";
+const TYPE_BINARY_OPERATION: SparkdownNodeName = "LuauTypeBinaryOperation";
+const TYPE_BINARY_OPERATOR: SparkdownNodeName = "LuauTypeBinaryOperator";
 
 // Braces in a string that Sparkdown reads as an expression and Luau does not
 // (DIVERGENCES.md): interpolation in a double-quoted string, and the
@@ -498,7 +500,22 @@ function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocume
       visitInterpolations(node);
       return;
     }
+    if (node.name === TYPE_BINARY_OPERATION) visitTypeOperands(node);
     for (let child = node.firstChild; child; child = child.nextSibling) visit(child);
+  };
+  // Luau's `?` only ends a type, but the grammar reads it as a binary operator
+  // (#1023), so a type that follows it, even on the next line, is taken in.
+  const visitTypeOperands = (node: SyntaxNode) => {
+    let content = node.firstChild;
+    while (content && content.name !== `${TYPE_BINARY_OPERATION}_content`) content = content.nextSibling;
+    let optional: SyntaxNode | undefined;
+    for (let child = content?.firstChild; child; child = child.nextSibling) {
+      if (NEUTRAL_NODES.has(child.name) || TEXT_NODES.test(child.name)) continue;
+      if (optional && child.name !== TYPE_BINARY_OPERATOR) {
+        report(child.from, child.to, `Sparkdown read ${quote(child.from, child.to)} as part of the type before it, after its ?`);
+      }
+      optional = child.name === TYPE_BINARY_OPERATOR && text.slice(child.from, child.to).trim().startsWith("?") ? child : undefined;
+    }
   };
   // Within text, a backtick string's interpolation is read as Luau, and an
   // expression only Sparkdown reads there, or an unfinished node, is reported.

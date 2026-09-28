@@ -89,6 +89,25 @@ describe("syntax diagnostics", () => {
     expect(read(`local s = 'a {missing} {{fmt}} b'`)).toEqual([]);
   });
 
+  test("a type after a ?, which Sparkdown takes into the optional type before it, is reported where it starts", () => {
+    const read = (source: string) => checkLuau(source).syntaxDiagnostics.map((d) => [d.line, d.column, d.message]);
+    expect(read("local v: number?\nlocal s = 7")).toEqual([[1, 0, `Sparkdown read "local" as part of the type before it, after its ?`]]);
+    expect(read("local function f(): number?\n    return 5\nend")).toContainEqual([
+      1,
+      4,
+      `Sparkdown read "return" as part of the type before it, after its ?`,
+    ]);
+    for (const source of [
+      "local v: number? = 1",
+      "local function f(x: number?) end",
+      "local t: {a: number?} = {a = 1}",
+      "local x: number?|string = 1",
+      "type T = number? -- a comment\nlocal y = 1",
+    ]) {
+      expect(read(source), source).toEqual([]);
+    }
+  });
+
   test("a validator diagnostic keeps Luau's wording", () => {
     const [first] = checkLuau('local s = "abc\nlocal t = 1').syntaxDiagnostics;
     expect(first).toEqual({
@@ -271,6 +290,32 @@ describe("running a ported case", () => {
       ],
     };
     expect(() => run(c, stub({ checked: true }))).not.toThrow();
+  });
+
+  test("a check that cannot apply to Sparkdown still checks that its snippet parses, and its assertions do not run", () => {
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "all");
+    const c: PortedCase = {
+      name: "a",
+      checks: [
+        { source: "x", expect: [{ errors: 0 }] },
+        { source: "y", notApplicable: "uses an extern type", expect: [{ errors: 5 }] },
+      ],
+    };
+    expect(() => run(c, stub({ checked: true }))).not.toThrow();
+    expect(() => run(c, (source) => stub({ checked: true, syntaxDiagnostics: source === "y" ? [SYNTAX_ERROR] : [] }))).toThrow(
+      /did not read the snippet as Luau/,
+    );
+  });
+
+  test("a case that sets Luau limits checks that its snippets parse, then fails as not implemented once its area is on", () => {
+    const c: PortedCase = { name: "a", limits: { LuauTableTypeMaximumStringifierLength: 40 }, source: "x", expect: [{ errors: 0 }] };
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "");
+    expect(() => run(c, stub({ syntaxDiagnostics: [SYNTAX_ERROR] }), AREA_OFF_FILE)).toThrow(/did not read the snippet as Luau/);
+    expect(run(c, stub({ checked: true }), AREA_OFF_FILE)).toHaveBeenCalledOnce();
+    vi.stubEnv("LUAU_TYPECHECK_AREAS", "all");
+    expect(() => run(c, stub({ checked: true }))).toThrow(
+      /^not implemented: setting LuauTableTypeMaximumStringifierLength to 40, as upstream's ScopedFastInt does$/,
+    );
   });
 
   test("each check is compiled with its mode, and its own fixture or the case's", () => {
@@ -506,6 +551,9 @@ describe("checking a port against the manifest", () => {
     expect(
       portProblems("X.test.cpp", withCase(0, { ...FAITHFUL[0]!, skip: { notApplicable: "" } } as PortedCase), MANIFEST),
     ).toEqual(["case a has an empty not-applicable reason"]);
+    expect(
+      portProblems("X.test.cpp", withCase(0, { ...FAITHFUL[0]!, limits: { LuauRecursionLimit: 1.5 } } as PortedCase), MANIFEST),
+    ).toEqual(["case a sets the limit LuauRecursionLimit to 1.5, which is not an integer"]);
   });
 
   test("each assertion is checked for its shape and for the names it uses", () => {
@@ -545,6 +593,7 @@ describe("checking a port against the manifest", () => {
       { source: "", malformed: "", expect: [] },
       { source: "", malformed: "a reason", unparsed: { defect: 875 }, expect: [] },
       { source: "", malformed: "a reason", expect: [] },
+      { source: "", notApplicable: "", expect: [] },
     ] as PortedCheck[];
     expect(portProblems("X.test.cpp", withCase(0, { name: "a", fixture: "Fixture", checks }), MANIFEST)).toEqual([
       "case a check 0 records an unparsed defect that is not an issue number",
@@ -552,6 +601,7 @@ describe("checking a port against the manifest", () => {
       "case a check 4 has an empty module name",
       "case a check 5 has an empty malformed reason",
       "case a check 6 is recorded as both malformed and unparsed",
+      "case a check 8 has an empty not-applicable reason",
     ]);
   });
 });

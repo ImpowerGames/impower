@@ -80,6 +80,11 @@ export interface PortedCheck {
   malformed?: string;
   /** This check sits in a block of its own under `DOES_NOT_PASS_NEW_SOLVER_GUARD`. */
   doesNotPassNewSolver?: true;
+  /**
+   * This check cannot apply to Sparkdown, for the reason given: its snippet
+   * still gets the parse check, and its assertions never run.
+   */
+  notApplicable?: string;
   expect: Assertion[];
 }
 
@@ -106,12 +111,18 @@ export type PortedCase = {
   fixture?: string;
   /** Luau flags the case sets with `ScopedFastFlag`, other than the solver switch. */
   flags?: Record<string, boolean>;
+  /**
+   * Luau limits the case sets with `ScopedFastInt`. The harness cannot apply
+   * them, so once the case's area is on it fails as not implemented rather
+   * than asserting what upstream sees only under those limits.
+   */
+  limits?: Record<string, number>;
   skip?: CaseSkip;
 } & (({ checks?: undefined } & PortedCheck) | { checks: PortedCheck[]; source?: undefined });
 
 export function checksOf(c: PortedCase): PortedCheck[] {
   if (c.checks) return c.checks;
-  const { name: _name, fixture: _fixture, flags: _flags, skip: _skip, checks: _checks, ...check } = c;
+  const { name: _name, fixture: _fixture, flags: _flags, limits: _limits, skip: _skip, checks: _checks, ...check } = c;
   return [check];
 }
 
@@ -313,6 +324,7 @@ function checkProblems(check: PortedCheck, where: string, errorKinds: ReadonlySe
   if (check.malformed !== undefined && !check.malformed) problems.push(`${where} has an empty malformed reason`);
   if (check.malformed && check.unparsed) problems.push(`${where} is recorded as both malformed and unparsed`);
   if (check.module !== undefined && !check.module) problems.push(`${where} has an empty module name`);
+  if (check.notApplicable !== undefined && !check.notApplicable) problems.push(`${where} has an empty not-applicable reason`);
   check.expect.forEach((a, j) => problems.push(...assertionProblems(a, `${where} assertion ${j}`, errorKinds)));
   return problems;
 }
@@ -342,6 +354,9 @@ export function portProblems(file: string, cases: PortedCase[], manifest: Manife
     if (!checks.length && !c.skip) problems.push(`${where} has no checks and no skip`);
     if (c.skip && "newSolver" in c.skip && !c.skip.newSolver) problems.push(`${where} has an empty new-solver reason`);
     if (c.skip && "notApplicable" in c.skip && !c.skip.notApplicable) problems.push(`${where} has an empty not-applicable reason`);
+    for (const [limit, value] of Object.entries(c.limits ?? {})) {
+      if (!Number.isInteger(value)) problems.push(`${where} sets the limit ${limit} to ${value}, which is not an integer`);
+    }
     checks.forEach((check, k) => problems.push(...checkProblems(check, checks.length > 1 ? `${where} check ${k}` : where, errorKinds)));
   });
   return problems;
@@ -425,8 +440,12 @@ export function runPortedCase(
     skip();
     return;
   }
+  if (c.limits) {
+    const lowered = Object.entries(c.limits).map(([limit, value]) => `${limit} to ${value}`);
+    throw new NotImplemented(`setting ${lowered.join(" and ")}, as upstream's ScopedFastInt does`);
+  }
   for (const { check: ch, result } of results) {
-    if (ch.doesNotPassNewSolver) continue;
+    if (ch.doesNotPassNewSolver || ch.notApplicable) continue;
     runAssertions(result, ch);
   }
 }
