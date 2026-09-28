@@ -707,6 +707,23 @@ function lowerMethodCall(
           }
           return call;
         }
+        // `table.nogetn()`: a dot call on a stdlib library with no such
+        // builtin. The callee is the dotted path itself, so an unresolved
+        // path reports the member (`Cannot find item or path named
+        // \`table.nogetn\``) rather than the library, which exists. A local
+        // that shadows the library resolves the path at run time.
+        const opNode = getDescendent("LuauAccessorOperator", methodAccessor);
+        const isDotForm =
+          !!opNode && ctx.read(opNode.from, opNode.to).trim() === ".";
+        if (isDotForm && stdlibNode.name === "LuauStdLibConstants") {
+          return new CallValueExpression(
+            new VariableReference([
+              identifierAt(stdlibNode, ctx),
+              identifierAt(methodNameNode, ctx),
+            ]),
+            callArgs,
+          );
+        }
       }
     }
   }
