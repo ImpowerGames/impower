@@ -255,7 +255,8 @@ export const getDeclarationScopes = (
     scopes[scopePath][type]!.push(name);
   };
   for (const [uri, { annotations, tree, read }] of scripts) {
-    // Each script's sections start outside any scene.
+    // Each script's sections start outside any scene, so a scope left open by
+    // a script missing its `end` does not reach into the next one.
     let scopePathParts: {
       kind: "scene" | "branch";
       name: string;
@@ -287,6 +288,9 @@ export const getDeclarationScopes = (
         if (type === "scene") {
           scopePathParts = [];
           scopePathParts.push({ kind: "scene", name: text });
+        }
+        if (type === "end") {
+          scopePathParts.pop();
         }
         if (type === "branch") {
           const prevKind = scopePathParts.at(-1)?.kind || "";

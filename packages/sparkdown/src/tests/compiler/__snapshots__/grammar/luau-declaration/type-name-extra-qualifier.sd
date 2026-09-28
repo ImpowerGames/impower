@@ -1,0 +1,6 @@
+function f()
+  local z: types.ui.Button = 3
+  local g: a.b.c.Foo<number>? = nil
+  local w: types . ui . Button = 1
+  return z
+end

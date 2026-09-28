@@ -1,6 +1,6 @@
 ---
 name: clean-worktrees
-description: Classify and remove merged idle worktrees through the guarded cleanup script. Use for requested cleanup or low-disk recovery; dry run first, never as an automatic post-resolution step.
+description: Classify and remove merged idle worktrees through the guarded cleanup script. Use for requested cleanup, low-disk recovery or the resolve-issue preflight before a task's worktree exists; dry run first, never as an automatic post-resolution step.
 ---
 
 # Clean up merged worktrees
@@ -36,6 +36,6 @@ The same run lists two scratch locations the regression workflow writes, each ro
 
 Run apply only for authorized cleanup after inspecting the dry run. Review removed/kept/failed rows, exit status and the recorded leftovers. Do not claim success for a partial failure. Stop owned dev servers through their drivers and rerun classification; do not force a tree with changes.
 
-This is not an automatic resolve-issue step or archive hook: the current task's PR may still be unmerged, and other sessions may use the directories.
+The resolve-issue preflight runs this workflow before the task's worktree exists, so that task is never among the removals. It is not a post-resolution step or archive hook: at that point the current task's PR may still be unmerged, and other sessions may use the directories.
 
 When modifying cleanup behavior, run its Node test against printed scratch repositories; retain Windows-only and unavailable-filesystem skips as limitations. Put preventable traps into the script/check rather than warning prose.

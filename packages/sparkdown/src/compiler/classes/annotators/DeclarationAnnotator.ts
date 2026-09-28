@@ -16,7 +16,12 @@ export type DeclarationType =
   | "const"
   | "var"
   | "define"
-  | "param";
+  | "param"
+  // A root-level `end`. It declares nothing; in a well-formed script it closes
+  // the innermost open scene or branch, so a walk over this channel can pair
+  // each scene and branch with its end. A stray `end` is marked too and closes
+  // nothing, so consumers must not assume the marks balance.
+  | "end";
 
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
 const ACCESS_PATH = nodeNameSet(["LuauAccessPath"]);
@@ -55,8 +60,12 @@ const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 
 // Records the NAME span of each declaration as a flat `(type, range)` mark in
-// the `declarations` channel, consumed by the document outline
-// (getDocumentSymbols) and scope-aware completion (getDeclarationScopes).
+// the `declarations` channel, plus an `end` mark for each root-level `end`.
+// The channel is consumed by the document outline (getDocumentSymbols),
+// folding (getFoldingRanges), declaration locations
+// (SparkdownCompiler.populateDeclarationLocations) and scope-aware completion
+// (getDeclarationScopes); each pairs an `end` with the scene or branch it
+// closes.
 //
 // Migrated to the post-Luau-port grammar: declarations are now `LuauFunctionName`
 // (under LuauFunctionDeclarationName), `LuauVariableName` (under a
@@ -91,6 +100,12 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
     }
     if (nodeRef.name === "LabelDeclarationName") {
       return this.push(annotations, "label", nodeRef.from, nodeRef.to);
+    }
+    // `Scene` and `Branch` cover only their declaration line, so the `end`
+    // that closes one is a sibling at the root. An `end` nested deeper closes
+    // a function, loop or `if` block instead.
+    if (nodeRef.name === "LuauEndKeyword" && !nodeRef.node.parent?.parent) {
+      return this.push(annotations, "end", nodeRef.from, nodeRef.to);
     }
     // Define-family name (`define`/`screen`/`component`/`style`/`animation`/
     // `theme` all introduce their name via LuauDefineName, only at the

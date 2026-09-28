@@ -1,0 +1,10 @@
+* Go left.
+* Go right.
+
+type function F(t)
+  return t
+end
+
+function g()
+  return 1
+end

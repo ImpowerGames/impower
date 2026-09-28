@@ -1,5 +1,8 @@
 import { expect, test } from "vitest";
-import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import {
+  collectDiagnostics,
+  makeRuntimeStoryFromSource,
+} from "../runtime/runtimeTestHarness";
 import { checkLuau } from "./typecheckTestHarness";
 
 // A module-qualified type name (`types.Button`) is one type reference
@@ -54,4 +57,36 @@ test.each([
   const ctx = makeRuntimeStoryFromSource(source);
   expect(ctx.errorMessages).toEqual([]);
   expect(ctx.story.ContinueMaximally()).toBe(expected);
+});
+
+// Luau reads at most one module prefix, so every segment after the first
+// `module.Type` is a syntax error. It is reported on the extra segments, and
+// the rest of the line still belongs to the type, so the enclosing function
+// is not cut short.
+test.each([
+  ["local z: types.ui.Button = 3", ".Button"],
+  ["local z: a.b.c.D = 3", ".c.D"],
+  ["local f: { types.ui.Button } = {}", ".Button"],
+  ["type Alias = types.ui.Button", ".Button"],
+  ["local x: types.ui .Button = 1", " .Button"],
+  ["local x: types.ui.Foo<number>? = nil", ".Foo"],
+])("%j reports the extra prefix", (source, extra) => {
+  const diagnostics = checkLuau(source).syntaxDiagnostics;
+  expect(diagnostics.map((d) => d.message)).toEqual([
+    expect.stringContaining("takes at most one module prefix"),
+  ]);
+  const at = source.indexOf(extra);
+  expect(diagnostics[0]).toMatchObject({
+    column: at,
+    endColumn: at + extra.length,
+  });
+});
+
+test("a two-dot type name is an error and keeps the function whole", () => {
+  const { errorMessages } = collectDiagnostics(
+    "Value {f()}.\nfunction f()\n  local z: types.ui.Button = 3\n  return z\nend\n",
+  );
+  expect(errorMessages).toEqual([
+    expect.stringContaining("takes at most one module prefix"),
+  ]);
 });
