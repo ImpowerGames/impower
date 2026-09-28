@@ -2,6 +2,7 @@ import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/Sp
 import { type DeclarationType } from "@impower/sparkdown/src/compiler/classes/annotators/DeclarationAnnotator";
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
+import { TRAILING_STATEMENT_NAMES } from "@impower/sparkdown/src/compiler/utils/trailingStatementNames";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type Tree } from "@lezer/common";
@@ -11,8 +12,8 @@ type Node = GrammarSyntaxNode<SparkdownNodeName>;
 /**
  * Declared names grouped by scope path (`""` for global, `scene` or
  * `scene.branch` otherwise) and then by declaration kind. A Luau local or
- * function parameter is filed under `""` only when it is visible at the
- * cursor, and is left out otherwise.
+ * function parameter is filed only when it is visible at the cursor, and is
+ * left out otherwise.
  */
 export type DeclarationScopes = {
   [path: string]: Partial<Record<DeclarationType, string[]>>;
@@ -29,15 +30,19 @@ export type AnnotatedScript = {
   read: (from: number, to: number) => string;
 };
 
-/** The position a completion is requested at. */
-export type DeclarationCursor = {
-  uri: string;
-  offset: number;
-};
+/**
+ * Where a local is visible: after `from` and up to `to`, in its own script.
+ * A local written outside any Luau block, such as in a scene's body, is
+ * filed under its section rather than globally.
+ */
+type LocalScope = { from: number; to: number; inSection: boolean };
 
 /** The Luau blocks that end the scope of a local declared inside them. */
 const LUAU_BLOCKS = nodeNameSet([
   "LuauFunctionBody",
+  "LuauFunctionDefinition",
+  "LuauMethodDefinition",
+  "LuauBlockBody",
   "LuauDoBlock",
   "LuauIfBlock",
   "LuauElseifBlock",
@@ -51,50 +56,66 @@ const LUAU_BRANCHES = nodeNameSet([
   "LuauElseBlock",
 ]);
 
-const ancestor = (
-  node: Node | null,
-  matches: (node: Node) => boolean,
-): Node | null => {
-  for (let cur = node; cur; cur = cur.parent as Node | null) {
-    if (matches(cur)) {
+/**
+ * The nearest ancestor of `node`, itself included, named `name`, within the
+ * few levels that separate a declared name from its declaring construct.
+ */
+const declaringAncestor = (node: Node | null, name: SparkdownNodeName) => {
+  for (let cur = node, depth = 0; cur && depth < 10; depth++) {
+    if (cur.name === name) {
       return cur;
     }
+    cur = cur.parent as Node | null;
   }
   return null;
 };
 
 /**
- * The span a Luau `local` or `const` is visible in: from the end of its
- * declaring statement, so it is not offered in its own initializer, to the
- * end of its block, or to the next branch of an `if`. A `repeat` loop's
- * locals stay visible in its `until` condition. Undefined for a declaration
- * that is not inside a Luau block, or one declared with `store`, which is
- * global wherever it is written.
+ * The span a Luau `local` is visible in. It starts where its declaring
+ * statement ends, so it is not offered in its own initializer; when the
+ * grammar nests the statements that follow on the same line inside the
+ * declaration (`local a = 1 return a`), it starts at the first of them. It
+ * ends at the end of its block, or at the next branch of an `if`, and a
+ * `repeat` loop's locals stay visible in its `until` condition. A local
+ * outside any Luau block is visible to the end of the script, within its
+ * section. Undefined for a `store` or `const`, which is global wherever it
+ * is written.
  */
 const getVariableScope = (
   tree: Tree,
   from: number,
   read: (from: number, to: number) => string,
-): { from: number; to: number } | undefined => {
+): LocalScope | undefined => {
   const name = tree.resolveInner(from, 1) as Node;
-  const definition = ancestor(name, (n) => n.name === "LuauVariableDefinition");
+  const definition = declaringAncestor(name, "LuauVariableDefinition");
   if (!definition) {
     return undefined;
   }
   const modifier = getDescendent("LuauScopeModifier", definition);
-  if (modifier && read(modifier.from, modifier.to).trim() === "store") {
+  if (!modifier || read(modifier.from, modifier.to).trim() !== "local") {
     return undefined;
   }
-  const block = ancestor(definition.parent as Node | null, (n) => LUAU_BLOCKS.has(n.name));
-  if (!block) {
-    return undefined;
-  }
-  let to = block.to;
-  for (let next = definition.nextSibling; next; next = next.nextSibling) {
-    if (LUAU_BRANCHES.has(next.name)) {
-      to = next.from;
+  let start = definition.to;
+  const content = definition.getChild("LuauVariableDefinition_content");
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (TRAILING_STATEMENT_NAMES.has(child.name)) {
+      start = child.from;
       break;
     }
+  }
+  // The walk up to the block passes the statement that holds the
+  // declaration, whose later siblings include the `if` branches after it.
+  let to: number | undefined;
+  let block: Node | null = definition;
+  for (; block && !LUAU_BLOCKS.has(block.name); block = block.parent as Node | null) {
+    for (let next = block.nextSibling; to === undefined && next; next = next.nextSibling) {
+      if (LUAU_BRANCHES.has(next.name)) {
+        to = next.from;
+      }
+    }
+  }
+  if (!block) {
+    return { from: start, to: tree.length, inSection: true };
   }
   if (
     block.name === "LuauRepeatLoop" &&
@@ -102,32 +123,35 @@ const getVariableScope = (
   ) {
     to = block.nextSibling.to;
   }
-  return { from: definition.to, to };
+  return { from: start, to: to ?? block.to, inSection: false };
 };
 
 /**
- * The span a function parameter is visible in: its function's body.
- * Undefined for a scene or branch parameter, which belongs to its section.
+ * The span a function or method parameter is visible in: the function's
+ * body. Undefined for a scene or branch parameter, which belongs to its
+ * section.
  */
-const getParameterScope = (
-  tree: Tree,
-  from: number,
-): { from: number; to: number } | undefined => {
+const getParameterScope = (tree: Tree, from: number): LocalScope | undefined => {
   const name = tree.resolveInner(from, 1) as Node;
-  const parameters = ancestor(name, (n) => n.name === "LuauFunctionParameters");
-  if (parameters?.parent?.name !== "LuauFunctionDefinition_content") {
+  const parameters = declaringAncestor(name, "LuauFunctionParameters");
+  const owner = parameters?.parent;
+  if (
+    !parameters ||
+    !owner ||
+    (owner.name !== "LuauFunctionDefinition_content" &&
+      owner.name !== "LuauMethodDefinition_content")
+  ) {
     return undefined;
   }
-  const body = parameters.parent.getChild("LuauFunctionBody");
-  // A function with no body yet has nowhere its parameters are visible.
+  const body = owner.getChild("LuauFunctionBody");
   return body
-    ? { from: body.from, to: body.to }
-    : { from: parameters.to, to: parameters.to };
+    ? { from: body.from, to: body.to, inSection: false }
+    : { from: parameters.to, to: owner.to, inSection: false };
 };
 
 export const getDeclarationScopes = (
   scripts: Map<string, AnnotatedScript>,
-  cursor: DeclarationCursor,
+  cursor: { uri: string; offset: number },
 ): DeclarationScopes => {
   let scopePathParts: {
     kind: "scene" | "branch";
@@ -146,7 +170,7 @@ export const getDeclarationScopes = (
         const text = read(cur.from, cur.to);
         const type = cur.value.type;
         const localScope =
-          tree && (type === "var" || type === "const")
+          tree && type === "var"
             ? getVariableScope(tree, cur.from, read)
             : tree && type === "param"
               ? getParameterScope(tree, cur.from)
@@ -158,7 +182,10 @@ export const getDeclarationScopes = (
             cursor.offset > localScope.from &&
             cursor.offset <= localScope.to
           ) {
-            file("", type, text);
+            const scopePath = localScope.inSection
+              ? scopePathParts.map((p) => p.name).join(".")
+              : "";
+            file(scopePath, type, text);
           }
           cur.next();
           continue;

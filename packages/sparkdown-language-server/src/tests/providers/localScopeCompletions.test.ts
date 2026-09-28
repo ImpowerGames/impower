@@ -1,9 +1,10 @@
 import { describe, expect, test } from "vitest";
 import { labelsAt } from "./completionHarness";
 
-// A Luau `local` or `const` is offered from the statement after its
-// declaration to the end of the block it is declared in, and a function
-// parameter inside its function's body. A `store` is global wherever it is
+// A Luau `local` is offered from the statement after its declaration to the
+// end of the block it is declared in, and a function or method parameter
+// inside its function's body. A `local` in a scene's body is offered after
+// it within that scene. A `store` or `const` is global wherever it is
 // written. The upstream cases in autocompleteScope.test.ts cover function
 // bodies; these cover the other blocks and the declarations that stay global.
 
@@ -44,18 +45,60 @@ describe("completion · Luau local scope", () => {
     expect(labels).toContain("done");
   });
 
-  test("a local const is scoped like a local", () => {
-    const source =
-      "function main()\n  const limit = 3\n  l@1\nend\nfunction other()\n  return l@2\nend\n";
-    expect(labelsAt(source, { at: "1" })).toContain("limit");
-    expect(labelsAt(source, { at: "2" })).not.toContain("limit");
+  test("a local is offered in a statement that follows its declaration on the same line", () => {
+    expect(
+      labelsAt("function main()\n  local foo = 1 return f@1\nend\n"),
+    ).toContain("foo");
+    const chained = labelsAt("function main()\n  local a1 = 1 local a2 = a@1\nend\n");
+    expect(chained).toContain("a1");
+    expect(chained).not.toContain("a2");
   });
 
-  test("a store written inside a function is offered in another function", () => {
-    const labels = labelsAt(
-      "function main()\n  store saved = 1\nend\nfunction other()\n  return s@1\nend\n",
+  test("a store or const written inside a function is offered in another function", () => {
+    const source =
+      "function main()\n  store saved = 1\n  const limit = 3\nend\nfunction other()\n  return s@1\nend\nfunction third()\n  return l@2\nend\n";
+    expect(labelsAt(source, { at: "1" })).toContain("saved");
+    expect(labelsAt(source, { at: "2" })).toContain("limit");
+  });
+
+  test("a define method's local and parameter are offered only in the method", () => {
+    const source = [
+      "define Bird with",
+      "  sing(tune)",
+      "    local volume = 1",
+      "    return t@1",
+      "  end",
+      "end",
+      "",
+      "function other()",
+      "  return t@2",
+      "end",
+      "",
+    ].join("\n");
+    expect(labelsAt(source, { at: "1" })).toEqual(
+      expect.arrayContaining(["tune", "volume"]),
     );
-    expect(labels).toContain("saved");
+    const other = labelsAt(source, { at: "2" });
+    expect(other).not.toContain("tune");
+    expect(other).not.toContain("volume");
+  });
+
+  test("a local in a scene's body is offered after its declaration in that scene only", () => {
+    const source = [
+      "scene first",
+      "  {m@1}",
+      "  local mood = 1",
+      "  {m@2}",
+      "end",
+      "",
+      "scene second",
+      "  {m@3}",
+      "end",
+      "",
+    ].join("\n");
+    expect(labelsAt(source, { at: "1" })).not.toContain("mood");
+    expect(labelsAt(source, { at: "2" })).toContain("mood");
+    expect(labelsAt(source, { at: "3" })).not.toContain("mood");
   });
 
   test("a function expression's parameter is offered only in its body", () => {
