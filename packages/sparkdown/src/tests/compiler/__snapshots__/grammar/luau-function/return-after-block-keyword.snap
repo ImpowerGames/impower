@@ -381,11 +381,13 @@ sparkdown [0..228]
  │   │       │       │   │   │       └─ LuauAccessPath_end 197
  │   │       │       │   │   │           └─ LuauAccessPath_end_c1 197
  │   │       │       │   │   └─ LuauTernaryExpressionCondition_end [197..198]
- │   │       │       │   │       └─ LuauTernaryExpressionCondition_end_c1 [197..198]
- │   │       │       │   │           └─ LuauTernaryExpressionCondition_end_c1 [197..198]
- │   │       │       │   │               └─ ExtraWhitespace [197..198]: " "
+ │   │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 [197..198]
+ │   │       │       │   │       │   └─ LuauTernaryExpressionCondition_end_c1 [197..198]
+ │   │       │       │   │       │       └─ ExtraWhitespace [197..198]: " "
+ │   │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 198
  │   │       │       │   ├─ LuauThenExpression [198..204]
  │   │       │       │   │   ├─ LuauThenExpression_begin 198
+ │   │       │       │   │   │   └─ LuauThenExpression_begin_c1 198
  │   │       │       │   │   ├─ LuauThenExpression_content [198..204]
  │   │       │       │   │   │   ├─ LuauThenOperator [198..203]
  │   │       │       │   │   │   │   ├─ LuauThenOperator_begin [198..203]

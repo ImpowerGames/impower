@@ -4144,7 +4144,6 @@ end
     // TypeInfer.tables.test.cpp:5261 TEST_CASE_FIXTURE(BuiltinsFixture, "table_literal_inference_assert")
     name: "table_literal_inference_assert",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 1020 }, // a qualified type name such as types.Button
     source: `
         local buttons = {
             buttons = {};
