@@ -320,6 +320,38 @@ end
     expect(errors).toEqual([]);
     expect(recorded).toEqual(["a", "b", "c", "d", "e", 3]);
   });
+
+  test("an else arm ending in a vararg glued to the enclosing then", () => {
+    const { errors, recorded } = compileAndCapture(`external host_record(v)
+& run()
+done
+
+function pick(c, ...)
+  return if if c then false else ...then "A" else "B"
+end
+
+function take(c, ...)
+  local r = "none"
+  if if c then false else ...then
+    r = "a"
+  end
+  return r
+end
+
+function run()
+local a = pick(false, 1)
+host_record(a)
+local b = pick(false, false)
+host_record(b)
+local c = take(false, 1)
+host_record(c)
+local d = take(false, false)
+host_record(d)
+end
+`);
+    expect(errors).toEqual([]);
+    expect(recorded).toEqual(["A", "B", "a", "none"]);
+  });
 });
 
 describe("clause-less if in display text", () => {

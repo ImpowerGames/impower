@@ -13,3 +13,10 @@ function f(c, n)
   local v = if if c then false else (true)then 10 else 20
   local w = if (c)then 1 elseif (n)then 2 else 3
 end
+
+function g(c, ...)
+  if if c then false else ...then
+    return if if c then false else ...then 1 else 2
+  end
+  local s = if c then`a`elseif ...then'b' else "c"
+end
