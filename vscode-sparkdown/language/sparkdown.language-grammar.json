@@ -9264,6 +9264,9 @@
           "include": "#LuauComment"
         },
         {
+          "include": "#LuauTargetTypeCastOperator"
+        },
+        {
           "include": "#LuauVariableAssignment"
         },
         {
@@ -9305,6 +9308,9 @@
       "patterns": [
         {
           "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauTargetTypeCastOperator"
         },
         {
           "include": "#LuauVariableAssignment"
@@ -13204,6 +13210,11 @@
       "tag": "invalid",
       "name": "invalid.illegal.luau",
       "match": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*)*[;]))"
+    },
+    "LuauTargetTypeCastOperator": {
+      "tag": "invalid",
+      "name": "invalid.illegal.luau",
+      "match": "(?<=(?<![\\w.])(?:\\b(?:store|local|const)\\b)(?:[^\\S\\n\\r])+[^=\\n\\r]*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)((?:[:][:]))"
     },
     "LuauArithmeticOperation": {
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\+|-|%|\\*|\\/\\/|\\/|\\^))",

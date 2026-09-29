@@ -6087,6 +6087,7 @@ repository:
     patterns:
       - { include: "#LuauCommaLineBreak" }
       - { include: "#LuauComment" }
+      - { include: "#LuauTargetTypeCastOperator" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauVariableDefinitionValue" }
@@ -6118,6 +6119,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauTargetTypeCastOperator" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
@@ -8702,6 +8704,16 @@ repository:
     tag: invalid
     name: invalid.illegal.luau
     match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
+
+  # A `::` after a declaration's target (`local x :: number`), where a type
+  # annotation takes a single `:`. Luau rejects it; without this token the
+  # target reads as an expression and the `::` as a cast. Only targets
+  # stand between the scope modifier and it (no `=` earlier on the line),
+  # so a cast in a value (`local y = x :: number`) is untouched.
+  LuauTargetTypeCastOperator:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: (?<=(?<![\w.])(?:{{LUAU_SCOPE_MODIFIERS}}){{WS}}+[^=\n\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
