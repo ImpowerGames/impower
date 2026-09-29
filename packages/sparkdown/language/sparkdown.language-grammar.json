@@ -12954,6 +12954,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauAssignmentOperator"
         },
         {
@@ -12998,7 +13001,7 @@
     "LuauOperatorMissingOperand": {
       "tag": "invalid",
       "name": "invalid.illegal.luau",
-      "match": "((?:[^\\S\\n\\r])*)((?:\\+|-|%|\\*|\\/\\/|\\/|\\^)|(?:==|~=|<=?|>=?)|(?<![.])(?:[.][.])(?![.]))((?:[^\\S\\n\\r])*)(?=;)"
+      "match": "((?:[^\\S\\n\\r])*)((?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|(?:\\+|-|%|\\*|\\/\\/|\\/|\\^)|(?:==|~=|<=?|>=?)|(?<![.])(?:[.][.])(?![.])|(?:[:][:])|(?:[#])|(?<![\\w.])(?:and|or|not)(?!\\w))((?:[^\\S\\n\\r])*)(?=;)"
     },
     "LuauArithmeticOperation": {
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\+|-|%|\\*|\\/\\/|\\/|\\^))",
@@ -13012,6 +13015,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauOperatorMissingOperand"
+        },
         {
           "include": "#LuauArithmeticOperator"
         },
@@ -13070,6 +13076,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauCompareOperator"
         },
         {
@@ -13126,6 +13135,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauOperatorMissingOperand"
+        },
         {
           "include": "#LuauConcatOperator"
         },
@@ -13184,6 +13196,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauLengthOperator"
         },
         {
@@ -13241,6 +13256,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauLogicalOperator"
         },
         {
@@ -13297,6 +13315,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauOperatorMissingOperand"
+        },
         {
           "include": "#LuauTypeCastOperator"
         },
