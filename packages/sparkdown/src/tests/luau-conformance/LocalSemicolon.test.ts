@@ -87,6 +87,11 @@ describe("a local statement ends at a `;` directly after its value", () => {
     ]);
   });
 
+  // A `;` inside a line comment after an operator is not the statement's end.
+  test("an operator followed by a comment holding `;` keeps its operand", () => {
+    expect(checkLuau("local a = 1 + -- note; more\n  2\n").syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+  });
+
   test("a multi-name local still reads both names", () => {
     const source = `function g()\n  local a, b = 1, 2;\nend\n`;
     expect(nodeNames(source)).not.toContain("ERROR_INCOMPLETE");

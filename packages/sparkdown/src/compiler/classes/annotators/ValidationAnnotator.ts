@@ -117,7 +117,11 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
-const LUAU_COMMENTS = ["LuauBlockComment", "LuauDocLineComment", "LuauLineComment"];
+const LUAU_COMMENT = nodeNameSet([
+  "LuauBlockComment",
+  "LuauDocLineComment",
+  "LuauLineComment",
+]);
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -475,8 +479,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
-  /** The end of the text before the block comments (and the whitespace around
-   *  them) that end at `pos`, or null when no block comment ends there. */
   /**
    * The first character at or after `pos` that is not whitespace, a line
    * break or inside a Luau comment the grammar read, or `""` at the end.
@@ -492,7 +494,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         continue;
       }
       let node = this.tree?.resolveInner(pos, 1) ?? null;
-      while (node && !LUAU_COMMENTS.includes(node.name)) {
+      while (node && !LUAU_COMMENT.has(node.name)) {
         node = node.parent;
       }
       if (!node || node.to <= pos) {
@@ -502,6 +504,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
+  /** The end of the text before the block comments (and the whitespace around
+   *  them) that end at `pos`, or null when no block comment ends there. */
   protected startBeforeBlockComments(pos: number): number | null {
     let skipped = false;
     for (;;) {
