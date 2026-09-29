@@ -876,7 +876,8 @@ export class Game<T extends M = {}> {
     }
     // This runs on every path change in the step loop; the call stack is
     // walked only when the scene actually changes. A call into a function
-    // keeps the scene current, so every step inside one returns here too:
+    // keeps the scene current, as `SceneTracker.observe` rules with the same
+    // `isFunctionFlow` predicate, so every step inside one returns here too:
     // walking the stack on each would make recursion cost the square of its
     // depth.
     const scene = SceneTracker.sceneOf(path);
@@ -2153,14 +2154,16 @@ export class Game<T extends M = {}> {
         }
         if (this._story.state.callstackDepth > this._callDepthLimit) {
           // Recursion that does not end. The story ends here, as a runtime
-          // error ends it, and the loop goes on to report what it shows.
+          // error ends it, and the run stops as a runaway, as it does at the
+          // step ceiling: nothing flushes and the story is not reported as
+          // finished.
           this._story.CancelAsyncContinue();
           this._story.state.ForceEnd();
           this.Error(
             `Calls nested more than ${this._callDepthLimit} deep: stack overflow, possible infinite recursion`,
             ErrorType.Error,
           );
-          continue;
+          return true;
         }
 
         const prevExecutedLocation = this._executingLocation;
