@@ -3,8 +3,20 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 
-// The native Codex route's sandbox guarantees were observed on this build only.
-export const pinnedCodexVersion='0.154.0';
+// The native Codex route's sandbox guarantees were first observed on this
+// build. Later releases are accepted; the doctor check below still requires
+// complete elevated provisioning on whatever build is installed.
+export const minimumCodexVersion='0.154.0';
+
+// A plain release version at or above the minimum. Prereleases are refused,
+// since a prerelease of the minimum predates the build that was observed.
+export function isSupportedCodexVersion(version) {
+  const parse=value=>/^(\d+)\.(\d+)\.(\d+)$/.exec(String(value??'').trim())?.slice(1).map(Number);
+  const actual=parse(version),minimum=parse(minimumCodexVersion);
+  if(!actual)return false;
+  for(let i=0;i<3;i++)if(actual[i]!==minimum[i])return actual[i]>minimum[i];
+  return true;
+}
 
 export function reviewerEnvironment(source=process.env) {
   return Object.fromEntries(Object.entries(source).filter(([name])=>!(/^(?:CLAUDE_|CLAUDECODE$|CODEX_|NODE_REPL_|CUA_|GIT_)/i.test(name))));
@@ -44,7 +56,7 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
     catch(error){output=error.stdout;}
     let report;try{report=JSON.parse(output);}catch{throw new Error('Native Codex sandbox provisioning could not be verified; no setup is performed');}
     const sandbox=report.checks?.['sandbox.helpers'];
-    if(report.codexVersion!==pinnedCodexVersion||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
+    if(!isSupportedCodexVersion(report.codexVersion)||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   }
   // Codex review environments receive report access in memory; never copy its
   // configuration or token to disk.
