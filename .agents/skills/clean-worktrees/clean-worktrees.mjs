@@ -166,20 +166,24 @@ export function linkReason(scan, dir) {
   return null;
 }
 
-// Every process on the machine with its command line, one tab-separated line
-// each, so the worktrees a running server or shell names can be found without
-// asking any driver.
+// Every process on the machine with its parent, its age in milliseconds (how
+// long it has run, so a larger age is an older process) and its command line,
+// so the worktrees a running server or shell names can be found without
+// asking any driver. Windows keeps a dead parent's pid in ParentProcessId and
+// hands the pid to a new process, so the age is what tells a real parent from
+// a recycled one.
 // `exec` is deps.exec, which hides the console window.
 function listProcesses(exec) {
   const r =
     process.platform === "win32"
-      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
-      : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,ppid=,comm=,args="], undefined, 60_000);
+      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", '$now = Get-Date; Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$(if ($_.CreationDate) { [int64]($now - $_.CreationDate).TotalMilliseconds })`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
+      : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,ppid=,etimes=,comm=,args="], undefined, 60_000);
   if (r.status !== 0) return { ok: false, err: r.err || `exit ${r.status}` };
   const list = [];
   for (const line of r.out.split(/\r?\n/)) {
-    const m = process.platform === "win32" ? /^(\d+)\t(\d*)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\d+)\s+(\S+)\s*(.*)$/.exec(line);
-    if (m) list.push({ pid: Number(m[1]), ppid: m[2] === "" ? null : Number(m[2]), name: m[3], cmd: m[4] });
+    const win = process.platform === "win32";
+    const m = win ? /^(\d+)\t(\d*)\t(\d*)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*)$/.exec(line);
+    if (m) list.push({ pid: Number(m[1]), ppid: m[2] === "" ? null : Number(m[2]), age: m[3] === "" ? null : Number(m[3]) * (win ? 1 : 1000), name: m[4], cmd: m[5] });
   }
   return { ok: true, list };
 }
@@ -211,6 +215,7 @@ export const liveDeps = {
   // link inside it first so no target is followed.
   removeScratch: (p) => removeJobDir(p),
   unlinkLinks: (p) => unlinkLinksIn(p),
+  isLink: (p) => fs.lstatSync(p).isSymbolicLink(),
   readFile: (p) => fs.readFileSync(p, "utf8"),
   listDirs: (p) => {
     try {
@@ -807,6 +812,7 @@ export async function removeOne(target, ctx, deps, entries, record) {
   if (entry?.branch && ctx.defaultBranches.has(entry.branch)) die(`${rel} holds the default branch ${entry.branch}, which is never removed; nothing was touched`);
   if (entry?.locked) die(`${rel} is locked (${entry.locked}); nothing was touched`);
   if (!deps.exists(abs)) die(entry ? `${abs} is already gone and git still holds its record; run this without --remove and it prunes the record` : `${abs} does not exist; nothing was touched`);
+  if (deps.isLink(abs)) die(`${rel} is itself a link, and unlinking what it points at would reach outside ${ctx.root}; remove the link by hand; nothing was touched`);
   const live = Boolean(entry) && !entry.prunable;
   if (live) {
     const st = deps.exec("git", ["status", "--porcelain"], abs);
@@ -817,10 +823,12 @@ export async function removeOne(target, ctx, deps, entries, record) {
   const holds = [];
   if (!ctx.processes.ok) holds.push("the processes on this machine could not be listed, so whether one is using it is unknown");
   else {
-    // The shells that ran this command name the path they were typed with,
-    // and the same path is the argument they hand it; they are not users.
+    // The shell that ran this command names the path it was typed with, and
+    // the same path is the argument it hands the script; that is not a use of
+    // the tree. Only an ancestor whose own command line runs this script
+    // counts as that shell, so an editor opened on the tree stays a user.
     const mine = ancestorsOf(deps.pid(), ctx.processes.list);
-    const users = usersOf(abs, ctx.processes.list, deps.pid()).filter((p) => !mine.has(p.pid));
+    const users = usersOf(abs, ctx.processes.list, deps.pid()).filter((p) => !(mine.has(p.pid) && p.cmd.includes(SCRIPT_MARK)));
     if (users.length) holds.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
   for (const s of serverRows(probeServers(abs, deps))) holds.push(`its ${s.driver ?? "driver"} reports ${s.state === "unknown" ? `an unknown server state (${s.detail})` : `dev servers ${s.state}${s.url ? ` at ${s.url}` : ""}`}; the driver's \`down\` settles it`);
@@ -872,13 +880,22 @@ export async function removeOne(target, ctx, deps, entries, record) {
   return finish("removed", [...notes, entry?.branch ? `its branch ${entry.branch} stays` : ""].filter(Boolean).join("; "), scan.bytes);
 }
 
-// The pids of a process and every parent above it in the process list, which
-// carries each process's parent for exactly this.
+// The text a command line holds when it runs this script.
+const SCRIPT_MARK = "clean-worktrees";
+
+// The pids of a process and the parents above it. A parent counts only when it
+// is at least as old as its child: on Windows a dead parent's pid is handed to
+// a new process, which is younger than the child that names it, and the walk
+// stops there. A process whose age is unknown ends the walk too.
 export function ancestorsOf(pid, list) {
   const byPid = new Map(list.map((p) => [p.pid, p]));
-  const chain = new Set();
-  for (let p = byPid.get(pid); p && !chain.has(p.pid); p = byPid.get(p.ppid)) chain.add(p.pid);
-  chain.add(pid);
+  const chain = new Set([pid]);
+  for (let p = byPid.get(pid); p; ) {
+    const parent = byPid.get(p.ppid);
+    if (!parent || chain.has(parent.pid) || p.age == null || parent.age == null || parent.age < p.age) break;
+    chain.add(parent.pid);
+    p = parent;
+  }
   return chain;
 }
 

@@ -23,6 +23,16 @@
 // deletion as `failed` with the directory's state, record every row in the
 // log, and on the next run list the leftover directory with the branch it
 // stranded and read a stranded branch's commits again before advising -D.
+// The same stub pins `--apply`'s prune of dead worktree records (it runs, it
+// waits beside an interrupted probe's leftover, a dry run never prunes, and a
+// dead record that holds a removable worktree's branch no longer blocks its
+// deletion) and `--apply --root <main> --remove <path>`: what it removes (an
+// unmerged worktree, a leftover, a broken worktree, with the links inside
+// unlinked first and the branch kept), every refusal (outside the root, the
+// main checkout, a path holding or inside a worktree, a link, the default
+// branch, a lock, changes, a process or a server using it, a held directory),
+// a process listing whose parent pids run into a recycled pid, and a removal
+// git cannot finish.
 // Controls run those same checks against copies of the script with one rule
 // cut out, and require them to fail naming the worktree that rule protects.
 // The real commands are pinned on a scratch repository with a held worktree,
@@ -808,6 +818,7 @@ function makeWorld() {
       w.disk.delete(path.resolve(p).toLowerCase());
     },
     // Unlinks what the tree holds and reports how many, as the real call does.
+    isLink: (p) => w.linkTargets?.has(path.resolve(p).toLowerCase()) === true,
     unlinkLinks: (p) => {
       const t = onDisk(p)?.tree;
       w.unlinked.push(path.resolve(p));
@@ -1296,9 +1307,9 @@ async function worldChecks(mainFn, report) {
   await step("--remove does not count the shells that ran it, whose command lines name the path they were typed with", async () => {
     const pw = makeWorld();
     const t = treeOf(pw, "fix/5-open");
-    pw.processes.find((p) => p.pid === SELF_PID).ppid = 90;
-    pw.processes.push({ pid: 90, ppid: 80, name: "bash.exe", cmd: `bash -c "node clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}"` });
-    pw.processes.push({ pid: 80, ppid: 1, name: "bash.exe", cmd: `"C:/Program Files/Git/bin/bash.exe" -c "cd ${t.path} && node clean-worktrees.mjs --remove ${t.path}"` });
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "bash.exe", cmd: `bash -c "node clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}"` });
+    pw.processes.push({ pid: 80, ppid: 1, age: 9_000, name: "bash.exe", cmd: `"C:/Program Files/Git/bin/bash.exe" -c "cd ${t.path} && node clean-worktrees.mjs --remove ${t.path}"` });
     const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
     assert.equal(r.status, 0, r.out);
     assert.deepEqual(pw.removed, ["fix/5-open"]);
@@ -1306,14 +1317,43 @@ async function worldChecks(mainFn, report) {
   await step("--remove still counts a process outside its own ancestry that names the path", async () => {
     const pw = makeWorld();
     const t = treeOf(pw, "fix/5-open");
-    pw.processes.find((p) => p.pid === SELF_PID).ppid = 90;
-    pw.processes.push({ pid: 90, ppid: 1, name: "bash.exe", cmd: "bash" });
-    pw.processes.push({ pid: 91, ppid: 1, name: "code.exe", cmd: `code ${t.path}` });
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 1, age: 5_000, name: "bash.exe", cmd: "bash" });
+    pw.processes.push({ pid: 91, ppid: 1, age: 5_000, name: "code.exe", cmd: `code ${t.path}` });
     const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
     assert.equal(r.status, 1, r.out);
     assert.match(r.out, /its path is on the command line of pid 91 \(code\.exe\)/);
     assert.deepEqual(pw.removed, []);
   });
+  await step("--remove follows the parent pids only while each parent is older than its child, so a recycled pid is not an ancestor", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/5-open");
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "cmd.exe", cmd: `cmd /c node clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}` });
+    // pid 80 is what the dead parent's pid was handed to: younger than its
+    // supposed child, and running another checkout's launcher that names the path.
+    pw.processes.push({ pid: 80, ppid: 1, age: 100, name: "node.exe", cmd: `node clean-worktrees/detached-launch.mjs ${t.path}` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /its path is on the command line of pid 80 \(node\.exe\)/);
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove counts an ancestor that names the path without running the script, such as an editor whose terminal ran it", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/5-open");
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "bash.exe", cmd: `bash -c "node clean-worktrees.mjs --remove ${t.path}"` });
+    pw.processes.push({ pid: 80, ppid: 1, age: 9_000, name: "code.exe", cmd: `code ${t.path}` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /its path is on the command line of pid 80 \(code\.exe\)/);
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove refuses a target that is itself a link, so it never unlinks what the link points at", () => refusedRemove("link", (pw) => {
+    const p = R("impower.worktrees/leftover");
+    pw.linkTargets = new Set([p.toLowerCase()]);
+    return p;
+  }, /is itself a link/));
   await step("--apply prunes a dead record that holds a removable worktree's branch, so the branch deletion is not refused", async () => {
     const pw = makeWorld();
     for (const s of probeStrays) pw.disk.delete(s.toLowerCase());
@@ -1429,7 +1469,10 @@ try {
   await control("dead records are pruned beside a probe's leftover", [["if (probe) return {", "if (false) return {"]], ["dead records are left alone while an interrupted probe's leftover"]);
   await control("--remove takes a path outside the worktrees root", [["if (!isUnder(abs, ctx.root)) die(", "if (false) die("]], ["--remove refuses a path outside the worktrees root"]);
   await control("--remove takes a path inside a registered worktree", [["if (inside) die(", "if (false) die("]], ["--remove refuses a path inside a registered worktree"]);
-  await control("--remove counts the shells that ran it", [[".filter((p) => !mine.has(p.pid))", ""]], ["--remove does not count the shells that ran it"]);
+  await control("--remove counts the shells that ran it", [[".filter((p) => !(mine.has(p.pid) && p.cmd.includes(SCRIPT_MARK)))", ""]], ["--remove does not count the shells that ran it"]);
+  await control("--remove follows a recycled parent pid", [["parent.age < p.age", "false"]], ["--remove follows the parent pids only while each parent is older than its child"]);
+  await control("--remove exempts every ancestor, not the shell that ran the script", [[" && p.cmd.includes(SCRIPT_MARK)", ""]], ["--remove counts an ancestor that names the path without running the script"]);
+  await control("--remove follows a link it was named by", [["if (deps.isLink(abs)) die(", "if (false) die("]], ["--remove refuses a target that is itself a link"]);
   await control("--remove skips the rename probe", [["const held = await probeHeld(abs, deps);\n  if (held?.outcome", "const held = null;\n  if (held?.outcome"]], ["--remove refuses a worktree a process holds", "--remove refuses when an interrupted probe's leftover is beside the tree"]);
   await control("--remove leaves a broken worktree's dead record", [["  if (entry?.prunable) {", "  if (false) {"]], ["--remove removes a broken worktree directly"]);
   await control("--apply leaves a dead record that holds a removable worktree's branch", [["const dropped = pruneDeadRecords(entries, ctx, deps);\n    if (dropped.pruned.length) {\n      log(", "const dropped = { pruned: [] };\n    if (dropped.pruned.length) {\n      log("]], ["--apply prunes a dead record that holds a removable worktree's branch"]);
@@ -1458,6 +1501,12 @@ try {
 // checkout is parked on another branch. The script runs as a command, so
 // this also pins its exit codes, its refusals, the log it writes, and the
 // process listing, the rename probe and the link scan on the real system.
+// After the job, scratch and test-suite checks, four more worktrees pin what
+// the stub cannot: a dead record pruned so git deletes the branch it held; an
+// unmerged worktree removed by name through a shell whose own command line
+// names the path, its branch kept; a subdirectory of a dirty worktree
+// refused with the uncommitted work still there; and, on Windows, a worktree
+// a process holds as its current directory refused with every file in place.
 
 const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-")));
 console.log(`Scratch repository: ${scratch}`);
@@ -1895,7 +1944,10 @@ try {
     fs.writeFileSync(path.join(target, ".env.local"), "SECRET=x\n");
     // The shell that runs this names the path on its own command line, as an
     // agent's shell tool does; that shell is not a user of the tree.
-    const r = spawnSync(`"${process.execPath}" "${SCRIPT}" --apply --root "${mainRoot}" --remove "${target}"`, { shell: true, cwd: mainRoot, env, encoding: "utf8", windowsHide: true, timeout: 120_000 });
+    // A compound command keeps sh from executing the script directly, which
+    // would leave no shell naming the path.
+    const lead = WIN ? "" : `cd "${mainRoot}" && `;
+    const r = spawnSync(`${lead}"${process.execPath}" "${SCRIPT}" --apply --root "${mainRoot}" --remove "${target}"`, { shell: true, cwd: mainRoot, env, encoding: "utf8", windowsHide: true, timeout: 120_000 });
     const out = (r.stdout ?? "") + (r.stderr ?? "");
     assert.equal(r.status, 0, out);
     assert.match(out, /^removed\s+.*71-open-pr\s.*its branch fix\/71-open-pr stays/m);
