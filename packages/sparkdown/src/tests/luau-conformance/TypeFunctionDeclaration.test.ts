@@ -412,6 +412,32 @@ local x: U = 1
     ]);
   });
 
+  test("a use nested in a larger annotation reports that it cannot be evaluated once, on the use", () => {
+    expect(
+      check(`
+type function F(t)
+    return t
+end
+local x: { a: F<string> } = nil :: any
+local y: F<number>? = nil
+`),
+    ).toEqual([
+      `4:14-4:23 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`,
+      `5:9-5:18 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`,
+    ]);
+  });
+
+  // A builtin type function's error is reported once per instance, as Luau
+  // does, however many annotations and expressions carry the instance.
+  test("a builtin type function that cannot be reduced reports once", () => {
+    expect(
+      check(`
+local a: keyof<number> = nil :: any
+local c: keyof<number> = a
+`),
+    ).toEqual(["1:9-1:22 UninhabitedTypeFunction: Type 'number' does not have keys, so 'keyof<number>' is invalid"]);
+  });
+
   test("a use inside a script function reports that it cannot be evaluated once, on the use", () => {
     const text = `---
 typecheck: strict

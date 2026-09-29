@@ -492,8 +492,8 @@ export class TypeChecker2 {
   functionDeclStack: TypeId[] = [];
 
   seenTypeFunctionInstances = new Set<TypeId>();
-  /** The types checked where an annotation names them, which may also be an expression's type. */
-  seenAnnotatedTypeFunctionInstances = new Set<TypeId>();
+  /** The user-defined type function instances that have reported they cannot be evaluated. */
+  reportedUserTypeFunctionInstances = new Set<TypeId>();
 
   readonly normalizer: Normalizer;
   readonly subtyping: Subtyping;
@@ -671,16 +671,25 @@ export class TypeChecker2 {
 
   /**
    * `inAnnotation` says the type is where an annotation names it. A
-   * user-defined type function that cannot be evaluated is reported only
-   * there: Luau reports it wherever an expression's type contains the
-   * instance, which with a VM happens only when evaluation itself fails, but
-   * Sparkdown has no VM, so every enclosing function, call and flow that
-   * carries the instance would repeat it where the author never named it.
+   * user-defined type function that cannot be evaluated is reported once, at
+   * the annotation whose type is the instance itself: Luau reports it
+   * wherever a type contains the instance, which with a VM happens only when
+   * evaluation itself fails, but Sparkdown has no VM, so every enclosing
+   * annotation, function, call and flow that carries the instance would
+   * repeat it where the author never named it. Every other error is reported
+   * once per instance, as Luau does.
    */
   private checkForTypeFunctionInhabitance(instance: TypeId, location: Location, inAnnotation = false): TypeId {
-    const seen = inAnnotation ? this.seenAnnotatedTypeFunctionInstances : this.seenTypeFunctionInstances;
-    if (seen.has(instance)) return instance;
-    seen.add(instance);
+    const tfit = inAnnotation ? get(instance, "TypeFunctionInstanceType") : undefined;
+    const reportsUserError =
+      tfit?.function === this.builtinTypes.typeFunctions.userFunc && !this.reportedUserTypeFunctionInstances.has(instance);
+
+    // An expression that carries the instance may be checked before the
+    // annotation that names it, so the annotation still reports then.
+    const firstCheck = !this.seenTypeFunctionInstances.has(instance);
+    if (!firstCheck && !reportsUserError) return instance;
+    this.seenTypeFunctionInstances.add(instance);
+    if (reportsUserError) this.reportedUserTypeFunctionInstances.add(instance);
 
     const context = new TypeFunctionContext({
       arena: this.module.internalTypes,
@@ -692,8 +701,9 @@ export class TypeChecker2 {
       subtyping: this.subtyping,
     });
 
-    let errors = reduceTypeFunctions(instance, location, context, true).errors;
-    if (!inAnnotation) errors = errors.filter((e) => e.data.kind !== "UserDefinedTypeFunctionError");
+    const errors = reduceTypeFunctions(instance, location, context, true).errors.filter((e) =>
+      e.data.kind === "UserDefinedTypeFunctionError" ? reportsUserError : firstCheck,
+    );
     if (!this.isErrorSuppressing(location, instance)) this.reportErrors(errors);
     return instance;
   }
