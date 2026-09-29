@@ -54,6 +54,7 @@ import { syntheticId } from "../utils/documentTag";
 import {
   endsInTypeName,
   expandLineContinuations,
+  isLineContinuation,
   reportExtraTypeQualifiers,
   reportUntakenLineContinuation,
 } from "../utils/lineContinuation";
@@ -117,7 +118,7 @@ export function lowerExpressionFromContainer(
   const first =
     findContentChild(parent, `${parent.name}_content`) ?? parent.firstChild;
   for (let child = first; child; child = child.nextSibling) {
-    if (child.name === "LuauLineContinuation") {
+    if (isLineContinuation(child)) {
       const children: SyntaxNode[] = [];
       for (let c = first; c; c = c.nextSibling) children.push(c);
       return lowerExpressionFromNodes(children, ctx);

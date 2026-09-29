@@ -250,9 +250,15 @@ variables:
   # `[` a table key (`{ a,` then `[2] = b }`), so a line that begins with
   # either is not a continuation here; nor is a label (`::name::`), which also
   # begins with `::`. No statement begins with `-`, so in a statement body a
-  # `-` line continues the line before it (`LuauMinusLineContinuation`).
+  # `-` line continues the line before it (`LuauMinusLineContinuation`), and
+  # outside a table a `[` line indexes the value before it
+  # (`LuauIndexerLineContinuation`).
   LUAU_LINE_CONTINUATION_OPERATOR: (?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*[:][:])|(?:and|or)\b)
   LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+  # A `-` that is neither a `--` comment nor a `->` divert.
+  LUAU_MINUS_LINE_START: -(?![->])
+  # A `[` that begins an indexer, not a `[[` or `[=[` long string.
+  LUAU_INDEXER_LINE_CONTINUATION: (?:{{WS}}*\[(?!=*\[))
   # The `.` after a type's module name, with the whitespace Luau allows before
   # it. Every type rule that reads or yields to a qualified name uses this.
   LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
@@ -6109,6 +6115,7 @@ repository:
   LuauBlockBody:
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauMinusLineContinuation" }
       - { include: "#LuauControlBlock" }
       - { include: "#LuauExpression" }
@@ -6175,6 +6182,7 @@ repository:
     begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauInKeyword" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -6237,6 +6245,7 @@ repository:
     begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
@@ -6430,6 +6439,7 @@ repository:
     begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
@@ -6522,6 +6532,7 @@ repository:
     begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
@@ -7198,18 +7209,18 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)|(?=^{{LUAU_LINE_CONTINUATION}})
+    end: (?={{BEAT}})|(?<!^{{WS}}*return{{WS}}*)(?=$)|(?={{WS}}|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\b)|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})
 
-  # A line that continues the line before it (`LuauLineContinuation`) is not
-  # the returned value, so the break ends at its start and leaves it to the
-  # body, which reports it.
+  # A line that continues the line before it (`LuauLineContinuation`, or a
+  # `[` line) is not the returned value, so the break ends at its start and
+  # leaves it to the body, which reports it.
   LuauReturnLineBreak:
     begin: (?<=^{{WS}}*return{{WS}}*)(?=$|{{LUAU_COMMENT_START}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?=^{{LUAU_LINE_CONTINUATION}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
+    end: (?={{BEAT}})|(?=^{{LUAU_LINE_CONTINUATION}}|^{{LUAU_INDEXER_LINE_CONTINUATION}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
 
   # A `return` in a narrative body (a scene, or a sparkdown `if`, loop or
   # `choose` around dialogue and actions) ends at its line: the next line
@@ -7574,9 +7585,9 @@ repository:
   # (`local total = a` then `- b`). Inside brackets and conditions a `-` line
   # may begin a new value (`{ 1,` then `-2 }`), and it already reads as part
   # of the expression there, so only `LuauBlockBody` includes this rule. A
-  # `--` line is a comment.
+  # `--` line is a comment, and a `->` line a divert.
   LuauMinusLineContinuation:
-    begin: ^({{WS}}*)(?=-(?!-))
+    begin: ^({{WS}}*)(?={{LUAU_MINUS_LINE_START}})
     beginCaptures:
       1:
         patterns:
@@ -7591,7 +7602,31 @@ repository:
       - { include: "#LuauConcatOperation" }
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
-    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|-(?!-)|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_MINUS_LINE_START}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+
+  # A line of Luau code that begins with `[` indexes the value on the line
+  # before it (`local y = t` then `[1]` reads as `t[1]`), since outside a table
+  # constructor no value begins with `[`. In a table it begins a key
+  # (`{ a,` then `[2] = b }`), so `LuauTable` leaves this rule out; every other
+  # context that includes `LuauLineContinuation` includes it. A `[[` or `[=[`
+  # line begins a long string.
+  LuauIndexerLineContinuation:
+    begin: ^({{WS}}*)(?={{LUAU_INDEXER_LINE_CONTINUATION}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauAccessPart" }
+      - { include: "#LuauParenthetical" }
+      - { include: "#LuauString" }
+      - { include: "#LuauTable" }
+      - { include: "#LuauArithmeticOperation" }
+      - { include: "#LuauCompareOperation" }
+      - { include: "#LuauConcatOperation" }
+      - { include: "#LuauLogicalOperation" }
+      - { include: "#LuauTypeCastOperation" }
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
   LuauFunctionCall:
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
@@ -7627,6 +7662,7 @@ repository:
           - { include: "#PunctuationParenOpen" }
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -7681,6 +7717,7 @@ repository:
           - { include: "#PunctuationBracketOpen" }
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -8320,6 +8357,7 @@ repository:
           - { include: "#PunctuationBracketOpen" }
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
@@ -8343,6 +8381,7 @@ repository:
           - { include: "#PunctuationParenOpen" }
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }

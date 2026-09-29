@@ -6,9 +6,10 @@ import type { LowerContext } from "../context";
 // `:name`, a binary operator or a cast's `::` and so continues the expression
 // on the line before it (`t` then `.a` reads as `t.a`). In a statement body a
 // line that begins with `-` does too (`LuauMinusLineContinuation`), since no
-// statement begins with `-`. The grammar cannot nest either in the
-// expression, which has already closed at its own line's end, so it is a
-// sibling of the statement that line ended, and the lowerer joins the two.
+// statement begins with `-`, and outside a table a line that begins with `[`
+// indexes it (`LuauIndexerLineContinuation`). The grammar cannot nest these
+// in the expression, which has already closed at its own line's end, so each
+// is a sibling of the statement that line ended, and the lowerer joins the two.
 //
 // A statement's lowerer receives the lines that continue it through
 // `ctx.lineContinuation`. A line counts as taken only once its parts are
@@ -19,6 +20,7 @@ import type { LowerContext } from "../context";
 const LINE_CONTINUATION: ReadonlySet<string> = new Set([
   "LuauLineContinuation",
   "LuauMinusLineContinuation",
+  "LuauIndexerLineContinuation",
 ]);
 
 // Whether `node` is a line that continues the line before it.

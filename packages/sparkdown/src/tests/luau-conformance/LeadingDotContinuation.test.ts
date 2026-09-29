@@ -329,6 +329,40 @@ test.each([
   ]);
 });
 
+test("a divert line in a function body is still read as a divert", () => {
+  const [first] = checkLuau("local x = 1\n-> elsewhere\nreturn x").syntaxDiagnostics;
+  expect(first?.message).toMatch(/^Sparkdown read "->" as DivertMark, not Luau$/);
+});
+
+// Outside a table constructor no value begins with `[`, so a line that begins
+// with one indexes the value on the line before it. In a table it begins a
+// key.
+test.each([
+  ["indexer line", "local t = { 5 }\nlocal y = t\n  [1]\nreturn y", "5"],
+  ["indexer line after a member line", "local t = { a = { 5 } }\nlocal y = t\n  .a\n  [1]\nreturn y", "5"],
+  ["indexer line in a reassignment", "local t = { 5 }\nlocal y = 0\ny = t\n  [1]\nreturn y", "5"],
+  ["indexer line in a return", "local t = { 5 }\nreturn t\n  [1]", "5"],
+  ["indexer line in parentheses", "local t = { 5 }\nreturn (t\n  [1])", "5"],
+  ["indexer line in a call argument", "local t = { 5 }\nreturn tostring(t\n  [1])", "5"],
+  ["indexer line in an if condition", "local t = { 5 }\nif t\n  [1] == 5 then\n  return 1\nend\nreturn 2", "1"],
+  ["table key line", "local t = { 1,\n  [2] = 7 }\nreturn t[2]", "7"],
+  ["table key line after a key", "local t = { [1] = 6,\n  [2] = 7 }\nreturn t[1] + t[2]", "13"],
+])("a leading-bracket %s runs", (_name, body, value) => {
+  const ctx = makeRuntimeStoryFromSource(inFunction(body));
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
+});
+
+test.each([
+  ["after `end`", "local t = { 5 }\nif true then\nend\n  [1]\nreturn 1"],
+  ["after a bare return", "if true then\n  return\n    [1]\nend\nreturn 1"],
+])("a leading-bracket line %s is reported", (_name, body) => {
+  const ctx = makeRuntimeStoryFromSource(inFunction(body));
+  expect(ctx.errorMessages).toEqual([
+    expect.stringContaining("`[1]` continues the line before it"),
+  ]);
+});
+
 test("a line starting with a minus after a statement in a scene is prose", () => {
   const ctx = makeRuntimeStoryFromSource("local y = 1\n- hello there\n");
   expect(ctx.errorMessages).toEqual([]);

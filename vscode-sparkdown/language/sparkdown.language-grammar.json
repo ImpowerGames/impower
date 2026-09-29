@@ -267,6 +267,8 @@
     "LUAU_ACCESSOR_OPERATOR": "(?:[.]|[:])",
     "LUAU_LINE_CONTINUATION_OPERATOR": "(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*[:][:])|(?:and|or)\\b)",
     "LUAU_LINE_CONTINUATION": "(?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))",
+    "LUAU_MINUS_LINE_START": "-(?![->])",
+    "LUAU_INDEXER_LINE_CONTINUATION": "(?:{{WS}}*\\[(?!=*\\[))",
     "LUAU_TYPE_QUALIFIER_DOT": "{{WS}}*[.]",
     "LUAU_TYPE_OPTIONAL_OPERATOR": "(?:[?])",
     "LUAU_TYPE_END": "(?:[\\w)}\\]>\"'`?])",
@@ -9368,6 +9370,9 @@
           "include": "#LuauLineContinuation"
         },
         {
+          "include": "#LuauIndexerLineContinuation"
+        },
+        {
           "include": "#LuauMinusLineContinuation"
         },
         {
@@ -9469,6 +9474,9 @@
           "include": "#LuauLineContinuation"
         },
         {
+          "include": "#LuauIndexerLineContinuation"
+        },
+        {
           "include": "#LuauInKeyword"
         },
         {
@@ -9563,6 +9571,9 @@
       "patterns": [
         {
           "include": "#LuauLineContinuation"
+        },
+        {
+          "include": "#LuauIndexerLineContinuation"
         },
         {
           "include": "#LuauExpression"
@@ -9894,6 +9905,9 @@
           "include": "#LuauLineContinuation"
         },
         {
+          "include": "#LuauIndexerLineContinuation"
+        },
+        {
           "include": "#LuauExpression"
         },
         {
@@ -10047,6 +10061,9 @@
       "patterns": [
         {
           "include": "#LuauLineContinuation"
+        },
+        {
+          "include": "#LuauIndexerLineContinuation"
         },
         {
           "include": "#LuauExpression"
@@ -11062,7 +11079,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<!^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)|(?=^(?:(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b))))"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<!^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$)|(?=(?:[^\\S\\n\\r])|;)|(?=(?:end|else|elseif|until|local|return|break|do|while|repeat|for)\\b)|(?=^(?:(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))|^(?:(?:[^\\S\\n\\r])*\\[(?!=*\\[)))"
     },
     "LuauReturnLineBreak": {
       "begin": "(?<=^(?:[^\\S\\n\\r])*return(?:[^\\S\\n\\r])*)(?=$|(?:[-][-]))",
@@ -11077,7 +11094,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=^(?:(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b))))|(?!$|(?:[^\\S\\n\\r])|(?:[-][-]))"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=^(?:(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))|^(?:(?:[^\\S\\n\\r])*\\[(?!=*\\[)))|(?!$|(?:[^\\S\\n\\r])|(?:[-][-]))"
     },
     "LuauSparkdownReturnStatement": {
       "tag": "meta",
@@ -11546,7 +11563,7 @@
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:<<|[({\"']|\\[\\[)|\\[|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))"
     },
     "LuauMinusLineContinuation": {
-      "begin": "^((?:[^\\S\\n\\r])*)(?=-(?!-))",
+      "begin": "^((?:[^\\S\\n\\r])*)(?=-(?![->]))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -11585,7 +11602,49 @@
           "include": "#LuauTypeCastOperation"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:<<|[({\"']|\\[\\[)|\\[|-(?!-)|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:<<|[({\"']|\\[\\[)|\\[|-(?![->])|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))"
+    },
+    "LuauIndexerLineContinuation": {
+      "begin": "^((?:[^\\S\\n\\r])*)(?=(?:(?:[^\\S\\n\\r])*\\[(?!=*\\[)))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauAccessPart"
+        },
+        {
+          "include": "#LuauParenthetical"
+        },
+        {
+          "include": "#LuauString"
+        },
+        {
+          "include": "#LuauTable"
+        },
+        {
+          "include": "#LuauArithmeticOperation"
+        },
+        {
+          "include": "#LuauCompareOperation"
+        },
+        {
+          "include": "#LuauConcatOperation"
+        },
+        {
+          "include": "#LuauLogicalOperation"
+        },
+        {
+          "include": "#LuauTypeCastOperation"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!(?:[^\\S\\n\\r])*(?:(?:[.]|[:])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|(?:<<|[({\"']|\\[\\[)|\\[|(?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*[:][:])|(?:and|or)\\b)))"
     },
     "LuauFunctionCall": {
       "begin": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)(?=(?:<<|[({\"']|\\[\\[))",
@@ -11639,6 +11698,9 @@
       "patterns": [
         {
           "include": "#LuauLineContinuation"
+        },
+        {
+          "include": "#LuauIndexerLineContinuation"
         },
         {
           "include": "#LuauComment"
@@ -11746,6 +11808,9 @@
       "patterns": [
         {
           "include": "#LuauLineContinuation"
+        },
+        {
+          "include": "#LuauIndexerLineContinuation"
         },
         {
           "include": "#LuauCommaSeparator"
@@ -12793,6 +12858,9 @@
           "include": "#LuauLineContinuation"
         },
         {
+          "include": "#LuauIndexerLineContinuation"
+        },
+        {
           "include": "#LuauCommaSeparator"
         },
         {
@@ -12831,6 +12899,9 @@
       "patterns": [
         {
           "include": "#LuauLineContinuation"
+        },
+        {
+          "include": "#LuauIndexerLineContinuation"
         },
         {
           "include": "#LuauCommaSeparator"
