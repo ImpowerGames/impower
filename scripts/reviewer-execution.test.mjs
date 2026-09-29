@@ -5,9 +5,16 @@ import path from "node:path";
 import { execFileSync, execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { executionCommands, executionEnvironment, startExecutionService, validateExecutionShape, executionClientCommand } from "./reviewer-execution.mjs";
-import { requestExecution } from "./reviewer-execution-client.mjs";
+import { requestExecution, saveScreenshots } from "./reviewer-execution-client.mjs";
+import { validateEditorRequest } from "./reviewer-editor.mjs";
 import { runHandoff } from "./agent-handoff.mjs";
 import { createReviewJob } from "./review-supervisor.mjs";
+
+// A reviewer must be able to author its own UI attempts without receiving
+// arbitrary coordinator commands or widening its filesystem permissions.
+assert.doesNotThrow(() => validateExecutionShape({ role: "review", execution: [
+  { id: "author", kind: "editor", maxRequests: 20, timeoutSeconds: 600 },
+] }), "the launcher accepts a bounded editor delegation");
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-review-execution-"));
 console.log(`Scratch repository: ${scratch}`);
@@ -22,6 +29,17 @@ write("packages/example/a.test.ts", "// fixture\n");
 write("scripts/test-suite.mjs", `console.log(JSON.stringify({ args: process.argv.slice(2), token: process.env.IMPOWER_REVIEW_EXECUTION_TOKEN, gh: process.env.GH_TOKEN })); console.log("Test Files  1 passed (1)\\nTests  2 passed (2)");`);
 write("scripts/bench/engine-bench.mjs", `console.log("measured fixture"); process.exitCode=3;`);
 write("scripts/bench/preview-bench.mjs", `console.log("started"); setTimeout(()=>console.log("finished"), 250);`);
+// A process fixture exercises the real transport, argv, files and cleanup.
+// It does not stand in for the separate live browser acceptance.
+write(".agents/skills/drive-web-editor/driver.mjs", `import fs from "node:fs"; import path from "node:path";
+const args=process.argv.slice(2);
+console.log(JSON.stringify({args,session:process.env.IMPOWER_DRIVER_SESSION,gh:process.env.GH_TOKEN}));
+for(let i=0;i<args.length;i++) if(args[i]==="--shot" || args[i]==="--shot-of") {
+ const file=args[i+(args[i]==="--shot"?1:2)];
+ fs.writeFileSync(file,Buffer.from([137,80,78,71,13,10,26,10,1]));
+}
+if(args.includes("--sd")) console.log(fs.readFileSync(args[args.indexOf("--sd")+1],"utf8"));
+`);
 git("add", "."); git("commit", "-m", "fixture");
 const head = git("rev-parse", "HEAD");
 const operations = [
@@ -30,6 +48,60 @@ const operations = [
   { id: "preview", kind: "preview-bench", mode: "both", samples: 1, warmup: 0 },
 ];
 const commands = executionCommands(operations, root);
+const editorGrant = { id: "author", kind: "editor", maxRequests: 2, timeoutSeconds: 60 };
+const authorRequest = { requestId: "find-hello", command: "ui", script: "Hello reviewer!\n", steps: [
+  { action: "open", value: "find" }, { action: "type", field: "search", text: "Hello" },
+  { action: "click", value: "select" }, { action: "shot", target: "find" },
+] };
+for (const invalid of [
+  { ...editorGrant, maxRequests: 0 }, { ...editorGrant, maxRequests: 101 },
+  { ...editorGrant, args: ["--probe", "bad.js"] }, { ...editorGrant, environment: {} },
+]) assert.throws(() => executionCommands([invalid], root));
+for (const invalid of [
+  { ...authorRequest, script: "x".repeat(65537) }, { ...authorRequest, script: "\u0000" },
+  { ...authorRequest, requestId: "../escape" }, { ...authorRequest, project: root },
+  { ...authorRequest, command: "up" }, { ...authorRequest, steps: [{ action: "probe", value: "bad.js" }] },
+  { ...authorRequest, steps: [{ action: "shot", target: "../../secret" }] },
+  { ...authorRequest, steps: [{ action: "press", value: "Control+l" }] },
+  { ...authorRequest, steps: [{ action: "complete", line: 1, column: 1, text: "x", path: "bad" }] },
+  { ...authorRequest, steps: Array(31).fill({ action: "open", value: "find" }) },
+  { ...authorRequest, steps: Array(5).fill({ action: "shot", target: "page" }) },
+]) assert.throws(() => validateEditorRequest(invalid));
+const editorDirectory = path.join(scratch, "editor"); fs.mkdirSync(editorDirectory);
+const editorService = await startExecutionService({ operations: [editorGrant], root, directory: editorDirectory, head });
+const editorOptions = { env: editorService.environment, pollMs: 10, request: authorRequest };
+try {
+  const result = await requestExecution("author", editorOptions);
+  assert.equal(result.passed, true);
+  assert.match(result.output, /Hello reviewer!/);
+  const invoked = JSON.parse(result.output.split("\n")[0]);
+  assert.deepEqual(invoked.args.slice(3, 9), ["--open", "find", "--type", "search=Hello", "--click", "select"]);
+  assert.match(invoked.session, /^review-/);
+  assert.equal(invoked.gh, undefined);
+  assert.equal(result.screenshots.length, 2);
+  const copied = saveScreenshots(result, scratch);
+  assert.ok(copied.screenshots.every(shot => fs.existsSync(shot.path) && !shot.base64));
+  assert.equal((await requestExecution("author", editorOptions)).log, result.log, "same request reuses evidence");
+  await assert.rejects(requestExecution("author", { ...editorOptions, request: { ...authorRequest, script: "Different" } }), /different content/);
+  await assert.rejects(requestExecution("author", { ...editorOptions, request: { ...authorRequest, requestId: "bad", steps: [{ action: "probe" }] } }), /invalid editor step/);
+  const second = { requestId: "state", command: "ui", steps: [] };
+  if (process.platform === "win32") {
+    const requestFile = path.join(scratch, "request.json"); fs.writeFileSync(requestFile, JSON.stringify(second));
+    const output = await new Promise((resolve, reject) => execFile("powershell.exe", ["-NoProfile", "-NonInteractive", "-File", fileURLToPath(new URL("./reviewer-execution-client.ps1", import.meta.url)), "author", requestFile], { cwd: scratch, env: { ...process.env, ...editorService.environment }, windowsHide: true }, (error, stdout) => error ? reject(error) : resolve(stdout)));
+    const copiedResult = JSON.parse(output);
+    assert.ok(fs.existsSync(copiedResult.screenshots[0].path));
+    assert.equal(copiedResult.screenshots[0].base64, undefined);
+  } else await requestExecution("author", { ...editorOptions, request: second });
+  await assert.rejects(requestExecution("author", { ...editorOptions, request: { ...second, requestId: "third" } }), /budget exhausted/);
+} finally { await editorService.close(); }
+const sessionDirectory = path.join(editorDirectory, fs.readdirSync(editorDirectory)[0]);
+assert.ok(fs.existsSync(path.join(sessionDirectory, "up.log")));
+assert.ok(fs.existsSync(path.join(sessionDirectory, "down.log")), "service shuts down the owned server session");
+const up = JSON.parse(fs.readFileSync(path.join(sessionDirectory, "up.log"), "utf8").trim());
+const down = JSON.parse(fs.readFileSync(path.join(sessionDirectory, "down.log"), "utf8").trim());
+assert.equal(up.session, down.session);
+assert.deepEqual(down.args, ["down"]);
+console.log("PASS: editor grant, bounded author requests, screenshots through both clients, replay, request budget and owned cleanup");
 // Real launcher/reviewer process round trip. Only the eventual public report
 // is deliberately absent; delegated execution must finish before that refusal.
 const reviewer = path.join(scratch, "reviewer.mjs"), prompt = path.join(scratch, "prompt.txt"), planFile = path.join(scratch, "plan.json");
