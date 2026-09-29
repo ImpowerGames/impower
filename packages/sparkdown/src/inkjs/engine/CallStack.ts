@@ -481,6 +481,10 @@ export namespace CallStack {
         this.evaluationStackHeightWhenPushed;
       copy.functionStartInOutputStream = this.functionStartInOutputStream;
       copy.previousPointer = this.previousPointer.copy();
+      // The copied scopes hold the same upvalue cells, so the copy closes
+      // them when its own scopes and frame end (a taken choice continues on
+      // a copy of the thread that reached it).
+      copy.openUpvalues = [...this.openUpvalues];
       return copy;
     }
   }
@@ -580,6 +584,19 @@ export namespace CallStack {
             }
           }
 
+          // The open upvalue cells registered with this element, by the
+          // same cell ids the closures holding them were written with.
+          let jUpvalues = jElementObj["upvalues"];
+          if (Array.isArray(jUpvalues)) {
+            for (const cell of JsonSerialisation.JArrayToRuntimeObjList(
+              jUpvalues,
+            )) {
+              if (cell instanceof VariablePointerValue) {
+                el.openUpvalues.push(cell);
+              }
+            }
+          }
+
           this.callstack.push(el);
         }
 
@@ -654,6 +671,13 @@ export namespace CallStack {
             JsonSerialisation.WriteDictionaryRuntimeObjs(writer, frame);
           }
           writer.WriteArrayEnd();
+          writer.WritePropertyEnd();
+        }
+
+        const openUpvalues = el.openUpvalues.filter((ptr) => !ptr.isClosed);
+        if (openUpvalues.length > 0) {
+          writer.WritePropertyStart("upvalues");
+          JsonSerialisation.WriteListRuntimeObjs(writer, openUpvalues);
           writer.WritePropertyEnd();
         }
 

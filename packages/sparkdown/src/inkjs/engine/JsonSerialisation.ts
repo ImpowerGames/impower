@@ -32,6 +32,13 @@ import { asOrNull } from "./TypeAssertion";
 import { throwNullException } from "./NullException";
 import { SimpleJson } from "./SimpleJson";
 
+interface WriterMemo {
+  nextId: number;
+  ids: Map<object, number>;
+  nextCellId: number;
+  cellIds: Map<VariablePointerValue, number>;
+}
+
 export class JsonSerialisation {
   // ----------------------------------------------------------------
   // Reference-ID table (de)serialization sessions.
@@ -47,18 +54,26 @@ export class JsonSerialisation {
   // field order in the save.
   // ----------------------------------------------------------------
 
-  private static writerObjectMemo(writer: SimpleJson.Writer): {
-    nextId: number;
-    ids: Map<object, number>;
-  } {
-    const w = writer as unknown as {
-      __objGraphMemo?: { nextId: number; ids: Map<object, number> };
+  // Upvalue cells (`VariablePointerValue`s) have their own id space in
+  // the same session: `cellIds` on the write side, the cell registry on
+  // the read side.
+  private static writerObjectMemo(writer: SimpleJson.Writer): WriterMemo {
+    const w = writer as unknown as { __objGraphMemo?: WriterMemo };
+    w.__objGraphMemo ??= {
+      nextId: 1,
+      ids: new Map<object, number>(),
+      nextCellId: 1,
+      cellIds: new Map<VariablePointerValue, number>(),
     };
-    w.__objGraphMemo ??= { nextId: 1, ids: new Map<object, number>() };
     return w.__objGraphMemo;
   }
 
   private static _loadSessionObjectsById = new Map<number, ObjectValue>();
+
+  private static _loadSessionCellsById = new Map<
+    number,
+    VariablePointerValue
+  >();
 
   // `new`-instance tables loaded with a `defref` (their class link is a
   // NAME, not an inline table). The class is reconstructed by init, so we
@@ -69,6 +84,7 @@ export class JsonSerialisation {
 
   public static ResetObjectLoadSession(): void {
     this._loadSessionObjectsById = new Map();
+    this._loadSessionCellsById = new Map();
     this._pendingDefineRefs = [];
   }
 
@@ -98,6 +114,21 @@ export class JsonSerialisation {
     if (!existing) {
       existing = new ObjectValue(new Map<string, AbstractValue>());
       this._loadSessionObjectsById.set(id, existing);
+    }
+    return existing;
+  }
+
+  // Returns the pointer this load holds for an upvalue cell id, creating an
+  // open one at the first occurrence, whichever occurrence that is.
+  private static upvalueCellForLoadSessionId(
+    id: number,
+    variableName: string,
+    contextIndex: number,
+  ): VariablePointerValue {
+    let existing = this._loadSessionCellsById.get(id);
+    if (!existing) {
+      existing = new VariablePointerValue(variableName, contextIndex);
+      this._loadSessionCellsById.set(id, existing);
     }
     return existing;
   }
@@ -479,6 +510,32 @@ export class JsonSerialisation {
       writer.WriteObjectStart();
       writer.WriteProperty("^var", varPtrVal.value);
       writer.WriteIntProperty("ci", varPtrVal.contextIndex);
+      // An upvalue cell (a pointer the running story bound to a frame, or
+      // one that has closed) is written with its save-session id, so every
+      // closure and call-stack registry sharing the cell loads sharing one
+      // pointer. The cell's first occurrence also carries its closed state
+      // and value; the id is claimed before the value is written, so a
+      // closed value that holds the cell again (a recursive local function)
+      // writes it as a reference.
+      if (varPtrVal.contextIndex > 0 || varPtrVal.isClosed) {
+        const memo = JsonSerialisation.writerObjectMemo(writer);
+        const existingId = memo.cellIds.get(varPtrVal);
+        if (existingId !== undefined) {
+          writer.WriteIntProperty("cell", existingId);
+        } else {
+          const id = memo.nextCellId++;
+          memo.cellIds.set(varPtrVal, id);
+          writer.WriteIntProperty("cell", id);
+          if (varPtrVal.isClosed) {
+            writer.WriteIntProperty("closed", 1);
+            if (varPtrVal.closedValue) {
+              writer.WritePropertyStart("cv");
+              this.WriteRuntimeObject(writer, varPtrVal.closedValue);
+              writer.WritePropertyEnd();
+            }
+          }
+        }
+      }
       writer.WriteObjectEnd();
       return;
     }
@@ -902,11 +959,26 @@ export class JsonSerialisation {
       // VariablePointerValue
       if (obj["^var"]) {
         propValue = obj["^var"];
-        let varPtr = new VariablePointerValue(propValue.toString());
-        if ("ci" in obj) {
-          propValue = obj["ci"];
-          varPtr.contextIndex = parseInt(propValue);
+        const contextIndex = "ci" in obj ? parseInt(obj["ci"]) : -1;
+        // An upvalue cell resolves to the one pointer this load holds for
+        // its id; the occurrence that carries the closed state closes it.
+        // A pointer written without a cell id loads as its own pointer.
+        if (obj["cell"] !== undefined) {
+          const cell = JsonSerialisation.upvalueCellForLoadSessionId(
+            parseInt(obj["cell"]),
+            propValue.toString(),
+            contextIndex,
+          );
+          if (obj["closed"]) {
+            cell.closedValue =
+              obj["cv"] !== undefined
+                ? this.JTokenToRuntimeObject(obj["cv"])
+                : null;
+          }
+          return cell;
         }
+        let varPtr = new VariablePointerValue(propValue.toString());
+        varPtr.contextIndex = contextIndex;
         return varPtr;
       }
 
