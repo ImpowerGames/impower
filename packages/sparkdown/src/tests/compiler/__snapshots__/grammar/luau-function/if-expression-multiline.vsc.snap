@@ -1,4 +1,4 @@
-text.source.sparkdown [0..340]
+text.source.sparkdown [0..418]
  ├─ meta.function.luau [0..13]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -152,83 +152,129 @@ text.source.sparkdown [0..340]
  │       ├─ punctuation.whitespace.optional.sd [224..225]: " "
  │       └─ constant.numeric.decimal.luau [225..226]: "3"
  ├─ Newline [226..227]: "\n"
- ├─ meta.function.luau [227..254]
- │   └─ meta.function.body.luau [227..254]
- │       └─ meta.function.luau [227..254]
- │           ├─ punctuation.whitespace.optional.sd [227..229]: "  "
- │           ├─ keyword.control.luau [229..235]: "return"
- │           ├─ punctuation.whitespace.optional.sd [235..236]: " "
- │           ├─ support.function.luau [236..244]: "tostring"
- │           └─ meta.parameter.luau [244..254]
- │               ├─ punctuation.definition.template-expression.begin.sd [244..245]: "("
- │               ├─ constant.numeric.decimal.luau [245..247]: "10"
- │               ├─ punctuation.whitespace.optional.sd [247..248]: " "
- │               ├─ keyword.operator.arithmetic.luau [248..249]: "+"
- │               ├─ punctuation.whitespace.optional.sd [249..250]: " "
- │               ├─ keyword.control.if.luau [250..252]: "if"
- │               ├─ punctuation.whitespace.optional.sd [252..253]: " "
- │               └─ variable.other.readwrite.luau [253..254]: "c"
- ├─ Newline [254..255]: "\n"
- ├─ meta.function.luau [255..265]
- │   └─ meta.function.body.luau [255..265]
- │       └─ meta.function.luau [255..265]
- │           └─ meta.parameter.luau [255..265]
- │               ├─ punctuation.whitespace.extra.sd [255..259]: "    "
- │               ├─ keyword.control.then.luau [259..263]: "then"
- │               ├─ punctuation.whitespace.optional.sd [263..264]: " "
- │               └─ variable.other.readwrite.luau [264..265]: "a"
- ├─ Newline [265..266]: "\n"
- ├─ meta.function.luau [266..277]
- │   └─ meta.function.body.luau [266..277]
- │       └─ meta.function.luau [266..277]
- │           └─ meta.parameter.luau [266..277]
- │               ├─ punctuation.whitespace.extra.sd [266..270]: "    "
- │               ├─ keyword.control.else.luau [270..274]: "else"
- │               ├─ punctuation.whitespace.optional.sd [274..275]: " "
- │               ├─ variable.other.readwrite.luau [275..276]: "b"
- │               └─ punctuation.definition.template-expression.end.sd [276..277]: ")"
- ├─ Newline [277..278]: "\n"
- ├─ meta.function.luau [278..281]
- │   └─ keyword.control.end.luau [278..281]: "end"
- ├─ Newline [281..282]: "\n"
- ├─ Newline [282..283]: "\n"
- ├─ meta.function.luau [283..296]
- │   ├─ keyword.control.luau [283..291]: "function"
- │   ├─ punctuation.whitespace.optional.sd [291..292]: " "
- │   ├─ entity.name.function.luau [292..293]: "g"
- │   └─ meta.parameter.luau [293..296]
- │       ├─ punctuation.definition.template-expression.begin.sd [293..294]: "("
- │       ├─ variable.parameter.function.luau [294..295]: "c"
- │       └─ punctuation.definition.template-expression.end.sd [295..296]: ")"
- ├─ Newline [296..297]: "\n"
- ├─ meta.function.luau [297..313]
- │   └─ meta.function.body.luau [297..313]
- │       ├─ punctuation.whitespace.optional.sd [297..299]: "  "
- │       ├─ storage.modifier.scope.luau [299..304]: "local"
- │       ├─ punctuation.whitespace.optional.sd [304..305]: " "
- │       ├─ variable.other.readwrite.luau [305..306]: "y"
- │       ├─ punctuation.whitespace.optional.sd [306..307]: " "
- │       ├─ keyword.operator.assignment.luau [307..308]: "="
- │       ├─ punctuation.whitespace.optional.sd [308..309]: " "
- │       ├─ keyword.control.if.luau [309..311]: "if"
- │       ├─ punctuation.whitespace.optional.sd [311..312]: " "
- │       └─ variable.other.readwrite.luau [312..313]: "c"
- ├─ Newline [313..314]: "\n"
- ├─ meta.function.luau [314..324]
- │   └─ meta.function.body.luau [314..324]
- │       ├─ punctuation.whitespace.extra.sd [314..318]: "    "
- │       ├─ keyword.control.then.luau [318..322]: "then"
- │       ├─ punctuation.whitespace.optional.sd [322..323]: " "
- │       └─ constant.numeric.decimal.luau [323..324]: "1"
- ├─ Newline [324..325]: "\n"
- ├─ meta.function.luau [325..335]
- │   └─ meta.function.body.luau [325..335]
- │       └─ meta.function.luau [325..335]
- │           ├─ punctuation.whitespace.optional.sd [325..327]: "  "
- │           ├─ keyword.control.luau [327..333]: "return"
- │           ├─ punctuation.whitespace.optional.sd [333..334]: " "
- │           └─ variable.other.readwrite.luau [334..335]: "y"
- ├─ Newline [335..336]: "\n"
- ├─ meta.function.luau [336..339]
- │   └─ keyword.control.end.luau [336..339]: "end"
- └─ Newline [339..340]: "\n"
+ ├─ meta.function.luau [227..243]
+ │   └─ meta.function.body.luau [227..243]
+ │       ├─ punctuation.whitespace.optional.sd [227..229]: "  "
+ │       ├─ storage.modifier.scope.luau [229..234]: "local"
+ │       ├─ punctuation.whitespace.optional.sd [234..235]: " "
+ │       ├─ variable.other.readwrite.luau [235..236]: "h"
+ │       ├─ punctuation.whitespace.optional.sd [236..237]: " "
+ │       ├─ keyword.operator.assignment.luau [237..238]: "="
+ │       ├─ punctuation.whitespace.optional.sd [238..239]: " "
+ │       ├─ keyword.control.if.luau [239..241]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [241..242]: " "
+ │       └─ variable.other.readwrite.luau [242..243]: "c"
+ ├─ Newline [243..244]: "\n"
+ ├─ meta.function.luau [244..252]
+ │   └─ meta.function.body.luau [244..252]
+ │       ├─ punctuation.whitespace.extra.sd [244..248]: "    "
+ │       └─ keyword.control.then.luau [248..252]: "then"
+ ├─ Newline [252..253]: "\n"
+ ├─ meta.function.luau [253..263]
+ │   └─ meta.function.body.luau [253..263]
+ │       ├─ punctuation.whitespace.extra.sd [253..259]: "      "
+ │       ├─ keyword.control.if.luau [259..261]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [261..262]: " "
+ │       └─ variable.other.readwrite.luau [262..263]: "a"
+ ├─ Newline [263..264]: "\n"
+ ├─ meta.function.luau [264..278]
+ │   └─ meta.function.body.luau [264..278]
+ │       ├─ punctuation.whitespace.extra.sd [264..272]: "        "
+ │       ├─ keyword.control.then.luau [272..276]: "then"
+ │       ├─ punctuation.whitespace.optional.sd [276..277]: " "
+ │       └─ constant.numeric.decimal.luau [277..278]: "1"
+ ├─ Newline [278..279]: "\n"
+ ├─ meta.function.luau [279..293]
+ │   └─ meta.function.body.luau [279..293]
+ │       ├─ punctuation.whitespace.extra.sd [279..287]: "        "
+ │       ├─ keyword.control.else.luau [287..291]: "else"
+ │       ├─ punctuation.whitespace.optional.sd [291..292]: " "
+ │       └─ constant.numeric.decimal.luau [292..293]: "2"
+ ├─ Newline [293..294]: "\n"
+ ├─ meta.function.luau [294..304]
+ │   └─ meta.function.body.luau [294..304]
+ │       ├─ punctuation.whitespace.extra.sd [294..298]: "    "
+ │       ├─ keyword.control.else.luau [298..302]: "else"
+ │       ├─ punctuation.whitespace.optional.sd [302..303]: " "
+ │       └─ constant.numeric.decimal.luau [303..304]: "3"
+ ├─ Newline [304..305]: "\n"
+ ├─ meta.function.luau [305..332]
+ │   └─ meta.function.body.luau [305..332]
+ │       └─ meta.function.luau [305..332]
+ │           ├─ punctuation.whitespace.optional.sd [305..307]: "  "
+ │           ├─ keyword.control.luau [307..313]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [313..314]: " "
+ │           ├─ support.function.luau [314..322]: "tostring"
+ │           └─ meta.parameter.luau [322..332]
+ │               ├─ punctuation.definition.template-expression.begin.sd [322..323]: "("
+ │               ├─ constant.numeric.decimal.luau [323..325]: "10"
+ │               ├─ punctuation.whitespace.optional.sd [325..326]: " "
+ │               ├─ keyword.operator.arithmetic.luau [326..327]: "+"
+ │               ├─ punctuation.whitespace.optional.sd [327..328]: " "
+ │               ├─ keyword.control.if.luau [328..330]: "if"
+ │               ├─ punctuation.whitespace.optional.sd [330..331]: " "
+ │               └─ variable.other.readwrite.luau [331..332]: "c"
+ ├─ Newline [332..333]: "\n"
+ ├─ meta.function.luau [333..343]
+ │   └─ meta.function.body.luau [333..343]
+ │       └─ meta.function.luau [333..343]
+ │           └─ meta.parameter.luau [333..343]
+ │               ├─ punctuation.whitespace.extra.sd [333..337]: "    "
+ │               ├─ keyword.control.then.luau [337..341]: "then"
+ │               ├─ punctuation.whitespace.optional.sd [341..342]: " "
+ │               └─ variable.other.readwrite.luau [342..343]: "a"
+ ├─ Newline [343..344]: "\n"
+ ├─ meta.function.luau [344..355]
+ │   └─ meta.function.body.luau [344..355]
+ │       └─ meta.function.luau [344..355]
+ │           └─ meta.parameter.luau [344..355]
+ │               ├─ punctuation.whitespace.extra.sd [344..348]: "    "
+ │               ├─ keyword.control.else.luau [348..352]: "else"
+ │               ├─ punctuation.whitespace.optional.sd [352..353]: " "
+ │               ├─ variable.other.readwrite.luau [353..354]: "b"
+ │               └─ punctuation.definition.template-expression.end.sd [354..355]: ")"
+ ├─ Newline [355..356]: "\n"
+ ├─ meta.function.luau [356..359]
+ │   └─ keyword.control.end.luau [356..359]: "end"
+ ├─ Newline [359..360]: "\n"
+ ├─ Newline [360..361]: "\n"
+ ├─ meta.function.luau [361..374]
+ │   ├─ keyword.control.luau [361..369]: "function"
+ │   ├─ punctuation.whitespace.optional.sd [369..370]: " "
+ │   ├─ entity.name.function.luau [370..371]: "g"
+ │   └─ meta.parameter.luau [371..374]
+ │       ├─ punctuation.definition.template-expression.begin.sd [371..372]: "("
+ │       ├─ variable.parameter.function.luau [372..373]: "c"
+ │       └─ punctuation.definition.template-expression.end.sd [373..374]: ")"
+ ├─ Newline [374..375]: "\n"
+ ├─ meta.function.luau [375..391]
+ │   └─ meta.function.body.luau [375..391]
+ │       ├─ punctuation.whitespace.optional.sd [375..377]: "  "
+ │       ├─ storage.modifier.scope.luau [377..382]: "local"
+ │       ├─ punctuation.whitespace.optional.sd [382..383]: " "
+ │       ├─ variable.other.readwrite.luau [383..384]: "y"
+ │       ├─ punctuation.whitespace.optional.sd [384..385]: " "
+ │       ├─ keyword.operator.assignment.luau [385..386]: "="
+ │       ├─ punctuation.whitespace.optional.sd [386..387]: " "
+ │       ├─ keyword.control.if.luau [387..389]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [389..390]: " "
+ │       └─ variable.other.readwrite.luau [390..391]: "c"
+ ├─ Newline [391..392]: "\n"
+ ├─ meta.function.luau [392..402]
+ │   └─ meta.function.body.luau [392..402]
+ │       ├─ punctuation.whitespace.extra.sd [392..396]: "    "
+ │       ├─ keyword.control.then.luau [396..400]: "then"
+ │       ├─ punctuation.whitespace.optional.sd [400..401]: " "
+ │       └─ constant.numeric.decimal.luau [401..402]: "1"
+ ├─ Newline [402..403]: "\n"
+ ├─ meta.function.luau [403..413]
+ │   └─ meta.function.body.luau [403..413]
+ │       └─ meta.function.luau [403..413]
+ │           ├─ punctuation.whitespace.optional.sd [403..405]: "  "
+ │           ├─ keyword.control.luau [405..411]: "return"
+ │           ├─ punctuation.whitespace.optional.sd [411..412]: " "
+ │           └─ variable.other.readwrite.luau [412..413]: "y"
+ ├─ Newline [413..414]: "\n"
+ ├─ meta.function.luau [414..417]
+ │   └─ keyword.control.end.luau [414..417]: "end"
+ └─ Newline [417..418]: "\n"

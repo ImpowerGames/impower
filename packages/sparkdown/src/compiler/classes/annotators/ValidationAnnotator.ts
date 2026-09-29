@@ -109,9 +109,55 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const TYPE_NAME_EXTRA_QUALIFIER =
   "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
+// Luau's parser reports the first clause of an if expression it does not
+// find in these words (`parseIfElseExpr`). It adds the token it found
+// instead, which lies outside the expression, so these leave it out.
+const IF_EXPRESSION_WITHOUT_CONDITION =
+  "Expected identifier when parsing expression";
+const IF_EXPRESSION_WITHOUT_THEN =
+  "Expected 'then' when parsing if then else expression";
 const IF_EXPRESSION_WITHOUT_ELSE =
   "Expected 'else' when parsing if then else expression";
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
+// The text hosts whose `{…}` interpolations lower an if expression as an
+// inline conditional (`tryLowerInlineConditional` in `lowerDisplay.ts`):
+// display text, and choice text with or without its capture wrapper.
+const INLINE_CONDITIONAL_HOST = /^(?:TextChunk_content|ChoiceTextContent(?:_c\d+)?)$/;
+
+function isInlineConditional(node: any): boolean {
+  const interpolation = node.parent?.parent;
+  return (
+    node.parent?.name === "LuauInterpolatedStringExpression_content" &&
+    INLINE_CONDITIONAL_HOST.test(interpolation?.parent?.name ?? "")
+  );
+}
+
+// The message for the first clause an if expression lacks, reading its
+// clauses in order: a condition, its `then` arm, then either `elseif` and
+// another condition or the `else` arm.
+function missingIfExpressionClause(node: any): string | null {
+  const content = childNamed(node, "LuauTernaryExpression_content");
+  let expecting: "condition" | "then" | "else" = "condition";
+  for (let c = content?.firstChild; c; c = c.nextSibling) {
+    if (c.name === "LuauTernaryExpressionCondition") {
+      if (expecting === "condition") expecting = "then";
+    } else if (c.name === "LuauThenExpression") {
+      if (expecting === "condition") return IF_EXPRESSION_WITHOUT_CONDITION;
+      expecting = "else";
+    } else if (c.name === "LuauElseifKeyword") {
+      if (expecting === "else") expecting = "condition";
+    } else if (c.name === "LuauElseExpression") {
+      return expecting === "else" ? null : missingMessage(expecting);
+    }
+  }
+  return missingMessage(expecting);
+}
+
+function missingMessage(expecting: "condition" | "then" | "else"): string {
+  if (expecting === "condition") return IF_EXPRESSION_WITHOUT_CONDITION;
+  if (expecting === "then") return IF_EXPRESSION_WITHOUT_THEN;
+  return IF_EXPRESSION_WITHOUT_ELSE;
+}
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -349,19 +395,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    // A Luau if expression needs an `else` arm; the grammar closes one whose
-    // `else` never comes at the end of its lines so this can report it.
-    // Display text's `{if cond then text}` interpolation may leave it out.
+    // A Luau if expression needs a condition, a `then` arm for it and an
+    // `else` arm; the grammar closes one whose next clause never comes at
+    // the end of its lines so this can report the clause that is missing.
+    // An if expression that is a whole `{…}` interpolation in display or
+    // choice text is Sparkdown's inline conditional, which may leave out its
+    // arms.
     if (
       nodeRef.name === "LuauTernaryExpression" &&
-      nodeRef.node.parent?.name !== "LuauInterpolatedStringExpression_content"
+      !isInlineConditional(nodeRef.node)
     ) {
-      const content = childNamed(nodeRef.node, "LuauTernaryExpression_content");
-      if (!content || !childNamed(content, "LuauElseExpression")) {
+      const missing = missingIfExpressionClause(nodeRef.node);
+      if (missing) {
         const ifKeyword = firstDescendant(nodeRef.node, LUAU_IF_KEYWORD);
         this.error(
           annotations,
-          IF_EXPRESSION_WITHOUT_ELSE,
+          missing,
           ifKeyword?.from ?? nodeRef.from,
           ifKeyword?.to ?? nodeRef.to,
         );

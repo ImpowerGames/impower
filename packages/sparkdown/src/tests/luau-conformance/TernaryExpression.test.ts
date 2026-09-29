@@ -438,6 +438,11 @@ describe("if expression across lines", () => {
       "Value 2.\n",
     ],
     [
+      "nested on the line after then",
+      "Value {f(true, false)}.\nfunction f(a, b)\n  local y = if a\n    then\n      if b\n        then 1\n        else 2\n    else 3\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
       "nested in the else arm",
       "Value {f()}.\nfunction f()\n  local y = if false\n    then 1\n    else if false\n      then 2\n      else 3\n  return y\nend\n",
       "Value 3.\n",
@@ -483,18 +488,23 @@ describe("if expression with an = before its else", () => {
 // not yet written ends with its own lines, so the lines and functions after
 // it are still read as they are written.
 describe("if expression without an else", () => {
+  const MISSING_CONDITION = "Expected identifier when parsing expression";
+  const MISSING_THEN = "Expected 'then' when parsing if then else expression";
   const MISSING_ELSE = "Expected 'else' when parsing if then else expression";
 
   test.each([
-    ["no then yet", "  local y = if true\n"],
-    ["no else yet", "  local y = if true\n    then 1\n"],
-    ["no else on one line", "  local y = if true then 1\n"],
-    ["a bare if", "  local y = if\n"],
-  ])("%s: reports it and keeps what follows", (_name, partial) => {
+    ["no then yet", "  local y = if true\n", MISSING_THEN],
+    ["no else yet", "  local y = if true\n    then 1\n", MISSING_ELSE],
+    ["no else on one line", "  local y = if true then 1\n", MISSING_ELSE],
+    ["a bare if", "  local y = if\n", MISSING_CONDITION],
+    ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN],
+  ])("%s: reports it and keeps what follows", (_name, partial, message) => {
     const ctx = makeRuntimeStoryFromSource(
       `The door is open.\nSum {g()}.\nfunction f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nYou walk through it.\n`,
     );
-    expect(ctx.errorMessages.filter((m) => m.includes(MISSING_ELSE))).toHaveLength(1);
+    expect(ctx.errorMessages.filter((m) => m.includes("when parsing"))).toEqual([
+      expect.stringContaining(message),
+    ]);
     expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(
       "The door is open.\nSum 6.\nYou walk through it.\n",
@@ -508,10 +518,26 @@ describe("if expression without an else", () => {
     }
   });
 
+  test("in a Sparkle prop binding", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `layout main with\n  text "x" #opacity={if true then 1}\nend\n`,
+    );
+    expect(ctx.errorMessages.filter((m) => m.includes(MISSING_ELSE))).toHaveLength(1);
+  });
+
   test("display text may leave out the else", () => {
     const ctx = makeRuntimeStoryFromSource(`A {if f() then "B"}.\nfunction f()\n  return true\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("A B.\n");
+  });
+
+  test("choice text may leave out the else", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `choose\n  * [Take {if f() then "it"}]\nend\nfunction f()\n  return true\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    ctx.story.ContinueMaximally();
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["Take it"]);
   });
 });
 

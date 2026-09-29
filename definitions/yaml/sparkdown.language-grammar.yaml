@@ -6690,9 +6690,12 @@ repository:
   # An `if` that follows an operator, an opening bracket, a comma, `return`
   # or the `then` or `else` of an enclosing if expression on its line can
   # only begin an expression, so it begins one whatever follows on that line;
-  # its clauses may then continue on the lines below.
+  # its clauses may then continue on the lines below. So does an `if` that
+  # begins its line where an expression is read, such as an arm's value on
+  # the line after its `then` or `else`; where a statement is read, the
+  # statement rules take a line-starting `if` before any expression rule.
   LuauTernaryExpression:
-    begin: (?:(?<=(?:[-+*/%^<>=~(\[{,]|[.][.]|\b(?:return|and|or|not|then|else)\b){{WS}}*)|(?={{WS}}*if\b(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\})))({{WS}}*)(if)\b({{WS}}*)
+    begin: (?:(?<=^{{WS}}*|(?:[-+*/%^<>=~(\[{,]|[.][.]|\b(?:return|and|or|not|then|else)\b){{WS}}*)|(?={{WS}}*if\b(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\})))({{WS}}*)(if)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:

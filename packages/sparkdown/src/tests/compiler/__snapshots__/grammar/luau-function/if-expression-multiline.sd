@@ -16,6 +16,12 @@ function f(c)
       then 1
       else 2
     else 3
+  local h = if c
+    then
+      if a
+        then 1
+        else 2
+    else 3
   return tostring(10 + if c
     then a
     else b)
