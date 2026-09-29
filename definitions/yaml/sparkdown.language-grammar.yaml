@@ -6035,7 +6035,21 @@ repository:
     # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
     # is actually an expression — fall through to `LuauExpression`
     # at the outer `LuauVariableDefinition` level.
-    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
+    #
+    # The leading guard stops a VALUE from being read as a target once
+    # the statement has taken its `=` (#1116): in `local a, b = 1, x`
+    # the trailing `x` (or `true`, `false`, `nil`) is followed by
+    # end-of-line just like a bare target, so the shape alone cannot
+    # tell them apart. Targets all precede the `=`, so an identifier
+    # is a target only when no `=` stands between it and the line's
+    # nearest scope keyword (`local`/`store`/`const`, all reserved
+    # names, so the keyword marks the definition's start). No quote
+    # may stand there either, so a keyword inside a string value
+    # (`local k, v = "store", x`) is not taken for the start. A target
+    # that follows a string-typed one (`local a: "p", b = …`) or a
+    # `LuauPropertyDefinition` key (`name = …` in a define body, with
+    # no keyword) is a target by its own trailing `=`.
+    begin: (?:(?<={{LUAU_SCOPE_MODIFIERS}}[^=\n\r"'`]*)|(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:
