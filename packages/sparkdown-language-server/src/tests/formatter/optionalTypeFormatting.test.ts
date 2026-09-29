@@ -34,3 +34,24 @@ local b: number? | string = 1
 Hello.
 `);
 });
+
+test("formatting joins a `?` that already has a space before it to its type", () => {
+  const source = `function f(): number ?
+  local v: number ?
+  local u: number ? = 1
+  local t: number ?= 1
+  type T = number ?
+end
+local w: Foo ?
+Hello.
+`;
+  expect(formatSource(source)).toBe(`function f(): number?
+  local v: number?
+  local u: number? = 1
+  local t: number? = 1
+  type T = number?
+end
+local w: Foo?
+Hello.
+`);
+});

@@ -151,9 +151,10 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │   │       │   └─ PunctuationAngleClose [71..72]: ">"
  │   │       │   │   │       │   │   │       │   │       └─ LuauTypeGenerics_end_c2 72
  │   │       │   │   │       │   │   │       │   └─ LuauTypeOptionalOperator [72..74]
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c1 [72..73]: "?"
- │   │       │   │   │       │   │   │       │       └─ LuauTypeOptionalOperator_c2 [73..74]
- │   │       │   │   │       │   │   │       │           └─ LuauTypeOptionalOperator_c2 [73..74]
+ │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c1 72
+ │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c2 [72..73]: "?"
+ │   │       │   │   │       │   │   │       │       └─ LuauTypeOptionalOperator_c3 [73..74]
+ │   │       │   │   │       │   │   │       │           └─ LuauTypeOptionalOperator_c3 [73..74]
  │   │       │   │   │       │   │   │       │               └─ OptionalWhitespace [73..74]: " "
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 74
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 74

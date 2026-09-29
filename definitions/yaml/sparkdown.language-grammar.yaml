@@ -251,6 +251,9 @@ variables:
   # The last character of a type: a name, a closing bracket or quote, or an
   # optional type's `?`.
   LUAU_TYPE_END: (?:[\w)}\]>"'`?])
+  # The whitespace that ends a type, unless the optional-type suffix follows
+  # it (`number ?`), which Luau allows and which still belongs to the type.
+  LUAU_TYPE_WHITESPACE_END: (?:{{WS}}(?!{{WS}}*{{LUAU_TYPE_OPTIONAL_OPERATOR}}))
   LUAU_TYPE_BINARY_OPERATORS: (?:[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
@@ -267,7 +270,8 @@ variables:
   # Also excludes the optional-type suffix `?`: it is glued to the type it
   # ends (`number?`), so the type rules that end with this pattern must not
   # capture a zero-width separator before it for the formatter to widen into
-  # `number ?`. `LuauTypeOptionalOperator` reads the `?` itself.
+  # `number ?`. `LuauTypeOptionalOperator` reads the `?` itself, together with
+  # any whitespace before it.
   LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>])
   # NOTE: Intentional exception to the "no capture groups in variables" rule. The `({{WS}}*)` group is captured on purpose — host
   # rules use the captured trailing whitespace as their final
@@ -8721,7 +8725,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 
   LuauTypeAssignmentOperator:
     match: ([=])({{WS}}*)
@@ -8790,7 +8794,7 @@ repository:
       - { include: "#LuauTypeofFunction" }
       - { include: "#LuauVariadicType" }
       - { include: "#LuauTypeName" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 
   # `->` as a type annotation marks the parameter as carrying a
   # divert-target value (sparkdown's analogue of ink's typed-divert
@@ -8806,18 +8810,23 @@ repository:
     match: ([-][>])
 
   # The suffix ends the type it follows, so it matches only after the end
-  # of a type (a name, a closing bracket or quote, or another `?`). It
-  # takes in the whitespace after it only when a binary operator follows on
-  # the same line (`number? | string`, `local u: number? = 1`), so a line
-  # break or the next statement's first word is never read as part of the
-  # type.
+  # of a type (a name, a closing bracket or quote, or another `?`). Luau
+  # allows whitespace before it, and the formatter used to write some, so it
+  # takes in that whitespace as extra whitespace the formatter joins away
+  # (`number ?` becomes `number?`). It takes in the whitespace after it only
+  # when a binary operator follows on the same line (`number? | string`,
+  # `local u: number? = 1`), so a line break or the next statement's first
+  # word is never read as part of the type.
   LuauTypeOptionalOperator:
-    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
+    match: (?<={{LUAU_TYPE_END}})({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
     captures:
       1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
         tag: typeOperator
         name: keyword.operator.type.luau
-      2:
+      3:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
@@ -8840,7 +8849,7 @@ repository:
       - { include: "#LuauTypeBinaryOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 
   LuauTypeBinaryOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_BINARY_OPERATORS}})({{WS}}*)
@@ -8877,7 +8886,7 @@ repository:
       - { include: "#LuauTypeAnnotationOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 
   LuauTypeAnnotationOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)

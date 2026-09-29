@@ -142,3 +142,40 @@ describe("the code after a type ending in `?` still runs", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Before.\nAfter.\n");
   });
 });
+
+// Luau accepts whitespace before the `?` suffix, and the formatter used to
+// write `number ?` and `number ?= 1` into scripts, so a space before the `?`
+// must keep reading as Luau rather than turning the line into story text.
+describe("a space before the `?` suffix still reads as Luau", () => {
+  test.each([
+    ["a spaced local with a value", "local v: number ? = 1\n"],
+    ["a local whose value follows the `?` directly", "local v: number ?= 1\n"],
+    ["a spaced local", "local v: number ?\nlocal s = 1\n"],
+    ["a spaced qualified name", "local v: Foo ? = nil\n"],
+    ["a spaced table type", "local v: {number} ? = nil\n"],
+    ["a spaced union", "local v: number ? | string = 1\n"],
+    ["a spaced type alias", "type T = number ?\nlocal s = 1\n"],
+    ["a spaced return type", "function f(): number ?\nend\n"],
+  ])("%s parses", (_name, snippet) => {
+    expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+  });
+
+  test.each([
+    ["a local", `Value {f()}.\nfunction f()\n  local v: number ? = 5\n  return v\nend\n`],
+    ["a local whose value follows the `?` directly", `Value {f()}.\nfunction f()\n  local v: number ?= 5\n  return v\nend\n`],
+    ["a qualified type", `Value {f()}.\nfunction f()\n  local v: Foo ? = 5\n  return v\nend\n`],
+    ["a type alias", `Value {f()}.\nfunction f()\n  type T = number ?\n  return 5\nend\n`],
+    ["a return type", `Value {f()}.\nfunction f(): number ?\n  return 5\nend\n`],
+    ["a union", `Value {f()}.\nfunction f()\n  local v: number ? | string = 5\n  return v\nend\n`],
+  ])("the code after %s still runs", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
+  });
+
+  test("the text after a spaced top-level optional type stays prose", () => {
+    const ctx = makeRuntimeStoryFromSource(`Before.\nlocal w: number ?\nAfter.\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Before.\nAfter.\n");
+  });
+});

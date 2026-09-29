@@ -549,9 +549,10 @@ sparkdown [0..328]
  │   │       │   │   │       │   │   │       │   │       │   └─ PunctuationAngleClose [223..224]: ">"
  │   │       │   │   │       │   │   │       │   │       └─ LuauTypeGenerics_end_c2 224
  │   │       │   │   │       │   │   │       │   └─ LuauTypeOptionalOperator [224..226]
- │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c1 [224..225]: "?"
- │   │       │   │   │       │   │   │       │       └─ LuauTypeOptionalOperator_c2 [225..226]
- │   │       │   │   │       │   │   │       │           └─ LuauTypeOptionalOperator_c2 [225..226]
+ │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c1 224
+ │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c2 [224..225]: "?"
+ │   │       │   │   │       │   │   │       │       └─ LuauTypeOptionalOperator_c3 [225..226]
+ │   │       │   │   │       │   │   │       │           └─ LuauTypeOptionalOperator_c3 [225..226]
  │   │       │   │   │       │   │   │       │               └─ OptionalWhitespace [225..226]: " "
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 226
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 226
