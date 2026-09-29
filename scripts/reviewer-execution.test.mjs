@@ -51,7 +51,7 @@ const commands = executionCommands(operations, root);
 const editorGrant = { id: "author", kind: "editor", maxRequests: 2, timeoutSeconds: 60 };
 const authorRequest = { requestId: "find-hello", command: "ui", script: "Hello reviewer!\n", steps: [
   { action: "open", value: "find" }, { action: "type", field: "search", text: "Hello" },
-  { action: "click", value: "select" }, { action: "shot", target: "find" },
+  { action: "click", value: "next" }, { action: "shot", target: "find" },
 ] };
 for (const invalid of [
   { ...editorGrant, maxRequests: 0 }, { ...editorGrant, maxRequests: 101 },
@@ -75,7 +75,7 @@ try {
   assert.equal(result.passed, true);
   assert.match(result.output, /Hello reviewer!/);
   const invoked = JSON.parse(result.output.split("\n")[0]);
-  assert.deepEqual(invoked.args.slice(3, 9), ["--open", "find", "--type", "search=Hello", "--click", "select"]);
+  assert.deepEqual(invoked.args.slice(3, 9), ["--open", "find", "--type", "search=Hello", "--click", "next"]);
   assert.match(invoked.session, /^review-/);
   assert.equal(invoked.gh, undefined);
   assert.equal(result.screenshots.length, 2);

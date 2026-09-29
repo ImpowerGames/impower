@@ -12,7 +12,7 @@ Use the launcher-supplied execution client from your private directory, adding t
   "steps": [
     { "action": "open", "value": "find" },
     { "action": "type", "field": "search", "text": "Hello" },
-    { "action": "click", "value": "select" },
+    { "action": "click", "value": "next" },
     { "action": "shot", "target": "find" }
   ]
 }
@@ -38,4 +38,4 @@ Requests are limited to 128 KiB of JSON. `script` is at most 65,536 characters, 
 | `press` | `value`: `Escape`, `Enter`, `Tab`, `Backspace`, `Delete`, arrow keys, `Home`, `End`, `Control+Home`, `Control+End`, `Control+a`, `Control+z`, `Control+Shift+z`, or `Shift+` with an arrow key |
 | `shot` | `target`: `page`, `editor`, `find`, `goto`, `hover`, `completion`; at most four extra screenshots |
 
-For game-preview evidence use `{ "requestId": "preview-first", "command": "verify", "script": "Hello!\n", "line": 1 }`. `script` and the positive `line` are optional; `steps` is not accepted for `verify`. Selection is available through find's `select` button, go-to-line's `line` field and `submit`, and the bounded movement keys. Unsupported tasks remain coverage gaps; do not replace them with custom probes or direct sandbox execution.
+For game-preview evidence use `{ "requestId": "preview-first", "command": "verify", "script": "Hello!\n", "line": 1 }`. `script` and the positive `line` are optional; `steps` is not accepted for `verify`. Selection is available by moving between find matches with `next` and `prev`, go-to-line's `line` field and `submit`, and the bounded movement keys. The underlying driver also names a `select` button, but the current find panel does not display it; requesting that button reports a failed attempt. Unsupported tasks remain coverage gaps; do not replace them with custom probes or direct sandbox execution.
