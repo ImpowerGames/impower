@@ -34,6 +34,15 @@ const STATEMENTS = [
   "local x = f();",
   "local x: number = f();",
   "local a, b = 1, f();",
+  "local x: number;",
+  "local x = if t then 1 else 2;",
+  "local x = iffy;",
+  "local x = 1 +\n  2;",
+  // `not`, not `-`: a comment right after an arithmetic `-` is read as more
+  // minus signs (#880).
+  "local x = not --[[c]] t;",
+  "local x: --[[c]] number;",
+  "local x = not --[=[ ]] ]=] t;",
 ] as const;
 
 describe("a local statement ends at a `;` directly after its value", () => {
@@ -53,6 +62,30 @@ describe("a local statement ends at a `;` directly after its value", () => {
       ]);
     },
   );
+
+  test.each([
+    ["local x: ;", "Expected type, got ';'"],
+    ["local x = if;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = -\n;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = -\n\n  ;", "Expected identifier when parsing expression, got ';'"],
+    ["local x = 1 + if;", "Expected identifier when parsing expression, got ';'"],
+    ["local x =\n;", "Expected identifier when parsing expression, got ';'"],
+    // Comments are trivia to Luau, like the line breaks above.
+    ["local x: --[[c]] ;", "Expected type, got ';'"],
+    ["local x = if --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = - --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = - --[=[c]=] ;", "Expected identifier when parsing expression, got ';'"],
+    // A level-1 comment holding a level-0 close (`]]`) ends only at `]=]`.
+    ["local x: --[=[ ]] ]=] ;", "Expected type, got ';'"],
+    ["local x = if --[=[ ]] ]=] ;", "Expected identifier when parsing expression, got ';'"],
+    ["local x: -- missing type\n;", "Expected type, got ';'"],
+    ["local x = if -- missing value\n;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = - -- missing operand\n;", "Expected identifier when parsing expression, got ';'"],
+  ])("%j reports the value left empty before its `;`", (statement, message) => {
+    expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
+      expect.stringContaining(message),
+    ]);
+  });
 
   test("a multi-name local still reads both names", () => {
     const source = `function g()\n  local a, b = 1, 2;\nend\n`;

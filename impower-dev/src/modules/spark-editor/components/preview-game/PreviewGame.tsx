@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "preact/hooks";
+import { showSnackbar } from "../../utils/snackbar";
 import PreviewGameToolbar from "../preview-game-toolbar/PreviewGameToolbar";
 import { installPreviewInspector } from "./previewInspect";
 
@@ -130,6 +131,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
       import("@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage"),
       import("@impower/spark-engine/src/game/core/classes/messages/GameToggledFullscreenModeMessage"),
+      import("@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage"),
       import("@impower/spark-engine/src/game/core/utils/executedLineRanges"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_DESCRIPTION_DEFINITIONS"),
       import("@impower/spark-engine/src/game/modules/DEFAULT_OPTIONAL_DEFINITIONS"),
@@ -152,6 +154,7 @@ export default function PreviewGame(_props: PreviewGameProps) {
         { GameExitedMessage },
         { GameStartedMessage },
         { GameToggledFullscreenModeMessage },
+        { GameWorkerRestartedMessage },
         { expandLineRanges },
         { DEFAULT_DESCRIPTION_DEFINITIONS },
         { DEFAULT_OPTIONAL_DEFINITIONS },
@@ -356,6 +359,27 @@ export default function PreviewGame(_props: PreviewGameProps) {
             // stops itself -- so sync the toolbar back to its stopped state
             // rather than leaving it showing STOP for a game that is gone.
             Workspace.window.endGame();
+          }
+          if (GameWorkerRestartedMessage.type.isNotification(message)) {
+            // The player restarted its worker because the script did not
+            // yield (#679). The line is marked in the problems list too, but
+            // the author did not ask for anything, so say what happened.
+            const { location } = message.params;
+            showSnackbar({
+              message: message.params.message,
+              ...(location
+                ? {
+                    actionLabel: "Show line",
+                    onAction: () => {
+                      Workspace.window.showDocument(
+                        location.uri,
+                        location.range,
+                        true,
+                      );
+                    },
+                  }
+                : {}),
+            });
           }
           if (ChangedEditorBreakpointsMessage.type.is(message)) {
             // TODO: forward breakpoints to player
