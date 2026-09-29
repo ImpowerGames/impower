@@ -134,6 +134,10 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
     sib = sib.prevSibling;
   }
 
+  // A line that continues the line before it (`LuauLineContinuation`) takes
+  // its LHS from that line: `x + y` then `+ z` → binary.
+  if (operation.parent?.name === "LuauLineContinuation_content") return false;
+
   // Shape 1: operation's preceding sibling at its parent level.
   // For `1 + 2` (LHS sits OUTSIDE the operation as a sibling), the
   // operation has `1` as prev sibling → binary.
@@ -326,7 +330,8 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     // (Scene_end annotation removed — scene declarations no longer
     // accept a trailing colon, so there's no end-of-declaration token
     // for the formatter to normalize.)
-    // Top-level Luau declarations (function / define) terminate the
+    // Top-level Luau declarations (function / type function / define
+    // and the UI blocks) terminate the
     // implicit scene-body that scene_begin pushed onto the indent
     // stack. Emit a `top_level_begin` so the formatter resets indent
     // tracking before starting the declaration's own indent context.
@@ -336,6 +341,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     // context should stay.
     if (
       nodeRef.name === "LuauFunctionDefinition" ||
+      nodeRef.name === "LuauFunctionTypeDeclaration" ||
       nodeRef.name === "LuauDefine" ||
       nodeRef.name === "LuauStyle" ||
       nodeRef.name === "LuauLayout" ||

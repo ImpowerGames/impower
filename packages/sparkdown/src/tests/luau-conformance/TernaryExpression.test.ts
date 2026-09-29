@@ -466,7 +466,7 @@ describe("if expression across lines", () => {
     ],
     [
       "a condition and an arm split inside parentheses",
-      "Value {f(true, true)}.\nfunction f(a, b)\n  local y = if (a\n    and b)\n    then (1\n      + 10)\n    else 2\n  return y\nend\n",
+      "Value {f(true, true)}.\nfunction f(a, b)\n  local y = if (a and\n    b)\n    then (1\n      + 10)\n    else 2\n  return y\nend\n",
       "Value 11.\n",
     ],
     [

@@ -12,9 +12,13 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import {
-  lowerExpressionFromContainer,
+  lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import {
+  splitOnCommas,
+  takeLineContinuation,
+} from "../utils/lineContinuation";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
 import { validateExplicitStatement } from "../utils/validateExplicitStatement";
@@ -101,7 +105,15 @@ function lowerExplicitStatementContent(
   //
   // Single-target statements (no comma before the assignment op)
   // fall through to the existing path below.
-  const multiTargetResult = tryLowerMultiTargetReassignment(nodeRef.node, ctx);
+  // The lines that continue the statement's last value (`& x = t` then
+  // `.a`, or `& obj` then `:method()`).
+  const continuation = takeLineContinuation(ctx);
+
+  const multiTargetResult = tryLowerMultiTargetReassignment(
+    nodeRef.node,
+    continuation,
+    ctx,
+  );
   if (multiTargetResult) return multiTargetResult;
 
   const lhsPath = getDescendent("LuauAccessPath", nodeRef.node);
@@ -152,6 +164,7 @@ function lowerExplicitStatementContent(
       next = next.nextSibling;
     }
     if (next) nodes.push(next);
+    nodes.push(...continuation);
     const callExpr = lowerExpressionFromNodes(nodes, ctx);
     if (callExpr instanceof FunctionCall) {
       callExpr.shouldPopReturnedValue = true;
@@ -176,6 +189,7 @@ function lowerExplicitStatementContent(
     opNode,
     opText,
     ctx,
+    continuation,
   );
   if (propertyAssignment) return wrapInWeave(propertyAssignment);
 
@@ -183,7 +197,11 @@ function lowerExplicitStatementContent(
   if (!nameNode) return {};
   const identifier = identifierAt(nameNode, ctx);
 
-  let expr = lowerExpressionFromContainer(opNode, ctx);
+  let expr = lowerExpressionFromContainerAndContinuation(
+    opNode,
+    continuation,
+    ctx,
+  );
 
   // Compound assignment desugaring (V1 supports the value operators).
   if (opText && opText !== "=" && expr) {
@@ -207,6 +225,7 @@ function lowerExplicitStatementContent(
 // call, function-call with parenthetical sibling, etc.
 function tryLowerMultiTargetReassignment(
   stmtNode: SyntaxNode,
+  continuation: SyntaxNode[],
   ctx: LowerContext,
 ): CompiledBlock | null {
   const content = findChildByName(stmtNode, "LuauExplicitStatement_content");
@@ -255,7 +274,6 @@ function tryLowerMultiTargetReassignment(
 
   // Collect RHS expressions: the first from the assignment op, and any
   // trailing expressions that appear after the op (separated by commas).
-  const firstRhs = lowerExpressionFromContainer(opNode, ctx);
   const trailingGroups: SyntaxNode[][] = [];
   let trailingGroup: SyntaxNode[] = [];
   let trailing = opNode.nextSibling;
@@ -275,6 +293,17 @@ function tryLowerMultiTargetReassignment(
     trailing = trailing.nextSibling;
   }
   if (trailingGroup.length > 0) trailingGroups.push(trailingGroup);
+  // The continuation lines continue the last value, and their commas
+  // separate further values.
+  const [continued = [], ...continuedGroups] = splitOnCommas(continuation);
+  const lastGroup = trailingGroups[trailingGroups.length - 1];
+  if (lastGroup) lastGroup.push(...continued);
+  trailingGroups.push(...continuedGroups);
+  const firstRhs = lowerExpressionFromContainerAndContinuation(
+    opNode,
+    lastGroup ? [] : continued,
+    ctx,
+  );
 
   const trailingExprs = trailingGroups
     .map((nodes) => lowerExpressionFromNodes(nodes, ctx))

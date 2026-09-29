@@ -161,12 +161,11 @@ export class BoolValue extends Value<boolean> {
 //     plain), pushes N values padded with nil. Emitted by
 //     `local a, b = expr`.
 //
-// `MultiValue` does not currently round-trip through JSON: it's a
-// transient stack value, not something that gets stored in
-// variables (single-target `VariableAssignment` auto-unwraps it
-// before storage). If/when sparkdown gains first-class function
-// values that can return-and-store tuples, serialization will need
-// a literal token like `"^tuple"`.
+// Single-target `VariableAssignment` unwraps a `MultiValue` before
+// storage, except for a vararg function's `__varargs__` slot, which
+// keeps the whole pack. A saved state therefore can hold one (in that
+// slot or on the evaluation stack); it serializes as
+// `{"tuple": [...]}`.
 export class MultiValue extends Value<any> {
   public values: AbstractValue[];
   constructor(values: AbstractValue[]) {

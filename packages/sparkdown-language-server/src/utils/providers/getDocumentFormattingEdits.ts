@@ -117,13 +117,15 @@ const SIBLING_CLAUSES: Partial<Record<SparkdownNodeName, SparkdownNodeName[]>> =
 };
 
 // Walking back past one of these aborts the choice-body lookup.
-// `Choice` ends at the marker line's EOL so a free-standing `Scene`
-// or `LuauFunctionDefinition` after some top-level choices isn't
-// inside any choice's "body" — it's started a new top-level scope.
+// `Choice` ends at the marker line's EOL so a free-standing `Scene`,
+// `LuauFunctionDefinition` or `LuauFunctionTypeDeclaration` after
+// some top-level choices isn't inside any choice's "body" — it's
+// started a new top-level scope.
 const CHOICE_SCOPE_TERMINATORS = nodeNameSet([
   "Scene",
   "Branch",
   "LuauFunctionDefinition",
+  "LuauFunctionTypeDeclaration",
   "LuauDefine",
   "FrontMatter",
 ]);

@@ -1,6 +1,6 @@
 ---
 name: clean-worktrees
-description: Classify and remove merged idle worktrees through the guarded cleanup script. Use for requested cleanup or low-disk recovery; dry run first, never as an automatic post-resolution step.
+description: Classify and remove merged idle worktrees through the guarded cleanup script. Use for requested cleanup, low-disk recovery or the resolve-issue preflight before a task's worktree exists; dry run first, never as an automatic post-resolution step.
 ---
 
 # Clean up merged worktrees
@@ -16,7 +16,7 @@ The dry run fetches origin with prune and prints remove/keep reasons and sizes. 
 
 ## Eligibility and preservation
 
-Only clean, idle worktrees whose branch and remote commits are on origin/main qualify. Preserve uncommitted/untracked work, unmerged/unpushed commits, fresh branches, uncertain process state, external symlink/junction targets and unreadable directories. Main/default branches and paths outside the managed worktree root stay.
+Only clean, idle worktrees whose branch and remote commits are on origin/main qualify. A detached worktree qualifies when its commit is an ancestor of origin/main and it passes the same clean, idle and link checks, nothing is in progress in it (rebase, bisect, merge), its HEAD reflog and per-worktree refs reach no commit that only they hold, and HEAD last moved over 24 hours ago. Preserve uncommitted/untracked work, unmerged/unpushed commits, fresh branches, uncertain process state, external symlink/junction targets and unreadable directories. Main/default branches and paths outside the managed worktree root stay.
 
 Before interpreting a keep/refusal, manually reconciling a link, or recovering interrupted/partial removal, read [classification and recovery](references/classification.md). Never bypass refusal with recursive deletion or remove a junction using a trailing separator. A failed removal is a recovery task; preserve its log and remaining branch/data.
 
@@ -26,7 +26,7 @@ The web editor driver keeps a directory per checkout under `%LOCALAPPDATA%\impow
 
 ## Review job directories
 
-The same run lists every directory under `<main checkout>.review-jobs`, the root that holds review plans, journals, diffs and reviewer probe checkouts. A `pr-<N>` directory is removable when GitHub reports PR (or issue) N closed, every `*.jsonl` journal in it reads in full, no process a journal records is running, and no process command line names it. A `test-*` directory is a standalone check's scratch folder kept outside TEMP (the cross-provider continuation test's, for one); it is removable under the same process rules, with no GitHub lookup, and retained when it holds no journal naming its process. Anything else under the root is retained with its reason. Removal unlinks every symlink and junction inside the directory before deleting it and never follows one, since probe checkouts hold `node_modules` junctions into live worktrees. A recycled process ID that happens to be running retains the directory until a later run.
+The same run lists every directory under `<main checkout>.review-jobs`, the root that holds review plans, journals, diffs and reviewer probe checkouts. A `pr-<N>` directory is removable when GitHub reports PR (or issue) N closed, every `*.jsonl` journal in it reads in full, no process a journal records is running, and no process command line names it. A `test-*` directory is a standalone check's scratch folder kept outside TEMP (the cross-provider continuation test's, for one); it is removable under the same process rules, with no GitHub lookup, and retained when it holds no journal naming its process. Anything else under the root is retained with its reason. Removal unlinks every symlink and junction inside the directory before deleting it and never follows one, since probe checkouts hold `node_modules` junctions into live worktrees. A recorded process counts as running only while the process now holding its pid started when the journal says it did, so a pid Windows has since handed to an unrelated program does not retain the directory; a pid recorded without a start time, or whose start time cannot be read, still counts by its number.
 
 ## Scratch directories
 
@@ -36,6 +36,6 @@ The same run lists two scratch locations the regression workflow writes, each ro
 
 Run apply only for authorized cleanup after inspecting the dry run. Review removed/kept/failed rows, exit status and the recorded leftovers. Do not claim success for a partial failure. Stop owned dev servers through their drivers and rerun classification; do not force a tree with changes.
 
-This is not an automatic resolve-issue step or archive hook: the current task's PR may still be unmerged, and other sessions may use the directories.
+The resolve-issue preflight runs this workflow before the task's worktree exists, so that task is never among the removals. It is not a post-resolution step or archive hook: at that point the current task's PR may still be unmerged, and other sessions may use the directories.
 
 When modifying cleanup behavior, run its Node test against printed scratch repositories; retain Windows-only and unavailable-filesystem skips as limitations. Put preventable traps into the script/check rather than warning prose.
