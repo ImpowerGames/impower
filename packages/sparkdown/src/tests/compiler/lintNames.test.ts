@@ -214,6 +214,41 @@ end
     ]);
   });
 
+  test("a name after a typed name in one local is declared (#1139)", () => {
+    const source = `function run()
+  local a: number, b: number = 1, 2
+  print(a, b)
+end
+`;
+    expect(resolutions(source, "b")).toEqual(["L3 read -> local@L2"]);
+  });
+
+  test("a second `=` does not declare the name before it (#1139)", () => {
+    const source = `function run()
+  local a = 1, b = 2
+  print(a, b)
+end
+`;
+    // The grammar reads `b = 2` as a value, so its `b` is a read too.
+    expect(resolutions(source, "b")).toEqual([
+      "L2 read -> global",
+      "L3 read -> global",
+    ]);
+  });
+
+  test.each(["store", "const"])(
+    "every name of a typed multi-name %s is a global definition (#1139)",
+    (scope) => {
+      const source = `${scope} a: number, b: number, c = 1, 2, 3
+`;
+      expect(namesOf(source).globalDefinitions.map((d) => d.name)).toEqual([
+        "a",
+        "b",
+        "c",
+      ]);
+    },
+  );
+
   test("keyword statements and type names never reach the global index", () => {
     const source = `function run()
   local a = {} store x = 1
