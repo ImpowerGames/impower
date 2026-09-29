@@ -1796,59 +1796,48 @@ const isMergeable = (a: string, b: string) =>
 // Folds quote rewrites into already-resolved edits. An edit that only
 // touches a rewrite changes different characters (`'x' .. 'y'` rewrites
 // `'x'` and the space after it), so the two are joined into one edit,
-// since touching edits are not applied independently. An edit inside a
-// rewrite's range gives way to it unless it outranks it.
+// since touching edits are not applied independently. An edit that
+// overlaps a rewrite gives way to it, as the rewrite outranks every
+// whitespace edit. Both lists are in document order, so one merge pass
+// folds them.
 const foldQuoteRewrites = (
   resolved: (TextEdit & { type: string })[],
   quotes: (TextEdit & { type: string })[],
   start: (e: TextEdit) => number,
   end: (e: TextEdit) => number,
 ): TextEdit[] => {
-  const result = [...resolved];
+  const result: (TextEdit & { type: string })[] = [];
+  let i = 0;
   for (const quote of quotes) {
     const q = structuredClone(quote);
-    const touching: (TextEdit & { type: string })[] = [];
-    let outranked = false;
-    for (const other of result) {
-      if (end(other) < start(q) || start(other) > end(q)) continue;
-      if (end(other) === start(q) || start(other) === end(q)) {
-        touching.push(other);
-      } else if (precedence(other.type) > precedence(q.type)) {
-        outranked = true;
-      }
-    }
-    if (outranked) continue;
     const from = start(q);
     const to = end(q);
-    // Edits wholly inside the rewrite give way to it.
-    const kept = result.filter(
-      (other) =>
-        touching.includes(other) ||
-        end(other) < from ||
-        start(other) > to,
-    );
-    let before = "";
-    let after = "";
-    for (const other of touching) {
-      if (end(other) === from && start(other) < from) {
-        before += other.newText;
-        q.range.start = other.range.start;
-      } else if (start(other) === to && end(other) > to) {
-        after += other.newText;
-        q.range.end = other.range.end;
-      } else if (start(other) === from) {
-        // A zero-width edit at the rewrite's start.
-        before += other.newText;
-      } else {
-        // A zero-width edit at the rewrite's end.
-        after += other.newText;
-      }
+    // Everything that ends at or before the rewrite comes first.
+    while (i < resolved.length && end(resolved[i]!) <= from) {
+      result.push(resolved[i]!);
+      i++;
     }
-    q.newText = before + q.newText + after;
-    result.length = 0;
-    result.push(...kept.filter((other) => !touching.includes(other)), q);
-    result.sort((a, b) => start(a) - start(b) || end(a) - end(b));
+    // An edit (or an earlier folded rewrite) ending where this one
+    // starts is joined in front of it.
+    const last = result.at(-1);
+    if (last && end(last) === from) {
+      result.pop();
+      q.newText = last.newText + q.newText;
+      q.range.start = last.range.start;
+    }
+    // Edits overlapping the rewrite give way to it; one starting where
+    // it ends is joined behind it.
+    while (i < resolved.length && start(resolved[i]!) <= to) {
+      const other = resolved[i]!;
+      if (start(other) === to) {
+        q.newText += other.newText;
+        q.range.end = other.range.end;
+      }
+      i++;
+    }
+    result.push(q);
   }
+  result.push(...resolved.slice(i));
   return result;
 };
 
