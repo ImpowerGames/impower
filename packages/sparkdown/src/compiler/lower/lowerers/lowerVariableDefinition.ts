@@ -1,4 +1,8 @@
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
+import {
+  VARIABLE_DEFINITION_BEGIN_NAMES,
+  VARIABLE_DEFINITION_END_NAMES,
+} from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
@@ -24,7 +28,11 @@ import {
   splitOnCommas,
   takeLineContinuation,
 } from "../utils/lineContinuation";
-import { validateAssignmentValue } from "../utils/validateAssignmentValue";
+import {
+  validateAssignmentValue,
+  validateListComma,
+  validateSecondAssignment,
+} from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -44,8 +52,8 @@ export function lowerVariableDefinition(
   // the last target's type (`local x: types` then `.Button = 1`).
   const continuation = takeLineContinuation(ctx);
 
-  // Walk `LuauVariableDefinition_content`. After the multi-RHS grammar
-  // fix, the content holds:
+  // Walk the definition's content (`LuauVariableDefinition_content` or
+  // `LuauSparkdownVariableDefinition_content`), which holds:
   //   VA(name1) [, name1's-AssignmentOperation? ...]
   //   LuauCommaSeparator
   //   VA(name2) [...]
@@ -59,7 +67,7 @@ export function lowerVariableDefinition(
   // last VA are additional RHS values.
   const contentNode = findChildByName(
     nodeRef.node,
-    "LuauVariableDefinition_content",
+    `${nodeRef.node.name}_content`,
   );
   const targets: { name: string; assignNode: SyntaxNode; nameNode?: SyntaxNode }[] = [];
   const targetIdentifier = (t: (typeof targets)[number]) =>
@@ -68,11 +76,15 @@ export function lowerVariableDefinition(
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
   // When the grammar accepts multiple statements on one line (e.g.
-  // `local x = 5 return x end`), the LuauVariableDefinition_content
-  // captures siblings BEYOND the variable assignment — they're
-  // adjacent statements, not trailing multi-RHS values. Collect them
-  // into `trailingStatements` and lower them after the VA below.
+  // `& local x = 5 return`), the definition's content captures siblings
+  // BEYOND the variable assignment — they're adjacent statements, not
+  // trailing multi-RHS values. Collect them into `trailingStatements`
+  // and lower them after the VA below.
   const trailingStatements: SyntaxNode[] = [];
+  // A comma no target or value has followed yet, so a comma with nothing
+  // after it, or with a statement after it, can be reported.
+  let unresolvedComma: SyntaxNode | null = null;
+  let unresolvedAfterAssignment = false;
 
   if (contentNode) {
     let child = contentNode.firstChild;
@@ -81,7 +93,24 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
+      const pendingComma = unresolvedComma;
+      unresolvedComma = null;
       if (child.name === "LuauVariableAssignment") {
+        const opNode = getDescendent("LuauAssignmentOperation", child);
+        if (sawAssignmentOp) {
+          if (opNode) {
+            // A second `=` (`local a = 1, x = 99`): Luau ends the list at
+            // `x` and cannot parse a statement that starts with `=`.
+            validateSecondAssignment(opNode, ctx);
+          } else {
+            // A name after the `=` is a value: the grammar reads an
+            // identifier before a comma or the end of the line as a
+            // target-shaped assignment (`local a, g = 1, b`).
+            currentRhsGroup.push(child);
+          }
+          child = child.nextSibling;
+          continue;
+        }
         // Flush any in-progress RHS group before starting a new
         // target. (Shouldn't happen with current grammar — VAs
         // always come before any standalone RHS exprs — but handle
@@ -98,16 +127,17 @@ export function lowerVariableDefinition(
             nameNode,
           });
         }
-        const opNode = getDescendent("LuauAssignmentOperation", child);
         if (opNode) sawAssignmentOp = true;
         child = child.nextSibling;
         continue;
       }
-      if (child.name === "LuauCommaSeparator") {
+      if (isCommaName(child.name)) {
         if (currentRhsGroup.length > 0) {
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
+        unresolvedComma = child;
+        unresolvedAfterAssignment = sawAssignmentOp;
         child = child.nextSibling;
         continue;
       }
@@ -145,7 +175,7 @@ export function lowerVariableDefinition(
         child.name === "LuauFunctionDefinition" &&
         sawAssignmentOp &&
         (scope === "store" || !findOwnDeclarationName(child)) &&
-        previousContentSibling(child)?.name === "LuauCommaSeparator"
+        isCommaName(previousContentSibling(child)?.name)
       ) {
         currentRhsGroup.push(child);
         child = child.nextSibling;
@@ -165,6 +195,12 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
+        // A statement where the comma needs a value (`store a = 1, return`)
+        // is Luau's missing-value error. A named function there stays a
+        // lenient trailing statement (`AnonymousFunctionValueList.test.ts`).
+        if (pendingComma && child.name !== "LuauFunctionDefinition") {
+          validateListComma(pendingComma, unresolvedAfterAssignment, ctx);
+        }
         trailingStatements.push(child);
         child = child.nextSibling;
         continue;
@@ -178,6 +214,18 @@ export function lowerVariableDefinition(
     if (currentRhsGroup.length > 0) {
       trailingRhsGroups.push(currentRhsGroup);
     }
+  }
+
+  // A comma that ends the list: in Luau code the next line started with
+  // something that is not a value (`end`, a statement), and in a narrative
+  // body the declaration ended at its line. Luau reports the token it
+  // found in place of the value or name. The same holds for a comma that
+  // ends the last line continuing the declaration (`n` then `+ 4,`).
+  const lastContinued = continuation.findLast((n) => !isSkippableName(n.name));
+  if (lastContinued?.name === "LuauCommaSeparator") {
+    validateListComma(lastContinued, true, ctx);
+  } else if (unresolvedComma) {
+    validateListComma(unresolvedComma, unresolvedAfterAssignment, ctx);
   }
 
   if (targets.length === 0) {
@@ -434,15 +482,24 @@ function bareVariableNameFromAccessPath(
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
 }
 
+// A comma that ends its line is `LuauCommaLineBreak`, which also holds the
+// line break and any comment before the next value.
+function isCommaName(name: string | undefined): boolean {
+  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
+}
+
 function isSkippableName(name: string): boolean {
   return (
     name === "ExtraWhitespace" ||
     name === "Whitespace" ||
     name === "Newline" ||
     name === "LuauComment" ||
+    name === "LuauLineComment" ||
+    name === "LuauDocLineComment" ||
+    name === "LuauBlockComment" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace" ||
-    name === "LuauVariableDefinition_begin" ||
-    name === "LuauVariableDefinition_end"
+    VARIABLE_DEFINITION_BEGIN_NAMES.has(name) ||
+    VARIABLE_DEFINITION_END_NAMES.has(name)
   );
 }

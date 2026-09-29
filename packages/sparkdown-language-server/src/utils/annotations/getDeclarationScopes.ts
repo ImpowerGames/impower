@@ -4,6 +4,7 @@ import { ancestorMatching } from "@impower/sparkdown/src/compiler/utils/ancestor
 import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { TRAILING_STATEMENT_NAMES } from "@impower/sparkdown/src/compiler/utils/trailingStatementNames";
+import { VARIABLE_DEFINITION_NAMES } from "@impower/sparkdown/src/compiler/utils/variableDefinitionNames";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type Tree } from "@lezer/common";
@@ -84,7 +85,6 @@ const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
 // The same lookups, with the same bound, that `DeclarationAnnotator` makes
 // before it records a `var` or `param`, so an annotated declaration always
 // finds its declaring construct here.
-const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const FUNCTION_PARAMETERS = nodeNameSet(["LuauFunctionParameters"]);
 
 /**
@@ -160,7 +160,7 @@ const getVariableScope = (
   inCursorScript: boolean,
 ): LocalScope | null | undefined => {
   const name = tree.resolveInner(from, 1) as Node;
-  const definition: Node | null = ancestorMatching(name, VARIABLE_DEFINITION);
+  const definition: Node | null = ancestorMatching(name, VARIABLE_DEFINITION_NAMES);
   if (!definition) {
     return undefined;
   }
@@ -172,7 +172,7 @@ const getVariableScope = (
     return null;
   }
   let start = definition.to;
-  const content = definition.getChild("LuauVariableDefinition_content");
+  const content = definition.getChild(`${definition.name}_content`);
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (TRAILING_STATEMENT_NAMES.has(child.name)) {
       start = child.from;

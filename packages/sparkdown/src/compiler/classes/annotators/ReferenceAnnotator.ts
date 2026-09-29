@@ -1,6 +1,7 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -56,7 +57,6 @@ const PARAMETER_OWNER = nodeNameSet([
   "LuauFunctionTypeDeclaration",
 ]);
 const VARIABLE_DECL_SITE = nodeNameSet(["LuauVariableAssignment_begin"]);
-const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const ASSET_COMMAND_INSTRUCTION = nodeNameSet(["AssetCommandInstruction"]);
 const ASSET_COMMAND_CONTROL = nodeNameSet(["AssetCommandControl"]);
 // The whole `[[…]]` / `((…))` command. A clause value (NameValue) is a SIBLING
@@ -561,9 +561,9 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // comes from the definition's LuauScopeModifier.
       if (
         ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
-        ancestorMatching(nodeRef.node, VARIABLE_DEFINITION)
+        ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES)
       ) {
-        const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION);
+        const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES);
         const scopeNode = getDescendent("LuauScopeModifier", definition);
         const scope = scopeNode
           ? this.read(scopeNode.from, scopeNode.to).trim()
