@@ -18,6 +18,7 @@ import {
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
+import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import {
   forwardBlockDiagnostics,
   unwrapBlockContent,
@@ -54,9 +55,9 @@ export function lowerVariableDefinition(
   const trailingRhsGroups: SyntaxNode[][] = [];
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
-  // Statement nodes in the content (a declaration read as a value after
-  // a comma) are not RHS values. Collect them into `trailingStatements`
-  // and lower them after the VA below.
+  // Statement nodes in the content (a declaration read after a comma) are
+  // not RHS values. Collect them into `trailingStatements` and lower them
+  // after the VA below.
   const trailingStatements: SyntaxNode[] = [];
 
   if (contentNode) {
@@ -120,11 +121,25 @@ export function lowerVariableDefinition(
           continue;
         }
       }
+      // An anonymous function directly after a comma is a value in the
+      // list (`local a, g = 1, function() ... end`), not a statement:
+      // treating it as one drops the slot and shifts every later value
+      // one target left. Named functions stay trailing statements.
+      if (
+        child.name === "LuauFunctionDefinition" &&
+        sawAssignmentOp &&
+        !findOwnDeclarationName(child) &&
+        previousContentSibling(child)?.name === "LuauCommaSeparator"
+      ) {
+        currentRhsGroup.push(child);
+        child = child.nextSibling;
+        continue;
+      }
       // Statement-like node. The grammar ends the definition at the
       // whitespace before a statement that follows it on the line, so a
       // statement node is here only when the definition's `LuauExpression`
-      // read a declaration as a value after a comma; it gets its own
-      // lowering pass after the variable assignment.
+      // read a declaration after a comma; it gets its own lowering pass
+      // after the variable assignment.
       if (TRAILING_STATEMENT_NAMES.has(child.name)) {
         // Flush any partial RHS group first — `local a, b = 1 return x`
         // shouldn't be possible in valid Luau, but if it appears we
@@ -315,6 +330,12 @@ function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
     child = child.nextSibling;
   }
   return null;
+}
+
+function previousContentSibling(node: SyntaxNode): SyntaxNode | null {
+  let prev = node.prevSibling;
+  while (prev && isSkippableName(prev.name)) prev = prev.prevSibling;
+  return prev;
 }
 
 // Returns the variable name when the access path is exactly ONE
