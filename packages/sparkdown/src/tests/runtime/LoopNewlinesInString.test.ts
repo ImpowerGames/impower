@@ -73,19 +73,47 @@ describe("loop newlines inside a function called from an interpolation", () => {
     expect(run(loopThen(0, `  print("hi")\n`)).text).toBe("Spinning hi0.\n");
   });
 
-  test("a string built inside the function keeps its literal newline", () => {
-    expect(
-      run(`function g()
+  // A string the function opens itself sits inside the interpolation's string,
+  // so each case compares against the outer string being open.
+  const inner = (body: string) =>
+    run(`function g()
   local n = 0
   while n < 2 do
     n = n + 1
   end
-  return #("a\\nb")
+${body}end
+
+BOB:
+  Got {g()}.
+`).text;
+
+  test("a lone newline string built inside the function keeps its newline", () => {
+    expect(inner(`  return #("\\n")\n`)).toBe("Got 1.\n");
+  });
+
+  test("a string built inside the function keeps its literal newline", () => {
+    expect(inner(`  return "a\\nb"\n`)).toBe("Got a\nb.\n");
+  });
+
+  test("a multiline long string built inside the function keeps its newline", () => {
+    expect(inner(`  return [[a\nb]]\n`)).toBe("Got a\nb.\n");
+  });
+
+  test("text in a string built inside the function does not stop a later loop's newlines being dropped", () => {
+    expect(
+      run(`function f()
+  local s = "word"
+  local n = 0
+  while n < 3 do
+    n = n + 1
+  end
+  print("hi")
+  return n
 end
 
 BOB:
-  Length {g()}.
+  Spinning {f()}.
 `).text,
-    ).toBe("Length 3.\n");
+    ).toBe("Spinning hi3.\n");
   });
 });

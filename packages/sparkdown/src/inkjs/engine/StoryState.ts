@@ -826,13 +826,15 @@ export class StoryState {
       // string's `BeginString`) still drops newlines until it shows something,
       // as it does outside a string: a loop's pass newlines would otherwise
       // pile up in the string, and reach it past a later `print`. A string
-      // opened inside the function starts at or after the function's start,
-      // so its literal newlines are kept.
+      // opened inside the function has its `BeginString` at or after the
+      // function's start, so its literal newlines are kept and its text does
+      // not count as the function showing something.
       if (this.inStringEvaluation) {
         const currEl = this.callStack.currentElement!;
         if (
           currEl.type == PushPopType.Function &&
-          currEl.functionStartInOutputStream > this._openStringIndex
+          currEl.functionStartInOutputStream > this._openStringIndex &&
+          !this.OpensStringFrom(currEl.functionStartInOutputStream)
         ) {
           if (text.isNewline) return;
           if (text.isNonWhitespace) this.MarkFunctionsShown();
@@ -1012,6 +1014,23 @@ export class StoryState {
       this.outputStream.push(obj);
       this.OutputStreamDirty();
     }
+  }
+
+  // Whether a string opens at or after `start`. It scans back only as far as
+  // `start`: while a function has shown nothing, what follows its start is
+  // whitespace it kept and the text of strings it has open, and the newlines
+  // it drops never add to that range.
+  private OpensStringFrom(start: number) {
+    for (let i = this.outputStream.length - 1; i >= start; i--) {
+      const o = this.outputStream[i];
+      if (
+        o instanceof ControlCommand &&
+        o.commandType == ControlCommand.CommandType.BeginString
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // The functions on top of the call stack have shown something, so their
