@@ -58,6 +58,7 @@ sparkdown [0..141]
  │   │       │   │   │   │   │   └─ LuauAssignmentOperation [26..29]
  │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_begin 26
  │   │       │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 26
+ │   │       │   │   │   │   │       │       └─ OptionalWhitespace 26
  │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_content [26..29]
  │   │       │   │   │   │   │       │   ├─ LuauAssignmentOperator [26..28]
  │   │       │   │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [26..28]
@@ -130,6 +131,7 @@ sparkdown [0..141]
  │   │       │   │   │   │   │   └─ LuauAssignmentOperation [58..61]
  │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_begin 58
  │   │       │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 58
+ │   │       │   │   │   │   │       │       └─ OptionalWhitespace 58
  │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_content [58..61]
  │   │       │   │   │   │   │       │   ├─ LuauAssignmentOperator [58..60]
  │   │       │   │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [58..60]
@@ -299,6 +301,7 @@ sparkdown [0..141]
  │   │   │   │   └─ LuauAssignmentOperation [132..135]
  │   │   │   │       ├─ LuauAssignmentOperation_begin 132
  │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 132
+ │   │   │   │       │       └─ OptionalWhitespace 132
  │   │   │   │       ├─ LuauAssignmentOperation_content [132..135]
  │   │   │   │       │   ├─ LuauAssignmentOperator [132..134]
  │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [132..134]

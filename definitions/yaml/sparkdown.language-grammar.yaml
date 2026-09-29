@@ -45,10 +45,13 @@ variables:
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
   LUAU_MODULE_KEYWORDS: ["require", "export"]
+  # Luau's reserved words, and `continue`, which Luau reads as a keyword at
+  # the start of a statement and which this grammar makes a loop statement.
   LUAU_RESERVED_WORDS:
     [
       "and",
       "break",
+      "continue",
       "do",
       "else",
       "elseif",

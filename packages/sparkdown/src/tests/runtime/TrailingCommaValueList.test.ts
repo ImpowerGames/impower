@@ -185,11 +185,23 @@ describe("Luau code: a comma with nothing after it", () => {
     ]);
   });
 
-  test("after an operator line that ends with a comma, before `return`", () => {
+  test.each([
+    ["return", "  return g"],
+    ["a type declaration", "  type T = number\n  return g"],
+    ["a type function", "  type function T()\n    return types.number\n  end\n  return g"],
+  ])("after an operator line that ends with a comma, before %s", (_name, after) => {
     const { errorMessages } = collectDiagnostics(
-      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  return g\nend\nValue {f()}.\n",
+      `function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n${after}\nend\nValue {f()}.\n`,
     );
-    expect(errorMessages).toEqual([missingValue("return")]);
+    const got = after.trim().split(/\s/)[0]!;
+    expect(errorMessages).toEqual([missingValue(got)]);
+  });
+
+  test("before `continue` in a loop: the error, and `continue` stays a statement", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
+    );
+    expect(errorMessages).toEqual([missingValue("continue")]);
   });
 
   test("before a name, the targets' comma is a missing binding name", () => {

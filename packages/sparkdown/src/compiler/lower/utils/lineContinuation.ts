@@ -82,13 +82,33 @@ function lastSignificant(nodes: SyntaxNode[]): SyntaxNode | undefined {
   return undefined;
 }
 
+// The statements `LuauDeclarations` reaches besides the trailing ones, and
+// the blocks and loops `LuauControlBlock` does (matched by their suffix).
+const DECLARATION_STATEMENTS = nodeNameSet([
+  "LuauFunctionTypeDeclaration",
+  "LuauDataTypeDeclaration",
+  "LuauDefine",
+  "LuauShebang",
+  "LuauStyle",
+  "LuauLayout",
+  "LuauScreen",
+  "LuauComponent",
+  "LuauAnimation",
+  "LuauTheme",
+  "LuauMorph",
+]);
+
 // Whether `node`, the first node of a line in a block, is a statement rather
 // than a value: an anonymous function is a value.
 function startsStatement(node: SyntaxNode): boolean {
   if (node.name === "LuauFunctionDefinition") {
     return findOwnDeclarationName(node) != null;
   }
-  return TRAILING_STATEMENT_NAMES.has(node.name) || /(?:Block|Loop)$/.test(node.name);
+  return (
+    TRAILING_STATEMENT_NAMES.has(node.name) ||
+    DECLARATION_STATEMENTS.has(node.name) ||
+    /(?:Block|Loop)$/.test(node.name)
+  );
 }
 
 // Take the continuation `lowerStatements` set for the statement being
