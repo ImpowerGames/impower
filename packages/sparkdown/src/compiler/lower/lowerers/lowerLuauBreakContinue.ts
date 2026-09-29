@@ -12,8 +12,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // loop. Both lower to a `Divert` to the appropriate label, which each
 // loop lowerer has set up:
 //   - `break` diverts to the loop's `breakLabel` (a gather sitting
-//     just past the loop body; falling through it leaves the loop
-//     and runs the loop's own `EndScope` naturally).
+//     just past the loop body; falling through it leaves the loop).
 //   - `continue` diverts to the loop's `continueLabel` (the gather
 //     where each iteration's "after the body" logic lives — the
 //     while-loop's top, the for-loop's step-update label, the
@@ -26,14 +25,15 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 // grammar / no-resolved-target path elsewhere).
 //
 // Scope unwinding: a `break`/`continue` nested inside scoped blocks
-// (`if` arms, `do` bodies) diverts PAST those blocks' EndScope
+// (`if` arms, `do` bodies, a `while` body) diverts PAST those blocks' EndScope
 // commands. Skipping them leaks scope frames on the call-stack
 // element, which desyncs later PopScope pairing — and with Lua
 // upvalue closing, a leaked frame makes a later same-named `local`
 // redeclaration close a still-open upvalue against the WRONG binding
 // (basic.luau's break-inside-if timely-closing test summed 11, not
-// 15). The loop records `ctx.scopeDepth` at its body level; we emit
-// one `EndScope` per level the divert would skip.
+// 15). The loop records the `ctx.scopeDepth` that stays open at its
+// labels (see `LowerContext.loopStack`); we emit one `EndScope` per
+// level the divert would skip.
 
 function scopeUnwind(ctx: LowerContext, targetDepth: number): ParsedObject[] {
   const current = ctx.scopeDepth ?? 0;

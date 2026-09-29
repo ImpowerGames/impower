@@ -1,0 +1,100 @@
+import { describe, expect, test } from "vitest";
+import { runConformanceSource } from "./conformanceTestHarness";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+
+// The same loop written in a scene's body or at the top level, where it
+// runs in that flow rather than in a function.
+const WHILE_IN_FLOW = `& local y = "outer"
+while true do
+  local y = "inner"
+  break
+end
+y is {y}.`;
+const places: Record<string, string> = {
+  "in a scene": `-> s
+scene s
+${WHILE_IN_FLOW.split("\n").map((line) => `  ${line}`).join("\n")}
+  fin
+end
+`,
+  "at the top level": `${WHILE_IN_FLOW}
+`,
+};
+
+describe("while body scope in a scene or at the top level", () => {
+  for (const [place, source] of Object.entries(places)) {
+    test(`${place}, a body local shadows an outer local only inside the loop`, () => {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.ContinueMaximally()).toBe("y is outer.\n");
+    });
+  }
+});
+
+// A `while` body is a block: its locals end with each iteration and never
+// replace a binding from an enclosing scope.
+describe("while body scope", () => {
+  test("a body local is not visible after the loop", () => {
+    const r = runConformanceSource(
+      `while true do\n  local x = 1\n  break\nend\nassert(x == nil, "while-body local leaked: " .. tostring(x))\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("a body local shadows an outer local only inside the loop", () => {
+    const r = runConformanceSource(
+      `local x = "outer"\nwhile true do\n  local x = "inner"\n  assert(x == "inner", "inner x is " .. tostring(x))\n  break\nend\nassert(x == "outer", "outer x replaced: " .. tostring(x))\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("a loop that ends by its condition leaves the outer local in place", () => {
+    const r = runConformanceSource(
+      `local x = "outer"\nlocal i = 0\nwhile i < 3 do\n  i = i + 1\n  local x = i\nend\nassert(i == 3, "i is " .. tostring(i))\nassert(x == "outer", "outer x replaced: " .. tostring(x))\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("break from a nested block leaves the outer local in place", () => {
+    const r = runConformanceSource(
+      `local x = "outer"\nwhile true do\n  local x = "inner"\n  if x == "inner" then\n    local y = 1\n    break\n  end\nend\nassert(x == "outer", "outer x replaced: " .. tostring(x))\nassert(y == nil, "if-body local leaked: " .. tostring(y))\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("continue skips the rest of the body and keeps the outer local", () => {
+    const r = runConformanceSource(
+      `local v = "outer"\nlocal i = 0\nlocal sum = 0\nwhile i < 5 do\n  i = i + 1\n  local v = i * 10\n  if v == 30 then\n    continue\n  end\n  sum = sum + v\nend\nassert(sum == 120, "sum is " .. tostring(sum))\nassert(v == "outer", "outer v replaced: " .. tostring(v))\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("a closure captures a fresh body local on each iteration and the outer local stays", () => {
+    const r = runConformanceSource(
+      `local fns = {}\nlocal i = 0\nlocal j = "outer"\nwhile i < 3 do\n  i = i + 1\n  local j = i\n  fns[i] = function() return j end\nend\nassert(fns[1]() == 1, "fns[1] is " .. tostring(fns[1]()))\nassert(fns[2]() == 2, "fns[2] is " .. tostring(fns[2]()))\nassert(fns[3]() == 3, "fns[3] is " .. tostring(fns[3]()))\nassert(j == "outer", "outer j replaced: " .. tostring(j))\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("return from the body leaves the caller's locals in place", () => {
+    const r = runConformanceSource(
+      `local function f(n)\n  local x = "f outer"\n  while true do\n    local x = "f inner " .. n\n    if n > 0 then\n      return x\n    end\n    break\n  end\n  return x\nend\nlocal x = "caller"\nfor n = 0, 3 do\n  local got = f(n)\n  local want = n > 0 and ("f inner " .. n) or "f outer"\n  assert(got == want, "f(" .. n .. ") is " .. tostring(got))\n  assert(x == "caller", "caller x replaced: " .. tostring(x))\nend\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
+  test("nested while loops keep their own locals", () => {
+    const r = runConformanceSource(
+      `local x = "outer"\nlocal i = 0\nlocal seen = ""\nwhile i < 2 do\n  i = i + 1\n  local x = "a" .. i\n  local k = 0\n  while k < 2 do\n    k = k + 1\n    local x = "b" .. k\n    seen = seen .. x\n  end\n  seen = seen .. x\nend\nassert(seen == "b1b2a1b1b2a2", "seen is " .. seen)\nassert(x == "outer", "outer x replaced: " .. tostring(x))\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+});
