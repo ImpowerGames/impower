@@ -302,10 +302,12 @@ test("formatting separates a clause keyword glued to a closing bracket", () => {
   expectFormatsTo(
     `local y = if(c)then 1 else(2)
 local z = if c then(1)else 2
+local w = if c then(1)elseif(d)then{2}else[[x]]
 Hello.
 `,
     `local y = if (c) then 1 else (2)
 local z = if c then (1) else 2
+local w = if c then (1) elseif (d) then {2} else [[x]]
 Hello.
 `,
   );

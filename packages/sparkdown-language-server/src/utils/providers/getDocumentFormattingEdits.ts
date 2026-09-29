@@ -1,3 +1,4 @@
+import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { structArrayItemInlineEntry } from "@impower/sparkdown/src/compiler/utils/structArrayItemInlineEntry";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
@@ -24,7 +25,8 @@ const NO_SPACE_BEFORE = new Set([")", "]", "}", ",", ";", ":", "."]);
 const NO_SPACE_AFTER = new Set(["(", "[", "{", "."]);
 // Openers that "attach" to a preceding word — `foo(`, `arr[`, `obj{`
 // — but DON'T attach to a preceding operator (`a * (b)` wants space).
-const CALL_LIKE_OPENERS = new Set(["(", "[", "{"]);
+// `FormattingAnnotator` reads the same set to force the space after a
+// keyword (`return {1}`).
 
 function isWordChar(c: string): boolean {
   return /[a-zA-Z0-9_]/.test(c);

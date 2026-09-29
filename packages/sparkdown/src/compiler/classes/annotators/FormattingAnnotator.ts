@@ -1,4 +1,5 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { CALL_LIKE_OPENERS } from "../../utils/callLikeOpeners";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
@@ -21,13 +22,13 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 // shape that appears inside `{...}` interpolations — that's where the
 // pacing concern lives, since the surrounding context is display text.
 // Control / alternator keywords whose trailing whitespace MUST be
-// at least one space, even when followed by `(`, `{` or `[`.
-// Prettier-style `if (cond)` / `return {1}` / `then [[s]]`
-// separation — these aren't calls or indexes, so the keyword
-// shouldn't tighten against them like `foo(x)`, `f{1}` or `a[1]`
-// do. Only triggers
-// for the multi-line / block forms; inline alternators inside `{}`
-// interpolations stay collapsed via `isInsideInlineAlternator`.
+// at least one space, even when followed by one of the
+// `CALL_LIKE_OPENERS`. Prettier-style `if (cond)` / `return {1}` /
+// `then [[s]]` separation — these aren't calls or indexes, so the
+// keyword shouldn't tighten against them like `foo(x)`, `f{1}` or
+// `a[1]` do. Applies on single-line and block forms alike; a control
+// keyword inside an inline alternator (`{plural(n)|...}`) stays
+// collapsed via `isInsideAnyInlineAlternator`.
 const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauIfKeyword",
   "LuauElseifKeyword",
@@ -52,10 +53,6 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "SceneKeyword",
   "BranchKeyword",
 ]);
-
-// The openers the separator rule glues to a word before them (`f(x)`,
-// `f{1}`, `a[1]`); after a keyword they get a forced space instead.
-const KEYWORD_OPENERS = new Set(["(", "{", "["]);
 
 // Keywords that continue an expression or statement after an operand.
 // Written glued to a closing bracket (`if(c)then`, `(1)else`), they get a
@@ -460,7 +457,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         ) {
           scan += 1;
         }
-        if (KEYWORD_OPENERS.has(this.read(scan, scan + 1))) {
+        if (CALL_LIKE_OPENERS.has(this.read(scan, scan + 1))) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
               kwEnd,
@@ -564,7 +561,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         break;
       }
       const nextChar = this.read(scanPos, scanPos + 1);
-      if (KEYWORD_OPENERS.has(nextChar)) {
+      if (CALL_LIKE_OPENERS.has(nextChar)) {
         // Any inline alternator (display-text variants AND
         // Luau-expression variants like `{plural(n)|one=...}`)
         // should stay tight — never `plural (n)`.
