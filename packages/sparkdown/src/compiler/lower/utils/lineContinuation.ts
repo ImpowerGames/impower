@@ -1,6 +1,7 @@
 import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
+import { nodeNameSet } from "../../utils/nodeNameSet";
 
 // A `LuauLineContinuation` is a line of Luau code that begins with `.name`,
 // `:name`, a binary operator or a cast's `::` and so continues the expression
@@ -17,7 +18,7 @@ import type { LowerContext } from "../context";
 // qualifier (`markLineContinuationUsed`); `lowerStatements` reports every line
 // that was not.
 
-const LINE_CONTINUATION: ReadonlySet<string> = new Set([
+const LINE_CONTINUATION = nodeNameSet([
   "LuauLineContinuation",
   "LuauMinusLineContinuation",
   "LuauIndexerLineContinuation",

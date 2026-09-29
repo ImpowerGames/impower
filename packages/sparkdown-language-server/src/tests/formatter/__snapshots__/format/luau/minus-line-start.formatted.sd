@@ -24,5 +24,8 @@ function f()
   x += -y
   local q = a .. -b
   local r = a - -b
+  local n = #-x
+  local k = - -x
+  local o = not -x
   return -x, -y
 end

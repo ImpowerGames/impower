@@ -98,36 +98,11 @@ function isInsideAnyInlineAlternator(
 //      content is `- x + y`).
 // "Unary" = NEITHER shape produced a value before the operator.
 function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
-  let walker = node.node.parent;
-  let opNode: SyntaxNode | null = null;
-  while (walker) {
-    if (walker.name === "LuauArithmeticOperator") {
-      opNode = walker;
-      break;
-    }
-    walker = walker.parent;
-  }
+  const opNode = ancestorNamed(node.node, "LuauArithmeticOperator");
   if (!opNode) return false;
   if (node.from <= opNode.from) return false;
-  let operation: SyntaxNode | null = opNode.parent;
-  while (operation && operation.name !== "LuauArithmeticOperation") {
-    operation = operation.parent;
-  }
+  const operation = ancestorNamed(opNode, "LuauArithmeticOperation");
   if (!operation) return false;
-
-  const isInsignificant = (n: { name: string } | null | undefined) =>
-    !!n &&
-    (n.name === "Newline" ||
-      n.name === "Whitespace" ||
-      n.name === "ExtraWhitespace" ||
-      n.name === "OptionalWhitespace" ||
-      n.name === "RequiredWhitespace" ||
-      n.name === "TrailingWhitespace");
-
-  const significantBefore = (n: SyntaxNode | null): SyntaxNode | null => {
-    while (n && isInsignificant(n)) n = n.prevSibling;
-    return n;
-  };
 
   // Shape 2: operator's preceding sibling inside its content.
   // For `-x + y` (one operation with op,value,op,value children),
@@ -156,8 +131,45 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
   return !lhs || NOT_AN_LHS.has(lhs.name);
 }
 
-const NOT_AN_LHS: ReadonlySet<string> = new Set([
+// Detects whether a whitespace node sits in front of a `-` that directly
+// follows the length operator (`#-x`). Prefix operators sit together, as the
+// length operator's own trailing whitespace does (`#x`).
+function isBetweenLengthAndOperator(node: SparkdownSyntaxNodeRef): boolean {
+  const opNode = ancestorNamed(node.node, "LuauArithmeticOperator");
+  if (!opNode || node.from > opNode.from) return false;
+  const operation = ancestorNamed(opNode, "LuauArithmeticOperation");
+  if (!operation || significantBefore(opNode.prevSibling)) return false;
+  return (
+    significantBefore(operation.prevSibling)?.name === "LuauLengthOperator"
+  );
+}
+
+function ancestorNamed(node: SyntaxNode, name: string): SyntaxNode | null {
+  for (let walker = node.parent; walker; walker = walker.parent) {
+    if (walker.name === name) return walker;
+  }
+  return null;
+}
+
+function isInsignificant(n: { name: string }): boolean {
+  return (
+    n.name === "Newline" ||
+    n.name === "Whitespace" ||
+    n.name === "ExtraWhitespace" ||
+    n.name === "OptionalWhitespace" ||
+    n.name === "RequiredWhitespace" ||
+    n.name === "TrailingWhitespace"
+  );
+}
+
+function significantBefore(n: SyntaxNode | null): SyntaxNode | null {
+  while (n && isInsignificant(n)) n = n.prevSibling;
+  return n;
+}
+
+const NOT_AN_LHS = nodeNameSet([
   "LuauArithmeticOperator",
+  "LuauLengthOperator",
   "LuauAssignmentOperator",
   "LuauCompareOperator",
   "LuauConcatOperator",
@@ -613,7 +625,12 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       // of a LuauArithmeticOperator whose enclosing
       // ArithmeticOperation starts with that operator (no LHS),
       // it's unary.
-      const tightUnary = isAfterUnaryOperator(nodeRef);
+      // A space before another `-` stays: `- -x` must not become the
+      // comment `--x`.
+      const tightUnary =
+        (isAfterUnaryOperator(nodeRef) &&
+          this.read(nodeRef.to, nodeRef.to + 1) !== "-") ||
+        isBetweenLengthAndOperator(nodeRef);
       // Inline UI attribute `=` stays TIGHT (`#class=root`, HTML/JSX
       // style), unlike `style`-block props / Luau assignments. ONLY the
       // whitespace adjacent to the `=` — the leading space before `#`
