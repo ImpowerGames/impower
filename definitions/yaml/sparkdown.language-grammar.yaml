@@ -6125,9 +6125,9 @@ repository:
     # `=`). Target-shape identifiers are always followed by one of:
     #   `,` — continuing target list (`a, b = …`)
     #   `:` — type annotation (`a: number = …`), but not a method call
-    #     (`s:upper()`), whose `:` is followed by a name and `(`; a
-    #     `typeof(x)` type is the exception
-    #   `=` — assignment operator
+    #     (`s:upper()`), whose `:` is followed by a name and `(` (a
+    #     `typeof(x)` type is the exception), nor a `::` cast
+    #   `=` — assignment operator, but not `==`
     #   end-of-statement (newline / EOF / `--` line comment) —
     #     bare declaration (`local x` with no initializer)
     # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
@@ -6138,7 +6138,7 @@ repository:
     # line after a comma that ends a declaration's line closes the
     # enclosing block. A reserved word before `=` stays a target, so a
     # define body can name a property `repeat`.
-    begin: (?!{{LUAU_RESERVED_WORDS}}{{WS}}*(?:--|,|$))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,=]|:(?!{{WS}}*(?!typeof\b){{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\n|\r|$))
+    begin: (?!{{LUAU_RESERVED_WORDS}}{{WS}}*(?:--|,|$))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,]|[=](?![=])|[:](?![:])(?!{{WS}}*(?!typeof\b){{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:

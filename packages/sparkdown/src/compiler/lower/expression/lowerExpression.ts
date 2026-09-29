@@ -339,10 +339,23 @@ export function lowerExpressionFromNodes(
         continue;
       }
     }
+    const bareName = bareAssignmentName(node);
     if (extraParts.length > 0) {
       const expr = lowerAccessPath(node, ctx, extraParts);
       if (expr) tokens.push({ kind: "operand", expr });
       i = afterPath - 1;
+    } else if (bareName) {
+      // A name that is a later value in a declaration's list, which the
+      // grammar reads as a target-shaped assignment when a comma or the end
+      // of its line follows (`local a, g = 1, b`). It resolves as the same
+      // name in an access path, and the operators and parts of the lines
+      // that continue it (`b` then `+ 4`, or `t` then `.x`) apply to it.
+      const expr = lowerIdentifierPath(
+        [identifierAt(bareName, ctx)],
+        bareName,
+        ctx,
+      );
+      tokens.push({ kind: "operand", expr });
     } else {
       collectFromNode(node, ctx, tokens);
     }
@@ -2464,10 +2477,20 @@ export function lowerSimpleAccessPath(
   return null;
 }
 
+// The name of a `LuauVariableAssignment` that holds nothing but its name
+// (no type annotation, no `=`), or null for any other node.
+function bareAssignmentName(node: SyntaxNode): SyntaxNode | null {
+  if (node.name !== "LuauVariableAssignment") return null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauVariableAssignment_content") return null;
+  }
+  return getDescendent("LuauVariableName", node) ?? null;
+}
+
 // A dotted identifier chain (`a`, `a.b.c`) as a value, resolved as a
 // sibling subflow, a stdlib constant or a `VariableReference`. `span` is
 // the chain's source range.
-export function lowerIdentifierPath(
+function lowerIdentifierPath(
   identifiers: Identifier[],
   span: { from: number; to: number },
   ctx: LowerContext,

@@ -55,6 +55,15 @@ describe("formatting a declaration list continued after a trailing comma", () =>
     expect(formatSource(source)).toBe(source);
   });
 
+  test.each([
+    ["a table", ["  local a, t = 1,", "    {", "      k = 5,", "    }"]],
+    ["a function", ["  local a, f = 1,", "    function ()", "      return 7", "    end"]],
+    ["a call", ["  local a, m = 1,", "    math.max(", "      2,", "      5", "    )"]],
+  ])("keeps the body of %s started on a continued line one level deeper", (_name, lines) => {
+    const source = ["function f()", ...lines, "  return a", "end", ""].join("\n");
+    expect(formatSource(source)).toBe(source);
+  });
+
   test("leaves the line after a complete declaration at the declaration's level", () => {
     const source = ["function f()", "  local a = 1", "  a = 2", "end", ""].join("\n");
     expect(formatSource(source)).toBe(source);

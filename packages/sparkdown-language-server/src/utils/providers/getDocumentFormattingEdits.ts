@@ -6,7 +6,7 @@ import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/Spark
 import { SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/SparkdownNodeName";
 import { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getStack } from "@impower/textmate-grammar-tree/src/tree/utils/getStack";
-import { Tree } from "@lezer/common";
+import { type SyntaxNode, Tree } from "@lezer/common";
 import {
   type FormattingOptions,
   type Position,
@@ -289,7 +289,7 @@ function isContinuationLine(
     // earlier line, we're inside its scope but not leading with it.
     if (node.from >= lineStart) return true;
   }
-  return isCommaContinuationLine(stack, lineStart);
+  return isCommaContinuationLine(stack);
 }
 
 // A declaration list continued after a comma that ends its line
@@ -299,30 +299,41 @@ function isContinuationLine(
 //   local a, b = 1,
 //     2
 //
-// The comment-only lines between sit inside the line break; a value line
-// starts with the node that follows it in the declaration's content.
+// The comment-only lines between sit inside the line break. Everything the
+// declaration holds after a line break is on a continued line, so it takes
+// the extra level on every line it spans, and a table, call or function
+// started there keeps its body one level deeper than its opener:
+//
+//   local a, t = 1,
+//     {
+//       k = 5,
+//     }
 function isCommaContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
-  lineStart: number,
 ): boolean {
   for (let i = 0; i < stack.length; i++) {
     const node = stack[i];
     if (!node) continue;
     if (node.name === "LuauCommaLineBreak") return true;
     if (stack[i + 1]?.name !== "LuauVariableDefinition_content") continue;
-    if (node.from < lineStart) return false;
-    let prev = node.prevSibling;
-    while (prev && CONTINUATION_TRIVIA.has(prev.name)) prev = prev.prevSibling;
-    return prev?.name === "LuauCommaLineBreak";
+    for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
+      if (prev.name === "LuauCommaLineBreak" && spansLineBreak(prev)) {
+        return true;
+      }
+    }
+    return false;
   }
   return false;
 }
-const CONTINUATION_TRIVIA = nodeNameSet([
-  "ExtraWhitespace",
-  "OptionalWhitespace",
-  "Whitespace",
-  "Newline",
-]);
+// A comma followed by a block comment and the value on its own line
+// (`1, --[[c]] 2`) does not continue the list onto another line.
+function spansLineBreak(lineBreak: SyntaxNode) {
+  const content = lineBreak.getChild("LuauCommaLineBreak_content");
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (child.name === "Newline") return true;
+  }
+  return false;
+}
 
 // Tree-walking indent: returns the count of ancestor blocks whose
 // `_content` contains `pos`, minus header/footer adjustments. No

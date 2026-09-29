@@ -2,6 +2,8 @@ import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
+import { findOwnDeclarationName } from "./findOwnDeclarationName";
 
 // A `LuauLineContinuation` is a line of Luau code that begins with `.name`,
 // `:name`, a binary operator or a cast's `::` and so continues the expression
@@ -50,17 +52,43 @@ const SKIPPABLE: ReadonlySet<string> = new Set([
 // it, with the rest of its line (`.a = 1`), across any blank or comment
 // lines between them, as Luau reads them. Empty when the next line of code
 // does not continue it.
+//
+// In a Luau declaration a continued line that ends with a comma carries the
+// list onto the next line of code, as the declaration's own line-ending
+// comma does (`n` then `+ 4,` then `5`), unless that line starts a statement;
+// the comma is then left without a value, and the declaration reports it.
 export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
   const nodes: SyntaxNode[] = [];
   let scan = node.nextSibling;
   for (;;) {
     while (scan && CONTINUATION_BRIDGE.has(scan.name)) scan = scan.nextSibling;
-    if (!scan || !isLineContinuation(scan)) return nodes;
+    if (!scan) return nodes;
+    const carried =
+      node.name === "LuauVariableDefinition" &&
+      lastSignificant(nodes)?.name === "LuauCommaSeparator" &&
+      !startsStatement(scan);
+    if (!carried && !isLineContinuation(scan)) return nodes;
     while (scan && scan.name !== "Newline") {
       nodes.push(scan);
       scan = scan.nextSibling;
     }
   }
+}
+
+function lastSignificant(nodes: SyntaxNode[]): SyntaxNode | undefined {
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    if (!SKIPPABLE.has(nodes[i]!.name)) return nodes[i];
+  }
+  return undefined;
+}
+
+// Whether `node`, the first node of a line in a block, is a statement rather
+// than a value: an anonymous function is a value.
+function startsStatement(node: SyntaxNode): boolean {
+  if (node.name === "LuauFunctionDefinition") {
+    return findOwnDeclarationName(node) != null;
+  }
+  return TRAILING_STATEMENT_NAMES.has(node.name) || /(?:Block|Loop)$/.test(node.name);
 }
 
 // Take the continuation `lowerStatements` set for the statement being

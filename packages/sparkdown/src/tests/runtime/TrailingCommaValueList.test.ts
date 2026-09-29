@@ -77,6 +77,36 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
       "Value ABC.\n",
     ],
     [
+      "a comparison on the next line and on the same line",
+      "  local b = 1\n  local a, g = 1,\n    b == 1\n  local c, h = 1, b == 2",
+      "return tostring(g) .. tostring(h)",
+      "Value truefalse.\n",
+    ],
+    [
+      "a cast on the next line and on the same line",
+      "  local b = 4\n  local a, g = 1,\n    b :: number\n  local c, h = 1, b :: number",
+      "return g + h",
+      "Value 8.\n",
+    ],
+    [
+      "a name continued by an operator line",
+      "  local n = 3\n  local a, g, c = 1,\n    n\n    + 4,\n    5",
+      "return g * 10 + c",
+      "Value 75.\n",
+    ],
+    [
+      "a name on the comma's line continued by an operator line",
+      "  local n = 3\n  local a, g = 1, n\n    + 4",
+      "return g",
+      "Value 7.\n",
+    ],
+    [
+      "a name continued by a member line",
+      "  local t = { x = 5 }\n  local a, g = 1,\n    t\n    .x",
+      "return g",
+      "Value 5.\n",
+    ],
+    [
       "literals on the next line and on the same line",
       "  local a, t, f, n = 1,\n    true, false,\n    nil\n  local b, u = 2, true",
       "return tostring(t) .. tostring(f) .. tostring(n) .. tostring(u)",
@@ -153,6 +183,13 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([
       "Expected identifier when parsing expression, got '='",
     ]);
+  });
+
+  test("after an operator line that ends with a comma, before `return`", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  return g\nend\nValue {f()}.\n",
+    );
+    expect(errorMessages).toEqual([missingValue("return")]);
   });
 
   test("before a name, the targets' comma is a missing binding name", () => {

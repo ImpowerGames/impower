@@ -18,7 +18,6 @@ import { lower } from "../lower";
 import {
   lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
-  lowerIdentifierPath,
 } from "../expression/lowerExpression";
 import {
   continuationParts,
@@ -210,8 +209,12 @@ export function lowerVariableDefinition(
   // A comma that ends the list: in Luau code the next line started with
   // something that is not a value (`end`, a statement), and in a narrative
   // body the declaration ended at its line. Luau reports the token it
-  // found in place of the value or name.
-  if (lastListNode && isCommaName(lastListNode.name)) {
+  // found in place of the value or name. The same holds for a comma that
+  // ends the last line continuing the declaration (`n` then `+ 4,`).
+  const lastContinued = continuation.findLast((n) => !isSkippableName(n.name));
+  if (lastContinued?.name === "LuauCommaSeparator") {
+    validateListComma(lastContinued, true, ctx);
+  } else if (lastListNode && isCommaName(lastListNode.name)) {
     validateListComma(lastListNode, sawAssignmentOp, ctx);
   }
 
@@ -301,7 +304,7 @@ export function lowerVariableDefinition(
       )
     : null;
   const trailingExprs = trailingRhsGroups
-    .map((nodes) => lowerValueGroup(nodes, ctx))
+    .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
     .filter((e): e is NonNullable<typeof e> => e != null);
   const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
 
@@ -426,23 +429,6 @@ function withTrailingStatements(
     out.push(...unwrapBlockContent(block));
   }
   return out;
-}
-
-// One value of the list. A bare name the grammar read as a target-shaped
-// `LuauVariableAssignment` (a name before a comma or the end of the line)
-// is alone in its group and has no content; it resolves as the same name
-// in an access path.
-function lowerValueGroup(nodes: SyntaxNode[], ctx: LowerContext) {
-  const only = nodes.length === 1 ? nodes[0]! : null;
-  const nameNode =
-    only?.name === "LuauVariableAssignment" &&
-    !findChildByName(only, "LuauVariableAssignment_content")
-      ? getDescendent("LuauVariableName", only)
-      : null;
-  if (nameNode) {
-    return lowerIdentifierPath([identifierAt(nameNode, ctx)], nameNode, ctx);
-  }
-  return lowerExpressionFromNodes(nodes, ctx);
 }
 
 function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
