@@ -8943,9 +8943,10 @@ repository:
   # already taken it in. It takes in the whitespace after it only when a
   # binary operator follows on the same line (`number? | string`,
   # `local u: number? = 1`), so a line break or the next statement's first
-  # word is never read as part of the type.
+  # word is never read as part of the type. The `>` of a function type's `->`
+  # ends no type, so a `?` after it falls to the stray-operator rule.
   LuauTypeOptionalOperator:
-    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
+    match: (?<={{LUAU_TYPE_END}}(?<!->){{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
     captures:
       1:
         patterns:

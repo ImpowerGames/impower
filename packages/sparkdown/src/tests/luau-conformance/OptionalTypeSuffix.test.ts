@@ -78,6 +78,8 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["after a leading bar", "type Bar = |?\n", 12],
     ["alone", "type Baz = ?\n", 11],
     ["before its type", "local v: ?number\n", 9],
+    ["after a function arrow", "type F = () -> ?\n", 15],
+    ["after an unspaced function arrow", "type F = () ->?\n", 14],
   ])("a `?` with no type before it, %s, is reported", (_name, snippet, column) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
       `1:${column}-1:${column + 1} SyntaxError: Expected type, got '?'`,
