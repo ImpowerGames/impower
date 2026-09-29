@@ -6045,17 +6045,27 @@ repository:
     # is a target only when no `=` stands between it and the line's
     # nearest scope keyword (`local`/`store`/`const`, all reserved as
     # variable names, so the keyword marks the definition's start).
-    # The region between may hold whole quoted strings and whole
-    # `[…]` brackets, which a target's type can contain
-    # (`local a: "p", b: number`, `{ [string]: number }`), but no
-    # unpaired quote, backtick or `]`: those mean the keyword sits
-    # inside a string, a `[[…]]` long string or a `--[[…]]` comment
-    # (`local k, v = "store", x`, `local d, v = [[the local shop]], x`).
-    # A keyword after `.` or `:` is a field or method name
-    # (`local a, b = t.store, x`), not a scope keyword.
+    # The region between is read as a sequence of:
+    #   - any character but `=`, a quote, a backtick, `[` or `]`;
+    #   - a whole `"…"` or `'…'` string, with backslash escapes, which
+    #     a target's type can hold (`local a: "p", b: number`);
+    #   - a whole `[…]`, which may nest one level: an index type
+    #     (`{ [string]: number }`, `typeof(t[u[1]])`) or the brackets
+    #     of a `--[[…]]` comment between targets.
+    # Anything else fails it: an unpaired quote, backtick or `]` means
+    # the keyword sits inside a string, a `[[…]]` long string or a
+    # `--[[…]]` comment (`local k, v = "store", x`,
+    # `local d, v = [[the local shop]], x`). A keyword after `.` or `:`
+    # is a field or method name (`local a, b = t.store, x`), not a
+    # scope keyword.
+    # Known limits, where a value still reads as a target (as it did
+    # before #1116): a same-line closure holding a bare `local`
+    # (`local a, b = function() local c end, x`) and a field written
+    # with spaces (`t . store, x`). A target after brackets nested
+    # deeper than one level is a target only when its own `=` follows it.
     # A `LuauPropertyDefinition` key (`name = …` in a define body, with
     # no keyword) is a target by its own trailing `=`.
-    begin: (?:(?<=(?:^|[^.:\w]){{LUAU_SCOPE_MODIFIERS}}(?:[^=\n\r"'`\[\]]|"[^"\n\r]*"|'[^'\n\r]*'|\[[^\[\]\n\r]*\])*)|(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
+    begin: (?:(?<=(?:^|[^.:\w]){{LUAU_SCOPE_MODIFIERS}}(?:[^=\n\r"'`\[\]]|"(?:[^"\\\n\r]|\\.)*"|'(?:[^'\\\n\r]|\\.)*'|\[(?:[^\[\]\n\r]|\[[^\[\]\n\r]*\])*\])*)|(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:

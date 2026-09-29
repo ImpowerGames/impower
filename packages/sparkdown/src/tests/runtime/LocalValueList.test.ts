@@ -34,6 +34,8 @@ describe("a local's value list", () => {
     ["a name after a field named store", "local t = {}\nt.store = 1\nlocal y = 9\nlocal a, b, c = 1, t.store, y\nreturn c", "Value 9.\n"],
     ["a boolean after a field named const", "local t = {}\nt.const = 1\nlocal a, b, c = 1, t.const, true\nreturn tostring(c)", "Value true.\n"],
     ["a name after a string-typed name", 'local x = 5\nlocal a: "p" | "q", b = "p", x\nreturn a .. b', "Value p5.\n"],
+    ["a name after a semicolon-ended local", "local x = 5\nlocal a = 1; local b, c = 2, x\nreturn c", "Value 5.\n"],
+    ["a name in an explicit statement", "local x = 5\n& local a: number, b: number = 1, x\nreturn b", "Value 5.\n"],
   ])("reads %s as a value", (_, body, expected) => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
@@ -42,6 +44,7 @@ describe("a local's value list", () => {
   test.each([
     ["a name first", "local x = 5\nlocal a, b = x, 1\nreturn a + b", "Value 6.\n"],
     ["a name in a later statement on the line", "local x = 5\nlocal a, b = 1, x return b", "Value 5.\n"],
+    ["a name before a semicolon", "local x = 5\nlocal a, b = 1, x;\nreturn b", "Value 5.\n"],
     ["a bare local, then a reassignment", "local x = 5 local a, b\na, b = 1, x\nreturn b", "Value 5.\n"],
     ["a multiple return", "local function g() return 3, 4 end\nlocal a, b = g()\nreturn a + b", "Value 7.\n"],
     ["a single name", "local x = 8\nlocal a = x\nreturn a", "Value 8.\n"],
@@ -53,6 +56,10 @@ describe("a local's value list", () => {
     ["a string-typed name, then an untyped and a typed one", 'local a: "p", b, c: number = "p", 2, 3\nreturn a .. b .. c', "Value p23.\n"],
     ["a table type holding a string", 'local a: { k: "v" }, b: number = { k = "v" }, 2\nreturn a.k .. b', "Value v2.\n"],
     ["an index-signature type", "local a: { [string]: number }, b: number = {}, 2\nreturn b", "Value 2.\n"],
+    ["an escaped quote in a string type", 'local a: "a\\"b", c: number = "a\\"b", 1\nreturn c', "Value 1.\n"],
+    ["a nested index in a type", "local t = {1}\nlocal a: typeof(t[t[1]]), b: number = 1, 2\nreturn b", "Value 2.\n"],
+    ["a block comment before the names", "local --[[c]] a, b = 1, 2\nreturn a + b", "Value 3.\n"],
+    ["a block comment between the names", "local a, --[[c]] b, c = 1, 2, 3\nreturn b + c", "Value 5.\n"],
   ])("still reads %s", (_, body, expected) => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });

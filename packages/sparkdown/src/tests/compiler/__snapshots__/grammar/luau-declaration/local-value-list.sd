@@ -4,3 +4,5 @@ local e: "p", f: number = "p", 2
 local g, h = t.store, y
 local i = 1 j = 2
 local k = 1, m = 2
+local p: typeof(t[u[1]]), q: number = 1, 2
+local --[[c]] r, s = 1, 2
