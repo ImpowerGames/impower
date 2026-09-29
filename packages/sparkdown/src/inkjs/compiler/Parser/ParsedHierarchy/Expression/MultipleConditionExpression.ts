@@ -1,6 +1,8 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { Expression } from "./Expression";
 import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export class MultipleConditionExpression extends Expression {
   get subExpressions(): Expression[] {
@@ -15,6 +17,15 @@ export class MultipleConditionExpression extends Expression {
 
   override get typeName(): string {
     return "MultipleConditionExpression";
+  }
+
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    this.subExpressions.forEach((conditionExpr, i) => {
+      emitter.emitObject(conditionExpr);
+      if (i > 0) {
+        emitter.emit(Op.Native, emitter.string(NativeFunctionCall.And), 2);
+      }
+    });
   }
 
   public readonly GenerateIntoContainer = (

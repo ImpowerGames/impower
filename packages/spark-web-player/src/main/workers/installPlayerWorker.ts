@@ -7,6 +7,7 @@ import { DISCONNECTED } from "@impower/spark-engine/src/game/core/classes/Connec
 import { Game } from "@impower/spark-engine/src/game/core/classes/Game";
 import { GameEncounteredRuntimeErrorMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameEncounteredRuntimeError";
 import { GameExecutedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
+import type { DocumentLocation } from "@impower/spark-engine/src/game/core/types/DocumentLocation";
 import {
   installGameWorker,
   NoGameError,
@@ -17,6 +18,10 @@ import { SelectCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/c
 import { UpdateCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/UpdateCompilerFileMessage";
 import type { SimulationError } from "@impower/sparkdown/src/compiler/types/SimulationError";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import {
+  executionWatch,
+  type WatchedStory,
+} from "@impower/sparkdown/src/inkjs/engine/ExecutionWatch";
 import type { Story as RuntimeStory } from "@impower/sparkdown/src/inkjs/engine/Story";
 import { installSparkdownWorker } from "@impower/sparkdown/src/worker/installSparkdownWorker";
 import { profile } from "../../utils/profile";
@@ -37,6 +42,7 @@ import {
 } from "./messages/PlayMessage";
 import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
 import { StartPlayMessage } from "./messages/StartPlayMessage";
+import { WorkerBusyMessage } from "./messages/WorkerBusyMessage";
 import {
   StopPlayMessage,
   type StopPlayParams,
@@ -46,6 +52,7 @@ import { putAtStartPoint } from "./putAtStartPoint";
 import { planRouteForSelection, routeGameTo } from "./planRouteForSelection";
 import { RouteSearchLog } from "./RouteSearchLog";
 import { searchRouteTo } from "./searchRouteTo";
+import { watchExecution } from "./watchExecution";
 
 /** A program the worker's game can display, and what the route searches run
  *  in it established. */
@@ -240,7 +247,13 @@ export function installPlayerWorker(connection: MessageConnection) {
     return gameState.game;
   };
 
+  /** The point the preview's game was last asked to route to or display,
+   *  which the execution watch reports when a route or a display does not
+   *  yield: the page must not ask for it again (#679). */
+  let routingTo: { file: string; line: number } | null = null;
+
   compiler.addEventListener("compiler/didCompile", (params) => {
+    routingTo = params.program.startFrom ?? null;
     const story = params.story;
     if (!story) {
       // A compile that produced no story, which is one that threw, leaves the
@@ -292,6 +305,7 @@ export function installPlayerWorker(connection: MessageConnection) {
   // before the next selection is routed against this game (see
   // `selectDocument`).
   compiler.addEventListener("compiler/didPreviewCompile", (params) => {
+    routingTo = params.startFrom;
     const profilerId = compiler.profilerId;
     const story = params.story;
     if (!story) {
@@ -334,6 +348,10 @@ export function installPlayerWorker(connection: MessageConnection) {
   });
 
   compiler.addEventListener("compiler/didSelect", (params) => {
+    routingTo = {
+      file: params.textDocument.uri,
+      line: params.selectedRange.start.line,
+    };
     // PLAY's game shares this thread, so while it runs the game above is
     // left as it is and the selection replays no route (see
     // `planRouteForSelection`).
@@ -517,6 +535,7 @@ export function installPlayerWorker(connection: MessageConnection) {
     if (display !== displays) {
       return { displayed: false };
     }
+    routingTo = { file: params.file, line: params.line };
     let fresh = params.fresh === true;
     for (;;) {
       const entry = displayable.get(params.program);
@@ -632,6 +651,7 @@ export function installPlayerWorker(connection: MessageConnection) {
    *  way. */
   const play = (params: PlayParams): PlayResult => {
     displays += 1;
+    routingTo = params.startFrom ?? null;
     pageHolds(params.program);
     const entry = displayable.get(params.program);
     const game = gameState.game;
@@ -704,6 +724,56 @@ export function installPlayerWorker(connection: MessageConnection) {
     }
     return current;
   };
+
+  // ---- The execution watch -----------------------------------------------
+  //
+  // Everything above runs on this one thread, so a story that never yields
+  // (a loop that does not end, in a preview's route or in PLAY's game)
+  // leaves every request the page sends unanswered, STOP's among them. The
+  // page cannot hear that from silence, which a long compile shares; it hears
+  // it from these notices, which only a story running without a break sends,
+  // and restarts the worker (`WorkerWatchdog`, #679).
+
+  /** The program `story` runs, as far as the worker can tell. */
+  const programOf = (story: WatchedStory): SparkProgram | undefined => {
+    for (const game of [gameState.running, gameState.game]) {
+      if (game && (game.story as unknown) === story) {
+        return game.program;
+      }
+    }
+    for (const entry of displayable.values()) {
+      if ((entry.story as unknown) === story) {
+        return entry.program;
+      }
+    }
+    return canonicalId ? displayable.get(canonicalId)?.program : undefined;
+  };
+
+  executionWatch.listener = watchExecution({
+    now: () => performance.now(),
+    afterYield: (callback) => queueMicrotask(callback),
+    notice: (story, busyMs) => {
+      let location: DocumentLocation | null = null;
+      try {
+        const path = story.state.previousPointer.path?.toString();
+        const program = programOf(story);
+        if (path && program) {
+          location = Game.pathToDocumentLocation(program, path);
+        }
+      } catch (e) {
+        // Where it is matters less than that it is still running.
+        console.warn("Could not locate the running story:", e);
+      }
+      const playing =
+        gameState.running != null &&
+        (gameState.running.story as unknown) === story;
+      connection.sendNotification(WorkerBusyMessage.type, {
+        busyMs: Math.round(busyMs),
+        location,
+        routingTo: playing ? null : routingTo,
+      });
+    },
+  });
 
   connection.addEventListener("message", (e: MessageEvent) => {
     const message = e.data;

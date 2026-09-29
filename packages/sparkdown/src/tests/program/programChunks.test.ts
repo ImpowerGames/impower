@@ -203,43 +203,44 @@ describe("the engine", () => {
 
 describe("the fallback", () => {
   it("names a construct at the top level, and emits the current program", () => {
-    const { program } = compileScript("store x = 3\nOne.\nYou have {x}.\n", {
-      programChunks: true,
-    });
+    const { program } = compileScript(
+      "function f()\n  return 1\nend\nOne.\nYou have {f()}.\n",
+      { programChunks: true },
+    );
     expect(program.chunks).toBeUndefined();
     expect(program.compiled).toBeTruthy();
     expect(program.fallback).toEqual({
-      construct: "ref",
+      construct: "FunctionCall",
       uri: MAIN_URI,
-      line: 2,
+      line: 4,
     });
   });
 
   it("names a block statement at the top level", () => {
     const { program } = compileScript(
-      "store x = 3\nOne.\nif x > 1 then\n  Two.\nend\n",
+      "One.\nchoose\n  + [A]\n    Took A.\nend\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
-      construct: "Conditional",
+      construct: "choose",
       uri: MAIN_URI,
-      line: 2,
+      line: 1,
     });
   });
 
-  // The interpolation stands in the text of the table the display call is
+  // The read count stands in the text of the table the display call is
   // given, in a statement of a scene's body.
   it("names a construct nested in a block, with the line of its statement", () => {
     const { program } = compileScript(
-      "store x = 3\nscene MAIN\n  One.\n  BOB: You have {x}.\nend\n",
+      "scene MAIN\n  One.\n  BOB: You were here {MAIN} times.\nend\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.fallback).toEqual({
-      construct: "ref",
+      construct: "read count",
       uri: MAIN_URI,
-      line: 3,
+      line: 2,
     });
   });
 
@@ -256,7 +257,7 @@ describe("the fallback", () => {
   });
 
   it("runs a program that fell back on the current engine", () => {
-    const text = "store x = 3\nOne.\nYou have {x}.\n";
+    const text = "function f()\n  return 1\nend\nOne.\nYou have {f()}.\n";
     const { program } = compileScript(text, { programChunks: true });
     const current = compileScript(text);
     expect(program.compiled).toEqual(current.program.compiled);

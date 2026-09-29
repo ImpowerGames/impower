@@ -11,7 +11,11 @@ import { StringBuilder } from "../inkjs/engine/StringBuilder";
 import { Tag } from "../inkjs/engine/Tag";
 import { ObjectValue, StringValue } from "../inkjs/engine/Value";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
-import { splitHeadTailWhitespace } from "../inkjs/engine/outputWhitespace";
+import type { CallStack } from "../inkjs/engine/CallStack";
+import {
+  findOpenString,
+  splitHeadTailWhitespace,
+} from "../inkjs/engine/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { chunkId } from "./StatementChunk";
 
@@ -23,6 +27,35 @@ export interface ProgramPosition {
   entry: number;
   offset: number;
 }
+
+/** A block the frame is inside: the owner's sequence and entry, and the
+ *  block's index in the owner's block table, whose row gives where the owner
+ *  resumes (docs/engine/binary-program.md, section 1). */
+export interface BlockEntry {
+  sequence: SequenceRow;
+  entry: number;
+  block: number;
+}
+
+/** The blocks the position in `sequence` is inside, outermost first, which
+ *  follow from the position alone: the owner of each body, up to the flow,
+ *  or nothing when an owner is not in `root`. */
+export const blockStackOf = (
+  root: ProgramRoot,
+  sequence: SequenceRow,
+): BlockEntry[] | undefined => {
+  const stack: BlockEntry[] = [];
+  let at = sequence;
+  while (at.owner >= 0) {
+    const owner = root.position(at.owner);
+    if (!owner) {
+      return undefined;
+    }
+    stack.unshift({ sequence: owner.sequence, entry: owner.entry, block: at.block });
+    at = owner.sequence;
+  }
+  return stack;
+};
 
 /** The output a cut carried to the next continue, and whether its own line
  *  waits for its newline (`StoryState.CarryOutputPastCut`). */
@@ -43,8 +76,12 @@ export const NO_POINTER = Object.freeze({
 });
 
 /**
- * The state of the program engine: its position, eval stack and output, the
- * errors of the continue in progress, and the globals.
+ * The state of the program engine: its position and the blocks it is inside,
+ * the eval stack and output, the errors of the continue in progress, the
+ * globals, and the temporaries of its frame, which are the scopes of the
+ * root element of the call stack its globals were made with (the current
+ * engine's story copy, see `ProgramStory`), as `VariablesState` reads and
+ * writes them.
  *
  * The output is the current engine's, member for member, so that the builtins
  * a chunk calls (`display`) read and write it as they read and write a
@@ -57,6 +94,8 @@ export const NO_POINTER = Object.freeze({
  */
 export class ProgramStoryState {
   position: ProgramPosition | null = null;
+  /** The blocks the position is inside, outermost first. */
+  blockStack: BlockEntry[] = [];
   evaluationStack: InkObject[] = [];
   outputStream: InkObject[] = [];
   lineEndPending = false;
@@ -72,6 +111,9 @@ export class ProgramStoryState {
   protected _currentWarnings: string[] | null = null;
   protected _raisedErrors: RaisedError[] = [];
   protected _raisedWarnings: RaisedError[] = [];
+  /** Where `inStringEvaluation` last found the open string
+   *  (`findOpenString`). */
+  protected _openStringIndex = -1;
 
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
@@ -80,8 +122,16 @@ export class ProgramStoryState {
     public variablesState: VariablesState,
     protected _cleanWhitespace: (text: string) => string,
     protected _noteChanged: () => void = () => {},
+    /** The call stack `variablesState` reads temporaries from. */
+    public callStack: CallStack | null = null,
   ) {
     this.storySeed = new PRNG(new Date().getTime()).next() % 100;
+  }
+
+  /** The frame the engine runs in: the call stack's current element, whose
+   *  scopes hold the temporaries. */
+  get frame(): CallStack.Element | null {
+    return this.callStack?.currentElement ?? null;
   }
 
   get canContinue(): boolean {
@@ -163,11 +213,29 @@ export class ProgramStoryState {
     this.evaluationStack.push(obj);
   }
 
-  PopEvaluationStack(): InkObject {
-    if (this.evaluationStack.length === 0) {
+  PopEvaluationStack(): InkObject;
+  PopEvaluationStack(count: number): InkObject[];
+  PopEvaluationStack(count?: number): InkObject | InkObject[] {
+    if (count === undefined) {
+      // One pop from an empty stack gives null, as the current engine's
+      // does (`StoryState.PopEvaluationStack`): the arm of a `match` whose
+      // key is not a name compares the value with its own copy and pops the
+      // copy the comparison already took.
+      return (this.evaluationStack.pop() ?? null) as InkObject;
+    }
+    if (count > this.evaluationStack.length) {
       throw new Error("trying to pop too many objects");
     }
-    return this.evaluationStack.pop()!;
+    return this.evaluationStack.splice(this.evaluationStack.length - count, count);
+  }
+
+  PeekEvaluationStack(): InkObject | null {
+    return this.evaluationStack[this.evaluationStack.length - 1] ?? null;
+  }
+
+  PopFromOutputStream(count: number): void {
+    this.outputStream.splice(this.outputStream.length - count, count);
+    this.OutputStreamDirty();
   }
 
   ResetOutput(objs: InkObject[] | null = null): void {
@@ -245,16 +313,11 @@ export class ProgramStoryState {
   }
 
   get inStringEvaluation(): boolean {
-    for (let i = this.outputStream.length - 1; i >= 0; i--) {
-      const cmd = this.outputStream[i];
-      if (
-        cmd instanceof ControlCommand &&
-        cmd.commandType == ControlCommand.CommandType.BeginString
-      ) {
-        return true;
-      }
-    }
-    return false;
+    this._openStringIndex = findOpenString(
+      this.outputStream,
+      this._openStringIndex,
+    );
+    return this._openStringIndex >= 0;
   }
 
   /** Ends this continue's output at `outputCut` with the newline the cut line
@@ -294,9 +357,15 @@ export class ProgramStoryState {
     this.carried = null;
   }
 
+  /** Ends the flow, with a fresh frame for the next, as the current engine's
+   *  `StoryState.ForceEnd` resets its call stack: a `ChoosePathString` that
+   *  resets the call stack keeps no temporary and no scope of the flow it
+   *  left. */
   ForceEnd(): void {
+    this.callStack?.Reset();
     this.DiscardLineEnd();
     this.position = null;
+    this.blockStack = [];
     this.didSafeExit = true;
   }
 
@@ -421,12 +490,13 @@ export class ProgramStoryState {
   ResetCountDeltaTracking(): void {}
 
   /** The state as JSON: the position as a chunk id, its entry and offset and
-   *  its sequence's id, the output and eval stack, the line end, and the
-   *  globals. A position past the last statement of its sequence, where a
-   *  flow rests after its last beat, has no chunk: it is written with chunk id
-   *  -1 and named by its sequence alone. A position holds within a session,
-   *  for as long as a root holds its chunk or, past the last statement, its
-   *  sequence. */
+   *  its sequence's id, the output and eval stack, the line end, the globals,
+   *  and the frame's temporaries, scope by scope. A position past the last
+   *  statement of its sequence, where a flow rests after its last beat, has
+   *  no chunk: it is written with chunk id -1 and named by its sequence
+   *  alone. The blocks the position is inside are not written: they follow
+   *  from its sequence. A position holds within a session, for as long as a
+   *  root holds its chunk or, past the last statement, its sequence. */
   toJson(): string {
     const writer = new SimpleJson.Writer();
     writer.WriteObjectStart();
@@ -466,6 +536,14 @@ export class ProgramStoryState {
     writer.WriteProperty("variablesState", (w) =>
       this.variablesState.WriteJson(w),
     );
+    const scopes = this.frame?.temporaryScopes ?? [];
+    writer.WriteProperty("temps", (w) => {
+      w.WriteArrayStart();
+      for (const scope of scopes) {
+        JsonSerialisation.WriteDictionaryRuntimeObjs(w, scope);
+      }
+      w.WriteArrayEnd();
+    });
     writer.WriteProperty("visitCounts", (w) => {
       w.WriteObjectStart();
       w.WriteObjectEnd();
@@ -533,6 +611,15 @@ export class ProgramStoryState {
     } else {
       this.position = null;
     }
+    const blocks = this.position
+      ? blockStackOf(this._root, this.position.sequence)
+      : [];
+    if (!blocks) {
+      throw new Error(
+        "The saved position is in a block this program no longer has.",
+      );
+    }
+    this.blockStack = blocks;
     this.evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
       obj["evalStack"],
     );
@@ -551,6 +638,18 @@ export class ProgramStoryState {
     this.previousRandom = obj["previousRandom"];
     this.didSafeExit = obj["didSafeExit"] === true;
     this.variablesState.SetJsonToken(obj["variablesState"]);
+    const frame = this.frame;
+    if (frame) {
+      const temps = obj["temps"];
+      frame.temporaryScopes = Array.isArray(temps)
+        ? temps.map((scope: any) =>
+            JsonSerialisation.JObjectToDictionaryRuntimeObjs(scope),
+          )
+        : [];
+      if (frame.temporaryScopes.length === 0) {
+        frame.temporaryScopes = [new Map()];
+      }
+    }
     // A `new`-instance table saved with its class's name links again to the
     // live class global, now that the globals are loaded.
     JsonSerialisation.RelinkPendingDefineRefs((className) => {

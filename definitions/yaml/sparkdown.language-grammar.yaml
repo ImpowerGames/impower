@@ -3071,6 +3071,7 @@ repository:
       - { include: "#LuauDeclarations" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
@@ -6066,8 +6067,11 @@ repository:
     # multi-RHS values. Previously the VA's own `LuauCommaSeparator`
     # pattern consumed the comma and an `ERROR_INCOMPLETE` followed —
     # the trailing RHS values were silently dropped from the tree.
+    # Terminate before `;` too, so `local x = f();` closes this rule and
+    # `LuauVariableDefinition` before the `;`, which the enclosing
+    # statement context reads as `LuauSemicolonSeparator`.
     # A line start ends it as it ends `LuauAssignmentOperation`.
-    end: (?={{BEAT}})|(?=$|^|{{WS}}|,)
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;])
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -8480,6 +8484,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauAssignmentOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
@@ -8528,6 +8533,16 @@ repository:
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|(?!{{WS}})
 
+  # An operator with no operand before the `;` that ends its statement
+  # (`local foo = -;`, `local x = ;`, `local x = a and;`), which Luau
+  # rejects. The value rules end before `;`, so the operator is read as one
+  # token here and the validator reports it. `LuauAssignmentOperation` tries
+  # it before its own operator, so an empty value is caught too.
+  LuauOperatorMissingOperand:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not)(?!\w))({{WS}}*)(?=;)
+
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
     beginCaptures:
@@ -8535,6 +8550,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauArithmeticOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
@@ -8572,6 +8588,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauCompareOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
@@ -8609,6 +8626,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauConcatOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
@@ -8646,6 +8664,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauLengthOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
@@ -8686,6 +8705,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauLogicalOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
@@ -8722,6 +8742,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauTypeCastOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
@@ -8925,6 +8946,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 

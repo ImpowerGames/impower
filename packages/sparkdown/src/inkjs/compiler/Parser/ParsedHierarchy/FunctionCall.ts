@@ -14,9 +14,9 @@ import { Identifier } from "./Identifier";
 import { asOrNull } from "../../../engine/TypeAssertion";
 import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
 import {
-  AUX_MAX,
   CALL_DISCARD,
   CALL_OPEN,
+  ConstValue,
   Op,
 } from "../../../../program/ProgramInstructions";
 import { PROGRAM_BUILTINS } from "../../../../program/ProgramBuiltins";
@@ -303,32 +303,59 @@ export class FunctionCall extends Expression {
     }
   };
 
-  // A statement's call of a builtin the program engine dispatches: its
-  // arguments, then `CallStd`, whose discard flag stands for the pop after
-  // it. A `display` table that writes no newline sets the open flag. Any
-  // other call is named by the builtin, or is a call of a function.
-  public override EmitProgram(emitter: ProgramEmitter): void {
-    if (!this.isStateAwareStdLib) {
-      emitter.unsupported(this.typeName);
-    }
-    if (!PROGRAM_BUILTINS.has(this.name)) {
+  // A call of a builtin the program engine dispatches: its arguments, then
+  // `CallStd`, whose discard flag stands for the pop after a statement's
+  // call. A `display` table that writes no newline sets the open flag. A
+  // native function or operator is its arguments, padded with void or cut to
+  // its arity as the runtime objects are, then `Native`. A read count, a
+  // builtin the engine does not present yet and a call of a function name
+  // themselves.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    if (this.isTurnsSince || this.isReadCount) {
       emitter.unsupported(this.name);
     }
-    if (
-      !this.shouldPopReturnedValue ||
-      this.outputWhenComplete ||
-      this.args.length > AUX_MAX
-    ) {
-      emitter.unsupported(this.name);
+    if (this.isListRange || this.isListRandom) {
+      emitter.unsupported("list");
     }
-    for (const arg of this.args) {
-      arg.EmitProgram(emitter);
+    if (this.isStateAwareStdLib) {
+      if (!PROGRAM_BUILTINS.has(this.name)) {
+        emitter.unsupported(this.name);
+      }
+      for (const arg of this.args) {
+        emitter.emitObject(arg);
+      }
+      let flags = this.shouldPopReturnedValue ? CALL_DISCARD : 0;
+      if (this.name === "display" && displayLeavesLineOpen(this.args)) {
+        flags |= CALL_OPEN;
+      }
+      emitter.emit(
+        Op.CallStd,
+        emitter.string(this.name),
+        this.args.length,
+        flags,
+      );
+      return;
     }
-    let flags = CALL_DISCARD;
-    if (this.name === "display" && displayLeavesLineOpen(this.args)) {
-      flags |= CALL_OPEN;
+    if (NativeFunctionCall.CallExistsWithName(this.name)) {
+      const native = NativeFunctionCall.CallWithName(this.name);
+      for (const arg of this.args) {
+        emitter.emitObject(arg);
+      }
+      if (!native.isVariadic) {
+        for (let i = this.args.length; i < native.numberOfParameters; i += 1) {
+          emitter.emit(Op.Const, 0, ConstValue.Void);
+        }
+        for (let i = native.numberOfParameters; i < this.args.length; i += 1) {
+          emitter.emit(Op.Pop);
+        }
+      }
+      emitter.emit(Op.Native, emitter.string(this.name), this.args.length);
+      if (this.shouldPopReturnedValue) {
+        emitter.emit(Op.Pop);
+      }
+      return;
     }
-    emitter.emit(Op.CallStd, emitter.string(this.name), this.args.length, flags);
+    emitter.unsupported(this.typeName);
   }
 
   public override ResolveReferences(context: Story): void {

@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Write(../impower.review-jobs/**)",
+      "PowerShell(Start-Process node *agent-handoff.mjs*)"
+    ]
+  },
   "hooks": {
     "PreToolUse": [
       {

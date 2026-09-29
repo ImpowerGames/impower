@@ -17,6 +17,11 @@ import { collectLineContinuation } from "../utils/lineContinuation";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
+import {
+  extendStatement,
+  loopOf,
+  openBody,
+} from "../utils/statementShape";
 
 // `repeat BODY until cond` — Luau's "do-while-not".
 //
@@ -100,7 +105,19 @@ export function lowerLuauRepeatLoop(
     breakLabel,
     scopeDepth: ctx.scopeDepth,
   });
-  const bodyStatements = lowerStatements(bodyContent, ctx, REPEAT_BODY_SKIP);
+  const body = openBody(
+    ctx,
+    bodyContent === nodeRef.node ? nodeRef.node.from : bodyContent.from,
+    untilNode.from,
+  );
+  // The `until` line is a sibling node, and a part of this statement.
+  extendStatement(ctx, untilNode.to);
+  const bodyStatements = lowerStatements(
+    bodyContent,
+    ctx,
+    REPEAT_BODY_SKIP,
+    body,
+  );
   ctx.loopStack?.pop();
   ctx.scopeDepth--;
 
@@ -132,9 +149,19 @@ export function lowerLuauRepeatLoop(
   // Break gather: sentinel for natural exit and `break` divert.
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
+  const scoped = wrapInScope([loopGather, continueGather, breakGather]);
+  if (body) {
+    loopOf.set(scoped[0]!, {
+      kind: "repeat",
+      body,
+      objects: scoped,
+      test: loopBackBranch,
+      init: [],
+    });
+  }
   // A chunk's content reaches the enclosing scene or top-level flow only
   // as a Weave; inside a body, `lowerStatements` unwraps it again.
-  return wrapInWeave(wrapInScope([loopGather, continueGather, breakGather]));
+  return wrapInWeave(scoped);
 }
 
 // Walk forward from `repeatNode` through whitespace / newline / etc.

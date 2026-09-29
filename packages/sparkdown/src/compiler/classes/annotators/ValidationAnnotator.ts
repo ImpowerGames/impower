@@ -115,6 +115,7 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
+const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -494,6 +495,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // before it as its own token. The wording is Luau's parser's.
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+      return annotations;
+    }
+    // An operator directly before the `;` that ends its statement has no
+    // right operand; the grammar reads it as its own token.
+    if (nodeRef.name === "LuauOperatorMissingOperand") {
+      this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
