@@ -283,6 +283,46 @@ end
     expect(errors).toEqual([]);
   });
 
+  test("a `<-` thread's own local does not close the cell its parent thread still binds", () => {
+    const source = `-> main
+scene main
+  & local x = 1
+  & local get = function() return x end
+  <- side
+  & x = 5
+  Result {get()}.
+  fin
+end
+scene side
+  & local x = 2
+  done
+end
+`;
+    const run = straight(source);
+    expect(run.errors).toEqual([]);
+    expect(run.output).toBe("Result 5.\n");
+  });
+
+  test("a closed upvalue of a closure held by a store keeps its value", () => {
+    const source = `function make()
+  local n = 10
+  return function()
+    n = n + 1
+    return n
+  end
+end
+store inc = make()
+
+-> s
+scene s
+  First {inc()}.
+  Second {inc()}.
+  fin
+end
+`;
+    expectSameAcrossSave(source, "First 11.\nSecond 12.\n");
+  });
+
   test("a save written without upvalue cells still loads", () => {
     // A save whose pointers carry no cell id (the form every save had before
     // cells were written) loads each pointer as its own open cell.

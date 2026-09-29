@@ -259,7 +259,12 @@ export class VariablesState extends VariablesStateAccessor<
       } else if (VariablesState.dontSaveDefaultValues) {
         if (this._defaultGlobalVariables.has(name)) {
           let defaultVal = this._defaultGlobalVariables.get(name)!;
-          if (this.RuntimeObjectsEqual(val, defaultVal)) continue;
+          if (
+            this.RuntimeObjectsEqual(val, defaultVal) &&
+            !this.ChangedInPlace(name, val)
+          ) {
+            continue;
+          }
         }
       }
 
@@ -490,6 +495,38 @@ export class VariablesState extends VariablesStateAccessor<
 
   public SnapshotDefaultGlobals() {
     this._defaultGlobalVariables = new Map(this._globalVariables);
+    this._defaultTableForms = new Map();
+    for (const [name, value] of this._defaultGlobalVariables) {
+      if (
+        value instanceof ObjectValue &&
+        !this.constantNames.has(name) &&
+        !JsonSerialisation.defineSerializationInfo(value)
+      ) {
+        const form = VariablesState.WrittenForm(value);
+        if (form !== null) this._defaultTableForms.set(name, form);
+      }
+    }
+  }
+
+  // Whether a global still holding its default table (or function) has
+  // changed inside: a field set, or a captured variable of a closure. The
+  // global keeps the same object either way, so only the written form can
+  // tell. A table whose form could not be written reads as unchanged.
+  private ChangedInPlace(name: string, value: InkObject): boolean {
+    const form = this._defaultTableForms.get(name);
+    if (form === undefined) return false;
+    const current = VariablesState.WrittenForm(value);
+    return current !== null && current !== form;
+  }
+
+  private static WrittenForm(value: InkObject): string | null {
+    try {
+      const writer = new SimpleJson.Writer();
+      JsonSerialisation.WriteRuntimeObject(writer, value);
+      return writer.toString();
+    } catch {
+      return null;
+    }
   }
 
   public RetainListOriginsForAssignment(
@@ -603,6 +640,9 @@ export class VariablesState extends VariablesStateAccessor<
 
   private _globalVariables: Map<string, InkObject>;
   private _defaultGlobalVariables: Map<string, InkObject> = new Map();
+  // The written form of each default table (or function) global, taken
+  // when the defaults are, for `ChangedInPlace`.
+  private _defaultTableForms: Map<string, string> = new Map();
 
   private _callStack: CallStack;
   private _changedVariablesForBatchObs: Set<string> | null = new Set();
