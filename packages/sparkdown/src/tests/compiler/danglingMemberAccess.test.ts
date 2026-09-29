@@ -134,6 +134,12 @@ describe("a dangling member access (#1079)", () => {
       3,
     ],
     [
+      "an operator between two block comments",
+      "function f(t)\n  local y = 0\n  y = t.a.--[[one]] + --[[two]]b\n  return y\nend\n",
+      "Expected identifier, got '+'",
+      4,
+    ],
+    [
       "a method name",
       "function f()\n  local t = {}\n  local y = t:a.\n  return y\nend\n",
       "Expected identifier, got 'return'",
@@ -184,6 +190,7 @@ describe("a dangling member access (#1079)", () => {
   it.each([
     ["a block comment", "t.a.--[[note]]b"],
     ["a long-bracket block comment", "t.a.--[==[note]==]b"],
+    ["two block comments", "t.a.--[[one]]--[[two]]b"],
   ])("leaves a name after %s on the same line alone", (_name, access) => {
     const source = `function f()\n  local t = { a = { b = 1 } }\n  return ${access}\nend\n`;
     const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);

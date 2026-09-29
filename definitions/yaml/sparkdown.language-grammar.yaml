@@ -7749,13 +7749,15 @@ repository:
   # accessor only where a sentence does not begin: after a path that follows
   # a value-position token (`=`, an opening bracket, `return`, a condition
   # keyword or a logical operator), or a line holding nothing but a dotted
-  # path (`player.stats.`). A reserved word after the `.`, or after a block
-  # comment on the same line, is not a name (`if t.a. then`); any other name
-  # there is (`t.a.--[[note]]b`); and `..` is the concatenation operator. It
+  # path (`player.stats.`). A reserved word after the `.`, or after block
+  # comments on the same line, is not a name (`if t.a. then`); any other name
+  # there is (`t.a.--[[note]]b`); and `..` is the concatenation operator. A
+  # block comment ends at its first closing bracket, so the lookahead never
+  # skips code between two comments (`t.a.--[[a]] + --[[b]]c`). It
   # is tried before `LuauPropertyAccessor`, which would take `. then` as a
   # member.
   LuauDanglingAccessor:
-    match: (?<=(?:=|[(\[{]|\b(?:return|if|elseif|while|until|and|or|not)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*|^{{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})+)({{WS}}*)([.])(?![.]|{{WS}}*(?:--\[(=*)\[.*?\]\3\]{{WS}}*)?(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
+    match: (?<=(?:=|[(\[{]|\b(?:return|if|elseif|while|until|and|or|not)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*|^{{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})+)({{WS}}*)([.])(?![.]|{{WS}}*(?:--\[(=*)\[(?:[^\]]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
     captures:
       1:
         patterns:
