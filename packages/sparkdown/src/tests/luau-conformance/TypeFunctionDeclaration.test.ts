@@ -427,6 +427,22 @@ local y: F<number>? = nil
     ]);
   });
 
+  // Every use of the same application is one instance, and the checker
+  // reports once per instance, as Luau's seen-set does, so only the first
+  // use of `F<string>` reports.
+  test("the same application used twice reports that it cannot be evaluated once", () => {
+    expect(
+      check(`
+type function F(t)
+    return t
+end
+type A = F<string>
+type B = F<string>
+type C = F<number>
+`),
+    ).toEqual([`4:9-4:18 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`, `6:9-6:18 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`]);
+  });
+
   // A builtin type function's error is reported once per instance, as Luau
   // does, however many annotations and expressions carry the instance.
   test("a builtin type function that cannot be reduced reports once", () => {
