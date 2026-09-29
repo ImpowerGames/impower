@@ -3,6 +3,9 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 
 const URI = "file:///project/main.sd";
 
+const MESSAGE =
+  "A variable must be initialized to a number, string, boolean, constant, list item, or divert target.";
+
 function initializerDiagnostics(source: string) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
@@ -20,12 +23,11 @@ function initializerDiagnostics(source: string) {
     ],
   });
   const { program } = compiler.compile({ textDocument: { uri: URI } });
-  return (program.diagnostics?.[URI] ?? []).filter((diagnostic: any) =>
-    /must be initialized/.test(
-      typeof diagnostic.message === "string"
+  return (program.diagnostics?.[URI] ?? []).filter(
+    (diagnostic: any) =>
+      (typeof diagnostic.message === "string"
         ? diagnostic.message
-        : diagnostic.message?.value,
-    ),
+        : diagnostic.message?.value) === MESSAGE,
   );
 }
 
@@ -37,5 +39,14 @@ describe("store initialized from another variable", () => {
       start: { line: 1, character: 10 },
       end: { line: 1, character: 11 },
     });
+  });
+
+  test.each([
+    ["a number", "store a = 2\n"],
+    ["a string", 'store a = "text"\n'],
+    ["a boolean", "store a = true\n"],
+    ["a constant", "const c = 1\nstore a = c\n"],
+  ])("does not report a store initialized from %s", (_, source) => {
+    expect(initializerDiagnostics(source)).toHaveLength(0);
   });
 });
