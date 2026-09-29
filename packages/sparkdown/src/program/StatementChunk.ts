@@ -47,6 +47,31 @@ export const REFERENCE_ROW_WORDS = 2;
 /** The anchor of a line row that counts from the statement's first line. */
 export const ANCHOR_STATEMENT = -1;
 
+/** The fields of a block table row. */
+export const B_SEQUENCE = 0;
+export const B_RESUME = 1;
+export const B_BREAK = 2;
+/** The scope count, shifted left by `BLOCK_SCOPE_SHIFT`, beside the flags. */
+export const B_SCOPES_FLAGS = 3;
+export const B_HEAD_LINES = 4;
+
+/** A block row's flag for a loop's body, which a `Leave` stops at. The flags
+ *  a choice's body, a `then` clause and a function's body take (section 1)
+ *  come with the slices that emit them. */
+export const BLOCK_LOOP = 1;
+/** A block row's flag for a loop body that runs each pass in a scope of its
+ *  own, as a `while` body does: the owner opens the scope right before
+ *  `EnterBlock`, a `break` or `continue` in the body closes it before its
+ *  `Leave`, and the engine closes it when the body's sequence runs out. */
+export const BLOCK_PASS_SCOPE = 2;
+export const BLOCK_FLAGS_MASK = 0xff;
+export const BLOCK_SCOPE_SHIFT = 8;
+
+/** The code words an address can name in one chunk: an address outside the
+ *  engine is `chunkId * ADDRESS_OFFSETS + offset` (section 1), so a chunk
+ *  with this many code words or more would name another chunk's. */
+export const ADDRESS_OFFSETS = 2 ** 21;
+
 export const codeWords = (chunk: StatementChunk): number =>
   chunk[H_CODE_WORDS]!;
 
@@ -90,3 +115,22 @@ export const lineRowField = (
   row: number,
   field: number,
 ): number => chunk[lineTableStart(chunk) + row * LINE_ROW_WORDS + field]!;
+
+/** How many blocks the chunk's statement has. */
+export const blockCount = (chunk: StatementChunk): number =>
+  chunk[H_BLOCK_ROWS]!;
+
+/** One field of block table row `block` (`B_SEQUENCE` and the rest). */
+export const blockField = (
+  chunk: StatementChunk,
+  block: number,
+  field: number,
+): number => chunk[blockTableStart(chunk) + block * BLOCK_ROW_WORDS + field]!;
+
+/** The scopes the owner has open where it enters block `block`. */
+export const blockScopes = (chunk: StatementChunk, block: number): number =>
+  blockField(chunk, block, B_SCOPES_FLAGS) >>> BLOCK_SCOPE_SHIFT;
+
+/** What block `block`'s body is (`BLOCK_LOOP` and the rest). */
+export const blockFlags = (chunk: StatementChunk, block: number): number =>
+  blockField(chunk, block, B_SCOPES_FLAGS) & BLOCK_FLAGS_MASK;

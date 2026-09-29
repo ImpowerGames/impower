@@ -38,6 +38,7 @@ import {
   stepBuiltinIterator,
   unwrapArgsForPureStdLibFn,
 } from "./StdLib";
+import { EXECUTION_WATCH_STEPS, executionWatch } from "./ExecutionWatch";
 import { StepLimitExceeded, StoryException } from "./StoryException";
 import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
@@ -683,6 +684,689 @@ function newindexThroughMetatable(
   return false;
 }
 
+// The value operations below are the story's own handlers, shared with the
+// binary program's engine (`ProgramStory`), which runs the same values
+// through them. `story` is either engine: what they read of it is its
+// `state` (the globals, the evaluation stack, the output), `Error`,
+// `CallLuauFunction` and `KnotContainerWithName`.
+
+/** The table the key and value pairs of `between` from `first` on make, as
+ *  `EndObject` builds it: a computed key reads as a map key, a nil value is
+ *  no entry, and a last value that is a multiple value spreads over the
+ *  array positions from its key. */
+export function tableFromPairs(
+  between: readonly InkObject[],
+  first: number,
+): ObjectValue {
+  const entries = new Map<string, AbstractValue>();
+  const pairEnd = between.length - 1; // index of last value
+  for (let i = first; i + 1 < between.length; i += 2) {
+    // Static keys arrive as StringValues; COMPUTED bracket
+    // keys (`{[1+2] = 4}`) arrive as whatever the expression
+    // produced — stringify to the canonical map-key form
+    // (IntValue 3 → "3", matching how `t[3]` reads index;
+    // table/function keys get identity tokens via
+    // luauMapKeyString).
+    const rawKey =
+      between[i] instanceof AbstractValue ? (between[i] as AbstractValue) : null;
+    const keyObj =
+      rawKey instanceof StringValue
+        ? rawKey
+        : rawKey != null && !(rawKey instanceof NullValue)
+          ? new StringValue(luauMapKeyString(rawKey))
+          : null;
+    let valObj =
+      between[i + 1] instanceof AbstractValue
+        ? (between[i + 1] as AbstractValue)
+        : null;
+    if (!keyObj || keyObj.value === null || !valObj) continue;
+    // Lua-style table-spread: if this is the LAST entry, its
+    // key is a positive integer (array-style), AND its value
+    // is a MultiValue, expand into sequential array slots —
+    // `{a, b, f()}` where `f()` returns `(10, 20, 30)` lowers
+    // to a table with keys "1","2","3","4","5". Non-last
+    // MultiValues are truncated to their first inner value
+    // (matches Lua: only the last expression spreads).
+    const isLast = i + 1 === pairEnd;
+    if (
+      isLast &&
+      valObj instanceof MultiValue &&
+      /^[1-9]\d*$/.test(keyObj.value)
+    ) {
+      const startIdx = parseInt(keyObj.value, 10);
+      for (let k = 0; k < valObj.values.length; k++) {
+        const spreadVal = valObj.values[k]!;
+        // nil entries don't exist (see the non-spread branch).
+        if (spreadVal instanceof NullValue) continue;
+        entries.set(String(startIdx + k), spreadVal);
+      }
+    } else {
+      if (valObj instanceof MultiValue) {
+        valObj = valObj.values[0] ?? new NullValue();
+      }
+      // Lua: a nil-valued entry does not EXIST — the key is
+      // simply absent. `{5, 6, 7, nil, 8}` has keys 1,2,3,5
+      // (position counting still advanced past the nil at
+      // lower time), so `pairs` yields "1235" and `t[4]` is
+      // nil (lines 224-240). DELETE rather than skip:
+      // duplicate fields assign left-to-right, so a later
+      // `data = nil` must remove an earlier `data = 4`
+      // (basic.luau line 328).
+      if (valObj instanceof NullValue) {
+        entries.delete(keyObj.value);
+      } else {
+        entries.set(keyObj.value, valObj);
+      }
+    }
+  }
+  return new ObjectValue(entries);
+}
+
+/** `indexBase[indexKey]`, as `IndexValue` reads it. */
+export function indexValue(
+  story: any,
+  indexBase: InkObject | null,
+  indexKey: InkObject | null,
+): InkObject {
+  // Pops key + container off the eval stack; pushes container[key].
+  // For ObjectValue, on a raw miss we consult the metatable's
+  // `__index` (table-form chains lookup; function-form calls
+  // `__index(t, key)` via story.CallLuauFunction). Lua's
+  // `__index` only fires on miss — a present key returns
+  // directly without metamethod consultation.
+  let resolved: InkObject | null = null;
+  const keyStr = luauMapKeyString(indexKey);
+  // `_G` globals-table proxy: route the read to global
+  // variable storage. Misses push nil (Luau's semantics for
+  // absent globals), NOT the generic empty-string sentinel
+  // below — `_G['nope'] == nil` must hold.
+  if (
+    indexBase instanceof ObjectValue &&
+    indexBase.value?.has(GLOBALS_PROXY_TAG)
+  ) {
+    return (
+      story.state.variablesState.GetGlobalVariableValue(keyStr) ??
+      new NullValue()
+    );
+  }
+  // Lua's index-type rule: indexing nil / a boolean / a
+  // number / a function raises (trappable via pcall) —
+  // `idontexist.a` must NOT silently produce nil.
+  {
+    const idxErr = luauIndexTargetError(indexBase);
+    if (idxErr) {
+      story.Error(idxErr);
+    }
+  }
+  if (indexBase instanceof ObjectValue) {
+    // Reactive dep tracking: this binding read into a table — record the
+    // table's identity so an in-place mutation of it re-runs the binding.
+    if (story.state.variablesState.reactiveDepsEnabled) {
+      story.state.variablesState.recordReactiveTableRead(indexBase.value!);
+    }
+    const direct = indexBase.value?.get(keyStr) ?? null;
+    if (direct != null) {
+      resolved = direct;
+    } else {
+      resolved = indexThroughMetatable(story, indexBase, keyStr);
+    }
+  } else if (indexBase instanceof StringValue) {
+    // 1-indexed character access, matching Luau's string indexing.
+    const intKey = asOrNull(indexKey, IntValue);
+    if (intKey !== null && indexBase.value !== null) {
+      const i = (intKey.value ?? 0) - 1;
+      const ch =
+        i >= 0 && i < indexBase.value.length ? indexBase.value[i] : "";
+      resolved = new StringValue(ch ?? "");
+    }
+  }
+  if (resolved === null) {
+    // Miss → nil. (Formerly an empty-string sentinel from
+    // before nil was first-class; `t[missing] == nil` must
+    // hold per Lua.)
+    resolved = new NullValue();
+  }
+  return resolved;
+}
+
+/** `storeBase[storeKey] = storeValue`, as `StoreIndex` writes it. */
+export function storeIndex(
+  story: any,
+  storeBase: InkObject | null,
+  storeKey: InkObject | null,
+  storeValue: InkObject | null,
+): void {
+  // Mutates container[key] = value in place. No result is pushed — this is a
+  // statement-level effect. The container must be an ObjectValue
+  // looked up from a variable; mutating its internal Map propagates
+  // through the variable reference (Maps are passed by reference).
+  //
+  // `_G` globals-table proxy: `_G.foo = v` / `_G['foo'] = v`
+  // writes the global directly, as an ordinary global assignment.
+  if (
+    storeBase instanceof ObjectValue &&
+    storeBase.value?.has(GLOBALS_PROXY_TAG)
+  ) {
+    const globalName = storeKey?.toString() ?? "";
+    const globalVal = asOrNull(storeValue, AbstractValue);
+    if (globalName && globalVal !== null) {
+      story.state.variablesState.SetGlobal(globalName, globalVal);
+    }
+    return;
+  }
+  if (storeBase instanceof ObjectValue) {
+    // Lua rejects nil and NaN as table KEYS on write (reads
+    // just produce nil) — `a[NaN] = 1` raises "table index
+    // is NaN" through pcall (math.luau NaN section).
+    if (storeKey == null || storeKey instanceof NullValue) {
+      throw new StoryException("table index is nil");
+    }
+    {
+      const numKey = (storeKey as { value?: unknown }).value;
+      if (typeof numKey === "number" && Number.isNaN(numKey)) {
+        throw new StoryException("table index is NaN");
+      }
+    }
+    const keyStr = luauMapKeyString(storeKey);
+    const val = asOrNull(storeValue, AbstractValue);
+    if (storeBase.value && val !== null) {
+      // `__newindex`: only consulted on a raw miss (key not
+      // already present). If the metatable handles the write,
+      // skip the direct mutation. Cycle-bounded recursion via
+      // `newindexThroughMetatable`. Frozen tables refuse all
+      // writes including through `__newindex`.
+      if (storeBase.isFrozen) {
+        throw new StoryException("attempt to modify a readonly table");
+      }
+      if (newindexThroughMetatable(story, storeBase, keyStr, val)) {
+        return;
+      }
+      // Lua: assigning nil REMOVES the key — a nil-valued
+      // entry doesn't exist (`t[k] = nil` is the idiomatic
+      // delete; `pairs` must not see the key afterwards).
+      if (val instanceof NullValue) {
+        storeBase.value.delete(keyStr);
+      } else {
+        storeBase.value.set(keyStr, val);
+      }
+      // Reactive dep tracking: an in-place table mutation, keyed by the
+      // table's backing-Map identity (a binding that read this table
+      // re-runs). Cheap no-op when reactive tracking is disabled.
+      if (story.state.variablesState.reactiveDepsEnabled) {
+        story.state.variablesState.recordReactiveTableChange(storeBase.value);
+      }
+    }
+  } else {
+    throw new StoryException("Cannot assign to a property of a non-object value");
+  }
+}
+
+/** The value of the variable `name`, as a `VariableReference` that names no
+ *  read count reads it: `_G`, a global or temporary, a dotted name walked
+ *  through tables, a function's name as a function value, a builtin's name
+ *  as its marker, and otherwise nil, or the index error Lua raises. */
+export function readVariable(story: any, name: string | null): InkObject {
+  let foundValue: InkObject | null = null;
+  // `_G` — Luau's global environment table. A bare reference
+  // resolves to a marker-tagged proxy ObjectValue; the
+  // `IndexValue` / `StoreIndex` handlers route reads and writes
+  // through global variable storage when they see the tag.
+  // (`luauTypeOf` reports ObjectValue as "table", matching
+  // `type(_G) == "table"`.)
+  if (name === "_G") {
+    const proxyMap = new Map<string, AbstractValue>();
+    proxyMap.set(GLOBALS_PROXY_TAG, new BoolValue(true));
+    return new ObjectValue(proxyMap);
+  }
+
+  // Reactive dep tracking: record the global this binding read (the first
+  // dotted segment — `player.hp` depends on global `player`). Over-
+  // approximate (a local shadowing this name is harmless: a re-eval at
+  // worst, never a miss). Cheap no-op when reactive tracking is disabled.
+  if (story.state.variablesState.reactiveDepsEnabled && name) {
+    story.state.variablesState.recordReactiveGlobalRead(name.split(".")[0]!);
+  }
+
+  foundValue = story.state.variablesState.GetVariableWithName(name);
+
+  // Property-access via dotted name (sparkdown extension). If the
+  // flat-namespace lookup fails AND the name contains dots, try
+  // resolving the FIRST segment as a variable and indexing into
+  // its `ObjectValue` (or chained-ObjectValue) by the remaining
+  // segments as keys. This matches the same pattern used for
+  // `lang.current` lookup elsewhere in this file and lets
+  // sparkdown authors write `result.value` against a stored
+  // table without needing the bracket-indexer form (`result["value"]`).
+  // Falls through to the normal `Variable not found` warning if
+  // either the base variable doesn't exist or some intermediate
+  // segment isn't an ObjectValue / Map.
+  let dottedIndexError: string | null = null;
+  // True when the dotted walk's ROOT resolved and the chain
+  // legitimately produced nil (missing last member, e.g.
+  // `t.data` after a nil-delete) — the read result is nil, not
+  // an index error.
+  let dottedResolvedToNil = false;
+  if (foundValue == null && name && name.includes(".")) {
+    const segs = name.split(".");
+    // `_G.x[.y...]` — strip the `_G` hop and start the walk at
+    // the GLOBAL binding for the next segment. Global-only
+    // lookup (not GetVariableWithName) because reads through
+    // `_G` must not see a same-named local shadowing the
+    // global.
+    let walkStart = 1;
+    let cur: unknown;
+    if (segs[0] === "_G" && segs.length > 1) {
+      cur = story.state.variablesState.GetGlobalVariableValue(segs[1]!);
+      walkStart = 2;
+      if (cur == null) {
+        // `_G.x` of an ABSENT global is nil (Luau: the env
+        // table simply has no member) — but `_G.x.y` indexes
+        // that nil and raises.
+        if (segs.length > 2) {
+          dottedIndexError = "attempt to index a nil value";
+        } else {
+          dottedResolvedToNil = true;
+        }
+      }
+    } else {
+      cur = story.state.variablesState.GetVariableWithName(segs[0]!);
+    }
+    if (cur != null) {
+      for (let i = walkStart; i < segs.length; i++) {
+        const seg = segs[i]!;
+        // Lua's index-type rule applies at each hop — indexing
+        // nil / a number / a function raises rather than
+        // silently producing nil (`local t = nil; t.a` must
+        // trap under pcall). Recorded, not thrown, so the
+        // knot / stdlib-marker fallbacks below keep their shot
+        // at resolving the full dotted name first.
+        const idxErr = luauIndexTargetError(cur);
+        if (idxErr) {
+          dottedIndexError = idxErr;
+          cur = null;
+          break;
+        }
+        // `__index` chain — fold each dotted segment through
+        // the metatable lookup so `t.x` resolves to either
+        // `rawget(t, "x")` (when present) or
+        // `__index(t, "x")` / chained-table lookup. Matches
+        // the IndexValue ControlCommand's metamethod behavior.
+        if (cur instanceof ObjectValue) {
+          // Reactive dep tracking: this dotted read walked through `cur` —
+          // record its identity so an in-place mutation re-runs the binding.
+          if (story.state.variablesState.reactiveDepsEnabled) {
+            story.state.variablesState.recordReactiveTableRead(cur.value!);
+          }
+          const direct = cur.value?.get(seg);
+          if (direct != null) {
+            cur = direct;
+            continue;
+          }
+          const viaMt = indexThroughMetatable(story, cur, seg);
+          if (viaMt != null) {
+            cur = viaMt;
+            continue;
+          }
+          // Raw miss: nil when this is the last segment;
+          // indexing that nil (more segments remain) raises.
+          if (i < segs.length - 1) {
+            dottedIndexError = "attempt to index a nil value";
+          }
+          cur = null;
+          break;
+        }
+        const obj = (cur as any)?.value;
+        if (obj instanceof Map) {
+          cur = obj.get(seg) ?? null;
+          if (cur == null) {
+            if (i < segs.length - 1) {
+              dottedIndexError = "attempt to index a nil value";
+            }
+            break;
+          }
+        } else {
+          // Strings reach here (member reads like `("x").nope`
+          // resolve to nil, matching the string library's
+          // metatable miss); anything else non-indexable was
+          // already classified above.
+          cur = null;
+          break;
+        }
+      }
+      if (cur != null) {
+        foundValue = cur as Value<any>;
+      } else if (dottedIndexError == null) {
+        dottedResolvedToNil = true;
+      }
+    }
+  }
+
+  // Lua-style first-class fn fallback: if no variable named
+  // `<name>` exists but a knot/function `<name>` IS defined,
+  // resolve to a `DivertTargetValue` pointing at the knot.
+  // This makes `local f = double` work as if the user had
+  // written `local f = -> double`. Common authoring pattern.
+  if (foundValue == null && name) {
+    const knotContainer = story.KnotContainerWithName(name);
+    if (knotContainer && knotContainer.path) {
+      foundValue = new DivertTargetValue(knotContainer.path);
+    }
+  }
+
+  // Stdlib-function-name fallback: `type`, `assert`, `print`,
+  // etc. are Luau globals that the user can reference as
+  // values (`local f = type; f(x)` / `type(type) == 'function'`).
+  // No real ink variable exists for them, so push a marker
+  // ObjectValue tagged `__stdlib_fn` so `luauTypeOf` reports
+  // "function". Actual call dispatch on the marker (`f(x)`)
+  // is a separate fix — for now the marker covers the
+  // type-inspection cases at least.
+  if (foundValue == null && name && isStdLibFunctionName(name)) {
+    const marker = new Map<string, AbstractValue>();
+    marker.set("__stdlib_fn", new StringValue(name));
+    foundValue = new ObjectValue(marker);
+  }
+
+  if (foundValue == null) {
+    // A dotted read that dead-ended on a non-indexable hop
+    // raises now that the knot / stdlib fallbacks have also
+    // missed (`local t = nil; t.a` → "attempt to index a nil
+    // value", trappable via pcall).
+    if (dottedIndexError) {
+      story.Error(dottedIndexError);
+    }
+    // Dotted reads whose ROOT never resolved: classify per
+    // Lua's index rule rather than silently producing nil.
+    //   - `math.pow.a`  → a stdlib FUNCTION prefix is being
+    //     indexed → "attempt to index a function value"
+    //   - `math.a.b`    → `math` is a real namespace, `math.a`
+    //     is a nil member, indexing it raises; but plain
+    //     `math.idontexist` (one unknown segment) stays nil
+    //   - `double.a`    → `double` names a knot (a function
+    //     value) → "attempt to index a function value"
+    //   - `idontexist.a` → indexing nil
+    // (Skipped when the walk's root DID resolve and the chain
+    // legitimately read a missing last member — that's nil.)
+    if (!dottedResolvedToNil && name && name.includes(".")) {
+      const segs = name.split(".");
+      let prefixIsStdLibFn = false;
+      for (let cut = segs.length - 1; cut >= 1; cut--) {
+        if (isStdLibFunctionName(segs.slice(0, cut).join("."))) {
+          prefixIsStdLibFn = true;
+          break;
+        }
+      }
+      if (prefixIsStdLibFn) {
+        story.Error("attempt to index a function value");
+      }
+      if (isStdLibNamespaceName(segs[0]!)) {
+        if (segs.length > 2) {
+          story.Error("attempt to index a nil value");
+        }
+      } else if (story.KnotContainerWithName(segs[0]!)) {
+        story.Error("attempt to index a function value");
+      } else {
+        story.Error("attempt to index a nil value");
+      }
+    }
+    // Luau-superset semantics: undefined names resolve to `nil`
+    // (not `0`). The compile-time "Cannot find variable named"
+    // diagnostic is already downgraded to a warning in
+    // `VariableReference.ResolveReferences` — runtime stays
+    // silent so undefined-as-nil is a clean, non-noisy lookup.
+    // Arithmetic on the resulting `NullValue` errors at runtime
+    // via `Cast` (same as Lua), which is the correct trap shape
+    // for typos. Interpolation / `tostring` produce "nil".
+    foundValue = new NullValue();
+  }
+  return foundValue;
+}
+
+/** The result of the native function or operator `func` over `funcParams`:
+ *  a stdlib namespace a global replaced dispatches the replacement's member,
+ *  an operand's metamethod handles the operator, and otherwise the native
+ *  function does. */
+export function callNativeFunction(
+  story: any,
+  func: NativeFunctionCall,
+  funcParams: InkObject[],
+): InkObject | null {
+  // Environment override: `getfenv().math = { abs = ... }` (or a
+  // plain global assignment `math = {...}`) replaces a stdlib
+  // namespace with a user table. Statically-lowered `math.abs(x)`
+  // call sites must then dispatch the REPLACEMENT member
+  // (basic.luau's testgetfenv reassignment block). Only dotted
+  // native names can be overridden, and a global-lookup miss
+  // keeps the fast static path.
+  const nsDotIdx = func.name.indexOf(".");
+  if (nsDotIdx > 0) {
+    const nsOverride = story.state.variablesState.GetGlobalVariableValue(
+      func.name.slice(0, nsDotIdx),
+    ) as AbstractValue | null;
+    if (
+      nsOverride instanceof ObjectValue &&
+      !(nsOverride.value as Map<string, AbstractValue>)?.has(GLOBALS_PROXY_TAG)
+    ) {
+      const member = (nsOverride.value as Map<string, AbstractValue>)?.get(
+        func.name.slice(nsDotIdx + 1),
+      );
+      if (member != null && !(member instanceof NullValue)) {
+        // Padded Void slots represent missing args — drop them;
+        // the Lua-call arg normalization pads nil as needed.
+        const callArgs = funcParams.filter(
+          (p: any) => !(p instanceof Void),
+        ) as AbstractValue[];
+        const results = story.CallLuauFunction(
+          member as AbstractValue,
+          callArgs,
+        ) as AbstractValue[] | null;
+        if (results && results.length === 1) {
+          return results[0]!;
+        } else if (results && results.length > 1) {
+          return new MultiValue(results);
+        }
+        return new NullValue();
+      }
+    }
+  }
+  // Metamethod dispatch: if any operand is an ObjectValue carrying a
+  // metatable with a matching `__add` / `__sub` / `__eq` / etc., the
+  // metamethod handles the op via `story.CallLuauFunction`. Returns
+  // `null` for the common case where no metamethod fires — fall
+  // through to the regular type-coerced dispatch below.
+  const fname = func.name;
+  let mmResult: AbstractValue | null = null;
+  if (funcParams.length === 2) {
+    mmResult = tryBinaryMetamethod(story, fname, funcParams[0], funcParams[1]);
+  } else if (funcParams.length === 1) {
+    mmResult = tryUnaryMetamethod(story, fname, funcParams[0]);
+  }
+  if (mmResult !== null) {
+    return mmResult;
+  }
+  return func.Call(funcParams);
+}
+
+/** Pops `n` values and pushes them as one multiple value, as `PackTuple`
+ *  does: the last value spreads, the others adjust to one value. */
+export function packTuple(story: any, n: number): void {
+  // Pop N expression results and pack them into one
+  // `MultiValue`. Lua/Luau "spread the last expression"
+  // semantics applies: the FIRST popped slot (which was
+  // the syntactically LAST expression evaluated) spreads
+  // its inner values if it's a `MultiValue`; all OTHER
+  // popped slots truncate a `MultiValue` to its first
+  // inner value. So `return a, b, f()` where f returns
+  // `(1, 2, 3)` packs as `MultiValue([a, b, 1, 2, 3])`,
+  // while `return f(), b` where f returns `(1, 2, 3)`
+  // packs as `MultiValue([1, b])` (f truncated since
+  // it's no longer in last position).
+  const values: AbstractValue[] = [];
+  for (let i = 0; i < n; i++) {
+    const v = story.state.PopEvaluationStack() as AbstractValue;
+    if (i === 0 && v instanceof MultiValue) {
+      // Last expression spreads: prepend each inner value
+      // in original order.
+      for (let k = v.values.length - 1; k >= 0; k--) {
+        values.unshift(v.values[k]!);
+      }
+    } else if (i === 0 && v instanceof Void) {
+      // Last expression returned NO values (a function that
+      // fell off its end): it spreads to ZERO values, not a
+      // nil — `return t[i], unlpack(t, i+1)` where the
+      // terminal recursion level returns nothing must pack
+      // exactly the collected items (calls.luau line 204
+      // packed one phantom extra per chain).
+    } else if (v instanceof MultiValue) {
+      // Non-last expression truncates to its first value
+      // (or nil if it returned zero values).
+      values.unshift(v.values[0] ?? new NullValue());
+    } else if (v instanceof Void) {
+      // Non-last no-value expression adjusts to nil.
+      values.unshift(new NullValue());
+    } else {
+      values.unshift(v);
+    }
+  }
+  // Variadic call-site spread when extras = 0: the
+  // SYNTACTICALLY LAST expression is the call's last regular
+  // arg (already pushed before this PackTuple). If it's a
+  // MultiValue, spread it so its first inner value stays as
+  // the regular arg and the rest land in the vararg
+  // MultiValue we're building. E.g. `f(pcall(...))` against
+  // `function f(head, ...)`: pcall returns
+  // `MultiValue([true, nil])` → head=true, ...=(nil).
+  if (n === 0 && story.state.evaluationStack.length > 0) {
+    const peeked = story.state.PeekEvaluationStack();
+    if (peeked instanceof MultiValue) {
+      story.state.PopEvaluationStack();
+      if (peeked.values.length > 0) {
+        story.state.PushEvaluationStack(peeked.values[0]!);
+        for (let k = 1; k < peeked.values.length; k++) {
+          values.push(peeked.values[k]!);
+        }
+      } else {
+        story.state.PushEvaluationStack(new NullValue());
+      }
+    }
+  }
+  story.state.PushEvaluationStack(new MultiValue(values));
+}
+
+/** Pops one value and pushes its first `n` values, padded with nil, the
+ *  first on top, as `UnpackTuple` does. */
+export function unpackTuple(story: any, n: number): void {
+  // Pop the top eval-stack slot. If it's a `MultiValue`,
+  // push the first N inner values in REVERSE order so the
+  // next N pops match the original push order. If it's any
+  // other value, push it as value-0 plus N-1 NullValue
+  // placeholders. Emitted by multi-target assignment
+  // lowering for `local a, b = expr`.
+  //
+  // Void-returning callees (e.g. an iterator function that
+  // falls through without `return`) get coerced to all-nil:
+  // the user sees the same all-nil tuple they'd see from
+  // `return` with no values, matching Luau's iterator-end
+  // semantics. Without this, downstream `x == nil` checks
+  // crash on `Void` (the runtime can't compare Void to any
+  // other type).
+  const top = story.state.PopEvaluationStack();
+  let values: AbstractValue[];
+  if (top instanceof MultiValue) {
+    values = top.values.slice(0, n);
+  } else if (top instanceof Void) {
+    values = [];
+  } else {
+    values = [top as AbstractValue];
+  }
+  while (values.length < n) {
+    values.push(new NullValue());
+  }
+  for (let i = values.length - 1; i >= 0; i--) {
+    story.state.PushEvaluationStack(values[i]!);
+  }
+}
+
+/** Whether the value on top decides an `and` or an `or` alone, as
+ *  `ShortCircuit` tests it: a multiple value adjusts to its first, and a
+ *  value that does not decide is popped for the right side to replace. */
+export function shortCircuitDecides(story: any, op: "and" | "or"): boolean {
+  let lhs = story.state.PeekEvaluationStack() as AbstractValue;
+  if (lhs instanceof MultiValue) {
+    // Operator position adjusts a multi-value to one value.
+    story.state.PopEvaluationStack();
+    lhs = (lhs.values[0] as AbstractValue) ?? new NullValue();
+    story.state.PushEvaluationStack(lhs);
+  }
+  const truthy = isLuauTruthy(lhs);
+  const decides = op === "and" ? !truthy : truthy;
+  if (!decides) {
+    story.state.PopEvaluationStack();
+  }
+  return decides;
+}
+
+/** Pops a condition and tests it by Luau truthiness, as the `ShortCircuit`
+ *  "if" of an `if` expression does. */
+export function popLuauCondition(story: any): boolean {
+  let cond = story.state.PopEvaluationStack() as AbstractValue;
+  if (cond instanceof MultiValue) {
+    // Condition position adjusts a multi-value to one value.
+    cond = (cond.values[0] as AbstractValue) ?? new NullValue();
+  }
+  return isLuauTruthy(cond);
+}
+
+/** Closes the innermost capture of `state`'s output and returns the text it
+ *  caught, as `EndString` does; the tags a choice wrote inside it stay in the
+ *  output. */
+export function captureString(state: any): StringValue {
+  let contentStackForString: InkObject[] = [];
+  let contentToRetain: InkObject[] = [];
+
+  let outputCountConsumed = 0;
+  for (let i = state.outputStream.length - 1; i >= 0; --i) {
+    let obj = state.outputStream[i];
+
+    outputCountConsumed++;
+
+    // var command = obj as ControlCommand;
+    let command = asOrNull(obj, ControlCommand);
+    if (
+      command &&
+      command.commandType == ControlCommand.CommandType.BeginString
+    ) {
+      break;
+    }
+    if (obj instanceof Tag) {
+      contentToRetain.push(obj);
+    }
+    if (obj instanceof StringValue) {
+      contentStackForString.push(obj);
+    }
+  }
+
+  // Consume the content that was produced for this string
+  state.PopFromOutputStream(outputCountConsumed);
+
+  // Rescue the tags that we want actually to keep on the output stack
+  // rather than consume as part of the string we're building.
+  // At the time of writing, this only applies to Tag objects generated
+  // by choices, which are pushed to the stack during string generation.
+  for (let rescuedTag of contentToRetain) state.PushToOutputStream(rescuedTag);
+
+  // The C# version uses a Stack for contentStackForString, but we're
+  // using a simple array, so we need to reverse it before using it
+  contentStackForString = contentStackForString.reverse();
+
+  // Build string out of the content we collected
+  let sb = new StringBuilder();
+  for (let c of contentStackForString) {
+    sb.Append(c.toString());
+  }
+  return new StringValue(sb.toString());
+}
+
 export class Story extends InkObject {
   public static inkVersionCurrent = 22;
 
@@ -1058,7 +1742,11 @@ export class Story extends InkObject {
     if (shouldReturn) return writer.toString();
   }
 
-  public ResetState() {
+  /** Builds a fresh state and initializes the globals, unless
+   *  `initializeGlobals` is false, which leaves them to the caller: the binary
+   *  program's engine runs its own declaration sequence against this story's
+   *  globals (see `ProgramStory`). */
+  public ResetState(initializeGlobals = true) {
     this.IfAsyncWeCant("ResetState");
 
     // Reactive dependency tracking is an OBSERVATION MODE, not story state:
@@ -1081,7 +1769,11 @@ export class Story extends InkObject {
       this.VariableStateDidChangeEvent.bind(this),
     );
 
-    this.ResetGlobals();
+    if (initializeGlobals) {
+      this.ResetGlobals();
+    } else {
+      this.state.variablesState.constantNames = this._constantNames;
+    }
 
     // Last, so that the work `ResetGlobals` itself does through the ordinary
     // running paths (it diverts to `global decl` and continues) does not clear
@@ -1516,6 +2208,9 @@ export class Story extends InkObject {
     this.stepCount++;
     if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
       throw new StepLimitExceeded();
+    }
+    if ((this.stepCount & (EXECUTION_WATCH_STEPS - 1)) === 0) {
+      executionWatch.listener?.(this);
     }
     this.pausedBeforeCondition = null; // clear any previous pause
 
@@ -2320,54 +3015,10 @@ export class Story extends InkObject {
         }
 
         case ControlCommand.CommandType.EndString: {
-          let contentStackForString: InkObject[] = [];
-          let contentToRetain: InkObject[] = [];
-
-          let outputCountConsumed = 0;
-          for (let i = this.state.outputStream.length - 1; i >= 0; --i) {
-            let obj = this.state.outputStream[i];
-
-            outputCountConsumed++;
-
-            // var command = obj as ControlCommand;
-            let command = asOrNull(obj, ControlCommand);
-            if (
-              command &&
-              command.commandType == ControlCommand.CommandType.BeginString
-            ) {
-              break;
-            }
-            if (obj instanceof Tag) {
-              contentToRetain.push(obj);
-            }
-            if (obj instanceof StringValue) {
-              contentStackForString.push(obj);
-            }
-          }
-
-          // Consume the content that was produced for this string
-          this.state.PopFromOutputStream(outputCountConsumed);
-
-          // Rescue the tags that we want actually to keep on the output stack
-          // rather than consume as part of the string we're building.
-          // At the time of writing, this only applies to Tag objects generated
-          // by choices, which are pushed to the stack during string generation.
-          for (let rescuedTag of contentToRetain)
-            this.state.PushToOutputStream(rescuedTag);
-
-          // The C# version uses a Stack for contentStackForString, but we're
-          // using a simple array, so we need to reverse it before using it
-          contentStackForString = contentStackForString.reverse();
-
-          // Build string out of the content we collected
-          let sb = new StringBuilder();
-          for (let c of contentStackForString) {
-            sb.Append(c.toString());
-          }
-
+          const captured = captureString(this.state);
           // Return to expression evaluation (from content mode)
           this.state.inExpressionEvaluation = true;
-          this.state.PushEvaluationStack(new StringValue(sb.toString()));
+          this.state.PushEvaluationStack(captured);
           break;
         }
 
@@ -2400,207 +3051,24 @@ export class Story extends InkObject {
           const between = stack.splice(markerIdx, stack.length - markerIdx);
           // between[0] is the BeginObject marker; the rest are alternating
           // key, value, key, value, ... pairs in push order.
-          const entries = new Map<string, AbstractValue>();
-          const pairEnd = between.length - 1; // index of last value
-          for (let i = 1; i + 1 < between.length; i += 2) {
-            // Static keys arrive as StringValues; COMPUTED bracket
-            // keys (`{[1+2] = 4}`) arrive as whatever the expression
-            // produced — stringify to the canonical map-key form
-            // (IntValue 3 → "3", matching how `t[3]` reads index;
-            // table/function keys get identity tokens via
-            // luauMapKeyString).
-            const rawKey = asOrNull(between[i], AbstractValue);
-            const keyObj =
-              rawKey instanceof StringValue
-                ? rawKey
-                : rawKey != null && !(rawKey instanceof NullValue)
-                  ? new StringValue(luauMapKeyString(rawKey))
-                  : null;
-            let valObj = asOrNull(between[i + 1], AbstractValue);
-            if (!keyObj || keyObj.value === null || !valObj) continue;
-            // Lua-style table-spread: if this is the LAST entry, its
-            // key is a positive integer (array-style), AND its value
-            // is a MultiValue, expand into sequential array slots —
-            // `{a, b, f()}` where `f()` returns `(10, 20, 30)` lowers
-            // to a table with keys "1","2","3","4","5". Non-last
-            // MultiValues are truncated to their first inner value
-            // (matches Lua: only the last expression spreads).
-            const isLast = i + 1 === pairEnd;
-            if (
-              isLast &&
-              valObj instanceof MultiValue &&
-              /^[1-9]\d*$/.test(keyObj.value)
-            ) {
-              const startIdx = parseInt(keyObj.value, 10);
-              for (let k = 0; k < valObj.values.length; k++) {
-                const spreadVal = valObj.values[k]!;
-                // nil entries don't exist (see the non-spread branch).
-                if (spreadVal instanceof NullValue) continue;
-                entries.set(String(startIdx + k), spreadVal);
-              }
-            } else {
-              if (valObj instanceof MultiValue) {
-                valObj = valObj.values[0] ?? new NullValue();
-              }
-              // Lua: a nil-valued entry does not EXIST — the key is
-              // simply absent. `{5, 6, 7, nil, 8}` has keys 1,2,3,5
-              // (position counting still advanced past the nil at
-              // lower time), so `pairs` yields "1235" and `t[4]` is
-              // nil (lines 224-240). DELETE rather than skip:
-              // duplicate fields assign left-to-right, so a later
-              // `data = nil` must remove an earlier `data = 4`
-              // (basic.luau line 328).
-              if (valObj instanceof NullValue) {
-                entries.delete(keyObj.value);
-              } else {
-                entries.set(keyObj.value, valObj);
-              }
-            }
-          }
-          this.state.PushEvaluationStack(new ObjectValue(entries));
+          this.state.PushEvaluationStack(tableFromPairs(between, 1));
           break;
         }
 
         case ControlCommand.CommandType.IndexValue: {
-          // Pops key + container off the eval stack; pushes container[key].
-          // For ObjectValue, on a raw miss we consult the metatable's
-          // `__index` (table-form chains lookup; function-form calls
-          // `__index(t, key)` via story.CallLuauFunction). Lua's
-          // `__index` only fires on miss — a present key returns
-          // directly without metamethod consultation.
           const indexKey = this.state.PopEvaluationStack();
           const indexBase = this.state.PopEvaluationStack();
-          let resolved: InkObject | null = null;
-          const keyStr = luauMapKeyString(indexKey);
-          // `_G` globals-table proxy: route the read to global
-          // variable storage. Misses push nil (Luau's semantics for
-          // absent globals), NOT the generic empty-string sentinel
-          // below — `_G['nope'] == nil` must hold.
-          if (
-            indexBase instanceof ObjectValue &&
-            indexBase.value?.has(GLOBALS_PROXY_TAG)
-          ) {
-            this.state.PushEvaluationStack(
-              this.state.variablesState.GetGlobalVariableValue(keyStr) ??
-                new NullValue(),
-            );
-            break;
-          }
-          // Lua's index-type rule: indexing nil / a boolean / a
-          // number / a function raises (trappable via pcall) —
-          // `idontexist.a` must NOT silently produce nil.
-          {
-            const idxErr = luauIndexTargetError(indexBase);
-            if (idxErr) {
-              this.Error(idxErr);
-              break;
-            }
-          }
-          if (indexBase instanceof ObjectValue) {
-            // Reactive dep tracking: this binding read into a table — record the
-            // table's identity so an in-place mutation of it re-runs the binding.
-            if (this.state.variablesState.reactiveDepsEnabled) {
-              this.state.variablesState.recordReactiveTableRead(indexBase.value!);
-            }
-            const direct = indexBase.value?.get(keyStr) ?? null;
-            if (direct != null) {
-              resolved = direct;
-            } else {
-              resolved = indexThroughMetatable(this, indexBase, keyStr);
-            }
-          } else if (indexBase instanceof StringValue) {
-            // 1-indexed character access, matching Luau's string indexing.
-            const intKey = asOrNull(indexKey, IntValue);
-            if (intKey !== null && indexBase.value !== null) {
-              const i = (intKey.value ?? 0) - 1;
-              const ch =
-                i >= 0 && i < indexBase.value.length ? indexBase.value[i] : "";
-              resolved = new StringValue(ch ?? "");
-            }
-          }
-          if (resolved === null) {
-            // Miss → nil. (Formerly an empty-string sentinel from
-            // before nil was first-class; `t[missing] == nil` must
-            // hold per Lua.)
-            resolved = new NullValue();
-          }
-          this.state.PushEvaluationStack(resolved);
+          this.state.PushEvaluationStack(indexValue(this, indexBase, indexKey));
           break;
         }
 
         case ControlCommand.CommandType.StoreIndex: {
           // Pops value, key, container off the eval stack and mutates
-          // container[key] = value in place. No result is pushed — this is a
-          // statement-level effect. The container must be an ObjectValue
-          // looked up from a variable; mutating its internal Map propagates
-          // through the variable reference (Maps are passed by reference).
+          // container[key] = value in place.
           const storeValue = this.state.PopEvaluationStack();
           const storeKey = this.state.PopEvaluationStack();
           const storeBase = this.state.PopEvaluationStack();
-          // `_G` globals-table proxy: `_G.foo = v` / `_G['foo'] = v`
-          // writes the global directly, as an ordinary global assignment.
-          if (
-            storeBase instanceof ObjectValue &&
-            storeBase.value?.has(GLOBALS_PROXY_TAG)
-          ) {
-            const globalName = storeKey?.toString() ?? "";
-            const globalVal = asOrNull(storeValue, AbstractValue);
-            if (globalName && globalVal !== null) {
-              this.state.variablesState.SetGlobal(globalName, globalVal);
-            }
-            break;
-          }
-          if (storeBase instanceof ObjectValue) {
-            // Lua rejects nil and NaN as table KEYS on write (reads
-            // just produce nil) — `a[NaN] = 1` raises "table index
-            // is NaN" through pcall (math.luau NaN section).
-            if (storeKey == null || storeKey instanceof NullValue) {
-              throw new StoryException("table index is nil");
-            }
-            {
-              const numKey = (storeKey as { value?: unknown }).value;
-              if (typeof numKey === "number" && Number.isNaN(numKey)) {
-                throw new StoryException("table index is NaN");
-              }
-            }
-            const keyStr = luauMapKeyString(storeKey);
-            const val = asOrNull(storeValue, AbstractValue);
-            if (storeBase.value && val !== null) {
-              // `__newindex`: only consulted on a raw miss (key not
-              // already present). If the metatable handles the write,
-              // skip the direct mutation. Cycle-bounded recursion via
-              // `newindexThroughMetatable`. Frozen tables refuse all
-              // writes including through `__newindex`.
-              if (storeBase.isFrozen) {
-                throw new StoryException(
-                  "attempt to modify a readonly table",
-                );
-              }
-              if (newindexThroughMetatable(this, storeBase, keyStr, val)) {
-                break;
-              }
-              // Lua: assigning nil REMOVES the key — a nil-valued
-              // entry doesn't exist (`t[k] = nil` is the idiomatic
-              // delete; `pairs` must not see the key afterwards).
-              if (val instanceof NullValue) {
-                storeBase.value.delete(keyStr);
-              } else {
-                storeBase.value.set(keyStr, val);
-              }
-              // Reactive dep tracking: an in-place table mutation, keyed by the
-              // table's backing-Map identity (a binding that read this table
-              // re-runs). Cheap no-op when reactive tracking is disabled.
-              if (this.state.variablesState.reactiveDepsEnabled) {
-                this.state.variablesState.recordReactiveTableChange(
-                  storeBase.value,
-                );
-              }
-            }
-          } else {
-            throw new StoryException(
-              "Cannot assign to a property of a non-object value",
-            );
-          }
+          storeIndex(this, storeBase, storeKey, storeValue);
           break;
         }
 
@@ -3201,102 +3669,12 @@ export class Story extends InkObject {
         }
 
         case ControlCommand.CommandType.PackTuple: {
-          // Pop N expression results and pack them into one
-          // `MultiValue`. Lua/Luau "spread the last expression"
-          // semantics applies: the FIRST popped slot (which was
-          // the syntactically LAST expression evaluated) spreads
-          // its inner values if it's a `MultiValue`; all OTHER
-          // popped slots truncate a `MultiValue` to its first
-          // inner value. So `return a, b, f()` where f returns
-          // `(1, 2, 3)` packs as `MultiValue([a, b, 1, 2, 3])`,
-          // while `return f(), b` where f returns `(1, 2, 3)`
-          // packs as `MultiValue([1, b])` (f truncated since
-          // it's no longer in last position).
-          const n = evalCommand._tupleArity;
-          const values: AbstractValue[] = [];
-          for (let i = 0; i < n; i++) {
-            const v = this.state.PopEvaluationStack() as AbstractValue;
-            if (i === 0 && v instanceof MultiValue) {
-              // Last expression spreads: prepend each inner value
-              // in original order.
-              for (let k = v.values.length - 1; k >= 0; k--) {
-                values.unshift(v.values[k]!);
-              }
-            } else if (i === 0 && v instanceof Void) {
-              // Last expression returned NO values (a function that
-              // fell off its end): it spreads to ZERO values, not a
-              // nil — `return t[i], unlpack(t, i+1)` where the
-              // terminal recursion level returns nothing must pack
-              // exactly the collected items (calls.luau line 204
-              // packed one phantom extra per chain).
-            } else if (v instanceof MultiValue) {
-              // Non-last expression truncates to its first value
-              // (or nil if it returned zero values).
-              values.unshift(v.values[0] ?? new NullValue());
-            } else if (v instanceof Void) {
-              // Non-last no-value expression adjusts to nil.
-              values.unshift(new NullValue());
-            } else {
-              values.unshift(v);
-            }
-          }
-          // Variadic call-site spread when extras = 0: the
-          // SYNTACTICALLY LAST expression is the call's last regular
-          // arg (already pushed before this PackTuple). If it's a
-          // MultiValue, spread it so its first inner value stays as
-          // the regular arg and the rest land in the vararg
-          // MultiValue we're building. E.g. `f(pcall(...))` against
-          // `function f(head, ...)`: pcall returns
-          // `MultiValue([true, nil])` → head=true, ...=(nil).
-          if (n === 0 && this.state.evaluationStack.length > 0) {
-            const peeked = this.state.PeekEvaluationStack();
-            if (peeked instanceof MultiValue) {
-              this.state.PopEvaluationStack();
-              if (peeked.values.length > 0) {
-                this.state.PushEvaluationStack(peeked.values[0]!);
-                for (let k = 1; k < peeked.values.length; k++) {
-                  values.push(peeked.values[k]!);
-                }
-              } else {
-                this.state.PushEvaluationStack(new NullValue());
-              }
-            }
-          }
-          this.state.PushEvaluationStack(new MultiValue(values));
+          packTuple(this, evalCommand._tupleArity);
           break;
         }
 
         case ControlCommand.CommandType.UnpackTuple: {
-          // Pop the top eval-stack slot. If it's a `MultiValue`,
-          // push the first N inner values in REVERSE order so the
-          // next N pops match the original push order. If it's any
-          // other value, push it as value-0 plus N-1 NullValue
-          // placeholders. Emitted by multi-target assignment
-          // lowering for `local a, b = expr`.
-          //
-          // Void-returning callees (e.g. an iterator function that
-          // falls through without `return`) get coerced to all-nil:
-          // the user sees the same all-nil tuple they'd see from
-          // `return` with no values, matching Luau's iterator-end
-          // semantics. Without this, downstream `x == nil` checks
-          // crash on `Void` (the runtime can't compare Void to any
-          // other type).
-          const n = evalCommand._tupleArity;
-          const top = this.state.PopEvaluationStack();
-          let values: AbstractValue[];
-          if (top instanceof MultiValue) {
-            values = top.values.slice(0, n);
-          } else if (top instanceof Void) {
-            values = [];
-          } else {
-            values = [top as AbstractValue];
-          }
-          while (values.length < n) {
-            values.push(new NullValue());
-          }
-          for (let i = values.length - 1; i >= 0; i--) {
-            this.state.PushEvaluationStack(values[i]!);
-          }
+          unpackTuple(this, evalCommand._tupleArity);
           break;
         }
 
@@ -3327,29 +3705,13 @@ export class Story extends InkObject {
             break;
           }
           if (scOp === "if") {
-            let cond = this.state.PopEvaluationStack() as AbstractValue;
-            if (cond instanceof MultiValue) {
-              // Condition position adjusts a multi-value to one value.
-              cond = (cond.values[0] as AbstractValue) ?? new NullValue();
-            }
-            if (!isLuauTruthy(cond)) {
+            if (!popLuauCondition(this)) {
               jump();
             }
             break;
           }
-          let lhs = this.state.PeekEvaluationStack() as AbstractValue;
-          if (lhs instanceof MultiValue) {
-            // Operator position adjusts a multi-value to one value.
-            this.state.PopEvaluationStack();
-            lhs = (lhs.values[0] as AbstractValue) ?? new NullValue();
-            this.state.PushEvaluationStack(lhs);
-          }
-          const truthy = isLuauTruthy(lhs);
-          const decides = scOp === "and" ? !truthy : truthy;
-          if (decides) {
+          if (shortCircuitDecides(this, scOp as "and" | "or")) {
             jump();
-          } else {
-            this.state.PopEvaluationStack();
           }
           break;
         }
@@ -3502,230 +3864,7 @@ export class Story extends InkObject {
 
       // Normal variable reference
       else {
-        // `_G` — Luau's global environment table. A bare reference
-        // resolves to a marker-tagged proxy ObjectValue; the
-        // `IndexValue` / `StoreIndex` handlers route reads and writes
-        // through global variable storage when they see the tag.
-        // (`luauTypeOf` reports ObjectValue as "table", matching
-        // `type(_G) == "table"`.)
-        if (varRef.name === "_G") {
-          const proxyMap = new Map<string, AbstractValue>();
-          proxyMap.set(GLOBALS_PROXY_TAG, new BoolValue(true));
-          this.state.PushEvaluationStack(new ObjectValue(proxyMap));
-          return true;
-        }
-
-        // Reactive dep tracking: record the global this binding read (the first
-        // dotted segment — `player.hp` depends on global `player`). Over-
-        // approximate (a local shadowing this name is harmless: a re-eval at
-        // worst, never a miss). Cheap no-op when reactive tracking is disabled.
-        if (this.state.variablesState.reactiveDepsEnabled && varRef.name) {
-          this.state.variablesState.recordReactiveGlobalRead(
-            varRef.name.split(".")[0]!,
-          );
-        }
-
-        foundValue = this.state.variablesState.GetVariableWithName(varRef.name);
-
-        // Property-access via dotted name (sparkdown extension). If the
-        // flat-namespace lookup fails AND the name contains dots, try
-        // resolving the FIRST segment as a variable and indexing into
-        // its `ObjectValue` (or chained-ObjectValue) by the remaining
-        // segments as keys. This matches the same pattern used for
-        // `lang.current` lookup elsewhere in this file and lets
-        // sparkdown authors write `result.value` against a stored
-        // table without needing the bracket-indexer form (`result["value"]`).
-        // Falls through to the normal `Variable not found` warning if
-        // either the base variable doesn't exist or some intermediate
-        // segment isn't an ObjectValue / Map.
-        let dottedIndexError: string | null = null;
-        // True when the dotted walk's ROOT resolved and the chain
-        // legitimately produced nil (missing last member, e.g.
-        // `t.data` after a nil-delete) — the read result is nil, not
-        // an index error.
-        let dottedResolvedToNil = false;
-        if (foundValue == null && varRef.name && varRef.name.includes(".")) {
-          const segs = varRef.name.split(".");
-          // `_G.x[.y...]` — strip the `_G` hop and start the walk at
-          // the GLOBAL binding for the next segment. Global-only
-          // lookup (not GetVariableWithName) because reads through
-          // `_G` must not see a same-named local shadowing the
-          // global.
-          let walkStart = 1;
-          let cur: unknown;
-          if (segs[0] === "_G" && segs.length > 1) {
-            cur = this.state.variablesState.GetGlobalVariableValue(segs[1]!);
-            walkStart = 2;
-            if (cur == null) {
-              // `_G.x` of an ABSENT global is nil (Luau: the env
-              // table simply has no member) — but `_G.x.y` indexes
-              // that nil and raises.
-              if (segs.length > 2) {
-                dottedIndexError = "attempt to index a nil value";
-              } else {
-                dottedResolvedToNil = true;
-              }
-            }
-          } else {
-            cur = this.state.variablesState.GetVariableWithName(segs[0]!);
-          }
-          if (cur != null) {
-            for (let i = walkStart; i < segs.length; i++) {
-              const seg = segs[i]!;
-              // Lua's index-type rule applies at each hop — indexing
-              // nil / a number / a function raises rather than
-              // silently producing nil (`local t = nil; t.a` must
-              // trap under pcall). Recorded, not thrown, so the
-              // knot / stdlib-marker fallbacks below keep their shot
-              // at resolving the full dotted name first.
-              const idxErr = luauIndexTargetError(cur);
-              if (idxErr) {
-                dottedIndexError = idxErr;
-                cur = null;
-                break;
-              }
-              // `__index` chain — fold each dotted segment through
-              // the metatable lookup so `t.x` resolves to either
-              // `rawget(t, "x")` (when present) or
-              // `__index(t, "x")` / chained-table lookup. Matches
-              // the IndexValue ControlCommand's metamethod behavior.
-              if (cur instanceof ObjectValue) {
-                // Reactive dep tracking: this dotted read walked through `cur` —
-                // record its identity so an in-place mutation re-runs the binding.
-                if (this.state.variablesState.reactiveDepsEnabled) {
-                  this.state.variablesState.recordReactiveTableRead(cur.value!);
-                }
-                const direct = cur.value?.get(seg);
-                if (direct != null) {
-                  cur = direct;
-                  continue;
-                }
-                const viaMt = indexThroughMetatable(this, cur, seg);
-                if (viaMt != null) {
-                  cur = viaMt;
-                  continue;
-                }
-                // Raw miss: nil when this is the last segment;
-                // indexing that nil (more segments remain) raises.
-                if (i < segs.length - 1) {
-                  dottedIndexError = "attempt to index a nil value";
-                }
-                cur = null;
-                break;
-              }
-              const obj = (cur as any)?.value;
-              if (obj instanceof Map) {
-                cur = obj.get(seg) ?? null;
-                if (cur == null) {
-                  if (i < segs.length - 1) {
-                    dottedIndexError = "attempt to index a nil value";
-                  }
-                  break;
-                }
-              } else {
-                // Strings reach here (member reads like `("x").nope`
-                // resolve to nil, matching the string library's
-                // metatable miss); anything else non-indexable was
-                // already classified above.
-                cur = null;
-                break;
-              }
-            }
-            if (cur != null) {
-              foundValue = cur as Value<any>;
-            } else if (dottedIndexError == null) {
-              dottedResolvedToNil = true;
-            }
-          }
-        }
-
-        // Lua-style first-class fn fallback: if no variable named
-        // `<name>` exists but a knot/function `<name>` IS defined,
-        // resolve to a `DivertTargetValue` pointing at the knot.
-        // This makes `local f = double` work as if the user had
-        // written `local f = -> double`. Common authoring pattern.
-        if (foundValue == null && varRef.name) {
-          const knotContainer = this.KnotContainerWithName(varRef.name);
-          if (knotContainer && knotContainer.path) {
-            foundValue = new DivertTargetValue(knotContainer.path);
-          }
-        }
-
-        // Stdlib-function-name fallback: `type`, `assert`, `print`,
-        // etc. are Luau globals that the user can reference as
-        // values (`local f = type; f(x)` / `type(type) == 'function'`).
-        // No real ink variable exists for them, so push a marker
-        // ObjectValue tagged `__stdlib_fn` so `luauTypeOf` reports
-        // "function". Actual call dispatch on the marker (`f(x)`)
-        // is a separate fix — for now the marker covers the
-        // type-inspection cases at least.
-        if (foundValue == null && varRef.name && isStdLibFunctionName(varRef.name)) {
-          const marker = new Map<string, AbstractValue>();
-          marker.set("__stdlib_fn", new StringValue(varRef.name));
-          foundValue = new ObjectValue(marker);
-        }
-
-        if (foundValue == null) {
-          // A dotted read that dead-ended on a non-indexable hop
-          // raises now that the knot / stdlib fallbacks have also
-          // missed (`local t = nil; t.a` → "attempt to index a nil
-          // value", trappable via pcall).
-          if (dottedIndexError) {
-            this.Error(dottedIndexError);
-            return true;
-          }
-          // Dotted reads whose ROOT never resolved: classify per
-          // Lua's index rule rather than silently producing nil.
-          //   - `math.pow.a`  → a stdlib FUNCTION prefix is being
-          //     indexed → "attempt to index a function value"
-          //   - `math.a.b`    → `math` is a real namespace, `math.a`
-          //     is a nil member, indexing it raises; but plain
-          //     `math.idontexist` (one unknown segment) stays nil
-          //   - `double.a`    → `double` names a knot (a function
-          //     value) → "attempt to index a function value"
-          //   - `idontexist.a` → indexing nil
-          // (Skipped when the walk's root DID resolve and the chain
-          // legitimately read a missing last member — that's nil.)
-          if (
-            !dottedResolvedToNil &&
-            varRef.name &&
-            varRef.name.includes(".")
-          ) {
-            const segs = varRef.name.split(".");
-            let prefixIsStdLibFn = false;
-            for (let cut = segs.length - 1; cut >= 1; cut--) {
-              if (isStdLibFunctionName(segs.slice(0, cut).join("."))) {
-                prefixIsStdLibFn = true;
-                break;
-              }
-            }
-            if (prefixIsStdLibFn) {
-              this.Error("attempt to index a function value");
-              return true;
-            }
-            if (isStdLibNamespaceName(segs[0]!)) {
-              if (segs.length > 2) {
-                this.Error("attempt to index a nil value");
-                return true;
-              }
-            } else if (this.KnotContainerWithName(segs[0]!)) {
-              this.Error("attempt to index a function value");
-              return true;
-            } else {
-              this.Error("attempt to index a nil value");
-              return true;
-            }
-          }
-          // Luau-superset semantics: undefined names resolve to `nil`
-          // (not `0`). The compile-time "Cannot find variable named"
-          // diagnostic is already downgraded to a warning in
-          // `VariableReference.ResolveReferences` — runtime stays
-          // silent so undefined-as-nil is a clean, non-noisy lookup.
-          // Arithmetic on the resulting `NullValue` errors at runtime
-          // via `Cast` (same as Lua), which is the correct trap shape
-          // for typos. Interpolation / `tostring` produce "nil".
-          foundValue = new NullValue();
-        }
+        foundValue = readVariable(this, varRef.name);
       }
 
       this.state.PushEvaluationStack(foundValue);
@@ -3737,71 +3876,9 @@ export class Story extends InkObject {
     else if (contentObj instanceof NativeFunctionCall) {
       let func = contentObj;
       let funcParams = this.state.PopEvaluationStack(func.numberOfParameters);
-      // Environment override: `getfenv().math = { abs = ... }` (or a
-      // plain global assignment `math = {...}`) replaces a stdlib
-      // namespace with a user table. Statically-lowered `math.abs(x)`
-      // call sites must then dispatch the REPLACEMENT member
-      // (basic.luau's testgetfenv reassignment block). Only dotted
-      // native names can be overridden, and a global-lookup miss
-      // keeps the fast static path.
-      const nsDotIdx = func.name.indexOf(".");
-      if (nsDotIdx > 0) {
-        const nsOverride = this.state.variablesState.GetGlobalVariableValue(
-          func.name.slice(0, nsDotIdx),
-        ) as AbstractValue | null;
-        if (
-          nsOverride instanceof ObjectValue &&
-          !(nsOverride.value as Map<string, AbstractValue>)?.has(
-            GLOBALS_PROXY_TAG,
-          )
-        ) {
-          const member = (
-            nsOverride.value as Map<string, AbstractValue>
-          )?.get(func.name.slice(nsDotIdx + 1));
-          if (member != null && !(member instanceof NullValue)) {
-            // Padded Void slots represent missing args — drop them;
-            // the Lua-call arg normalization pads nil as needed.
-            const callArgs = funcParams.filter(
-              (p: any) => !(p instanceof Void),
-            ) as AbstractValue[];
-            const results = this.CallLuauFunction(
-              member as AbstractValue,
-              callArgs,
-            ) as AbstractValue[] | null;
-            if (results && results.length === 1) {
-              this.state.PushEvaluationStack(results[0]!);
-            } else if (results && results.length > 1) {
-              this.state.PushEvaluationStack(new MultiValue(results));
-            } else {
-              this.state.PushEvaluationStack(new NullValue());
-            }
-            return true;
-          }
-        }
-      }
-      // Metamethod dispatch: if any operand is an ObjectValue carrying a
-      // metatable with a matching `__add` / `__sub` / `__eq` / etc., the
-      // metamethod handles the op via `story.CallLuauFunction`. Returns
-      // `null` for the common case where no metamethod fires — fall
-      // through to the regular type-coerced dispatch below.
-      const fname = func.name;
-      let mmResult: AbstractValue | null = null;
-      if (funcParams.length === 2) {
-        mmResult = tryBinaryMetamethod(
-          this,
-          fname,
-          funcParams[0],
-          funcParams[1],
-        );
-      } else if (funcParams.length === 1) {
-        mmResult = tryUnaryMetamethod(this, fname, funcParams[0]);
-      }
-      if (mmResult !== null) {
-        this.state.PushEvaluationStack(mmResult);
-        return true;
-      }
-      let result = func.Call(funcParams);
-      this.state.PushEvaluationStack(result);
+      this.state.PushEvaluationStack(
+        callNativeFunction(this, func, funcParams),
+      );
       return true;
     }
 

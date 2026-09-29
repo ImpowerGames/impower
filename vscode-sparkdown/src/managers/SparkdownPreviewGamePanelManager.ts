@@ -23,6 +23,7 @@ import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
 import { Connection } from "@impower/spark-engine/src/game/core/classes/Connection";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
+import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameReloadedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameReloadedMessage";
 import { GameStartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameStartedMessage";
 import { ResizeGameMessage } from "@impower/spark-engine/src/game/core/classes/messages/ResizeGameMessage";
@@ -279,6 +280,33 @@ export class SparkdownPreviewGamePanelManager {
       }
       if (GameExitedMessage.type.isNotification(message)) {
         this._gameRunning = false;
+      }
+      if (GameWorkerRestartedMessage.type.isNotification(message)) {
+        // The player restarted its worker because the script did not yield
+        // (#679). The line is in the Problems panel too, but the author did
+        // not ask for anything, so say what happened.
+        const { location } = message.params;
+        const showLine = "Show Line";
+        vscode.window
+          .showWarningMessage(
+            message.params.message,
+            ...(location ? [showLine] : []),
+          )
+          .then(async (choice) => {
+            if (choice !== showLine || !location) {
+              return;
+            }
+            const doc = await vscode.workspace.openTextDocument(
+              getUri(location.uri),
+            );
+            const editor = await vscode.window.showTextDocument(doc);
+            const range = getClientRange(location.range);
+            editor.selection = new vscode.Selection(range.start, range.end);
+            editor.revealRange(
+              range,
+              vscode.TextEditorRevealType.InCenterIfOutsideViewport,
+            );
+          });
       }
       if (message) {
         for (const listener of this._listeners) {

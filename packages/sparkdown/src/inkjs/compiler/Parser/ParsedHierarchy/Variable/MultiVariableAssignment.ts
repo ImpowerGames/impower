@@ -5,6 +5,8 @@ import { Expression } from "../Expression/Expression";
 import { Identifier } from "../Identifier";
 import { ParsedObject } from "../Object";
 import { VariableAssignment } from "./VariableAssignment";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
 
 // Lua/Luau multi-target assignment: `local a, b, c = expr1, expr2, …`.
 //
@@ -62,6 +64,29 @@ export class MultiVariableAssignment extends ParsedObject {
 
   override get typeName(): string {
     return "MultiVariableAssignment";
+  }
+
+  // The values, packed when there are several, unpacked to one per target,
+  // and each target assigned in order.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    for (const expr of this.expressions) {
+      emitter.emitObject(expr);
+    }
+    if (this.expressions.length > 1) {
+      emitter.emit(Op.Pack, this.expressions.length);
+    }
+    emitter.emit(Op.Unpack, this.targetAssignments.length);
+    for (const target of this.targetAssignments) {
+      if (target.isGlobalDeclaration) {
+        emitter.unsupported("global multiple assignment");
+      }
+      emitter.emit(
+        Op.SetVar,
+        emitter.variable(target.variableName),
+        0,
+        target.isNewTemporaryDeclaration ? SET_DECLARE : 0,
+      );
+    }
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

@@ -70,7 +70,7 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
   assert.throws(()=>continuationHost({}),/Originating destination identity required/);
   assert.throws(()=>verifyReviewerExecutable({transport:'native-codex-jsonl',executable:process.execPath}),/version is unverified|Windows only/);
   if(process.env.IMPOWER_TEST_CODEX_EXECUTABLE)verifyReviewerExecutable({transport:'native-codex-jsonl',executable:process.env.IMPOWER_TEST_CODEX_EXECUTABLE});
-  else console.log('SKIP: installed pinned Codex executable probe requires IMPOWER_TEST_CODEX_EXECUTABLE; version mismatch refusal ran');
+  else console.log('SKIP: installed Codex executable probe requires IMPOWER_TEST_CODEX_EXECUTABLE; version mismatch refusal ran');
   assert.deepEqual(reviewerEnvironment({CLAUDE_CODE_MESSAGING_TOKEN:'sentinel',CLAUDE_CODE_MESSAGING_SOCKET:'sentinel',CODEX_APP_TOOLS_PIPE_PATH:'sentinel',CODEX_THREAD_ID:'sentinel',claude_pid:'1',GIT_DIR:'bad',PATH:'keep'}),{PATH:'keep'});
   assert.deepEqual(nativeReviewerEnvironment({model:'claude-sonnet-5',args:['-p']},privateDir,{PATH:'keep'}),{PATH:'keep',GIT_OPTIONAL_LOCKS:'0'},'non-Codex awaited reviewers remain credential-free');
   assert.deepEqual(nativeReviewerEnvironment({model:'claude-sonnet-5',args:['exec']},privateDir,{PATH:'keep'}),{PATH:'keep',GIT_OPTIONAL_LOCKS:'0'},'a Claude route with Codex-shaped arguments remains credential-free');

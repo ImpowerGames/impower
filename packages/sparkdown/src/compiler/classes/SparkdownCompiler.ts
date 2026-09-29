@@ -67,6 +67,7 @@ import {
   validateScene,
   validateBranch,
 } from "../lower/utils/validateSceneBranchScope";
+import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
 import { InkObject } from "../../inkjs/engine/Object";
@@ -755,6 +756,9 @@ export class SparkdownCompiler {
   // What this compile knows of each compiled block: its script and line, its
   // syntax and the lowering inputs it recorded.
   protected _statementRecords = new Map<object, StatementRecord>();
+  // The same for the builtins prelude's blocks, which the compiler lowers and
+  // places once and carries for as long as it keeps the prelude's parse.
+  protected _preludeStatementRecords = new Map<object, StatementRecord>();
   // Set while `previewCompile` compiles, so the root it builds is dropped and
   // the store's current root stays the last real compile's.
   protected _previewing = false;
@@ -1118,6 +1122,10 @@ export class SparkdownCompiler {
     ) {
       this._config.programChunks = config.programChunks;
       this._compilationConfig.recordLoweringReads = config.programChunks;
+      // The builtins prelude is lowered and placed once, so it is parsed
+      // again under the new setting, with the statements it records.
+      this._cachedPreludeParsedStory = undefined;
+      this._preludeStatementRecords = new Map();
       if (this._documents) {
         // Statements lowered under the other setting hold no reads, or reads
         // nothing checks, so every document is lowered again, and the store
@@ -2398,7 +2406,13 @@ export class SparkdownCompiler {
         parsedStory.DeclareBuiltinGlobals(getPreludeGlobalNames());
       }
       profile("start", this._profilerId, "ink/compile", uri);
-      const story = parsedStory.ExportRuntime(onDiagnostic);
+      // A program that runs from statement chunks initializes its globals
+      // with its declaration sequences, and the runtime story's own
+      // initialization runs only when the program falls back (below).
+      const story = parsedStory.ExportRuntime(
+        onDiagnostic,
+        !this._config.programChunks,
+      );
       profile("end", this._profilerId, "ink/compile", uri);
       // After ExportRuntime: the diverts it reports are recorded while
       // ExportRuntime resolves references.
@@ -2427,6 +2441,11 @@ export class SparkdownCompiler {
         const chunked =
           !!this._config.programChunks &&
           this.buildProgramChunks(parsedStory, story, program, uri);
+        if (this._config.programChunks && !chunked) {
+          // The program runs on the current engine, whose story initializes
+          // its globals as `ExportRuntime` would have.
+          story.ResetState();
+        }
         // #345: hosts that never read the bytecode skip SERIALIZATION only.
         // Everything else in this block still has to run — `state.story`, and
         // `populateAllLocations` below, which walks the runtime tree for
@@ -3169,7 +3188,10 @@ export class SparkdownCompiler {
         this._changedChunkRanges?.push([chunkStart, chunkEnd, uri]);
       }
       if (this._config.programChunks) {
-        this._statementRecords.set(
+        (uri === BUILTINS_PRELUDE_URI
+          ? this._preludeStatementRecords
+          : this._statementRecords
+        ).set(
           compiledBlock,
           this.statementRecord(rec.block, rec.from, rec.to, lineNumberOffset, uri),
         );
@@ -3602,6 +3624,8 @@ export class SparkdownCompiler {
     // than per-chunk during lowering. A per-chunk check would go stale when only
     // the matching `end` chunk is edited (the earlier scene chunk isn't
     // re-lowered), silently dropping the "missing `end`" diagnostic incrementally.
+    // A Luau block that stops at a story line is closed by a later root-level
+    // `end` the same way, so it is checked here too.
     this.validateSceneStructure(uri, onDiagnostic);
 
     // Auto-terminate non-function scenes / branches whose body doesn't end
@@ -4364,6 +4388,7 @@ export class SparkdownCompiler {
       }
       cur = cur.nextSibling;
     }
+    emit(validateOpenBlocks(tree.topNode, ctx));
   }
 
   // Decide which top-level flows the incremental ToJson cache may reuse this
@@ -4426,10 +4451,15 @@ export class SparkdownCompiler {
     line: number,
     uri: string,
   ): StatementRecord {
+    // A statement can run past its node, as a `repeat` loop runs to its
+    // `until` line.
+    const shape = block.statement;
+    const end = shape ? Math.max(to, from + shape.to) : to;
     let source: string | undefined;
     let syntax: string | undefined;
-    const sourceOf = () =>
-      (source ??= this.documents.get(uri)?.getText().slice(from, to) ?? "");
+    const textOf = (a: number, b: number) =>
+      this.documents.get(uri)?.getText().slice(a, b) ?? "";
+    const sourceOf = () => (source ??= textOf(from, end));
     const columnOf = () =>
       this.documents.get(uri)?.positionAt(from).character ?? 0;
     const first = block.content?.[0];
@@ -4445,6 +4475,21 @@ export class SparkdownCompiler {
         block.reads ?? [],
       ]),
       range: first?.ownDebugMetadata ?? null,
+      shape,
+      lineAt: (offset) => this.documents.get(uri)?.lineAt(from + offset) ?? line,
+      columnAt: (offset) =>
+        this.documents.get(uri)?.positionAt(from + offset).character ?? 0,
+      text: (a, b) => textOf(from + a, from + b),
+      lineEnd: (at) => {
+        const document = this.documents.get(uri);
+        if (!document) {
+          return 0;
+        }
+        const text = document.getText();
+        const start = document.offsetAt({ line: at, character: 0 });
+        const end = text.indexOf("\n", start);
+        return (end < 0 ? text.length : end) - start;
+      },
     };
   }
 
@@ -4461,20 +4506,28 @@ export class SparkdownCompiler {
     uri: string,
   ): boolean {
     profile("start", this._profilerId, "program/chunks", uri);
+    const lineCount = (scriptUri: string) => {
+      const document = this.documents.get(scriptUri);
+      return document ? document.lineAt(document.getText().length) + 1 : 0;
+    };
     const flows = programFlows({
       story: parsedStory,
       uri,
       preludeUri: BUILTINS_PRELUDE_URI,
       blockOf: (obj) => this._placedBy.get(obj),
-      record: (block) => this._statementRecords.get(block),
-      lineCount: (scriptUri) => {
-        const document = this.documents.get(scriptUri);
-        return document ? document.lineAt(document.getText().length) + 1 : 0;
-      },
+      record: (block) =>
+        this._statementRecords.get(block) ??
+        this._preludeStatementRecords.get(block),
+      lineCount,
     });
     this._chunkStore ??= new ChunkStore();
     const build = this._chunkStore.build(
-      flows.flows,
+      {
+        flows: flows.flows,
+        declarations: flows.declarations,
+        functionBlocks: flows.functionBlocks,
+        lineCount,
+      },
       !this._previewing && !flows.fallback,
       story,
     );
@@ -4487,7 +4540,7 @@ export class SparkdownCompiler {
       ...build,
       root: fallback ? undefined : build.root,
       fallback,
-      declarations: flows.declarations,
+      declarations: flows.declarations.length,
       functions: flows.functions,
     };
     if (fallback) {

@@ -13,9 +13,18 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
-import type { LoweringRead, SiblingSubFlowInfo } from "../../lower/context";
+import type {
+  LowerContext,
+  LoweringRead,
+  SiblingSubFlowInfo,
+} from "../../lower/context";
 import { lower } from "../../lower/lower";
 import { continuationRoutingRead } from "../../lower/lowerers/lowerDisplay";
+import {
+  topLevelShape,
+  type StatementShape,
+} from "../../lower/utils/statementShape";
+import { validateBlockEnds } from "../../lower/utils/validateBlockEnds";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import {
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -76,6 +85,11 @@ export interface CompiledBlock {
   // answers they got (`LoweringRead`). The chunk is lowered again when the
   // document answers one differently (see `staleRanges`).
   reads?: RecordedRead[];
+  // The chunk's statement as its lowering found it: the bodies of a block
+  // statement with the statements inside them, and what each statement's
+  // lowering read. Kept only with `recordLoweringReads`, for the binary
+  // program's chunk store.
+  statement?: StatementShape;
 }
 
 // A lowering read as its chunk keeps it: the node that read it by name and by
@@ -426,8 +440,18 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       const typeNames = this.computeDefineTypeNames();
       const defineTypeReads = new Map<string, boolean>();
       const reads: RecordedRead[] = [];
-      const lowered = lower(nodeRef, {
-        recordRead: this.config?.recordLoweringReads
+      // The statements whose lowering is running, for the binary program's
+      // chunk store (`StatementShape`): this node's statement at the bottom,
+      // and the statements of a block's bodies above it while they lower.
+      // Each read is recorded on the innermost one as well.
+      const recording = !!this.config?.recordLoweringReads;
+      const statement = recording
+        ? topLevelShape(nodeRef.name, nodeRef.from, nodeRef.to)
+        : undefined;
+      const statementStack = statement ? [statement] : undefined;
+      const innermost = () => statementStack?.[statementStack.length - 1];
+      const ctx: LowerContext = {
+        recordRead: recording
           ? (read: LoweringRead) => {
               reads.push({
                 kind: read.kind,
@@ -435,8 +459,10 @@ export class CompilationAnnotator extends SparkdownAnnotator<
                 node: read.node,
                 at: read.from - nodeRef.from,
               });
+              innermost()?.reads.other.push(`${read.kind}:${read.value}`);
             }
           : undefined,
+        statementStack,
         // The document being lowered. Absent here until now, which made
         // `ctx.filePath` undefined on the PRODUCTION path — so anything
         // deriving identity from it silently fell back to nothing. Binding
@@ -460,6 +486,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           has: (name) => {
             const found = callableNames.has(name);
             globalCallableReads.set(name, found);
+            innermost()?.reads.callable.set(name, found);
             return found;
           },
         },
@@ -467,13 +494,26 @@ export class CompilationAnnotator extends SparkdownAnnotator<
           has: (name) => {
             const found = typeNames.has(name);
             defineTypeReads.set(name, found);
+            innermost()?.reads.defineType.set(name, found);
             return found;
           },
         },
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
-      });
+      };
+      let lowered = lower(nodeRef, ctx);
+      // The Luau blocks this chunk's own nodes show to be left open. A chunk
+      // with no lowerer (a root-level type function) carries them on an empty
+      // block.
+      const unclosed = validateBlockEnds(nodeRef.node, ctx);
+      if (unclosed.length > 0) {
+        lowered ??= {};
+        chunkDiagnostics.push(...unclosed);
+      }
+      if (lowered && statement) {
+        lowered.statement = statement;
+      }
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;
       }

@@ -2,6 +2,8 @@ import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
 import { ParsedObject } from "../Object";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 // Index access — `base[key]`. The base is any Expression that puts a value
 // on the eval stack (e.g. an ObjectValue from a table literal, a string,
@@ -28,6 +30,12 @@ export class IndexExpression extends Expression {
     this.keyExpression.GenerateIntoContainer(container);
     container.AddContent(RuntimeControlCommand.IndexValue());
   };
+
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    emitter.emitObject(this.baseExpression);
+    emitter.emitObject(this.keyExpression);
+    emitter.emit(Op.Index);
+  }
 
   public override readonly toString = (): string =>
     `${this.baseExpression}[${this.keyExpression}]`;

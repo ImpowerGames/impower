@@ -10,6 +10,11 @@ import { Story } from "../Story";
 import { Text } from "../Text";
 import { Weave } from "../Weave";
 import { asOrNull } from "../../../../engine/TypeAssertion";
+import type {
+  ProgramEmitter,
+  ProgramLabel,
+} from "../../../../../program/ProgramEmitter";
+import { JUMP_DECISION, Op } from "../../../../../program/ProgramInstructions";
 
 export class ConditionalSingleBranch extends ParsedObject {
   public _contentContainer: RuntimeContainer | null = null;
@@ -155,6 +160,46 @@ export class ConditionalSingleBranch extends ParsedObject {
 
     return container;
   };
+
+  // One branch of its conditional's chunk: for a switch-like conditional a
+  // copy of the value to compare with, the branch's test and a jump past the
+  // branch when it fails, which is a decision the route planner can force as
+  // it forces a conditional divert; then the branch's content, after the
+  // newline a branch that is not inline starts with, and a jump to `end`.
+  // The true branch of a `{ cond: a | b }` conditional tests the
+  // conditional's own value, which it consumes.
+  public EmitBranch(emitter: ProgramEmitter, end: ProgramLabel): void {
+    const duplicatesStackValue = this.matchingEquality && !this.isElse;
+    if (duplicatesStackValue) {
+      emitter.emit(Op.Dup);
+    }
+    let skip: ProgramLabel | null = null;
+    if (!this.isElse) {
+      if (!this.isTrueBranch) {
+        // A branch with no expression of its own (a keyless arm of a
+        // `match`) tests what is on the stack, as the current engine's
+        // conditional divert does.
+        if (this.ownExpression) {
+          emitter.emitObject(this.ownExpression);
+        }
+        if (this.matchingEquality) {
+          emitter.emit(Op.Native, emitter.string("=="), 2);
+        }
+      }
+      skip = emitter.jump(Op.JumpIfFalse, JUMP_DECISION);
+    }
+    if (!this.isInline) {
+      emitter.emit(Op.Newline);
+    }
+    if (duplicatesStackValue || (this.isElse && this.matchingEquality)) {
+      emitter.emit(Op.Pop);
+    }
+    emitter.emitBranchBody(this);
+    emitter.jumpBack(Op.Jump, end);
+    if (skip) {
+      emitter.bind(skip);
+    }
+  }
 
   public readonly GenerateRuntimeForContent = (): RuntimeContainer => {
     // Empty branch - create empty container

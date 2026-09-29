@@ -8,14 +8,22 @@ import type { SparkProgram } from "../../compiler/types/SparkProgram";
 import type { Story } from "../../inkjs/engine/Story";
 import { ObjectValue } from "../../inkjs/engine/Value";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
-import type { ProgramRoot } from "../../program/ProgramRoot";
+import { describeInstruction } from "../../program/BinaryProgramWriter";
+import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
 import {
+  B_BREAK,
+  B_HEAD_LINES,
+  B_RESUME,
+  B_SCOPES_FLAGS,
   H_FINGERPRINT,
   H_LAYOUT_HASH,
   H_LINE_ROWS,
   H_REFERENCE_ROWS,
   LINE_ROW_WORDS,
   REFERENCE_ROW_WORDS,
+  blockCount,
+  blockField,
+  chunkId,
   lineTableStart,
   referenceTableStart,
 } from "../../program/StatementChunk";
@@ -115,34 +123,51 @@ export function storyBeats(
   return { beats, errors, continues };
 }
 
-/** Every chunk of a root, flow by flow in the order of their names. */
-export const rootChunks = (root: ProgramRoot): Int32Array[] =>
-  [...root.sequences()]
+/** Every chunk of a root: its flows' statements, flow by flow in the order
+ *  of their names, each block statement before its bodies' statements, then
+ *  the declaration chunks in the order they run. */
+export const rootChunks = (root: ProgramRoot): Int32Array[] => [
+  ...flowRows(root).flatMap((flow) => sequenceChunks(root, flow)),
+  ...root.initialization,
+];
+
+const flowRows = (root: ProgramRoot) =>
+  root
+    .flowSequences()
     .sort((a, b) =>
       root.table.symbols[a.flow]!.localeCompare(root.table.symbols[b.flow]!),
-    )
-    .flatMap((sequence) => [...sequence.arrays.chunks]);
+    );
 
-/** A root by content: per flow, its kind, script, first line and span, and
- *  per statement its line start, its instructions with every id read as what
- *  it names, its line table, its reference table with each symbol read as its
- *  name, and its fingerprint and layout hash. Chunk ids and sequence ids are
- *  left out, since they count every chunk a store has made. */
+const sequenceChunks = (root: ProgramRoot, sequence: SequenceRow): Int32Array[] =>
+  sequence.arrays.chunks.flatMap((chunk) => [
+    chunk,
+    ...Array.from({ length: blockCount(chunk) }, (_, k) => {
+      const body = root.body(chunk, k);
+      return body ? sequenceChunks(root, body) : [];
+    }).flat(),
+  ]);
+
+/** A root by content: per flow, its kind, script, first line and span; per
+ *  statement its line start, its instructions with every id read as what it
+ *  names, its line table, its block table without the sequence ids, its
+ *  reference table with each symbol read as its name, and its fingerprint
+ *  and layout hash; and each body's first line and span, the same way inside
+ *  it. The declaration sequences follow, script by script, with the order
+ *  the declarations run in. Chunk ids and sequence ids are left out, since
+ *  they count every chunk and body a store has made. */
 export function describeRoot(root: ProgramRoot): string[] {
   const reader = new BinaryProgramReader(root);
   const out: string[] = [];
-  const flows = [...root.sequences()].sort((a, b) =>
-    root.table.symbols[a.flow]!.localeCompare(root.table.symbols[b.flow]!),
-  );
-  for (const flow of flows) {
-    out.push(
-      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${flow.kind} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
-    );
-    flow.arrays.chunks.forEach((chunk, entry) => {
+  const describeSequence = (sequence: SequenceRow, indent: string) => {
+    sequence.arrays.chunks.forEach((chunk, entry) => {
       const rows: number[][] = [];
       const start = lineTableStart(chunk);
       for (let r = 0; r < chunk[H_LINE_ROWS]!; r += 1) {
         rows.push([...chunk.subarray(start + r * LINE_ROW_WORDS, start + (r + 1) * LINE_ROW_WORDS)]);
+      }
+      const blocks: number[][] = [];
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        blocks.push([B_RESUME, B_BREAK, B_SCOPES_FLAGS, B_HEAD_LINES].map((f) => blockField(chunk, k, f)));
       }
       const references: string[] = [];
       const refs = referenceTableStart(chunk);
@@ -151,14 +176,40 @@ export function describeRoot(root: ProgramRoot): string[] {
         references.push(`${JSON.stringify(root.table.symbols[chunk[at]!])}:${chunk[at + 1]}`);
       }
       out.push(
-        `  ${flow.arrays.lineStarts[entry]} ${[...chunk.subarray(H_FINGERPRINT, H_LAYOUT_HASH + 2)].join(",")} rows ${JSON.stringify(rows)} refs [${references.join(" ")}]`,
+        `${indent}${sequence.arrays.lineStarts[entry]} ${[...chunk.subarray(H_FINGERPRINT, H_LAYOUT_HASH + 2)].join(",")} rows ${JSON.stringify(rows)} blocks ${JSON.stringify(blocks)} refs [${references.join(" ")}]`,
       );
-    });
-    for (const line of reader.listing(flow)) {
-      if (line.startsWith(" ")) {
-        out.push(`  ${line}`);
+      for (const { offset } of reader.instructions(chunk)) {
+        out.push(`${indent}  ${offset}: ${describeInstruction(chunk, offset, root.table)}`);
       }
-    }
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        const body = root.body(chunk, k);
+        out.push(`${indent}  block ${k} first ${body?.firstLine} span ${body?.span}`);
+        if (body) {
+          describeSequence(body, `${indent}    `);
+        }
+      }
+    });
+  };
+  for (const flow of flowRows(root)) {
+    out.push(
+      `flow ${JSON.stringify(root.table.symbols[flow.flow])} kind ${flow.kind} ${flow.uri} first ${flow.firstLine} span ${flow.span}`,
+    );
+    describeSequence(flow, "  ");
   }
+  const scripts = [...root.sequences()]
+    .filter((row) => row.flow < 0)
+    .sort((a, b) => a.uri.localeCompare(b.uri));
+  for (const row of scripts) {
+    out.push(`declarations ${row.uri} span ${row.span}`);
+    describeSequence(row, "  ");
+  }
+  out.push(
+    `initialization ${root.initialization
+      .map((chunk) => {
+        const at = root.position(chunkId(chunk));
+        return at ? `${at.sequence.uri}#${at.entry}` : "?";
+      })
+      .join(" ")}`,
+  );
   return out;
 }

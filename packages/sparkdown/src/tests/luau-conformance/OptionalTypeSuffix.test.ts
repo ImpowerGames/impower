@@ -70,7 +70,23 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["a generic type", "local v: Array<number>?\nlocal s = 1\n"],
     ["a generic function return", "local v: () -> Array<number>?\nlocal s = 1\n"],
     ["a trailing comment", "type T = number? -- a comment\nlocal y = 1\n"],
+    ["a block comment between the type and the `?`", "type T = number --[[c]] ?\nlocal y = 1\n"],
+    ["an optional array element", "local t: { number? } = {}\n"],
+    ["an optional array element after a comment", "local t: { --[[c]] number? } = {}\n"],
+    ["a block comment between a function return type and the `?`","type F = () -> number --[[c]]?\nlocal y = 1\n"],
   ])("an optional type before %s parses", (_name, snippet) => {
+    expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+  });
+
+  // A comment between an alias's `=` and its type is skipped, as it is after
+  // an annotation's `:`, so the type after it is read.
+  test.each([
+    ["a block comment before its type", "type T = --[[c]] number\nlocal y = 1\n"],
+    ["a block comment before an optional type", "type T = --[[c]] number?\nlocal y = 1\n"],
+    ["a block comment before a table type", "type T = --[[c]] { number }\nlocal y = 1\n"],
+    ["a line comment before a type on the next line", "type T = -- c\n  number\nlocal y = 1\n"],
+    ["an export and a block comment before an optional type", "export type T = --[[c]] number?\nlocal y = 1\n"],
+  ])("a type alias with %s after its `=` parses", (_name, snippet) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
@@ -81,7 +97,13 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["alone", "type Baz = ?\n", 11],
     ["before its type", "local v: ?number\n", 9],
     ["after a function arrow", "type F = () -> ?\n", 15],
-    ["after an unspaced function arrow", "type F = () ->?\n", 14],  ])("a `?` with no type before it, %s, is reported", (_name, snippet, column) => {
+    ["after an unspaced function arrow", "type F = () ->?\n", 14],
+    ["after a function arrow and a block comment", "type F = () -> --[[c]] ?\n", 23],
+    ["after a function arrow and two block comments", "type F = () -> --[[a]] --[=[b]=]?\n", 32],
+    ["after an annotation's `:` and a block comment", "local v: --[[c]]?\n", 16],
+    ["after a type alias's `=` and a block comment", "type T = --[[c]] ?\n", 17],
+    ["after an exported type alias's `=` and a block comment", "export type T = --[[c]] ?\n", 24],
+  ])("a `?` with no type before it, %s, is reported", (_name, snippet, column) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
       `1:${column}-1:${column + 1} SyntaxError: Expected type, got '?'`,
     ]);

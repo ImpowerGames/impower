@@ -21,7 +21,11 @@ import { SimpleJson } from "./SimpleJson";
 import { type CarriedStep, Flow } from "./Flow";
 import { InkList } from "./InkList";
 import type { RaisedError } from "./Error";
-import { cleanOutputWhitespace, splitHeadTailWhitespace } from "./outputWhitespace";
+import {
+  cleanOutputWhitespace,
+  findOpenString,
+  splitHeadTailWhitespace,
+} from "./outputWhitespace";
 
 export class StoryState {
   // Backward compatible changes since v8:
@@ -1039,17 +1043,11 @@ export class StoryState {
   }
 
   get inStringEvaluation() {
-    for (let i = this.outputStream.length - 1; i >= 0; i--) {
-      let cmd = asOrNull(this.outputStream[i], ControlCommand);
-      if (
-        cmd instanceof ControlCommand &&
-        cmd.commandType == ControlCommand.CommandType.BeginString
-      ) {
-        return true;
-      }
-    }
-
-    return false;
+    this._openStringIndex = findOpenString(
+      this.outputStream,
+      this._openStringIndex,
+    );
+    return this._openStringIndex >= 0;
   }
 
   public PushEvaluationStack(obj: InkObject | null) {
@@ -1301,6 +1299,9 @@ export class StoryState {
 
   private _outputStreamTextDirty = true;
   private _outputStreamTagsDirty = true;
+
+  // Where `inStringEvaluation` last found the open string (`findOpenString`).
+  private _openStringIndex = -1;
 
   private _currentFlow: Flow;
   private _aliveFlowNames: string[] | null = null;

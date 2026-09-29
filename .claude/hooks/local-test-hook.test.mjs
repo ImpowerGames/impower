@@ -73,6 +73,20 @@ const denies = [
   ["package npm run test:run", "cd packages/sparkdown && npm run test:run"],
   ["npm test with a file after --", `cd packages/sparkdown && npm test -- ${FILE}`],
   ["npm test by prefix", "npm --prefix packages/sparkdown test"],
+  ["the suite runner start", "node scripts/test-suite.mjs start packages/sparkdown"],
+  ["the suite runner start with --wait", "node scripts/test-suite.mjs start packages/sparkdown --wait 600"],
+  ["the suite runner start by a Windows path", "node .\\scripts\\test-suite.mjs start packages/sparkdown"],
+  ["the suite runner start by an absolute path", "node C:/repo/scripts/test-suite.mjs start packages/sparkdown"],
+  ["the suite runner start through node.exe", "node.exe scripts/test-suite.mjs start packages/sparkdown"],
+  ["node options before the suite runner start", "node --max-old-space-size=1024 --require node:path scripts/test-suite.mjs start packages/sparkdown"],
+  ["the suite runner start after a cd", "cd packages/sparkdown && node ../../scripts/test-suite.mjs start ."],
+  ["the suite runner start after Set-Location", "Set-Location packages/sparkdown; node ../../scripts/test-suite.mjs start ."],
+  ["the suite runner start through cmd /c", 'cmd /c "node scripts/test-suite.mjs start packages/sparkdown"'],
+  ["the suite runner start through unquoted cmd /c", "cmd /c node scripts/test-suite.mjs start packages/sparkdown"],
+  ["the suite runner start through pwsh -Command", 'pwsh -Command "node scripts/test-suite.mjs start packages/sparkdown"'],
+  ["the suite runner start inside bash -c", "bash -c 'node scripts/test-suite.mjs start packages/sparkdown'"],
+  ["the suite runner start in a substitution", 'OUT="$(node scripts/test-suite.mjs start packages/sparkdown)"'],
+  ["the suite runner start after another command", "git status && node scripts/test-suite.mjs start packages/sparkdown"],
   ["npm test by workspace", "npm -w packages/sparkdown test"],
   ["npm test at the root", "npm test"],
   ["pnpm test", "cd packages/sparkdown && pnpm test"],
@@ -144,7 +158,6 @@ const allows = [
   ["vitest on a file given by a variable", 'cd packages/sparkdown && npx vitest run "$TEST_FILE.test.ts"'],
   ["vitest after a cd to a variable directory", `cd "$PKG" && npx vitest run ${FILE}`],
   ["vitest list", "cd packages/sparkdown && npx vitest list"],
-  ["the suite runner start", "node scripts/test-suite.mjs start packages/sparkdown"],
   ["the suite runner status", "node scripts/test-suite.mjs status .git/test-suite/run-1"],
   ["the filtered root typecheck", "npm run typecheck -- packages/sparkdown/tsconfig.json"],
   ["the root typecheck list", "npm run typecheck -- --list"],
@@ -157,7 +170,14 @@ const allows = [
   ["a package's typecheck with --workspace after the script", "npm run typecheck --workspace packages/sparkdown"],
   ["a package's typecheck by pnpm --filter", "pnpm --filter @impower/sparkdown typecheck"],
   ["vitest with a known flag before the file", `cd packages/sparkdown && npx vitest run --run ${FILE}`],
-  ["node with a --require value before the suite runner", "node --require node:path scripts/test-suite.mjs start packages/sparkdown"],
+  ["node with a --require value before the suite runner's run", `node --require node:path scripts/test-suite.mjs run packages/sparkdown ${FILE} --wait 600`],
+  ["the suite runner run on a file", `node scripts/test-suite.mjs run packages/sparkdown ${FILE} --wait 600`],
+  ["the suite runner run through cmd /c", `cmd /c "node scripts/test-suite.mjs run packages/sparkdown ${FILE}"`],
+  ["the suite runner resume", "node scripts/test-suite.mjs resume .git/test-suites/run-1 --wait 600"],
+  ["the suite runner resume with a retry", "node scripts/test-suite.mjs resume .git/test-suites/run-1 --retry src/tests/a.test.ts"],
+  ["the suite runner status by absolute path", "node C:/repo/scripts/test-suite.mjs status .git/test-suites/run-1"],
+  ["start only as data for node -e", 'node -e "0" scripts/test-suite.mjs start packages/sparkdown'],
+  ["the suite runner start inside a quoted string", "echo 'node scripts/test-suite.mjs start packages/sparkdown'"],
   ["vitest with a valueless flag outside the old list", `cd packages/sparkdown && npx vitest run --disableConsoleIntercept ${FILE} ${CAPS}`],
   ["vitest with a --no- negation before the file", `cd packages/sparkdown && npx vitest run --no-isolate ${FILE}`],
   ["node -e with the typecheck path only as data", 'node -e "console.log(process.argv[1])" scripts/typecheck.mjs'],
@@ -201,6 +221,9 @@ for (const [label, command] of allows) {
   check(/references\/vitest\.md/.test(test), "the test reason names the reference it comes from", JSON.stringify(test));
   check(/Test Suite workflow/.test(test), "the test reason names the Test Suite workflow", JSON.stringify(test));
   check(/scripts\/test-suite\.mjs/.test(test), "the test reason names the suite runner", JSON.stringify(test));
+  check(!/\bstart\b/.test(test), "the test reason does not offer the suite runner's start", JSON.stringify(test));
+  const start = decide("node scripts/test-suite.mjs start packages/sparkdown", "bash", tree);
+  check(/no override/.test(start) && /Test Suite workflow/.test(start), "the start reason names the refusal and the workflow", JSON.stringify(start));
   const tc = decide("npm run typecheck", "powershell", tree);
   check(/npm run typecheck -- \S+tsconfig\.json/.test(tc), "the typecheck reason names the filtered form", JSON.stringify(tc));
   check(/typecheck workflow/.test(tc), "the typecheck reason names the workflow", JSON.stringify(tc));
@@ -256,7 +279,10 @@ for (const [label, command] of allows) {
       wire("Bash single file from the payload's cwd", payload("Bash", { command: `npx vitest run ${FILE}` }, resolve(tree, "packages", "sparkdown")), false);
       wire("Bash npm t, whose payload has no test or typecheck word", payload("Bash", { command: "cd packages/sparkdown && npm t" }, tree), true);
       wire("PowerShell npm tst", payload("PowerShell", { command: "npm --prefix packages/sparkdown tst" }, tree), true);
-      wire("Bash suite runner", payload("Bash", { command: "node scripts/test-suite.mjs start packages/sparkdown" }), false);
+      wire("Bash suite runner start", payload("Bash", { command: "node scripts/test-suite.mjs start packages/sparkdown" }), true);
+      wire("PowerShell suite runner start", payload("PowerShell", { command: "node scripts/test-suite.mjs start packages/sparkdown --wait 600" }), true);
+      wire("Bash suite runner run", payload("Bash", { command: `node scripts/test-suite.mjs run packages/sparkdown ${FILE} --wait 600` }), false);
+      wire("Bash suite runner status", payload("Bash", { command: "node scripts/test-suite.mjs status .git/test-suites/run-1" }), false);
       wire("PowerShell filtered typecheck", payload("PowerShell", { command: "npm run typecheck -- packages/sparkdown/tsconfig.json" }), false);
       wire("the phrase only in the description", payload("Bash", { command: "git status", description: "before npm test" }), false);
       wire("payload without tool_input", payload("Bash", undefined), false);

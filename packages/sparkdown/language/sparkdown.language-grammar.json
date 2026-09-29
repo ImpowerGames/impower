@@ -300,6 +300,7 @@
     "LUAU_TYPE_WHITESPACE_END": "(?:{{WS}}(?!{{WS}}*(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|[&]|[|])))",
     "LUAU_TYPE_BINARY_OPERATORS": "(?:[&]|[|]|[-][>])",
     "LUAU_VALUE_BINARY_OPERATORS": "(?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})",
+    "_LUAU_SEMICOLON_AHEAD_": "(?:(?:{{WS}}|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*)*[;])",
     "LUAU_BINARY_OPERATORS": "(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})",
     "LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD": "(?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>])",
     "_LUAU_BINARY_OPERATOR_AHEAD_": "(?:({{WS}}*)(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))",
@@ -4696,6 +4697,9 @@
         },
         {
           "include": "#LuauRegexLiteral"
+        },
+        {
+          "include": "#LuauOperatorMissingOperand"
         },
         {
           "include": "#LuauArithmeticOperation"
@@ -9430,7 +9434,7 @@
           "include": "#LuauFunctionDefinition"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=$|(?:[^\\S\\n\\r])|,)"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=$|(?:[^\\S\\n\\r])|[,;])"
     },
     "LuauSparkdownControlBlock": {
       "patterns": [
@@ -13124,6 +13128,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauAssignmentOperator"
         },
         {
@@ -13165,6 +13172,16 @@
       ],
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=$|(?:[^\\S\\n\\r])|[,;)\\]}])|(?!(?:[^\\S\\n\\r]))"
     },
+    "LuauOperatorMissingOperand": {
+      "tag": "invalid",
+      "name": "invalid.illegal.luau",
+      "match": "((?:[^\\S\\n\\r])*)((?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))|(?:\\+|-|%|\\*|\\/\\/|\\/|\\^)|(?:==|~=|<=?|>=?)|(?<![.])(?:[.][.])(?![.])|(?:[:][:])|(?:[#])|(?<![\\w.])(?:and|or|not|if)(?!\\w))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*)*[;]))"
+    },
+    "LuauTypeAnnotationMissingType": {
+      "tag": "invalid",
+      "name": "invalid.illegal.luau",
+      "match": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*)*[;]))"
+    },
     "LuauArithmeticOperation": {
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\+|-|%|\\*|\\/\\/|\\/|\\^))",
       "beginCaptures": {
@@ -13177,6 +13194,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauOperatorMissingOperand"
+        },
         {
           "include": "#LuauArithmeticOperator"
         },
@@ -13235,6 +13255,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauCompareOperator"
         },
         {
@@ -13291,6 +13314,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauOperatorMissingOperand"
+        },
         {
           "include": "#LuauConcatOperator"
         },
@@ -13349,6 +13375,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauLengthOperator"
         },
         {
@@ -13406,6 +13435,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauLogicalOperator"
         },
         {
@@ -13462,6 +13494,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauOperatorMissingOperand"
+        },
         {
           "include": "#LuauTypeCastOperator"
         },
@@ -13853,6 +13888,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauComment"
+        },
+        {
           "include": "#LuauTypeLiteral"
         }
       ],
@@ -14089,6 +14127,9 @@
         }
       },
       "patterns": [
+        {
+          "include": "#LuauTypeAnnotationMissingType"
+        },
         {
           "include": "#LuauTypeAnnotationOperator"
         },

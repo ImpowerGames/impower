@@ -6,6 +6,7 @@ import {
   HEADER_WORDS,
   H_LINE_ROWS,
   LINE_ROW_WORDS,
+  blockCount,
   codeWords,
   lineRowAt,
   lineTableStart,
@@ -88,10 +89,13 @@ export class BinaryProgramReader {
       return null;
     }
     const at = lineTableStart(chunk) + row * LINE_ROW_WORDS;
-    if (chunk[at + 1] !== ANCHOR_STATEMENT) {
-      return null;
-    }
-    const first = this.root.lineOf(sequence, entry);
+    const anchor = chunk[at + 1]!;
+    // A row counts from the statement's first line, or from the end of the
+    // statement's body it stands below.
+    const first =
+      anchor === ANCHOR_STATEMENT
+        ? this.root.lineOf(sequence, entry)
+        : this.root.blockEndLine(sequence, entry, anchor);
     return {
       startLine: first + chunk[at + 2]!,
       startColumn: chunk[at + 3]!,
@@ -100,14 +104,22 @@ export class BinaryProgramReader {
     };
   }
 
-  /** The instructions of every statement of a flow, one line of text each,
-   *  for a test or a coverage report. */
-  listing(sequence: SequenceRow): string[] {
+  /** The instructions of every statement of a sequence, one line of text
+   *  each, and the statements of each block statement's bodies below it,
+   *  indented under `block <k>`, for a test or a coverage report. */
+  listing(sequence: SequenceRow, indent = ""): string[] {
     const out: string[] = [];
     for (const { entry, chunk, line } of this.statements(sequence)) {
-      out.push(`${entry} (line ${line + 1}, ${chunk[H_LINE_ROWS]} rows)`);
+      out.push(`${indent}${entry} (line ${line + 1}, ${chunk[H_LINE_ROWS]} rows)`);
       for (const { offset } of this.instructions(chunk)) {
-        out.push(`  ${offset}: ${describeInstruction(chunk, offset, this.root.table)}`);
+        out.push(`${indent}  ${offset}: ${describeInstruction(chunk, offset, this.root.table)}`);
+      }
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        const body = this.root.body(chunk, k);
+        out.push(`${indent}  block ${k}`);
+        if (body) {
+          out.push(...this.listing(body, `${indent}    `));
+        }
       }
     }
     return out;
