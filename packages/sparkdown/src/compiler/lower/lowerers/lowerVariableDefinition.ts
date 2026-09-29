@@ -18,6 +18,7 @@ import {
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
+import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import {
   forwardBlockDiagnostics,
   unwrapBlockContent,
@@ -129,7 +130,7 @@ export function lowerVariableDefinition(
       if (
         child.name === "LuauFunctionDefinition" &&
         sawAssignmentOp &&
-        !findChildByName(child, "LuauFunctionDeclarationName") &&
+        !findOwnDeclarationName(child) &&
         previousContentSibling(child)?.name === "LuauCommaSeparator"
       ) {
         currentRhsGroup.push(child);

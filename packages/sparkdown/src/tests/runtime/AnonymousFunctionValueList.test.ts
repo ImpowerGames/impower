@@ -53,6 +53,14 @@ describe("anonymous function in a declaration value list", () => {
     expect(text).toBe("Value 8.\n");
   });
 
+  test("a named function directly after a comma stays a trailing statement", () => {
+    const { errors, text } = run(
+      local("local a, g = 1, function named() return 7 end", "return named()"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 7.\n");
+  });
+
   test.each([
     ["two values", "store a, g = 1, function() return 7 end"],
     ["parenthesized control", "store a, g = 1, (function() return 7 end)"],
