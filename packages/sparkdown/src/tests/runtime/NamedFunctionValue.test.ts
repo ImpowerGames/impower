@@ -38,10 +38,33 @@ describe("named function in a value position", () => {
     expect(runtimeErrors).toEqual([]);
   });
 
-  test("an anonymous function value reports nothing", () => {
+  test.each([
+    ["dotted", "a.f"],
+    ["method", "a:f"],
+  ])("%s name: reports an error at the whole name", (_name, fnName) => {
     const { errorMessages } = collectDiagnostics(
-      "store g = function() return 7 end\nValue {g()}.\n",
+      `store a = 999\nstore g = function ${fnName}() return 7 end\nValue {g()}.\n`,
     );
+    expect(errorMessages).toEqual([
+      `Expected '(' when parsing function, got '${fnName}'`,
+    ]);
+  });
+
+  test("a compound assignment that lowers its target twice reports once", () => {
+    const { errorMessages } = collectDiagnostics(
+      "Value {f()}.\nfunction f()\n  local t = {}\n  t[function named() return 1 end] = 1\n  t[function named() return 1 end] += 1\n  return 1\nend\n",
+    );
+    expect(errorMessages).toEqual([MESSAGE, MESSAGE]);
+  });
+
+  test.each([
+    ["anonymous value", "store g = function() return 7 end\nValue {g()}.\n"],
+    [
+      "inline body starting with an access path",
+      "store t = 0\nstore g = function() t.x = 1 return 7 end\nValue {g()}.\n",
+    ],
+  ])("%s reports nothing", (_name, source) => {
+    const { errorMessages } = collectDiagnostics(source);
     expect(errorMessages).toEqual([]);
   });
 });

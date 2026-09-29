@@ -3,6 +3,7 @@ import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
+import { statementSource } from "../utils/statementSource";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
@@ -1167,24 +1168,32 @@ function lowerTernaryExpression(
   return new TernaryExpression(branches);
 }
 
+// The name in a function's own header: a plain name
+// (`LuauFunctionDeclarationName`) or a dotted or method name, which
+// parses as a `LuauAccessPath`. Only nodes before the parameter list
+// count, since an inline body's statements sit beside it.
+function findHeaderName(node: SyntaxNode): SyntaxNode | null {
+  const content = findChildByName(node, "LuauFunctionDefinition_content") ?? node;
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauFunctionParameters") return null;
+    if (child.name === "LuauFunctionDeclarationName") {
+      return getDescendent("LuauFunctionName", child) ?? child;
+    }
+    if (child.name === "LuauAccessPath") return child;
+  }
+  return null;
+}
+
 // Luau's parser reads a function expression's `(` where the name sits,
 // so it reports `Expected '(' when parsing function, got 'NAME'`. The
 // squiggle covers the name.
-function reportNamedFunctionValue(declName: SyntaxNode, ctx: LowerContext) {
+function reportNamedFunctionValue(nameNode: SyntaxNode, ctx: LowerContext) {
   if (!ctx.diagnostics) return;
-  const nameNode = getDescendent("LuauFunctionName", declName) ?? declName;
   const name = ctx.read(nameNode.from, nameNode.to).trim();
   ctx.diagnostics.push({
     message: `Expected '(' when parsing function, got '${name}'`,
     severity: ErrorType.Error,
-    source: {
-      fileName: null,
-      filePath: ctx.filePath ?? null,
-      startLineNumber: ctx.lineNumber(nameNode.from) + 1,
-      endLineNumber: ctx.lineNumber(nameNode.to) + 1,
-      startCharacterNumber: ctx.characterNumber(nameNode.from) + 1,
-      endCharacterNumber: ctx.characterNumber(nameNode.to) + 1,
-    },
+    source: statementSource(nameNode, ctx),
   });
 }
 
@@ -1221,8 +1230,8 @@ function lowerAnonymousFunction(
   // Scope the name check to this node's OWN header (not deep
   // descendants); otherwise an anonymous outer fn containing a nested
   // `local function NAME ... end` would be reported as named.
-  const declName = findOwnDeclarationName(node);
-  if (declName) reportNamedFunctionValue(declName, ctx);
+  const headerName = findHeaderName(node);
+  if (headerName) reportNamedFunctionValue(headerName, ctx);
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   // Identify free variables (referenced inside the body but not bound
