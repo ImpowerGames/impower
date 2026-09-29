@@ -164,6 +164,7 @@ describe("TypeAssertion", () => {
       expect(isEquatable(true)).toBe(false);
       expect(isEquatable({})).toBe(false);
       expect(isEquatable([])).toBe(false);
+      expect(isEquatable(null)).toBe(false);
     });
   });
 });

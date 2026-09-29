@@ -137,7 +137,7 @@ export class VariableReference extends Expression {
     {
       const struct = context.ResolveStruct(this.name);
       if (
-        context.ResolveVariableWithName(this.name, this).found &&
+        this.IsResolvedVariable(context) &&
         // Plain variable, OR a `define` that carries a runtime table
         // (its VariableAssignment has an expression) — those ARE
         // first-class runtime values (`companion`,
@@ -213,11 +213,7 @@ export class VariableReference extends Expression {
         const baseStruct = context.ResolveStruct(baseName);
         if (
           baseResolve.found &&
-          // A local named like a library (`local table = {...}`) is found
-          // here from anywhere in its flow, but it only shadows the library
-          // inside its scope.
-          (!isStdLibNamespaceName(baseName) ||
-            context.IsLocalInScope(baseName, this)) &&
+          this.IsFoundNameInScope(baseName, context) &&
           !context.constants.has(baseName) &&
           // `companion.O` — the base is a `define` runtime table, so
           // the dotted access walks it at runtime. Pure data structs
@@ -234,7 +230,7 @@ export class VariableReference extends Expression {
       return;
     }
 
-    if (!context.ResolveVariableWithName(this.name, this).found) {
+    if (!this.IsResolvedVariable(context)) {
       if (this.unresolvedMember) {
         this.ReportUnresolvedPath(
           [this.name, this.unresolvedMember.name],
@@ -253,6 +249,23 @@ export class VariableReference extends Expression {
         true,
       );
     }
+  }
+
+  // A local named like a library (`local table = {...}`) is found from
+  // anywhere in its flow, but it only shadows the library inside its scope.
+  private IsFoundNameInScope(name: string, context: Story): boolean {
+    return !isStdLibNamespaceName(name) || context.IsLocalInScope(name, this);
+  }
+
+  // Whether the name reads a variable. The receiver of a colon call on a
+  // library (`table:nogetn()`) reads a same-named local only where it is in
+  // scope.
+  private IsResolvedVariable(context: Story): boolean {
+    return (
+      context.ResolveVariableWithName(this.name, this).found &&
+      (this.unresolvedMember === null ||
+        this.IsFoundNameInScope(this.name, context))
+    );
   }
 
   // An unresolved dotted path: `table.nogetn`, or the `table:nogetn()` a colon
