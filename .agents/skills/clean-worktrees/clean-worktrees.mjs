@@ -353,7 +353,7 @@ export function classify(entry, facts) {
   if (facts.isDefault) keep.push(`the default branch ${entry.branch}, which is never removed wherever it is checked out`);
   if (entry.locked) keep.push(`locked (${entry.locked})`);
   if (facts.missing) keep.push(facts.probeLeft ? `its directory is gone and ${path.resolve(entry.path)}${PROBE_SUFFIX} is beside it, which is what an interrupted run's probe leaves; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record the renamed tree points at` : "its directory is gone; `git worktree prune` drops the record");
-  else if (entry.prunable) keep.push(`git no longer sees it as a worktree (${entry.prunable}) but the directory is still there; \`--apply --root <main> --remove <path>\` deletes it`);
+  else if (entry.prunable) keep.push(`git no longer sees it as a worktree (${entry.prunable}) but the directory is still there, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand`);
   if (entry.detached) keep.push("detached head, no branch; left for a person");
   if (facts.unborn) keep.push("unborn branch with no commits; left for a person");
   const remote = `origin/${entry.branch}`;
@@ -800,6 +800,8 @@ function pruneDeadRecords(entries, ctx, deps) {
 // an interrupted probe's `.removing` directory, one holding another worktree
 // or sitting inside one, the default branch, a locked worktree, a directory
 // that is gone, a target that is itself a link, one with uncommitted changes,
+// a worktree git can no longer read or an unregistered directory holding a
+// `.git` of its own (git status cannot answer for either),
 // one a process or driver is using or that the rename probe finds held, one
 // holding a link that leads outside it (named) or a directory that cannot be
 // read. The shell that ran this command does not count as a user, though its
@@ -824,7 +826,12 @@ async function removeOne(target, ctx, deps, entries, record) {
   if (entry?.locked) die(`${rel} is locked (${entry.locked}); nothing was touched`);
   if (!deps.exists(abs)) die(entry ? `${abs} is already gone and git still holds its record; run this without --remove and it prunes the record` : `${abs} does not exist; nothing was touched`);
   if (deps.isLink(abs)) die(`${rel} is itself a link, and unlinking the links inside it would act on what it points at, wherever that is; remove the link by hand; nothing was touched`);
-  const live = Boolean(entry) && !entry.prunable;
+  // git status is the only check for uncommitted work, so a tree it cannot
+  // answer for is refused: a worktree git can no longer read, and a
+  // directory that still holds a `.git` of its own.
+  if (entry?.prunable) die(`${rel} is a worktree git can no longer read (${entry.prunable}), so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand; nothing was touched`);
+  if (!entry && deps.exists(path.join(abs, ".git"))) die(`${rel} holds a .git but is not a registered worktree, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand; nothing was touched`);
+  const live = Boolean(entry);
   if (live) {
     const st = deps.exec("git", ["status", "--porcelain"], abs);
     if (st.status !== 0) die(`git status failed in ${rel} (${st.err || st.out}), so whether it has changes cannot be told; nothing was touched`);
@@ -880,14 +887,9 @@ async function removeOne(target, ctx, deps, entries, record) {
   } else {
     const remaining = await removeDirect(abs, deps);
     if (remaining !== null) return finish("failed", `${said()}${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it`, scan.bytes);
-    notes.unshift(entry ? "git no longer saw it as a worktree" : "not a registered worktree");
+    notes.unshift("not a registered worktree");
   }
   removeEmptyParent(abs, ctx, deps, notes);
-  // A dead record git still lists keeps blocking its branch until it is pruned.
-  if (entry?.prunable) {
-    const dropped = pruneDeadRecords(entries, ctx, deps);
-    notes.push(dropped.pruned.length ? "its dead record was pruned" : `its dead record stays: ${dropped.waiting}`);
-  }
   return finish("removed", [...notes, entry?.branch ? `its branch ${entry.branch} stays` : ""].filter(Boolean).join("; "), scan.bytes);
 }
 

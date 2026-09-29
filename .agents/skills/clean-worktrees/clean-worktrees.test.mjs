@@ -332,7 +332,7 @@ await check("a worktree whose path a running process names is kept, and one whos
 
 await check("a locked worktree, one whose directory is gone, and one git no longer sees as a worktree are kept", () => {
   kept(entry({ locked: "in use" }), facts(), "locked (in use)");
-  kept(entry({ prunable: "gitdir file points to non-existent location" }), facts(), "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there; `--apply --root <main> --remove <path>` deletes it");
+  kept(entry({ prunable: "gitdir file points to non-existent location" }), facts(), "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand");
   kept(entry({ prunable: "gitdir file points to non-existent location" }), facts({ missing: true }), "its directory is gone; `git worktree prune` drops the record");
   kept(entry(), facts({ missing: true }), "its directory is gone; `git worktree prune` drops the record");
   const v = kept(entry({ prunable: "gitdir file points to non-existent location" }), facts({ missing: true, probeLeft: true }), `its directory is gone and ${path.resolve("C:/repo/impower.worktrees/fix/1-x")}.removing is beside it, which is what an interrupted run's probe leaves; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record the renamed tree points at`);
@@ -1041,7 +1041,7 @@ async function worldChecks(mainFn, report) {
       ["fix/16-in-use", "keep", "its path is on the command line of pid 777 (node.exe)"],
       ["fix/17-remote-ahead", "keep", "origin/fix/17-remote-ahead has 2 commits not on origin/main and this branch is behind it; a pull request may be open"],
       ["fix/18-unborn", "keep", "unborn branch with no commits; left for a person"],
-      ["fix/19-broken", "keep", "512.0 MB", "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there; `--apply --root <main> --remove <path>` deletes it"],
+      ["fix/19-broken", "keep", "512.0 MB", "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand"],
       ["fix/20-missing", "keep", "its directory is gone; `git worktree prune` drops the record"],
       [rel(R("impower.worktrees/fix/husk-old")), "keep", "(not a worktree)", "204.8 MB", "not a registered worktree, which is what an interrupted removal or add leaves behind; check it, then `--apply --root <main> --remove <path>` deletes it"],
       [rel(R("impower.worktrees/leftover")), "keep", "(not a worktree)"],
@@ -1256,18 +1256,12 @@ async function worldChecks(mainFn, report) {
     assert.ok(!pw.disk.has(p.toLowerCase()), "the directory is still there");
     assert.deepEqual(pw.removed, []);
   });
-  await step("--remove removes a broken worktree directly, since git no longer holds it", async () => {
-    const pw = makeWorld();
-    for (const s of probeStrays) pw.disk.delete(s.toLowerCase());
-    pw.trees.splice(pw.trees.findIndex((x) => x.branch === "fix/41-probe-left"), 1);
-    const t = treeOf(pw, "fix/19-broken");
-    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
-    assert.equal(r.status, 0, r.out);
-    assert.ok(!pw.disk.has(t.path.toLowerCase()));
-    assert.match(r.out, /git no longer saw it as a worktree; its dead record was pruned; its branch fix\/19-broken stays/);
-    assert.equal(pw.pruneCalls, 1, "the dead record was left for git to keep listing");
-    assert.deepEqual(pw.branchesDeleted, []);
-  });
+  await step("--remove refuses a worktree git can no longer read, since git status cannot say whether it holds uncommitted work", () => refusedRemove("broken", (pw) => treeOf(pw, "fix/19-broken").path, /fix.19-broken is a worktree git can no longer read \(gitdir file points to non-existent location\), so whether it has uncommitted changes cannot be told/));
+  await step("--remove refuses an unregistered directory holding its own .git", () => refusedRemove("own .git", (pw) => {
+    const p = R("impower.worktrees/leftover");
+    pw.disk.set(path.join(p, ".git").toLowerCase(), { size: 0, tree: null });
+    return p;
+  }, /leftover holds a \.git but is not a registered worktree/));
   await step("--remove refuses a link that leads outside the tree, naming it, and unlinks nothing", () => refusedRemove("link out", (pw) => treeOf(pw, "fix/44-link-out").path, /link inside it points outside it \(.*pkg -> .*elsewhere.*pkg\)/));
   await step("--remove refuses a directory it cannot read", () => refusedRemove("unreadable", (pw) => treeOf(pw, "fix/46-unreadable").path, /could not be read/));
   await step("--remove refuses a tree with uncommitted changes", () => refusedRemove("dirty", (pw) => treeOf(pw, "fix/3-dirty").path, /has uncommitted changes \(1 file\)/));
@@ -1490,7 +1484,8 @@ try {
   await control("--remove tells the script's command line by the skill's name", [["const RUNS_SCRIPT = /clean-worktrees\\.mjs\"?\\s.*--remove\\b/;", "const RUNS_SCRIPT = /clean-worktrees/;"]], ["--remove tells the script's own command line by its file name and option"]);
   await control("--remove follows a link it was named by", [["if (deps.isLink(abs)) die(", "if (false) die("]], ["--remove refuses a target that is itself a link"]);
   await control("--remove skips the rename probe", [["const held = await probeHeld(abs, deps);\n  if (held?.outcome", "const held = null;\n  if (held?.outcome"]], ["--remove refuses a worktree a process holds", "--remove refuses when an interrupted probe's leftover is beside the tree"]);
-  await control("--remove leaves a broken worktree's dead record", [["  if (entry?.prunable) {", "  if (false) {"]], ["--remove removes a broken worktree directly"]);
+  await control("--remove takes a worktree git can no longer read", [["if (entry?.prunable) die(", "if (false) die("]], ["--remove refuses a worktree git can no longer read"]);
+  await control("--remove takes an unregistered directory holding its own .git", [["if (!entry && deps.exists(path.join(abs, \".git\"))) die(", "if (false) die("]], ["--remove refuses an unregistered directory holding its own .git"]);
   await control("--apply leaves a dead record that holds a removable worktree's branch", [["const dropped = pruneDeadRecords(entries, ctx, deps);\n    if (dropped.pruned.length) {\n      log(", "const dropped = { pruned: [] };\n    if (dropped.pruned.length) {\n      log("]], ["--apply prunes a dead record that holds a removable worktree's branch"]);
   await control("--remove takes a tree with uncommitted changes", [["if (dirty > 0) die(", "if (false) die("]], ["--remove refuses a tree with uncommitted changes"]);
   await control("--remove takes a tree that is in use", [["if (holds.length) die(", "if (false) die("]], ["--remove refuses a tree a process is using", "--remove refuses a tree whose dev servers are up", "--remove refuses when the processes cannot be listed"]);
@@ -1941,19 +1936,19 @@ try {
   });
 
   await check("parseProcesses keeps a process that started while the listing ran, with its age clamped to zero, and reads the age in the platform's unit", () => {
-  const win = parseProcesses(["10\t5\t-16\tnode.exe\tnode a.js", "11\t\t\tSystem\t", "12\t5\t2500\tbash.exe\tbash -c x", "junk"].join("\r\n"), true);
-  assert.deepEqual(win, [
-    { pid: 10, ppid: 5, age: 0, name: "node.exe", cmd: "node a.js" },
-    { pid: 11, ppid: null, age: null, name: "System", cmd: "" },
-    { pid: 12, ppid: 5, age: 2500, name: "bash.exe", cmd: "bash -c x" },
-  ]);
-  assert.deepEqual(parseProcesses("  200   1   90 node node b.js\n  201 200 5 sh sh -c y", false), [
-    { pid: 200, ppid: 1, age: 90_000, name: "node", cmd: "node b.js" },
-    { pid: 201, ppid: 200, age: 5_000, name: "sh", cmd: "sh -c y" },
-  ]);
-});
+    const win = parseProcesses(["10\t5\t-16\tnode.exe\tnode a.js", "11\t\t\tSystem\t", "12\t5\t2500\tbash.exe\tbash -c x", "junk"].join("\r\n"), true);
+    assert.deepEqual(win, [
+      { pid: 10, ppid: 5, age: 0, name: "node.exe", cmd: "node a.js" },
+      { pid: 11, ppid: null, age: null, name: "System", cmd: "" },
+      { pid: 12, ppid: 5, age: 2500, name: "bash.exe", cmd: "bash -c x" },
+    ]);
+    assert.deepEqual(parseProcesses("  200   1   90 node node b.js\n  201 200 5 sh sh -c y", false), [
+      { pid: 200, ppid: 1, age: 90_000, name: "node", cmd: "node b.js" },
+      { pid: 201, ppid: 200, age: 5_000, name: "sh", cmd: "sh -c y" },
+    ]);
+  });
 
-await check("as a command, --apply prunes a dead worktree record, so git no longer refuses to delete the branch it held", () => {
+  await check("as a command, --apply prunes a dead worktree record, so git no longer refuses to delete the branch it held", () => {
     mergedWorktree("fix/70-dead-record", true);
     fs.rmSync(wt("fix/70-dead-record"), { recursive: true, force: true });
     const refused = spawnSync("git", ["branch", "-D", "fix/70-dead-record"], { cwd: mainRoot, env, encoding: "utf8", windowsHide: true });
@@ -2006,6 +2001,19 @@ await check("as a command, --apply prunes a dead worktree record, so git no long
     assert.match(r.out, /is inside the worktree .*72-dirty-sub; name the worktree itself/);
     assert.equal(fs.readFileSync(path.join(src, "t.txt"), "utf8"), "edited\n");
     assert.equal(fs.readFileSync(path.join(src, "new-work.txt"), "utf8"), "new\n");
+  });
+
+  await check("as a command, --remove refuses a worktree whose .git link is gone and leaves its uncommitted work in place", () => {
+    const target = wt("fix/73-dirty-broken");
+    git(mainRoot, "worktree", "add", "-q", "-b", "fix/73-dirty-broken", target, "origin/main");
+    fs.writeFileSync(path.join(target, "README.md"), "edited, not committed\n");
+    fs.renameSync(path.join(target, ".git"), path.join(target, ".git.bak"));
+    assert.match(git(mainRoot, "worktree", "list", "--porcelain"), /prunable/, "git does not list the worktree as prunable");
+    const r = cli(mainRoot, "--apply", "--root", mainRoot, "--remove", target);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /73-dirty-broken is a worktree git can no longer read/);
+    assert.equal(fs.readFileSync(path.join(target, "README.md"), "utf8"), "edited, not committed\n");
+    fs.renameSync(path.join(target, ".git.bak"), path.join(target, ".git"));
   });
 
   await check("as a command, --remove refuses a target that is itself a link and leaves what it points at in place", () => {
