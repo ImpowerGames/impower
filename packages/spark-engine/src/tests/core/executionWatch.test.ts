@@ -136,10 +136,7 @@ describe("the execution watch (#679)", () => {
   // The program engine (`ProgramStory`) does not call the watch. It never
   // needs to while a program that can loop falls back to `Story`, which is
   // what this pins: a loop needs a divert or a function call.
-  test.each([
-    ["a Luau loop in a function", LUAU_LOOP],
-    ["a scene that diverts to itself", DIVERT_LOOP],
-  ])("runs %s on the story engine, which is watched", (_name, source) => {
+  const compileToChunks = (source: string) => {
     const compiler = new SparkdownCompiler();
     compiler.configure({
       files: [
@@ -157,8 +154,21 @@ describe("the execution watch (#679)", () => {
       emitCompiledProgram: false,
       programChunks: true,
     });
-    const program = compiler.compile({ textDocument: { uri: MAIN_URI } })
-      .program as any;
-    expect(program.fallback != null).toBe(true);
+    return compiler.compile({ textDocument: { uri: MAIN_URI } }).program as any;
+  };
+
+  // The construct is what makes the program fall back: a call for the Luau
+  // loop, whose own statements are inside the function it calls, and the
+  // divert for the scene. A fixture whose fallback came from anything else
+  // would stop pinning this once the program engine learned that construct.
+  test.each([
+    ["a Luau loop in a function", LUAU_LOOP, "FunctionCall"],
+    ["a scene that diverts to itself", DIVERT_LOOP, "Divert"],
+  ])("runs %s on the story engine, which is watched", (_name, source, construct) => {
+    expect(compileToChunks(source).fallback?.construct).toBe(construct);
+  }, 120_000);
+
+  test("runs a script with no loop on the program engine", () => {
+    expect(compileToChunks("BOB:\n  One.\n\nBOB:\n  Two.\n").fallback).toBeUndefined();
   }, 120_000);
 });

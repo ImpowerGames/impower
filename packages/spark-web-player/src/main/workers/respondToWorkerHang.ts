@@ -15,8 +15,10 @@ import type { PreviewPoint, WorkerHang } from "./WorkerDisplayWorkspace";
  * yield can have been headed elsewhere (a compile routes to where the author
  * was when it began, and an editor sends selections the author did not
  * make), while one to the selection can run into the same loop. If a point
- * was already set aside in this revision, the loop lies on the way to more
- * than one line, and every point is withheld until the project changes.
+ * was already set aside in this revision, every point is withheld until the
+ * project changes: the worker has now stopped answering twice without the
+ * script changing, whether a route ran into the loop both times or PLAY ran
+ * into it first, and a third route would most likely run into it again.
  * The line the story was running is set aside in any case.
  */
 export function respondToWorkerHang(

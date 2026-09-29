@@ -298,8 +298,14 @@ export abstract class SparkdownWorkspace {
     this._compilerWorker?.terminate();
     this._initializedCompiler = false;
     this._compilerConfigured = false;
+    // Whoever waits for the old worker's configuration, which will not come
+    // now, waits for the new one's instead.
+    const resolvePrevious = this._resolveCompilerConfigured;
     this._compilerConfiguring = new Promise<void>((resolve) => {
-      this._resolveCompilerConfigured = resolve;
+      this._resolveCompilerConfigured = () => {
+        resolve();
+        resolvePrevious?.();
+      };
     });
     this._programTransport = new ProgramTransportDecoder();
     this.startCompilerWorker();
@@ -309,15 +315,21 @@ export abstract class SparkdownWorkspace {
     const config = this._compilerConfig;
     if (!config) {
       // Never configured, so there is nothing to give the new worker yet:
-      // `initialize` configures it when it comes.
-      this._compilerConfiguring = undefined;
+      // `initialize` configures it when it comes, which settles the wait.
       return;
     }
-    await this.loadCompiler({
-      ...config,
-      files: this.currentCompilerFiles(),
-      startFrom: this.compileStartFrom(),
-    });
+    try {
+      await this.loadCompiler({
+        ...config,
+        files: this.currentCompilerFiles(),
+        startFrom: this.compileStartFrom(),
+      });
+    } catch (e) {
+      // Restarted again before this worker was configured: the newer
+      // restart configures and compiles in its place.
+      unlessRestarted(e);
+      return;
+    }
     const uri = this._lastCompiledUri;
     if (uri) {
       await this.compile(uri, true);
@@ -555,16 +567,18 @@ export abstract class SparkdownWorkspace {
   }
 
   async configureCompiler(config: SparkdownCompilerConfig) {
+    const connection = this._compilerChannelConnection;
     try {
-      return await this._compilerChannelConnection.sendRequest(
-        ConfigureCompilerMessage.type,
-        config,
-      );
+      return await connection.sendRequest(ConfigureCompilerMessage.type, config);
     } finally {
       // Settle even on failure: a waiter blocking forever would be worse than
-      // the original error surfacing at the compile site.
-      this._compilerConfigured = true;
-      this._resolveCompilerConfigured?.();
+      // the original error surfacing at the compile site. Only for the worker
+      // it configured, though: a configure the worker's restart abandoned
+      // says nothing about the worker started in its place (#679).
+      if (this._compilerChannelConnection === connection) {
+        this._compilerConfigured = true;
+        this._resolveCompilerConfigured?.();
+      }
     }
   }
 

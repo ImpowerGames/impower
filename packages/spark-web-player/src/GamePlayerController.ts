@@ -241,6 +241,8 @@ export class GamePlayerController {
   /** Settles once a program reaches the page after the worker was
    *  restarted, which then holds none until it has compiled. */
   _programAfterRestart?: { arrived: Promise<void>; arrive: () => void };
+  /** How long PLAY waits for it (`PROGRAM_AFTER_RESTART_WAIT_MS`). */
+  _programAfterRestartWaitMs = PROGRAM_AFTER_RESTART_WAIT_MS;
   /** PLAY is setting up its game, so no preview may take the screen. */
   _startingPlay = false;
   _app?: Application;
@@ -1943,17 +1945,23 @@ export class GamePlayerController {
         return false;
       }
     }
-    if (this._programAfterRestart) {
+    const afterRestart = this._programAfterRestart;
+    if (afterRestart) {
       // The worker was restarted and holds no program until its compile has
       // reached the page: PLAY asked for before then runs what it compiles.
-      // A restart whose compile never delivers one (it threw) does not hold
-      // PLAY for ever.
+      // A restart whose compile never delivers one (it threw) holds PLAY
+      // once, for the bound, and no PLAY after it.
+      let timer: ReturnType<typeof setTimeout> | undefined;
       await Promise.race([
-        this._programAfterRestart.arrived,
-        new Promise((resolve) =>
-          setTimeout(resolve, PROGRAM_AFTER_RESTART_WAIT_MS),
-        ),
+        afterRestart.arrived,
+        new Promise((resolve) => {
+          timer = setTimeout(resolve, this._programAfterRestartWaitMs);
+        }),
       ]);
+      clearTimeout(timer);
+      if (this._programAfterRestart === afterRestart) {
+        this._programAfterRestart = undefined;
+      }
       if (plays !== this._plays || stops !== this._stops || !this._mounted) {
         return false;
       }

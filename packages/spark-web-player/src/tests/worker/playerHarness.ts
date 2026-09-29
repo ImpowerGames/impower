@@ -236,8 +236,11 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   // What the player's workspace offers the controller when its worker stops
   // answering (#679); `hang` restarts the worker as it does.
   const hangListeners = new Set<(hang: WorkerHang) => void>();
-  const setAsidePoints = new SetAsidePoints(
-    (): string => `${workspace.documentsRevision} ${workspace.filesRevision}`,
+  const setAsidePoints = new SetAsidePoints((): string =>
+    SetAsidePoints.revision(
+      workspace.documentsRevision,
+      workspace.filesRevision,
+    ),
   );
   const workspace = {
     gameLink: link,

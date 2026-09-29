@@ -22,7 +22,9 @@ export function workerHangMessage(
     `${where} without stopping, possibly in an infinite loop, so the game ` +
     `preview was restarted.`;
   if (during === "play") {
-    return `${what} PLAY has stopped.`;
+    return hang.previewWithheld
+      ? `${what} PLAY has stopped, and the preview is paused until the script changes.`
+      : `${what} PLAY has stopped.`;
   }
   return hang.previewWithheld
     ? `${what} The preview is paused until the script changes.`

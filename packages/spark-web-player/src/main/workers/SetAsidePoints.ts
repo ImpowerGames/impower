@@ -13,6 +13,13 @@ import type { PreviewPoint } from "./WorkerDisplayWorkspace";
  * point instead (`withholdAll`), until the project changes.
  */
 export class SetAsidePoints {
+  /** The revision the player's workspace keys set-aside points by: the edits
+   *  to its open documents and the changes to its files, either of which
+   *  lets every point go. */
+  static revision(documentsRevision: number, filesRevision: number) {
+    return `${documentsRevision} ${filesRevision}`;
+  }
+
   protected _points = new Set<string>();
 
   protected _all = false;

@@ -45,6 +45,8 @@ const lineOf = (text: string) =>
 const FIRST = lineOf("The first beat.");
 const LOOPS = lineOf("The beat that loops.");
 const LAST = lineOf("The last beat.");
+/** The scene's own line, which no route or selection here asks for. */
+const START = lineOf("scene start");
 
 const at = (line: number) => ({
   uri: MAIN_URI,
@@ -392,13 +394,17 @@ describe("the page, when the worker is restarted", () => {
       expect(messages[0]).toContain("will not show the line you were on");
       expect(messages[1]).toContain("paused until the script changes");
 
-      // No line displays, not even one before the loop.
+      // No line displays, not even one before the loop that nothing set
+      // aside on its own.
       const displays = recordDisplays(h);
+      expect(h.workspace.isSetAside({ file: MAIN_URI, line: START })).toBe(
+        true,
+      );
       expect(
         await h.controller.updatePreview(
           h.controller._program!,
           MAIN_URI,
-          FIRST,
+          START,
         ),
       ).toBe(false);
       expect(displays).toEqual([]);
@@ -435,6 +441,37 @@ describe("the page, when the worker is restarted", () => {
       expect(await played).toBe(true);
       expect(h.controller.playing).toBe(true);
       await h.controller.stopGame("quit");
+    } finally {
+      h.dispose();
+    }
+  }, 60_000);
+
+  it("holds PLAY only once, for its bound, when the restarted worker delivers no program", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(FIRST);
+      h.controller._programAfterRestartWaitMs = 100;
+      h.stall();
+      await h.hang({
+        busyMs: WORKER_HANG_AFTER_MS,
+        location: at(LOOPS),
+        routingTo: { file: MAIN_URI, line: LOOPS },
+      });
+      // The restarted worker never compiles: PLAY waits out the bound.
+      const first = h.controller.startGameAndApp();
+      expect(await settlesWithin(first, 50)).toBe("waiting");
+      expect(await settlesWithin(first, 2000)).toBe("settled");
+      expect(h.controller._programAfterRestart).toBeUndefined();
+      // The next PLAY does not wait again.
+      h.controller._programAfterRestartWaitMs = 60_000;
+      expect(
+        await settlesWithin(h.controller.startGameAndApp(), 2000),
+      ).toBe("settled");
     } finally {
       h.dispose();
     }

@@ -170,6 +170,25 @@ describe("the player's workspace, when its worker stops answering (#679)", () =>
     });
   });
 
+  it("withholds every point once a route stops the worker after PLAY did, until a file changes", async () => {
+    const { workspace, hangs } = createWorkspace();
+    // PLAY's game runs into the loop: it routes nowhere.
+    StandInWorker.made[0]!.port!.postMessage(busy(WORKER_HANG_AFTER_MS, 3, null));
+    await until(() => hangs.length > 0);
+    expect(hangs[0]!.previewWithheld).toBe(false);
+    expect(workspace.isSetAside({ file: MAIN, line: 12 })).toBe(false);
+
+    // Then a route into it: the worker has stopped twice without a change.
+    StandInWorker.made[1]!.port!.postMessage(busy(WORKER_HANG_AFTER_MS, 3, 16));
+    await until(() => hangs.length > 1);
+    expect(hangs[1]!.previewWithheld).toBe(true);
+    expect(workspace.isSetAside({ file: MAIN, line: 12 })).toBe(true);
+
+    // A project file changing lets them go, as an edit does.
+    void workspace.createFile("file:///local/other.sd");
+    expect(workspace.isSetAside({ file: MAIN, line: 12 })).toBe(false);
+  });
+
   it("withholds every point once a second route in the same revision stops the worker", async () => {
     const { workspace, hangs } = createWorkspace();
     StandInWorker.made[0]!.port!.postMessage(busy(WORKER_HANG_AFTER_MS, 3, 15));

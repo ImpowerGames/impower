@@ -10,6 +10,8 @@
 // once, recording what it was sent.
 import { describe, expect, it } from "vitest";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
+import { RemoveCompilerFileMessage } from "../../compiler/classes/messages/RemoveCompilerFileMessage";
+import { UpdateCompilerFileMessage } from "../../compiler/classes/messages/UpdateCompilerFileMessage";
 import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
 import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
@@ -24,23 +26,37 @@ const settle = async () => {
 };
 
 /** A compiler connection that records every request, and answers each at
- *  once when it is given answers, or never. */
+ *  once when it is given answers, or never; a request whose method it is
+ *  told to hold waits until the test releases it. */
 class StandInConnection {
   requests: {
     method: string;
     params: any;
+    resolve: (value: unknown) => void;
     reject: (e: unknown) => void;
   }[] = [];
 
-  constructor(protected answers?: (method: string, params: any) => unknown) {}
+  constructor(
+    protected answers?: (method: string, params: any) => unknown,
+    protected hold = new Set<string>(),
+  ) {}
 
   sendRequest(type: { method: string }, params: any) {
     return new Promise((resolve, reject) => {
-      this.requests.push({ method: type.method, params, reject });
-      if (this.answers) {
+      this.requests.push({ method: type.method, params, resolve, reject });
+      if (this.answers && !this.hold.has(type.method)) {
         resolve(this.answers(type.method, params));
       }
     });
+  }
+
+  /** Answer the held requests of `method`. */
+  release(method: string) {
+    for (const request of this.requests) {
+      if (request.method === method) {
+        request.resolve(this.answers?.(method, request.params));
+      }
+    }
   }
 
   abandon(error: Error) {
@@ -75,6 +91,8 @@ class TestWorkspace extends SparkdownWorkspace {
   // class's own fields are initialized, so neither has an initializer.
   declare connections: StandInConnection[];
   declare terminated: number;
+  /** Methods each worker started from now on holds (`StandInConnection`). */
+  declare hold: Set<string> | undefined;
 
   protected override _mirrorDocumentTexts = true;
 
@@ -112,6 +130,7 @@ class TestWorkspace extends SparkdownWorkspace {
               : method === SelectCompilerDocumentMessage.method
                 ? params
                 : "sparkdown",
+      new Set(this.hold),
     );
     this.connections.push(connection);
     this._compilerChannelConnection = connection as any;
@@ -235,6 +254,31 @@ describe("restarting the compiler's worker", () => {
     expect(update.params.textDocument).toEqual({ uri: MAIN, version: 3 });
   });
 
+  it("waits for the newest worker's configuration when it restarts again before the last was configured", async () => {
+    const workspace = new TestWorkspace();
+    workspace.hold = new Set([ConfigureCompilerMessage.method]);
+    const first = workspace.restartCompiler();
+    await settle();
+    const configuring = workspace.whenCompilerConfigured!;
+    let configured = false;
+    void configuring.then(() => (configured = true));
+
+    // The second worker runs into the loop before it has been configured.
+    const second = workspace.restartCompiler();
+    await settle();
+    // The first restart ends quietly; its worker's configuration never came,
+    // and says nothing about the third worker's.
+    await expect(first).resolves.toBeUndefined();
+    expect((workspace as any)._compilerConfigured).toBe(false);
+    expect(configured).toBe(false);
+
+    workspace.connections[2]!.release(ConfigureCompilerMessage.method);
+    await settle();
+    expect((workspace as any)._compilerConfigured).toBe(true);
+    expect(configured).toBe(true);
+    await second;
+  });
+
   it("settles a selection the stuck worker never answered", async () => {
     const workspace = new TestWorkspace();
     await open(workspace, "Line one.\n");
@@ -273,6 +317,34 @@ describe("restarting the compiler's worker", () => {
     expect(
       configure.params.files.some((f: File) => f.uri === "file://proj/other.sd"),
     ).toBe(true);
+  });
+
+  it("settles a changed or deleted file the stuck worker never answered", async () => {
+    const workspace = new TestWorkspace();
+    const OTHER = "file://proj/other.sd";
+    (workspace as any)._watchedFiles.set(OTHER, {
+      uri: OTHER,
+      name: "other",
+      type: "script",
+      ext: "sd",
+      text: "",
+      version: 0,
+      languageId: "sparkdown",
+    });
+    const changing = workspace.changeFile(OTHER);
+    const deleting = workspace.deleteFile(MAIN);
+    await settle();
+    expect(workspace.stuck.sent).toEqual(
+      expect.arrayContaining([
+        UpdateCompilerFileMessage.method,
+        RemoveCompilerFileMessage.method,
+      ]),
+    );
+
+    await workspace.restartCompiler();
+
+    expect((await changing)?.uri).toBe(OTHER);
+    expect((await deleting)?.uri).toBe(MAIN);
   });
 
   it("sends a document opened again after a restart, whatever version it starts from", async () => {

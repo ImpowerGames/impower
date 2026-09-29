@@ -52,8 +52,8 @@ export function installWorkspaceWorker(connection: MessageConnection) {
      *  whether the project has changed since a point was set aside. */
     protected _documentsRevision = 0;
 
-    protected _setAside = new SetAsidePoints(
-      () => `${this._documentsRevision} ${this.filesRevision}`,
+    protected _setAside = new SetAsidePoints(() =>
+      SetAsidePoints.revision(this._documentsRevision, this.filesRevision),
     );
 
     constructor(profilerId?: string) {
