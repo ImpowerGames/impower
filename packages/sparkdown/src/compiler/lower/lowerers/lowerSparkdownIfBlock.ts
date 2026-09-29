@@ -14,6 +14,11 @@ import { lowerExpressionFromContainer } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { headerLineRange, stampDebugMetadata } from "../utils/debugMetadata";
+import {
+  bodyOfBlock,
+  openBody,
+  type BodyShape,
+} from "../utils/statementShape";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
@@ -60,6 +65,20 @@ function lowerIfBlock(
 
   const branches: ConditionalSingleBranch[] = [];
 
+  // The parts of the statement in order, which head its bodies: the `if`
+  // condition, each `elseif`, the `else`, and then `end`, where the content
+  // node ends. A body runs from the part that heads it to the next part.
+  const elseifNodes = findDirectChildren(content, elseifNodeName);
+  const elseNode = content
+    ? findChildByName(content, elseNodeName)
+    : null;
+  const endStart = content?.to ?? nodeRef.node.to;
+  const partStarts = [
+    ...elseifNodes.map((node) => node.from),
+    ...(elseNode ? [elseNode.from] : []),
+    endStart,
+  ];
+
   // ----- Main `if` branch -----
   const condNode = content
     ? findChildByName(content, "LuauIfBlockCondition")
@@ -73,13 +92,20 @@ function lowerIfBlock(
   // `ctx.scopeDepth` is bumped around each arm's body lowering so a
   // `break`/`continue` inside the arm knows it must emit an EndScope
   // for this frame before diverting out of the enclosing loop.
+  const mainShape = openBody(
+    ctx,
+    condNode?.to ?? content?.from ?? nodeRef.node.from,
+    partStarts[0]!,
+  );
   ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
-  const mainBody = wrapInScope(lowerStatements(content, ctx, ifBodySkip));
+  const mainBody = wrapInScope(
+    lowerStatements(content, ctx, ifBodySkip, mainShape),
+  );
   ctx.scopeDepth--;
-  branches.push(buildBranch(condExpr, mainBody, false));
+  branches.push(buildBranch(condExpr, mainBody, false, mainShape));
 
   // ----- Any `elseif` branches -----
-  for (const elseifNode of findDirectChildren(content, elseifNodeName)) {
+  elseifNodes.forEach((elseifNode, i) => {
     const elseifContent = findChildByName(
       elseifNode,
       `${elseifNodeName}_content`,
@@ -95,24 +121,31 @@ function lowerIfBlock(
       const header = headerLineRange(elseifNode.from, elseifNode.to, ctx);
       stampDebugMetadata([ecExpr], header.from, header.to, ctx);
     }
+    const shape = openBody(
+      ctx,
+      ec?.to ?? elseifContent?.from ?? elseifNode.from,
+      partStarts[i + 1]!,
+    );
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
     const body = wrapInScope(
-      lowerStatements(elseifContent, ctx, ELSEIF_BODY_SKIP),
+      lowerStatements(elseifContent, ctx, ELSEIF_BODY_SKIP, shape),
     );
     ctx.scopeDepth--;
-    branches.push(buildBranch(ecExpr, body, false));
-  }
+    branches.push(buildBranch(ecExpr, body, false, shape));
+  });
 
   // ----- Optional `else` branch -----
-  const elseNode = content
-    ? findChildByName(content, elseNodeName)
-    : null;
   if (elseNode) {
     const elseContent = findChildByName(elseNode, `${elseNodeName}_content`);
+    const shape = openBody(
+      ctx,
+      elseContent?.from ?? elseNode.to,
+      endStart,
+    );
     ctx.scopeDepth = (ctx.scopeDepth ?? 0) + 1;
-    const body = wrapInScope(lowerStatements(elseContent, ctx));
+    const body = wrapInScope(lowerStatements(elseContent, ctx, undefined, shape));
     ctx.scopeDepth--;
-    branches.push(buildBranch(null, body, true));
+    branches.push(buildBranch(null, body, true, shape));
   }
 
   const conditional = new Conditional(
@@ -128,8 +161,12 @@ function buildBranch(
   condition: Expression | null,
   body: ParsedObject[],
   isElse: boolean,
+  shape: BodyShape | undefined,
 ): ConditionalSingleBranch {
   const branch = new ConditionalSingleBranch(body.length > 0 ? body : null);
+  if (shape) {
+    bodyOfBlock.set(branch, shape);
+  }
   if (condition) {
     // Normalize the condition to a real boolean under LUA truthiness
     // (only nil and false are falsy — `if 0 then` / `if "" then` /

@@ -38,7 +38,8 @@ sparkdown [0..90]
      │   │   │       │       ├─ LuauTypeLiteral_content [32..38]
      │   │   │       │       │   └─ LuauPrimitiveType [32..38]
      │   │   │       │       │       ├─ LuauPrimitiveType_c1 [32..38]: "number"
-     │   │   │       │       │       └─ LuauPrimitiveType_c2 38
+     │   │   │       │       │       ├─ LuauPrimitiveType_c2 38
+     │   │   │       │       │       └─ LuauPrimitiveType_c3 38
      │   │   │       │       └─ LuauTypeLiteral_end 38
      │   │   │       └─ LuauTypeAnnotationOperation_end 38
      │   │   └─ LuauFunctionParameters_end [38..39]
@@ -67,6 +68,7 @@ sparkdown [0..90]
      │       │   │   │       │   └─ LuauAssignmentOperation [61..64]
      │       │   │   │       │       ├─ LuauAssignmentOperation_begin 61
      │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 61
+     │       │   │   │       │       │       └─ OptionalWhitespace 61
      │       │   │   │       │       ├─ LuauAssignmentOperation_content [61..64]
      │       │   │   │       │       │   ├─ LuauAssignmentOperator [61..63]
      │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [61..63]

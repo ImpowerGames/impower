@@ -7,6 +7,9 @@
  * to 15, and an unsigned 16-bit operand `aux` in bits 16 to 31. Word 1 is a
  * signed 32-bit operand `arg`. An operand that does not fit its field is a
  * construct the writer does not emit, and the compile falls back.
+ *
+ * A jump's `arg` is a signed count of code words relative to the instruction
+ * after the jump. A block is an index into the chunk's own block table.
  */
 export const Op = {
   /** No effect when run. Its offset is the address a beat is known by. */
@@ -34,6 +37,50 @@ export const Op = {
   Done: 13,
   /** Ends every flow. */
   End: 14,
+  /** Pops a value and writes its text; Void writes nothing. */
+  Out: 15,
+  /** Opens a capture of the output. */
+  BeginString: 16,
+  /** Closes the capture and pushes the text it caught. */
+  EndString: 17,
+  /** Pops `aux` arguments and pushes the result of the native function or
+   *  operator `arg` names. */
+  Native: 18,
+  /** `and` or `or`: keeps the top and jumps by `arg` when it decides the
+   *  result, and pops it otherwise. The flag says which. */
+  JumpIfKeep: 19,
+  /** Pops a value and jumps by `arg` when it is false. */
+  JumpIfFalse: 20,
+  /** Jumps by `arg`. */
+  Jump: 21,
+  /** Pushes the variable `arg` names. */
+  GetVar: 22,
+  /** Pops a value into the variable `arg` names, as the flags say. */
+  SetVar: 23,
+  /** Pops a key and a base and pushes the member. */
+  Index: 24,
+  /** Pops a value, a key and a base and stores the member. */
+  StoreIndex: 25,
+  /** Pushes the top again. */
+  Dup: 26,
+  /** Pops `arg` values and pushes them as one multiple value, the last
+   *  spread. */
+  Pack: 27,
+  /** Pops one value and pushes its first `arg` values, padded with nil, the
+   *  first on top. */
+  Unpack: 28,
+  /** Opens a scope of temporaries on the frame. */
+  BeginScope: 29,
+  /** Closes the frame's innermost scope. */
+  EndScope: 30,
+  /** Enters the sequence of block `arg` of the chunk. */
+  EnterBlock: 31,
+  /** Leaves the blocks up to the nearest loop body, and resumes its owner at
+   *  the block's break offset, or its resume offset with the continue flag. */
+  Leave: 32,
+  /** Pops a callable and `aux` arguments below it, and pushes what the call
+   *  returns. */
+  CallValue: 33,
 } as const;
 
 export type Opcode = (typeof Op)[keyof typeof Op];
@@ -60,6 +107,24 @@ export const CALL_DISCARD = 1;
  *  `open`, `glue` or `caption`), so the statement after it continues its
  *  beat and carries no `LineStart` of its own. */
 export const CALL_OPEN = 2;
+
+/** `JumpIfKeep`'s flag: set for `or`, clear for `and`. */
+export const KEEP_OR = 1;
+
+/** `JumpIfFalse`'s flags. The condition is tested by Luau truthiness, where
+ *  only nil and false are false, and otherwise as the current engine tests a
+ *  conditional divert's condition. */
+export const JUMP_LUAU = 1;
+/** The jump is a decision the route planner can pause at and force, as a
+ *  conditional divert is today. */
+export const JUMP_DECISION = 2;
+
+/** `SetVar`'s flags. */
+export const SET_DECLARE = 1;
+export const SET_GLOBAL = 2;
+
+/** `Leave`'s flag: resume the loop's owner where its next pass starts. */
+export const LEAVE_CONTINUE = 1;
 
 export const AUX_MAX = 0xffff;
 

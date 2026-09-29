@@ -6,11 +6,19 @@
  * construct the writer does not emit, named by the builtin.
  *
  * `display` reads the output stream and the pending line end, and raises a
- * warning; `__unjoined` raises a warning.
+ * warning; `__unjoined` raises a warning. `__def` and `__defs`, which a
+ * `define` initializes its table with, read and write the globals.
+ * `tonumber`, which a numeric `for` coerces its bounds with, reads nothing.
+ * `__adjust_iter`, which a generic `for` adjusts its iterator with, calls a
+ * table's `__iter` metamethod through the story.
  */
 export const PROGRAM_BUILTINS: ReadonlySet<string> = new Set([
   "display",
   "__unjoined",
+  "__def",
+  "__defs",
+  "tonumber",
+  "__adjust_iter",
 ]);
 
 /** The keys of a `display` table that leave its line without a newline, so

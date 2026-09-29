@@ -22,6 +22,7 @@ sparkdown [0..23]
      │   └─ LuauAssignmentOperation [7..23]
      │       ├─ LuauAssignmentOperation_begin 7
      │       │   └─ LuauAssignmentOperation_begin_c1 7
+     │       │       └─ OptionalWhitespace 7
      │       ├─ LuauAssignmentOperation_content [7..23]
      │       │   ├─ LuauAssignmentOperator [7..9]
      │       │   │   ├─ LuauAssignmentOperator_begin [7..9]
@@ -51,6 +52,7 @@ sparkdown [0..23]
      │       │       │   ├─ LuauAssignmentOperation [12..15]
      │       │       │   │   ├─ LuauAssignmentOperation_begin 12
      │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 12
+     │       │       │   │   │       └─ OptionalWhitespace 12
      │       │       │   │   ├─ LuauAssignmentOperation_content [12..15]
      │       │       │   │   │   ├─ LuauAssignmentOperator [12..14]
      │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [12..14]
@@ -85,6 +87,7 @@ sparkdown [0..23]
      │       │       │   └─ LuauAssignmentOperation [19..22]
      │       │       │       ├─ LuauAssignmentOperation_begin 19
      │       │       │       │   └─ LuauAssignmentOperation_begin_c1 19
+     │       │       │       │       └─ OptionalWhitespace 19
      │       │       │       ├─ LuauAssignmentOperation_content [19..22]
      │       │       │       │   ├─ LuauAssignmentOperator [19..21]
      │       │       │       │   │   ├─ LuauAssignmentOperator_begin [19..21]

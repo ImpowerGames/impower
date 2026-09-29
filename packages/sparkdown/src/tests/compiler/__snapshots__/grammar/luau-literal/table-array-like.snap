@@ -22,6 +22,7 @@ sparkdown [0..18]
      │   └─ LuauAssignmentOperation [5..18]
      │       ├─ LuauAssignmentOperation_begin 5
      │       │   └─ LuauAssignmentOperation_begin_c1 5
+     │       │       └─ OptionalWhitespace 5
      │       ├─ LuauAssignmentOperation_content [5..18]
      │       │   ├─ LuauAssignmentOperator [5..7]
      │       │   │   ├─ LuauAssignmentOperator_begin [5..7]

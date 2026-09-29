@@ -3,6 +3,8 @@ import { Expression } from "./Expression";
 import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
 import { NumberExpression } from "./NumberExpression";
 import { asOrNull } from "../../../../engine/TypeAssertion";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export class UnaryExpression extends Expression {
   get nativeNameForOp(): string {
@@ -77,6 +79,11 @@ export class UnaryExpression extends Expression {
     this.innerExpression.GenerateIntoContainer(container);
     container.AddContent(NativeFunctionCall.CallWithName(this.nativeNameForOp));
   };
+
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    emitter.emitObject(this.innerExpression);
+    emitter.emit(Op.Native, emitter.string(this.nativeNameForOp), 1);
+  }
 
   public override readonly toString = (): string =>
     this.nativeNameForOp + this.innerExpression;

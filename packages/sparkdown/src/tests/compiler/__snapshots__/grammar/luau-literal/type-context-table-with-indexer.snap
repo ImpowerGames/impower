@@ -52,7 +52,8 @@ sparkdown [0..77]
      │   │   │   │   │       │       │   │   │       ├─ LuauTypeLiteral_content [25..31]
      │   │   │   │   │       │       │   │   │       │   └─ LuauPrimitiveType [25..31]
      │   │   │   │   │       │       │   │   │       │       ├─ LuauPrimitiveType_c1 [25..31]: "string"
-     │   │   │   │   │       │       │   │   │       │       └─ LuauPrimitiveType_c2 31
+     │   │   │   │   │       │       │   │   │       │       ├─ LuauPrimitiveType_c2 31
+     │   │   │   │   │       │       │   │   │       │       └─ LuauPrimitiveType_c3 31
      │   │   │   │   │       │       │   │   │       └─ LuauTypeLiteral_end 31
      │   │   │   │   │       │       │   │   └─ LuauTypeTableIndexer_end [31..32]
      │   │   │   │   │       │       │   │       └─ LuauTypeTableIndexer_end_c1 [31..32]
@@ -74,14 +75,16 @@ sparkdown [0..77]
      │   │   │   │   │       │       │   │   │       ├─ LuauTypeLiteral_content [34..40]
      │   │   │   │   │       │       │   │   │       │   └─ LuauPrimitiveType [34..40]
      │   │   │   │   │       │       │   │   │       │       ├─ LuauPrimitiveType_c1 [34..40]: "number"
-     │   │   │   │   │       │       │   │   │       │       └─ LuauPrimitiveType_c2 40
+     │   │   │   │   │       │       │   │   │       │       ├─ LuauPrimitiveType_c2 40
+     │   │   │   │   │       │       │   │   │       │       └─ LuauPrimitiveType_c3 40
      │   │   │   │   │       │       │   │   │       └─ LuauTypeLiteral_end 40
      │   │   │   │   │       │       │   │   └─ LuauTypeAnnotationOperation_end 40
      │   │   │   │   │       │       │   └─ ExtraWhitespace [40..41]: " "
      │   │   │   │   │       │       └─ LuauTypeTableStruct_end [41..42]
      │   │   │   │   │       │           ├─ LuauTypeTableStruct_end_c1 [41..42]
      │   │   │   │   │       │           │   └─ PunctuationBraceClose [41..42]: "}"
-     │   │   │   │   │       │           └─ LuauTypeTableStruct_end_c2 42
+     │   │   │   │   │       │           ├─ LuauTypeTableStruct_end_c2 42
+     │   │   │   │   │       │           └─ LuauTypeTableStruct_end_c3 42
      │   │   │   │   │       └─ LuauTypeLiteral_end 42
      │   │   │   │   └─ LuauTypeAnnotationOperation_end 42
      │   │   │   ├─ LuauCommaSeparator [42..44]
@@ -108,7 +111,8 @@ sparkdown [0..77]
      │   │   │       │       ├─ LuauTypeLiteral_content [51..57]
      │   │   │       │       │   └─ LuauPrimitiveType [51..57]
      │   │   │       │       │       ├─ LuauPrimitiveType_c1 [51..57]: "number"
-     │   │   │       │       │       └─ LuauPrimitiveType_c2 57
+     │   │   │       │       │       ├─ LuauPrimitiveType_c2 57
+     │   │   │       │       │       └─ LuauPrimitiveType_c3 57
      │   │   │       │       └─ LuauTypeLiteral_end 57
      │   │   │       └─ LuauTypeAnnotationOperation_end 57
      │   │   └─ LuauFunctionParameters_end [57..58]

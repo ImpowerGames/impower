@@ -19,6 +19,7 @@ sparkdown [0..68]
      │       │   └─ LuauAssignmentOperation [18..68]
      │       │       ├─ LuauAssignmentOperation_begin 18
      │       │       │   └─ LuauAssignmentOperation_begin_c1 18
+     │       │       │       └─ OptionalWhitespace 18
      │       │       ├─ LuauAssignmentOperation_content [18..68]
      │       │       │   ├─ LuauAssignmentOperator [18..20]
      │       │       │   │   ├─ LuauAssignmentOperator_begin [18..20]
@@ -50,6 +51,7 @@ sparkdown [0..68]
      │       │       │       │   ├─ LuauAssignmentOperation [32..35]
      │       │       │       │   │   ├─ LuauAssignmentOperation_begin 32
      │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 32
+     │       │       │       │   │   │       └─ OptionalWhitespace 32
      │       │       │       │   │   ├─ LuauAssignmentOperation_content [32..35]
      │       │       │       │   │   │   ├─ LuauAssignmentOperator [32..34]
      │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [32..34]
@@ -86,6 +88,7 @@ sparkdown [0..68]
      │       │       │       │   ├─ LuauAssignmentOperation [49..52]
      │       │       │       │   │   ├─ LuauAssignmentOperation_begin 49
      │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 49
+     │       │       │       │   │   │       └─ OptionalWhitespace 49
      │       │       │       │   │   ├─ LuauAssignmentOperation_content [49..52]
      │       │       │       │   │   │   ├─ LuauAssignmentOperator [49..51]
      │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [49..51]
@@ -122,6 +125,7 @@ sparkdown [0..68]
      │       │       │       │   ├─ LuauAssignmentOperation [62..65]
      │       │       │       │   │   ├─ LuauAssignmentOperation_begin 62
      │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 62
+     │       │       │       │   │   │       └─ OptionalWhitespace 62
      │       │       │       │   │   ├─ LuauAssignmentOperation_content [62..65]
      │       │       │       │   │   │   ├─ LuauAssignmentOperator [62..64]
      │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [62..64]
