@@ -13,9 +13,14 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
-import type { LoweringRead, SiblingSubFlowInfo } from "../../lower/context";
+import type {
+  LowerContext,
+  LoweringRead,
+  SiblingSubFlowInfo,
+} from "../../lower/context";
 import { lower } from "../../lower/lower";
 import { continuationRoutingRead } from "../../lower/lowerers/lowerDisplay";
+import { validateBlockEnds } from "../../lower/utils/validateBlockEnds";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -422,7 +427,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       const typeNames = this.computeDefineTypeNames();
       const defineTypeReads = new Map<string, boolean>();
       const reads: RecordedRead[] = [];
-      const lowered = lower(nodeRef, {
+      const ctx: LowerContext = {
         recordRead: this.config?.recordLoweringReads
           ? (read: LoweringRead) => {
               reads.push({
@@ -469,7 +474,16 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
-      });
+      };
+      let lowered = lower(nodeRef, ctx);
+      // The Luau blocks this chunk's own nodes show to be left open. A chunk
+      // with no lowerer (a root-level type function) carries them on an empty
+      // block.
+      const unclosed = validateBlockEnds(nodeRef.node, ctx);
+      if (unclosed.length > 0) {
+        lowered ??= {};
+        chunkDiagnostics.push(...unclosed);
+      }
       if (lowered && hoistedKnots.length > 0) {
         lowered.hoistedKnots = hoistedKnots;
       }

@@ -25,7 +25,6 @@ import {
 } from "./expression/lowerExpression";
 import { wrapInWeave } from "./utils/wrapInWeave";
 import { validateAssignmentValue } from "./utils/validateAssignmentValue";
-import { validateBlockEnds } from "./utils/validateBlockEnds";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -111,17 +110,7 @@ export function lower(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock | undefined {
-  let block = lowerInner(nodeRef, ctx);
-  // A chunk is lowered from its root-level node, so this walks each block
-  // nested in the chunk once. A chunk with no lowerer (a root-level type
-  // function) still carries its diagnostics on an empty block.
-  if (nodeRef.node.parent?.type.isTop) {
-    const unclosed = validateBlockEnds(nodeRef.node, ctx);
-    if (unclosed.length > 0) {
-      block ??= {};
-      block.diagnostics = [...(block.diagnostics ?? []), ...unclosed];
-    }
-  }
+  const block = lowerInner(nodeRef, ctx);
   // Stamp top-level returned objects with the originating node's position.
   // Nested children without their own metadata inherit via the
   // ParsedObject.parent chain, so we only need to stamp once at the top.

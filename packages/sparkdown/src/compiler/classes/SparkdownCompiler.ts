@@ -67,6 +67,7 @@ import {
   validateScene,
   validateBranch,
 } from "../lower/utils/validateSceneBranchScope";
+import { validateOpenBlocks } from "../lower/utils/validateBlockEnds";
 import type { LowerContext } from "../lower/context";
 import { ContinuationGroup } from "../lower/utils/displayCall";
 import { InkObject } from "../../inkjs/engine/Object";
@@ -3602,6 +3603,8 @@ export class SparkdownCompiler {
     // than per-chunk during lowering. A per-chunk check would go stale when only
     // the matching `end` chunk is edited (the earlier scene chunk isn't
     // re-lowered), silently dropping the "missing `end`" diagnostic incrementally.
+    // A Luau block that stops at a story line is closed by a later root-level
+    // `end` the same way, so it is checked here too.
     this.validateSceneStructure(uri, onDiagnostic);
 
     // Auto-terminate non-function scenes / branches whose body doesn't end
@@ -4364,6 +4367,7 @@ export class SparkdownCompiler {
       }
       cur = cur.nextSibling;
     }
+    emit(validateOpenBlocks(tree.topNode, ctx));
   }
 
   // Decide which top-level flows the incremental ToJson cache may reuse this
