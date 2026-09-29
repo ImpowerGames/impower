@@ -268,6 +268,9 @@ variables:
   # The last character of a type: a name, a closing bracket or quote, or an
   # optional type's `?`.
   LUAU_TYPE_END: (?:[\w)}\]>"'`?])
+  # A type end that an optional-type `?` can follow: the `>` of a function
+  # type's `->` is excluded, since no type ends there.
+  LUAU_TYPE_END_BEFORE_OPTIONAL: (?:[\w)}\]"'`?]|[^-]>)
   # The whitespace that ends a type, unless the optional-type suffix follows
   # it (`number ?`), which Luau allows and which still belongs to the type.
   LUAU_TYPE_WHITESPACE_END: (?:{{WS}}(?!{{WS}}*{{LUAU_TYPE_OPTIONAL_OPERATOR}}))
@@ -8943,9 +8946,12 @@ repository:
   # already taken it in. It takes in the whitespace after it only when a
   # binary operator follows on the same line (`number? | string`,
   # `local u: number? = 1`), so a line break or the next statement's first
-  # word is never read as part of the type.
+  # word is never read as part of the type. The `>` of a function type's `->`
+  # ends no type, so a `?` after it falls to the stray-operator rule; the
+  # lookbehind spells that out as `[^-]>` because VS Code's regex engine
+  # refuses a lookbehind nested in another.
   LuauTypeOptionalOperator:
-    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
+    match: (?<={{LUAU_TYPE_END_BEFORE_OPTIONAL}}{{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
     captures:
       1:
         patterns:
