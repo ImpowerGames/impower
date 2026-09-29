@@ -242,6 +242,75 @@ Hello.
   expectFormatsTo(source, source);
 });
 
+test("formatting keeps one space between a logical operator or `until` and a table", () => {
+  const source = `local t = x or {}
+local u = not {}
+local v = a and {1}
+repeat
+  x = 1
+until {1}
+Hello.
+`;
+  expectFormatsTo(source, source);
+});
+
+test("formatting settles the space after `with` in one pass", () => {
+  const source = `define Foo as list with {1, 2} end
+
+define Bar as list with (x) end
+Hello.
+`;
+  expectFormatsTo(source, source);
+  expectFormatsTo(
+    `define Foo as list with  {1, 2} end
+Hello.
+`,
+    `define Foo as list with {1, 2} end
+Hello.
+`,
+  );
+});
+
+// #1113
+test("formatting keeps the minus attached after an if expression's keywords", () => {
+  const source = `local y = if c then -1 else -2
+local z = if c then 1 elseif d then -2 else 3
+local w = if c then a - 1 else 2
+Hello.
+`;
+  expectFormatsTo(source, source);
+});
+
+// #1114
+test("formatting keeps one space on each side of `..=`", () => {
+  const source = `local s = "a"
+s ..= "b"
+Hello.
+`;
+  expectFormatsTo(source, source);
+  expectFormatsTo(
+    `local s = "a"
+s..="b"
+Hello.
+`,
+    source,
+  );
+});
+
+// #1115
+test("formatting separates a clause keyword glued to a closing bracket", () => {
+  expectFormatsTo(
+    `local y = if(c)then 1 else(2)
+local z = if c then(1)else 2
+Hello.
+`,
+    `local y = if (c) then 1 else (2)
+local z = if c then (1) else 2
+Hello.
+`,
+  );
+});
+
 // #1099
 test("formatting keeps the space before the `::` cast operator", () => {
   const source = `local x = y :: number

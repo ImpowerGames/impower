@@ -54,6 +54,7 @@ sparkdown [0..163]
  │   │       │   │   │       │   └─ LuauAssignmentOperation [27..30]
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 27
  │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 27
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 27
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [27..30]
  │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [27..29]
  │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [27..29]
@@ -188,6 +189,7 @@ sparkdown [0..163]
  │   │       │   │   │       │   └─ LuauAssignmentOperation [82..102]
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 82
  │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 82
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 82
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [82..102]
  │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [82..84]
  │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [82..84]
@@ -235,7 +237,7 @@ sparkdown [0..163]
  │   │       │   │   │       │       │       │   ├─ LuauAssignmentOperation [96..100]
  │   │       │   │   │       │       │       │   │   ├─ LuauAssignmentOperation_begin [96..97]
  │   │       │   │   │       │       │       │   │   │   └─ LuauAssignmentOperation_begin_c1 [96..97]
- │   │       │   │   │       │       │       │   │   │       └─ ExtraWhitespace [96..97]: " "
+ │   │       │   │   │       │       │       │   │   │       └─ OptionalWhitespace [96..97]: " "
  │   │       │   │   │       │       │       │   │   ├─ LuauAssignmentOperation_content [97..100]
  │   │       │   │   │       │       │       │   │   │   ├─ LuauAssignmentOperator [97..99]
  │   │       │   │   │       │       │       │   │   │   │   ├─ LuauAssignmentOperator_begin [97..99]
@@ -285,6 +287,7 @@ sparkdown [0..163]
  │   │       │   │   │       │   └─ LuauAssignmentOperation [113..126]
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 113
  │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 113
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 113
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [113..126]
  │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [113..115]
  │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [113..115]

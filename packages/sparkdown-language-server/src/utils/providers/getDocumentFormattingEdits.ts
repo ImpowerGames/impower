@@ -1788,6 +1788,9 @@ const MERGEABLE: Set<string> = new Set([
   "keyword_separator|separator",
   "keyword_separator|keyword_separator",
   "separator|extra",
+  // A keyword's forced space replaces the extra whitespace after it
+  // (`with  (x)`) instead of being inserted beside it on every pass.
+  "keyword_separator|extra",
 ]);
 
 const isMergeable = (a: string, b: string) =>

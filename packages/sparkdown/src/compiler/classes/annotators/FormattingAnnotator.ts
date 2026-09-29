@@ -21,10 +21,11 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 // shape that appears inside `{...}` interpolations — that's where the
 // pacing concern lives, since the surrounding context is display text.
 // Control / alternator keywords whose trailing whitespace MUST be
-// at least one space, even when followed by `(`. Prettier-style
-// `if (cond)` / `match (player_class)` separation — these aren't
-// function calls, the parens are arg grouping, so the keyword
-// shouldn't tighten against them like `foo(x)` does. Only triggers
+// at least one space, even when followed by `(`, `{` or `[`.
+// Prettier-style `if (cond)` / `return {1}` / `then [[s]]`
+// separation — these aren't calls or indexes, so the keyword
+// shouldn't tighten against them like `foo(x)`, `f{1}` or `a[1]`
+// do. Only triggers
 // for the multi-line / block forms; inline alternators inside `{}`
 // interpolations stay collapsed via `isInsideInlineAlternator`.
 const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
@@ -47,8 +48,22 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauDefineKeyword",
   "LuauAsKeyword",
   "LuauInKeyword",
+  "LuauUntilKeyword",
   "SceneKeyword",
   "BranchKeyword",
+]);
+
+// The openers the separator rule glues to a word before them (`f(x)`,
+// `f{1}`, `a[1]`); after a keyword they get a forced space instead.
+const KEYWORD_OPENERS = new Set(["(", "{", "["]);
+
+// Keywords that continue an expression or statement after an operand.
+// Written glued to a closing bracket (`if(c)then`, `(1)else`), they get a
+// forced space before them, as the whitespace an author writes there is.
+const KEYWORDS_REQUIRING_LEADING_SPACE = nodeNameSet([
+  "LuauThenKeyword",
+  "LuauElseKeyword",
+  "LuauElseifKeyword",
 ]);
 
 // Binary operators spelled with punctuation that the formatter's
@@ -61,6 +76,9 @@ const SPACED_PUNCTUATION_OPERATORS: Partial<
 > = {
   LuauConcatOperator: { spelling: "..", forceAfter: true },
   LuauTypeCastOperator: { spelling: "::", forceAfter: false },
+  // Only its `..=` spelling; the separator after the `=` gives the
+  // space after it.
+  LuauAssignmentOperator: { spelling: "..=", forceAfter: false },
 };
 
 // Alternator forms whose ARM CONTENT is *display text* (not a Luau
@@ -188,6 +206,9 @@ const NOT_AN_LHS = nodeNameSet([
   "LuauConcatOperator",
   "LuauLogicalOperator",
   "LuauCommaSeparator",
+  // An if expression's arm begins after its keyword (`then -1`).
+  "LuauThenOperator",
+  "LuauElseOperator",
 ]);
 
 // True iff `node` sits inside an inline UI element attribute
@@ -409,10 +430,11 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     // (Branch_end annotation removed — see Scene_end note above.)
     // Wordlike binary operators (`and`, `or`, `not`) — the
     // operator's trailing-WS capture sits between the keyword and
-    // its right operand. When the operand begins with `(`, the
+    // its right operand. When the operand begins with an opener, the
     // default separator would tighten (`and(y or z)` instead of
-    // `and (y or z)`). Emit `keyword_separator` right after the
-    // keyword text to force the space.
+    // `and (y or z)`, `or{}` instead of `or {}`). Emit
+    // `keyword_separator` right after the keyword text to force the
+    // space.
     if (nodeRef.name === "LuauLogicalOperator") {
       // Skip leading WS captured inside the operator's range to find
       // the keyword's start.
@@ -428,8 +450,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         const slice = this.read(kwStart, kwStart + kw.length);
         if (slice !== kw) continue;
         const kwEnd = kwStart + kw.length;
-        // Only emit when the operand starts with `(` — other operand
-        // shapes are handled fine by the default separator dispatch.
+        // Only emit when the operand starts with an opener — other
+        // operand shapes are handled fine by the default separator
+        // dispatch.
         let scan = kwEnd;
         while (
           this.read(scan, scan + 1) === " " ||
@@ -437,7 +460,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         ) {
           scan += 1;
         }
-        if (this.read(scan, scan + 1) === "(") {
+        if (KEYWORD_OPENERS.has(this.read(scan, scan + 1))) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
               kwEnd,
@@ -541,7 +564,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         break;
       }
       const nextChar = this.read(scanPos, scanPos + 1);
-      if (nextChar === "(" || nextChar === "{" || nextChar === "[") {
+      if (KEYWORD_OPENERS.has(nextChar)) {
         // Any inline alternator (display-text variants AND
         // Luau-expression variants like `{plural(n)|one=...}`)
         // should stay tight — never `plural (n)`.
@@ -558,6 +581,24 @@ export class FormattingAnnotator extends SparkdownAnnotator<
             ),
           );
         }
+      }
+    }
+    // Keyword-leading-space marker: a clause keyword glued to the
+    // operand before it (`if(c)then`, `(1)else`) has no whitespace
+    // node for the separator dispatch to widen, so force the space.
+    if (KEYWORDS_REQUIRING_LEADING_SPACE.has(nodeRef.name)) {
+      const prevChar = this.read(nodeRef.from - 1, nodeRef.from);
+      if (
+        nodeRef.from > this.getLineAt(nodeRef.from).from &&
+        prevChar !== " " &&
+        prevChar !== "\t"
+      ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+            nodeRef.from,
+            nodeRef.from,
+          ),
+        );
       }
     }
     if (nodeRef.name === "ChoiceMark") {

@@ -76,7 +76,7 @@ text.source.sparkdown [0..163]
  │       ├─ punctuation.definition.template-expression.begin.sd [93..94]: "["
  │       ├─ constant.numeric.decimal.luau [94..95]: "2"
  │       ├─ punctuation.definition.template-expression.end.sd [95..96]: "]"
- │       ├─ punctuation.whitespace.extra.sd [96..97]: " "
+ │       ├─ punctuation.whitespace.optional.sd [96..97]: " "
  │       ├─ keyword.operator.assignment.luau [97..98]: "="
  │       ├─ punctuation.whitespace.optional.sd [98..99]: " "
  │       ├─ variable.other.readwrite.luau [99..100]: "b"
