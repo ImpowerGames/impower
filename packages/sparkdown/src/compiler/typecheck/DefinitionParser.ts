@@ -61,6 +61,7 @@ import {
   AstStatRepeat,
   AstStatReturn,
   AstStatTypeAlias,
+  AstStatTypeFunction,
   AstStatWhile,
   AstTableAccess,
   AstType,
@@ -2591,12 +2592,11 @@ class Parser {
   }
 
   // type function Name `(' arglist `)' `=' funcbody `end'
-  //
-  // `./Ast` has no `AstStatTypeFunction`, and the checker has no runtime for type functions: the statement is parsed as Luau
-  // parses it, and stands in the tree as an empty block over the same span.
-  private parseTypeFunction(start: Location, _exported: boolean): AstStat {
+  private parseTypeFunction(start: Location, exported: boolean): AstStat {
     const matchFn = this.lexer.current();
     this.nextLexeme();
+
+    const errorsAtStart = this.parseErrors.length;
 
     // parse the name of the type function
     let fnName = this.parseNameOpt("type function name");
@@ -2613,7 +2613,9 @@ class Parser {
 
     this.matchRecoveryStopOnToken[LexemeType.ReservedEnd]!--;
 
-    return new AstStatBlock(Location.span(start, body.location), []);
+    const hasErrors = this.parseErrors.length > errorsAtStart;
+
+    return new AstStatTypeFunction(Location.span(start, body.location), fnName.name, fnName.location, body, exported, hasErrors);
   }
 
   private parseDeclaredExternTypeMethod(attributes: AstAttr[]): AstDeclaredExternTypeProperty {

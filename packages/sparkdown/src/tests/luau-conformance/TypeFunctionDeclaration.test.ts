@@ -7,7 +7,7 @@ import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
-import { checkLuau } from "./typecheckTestHarness";
+import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 
 // The editor's annotations of each occurrence of the whole word `word` in
 // `text`, by annotation set.
@@ -252,5 +252,141 @@ done
     ]);
     expect(errors).toEqual([]);
     expect(recorded).toEqual(["number"]);
+  });
+});
+
+// Every diagnostic a compile of one `.sd` script gives, with its range.
+function scriptDiagnostics(text: string): string[] {
+  const uri = "inmemory:///main.sd";
+  const compiler = new SparkdownCompiler();
+  compiler.configure({ files: [{ uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
+  const program = compiler.compile({ textDocument: { uri } }).program;
+  return (program.diagnostics?.[uri] ?? []).map((d) => {
+    const message = typeof d.message === "string" ? d.message : d.message.value;
+    return `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character} ${message}`;
+  });
+}
+
+// The checker binds a type function's name as a type and checks its body in
+// the type function environment. Sparkdown has no VM to evaluate the function
+// with, so a type that uses one reports that it cannot be evaluated, as Luau
+// does without one, and reduces to `never`. Luau's own type function tests
+// use `BuiltinsFixture`, whose type function environment has the `types`
+// library.
+describe("type function in the type checker", () => {
+  const CANNOT_EVALUATE = "'F' type function: cannot be evaluated in this context";
+  const check = (source: string) => checkLuau(source, { fixture: "BuiltinsFixture" }).diagnostics.map(describeDiagnostic);
+
+  test("a type that uses one reports that it cannot be evaluated", () => {
+    expect(
+      check(`
+type function F(t)
+    return types.unionof(t, types.number)
+end
+type U = F<string>
+local x: U = 1
+`),
+    ).toEqual([
+      `4:9-4:18 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`,
+      "5:13-5:14 TypeMismatch: Expected this to be 'F<string>', but got 'number'; \nthe reduced type is `never`, and `number` is not a subtype of `never`",
+    ]);
+  });
+
+  test("one that nothing uses reports nothing", () => {
+    expect(
+      check(`
+type function F(t)
+    return types.unionof(t, types.number)
+end
+local x: number = 1
+`),
+    ).toEqual([]);
+  });
+
+  // Luau's `udtf_recovery_no_upvalues`: a use of a declaration with a parse
+  // error reduces to the error type and reports nothing more.
+  test("one with a parse error reports only the parse error", () => {
+    expect(
+      check(`
+local var
+
+type function save_upvalue(arg)
+    var = 1
+    return arg
+end
+
+type test = "test"
+local function ok(idx: save_upvalue<test>): "test"
+    return idx
+end
+`),
+    ).toEqual(["4:8-4:9 SyntaxError: Type function cannot reference outer local 'var'"]);
+  });
+
+  test("its body is checked in the type function environment", () => {
+    expect(
+      check(`
+type function F(t)
+    local n: number = "one"
+    return t
+end
+`),
+    ).toEqual(["2:22-2:27 TypeMismatch: Expected this to be 'number', but got 'string'"]);
+  });
+
+  test("its body sees the type aliases it names and the other type functions", () => {
+    expect(
+      check(`
+type Pair = { number }
+type function G(t)
+    return t
+end
+type function F(t)
+    local p = Pair
+    return G(t)
+end
+`),
+    ).toEqual([]);
+  });
+
+  test("a type alias of the same name is a duplicate", () => {
+    expect(
+      check(`
+type F = number
+type function F(t)
+    return t
+end
+`).map((d) => d.split(" ").slice(0, 2).join(" ")),
+    ).toEqual(["2:0-4:3 DuplicateTypeDefinition:"]);
+  });
+
+  test("a script's top-level one reaches the checker", () => {
+    const text = `---
+typecheck: strict
+---
+
+type function F(t)
+    return types.unionof(t, types.number)
+end
+type U = F<string>
+local x: U = 1
+`;
+    expect(scriptDiagnostics(text)).toEqual([
+      `7:9-7:18 ${CANNOT_EVALUATE}`,
+      "8:13-8:14 Expected this to be 'F<string>', but got 'number'; \nthe reduced type is `never`, and `number` is not a subtype of `never`",
+    ]);
+  });
+
+  test("a script's top-level one that nothing uses reports nothing", () => {
+    const text = `---
+typecheck: strict
+---
+
+type function F(t)
+    return types.unionof(t, types.number)
+end
+local x: number = 1
+`;
+    expect(scriptDiagnostics(text)).toEqual([]);
   });
 });
