@@ -7459,6 +7459,7 @@ repository:
     patterns:
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauPropertyAccessor" }
+      - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyIndexer" }
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionCall" }
@@ -7704,6 +7705,21 @@ repository:
         patterns:
           - { include: "#LuauStdLibMethods" }
           - { include: "#LuauPropertyName" }
+
+  # A `.` with no name after it on its line (`t.a.`), which Luau rejects. It
+  # is read as one token so the access path, its statement and the enclosing
+  # block end where they would with the name in place, and the validator
+  # reports it. A `..` is the concatenation operator, which ends the path
+  # before this rule is tried.
+  LuauDanglingAccessor:
+    match: ({{WS}}*)([.])(?![.]|{{WS}}*{{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: invalid
+        name: invalid.illegal.luau
 
   LuauPropertyIndexer:
     brackets: true

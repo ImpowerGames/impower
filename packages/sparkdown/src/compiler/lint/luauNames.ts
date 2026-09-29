@@ -174,7 +174,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
 const IDENTIFIERS = /\b[A-Za-z_][A-Za-z0-9_]*\b/g;
 
 // Luau's reserved words, which are never a name.
-const RESERVED = new Set([
+export const RESERVED = new Set([
   "and",
   "break",
   "do",

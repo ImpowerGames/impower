@@ -65,8 +65,10 @@ export function validateAssignmentValue(
     if (!isInsignificant(sib.name)) return;
   }
 
-  const got = nextSignificantToken(operator.to, ctx);
-  const gotDisplay = got == null ? "<eof>" : `'${got}'`;
+  const got = nextSignificantToken(operator.to, (from, to) =>
+    ctx.read(from, to),
+  );
+  const gotDisplay = got == null ? "<eof>" : `'${got.text}'`;
   ctx.diagnostics.push({
     message: `Expected identifier when parsing expression, got ${gotDisplay}`,
     severity: ErrorType.Error,
@@ -74,13 +76,16 @@ export function validateAssignmentValue(
   });
 }
 
-// The token Luau would report after the `=`. Scans forward from `pos` over
-// whitespace, newlines, and Luau comments (`-- line` and `--[[ block ]]`),
-// returning the next identifier/keyword run, the next single (punctuation)
-// character, or `null` (rendered as `<eof>`) when nothing but skippable text
-// follows.
-function nextSignificantToken(pos: number, ctx: LowerContext): string | null {
-  const window = ctx.read(pos, pos + LOOKAHEAD);
+// The token Luau would report after `pos`. Scans forward over whitespace,
+// newlines, and Luau comments (`-- line` and `--[[ block ]]`), returning the
+// next identifier/keyword run or the next single (punctuation) character with
+// its document offset, or `null` (rendered as `<eof>`) when nothing but
+// skippable text follows.
+export function nextSignificantToken(
+  pos: number,
+  read: (from: number, to: number) => string,
+): { text: string; from: number } | null {
+  const window = read(pos, pos + LOOKAHEAD);
   let i = 0;
   while (i < window.length) {
     const c = window[i]!;
@@ -113,13 +118,13 @@ function nextSignificantToken(pos: number, ctx: LowerContext): string | null {
     // If the identifier match reached the window's edge it may be truncated;
     // re-read a fresh slice from its start to capture it whole.
     if (i + word[0].length >= window.length) {
-      const tail = ctx.read(pos + i, pos + i + 512);
+      const tail = read(pos + i, pos + i + 512);
       const full = /^[A-Za-z_][A-Za-z0-9_]*/.exec(tail);
-      if (full) return full[0];
+      if (full) return { text: full[0], from: pos + i };
     }
-    return word[0];
+    return { text: word[0], from: pos + i };
   }
-  return rest[0]!;
+  return { text: rest[0]!, from: pos + i };
 }
 
 // The `=`/`+=`/`..=` token's own range, with the surrounding same-line

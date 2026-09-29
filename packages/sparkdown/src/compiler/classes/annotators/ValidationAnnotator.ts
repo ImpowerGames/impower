@@ -12,6 +12,8 @@ import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
 import { TYPE_NAME_EXTRA_QUALIFIER } from "../../lower/utils/lineContinuation";
+import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
+import { RESERVED } from "../../lint/luauNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -108,6 +110,10 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
+// Luau reads a name on a later line after a `.`, but a Sparkdown access path
+// ends with its line.
+const NAME_ON_LATER_LINE =
+  "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -331,6 +337,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // before it as its own token. The wording is Luau's parser's.
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+      return annotations;
+    }
+    // A `.` with no name after it on its line (`t.a.`). The grammar reads it
+    // as its own token, after any whitespace before it, so the `.` is the
+    // node's last character. The wording is Luau's parser's, naming the token
+    // it meets instead of the name.
+    if (nodeRef.name === "LuauDanglingAccessor") {
+      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+        this.read(from, to),
+      );
+      const nameOnLaterLine =
+        got != null &&
+        /^[A-Za-z_]/.test(got.text) &&
+        !RESERVED.has(got.text);
+      const message = nameOnLaterLine
+        ? NAME_ON_LATER_LINE
+        : `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`;
+      this.error(annotations, message, nodeRef.to - 1, nodeRef.to);
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
