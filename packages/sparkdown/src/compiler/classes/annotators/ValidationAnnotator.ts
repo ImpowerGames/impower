@@ -92,12 +92,12 @@ const LUAU_NUMBER = nodeNameSet([
   "LuauNumericHex",
   "LuauNumericBinary",
 ]);
-// The inline text command (`<1.5x:...>`) reuses the number rule for its
-// control argument, where the surrounding syntax is not Luau.
 // The grammar's `LUAU_TYPE_END_BEFORE_OPTIONAL` without the `]` that a block
 // comment's close adds, tested against the two characters before a position.
 const LUAU_TYPE_END_BEFORE_OPTIONAL = /(?:[\w)}"'`?]|[^-]>)$/;
 
+// The inline text command (`<1.5x:...>`) reuses the number rule for its
+// control argument, where the surrounding syntax is not Luau.
 const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
 
 // The characters Luau's lexer skips after a `\z` escape. Narrower than JS
@@ -326,7 +326,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
 
   /** The end of the text before the block comments (and the whitespace around
    *  them) that end at `pos`, or null when no block comment ends there. */
-  startBeforeBlockComments(pos: number): number | null {
+  protected startBeforeBlockComments(pos: number): number | null {
     let skipped = false;
     for (;;) {
       while (pos > 0 && LUAU_WHITESPACE_RUN.test(this.read(pos - 1, pos))) {
