@@ -1,0 +1,11 @@
+function f(a, b)
+  local total = a
+    - b.c * 2
+    -- comment
+    - 1
+  local t = { 1,
+    -2 }
+  return
+    -total, g(a,
+    -b)
+end

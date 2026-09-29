@@ -70,4 +70,4 @@ At completion, or when yielding for input or help, provide the normal chat hando
 
 | Symptom | Action |
 | --- | --- |
-| `git worktree remove` reports `Directory not empty` | Use clean-worktrees dry run and its recovery record. Preserve unmerged work and external targets; never bypass refusal with recursive deletion. |
+| `git worktree remove` reports `Directory not empty` | Use clean-worktrees `--remove <path>` (unmerged too; keeps the branch), which refuses external targets. Never bypass refusal with recursive deletion. |

@@ -58,7 +58,11 @@ export function nullIfUndefined<T>(obj: T | undefined): T | null {
 }
 
 export function isEquatable(type: any) {
-  return typeof type === "object" && typeof type.Equals === "function";
+  return (
+    typeof type === "object" &&
+    type !== null &&
+    typeof type.Equals === "function"
+  );
 }
 
 function unsafeTypeAssertion<T>(

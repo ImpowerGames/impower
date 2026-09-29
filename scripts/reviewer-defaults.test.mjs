@@ -14,58 +14,58 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const { defaults } = readReviewerDefaults(root);
 assert.ok(!defaults.rows.some((row) => [...row.primary, ...row.fallback].some(({ route }) => route.includes("fable"))), "the limited-allowance model never reviews");
 const pick = (plan) => { const { reviewer, reviewerEffort } = resolveReviewer(plan, root); return `${reviewer}/${reviewerEffort}`; };
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "low" }), "gpt-5.6-terra/high");
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "medium" }), "gpt-5.6-sol/high");
-assert.equal(pick({ writer: "claude-opus-5[1m]", writerEffort: "medium", reviewerFallback: true }), "claude-opus-5-5/high", "a context-window suffix does not change the writer route");
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "low", reviewerFallback: true }), "claude-sonnet-5/high");
-assert.equal(pick({ writer: "gpt-5.6-terra", writerEffort: "medium" }), "claude-sonnet-5/high");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "low" }), "gpt-5.6-terra/high");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium" }), "gpt-5.6-sol/high");
+assert.equal(pick({ writer: "claude-opus-5-5[1m]", writerEffort: "medium", reviewerFallback: true }), "claude-sonnet-5-5/high", "a context-window suffix does not change the writer route");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "low", reviewerFallback: true }), "claude-sonnet-5-5/high");
+assert.equal(pick({ writer: "gpt-5.6-terra", writerEffort: "medium" }), "claude-sonnet-5-5/high");
+assert.equal(pick({ writer: "gpt-5.6-terra", writerEffort: "xhigh" }), "claude-sonnet-5-5/xhigh", "a terra writer at xhigh or above gets an xhigh reviewer");
 assert.equal(pick({ writer: "gpt-5.6-sol", writerEffort: "medium" }), "claude-opus-5-5/high");
 assert.equal(pick({ writer: "gpt-5.6-sol", writerEffort: "medium", reviewerFallback: true }), "gpt-6-astra/medium");
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "high", reviewerFallback: true }), "gpt-5.6-sol/xhigh");
 assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "medium", reviewerFallback: true }), "claude-opus-5-5/xhigh");
-assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "xhigh" }), /supply ticketEffort \(high or correctness-critical\)/, "a writer effort shared by two ticket tiers needs the tier");
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-5.6-sol/xhigh");
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerIndex: 1 }), "gpt-5.6-sol/high", "the second serial reviewer is selected by index");
-assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "medium", reviewerIndex: 1 }), /reviewerIndex must be from 0 through 0/);
-assert.throws(() => pick({ writer: "claude-opus-5", writerEffort: "medium", reviewerIndex: null }), /reviewerIndex must be from 0 through 0/, "a null index is refused rather than read as the first reviewer");
-assert.throws(() => pick({ writer: "claude-opus-5" }), /writerEffort/, "the writer's effort remains a required input");
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "medium", reviewerFallback: true }), "claude-opus-5-5/high", "Opus 5 falls back to Opus 5.5");
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-4-8/high");
-// Opus 5.5 writes with the Opus 5 ticket tiers and cross-vendor reviewers.
+assert.throws(() => pick({ writer: "claude-opus-5-5", writerEffort: "xhigh" }), /supply ticketEffort \(high or correctness-critical\)/, "a writer effort shared by two ticket tiers needs the tier");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-5.6-sol/xhigh");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerIndex: 1 }), "gpt-5.6-sol/high", "the second serial reviewer is selected by index");
+assert.throws(() => pick({ writer: "claude-opus-5-5", writerEffort: "medium", reviewerIndex: 1 }), /reviewerIndex must be from 0 through 0/);
+assert.throws(() => pick({ writer: "claude-opus-5-5", writerEffort: "medium", reviewerIndex: null }), /reviewerIndex must be from 0 through 0/, "a null index is refused rather than read as the first reviewer");
+assert.throws(() => pick({ writer: "claude-opus-5-5" }), /writerEffort/, "the writer's effort remains a required input");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium", reviewerFallback: true }), "claude-sonnet-5-5/high", "Opus 5.5 falls back to Sonnet 5.5");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-4-8/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "low" }), "gpt-5.6-terra/high");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium" }), "gpt-5.6-sol/high");
-assert.equal(pick({ writer: "claude-opus-5-5[1m]", writerEffort: "medium", reviewerFallback: true }), "claude-opus-5/high");
-assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "high", reviewerFallback: true }), "claude-opus-5/xhigh");
+assert.equal(pick({ writer: "claude-opus-5-5[1m]", writerEffort: "medium", reviewerFallback: true }), "claude-sonnet-5-5/high");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "high", reviewerFallback: true }), "claude-sonnet-5-5/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-5.6-sol/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-4-8/xhigh");
-assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max", reviewerFallback: true }), "claude-opus-5/xhigh");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max", reviewerFallback: true }), "claude-sonnet-5-5/xhigh");
 // Codex writers and the Fable fallback are reviewed by Opus 5.5.
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "high" }), "claude-opus-5-5/xhigh");
-assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "max", reviewerIndex: 1 }), "claude-opus-5/high");
-assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-5/high");
+assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "max", reviewerIndex: 1 }), "claude-sonnet-5-5/xhigh");
+assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-sonnet-5-5/xhigh");
 // Every row whose writer or reviewers are Opus routes, pinned exactly: each
 // reviewer at each index, so one row left on an older model fails here.
 const routes = (list) => list.map(({ route, effort }) => `${route}/${effort}`).join(" ");
-const opusRows = defaults.rows.filter((row) => ["claude-opus-5", "claude-opus-5-5", "claude-fable-5-1", "gpt-5.6-sol", "gpt-6-astra"].includes(row.writer));
+const opusRows = defaults.rows.filter((row) => ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "gpt-5.6-sol", "gpt-6-astra"].includes(row.writer));
 const expectedOpusRows = [
-  ["claude-opus-5-5", "low", "low", "gpt-5.6-terra/high", "claude-sonnet-5/high"],
-  ["claude-opus-5-5", "medium", "medium", "gpt-5.6-sol/high", "claude-opus-5/high"],
-  ["claude-opus-5-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-opus-5/xhigh"],
-  ["claude-opus-5-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-opus-5/xhigh"],
-  ["claude-opus-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5/xhigh claude-opus-4-8/xhigh"],
-  ["claude-opus-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5/xhigh claude-opus-4-8/xhigh"],
-  ["claude-opus-5", "low", "low", "gpt-5.6-terra/high", "claude-sonnet-5/high"],
-  ["claude-opus-5", "medium", "medium", "gpt-5.6-sol/high", "claude-opus-5-5/high"],
-  ["claude-opus-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
-  ["claude-opus-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
-  ["claude-opus-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/high"],
-  ["claude-opus-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/high"],
+  ["claude-opus-5-5", "low", "low", "gpt-5.6-terra/high", "claude-sonnet-5-5/high"],
+  ["claude-opus-5-5", "medium", "medium", "gpt-5.6-sol/high", "claude-sonnet-5-5/high"],
+  ["claude-opus-5-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-sonnet-5-5/xhigh"],
+  ["claude-opus-5-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-sonnet-5-5/xhigh"],
+  ["claude-opus-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-sonnet-5-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-opus-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-sonnet-5-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-sonnet-5-5", "low", "low", "gpt-5.6-terra/high", "claude-opus-5-5/high"],
+  ["claude-sonnet-5-5", "medium", "medium", "gpt-5.6-sol/high", "claude-opus-5-5/high"],
+  ["claude-sonnet-5-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-sonnet-5-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-sonnet-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-sonnet-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/xhigh"],
   ["claude-fable-5-1", "low", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
   ["claude-fable-5-1", "medium", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
-  ...["high", "xhigh", "max"].map((effort) => ["claude-fable-5-1", effort, "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-5/high"]),
+  ...["high", "xhigh", "max"].map((effort) => ["claude-fable-5-1", effort, "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-sonnet-5-5/xhigh"]),
   ...["low", "medium", "high", "xhigh", "max", "ultra"].map((effort) => ["gpt-5.6-sol", effort, "medium", "claude-opus-5-5/high", "gpt-6-astra/medium"]),
   ...["low", "medium", "high", "xhigh"].map((effort) => ["gpt-6-astra", effort, "high", "claude-opus-5-5/xhigh", "gpt-5.6-sol/xhigh"]),
-  ...["max", "ultra"].map((effort) => ["gpt-6-astra", effort, "correctness-critical", "claude-opus-5-5/xhigh claude-opus-5/high", "gpt-5.6-sol/xhigh gpt-5.6-terra/high"]),
+  ...["max", "ultra"].map((effort) => ["gpt-6-astra", effort, "correctness-critical", "claude-opus-5-5/xhigh claude-sonnet-5-5/xhigh", "gpt-5.6-sol/xhigh gpt-5.6-terra/high"]),
 ];
 assert.deepEqual(opusRows.map((row) => [row.writer, row.writerEffort, row.ticketEffort, routes(row.primary), routes(row.fallback)]), expectedOpusRows);
 // Every writer in the table resolves at every effort its runner accepts.
@@ -76,14 +76,14 @@ for (const writer of new Set(defaults.rows.map((row) => row.writer))) {
     assert.doesNotThrow(() => pick({ writer, writerEffort, ticketEffort: tiers[0] }), `${writer} at ${writerEffort}`);
   }
 }
-assert.equal(pick({ writer: "claude-opus-5", writerEffort: "max" }), "gpt-6-astra/xhigh");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max" }), "gpt-6-astra/xhigh");
 assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max" }), "gpt-6-astra/xhigh");
 for (const writerEffort of ["low", "medium", "high", "xhigh", "max"]) assert.ok(defaults.rows.some((row) => row.writer === "claude-opus-5-5" && row.writerEffort === writerEffort), `claude-opus-5-5 at ${writerEffort} has a row`);
 // A ticket tier with no row at the writer's effort falls back to that tier's
 // row at the nearest writer effort, and the selection says so.
-const tierMatch = resolveReviewer({ writer: "claude-opus-5", writerEffort: "low", ticketEffort: "medium" }, root);
+const tierMatch = resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "low", ticketEffort: "medium" }, root);
 assert.deepEqual([tierMatch.reviewer, tierMatch.rowWriterEffort, tierMatch.matchedOn], ["gpt-5.6-sol", "medium", "ticketEffort"]);
-assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium" }, root).matchedOn, "writerEffort");
+assert.equal(resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium" }, root).matchedOn, "writerEffort");
 // Two rows of the tier equally near the session effort: the higher one wins.
 const tieRoot = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-tie-"));
 fs.mkdirSync(path.join(tieRoot, ".claude"));
@@ -98,12 +98,12 @@ assert.deepEqual([tie.reviewerEffort, tie.rowWriterEffort, tie.matchedOn], ["hig
 fs.rmSync(tieRoot, { recursive: true, force: true });
 assert.throws(() => pick({ writer: "gpt-5.6-terra", writerEffort: "medium", ticketEffort: "correctness-critical" }), /No reviewer default for gpt-5.6-terra at medium effort for a correctness-critical ticket/);
 assert.throws(() => pick({ writer: "claude-haiku-4-5", writerEffort: "medium" }), /No reviewer default/);
-assert.equal(resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "claude-opus-4-6" }, root).reviewer, "claude-opus-4-6", "an explicit reviewer bypasses the table");
-for (const writerEffort of [undefined, "bogus"]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort, reviewer: "gpt-5.6-sol" }, root), /writerEffort/, "an explicit reviewer still requires a valid writer effort");
-assert.equal(resolveReviewer({ writer: "gpt-6-astra", writerEffort: "ultra", reviewer: "claude-opus-5" }, root).reviewer, "claude-opus-5", "the Codex ultra effort is a valid writer effort");
-for (const writer of ["claude-opus-5", "claude-opus-5[1m]"]) assert.throws(() => resolveReviewer({ writer, writerEffort: "ultra", reviewer: "gpt-5.6-sol" }, root), /writerEffort for claude-opus-5.*\(low, medium, high, xhigh, max\)/, "a Claude writer cannot report ultra");
-assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: null }, root), /Omit reviewer/);
-for (const selector of [{ reviewerEffort: "high" }, { reviewerFallback: true }, { reviewerIndex: 0 }, { ticketEffort: "medium" }]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5", writerEffort: "medium", reviewer: "gpt-5.6-sol", ...selector }, root), /apply only when the reviewer is resolved/, JSON.stringify(selector));
+assert.equal(resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium", reviewer: "claude-opus-4-8" }, root).reviewer, "claude-opus-4-8", "an explicit reviewer bypasses the table");
+for (const writerEffort of [undefined, "bogus"]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5-5", writerEffort, reviewer: "gpt-5.6-sol" }, root), /writerEffort/, "an explicit reviewer still requires a valid writer effort");
+assert.equal(resolveReviewer({ writer: "gpt-6-astra", writerEffort: "ultra", reviewer: "claude-sonnet-5-5" }, root).reviewer, "claude-sonnet-5-5", "the Codex ultra effort is a valid writer effort");
+for (const writer of ["claude-opus-5-5", "claude-opus-5-5[1m]"]) assert.throws(() => resolveReviewer({ writer, writerEffort: "ultra", reviewer: "gpt-5.6-sol" }, root), /writerEffort for claude-opus-5.*\(low, medium, high, xhigh, max\)/, "a Claude writer cannot report ultra");
+assert.throws(() => resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium", reviewer: null }, root), /Omit reviewer/);
+for (const selector of [{ reviewerEffort: "high" }, { reviewerFallback: true }, { reviewerIndex: 0 }, { ticketEffort: "medium" }]) assert.throws(() => resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium", reviewer: "gpt-5.6-sol", ...selector }, root), /apply only when the reviewer is resolved/, JSON.stringify(selector));
 
 // Schema refusals.
 const models = [{ name: "reviewer-a", model: "claude-a" }];
@@ -126,14 +126,14 @@ assert.throws(() => validateReviewerDefaults({ codexModels: ["gpt-1-x"], rows: [
 // A resolved Codex reviewer receives its model and effort as exec arguments.
 const codexStep = { role: "review", nativeResult: "codex-jsonl", args: ["exec", "--json", "-"] };
 assert.deepEqual(applyResolvedReviewer(codexStep, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), { ...codexStep, model: "gpt-5.6-sol", effort: "high", args: ["exec", "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="high"', "--json", "-"] });
-for (const selecting of [["-c", 'model_reasoning_effort="low"'], ["-cmodel_reasoning_effort=low"], ["-cmodel=\"gpt-6-astra\""], ["-c=model_reasoning_effort=low"], ["-c", ' model_reasoning_effort="low"'], ["-c", 'MODEL="gpt-6-astra"'], [" --model", "gpt-6-astra"], ["--model=gpt-6-astra"], ["-mgpt-6-astra"], ["-c", 'model="gpt-6-astra"'], ["--config=model_reasoning_effort=\"low\""], ["--config=model=\"gpt-6-astra\""], ["--effort=low"], ["--agent=reviewer-opus-5"]]) {
+for (const selecting of [["-c", 'model_reasoning_effort="low"'], ["-cmodel_reasoning_effort=low"], ["-cmodel=\"gpt-6-astra\""], ["-c=model_reasoning_effort=low"], ["-c", ' model_reasoning_effort="low"'], ["-c", 'MODEL="gpt-6-astra"'], [" --model", "gpt-6-astra"], ["--model=gpt-6-astra"], ["-mgpt-6-astra"], ["-c", 'model="gpt-6-astra"'], ["--config=model_reasoning_effort=\"low\""], ["--config=model=\"gpt-6-astra\""], ["--effort=low"], ["--agent=reviewer-opus-5-5"]]) {
   assert.throws(() => applyResolvedReviewer({ ...codexStep, args: ["exec", ...selecting, "-"] }, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), /must not select its own model or effort/, selecting.join(" "));
 }
 assert.doesNotThrow(() => applyResolvedReviewer({ ...codexStep, args: ["exec", "-c", 'model_provider="openai"', "-"] }, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), "other config overrides stay allowed");
 assert.throws(() => applyResolvedReviewer({ role: "review", args: ["child.mjs"] }, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }), /needs a Codex exec reviewer step/);
 const awaitedCodex = { role: "review", args: ["exec", "-C", "/w", "--json", "-o", "/r/final.md", "-"] };
 assert.deepEqual(applyResolvedReviewer(awaitedCodex, { reviewer: "gpt-5.6-sol", reviewerEffort: "high" }).args, ["exec", "--model", "gpt-5.6-sol", "-c", 'model_reasoning_effort="high"', "-C", "/w", "--json", "-o", "/r/final.md", "-"], "the awaited Codex exec route also receives the resolved model and effort");
-assert.throws(() => applyResolvedReviewer(codexStep, { reviewer: "claude-opus-5", reviewerEffort: "high", agent: "reviewer-opus-5" }), /needs a Claude reviewer step/);
+assert.throws(() => applyResolvedReviewer(codexStep, { reviewer: "claude-sonnet-5-5", reviewerEffort: "high", agent: "reviewer-opus-5" }), /needs a Claude reviewer step/);
 
 // Launcher behavior in a scratch repository with its own registry and table.
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-defaults-"));

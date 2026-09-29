@@ -18,7 +18,10 @@
 // and any other path outside the worktrees directory, the default branch
 // (main, and whatever origin/HEAD names) wherever it is checked out, a locked
 // worktree, one git no longer sees as a worktree or whose directory is gone,
-// a detached or unborn head, uncommitted changes, commits on neither
+// an unborn head, a detached head whose commit is not on origin/main, or one
+// with an operation in progress (a stopped rebase or bisect), commits only its
+// HEAD reflog or per-worktree refs reach, or HEAD moved within the last day (a checkout a session
+// may be about to use), uncommitted changes, commits on neither
 // origin/main nor the branch's remote, commits on the remote that are not on
 // origin/main, a branch with no commit made on it (a fresh worktree a session
 // may be working in: its tip sits on origin/main's first-parent line, where a
@@ -32,6 +35,12 @@
 // the worktrees root that are not worktrees are listed too, so a tree an
 // interrupted removal left behind is never out of sight, and so is a branch
 // whose worktree an earlier run removed without managing to delete it.
+//
+// --apply first drops the records of worktrees whose directory is gone (`git
+// worktree prune`), unless a `<path>.removing` probe leftover sits beside a
+// dead record. `--apply --root <main> --remove <path>` removes the one
+// directory it names, registered worktree or leftover, unmerged or not, and
+// never its branch; see removeOne for what it refuses.
 //
 // --apply must be given --root with the main checkout's absolute path, and
 // refuses when that is not the checkout the current directory belongs to, so
@@ -47,11 +56,12 @@
 // points at, wherever that is; so before it runs, the walk that sizes the
 // tree reads every link in it and keeps the tree when one leads outside it,
 // the tree is re-verified (still clean, still on its branch, still no commits
-// of its own) and the directory is renamed and renamed back, which Windows
+// of its own; a detached tree still detached at the same commit, still on
+// origin/main, still with nothing in progress) and the directory is renamed and renamed back, which Windows
 // refuses while any process has a file open or its current directory inside
 // it. When git still stops part-way, the directory is no longer a worktree,
 // the rest of it goes directly, and a row says what is left and where. The
-// branch goes with -D after that re-verification, and an empty type directory
+// branch, when there is one, goes with -D after that re-verification, and an empty type directory
 // goes with it.
 //
 // After the worktrees, the web editor driver's directory for each worktree
@@ -77,6 +87,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PROFILE_CLAIM_FILE, PROFILE_CLAIM_MS, PROFILE_LOCK_STALE_MS, checkoutDir, checkoutStateFiles, driverHome } from "../drive-web-editor/session-dir.mjs";
 import { jobRootOf } from "../../../scripts/review-job-root.mjs";
+import { processIdentity } from "../../../scripts/reviewer-slots.mjs";
 
 // Windows paths compare without case, and git prints them with forward slashes.
 const norm = (p) => {
@@ -160,22 +171,34 @@ export function linkReason(scan, dir) {
   return null;
 }
 
-// Every process on the machine with its command line, one tab-separated line
-// each, so the worktrees a running server or shell names can be found without
-// asking any driver.
+// Every process on the machine with its parent, its age in milliseconds (how
+// long it has run, so a larger age is an older process) and its command line,
+// so the worktrees a running server or shell names can be found without
+// asking any driver. Windows keeps a dead parent's pid in ParentProcessId and
+// hands the pid to a new process, so the age is what tells a real parent from
+// a recycled one.
 // `exec` is deps.exec, which hides the console window.
 function listProcesses(exec) {
   const r =
     process.platform === "win32"
-      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
-      : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,comm=,args="], undefined, 60_000);
+      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", '$all = Get-CimInstance Win32_Process; $now = [DateTime]::UtcNow; $all | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$(if ($_.CreationDate) { [int64]($now - $_.CreationDate.ToUniversalTime()).TotalMilliseconds })`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
+      : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,ppid=,etimes=,comm=,args="], undefined, 60_000);
   if (r.status !== 0) return { ok: false, err: r.err || `exit ${r.status}` };
+  return { ok: true, list: parseProcesses(r.out) };
+}
+
+// One process per line of the listing `listProcesses` asks for. The clock is
+// read after the enumeration, so a process that started meanwhile has a
+// negative age; it is kept, with its age clamped to zero, since dropping the
+// line would hide a process that may name a tree.
+export function parseProcesses(text, win = process.platform === "win32") {
   const list = [];
-  for (const line of r.out.split(/\r?\n/)) {
-    const m = process.platform === "win32" ? /^(\d+)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\S+)\s*(.*)$/.exec(line);
-    if (m) list.push({ pid: Number(m[1]), name: m[2], cmd: m[3] });
+  for (const line of text.split(/\r?\n/)) {
+    const m = win ? /^(\d+)\t(\d*)\t(-?\d*)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*)$/.exec(line);
+    if (!m) continue;
+    list.push({ pid: Number(m[1]), ppid: m[2] === "" ? null : Number(m[2]), age: m[3] === "" ? null : Math.max(0, Number(m[3])) * (win ? 1 : 1000), name: m[4], cmd: m[5] });
   }
-  return { ok: true, list };
+  return list;
 }
 
 export const LOG_NAME = "clean-worktrees.log";
@@ -204,6 +227,8 @@ export const liveDeps = {
   // A scratch directory is removed the way a job directory is, unlinking any
   // link inside it first so no target is followed.
   removeScratch: (p) => removeJobDir(p),
+  unlinkLinks: (p) => unlinkLinksIn(p),
+  isLink: (p) => fs.lstatSync(p).isSymbolicLink(),
   readFile: (p) => fs.readFileSync(p, "utf8"),
   listDirs: (p) => {
     try {
@@ -229,6 +254,16 @@ export const liveDeps = {
     }
   },
   pidAlive,
+  // The start time processIdentity records for a pid: null when it is gone,
+  // and it throws when it cannot be read.
+  // Each lookup spawns PowerShell on Windows, so a pid is asked about once.
+  processStart: (() => {
+    const seen = new Map();
+    return (pid) => {
+      if (!seen.has(pid)) seen.set(pid, processIdentity(pid)?.start ?? null);
+      return seen.get(pid);
+    };
+  })(),
   // Where the web editor driver keeps each checkout's session directories,
   // and the reads that judge them; both throw on any error, so an entry that
   // cannot be read is never taken for one that is not there.
@@ -323,6 +358,16 @@ export function usersOf(dir, processes, selfPid, platform = process.platform) {
 
 const listSome = (items, max) => (items.length > max ? `${items.slice(0, max).join(", ")} and ${items.length - max} more` : items.join(", "));
 
+// Why a detached head on origin/main still stays, from detachedHistory's facts.
+function detachedKeeps(facts) {
+  const keep = [];
+  if (facts.inProgress?.length) keep.push(`an operation is in progress in it (${facts.inProgress.join(", ")}); finish or abort it first`);
+  if (facts.headLogUnknown) keep.push(`${facts.headLogUnknown}; left for a person`);
+  if (facts.headLogOrphans > 0) keep.push(`its HEAD reflog or per-worktree refs (refs/worktree, bisect, rewritten) reach ${n(facts.headLogOrphans, "commit")} that origin/main, every branch, remote and tag do not, which removing it would leave unreferenced`);
+  if (facts.headIdleMs != null && facts.headIdleMs < DETACHED_IDLE_MS) keep.push(`its HEAD moved ${Math.max(0, Math.round(facts.headIdleMs / 60000))} min ago, within ${DETACHED_IDLE_MS / 3600000} hours; a fresh checkout a session may be working in, so remove it by hand when it is done`);
+  return keep;
+}
+
 // The decision for one worktree from the facts gathered about it. Every
 // reason to keep is listed, so a dirty tree on a merged branch says both. The
 // main checkout is the one path outside the worktrees directory that is
@@ -333,14 +378,17 @@ export function classify(entry, facts) {
   if (facts.isDefault) keep.push(`the default branch ${entry.branch}, which is never removed wherever it is checked out`);
   if (entry.locked) keep.push(`locked (${entry.locked})`);
   if (facts.missing) keep.push(facts.probeLeft ? `its directory is gone and ${path.resolve(entry.path)}${PROBE_SUFFIX} is beside it, which is what an interrupted run's probe leaves; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record the renamed tree points at` : "its directory is gone; `git worktree prune` drops the record");
-  else if (entry.prunable) keep.push(`git no longer sees it as a worktree (${entry.prunable}) but the directory is still there; delete it by hand`);
-  if (entry.detached) keep.push("detached head, no branch; left for a person");
+  else if (entry.prunable) keep.push(`git no longer sees it as a worktree (${entry.prunable}) but the directory is still there, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand`);
+  // A detached head has no branch or remote to say where its commits went, so
+  // it is removable only when its commit is already on origin/main.
+  if (entry.detached && !facts.headOnMain) keep.push("detached head, no branch, and its commit is not known to be on origin/main; left for a person");
   if (facts.unborn) keep.push("unborn branch with no commits; left for a person");
   const remote = `origin/${entry.branch}`;
-  if (entry.branch && !facts.isMain && !facts.isDefault && !entry.prunable && !facts.missing && !facts.unborn) {
+  if ((entry.branch || facts.headOnMain) && !facts.isMain && !facts.isDefault && !entry.prunable && !facts.missing && !facts.unborn) {
     const remoteState = facts.remoteExists ? `${remote} exists` : `no ${remote}`;
     if (facts.dirty > 0) keep.push(`uncommitted changes (${n(facts.dirty, "file")})`);
-    if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
+    if (!entry.branch) keep.push(...detachedKeeps(facts));
+    else if (facts.unpushed > 0) keep.push(facts.remoteExists ? `${n(facts.unpushed, "commit")} on neither origin/main nor ${remote}` : `${n(facts.unpushed, "commit")} not on origin/main, and no ${remote} holds them`);
     else if (facts.ownCommits > 0) keep.push(`${n(facts.ownCommits, "commit")} not on origin/main (all on ${remote}; a pull request may be open)`);
     else if (facts.remoteAhead > 0) keep.push(`${remote} has ${n(facts.remoteAhead, "commit")} not on origin/main and this branch is behind it; a pull request may be open`);
     else if (!facts.committed && facts.onFirstParent) keep.push(`no commit was made on the branch: its tip is on origin/main's first-parent line and its reflog records none (${remoteState}); a fresh worktree a session may be working in, so remove it by hand when it is done`);
@@ -358,6 +406,7 @@ export function classify(entry, facts) {
   }
   if (keep.length) return { remove: false, reasons: keep };
   const ignored = facts.ignored.length ? `; takes ${n(facts.ignored.length, "ignored path")} with it (${facts.ignored.join(", ")})` : "";
+  if (entry.detached) return { remove: true, reasons: [`detached head at a commit already on origin/main${ignored}`] };
   return { remove: true, reasons: [`merged into origin/main; ${facts.remoteExists ? `${remote} still exists` : `no ${remote}`}${ignored}`] };
 }
 
@@ -484,7 +533,61 @@ export function readReflog(text) {
   };
 }
 
-function gatherFacts(entry, ctx, deps) {
+// A detached head has no branch to say what was done in the tree, so the
+// worktree's own git directory and HEAD reflog do: an operation left in
+// progress (a stopped rebase or bisect detaches HEAD at a clean commit),
+// commits made and then left behind by checking out another commit, which the
+// reflog alone still reaches, or held only by a per-worktree ref, and when HEAD last moved, since a checkout made
+// moments ago is one a session may be about to use. Any answer git does not
+// give keeps the tree.
+const DETACHED_IDLE_MS = 24 * 60 * 60 * 1000;
+const IN_PROGRESS = ["rebase-merge", "rebase-apply", "BISECT_LOG", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"];
+const MAX_HEAD_LOG = 200;
+
+export function detachedHistory(abs, ctx, deps) {
+  const facts = { inProgress: [], headLogUnknown: null, headLogOrphans: 0, headIdleMs: null };
+  for (const name of IN_PROGRESS) {
+    const r = deps.exec("git", ["rev-parse", "--git-path", name], abs);
+    if (r.status !== 0 || !r.out) {
+      facts.headLogUnknown = `git could not locate its ${name} state (${r.err || r.out || `exit ${r.status}`})`;
+      return facts;
+    }
+    if (deps.exists(path.resolve(abs, r.out))) facts.inProgress.push(name);
+  }
+  // %gd under --date=unix reads HEAD@{<when the entry was written>}; %ct would
+  // be the commit's own date, which says nothing about when HEAD moved.
+  const log = deps.exec("git", ["reflog", "show", "--date=unix", "--format=%H%x09%gd", "HEAD"], abs);
+  if (log.status !== 0) {
+    facts.headLogUnknown = `its HEAD reflog could not be read (${log.err || log.out || `exit ${log.status}`})`;
+    return facts;
+  }
+  const rows = log.out.split(/\r?\n/).filter(Boolean).map((l) => {
+    const [hash, sel] = l.split("\t");
+    return [hash, /@\{(\d+)\}$/.exec(sel ?? "")?.[1]];
+  });
+  const hashes = [...new Set(rows.map((r) => r[0]))];
+  const newest = Math.max(...rows.map((r) => Number(r[1])));
+  if (!rows.length || !Number.isFinite(newest) || hashes.length > MAX_HEAD_LOG) {
+    facts.headLogUnknown = rows.length ? "its HEAD reflog is too long or unreadable to check" : "its HEAD reflog is empty, so when it was last used cannot be told";
+    return facts;
+  }
+  facts.headIdleMs = Date.parse(deps.now()) - newest * 1000;
+  // A per-worktree ref (refs/worktree, and the bisect and rebase refs) is
+  // deleted with the tree just as the reflog is, so what it holds counts too.
+  const own = deps.exec("git", ["for-each-ref", "--format=%(objectname)", "refs/worktree", "refs/bisect", "refs/rewritten"], abs);
+  if (own.status !== 0) {
+    facts.headLogUnknown = `its per-worktree refs could not be read (${own.err || own.out || `exit ${own.status}`})`;
+    return facts;
+  }
+  const held = [...new Set([...hashes, ...own.out.split(/\r?\n/).filter(Boolean)])];
+  // Only what no branch, remote or tag also reaches would be left unreferenced.
+  const alone = deps.exec("git", ["rev-list", "--count", ...held, "--not", "refs/remotes/origin/main", "--branches", "--remotes", "--tags"], ctx.mainRoot);
+  if (alone.status !== 0) facts.headLogUnknown = `whether its HEAD reflog holds commits nothing else reaches could not be read (${alone.err || alone.out})`;
+  else facts.headLogOrphans = Number(alone.out);
+  return facts;
+}
+
+export function gatherFacts(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const facts = {
     isMain: samePath(abs, ctx.mainRoot),
@@ -500,6 +603,7 @@ function gatherFacts(entry, ctx, deps) {
     unpushed: 0,
     remoteExists: false,
     remoteAhead: 0,
+    headOnMain: false,
     onFirstParent: false,
     committed: false,
     created: false,
@@ -508,7 +612,16 @@ function gatherFacts(entry, ctx, deps) {
   };
   facts.isDefault = !facts.isMain && Boolean(entry.branch) && ctx.defaultBranches.has(entry.branch);
   facts.probeLeft = facts.missing && deps.exists(`${abs}${PROBE_SUFFIX}`);
-  if (facts.isMain || facts.isDefault || entry.detached || entry.prunable || facts.missing || facts.unborn) return facts;
+  if (facts.isMain || facts.isDefault || entry.prunable || facts.missing || facts.unborn) return facts;
+  if (entry.detached) {
+    facts.headOnMain = deps.exec("git", ["merge-base", "--is-ancestor", entry.head, "refs/remotes/origin/main"], ctx.mainRoot).status === 0;
+    if (!facts.headOnMain) return facts;
+    Object.assign(facts, detachedHistory(abs, ctx, deps));
+    Object.assign(facts, statusOf(abs, deps));
+    facts.servers = probeServers(abs, deps);
+    facts.users = ctx.processes.ok ? usersOf(abs, ctx.processes.list, deps.pid()) : null;
+    return facts;
+  }
   Object.assign(facts, statusOf(abs, deps));
   const ref = `refs/heads/${entry.branch}`;
   const remoteRef = `refs/remotes/origin/${entry.branch}`;
@@ -588,7 +701,7 @@ export function strayReason(p, entries, log, deps, ctx) {
   if (own.length) return `not a registered worktree; ${unfinishedNote(own.at(-1), deps, ctx)}`;
   const held = unfinishedRemovals(log).filter((r) => isUnder(r.path, p));
   if (held.length) return `not a registered worktree; it holds ${held.map((r) => `${rel(r.path)}, which ${unfinishedNote(r, deps, ctx, "")}`).join("; and ")}`;
-  return "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it";
+  return "not a registered worktree, which is what an interrupted removal or add leaves behind; check it, then `--apply --root <main> --remove <path>` deletes it";
 }
 
 export function readLogRows(text) {
@@ -642,21 +755,15 @@ function registration(abs, ctx, deps) {
   return { known: true, registered: parseWorktreeList(r.out).some((e) => samePath(e.path, abs)) };
 }
 
-async function removeWorktree(entry, ctx, deps) {
-  const abs = path.resolve(entry.path);
+// The rename probe, the check git lacks on Windows: the system refuses to
+// rename a directory while any process has a file open or its current
+// directory inside it, and refuses without touching a file, where `git
+// worktree remove` deletes what sorts before the held entry and drops its
+// record before it reports the failure. Null when nothing holds the directory,
+// otherwise the outcome that stops the removal.
+async function probeHeld(abs, deps) {
   const kept = (note) => ({ outcome: "kept", note, remaining: null });
   const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
-  if (!isUnder(abs, ctx.root)) return kept(`refusing to touch a path outside ${ctx.root}`);
-  if (ctx.defaultBranches.has(entry.branch)) return kept(`refusing to touch the default branch ${entry.branch}`);
-  const st = deps.exec("git", ["status", "--porcelain"], abs);
-  if (st.status !== 0) return kept(`git status failed since it was classified (${st.err || st.out}); the tree is untouched`);
-  const dirty = st.out.split(/\r?\n/).filter(Boolean).length;
-  if (dirty > 0) return kept(`changed since it was classified: uncommitted changes (${n(dirty, "file")}); the tree is untouched`);
-  const ref = `refs/heads/${entry.branch}`;
-  const head = deps.exec("git", ["symbolic-ref", "-q", "HEAD"], abs);
-  if (head.status !== 0 || head.out !== ref) return kept(`changed since it was classified: ${head.status === 0 && head.out ? `now on ${head.out.replace(/^refs\/heads\//, "")}` : "detached head"}; the tree is untouched`);
-  const own = deps.exec("git", ["rev-list", "--count", ref, "^refs/remotes/origin/main"], ctx.mainRoot);
-  if (own.status !== 0 || Number(own.out) > 0) return kept(`changed since it was classified: ${own.status === 0 ? `${n(Number(own.out), "commit")} not on origin/main` : own.err || own.out}; the tree is untouched`);
   const probe = `${abs}${PROBE_SUFFIX}`;
   if (deps.exists(probe)) return kept(`${probe} already exists, which is what an interrupted run leaves beside a worktree; check it and rename it back or delete it by hand, then run again`);
   try {
@@ -669,54 +776,246 @@ async function removeWorktree(entry, ctx, deps) {
   } catch (err) {
     return failed(`the directory was renamed to ${probe} to test whether a process holds it and could not be renamed back (${err.code ?? err.message}); rename it back by hand`, await bytesUnder(probe, deps));
   }
-  const notes = [];
+  return null;
+}
+
+// Removes what is left of a directory git no longer treats as a worktree and
+// returns the bytes still there, or null when it is gone.
+async function removeDirect(abs, deps) {
+  try {
+    deps.removeDir(abs);
+  } catch {
+    /* reported from what is left */
+  }
+  return deps.exists(abs) ? bytesUnder(abs, deps) : null;
+}
+
+// `git worktree remove` and what follows a refusal or a part-way stop. Null
+// when the directory is gone and git holds no record of it, otherwise the
+// outcome that stops the removal; `notes` collects what happened on the way,
+// and `afterHand` ends the advice for a directory that could not be finished.
+async function gitRemoveTree(abs, ctx, deps, notes, afterHand) {
+  const kept = (note) => ({ outcome: "kept", note, remaining: null });
+  const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
   const rm = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
-  if (rm.status !== 0) {
-    const gitErr = rm.err || rm.out;
-    if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
-    else {
-      const reg = registration(abs, ctx, deps);
-      if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand; the branch stays until then`, await bytesUnder(abs, deps));
-      if (reg.registered) {
-        // Git checks the lock, the submodules and the tree's changes before
-        // it deletes anything and drops its record after deleting, so a
-        // record still there is a refusal; nothing more is done to the tree.
-        return kept(`git worktree remove refused (${gitErr}) and kept its record; nothing more was touched`);
-      }
-      // Git deleted the directory's entries in order until one it could not
-      // delete, then dropped its record: the directory is no longer a
-      // worktree, whatever is left in it, so the rest goes directly.
-      try {
-        deps.removeDir(abs);
-      } catch {
-        /* reported below from what is left */
-      }
-      if (deps.exists(abs)) {
-        const remaining = await bytesUnder(abs, deps);
-        return failed(`git worktree remove stopped part-way (${gitErr}) and dropped its record, so ${abs} is no longer a worktree; ${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it, then \`git branch -D ${entry.branch}\`; the branch stays until then`, remaining);
-      }
-      notes.push(`git worktree remove stopped part-way (${gitErr}) and dropped its record; the rest of the directory was removed directly`);
+  if (rm.status === 0) return null;
+  const gitErr = rm.err || rm.out;
+  if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
+  else {
+    const reg = registration(abs, ctx, deps);
+    if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand${afterHand ? "; the branch stays until then" : ""}`, await bytesUnder(abs, deps));
+    if (reg.registered) {
+      // Git checks the lock, the submodules and the tree's changes before
+      // it deletes anything and drops its record after deleting, so a
+      // record still there is a refusal; nothing more is done to the tree.
+      return kept(`git worktree remove refused (${gitErr}) and kept its record; nothing more was touched`);
     }
-    // Git drops the record itself when it fails past its checks; when the
-    // record is still there, removing the now-missing path drops it.
-    if (registration(abs, ctx, deps).registered !== false) {
-      const again = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
-      if (again.status !== 0) notes.push(`its record could not be dropped (${again.err || again.out}); \`git worktree prune\` drops it`);
-    }
+    // Git deleted the directory's entries in order until one it could not
+    // delete, then dropped its record: the directory is no longer a
+    // worktree, whatever is left in it, so the rest goes directly.
+    const remaining = await removeDirect(abs, deps);
+    if (remaining !== null) return failed(`git worktree remove stopped part-way (${gitErr}) and dropped its record, so ${abs} is no longer a worktree; ${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it${afterHand}`, remaining);
+    notes.push(`git worktree remove stopped part-way (${gitErr}) and dropped its record; the rest of the directory was removed directly`);
   }
-  const del = deps.exec("git", ["branch", "-D", entry.branch], ctx.mainRoot);
-  if (del.status !== 0) return failed(`the directory is gone; git branch -D ${entry.branch} failed (${del.err || del.out}), so delete the branch by hand${notes.length ? `; ${notes.join("; ")}` : ""}`, 0);
+  // Git drops the record itself when it fails past its checks; when the
+  // record is still there, removing the now-missing path drops it.
+  if (registration(abs, ctx, deps).registered !== false) {
+    const again = deps.exec("git", ["worktree", "remove", abs], ctx.mainRoot);
+    if (again.status !== 0) notes.push(`its record could not be dropped (${again.err || again.out}); \`git worktree prune\` drops it`);
+  }
+  return null;
+}
+
+// The type directory an emptied worktree leaves behind goes with it.
+function removeEmptyParent(abs, ctx, deps, notes) {
   const parent = path.dirname(abs);
-  if (isUnder(parent, ctx.root) && deps.isEmptyDir(parent)) {
-    const rel = `${path.relative(ctx.root, parent)}${path.sep}`;
-    try {
-      deps.removeEmptyDir(parent);
-      notes.push(`removed the empty ${rel}`);
-    } catch (err) {
-      notes.push(`the empty ${rel} could not be removed (${err.code ?? err.message})`);
-    }
+  if (!isUnder(parent, ctx.root) || !deps.isEmptyDir(parent)) return;
+  const rel = `${path.relative(ctx.root, parent)}${path.sep}`;
+  try {
+    deps.removeEmptyDir(parent);
+    notes.push(`removed the empty ${rel}`);
+  } catch (err) {
+    notes.push(`the empty ${rel} could not be removed (${err.code ?? err.message})`);
   }
+}
+
+export async function removeWorktree(entry, ctx, deps) {
+  const abs = path.resolve(entry.path);
+  const kept = (note) => ({ outcome: "kept", note, remaining: null });
+  const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
+  if (!isUnder(abs, ctx.root)) return kept(`refusing to touch a path outside ${ctx.root}`);
+  if (entry.branch && ctx.defaultBranches.has(entry.branch)) return kept(`refusing to touch the default branch ${entry.branch}`);
+  const st = deps.exec("git", ["status", "--porcelain"], abs);
+  if (st.status !== 0) return kept(`git status failed since it was classified (${st.err || st.out}); the tree is untouched`);
+  const dirty = st.out.split(/\r?\n/).filter(Boolean).length;
+  if (dirty > 0) return kept(`changed since it was classified: uncommitted changes (${n(dirty, "file")}); the tree is untouched`);
+  const ref = `refs/heads/${entry.branch}`;
+  const head = deps.exec("git", ["symbolic-ref", "-q", "HEAD"], abs);
+  if (entry.detached) {
+    // Still detached at the commit it was classified at, and that commit is still on origin/main.
+    if (head.status === 0) return kept(`changed since it was classified: now on ${head.out.replace(/^refs\/heads\//, "")}; the tree is untouched`);
+    const tip = deps.exec("git", ["rev-parse", "HEAD"], abs);
+    if (tip.status !== 0 || tip.out !== entry.head) return kept(`changed since it was classified: HEAD is ${tip.status === 0 ? tip.out : tip.err || tip.out}; the tree is untouched`);
+    const onMain = deps.exec("git", ["merge-base", "--is-ancestor", tip.out, "refs/remotes/origin/main"], ctx.mainRoot);
+    if (onMain.status !== 0) return kept("changed since it was classified: its commit is not on origin/main; the tree is untouched");
+    const why = detachedKeeps(detachedHistory(abs, ctx, deps));
+    if (why.length) return kept(`changed since it was classified: ${why.join("; ")}; the tree is untouched`);
+  } else {
+    if (head.status !== 0 || head.out !== ref) return kept(`changed since it was classified: ${head.status === 0 && head.out ? `now on ${head.out.replace(/^refs\/heads\//, "")}` : "detached head"}; the tree is untouched`);
+    const own = deps.exec("git", ["rev-list", "--count", ref, "^refs/remotes/origin/main"], ctx.mainRoot);
+    if (own.status !== 0 || Number(own.out) > 0) return kept(`changed since it was classified: ${own.status === 0 ? `${n(Number(own.out), "commit")} not on origin/main` : own.err || own.out}; the tree is untouched`);
+  }
+  const held = await probeHeld(abs, deps);
+  if (held) return held;
+  const notes = [];
+  const stopped = await gitRemoveTree(abs, ctx, deps, notes, entry.detached ? "" : `, then \`git branch -D ${entry.branch}\`; the branch stays until then`);
+  if (stopped) return stopped;
+  const del = entry.detached ? { status: 0 } : deps.exec("git", ["branch", "-D", entry.branch], ctx.mainRoot);
+  if (del.status !== 0) return failed(`the directory is gone; git branch -D ${entry.branch} failed (${del.err || del.out}), so delete the branch by hand${notes.length ? `; ${notes.join("; ")}` : ""}`, 0);
+  removeEmptyParent(abs, ctx, deps, notes);
   return { outcome: "removed", note: notes.join("; "), remaining: 0 };
+}
+
+// ---------------------------------------------------- dead worktree records ---
+
+// Drops the records git holds for worktrees it can no longer find (`git
+// worktree prune`), so a dead record never blocks the deletion of a branch
+// that shares its name or shows as a row that only says to run the command.
+// Pruning drops every dead record at once, so it waits when a `<path>.removing`
+// sits beside any of them: that is the directory an interrupted probe renamed,
+// and the record it points at must survive until it is renamed back. Returns
+// the paths pruned, or why nothing was.
+function pruneDeadRecords(entries, ctx, deps) {
+  const dead = entries.filter((e) => e.prunable);
+  if (!dead.length) return { pruned: [] };
+  const probe = dead.find((e) => deps.exists(`${path.resolve(e.path)}${PROBE_SUFFIX}`));
+  if (probe) return { pruned: [], waiting: `${path.resolve(probe.path)}${PROBE_SUFFIX} is beside a dead record, which is what an interrupted run's probe leaves; rename it back by hand first, since pruning would drop the record it points at` };
+  const r = deps.exec("git", ["worktree", "prune"], ctx.mainRoot);
+  if (r.status !== 0) return { pruned: [], waiting: `git worktree prune failed (${r.err || r.out})` };
+  return { pruned: dead.map((e) => path.resolve(e.path)) };
+}
+
+// ------------------------------------------------- one named directory ---
+
+// `--apply --root <main> --remove <path>`: removes the one directory named,
+// registered worktree or leftover, and never its branch, so a ticket whose
+// pull request is still open or abandoned can give its disk back. It refuses
+// what must not be done: the main checkout, a path outside the worktrees root,
+// an interrupted probe's `.removing` directory, one holding another worktree
+// or sitting inside one, the default branch, a locked worktree, a directory
+// that is gone, a target that is itself a link, one with uncommitted changes,
+// a worktree git can no longer read or an unregistered directory holding a
+// `.git` of its own (git status cannot answer for either),
+// one a process or driver is using or that the rename probe finds held, one
+// holding a link that leads outside it (named) or a directory that cannot be
+// read. The shell that ran this command does not count as a user, though its
+// command line names the path: only an ancestor whose own command line runs
+// this script with --remove, and only while each parent is at least as old as
+// its child (`ancestorsOf`). Otherwise every link inside is unlinked without
+// being followed, and the tree goes: through `git worktree remove` when git
+// still knows it, directly when git has already dropped it. Returns the exit
+// code; a refusal is thrown before anything is touched.
+async function removeOne(target, ctx, deps, entries, record) {
+  const log = deps.log;
+  const abs = path.resolve(target);
+  const rel = path.relative(path.dirname(ctx.mainRoot), abs);
+  if (samePath(abs, ctx.mainRoot)) die("that is the main checkout; nothing was touched");
+  if (!isUnder(abs, ctx.root)) die(`${abs} is not under ${ctx.root}; nothing was touched`);
+  if (abs.endsWith(PROBE_SUFFIX)) die(`${abs} is the directory an interrupted run's probe renamed; rename it back by hand instead, since removing it would leave the record it points at`);
+  if (entries.some((e) => isUnder(e.path, abs))) die(`${abs} holds another worktree; name that worktree instead`);
+  const inside = entries.find((e) => isUnder(abs, e.path));
+  if (inside) die(`${rel} is inside the worktree ${path.relative(path.dirname(ctx.mainRoot), path.resolve(inside.path))}; name the worktree itself, since removing part of a tree deletes uncommitted work the status check never sees; nothing was touched`);
+  const entry = entries.find((e) => samePath(e.path, abs));
+  if (entry?.branch && ctx.defaultBranches.has(entry.branch)) die(`${rel} holds the default branch ${entry.branch}, which is never removed; nothing was touched`);
+  if (entry?.locked) die(`${rel} is locked (${entry.locked}); nothing was touched`);
+  if (!deps.exists(abs)) die(entry ? `${abs} is already gone and git still holds its record; run this without --remove and it prunes the record` : `${abs} does not exist; nothing was touched`);
+  if (deps.isLink(abs)) die(`${rel} is itself a link, and unlinking the links inside it would act on what it points at, wherever that is; remove the link by hand; nothing was touched`);
+  // git status is the only check for uncommitted work, so a tree it cannot
+  // answer for is refused: a worktree git can no longer read, and a
+  // directory that still holds a `.git` of its own.
+  if (entry?.prunable) die(`${rel} is a worktree git can no longer read (${entry.prunable}), so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand; nothing was touched`);
+  if (!entry && deps.exists(path.join(abs, ".git"))) die(`${rel} holds a .git but is not a registered worktree, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand; nothing was touched`);
+  const live = Boolean(entry);
+  if (live) {
+    const st = deps.exec("git", ["status", "--porcelain"], abs);
+    if (st.status !== 0) die(`git status failed in ${rel} (${st.err || st.out}), so whether it has changes cannot be told; nothing was touched`);
+    const dirty = st.out.split(/\r?\n/).filter(Boolean).length;
+    if (dirty > 0) die(`${rel} has uncommitted changes (${n(dirty, "file")}); commit, push or discard them first; nothing was touched`);
+  }
+  const holds = [];
+  if (!ctx.processes.ok) holds.push("the processes on this machine could not be listed, so whether one is using it is unknown");
+  else {
+    // The shell that ran this command names the path it was typed with, and
+    // the same path is the argument it hands the script; that is not a use of
+    // the tree. Only an ancestor whose own command line runs this script
+    // counts as that shell, so an editor opened on the tree stays a user.
+    const mine = ancestorsOf(deps.pid(), ctx.processes.list);
+    const users = usersOf(abs, ctx.processes.list, deps.pid()).filter((p) => !(mine.has(p.pid) && RUNS_SCRIPT.test(p.cmd)));
+    if (users.length) holds.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
+  }
+  for (const s of serverRows(probeServers(abs, deps))) holds.push(`its ${s.driver ?? "driver"} reports ${s.state === "unknown" ? `an unknown server state (${s.detail})` : `dev servers ${s.state}${s.url ? ` at ${s.url}` : ""}`}; the driver's \`down\` settles it`);
+  if (holds.length) die(`${rel} is in use: ${holds.join("; ")}; nothing was touched`);
+  const scan = await deps.scan(abs);
+  const blocked = linkReason(scan, abs);
+  if (blocked) die(`${rel}: ${blocked}; nothing was touched`);
+  const finish = (decision, note, size) => {
+    const line = `${decision.padEnd(DECISION_WIDTH)}  ${rel}  ${formatBytes(size).padEnd(SIZE_WIDTH)}  ${note}`.trimEnd();
+    log(line);
+    record({ decision, path: abs, why: note });
+    return decision === "failed" ? 1 : 0;
+  };
+  // Before anything is unlinked or deleted: a directory a process holds is
+  // refused whole, where git would delete what sorts before the held entry.
+  const held = await probeHeld(abs, deps);
+  if (held?.outcome === "kept") die(`${rel}: ${held.note}; nothing was touched`);
+  if (held) {
+    record({ decision: "removing", path: abs, why: `${entry ? "worktree" : "directory"} ${rel} removed by name` });
+    return finish("failed", held.note, scan.bytes);
+  }
+
+  const what = live ? "worktree" : "directory";
+  const why = `${what} ${rel} removed by name${entry?.branch ? `; its branch ${entry.branch} stays` : ""}`;
+  record({ decision: "removing", path: abs, why });
+  let unlinked = 0;
+  try {
+    unlinked = deps.unlinkLinks(abs);
+  } catch (err) {
+    return finish("failed", `${err.code ?? err.message} while unlinking the links inside it; the directory is still there and no link's target was followed`, scan.bytes);
+  }
+  const notes = [];
+  if (unlinked) notes.push(`${n(unlinked, "link")} unlinked first, targets untouched`);
+  const said = () => (notes.length ? `${notes.join("; ")}; ` : "");
+  if (live) {
+    const stopped = await gitRemoveTree(abs, ctx, deps, notes, "");
+    if (stopped) return finish("failed", `${said()}${stopped.note}`, scan.bytes);
+  } else {
+    const remaining = await removeDirect(abs, deps);
+    if (remaining !== null) return finish("failed", `${said()}${formatBytes(remaining)} remain there; delete the directory by hand once nothing holds it`, scan.bytes);
+    notes.unshift("not a registered worktree");
+  }
+  removeEmptyParent(abs, ctx, deps, notes);
+  return finish("removed", [...notes, entry?.branch ? `its branch ${entry.branch} stays` : ""].filter(Boolean).join("; "), scan.bytes);
+}
+
+// A command line that runs this script to remove one directory. The file name
+// and the option, not the skill's name, which a worktree's own path can hold
+// (a branch is named after its ticket).
+const RUNS_SCRIPT = /clean-worktrees\.mjs"?\s.*--remove\b/;
+
+// The pids of a process and the parents above it. A parent counts only when it
+// is at least as old as its child: on Windows a dead parent's pid is handed to
+// a new process, which is younger than the child that names it, and the walk
+// stops there. A process whose age is unknown ends the walk too.
+function ancestorsOf(pid, list) {
+  const byPid = new Map(list.map((p) => [p.pid, p]));
+  const chain = new Set([pid]);
+  for (let p = byPid.get(pid); p; ) {
+    const parent = byPid.get(p.ppid);
+    if (!parent || chain.has(parent.pid) || p.age == null || parent.age == null || parent.age < p.age) break;
+    chain.add(parent.pid);
+    p = parent;
+  }
+  return chain;
 }
 
 // ------------------------------------------------------ driver profiles ---
@@ -918,15 +1217,23 @@ export function jobJournals(dir) {
   return { journals, unreadable };
 }
 
-// Every process id a journal records: a row's own `pid`, and the `pid` of any
-// identity object it holds (processIdentity, childIdentity, identity). Null
-// when a line is not JSON, since what that line recorded cannot be told; a
-// launcher appends whole lines, so a torn last line is treated the same way.
-export function journalPids(text) {
-  const pids = new Set();
+// Every process a journal records, keyed by pid: a row's own `pid`, and the
+// `pid` of any identity object it holds (processIdentity, childIdentity,
+// identity), each with the process start times the journal recorded for it
+// (an identity object's `start`, which processIdentity writes beside every
+// coordinator and child pid). A pid with no recorded start maps to an empty
+// set and is judged by its number alone. Null when a line is not JSON, since
+// what that line recorded cannot be told; a launcher appends whole lines, so
+// a torn last line is treated the same way.
+export function journalProcesses(text) {
+  const procs = new Map();
   const visit = (value) => {
     if (!value || typeof value !== "object") return;
-    if (Number.isSafeInteger(value.pid) && value.pid > 0) pids.add(value.pid);
+    if (Number.isSafeInteger(value.pid) && value.pid > 0) {
+      const starts = procs.get(value.pid) ?? new Set();
+      if (typeof value.start === "string" && value.start) starts.add(value.start);
+      procs.set(value.pid, starts);
+    }
     for (const child of Object.values(value)) visit(child);
   };
   for (const line of text.split(/\r?\n/)) {
@@ -937,7 +1244,27 @@ export function journalPids(text) {
       return null;
     }
   }
-  return [...pids];
+  return procs;
+}
+
+// Whether a process a journal recorded is still that process: the pid exists
+// and, when the journal recorded a start time, the process now holding the
+// number started then. Windows hands out finished processes' pids to unrelated
+// programs, so the number alone proves nothing. A start time that cannot be
+// read now, or a pid with none recorded, keeps the number's word.
+export function recordedProcessAlive(pid, starts, deps) {
+  if (!deps.pidAlive(pid)) return false;
+  if (!starts.size || !deps.processStart) return true;
+  let now;
+  try {
+    now = deps.processStart(pid);
+  } catch {
+    // Windows will not read the start time of a service or another user's
+    // process; whether it is the recorded one cannot be told, so the number
+    // keeps the directory, and the caller says why.
+    return "unreadable";
+  }
+  return now !== null && starts.has(now);
 }
 
 // The state of pull request (or, failing that, issue) N on GitHub: "open",
@@ -953,8 +1280,10 @@ export function numberState(number, deps, cwd) {
 // The decision for one entry under the job root. It is removable only when
 // its PR (or issue) is closed, every journal in it is readable, and no process
 // a journal names or whose command line names the directory is running. A
-// running pid is taken at its word even when the OS may have reused it, which
-// keeps a directory rather than removing one in use.
+// pid whose journal recorded a start time counts only while the process
+// holding it started then; one recorded bare, or whose start time cannot be
+// read now, is taken at its number's word, which keeps a directory rather than
+// removing one in use.
 export function classifyJob(name, dir, deps, ctx) {
   const m = /^pr-(\d+)$/.exec(name);
   const test = /^test-/.test(name);
@@ -969,16 +1298,25 @@ export function classifyJob(name, dir, deps, ctx) {
   const { journals, unreadable } = jobJournals(dir);
   if (unreadable.length) keep.push(`${n(unreadable.length, "directory", "directories")} inside it could not be read (${listSome(unreadable, 2)})`);
   const live = new Set();
+  const unreadableStart = new Set();
   for (const journal of journals) {
-    let pids;
+    let procs;
     try {
-      pids = journalPids(fs.readFileSync(journal, "utf8"));
+      procs = journalProcesses(fs.readFileSync(journal, "utf8"));
     } catch (err) {
-      pids = null;
+      procs = null;
     }
-    if (pids === null) keep.push(`the journal ${path.relative(dir, journal)} could not be read in full`);
-    else for (const pid of pids) if (pid !== deps.pid() && deps.pidAlive(pid)) live.add(pid);
+    if (procs === null) keep.push(`the journal ${path.relative(dir, journal)} could not be read in full`);
+    else {
+      for (const [pid, starts] of procs) {
+        if (pid === deps.pid()) continue;
+        const alive = recordedProcessAlive(pid, starts, deps);
+        if (alive === "unreadable") unreadableStart.add(pid);
+        else if (alive) live.add(pid);
+      }
+    }
   }
+  if (unreadableStart.size) keep.push(`its journal records ${n(unreadableStart.size, "process", "processes")} whose pid is now held by a process whose start time cannot be read, so whether it is the recorded one is unknown (pid ${[...unreadableStart].join(", ")})`);
   if (live.size) keep.push(`its journal records ${n(live.size, "process", "processes")} still running (pid ${[...live].join(", ")})`);
   const using = commandLineReason(dir, deps, ctx);
   if (using) keep.push(using);
@@ -996,31 +1334,33 @@ export function classifyJob(name, dir, deps, ctx) {
 // left, and only then is the rest deleted, which then holds plain files and
 // directories only.
 export function removeJobDir(dir) {
-  const unlinkAll = () => {
-    let found = 0;
-    const pending = [dir];
-    while (pending.length) {
-      const d = pending.pop();
-      for (const it of fs.readdirSync(d, { withFileTypes: true })) {
-        const p = path.join(d, it.name);
-        if (it.isSymbolicLink()) {
-          found++;
-          // A directory junction or symlink on Windows is removed with rmdir,
-          // which deletes the reparse point and never its target.
-          try {
-            fs.unlinkSync(p);
-          } catch {
-            fs.rmdirSync(p);
-          }
-        } else if (it.isDirectory()) pending.push(p);
-      }
-    }
-    return found;
-  };
-  const unlinked = unlinkAll();
-  if (unlinkAll() !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
+  const unlinked = unlinkLinksIn(dir);
+  if (unlinkLinksIn(dir) !== 0) throw new Error(`a link reappeared inside ${dir} while it was being removed; nothing further was deleted`);
   fs.rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
   return unlinked;
+}
+
+// Unlinks every symlink and junction under a directory and returns how many,
+// never following one: a directory junction or symlink on Windows is removed
+// with rmdir, which deletes the reparse point and never its target.
+function unlinkLinksIn(dir) {
+  let found = 0;
+  const pending = [dir];
+  while (pending.length) {
+    const d = pending.pop();
+    for (const it of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, it.name);
+      if (it.isSymbolicLink()) {
+        found++;
+        try {
+          fs.unlinkSync(p);
+        } catch {
+          fs.rmdirSync(p);
+        }
+      } else if (it.isDirectory()) pending.push(p);
+    }
+  }
+  return found;
 }
 
 // Classifies every entry under the job root, prints a row each, and under
@@ -1199,7 +1539,7 @@ function rowPrinter(rows, ctx, log) {
 }
 
 export function parseArgs(argv) {
-  const opts = { apply: false, root: null };
+  const opts = { apply: false, root: null, remove: null };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--apply") opts.apply = true;
@@ -1207,23 +1547,28 @@ export function parseArgs(argv) {
       opts.root = a === "--root" ? argv[++i] : a.slice("--root=".length);
       if (!opts.root) die("--root needs the path of the main checkout after it");
       if (!path.isAbsolute(opts.root)) die(`--root ${opts.root} is not an absolute path; --root names the main checkout in full, so that a relative path resolved against whatever directory the shell is in never passes for it`);
-    } else die(`unknown option ${a}; the options are --apply and --root <path>`);
+    } else if (a === "--remove" || a.startsWith("--remove=")) {
+      opts.remove = a === "--remove" ? argv[++i] : a.slice("--remove=".length);
+      if (!opts.remove) die("--remove needs the path of the directory to remove after it");
+      if (!path.isAbsolute(opts.remove)) die(`--remove ${opts.remove} is not an absolute path; --remove names the directory in full, so that a relative path resolved against whatever directory the shell is in never names the wrong one`);
+    } else die(`unknown option ${a}; the options are --apply, --root <path> and --remove <path>`);
   }
   if (opts.apply && !opts.root) die("--apply needs --root <path>, the main checkout it is to act on, so the repository comes from the command line and never from the current directory alone; the dry run needs no --root");
+  if (opts.remove && !opts.apply) die("--remove <path> needs --apply --root <path>: it removes the one directory it names and has no dry run");
   return opts;
 }
 
 // Runs the command and returns its exit code: 1 when a removal failed, and a
 // refusal to run at all is thrown before anything is touched.
 export async function main(argv, deps = liveDeps) {
-  const { apply, root: namedRoot } = parseArgs(argv);
+  const { apply, root: namedRoot, remove } = parseArgs(argv);
   const log = deps.log;
 
   const cwd = deps.cwd();
   const top = deps.exec("git", ["rev-parse", "--show-toplevel"], cwd);
   if (top.status !== 0) die("not inside a git repository; run from the main checkout");
-  const entries = parseWorktreeList(gitOrDie(deps, ["worktree", "list", "--porcelain"], cwd));
-  const mainEntry = entries[0];
+  let entries = parseWorktreeList(gitOrDie(deps, ["worktree", "list", "--porcelain"], cwd));
+  let mainEntry = entries[0];
   if (!mainEntry) die("git worktree list printed nothing; run from the main checkout");
   if (mainEntry.bare) die("the first worktree is bare; run from the main checkout");
   if (!samePath(top.out, mainEntry.path)) die(`run from the main checkout, ${mainEntry.path}; this is the worktree ${top.out}`);
@@ -1255,8 +1600,24 @@ export async function main(argv, deps = liveDeps) {
     }
   };
 
+  if (remove) {
+    ctx.processes = deps.processes();
+    return removeOne(remove, ctx, deps, entries, record);
+  }
+
   log("fetching origin with --prune ...");
   gitOrDie(deps, ["fetch", "--prune", "origin"], mainRoot);
+  // Dead records are dropped before anything is classified, so they neither
+  // show as rows that only name the command nor block a branch deletion.
+  if (apply) {
+    const dropped = pruneDeadRecords(entries, ctx, deps);
+    if (dropped.pruned.length) {
+      log(`pruned ${n(dropped.pruned.length, "dead worktree record")}: ${dropped.pruned.map((p) => path.relative(path.dirname(mainRoot), p)).join(", ")}`);
+      record({ pruned: dropped.pruned });
+      entries = parseWorktreeList(gitOrDie(deps, ["worktree", "list", "--porcelain"], cwd));
+      mainEntry = entries[0];
+    } else if (dropped.waiting) log(`dead worktree records were not pruned: ${dropped.waiting}`);
+  }
   ctx.firstParent = new Set(gitOrDie(deps, ["rev-list", "--first-parent", "refs/remotes/origin/main"], mainRoot).split(/\s+/).filter(Boolean));
   ctx.processes = deps.processes();
   record({ run: argv.join(" "), main: mainRoot });
@@ -1355,7 +1716,10 @@ export async function main(argv, deps = liveDeps) {
   } else {
     const removed = removable.filter((r) => r.decision === "removed").length;
     const free = deps.freeSpace(mainRoot);
-    summary = `Removed ${n(removed, "worktree")} and ${removed === 1 ? "its branch" : "their branches"}, freeing ${formatBytes(freed)}; ${n(removable.length - removed - failed + kept, "worktree")} kept${failed ? `; ${failed} failed (see the rows above for what is left)` : ""}${strayNote}${scanNote}.${free != null ? ` Free space now ${formatBytes(free)}.` : ""}`;
+    const detached = removable.filter((r) => r.decision === "removed" && r.entry.detached).length;
+    const withBranch = removed - detached;
+    const branches = detached === 0 ? (removed === 1 ? " and its branch" : " and their branches") : withBranch > 0 ? ` and ${n(withBranch, "branch", "branches")} (${n(detached, "detached worktree")} had none)` : " (detached, so no branch)";
+    summary = `Removed ${n(removed, "worktree")}${branches}, freeing ${formatBytes(freed)}; ${n(removable.length - removed - failed + kept, "worktree")} kept${failed ? `; ${failed} failed (see the rows above for what is left)` : ""}${strayNote}${scanNote}.${free != null ? ` Free space now ${formatBytes(free)}.` : ""}`;
     log(summary);
     record({ summary });
   }

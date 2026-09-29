@@ -1148,7 +1148,7 @@ export class ConstraintSolver {
       // An instance from another arena, such as one imported from another module, is copied into this arena so that
       // the reducer can mutate it.
       if (toReduce.owningArena !== this.arena) {
-        toReduce = this.arena.addType(typeFunctionInstanceType(tfit.function, [...tfit.typeArguments], [...tfit.packArguments], tfit.userFuncName));
+        toReduce = this.arena.addType(typeFunctionInstanceType(tfit.function, [...tfit.typeArguments], [...tfit.packArguments], tfit.userFuncName, tfit.userFuncData));
 
         this.pushConstraint(constraint.scope, constraint.location, { kind: "ReduceConstraint", ty: toReduce }, constraint.moduleName);
 

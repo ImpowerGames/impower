@@ -3,6 +3,7 @@ import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
+import { statementSource } from "../utils/statementSource";
 import { BinaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Expression/BinaryExpression";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
@@ -51,6 +52,13 @@ import {
 } from "../../../inkjs/engine/StdLib";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { syntheticId } from "../utils/documentTag";
+import {
+  endsInTypeName,
+  expandLineContinuations,
+  isLineContinuation,
+  reportExtraTypeQualifiers,
+  reportUntakenLineContinuation,
+} from "../utils/lineContinuation";
 
 // Wrap the lowerer's `new FunctionCall(name, args)` site so that
 // bare (unnamespaced) source names registered in `STDLIB`
@@ -106,6 +114,17 @@ export function lowerExpressionFromContainer(
   parent: SyntaxNode,
   ctx: LowerContext,
 ): Expression | null {
+  // A bracketed value can continue across lines (`(t` then `.a)`), which
+  // the node-list lowerer joins.
+  const first =
+    findContentChild(parent, `${parent.name}_content`) ?? parent.firstChild;
+  for (let child = first; child; child = child.nextSibling) {
+    if (isLineContinuation(child)) {
+      const children: SyntaxNode[] = [];
+      for (let c = first; c; c = c.nextSibling) children.push(c);
+      return lowerExpressionFromNodes(children, ctx);
+    }
+  }
   const tokens: Token[] = [];
   collectTokens(parent, ctx, tokens);
   const expr = prattParse(tokens, 0);
@@ -113,6 +132,21 @@ export function lowerExpressionFromContainer(
     return coerceFunctionCallShorthand(expr, parent, ctx);
   }
   return expr;
+}
+
+// Lower the value-expression formed by the children of `parent` followed by
+// `continuation`, the lines that continue it (`t` then `.a`).
+export function lowerExpressionFromContainerAndContinuation(
+  parent: SyntaxNode,
+  continuation: SyntaxNode[],
+  ctx: LowerContext,
+): Expression | null {
+  if (continuation.length === 0) return lowerExpressionFromContainer(parent, ctx);
+  const nodes: SyntaxNode[] = [];
+  let child =
+    findContentChild(parent, `${parent.name}_content`) ?? parent.firstChild;
+  for (; child; child = child.nextSibling) nodes.push(child);
+  return lowerExpressionFromNodes([...nodes, ...continuation], ctx);
 }
 
 // Apply the `{{...}}` shorthand semantics to the lowered body expression:
@@ -177,6 +211,8 @@ export function lowerExpressionFromNodes(
   nodes: SyntaxNode[],
   ctx: LowerContext,
 ): Expression | null {
+  // A continuation line's parts (`t` then `.a`) follow the value before them.
+  nodes = expandLineContinuations(nodes, ctx);
   const tokens: Token[] = [];
   // Mirrors the method-call pair detection in `collectTokens`: an arg like
   // `math.ceil(1.2)` arrives here as two adjacent siblings (LuauAccessPath +
@@ -200,17 +236,77 @@ export function lowerExpressionFromNodes(
         continue;
       }
     }
-    if (node.name === "LuauAccessPath" && hasTrailingMethodAccessor(node)) {
-      const next = nodes[i + 1];
+    // A type-only construct is skipped, with the access parts of the lines
+    // that continue it, which are not accesses on the value: `.Name` parts
+    // qualify a type that ends in a name (`t :: types` then `.Button` casts
+    // to `types.Button`), and any other type (`t :: { x: number }` then `.a`)
+    // cannot take them, so they are reported.
+    if (TYPE_ONLY_WRAPPERS.has(node.name)) {
+      const qualifiable = endsInTypeName(node);
+      const parts: SyntaxNode[] = [];
+      let last = i;
+      for (let k = i + 1; k < nodes.length; k++) {
+        const next = nodes[k]!;
+        if (next.name === "LuauAccessPart") {
+          parts.push(next);
+          last = k;
+        } else if (!isSkippableName(next.name)) {
+          break;
+        }
+      }
+      if (last > i) {
+        const qualifies =
+          qualifiable &&
+          parts.every((p) => p.firstChild?.name === "LuauPropertyAccessor");
+        // A cast takes no access parts of its own (`t :: T.a` qualifies the
+        // type), so the access the author meant needs the cast in parentheses.
+        if (!qualifies) {
+          reportUntakenLineContinuation(
+            parts,
+            ctx,
+            "To access the value the cast gives, put the cast in parentheses: `(value :: type)`.",
+          );
+        } else {
+          reportExtraTypeQualifiers(node, parts, ctx);
+        }
+        i = last;
+        continue;
+      }
+    }
+    // The access parts of continuation lines extend the path, so `t` then
+    // `.a` lowers exactly as `t.a` does (stdlib calls, method dispatch).
+    const extraParts: SyntaxNode[] = [];
+    let afterPath = i + 1;
+    if (node.name === "LuauAccessPath") {
+      for (let k = i + 1; k < nodes.length; k++) {
+        const name = nodes[k]!.name;
+        if (name === "LuauAccessPart") {
+          extraParts.push(nodes[k]!);
+          afterPath = k + 1;
+        } else if (!isSkippableName(name)) {
+          break;
+        }
+      }
+    }
+    const lastExtraPart = extraParts[extraParts.length - 1];
+    const endsInMethod = lastExtraPart
+      ? lastExtraPart.firstChild?.name === "LuauFunctionAccessor"
+      : node.name === "LuauAccessPath" && hasTrailingMethodAccessor(node);
+    if (endsInMethod) {
+      let argsAt = afterPath;
+      while (argsAt < nodes.length && isSkippableName(nodes[argsAt]!.name)) {
+        argsAt++;
+      }
+      const next = nodes[argsAt];
       if (next && CALL_ARG_NODE_NAMES.has(next.name)) {
-        let expr = lowerMethodCall(node, next, ctx);
+        let expr = lowerMethodCall(node, next, ctx, extraParts);
         // Chained method calls — mirror the tree-walking logic in
         // `collectTokens`. Fold subsequent
         // `LuauChainedFunctionCall + LuauParenthetical` pairs into the
         // chain, threading the previous result as the receiver, and
         // `LuauChainedPropertyAccess` links (`a:m(x).y` / `[i]`) as
         // IndexExpressions on the running value.
-        let j = i + 2;
+        let j = argsAt + 1;
         while (expr && j < nodes.length) {
           const after = nodes[j]!;
           if (isSkippableName(after.name)) {
@@ -220,6 +316,13 @@ export function lowerExpressionFromNodes(
           if (after.name === "LuauChainedPropertyAccess") {
             expr = lowerChainedPropertyLink(after, expr, ctx);
             j++;
+            continue;
+          }
+          if (after.name === "LuauAccessPart") {
+            const folded = foldContinuedPart(nodes, j, expr, ctx);
+            if (!folded) break;
+            expr = folded.expr;
+            j = folded.last + 1;
             continue;
           }
           if (after.name !== "LuauChainedFunctionCall") break;
@@ -235,7 +338,13 @@ export function lowerExpressionFromNodes(
         continue;
       }
     }
-    collectFromNode(node, ctx, tokens);
+    if (extraParts.length > 0) {
+      const expr = lowerAccessPath(node, ctx, extraParts);
+      if (expr) tokens.push({ kind: "operand", expr });
+      i = afterPath - 1;
+    } else {
+      collectFromNode(node, ctx, tokens);
+    }
     // IIFE / value-call on a parenthesized expression in arg context:
     // `(function() return X end)()` and `(expr)(args)` appear as two
     // adjacent LuauParenthetical siblings inside a function-call's
@@ -258,6 +367,16 @@ export function lowerExpressionFromNodes(
           last.expr = linked;
           i = j;
           j++;
+          continue;
+        }
+        // A continuation line's parts on the last operand: `f(x)` then
+        // `.y`, or `1 + t` then `.a`, which reads `t.a`.
+        if (nodes[j]!.name === "LuauAccessPart") {
+          const folded = foldContinuedPart(nodes, j, last.expr, ctx);
+          if (!folded) break;
+          last.expr = folded.expr;
+          i = folded.last;
+          j = folded.last + 1;
           continue;
         }
         // Method call on the running value in arg context —
@@ -574,6 +693,48 @@ function lowerChainedMethodCall(
   return new CallValueExpression(targetExpr, callArgs);
 }
 
+// Fold the continuation-line access part `nodes[at]` onto `receiver`:
+// `.name` and `[key]` index it, and `.name(args)` or `:name(args)` call the
+// method, taking the call-argument node after the part as well. `last` is the
+// index of the last node folded.
+function foldContinuedPart(
+  nodes: SyntaxNode[],
+  at: number,
+  receiver: Expression,
+  ctx: LowerContext,
+): { expr: Expression; last: number } | null {
+  const part = nodes[at]!;
+  const inner = part.firstChild;
+  if (inner?.name === "LuauFunctionAccessor") {
+    let argsAt = at + 1;
+    while (argsAt < nodes.length && isSkippableName(nodes[argsAt]!.name)) {
+      argsAt++;
+    }
+    const args = nodes[argsAt];
+    if (!args || !CALL_ARG_NODE_NAMES.has(args.name)) return null;
+    const expr = lowerChainedMethodCall(part, args, receiver, ctx);
+    return expr ? { expr, last: argsAt } : null;
+  }
+  if (inner?.name === "LuauPropertyAccessor") {
+    const nameNode =
+      getDescendent("LuauPropertyName", inner) ??
+      getDescendent("LuauStdLibMethods", inner);
+    if (!nameNode) return null;
+    const key = new StringExpression([
+      new Text(ctx.read(nameNode.from, nameNode.to)),
+    ]);
+    return { expr: new IndexExpression(receiver, key), last: at };
+  }
+  if (inner?.name === "LuauPropertyIndexer") {
+    const indexerContent = findChildByName(inner, "LuauPropertyIndexer_content");
+    const key = indexerContent
+      ? lowerExpressionFromContainer(indexerContent, ctx)
+      : null;
+    return key ? { expr: new IndexExpression(receiver, key), last: at } : null;
+  }
+  return null;
+}
+
 // Fold one `LuauChainedPropertyAccess` link (`.name` or `[expr]`
 // trailing a method call — `a:m(x).y`) into an IndexExpression on the
 // running chain value.
@@ -610,6 +771,22 @@ function lowerChainedPropertyLink(
   return null;
 }
 
+// The path's own access parts, then `extraParts`.
+function accessPathParts(
+  accessPath: SyntaxNode,
+  extraParts: SyntaxNode[],
+): SyntaxNode[] {
+  const parts: SyntaxNode[] = [];
+  const content = findChildByName(accessPath, "LuauAccessPath_content");
+  let inner = content?.firstChild ?? null;
+  while (inner) {
+    if (inner.name === "LuauAccessPart") parts.push(inner);
+    inner = inner.nextSibling;
+  }
+  parts.push(...extraParts);
+  return parts;
+}
+
 function hasTrailingMethodAccessor(accessPath: SyntaxNode): boolean {
   const content = findChildByName(accessPath, "LuauAccessPath_content");
   if (!content) return false;
@@ -640,17 +817,10 @@ function lowerMethodCall(
   accessPath: SyntaxNode,
   parenthetical: SyntaxNode,
   ctx: LowerContext,
+  extraParts: SyntaxNode[] = [],
 ): Expression | null {
-  const content = findChildByName(accessPath, "LuauAccessPath_content");
-  if (!content) return null;
-
   // Split parts into [receiver-parts..., method-accessor].
-  const parts: SyntaxNode[] = [];
-  let inner = content.firstChild;
-  while (inner) {
-    if (inner.name === "LuauAccessPart") parts.push(inner);
-    inner = inner.nextSibling;
-  }
+  const parts = accessPathParts(accessPath, extraParts);
   if (parts.length < 2) return null;
   const methodPart = parts[parts.length - 1]!;
   const receiverParts = parts.slice(0, -1);
@@ -1167,6 +1337,35 @@ function lowerTernaryExpression(
   return new TernaryExpression(branches);
 }
 
+// The name in a function's own header: a plain name
+// (`LuauFunctionDeclarationName`) or a dotted or method name, which
+// parses as a `LuauAccessPath`. Only nodes before the parameter list
+// count, since an inline body's statements sit beside it.
+function findHeaderName(node: SyntaxNode): SyntaxNode | null {
+  const content = findChildByName(node, "LuauFunctionDefinition_content") ?? node;
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauFunctionParameters") return null;
+    if (child.name === "LuauFunctionDeclarationName") {
+      return getDescendent("LuauFunctionName", child) ?? child;
+    }
+    if (child.name === "LuauAccessPath") return child;
+  }
+  return null;
+}
+
+// Luau's parser reads a function expression's `(` where the name sits,
+// so it reports `Expected '(' when parsing function, got 'NAME'`. The
+// squiggle covers the name.
+function reportNamedFunctionValue(nameNode: SyntaxNode, ctx: LowerContext) {
+  if (!ctx.diagnostics) return;
+  const name = ctx.read(nameNode.from, nameNode.to).trim();
+  ctx.diagnostics.push({
+    message: `Expected '(' when parsing function, got '${name}'`,
+    severity: ErrorType.Error,
+    source: statementSource(nameNode, ctx),
+  });
+}
+
 // Lower an anonymous function literal (`function(x) return x * 2 end`)
 // in expression position. Synthesizes a uniquely-named knot from the
 // function's body, stashes the knot in `ctx.hoistedKnots` so the
@@ -1182,8 +1381,10 @@ function lowerTernaryExpression(
 //     runtime because the synthetic knot has no link to its lexical
 //     surroundings.
 //   - Named function definitions (`function name(...) ... end`) are
-//     handled by `lowerLuauFunctionDefinition` at statement level
-//     and never reach this path.
+//     handled by `lowerLuauFunctionDefinition` at statement level.
+//     A named one in a value position (`g = function named() ... end`)
+//     is a Luau parse error: it is reported at the name and then
+//     lowered as if anonymous, so the rest of the story compiles.
 function lowerAnonymousFunction(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -1195,12 +1396,11 @@ function lowerAnonymousFunction(
     // primary cleanly.
     return null;
   }
-  // Skip named definitions — those are statement-level. Scope the check
-  // to this node's OWN header (not deep descendants); otherwise an
-  // anonymous outer fn containing a nested `local function NAME ... end`
-  // would be mis-classified as named and skipped, leaving the IIFE
-  // unlowered and `(IIFE)()` returning nil at runtime.
-  if (findOwnDeclarationName(node)) return null;
+  // Scope the name check to this node's OWN header (not deep
+  // descendants); otherwise an anonymous outer fn containing a nested
+  // `local function NAME ... end` would be reported as named.
+  const headerName = findHeaderName(node);
+  if (headerName) reportNamedFunctionValue(headerName, ctx);
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   // Identify free variables (referenced inside the body but not bound
@@ -2112,19 +2312,14 @@ function stripQuotes(text: string): string {
   return text;
 }
 
+// `extraParts` are the access parts of the lines that continue the path
+// (`t` then `.a`), which lower as though they ended the path's own line.
 function lowerAccessPath(
   node: SyntaxNode,
   ctx: LowerContext,
+  extraParts: SyntaxNode[] = [],
 ): Expression | null {
-  const parts: SyntaxNode[] = [];
-  const content = findChildByName(node, "LuauAccessPath_content");
-  if (content) {
-    let inner = content.firstChild;
-    while (inner) {
-      if (inner.name === "LuauAccessPart") parts.push(inner);
-      inner = inner.nextSibling;
-    }
-  }
+  const parts = accessPathParts(node, extraParts);
   if (parts.length === 0) return null;
 
   // A path is "simple" when it's a bare dotted identifier chain (`a.b.c`),

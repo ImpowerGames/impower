@@ -21,9 +21,23 @@ import { findChildByName } from "./utils/alternatorArms";
 import { syntheticId } from "./utils/documentTag";
 import {
   lowerExpressionFromContainer,
+  lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
 } from "./expression/lowerExpression";
 import { wrapInWeave } from "./utils/wrapInWeave";
+import {
+  collectLineContinuation,
+  continuationParts,
+  endsInTypeName,
+  reportExtraTypeQualifiers,
+  isLineContinuation,
+  isLineContinuationUsed,
+  isTypeQualifierContinuation,
+  markLineContinuationUsed,
+  reportUntakenLineContinuation,
+  splitOnCommas,
+  takeLineContinuation,
+} from "./utils/lineContinuation";
 import { validateAssignmentValue } from "./utils/validateAssignmentValue";
 import {
   lowerAudioLine,
@@ -314,6 +328,25 @@ function lowerInner(
       return lowerLuauReturnStatement(nodeRef, ctx);
     case "LuauExternalDeclaration":
       return lowerLuauExternalDeclaration(nodeRef, ctx);
+    case "LuauDataTypeDeclaration":
+    case "LuauFunctionTypeDeclaration": {
+      // A type declaration does not reach the runtime. The `.Name` parts of
+      // the lines that continue a type name it ends with qualify that name
+      // (`type Alias = types` then `.Button`).
+      const continuation = takeLineContinuation(ctx);
+      if (
+        endsInTypeName(nodeRef.node) &&
+        isTypeQualifierContinuation(continuation)
+      ) {
+        markLineContinuationUsed(continuation, ctx);
+        reportExtraTypeQualifiers(
+          nodeRef.node,
+          continuationParts(continuation),
+          ctx,
+        );
+      }
+      return {};
+    }
     // A loop or `do` block in a function body parses as the `Luau…` rule; one
     // in a scene or at the top level parses as the `LuauSparkdown…` rule,
     // whose body also accepts display lines. Both lower the same way.
@@ -334,7 +367,10 @@ function lowerInner(
       // `LuauRepeatLoop` lowerer above (it peeks forward to grab the
       // condition). This case handles it here directly (there is no
       // parser fallback — the grammar+lowerers are the only path — that
-      // would otherwise treat `until X` as narrative text).
+      // would otherwise treat `until X` as narrative text). The lines that
+      // continue the condition were lowered with it there, which reports any
+      // that no value takes, so they are used here.
+      markLineContinuationUsed(takeLineContinuation(ctx), ctx);
       return lowerLuauUntilStatement(nodeRef, ctx);
     case "LuauBreakStatement":
       return lowerLuauBreakStatement(nodeRef, ctx);
@@ -383,8 +419,38 @@ export function lowerStatements(
 ): ParsedObject[] {
   if (!parent) return [];
   const result: ParsedObject[] = [];
+  // Lower the statement that ends at `end`, offering its lowerer the lines
+  // that continue it (`ctx.lineContinuation`), and report each of those
+  // lines its lowering did not use. Returns the node to go on from, past
+  // those lines. The enclosing statement's own continuation is kept aside
+  // meanwhile.
+  const enclosingContinuation = ctx.lineContinuation;
+  const enclosingUsed = ctx.usedLineContinuations;
+  const lowerContinued = <T,>(
+    end: SyntaxNode,
+    lowerStatement: () => T,
+  ): { lowered: T; next: SyntaxNode | null } => {
+    const continuation = collectLineContinuation(end);
+    ctx.lineContinuation = continuation;
+    ctx.usedLineContinuations = new Set();
+    const lowered = lowerStatement();
+    reportUntakenLineContinuation(
+      continuation.filter((node) => !isLineContinuationUsed(node, ctx)),
+      ctx,
+    );
+    ctx.lineContinuation = null;
+    ctx.usedLineContinuations = null;
+    const last = continuation[continuation.length - 1];
+    return { lowered, next: (last ?? end).nextSibling };
+  };
   let child = parent.firstChild;
   while (child) {
+    if (isLineContinuation(child)) {
+      // A continuation line that no statement before it took.
+      reportUntakenLineContinuation([child], ctx);
+      child = child.nextSibling;
+      continue;
+    }
     if (!skipNames.has(child.name)) {
       // Implicit assignment statement: an `LuauAccessPath` immediately
       // followed by a `LuauAssignmentOperation` sibling forms a bare
@@ -402,16 +468,20 @@ export function lowerStatements(
         // one target precedes the op.
         const multi = scanMultiTargetReassignment(child);
         if (multi) {
-          const block = lowerMultiTargetReassignment(multi, ctx);
-          appendBlockContent(result, block, ctx);
-          child = multi.lastNode.nextSibling;
+          const { lowered, next } = lowerContinued(multi.lastNode, () =>
+            lowerMultiTargetReassignment(multi, ctx),
+          );
+          appendBlockContent(result, lowered, ctx);
+          child = next;
           continue;
         }
         const opSibling = findAssignmentOperationAfter(child);
         if (opSibling) {
-          const block = lowerReassignment(child, opSibling, ctx);
-          appendBlockContent(result, block, ctx);
-          child = opSibling.nextSibling;
+          const { lowered, next } = lowerContinued(opSibling, () =>
+            lowerReassignment(child!, opSibling, ctx),
+          );
+          appendBlockContent(result, lowered, ctx);
+          child = next;
           continue;
         }
         // Bare statement-level function call inside a Luau-context
@@ -441,6 +511,10 @@ export function lowerStatements(
           callNodes.push(parenScan);
           consumedParen = parenScan;
         }
+        // The lines that continue the call (`obj` then `:method()`).
+        const continuation = collectLineContinuation(consumedParen ?? child);
+        const lastNode = continuation[continuation.length - 1] ?? consumedParen;
+        callNodes.push(...continuation);
         const callExpr = lowerExpressionFromNodes(callNodes, ctx);
         // Compute the statement's source range — spans the access path
         // plus the trailing parenthetical (if any). Used by
@@ -449,12 +523,12 @@ export function lowerStatements(
         // the enclosing function's start line.
         const stmtRange = {
           from: child.from,
-          to: (consumedParen ?? child).to,
+          to: (lastNode ?? child).to,
         };
         if (callExpr instanceof FunctionCall) {
           callExpr.shouldPopReturnedValue = true;
           appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx), ctx);
-          child = (consumedParen ?? child).nextSibling;
+          child = (lastNode ?? child).nextSibling;
           continue;
         }
         // User-defined method dispatch routes through
@@ -463,7 +537,7 @@ export function lowerStatements(
         if (callExpr instanceof CallValueExpression) {
           callExpr.shouldPopReturnedValue = true;
           appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx), ctx);
-          child = (consumedParen ?? child).nextSibling;
+          child = (lastNode ?? child).nextSibling;
           continue;
         }
       }
@@ -521,6 +595,10 @@ export function lowerStatements(
           lastNode = scan;
           scan = scan.nextSibling;
         }
+        // The lines that continue the call (`(t)` then `:bump()`).
+        const continuation = collectLineContinuation(lastNode);
+        callNodes.push(...continuation);
+        lastNode = continuation[continuation.length - 1] ?? lastNode;
         if (callNodes.length > 1) {
           const callExpr = lowerExpressionFromNodes(callNodes, ctx);
           if (
@@ -542,13 +620,20 @@ export function lowerStatements(
           }
         }
       }
-      const block = lower(child as unknown as SparkdownSyntaxNodeRef, ctx);
-      if (block) {
-        appendBlockContent(result, block, ctx);
+      const statement = child;
+      const { lowered, next } = lowerContinued(statement, () =>
+        lower(statement as unknown as SparkdownSyntaxNodeRef, ctx),
+      );
+      if (lowered) {
+        appendBlockContent(result, lowered, ctx);
       }
+      child = next;
+      continue;
     }
     child = child.nextSibling;
   }
+  ctx.lineContinuation = enclosingContinuation;
+  ctx.usedLineContinuations = enclosingUsed;
   return result;
 }
 
@@ -714,8 +799,21 @@ function lowerMultiTargetReassignment(
   // attrib.luau lines 13, 15.
   validateAssignmentValue(multi.op, ctx);
   const allSimple = multi.targets.every((t) => isSimpleVariableTarget(t));
-  const firstRhs = lowerExpressionFromContainer(multi.op, ctx);
-  const trailingExprs = multi.trailingExprGroups
+  // The lines that continue the last value; their commas separate further
+  // values.
+  const trailingExprGroups = multi.trailingExprGroups.map((g) => [...g]);
+  const [continued = [], ...continuedGroups] = splitOnCommas(
+    takeLineContinuation(ctx),
+  );
+  const lastGroup = trailingExprGroups[trailingExprGroups.length - 1];
+  if (lastGroup) lastGroup.push(...continued);
+  trailingExprGroups.push(...continuedGroups);
+  const firstRhs = lowerExpressionFromContainerAndContinuation(
+    multi.op,
+    lastGroup ? [] : continued,
+    ctx,
+  );
+  const trailingExprs = trailingExprGroups
     .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
     .filter((e): e is NonNullable<typeof e> => e != null);
   const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;

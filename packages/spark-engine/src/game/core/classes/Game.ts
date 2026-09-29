@@ -204,6 +204,16 @@ export class Game<T extends M = {}> {
 
   protected _executionStepsRemaining = 2_000_000;
 
+  /**
+   * How deeply calls may nest before the run is stopped as a stack overflow.
+   * Far deeper than any recursion a story needs, and shallow enough that
+   * recursion which never ends stops well inside the step ceiling: a call that
+   * displays a line takes about sixty advances, so this depth costs about a
+   * seventh of the ceiling, and the ceiling's minutes would hold up the
+   * preview's worker and every program after it (#1072).
+   */
+  protected _callDepthLimit = 5_000;
+
   protected _executionBudgetExhausted = false;
 
   protected _executingPath: string | null = null;
@@ -865,8 +875,16 @@ export class Game<T extends M = {}> {
       return;
     }
     // This runs on every path change in the step loop; the call stack is
-    // walked only when the scene actually changes.
-    if (SceneTracker.sceneOf(path) === this._sceneTracker.current) {
+    // walked only when the scene actually changes. A call into a function
+    // keeps the scene current, as `SceneTracker.observe` rules with the same
+    // `isFunctionFlow` predicate, so every step inside one returns here too:
+    // walking the stack on each would make recursion cost the square of its
+    // depth.
+    const scene = SceneTracker.sceneOf(path);
+    if (
+      scene === this._sceneTracker.current ||
+      (scene && this.isFunctionFlow(scene))
+    ) {
       return;
     }
     const transition = this._sceneTracker.observe(
@@ -2133,6 +2151,19 @@ export class Game<T extends M = {}> {
           this._story.CancelAsyncContinue();
           this._story.state.ForceEnd();
           continue;
+        }
+        if (this._story.state.callstackDepth > this._callDepthLimit) {
+          // Recursion that does not end. The story ends here, as a runtime
+          // error ends it, and the run stops as a runaway, as it does at the
+          // step ceiling: nothing flushes and the story is not reported as
+          // finished.
+          this._story.CancelAsyncContinue();
+          this._story.state.ForceEnd();
+          this.Error(
+            `Calls nested more than ${this._callDepthLimit} deep: stack overflow, possible infinite recursion`,
+            ErrorType.Error,
+          );
+          return true;
         }
 
         const prevExecutedLocation = this._executingLocation;

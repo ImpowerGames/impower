@@ -1,3 +1,4 @@
+import { type SyntaxNode } from "@lezer/common";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
 
@@ -140,18 +141,23 @@ export interface LowerContext {
    * the step-update gather; for `repeat`, the until-check gather).
    * `breakLabel` is the gather immediately past the loop's exit.
    *
-   * Each loop emits both labels — including a sentinel `loop_break`
-   * gather past the loop body — so falling through the break label
-   * naturally hits the LOOP's own `EndScope`.
+   * Each loop emits both labels, including a sentinel `loop_break`
+   * gather past the loop body.
    *
-   * `scopeDepth` records `ctx.scopeDepth` at the loop's body level
-   * (i.e. with the loop's own scope counted). A `break`/`continue`
-   * lowered at a deeper `ctx.scopeDepth` sits inside nested scoped
-   * blocks (`if` arms, `do` blocks) whose `EndScope` commands the
-   * divert would skip — the keyword lowerers emit one `EndScope` per
-   * level of difference so the runtime scope stack stays balanced
-   * (a leaked scope makes later upvalue closing snapshot the wrong
-   * binding — basic.luau's break-inside-if timely-closing test).
+   * `scopeDepth` is the `ctx.scopeDepth` that stays open at both
+   * labels. A `break`/`continue` lowered at a deeper `ctx.scopeDepth`
+   * sits inside scoped blocks whose `EndScope` commands the divert
+   * would skip, so the keyword lowerers emit one `EndScope` per level
+   * of difference and the runtime scope stack stays balanced (a leaked
+   * scope makes later upvalue closing snapshot the wrong binding —
+   * basic.luau's break-inside-if timely-closing test).
+   *
+   * `for` and `repeat` wrap the whole loop, labels included, in one
+   * scope, so they record the depth with that scope counted and their
+   * body runs at the same depth. `while` opens a scope around the body
+   * on each iteration, inside its conditional branch, with both labels
+   * outside it, so it records the enclosing depth and lowers its body
+   * one level deeper; a `break`/`continue` then closes the body's scope.
    */
   loopStack?: {
     continueLabel: string;
@@ -266,6 +272,21 @@ export interface LowerContext {
    * pops on exit.
    */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
+  /**
+   * The lines that continue the statement being lowered: each continuation
+   * line after it (`t` then `.a`, `a` then `- b`) and the rest of that
+   * line. `lowerStatements` sets it before lowering the statement; the
+   * statement's lowerer takes it with `takeLineContinuation` and joins it to
+   * its last value.
+   */
+  lineContinuation?: SyntaxNode[] | null;
+  /**
+   * The start offsets of the continuation lines used while lowering the
+   * current statement (see `lower/utils/lineContinuation.ts`).
+   * `lowerStatements` reports each of the statement's continuation lines
+   * that is not among them.
+   */
+  usedLineContinuations?: Set<number> | null;
 }
 
 /**

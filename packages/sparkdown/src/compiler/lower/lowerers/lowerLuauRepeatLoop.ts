@@ -10,9 +10,10 @@ import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromContainer } from "../expression/lowerExpression";
+import { lowerExpressionFromContainerAndContinuation } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
+import { collectLineContinuation } from "../utils/lineContinuation";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
@@ -75,7 +76,13 @@ export function lowerLuauRepeatLoop(
   if (!untilNode) return {};
   const condContent =
     findChildByName(untilNode, "LuauUntilStatement_content") ?? untilNode;
-  const condExpr = lowerExpressionFromContainer(condContent, ctx);
+  // The lines that continue the condition (`until t` then `.done`); the
+  // `LuauUntilStatement` dispatch case leaves them to this lowering.
+  const condExpr = lowerExpressionFromContainerAndContinuation(
+    condContent,
+    collectLineContinuation(untilNode),
+    ctx,
+  );
   if (!condExpr) return {};
 
   const id = syntheticId(nodeRef.node.from, ctx);

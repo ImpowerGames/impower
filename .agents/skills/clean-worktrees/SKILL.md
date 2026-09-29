@@ -14,9 +14,21 @@ node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root <absolute
 
 The dry run fetches origin with prune and prints remove/keep reasons and sizes. Inspect every proposed removal, including ignored paths such as browser profiles and node_modules; move valuable ignored data out before applying. Apply requires the explicit absolute main root and removes eligible worktrees and local branches. It records outcomes in the main checkout's `.git/clean-worktrees.log`.
 
+## Dead records and one named directory
+
+`--apply` first runs `git worktree prune`, so a record whose directory is gone never blocks a branch deletion or shows as a row that only says to run it. It waits, and says so, when a `<path>.removing` sits beside a dead record: the record that leftover points at must survive until it is renamed back. A dry run prunes nothing.
+
+To give one directory back whatever its branch has merged (an abandoned ticket, an open pull request), or to clear a leftover that is not a registered worktree:
+
+```sh
+node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root <absolute-main-checkout> --remove <absolute-directory>
+```
+
+It refuses the main checkout, a path outside the worktrees root, a link, one holding another worktree or inside one (name the worktree itself), the default branch, a locked worktree, uncommitted changes, a tree `git status` cannot answer for (a worktree git can no longer read, or an unregistered directory holding its own `.git`), a process or driver using it (only the shell whose own command line runs this script does not count), a directory the rename probe finds held, a link inside it that leads outside (named), a directory it cannot read, and a `.removing` probe. Otherwise it unlinks every link inside without following it, removes the tree (through `git worktree remove` while git knows it, directly after) and leaves the branch. There is no dry run and it does not list the ignored paths it takes (`node_modules/`, `.env.local`): check `git status --ignored` in the tree first. It records the removal in the log like `--apply`, and prints a `failed` row with what remains when the tree cannot be finished.
+
 ## Eligibility and preservation
 
-Only clean, idle worktrees whose branch and remote commits are on origin/main qualify. Preserve uncommitted/untracked work, unmerged/unpushed commits, fresh branches, uncertain process state, external symlink/junction targets and unreadable directories. Main/default branches and paths outside the managed worktree root stay.
+Only clean, idle worktrees whose branch and remote commits are on origin/main qualify. A detached worktree qualifies when its commit is an ancestor of origin/main and it passes the same clean, idle and link checks, nothing is in progress in it (rebase, bisect, merge), its HEAD reflog and per-worktree refs reach no commit that only they hold, and HEAD last moved over 24 hours ago. Preserve uncommitted/untracked work, unmerged/unpushed commits, fresh branches, uncertain process state, external symlink/junction targets and unreadable directories. Main/default branches and paths outside the managed worktree root stay.
 
 Before interpreting a keep/refusal, manually reconciling a link, or recovering interrupted/partial removal, read [classification and recovery](references/classification.md). Never bypass refusal with recursive deletion or remove a junction using a trailing separator. A failed removal is a recovery task; preserve its log and remaining branch/data.
 
@@ -26,7 +38,7 @@ The web editor driver keeps a directory per checkout under `%LOCALAPPDATA%\impow
 
 ## Review job directories
 
-The same run lists every directory under `<main checkout>.review-jobs`, the root that holds review plans, journals, diffs and reviewer probe checkouts. A `pr-<N>` directory is removable when GitHub reports PR (or issue) N closed, every `*.jsonl` journal in it reads in full, no process a journal records is running, and no process command line names it. A `test-*` directory is a standalone check's scratch folder kept outside TEMP (the cross-provider continuation test's, for one); it is removable under the same process rules, with no GitHub lookup, and retained when it holds no journal naming its process. Anything else under the root is retained with its reason. Removal unlinks every symlink and junction inside the directory before deleting it and never follows one, since probe checkouts hold `node_modules` junctions into live worktrees. A recycled process ID that happens to be running retains the directory until a later run.
+The same run lists every directory under `<main checkout>.review-jobs`, the root that holds review plans, journals, diffs and reviewer probe checkouts. A `pr-<N>` directory is removable when GitHub reports PR (or issue) N closed, every `*.jsonl` journal in it reads in full, no process a journal records is running, and no process command line names it. A `test-*` directory is a standalone check's scratch folder kept outside TEMP (the cross-provider continuation test's, for one); it is removable under the same process rules, with no GitHub lookup, and retained when it holds no journal naming its process. Anything else under the root is retained with its reason. Removal unlinks every symlink and junction inside the directory before deleting it and never follows one, since probe checkouts hold `node_modules` junctions into live worktrees. A recorded process counts as running only while the process now holding its pid started when the journal says it did, so a pid Windows has since handed to an unrelated program does not retain the directory; a pid recorded without a start time, or whose start time cannot be read, still counts by its number.
 
 ## Scratch directories
 
