@@ -114,6 +114,7 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
+const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 // Luau reads a name on a later line after a `.`, but a Sparkdown access path
 // ends with its line.
 const NAME_ON_LATER_LINE =
@@ -361,6 +362,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // before it as its own token. The wording is Luau's parser's.
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+      return annotations;
+    }
+    // An operator directly before the `;` that ends its statement has no
+    // right operand; the grammar reads it as its own token.
+    if (nodeRef.name === "LuauOperatorMissingOperand") {
+      this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a

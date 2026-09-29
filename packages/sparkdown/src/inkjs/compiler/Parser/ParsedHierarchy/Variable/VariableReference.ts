@@ -12,6 +12,8 @@ import {
   isStdLibNamespaceName,
   lookupStdLibConstant,
 } from "../../../../engine/StdLib";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export class VariableReference extends Expression {
   private _runtimeVarRef: RuntimeVariableReference | null = null;
@@ -41,6 +43,17 @@ export class VariableReference extends Expression {
   }
   // Only known after GenerateIntoContainer has run
   public isListItemReference: boolean = false;
+
+  /**
+   * What the name resolved to when references were last resolved: a
+   * variable (or constant, or a dotted read through a variable's table), a
+   * flow's read count, a function (a function value), or nothing (a nil
+   * read). The binary program's writer emits a variable read for all but
+   * the count and the function, and the chunk store emits the reading
+   * statement again when the answer changes.
+   */
+  public resolvedAs: "variable" | "count" | "function" | "unresolved" =
+    "unresolved";
 
   // The member a colon call reads from this reference, as in `table:nogetn()`.
   // When set, an unresolved name reports the member path (`table.nogetn`)
@@ -116,6 +129,7 @@ export class VariableReference extends Expression {
     }
 
     // Work is already done if it's a constant or list item reference
+    this.resolvedAs = "variable";
     if (this.isConstantReference || this.isListItemReference) {
       return;
     }
@@ -135,6 +149,7 @@ export class VariableReference extends Expression {
         return;
       }
     }
+    this.resolvedAs = "unresolved";
 
     // Is it a read count?
     const parsedPath = new Path(this.pathIdentifiers);
@@ -155,6 +170,7 @@ export class VariableReference extends Expression {
       // gate on visit counts via bare names keep working.
       let targetFlow = asOrNull(targetForCount, FlowBase);
       if (targetFlow && targetFlow.isFunction) {
+        this.resolvedAs = "function";
         return;
       }
 
@@ -162,6 +178,7 @@ export class VariableReference extends Expression {
         throw new Error();
       }
 
+      this.resolvedAs = "count";
       targetForCount.containerForCounting.visitsShouldBeCounted = true;
 
       // If this is an argument to a function that wants a variable to be
@@ -204,6 +221,7 @@ export class VariableReference extends Expression {
           (!baseStruct || baseStruct.variableAssignment?.expression != null)
         ) {
           // Variable-with-property-access — no compile-time error.
+          this.resolvedAs = "variable";
           return;
         }
       }
@@ -283,6 +301,31 @@ export class VariableReference extends Expression {
   // constructor), otherwise the nearest position up the parent chain.
   private get unresolvedSource(): ParsedObject | Identifier {
     return this.identifier?.debugMetadata ? this.identifier : this;
+  }
+
+  // A variable read, with `VariableReference`'s runtime fallbacks (a dotted
+  // name walked through tables, `_G`, a builtin's marker, nil). A read count
+  // and a function value are not emitted yet.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    if (this.isListItemReference) {
+      emitter.unsupported("list");
+    }
+    if (this.resolvedAs === "count") {
+      emitter.unsupported("read count");
+    }
+    if (this.resolvedAs === "function") {
+      emitter.unsupported("function value");
+    }
+    emitter.recordResolution(this.resolutionKey);
+    emitter.emit(Op.GetVar, emitter.variable(this.name));
+  }
+
+  /** The name and what it resolved to, as a chunk records it. A name the
+   *  compiler generated, which it numbers by document order, is recorded
+   *  without its number, since the chunk names it by its own. */
+  get resolutionKey(): string {
+    const name = /^__synth_\d+$/.test(this.name) ? "__synth" : this.name;
+    return `${name}:${this.resolvedAs}`;
   }
 
   public override readonly toString = (): string => `{${this.path.join(".")}}`;

@@ -9,6 +9,8 @@ import { VariableAssignment as RuntimeVariableAssignment } from "../../../../eng
 import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Weave } from "../Weave";
 import { Identifier } from "../Identifier";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export class IncDecExpression extends Expression {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
@@ -72,6 +74,20 @@ export class IncDecExpression extends Expression {
     );
     container.AddContent(this._runtimeAssignment);
   };
+
+  // The variable, the step (the expression or 1), `+` or `-`, and the
+  // variable written back.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    const name = emitter.variable(this.identifier?.name ?? "");
+    emitter.emit(Op.GetVar, name);
+    if (this.expression) {
+      emitter.emitObject(this.expression);
+    } else {
+      emitter.emit(Op.Int, 1);
+    }
+    emitter.emit(Op.Native, emitter.string(this.isInc ? "+" : "-"), 2);
+    emitter.emit(Op.SetVar, name);
+  }
 
   public override ResolveReferences(context: Story): void {
     super.ResolveReferences(context);

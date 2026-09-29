@@ -46,22 +46,29 @@ export class StringExpression extends Expression {
   // A string of text alone is the text its pieces join to, so it is one
   // pushed string: the capture the runtime objects build it in writes its
   // pieces to the output raw and joins them. A string that interpolates is
-  // not emitted yet, and names what it interpolates.
-  public override EmitProgram(emitter: ProgramEmitter): void {
-    let text = "";
-    for (const c of this.content) {
-      if (!(c instanceof Text)) {
-        emitter.unsupported(c.typeName);
+  // that capture: its text written, each interpolated expression's value
+  // written by the `Out` its output ends with, and the joined text pushed
+  // when the capture closes.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    if (this.content.every((c) => c instanceof Text)) {
+      let text = "";
+      for (const c of this.content as Text[]) {
+        if (c.isCompilerNamed) {
+          emitter.recordRead(c.text);
+        }
+        text += c.text;
       }
-      if (c.isCompilerNamed) {
+      emitter.emit(Op.Str, emitter.string(text));
+      return;
+    }
+    emitter.emit(Op.BeginString);
+    for (const c of this.content) {
+      if (c instanceof Text && c.isCompilerNamed) {
         emitter.recordRead(c.text);
       }
-      text += c.text;
+      emitter.emitObject(c);
     }
-    if (this.outputWhenComplete) {
-      emitter.unsupported("output of an expression");
-    }
-    emitter.emit(Op.Str, emitter.string(text));
+    emitter.emit(Op.EndString);
   }
 
   public override readonly toString = (): string => {

@@ -2,6 +2,15 @@ import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
 import { NullExpression } from "./NullExpression";
+import type {
+  ProgramEmitter,
+  ProgramLabel,
+} from "../../../../../program/ProgramEmitter";
+import {
+  ConstValue,
+  JUMP_LUAU,
+  Op,
+} from "../../../../../program/ProgramInstructions";
 
 export type TernaryBranch = {
   // null condition marks the trailing `else` branch.
@@ -71,6 +80,27 @@ export class TernaryExpression extends Expression {
     this.emitFrom(index + 1, elseContainer);
     container.AddContent(elseContainer);
     this.story.DontFlattenContainer(elseContainer);
+  }
+
+  // Each condition tested by Luau truthiness, the taken branch's value, and a
+  // jump past the rest, as the `ShortCircuit` "if" and "jump" commands do; a
+  // chain with no `else` is nil when no condition holds.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    const ends: ProgramLabel[] = [];
+    for (const branch of this.branches) {
+      if (branch.condition === null) {
+        emitter.emitObject(branch.value);
+        ends.forEach((end) => emitter.bind(end));
+        return;
+      }
+      emitter.emitObject(branch.condition);
+      const next = emitter.jump(Op.JumpIfFalse, JUMP_LUAU);
+      emitter.emitObject(branch.value);
+      ends.push(emitter.jump(Op.Jump));
+      emitter.bind(next);
+    }
+    emitter.emit(Op.Const, 0, ConstValue.Nil);
+    ends.forEach((end) => emitter.bind(end));
   }
 
   public override readonly toString = (): string =>

@@ -1,7 +1,14 @@
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
 import type { Story } from "../inkjs/engine/Story";
 import type { SymbolKindValue } from "./ProgramSymbols";
-import { chunkId, type StatementChunk } from "./StatementChunk";
+import {
+  B_HEAD_LINES,
+  B_SEQUENCE,
+  blockCount,
+  blockField,
+  chunkId,
+  type StatementChunk,
+} from "./StatementChunk";
 
 /**
  * The ordered chunks of one body and each entry's first line relative to the
@@ -14,25 +21,28 @@ export interface SequenceArrays {
   readonly lineStarts: readonly number[];
 }
 
-/** A root's row for one sequence. The build-out has reached flows, which own
- *  their sequence (no owner chunk and no block index). */
+/** A root's row for one sequence: a flow's own, a block's body, or a
+ *  script's declaration sequence. */
 export interface SequenceRow {
   readonly id: number;
   readonly arrays: SequenceArrays;
-  /** The flow's symbol. */
+  /** The flow's symbol, or -1 for a declaration sequence. */
   readonly flow: number;
   /** What this root's program defines the flow as. The kind is the root's,
    *  like where the flow is defined: the table every root reads holds names
    *  only, and an edit, or a preview of one, can define a name as another
    *  kind while roots built before it are still in use. */
   readonly kind: SymbolKindValue;
-  /** The owner's chunk id, or -1 for a flow's own sequence. */
+  /** The owner's chunk id, or -1 for a flow's own sequence and a
+   *  declaration sequence. */
   readonly owner: number;
   /** The block index in the owner's block table, or -1. */
   readonly block: number;
-  /** The script the flow is written in. */
+  /** The script the sequence is written in. */
   readonly uri: string;
-  /** The body's first line in its script, counting from 0. */
+  /** The body's first line in its script, counting from 0. A body's is
+   *  derived from its owner's line and block rows and the spans of the
+   *  bodies above it, and this root keeps it as it derived it. */
   readonly firstLine: number;
   /** The lines the body spans. */
   readonly span: number;
@@ -108,10 +118,11 @@ const entryIndex = (arrays: SequenceArrays): Map<number, number> => {
 /**
  * One version of the whole program (docs/engine/binary-program.md, sections 1
  * and 9): what each sequence id holds, the flows by symbol, each script's
- * flows in the order of their first lines, and which sequence holds each
- * chunk. A compile produces a new root that shares every chunk and every array
- * it did not change; a preview compile's root is dropped afterwards, which
- * leaves the real one as it was.
+ * flows in the order of their first lines and its declaration sequence, the
+ * order the declarations initialize the globals in, and which sequence holds
+ * each chunk. A compile produces a new root that shares every chunk and every
+ * array it did not change; a preview compile's root is dropped afterwards,
+ * which leaves the real one as it was.
  */
 export class ProgramRoot {
   constructor(
@@ -126,12 +137,17 @@ export class ProgramRoot {
     protected _chunks: ChunkTable,
     /** The table generation the chunks were minted in. */
     readonly generation: number,
-    /** The current engine's story of the compile that built this root. Until
-     *  the declaration sequence (#695) and functions (#698) are emitted as
-     *  chunks, each engine built from the root runs its own copy of it
-     *  (`Story.CopyWithOwnState`), which initializes the program's globals and
-     *  runs the functions a host evaluates (see `ProgramStory`). */
+    /** The current engine's story of the compile that built this root.
+     *  Until functions are emitted as chunks (#698), each engine built from
+     *  the root runs its own copy of it (`Story.CopyWithOwnState`), which
+     *  runs the functions a chunk or a host calls (see `ProgramStory`). */
     readonly runtimeStory: Story | null = null,
+    protected _declarations: ReadonlyMap<string, number> = new Map(),
+    /** The declaration chunks in the order `ResetState` runs them, which is
+     *  the order the current engine's `global decl` container initializes
+     *  the globals in: constants first, then the others as the story
+     *  declares them. */
+    readonly initialization: readonly StatementChunk[] = [],
   ) {}
 
   /** The flow's sequence, or nothing when the program has no such flow. */
@@ -156,6 +172,42 @@ export class ProgramRoot {
   /** Every sequence of the root. */
   sequences(): IterableIterator<SequenceRow> {
     return this._sequences.values();
+  }
+
+  /** A script's declaration sequence, or nothing when it declares no
+   *  global. */
+  declarations(uri: string): SequenceRow | undefined {
+    const id = this._declarations.get(uri);
+    return id === undefined ? undefined : this._sequences.get(id);
+  }
+
+  /** The flows' sequences in the order the program runs them. */
+  flowSequences(): SequenceRow[] {
+    return [...this._flows.values()].map((id) => this._sequences.get(id)!);
+  }
+
+  /** The row of block `block` of the chunk `owner`'s body. */
+  body(owner: StatementChunk, block: number): SequenceRow | undefined {
+    return this._sequences.get(blockField(owner, block, B_SEQUENCE));
+  }
+
+  /** Every statement chunk of the flows, flow after flow, each block
+   *  statement before the statements of its bodies, which is the order a
+   *  compile aligns the next program's statements with. */
+  statementOrder(): StatementChunk[] {
+    const out: StatementChunk[] = [];
+    const walk = (row: SequenceRow | undefined) => {
+      for (const chunk of row?.arrays.chunks ?? []) {
+        out.push(chunk);
+        for (let k = 0; k < blockCount(chunk); k += 1) {
+          walk(this.body(chunk, k));
+        }
+      }
+    };
+    for (const row of this.flowSequences()) {
+      walk(row);
+    }
+    return out;
   }
 
   /** Chunk id to the id of the sequence that holds the chunk. */
@@ -195,6 +247,12 @@ export class ProgramRoot {
     return entry === undefined ? undefined : { sequence, entry };
   }
 
+  /** The owner of a body's sequence: the sequence that holds the owner's
+   *  chunk and its entry there, or nothing for a flow's own sequence. */
+  ownerOf(sequence: SequenceRow): ChunkPosition | undefined {
+    return sequence.owner < 0 ? undefined : this.position(sequence.owner);
+  }
+
   /** A script's flows in the order of their first lines. */
   flows(uri: string): SequenceRow[] {
     const ids = this._scriptFlows.get(uri) ?? [];
@@ -202,7 +260,9 @@ export class ProgramRoot {
   }
 
   /** The statement a line of a script falls in: the last statement of the
-   *  flow holding the line that starts at or above it. */
+   *  flow holding the line that starts at or above it, and when the line
+   *  falls inside one of that statement's bodies, the statement of the body
+   *  it falls in, and so on inward. */
   statementAt(uri: string, line: number): ChunkPosition | undefined {
     let holder: SequenceRow | undefined;
     for (const flow of this.flows(uri)) {
@@ -210,16 +270,38 @@ export class ProgramRoot {
         holder = flow;
       }
     }
-    if (!holder || holder.arrays.chunks.length === 0) {
+    let at = holder ? this.entryAt(holder, line) : undefined;
+    while (at) {
+      const chunk = at.sequence.arrays.chunks[at.entry]!;
+      let inner: ChunkPosition | undefined;
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        const body = this.body(chunk, k);
+        if (body && body.firstLine <= line && line < body.firstLine + body.span) {
+          inner = this.entryAt(body, line);
+          break;
+        }
+      }
+      if (!inner) {
+        return at;
+      }
+      at = inner;
+    }
+    return undefined;
+  }
+
+  /** The last entry of `sequence` that starts at or above `line`, or its
+   *  first when every entry starts below it. */
+  protected entryAt(sequence: SequenceRow, line: number): ChunkPosition | undefined {
+    const starts = sequence.arrays.lineStarts;
+    if (starts.length === 0) {
       return undefined;
     }
-    const starts = holder.arrays.lineStarts;
-    const relative = line - holder.firstLine;
+    const relative = line - sequence.firstLine;
+    if (starts[0]! > relative) {
+      return { sequence, entry: 0 };
+    }
     let lo = 0;
     let hi = starts.length - 1;
-    if (starts[0]! > relative) {
-      return { sequence: holder, entry: 0 };
-    }
     while (lo < hi) {
       const mid = (lo + hi + 1) >>> 1;
       if (starts[mid]! <= relative) {
@@ -228,12 +310,28 @@ export class ProgramRoot {
         hi = mid - 1;
       }
     }
-    return { sequence: holder, entry: lo };
+    return { sequence, entry: lo };
   }
 
-  /** The script a sequence's flow is written in and the absolute first line
-   *  (counting from 0) of the sequence's entry. */
+  /** The absolute first line (counting from 0) of a sequence's entry. */
   lineOf(sequence: SequenceRow, entry: number): number {
     return sequence.firstLine + (sequence.arrays.lineStarts[entry] ?? 0);
+  }
+
+  /** The first line of the end of block `block` of the statement at `entry`
+   *  of `sequence`: the line after the last line of that block's body. */
+  blockEndLine(sequence: SequenceRow, entry: number, block: number): number {
+    const chunk = sequence.arrays.chunks[entry]!;
+    const body = this.body(chunk, block);
+    if (body) {
+      return body.firstLine + body.span;
+    }
+    // A body this root does not hold: its lines follow from the block rows.
+    let line = this.lineOf(sequence, entry);
+    for (let k = 0; k <= block; k += 1) {
+      line += blockField(chunk, k, B_HEAD_LINES);
+      line += this.body(chunk, k)?.span ?? 0;
+    }
+    return line;
   }
 }

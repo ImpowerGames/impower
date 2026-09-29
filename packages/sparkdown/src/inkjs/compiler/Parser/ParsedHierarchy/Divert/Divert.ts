@@ -19,7 +19,8 @@ import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
 import { DivertTarget } from "./DivertTarget";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { Op } from "../../../../../program/ProgramInstructions";
+import { LEAVE_CONTINUE, Op } from "../../../../../program/ProgramInstructions";
+import { loopExitOf } from "../../../../../compiler/lower/utils/statementShape";
 
 export class Divert extends ParsedObject {
   public readonly args: Expression[] = [];
@@ -103,13 +104,17 @@ export class Divert extends ParsedObject {
   }
 
   // The two built-in targets are instructions of their own, as they are
-  // control commands of the runtime tree. A divert anywhere else is not
-  // emitted yet.
+  // control commands of the runtime tree. A `break` or `continue`, which the
+  // lowering writes as a divert to a label of its loop, leaves the blocks up
+  // to the loop's body. A divert anywhere else is not emitted yet.
   public override EmitProgram(emitter: ProgramEmitter): void {
+    const exit = loopExitOf.get(this);
     if (this.isEnd) {
       emitter.emit(Op.End);
     } else if (this.isDone) {
       emitter.emit(Op.Done);
+    } else if (exit) {
+      emitter.emit(Op.Leave, 0, 0, exit === "continue" ? LEAVE_CONTINUE : 0);
     } else {
       emitter.unsupported(this.typeName);
     }
