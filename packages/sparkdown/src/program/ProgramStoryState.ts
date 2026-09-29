@@ -12,7 +12,10 @@ import { Tag } from "../inkjs/engine/Tag";
 import { ObjectValue, StringValue } from "../inkjs/engine/Value";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
 import type { CallStack } from "../inkjs/engine/CallStack";
-import { splitHeadTailWhitespace } from "../inkjs/engine/outputWhitespace";
+import {
+  findOpenString,
+  splitHeadTailWhitespace,
+} from "../inkjs/engine/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { chunkId } from "./StatementChunk";
 
@@ -108,6 +111,9 @@ export class ProgramStoryState {
   protected _currentWarnings: string[] | null = null;
   protected _raisedErrors: RaisedError[] = [];
   protected _raisedWarnings: RaisedError[] = [];
+  /** Where `inStringEvaluation` last found the open string
+   *  (`findOpenString`). */
+  protected _openStringIndex = -1;
 
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
@@ -307,16 +313,11 @@ export class ProgramStoryState {
   }
 
   get inStringEvaluation(): boolean {
-    for (let i = this.outputStream.length - 1; i >= 0; i--) {
-      const cmd = this.outputStream[i];
-      if (
-        cmd instanceof ControlCommand &&
-        cmd.commandType == ControlCommand.CommandType.BeginString
-      ) {
-        return true;
-      }
-    }
-    return false;
+    this._openStringIndex = findOpenString(
+      this.outputStream,
+      this._openStringIndex,
+    );
+    return this._openStringIndex >= 0;
   }
 
   /** Ends this continue's output at `outputCut` with the newline the cut line
