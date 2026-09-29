@@ -92,6 +92,10 @@ const LUAU_NUMBER = nodeNameSet([
   "LuauNumericHex",
   "LuauNumericBinary",
 ]);
+// The grammar's `LUAU_TYPE_END_BEFORE_OPTIONAL` without the `]` that a block
+// comment's close adds, tested against the two characters before a position.
+const LUAU_TYPE_END_BEFORE_OPTIONAL = /(?:[\w)}"'`?]|[^-]>)$/;
+
 // The inline text command (`<1.5x:...>`) reuses the number rule for its
 // control argument, where the surrounding syntax is not Luau.
 const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
@@ -108,6 +112,7 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
+const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -320,6 +325,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /** The end of the text before the block comments (and the whitespace around
+   *  them) that end at `pos`, or null when no block comment ends there. */
+  protected startBeforeBlockComments(pos: number): number | null {
+    let skipped = false;
+    for (;;) {
+      while (pos > 0 && LUAU_WHITESPACE_RUN.test(this.read(pos - 1, pos))) {
+        pos -= 1;
+      }
+      let node = this.tree?.resolveInner(pos, -1) ?? null;
+      while (node && node.name !== "LuauBlockComment") {
+        node = node.parent;
+      }
+      if (!node || node.from >= pos) {
+        return skipped ? pos : null;
+      }
+      pos = node.from;
+      skipped = true;
+    }
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -332,6 +357,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
       return annotations;
+    }
+    // An operator directly before the `;` that ends its statement has no
+    // right operand; the grammar reads it as its own token.
+    if (nodeRef.name === "LuauOperatorMissingOperand") {
+      this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
+      return annotations;
+    }
+    // The grammar reads a `?` after a block comment as a suffix, because a
+    // lookbehind cannot see whether a type stands before the comment
+    // (`() -> --[[c]] ?`). Only a type before the comments makes it one.
+    if (nodeRef.name === "LuauTypeOptionalOperator") {
+      const operator = childNamed(nodeRef.node, "LuauTypeOptionalOperator_c2");
+      const before = this.startBeforeBlockComments(operator.from);
+      if (
+        before !== null &&
+        !LUAU_TYPE_END_BEFORE_OPTIONAL.test(this.read(Math.max(0, before - 2), before))
+      ) {
+        this.error(annotations, STRAY_OPTIONAL, operator.from, operator.to);
+        return annotations;
+      }
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
     // reads at most `module.Type`, so the segments after it are a syntax

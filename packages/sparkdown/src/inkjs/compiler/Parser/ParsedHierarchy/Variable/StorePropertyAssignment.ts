@@ -3,6 +3,8 @@ import { ControlCommand as RuntimeControlCommand } from "../../../../engine/Cont
 import { InkObject as RuntimeObject } from "../../../../engine/Object";
 import { Expression } from "../Expression/Expression";
 import { ParsedObject } from "../Object";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 // Mutating assignment into an existing object property: `obj.field = value`,
 // `obj.a.b = value`, etc.
@@ -37,6 +39,13 @@ export class StorePropertyAssignment extends ParsedObject {
 
   override get typeName(): string {
     return "StorePropertyAssignment";
+  }
+
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    emitter.emitObject(this.baseExpression);
+    emitter.emitObject(this.keyExpression);
+    emitter.emitObject(this.valueExpression);
+    emitter.emit(Op.StoreIndex);
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

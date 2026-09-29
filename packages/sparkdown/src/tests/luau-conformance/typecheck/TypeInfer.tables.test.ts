@@ -1988,7 +1988,6 @@ local b: B = a
     name: "error_detailed_metatable_prop",
     fixture: "BuiltinsFixture",
     flags: { LuauInstantiateInSubtyping: true },
-    unparsed: { defect: 919 }, // a ; right after the value of a local
     source: `
 local a1 = setmetatable({ x = 2, y = 3 }, { __call = function(s) end });
 local b1 = setmetatable({ x = 2, y = "hello" }, { __call = function(s) end });
@@ -2377,7 +2376,6 @@ _ = (_.cos)
     name: "table_unifies_into_map",
     fixture: "BuiltinsFixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 919 }, // a ; right after the value of a local
     source: `
         local Instance: any
         local UDim2: any

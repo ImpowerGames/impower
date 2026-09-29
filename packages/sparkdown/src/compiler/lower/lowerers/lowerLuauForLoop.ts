@@ -27,6 +27,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerLuauGenericForLoop } from "./lowerLuauGenericForLoop";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
+import { loopOf, openBody } from "../utils/statementShape";
 
 // `for i = start, stop [, step] do BODY end` — Luau numeric-for.
 //
@@ -173,7 +174,17 @@ export function lowerLuauForLoop(
     breakLabel,
     scopeDepth: ctx.scopeDepth,
   });
-  const bodyStatements = lowerStatements(bodyContent, ctx, FOR_BODY_SKIP);
+  const body = openBody(
+    ctx,
+    bodyContent?.from ?? doBlock.from,
+    bodyContent?.to ?? doBlock.to,
+  );
+  const bodyStatements = lowerStatements(
+    bodyContent,
+    ctx,
+    FOR_BODY_SKIP,
+    body,
+  );
   ctx.loopStack?.pop();
   ctx.scopeDepth--;
 
@@ -248,6 +259,17 @@ export function lowerLuauForLoop(
     stepGather,
     breakGather,
   ]);
+  if (body) {
+    loopOf.set(scoped[0]!, {
+      kind: "for",
+      body,
+      objects: scoped,
+      test: branch,
+      init: [initIdx, initStop, initStep],
+      copy: copyLoopVar,
+      step: stepGather.content[0] as VariableAssignment,
+    });
+  }
   return wrapInWeave(scoped);
 }
 

@@ -53,10 +53,7 @@ export class NumberExpression extends Expression {
     }
   };
 
-  public override EmitProgram(emitter: ProgramEmitter): void {
-    if (this.outputWhenComplete) {
-      emitter.unsupported("output of an expression");
-    }
+  public override EmitExpression(emitter: ProgramEmitter): void {
     if (this.isBool()) {
       emitter.emit(
         Op.Const,
