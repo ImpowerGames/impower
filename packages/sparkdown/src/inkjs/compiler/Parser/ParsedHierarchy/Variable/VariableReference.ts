@@ -123,7 +123,7 @@ export class VariableReference extends Expression {
     {
       const struct = context.ResolveStruct(this.name);
       if (
-        context.ResolveVariableWithName(this.name, this).found &&
+        this.IsResolvedVariable(context) &&
         // Plain variable, OR a `define` that carries a runtime table
         // (its VariableAssignment has an expression) — those ARE
         // first-class runtime values (`companion`,
@@ -216,7 +216,7 @@ export class VariableReference extends Expression {
       return;
     }
 
-    if (!context.ResolveVariableWithName(this.name, this).found) {
+    if (!this.IsResolvedVariable(context)) {
       if (this.unresolvedMember) {
         this.ReportUnresolvedPath(
           [this.name, this.unresolvedMember.name],
@@ -235,6 +235,20 @@ export class VariableReference extends Expression {
         true,
       );
     }
+  }
+
+  // Whether the name reads a variable. The receiver of a colon call on a
+  // library (`table:nogetn()`) names a local that shadows the library only
+  // where that local is in scope, though the flow finds it from anywhere in it.
+  private IsResolvedVariable(context: Story): boolean {
+    if (!context.ResolveVariableWithName(this.name, this).found) {
+      return false;
+    }
+    return !(
+      this.unresolvedMember !== null &&
+      isStdLibNamespaceName(this.name) &&
+      !context.IsLocalInScope(this.name, this)
+    );
   }
 
   // An unresolved dotted path: `table.nogetn`, or the `table:nogetn()` a colon

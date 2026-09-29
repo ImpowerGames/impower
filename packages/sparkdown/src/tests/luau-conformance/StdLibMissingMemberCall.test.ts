@@ -510,3 +510,68 @@ assert(table.nogetn() == 1, "got " .. tostring(table.nogetn()))`);
     expect(r.returnedOK).toBe(true);
   });
 });
+
+describe("a colon call on a library and a local named like it", () => {
+  const MISSING = ["Cannot find item or path named `table.nogetn`"];
+  const SHADOW = "local table = { nogetn = function(self) return 1 end }";
+
+  test("at top level, before the local", () => {
+    expect(
+      diagnoseWithLints(`& print(table:nogetn())\n${SHADOW}\n`),
+    ).toEqual(MISSING);
+  });
+
+  test("in a function written before a top-level local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    print(table:nogetn())\nend\n${SHADOW}\n`,
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test("in the same function, before the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    print(table:nogetn())\n    ${SHADOW}\n    print(table:nogetn())\nend\n`,
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test("outside the block that declares the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    do\n        ${SHADOW}\n        print(table:nogetn())\n    end\n    print(table:nogetn())\nend\n`,
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test("after the local at top level, it reads the local", () => {
+    expect(
+      diagnoseWithLints(`${SHADOW}\n& print(table:nogetn())\n`),
+    ).toEqual([]);
+  });
+
+  test("in a function written after the local, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `${SHADOW}\nfunction run()\n    print(table:nogetn())\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test("in a closure created after the local, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `${SHADOW}\nlocal f = function() return table:nogetn() end\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test("inside the declaring block, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    do\n        ${SHADOW}\n        print(table:nogetn())\n    end\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+});
