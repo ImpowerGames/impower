@@ -9,14 +9,24 @@ import { DidSelectTextDocumentMessage } from "@impower/spark-editor-protocol/src
 import { DidChangeConfigurationMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeConfigurationMessage";
 import { DidChangeWatchedFilesMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/DidChangeWatchedFilesMessage";
 import { ExecuteCommandMessage } from "@impower/spark-editor-protocol/src/protocols/workspace/ExecuteCommandMessage";
-import type { File } from "@impower/sparkdown/src/compiler";
+import type { File, Range } from "@impower/sparkdown/src/compiler";
+import type { SelectCompilerDocumentResult } from "@impower/sparkdown/src/compiler/classes/messages/SelectCompilerDocumentMessage";
+import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { getSharedAssetCache } from "../assets/sharedAssetCache";
 import { applyPreviewHint } from "../utils/previewHint";
+import type { WorkerBusyParams } from "./messages/WorkerBusyMessage";
 import { PreviewHintMessage } from "./messages/PreviewHintMessage";
 import { ProgramHeldMessage } from "./messages/ProgramHeldMessage";
-import type { WorkerDisplayWorkspace } from "./WorkerDisplayWorkspace";
+import type {
+  PreviewPoint,
+  WorkerDisplayWorkspace,
+  WorkerHang,
+} from "./WorkerDisplayWorkspace";
+import { respondToWorkerHang } from "./respondToWorkerHang";
+import { SetAsidePoints } from "./SetAsidePoints";
 import { WorkerGameLink } from "./WorkerGameLink";
+import { WorkerWatchdog } from "./WorkerWatchdog";
 import WORKSPACE_INLINE_WORKER_STRING from "./workspace.worker";
 
 const ASSET_FILE_TYPES = new Set(["image", "audio", "font", "video"]);
@@ -30,10 +40,30 @@ export function installWorkspaceWorker(connection: MessageConnection) {
   {
     readonly gameLink: WorkerGameLink;
 
+    // The worker can be restarted in place (#679), so the text of each open
+    // document is kept here too.
+    protected override _mirrorDocumentTexts = true;
+
+    protected _watchdog!: WorkerWatchdog;
+
+    protected _hangListeners = new Set<(hang: WorkerHang) => void>();
+
+    /** Counts edits to open documents, which with the files revision says
+     *  whether the project has changed since a point was set aside. */
+    protected _documentsRevision = 0;
+
+    protected _setAside = new SetAsidePoints(() =>
+      SetAsidePoints.revision(this._documentsRevision, this.filesRevision),
+    );
+
     constructor(profilerId?: string) {
       super(WORKSPACE_INLINE_WORKER_STRING, profilerId);
       this.gameLink = new WorkerGameLink(this._compilerChannelConnection);
-      this._compilerChannelConnection.addEventListener("message", (e) => {
+      this.listenToCompiler(this._compilerChannelConnection);
+    }
+
+    protected listenToCompiler(compiler: MessageConnection) {
+      compiler.addEventListener("message", (e) => {
         const message = e.data;
         if (PreviewHintMessage.type.isNotification(message)) {
           try {
@@ -44,6 +74,81 @@ export function installWorkspaceWorker(connection: MessageConnection) {
           }
         }
       });
+      this._watchdog = new WorkerWatchdog(compiler, this.onWorkerHang);
+    }
+
+    protected override onCompilerRestarted(compiler: MessageConnection) {
+      this.gameLink.reconnect(compiler);
+      this.listenToCompiler(compiler);
+    }
+
+    /** The worker has run a story without yielding for longer than the page
+     *  waits. Whatever it was asked since is unanswered and will stay so: it
+     *  is terminated and another started in its place, which is given the
+     *  project as the editor holds it and routes to the author's selection,
+     *  unless that is set aside (`respondToWorkerHang` decides what is, and
+     *  tells the listeners first). */
+    protected onWorkerHang = (busy: WorkerBusyParams) => {
+      this._watchdog.dispose();
+      respondToWorkerHang(busy, {
+        setAside: this._setAside,
+        selected: this._documentSelected,
+        listeners: this._hangListeners,
+      });
+      console.warn(
+        `The player's worker ran a script for ${busy.busyMs} ms without yielding, so it was restarted`,
+        JSON.stringify({
+          running: busy.location
+            ? `${busy.location.uri}:${busy.location.range.start.line}`
+            : null,
+          routingTo: busy.routingTo
+            ? `${busy.routingTo.file}:${busy.routingTo.line}`
+            : null,
+        }),
+      );
+      this.restartCompiler().catch((e) => console.error(e));
+    };
+
+    addWorkerHangListener(listener: (hang: WorkerHang) => void) {
+      this._hangListeners.add(listener);
+      return () => {
+        this._hangListeners.delete(listener);
+      };
+    }
+
+    isSetAside(point: PreviewPoint) {
+      return this._setAside.has(point);
+    }
+
+    override onChangeTextDocument() {
+      this._documentsRevision += 1;
+    }
+
+    protected override compileStartFrom() {
+      const selected = super.compileStartFrom();
+      return selected && !this.isSetAside(selected) ? selected : undefined;
+    }
+
+    override async selectTextDocument(params: {
+      textDocument: { uri: string };
+      selectedRange: Range;
+      docChanged: boolean;
+      userEvent?: boolean;
+    }) {
+      const point = {
+        file: params.textDocument.uri,
+        line: params.selectedRange.start.line,
+      };
+      if (!this.isSetAside(point)) {
+        return super.selectTextDocument(params);
+      }
+      // The worker routes to a selection as it arrives, and a route to this
+      // point is what stopped it answering: the selection is the author's,
+      // but the worker is not asked to route to it until the project changes.
+      this._documentSelected = point;
+      const result: SelectCompilerDocumentResult = { ...params };
+      this.sendNotification(SelectedCompilerDocumentMessage.method, result);
+      return result;
     }
 
     async programHeld(program: string): Promise<void> {

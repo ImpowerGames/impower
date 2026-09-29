@@ -13,13 +13,18 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import { ParsedObject } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { SourceMetadata } from "../../../inkjs/engine/Error";
 import { DefineTypeNameIndex } from "../DefineTypeNameIndex";
-import type { LoweringRead, SiblingSubFlowInfo } from "../../lower/context";
+import type {
+  LowerContext,
+  LoweringRead,
+  SiblingSubFlowInfo,
+} from "../../lower/context";
 import { lower } from "../../lower/lower";
 import { continuationRoutingRead } from "../../lower/lowerers/lowerDisplay";
 import {
   topLevelShape,
   type StatementShape,
 } from "../../lower/utils/statementShape";
+import { validateBlockEnds } from "../../lower/utils/validateBlockEnds";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -441,7 +446,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         : undefined;
       const statementStack = statement ? [statement] : undefined;
       const innermost = () => statementStack?.[statementStack.length - 1];
-      const lowered = lower(nodeRef, {
+      const ctx: LowerContext = {
         recordRead: recording
           ? (read: LoweringRead) => {
               reads.push({
@@ -492,7 +497,16 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
-      });
+      };
+      let lowered = lower(nodeRef, ctx);
+      // The Luau blocks this chunk's own nodes show to be left open. A chunk
+      // with no lowerer (a root-level type function) carries them on an empty
+      // block.
+      const unclosed = validateBlockEnds(nodeRef.node, ctx);
+      if (unclosed.length > 0) {
+        lowered ??= {};
+        chunkDiagnostics.push(...unclosed);
+      }
       if (lowered && statement) {
         lowered.statement = statement;
       }

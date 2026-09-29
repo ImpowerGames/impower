@@ -252,6 +252,7 @@ export class VariableAssignment extends ParsedObject {
       ) {
         this.Error(
           "A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+          variableReference.diagnosticSource,
         );
       }
     }

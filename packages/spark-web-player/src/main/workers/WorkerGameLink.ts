@@ -75,6 +75,16 @@ export class WorkerGameLink {
     }
   };
 
+  /** Talk to the games of a worker started in place of the one before, over
+   *  `connection` (#679). The old worker's games are gone with it, so
+   *  nothing is delivered until a sink attaches again. */
+  reconnect(connection: MessageConnection): void {
+    this._connection.removeEventListener("message", this.onConnectionMessage);
+    this.detach();
+    this._connection = connection;
+    connection.addEventListener("message", this.onConnectionMessage);
+  }
+
   /** Deliver the game's messages to `sink` from now on. */
   attach(sink: (message: Message) => void): void {
     this.closeChannel();

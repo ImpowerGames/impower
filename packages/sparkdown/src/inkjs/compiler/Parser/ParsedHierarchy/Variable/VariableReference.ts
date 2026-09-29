@@ -226,7 +226,7 @@ export class VariableReference extends Expression {
         }
       }
 
-      this.ReportUnresolvedPath(this.path, this.unresolvedSource);
+      this.ReportUnresolvedPath(this.path, this.diagnosticSource);
       return;
     }
 
@@ -245,7 +245,7 @@ export class VariableReference extends Expression {
       // Story.PerformLogicAndFlowControl's variable-reference branch).
       this.Error(
         `Cannot find variable named \`${this.name}\``,
-        this.unresolvedSource,
+        this.diagnosticSource,
         true,
       );
     }
@@ -296,10 +296,11 @@ export class VariableReference extends Expression {
     this.Error(`Cannot find item or path named \`${pathStr}\``, source, true);
   }
 
-  // Where an unresolved reference is reported: the name or path itself when
-  // the lowerer gave its names positions (merged into `identifier` by the
-  // constructor), otherwise the nearest position up the parent chain.
-  private get unresolvedSource(): ParsedObject | Identifier {
+  // Where a diagnostic about this reference is reported: the name or path
+  // itself when the lowerer gave its names positions (merged into
+  // `identifier` by the constructor), otherwise the nearest position up the
+  // parent chain.
+  public get diagnosticSource(): ParsedObject | Identifier {
     return this.identifier?.debugMetadata ? this.identifier : this;
   }
 

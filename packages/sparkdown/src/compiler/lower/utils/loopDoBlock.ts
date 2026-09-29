@@ -13,14 +13,17 @@ import type { LowerContext } from "../context";
 // A loop written without `do` has no body block: the grammar closes the loop
 // at the end of its first line, so the lines under it are not its body.
 // That is reported as an error on the loop's keyword rather than lowered.
+export function loopBodyBlock(
+  loop: GrammarSyntaxNode<SparkdownNodeName>,
+): GrammarSyntaxNode<SparkdownNodeName> | undefined {
+  return getDescendent(["LuauDoBlock", "LuauSparkdownDoBlock"], loop);
+}
+
 export function findLoopDoBlock(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): GrammarSyntaxNode<SparkdownNodeName> | undefined {
-  const doBlock = getDescendent(
-    ["LuauDoBlock", "LuauSparkdownDoBlock"],
-    nodeRef.node,
-  );
+  const doBlock = loopBodyBlock(nodeRef.node);
   if (doBlock) return doBlock;
   const keyword =
     getDescendent(["LuauWhileKeyword", "LuauForKeyword"], nodeRef.node) ??
