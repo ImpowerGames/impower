@@ -431,7 +431,7 @@ export class ProgramStoryState {
     const writer = new SimpleJson.Writer();
     JsonSerialisation.SetWriterAnchors(
       writer,
-      this.variablesState.DefaultTableAnchors(),
+      this.variablesState.InitTableAnchors(),
     );
     writer.WriteObjectStart();
     writer.WriteProperty("engine", "program");
@@ -501,8 +501,8 @@ export class ProgramStoryState {
     // opens one: a table reference resolves against the tables this load
     // reads, never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
-    JsonSerialisation.SetLoadSessionAnchorResolver((name) =>
-      this.variablesState.DefaultGlobal(name),
+    JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
+      this.variablesState.InitTableAtAnchor(anchor),
     );
     const position = obj["position"] as number[] | null;
     if (position) {

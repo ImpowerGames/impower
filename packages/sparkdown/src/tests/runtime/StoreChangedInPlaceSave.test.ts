@@ -108,6 +108,164 @@ end
     expect(run.first + run.rest).toBe("First.\nSecond 2 true.\n");
   });
 
+  test("a counter in a frozen store table keeps counting after a load", () => {
+    const run = saveAfterFirstLine(`function make()
+  local n = 0
+  return function()
+    n = n + 1
+    return n
+  end
+end
+store t = table.freeze({ inc = make() })
+-> main
+scene main
+  First {t.inc()}.
+  Second {t.inc()}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.first + run.rest).toBe("First 1.\nSecond 2.\n");
+  });
+
+  test("a table inside a frozen store table keeps its changes after a load", () => {
+    const run = saveAfterFirstLine(`store t = table.freeze({ inner = { n = 0 } })
+-> main
+scene main
+  & t.inner.n = 4
+  First.
+  Second {t.inner.n}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.first + run.rest).toBe("First.\nSecond 4.\n");
+  });
+
+  test("a save loads into a story whose store table was frozen after it", () => {
+    const previous = VariablesState.dontSaveDefaultValues;
+    VariablesState.dontSaveDefaultValues = true;
+    try {
+      const { story, errorMessages } = makeRuntimeStoryFromSource(`store t = { n = 1 }
+-> main
+scene main
+  First.
+  & t.n = 2
+  & table.freeze(t)
+  Second {t.n} {table.isfrozen(t)}.
+  fin
+end
+`);
+      const errors = [...errorMessages];
+      story.onError = (m: string) => errors.push(m);
+      expect(story.Continue()).toBe("First.\n");
+      const json = story.state.ToJson();
+      expect(story.ContinueMaximally()).toBe("Second 2 true.\n");
+      story.state.LoadJson(json);
+      expect(story.ContinueMaximally()).toBe("Second 2 true.\n");
+      expect(errors).toEqual([]);
+    } finally {
+      VariablesState.dontSaveDefaultValues = previous;
+    }
+  });
+
+  test("a saved local holding a constant's nested table is that table after a load", () => {
+    const run = saveAfterFirstLine(`const C = { sub = { n = 1 } }
+-> main
+scene main
+  & local alias = C.sub
+  First.
+  Second {alias.n} {rawequal(alias, C.sub)}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.first + run.rest).toBe("First.\nSecond 1 true.\n");
+  });
+
+  test("a constant table keeps its compiled contents when a save holds other contents", () => {
+    const source = `const CONFIG = { n = 1 }
+-> main
+scene main
+  & local alias = CONFIG
+  First.
+  Second {CONFIG.n} {alias.n} {rawequal(alias, CONFIG)}.
+  fin
+end
+`;
+    const { story, compiledJson, errorMessages } =
+      makeRuntimeStoryFromSource(source);
+    const errors = [...errorMessages];
+    expect(story.Continue()).toBe("First.\n");
+    // A save whose copy of the constant differs from the compiled one, as a
+    // save written by an earlier version of the program would.
+    const saved = JSON.parse(story.state.ToJson());
+    let changed = 0;
+    const visit = (node: unknown): void => {
+      if (Array.isArray(node)) return node.forEach(visit);
+      if (!node || typeof node !== "object") return;
+      const obj = node as Record<string, any>;
+      if (obj["anchor"] === '["CONFIG"]' && obj["obj"]) {
+        obj["obj"]["n"] = 5;
+        changed++;
+      }
+      Object.values(obj).forEach(visit);
+    };
+    visit(saved);
+    expect(changed).toBe(1);
+    const again = new RuntimeStory(compiledJson as Record<string, any>);
+    again.onError = (m: string) => errors.push(m);
+    again.state.LoadJson(JSON.stringify(saved));
+    expect(again.ContinueMaximally()).toBe("Second 1 1 true.\n");
+    expect(errors).toEqual([]);
+  });
+
+  test("a store's frozen new instance is still frozen after a load", () => {
+    const run = saveAfterFirstLine(`define Box with
+  store n = 1
+end
+store box = new Box()
+-> main
+scene main
+  & table.freeze(box)
+  First.
+  Second {table.isfrozen(box)}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.first + run.rest).toBe("First.\nSecond true.\n");
+  });
+
+  test("a store table a define holds stays one table in a program whose stores were reordered", () => {
+    const scene = `define Holder with
+  alias = b
+end
+-> main
+scene main
+  & a = b
+  First.
+  & b.n = 2
+  Second {Holder.alias.n} {rawequal(Holder.alias, b)}.
+  fin
+end
+`;
+    const before = makeRuntimeStoryFromSource(
+      `store a = nil\nstore b = { n = 1 }\n${scene}`,
+    );
+    const after = makeRuntimeStoryFromSource(
+      `store b = { n = 1 }\nstore a = nil\n${scene}`,
+    );
+    const errors = [...before.errorMessages, ...after.errorMessages];
+    expect(before.story.Continue()).toBe("First.\n");
+    const json = before.story.state.ToJson();
+    const loaded = new RuntimeStory(after.compiledJson as Record<string, any>);
+    loaded.onError = (m: string) => errors.push(m);
+    loaded.state.LoadJson(json);
+    expect(loaded.ContinueMaximally()).toBe("Second 2 true.\n");
+    expect(errors).toEqual([]);
+  });
+
   test("a store's new instance a saved closure shares stays one table after a load", () => {
     const run = saveAfterFirstLine(`define Box with
   n = 1

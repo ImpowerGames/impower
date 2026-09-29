@@ -37,8 +37,8 @@ interface WriterMemo {
   ids: Map<object, number>;
   nextCellId: number;
   cellIds: Map<VariablePointerValue, number>;
-  // Each default global's table, by its underlying Map, to the global's
-  // name (`SetWriterAnchors`).
+  // Each table init built, by its underlying Map, to its path from a
+  // default global (`SetWriterAnchors`).
   anchors: Map<object, string> | null;
 }
 
@@ -75,15 +75,20 @@ export class JsonSerialisation {
   // ----------------------------------------------------------------
   // Anchored tables.
   //
-  // A default global's table (a `store` table, a define, a `new`
-  // instance a store holds) exists in every story from init, and init
-  // wires other defaults to it (a define's prop can hold it). A save
-  // writes such a table's first occurrence with `"anchor": <global
-  // name>`, and a load restores the saved contents INTO the loading
-  // story's own default table instead of building a new one, so every
-  // reference to it, saved or rebuilt by init, stays one table. A plain
-  // table's contents are replaced; a define's store props are merged,
-  // since the rest of it is rebuilt by init.
+  // A table init built (a `store` table, a define, a `new` instance a
+  // store holds, or any table reachable from one) exists in every story
+  // from init, and init can wire other defaults to it (a define's prop
+  // can hold it). A save writes every occurrence of such a table, its
+  // definition and each `objref`, with `"anchor": <its path from a
+  // default global>` (`VariablesState.SnapshotInitTables`). A load
+  // resolves the anchor at whichever occurrence it reads first to the
+  // loading story's own table at that path, and restores the saved
+  // contents into it instead of building a new one, so every reference
+  // to it, saved or built by init, stays one table. A plain table's
+  // entries, metatable, freeze flag and `#` hints are replaced; a
+  // define's store props are merged and its freeze flag restored, since
+  // init rebuilds the rest. A constant's table only joins references: its
+  // contents are the compiled program's, never the save's.
   // ----------------------------------------------------------------
   public static SetWriterAnchors(
     writer: SimpleJson.Writer,
@@ -93,34 +98,37 @@ export class JsonSerialisation {
   }
 
   private static _loadSessionAnchorResolver:
-    | ((name: string) => InkObject | null)
+    | ((anchor: string) => { table: ObjectValue; restore: boolean } | null)
     | null = null;
 
-  // Resolves an anchor to the loading story's default table of that name;
-  // set after `ResetObjectLoadSession`, which clears it.
+  // Resolves an anchor to the loading story's table at that path; set
+  // after `ResetObjectLoadSession`, which clears it.
   public static SetLoadSessionAnchorResolver(
-    resolve: (name: string) => InkObject | null,
+    resolve: (
+      anchor: string,
+    ) => { table: ObjectValue; restore: boolean } | null,
   ): void {
     this._loadSessionAnchorResolver = resolve;
   }
 
-  // The loading story's default table for an anchored definition, taking
-  // the definition's id slot. Null when the anchor names no table here, or
-  // when a reference to the id was read first and already holds another
-  // table, in which case the definition fills that one as before.
+  // The loading story's table for an anchored occurrence, which takes the
+  // occurrence's id slot. Null when the anchor names no table here, or
+  // when the slot already holds another table (a reference written
+  // without an anchor was read first), in which case the occurrence loads
+  // as an unanchored one.
   private static anchoredObjectForLoad(
-    name: string,
+    anchor: string,
     objid: unknown,
-  ): ObjectValue | null {
-    const live = this._loadSessionAnchorResolver?.(name) ?? null;
-    if (!(live instanceof ObjectValue) || live.value === null) return null;
+  ): { table: ObjectValue; restore: boolean } | null {
+    const found = this._loadSessionAnchorResolver?.(anchor) ?? null;
+    if (!found || found.table.value === null) return null;
     if (objid !== undefined) {
       const id = parseInt(String(objid));
       const slot = this._loadSessionObjectsById.get(id);
-      if (slot && slot !== live) return null;
-      this._loadSessionObjectsById.set(id, live);
+      if (slot && slot !== found.table) return null;
+      this._loadSessionObjectsById.set(id, found.table);
     }
-    return live;
+    return found;
   }
 
   private static _loadSessionObjectsById = new Map<number, ObjectValue>();
@@ -476,6 +484,8 @@ export class JsonSerialisation {
         if (existingId !== undefined) {
           writer.WriteObjectStart();
           writer.WriteIntProperty("objref", existingId);
+          const anchor = memo.anchors?.get(map);
+          if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
           writer.WriteObjectEnd();
           return;
         }
@@ -1174,6 +1184,13 @@ export class JsonSerialisation {
       // placeholder that the definition fills when it's read (so the
       // wire format is order-independent).
       if (obj["objref"] !== undefined) {
+        if (obj["anchor"] !== undefined) {
+          const anchored = JsonSerialisation.anchoredObjectForLoad(
+            String(obj["anchor"]),
+            obj["objref"],
+          );
+          if (anchored) return anchored.table;
+        }
         return JsonSerialisation.objectForLoadSessionId(
           parseInt(obj["objref"]),
         );
@@ -1198,12 +1215,14 @@ export class JsonSerialisation {
               )
             : null;
         if (anchored) {
-          // A frozen table can't have changed since init. Its entries are
-          // still read, so the tables they define get their ids.
-          const target = anchored.isFrozen
-            ? new Map<string, AbstractValue>()
-            : (anchored.value as Map<string, AbstractValue>);
-          if (!isDefine) target.clear();
+          const table = anchored.table;
+          // A constant's table keeps its compiled contents. Its saved
+          // entries and metatable are still read, so the tables they define
+          // get their ids.
+          const target = anchored.restore
+            ? (table.value as Map<string, AbstractValue>)
+            : new Map<string, AbstractValue>();
+          if (anchored.restore && !isDefine) target.clear();
           for (const key in objContent) {
             if (!Object.prototype.hasOwnProperty.call(objContent, key))
               continue;
@@ -1211,25 +1230,27 @@ export class JsonSerialisation {
             const childVal = asOrNull(child, AbstractValue);
             if (childVal) target.set(key, childVal);
           }
-          if (!isDefine && !anchored.isFrozen) {
-            const mtParsed =
-              obj["mt"] !== undefined
-                ? this.JTokenToRuntimeObject(obj["mt"])
-                : null;
-            anchored.metatable = asOrNull(mtParsed, ObjectValue);
-            if (obj["frz"]) anchored.Freeze();
-            if (obj["cap"] !== undefined) {
-              (target as any).__luauCapacity = parseInt(obj["cap"]);
-            } else {
-              delete (target as any).__luauCapacity;
-            }
-            if (obj["bnd"] !== undefined) {
-              (target as any).__luauBoundary = parseInt(obj["bnd"]);
-            } else {
-              delete (target as any).__luauBoundary;
+          const mtParsed =
+            !isDefine && obj["mt"] !== undefined
+              ? this.JTokenToRuntimeObject(obj["mt"])
+              : null;
+          if (anchored.restore) {
+            table.RestoreFrozen(!!obj["frz"]);
+            if (!isDefine) {
+              table.metatable = asOrNull(mtParsed, ObjectValue);
+              if (obj["cap"] !== undefined) {
+                (target as any).__luauCapacity = parseInt(obj["cap"]);
+              } else {
+                delete (target as any).__luauCapacity;
+              }
+              if (obj["bnd"] !== undefined) {
+                (target as any).__luauBoundary = parseInt(obj["bnd"]);
+              } else {
+                delete (target as any).__luauBoundary;
+              }
             }
           }
-          return anchored;
+          return table;
         }
         const result =
           obj["objid"] !== undefined

@@ -497,23 +497,78 @@ export class VariablesState extends VariablesStateAccessor<
 
   public SnapshotDefaultGlobals() {
     this._defaultGlobalVariables = new Map(this._globalVariables);
+    this.SnapshotInitTables();
   }
 
-  // Each default global's table, by its underlying Map, to the global's
-  // name: the anchors a save writes (`JsonSerialisation.SetWriterAnchors`).
-  public DefaultTableAnchors(): Map<object, string> {
-    const anchors = new Map<object, string>();
-    for (const [name, value] of this._defaultGlobalVariables) {
-      if (value instanceof ObjectValue && value.value !== null) {
-        if (!anchors.has(value.value)) anchors.set(value.value, name);
+  // Records every table reachable from a default global when the defaults
+  // are set, by its path from the global: `["t"]`, `["t","inner"]`, a
+  // metatable as `"#mt"`, and a closed upvalue's table as its key followed
+  // by `"#cv"`. Taken once, so the paths name the tables init built even
+  // after the story has changed or reassigned them. A table reachable by
+  // more than one path keeps the shortest, earliest one. The globals that
+  // are not constants are walked first, so a table a store reaches is
+  // restorable even when a constant also reaches it; the tables only
+  // constants reach are not.
+  private SnapshotInitTables() {
+    this._initTablePaths = new Map();
+    this._initTablesByPath = new Map();
+    for (const constant of [false, true]) {
+      const queue: { table: ObjectValue; path: string[] }[] = [];
+      for (const [name, value] of this._defaultGlobalVariables) {
+        if (
+          value instanceof ObjectValue &&
+          this.constantNames.has(name) === constant
+        ) {
+          queue.push({ table: value, path: [name] });
+        }
+      }
+      this.WalkInitTables(queue, constant);
+    }
+  }
+
+  private WalkInitTables(
+    queue: { table: ObjectValue; path: string[] }[],
+    constant: boolean,
+  ) {
+    for (let i = 0; i < queue.length; i++) {
+      const { table, path } = queue[i]!;
+      const map = table.value;
+      if (map === null || this._initTablePaths.has(map)) continue;
+      const anchor = JSON.stringify(path);
+      this._initTablePaths.set(map, anchor);
+      this._initTablesByPath.set(anchor, { table, constant });
+      for (const [key, entry] of map as Map<string, InkObject>) {
+        if (entry instanceof ObjectValue) {
+          queue.push({ table: entry, path: [...path, key] });
+        } else if (
+          entry instanceof VariablePointerValue &&
+          entry.isClosed &&
+          entry.closedValue instanceof ObjectValue
+        ) {
+          queue.push({ table: entry.closedValue, path: [...path, key, "#cv"] });
+        }
+      }
+      if (table.metatable) {
+        queue.push({ table: table.metatable, path: [...path, "#mt"] });
       }
     }
-    return anchors;
   }
 
-  // The default value of a global, which a load resolves an anchor to.
-  public DefaultGlobal(name: string): InkObject | null {
-    return this._defaultGlobalVariables.get(name) ?? null;
+  // Each table init built, by its underlying Map, to its path: the anchors
+  // a save writes (`JsonSerialisation.SetWriterAnchors`).
+  public InitTableAnchors(): Map<object, string> {
+    return this._initTablePaths;
+  }
+
+  // The table init built at an anchor's path in this story, and whether a
+  // load may restore saved contents into it: a constant's tables are
+  // determined by the compiled program, so a load only joins references to
+  // them.
+  public InitTableAtAnchor(
+    anchor: string,
+  ): { table: ObjectValue; restore: boolean } | null {
+    const found = this._initTablesByPath.get(anchor);
+    return found ? { table: found.table, restore: !found.constant } : null;
   }
 
   public RetainListOriginsForAssignment(
@@ -627,6 +682,12 @@ export class VariablesState extends VariablesStateAccessor<
 
   private _globalVariables: Map<string, InkObject>;
   private _defaultGlobalVariables: Map<string, InkObject> = new Map();
+  // The tables init built (`SnapshotInitTables`), both ways.
+  private _initTablePaths: Map<object, string> = new Map();
+  private _initTablesByPath: Map<
+    string,
+    { table: ObjectValue; constant: boolean }
+  > = new Map();
 
   private _callStack: CallStack;
   private _changedVariablesForBatchObs: Set<string> | null = new Set();

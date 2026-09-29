@@ -591,7 +591,7 @@ export class StoryState {
   public WriteJson(writer: SimpleJson.Writer) {
     JsonSerialisation.SetWriterAnchors(
       writer,
-      this.variablesState.DefaultTableAnchors(),
+      this.variablesState.InitTableAnchors(),
     );
     writer.WriteObjectStart();
 
@@ -675,8 +675,8 @@ export class StoryState {
     // references resolve against the tables this load materializes,
     // never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
-    JsonSerialisation.SetLoadSessionAnchorResolver((name) =>
-      this.variablesState.DefaultGlobal(name),
+    JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
+      this.variablesState.InitTableAtAnchor(anchor),
     );
 
     let jSaveVersion = jObject["inkSaveVersion"];
