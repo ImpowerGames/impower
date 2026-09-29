@@ -38,7 +38,8 @@ sparkdown [0..56]
  │   │   │   │       │       ├─ LuauTypeLiteral_content [22..28]
  │   │   │   │       │       │   └─ LuauPrimitiveType [22..28]
  │   │   │   │       │       │       ├─ LuauPrimitiveType_c1 [22..28]: "number"
- │   │   │   │       │       │       └─ LuauPrimitiveType_c2 28
+ │   │   │   │       │       │       ├─ LuauPrimitiveType_c2 28
+ │   │   │   │       │       │       └─ LuauPrimitiveType_c3 28
  │   │   │   │       │       └─ LuauTypeLiteral_end 28
  │   │   │   │       └─ LuauTypeAnnotationOperation_end 28
  │   │   │   └─ LuauFunctionParameters_end [28..29]
@@ -78,7 +79,8 @@ sparkdown [0..56]
  │   │   │   │       │   │   │       └─ LuauTypeofFunctionParameters_end [39..40]
  │   │   │   │       │   │   │           ├─ LuauTypeofFunctionParameters_end_c1 [39..40]
  │   │   │   │       │   │   │           │   └─ PunctuationParenClose [39..40]: ")"
- │   │   │   │       │   │   │           └─ LuauTypeofFunctionParameters_end_c2 40
+ │   │   │   │       │   │   │           ├─ LuauTypeofFunctionParameters_end_c2 40
+ │   │   │   │       │   │   │           └─ LuauTypeofFunctionParameters_end_c3 40
  │   │   │   │       │   │   └─ LuauTypeofFunction_end 40
  │   │   │   │       │   └─ Newline [40..41]: "\n"
  │   │   │   │       └─ LuauTypeLiteral_end 41

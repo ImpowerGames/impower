@@ -519,7 +519,6 @@ end`,
     // which prints as `number`.
     name: "stringify_nested_unions_with_optionals",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         --!strict
         local a: number | (string | boolean) | nil
@@ -591,7 +590,6 @@ end`,
     // TypeInfer.test.cpp:800 TEST_CASE_FIXTURE(Fixture, "no_stack_overflow_from_isoptional")
     name: "no_stack_overflow_from_isoptional",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         function _(l0:t0): (any, ()->())
             return 0,_
@@ -946,7 +944,6 @@ end
     name: "type_infer_recursion_limit_no_ice",
     fixture: "Fixture",
     limits: { LuauTypeInferRecursionLimit: 2 },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         function complex()
           function _(l0:t0): (any, ()->())
@@ -1176,7 +1173,6 @@ end
     // TypeInfer.test.cpp:1494 TEST_CASE_FIXTURE(BuiltinsFixture, "convoluted_case_where_two_TypeVars_were_bound_to_each_other")
     name: "convoluted_case_where_two_TypeVars_were_bound_to_each_other",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type React_Ref<ElementType> = { current: ElementType } | ((ElementType) -> ())
 
@@ -1281,7 +1277,6 @@ end
     // there are.
     name: "be_sure_to_use_active_txnlog_when_evaluating_a_variadic_overload",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function concat<T>(target: {T}, ...: {T} | T): {T}
             return (nil :: any) :: {T}
@@ -1585,7 +1580,6 @@ end
     name: "concat_string_with_string_union",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function concat_stuff(x: string, y : string | number)
             return x .. y
@@ -2702,7 +2696,6 @@ export type t12 = {
     fixture: "Fixture",
     flags: { LuauSubtypingMissingPropertiesAsNil: true, LuauBidirectionalInferenceSimplifyTables: true },
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Node = string | number | { [string]: Node }
         type BaseProps = { tag: string?, children: Node? }

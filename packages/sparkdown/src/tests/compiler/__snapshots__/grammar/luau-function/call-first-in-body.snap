@@ -110,7 +110,8 @@ sparkdown [0..188]
  │   │   │   │       ├─ LuauTypeLiteral_content [46..52]
  │   │   │   │       │   └─ LuauPrimitiveType [46..52]
  │   │   │   │       │       ├─ LuauPrimitiveType_c1 [46..52]: "number"
- │   │   │   │       │       └─ LuauPrimitiveType_c2 52
+ │   │   │   │       │       ├─ LuauPrimitiveType_c2 52
+ │   │   │   │       │       └─ LuauPrimitiveType_c3 52
  │   │   │   │       └─ LuauTypeLiteral_end 52
  │   │   │   └─ LuauFunctionReturnType_end 52
  │   │   └─ LuauFunctionBody [52..67]
@@ -278,9 +279,8 @@ sparkdown [0..188]
  │   │   │   │       │       ├─ LuauTypeName_c2 117
  │   │   │   │       │       ├─ LuauTypeName_c3 [117..118]: "T"
  │   │   │   │       │       ├─ LuauTypeName_c4 118
- │   │   │   │       │       └─ LuauTypeName_c5 118
- │   │   │   │       │           └─ LuauTypeName_c5 118
- │   │   │   │       │               └─ OptionalWhitespace 118
+ │   │   │   │       │       ├─ LuauTypeName_c5 118
+ │   │   │   │       │       └─ LuauTypeName_c6 118
  │   │   │   │       └─ LuauTypeLiteral_end 118
  │   │   │   └─ LuauGenericsDeclaration_end [118..119]
  │   │   │       └─ LuauGenericsDeclaration_end_c1 [118..119]
@@ -312,7 +312,8 @@ sparkdown [0..188]
  │   │   │   │       │       │       ├─ LuauTypeName_c2 124
  │   │   │   │       │       │       ├─ LuauTypeName_c3 [124..125]: "T"
  │   │   │   │       │       │       ├─ LuauTypeName_c4 125
- │   │   │   │       │       │       └─ LuauTypeName_c5 125
+ │   │   │   │       │       │       ├─ LuauTypeName_c5 125
+ │   │   │   │       │       │       └─ LuauTypeName_c6 125
  │   │   │   │       │       └─ LuauTypeLiteral_end 125
  │   │   │   │       └─ LuauTypeAnnotationOperation_end 125
  │   │   │   └─ LuauFunctionParameters_end [125..126]
@@ -396,6 +397,7 @@ sparkdown [0..188]
  │   │       │   └─ LuauAssignmentOperation [154..187]
  │   │       │       ├─ LuauAssignmentOperation_begin 154
  │   │       │       │   └─ LuauAssignmentOperation_begin_c1 154
+ │   │       │       │       └─ OptionalWhitespace 154
  │   │       │       ├─ LuauAssignmentOperation_content [154..187]
  │   │       │       │   ├─ LuauAssignmentOperator [154..156]
  │   │       │       │   │   ├─ LuauAssignmentOperator_begin [154..156]

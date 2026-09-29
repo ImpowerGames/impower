@@ -1,3 +1,4 @@
+import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { structArrayItemInlineEntry } from "@impower/sparkdown/src/compiler/utils/structArrayItemInlineEntry";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
@@ -24,7 +25,8 @@ const NO_SPACE_BEFORE = new Set([")", "]", "}", ",", ";", ":", "."]);
 const NO_SPACE_AFTER = new Set(["(", "[", "{", "."]);
 // Openers that "attach" to a preceding word — `foo(`, `arr[`, `obj{`
 // — but DON'T attach to a preceding operator (`a * (b)` wants space).
-const CALL_LIKE_OPENERS = new Set(["(", "[", "{"]);
+// `FormattingAnnotator` reads the same set to force the space after a
+// keyword (`return {1}`).
 
 function isWordChar(c: string): boolean {
   return /[a-zA-Z0-9_]/.test(c);
@@ -1609,9 +1611,16 @@ export const getFormatting = (
         // Strip redundant `\'` escapes — single-quote doesn't need
         // escaping inside a double-quoted string.
         const newContent = contentText.split("\\'").join("'");
+        // Stop at the closing quote: the node also holds the whitespace
+        // after it, which belongs to the separator edits around the next
+        // operator (`'x' .. 'y'`), and replacing it here would drop them.
+        const quoteEnd =
+          document.read(endNode.from, endNode.from + 1) === "'"
+            ? endNode.from + 1
+            : endNode.from;
         const range: Range = {
           start: document.positionAt(node.from),
-          end: document.positionAt(node.to),
+          end: document.positionAt(quoteEnd),
         };
         pushIfInRange({
           lineNumber: range.start.line + 1,
@@ -1785,10 +1794,61 @@ const MERGEABLE: Set<string> = new Set([
   "keyword_separator|separator",
   "keyword_separator|keyword_separator",
   "separator|extra",
+  // A keyword's forced space replaces the extra whitespace after it
+  // (`with  (x)`) instead of being inserted beside it on every pass.
+  "keyword_separator|extra",
 ]);
 
 const isMergeable = (a: string, b: string) =>
   MERGEABLE.has(`${a}|${b}`) || MERGEABLE.has(`${b}|${a}`);
+
+// Folds quote rewrites into already-resolved edits. An edit that only
+// touches a rewrite changes different characters (`'x' .. 'y'` rewrites
+// `'x'` and the space after it), so the two are joined into one edit,
+// since touching edits are not applied independently. An edit that
+// overlaps a rewrite gives way to it, as the rewrite outranks every
+// whitespace edit. Both lists are in document order, so one merge pass
+// folds them.
+const foldQuoteRewrites = (
+  resolved: (TextEdit & { type: string })[],
+  quotes: (TextEdit & { type: string })[],
+  start: (e: TextEdit) => number,
+  end: (e: TextEdit) => number,
+): TextEdit[] => {
+  const result: (TextEdit & { type: string })[] = [];
+  let i = 0;
+  for (const quote of quotes) {
+    const q = structuredClone(quote);
+    const from = start(q);
+    const to = end(q);
+    // Everything that ends at or before the rewrite comes first.
+    while (i < resolved.length && end(resolved[i]!) <= from) {
+      result.push(resolved[i]!);
+      i++;
+    }
+    // An edit (or an earlier folded rewrite) ending where this one
+    // starts is joined in front of it.
+    const last = result.at(-1);
+    if (last && end(last) === from) {
+      result.pop();
+      q.newText = last.newText + q.newText;
+      q.range.start = last.range.start;
+    }
+    // Edits overlapping the rewrite give way to it; one starting where
+    // it ends is joined behind it.
+    while (i < resolved.length && start(resolved[i]!) <= to) {
+      const other = resolved[i]!;
+      if (start(other) === to) {
+        q.newText += other.newText;
+        q.range.end = other.range.end;
+      }
+      i++;
+    }
+    result.push(q);
+  }
+  result.push(...resolved.slice(i));
+  return result;
+};
 
 export const resolveFormattingConflicts = (
   edits: (TextEdit & { type: string })[] | undefined,
@@ -1800,6 +1860,21 @@ export const resolveFormattingConflicts = (
 
   const start = (e: TextEdit) => document.offsetAt(e.range.start);
   const end = (e: TextEdit) => document.offsetAt(e.range.end);
+
+  // A quote rewrite (`'x'` → `"x"`) changes only the string's own
+  // characters, so it is folded in after the whitespace edits around it
+  // have been resolved against each other: folding it in first would
+  // join each of them to the rewrite, and two edits at one boundary
+  // (`'a'|'b'`) would both keep their space.
+  if (edits.some((e) => e.type === "quote_normalize")) {
+    const rest = resolveFormattingConflicts(
+      edits.filter((e) => e.type !== "quote_normalize"),
+      document,
+      formattingOnType,
+    ) as (TextEdit & { type: string })[];
+    const quotes = edits.filter((e) => e.type === "quote_normalize");
+    return foldQuoteRewrites(rest, quotes, start, end);
+  }
 
   // Union the prev edit's range with curr's, keeping prev's `newText`.
   const unionInto = (

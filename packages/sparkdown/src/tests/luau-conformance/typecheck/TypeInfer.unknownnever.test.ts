@@ -240,7 +240,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     name: "index_on_union_of_tables_for_properties_that_is_never",
     fixture: "Fixture",
     skip: { newSolver: "upstream returns before checking on the new solver, which warns wrongly here (CLI-117116)" },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Disjoint = {foo: never, bar: unknown, tag: "ok"} | {foo: never, baz: unknown, tag: "err"}
 
@@ -257,7 +256,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     name: "index_on_union_of_tables_for_properties_that_is_sorta_never",
     fixture: "Fixture",
     skip: { newSolver: "upstream returns before checking on the new solver, which warns wrongly here (CLI-117116)" },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Disjoint = {foo: string, bar: unknown, tag: "ok"} | {foo: never, baz: unknown, tag: "err"}
 
