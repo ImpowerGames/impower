@@ -15,6 +15,7 @@ import type { LowerContext } from "../context";
 import { syntheticId } from "./documentTag";
 import {
   lowerExpressionFromContainer,
+  lowerExpressionFromContainerAndContinuation,
   lowerSimpleAccessPath,
   lowerValueChainAccessPath,
 } from "../expression/lowerExpression";
@@ -44,11 +45,13 @@ import {
 //
 // Returns a flat list of ParsedObjects (the temp decls + the store); the
 // caller wraps the list in a Weave.
+// `continuation` holds the lines that continue the value (`t` then `.a`).
 export function lowerPropertyTargetAssignment(
   lhsPath: SyntaxNode,
   opNode: SyntaxNode,
   opText: string | null,
   ctx: LowerContext,
+  continuation: SyntaxNode[] = [],
 ): ParsedObject[] | null {
   const parts = collectAccessParts(lhsPath);
   if (parts.length < 2) return null;
@@ -89,7 +92,11 @@ export function lowerPropertyTargetAssignment(
   const baseExpr = lowerBaseFromParts(baseParts, ctx);
   if (!baseExpr) return null;
 
-  const valueExpr = lowerExpressionFromContainer(opNode, ctx);
+  const valueExpr = lowerExpressionFromContainerAndContinuation(
+    opNode,
+    continuation,
+    ctx,
+  );
   if (!valueExpr) return null;
 
   // Plain `=`: just one StorePropertyAssignment — no LHS reuse needed.

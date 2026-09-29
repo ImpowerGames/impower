@@ -6,7 +6,8 @@ import { VariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarc
 import { VariableReference } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableReference";
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromContainer } from "../expression/lowerExpression";
+import { lowerExpressionFromContainerAndContinuation } from "../expression/lowerExpression";
+import { takeLineContinuation } from "../utils/lineContinuation";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { wrapInWeave } from "../utils/wrapInWeave";
@@ -34,6 +35,7 @@ export function lowerReassignment(
   ctx: LowerContext,
 ): CompiledBlock {
   const opText = readAssignmentOperatorText(opNode, ctx);
+  const continuation = takeLineContinuation(ctx);
 
   // `x =` / `count +=` with an empty RHS → Luau-style parse error. Covers both
   // the property-target and simple-identifier branches below.
@@ -45,6 +47,7 @@ export function lowerReassignment(
     opNode,
     opText,
     ctx,
+    continuation,
   );
   if (propertyAssignment) return wrapInWeave(propertyAssignment);
 
@@ -102,7 +105,11 @@ export function lowerReassignment(
     });
   }
 
-  let expr = lowerExpressionFromContainer(opNode, ctx);
+  let expr = lowerExpressionFromContainerAndContinuation(
+    opNode,
+    continuation,
+    ctx,
+  );
 
   if (opText && opText !== "=" && expr) {
     const binOp = opText.slice(0, -1);

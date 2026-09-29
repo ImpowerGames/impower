@@ -1,3 +1,4 @@
+import { type SyntaxNode } from "@lezer/common";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import type { CompilationConfig } from "../classes/annotators/CompilationAnnotator";
 
@@ -275,6 +276,21 @@ export interface LowerContext {
    * callers that keep no statement shapes.
    */
   statementStack?: import("./utils/statementShape").StatementShape[];
+  /**
+   * The lines that continue the statement being lowered: each
+   * `LuauLineContinuation` after it (`t` then `.a`) and the rest of that
+   * line. `lowerStatements` sets it before lowering the statement; the
+   * statement's lowerer takes it with `takeLineContinuation` and joins it to
+   * its last value.
+   */
+  lineContinuation?: SyntaxNode[] | null;
+  /**
+   * The start offsets of the continuation lines used while lowering the
+   * current statement (see `lower/utils/lineContinuation.ts`).
+   * `lowerStatements` reports each of the statement's continuation lines
+   * that is not among them.
+   */
+  usedLineContinuations?: Set<number> | null;
 }
 
 /**
