@@ -18,6 +18,7 @@
 
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { readScriptNames, type ScriptNames } from "./luauNames";
+import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 import {
   childNamed,
   childrenOf,
@@ -59,7 +60,7 @@ export interface LuauLint {
 
 // Nodes that stand for one Luau statement inside a block.
 const STATEMENTS = new Set([
-  "LuauVariableDefinition",
+  ...VARIABLE_DEFINITION_NAMES,
   "LuauReassignment",
   "LuauAccessPath",
   "LuauIfBlock",

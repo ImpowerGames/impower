@@ -248,6 +248,7 @@ function lowerInner(
     case "ImageAndAudioLine":
       return lowerImageAndAudioLine(nodeRef, ctx);
     case "LuauVariableDefinition":
+    case "LuauSparkdownVariableDefinition":
       return lowerVariableDefinition(nodeRef, ctx);
     case "LuauExplicitStatement":
       return lowerExplicitStatement(nodeRef, ctx);
