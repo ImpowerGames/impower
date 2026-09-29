@@ -45,7 +45,7 @@ import { PROFILE_CLAIM_FILE, checkoutDir } from "../drive-web-editor/session-dir
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, removeWorktree, gatherFacts, detachedHistory, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -1741,7 +1741,7 @@ await check("a detached head on origin/main stays while an operation is in progr
   const clean = { headOnMain: true, inProgress: [], headLogUnknown: null, headLogOrphans: 0, headIdleMs: 3 * 24 * 3600_000 };
   assert.equal(classify(det, facts(clean)).remove, true, "an idle detached head with nothing in progress was kept");
   kept(det, facts({ ...clean, inProgress: ["rebase-merge"] }), "an operation is in progress in it (rebase-merge)");
-  kept(det, facts({ ...clean, headLogOrphans: 2 }), "its HEAD reflog reaches 2 commits not on origin/main");
+  kept(det, facts({ ...clean, headLogOrphans: 2 }), "its HEAD reflog reaches 2 commits that origin/main, every branch, remote and tag do not");
   kept(det, facts({ ...clean, headIdleMs: 5 * 60_000 }), "its HEAD moved 5 min ago, within 24 hours");
   kept(det, facts({ ...clean, headLogUnknown: "its HEAD reflog could not be read (boom)" }), "its HEAD reflog could not be read (boom)");
 });
@@ -1755,7 +1755,6 @@ await check("a journal's recorded process still counts only while the pid's star
   assert.equal(recordedProcessAlive(21, procs.get(21), deps("t1")), true, "the same process");
   assert.equal(recordedProcessAlive(21, procs.get(21), deps("t2")), false, "a recycled pid");
   assert.equal(recordedProcessAlive(21, procs.get(21), deps(null)), false, "gone between the two checks");
-  assert.equal(recordedProcessAlive(21, procs.get(21), deps(undefined)), true, "start time unavailable");
   assert.equal(recordedProcessAlive(21, procs.get(21), { pidAlive: () => true, processStart: () => { throw new Error("x"); } }), true, "start time unreadable");
   assert.equal(recordedProcessAlive(22, procs.get(22), deps("t9")), true, "a bare pid is judged by its number");
   assert.equal(recordedProcessAlive(21, procs.get(21), { pidAlive: () => false, processStart: () => "t1" }), false, "no such pid");
@@ -1980,7 +1979,9 @@ await check("a merged review job whose recorded pid was recycled is removed; one
 // ------------------------------------------------ detached worktrees, real git ---
 
 {
-  const dscratch = fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-detached-"));
+  // Canonical, as the block above does: a Windows runner's TEMP is an 8.3 short
+  // path, and --root is compared with the long path git reports.
+  const dscratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-detached-")));
   console.log(`Scratch repository for detached worktrees: ${dscratch}`);
   const denv = {
     ...process.env,
@@ -1992,11 +1993,13 @@ await check("a merged review job whose recorded pid was recycled is removed; one
     GIT_AUTHOR_EMAIL: "check@example.invalid",
     GIT_COMMITTER_NAME: "check",
     GIT_COMMITTER_EMAIL: "check@example.invalid",
-    GIT_CONFIG_COUNT: "2",
+    GIT_CONFIG_COUNT: "3",
     GIT_CONFIG_KEY_0: "commit.gpgsign",
     GIT_CONFIG_VALUE_0: "false",
     GIT_CONFIG_KEY_1: "init.defaultBranch",
     GIT_CONFIG_VALUE_1: "main",
+    GIT_CONFIG_KEY_2: "core.longpaths",
+    GIT_CONFIG_VALUE_2: "false",
   };
   fs.mkdirSync(denv.TEMP, { recursive: true });
   const OLD = "2020-01-01T00:00:00Z";
@@ -2034,8 +2037,10 @@ await check("a merged review job whose recorded pid was recycled is removed; one
     dgit(dmain, "push", "-q", "-u", "origin", "main");
     dgit(path.join(dscratch, "origin.git"), "symbolic-ref", "HEAD", "refs/heads/main");
     dgit(dmain, "remote", "set-head", "origin", "--auto");
-    const add = (name, git = oldGit) => {
-      git(dmain, "worktree", "add", "-q", "--detach", path.join(droot, name), "origin/main");
+    oldGit(dmain, "commit", "-q", "--allow-empty", "-m", "two");
+    dgit(dmain, "push", "-q", "origin", "main");
+    const add = (name, git = oldGit, at = "origin/main") => {
+      git(dmain, "worktree", "add", "-q", "--detach", path.join(droot, name), at);
       return path.join(droot, name);
     };
     add("old-clean");
@@ -2049,15 +2054,30 @@ await check("a merged review job whose recorded pid was recycled is removed; one
     oldGit(orphan, "checkout", "-q", "--detach", "origin/main");
     const ahead = add("ahead");
     oldGit(ahead, "commit", "-q", "--allow-empty", "-m", "ahead of main");
+    // Created long ago, checked out onto another main commit just now: the
+    // newest reflog entry is what says it was used.
+    add("revisited", oldGit, "origin/main~1");
+    dgit(path.join(droot, "revisited"), "checkout", "-q", "--detach", "origin/main");
+    // Its only reference to a commit off main is a per-worktree ref.
+    const wtref = add("wtref");
+    dgit(wtref, "update-ref", "refs/worktree/keep", dgit(wtref, "commit-tree", "HEAD^{tree}", "-p", "HEAD", "-m", "held by a worktree ref"));
+    // Visited a commit that a branch also holds, so removing it loses nothing.
+    const visited = add("visited-branch");
+    oldGit(visited, "commit", "-q", "--allow-empty", "-m", "on a branch");
+    dgit(visited, "branch", "side", "HEAD");
+    oldGit(visited, "checkout", "-q", "--detach", "origin/main");
 
-    await check("a dry run removes only the idle clean detached worktree on origin/main, and keeps a fresh, dirty, mid-rebase, reflog-orphaning or unmerged one with its reason", () => {
+    await check("a dry run removes only the idle clean detached worktrees on origin/main, and keeps a fresh, revisited, dirty, mid-rebase, reflog- or ref-orphaning or unmerged one with its reason", () => {
       const r = dcli();
       assert.equal(r.status, 0, r.out);
       assert.match(rowFor(r.out, "old-clean"), /^remove\s.*detached head at a commit already on origin\/main/);
       assert.match(rowFor(r.out, "fresh"), /^keep\s.*its HEAD moved .* min ago, within 24 hours/);
       assert.match(rowFor(r.out, "dirty"), /^keep\s.*uncommitted changes \(1 file\)/);
       assert.match(rowFor(r.out, "rebasing"), /^keep\s.*an operation is in progress in it \(rebase-merge\)/);
-      assert.match(rowFor(r.out, "orphan"), /^keep\s.*its HEAD reflog reaches 1 commit not on origin\/main/);
+      assert.match(rowFor(r.out, "revisited"), /^keep\s.*its HEAD moved .* min ago, within 24 hours/);
+      assert.match(rowFor(r.out, "visited-branch"), /^remove\s/);
+      assert.match(rowFor(r.out, "orphan"), /^keep\s.*its HEAD reflog reaches 1 commit that origin\/main, every branch, remote and tag do not/);
+      assert.match(rowFor(r.out, "wtref"), /^keep\s.*reaches 1 commit that origin\/main, every branch, remote and tag do not/);
       assert.match(rowFor(r.out, "ahead"), /^keep\s.*its commit is not known to be on origin\/main/);
     });
 
@@ -2066,13 +2086,86 @@ await check("a merged review job whose recorded pid was recycled is removed; one
       const r = dcli("--apply", "--root", dmain);
       assert.equal(r.status, 0, r.out);
       assert.match(rowFor(r.out, "old-clean"), /^removed\s/);
-      assert.match(r.out, /Removed 1 worktree \(detached, so no branch\)/);
-      assert.equal(fs.existsSync(path.join(droot, "old-clean")), false, "the removable detached worktree is still on disk");
-      for (const name of ["fresh", "dirty", "rebasing", "orphan", "ahead"]) {
+      assert.match(r.out, /Removed 2 worktrees \(detached, so no branch\)/);
+      for (const name of ["old-clean", "visited-branch"]) assert.equal(fs.existsSync(path.join(droot, name)), false, `${name} is still on disk`);
+      for (const name of ["fresh", "revisited", "wtref", "dirty", "rebasing", "orphan", "ahead"]) {
         assert.ok(fs.existsSync(path.join(droot, name)), `${name} was removed`);
         assert.ok(dgit(dmain, "worktree", "list", "--porcelain").replaceAll("\\", "/").includes(`${droot.replaceAll("\\", "/")}/${name}`), `${name} lost its worktree record`);
       }
       assert.equal(dgit(dmain, "for-each-ref", "--format=%(refname)", "refs/heads/"), before, "a branch was deleted");
+    });
+
+    await check("removeWorktree re-verifies a detached tree at removal: one that became dirty, mid-rebase, branched, moved or freshly used since it was classified is kept, an unchanged one removed", async () => {
+      const ctxD = { root: droot, mainRoot: dmain, defaultBranches: new Set(["main"]) };
+      const mk = (name, at = "origin/main") => {
+        const p = add(name, oldGit, at);
+        return { path: p, head: dgit(p, "rev-parse", "HEAD"), branch: null, detached: true };
+      };
+      const keptWith = async (e, note) => {
+        const r = await removeWorktree(e, ctxD, liveDeps);
+        assert.equal(r.outcome, "kept", `${path.basename(e.path)}: ${r.outcome} ${r.note}`);
+        assert.match(r.note, note, path.basename(e.path));
+        assert.ok(fs.existsSync(e.path), `${path.basename(e.path)} was removed`);
+      };
+      const ok = mk("late-ok");
+      const dirty = mk("late-dirty");
+      fs.writeFileSync(path.join(dirty.path, "new.txt"), "work\n");
+      const rebase = mk("late-rebase");
+      fs.mkdirSync(dgit(rebase.path, "rev-parse", "--git-path", "rebase-merge"), { recursive: true });
+      const branch = mk("late-branch");
+      oldGit(branch.path, "checkout", "-q", "-b", "latebranch");
+      const moved = mk("late-moved", "origin/main~1");
+      oldGit(moved.path, "checkout", "-q", "--detach", "origin/main");
+      const fresh = mk("late-fresh");
+      dgit(fresh.path, "checkout", "-q", "--detach", "origin/main~1");
+      fresh.head = dgit(fresh.path, "rev-parse", "HEAD");
+      await keptWith(dirty, /uncommitted changes \(1 file\)/);
+      await keptWith(rebase, /an operation is in progress in it \(rebase-merge\)/);
+      await keptWith(branch, /now on latebranch/);
+      await keptWith(moved, /HEAD is [0-9a-f]{40}/);
+      await keptWith(fresh, /its HEAD moved .* min ago/);
+      const r = await removeWorktree(ok, ctxD, liveDeps);
+      assert.equal(r.outcome, "removed", r.note);
+      assert.equal(fs.existsSync(ok.path), false);
+    });
+
+    await check("gatherFacts fills a detached tree's servers and command-line users, and classify keeps it for them", () => {
+      const p = add("gathered");
+      const e = { path: p, head: dgit(p, "rev-parse", "HEAD"), branch: null, detached: true, locked: null, prunable: null };
+      const ctxG = { root: droot, mainRoot: dmain, defaultBranches: new Set(["main"]), firstParent: new Set(), processes: { ok: true, list: [{ pid: 4242, name: "node.exe", cmd: `node ${p}` }] } };
+      const deps = {
+        ...liveDeps,
+        exists: (q) => liveDeps.exists(q) || q.endsWith(path.join("drive-web-editor", "driver.mjs")),
+        exec: (cmd, args, cwd, t) => (cmd === "git" ? liveDeps.exec(cmd, args, cwd, t) : { status: 0, out: "UP  url=http://localhost:1  pid=1  mode=same-origin  state=s", err: "" }),
+      };
+      const verdict = classify(e, gatherFacts(e, ctxG, deps));
+      assert.equal(verdict.remove, false);
+      const text = verdict.reasons.join(" | ");
+      assert.match(text, /dev servers up at http:\/\/localhost:1/);
+      assert.match(text, /command line of pid 4242/);
+    });
+
+    await check("detachedHistory keeps a tree for each operation in progress and each answer git does not give", () => {
+      const ok = (out = "") => ({ status: 0, out, err: "" });
+      const bad = { status: 1, out: "", err: "boom" };
+      const answers = (over = {}) => (args) => {
+        const key = args[0];
+        if (over[key]) return over[key];
+        if (key === "rev-parse") return ok(`/git/${args[2]}`);
+        if (key === "reflog") return ok("aaa\tHEAD@{1000}");
+        return ok("0");
+      };
+      const run = (over, present = () => false) => detachedHistory("/w", { mainRoot: "/m" }, { now: () => new Date(2_000_000).toISOString(), exists: (p) => present(p.replaceAll("\\", "/")), exec: (cmd, args) => answers(over)(args) });
+      for (const name of ["rebase-merge", "rebase-apply", "BISECT_LOG", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"]) assert.deepEqual(run({}, (p) => p.endsWith(`/${name}`)).inProgress, [name], name);
+      const clean = run({});
+      assert.deepEqual([clean.inProgress, clean.headLogUnknown, clean.headLogOrphans, clean.headIdleMs], [[], null, 0, 1_000_000]);
+      assert.match(run({ "rev-parse": bad }).headLogUnknown, /could not locate its rebase-merge state/);
+      assert.match(run({ reflog: bad }).headLogUnknown, /HEAD reflog could not be read/);
+      assert.match(run({ reflog: ok("") }).headLogUnknown, /reflog is empty/);
+      assert.match(run({ reflog: ok("aaa\tnot-a-time") }).headLogUnknown, /too long or unreadable/);
+      assert.match(run({ "for-each-ref": bad }).headLogUnknown, /per-worktree refs could not be read/);
+      assert.match(run({ "rev-list": bad }).headLogUnknown, /could not be read/);
+      assert.equal(run({ "rev-list": ok("3") }).headLogOrphans, 3);
     });
   } finally {
     fs.rmSync(dscratch, { recursive: true, force: true });

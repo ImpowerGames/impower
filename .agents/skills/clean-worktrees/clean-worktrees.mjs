@@ -343,7 +343,7 @@ export function detachedKeeps(facts) {
   const keep = [];
   if (facts.inProgress?.length) keep.push(`an operation is in progress in it (${facts.inProgress.join(", ")}); finish or abort it first`);
   if (facts.headLogUnknown) keep.push(`${facts.headLogUnknown}; left for a person`);
-  if (facts.headLogOrphans > 0) keep.push(`its HEAD reflog reaches ${n(facts.headLogOrphans, "commit")} not on origin/main, which removing it would leave unreferenced`);
+  if (facts.headLogOrphans > 0) keep.push(`its HEAD reflog reaches ${n(facts.headLogOrphans, "commit")} that origin/main, every branch, remote and tag do not, which removing it would leave unreferenced`);
   if (facts.headIdleMs != null && facts.headIdleMs < DETACHED_IDLE_MS) keep.push(`its HEAD moved ${Math.max(0, Math.round(facts.headIdleMs / 60000))} min ago, within ${DETACHED_IDLE_MS / 3600000} hours; a fresh checkout a session may be working in, so remove it by hand when it is done`);
   return keep;
 }
@@ -552,13 +552,22 @@ export function detachedHistory(abs, ctx, deps) {
     return facts;
   }
   facts.headIdleMs = Date.parse(deps.now()) - newest * 1000;
-  const behind = deps.exec("git", ["rev-list", "--count", ...hashes, "^refs/remotes/origin/main"], ctx.mainRoot);
-  if (behind.status !== 0) facts.headLogUnknown = `whether its HEAD reflog holds commits off origin/main could not be read (${behind.err || behind.out})`;
-  else facts.headLogOrphans = Number(behind.out);
+  // A per-worktree ref (refs/worktree, and the bisect and rebase refs) is
+  // deleted with the tree just as the reflog is, so what it holds counts too.
+  const own = deps.exec("git", ["for-each-ref", "--format=%(objectname)", "refs/worktree", "refs/bisect", "refs/rewritten"], abs);
+  if (own.status !== 0) {
+    facts.headLogUnknown = `its per-worktree refs could not be read (${own.err || own.out || `exit ${own.status}`})`;
+    return facts;
+  }
+  const held = [...new Set([...hashes, ...own.out.split(/\r?\n/).filter(Boolean)])];
+  // Only what no branch, remote or tag also reaches would be left unreferenced.
+  const alone = deps.exec("git", ["rev-list", "--count", ...held, "--not", "refs/remotes/origin/main", "--branches", "--remotes", "--tags"], ctx.mainRoot);
+  if (alone.status !== 0) facts.headLogUnknown = `whether its HEAD reflog holds commits nothing else reaches could not be read (${alone.err || alone.out})`;
+  else facts.headLogOrphans = Number(alone.out);
   return facts;
 }
 
-function gatherFacts(entry, ctx, deps) {
+export function gatherFacts(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const facts = {
     isMain: samePath(abs, ctx.mainRoot),
@@ -726,7 +735,7 @@ function registration(abs, ctx, deps) {
   return { known: true, registered: parseWorktreeList(r.out).some((e) => samePath(e.path, abs)) };
 }
 
-async function removeWorktree(entry, ctx, deps) {
+export async function removeWorktree(entry, ctx, deps) {
   const abs = path.resolve(entry.path);
   const kept = (note) => ({ outcome: "kept", note, remaining: null });
   const failed = (note, remaining) => ({ outcome: "failed", note, remaining });
@@ -771,7 +780,7 @@ async function removeWorktree(entry, ctx, deps) {
     if (!deps.exists(abs)) notes.push(`git worktree remove reported an error but the directory is gone (${gitErr})`);
     else {
       const reg = registration(abs, ctx, deps);
-      if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand; the branch stays until then`, await bytesUnder(abs, deps));
+      if (!reg.known) return failed(`git worktree remove failed (${gitErr}) and whether git still holds its record could not be read (git worktree list failed: ${reg.err}); nothing more was touched; check the directory and \`git worktree list\` by hand${entry.detached ? "" : "; the branch stays until then"}`, await bytesUnder(abs, deps));
       if (reg.registered) {
         // Git checks the lock, the submodules and the tree's changes before
         // it deletes anything and drops its record after deleting, so a
@@ -1057,7 +1066,6 @@ export function recordedProcessAlive(pid, starts, deps) {
   } catch {
     return true;
   }
-  if (now === undefined) return true;
   return now !== null && starts.has(now);
 }
 
