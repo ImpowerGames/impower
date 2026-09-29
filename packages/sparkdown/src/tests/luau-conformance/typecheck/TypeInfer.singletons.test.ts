@@ -416,7 +416,6 @@ local a: Result = { success = false, result = 'something' }
     // TypeInfer.singletons.test.cpp:474 TEST_CASE_FIXTURE(Fixture, "if_then_else_expression_singleton_options")
     name: "if_then_else_expression_singleton_options",
     fixture: "Fixture",
-    unparsed: { defect: 923 }, // an if expression with an = before its else
     source: `
 type Cat = { tag: 'cat', catfood: string }
 type Dog = { tag: 'dog', dogfood: string }
@@ -446,7 +445,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     name: "return_type_of_f_is_not_widened",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
-    unparsed: { defect: 881 }, // an if expression written over several lines
     source: `
         local function foo(f, x): "hello"? -- anyone there?
             return if x == "hi"
@@ -582,7 +580,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:666 TEST_CASE_FIXTURE(Fixture, "tagged_union_in_ternary")
     name: "tagged_union_in_ternary",
     fixture: "Fixture",
-    unparsed: { defect: 923 }, // an if expression with an = before its else
     source: `
         type Result = { type: "ok", value: unknown } | { type: "error" }
 

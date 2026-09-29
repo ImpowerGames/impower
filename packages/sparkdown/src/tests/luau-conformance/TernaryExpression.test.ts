@@ -9,6 +9,7 @@
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 
 function compileAndCapture(source: string): {
@@ -46,6 +47,33 @@ function compileAndCapture(source: string): {
   story.onError = (m: string) => errors.push(m);
   const text = story.ContinueMaximally();
   return { errors, recorded, text };
+}
+
+// The if-expression syntax errors of a source, as `line:col-line:col message`
+// with one-based positions.
+function ifDiagnostics(source: string): string[] {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: "inmemory:///main.sd",
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
+  return Object.values(result.program.diagnostics ?? {})
+    .flat()
+    .filter((d: any) => String(d.message?.value ?? d.message).includes("when parsing"))
+    .map((d: any) => {
+      const { start, end } = d.range;
+      return `${start.line + 1}:${start.character + 1}-${end.line + 1}:${end.character + 1} ${d.message?.value ?? d.message}`;
+    });
 }
 
 describe("if-then-else expressions", () => {
@@ -394,6 +422,275 @@ end`);
       errors: r.errorMessages,
       warnings: r.warningMessages,
     }).toEqual({ returnedOK: true, errors: [], warnings: [] });
+  });
+});
+
+// An if expression continues across line breaks until its else arm has a
+// value, as any Luau expression does.
+describe("if expression across lines", () => {
+  test.each([
+    [
+      "condition on its own line",
+      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1 else 2\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "one clause per line",
+      "Value {f()}.\nfunction f()\n  local x = if true\n    then 1\n    else 2\n  return x\nend\n",
+      "Value 1.\n",
+    ],
+    [
+      "else arm on the next line",
+      "Value {f()}.\nfunction f()\n  local x = if false then 1\n    else 2\n  return x\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "returned",
+      "Value {f(false)}.\nfunction f(x)\n  return if x\n    then 1\n    else 3\nend\n",
+      "Value 3.\n",
+    ],
+    [
+      "elseif chain",
+      "Value {f()}.\nfunction f()\n  local x = if false\n    then 1\n    elseif true\n    then 2\n    else 3\n  return x\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "a value on the line after then and else",
+      "Value {f()}.\nfunction f()\n  local x = if false\n  then\n    1\n  else\n    2\n  return x\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "nested",
+      "Value {f()}.\nfunction f()\n  local y = if true\n    then if false\n      then 1\n      else 2\n    else 3\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "a condition and an arm split inside parentheses",
+      "Value {f(true, true)}.\nfunction f(a, b)\n  local y = if (a and\n    b)\n    then (1\n      + 10)\n    else 2\n  return y\nend\n",
+      "Value 11.\n",
+    ],
+    [
+      "a continuation line in the condition and the then arm",
+      "Value {f({ok = true, a = 1})}.\nfunction f(t)\n  local y = if t\n    .ok\n    then t\n      .a\n      + 10\n    else 2\n  return y\nend\n",
+      "Value 11.\n",
+    ],
+    [
+      "a continuation line in an elseif condition",
+      "Value {f(2)}.\nfunction f(c)\n  local y = if c\n    == 1\n    then 1\n    elseif c\n      == 2\n    then 2\n    else 3\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "an operation after the else arm's value on its line",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 2 + 10\n  return y\nend\n",
+      "Value 1 12.\n",
+    ],
+    [
+      "a continuation line after the else arm's value",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 2\n    + 10\n  return y\nend\n",
+      "Value 1 12.\n",
+    ],
+    [
+      "a continuation line after the else arm, with an operand before the expression",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = 100 + if c then 1 else 2\n    + 10\n  return y\nend\n",
+      "Value 101 112.\n",
+    ],
+    [
+      "a minus line after the else arm's value",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 20\n    - 1\n  return y\nend\n",
+      "Value 1 19.\n",
+    ],
+    [
+      "a continuation line after a returned else arm",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  return if c then 1 else 2\n    + 10\nend\n",
+      "Value 1 12.\n",
+    ],
+    [
+      "a continuation line after a nested else arm",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else if c then 2 else 3\n    + 10\n  return y\nend\n",
+      "Value 1 13.\n",
+    ],
+    [
+      "a line that begins with and or or in the condition, an arm and after the else value",
+      "Value {f(false)} {f(true)}.\nfunction f(c)\n  local y = if c\n    or false\n    then 5\n      and 6\n    else nil\n      or 7\n  return y\nend\n",
+      "Value 7 6.\n",
+    ],
+    [
+      "a line that begins with or after a value in brackets and in a statement",
+      "Value {f()}.\nfunction f()\n  local a = (false\n    or true)\n  local b = false\n    or a\n  return if b then 1 else 2\nend\n",
+      "Value 1.\n",
+    ],
+    [
+      "arms that begin with a unary operator",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c\n    then -1\n    else if not c then 2 else 3\n  return y\nend\n",
+      "Value -1 2.\n",
+    ],
+    [
+      "a continuation line after a bracketed if expression",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = (if c then 1 else 2)\n    + 10\n  return y\nend\n",
+      "Value 11 12.\n",
+    ],
+    [
+      "a continuation line after a call whose last argument is an if expression",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = tostring(if c then 1 else 2)\n    .. \"0\"\n  return y\nend\n",
+      "Value 10 20.\n",
+    ],
+    [
+      "a minus line and an indexer line in the then arm",
+      "Value {f({5})}.\nfunction f(t)\n  local y = if t\n    then t\n      [1]\n      - 1\n    else 2\n  return y\nend\n",
+      "Value 4.\n",
+    ],
+    [
+      "nested on the line after then",
+      "Value {f(true, false)}.\nfunction f(a, b)\n  local y = if a\n    then\n      if b\n        then 1\n        else 2\n    else 3\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "nested in the else arm",
+      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1\n    else if false\n      then 2\n      else 3\n  return y\nend\n",
+      "Value 3.\n",
+    ],
+    [
+      "a call argument",
+      "Value {f()}.\nfunction f()\n  return tostring(if false\n    then 1\n    else 2)\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "an operand",
+      "Value {f()}.\nfunction f()\n  local x = 10 + if false\n    then 1\n    else 2\n  return x\nend\n",
+      "Value 12.\n",
+    ],
+  ])("%s", (_name, source, expected) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect({
+      errors: ctx.errorMessages,
+      warnings: ctx.warningMessages,
+      text: ctx.story.ContinueMaximally(),
+    }).toEqual({ errors: [], warnings: [], text: expected });
+  });
+});
+
+// After `=`, `return` or an opening bracket, an `if` begins an expression
+// even when an `=` comes before its else, as in a table field.
+describe("if expression with an = before its else", () => {
+  test.each([
+    ['local x = if t[1] then {a = "y"} else 2\n  return x.a', "Value y.\n"],
+    ['local x = if t then {[1] = "y"} else 2\n  return x[1]', "Value y.\n"],
+    ['return if true then "a=b" else "c"', "Value a=b.\n"],
+    ["return if next({a = 1}) then 1 else 2", "Value 1.\n"],
+  ])("%s", (body, expected) => {
+    const ctx = makeRuntimeStoryFromSource(
+      `Value {f()}.\nfunction f()\n  local t = {1}\n  ${body}\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(expected);
+  });
+});
+
+// Luau rejects an if expression with no else arm. One whose then or else is
+// not yet written ends with its own lines, so the lines and functions after
+// it are still read as they are written.
+describe("if expression without an else", () => {
+  const MISSING_CONDITION = "Expected identifier when parsing expression";
+  const MISSING_THEN = "Expected 'then' when parsing if then else expression";
+  const MISSING_ELSE = "Expected 'else' when parsing if then else expression";
+
+  test.each([
+    ["no then yet", "  local y = if true\n", MISSING_THEN],
+    ["no else yet", "  local y = if true\n    then 1\n", MISSING_ELSE],
+    ["no else on one line", "  local y = if true then 1\n", MISSING_ELSE],
+    ["a bare if", "  local y = if\n", MISSING_CONDITION],
+    ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN],
+  ])("%s: reports it and keeps what follows", (_name, partial, message) => {
+    const ctx = makeRuntimeStoryFromSource(
+      `The door is open.\nSum {g()}.\nfunction f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nYou walk through it.\n`,
+    );
+    expect(ctx.errorMessages.filter((m) => m.includes("when parsing"))).toEqual([
+      expect.stringContaining(message),
+    ]);
+    expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(
+      "The door is open.\nSum 6.\nYou walk through it.\n",
+    );
+  });
+
+  test("in a call argument, an index and a table", () => {
+    for (const expr of ["print(if c then 1)", "local t = {}\n  print(t[if c then 1])", "local t = {if c then 1}"]) {
+      const ctx = makeRuntimeStoryFromSource(`function f(c)\n  ${expr}\nend\n`);
+      expect(ctx.errorMessages.filter((m) => m.includes(MISSING_ELSE)), expr).toHaveLength(1);
+    }
+  });
+
+  test.each([
+    ["no then before elseif", "  local y = if true elseif false then 1 else 2\n", MISSING_THEN, "2:13-2:15"],
+    ["an empty then arm", "  local y = if true then\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["an empty else arm", "  local y = if true then 1 else\n", MISSING_CONDITION, "2:28-2:32"],
+    ["a then arm with only a comment", "  local y = if true then -- no value\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a continuation line", "  local y = if true then\n    + 1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a minus", "  local y = if true then\n    -\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a chain of unary operators", "  local y = if true then\n    not not\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a cast","  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm at column 0 on the line after then", "  local y = if true then\n1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", MISSING_CONDITION, "3:17-3:21"],
+    ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
+  ])("%s: reports it on the keyword that is short and keeps what follows", (_name, partial, message, at) => {
+    const source = `function f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nSum {g()}.\nYou walk through it.\n`;
+    expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\nYou walk through it.\n");
+  });
+
+  // The function's own `end` at column 0 comes straight after the unfinished
+  // expression, so nothing indented separates the two.
+  test.each([
+    ["a then arm with only a comment", "  local y = if true\n    then -- still writing\n", MISSING_CONDITION, "3:5-3:9"],
+    ["no else yet", "  local y = if true\n    then 1\n", MISSING_ELSE, "2:13-2:15"],
+    ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
+    ["a reassignment with no else yet", "  x = if true\n    then 1\n", MISSING_ELSE, "2:7-2:9"],
+  ])("%s, right before the function's end: keeps the next function", (_name, body, message, at) => {
+    const source = `function f()\n${body}end\nfunction g()\n  return 6\nend\nSum {g()}.\n`;
+    expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
+  });
+
+  test("in an & statement, followed by a statement at column 0", () => {
+    const source = `& x = 0\n& x = if true\n  then 1\nx = 6\nValue {x}.\n`;
+    expect(ifDiagnostics(source)).toEqual([`2:7-2:9 ${MISSING_ELSE}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+  });
+
+  test("in a Sparkle prop binding", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `layout main with\n  text "x" #opacity={if true then 1}\nend\n`,
+    );
+    expect(ctx.errorMessages.filter((m) => m.includes(MISSING_ELSE))).toHaveLength(1);
+  });
+
+  test("display text may leave out the else", () => {
+    const ctx = makeRuntimeStoryFromSource(`A {if f() then "B"}.\nfunction f()\n  return true\nend\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("A B.\n");
+  });
+
+  test("a display line that is only the interpolation may leave out the else", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `{if f() then "A"}\n{if false then "x" elseif f() then "B"}\nscene main\n  {if f() then "C"}\nend\nfunction f()\n  return true\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("A\nB\n");
+  });
+
+  test("choice text may leave out the else", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `choose\n  * [Take {if f() then "it"}]\nend\nfunction f()\n  return true\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    ctx.story.ContinueMaximally();
+    expect(ctx.story.currentChoices.map((c) => c.text)).toEqual(["Take it"]);
   });
 });
 

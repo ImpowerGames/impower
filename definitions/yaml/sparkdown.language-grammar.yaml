@@ -234,6 +234,10 @@ variables:
   # `else @/x/gthen`). The flags are bounded so the lookbehind stays one
   # Oniguruma accepts.
   AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
+  # What begins a statement rather than a value when it begins a line: the
+  # keywords `LuauReturnStatement` stops at, a `;`, and a named
+  # function declaration (a `function` literal is a value).
+  LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -286,6 +290,10 @@ variables:
   LUAU_MINUS_LINE_START: -(?![->])
   # A `[` that begins an indexer, not a `[[` or `[=[` long string.
   LUAU_INDEXER_LINE_CONTINUATION: (?:{{WS}}*\[(?!=*\[))
+  # A line that continues a value inside an expression that spans lines (an
+  # if expression's condition or arm): a continuation line, an indexer line,
+  # or a `-` line, which there reads as subtraction from the value before it.
+  LUAU_EXPRESSION_LINE_CONTINUATION: (?:{{LUAU_LINE_CONTINUATION}}|{{LUAU_INDEXER_LINE_CONTINUATION}}|{{WS}}*{{LUAU_MINUS_LINE_START}})
   # The `.` after a type's module name, with the whitespace Luau allows before
   # it. Every type rule that reads or yields to a qualified name uses this.
   LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
@@ -3226,7 +3234,10 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|$
+    # A statement ends at its line's end; it only stands at the start of a
+    # line when a value that spans lines, such as an unfinished if
+    # expression, took the line break and ended there, which ends it too.
+    end: (?={{BEAT}})|$|(?=^)
 
   LuauExplicitStatementMark:
     tag: keyword
@@ -6197,7 +6208,8 @@ repository:
     # Terminate before `;` too, so `local x = f();` closes this rule and
     # `LuauVariableDefinition` before the `;`, which the enclosing
     # statement context reads as `LuauSemicolonSeparator`.
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;])
+    # A line start ends it as it ends `LuauAssignmentOperation`.
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;])
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -6630,6 +6642,10 @@ repository:
   # The whitespace after `if` or `elseif` and before `then` separates a keyword
   # from its operand, so it is a separator the formatter keeps as one space
   # (`if c then`, not `if cthen`).
+  # A condition reads on to the next line only when that line begins with its
+  # `then` or continues the condition (`LuauLineContinuation`). Any other
+  # line ends it, so a condition whose `then` is not yet written ends with
+  # its own line rather than reading the lines below into the expression.
   LuauTernaryExpressionCondition:
     begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
     beginCaptures:
@@ -6638,11 +6654,13 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?={{BEAT}})|(?=$|{{WS}})|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
+    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
     endCaptures:
       1:
         emit: true
@@ -6895,8 +6913,15 @@ repository:
   # discrimination, an inline statement-position `if cond then stmt
   # end` parses as a ternary, eats the `end`, and cascades the parse
   # out of the enclosing function-body context.
+  # An `if` that follows an operator, an opening bracket, a comma, `return`
+  # or the `then` or `else` of an enclosing if expression on its line can
+  # only begin an expression, so it begins one whatever follows on that line;
+  # its clauses may then continue on the lines below. So does an `if` that
+  # begins its line where an expression is read, such as an arm's value on
+  # the line after its `then` or `else`; where a statement is read, the
+  # statement rules take a line-starting `if` before any expression rule.
   LuauTernaryExpression:
-    begin: ({{WS}}*)(if)\b({{WS}}*)(?=(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\}))
+    begin: (?:(?<=^{{WS}}*|(?:[-+*/%^<>=~(\[{,]|[.][.]|\b(?:return|and|or|not|then|else)\b){{WS}}*)|(?={{WS}}*if\b(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\})))({{WS}}*)(if)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -6934,10 +6959,21 @@ repository:
     # `,` or `;`. Without the bracket alternatives, the rule would
     # only close via parent force-close (an
     # `[ScopedRule:LuauTernaryExpression] Incomplete scope` warning at
-    # parse time). The `$` alternative makes the ternary single-line;
-    # the clause rules (`LuauThenExpression` / `LuauElseExpression`)
-    # already end at `$` themselves, so a line break mid-ternary was
-    # never parseable anyway.
+    # parse time).
+    #
+    # A clause may begin a line of its own. The condition reads on to a
+    # line that begins with its `then`, the then arm to a line that begins
+    # with its `else` or `elseif`, and the `then` and `else` keywords take
+    # the line break after them, so while a clause is still to come on the
+    # next line, one of those rules is open and this level does not meet
+    # the end of the line. Any other line ends the clause and, at the start
+    # of that line, this expression, so an expression whose `then` or
+    # `else` is not yet written ends with its own lines instead of reading
+    # the lines below into itself. An arm whose `then` or `else` ends its
+    # line takes its value from the next line, unless that line begins a
+    # statement (`LUAU_STATEMENT_LINE_START`), which ends the arm empty and
+    # this expression with it. `ValidationAnnotator` reports the missing
+    # clause or value.
     #
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
@@ -6945,7 +6981,7 @@ repository:
     # before its own `then`, and a `then` glued to its end, so whitespace
     # followed by `then` or `do` at this level only follows a completed arm,
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
-    end: (?={{BEAT}}|$|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
+    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -6960,15 +6996,20 @@ repository:
     patterns:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
+      - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
-    # End at the next ternary clause keyword, at a BEAT, at a closing
-    # bracket / arg separator, or at the first WS after the `then`
-    # body finishes (the single-line single-token case). The `else`
-    # / `elseif` alternatives are needed because in inline ternary
-    # the surrounding `LuauTernaryExpression` no longer ends at
-    # `(?=then)`, so this rule has to relinquish the cursor at the
-    # next clause boundary on its own.
-    end: (?={{BEAT}}|else\b|elseif\b|$|{{WS}}|[)}\],;])
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # End at the next ternary clause keyword, at a BEAT, or at a closing
+    # bracket / arg separator. The arm reads on to the next line only when
+    # that line begins with its `else` or `elseif` or continues the arm's
+    # value (`LuauLineContinuation`), so the enclosing
+    # expression, which ends at the end of a line, stays open while that
+    # clause is still to come, and a line that begins anything else ends
+    # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
+    # ends its line, a next line that begins a statement also ends the arm.
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)
@@ -7004,8 +7045,9 @@ repository:
     # otherwise leave the scope to be force-closed by the outer
     # interpolation / paren / index rule. The glued alternative closes the
     # arm before the `then` or `do` of the statement whose condition it
-    # ends (see `LuauTernaryExpression`'s `end`).
-    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
+    # ends (see `LuauTernaryExpression`'s `end`). After an `else` that ends
+    # its line, a next line that begins a statement ends the arm empty.
+    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)
@@ -7741,6 +7783,9 @@ repository:
   #
   # Only Luau-only contexts include it: in a body that also holds display
   # lines, a line starting with `.` is prose.
+  #
+  # `and` and `or` are tried before an access part, which would otherwise
+  # read either as a name.
   LuauLineContinuation:
     begin: ^({{WS}}*)(?={{LUAU_LINE_CONTINUATION}})
     beginCaptures:
@@ -7748,6 +7793,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauLogicalOperation" }
       - { include: "#LuauAccessPart" }
       - { include: "#LuauParenthetical" }
       - { include: "#LuauString" }
@@ -7755,7 +7801,6 @@ repository:
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
-      - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
     end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
@@ -8623,7 +8668,10 @@ repository:
       - { include: "#LuauAssignmentOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    # An assignment's value ends at its line's end; it only stands at the
+    # start of a line when a value that spans lines, such as an unfinished if
+    # expression, took the line break and ended there, which ends it too.
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
     beginCaptures:
