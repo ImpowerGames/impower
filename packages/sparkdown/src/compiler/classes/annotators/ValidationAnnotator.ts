@@ -109,54 +109,104 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const TYPE_NAME_EXTRA_QUALIFIER =
   "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
-// Luau's parser reports the first clause of an if expression it does not
-// find in these words (`parseIfElseExpr`). It adds the token it found
-// instead, which lies outside the expression, so these leave it out.
-const IF_EXPRESSION_WITHOUT_CONDITION =
+// Luau's parser reports the first part of an if expression it does not find
+// in these words (`parseIfElseExpr`): a condition or an arm's value is an
+// expression, and `then` and `else` are keywords it expects. It adds the
+// token it found instead, which lies outside the expression, so these leave
+// it out.
+const IF_EXPRESSION_WITHOUT_VALUE =
   "Expected identifier when parsing expression";
 const IF_EXPRESSION_WITHOUT_THEN =
   "Expected 'then' when parsing if then else expression";
 const IF_EXPRESSION_WITHOUT_ELSE =
   "Expected 'else' when parsing if then else expression";
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
-// The text hosts whose `{…}` interpolations lower an if expression as an
-// inline conditional (`tryLowerInlineConditional` in `lowerDisplay.ts`):
-// display text, and choice text with or without its capture wrapper.
-const INLINE_CONDITIONAL_HOST = /^(?:TextChunk_content|ChoiceTextContent(?:_c\d+)?)$/;
+const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
+const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
+// The parts of an if expression's clause that are not its value.
+const IF_CLAUSE_TRIVIA = new Set([
+  "LuauThenOperator",
+  "LuauElseOperator",
+  "LuauComment",
+  "LuauCommaSeparator",
+  "ExtraWhitespace",
+  "OptionalWhitespace",
+  "Newline",
+]);
+// The hosts whose `{…}` interpolations Sparkle and struct bodies lower as
+// Luau bindings. Everywhere else a `{…}` interpolation is display text,
+// which `lowerDisplay.ts` lowers as an inline conditional when it is an if
+// expression (`tryLowerInlineConditional`).
+const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
+  "LuauPropAttribute",
+  "StringFieldValueInterpolated",
+  "LuauElementContentStringInterpolated",
+]);
 
 function isInlineConditional(node: any): boolean {
-  const interpolation = node.parent?.parent;
   return (
     node.parent?.name === "LuauInterpolatedStringExpression_content" &&
-    INLINE_CONDITIONAL_HOST.test(interpolation?.parent?.name ?? "")
+    !ancestorMatching(node.parent.parent, LUAU_BINDING_INTERPOLATION_HOSTS)
   );
 }
 
-// The message for the first clause an if expression lacks, reading its
-// clauses in order: a condition, its `then` arm, then either `elseif` and
-// another condition or the `else` arm.
-function missingIfExpressionClause(node: any): string | null {
-  const content = childNamed(node, "LuauTernaryExpression_content");
-  let expecting: "condition" | "then" | "else" = "condition";
+function clauseHasValue(clause: any): boolean {
+  const content = childNamed(clause, `${clause.name}_content`);
   for (let c = content?.firstChild; c; c = c.nextSibling) {
-    if (c.name === "LuauTernaryExpressionCondition") {
-      if (expecting === "condition") expecting = "then";
-    } else if (c.name === "LuauThenExpression") {
-      if (expecting === "condition") return IF_EXPRESSION_WITHOUT_CONDITION;
-      expecting = "else";
-    } else if (c.name === "LuauElseifKeyword") {
-      if (expecting === "else") expecting = "condition";
-    } else if (c.name === "LuauElseExpression") {
-      return expecting === "else" ? null : missingMessage(expecting);
-    }
+    if (!IF_CLAUSE_TRIVIA.has(c.name)) return true;
   }
-  return missingMessage(expecting);
+  return false;
 }
 
-function missingMessage(expecting: "condition" | "then" | "else"): string {
-  if (expecting === "condition") return IF_EXPRESSION_WITHOUT_CONDITION;
-  if (expecting === "then") return IF_EXPRESSION_WITHOUT_THEN;
-  return IF_EXPRESSION_WITHOUT_ELSE;
+// The first part an if expression lacks, reading it in order: a condition,
+// `then` and its value, then either `elseif` and another condition or
+// `else` and its value. The node it returns is the keyword to report on:
+// the `if`, or the `elseif`, `then` or `else` of the clause that is short.
+function missingIfExpressionPart(
+  node: any,
+): { message: string; at: any } | null {
+  const content = childNamed(node, "LuauTernaryExpression_content");
+  let at = firstDescendant(node, LUAU_IF_KEYWORD);
+  let expecting: "condition" | "then" | "else" = "condition";
+  const missing = () => ({
+    message:
+      expecting === "condition"
+        ? IF_EXPRESSION_WITHOUT_VALUE
+        : expecting === "then"
+          ? IF_EXPRESSION_WITHOUT_THEN
+          : IF_EXPRESSION_WITHOUT_ELSE,
+    at,
+  });
+  for (let c = content?.firstChild; c; c = c.nextSibling) {
+    if (c.name === "LuauTernaryExpressionCondition") {
+      if (expecting !== "condition") return missing();
+      if (!clauseHasValue(c)) return { message: IF_EXPRESSION_WITHOUT_VALUE, at };
+      expecting = "then";
+    } else if (c.name === "LuauThenExpression") {
+      if (expecting !== "then") return missing();
+      if (!clauseHasValue(c)) {
+        return {
+          message: IF_EXPRESSION_WITHOUT_VALUE,
+          at: firstDescendant(c, LUAU_THEN_KEYWORD) ?? at,
+        };
+      }
+      expecting = "else";
+    } else if (c.name === "LuauElseifKeyword") {
+      if (expecting !== "else") return missing();
+      at = c;
+      expecting = "condition";
+    } else if (c.name === "LuauElseExpression") {
+      if (expecting !== "else") return missing();
+      if (!clauseHasValue(c)) {
+        return {
+          message: IF_EXPRESSION_WITHOUT_VALUE,
+          at: firstDescendant(c, LUAU_ELSE_KEYWORD) ?? at,
+        };
+      }
+      return null;
+    }
+  }
+  return missing();
 }
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
@@ -395,24 +445,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       );
       return annotations;
     }
-    // A Luau if expression needs a condition, a `then` arm for it and an
-    // `else` arm; the grammar closes one whose next clause never comes at
-    // the end of its lines so this can report the clause that is missing.
-    // An if expression that is a whole `{…}` interpolation in display or
-    // choice text is Sparkdown's inline conditional, which may leave out its
-    // arms.
+    // A Luau if expression needs a condition, a `then` arm and an `else`
+    // arm, each with its value; the grammar closes one whose next part never
+    // comes at the end of its lines so this can report the part that is
+    // missing. An if expression that is a whole `{…}` interpolation in
+    // display text is Sparkdown's inline conditional, which may leave out
+    // its arms.
     if (
       nodeRef.name === "LuauTernaryExpression" &&
       !isInlineConditional(nodeRef.node)
     ) {
-      const missing = missingIfExpressionClause(nodeRef.node);
+      const missing = missingIfExpressionPart(nodeRef.node);
       if (missing) {
-        const ifKeyword = firstDescendant(nodeRef.node, LUAU_IF_KEYWORD);
         this.error(
           annotations,
-          missing,
-          ifKeyword?.from ?? nodeRef.from,
-          ifKeyword?.to ?? nodeRef.to,
+          missing.message,
+          missing.at?.from ?? nodeRef.from,
+          missing.at?.to ?? nodeRef.to,
         );
       }
     }

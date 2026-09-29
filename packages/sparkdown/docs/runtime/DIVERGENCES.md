@@ -649,6 +649,22 @@ In Luau, `return` reads an expression list that may begin on the next line. Spar
 
 The grammar decides this from the `return`'s own line, and narrative code reaches the same rule through `&` statements, where the next line is prose: `& return`, `& f() return`, and forms that put a block keyword before `return`, such as `& repeat return` and `& y = if c then 1 else return`. So a `return` after other code has to end at its line.
 
+### An if expression continues on a line that begins its next clause
+
+In Luau, an if expression reads across line breaks like any expression. Sparkdown reads it across a line break only where the next line begins the clause that comes next: a condition continues onto a line that begins with its `then`, and a `then` arm onto a line that begins with its `else` or `elseif`. A `then` or `else` at the end of its line takes its value from the next line, unless that line begins a statement (`end`, `until`, `local`, `return`, `break`, `do`, `while`, `repeat`, `for`, `;` or a named `function`). An `if` that begins a line where a value is read, such as a nested if expression on the line after `then`, begins an if expression.
+
+```sparkdown
+local y = if c
+  then 1
+  elseif d
+  then 2
+  else 3
+```
+
+Any other line ends the expression. So a condition or an arm that is split across lines in the middle (`if a` / `and b` / `then 1`, or `then 1` / `+ 10` / `else 2`), and an `if` alone at the end of its line with its condition on the next, end the expression early, and Sparkdown reports the part it then lacks in Luau's words: "Expected 'then' when parsing if then else expression", "Expected 'else' when parsing if then else expression", or "Expected identifier when parsing expression" for a missing condition or value. Write such a condition or arm on one line, or wrap it in parentheses. The grammar decides where an expression ends from the start of each line, without seeing the lines after it, so this is what keeps an if expression whose `then` or `else` is not yet written from reading the lines below it into itself.
+
+A whole `{…}` interpolation in display text is Sparkdown's inline conditional, which may leave out its `else` (`{if has_key then "The door opens."}`); an if expression anywhere else needs one, as in Luau.
+
 ### Four of Luau's lints, and no lint directives
 
 Sparkdown reports Luau's `LocalUnused`, `UnreachableCode`, `DuplicateCondition` and `ForRange` lints with Luau's messages, lacks the other rules of Luau's linter, and has no `--!nolint` or other `--!` directives to silence them. [`docs/compiler/LINTS.md`](../compiler/LINTS.md) lists which lints sparkdown has, lacks and omits, and where its four rules report less than Luau's do.

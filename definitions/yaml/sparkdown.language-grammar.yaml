@@ -207,6 +207,10 @@ variables:
   # `else @/x/gthen`). The flags are bounded so the lookbehind stays one
   # Oniguruma accepts.
   AFTER_LUAU_GLUEABLE_OPERAND: (?<=[)\]}"'`]|\.\.\.|/[dgimsuvy]{0,8})
+  # What begins a statement rather than a value when it begins a line: the
+  # keywords `LuauReturnStatement` stops at, a `;`, and a named
+  # function declaration (a `function` literal is a value).
+  LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -6739,8 +6743,11 @@ repository:
     # the end of the line. Any other line ends the clause and, at the start
     # of that line, this expression, so an expression whose `then` or
     # `else` is not yet written ends with its own lines instead of reading
-    # the lines below into itself. `ValidationAnnotator` reports the
-    # missing `else`.
+    # the lines below into itself. An arm whose `then` or `else` ends its
+    # line takes its value from the next line, unless that line begins a
+    # statement (`LUAU_STATEMENT_LINE_START`), which ends the arm empty and
+    # this expression with it. `ValidationAnnotator` reports the missing
+    # clause or value.
     #
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
@@ -6748,7 +6755,7 @@ repository:
     # before its own `then`, and a `then` glued to its end, so whitespace
     # followed by `then` or `do` at this level only follows a completed arm,
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
-    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
+    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -6771,8 +6778,9 @@ repository:
     # that line begins with its `else` or `elseif`, so the enclosing
     # expression, which ends at the end of a line, stays open while that
     # clause is still to come, and a line that begins anything else ends
-    # the arm (see `LuauTernaryExpression`'s `end`).
-    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:else|elseif)\b))
+    # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
+    # ends its line, a next line that begins a statement also ends the arm.
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:else|elseif)\b))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)
@@ -6808,8 +6816,9 @@ repository:
     # otherwise leave the scope to be force-closed by the outer
     # interpolation / paren / index rule. The glued alternative closes the
     # arm before the `then` or `do` of the statement whose condition it
-    # ends (see `LuauTernaryExpression`'s `end`).
-    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)
+    # ends (see `LuauTernaryExpression`'s `end`). After an `else` that ends
+    # its line, a next line that begins a statement ends the arm empty.
+    end: (?={{BEAT}}|elseif\b|$|{{WS}}|[)}\],;]|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   LuauElseOperator:
     begin: ((?:else)\b)({{WS}}*)

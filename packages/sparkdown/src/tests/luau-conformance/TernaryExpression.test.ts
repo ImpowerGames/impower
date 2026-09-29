@@ -49,6 +49,33 @@ function compileAndCapture(source: string): {
   return { errors, recorded, text };
 }
 
+// The if-expression syntax errors of a source, as `line:col-line:col message`
+// with one-based positions.
+function ifDiagnostics(source: string): string[] {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: "inmemory:///main.sd",
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
+  return Object.values(result.program.diagnostics ?? {})
+    .flat()
+    .filter((d: any) => String(d.message?.value ?? d.message).includes("when parsing"))
+    .map((d: any) => {
+      const { start, end } = d.range;
+      return `${start.line + 1}:${start.character + 1}-${end.line + 1}:${end.character + 1} ${d.message?.value ?? d.message}`;
+    });
+}
+
 describe("if-then-else expressions", () => {
   test("statement, paren, call-arg, and operand positions", () => {
     const { errors, recorded } = compileAndCapture(`external host_record(v)
@@ -438,6 +465,11 @@ describe("if expression across lines", () => {
       "Value 2.\n",
     ],
     [
+      "a condition and an arm split inside parentheses",
+      "Value {f(true, true)}.\nfunction f(a, b)\n  local y = if (a\n    and b)\n    then (1\n      + 10)\n    else 2\n  return y\nend\n",
+      "Value 11.\n",
+    ],
+    [
       "nested on the line after then",
       "Value {f(true, false)}.\nfunction f(a, b)\n  local y = if a\n    then\n      if b\n        then 1\n        else 2\n    else 3\n  return y\nend\n",
       "Value 2.\n",
@@ -518,6 +550,20 @@ describe("if expression without an else", () => {
     }
   });
 
+  test.each([
+    ["no then before elseif", "  local y = if true elseif false then 1 else 2\n", MISSING_THEN, "2:13-2:15"],
+    ["an empty then arm", "  local y = if true then\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["an empty else arm", "  local y = if true then 1 else\n", MISSING_CONDITION, "2:28-2:32"],
+    ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", MISSING_CONDITION, "3:17-3:21"],
+    ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
+  ])("%s: reports it on the keyword that is short and keeps what follows", (_name, partial, message, at) => {
+    const source = `function f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nSum {g()}.\nYou walk through it.\n`;
+    expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\nYou walk through it.\n");
+  });
+
   test("in a Sparkle prop binding", () => {
     const ctx = makeRuntimeStoryFromSource(
       `layout main with\n  text "x" #opacity={if true then 1}\nend\n`,
@@ -529,6 +575,14 @@ describe("if expression without an else", () => {
     const ctx = makeRuntimeStoryFromSource(`A {if f() then "B"}.\nfunction f()\n  return true\nend\n`);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("A B.\n");
+  });
+
+  test("a display line that is only the interpolation may leave out the else", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      `{if f() then "A"}\n{if false then "x" elseif f() then "B"}\nscene main\n  {if f() then "C"}\nend\nfunction f()\n  return true\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("A\nB\n");
   });
 
   test("choice text may leave out the else", () => {
