@@ -5958,8 +5958,11 @@ repository:
     # rather than only inside `LuauVariableAssignment`) captures
     # trailing RHS values after the assignment's `= <first-value>`
     # has terminated at the first comma. The lowerer reassembles the
-    # multi-RHS list by walking the def's content children.
+    # multi-RHS list by walking the def's content children. A comma that
+    # ends its line is `LuauCommaLineBreak`, which carries the list onto
+    # the next line, as in Luau.
     patterns:
+      - { include: "#LuauCommaLineBreak" }
       - { include: "#LuauComment" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
@@ -8560,6 +8563,29 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+
+  # A comma with nothing but a comment after it on its line. The list it
+  # separates continues on the next line: the scope consumes the comment,
+  # the line break, any blank or comment-only lines and the next line's
+  # indent, and ends before the next value (GRAMMAR.md §11.5).
+  LuauCommaLineBreak:
+    begin: ({{WS}}*)([,])({{WS}}*)(?=$|{{LUAU_COMMENT_START}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: operator
+        name: keyword.operator.comma.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
 
   LuauSemicolonSeparator:
     match: ({{WS}}*)([;])({{WS}}*)

@@ -1,0 +1,9 @@
+store a, b = 1, -- note
+  2
+function f()
+  local c, d = 3,
+
+    -- the second value
+    4
+  return c + d
+end

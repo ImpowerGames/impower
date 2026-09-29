@@ -289,8 +289,40 @@ function isContinuationLine(
     // earlier line, we're inside its scope but not leading with it.
     if (node.from >= lineStart) return true;
   }
+  return isCommaContinuationLine(stack, lineStart);
+}
+
+// A declaration list continued after a comma that ends its line
+// (`LuauCommaLineBreak`) indents its later lines one level past the
+// declaration, as stylua does:
+//
+//   local a, b = 1,
+//     2
+//
+// The comment-only lines between sit inside the line break; a value line
+// starts with the node that follows it in the declaration's content.
+function isCommaContinuationLine(
+  stack: GrammarSyntaxNode<SparkdownNodeName>[],
+  lineStart: number,
+): boolean {
+  for (let i = 0; i < stack.length; i++) {
+    const node = stack[i];
+    if (!node) continue;
+    if (node.name === "LuauCommaLineBreak") return true;
+    if (stack[i + 1]?.name !== "LuauVariableDefinition_content") continue;
+    if (node.from < lineStart) return false;
+    let prev = node.prevSibling;
+    while (prev && CONTINUATION_TRIVIA.has(prev.name)) prev = prev.prevSibling;
+    return prev?.name === "LuauCommaLineBreak";
+  }
   return false;
 }
+const CONTINUATION_TRIVIA = nodeNameSet([
+  "ExtraWhitespace",
+  "OptionalWhitespace",
+  "Whitespace",
+  "Newline",
+]);
 
 // Tree-walking indent: returns the count of ancestor blocks whose
 // `_content` contains `pos`, minus header/footer adjustments. No

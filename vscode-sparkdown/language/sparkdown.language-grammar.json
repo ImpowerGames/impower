@@ -9212,6 +9212,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauCommaLineBreak"
+        },
+        {
           "include": "#LuauComment"
         },
         {
@@ -13161,6 +13164,42 @@
           ]
         }
       }
+    },
+    "LuauCommaLineBreak": {
+      "begin": "((?:[^\\S\\n\\r])*)([,])((?:[^\\S\\n\\r])*)(?=$|(?:[-][-]))",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "operator",
+          "name": "keyword.operator.comma.luau"
+        },
+        "3": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#ExtraWhitespace"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!$|(?:[^\\S\\n\\r])|(?:[-][-]))"
     },
     "LuauSemicolonSeparator": {
       "match": "((?:[^\\S\\n\\r])*)([;])((?:[^\\S\\n\\r])*)",
