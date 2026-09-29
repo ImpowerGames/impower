@@ -67,6 +67,8 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["a closing brace", "local v: {a: number?} = {}\n"],
     ["a table type", "local v: {number}?\nlocal s = 1\n"],
     ["a function type", "local v: () -> number?\nlocal s = 1\n"],
+    ["a generic type", "local v: Array<number>?\nlocal s = 1\n"],
+    ["a generic function return", "local v: () -> Array<number>?\nlocal s = 1\n"],
     ["a trailing comment", "type T = number? -- a comment\nlocal y = 1\n"],
   ])("an optional type before %s parses", (_name, snippet) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
@@ -79,8 +81,7 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["alone", "type Baz = ?\n", 11],
     ["before its type", "local v: ?number\n", 9],
     ["after a function arrow", "type F = () -> ?\n", 15],
-    ["after an unspaced function arrow", "type F = () ->?\n", 14],
-  ])("a `?` with no type before it, %s, is reported", (_name, snippet, column) => {
+    ["after an unspaced function arrow", "type F = () ->?\n", 14],  ])("a `?` with no type before it, %s, is reported", (_name, snippet, column) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
       `1:${column}-1:${column + 1} SyntaxError: Expected type, got '?'`,
     ]);
