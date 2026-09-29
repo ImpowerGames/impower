@@ -5,7 +5,16 @@ import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 // not an annotation, and Luau rejects it; the editor must say so (#1138).
 
 describe("a local target followed by `::`", () => {
-  test.each(["local x :: number", "local x :: number;", "local x::number", "local a, b :: number"])(
+  test.each([
+    "local x :: number",
+    "local x :: number;",
+    "local x::number",
+    "local a, b :: number",
+    "local x :: number = 1",
+    "const x :: number = 1",
+    "local x :: number -- note",
+    "function f() local x :: number end",
+  ])(
     "%j reports the `::`",
     (statement) => {
       const { syntaxDiagnostics } = checkLuau(`${statement}\n`);
