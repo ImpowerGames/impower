@@ -5886,9 +5886,6 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
-      - { include: "#LuauGenericsDeclaration" }
-      - { include: "#LuauFunctionReturnType" }
       # `LuauFunctionBody` opens AFTER the close-paren of the param
       # list (or after a return-type annotation), so its lookbehind
       # anchors on the last header char. Keeping body in
@@ -5897,8 +5894,13 @@ repository:
       # header context. `LuauBlockBody` then matches statements inside.
       # It comes before the name and parameter rules because it can open
       # at the start of a line, where the parameter rule would take a
-      # body line such as `print(x)` as a parameter list.
+      # body line such as `print(x)` as a parameter list, and before the
+      # comment rule because a block comment right after the header begins
+      # at the same position and belongs to the body.
       - { include: "#LuauFunctionBody" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauBlockBody" }
@@ -5929,7 +5931,12 @@ repository:
     # the body also opens with no whitespace, before a character a statement
     # can begin with (`function f()(g)() end`, `function f()return 1 end`);
     # anywhere else, a statement needs whitespace before it, or the body
-    # would reopen before every character after one that closed it. A
+    # would reopen before every character after one that closed it. It also
+    # opens before a `;` or a block comment right after the header, with or
+    # without whitespace (`function f(): number; g()`,
+    # `function f() --[[c]] g()`); left in the header, a block comment takes
+    # the whitespace after it, and the body would open only at the next
+    # statement's own whitespace, leaving the one before it out. A
     # parameter list moved to the next line is not supported with or
     # without generics. A return type takes in the line break after it,
     # as any type does, so the body also opens at the start of a line,
@@ -5937,7 +5944,7 @@ repository:
     # line to start with a character a statement can begin with: a line the
     # body cannot read (a stray `|` or `)`) closes the body, and reopening
     # it there would match nothing, again and again.
-    begin: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+    begin: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -6013,7 +6020,9 @@ repository:
       - { include: "#LuauTypeLiteral" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}})
+    # A `;` ends the return type as it ends the type, so the body opens
+    # before it (`function f(): number; g()`).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|;)
 
   LuauFunctionName:
     tag: function(name)
@@ -8883,10 +8892,10 @@ repository:
     # statements that ends at its own `end`. The body runs only while types
     # are checked, so the compiler emits nothing for the declaration.
     patterns:
+      - { include: "#LuauFunctionBody" }
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
       - { include: "#LuauFunctionReturnType" }
-      - { include: "#LuauFunctionBody" }
       - { include: "#LuauTypeFunctionName" }
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauBlockBody" }

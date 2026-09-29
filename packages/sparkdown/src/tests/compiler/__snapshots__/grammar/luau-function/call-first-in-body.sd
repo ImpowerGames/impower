@@ -9,3 +9,5 @@ function t:m()(g)() return 1 end
 function h<T>()(g)() return 1 end
 local i = function()(g)() return 1 end
 function j()return 1 end
+function k() --[[c]] (g)() return 1 end
+function l(): number; (g)() return 1 end

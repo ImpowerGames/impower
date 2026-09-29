@@ -100,6 +100,9 @@ describe("every statement of a function runs", () => {
     ["a call in parentheses right after a method header", `local t = {}\nfunction t:m()(function() print(1) end)() return 5 end\nValue {t:m()}.\n`, "Value 15.\n"],
     ["a call in parentheses right after an anonymous header", `local f = function()(function() print(1) end)() return 5 end\nValue {f()}.\n`, "Value 15.\n"],
     ["statements right after the header", `Value {f()}.\nfunction f()local x = 5 return x end\n`, "Value 5.\n"],
+    ["a block comment between the header and a statement", `Value {f()}.\nfunction f() --[[c]] print(1) return 5 end\n`, "Value 15.\n"],
+    ["a `;` right after a return type", `Value {f()}.\nfunction f(): number; print(1) return 5 end\n`, "Value 15.\n"],
+    ["a `;` right after the parameters", `Value {f()}.\nfunction f(); print(1) return 5 end\n`, "Value 15.\n"],
   ])("with %s", (_name, source, output) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
