@@ -8811,14 +8811,16 @@ repository:
 
   # The suffix ends the type it follows, so it matches only after the end
   # of a type (a name, a closing bracket or quote, or another `?`). Luau
-  # allows whitespace before it, and the formatter used to write some, so it
-  # takes in that whitespace as extra whitespace the formatter joins away
-  # (`number ?` becomes `number?`). It takes in the whitespace after it only
-  # when a binary operator follows on the same line (`number? | string`,
+  # allows whitespace before it, and scripts formatted before #1065 contain
+  # some, so it takes in that whitespace as extra whitespace the formatter
+  # joins away (`number ?` becomes `number?`). The lookbehind also allows
+  # whitespace, because a block comment between the type and the `?` has
+  # already taken it in. It takes in the whitespace after it only when a
+  # binary operator follows on the same line (`number? | string`,
   # `local u: number? = 1`), so a line break or the next statement's first
   # word is never read as part of the type.
   LuauTypeOptionalOperator:
-    match: (?<={{LUAU_TYPE_END}})({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
+    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
     captures:
       1:
         patterns:

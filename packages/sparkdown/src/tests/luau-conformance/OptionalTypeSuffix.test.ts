@@ -143,15 +143,19 @@ describe("the code after a type ending in `?` still runs", () => {
   });
 });
 
-// Luau accepts whitespace before the `?` suffix, and the formatter used to
-// write `number ?` and `number ?= 1` into scripts, so a space before the `?`
-// must keep reading as Luau rather than turning the line into story text.
+// Luau accepts whitespace before the `?` suffix, and scripts formatted before
+// #1065 contain `number ?` and `number ?= 1`, so a space before the `?` must
+// keep reading as Luau rather than turning the line into story text.
 describe("a space before the `?` suffix still reads as Luau", () => {
   test.each([
     ["a spaced local with a value", "local v: number ? = 1\n"],
     ["a local whose value follows the `?` directly", "local v: number ?= 1\n"],
     ["a spaced local", "local v: number ?\nlocal s = 1\n"],
-    ["a spaced qualified name", "local v: Foo ? = nil\n"],
+    ["a spaced named type", "local v: Foo ? = nil\n"],
+    ["a spaced qualified name", "local v: Foo.Bar ? = nil\n"],
+    ["a block comment before the `?`", "local v: number --[[c]] ? = 1\n"],
+    ["a long block comment before the `?`", "local v: number --[=[c]=] ? = 1\n"],
+    ["a block comment glued to the `?`", "local v: number --[[c]]? = 1\n"],
     ["a spaced table type", "local v: {number} ? = nil\n"],
     ["a spaced union", "local v: number ? | string = 1\n"],
     ["a spaced type alias", "type T = number ?\nlocal s = 1\n"],
@@ -163,7 +167,9 @@ describe("a space before the `?` suffix still reads as Luau", () => {
   test.each([
     ["a local", `Value {f()}.\nfunction f()\n  local v: number ? = 5\n  return v\nend\n`],
     ["a local whose value follows the `?` directly", `Value {f()}.\nfunction f()\n  local v: number ?= 5\n  return v\nend\n`],
-    ["a qualified type", `Value {f()}.\nfunction f()\n  local v: Foo ? = 5\n  return v\nend\n`],
+    ["a named type", `Value {f()}.\nfunction f()\n  local v: Foo ? = 5\n  return v\nend\n`],
+    ["a qualified type", `Value {f()}.\nfunction f()\n  local v: Foo.Bar ? = 5\n  return v\nend\n`],
+    ["a block comment before the `?`", `Value {f()}.\nfunction f()\n  local v: number --[[c]] ? = 5\n  return v\nend\n`],
     ["a type alias", `Value {f()}.\nfunction f()\n  type T = number ?\n  return 5\nend\n`],
     ["a return type", `Value {f()}.\nfunction f(): number ?\n  return 5\nend\n`],
     ["a union", `Value {f()}.\nfunction f()\n  local v: number ? | string = 5\n  return v\nend\n`],

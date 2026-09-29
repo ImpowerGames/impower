@@ -55,3 +55,13 @@ local w: Foo?
 Hello.
 `);
 });
+
+test("formatting a `?` after a block comment reaches a stable result", () => {
+  const source = `local v: number --[[c]] ? = 1
+local w: number --[[c]]? = 1
+Hello.
+`;
+  const once = formatSource(source);
+  expect(once).not.toContain("?=");
+  expect(formatSource(once)).toBe(once);
+});
