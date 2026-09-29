@@ -301,6 +301,7 @@ patterns:
 
   - { include: "#LuauExplicitStatement" }
   - { include: "#LuauSparkdownReturnStatement" }
+  - { include: "#LuauSparkdownVariableDefinition" }
   - { include: "#LuauDeclarations" }
   - { include: "#LuauSparkdownControlBlock" }
   - { include: "#LuauFunctionCallShorthand" }
@@ -3127,10 +3128,12 @@ repository:
     # are scoped there — they don't reach this pattern.
     patterns:
       # Declarations need to come before LuauExpression so `& store x = 5`
-      # parses as a `LuauVariableDefinition` rather than an expression where
-      # `store` would degrade to a bare identifier reference. This makes
-      # the explicit form (`& store x = 5`) interchangeable with the
-      # implicit form (`store x = 5`).
+      # parses as a `LuauSparkdownVariableDefinition` rather than an
+      # expression where `store` would degrade to a bare identifier
+      # reference. This makes the explicit form (`& store x = 5`)
+      # interchangeable with the implicit form (`store x = 5`). An `&`
+      # statement is one line, so it declares with the narrative rule.
+      - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
@@ -5958,17 +5961,94 @@ repository:
     # rather than only inside `LuauVariableAssignment`) captures
     # trailing RHS values after the assignment's `= <first-value>`
     # has terminated at the first comma. The lowerer reassembles the
-    # multi-RHS list by walking the def's content children. A comma that
-    # ends its line is `LuauCommaLineBreak`, which carries the list onto
-    # the next line, as in Luau.
+    # multi-RHS list by walking the def's content children.
+    #
+    # This is the declaration in Luau code (function bodies and Luau
+    # blocks). As in Luau, a comma that ends its line continues the list
+    # on the next line: `LuauCommaLineBreak` carries the declaration across
+    # the line break. A narrative body declares with
+    # `LuauSparkdownVariableDefinition`, which ends at its line.
+    #
+    # The declaration closes where none of its patterns match, so after a
+    # line break it must not match a statement: a line that starts with
+    # `end`, `else`, `until`, `return` or a `scene` header belongs to the
+    # enclosing block, and the comma before it is left without a value (the
+    # lowerer reports it, as Luau does). `LuauVariableDefinitionValue` is
+    # `LuauExpression` without its statements for that reason, and
+    # `LuauVariableAssignment` refuses a keyword as a name. A statement
+    # after a complete declaration on the same line (`local x = 5 return
+    # x`) is therefore the enclosing body's next statement.
     patterns:
       - { include: "#LuauCommaLineBreak" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauVariableAssignment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauVariableDefinitionValue" }
+    applyEndPatternLast: true
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  # The declaration in a narrative body (the root, a scene, or a sparkdown
+  # `if`, loop or `choose` around dialogue and actions, and an `&`
+  # statement). It ends at its line: the next line is prose, never a
+  # continued value, so a comma that ends the line is left without a value
+  # and the lowerer reports it. Its content is the base declaration's, so a
+  # statement after it on the same line (`& local x = 5 return`) stays
+  # inside it, where the lowerer reads it as a trailing statement.
+  LuauSparkdownVariableDefinition:
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauScopeModifier" }
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  # `LuauExpression` without the statements it reaches through
+  # `LuauDeclarations` and without bare keywords (see
+  # `LuauVariableDefinition`), keeping `LuauFunctionDefinition` in their
+  # place so an anonymous function is still a value. The order is
+  # `LuauExpression`'s; `luauVariableDefinitionValue.test.ts` holds the
+  # two lists together.
+  LuauVariableDefinitionValue:
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTernaryExpression" }
+      - { include: "#LuauAlternatorBlocks" }
+      - { include: "#LuauDivertTargetLiteral" }
+      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauArithmeticOperation" }
+      - { include: "#LuauCompareOperation" }
+      - { include: "#LuauConcatOperation" }
+      - { include: "#LuauLengthOperation" }
+      - { include: "#LuauLogicalOperation" }
+      - { include: "#LuauTypeCastOperation" }
+      - { include: "#LuauParenthetical" }
+      - { include: "#LuauAttribute" }
+      - { include: "#LuauNumber" }
+      - { include: "#LuauString" }
+      - { include: "#LuauBoolean" }
+      - { include: "#LuauNil" }
+      - { include: "#LuauGenericsInstantiation" }
+      - { include: "#LuauNewExpression" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauTable" }
+      - { include: "#LuauChainedFunctionCall" }
+      - { include: "#LuauChainedPropertyAccess" }
+      - { include: "#LuauTypeAnnotationOperation" }
 
   LuauVariableAssignment:
     # The lookahead distinguishes a TARGET identifier from an
@@ -5983,8 +6063,10 @@ repository:
     #     bare declaration (`local x` with no initializer)
     # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
     # is actually an expression — fall through to `LuauExpression`
-    # at the outer `LuauVariableDefinition` level.
-    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
+    # at the outer `LuauVariableDefinition` level. A keyword is never a
+    # target: the `end` or `else` on the line after a comma that ends a
+    # declaration's line closes the enclosing block.
+    begin: (?!{{LUAU_TERMINATOR_KEYWORDS}})({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:
@@ -6064,6 +6146,7 @@ repository:
     patterns:
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#SparkdownStatement" }
@@ -6601,6 +6684,7 @@ repository:
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#FlowStatements" }
       # `#`/`##` section tags and `[[...]]` annotations are scene content
@@ -6648,6 +6732,7 @@ repository:
     patterns:
       - { include: "#LuauExplicitStatement" }
       - { include: "#LuauSparkdownReturnStatement" }
+      - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauDeclarations" }
       - { include: "#LuauSparkdownControlBlock" }
       - { include: "#FlowStatements" }
@@ -7398,7 +7483,11 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauAccessPath:
-    begin: (?=(?!{{LUAU_TERMINATOR_KEYWORDS}}){{LUAU_IDENTIFIER}})
+    # Not at a `scene` or `branch` header: the end closes there at once, and
+    # an empty path repeated at the header is an empty-match loop for the
+    # rule that includes it (a declaration whose comma ends the line before
+    # the header).
+    begin: (?!{{BEAT}})(?=(?!{{LUAU_TERMINATOR_KEYWORDS}}){{LUAU_IDENTIFIER}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAccessPart" }
@@ -8564,10 +8653,14 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
-  # A comma with nothing but a comment after it on its line. The list it
-  # separates continues on the next line: the scope consumes the comment,
-  # the line break, any blank or comment-only lines and the next line's
-  # indent, and ends before the next value (GRAMMAR.md §11.5).
+  # A comma followed by the end of its line or by a comment. The scope
+  # consumes the comment and, when the comma ends its line, the line break,
+  # any blank or comment-only lines and the next line's indent, so the list
+  # continues on the next line (GRAMMAR.md §11.5); it ends before the next
+  # token, which after a block comment can be on the comma's own line
+  # (`1, --[[c]] 2`). Only `LuauVariableDefinition` includes it: a rule that
+  # includes it elsewhere must teach its consumers this second comma name
+  # beside `LuauCommaSeparator`.
   LuauCommaLineBreak:
     begin: ({{WS}}*)([,])({{WS}}*)(?=$|{{LUAU_COMMENT_START}})
     beginCaptures:

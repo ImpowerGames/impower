@@ -118,6 +118,7 @@ export function runFileUnit(uri: string, documentText: string): LuauUnit | undef
 // The statements of a `.sd` file that are Luau, wherever they sit.
 const LUAU_STATEMENTS = new Set([
   "LuauVariableDefinition",
+  "LuauSparkdownVariableDefinition",
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
   "LuauReassignment",

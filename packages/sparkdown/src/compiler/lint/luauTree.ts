@@ -223,7 +223,10 @@ const FUNCTION = new Set(["LuauFunctionDefinition"]);
 const FOR_LOOP = new Set(["LuauForLoop"]);
 const IF_CHAIN = new Set(["LuauIfBlock", "LuauTernaryExpression"]);
 const LOGICAL_OPERATOR = new Set(["LuauLogicalOperator"]);
-const VARIABLE_DEFINITION = new Set(["LuauVariableDefinition"]);
+const VARIABLE_DEFINITION = new Set([
+  "LuauVariableDefinition",
+  "LuauSparkdownVariableDefinition",
+]);
 
 /** Finds the constructs the lints check from their keywords in the text,
  *  which costs a small fraction of walking a script's whole tree: a long

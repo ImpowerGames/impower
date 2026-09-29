@@ -1,5 +1,6 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -1317,7 +1318,7 @@ export function collectImmediateBodyDeclarations(
       }
       return;
     }
-    if (n.name === "LuauVariableDefinition") {
+    if (VARIABLE_DEFINITION_NAMES.has(n.name)) {
       const ids = collectVarDefIdentifiers(n, ctx);
       for (const id of ids) out.add(id);
     }
@@ -1429,7 +1430,7 @@ export function scanFreeVariables(
   // declared in any nested scope still satisfies "locally bound" for
   // the closure's outermost scope).
   walkAndCollect(bodyContent, (n) => {
-    if (n.name === "LuauVariableDefinition") {
+    if (VARIABLE_DEFINITION_NAMES.has(n.name)) {
       const ids = collectVarDefIdentifiers(n, ctx);
       for (const id of ids) bound.add(id);
       return;
@@ -1667,7 +1668,7 @@ function collectVarDefIdentifiers(
   varDef: SyntaxNode,
   ctx: LowerContext,
 ): string[] {
-  const content = findChildByName(varDef, "LuauVariableDefinition_content");
+  const content = findChildByName(varDef, `${varDef.name}_content`);
   if (!content) return [];
   const out: string[] = [];
   let child = content.firstChild;
@@ -2259,61 +2260,76 @@ export function lowerSimpleAccessPath(
   }
 
   if (identifiers.length > 0) {
-    // Sibling variadic subflow referenced as a VALUE (`call(c12, ...)`,
-    // `local h = c12`, `type(c12)`): variadic nested fns stay
-    // knot-form subflows of the enclosing function (see
-    // lowerLuauFunctionDefinition) — there's no local variable
-    // holding a closure, so a VariableReference would read nil and
-    // the runtime Knot fallback only checks TOP-LEVEL knots. No
-    // captures → a bare DivertTarget (the runtime value-call path
-    // packs `...` args for those). With captures → a closure-shaped
-    // value whose upval pointers snapshot the enclosing frame's
-    // cells at REFERENCE time, exactly like anonymous closures —
-    // `extractClosurePath` re-threads them below the user args at
-    // call time (vararg.luau line 74: `call(f, a)` where f captures
-    // `lim`).
-    if (
-      identifiers.length === 1 &&
-      resolveCallableBinding(identifiers[0]!.name, ctx) === "sibling"
-    ) {
-      const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
-      const knotName = info?.knotName ?? identifiers[0]!.name;
-      if (info && info.upvals.length > 0) {
-        return buildClosureExpression(knotName, info.upvals, info.arity);
-      }
-      return new DivertTarget(new Divert([new Identifier(knotName)]), true);
-    }
-    // Stdlib constant short-circuit: when the dotted path matches a
-    // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
-    // emit the value directly instead of a `VariableReference` that
-    // would fail to resolve at runtime. Compile-time substitution —
-    // no runtime dispatch needed.
-    const dotted = identifiers.map((id) => id.name).join(".");
-    const constVal = lookupStdLibConstant(dotted);
-    if (constVal !== undefined) {
-      if (typeof constVal === "number") {
-        return new NumberExpression(
-          constVal,
-          Number.isInteger(constVal) && Number.isFinite(constVal) ? "int" : "float",
-        );
-      }
-      if (typeof constVal === "string") {
-        return new StringExpression([new Text(constVal)]);
-      }
-      if (typeof constVal === "boolean") {
-        return new NumberExpression(constVal, "bool");
-      }
-    }
-    const ref = new VariableReference(identifiers);
-    // In a Sparkle binding, stamp the reference with its own token span, which
-    // its hoisted binding function has no statement to inherit from (see
-    // LowerContext.stampExpressionSpans).
-    if (ctx.stampExpressionSpans && parts.length > 0) {
-      stampDebugMetadata([ref], parts[0]!.from, parts[parts.length - 1]!.to, ctx);
-    }
-    return ref;
+    return lowerIdentifierPath(
+      identifiers,
+      { from: parts[0]!.from, to: parts[parts.length - 1]!.to },
+      ctx,
+    );
   }
   return null;
+}
+
+// A dotted identifier chain (`a`, `a.b.c`) as a value, resolved as a
+// sibling subflow, a stdlib constant or a `VariableReference`. `span` is
+// the chain's source range.
+export function lowerIdentifierPath(
+  identifiers: Identifier[],
+  span: { from: number; to: number },
+  ctx: LowerContext,
+): Expression {
+  // Sibling variadic subflow referenced as a VALUE (`call(c12, ...)`,
+  // `local h = c12`, `type(c12)`): variadic nested fns stay
+  // knot-form subflows of the enclosing function (see
+  // lowerLuauFunctionDefinition) — there's no local variable
+  // holding a closure, so a VariableReference would read nil and
+  // the runtime Knot fallback only checks TOP-LEVEL knots. No
+  // captures → a bare DivertTarget (the runtime value-call path
+  // packs `...` args for those). With captures → a closure-shaped
+  // value whose upval pointers snapshot the enclosing frame's
+  // cells at REFERENCE time, exactly like anonymous closures —
+  // `extractClosurePath` re-threads them below the user args at
+  // call time (vararg.luau line 74: `call(f, a)` where f captures
+  // `lim`).
+  if (
+    identifiers.length === 1 &&
+    resolveCallableBinding(identifiers[0]!.name, ctx) === "sibling"
+  ) {
+    const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
+    const knotName = info?.knotName ?? identifiers[0]!.name;
+    if (info && info.upvals.length > 0) {
+      return buildClosureExpression(knotName, info.upvals, info.arity);
+    }
+    return new DivertTarget(new Divert([new Identifier(knotName)]), true);
+  }
+  // Stdlib constant short-circuit: when the dotted path matches a
+  // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
+  // emit the value directly instead of a `VariableReference` that
+  // would fail to resolve at runtime. Compile-time substitution —
+  // no runtime dispatch needed.
+  const dotted = identifiers.map((id) => id.name).join(".");
+  const constVal = lookupStdLibConstant(dotted);
+  if (constVal !== undefined) {
+    if (typeof constVal === "number") {
+      return new NumberExpression(
+        constVal,
+        Number.isInteger(constVal) && Number.isFinite(constVal) ? "int" : "float",
+      );
+    }
+    if (typeof constVal === "string") {
+      return new StringExpression([new Text(constVal)]);
+    }
+    if (typeof constVal === "boolean") {
+      return new NumberExpression(constVal, "bool");
+    }
+  }
+  const ref = new VariableReference(identifiers);
+  // In a Sparkle binding, stamp the reference with its own token span, which
+  // its hoisted binding function has no statement to inherit from (see
+  // LowerContext.stampExpressionSpans).
+  if (ctx.stampExpressionSpans) {
+    stampDebugMetadata([ref], span.from, span.to, ctx);
+  }
+  return ref;
 }
 
 // Build an `IndexExpression` chain for paths that include `[key]` indexers

@@ -60,6 +60,7 @@ export interface LuauLint {
 // Nodes that stand for one Luau statement inside a block.
 const STATEMENTS = new Set([
   "LuauVariableDefinition",
+  "LuauSparkdownVariableDefinition",
   "LuauReassignment",
   "LuauAccessPath",
   "LuauIfBlock",

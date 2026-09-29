@@ -1,5 +1,9 @@
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import {
+  VARIABLE_DEFINITION_CONTENT_NAMES,
+  VARIABLE_DEFINITION_NAMES,
+} from "../../utils/variableDefinitionNames";
 import { soleVariableName } from "../../lint/luauTree";
 import { Range } from "@codemirror/state";
 import { type SyntaxNode } from "@lezer/common";
@@ -44,7 +48,9 @@ const BEFORE_BARE_TARGET = nodeNameSet([
 // an `=` is a value, not a target.
 function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
   const path = ancestorMatching(node, ACCESS_PATH, 6);
-  if (path?.parent?.name !== "LuauVariableDefinition_content") return false;
+  if (!path?.parent || !VARIABLE_DEFINITION_CONTENT_NAMES.has(path.parent.name)) {
+    return false;
+  }
   if (soleVariableName(path)?.from !== node?.from) return false;
   for (let prev = path.prevSibling; prev; prev = prev.prevSibling) {
     if (!BEFORE_BARE_TARGET.has(prev.name)) return false;
@@ -57,7 +63,6 @@ function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
   }
   return true;
 }
-const VARIABLE_DEFINITION = nodeNameSet(["LuauVariableDefinition"]);
 const FUNCTION_DECL_NAME = nodeNameSet(["LuauFunctionDeclarationName"]);
 
 // Records the NAME span of each declaration as a flat `(type, range)` mark in
@@ -139,7 +144,7 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
       ) {
         return annotations;
       }
-      const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION);
+      const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES);
       if (!definition) {
         return annotations;
       }

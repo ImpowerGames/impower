@@ -43,8 +43,16 @@ describe("formatting a declaration list continued after a trailing comma", () =>
     );
   });
 
-  test("indents a top-level store continuation", () => {
-    expect(formatSource("store a, b = 1,\n2\n")).toBe("store a, b = 1,\n  2\n");
+  test.each([
+    ["end", ["function f()", "  local a, g = 1,", "end", ""]],
+    [
+      "else",
+      ["function f(ok)", "  if ok then", "    local a, g = 1,", "  else", "    return 2", "  end", "end", ""],
+    ],
+    ["prose after a narrative declaration", ["store hp = 100,", "", "The hero has {hp} health.", ""]],
+  ])("leaves the line after a comma with no value alone: %s", (_name, lines) => {
+    const source = lines.join("\n");
+    expect(formatSource(source)).toBe(source);
   });
 
   test("leaves the line after a complete declaration at the declaration's level", () => {

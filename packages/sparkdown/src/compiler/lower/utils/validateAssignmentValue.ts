@@ -74,6 +74,53 @@ export function validateAssignmentValue(
   });
 }
 
+// The same Luau parse error for a comma in a declaration's list with nothing
+// after it: `local a, b = 1,` before a line that starts with `end` or a
+// statement in Luau code, or any such comma in a narrative body, where the
+// declaration ends at its line. Luau reads the next token as the missing
+// value (or, before the `=`, the missing name) and reports it; the squiggle
+// points at the comma.
+//
+// `comma` is a `LuauCommaSeparator` or `LuauCommaLineBreak` grammar node.
+export function validateListComma(
+  comma: SyntaxNode,
+  afterAssignment: boolean,
+  ctx: LowerContext,
+): void {
+  if (!ctx.diagnostics) return;
+  const at = comma.from + ctx.read(comma.from, comma.to).indexOf(",");
+  const got = nextSignificantToken(at + 1, ctx);
+  const gotDisplay = got == null ? "<eof>" : `'${got}'`;
+  const parsing = afterAssignment ? "expression" : "binding name";
+  ctx.diagnostics.push({
+    message: `Expected identifier when parsing ${parsing}, got ${gotDisplay}`,
+    severity: ErrorType.Error,
+    source: makeSource({ from: at, to: at + 1 }, ctx),
+  });
+}
+
+// The Luau parse error for a second `=` in a declaration's list
+// (`local a = 1, x = 99`, or `x = 99` on the line after a comma that ends
+// the declaration's line): Luau ends the list at `x`, and the statement
+// that follows cannot start with `=`. The squiggle points at that `=`.
+//
+// `opNode` is the second `LuauAssignmentOperation`.
+export function validateSecondAssignment(
+  opNode: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  if (!ctx.diagnostics) return;
+  const operator = getDescendent("LuauAssignmentOperator", opNode);
+  if (!operator) return;
+  const range = operatorTokenRange(operator, ctx);
+  const got = ctx.read(range.from, range.to);
+  ctx.diagnostics.push({
+    message: `Expected identifier when parsing expression, got '${got}'`,
+    severity: ErrorType.Error,
+    source: makeSource(range, ctx),
+  });
+}
+
 // The token Luau would report after the `=`. Scans forward from `pos` over
 // whitespace, newlines, and Luau comments (`-- line` and `--[[ block ]]`),
 // returning the next identifier/keyword run, the next single (punctuation)

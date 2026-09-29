@@ -3,6 +3,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import {
@@ -168,10 +169,10 @@ export class SemanticAnnotator extends SparkdownAnnotator<
   scopeStack: ScopeFrame[] = [makeGlobalScope()];
 
   // Pending kind for the next `LuauVariableAssignment` we encounter
-  // inside a `LuauVariableDefinition`. The grammar emits the scope
-  // modifier (`local` / `store` / `const`) as a sibling captured
-  // earlier in the begin pattern, so we record it on enter of the
-  // LuauVariableDefinition and read it when assignments fire.
+  // inside a variable definition (`VARIABLE_DEFINITION_NAMES`). The
+  // grammar emits the scope modifier (`local` / `store` / `const`) as a
+  // sibling captured earlier in the begin pattern, so we record it on
+  // enter of the definition and read it when assignments fire.
   pendingDeclKind: "variable" | "const-variable" | null = null;
 
   // True while `primeScopes` is replaying `enter`/`leave` to rebuild state.
@@ -515,7 +516,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
     // `LuauScopeModifier` lives several layers deep in the parse
     // tree (`_begin > _c2 > LuauScopeModifier`), so use a
     // deep-descendant lookup rather than `getChild`.
-    if (nodeRef.name === "LuauVariableDefinition") {
+    if (VARIABLE_DEFINITION_NAMES.has(nodeRef.name)) {
       const scopeNode = getDescendent("LuauScopeModifier", nodeRef.node);
       const scopeText = scopeNode
         ? this.read(scopeNode.from, scopeNode.to).trim()
@@ -666,7 +667,7 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       // top-level declarations stay visible everywhere.
       this.scopeStack.pop();
     }
-    if (nodeRef.name === "LuauVariableDefinition") {
+    if (VARIABLE_DEFINITION_NAMES.has(nodeRef.name)) {
       this.pendingDeclKind = null;
     }
     return annotations;

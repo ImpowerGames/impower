@@ -220,9 +220,9 @@ function declaredNames(definition: SyntaxNode): SyntaxNode[] {
   return names;
 }
 
-/** The scope keyword a `LuauVariableDefinition` begins with, if any. */
+/** The scope keyword a variable definition begins with, if any. */
 function scopeOf(definition: SyntaxNode, src: Source): string {
-  const begin = childNamed(definition, "LuauVariableDefinition_begin");
+  const begin = childNamed(definition, `${definition.name}_begin`);
   return begin ? src.read(begin.from, begin.to).trim() : "";
 }
 
@@ -269,6 +269,7 @@ function readDeclarations(
     if (
       kind !== "LuauFunctionDefinition" &&
       kind !== "LuauVariableDefinition" &&
+      kind !== "LuauSparkdownVariableDefinition" &&
       kind !== "LuauForLoop" &&
       !END_BLOCKS.has(kind)
     ) {
@@ -313,7 +314,10 @@ function readDeclarations(
         const at = nameNode.to;
         add(nameNode, "localFunction", at, at, scope.end, scope.nested);
       }
-    } else if (node.name === "LuauVariableDefinition") {
+    } else if (
+      node.name === "LuauVariableDefinition" ||
+      node.name === "LuauSparkdownVariableDefinition"
+    ) {
       if (scopeOf(node, src) !== "local") continue;
       const scope = scopeEnd(node);
       if (!scope) continue;

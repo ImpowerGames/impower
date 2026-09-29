@@ -1,4 +1,8 @@
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
+import {
+  VARIABLE_DEFINITION_BEGIN_NAMES,
+  VARIABLE_DEFINITION_END_NAMES,
+} from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
@@ -14,8 +18,13 @@ import { lower } from "../lower";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
+  lowerIdentifierPath,
 } from "../expression/lowerExpression";
-import { validateAssignmentValue } from "../utils/validateAssignmentValue";
+import {
+  validateAssignmentValue,
+  validateListComma,
+  validateSecondAssignment,
+} from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -32,8 +41,8 @@ export function lowerVariableDefinition(
   const scopeNode = getDescendent("LuauScopeModifier", nodeRef.node);
   const scope = scopeNode ? ctx.read(scopeNode.from, scopeNode.to).trim() : "";
 
-  // Walk `LuauVariableDefinition_content`. After the multi-RHS grammar
-  // fix, the content holds:
+  // Walk the definition's content (`LuauVariableDefinition_content` or
+  // `LuauSparkdownVariableDefinition_content`), which holds:
   //   VA(name1) [, name1's-AssignmentOperation? ...]
   //   LuauCommaSeparator
   //   VA(name2) [...]
@@ -47,7 +56,7 @@ export function lowerVariableDefinition(
   // last VA are additional RHS values.
   const contentNode = findChildByName(
     nodeRef.node,
-    "LuauVariableDefinition_content",
+    `${nodeRef.node.name}_content`,
   );
   const targets: { name: string; assignNode: SyntaxNode; nameNode?: SyntaxNode }[] = [];
   const targetIdentifier = (t: (typeof targets)[number]) =>
@@ -56,11 +65,14 @@ export function lowerVariableDefinition(
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
   // When the grammar accepts multiple statements on one line (e.g.
-  // `local x = 5 return x end`), the LuauVariableDefinition_content
-  // captures siblings BEYOND the variable assignment — they're
-  // adjacent statements, not trailing multi-RHS values. Collect them
-  // into `trailingStatements` and lower them after the VA below.
+  // `& local x = 5 return`), the definition's content captures siblings
+  // BEYOND the variable assignment — they're adjacent statements, not
+  // trailing multi-RHS values. Collect them into `trailingStatements`
+  // and lower them after the VA below.
   const trailingStatements: SyntaxNode[] = [];
+  // The definition's last significant node, so a comma with nothing after
+  // it can be reported.
+  let lastListNode: SyntaxNode | null = null;
 
   if (contentNode) {
     let child = contentNode.firstChild;
@@ -69,7 +81,23 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
+      lastListNode = child;
       if (child.name === "LuauVariableAssignment") {
+        const opNode = getDescendent("LuauAssignmentOperation", child);
+        if (sawAssignmentOp) {
+          if (opNode) {
+            // A second `=` (`local a = 1, x = 99`): Luau ends the list at
+            // `x` and cannot parse a statement that starts with `=`.
+            validateSecondAssignment(opNode, ctx);
+          } else {
+            // A name after the `=` is a value: the grammar reads an
+            // identifier before a comma or the end of the line as a
+            // target-shaped assignment (`local a, g = 1, b`).
+            currentRhsGroup.push(child);
+          }
+          child = child.nextSibling;
+          continue;
+        }
         // Flush any in-progress RHS group before starting a new
         // target. (Shouldn't happen with current grammar — VAs
         // always come before any standalone RHS exprs — but handle
@@ -86,7 +114,6 @@ export function lowerVariableDefinition(
             nameNode,
           });
         }
-        const opNode = getDescendent("LuauAssignmentOperation", child);
         if (opNode) sawAssignmentOp = true;
         child = child.nextSibling;
         continue;
@@ -166,6 +193,14 @@ export function lowerVariableDefinition(
     }
   }
 
+  // A comma that ends the list: in Luau code the next line started with
+  // something that is not a value (`end`, a statement), and in a narrative
+  // body the declaration ended at its line. Luau reports the token it
+  // found in place of the value or name.
+  if (lastListNode && isCommaName(lastListNode.name)) {
+    validateListComma(lastListNode, sawAssignmentOp, ctx);
+  }
+
   if (targets.length === 0) {
     // Fallback for an unrecognized shape — bail without emitting.
     return {};
@@ -211,7 +246,7 @@ export function lowerVariableDefinition(
     ? lowerExpressionFromContainer(firstRhsOp, ctx)
     : null;
   const trailingExprs = trailingRhsGroups
-    .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
+    .map((nodes) => lowerValueGroup(nodes, ctx))
     .filter((e): e is NonNullable<typeof e> => e != null);
   const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
 
@@ -329,6 +364,21 @@ function withTrailingStatements(
   return out;
 }
 
+// One value of the list. A bare name the grammar read as a target-shaped
+// `LuauVariableAssignment` is alone in its group (it ends at a comma or
+// the end of the line) and resolves as the same name in an access path.
+function lowerValueGroup(nodes: SyntaxNode[], ctx: LowerContext) {
+  const only = nodes.length === 1 ? nodes[0]! : null;
+  const nameNode =
+    only?.name === "LuauVariableAssignment"
+      ? getDescendent("LuauVariableName", only)
+      : null;
+  if (nameNode) {
+    return lowerIdentifierPath([identifierAt(nameNode, ctx)], nameNode, ctx);
+  }
+  return lowerExpressionFromNodes(nodes, ctx);
+}
+
 function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
   let child = parent.firstChild;
   while (child) {
@@ -382,9 +432,12 @@ function isSkippableName(name: string): boolean {
     name === "Whitespace" ||
     name === "Newline" ||
     name === "LuauComment" ||
+    name === "LuauLineComment" ||
+    name === "LuauDocLineComment" ||
+    name === "LuauBlockComment" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace" ||
-    name === "LuauVariableDefinition_begin" ||
-    name === "LuauVariableDefinition_end"
+    VARIABLE_DEFINITION_BEGIN_NAMES.has(name) ||
+    VARIABLE_DEFINITION_END_NAMES.has(name)
   );
 }

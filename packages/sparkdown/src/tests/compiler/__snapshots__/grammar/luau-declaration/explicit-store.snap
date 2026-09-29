@@ -8,16 +8,16 @@ sparkdown [0..14]
  │   │   └─ LuauExplicitStatement_begin_c3 [1..2]
  │   │       └─ RequiredWhitespace [1..2]: " "
  │   ├─ LuauExplicitStatement_content [2..13]
- │   │   └─ LuauVariableDefinition [2..13]
- │   │       ├─ LuauVariableDefinition_begin [2..8]
- │   │       │   ├─ LuauVariableDefinition_begin_c1 2
+ │   │   └─ LuauSparkdownVariableDefinition [2..13]
+ │   │       ├─ LuauSparkdownVariableDefinition_begin [2..8]
+ │   │       │   ├─ LuauSparkdownVariableDefinition_begin_c1 2
  │   │       │   │   └─ OptionalWhitespace 2
- │   │       │   ├─ LuauVariableDefinition_begin_c2 [2..7]
+ │   │       │   ├─ LuauSparkdownVariableDefinition_begin_c2 [2..7]
  │   │       │   │   └─ LuauScopeModifier [2..7]: "store"
- │   │       │   └─ LuauVariableDefinition_begin_c3 [7..8]
- │   │       │       └─ LuauVariableDefinition_begin_c3 [7..8]
+ │   │       │   └─ LuauSparkdownVariableDefinition_begin_c3 [7..8]
+ │   │       │       └─ LuauSparkdownVariableDefinition_begin_c3 [7..8]
  │   │       │           └─ OptionalWhitespace [7..8]: " "
- │   │       ├─ LuauVariableDefinition_content [8..13]
+ │   │       ├─ LuauSparkdownVariableDefinition_content [8..13]
  │   │       │   └─ LuauVariableAssignment [8..13]
  │   │       │       ├─ LuauVariableAssignment_begin [8..10]
  │   │       │       │   ├─ LuauVariableAssignment_begin_c1 [8..9]
@@ -43,6 +43,6 @@ sparkdown [0..14]
  │   │       │       │       │       └─ LuauNumericDecimal_c2 13
  │   │       │       │       └─ LuauAssignmentOperation_end 13
  │   │       │       └─ LuauVariableAssignment_end 13
- │   │       └─ LuauVariableDefinition_end 13
+ │   │       └─ LuauSparkdownVariableDefinition_end 13
  │   └─ LuauExplicitStatement_end 13
  └─ Newline [13..14]: "\n"

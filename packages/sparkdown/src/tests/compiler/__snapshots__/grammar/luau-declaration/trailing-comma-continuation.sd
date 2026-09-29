@@ -1,9 +1,11 @@
-store a, b = 1, -- note
-  2
 function f()
-  local c, d = 3,
+  local c, d = 3, -- note
+    4
+  local e, g = 5,
 
     -- the second value
-    4
-  return c + d
+    6
+  return c + d + e + g
 end
+store a, b = 1,
+  2
