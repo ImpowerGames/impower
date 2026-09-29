@@ -211,6 +211,8 @@ variables:
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
   LUAU_IDENTIFIER: (?:[a-zA-Z_][a-zA-Z0-9_]*\b)
+  # Luau's reserved words, which are never a name.
+  LUAU_RESERVED_WORDS: (?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\b)
   # Style/UI property names follow CSS/sparkle spelling — hyphens are
   # allowed (e.g. `bg-color`, `corner-top-left`, `c-tl`). This is
   # deliberately wider than LUAU_IDENTIFIER (which forbids hyphens) and
@@ -7458,8 +7460,8 @@ repository:
     emit: true
     patterns:
       - { include: "#LuauFunctionAccessor" }
-      - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauDanglingAccessor" }
+      - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionCall" }
@@ -7706,18 +7708,35 @@ repository:
           - { include: "#LuauStdLibMethods" }
           - { include: "#LuauPropertyName" }
 
-  # A `.` with no name after it on its line (`t.a.`), which Luau rejects. It
-  # is read as one token so the access path, its statement and the enclosing
-  # block end where they would with the name in place, and the validator
-  # reports it. A `..` is the concatenation operator, which ends the path
-  # before this rule is tried.
+  # A member access whose last `.` has no name after it on its line
+  # (`t.a.`), which Luau rejects. The last accessor, its name and the
+  # dangling `.` are read as one token, so the access path, its statement and
+  # the enclosing block end where they would with the name in place, and the
+  # validator reports the `.`. A reserved word after the `.` is not a name
+  # (`if t.a. then`); a name after a block comment on the same line is
+  # (`t.a.--[[note]]b`); and `..` is the concatenation operator. A single
+  # word before a `.` (`Hello there.`) reads as a sentence in a body that
+  # also holds story lines, so the rule needs an accessor before the name.
   LuauDanglingAccessor:
-    match: ({{WS}}*)([.])(?![.]|{{WS}}*{{LUAU_IDENTIFIER}})
+    match: ({{WS}}*)({{LUAU_ACCESSOR_OPERATOR}})({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)([.])(?![.]|{{WS}}*(?:(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}}|--\[(=*)\[.*?\]\7\]{{WS}}*{{LUAU_IDENTIFIER}}))
     captures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
       2:
+        patterns:
+          - { include: "#LuauAccessorOperator" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#LuauStdLibMethods" }
+          - { include: "#LuauPropertyName" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      6:
         tag: invalid
         name: invalid.illegal.luau
 

@@ -339,10 +339,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // A `.` with no name after it on its line (`t.a.`). The grammar reads it
-    // as its own token, after any whitespace before it, so the `.` is the
-    // node's last character. The wording is Luau's parser's, naming the token
-    // it meets instead of the name.
+    // A member access whose last `.` has no name after it on its line
+    // (`t.a.`). The grammar reads the last accessor, its name and that `.` as
+    // one token, so the `.` is the node's last character. The wording is
+    // Luau's parser's, naming the token it meets instead of the name.
     if (nodeRef.name === "LuauDanglingAccessor") {
       const got = nextSignificantToken(nodeRef.to, (from, to) =>
         this.read(from, to),
@@ -350,7 +350,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const nameOnLaterLine =
         got != null &&
         /^[A-Za-z_]/.test(got.text) &&
-        !RESERVED.has(got.text);
+        !RESERVED.has(got.text) &&
+        this.read(nodeRef.to, got.from).includes("\n");
       const message = nameOnLaterLine
         ? NAME_ON_LATER_LINE
         : `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`;

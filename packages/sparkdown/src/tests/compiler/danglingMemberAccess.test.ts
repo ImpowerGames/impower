@@ -110,6 +110,18 @@ describe("a dangling member access (#1079)", () => {
       3,
     ],
     [
+      "a same-line `then`",
+      "function f(t)\n  local y = 0\n  if t.a. then\n    y = 1\n  end\n  return y\nend\n",
+      "Expected identifier, got 'then'",
+      6,
+    ],
+    [
+      "a method name",
+      "function f()\n  local t = {}\n  local y = t:a.\n  return y\nend\n",
+      "Expected identifier, got 'return'",
+      4,
+    ],
+    [
       "the name on the next line",
       "function f()\n  local t = {}\n  local y = t.a.\n    b\n  return y\nend\n",
       "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
@@ -148,6 +160,32 @@ describe("a dangling member access (#1079)", () => {
   ])("leaves %s concatenation alone", (_name, line) => {
     const source = `function f()\n  local t = { a = "x" }\n  ${line}\nend\n`;
     expect(diagnostics(compile(source))).toEqual([]);
+  });
+
+  // Luau skips a comment between the `.` and the name, so these read `t.a.b`.
+  it.each([
+    ["a block comment", "t.a.--[[note]]b"],
+    ["a long-bracket block comment", "t.a.--[==[note]==]b"],
+  ])("leaves a name after %s on the same line alone", (_name, access) => {
+    const source = `function f()\n  local t = { a = { b = 1 } }\n  return ${access}\nend\n`;
+    const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
+    expect(errors.filter((d) => d.message.startsWith("Expected identifier"))).toEqual([]);
+  });
+
+  // In a body that also holds story lines, a word before a period is the end
+  // of a sentence, not an access.
+  it.each([
+    [
+      "a function body",
+      "function greet\n  Hello there.\n  How are you?\nend\n",
+    ],
+    [
+      "a story `if` body",
+      "store flag = false\n\n-> start\n\nscene start\n  if flag then\n    Went down the true side.\n  end\nend\n",
+    ],
+  ])("leaves a sentence's period in %s alone", (_name, source) => {
+    const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
+    expect(errors).toEqual([]);
   });
 
   it("leaves the story after the function in the root flow", () => {
