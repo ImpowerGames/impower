@@ -13644,6 +13644,9 @@
       },
       "patterns": [
         {
+          "include": "#LuauComment"
+        },
+        {
           "include": "#LuauTypeLiteral"
         }
       ],

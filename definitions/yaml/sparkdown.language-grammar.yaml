@@ -8878,6 +8878,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 
