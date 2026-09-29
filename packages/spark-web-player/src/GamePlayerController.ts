@@ -1799,7 +1799,17 @@ export class GamePlayerController {
     });
   };
 
-  loadProgram = conflate(
+  /** Take `program`, the newest the page has been sent. A run still waiting
+   *  for the display of the program before stops waiting, so a display the
+   *  worker never answers cannot hold this one back. */
+  loadProgram = (program: SparkProgram) => {
+    for (const arrived of [...this._programWaiters]) {
+      arrived();
+    }
+    return this.loadNewestProgram(program);
+  };
+
+  protected loadNewestProgram = conflate(
     async (program: SparkProgram) => {
       if (!isRunnableProgram(program)) {
         console.error("Program not compiled", program);
@@ -1841,11 +1851,29 @@ export class GamePlayerController {
           if (this._completionStatus === "stale") {
             this.setCompletionStatus(null);
           }
-          await this.updatePreview(
+          const updating = this.updatePreview(
             program,
             this._options.startFrom.file,
             this._options.startFrom.line,
           );
+          // The next program ends this run's wait, not the update: until a
+          // newer update overtakes it, its answer still shows this program.
+          let arrived!: () => void;
+          const arriving = new Promise<boolean>((resolve) => {
+            arrived = () => resolve(true);
+          });
+          this._programWaiters.add(arrived);
+          try {
+            const superseded = await Promise.race([
+              updating.then(() => false),
+              arriving,
+            ]);
+            if (superseded) {
+              updating.catch(console.error);
+            }
+          } finally {
+            this._programWaiters.delete(arrived);
+          }
         }
       }
       this.updateLaunchStateIcon();
@@ -2151,8 +2179,8 @@ export class GamePlayerController {
    *  whatever it still sends is heard by nothing. */
   async detachWorkerPreview() {
     this._workerDetaches += 1;
-    for (const detached of [...this._detachWaiters]) {
-      detached();
+    for (const ended of [...this._displayWaiters]) {
+      ended();
     }
     // A build under way disposes of its application when it finishes, and the
     // next preview builds its own once that is done, so the two never share
@@ -2576,8 +2604,12 @@ export class GamePlayerController {
   protected _workerDetaches = 0;
 
   /** The preview updates waiting for a display's answer, each ended by the
-   *  next detach. */
-  protected _detachWaiters = new Set<() => void>();
+   *  next detach or the next preview update. */
+  protected _displayWaiters = new Set<() => void>();
+
+  /** The runs of `loadProgram` waiting for their program's display, each let
+   *  go by the next program to reach the page. */
+  protected _programWaiters = new Set<() => void>();
 
   /** Settles once every build a detach left under way has finished and
    *  disposed of its application. */
@@ -2609,6 +2641,12 @@ export class GamePlayerController {
     }
     const selectionVersion = this._selectionVersion;
     const update = ++this._previewUpdates;
+    // This update overtakes every one still waiting for its display's answer,
+    // which it would discard: they stop waiting, so an answer that never
+    // comes holds nothing back.
+    for (const ended of [...this._displayWaiters]) {
+      ended();
+    }
     const detaches = this._workerDetaches;
     const overtaken = () =>
       update !== this._previewUpdates ||
@@ -2664,15 +2702,15 @@ export class GamePlayerController {
     }
     const shown = this._completionShown;
     let result: { displayed: boolean; errors?: SimulationError[] } | undefined;
-    // A detach ends the wait for the answer: the application the display
-    // was for is gone, and the worker may never answer a display whose
-    // application no longer tells it that fonts and pictures arrived, while
-    // the next program to reach this page waits for this update to finish.
-    let detached!: () => void;
-    const detaching = new Promise<{ displayed: boolean }>((resolve) => {
-      detached = () => resolve({ displayed: false });
+    // A detach or a newer update ends the wait for the answer. After a detach
+    // the application the display was for is gone, and the worker may never
+    // answer a display whose application no longer tells it that fonts and
+    // pictures arrived; after a newer update the answer would be discarded.
+    let ended!: () => void;
+    const ending = new Promise<{ displayed: boolean }>((resolve) => {
+      ended = () => resolve({ displayed: false });
     });
-    this._detachWaiters.add(detached);
+    this._displayWaiters.add(ended);
     try {
       result = await Promise.race([
         link.request(DisplayPreviewMessage.type, {
@@ -2684,13 +2722,13 @@ export class GamePlayerController {
           real: programIdentity(this._program),
           fresh: this._workerAppFresh,
         }),
-        detaching,
+        ending,
       ]);
     } catch (e) {
       console.error(e);
       return false;
     } finally {
-      this._detachWaiters.delete(detached);
+      this._displayWaiters.delete(ended);
     }
     if (result.displayed && detaches === this._workerDetaches) {
       // The frame reached the application this display was for. A detach

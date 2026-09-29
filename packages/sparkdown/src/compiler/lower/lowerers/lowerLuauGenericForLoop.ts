@@ -25,6 +25,7 @@ import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
+import { loopOf, openBody } from "../utils/statementShape";
 
 // `for v1, v2, ... in iter_expr do BODY end` — Luau's generic-for.
 //
@@ -213,7 +214,17 @@ export function lowerLuauGenericForLoop(
     breakLabel,
     scopeDepth: ctx.scopeDepth,
   });
-  const bodyStatements = lowerStatements(bodyContent, ctx, FOR_IN_BODY_SKIP);
+  const body = openBody(
+    ctx,
+    bodyContent?.from ?? doBlock.from,
+    bodyContent?.to ?? doBlock.to,
+  );
+  const bodyStatements = lowerStatements(
+    bodyContent,
+    ctx,
+    FOR_IN_BODY_SKIP,
+    body,
+  );
   ctx.loopStack?.pop();
   ctx.scopeDepth--;
 
@@ -283,9 +294,19 @@ export function lowerLuauGenericForLoop(
 
   const breakGather = new Gather(new Identifier(breakLabel), 1);
 
-  return wrapInWeave(
-    wrapInScope([initTuple, adjustTuple, loopGather, breakGather]),
-  );
+  const scoped = wrapInScope([initTuple, adjustTuple, loopGather, breakGather]);
+  if (body) {
+    loopOf.set(scoped[0]!, {
+      kind: "forIn",
+      body,
+      objects: scoped,
+      test: breakBranch,
+      init: [initTuple, adjustTuple],
+      call: callAndUnpack,
+      update: ctrlUpdate,
+    });
+  }
+  return wrapInWeave(scoped);
 }
 
 function isSkippable(name: string): boolean {

@@ -2,6 +2,8 @@ import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { VariableAssignment as RuntimeVariableAssignment } from "../../../../engine/VariableAssignment";
 import { VariableReference as RuntimeVariableReference } from "../../../../engine/VariableReference";
 import { Expression } from "./Expression";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
 
 // Evaluate `inner` ONCE, stash the result in a temp, and leave the
 // temp's value on the eval stack. Companion reads elsewhere in the
@@ -41,6 +43,13 @@ export class StashAndRereadExpression extends Expression {
     container.AddContent(new RuntimeVariableReference(this.tempName));
   };
 
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    const name = emitter.variable(this.tempName);
+    emitter.emitObject(this.innerExpression);
+    emitter.emit(Op.SetVar, name, 0, SET_DECLARE);
+    emitter.emit(Op.GetVar, name);
+  }
+
   public override readonly toString = (): string =>
     `(${this.tempName} = ${this.innerExpression})`;
 }
@@ -65,6 +74,10 @@ export class StashedTempReadExpression extends Expression {
   ): void => {
     container.AddContent(new RuntimeVariableReference(this.tempName));
   };
+
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    emitter.emit(Op.GetVar, emitter.variable(this.tempName));
+  }
 
   public override readonly toString = (): string => this.tempName;
 }

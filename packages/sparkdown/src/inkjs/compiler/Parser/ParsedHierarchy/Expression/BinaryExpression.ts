@@ -2,6 +2,8 @@ import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
 import { NativeFunctionCall } from "../../../../engine/NativeFunctionCall";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { KEEP_OR, Op } from "../../../../../program/ProgramInstructions";
 
 export class BinaryExpression extends Expression {
   public readonly leftExpression: Expression;
@@ -61,6 +63,23 @@ export class BinaryExpression extends Expression {
     this.rightExpression.GenerateIntoContainer(container);
     container.AddContent(NativeFunctionCall.CallWithName(this.opName));
   };
+
+  // `and` and `or` keep the left value and jump past the right when it
+  // decides the result, as `ShortCircuit` does, and the right value adjusts
+  // to one value. Any other operator is its native function.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    const op = this.NativeNameForOp(this.opName);
+    emitter.emitObject(this.leftExpression);
+    if (op === "and" || op === "or") {
+      const decided = emitter.jump(Op.JumpIfKeep, op === "or" ? KEEP_OR : 0);
+      emitter.emitObject(this.rightExpression);
+      emitter.emit(Op.Unpack, 1);
+      emitter.bind(decided);
+      return;
+    }
+    emitter.emitObject(this.rightExpression);
+    emitter.emit(Op.Native, emitter.string(op), 2);
+  }
 
   public readonly NativeNameForOp = (opName: string): string => {
     // Source keywords (`and`/`or`/`not`) flow through verbatim — the native
