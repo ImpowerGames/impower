@@ -1,0 +1,15 @@
+function f(t, b)
+  local y = t
+    [1]
+    .a
+  if t
+    [2] then
+  end
+  local u = { b,
+    [2] = b }
+  local s = (t
+    [3])
+  -> elsewhere
+  return
+    [4]
+end
