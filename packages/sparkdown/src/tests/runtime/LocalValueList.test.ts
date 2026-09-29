@@ -46,7 +46,7 @@ describe("a local's value list", () => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
 
-  // Shapes that worked before the fix and must keep working.
+  // Shapes that read correctly before #1116 was fixed and must keep working.
   test.each([
     ["a name first", "local x = 5\nlocal a, b = x, 1\nreturn a + b", "Value 6.\n"],
     ["a name in a later statement on the line", "local x = 5\nlocal a, b = 1, x return b", "Value 5.\n"],
@@ -67,11 +67,28 @@ describe("a local's value list", () => {
     ["a block comment before the names", "local --[[c]] a, b = 1, 2\nreturn a + b", "Value 3.\n"],
     ["a block comment between the names", "local a, --[[c]] b, c = 1, 2, 3\nreturn b + c", "Value 5.\n"],
     ["an escaped quote in a single-quoted string type", "local a: 'a\\'b', b: number = 'a\\'b', 2\nreturn b", "Value 2.\n"],
-    ["a table constructor in a type", "local a: typeof({ k = 1 }), b: number = { k = 1 }, 2\nreturn b", "Value 2.\n"],
     ["a comparison in a type", "local a: typeof(1 == 1), b: number = true, 2\nreturn b", "Value 2.\n"],
     ["a string type naming a keyword", 'local a: "my store", b: number = "my store", 5\nreturn b', "Value 5.\n"],
   ])("still reads %s", (_, body, expected) => {
     expect(run(body)).toEqual({ errors: [], output: expected });
+  });
+
+  // A target's own `=` is the one directly after its name and type, never an
+  // `=` inside its type: the `k = 1` in `typeof({ k = 1 })` must neither
+  // count as the declaration's `=` nor supply its value.
+  test.each([
+    ["a later typed name after a table type", "local a: typeof({ k = 1 }), b: number = { k = 1 }, 2\nreturn b", "Value 2.\n"],
+    ["the only name's value past its table type", "local b: typeof({ k = 1 }) = 7\nreturn b", "Value 7.\n"],
+    ["the first value past a later name's table type", "local a: number, b: typeof({ k = 1 }) = 5, 6\nreturn a", "Value 5.\n"],
+    ["no value for a bare name with a table type", "local a: typeof({ k = 1 })\nreturn tostring(a)", "Value nil.\n"],
+  ])("reads %s", (_, body, expected) => {
+    expect(run(body)).toEqual({ errors: [], output: expected });
+  });
+
+  test("a store reads its value past its table type", () => {
+    const ctx = makeRuntimeStoryFromSource("store S: typeof({ k = 1 }) = 9\nValue {S}.\n");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 9.\n");
   });
 
   test("a store takes later booleans as values", () => {
