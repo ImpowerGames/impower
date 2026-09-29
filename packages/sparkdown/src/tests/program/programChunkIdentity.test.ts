@@ -528,6 +528,20 @@ describe("a block statement", () => {
     });
   }
 
+  // The line of the owner's `else` is its own, indentation included, since
+  // its row holds the column the `else` starts at.
+  it("is emitted again when its `else` moves along its line, as a cold compile emits it", () => {
+    const s = session({ [MAIN]: text });
+    s.edit("Before.", "Before!");
+    const edited = s.edit("  else\n", "   else\n");
+    const cold = programCompiler(
+      { [MAIN]: text.replace("Before.", "Before!").replace("  else\n", "   else\n") },
+      { programChunks: true, seedBuiltinsIntoStory: true },
+    ).compile().program;
+    expect(cold.fallback).toBeUndefined();
+    expect(describeRoot(edited)).toEqual(describeRoot(cold.chunks!));
+  });
+
   // The owner's own line changed: its chunk is emitted again, and its bodies
   // keep their sequences and their statements' chunks.
   it("re-emits only the owner when its own line is edited", () => {
@@ -553,10 +567,11 @@ describe("a block statement", () => {
 // can change that without touching the statement: a scene added below makes
 // a name that read nothing read the scene's count, which the writer does not
 // emit, so the program falls back as a cold compile of the text does.
-// A block statement's own text leaves its bodies out, so that an edit inside
-// a body keeps the owner's chunk. A body written on its owner's line leaves
-// out only its own text there: the condition or header beside it is the
-// owner's, and an edit to it emits the owner again.
+// A block statement's own text leaves out the lines its bodies hold alone, so
+// that an edit inside a body keeps the owner's chunk. A line that holds a
+// part of the owner is the owner's, with what a body writes on it: the
+// owner's rows hold the columns of its parts, so an edit to the condition, or
+// to a body beside it, emits the owner again.
 describe("a block statement written on one line", () => {
   const scene = (statement: string) =>
     ["store n = 0", "scene MAIN", "  Before!", `  ${statement}`, "  Result {n}.", "end", ""].join("\n");
@@ -566,6 +581,9 @@ describe("a block statement written on one line", () => {
     ["an `if` condition with its `else` on the line", "if n == 0 then n = 5 else n = 7 end", "if n == 1 then n = 5 else n = 7 end"],
     ["a `while` loop's test", "while n < 2 do n = n + 1 end", "while n < 3 do n = n + 1 end"],
     ["a `for` loop's range", "for i = 1, 2 do n = n + i end", "for i = 1, 3 do n = n + i end"],
+    ["an `if` body", "if 1 == 1 then n = 1 end", "if 1 == 1 then n = 100 end"],
+    ["a body before an `elseif` on its line", "if false then n = 1 elseif true then n = 2 end", "if false then n = 10 elseif true then n = 2 end"],
+    ["a `while` body", "while n < 2 do n = n + 1 end", "while n < 2 do n = n + 10 end"],
   ] as const) {
     it(`is emitted again when ${part} is edited, as a cold compile of the text emits it`, () => {
       const s = session({ [MAIN]: scene(before).replace("Before!", "Before.") });

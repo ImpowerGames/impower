@@ -360,6 +360,7 @@ const statementOf = (
   const text = record.text!;
   const bodies: BodySource[] = [];
   let above = firstLine;
+  const cuts: { from: number; to: number }[] = [];
   for (const body of shape.bodies) {
     const statements = body.statements.map((nested) =>
       nestedStatement(nested, record),
@@ -367,14 +368,16 @@ const statementOf = (
     const source = bodyOf(body, statements, lineAt, above);
     bodies.push(source);
     above = source.firstLine + source.span;
+    cuts.push({ from: lineAt(body.headEnd) + 1, to: lineAt(body.nextStart) });
   }
-  // The statement's own source is its text with the text of each body left
-  // out, from the end of the part that heads it to the start of the part
-  // after it, so that an edit inside a body leaves it as it was, and a
-  // condition or header that shares its line with a body stays in it.
+  // The statement's own source is its text with the lines between the part
+  // that heads each body and the part after it left out, so that an edit
+  // inside a body leaves it as it was. A line that holds a part keeps what
+  // a body writes on it (`if x then n = 1 end`), since the part and the
+  // statement's rows, which hold columns, stand beside it.
   let own: string | undefined;
   const ownSource = () =>
-    (own ??= cutBodies(text, shape.from, shape.to, shape.bodies));
+    (own ??= cutLines(text(shape.from, shape.to), lineAt(shape.from), cuts));
   let syntax: string | undefined;
   return {
     block,
@@ -464,23 +467,25 @@ const firstNonSpace = (
   return shape.from + skipped;
 };
 
-// The text from `from` to `to` with the text of each body, which runs from
-// the end of the part that heads it to the start of the part after it,
-// replaced by one character that stands for the body.
-const cutBodies = (
-  text: (from: number, to: number) => string,
-  from: number,
-  to: number,
-  bodies: readonly BodyShape[],
+// `text`, whose first line is `firstLine`, with each range of lines in
+// `cuts` replaced by one line that stands for a body.
+const cutLines = (
+  text: string,
+  firstLine: number,
+  cuts: readonly { from: number; to: number }[],
 ): string => {
-  let own = "";
-  let at = from;
-  for (const body of bodies) {
-    const start = Math.min(Math.max(body.headEnd, at), to);
-    own += text(at, start) + "\u0002";
-    at = Math.min(Math.max(body.nextStart, start), to);
-  }
-  return own + text(at, to);
+  const lines = text.split("\n");
+  const kept: string[] = [];
+  lines.forEach((line, i) => {
+    const at = firstLine + i;
+    const cut = cuts.find((c) => at >= c.from && at < c.to);
+    if (!cut) {
+      kept.push(line);
+    } else if (at === cut.from) {
+      kept.push("\u0002");
+    }
+  });
+  return kept.join("\n");
 };
 
 /** The recorded reads of a statement as one string, which a chunk compares
