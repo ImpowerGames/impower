@@ -196,11 +196,7 @@ export class VariableReference extends Expression {
         const baseStruct = context.ResolveStruct(baseName);
         if (
           baseResolve.found &&
-          // A local named like a library (`local table = {...}`) is found
-          // here from anywhere in its flow, but it only shadows the library
-          // inside its scope.
-          (!isStdLibNamespaceName(baseName) ||
-            context.IsLocalInScope(baseName, this)) &&
+          this.IsFoundNameInScope(baseName, context) &&
           !context.constants.has(baseName) &&
           // `companion.O` — the base is a `define` runtime table, so
           // the dotted access walks it at runtime. Pure data structs
@@ -237,17 +233,20 @@ export class VariableReference extends Expression {
     }
   }
 
+  // A local named like a library (`local table = {...}`) is found from
+  // anywhere in its flow, but it only shadows the library inside its scope.
+  private IsFoundNameInScope(name: string, context: Story): boolean {
+    return !isStdLibNamespaceName(name) || context.IsLocalInScope(name, this);
+  }
+
   // Whether the name reads a variable. The receiver of a colon call on a
-  // library (`table:nogetn()`) names a local that shadows the library only
-  // where that local is in scope, though the flow finds it from anywhere in it.
+  // library (`table:nogetn()`) reads a same-named local only where it is in
+  // scope.
   private IsResolvedVariable(context: Story): boolean {
-    if (!context.ResolveVariableWithName(this.name, this).found) {
-      return false;
-    }
-    return !(
-      this.unresolvedMember !== null &&
-      isStdLibNamespaceName(this.name) &&
-      !context.IsLocalInScope(this.name, this)
+    return (
+      context.ResolveVariableWithName(this.name, this).found &&
+      (this.unresolvedMember === null ||
+        this.IsFoundNameInScope(this.name, context))
     );
   }
 

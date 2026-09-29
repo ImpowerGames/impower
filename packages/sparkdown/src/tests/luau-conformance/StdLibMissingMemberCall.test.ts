@@ -574,4 +574,55 @@ describe("a colon call on a library and a local named like it", () => {
       ),
     ).toEqual([]);
   });
+
+  test("in the condition of its repeat loop, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    repeat\n        ${SHADOW}\n    until table:nogetn() == 1\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test("as a loop variable, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    for _, table in ipairs({}) do\n        print(table:nogetn())\n    end\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("a colon call on a library and a local named like it in a project of several scripts", () => {
+  const SHADOW = "local table = { nogetn = function(self) return 1 end }";
+  const missing = (sources: Record<string, string>) =>
+    diagnoseFilesDetailed(sources)
+      .filter((d) => d.message.startsWith("Cannot find item or path named"))
+      .map((d) => `${d.file}:${d.range!.start.line + 1}`);
+
+  test("is in scope in the including script, which runs after it", () => {
+    expect(
+      missing({
+        "main.sd": `& print(table:nogetn())\ninclude scripts/chapter.sd\nfunction late()\n    print(table:nogetn())\nend\n`,
+        "scripts/chapter.sd": `${SHADOW}\n`,
+      }),
+    ).toEqual([]);
+  });
+
+  test("is out of scope before it in its own script", () => {
+    expect(
+      missing({
+        "main.sd": `include scripts/chapter.sd\n`,
+        "scripts/chapter.sd": `function early()\n    print(table:nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table:nogetn())\n    end\nend\n`,
+      }),
+    ).toEqual(["scripts/chapter.sd:2"]);
+  });
+
+  test("is out of scope in an included script, which runs before it", () => {
+    expect(
+      missing({
+        "main.sd": `include scripts/chapter.sd\n${SHADOW}\n`,
+        "scripts/chapter.sd": `& print(table:nogetn())\nfunction chap()\n    print(table:nogetn())\nend\n`,
+      }),
+    ).toEqual(["scripts/chapter.sd:1", "scripts/chapter.sd:3"]);
+  });
 });
