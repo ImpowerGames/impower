@@ -9,8 +9,10 @@ import type { PreviewPoint } from "./WorkerDisplayWorkspace";
  *
  * A loop that lies on the route to many lines stops a route to each of
  * them, so setting aside one point at a time would cost a hang for every
- * line the author moves to. The second hang in one revision withholds every
- * point instead (`withholdAll`), until the project changes.
+ * line the author moves to. A route or display that stops the worker after
+ * something was already set aside in the revision withholds every point
+ * instead (`withholdAll`, called by `respondToWorkerHang`), until the
+ * project changes.
  */
 export class SetAsidePoints {
   /** The revision the player's workspace keys set-aside points by: the edits

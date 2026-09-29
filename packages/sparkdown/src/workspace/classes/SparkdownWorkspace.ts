@@ -235,7 +235,11 @@ export abstract class SparkdownWorkspace {
    *
    * Deliberately `undefined` until `initialize()` is entered: if initialization
    * is never going to happen there is nothing to wait for, and waiting forever
-   * would turn a loud error into a silent hang.
+   * would turn a loud error into a silent hang. The one exception is a
+   * restart (`restartCompiler`) before `initialize`, which leaves it pending
+   * until `initialize` configures the new worker; the player restarts only a
+   * worker that was running a story, which a worker never does before it is
+   * configured.
    */
   protected _compilerConfigured = false;
   protected _resolveCompilerConfigured?: () => void;

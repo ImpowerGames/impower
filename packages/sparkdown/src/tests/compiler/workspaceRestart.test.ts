@@ -266,16 +266,23 @@ describe("restarting the compiler's worker", () => {
     // The second worker runs into the loop before it has been configured.
     const second = workspace.restartCompiler();
     await settle();
+    // A request that arrives now waits for the newest worker's configuration.
+    let newestConfigured = false;
+    void workspace.whenCompilerConfigured!.then(
+      () => (newestConfigured = true),
+    );
     // The first restart ends quietly; its worker's configuration never came,
     // and says nothing about the third worker's.
     await expect(first).resolves.toBeUndefined();
     expect((workspace as any)._compilerConfigured).toBe(false);
     expect(configured).toBe(false);
+    expect(newestConfigured).toBe(false);
 
     workspace.connections[2]!.release(ConfigureCompilerMessage.method);
     await settle();
     expect((workspace as any)._compilerConfigured).toBe(true);
     expect(configured).toBe(true);
+    expect(newestConfigured).toBe(true);
     await second;
   });
 

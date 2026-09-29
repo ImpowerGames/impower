@@ -24,6 +24,7 @@ import {
   WORKER_HANG_AFTER_MS,
   WorkerWatchdog,
 } from "../../main/workers/WorkerWatchdog";
+import { workerHangMessage } from "../../utils/workerHangMessage";
 import { createPlayerHarness, MAIN_URI, settle } from "./playerHarness";
 
 const SOURCE = `-> start
@@ -135,6 +136,30 @@ describe("timing a stretch of story execution", () => {
       w.yieldThread();
     }
     expect(w.notices).toEqual([]);
+  });
+});
+
+describe("what the author is told", () => {
+  const hang = (previewWithheld: boolean) => ({
+    busyMs: 3_400,
+    location: at(LOOPS),
+    previewWithheld,
+  });
+
+  it("names the time, the line and the file, and what became of PLAY or the preview", () => {
+    const opening = `The script ran for 3 seconds at line ${LOOPS + 1} of main.sd without stopping, possibly in an infinite loop, so the game preview was restarted.`;
+    expect(workerHangMessage(hang(false), "play")).toBe(
+      `${opening} PLAY has stopped.`,
+    );
+    expect(workerHangMessage(hang(true), "play")).toBe(
+      `${opening} PLAY has stopped, and the preview is paused until the script changes.`,
+    );
+    expect(workerHangMessage(hang(false), "preview")).toBe(
+      `${opening} The preview will not show the line you were on until the script changes.`,
+    );
+    expect(workerHangMessage(hang(true), "preview")).toBe(
+      `${opening} The preview is paused until the script changes.`,
+    );
   });
 });
 
