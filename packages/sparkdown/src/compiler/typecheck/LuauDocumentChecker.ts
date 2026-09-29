@@ -125,6 +125,7 @@ const LUAU_STATEMENTS = new Set([
   "LuauBreakStatement",
   "LuauContinueStatement",
   "LuauDataTypeDeclaration",
+  "LuauFunctionTypeDeclaration",
   "LuauIfBlock",
   "LuauWhileLoop",
   "LuauForLoop",

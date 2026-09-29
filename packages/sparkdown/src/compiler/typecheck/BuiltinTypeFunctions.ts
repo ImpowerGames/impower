@@ -2228,11 +2228,14 @@ function weakoptionalTypeFunc(
 
 /**
  * The reducer of `user`, Luau's `userDefinedTypeFunction` from
- * `UserDefinedTypeFunction.cpp`. Sparkdown has no `type function`
- * declarations and no VM to evaluate one, so this keeps the steps that come
- * before evaluation: an instance reduces to the error type when evaluation is
- * not allowed, waits on the pending types under its arguments, and otherwise
- * fails with the error Luau reports when it has no VM to evaluate with.
+ * `UserDefinedTypeFunction.cpp`, which reduces a use of a `type function`
+ * declaration. Sparkdown has no VM to evaluate the declaration's body, so this
+ * keeps the steps that come before evaluation: an instance reduces to the
+ * error type when evaluation is not allowed or when the declaration, or a
+ * type function it can call, has parse errors; waits on the pending types
+ * under its arguments and under the type aliases its body names; and
+ * otherwise fails with the error Luau reports when it has no VM to evaluate
+ * with.
  */
 function userDefinedTypeFunction(
   instance: TypeId,
@@ -2242,20 +2245,33 @@ function userDefinedTypeFunction(
 ): TypeFunctionReductionResult<TypeId> {
   const typeFunction = get(instance, "TypeFunctionInstanceType")!;
 
-  if (typeFunction.userFuncName === undefined) {
+  const userFuncData = typeFunction.userFuncData;
+  if (typeFunction.userFuncName === undefined || userFuncData === undefined) {
     throw new InternalCompilerError("all user-defined type functions must have an associated function definition");
   }
 
   // If type functions cannot be evaluated because of errors in the code, we do not generate any additional ones
-  if (!ctx.typeFunctionRuntime.allowEvaluation) return reductionResult(ctx.builtins.errorType, Reduction.MaybeOk);
+  if (!ctx.typeFunctionRuntime.allowEvaluation || userFuncData.definition.hasErrors) {
+    return reductionResult(ctx.builtins.errorType, Reduction.MaybeOk);
+  }
 
   const check = new FindUserTypeFunctionBlockers(ctx);
 
   for (const typeParam of typeParams) check.traverse(follow(typeParam));
 
+  // The environment must not depend on any type alias that is blocked
+  for (const alias of userFuncData.environmentAlias.values()) {
+    if (alias.typeParams.length === 0 && alias.typePackParams.length === 0) check.traverse(follow(alias.type));
+  }
+
   if (check.blockingTypes.length !== 0) return reductionResult<TypeId>(undefined, Reduction.MaybeOk, check.blockingTypes);
 
-  const name = typeFunction.userFuncName;
+  // A type function the body can call that could not be parsed cannot be evaluated either
+  for (const definition of userFuncData.environmentFunction.values()) {
+    if (definition.hasErrors) return reductionResult(ctx.builtins.errorType, Reduction.MaybeOk);
+  }
+
+  const name = userFuncData.definition.name;
 
   return {
     ...reductionResult<TypeId>(undefined, Reduction.Erroneous),

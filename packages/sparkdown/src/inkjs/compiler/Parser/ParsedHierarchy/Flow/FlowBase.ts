@@ -176,8 +176,7 @@ function definitionSite(
 // in scope at `end`. The objects are scanned backwards, and everything
 // between an `EndScope` and its `BeginScope` is skipped: that block closed
 // before `end`. A conditional is skipped too, since every branch of one is a
-// block (an `if` arm or a loop body, which a `while` loop does not wrap in
-// scope commands). Other objects are searched the same way, since a
+// block (an `if` arm or a `while` body). Other objects are searched the same way, since a
 // declaration can sit inside an object that opens no block, such as a
 // multiple assignment or the label gather of a `repeat` body. A function is
 // a flow of its own and is never searched.

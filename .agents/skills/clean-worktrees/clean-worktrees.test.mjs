@@ -23,6 +23,16 @@
 // deletion as `failed` with the directory's state, record every row in the
 // log, and on the next run list the leftover directory with the branch it
 // stranded and read a stranded branch's commits again before advising -D.
+// The same stub pins `--apply`'s prune of dead worktree records (it runs, it
+// waits beside an interrupted probe's leftover, a dry run never prunes, and a
+// dead record that holds a removable worktree's branch no longer blocks its
+// deletion) and `--apply --root <main> --remove <path>`: what it removes (an
+// unmerged worktree, a leftover, a broken worktree, with the links inside
+// unlinked first and the branch kept), every refusal (outside the root, the
+// main checkout, a path holding or inside a worktree, a link, the default
+// branch, a lock, changes, a process or a server using it, a held directory),
+// a process listing whose parent pids run into a recycled pid, and a removal
+// git cannot finish.
 // Controls run those same checks against copies of the script with one rule
 // cut out, and require them to fail naming the worktree that rule protects.
 // The real commands are pinned on a scratch repository with a held worktree,
@@ -45,7 +55,7 @@ import { PROFILE_CLAIM_FILE, checkoutDir } from "../drive-web-editor/session-dir
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, removeWorktree, gatherFacts, detachedHistory, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalProcesses, recordedProcessAlive, removeWorktree, gatherFacts, detachedHistory, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun, parseProcesses } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -95,16 +105,22 @@ await check("parseWorktreeList reads every kind of stanza", () => {
 
 await check("parseArgs takes --apply only with --root, and --root only with an absolute path", () => {
   const abs = path.resolve("/repo/impower");
-  assert.deepEqual(parseArgs([]), { apply: false, root: null });
-  assert.deepEqual(parseArgs(["--apply", "--root", abs]), { apply: true, root: abs });
-  assert.deepEqual(parseArgs([`--root=${abs}`, "--apply"]), { apply: true, root: abs });
-  assert.deepEqual(parseArgs(["--root", abs]), { apply: false, root: abs });
+  assert.deepEqual(parseArgs([]), { apply: false, root: null, remove: null });
+  assert.deepEqual(parseArgs(["--apply", "--root", abs]), { apply: true, root: abs, remove: null });
+  assert.deepEqual(parseArgs([`--root=${abs}`, "--apply"]), { apply: true, root: abs, remove: null });
+  assert.deepEqual(parseArgs(["--root", abs]), { apply: false, root: abs, remove: null });
+  const named = path.resolve("/repo/impower.worktrees/fix/1-x");
+  assert.deepEqual(parseArgs(["--apply", "--root", abs, "--remove", named]), { apply: true, root: abs, remove: named });
+  assert.deepEqual(parseArgs(["--apply", "--root", abs, `--remove=${named}`]), { apply: true, root: abs, remove: named });
+  assert.throws(() => parseArgs(["--remove", named]), /--remove <path> needs --apply --root <path>/);
+  assert.throws(() => parseArgs(["--apply", "--root", abs, "--remove"]), /--remove needs the path of the directory to remove after it/);
+  assert.throws(() => parseArgs(["--apply", "--root", abs, "--remove", "fix/1-x"]), /--remove fix\/1-x is not an absolute path/);
   assert.throws(() => parseArgs(["--apply"]), /--apply needs --root <path>, the main checkout it is to act on/);
   assert.throws(() => parseArgs(["--apply", "--root"]), /--root needs the path of the main checkout after it/);
   assert.throws(() => parseArgs(["--root="]), /--root needs the path/);
   for (const rel of [".", "..", "impower", "../impower", "./impower"]) assert.throws(() => parseArgs(["--apply", "--root", rel]), /--root .* is not an absolute path; --root names the main checkout in full/, `--root ${rel} was accepted`);
   assert.throws(() => parseArgs(["--root=."]), /is not an absolute path/);
-  assert.throws(() => parseArgs(["--all"]), /unknown option --all; the options are --apply and --root <path>/);
+  assert.throws(() => parseArgs(["--all"]), /unknown option --all; the options are --apply, --root <path> and --remove <path>/);
 });
 
 const entry = (over = {}) => ({ path: "C:/repo/impower.worktrees/fix/1-x", head: "bbbb", branch: "fix/1-x", detached: false, bare: false, locked: null, prunable: null, ...over });
@@ -327,7 +343,7 @@ await check("a worktree whose path a running process names is kept, and one whos
 
 await check("a locked worktree, one whose directory is gone, and one git no longer sees as a worktree are kept", () => {
   kept(entry({ locked: "in use" }), facts(), "locked (in use)");
-  kept(entry({ prunable: "gitdir file points to non-existent location" }), facts(), "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there; delete it by hand");
+  kept(entry({ prunable: "gitdir file points to non-existent location" }), facts(), "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand");
   kept(entry({ prunable: "gitdir file points to non-existent location" }), facts({ missing: true }), "its directory is gone; `git worktree prune` drops the record");
   kept(entry(), facts({ missing: true }), "its directory is gone; `git worktree prune` drops the record");
   const v = kept(entry({ prunable: "gitdir file points to non-existent location" }), facts({ missing: true, probeLeft: true }), `its directory is gone and ${path.resolve("C:/repo/impower.worktrees/fix/1-x")}.removing is beside it, which is what an interrupted run's probe leaves; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record the renamed tree points at`);
@@ -436,8 +452,8 @@ await check("strayReason names the probe's leftover and the branch a failed or i
   assert.equal(strayReason(at("fix", "2-y.removing"), entries, log, deps, ctx), `not a registered worktree, named like the probe of ${rel(at("fix", "2-y"))}, which is registered and present; check it before deleting it by hand`);
   assert.equal(strayReason(at("fix", "3-z"), entries, log, deps, ctx), "not a registered worktree; the --apply run at t1 failed to remove it (git worktree remove stopped part-way (boom) and dropped its record); its branch fix/3-z is still local");
   assert.equal(strayReason(at("fix", "4-w.removing"), entries, log, deps, ctx), "not a registered worktree; the --apply run at t2 failed to remove it (the directory was renamed)");
-  assert.equal(strayReason(at("fix", "5-v"), entries, log, deps, ctx), "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it");
-  assert.equal(strayReason(at("fix", "6-u"), entries, "", deps, ctx), "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it");
+  assert.equal(strayReason(at("fix", "5-v"), entries, log, deps, ctx), "not a registered worktree, which is what an interrupted removal or add leaves behind; check it, then `--apply --root <main> --remove <path>` deletes it");
+  assert.equal(strayReason(at("fix", "6-u"), entries, "", deps, ctx), "not a registered worktree, which is what an interrupted removal or add leaves behind; check it, then `--apply --root <main> --remove <path>` deletes it");
   assert.equal(strayReason(at("perf", "7-t"), entries, log, deps, ctx), "not a registered worktree; the --apply run at t4 was removing it when that run stopped (merged into origin/main; no origin/perf/7-t); its branch perf/7-t is still local");
   assert.equal(strayReason(at("perf"), entries, log, deps, ctx), `not a registered worktree; it holds ${rel(at("perf", "7-t"))}, which the --apply run at t4 was removing when that run stopped (merged into origin/main; no origin/perf/7-t); its branch perf/7-t is still local`);
   assert.equal(strayReason(at("fix"), entries, log, deps, ctx), `not a registered worktree; it holds ${rel(at("fix", "3-z"))}, which the --apply run at t1 failed to remove (git worktree remove stopped part-way (boom) and dropped its record); its branch fix/3-z is still local; and ${rel(at("fix", "4-w"))}, which the --apply run at t2 failed to remove (the directory was renamed)`);
@@ -623,6 +639,8 @@ function makeWorld() {
     renames: [],
     fetched: 0,
   };
+  w.unlinked = [];
+  w.pruneCalls = 0;
   for (const t of w.trees) if (t.branch) w.branches.add(t.branch);
   const branchFails = new Set(w.trees.filter((t) => t.branchFails).map((t) => t.branch));
   // What is on disk: every worktree directory that is not missing, and the
@@ -754,8 +772,17 @@ function makeWorld() {
         w.removed.push(t.branch);
         return ok();
       }
+      if (a === "worktree prune") {
+        w.pruneCalls++;
+        for (const t of w.trees.filter((t) => t.prunable)) unregister(t);
+        return ok();
+      }
       if ((m = /^branch -D (.+)$/.exec(a))) {
         if (branchFails.has(m[1])) return fail(`error: could not delete '${m[1]}'`);
+        // Git refuses to delete a branch a registered worktree holds, a dead
+        // record included, until the record is pruned.
+        const holder = w.trees.find((t) => t.prunable && t.branch === m[1]);
+        if (holder) return fail(`error: Cannot delete branch '${m[1]}' checked out at '${holder.path}'`);
         w.branches.delete(m[1]);
         w.branchesDeleted.push(m[1]);
         return ok();
@@ -802,6 +829,15 @@ function makeWorld() {
         w.removed.push(d.tree.branch);
       }
       w.disk.delete(path.resolve(p).toLowerCase());
+    },
+    // Unlinks what the tree holds and reports how many, as the real call does.
+    isLink: (p) => w.linkTargets?.has(path.resolve(p).toLowerCase()) === true,
+    unlinkLinks: (p) => {
+      const t = onDisk(p)?.tree;
+      w.unlinked.push(path.resolve(p));
+      const count = t?.links?.length ?? 0;
+      if (t) t.links = [];
+      return count;
     },
     removeEmptyDir: (p) => {
       if (w.trees.some((t) => t.rmdirBusy && same(path.dirname(t.path), p)) || w.busyDirs?.has(path.resolve(p).toLowerCase())) {
@@ -1018,9 +1054,9 @@ async function worldChecks(mainFn, report) {
       ["fix/16-in-use", "keep", "its path is on the command line of pid 777 (node.exe)"],
       ["fix/17-remote-ahead", "keep", "origin/fix/17-remote-ahead has 2 commits not on origin/main and this branch is behind it; a pull request may be open"],
       ["fix/18-unborn", "keep", "unborn branch with no commits; left for a person"],
-      ["fix/19-broken", "keep", "512.0 MB", "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there; delete it by hand"],
+      ["fix/19-broken", "keep", "512.0 MB", "git no longer sees it as a worktree (gitdir file points to non-existent location) but the directory is still there, so whether it has uncommitted changes cannot be told; check it by hand, then delete it by hand"],
       ["fix/20-missing", "keep", "its directory is gone; `git worktree prune` drops the record"],
-      [rel(R("impower.worktrees/fix/husk-old")), "keep", "(not a worktree)", "204.8 MB", "not a registered worktree, which is what an interrupted removal or add leaves behind; delete it by hand after checking it"],
+      [rel(R("impower.worktrees/fix/husk-old")), "keep", "(not a worktree)", "204.8 MB", "not a registered worktree, which is what an interrupted removal or add leaves behind; check it, then `--apply --root <main> --remove <path>` deletes it"],
       [rel(R("impower.worktrees/leftover")), "keep", "(not a worktree)"],
       [rel(R("impower.worktrees/fix/32-probe-taken.removing")), "keep", "(not a worktree)", `not a registered worktree, named like the probe of ${rel(R("impower.worktrees/fix/32-probe-taken"))}, which is registered and present; check it before deleting it by hand`],
       [rel(R("impower.worktrees/fix/41-probe-left.removing")), "keep", "(not a worktree)", `the worktree ${rel(R("impower.worktrees/fix/41-probe-left"))}, renamed by an interrupted run's probe and not renamed back; rename it back by hand, and do not run \`git worktree prune\`, which would drop the record it points at`],
@@ -1166,6 +1202,201 @@ async function worldChecks(mainFn, report) {
       ["fix/3-dirty", "keep", "uncommitted changes (1 file)"],
     ]);
   });
+
+  // ---- dead worktree records: pruned before anything is classified ----
+  const probeStrays = [R("impower.worktrees/fix/32-probe-taken.removing"), R("impower.worktrees/fix/41-probe-left.removing")];
+  await step("dead records are left alone while an interrupted probe's leftover sits beside one", async () => {
+    const pw = makeWorld();
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN);
+    assert.equal(pw.pruneCalls, 0, "git worktree prune ran with a probe's leftover beside a dead record");
+    assert.match(r.out, /dead worktree records were not pruned: .*41-probe-left\.removing is beside a dead record/);
+  });
+  await step("--apply prunes dead records first, so they cannot block a branch deletion, and records it", async () => {
+    const pw = makeWorld();
+    for (const s of probeStrays) pw.disk.delete(s.toLowerCase());
+    pw.trees.splice(pw.trees.findIndex((t) => t.branch === "fix/41-probe-left"), 1);
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN);
+    assert.equal(pw.pruneCalls, 1, r.out);
+    assert.match(r.out, /^pruned 2 dead worktree records: .*19-broken, .*20-missing$/m);
+    assert.ok(!r.out.split(/\r?\n/).some((l) => l.includes("  fix/20-missing  ") && l.startsWith("keep")), "a pruned record still shows as a keep row that says to run git worktree prune");
+    assert.ok(pw.log.some((l) => JSON.parse(l).pruned?.length === 2), "the prune was not recorded in the log");
+  });
+  await step("a dry run prunes nothing", async () => {
+    const pw = makeWorld();
+    for (const s of probeStrays) pw.disk.delete(s.toLowerCase());
+    await run(mainFn, pw, MAIN);
+    assert.equal(pw.pruneCalls, 0, "a dry run pruned");
+  });
+
+  // ---- --remove: one named directory, its branch left alone ----
+  const treeOf = (pw, branch) => pw.trees.find((t) => t.branch === branch);
+  const refusedRemove = async (label, pick, phrase) => {
+    const pw = makeWorld();
+    const target = pick(pw);
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", target);
+    assert.equal(r.status, 1, `${label}: ${r.out}`);
+    assert.match(r.out, phrase, label);
+    assert.deepEqual(pw.removed, [], `${label}: it removed a worktree`);
+    assert.deepEqual(pw.unlinked, [], `${label}: it unlinked links`);
+    assert.deepEqual(pw.branchesDeleted, [], `${label}: it deleted a branch`);
+    assert.deepEqual(pw.log, [], `${label}: it recorded a removal it did not make`);
+    assert.equal(pw.fetched, 0, `${label}: it ran the whole cleanup`);
+  };
+  await step("--remove removes an unmerged worktree, unlinking its links first, and leaves its branch", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/5-open");
+    const inside = path.join(t.path, "impower-dev");
+    t.size = 0.6 * GB;
+    t.links = [["node_modules/impower-dev", inside], ["node_modules/other", inside]];
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 0, r.out);
+    assert.match(r.out, /^removed\s+impower\.worktrees.fix.5-open\s+.*2 links unlinked first, targets untouched; its branch fix\/5-open stays$/m);
+    assert.deepEqual(pw.unlinked, [path.resolve(t.path)]);
+    assert.deepEqual(pw.removed, ["fix/5-open"]);
+    assert.deepEqual(pw.branchesDeleted, [], "the branch was deleted");
+    assert.ok(pw.branches.has("fix/5-open"));
+    assert.equal(pw.fetched, 0, "a single removal fetched or ran the whole cleanup");
+    const logged = pw.log.map((l) => JSON.parse(l)).filter((l) => l.path);
+    assert.deepEqual(logged.map((l) => l.decision), ["removing", "removed"]);
+    assert.ok(logged.every((l) => same(l.path, t.path) && l.branch === undefined), "a removal by name is recorded under its path only");
+  });
+  await step("--remove removes a directory git no longer sees as a worktree", async () => {
+    const pw = makeWorld();
+    const p = R("impower.worktrees/leftover");
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", p);
+    assert.equal(r.status, 0, r.out);
+    assert.match(r.out, /^removed\s+impower\.worktrees.leftover\s+.*not a registered worktree/m);
+    assert.ok(!pw.disk.has(p.toLowerCase()), "the directory is still there");
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove refuses a worktree git can no longer read, since git status cannot say whether it holds uncommitted work", () => refusedRemove("broken", (pw) => treeOf(pw, "fix/19-broken").path, /fix.19-broken is a worktree git can no longer read \(gitdir file points to non-existent location\), so whether it has uncommitted changes cannot be told/));
+  await step("--remove refuses an unregistered directory holding its own .git", () => refusedRemove("own .git", (pw) => {
+    const p = R("impower.worktrees/leftover");
+    pw.disk.set(path.join(p, ".git").toLowerCase(), { size: 0, tree: null });
+    return p;
+  }, /leftover holds a \.git but is not a registered worktree/));
+  await step("--remove refuses a link that leads outside the tree, naming it, and unlinks nothing", () => refusedRemove("link out", (pw) => treeOf(pw, "fix/44-link-out").path, /link inside it points outside it \(.*pkg -> .*elsewhere.*pkg\)/));
+  await step("--remove refuses a directory it cannot read", () => refusedRemove("unreadable", (pw) => treeOf(pw, "fix/46-unreadable").path, /could not be read/));
+  await step("--remove refuses a tree with uncommitted changes", () => refusedRemove("dirty", (pw) => treeOf(pw, "fix/3-dirty").path, /has uncommitted changes \(1 file\)/));
+  await step("--remove refuses a tree a process is using", () => refusedRemove("in use", (pw) => treeOf(pw, "fix/16-in-use").path, /is in use: its path is on the command line of pid 777/));
+  await step("--remove refuses a tree whose dev servers are up", () => refusedRemove("servers", (pw) => treeOf(pw, "fix/7-servers-up").path, /is in use: its drive-web-editor reports dev servers up at http:\/\/localhost:1/));
+  await step("--remove refuses when the processes cannot be listed", () => refusedRemove("unlisted", (pw) => ((pw.processesFail = true), treeOf(pw, "fix/16-in-use").path), /the processes on this machine could not be listed/));
+  await step("--remove refuses a locked worktree", () => refusedRemove("locked", (pw) => treeOf(pw, "fix/12-locked").path, /is locked \(in use\)/));
+  await step("--remove refuses the default branch's worktree", () => refusedRemove("default", () => R("impower.worktrees/main-copy"), /holds the default branch main/));
+  await step("--remove refuses the main checkout", () => refusedRemove("main", () => MAIN, /that is the main checkout; nothing was touched/));
+  await step("--remove refuses a path outside the worktrees root", () => refusedRemove("outside", (pw) => treeOf(pw, "fix/13-outside").path, /is not under .*impower\.worktrees; nothing was touched/));
+  await step("--remove refuses the worktrees root and a directory holding worktrees", async () => {
+    await refusedRemove("root", () => ROOT, /is not under/);
+    await refusedRemove("holder", () => R("impower.worktrees/fix"), /holds another worktree/);
+  });
+  await step("--remove refuses an interrupted probe's directory", () => refusedRemove("probe", () => R("impower.worktrees/fix/32-probe-taken.removing"), /rename it back by hand instead/));
+  await step("--remove refuses a missing directory", async () => {
+    await refusedRemove("gone", () => R("impower.worktrees/fix/99-never"), /does not exist/);
+    await refusedRemove("record only", (pw) => treeOf(pw, "fix/20-missing").path, /already gone and git still holds its record/);
+  });
+  await step("--remove refuses a path inside a registered worktree, whatever its tracked state, so no uncommitted work is cut out", async () => {
+    await refusedRemove("subdirectory", (pw) => path.join(treeOf(pw, "fix/3-dirty").path, "src"), /is inside the worktree .*3-dirty; name the worktree itself/);
+    await refusedRemove("node_modules", (pw) => path.join(treeOf(pw, "fix/5-open").path, "node_modules"), /is inside the worktree .*5-open/);
+    await refusedRemove("git dir", (pw) => path.join(treeOf(pw, "fix/5-open").path, ".git"), /is inside the worktree .*5-open/);
+  });
+  await step("--remove refuses a worktree a process holds, found by the rename probe, before it unlinks or deletes anything", () => refusedRemove("held", (pw) => treeOf(pw, "fix/9-held").path, /the directory could not be renamed \(EPERM\)/));
+  await step("--remove refuses when an interrupted probe's leftover is beside the tree", () => refusedRemove("probe taken", (pw) => treeOf(pw, "fix/32-probe-taken").path, /\.removing already exists, which is what an interrupted run leaves beside a worktree/));
+  await step("--remove reports a probe that could not be renamed back as failed and records it", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/43-rename-back-fails");
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /^failed\s+.*43-rename-back-fails\s+.*could not be renamed back \(EPERM\); rename it back by hand/m);
+    assert.deepEqual(pw.unlinked, []);
+    assert.deepEqual(pw.removed, []);
+    assert.deepEqual(pw.log.map((l) => JSON.parse(l).decision), ["removing", "failed"]);
+  });
+  await step("--remove does not count the shells that ran it, whose command lines name the path they were typed with", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/5-open");
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "bash.exe", cmd: `bash -c "node clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}"` });
+    pw.processes.push({ pid: 80, ppid: 1, age: 9_000, name: "bash.exe", cmd: `"C:/Program Files/Git/bin/bash.exe" -c "cd ${t.path} && node clean-worktrees.mjs --remove ${t.path}"` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 0, r.out);
+    assert.deepEqual(pw.removed, ["fix/5-open"]);
+  });
+  await step("--remove still counts a process outside its own ancestry that names the path", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/5-open");
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 1, age: 5_000, name: "bash.exe", cmd: "bash" });
+    pw.processes.push({ pid: 91, ppid: 1, age: 5_000, name: "code.exe", cmd: `code ${t.path}` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /its path is on the command line of pid 91 \(code\.exe\)/);
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove follows the parent pids only while each parent is older than its child, so a recycled pid is not an ancestor", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/5-open");
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "cmd.exe", cmd: `cmd /c node clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}` });
+    // pid 80 is what the dead parent's pid was handed to: younger than its
+    // supposed child, and running the script for another removal that names the
+    // path, so only its age says it is not the shell that ran this one.
+    pw.processes.push({ pid: 80, ppid: 1, age: 100, name: "node.exe", cmd: `node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /its path is on the command line of pid 80 \(node\.exe\)/);
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove counts an ancestor that names the path without running the script, such as an editor whose terminal ran it", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/5-open");
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "bash.exe", cmd: `bash -c "node clean-worktrees.mjs --remove ${t.path}"` });
+    pw.processes.push({ pid: 80, ppid: 1, age: 9_000, name: "code.exe", cmd: `code ${t.path}` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /its path is on the command line of pid 80 \(code\.exe\)/);
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove tells the script's own command line by its file name and option, not by a word a worktree's path can hold", async () => {
+    const pw = makeWorld();
+    const live = { path: R("impower.worktrees/fix/1068-clean-worktrees-recycled-pids"), head: "c68", branch: "fix/1068-clean-worktrees-recycled-pids", own: 1, unpushed: 0, remote: true, remoteAhead: 1, size: 1 * GB };
+    pw.trees.push(live);
+    pw.branches.add(live.branch);
+    pw.disk.set(live.path.toLowerCase(), { size: live.size, tree: live });
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "bash.exe", cmd: `bash -c "node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root ${MAIN} --remove ${live.path}"` });
+    pw.processes.push({ pid: 80, ppid: 1, age: 9_000, name: "Code.exe", cmd: `"C:/Program Files/Microsoft VS Code/Code.exe" ${live.path}` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", live.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /its path is on the command line of pid 80 \(Code\.exe\)/);
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove refuses a target that is itself a link, so it never unlinks what the link points at", () => refusedRemove("link", (pw) => {
+    const p = R("impower.worktrees/leftover");
+    pw.linkTargets = new Set([p.toLowerCase()]);
+    return p;
+  }, /is itself a link/));
+  await step("--apply prunes a dead record that holds a removable worktree's branch, so the branch deletion is not refused", async () => {
+    const pw = makeWorld();
+    for (const s of probeStrays) pw.disk.delete(s.toLowerCase());
+    pw.trees.splice(pw.trees.findIndex((t) => t.branch === "fix/41-probe-left"), 1);
+    const live = { path: R("impower.worktrees/fix/62-shared"), head: "c62", branch: "fix/62-shared", size: 1 * GB };
+    const dead = { path: R("impower.worktrees/fix/63-stale"), head: "c62", branch: "fix/62-shared", prunable: "gitdir file points to non-existent location", missing: true };
+    pw.trees.push(live, dead);
+    pw.disk.set(live.path.toLowerCase(), { size: live.size, tree: live });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN);
+    assert.ok(pw.branchesDeleted.includes("fix/62-shared"), `the branch a dead record held was not deleted:\n${r.out}`);
+    assert.match(r.out, /^removed\s+impower\.worktrees.fix.62-shared\s/m);
+  });
+  await step("--remove reports a removal git could not finish as failed, with what remains", async () => {
+    const pw = makeWorld();
+    const t = treeOf(pw, "fix/14-grabbed");
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /^failed\s+.*14-grabbed\s+.*stopped part-way.*1\.5 GB remain there; delete the directory by hand/m);
+    assert.deepEqual(pw.branchesDeleted, []);
+    assert.equal(JSON.parse(pw.log.at(-1)).decision, "failed");
+  });
 }
 const rows = (out) => out.split(/\r?\n/).filter((l) => /^(keep|remove|kept|removed|failed)\s/.test(l)).length;
 
@@ -1219,7 +1450,7 @@ try {
   await control("a locked worktree is not refused", [["if (entry.locked) keep.push", "if (false) keep.push"]], ["fix/12-locked: expected keep, got remove"]);
   await control("the main checkout and a path outside the root are not refused", [["if (!facts.insideRoot) keep.push", "if (false) keep.push"]], ["main: expected keep, got remove", "fix/13-outside: expected keep, got remove"]);
   await control("the removal reaches outside the root", [["if (!facts.insideRoot) keep.push", "if (false) keep.push"], ["if (!isUnder(abs, ctx.root)) return kept(", "if (false) return kept("]], ["the script removed a path outside the root"]);
-  await control("the dry run removes", [["const { apply, root: namedRoot } = parseArgs(argv);", "const { root: namedRoot } = parseArgs(argv); const apply = true;"]], ["the dry run removed worktrees"]);
+  await control("the dry run removes", [["const { apply, root: namedRoot, remove } = parseArgs(argv);", "const { root: namedRoot, remove } = parseArgs(argv); const apply = true;"]], ["the dry run removed worktrees"]);
   await control("--apply runs without --root", [["if (opts.apply && !opts.root) die(", "if (false) die("]], ["--apply without --root is refused before anything is fetched"]);
   await control("--apply runs with a --root that is not the main checkout", [["if (namedRoot && !samePath(namedRoot, mainRoot)) die(", "if (false) die("]], ["--apply with a --root that is not the main checkout is refused before anything is fetched"]);
   await control("the run does not fetch first", [['gitOrDie(deps, ["fetch", "--prune", "origin"], mainRoot);', ""]], ["it did not fetch with --prune first"]);
@@ -1227,13 +1458,13 @@ try {
   await control("the probe name is not checked before use", [["if (deps.exists(probe)) return kept(", "if (false) return kept("]], ["row for fix/32-probe-taken does not say"]);
   await control("the branch is deleted without reading its commits again", [["if (own.status !== 0 || Number(own.out) > 0) return kept(", "if (false) return kept("]], ["fix/22-commits-late: expected kept, got removed"]);
   await control("the checked-out branch is not read again", [["if (head.status !== 0 || head.out !== ref) return kept(", "if (false) return kept("]], ["fix/33-switched-late: expected kept, got removed"]);
-  await control("a refusal that kept git's record is removed directly", [["      if (reg.registered) {", "      if (false) {"]], ["fix/35-refuses-late: expected kept, got removed"]);
+  await control("a refusal that kept git's record is removed directly", [["    if (reg.registered) {", "    if (false) {"]], ["fix/35-refuses-late: expected kept, got removed"]);
   await control("a registration that could not be read is read as dropped", [["if (!reg.known) return failed(", "if (false) return failed("]], ["fix/42-list-fails: expected failed, got removed"]);
   await control("a removal is not recorded before it starts", [['    record({ decision: "removing", path: path.resolve(row.entry.path), branch: row.entry.branch, why: row.why });', ""]], [`no removing row for ${path.join("fix", "1-merged-gone")} in the log`]);
   await control("a stray type directory is not matched to the removal it holds", [["const held = unfinishedRemovals(log).filter((r) => isUnder(r.path, p));", "const held = [];"]], [`row for ${rel(R("impower.worktrees/ci"))} does not say`]);
   await control("a branch stranded with no directory is not listed", [["for (const r of strandedBranches(earlier)) {", "for (const r of []) {"]], [`no row for ${rel(R("impower.worktrees/fix/15-branch-fails"))}`]);
   await control("a failed branch deletion is reported as removed", [["if (del.status !== 0) return failed(", "if (false) return failed("]], ["fix/15-branch-fails: expected failed, got removed"]);
-  await control("a type directory that refuses to go stops the run", [[`    try {\n      deps.removeEmptyDir(parent);\n      notes.push(\`removed the empty \${rel}\`);\n    } catch (err) {\n      notes.push(\`the empty \${rel} could not be removed (\${err.code ?? err.message})\`);\n    }`, "    deps.removeEmptyDir(parent);\n    notes.push(`removed the empty ${rel}`);"]], ["perf/23-rmdir-busy: expected removed, got failed"]);
+  await control("a type directory that refuses to go stops the run", [[`  try {\n    deps.removeEmptyDir(parent);\n    notes.push(\`removed the empty \${rel}\`);\n  } catch (err) {\n    notes.push(\`the empty \${rel} could not be removed (\${err.code ?? err.message})\`);\n  }`, "  deps.removeEmptyDir(parent);\n  notes.push(`removed the empty ${rel}`);"]], ["perf/23-rmdir-busy: expected removed, got failed"]);
   await control("a row whose sizing fails is removed or loses its row", [[".catch(sizeError(row))", ""]], ["row for fix/24-size-throws does not say"]);
   await control("a row that throws loses the table", [[".catch(rowError(row))", ""]], ["--apply removes the merged clean ones"]);
   await control("directories that are not worktrees are not listed", [["const strayPaths = strayDirs(entries, ctx.root, deps.listDirs);", "const strayPaths = [];"]], ["no row for impower.worktrees"]);
@@ -1257,6 +1488,25 @@ try {
   await control("a stranded branch's commits are not read before -D is advised", [["Number(own.out) > 0 ? `it holds", "false ? `it holds"]], ["row for task/8-loose does not say"]);
   await control("a branch a registered worktree holds is listed as stranded", [["if (entries.some((e) => e.branch === r.branch) || strayPaths.some(", "if (strayPaths.some("]], ["a branch a registered worktree holds, fix/3-dirty, was listed as stranded too"]);
   await control("the stranded branches are read by path, so a worktree recreated at the path hides one", [['export const strandedBranches = (log) => unfinished(log, "branch");', 'export const strandedBranches = (log) => unfinished(log, "path");']], ["no row for old/stranded"]);
+  await control("dead records are not pruned", [["const dropped = pruneDeadRecords(entries, ctx, deps);\n    if (dropped.pruned.length) {\n      log(", "const dropped = { pruned: [] };\n    if (dropped.pruned.length) {\n      log("]], ["--apply prunes dead records first"]);
+  await control("dead records are pruned beside a probe's leftover", [["if (probe) return {", "if (false) return {"]], ["dead records are left alone while an interrupted probe's leftover"]);
+  await control("--remove takes a path outside the worktrees root", [["if (!isUnder(abs, ctx.root)) die(", "if (false) die("]], ["--remove refuses a path outside the worktrees root"]);
+  await control("--remove takes a path inside a registered worktree", [["if (inside) die(", "if (false) die("]], ["--remove refuses a path inside a registered worktree"]);
+  await control("--remove counts the shells that ran it", [[".filter((p) => !(mine.has(p.pid) && RUNS_SCRIPT.test(p.cmd)))", ""]], ["--remove does not count the shells that ran it"]);
+  await control("--remove follows a recycled parent pid", [["parent.age < p.age", "false"]], ["--remove follows the parent pids only while each parent is older than its child"]);
+  await control("--remove exempts every ancestor, not the shell that ran the script", [[" && RUNS_SCRIPT.test(p.cmd)", ""]], ["--remove counts an ancestor that names the path without running the script"]);
+  await control("--remove tells the script's command line by the skill's name", [["const RUNS_SCRIPT = /clean-worktrees\\.mjs\"?\\s.*--remove\\b/;", "const RUNS_SCRIPT = /clean-worktrees/;"]], ["--remove tells the script's own command line by its file name and option"]);
+  await control("--remove follows a link it was named by", [["if (deps.isLink(abs)) die(", "if (false) die("]], ["--remove refuses a target that is itself a link"]);
+  await control("--remove skips the rename probe", [["const held = await probeHeld(abs, deps);\n  if (held?.outcome", "const held = null;\n  if (held?.outcome"]], ["--remove refuses a worktree a process holds", "--remove refuses when an interrupted probe's leftover is beside the tree"]);
+  await control("--remove takes a worktree git can no longer read", [["if (entry?.prunable) die(", "if (false) die("]], ["--remove refuses a worktree git can no longer read"]);
+  await control("--remove takes an unregistered directory holding its own .git", [["if (!entry && deps.exists(path.join(abs, \".git\"))) die(", "if (false) die("]], ["--remove refuses an unregistered directory holding its own .git"]);
+  await control("--apply leaves a dead record that holds a removable worktree's branch", [["const dropped = pruneDeadRecords(entries, ctx, deps);\n    if (dropped.pruned.length) {\n      log(", "const dropped = { pruned: [] };\n    if (dropped.pruned.length) {\n      log("]], ["--apply prunes a dead record that holds a removable worktree's branch"]);
+  await control("--remove takes a tree with uncommitted changes", [["if (dirty > 0) die(", "if (false) die("]], ["--remove refuses a tree with uncommitted changes"]);
+  await control("--remove takes a tree that is in use", [["if (holds.length) die(", "if (false) die("]], ["--remove refuses a tree a process is using", "--remove refuses a tree whose dev servers are up", "--remove refuses when the processes cannot be listed"]);
+  await control("--remove takes a tree holding a link that leads outside it", [["if (blocked) die(", "if (false) die("]], ["--remove refuses a link that leads outside the tree", "--remove refuses a directory it cannot read"]);
+  await control("--remove takes the default branch's worktree", [["if (entry?.branch && ctx.defaultBranches.has(entry.branch)) die(", "if (false) die("]], ["--remove refuses the default branch's worktree"]);
+  await control("--remove follows the links inside", [["unlinked = deps.unlinkLinks(abs);", "unlinked = 0;"]], ["--remove removes an unmerged worktree, unlinking its links first"]);
+  await control("--remove deletes the branch", [["const what = live ? \"worktree\" : \"directory\";", "if (entry?.branch) deps.exec(\"git\", [\"branch\", \"-D\", entry.branch], ctx.mainRoot); const what = live ? \"worktree\" : \"directory\";"]], ["--remove removes an unmerged worktree, unlinking its links first"]);
 } finally {
   fs.rmSync(controls, { recursive: true, force: true });
 }
@@ -1276,6 +1526,12 @@ try {
 // checkout is parked on another branch. The script runs as a command, so
 // this also pins its exit codes, its refusals, the log it writes, and the
 // process listing, the rename probe and the link scan on the real system.
+// After the job, scratch and test-suite checks, four more worktrees pin what
+// the stub cannot: a dead record pruned so git deletes the branch it held; an
+// unmerged worktree removed by name through a shell whose own command line
+// names the path, its branch kept; a subdirectory of a dirty worktree
+// refused with the uncommitted work still there; and, on Windows, a worktree
+// a process holds as its current directory refused with every file in place.
 
 const scratch = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "clean-worktrees-")));
 console.log(`Scratch repository: ${scratch}`);
@@ -1692,6 +1948,130 @@ try {
     const logged = readLogRows(fs.readFileSync(path.join(mainRoot, ".git", LOG_NAME), "utf8")).filter((r) => r.decision === "removed").map((r) => path.basename(r.path));
     assert.ok(logged.includes("redgreen-cmdold") && logged.includes("finished-run"), `the log does not record the scratch removals: ${logged.join(", ")}`);
   });
+
+  await check("parseProcesses keeps a process that started while the listing ran, with its age clamped to zero, and reads the age in the platform's unit", () => {
+    const win = parseProcesses(["10\t5\t-16\tnode.exe\tnode a.js", "11\t\t\tSystem\t", "12\t5\t2500\tbash.exe\tbash -c x", "junk"].join("\r\n"), true);
+    assert.deepEqual(win, [
+      { pid: 10, ppid: 5, age: 0, name: "node.exe", cmd: "node a.js" },
+      { pid: 11, ppid: null, age: null, name: "System", cmd: "" },
+      { pid: 12, ppid: 5, age: 2500, name: "bash.exe", cmd: "bash -c x" },
+    ]);
+    assert.deepEqual(parseProcesses("  200   1   90 node node b.js\n  201 200 5 sh sh -c y", false), [
+      { pid: 200, ppid: 1, age: 90_000, name: "node", cmd: "node b.js" },
+      { pid: 201, ppid: 200, age: 5_000, name: "sh", cmd: "sh -c y" },
+    ]);
+  });
+
+  await check("as a command, --apply prunes a dead worktree record, so git no longer refuses to delete the branch it held", () => {
+    mergedWorktree("fix/70-dead-record", true);
+    fs.rmSync(wt("fix/70-dead-record"), { recursive: true, force: true });
+    const refused = spawnSync("git", ["branch", "-D", "fix/70-dead-record"], { cwd: mainRoot, env, encoding: "utf8", windowsHide: true });
+    assert.notEqual(refused.status, 0, "git deleted a branch a dead record still held");
+    const before = worktreePaths();
+    const applied = cli(mainRoot, "--apply", "--root", mainRoot);
+    assert.match(applied.out, /^pruned 1 dead worktree record: .*70-dead-record/m, applied.out);
+    assert.equal(worktreePaths(), before - 1, "the dead record is still listed");
+    git(mainRoot, "branch", "-D", "fix/70-dead-record");
+  });
+
+  await check("as a command, --remove takes an unmerged worktree named literally on a shell command line, and keeps its branch", () => {
+    const target = wt("fix/71-open-pr");
+    git(mainRoot, "worktree", "add", "-q", "-b", "fix/71-open-pr", target, "origin/main");
+    commitIn("fix/71-open-pr", "fix-71-open-pr");
+    git(target, "push", "-q", "-u", "origin", "fix/71-open-pr");
+    fs.writeFileSync(path.join(target, ".env.local"), "SECRET=x\n");
+    // The shell that runs this names the path on its own command line, as an
+    // agent's shell tool does; that shell is not a user of the tree.
+    // dash and bash run the last command of a -c string in place of the shell,
+    // which would leave no shell naming the path, so the string ends with an
+    // exit. A first command lists the processes that name the path, so the
+    // check cannot pass on any platform without a shell that does.
+    const probe = path.join(scratchTemp, "who-names-it.mjs");
+    fs.writeFileSync(probe, `import { liveDeps, usersOf } from ${JSON.stringify(pathToFileURL(SCRIPT).href)};\nconsole.log("NAMING " + usersOf(process.argv[2], liveDeps.processes().list, process.pid).length);\n`);
+    const node = `"${process.execPath}"`;
+    const trail = WIN ? "" : "; exit $?";
+    const r = spawnSync(`${node} "${probe}" "${target}" && ${node} "${SCRIPT}" --apply --root "${mainRoot}" --remove "${target}"${trail}`, { shell: true, cwd: mainRoot, env, encoding: "utf8", windowsHide: true, timeout: 120_000 });
+    const out = (r.stdout ?? "") + (r.stderr ?? "");
+    assert.match(out, /NAMING [1-9]/, `no process other than the probe named the path, so the shell the exemption is for was absent:\n${out}`);
+    assert.equal(r.status, 0, out);
+    assert.match(out, /^removed\s+.*71-open-pr\s.*its branch fix\/71-open-pr stays/m);
+    assert.ok(!fs.existsSync(target), "the worktree is still there");
+    assert.ok(branches().includes("fix/71-open-pr"), "the branch went with it");
+    assert.ok(!git(mainRoot, "worktree", "list", "--porcelain").includes("71-open-pr"), "git still lists the worktree");
+  });
+
+  await check("as a command, --remove refuses a subdirectory of a worktree holding uncommitted work and leaves the work in place", () => {
+    const target = wt("fix/72-dirty-sub");
+    git(mainRoot, "worktree", "add", "-q", "-b", "fix/72-dirty-sub", target, "origin/main");
+    const src = path.join(target, "src");
+    fs.mkdirSync(src);
+    fs.writeFileSync(path.join(src, "t.txt"), "tracked\n");
+    git(target, "add", "-A");
+    git(target, "commit", "-q", "-m", "src");
+    fs.writeFileSync(path.join(src, "t.txt"), "edited\n");
+    fs.writeFileSync(path.join(src, "new-work.txt"), "new\n");
+    const r = cli(mainRoot, "--apply", "--root", mainRoot, "--remove", src);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /is inside the worktree .*72-dirty-sub; name the worktree itself/);
+    assert.equal(fs.readFileSync(path.join(src, "t.txt"), "utf8"), "edited\n");
+    assert.equal(fs.readFileSync(path.join(src, "new-work.txt"), "utf8"), "new\n");
+  });
+
+  await check("as a command, --remove refuses a worktree whose .git link is gone and leaves its uncommitted work in place", () => {
+    const target = wt("fix/73-dirty-broken");
+    git(mainRoot, "worktree", "add", "-q", "-b", "fix/73-dirty-broken", target, "origin/main");
+    fs.writeFileSync(path.join(target, "README.md"), "edited, not committed\n");
+    fs.renameSync(path.join(target, ".git"), path.join(target, ".git.bak"));
+    assert.match(git(mainRoot, "worktree", "list", "--porcelain"), /prunable/, "git does not list the worktree as prunable");
+    const r = cli(mainRoot, "--apply", "--root", mainRoot, "--remove", target);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /73-dirty-broken is a worktree git can no longer read/);
+    assert.equal(fs.readFileSync(path.join(target, "README.md"), "utf8"), "edited, not committed\n");
+    fs.renameSync(path.join(target, ".git.bak"), path.join(target, ".git"));
+  });
+
+  await check("as a command, --remove refuses a target that is itself a link and leaves what it points at in place", () => {
+    const outside = path.join(scratch, "link-target");
+    fs.mkdirSync(path.join(outside, "inner"), { recursive: true });
+    fs.writeFileSync(path.join(outside, "keep.txt"), "kept");
+    const link = wt("fix/74-a-link");
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    try {
+      fs.symlinkSync(outside, link, "junction");
+    } catch (err) {
+      console.log(`SKIP: a link named to --remove (creating a link needs a privilege this account lacks: ${err.code})`);
+      return;
+    }
+    const r = cli(mainRoot, "--apply", "--root", mainRoot, "--remove", link);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /is itself a link/);
+    assert.ok(fs.lstatSync(link).isSymbolicLink(), "the link was removed");
+    assert.equal(fs.readFileSync(path.join(outside, "keep.txt"), "utf8"), "kept");
+    try {
+      fs.unlinkSync(link);
+    } catch {
+      fs.rmdirSync(link);
+    }
+  });
+
+  if (WIN) {
+    await check("as a command, --remove refuses a worktree a process holds as its current directory and leaves every file in place", async () => {
+      const target = wt("fix/73-held");
+      git(mainRoot, "worktree", "add", "-q", "-b", "fix/73-held", target, "origin/main");
+      commitIn("fix/73-held", "fix-73-held");
+      fs.mkdirSync(path.join(target, "deep"));
+      const child = hold(path.join(target, "deep"));
+      try {
+        const r = cli(mainRoot, "--apply", "--root", mainRoot, "--remove", target);
+        assert.equal(r.status, 1, r.out);
+        assert.match(r.out, /the directory could not be renamed \(/);
+        assert.ok(fs.existsSync(path.join(target, "fix-73-held.txt")), "a tracked file was deleted before the refusal");
+        assert.ok(git(mainRoot, "worktree", "list", "--porcelain").includes("73-held"), "git dropped the worktree's record");
+      } finally {
+        await stopHolder(child);
+      }
+    });
+  } else skip("a worktree held as a current directory is refused by --remove", "the rename probe only sees a held directory on Windows");
 } finally {
   for (const h of holders) await stopHolder(h);
   fs.rmSync(scratch, { recursive: true, force: true, maxRetries: 10, retryDelay: 250 });
