@@ -27,7 +27,10 @@ export interface ProgramEmitter {
   emitBranchBody(branch: object): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
-  /** Emits a jump back to a label already bound. */
+  /** Emits a jump to a label the caller already holds, bound or not: a
+   *  loop's head, or the end a conditional's branches all jump to and the
+   *  conditional binds after them. `jump` is the one that makes a new
+   *  label. */
   jumpBack(op: number, label: ProgramLabel, flags?: number): void;
   /** Binds a label, and every jump to it, to the next instruction. */
   bind(label: ProgramLabel): void;
