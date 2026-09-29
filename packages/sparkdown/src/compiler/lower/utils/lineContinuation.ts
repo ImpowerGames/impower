@@ -98,9 +98,13 @@ function collectLineContinuationFrom(
   for (;;) {
     while (scan && CONTINUATION_BRIDGE.has(scan.name)) scan = scan.nextSibling;
     if (!scan) return nodes;
+    const afterComma =
+      nodes.length === 0
+        ? node != null && endsOnValueComma(node)
+        : lastSignificant(nodes)?.name === "LuauCommaSeparator";
     const carried =
       node?.name === "LuauVariableDefinition" &&
-      lastSignificant(nodes)?.name === "LuauCommaSeparator" &&
+      afterComma &&
       !startsStatement(scan);
     if (!carried && !isLineContinuation(scan)) return nodes;
     while (scan && scan.name !== "Newline") {
@@ -108,6 +112,42 @@ function collectLineContinuationFrom(
       scan = scan.nextSibling;
     }
   }
+}
+
+// The `= value` that ends the union member lines after the declaration
+// `node`, across blank and comment lines, which the declaration ended
+// before (`local v: number` then `-- note` then `| string = 1`).
+export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
+  let value: SyntaxNode | null = null;
+  for (let scan = node.nextSibling; scan; scan = scan.nextSibling) {
+    if (SKIPPABLE.has(scan.name)) continue;
+    if (scan.name !== "LuauTypeUnionLineContinuation") break;
+    for (let part = firstContentChild(scan); part; part = part.nextSibling) {
+      if (part.name === "LuauAssignmentOperation") value = part;
+    }
+  }
+  return value;
+}
+
+// Whether the declaration `node` ends on a comma after its `=`: its comma's
+// line break reached an unindented line, where the declaration ends, so the
+// value after the comma is on the lines that follow it.
+function endsOnValueComma(node: SyntaxNode): boolean {
+  let content: SyntaxNode | null = null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === `${node.name}_content`) content = child;
+  }
+  let last: SyntaxNode | null = content?.lastChild ?? null;
+  while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
+  if (last?.name !== "LuauCommaSeparator" && last?.name !== "LuauCommaLineBreak") {
+    return false;
+  }
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauVariableAssignment" && hasDescendant(child, "LuauAssignmentOperation")) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function lastSignificant(nodes: SyntaxNode[]): SyntaxNode | undefined {

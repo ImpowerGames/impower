@@ -110,6 +110,54 @@ describe("every statement of a function runs", () => {
   });
 });
 
+// In Luau code, a type goes on past comments as Luau reads it: a union
+// member line after a comment-only line, and code after a block comment
+// that ends the type on its line.
+describe("a type in Luau code goes on past comments", () => {
+  test.each([
+    ["a line comment between union members", `Value {f()}.\nfunction f()\n  local _v: number\n  -- note\n  | string\n  return 5\nend\n`],
+    ["a block comment line between union members", `Value {f()}.\nfunction f()\n  local _v: number?\n  --[[note]]\n  | string\n  return 5\nend\n`],
+    ["a comment line and a blank line between union members", `Value {f()}.\nfunction f()\n  local _v: number\n\n  -- note\n    | string\n    | boolean\n  return 5\nend\n`],
+    ["a comment line before a union member with a value", `Value {f()}.\nfunction f()\n  local v: number\n  -- note\n  | string = 5\n  return v\nend\n`],
+    ["a comment line in a type alias", `Value {f()}.\nfunction f()\n  type T = number\n  -- note\n  | string\n  return 5\nend\n`],
+    ["a comment line in a return type", `Value {f()}.\nfunction f(): number\n  -- note\n  | string\n  return 5\nend\n`],
+    ["a block comment and code after a return type", `Value {f()}.\nfunction f(): number --[[c]] return 5 end\n`],
+    ["a block comment and code after a continued return type", `Value {f()}.\nfunction f(): number\n  | string --[[c]] return 5 end\n`],
+  ])("with %s", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
+  });
+
+  test.each([
+    ["a return type", `Value {f()}.\nfunction f(): number --[[c]] print(1) return 5 end\n`],
+    ["a typed local", `Value {f()}.\nfunction f()\n  local w: number --[[c]] print(1)\n  return 5\nend\n`],
+  ])("a block comment after %s leaves the call after it a statement", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 15.\n");
+  });
+});
+
+// In Luau code a comma that ends its line continues the list on the next
+// line, indented or not, unless that line starts a statement.
+describe("a value on an unindented line after a trailing comma", () => {
+  test.each([
+    ["a number", `Value {f()}.\nfunction f()\n  local a, g = 1,\n2\n  return g\nend\n`, "Value 2.\n"],
+    ["a call", `Value {f()}.\nfunction f()\n  local a, g = 1,\nmath.max(2, 5)\n  return g\nend\n`, "Value 5.\n"],
+    ["two values over two lines", `Value {f()}.\nfunction f()\n  local a, g, b = 1,\n2,\n3\n  return a + g * 10 + b * 100\nend\n`, "Value 321.\n"],
+  ])("is read as %s", (_name, source, output) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(output);
+  });
+
+  test("a statement on the unindented line leaves the comma without a value", () => {
+    const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f()\n  local a, g = 1,\nreturn 5\nend\n`);
+    expect(ctx.errorMessages).not.toEqual([]);
+  });
+});
+
 // A declaration goes on across any run of whitespace before a comma or `=`.
 describe("a declaration with extra whitespace before a comma or `=`", () => {
   test.each([

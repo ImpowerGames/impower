@@ -1,0 +1,13 @@
+function f(): number --[[c]] print(1) return 5 end
+function g()
+  local v: number
+  -- note
+  | string = 5
+  local w: number --[[c]] print(w)
+  return v
+end
+function h()
+  local a, b = 1,
+2
+  return b
+end

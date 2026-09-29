@@ -26,6 +26,7 @@ import {
   reportExtraTypeQualifiers,
   markLineContinuationUsed,
   splitOnCommas,
+  typeUnionLineValue,
   takeLineContinuation,
 } from "../utils/lineContinuation";
 import {
@@ -221,9 +222,18 @@ export function lowerVariableDefinition(
   // found in place of the value or name. The same holds for a comma that
   // ends the last line continuing the declaration (`n` then `+ 4,`).
   const lastContinued = continuation.findLast((n) => !isSkippableName(n.name));
+  // A value comma that ends the content, with lines carried after it: the
+  // declaration ended at the start of an unindented line after the comma,
+  // and the continuation holds the values that follow it, as Luau reads
+  // them (`local a, g = 1,` then `2`).
+  const valuesAfterComma =
+    unresolvedComma != null &&
+    unresolvedAfterAssignment &&
+    trailingStatements.length === 0 &&
+    lastContinued != null;
   if (lastContinued?.name === "LuauCommaSeparator") {
     validateListComma(lastContinued, true, ctx);
-  } else if (unresolvedComma) {
+  } else if (unresolvedComma && !valuesAfterComma) {
     validateListComma(unresolvedComma, unresolvedAfterAssignment, ctx);
   }
 
@@ -268,10 +278,14 @@ export function lowerVariableDefinition(
     lastTarget.assignNode,
   );
   // The continuation's first comma group continues the last value; its
-  // later groups are further values. When statements share the line after
+  // later groups are further values. After a comma that ends the content,
+  // every group is a further value. When statements share the line after
   // the declaration, the continuation continues the last of them instead.
-  const [continued = [], ...continuedRhsGroups] =
+  const continuationGroups =
     trailingStatements.length > 0 ? [] : splitOnCommas(continuation);
+  const [continued = [], ...continuedRhsGroups] = valuesAfterComma
+    ? [[], ...continuationGroups]
+    : continuationGroups;
   let firstRhsContinuation: SyntaxNode[] = [];
   if (!firstRhsOp && continued.length > 0) {
     // `local x: types` then `.Button`, or `.Button = 1`: the
@@ -304,6 +318,11 @@ export function lowerVariableDefinition(
     firstRhsContinuation = continued;
   }
   trailingRhsGroups.push(...continuedRhsGroups);
+  // A union that goes on past a comment line gives the value on its last
+  // member line (`local v: number` then `-- note` then `| string = 1`).
+  if (!firstRhsOp && !sawAssignmentOp) {
+    firstRhsOp = typeUnionLineValue(nodeRef.node) ?? undefined;
+  }
   if (firstRhsOp) validateAssignmentValue(firstRhsOp, ctx);
   const firstRhs = firstRhsOp
     ? lowerExpressionFromContainerAndContinuation(

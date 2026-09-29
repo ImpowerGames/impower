@@ -454,6 +454,12 @@ export function lowerStatements(
       child = child.nextSibling;
       continue;
     }
+    if (child.name === "LuauTypeUnionLineContinuation") {
+      // A union member line after a comment line: types do not reach the
+      // runtime, and the declaration before it took its `= value`.
+      child = child.nextSibling;
+      continue;
+    }
     if (skipNames.has(child.name)) {
       child = child.nextSibling;
       continue;
