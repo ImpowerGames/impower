@@ -54,11 +54,9 @@ export function lowerVariableDefinition(
   const trailingRhsGroups: SyntaxNode[][] = [];
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
-  // When the grammar accepts multiple statements on one line (e.g.
-  // `local x = 5 return x end`), the LuauVariableDefinition_content
-  // captures siblings BEYOND the variable assignment — they're
-  // adjacent statements, not trailing multi-RHS values. Collect them
-  // into `trailingStatements` and lower them after the VA below.
+  // Statement nodes in the content (a declaration read as a value after
+  // a comma) are not RHS values. Collect them into `trailingStatements`
+  // and lower them after the VA below.
   const trailingStatements: SyntaxNode[] = [];
 
   if (contentNode) {
@@ -122,11 +120,11 @@ export function lowerVariableDefinition(
           continue;
         }
       }
-      // Statement-like node — sparkdown's grammar lets these share a
-      // single source line with the variable definition (e.g.
-      // `local x = 5 return x end`). The VA captures everything up
-      // to (but not including) the statement; the statement itself
-      // is a sibling that needs its own lowering pass.
+      // Statement-like node. The grammar ends the definition at the
+      // whitespace before a statement that follows it on the line, so a
+      // statement node is here only when the definition's `LuauExpression`
+      // read a declaration as a value after a comma; it gets its own
+      // lowering pass after the variable assignment.
       if (TRAILING_STATEMENT_NAMES.has(child.name)) {
         // Flush any partial RHS group first — `local a, b = 1 return x`
         // shouldn't be possible in valid Luau, but if it appears we
@@ -294,11 +292,7 @@ export function lowerVariableDefinition(
 }
 
 // Lower each trailing-statement node via the main `lower()` dispatcher
-// and append the resulting ParsedObjects to the head list. Used when
-// the grammar's permissive content rules let a `LuauVariableDefinition`
-// share a source line with following statements (e.g.
-// `local x = 5 return x end` — the `return x` is a sibling, not part
-// of the RHS).
+// and append the resulting ParsedObjects to the head list.
 function withTrailingStatements(
   head: ParsedObject[],
   trailingStatements: SyntaxNode[],

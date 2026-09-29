@@ -140,9 +140,11 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
 
 /**
  * The span a Luau `local` is visible in. It starts where its declaring
- * statement ends, so it is not offered in its own initializer; when the
- * grammar nests the statements that follow on the same line inside the
- * declaration (`local a = 1 return a`), it starts at the first of them. It
+ * statement's text ends, so it is not offered in its own initializer; a
+ * statement that follows on the same line (`local a = 1 return a`) is the
+ * declaration's sibling and so comes after that point. When the
+ * declaration's content holds a statement node (a declaration read as a
+ * value after a comma), the span starts at that node instead. It
  * ends at the end of its block (one of `LUAU_BLOCKS`), or at the next
  * branch of an `if` or arm of an alternator, and a `repeat` loop's locals
  * stay visible in its `until` condition. A local in no block, written
@@ -171,7 +173,9 @@ const getVariableScope = (
   if (!inCursorScript) {
     return null;
   }
-  let start = definition.to;
+  // A type annotation at the end of the line takes in the line breaks after
+  // it, so the definition's text ends before its node does.
+  let start = definition.from + read(definition.from, definition.to).trimEnd().length;
   const content = definition.getChild("LuauVariableDefinition_content");
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (TRAILING_STATEMENT_NAMES.has(child.name)) {
@@ -222,6 +226,7 @@ const getVariableScope = (
 const getParameterScope = (
   tree: Tree,
   from: number,
+  read: (from: number, to: number) => string,
   inCursorScript: boolean,
 ): LocalScope | null | undefined => {
   const name = tree.resolveInner(from, 1) as Node;
@@ -239,9 +244,13 @@ const getParameterScope = (
     return null;
   }
   const body = owner.getChild("LuauFunctionBody");
-  return body
-    ? { from: body.from, to: body.to }
-    : { from: parameters.to, to: owner.to };
+  if (!body) {
+    return { from: parameters.to, to: owner.to };
+  }
+  // A return type takes in the line breaks after it, so the body can open
+  // lines after the header; the parameters are visible from the header's end.
+  const header = read(parameters.to, body.from);
+  return { from: Math.min(body.from, parameters.to + header.trimEnd().length), to: body.to };
 };
 
 export const getDeclarationScopes = (
@@ -271,7 +280,7 @@ export const getDeclarationScopes = (
           tree && type === "var"
             ? getVariableScope(tree, cur.from, read, inCursorScript)
             : tree && type === "param"
-              ? getParameterScope(tree, cur.from, inCursorScript)
+              ? getParameterScope(tree, cur.from, read, inCursorScript)
               : undefined;
         if (localScope !== undefined) {
           // Local: visible only after its declaration and inside its block

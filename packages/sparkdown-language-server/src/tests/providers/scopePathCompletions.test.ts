@@ -329,3 +329,18 @@ end
     expect(labels).not.toContain("inx");
   });
 });
+
+// A type at the end of a line takes in the line breaks after it, since the
+// next line may continue it as a union, so the declaration's node ends lines
+// after its text.
+describe("provider · scope after a type that ends its line", () => {
+  test.each([
+    ["a typed local", "function f()\n  local x: number\n|\n  print(x)\nend\n", "var", "x"],
+    ["a typed local whose union goes on to the next line", "function f()\n  local x: number\n    | string\n|\n  print(x)\nend\n", "var", "x"],
+    ["a parameter of a function with a return type", "function f(p): number\n|\n  return p\nend\n", "param", "p"],
+  ] as const)("%s is in scope on the blank line after it", (_name, source, type, name) => {
+    const { text, offset } = positionAt(source);
+    const { scriptAnnotations } = setup(text);
+    expect(getDeclarationScopes(scriptAnnotations, { uri: URI, offset })[""]?.[type]).toContain(name);
+  });
+});

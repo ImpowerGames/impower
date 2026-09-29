@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+import { parseSource } from "../compiler/grammarSnapshot";
 
 // As in Luau, a type union may go on to the next line: a line that starts
 // with `|` continues the type that ended the line before it, whether or not
@@ -11,21 +12,36 @@ const TYPES = [
   ["a plain type", "number"],
 ] as const;
 
-describe("a union that goes on to the next line parses", () => {
+/**
+ * Whether the type that starts at the first `type` in `source` is one type
+ * node that runs past the next line's `| string` member.
+ */
+function isOneType(source: string, type: string): boolean {
+  const from = source.indexOf(type);
+  const member = source.indexOf("| string");
+  const cur = parseSource(source).cursor();
+  do {
+    if (cur.name === "LuauTypeLiteral" && cur.from === from && cur.to > member) return true;
+  } while (cur.next());
+  return false;
+}
+
+describe("a union that goes on to the next line parses as one type", () => {
   test.each(
     TYPES.flatMap(([name, type]) => [
-      [name, "a local", `local v: ${type}\n    | string = 1\nlocal s = 1\n`],
-      [name, "a local, after a blank line", `local v: ${type}\n\n    | string = 1\nlocal s = 1\n`],
-      [name, "a local, over three lines", `local v: ${type}\n    | string\n    | boolean = 1\nlocal s = 1\n`],
-      [name, "a local, unindented", `local v: ${type}\n| string = 1\nlocal s = 1\n`],
-      [name, "a type alias", `type T = ${type}\n    | string\nlocal s = 1\n`],
-      [name, "an exported type alias", `export type T = ${type}\n    | string\nlocal s = 1\n`],
-      [name, "a return type", `local function f(): ${type}\n    | string\n  return 1\nend\n`],
-      [name, "a parameter", `local function f(x: ${type}\n    | string)\nend\n`],
-      [name, "a table field", `type T = {\n  a: ${type}\n    | string,\n  b: number,\n}\n`],
+      [name, "a local", type, `local v: ${type}\n    | string = 1\nlocal s = 1\n`],
+      [name, "a local, after a blank line", type, `local v: ${type}\n\n    | string = 1\nlocal s = 1\n`],
+      [name, "a local, over three lines", type, `local v: ${type}\n    | string\n    | boolean = 1\nlocal s = 1\n`],
+      [name, "a local, unindented", type, `local v: ${type}\n| string = 1\nlocal s = 1\n`],
+      [name, "a type alias", type, `type T = ${type}\n    | string\nlocal s = 1\n`],
+      [name, "an exported type alias", type, `export type T = ${type}\n    | string\nlocal s = 1\n`],
+      [name, "a return type", type, `local function f(): ${type}\n    | string\n  return 1\nend\n`],
+      [name, "a parameter", type, `local function f(x: ${type}\n    | string)\nend\n`],
+      [name, "a table field", type, `type T = {\n  a: ${type}\n    | string,\n  b: number,\n}\n`],
     ]),
-  )("after %s, in %s", (_type, _context, snippet) => {
+  )("after %s, in %s", (_type, _context, type, snippet) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+    expect(isOneType(snippet, type)).toBe(true);
   });
 });
 
