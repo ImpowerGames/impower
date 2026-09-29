@@ -57,7 +57,7 @@ assert.equal(generation.status, 0, generation.stdout + generation.stderr);
 // entry must fail --check (this is how #612's stray reviewer-opus-4-8.md went
 // unnoticed); the probe file is removed in `finally` regardless of outcome.
 const orphan = path.join(root, ".claude/agents/reviewer-portability-probe.md");
-fs.writeFileSync(orphan, fs.readFileSync(path.join(root, ".claude/agents/reviewer-opus-5.md"), "utf8"));
+fs.writeFileSync(orphan, fs.readFileSync(path.join(root, ".claude/agents/reviewer-opus-5-5.md"), "utf8"));
 try {
   const orphaned = spawnSync(process.execPath, ["scripts/generate-reviewer-agents.mjs", "--check"], { cwd: root, encoding: "utf8", windowsHide: true });
   assert.notEqual(orphaned.status, 0, "an orphan reviewer definition must fail --check");

@@ -16,6 +16,7 @@ import { findChildByName } from "../utils/alternatorArms";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
 import { loopOf, openBody } from "../utils/statementShape";
+import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
@@ -28,7 +29,9 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 //
 //   - (__while_<offset>_loop)
 //     { cond:
+//       BeginScope
 //       BODY
+//       EndScope
 //       -> __while_<offset>_loop
 //     }
 //
@@ -97,31 +100,36 @@ export function lowerLuauWhileLoop(
   // Push the loop's break/continue targets so any `break` /
   // `continue` inside the body lowers to a divert to the right label.
   // For `while`, continue = the loop gather itself (re-evaluates
-  // cond), break = the post-loop gather. The while loop introduces NO
-  // scope wrap of its own, so the recorded `scopeDepth` is the
-  // current depth unchanged — `break`/`continue` only unwind scopes
-  // opened by nested blocks inside the body.
+  // cond), break = the post-loop gather. The body is a block: each
+  // iteration opens its own scope inside the branch and closes it
+  // before the tail jump, so a body `local` ends with the iteration
+  // and shadows an outer local instead of replacing it. The body is
+  // lowered one level deeper, while the loop records the outer depth,
+  // so `break`/`continue` also close the body's scope before diverting.
+  const outerScopeDepth = ctx.scopeDepth ?? 0;
   ctx.loopStack?.push({
     continueLabel: loopLabel,
     breakLabel,
-    scopeDepth: ctx.scopeDepth ?? 0,
+    scopeDepth: outerScopeDepth,
   });
   const body = openBody(
     ctx,
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );
+  ctx.scopeDepth = outerScopeDepth + 1;
   const bodyStatements = lowerStatements(
     bodyContent,
     ctx,
     WHILE_BODY_SKIP,
     body,
   );
+  ctx.scopeDepth = outerScopeDepth;
   ctx.loopStack?.pop();
 
   const tailDivert = new Divert([new Identifier(loopLabel)]);
   const branch = new ConditionalSingleBranch([
-    ...bodyStatements,
+    ...wrapInScope(bodyStatements),
     tailDivert,
   ]);
   // Normalize to a boolean under LUA truthiness (only nil/false are

@@ -45,6 +45,7 @@ import {
   AstStatRepeat,
   AstStatReturn,
   AstStatTypeAlias,
+  AstStatTypeFunction,
   AstStatWhile,
   AstTypeFunction,
   AstTypeGroup,
@@ -491,6 +492,8 @@ export class TypeChecker2 {
   functionDeclStack: TypeId[] = [];
 
   seenTypeFunctionInstances = new Set<TypeId>();
+  /** The user-defined type function instances that have reported they cannot be evaluated. */
+  reportedUserTypeFunctionInstances = new Set<TypeId>();
 
   readonly normalizer: Normalizer;
   readonly subtyping: Subtyping;
@@ -666,9 +669,27 @@ export class TypeChecker2 {
     for (const internal of finder.internalPackFunctions) this.reportError({ kind: "PackWhereClauseNeeded", tp: internal }, location);
   }
 
-  private checkForTypeFunctionInhabitance(instance: TypeId, location: Location): TypeId {
-    if (this.seenTypeFunctionInstances.has(instance)) return instance;
+  /**
+   * `inAnnotation` says the type is where an annotation names it. A
+   * user-defined type function that cannot be evaluated is reported once, at
+   * the annotation whose type is the instance itself: Luau reports it
+   * wherever a type contains the instance, which with a VM happens only when
+   * evaluation itself fails, but Sparkdown has no VM, so every enclosing
+   * annotation, function, call and flow that carries the instance would
+   * repeat it where the author never named it. Every other error is reported
+   * once per instance, as Luau does.
+   */
+  private checkForTypeFunctionInhabitance(instance: TypeId, location: Location, inAnnotation = false): TypeId {
+    const tfit = inAnnotation ? get(instance, "TypeFunctionInstanceType") : undefined;
+    const reportsUserError =
+      tfit?.function === this.builtinTypes.typeFunctions.userFunc && !this.reportedUserTypeFunctionInstances.has(instance);
+
+    // An expression that carries the instance may be checked before the
+    // annotation that names it, so the annotation still reports then.
+    const firstCheck = !this.seenTypeFunctionInstances.has(instance);
+    if (!firstCheck && !reportsUserError) return instance;
     this.seenTypeFunctionInstances.add(instance);
+    if (reportsUserError) this.reportedUserTypeFunctionInstances.add(instance);
 
     const context = new TypeFunctionContext({
       arena: this.module.internalTypes,
@@ -680,7 +701,9 @@ export class TypeChecker2 {
       subtyping: this.subtyping,
     });
 
-    const errors = reduceTypeFunctions(instance, location, context, true).errors;
+    const errors = reduceTypeFunctions(instance, location, context, true).errors.filter((e) =>
+      e.data.kind === "UserDefinedTypeFunctionError" ? reportsUserError : firstCheck,
+    );
     if (!this.isErrorSuppressing(location, instance)) this.reportErrors(errors);
     return instance;
   }
@@ -712,7 +735,7 @@ export class TypeChecker2 {
 
     if (this.module.constraintGenerationDidNotComplete && !ty) return this.builtinTypes.anyType;
 
-    return this.checkForTypeFunctionInhabitance(follow(ty!), annotation.location);
+    return this.checkForTypeFunctionInhabitance(follow(ty!), annotation.location, /* inAnnotation */ true);
   }
 
   private lookupPackAnnotation(annotation: AstTypePack): TypePackId | undefined {
@@ -790,6 +813,7 @@ export class TypeChecker2 {
       else if (stat instanceof AstStatFunction) return this.visitStatFunction(stat);
       else if (stat instanceof AstStatLocalFunction) return this.visitStatLocalFunction(stat);
       else if (stat instanceof AstStatTypeAlias) return this.visitStatTypeAlias(stat);
+      else if (stat instanceof AstStatTypeFunction) return this.visitExprFunction(stat.body);
       else if (stat instanceof AstStatDeclareFunction) return this.visitStatDeclareFunction(stat);
       else if (stat instanceof AstStatDeclareGlobal) return this.visitStatDeclareGlobal(stat);
       else if (stat instanceof AstStatDeclareExternType) return this.visitStatDeclareExternType(stat);
@@ -2452,7 +2476,7 @@ export class TypeChecker2 {
 
   private visitType(ty: AstType): void {
     const resolvedTy = this.module.astResolvedTypes.get(ty);
-    if (resolvedTy) this.checkForTypeFunctionInhabitance(follow(resolvedTy), ty.location);
+    if (resolvedTy) this.checkForTypeFunctionInhabitance(follow(resolvedTy), ty.location, /* inAnnotation */ true);
 
     if (ty instanceof AstTypeReference) return this.visitTypeReference(ty);
     else if (ty instanceof AstTypeTable) return this.visitTypeTable(ty);

@@ -528,8 +528,12 @@ export class OverloadResolver {
       subtyping: this.subtyping,
     });
     const reduceResult = reduceTypeFunctions(fnTy, this.callLoc, context, /* force */ true);
-    if (reduceResult.errors.length !== 0) {
-      result.incompatibleOverloads.push([fnTy, reduceResult.errors]);
+    // A user-defined type function in the signature always fails to evaluate,
+    // since Sparkdown has no VM; that is reported where an annotation names
+    // it, and does not make every call of the function a mismatch.
+    const errors = reduceResult.errors.filter((e) => e.data.kind !== "UserDefinedTypeFunctionError");
+    if (errors.length !== 0) {
+      result.incompatibleOverloads.push([fnTy, errors]);
       return;
     }
 
