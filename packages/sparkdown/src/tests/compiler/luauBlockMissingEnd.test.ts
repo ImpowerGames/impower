@@ -45,7 +45,9 @@ function compile(source: string): { diags: Diag[]; output: string } {
   return { diags, output };
 }
 
-function readDiags(program: { diagnostics?: Record<string, unknown[]> }): Diag[] {
+function readDiags(program: {
+  diagnostics?: Record<string, unknown[]>;
+}): Diag[] {
   const diags: Diag[] = [];
   for (const docDiagnostics of Object.values(program.diagnostics ?? {})) {
     for (const d of docDiagnostics as any[]) {
@@ -63,6 +65,12 @@ function readDiags(program: { diagnostics?: Record<string, unknown[]> }): Diag[]
 }
 
 const MISSING_END = "missing its closing `end`";
+
+const proseWarnings = (diags: Diag[]) =>
+  diags.filter(
+    (d) =>
+      d.severity === 2 && d.message.startsWith("The text after this `end`"),
+  );
 
 // This check's errors, leaving out the scene and branch `end` checks' own.
 const missingEndErrors = (diags: Diag[]) =>
@@ -140,7 +148,7 @@ describe("Luau block without `end`", () => {
     expect(missingEndErrors(diags)).toHaveLength(0);
   });
 
-  test("a narrative `end` does not close the function", () => {
+  test("a narrative `end` that closes the function is a warning on its line", () => {
     const { diags } = compile(
       [
         "function f()",
@@ -151,9 +159,10 @@ describe("Luau block without `end`", () => {
         "",
       ].join("\n"),
     );
-    const errs = missingEndErrors(diags);
-    expect(errs).toHaveLength(1);
-    expect(errs[0]).toMatchObject({ startLine: 0, endLine: 0 });
+    expect(missingEndErrors(diags)).toEqual([]);
+    const warnings = proseWarnings(diags);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({ startLine: 3, endLine: 3 });
   });
 
   test("an unclosed function before a scene is an error", () => {
@@ -230,18 +239,38 @@ describe("Luau block without `end`", () => {
     ],
     [
       "a function with story lines inside a scene",
-      ["scene main", "  function g()", "    Hi there.", "  end", "  done", "end"],
+      [
+        "scene main",
+        "  function g()",
+        "    Hi there.",
+        "  end",
+        "  done",
+        "end",
+      ],
     ],
   ])("%s closed by its own `end` is not an error", (_label, lines) => {
-    const { diags } = compile([...lines, "", "scene A", "  Line one.", "end", ""].join("\n"));
+    const { diags } = compile(
+      [...lines, "", "scene A", "  Line one.", "end", ""].join("\n"),
+    );
     expect(missingEndErrors(diags)).toEqual([]);
   });
 
   test.each([
-    ["the end of the file", ["function greet", "  Hello there.", "  How are you?", ""]],
+    [
+      "the end of the file",
+      ["function greet", "  Hello there.", "  How are you?", ""],
+    ],
     [
       "a scene",
-      ["function greet", "  Hello there.", "", "scene A", "  Line one.", "end", ""],
+      [
+        "function greet",
+        "  Hello there.",
+        "",
+        "scene A",
+        "  Line one.",
+        "end",
+        "",
+      ],
     ],
   ])(
     "a function whose body holds story lines and reaches %s without `end` is an error",
@@ -255,7 +284,9 @@ describe("Luau block without `end`", () => {
   test("an `if` and a function with story lines, one `end` short, report the function", () => {
     const errs = missingEndErrors(
       compile(
-        ["function f()", "  if true then", "    Hi there.", "  end", ""].join("\n"),
+        ["function f()", "  if true then", "    Hi there.", "  end", ""].join(
+          "\n",
+        ),
       ).diags,
     );
     expect(errs).toHaveLength(1);
@@ -275,15 +306,23 @@ describe("Luau block without `end`", () => {
           type: "script",
           name: "main",
           ext: "sd",
-          text: ["function greet", "  Hello there.", "  How are you?", "", "Tail.", ""].join("\n"),
+          text: [
+            "function greet",
+            "  Hello there.",
+            "  How are you?",
+            "",
+            "Tail.",
+            "",
+          ].join("\n"),
           version: 1,
           languageId: "sparkdown",
         },
       ],
     });
     const errorCount = () =>
-      missingEndErrors(readDiags(compiler.compile({ textDocument: { uri } }).program))
-        .length;
+      missingEndErrors(
+        readDiags(compiler.compile({ textDocument: { uri } }).program),
+      ).length;
     const edit = (version: number, endCharacter: number, text: string) =>
       compiler.updateDocument({
         textDocument: { uri, version },
@@ -333,13 +372,35 @@ describe("Luau block without `end`", () => {
     expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
   });
 
-  test("the narrative `end` is quoted in the message", () => {
+  test("the text after a narrative `end` is quoted in the warning", () => {
     const { diags } = compile(
       ["function f()", "  local a = 1", "The end of it.", ""].join("\n"),
     );
-    const errs = missingEndErrors(diags);
-    expect(errs).toHaveLength(1);
-    expect(errs[0]!.message).toContain("`The end of it.`");
+    const warnings = proseWarnings(diags);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.message).toContain("`of it.`");
+    expect(warnings[0]!.message).toContain("the function above it");
+  });
+
+  test("a call after a block's own `end` is a warning, not an error", () => {
+    // The grammar reads `bump()` after the function's `end` as a line of
+    // text, which displays rather than runs.
+    const { diags } = compile(
+      [
+        "store total = 0",
+        "",
+        "function bump()",
+        "  total = total + 1",
+        "end bump()",
+        "",
+        "Closing line.",
+        "",
+      ].join("\n"),
+    );
+    expect(diags.filter((d) => d.severity === 1)).toEqual([]);
+    const warnings = proseWarnings(diags);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.message).toContain("`bump()`");
   });
 
   test("a bare call before a same-line `end` closes the block", () => {
@@ -389,12 +450,17 @@ describe("Luau block without `end`", () => {
     ["a divert", "end -> DONE"],
     ["an explicit statement", "end & x = 1"],
     ["a local", "end local b = 2"],
-  ])("a root-level block's `end` followed by %s on its line closes it", (_label, endLine) => {
-    const { diags } = compile(
-      ["store x = 0", "if true then", "  local a = 1", endLine, ""].join("\n"),
-    );
-    expect(missingEndErrors(diags)).toEqual([]);
-  });
+  ])(
+    "a root-level block's `end` followed by %s on its line closes it",
+    (_label, endLine) => {
+      const { diags } = compile(
+        ["store x = 0", "if true then", "  local a = 1", endLine, ""].join(
+          "\n",
+        ),
+      );
+      expect(missingEndErrors(diags)).toEqual([]);
+    },
+  );
 
   test("a misread `end` followed by code and closed by a later `end` is not an error", () => {
     // The grammar does not read `if {}` as an `if` block, so the function
@@ -430,7 +496,14 @@ describe("Luau block without `end`", () => {
   test("a function that takes its scene's `end` is reported with the scene", () => {
     const errs = missingEndErrors(
       compile(
-        ["scene main", "  function g()", "    local a = 1", "  Hi there.", "end", ""].join("\n"),
+        [
+          "scene main",
+          "  function g()",
+          "    local a = 1",
+          "  Hi there.",
+          "end",
+          "",
+        ].join("\n"),
       ).diags,
     );
     expect(errs).toHaveLength(1);
@@ -456,6 +529,143 @@ describe("Luau block without `end`", () => {
     ).diags.filter((d) => d.severity === 1 && d.message.includes("`until`"));
     expect(errs).toHaveLength(1);
     expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
+  });
+
+  test.each([
+    [
+      "in a function",
+      [
+        "& f()",
+        "After the call.",
+        "",
+        "function f()",
+        "  repeat",
+        "    Hello there.",
+        "  until true",
+        "end",
+        "",
+        "Closing line.",
+        "done",
+      ],
+    ],
+    [
+      "in a function in a scene",
+      [
+        "-> main",
+        "",
+        "scene main",
+        "  function f()",
+        "    repeat",
+        "      local a = 1",
+        "      Hello there.",
+        "    until true",
+        "  end",
+        "  Bye.",
+        "  done",
+        "end",
+      ],
+    ],
+  ])(
+    "a `repeat` with a story line in its body %s is closed by its `until`",
+    (_label, lines) => {
+      const { diags } = compile([...lines, ""].join("\n"));
+      expect(diags.filter((d) => d.severity === 1)).toEqual([]);
+    },
+  );
+
+  test("a `repeat` cut off by a story line and never closed is an error", () => {
+    const errs = compile(
+      [
+        "function f()",
+        "  repeat",
+        "    Hello there.",
+        "end",
+        "",
+        "Closing line.",
+        "done",
+        "",
+      ].join("\n"),
+    ).diags.filter((d) => d.severity === 1 && d.message.includes("`until`"));
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
+  });
+
+  test("a closed block whose `end` begins a line of text in a scene is not an error", () => {
+    const { diags } = compile(
+      [
+        "-> main",
+        "",
+        "scene main",
+        "  if true then",
+        "    local a = 1",
+        "  end of story.",
+        "  Bye.",
+        "  done",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(diags.filter((d) => d.severity === 1)).toEqual([]);
+  });
+
+  test("a function that takes a branch's `end` inside a scene is reported", () => {
+    const errs = missingEndErrors(
+      compile(
+        [
+          "-> main.one",
+          "",
+          "scene main",
+          "  Hi.",
+          "",
+          "branch one",
+          "  function f()",
+          "    local a = 1",
+          "  Text here.",
+          "  done",
+          "end",
+          "end",
+          "",
+        ].join("\n"),
+      ).diags,
+    );
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatchObject({ startLine: 6, endLine: 6 });
+  });
+
+  test("an unclosed block inside a top-level `repeat` is an error", () => {
+    const errs = missingEndErrors(
+      compile(
+        [
+          "repeat",
+          "  if true then",
+          "    Hi.",
+          "until true",
+          "",
+          "Closing line.",
+          "done",
+          "",
+        ].join("\n"),
+      ).diags,
+    );
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
+  });
+
+  test("a line of text beginning with `end` closes the function with a warning", () => {
+    const { diags } = compile(
+      [
+        "function f()",
+        "  local a = 1",
+        "end of the day.",
+        "Bye.",
+        "done",
+        "",
+      ].join("\n"),
+    );
+    expect(missingEndErrors(diags)).toEqual([]);
+    const warnings = proseWarnings(diags);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]!.message).toContain("`of the day.`");
   });
 
   test("one-line blocks report nothing", () => {
