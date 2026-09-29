@@ -38,9 +38,11 @@ const STATEMENTS = [
   "local x = if t then 1 else 2;",
   "local x = iffy;",
   "local x = 1 +\n  2;",
-  "local x = - --[[c]] 1;",
+  // `not`, not `-`: a comment right after an arithmetic `-` is read as more
+  // minus signs (#880).
+  "local x = not --[[c]] t;",
   "local x: --[[c]] number;",
-  "local x = - --[=[ ]] ]=] 1;",
+  "local x = not --[=[ ]] ]=] t;",
 ] as const;
 
 describe("a local statement ends at a `;` directly after its value", () => {
