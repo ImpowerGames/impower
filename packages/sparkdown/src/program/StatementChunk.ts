@@ -59,6 +59,11 @@ export const B_HEAD_LINES = 4;
  *  a choice's body, a `then` clause and a function's body take (section 1)
  *  come with the slices that emit them. */
 export const BLOCK_LOOP = 1;
+/** A block row's flag for a loop body that runs each pass in a scope of its
+ *  own, as a `while` body does: the owner opens the scope right before
+ *  `EnterBlock`, a `break` or `continue` in the body closes it before its
+ *  `Leave`, and the engine closes it when the body's sequence runs out. */
+export const BLOCK_PASS_SCOPE = 2;
 export const BLOCK_FLAGS_MASK = 0xff;
 export const BLOCK_SCOPE_SHIFT = 8;
 

@@ -46,6 +46,7 @@ import {
   ADDRESS_OFFSETS,
   ANCHOR_STATEMENT,
   BLOCK_LOOP,
+  BLOCK_PASS_SCOPE,
   BLOCK_ROW_WORDS,
   BLOCK_SCOPE_SHIFT,
   HEADER_WORDS,
@@ -497,22 +498,31 @@ export class BinaryProgramWriter implements ProgramEmitter {
     );
   }
 
-  // `while cond do BODY end`:
-  //   head: cond; JumpIfFalse exit (a decision); Newline; EnterBlock 0 (a
-  //   loop body that resumes at head); exit:
+  // `while cond do BODY end`, whose body runs each pass in a scope of its
+  // own:
+  //   head: cond; JumpIfFalse exit (a decision); Newline; BeginScope;
+  //   EnterBlock 0 (a loop body in a pass scope, which resumes at head);
+  //   exit:
   protected emitWhile(loop: LoopShape): void {
     const [gather, breakGather] = loop.objects as [Gather, Gather];
     const { body, test } = this.loopParts(loop);
+    const begin = test[0];
     this.expect(
       gather.content.length === 1 &&
         isConditionalOf(gather.content[0], loop.test) &&
         breakGather.content.length === 0 &&
-        this.matches(test, [], body, [isDivert]),
+        !!begin &&
+        isBeginScope(begin) &&
+        this.matches(test, [begin], body, [isEndScope, isDivert]),
       "a while loop",
     );
     const head = this.here();
     const exit = this.emitTest(loop.test);
-    const k = this.enterBlock(loop.body, BLOCK_LOOP);
+    this.emitObject(begin);
+    const k = this.enterBlock(loop.body, BLOCK_LOOP | BLOCK_PASS_SCOPE);
+    // The pass scope is closed where the owner resumes, by the engine at the
+    // body's end or by the body's `break` or `continue`.
+    this._scopes -= 1;
     this.blockResume(k, head);
     this.bind(exit);
     this.blockBreak(k, exit);

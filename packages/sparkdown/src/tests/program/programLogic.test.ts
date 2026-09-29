@@ -24,6 +24,7 @@ import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
 import {
   BLOCK_LOOP,
+  BLOCK_PASS_SCOPE,
   B_BREAK,
   B_RESUME,
   HEADER_WORDS,
@@ -289,19 +290,22 @@ describe("the writer", () => {
       code: instructionsOf(root, chunk),
       blocks: blockCount(chunk),
       loop: (blockFlags(chunk, 0) & BLOCK_LOOP) !== 0,
+      passScope: (blockFlags(chunk, 0) & BLOCK_PASS_SCOPE) !== 0,
       resume: blockField(chunk, 0, B_RESUME),
       break: blockField(chunk, 0, B_BREAK),
       scopes: blockScopes(chunk, 0),
     }));
-    // The test is a decision; the body resumes at the test and breaks past
-    // the loop.
+    // The test is a decision; each pass opens the body's scope, which the
+    // engine closes when the body runs out; the body resumes at the test and
+    // breaks past the loop.
     expect(whileLoop).toEqual({
-      code: ["GetVar n", "Int 3", "Native </2", "Native TRUTHY/1", "JumpIfFalse 14 flags 2", "Newline", "EnterBlock 0"],
+      code: ["GetVar n", "Int 3", "Native </2", "Native TRUTHY/1", "JumpIfFalse 16 flags 2", "Newline", "BeginScope", "EnterBlock 0"],
       blocks: 1,
       loop: true,
+      passScope: true,
       resume: 0,
-      break: 14,
-      scopes: 0,
+      break: 16,
+      scopes: 1,
     });
     // The hidden index, stop and step have the chunk's names; the body
     // resumes at the step, inside the loop's scope.
@@ -324,7 +328,7 @@ describe("the writer", () => {
       "Jump 14",
       "EndScope",
     ]);
-    expect(forLoop).toMatchObject({ blocks: 1, loop: true, resume: 62, break: 72, scopes: 1 });
+    expect(forLoop).toMatchObject({ blocks: 1, loop: true, passScope: false, resume: 62, break: 72, scopes: 1 });
     // The iterator is called as a value with the state and the control.
     expect(forIn!.code).toContain("CallStd __adjust_iter/3");
     expect(forIn!.code).toContain("CallValue 2");
@@ -337,7 +341,7 @@ describe("the writer", () => {
       "SetVar __forIn_ctrl$",
       "SetVar __forIn_ctrl$",
     ]);
-    expect(forIn).toMatchObject({ blocks: 1, loop: true, scopes: 1 });
+    expect(forIn).toMatchObject({ blocks: 1, loop: true, passScope: false, scopes: 1 });
     // The body runs first and resumes at the test.
     expect(repeat!.code).toEqual([
       "BeginScope",
@@ -573,8 +577,9 @@ describe("a break from inside nested scoped blocks", () => {
     const story = new ProgramStory(chunked(text));
     const steps = traceSteps(story);
     const found = around(steps, "SetVar n flags 1").after.scopes.length;
-    // Inside the `if` branch's scope and the `do` block's.
-    expect(around(steps, "SetVar inner flags 1").after.scopes).toHaveLength(found + 2);
+    // Inside the `while` body's pass scope, the `if` branch's scope and the
+    // `do` block's.
+    expect(around(steps, "SetVar inner flags 1").after.scopes).toHaveLength(found + 3);
     const leave = around(steps, "Leave");
     expect(leave.after.scopes).toHaveLength(found);
     expect(leave.after.blocks).toBe(0);
@@ -738,6 +743,64 @@ const PARITY: Record<string, string> = {
     "After {n}.",
     "",
   ].join("\n"),
+  // A `while` body runs each pass in a scope of its own (#1064): its locals
+  // end with the pass, however the pass ends.
+  "a while body's local that shadows an outer one": [
+    "local x = \"outer\"",
+    "local i = 0",
+    "while i < 3 do",
+    "  i = i + 1",
+    "  local x = i",
+    "  Inner {x}.",
+    "end",
+    "Outer {x} after {i}.",
+    "",
+  ].join("\n"),
+  "a while body's local across a continue": [
+    "local v = \"outer\"",
+    "local i = 0",
+    "local sum = 0",
+    "while i < 5 do",
+    "  i = i + 1",
+    "  local v = i * 10",
+    "  if v == 30 then",
+    "    continue",
+    "  end",
+    "  sum = sum + v",
+    "end",
+    "Sum {sum} and {v}.",
+    "",
+  ].join("\n"),
+  "a while body's local across a break from a nested block": [
+    "local x = \"outer\"",
+    "while true do",
+    "  local x = \"inner\"",
+    "  if x == \"inner\" then",
+    "    local y = 1",
+    "    break",
+    "  end",
+    "end",
+    "After {x}.",
+    "",
+  ].join("\n"),
+  "nested while loops that each shadow a name": [
+    "local x = \"outer\"",
+    "local i = 0",
+    "local seen = \"\"",
+    "while i < 2 do",
+    "  i = i + 1",
+    "  local x = \"a\" .. i",
+    "  local k = 0",
+    "  while k < 2 do",
+    "    k = k + 1",
+    "    local x = \"b\" .. k",
+    "    seen = seen .. x",
+    "  end",
+    "  seen = seen .. x",
+    "end",
+    "Seen {seen} and {x}.",
+    "",
+  ].join("\n"),
   "a loop that continues from inside a nested if": [
     "for i = 1, 4 do",
     "  if i % 2 == 0 then",
@@ -845,6 +908,17 @@ describe("the engine", () => {
       expect(expected.beats.length).toBeGreaterThan(0);
     });
   }
+
+  it("ends a while body's local with its pass", () => {
+    const text = PARITY["a while body's local that shadows an outer one"]!;
+    const { beats } = storyBeats(new ProgramStory(chunked(text)));
+    expect(beats.map((beat) => beat.text)).toEqual([
+      "Inner 1.\n",
+      "Inner 2.\n",
+      "Inner 3.\n",
+      "Outer outer after 3.\n",
+    ]);
+  });
 
   // The current engine's story of a compile has no debug metadata for an
   // operator, so it names the error's place by its runtime path; the program

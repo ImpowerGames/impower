@@ -71,6 +71,7 @@ import {
   ADDRESS_OFFSETS,
   ANCHOR_STATEMENT,
   BLOCK_LOOP,
+  BLOCK_PASS_SCOPE,
   B_BREAK,
   B_RESUME,
   HEADER_WORDS,
@@ -601,7 +602,8 @@ export class ProgramStory {
   // --------------------------------------------------------------- internals
 
   /** The chunk the position is in, after moving past the end of each
-   *  statement and each body the position has reached the end of; nothing
+   *  statement and each body the position has reached the end of, closing
+   *  the pass scope of a body that runs in one (`BLOCK_PASS_SCOPE`); nothing
    *  when the flow has run out. */
   protected fetch(position: ProgramPosition): StatementChunk | undefined {
     const state = this._state;
@@ -623,6 +625,9 @@ export class ProgramStory {
         return undefined;
       }
       const owner = top.sequence.arrays.chunks[top.entry]!;
+      if (blockFlags(owner, top.block) & BLOCK_PASS_SCOPE) {
+        state.frame?.PopScope();
+      }
       position.sequence = top.sequence;
       position.entry = top.entry;
       position.offset = blockField(owner, top.block, B_RESUME);
