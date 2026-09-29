@@ -5859,9 +5859,11 @@ repository:
     # parameter list moved to the next line is not supported with or
     # without generics. A return type takes in the line break after it,
     # as any type does, so the body also opens at the start of a line,
-    # unless that line closes the function; a line start is only reached
-    # with the body still unopened when nothing followed the header.
-    begin: (?<={{LUAU_TYPE_END}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:(<])\S)|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)
+    # unless that line closes the function. That opening also needs the
+    # line to start with a character a statement can begin with: a line the
+    # body cannot read (a stray `|` or `)`) closes the body, and reopening
+    # it there would match nothing, again and again.
+    begin: (?<={{LUAU_TYPE_END}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:(<])\S)|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`

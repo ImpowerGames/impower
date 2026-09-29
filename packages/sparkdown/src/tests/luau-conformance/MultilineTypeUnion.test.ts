@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { parseSource } from "../compiler/grammarSnapshot";
@@ -14,14 +14,14 @@ const TYPES = [
 
 /**
  * Whether the type that starts at the first `type` in `source` is one type
- * node that runs past the next line's `| string` member.
+ * node that takes in the next line's `| string` member.
  */
 function isOneType(source: string, type: string): boolean {
   const from = source.indexOf(type);
   const member = source.indexOf("| string");
   const cur = parseSource(source).cursor();
   do {
-    if (cur.name === "LuauTypeLiteral" && cur.from === from && cur.to > member) return true;
+    if (cur.name === "LuauTypeLiteral" && cur.from === from && cur.to >= member + "| string".length) return true;
   } while (cur.next());
   return false;
 }
@@ -92,5 +92,25 @@ describe("every statement of a function runs", () => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(output);
+  });
+});
+
+// A line in a function that no statement can begin with opens no body, so the
+// parser moves on over it instead of opening empty bodies at its start.
+describe("a function line no statement begins with", () => {
+  test.each([
+    ["a stray `|`", "function f()\n| x\nend\n"],
+    ["a stray `)`", "function f()\n) x\nend\n"],
+    ["a stray `)` after a return type", "function f(): number\n) x\nend\n"],
+  ])("%s parses without an empty-match loop", (_name, source) => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      parseSource(source);
+      expect(warn.mock.calls.map((args) => String(args[0]))).not.toContainEqual(
+        expect.stringContaining("empty matches"),
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

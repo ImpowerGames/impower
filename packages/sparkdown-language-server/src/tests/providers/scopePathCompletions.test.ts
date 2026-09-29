@@ -332,15 +332,39 @@ end
 
 // A type at the end of a line takes in the line breaks after it, since the
 // next line may continue it as a union, so the declaration's node ends lines
-// after its text.
+// after its text. `@@` marks the cursor, since `|` is a union's operator.
 describe("provider · scope after a type that ends its line", () => {
-  test.each([
-    ["a typed local", "function f()\n  local x: number\n|\n  print(x)\nend\n", "var", "x"],
-    ["a typed local whose union goes on to the next line", "function f()\n  local x: number\n    | string\n|\n  print(x)\nend\n", "var", "x"],
-    ["a parameter of a function with a return type", "function f(p): number\n|\n  return p\nend\n", "param", "p"],
-  ] as const)("%s is in scope on the blank line after it", (_name, source, type, name) => {
-    const { text, offset } = positionAt(source);
+  const namesAt = (source: string, type: "var" | "param") => {
+    const { text, offset } = positionAt(source, "@@");
     const { scriptAnnotations } = setup(text);
-    expect(getDeclarationScopes(scriptAnnotations, { uri: URI, offset })[""]?.[type]).toContain(name);
+    return getDeclarationScopes(scriptAnnotations, { uri: URI, offset })[""]?.[type] ?? [];
+  };
+
+  test.each([
+    ["a typed local", "function f()\n  local x: number\n@@\n  print(x)\nend\n", "var", "x"],
+    ["a typed local whose union goes on to the next line", "function f()\n  local x: number\n    | string\n@@\n  print(x)\nend\n", "var", "x"],
+    ["a parameter of a function with a return type", "function f(p): number\n@@\n  return p\nend\n", "param", "p"],
+  ] as const)("%s is in scope on the blank line after it", (_name, source, type, name) => {
+    expect(namesAt(source, type)).toContain(name);
+  });
+
+  test.each([
+    ["with no body statement", "function f(p): typeof(p@@) end\n"],
+    ["with a body statement", "function f(p): typeof(p@@)\n  return p\nend\n"],
+  ])("a parameter is not in scope in its function's return type %s", (_name, source) => {
+    expect(namesAt(source, "param")).not.toContain("p");
+  });
+
+  test("a local is not in scope after the `=` on its own line", () => {
+    expect(namesAt("function f()\n  local a = @@\nend\n", "var")).not.toContain("a");
+  });
+
+  test("locals are not in scope in a function value in their own initializer", () => {
+    const names = namesAt(
+      "function f()\n  local a, g = 1, function()\n    return @@\n  end\n  print(a)\nend\n",
+      "var",
+    );
+    expect(names).not.toContain("a");
+    expect(names).not.toContain("g");
   });
 });
