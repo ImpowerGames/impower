@@ -317,8 +317,13 @@ variables:
   # comments, which Luau reads as trivia. A block comment ends at the first
   # closing bracket of its own level, as `LuauBlockComment` does, so its level
   # is captured and matched by `\4`: every rule using this must put exactly
-  # three capture groups before it.
-  _LUAU_SEMICOLON_AHEAD_: (?:(?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*)*[;])
+  # three capture groups before it. A line comment must run to its line end,
+  # so the token is never a character inside it (`local x: -- a, b`).
+  _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
+  _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
+  # The same, ending at the `;`, `,` or `=` (not `==`) that can follow a type
+  # annotation, with the same capture-group rule.
+  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,]|=(?!=)))
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
@@ -8727,13 +8732,14 @@ repository:
     name: invalid.illegal.luau
     match: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if)(?!\w))({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
 
-  # A type annotation `:` with no type before the `;` that ends its statement
-  # (`local x: ;`), read as one token as `LuauOperatorMissingOperand` reads
-  # an operator. Luau words this one differently, so it has its own rule.
+  # A type annotation `:` with no type before the `;`, `,` or `=` after it
+  # (`local x: ;`, `local x: = 1`, `local a: , b`), read as one token as
+  # `LuauOperatorMissingOperand` reads an operator. Luau words this one
+  # differently, so it has its own rule.
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
+    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})

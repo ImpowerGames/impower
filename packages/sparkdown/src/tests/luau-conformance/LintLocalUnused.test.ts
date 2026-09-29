@@ -35,6 +35,27 @@ return bar()
   });
 });
 
+// Sparkdown (#1139): a type annotation on one name does not end the names.
+describe("names after a typed name in one local", () => {
+  test("untyped control", () => {
+    expect(
+      lintMessagesInFunction(`
+local a, b = 1, 2
+return a
+`),
+    ).toEqual(["Variable 'b' is never used; prefix with '_' to silence"]);
+  });
+
+  test("a typed first name", () => {
+    expect(
+      lintMessagesInFunction(`
+local a: number, b: number = 1, 2
+return a
+`),
+    ).toEqual(["Variable 'b' is never used; prefix with '_' to silence"]);
+  });
+});
+
 // Luau: ImportOnlyUsedInTypeAnnotation (adapted)
 // Sparkdown has no `require`; a plain local stands in for the import. The
 // grammar does not read a dotted type name (`Foo.Y`) and leaves the function
