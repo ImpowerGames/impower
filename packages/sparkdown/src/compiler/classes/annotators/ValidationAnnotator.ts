@@ -96,7 +96,7 @@ const LUAU_NUMBER = nodeNameSet([
 // control argument, where the surrounding syntax is not Luau.
 const LUAU_COMMENT = nodeNameSet(["LuauBlockComment", "LuauLineComment"]);
 
-const TEXT_COMMAND_CONTROL =nodeNameSet(["TextCommandControl"]);
+const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
 
 // The characters Luau's lexer skips after a `\z` escape. Narrower than JS
 // `\s`, which also matches non-breaking and other Unicode spaces.
