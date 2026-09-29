@@ -9,7 +9,6 @@ portUpstreamFile("TypeInfer.singletons.test.cpp", [
     // TypeInfer.singletons.test.cpp:14 TEST_CASE_FIXTURE(Fixture, "function_args_infer_singletons")
     name: "function_args_infer_singletons",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 --!strict
 type Phase = "A" | "B" | "C"
@@ -188,7 +187,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:198 TEST_CASE_FIXTURE(Fixture, "enums_using_singletons")
     name: "enums_using_singletons",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type MyEnum = "foo" | "bar" | "baz"
         local a : MyEnum = "foo"
@@ -201,7 +199,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:210 TEST_CASE_FIXTURE(Fixture, "enums_using_singletons_mismatch")
     name: "enums_using_singletons_mismatch",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type MyEnum = "foo" | "bar" | "baz"
         local a : MyEnum = "bang"
@@ -215,7 +212,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:228 TEST_CASE_FIXTURE(Fixture, "enums_using_singletons_subtyping")
     name: "enums_using_singletons_subtyping",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type MyEnum1 = "foo" | "bar"
         type MyEnum2 = MyEnum1 | "baz"
@@ -229,7 +225,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:241 TEST_CASE_FIXTURE(Fixture, "tagged_unions_using_singletons")
     name: "tagged_unions_using_singletons",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Dog = { tag: "Dog", howls: boolean }
         type Cat = { tag: "Cat", meows: boolean }
@@ -245,7 +240,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:256 TEST_CASE_FIXTURE(Fixture, "tagged_unions_using_singletons_mismatch")
     name: "tagged_unions_using_singletons_mismatch",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Dog = { tag: "Dog", howls: boolean }
         type Cat = { tag: "Cat", meows: boolean }
@@ -260,7 +254,6 @@ local e = f("B")
     // prints as `string`.
     name: "tagged_unions_immutable_tag",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Dog = { tag: "Dog", howls: boolean }
         type Cat = { tag: "Cat", meows: boolean }
@@ -344,7 +337,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:361 TEST_CASE_FIXTURE(Fixture, "indexer_can_be_union_of_singletons")
     name: "indexer_can_be_union_of_singletons",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Target = "A" | "B"
 
@@ -375,7 +367,6 @@ local e = f("B")
     // TypeInfer.singletons.test.cpp:399 TEST_CASE_FIXTURE(Fixture, "error_detailed_tagged_union_mismatch_string")
     name: "error_detailed_tagged_union_mismatch_string",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 type Cat = { tag: 'cat', catfood: string }
 type Dog = { tag: 'dog', dogfood: string }
@@ -392,7 +383,6 @@ local a: Animal = { tag = 'cat', cafood = 'something' }
     // TypeInfer.singletons.test.cpp:425 TEST_CASE_FIXTURE(Fixture, "error_detailed_tagged_union_mismatch_bool")
     name: "error_detailed_tagged_union_mismatch_bool",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 type Good = { success: true, result: string }
 type Bad = { success: false, error: string }
@@ -409,7 +399,6 @@ local a: Result = { success = false, result = 'something' }
     // TypeInfer.singletons.test.cpp:453 TEST_CASE_FIXTURE(Fixture, "parametric_tagged_union_alias")
     name: "parametric_tagged_union_alias",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Ok<T> = {success: true, result: T}
         type Err<T> = {success: false, error: T}
@@ -427,7 +416,6 @@ local a: Result = { success = false, result = 'something' }
     // TypeInfer.singletons.test.cpp:474 TEST_CASE_FIXTURE(Fixture, "if_then_else_expression_singleton_options")
     name: "if_then_else_expression_singleton_options",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 type Cat = { tag: 'cat', catfood: string }
 type Dog = { tag: 'dog', dogfood: string }
@@ -480,7 +468,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:541 TEST_CASE_FIXTURE(Fixture, "widening_happens_almost_everywhere_except_for_tables")
     name: "widening_happens_almost_everywhere_except_for_tables",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Cat = {tag: "Cat", meows: boolean}
         type Dog = {tag: "Dog", barks: boolean}
@@ -504,7 +491,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:564 TEST_CASE_FIXTURE(Fixture, "functions_are_not_to_be_widened")
     name: "functions_are_not_to_be_widened",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function foo(my_enum: "A" | "B") end
     `,
@@ -562,7 +548,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:631 TEST_CASE_FIXTURE(Fixture, "no_widening_from_callsites")
     name: "no_widening_from_callsites",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Direction = "North" | "East" | "West" | "South"
 
@@ -595,7 +580,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:666 TEST_CASE_FIXTURE(Fixture, "tagged_union_in_ternary")
     name: "tagged_union_in_ternary",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Result = { type: "ok", value: unknown } | { type: "error" }
 
@@ -622,7 +606,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:690 TEST_CASE_FIXTURE(Fixture, "singleton_type_mismatch_via_variable")
     name: "singleton_type_mismatch_via_variable",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local c = "c"
         local x: "a" = c
@@ -662,7 +645,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:726 TEST_CASE_FIXTURE(Fixture, "oss_2010")
     name: "oss_2010",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function foo<T>(my_enum: "" | T): T
             return my_enum :: T
@@ -676,7 +658,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:741 TEST_CASE_FIXTURE(Fixture, "oss_1773")
     name: "oss_1773",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         --!strict
 
@@ -705,7 +686,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // Upstream checks that every error is a TypeMismatch; there are three.
     name: "bidirectionally_infer_indexers_errored",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         --!strict
 
@@ -728,7 +708,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:790 TEST_CASE_FIXTURE(Fixture, "oss_2018")
     name: "oss_2018",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local rule: { rule: "AppendTextComment" } | { rule: "Other" } = { rule = "AppendTextComment" }
     `,
@@ -738,7 +717,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     // TypeInfer.singletons.test.cpp:797 TEST_CASE_FIXTURE(Fixture, "oss_2010_but_with_booleans")
     name: "oss_2010_but_with_booleans",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function foo<T>(my_enum: true | T): T
             return my_enum :: T

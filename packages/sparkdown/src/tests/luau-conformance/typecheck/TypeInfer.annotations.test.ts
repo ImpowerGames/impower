@@ -800,7 +800,6 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     // TypeInfer.annotations.test.cpp:991 TEST_CASE_FIXTURE(Fixture, "occurs_check_on_cyclic_union_type")
     name: "occurs_check_on_cyclic_union_type",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type T = T | T
         local x : T
@@ -872,7 +871,7 @@ portUpstreamFile("TypeInfer.annotations.test.cpp", [
     // TypeInfer.annotations.test.cpp:1071 TEST_CASE_FIXTURE(BuiltinsFixture, "react_use_state_partial_annotation")
     name: "react_use_state_partial_annotation",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
+    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         type BasicStateAction<S> = ((S) -> S) | S
         type Dispatch<A> = (A) -> ()

@@ -54,6 +54,7 @@ sparkdown [0..185]
  │   │       │   │   │       │   └─ LuauAssignmentOperation [27..38]
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 27
  │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 27
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 27
  │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [27..38]
  │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [27..29]
  │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [27..29]
@@ -198,7 +199,8 @@ sparkdown [0..185]
  │   │       │   │   │       │       │       │       ├─ LuauTypeName_c2 78
  │   │       │   │   │       │       │       │       ├─ LuauTypeName_c3 [78..83]: "types"
  │   │       │   │   │       │       │       │       ├─ LuauTypeName_c4 83
- │   │       │   │   │       │       │       │       └─ LuauTypeName_c5 83
+ │   │       │   │   │       │       │       │       ├─ LuauTypeName_c5 83
+ │   │       │   │   │       │       │       │       └─ LuauTypeName_c6 83
  │   │       │   │   │       │       │       └─ LuauTypeLiteral_end 83
  │   │       │   │   │       │       └─ LuauTypeAnnotationOperation_end 83
  │   │       │   │   │       └─ LuauVariableAssignment_end 83
@@ -221,7 +223,7 @@ sparkdown [0..185]
  │   │       │   ├─ LuauAssignmentOperation [95..99]
  │   │       │   │   ├─ LuauAssignmentOperation_begin [95..96]
  │   │       │   │   │   └─ LuauAssignmentOperation_begin_c1 [95..96]
- │   │       │   │   │       └─ ExtraWhitespace [95..96]: " "
+ │   │       │   │   │       └─ OptionalWhitespace [95..96]: " "
  │   │       │   │   ├─ LuauAssignmentOperation_content [96..99]
  │   │       │   │   │   ├─ LuauAssignmentOperator [96..98]
  │   │       │   │   │   │   ├─ LuauAssignmentOperator_begin [96..98]

@@ -1138,7 +1138,6 @@ end
     // TypeInfer.tables.test.cpp:1457 TEST_CASE_FIXTURE(Fixture, "pass_incompatible_union_to_a_generic_table_without_crashing")
     name: "pass_incompatible_union_to_a_generic_table_without_crashing",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         -- must be in this specific order, and with (roughly) those exact properties!
         type A = {x: number, [any]: any} | {}
@@ -1158,7 +1157,6 @@ end
     name: "passing_compatible_unions_to_a_generic_table_without_crashing",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type A = {x: number, y: number, [any]: any} | {y: number}
 
@@ -1624,7 +1622,6 @@ end
     // TypeInfer.tables.test.cpp:2075 TEST_CASE_FIXTURE(Fixture, "ok_to_provide_a_subtype_during_construction")
     name: "ok_to_provide_a_subtype_during_construction",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local a: string | number = 1
         local t = {a, 1}
@@ -2138,7 +2135,6 @@ b()
     // TypeInfer.tables.test.cpp:2788 TEST_CASE_FIXTURE(Fixture, "length_operator_union")
     name: "length_operator_union",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 local x: {number} | {string}
 local y = #x
@@ -2159,7 +2155,6 @@ local y = #x
     // TypeInfer.tables.test.cpp:2808 TEST_CASE_FIXTURE(Fixture, "length_operator_non_table_union")
     name: "length_operator_non_table_union",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 local x: {number} | any | string
 local y = #x
@@ -2170,7 +2165,6 @@ local y = #x
     // TypeInfer.tables.test.cpp:2818 TEST_CASE_FIXTURE(Fixture, "length_operator_union_errors")
     name: "length_operator_union_errors",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 local x: {number} | number | string
 local y = #x
@@ -2227,7 +2221,6 @@ local y = #x
     name: "pass_a_union_of_tables_to_a_function_that_requires_a_table",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local a: {x: number, y: number, [any]: any} | {y: number}
 
@@ -2245,7 +2238,6 @@ local y = #x
     name: "pass_a_union_of_tables_to_a_function_that_requires_a_table_2",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local a: {y: number} | {x: number, y: number, [any]: any}
 
@@ -2958,7 +2950,6 @@ end
     // TypeInfer.tables.test.cpp:3728 TEST_CASE_FIXTURE(Fixture, "prop_access_on_unions_of_indexers_where_key_whose_types_mismatches")
     name: "prop_access_on_unions_of_indexers_where_key_whose_types_mismatches",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local t: { [number]: number } | { [boolean]: number } = {}
         local u = t.x
@@ -3934,7 +3925,6 @@ end
     // printing as their names.
     name: "write_to_union_property_not_all_present",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Animal = {tag: "Cat", meow: boolean} | {tag: "Dog", woof: boolean}
         function f(t: Animal)
@@ -3950,7 +3940,6 @@ end
     // TypeInfer.tables.test.cpp:5062 TEST_CASE_FIXTURE(Fixture, "mymovie_read_write_tables_bug")
     name: "mymovie_read_write_tables_bug",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type MockedResponseBody = string | (() -> MockedResponseBody)
         type MockedResponse = { type: 'body', body: MockedResponseBody } | { type: 'error' }
@@ -3969,7 +3958,6 @@ end
     // TypeInfer.tables.test.cpp:5081 TEST_CASE_FIXTURE(Fixture, "mymovie_read_write_tables_bug_2")
     name: "mymovie_read_write_tables_bug_2",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type MockedResponse = { type: 'body' } | { type: 'error' }
 
@@ -4838,7 +4826,6 @@ end
     name: "disable_singleton_inference_on_large_tables",
     fixture: "Fixture",
     limits: { LuauPrimitiveInferenceInTableLimit: 2 },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Word = "foo" | "bar"
         local words: { Word } = { "foo", "bar", "foo" }
@@ -4850,7 +4837,6 @@ end
     name: "disable_singleton_inference_on_large_nested_tables",
     fixture: "Fixture",
     limits: { LuauPrimitiveInferenceInTableLimit: 2 },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Word = "foo" | "bar"
         local words: {{ Word }} = {{ "foo", "bar", "foo" }}
@@ -4862,7 +4848,6 @@ end
     name: "large_table_inference_does_not_bleed",
     fixture: "Fixture",
     limits: { LuauPrimitiveInferenceInTableLimit: 2 },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Word = "foo" | "bar"
         local words: { Word } = { "foo", "bar", "foo" }
@@ -5082,7 +5067,6 @@ end
     // TypeInfer.tables.test.cpp:6280 TEST_CASE_FIXTURE(Fixture, "cli_119126_regression")
     name: "cli_119126_regression",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type literals = "foo" | "bar" | "foobar"
 
@@ -5403,7 +5387,6 @@ end
     name: "oss_1953",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type A = { kind: "a" }
         type B = { kind: "b" }
@@ -5438,7 +5421,6 @@ end
     name: "oss_1483",
     fixture: "BuiltinsFixture",
     flags: { DebugLuauAssertOnForcedConstraint: true },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Form = "do-not-register" | (() -> ())
 
@@ -5564,7 +5546,6 @@ end
     // TypeInfer.tables.test.cpp:6783 TEST_CASE_FIXTURE(BuiltinsFixture, "show_not_a_table_error_when_indexing_into_non_table")
     name: "show_not_a_table_error_when_indexing_into_non_table",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         --!strict
         local function f(t: number | boolean)
@@ -5629,7 +5610,6 @@ end
     // TypeInfer.tables.test.cpp:6850 TEST_CASE_FIXTURE(Fixture, "table_access_indexer_via_name_expr")
     name: "table_access_indexer_via_name_expr",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         --!strict
         type List = "Val1" | "Val2" | "Val3"
@@ -5642,7 +5622,6 @@ end
     // TypeInfer.tables.test.cpp:6865 TEST_CASE_FIXTURE(Fixture, "table_access_indexer_fails_with_missing_key")
     name: "table_access_indexer_fails_with_missing_key",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         --!strict
         type List = "Val2" | "Val3"
@@ -5955,7 +5934,6 @@ end
     // TypeInfer.tables.test.cpp:7215 TEST_CASE_FIXTURE(Fixture, "error_supression_of_union_of_tables_should_work")
     name: "error_supression_of_union_of_tables_should_work",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         --!strict
         type Foo<T> = { kind: "foo", foo: T }
@@ -6034,7 +6012,6 @@ end
     // TypeInfer.tables.test.cpp:7299 TEST_CASE_FIXTURE(Fixture, "tables_routing_bidirectional_inference")
     name: "tables_routing_bidirectional_inference",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         export type ReceivedRequest = {
             method: string,
@@ -6096,7 +6073,6 @@ end
     // TypeInfer.tables.test.cpp:7364 TEST_CASE_FIXTURE(Fixture, "bidirectional_union_non_singleton_discrimination")
     name: "bidirectional_union_non_singleton_discrimination",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type NumericRecord = { value: number, label: string }
         type StringRecord = { value: string, flag: boolean }
@@ -6111,7 +6087,6 @@ end
     // TypeInfer.tables.test.cpp:7378 TEST_CASE_FIXTURE(Fixture, "bidirectional_union_mixed_table_and_non_table")
     name: "bidirectional_union_mixed_table_and_non_table",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type Response = string | { status: number, body: string }
 
@@ -6146,7 +6121,6 @@ end
     // TypeInfer.tables.test.cpp:7412 TEST_CASE_FIXTURE(BuiltinsFixture, "bidirectional_union_function_vs_primitive_property_discrimination")
     name: "bidirectional_union_function_vs_primitive_property_discrimination",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type FnRecord = { handler: (number) -> string, label: string? }
         type StrRecord = { handler: string, label: string? }
@@ -6218,7 +6192,6 @@ end
     name: "union_of_indexers_1",
     fixture: "BuiltinsFixture",
     flags: { LuauRemoveConstraintSolverEmplace: true },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local tbl: { [string | number]: never } | { [string | number]: string }
         local key: string
@@ -6231,7 +6204,6 @@ end
     name: "union_of_indexers_2",
     fixture: "BuiltinsFixture",
     flags: { LuauRemoveConstraintSolverEmplace: true },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local tbl: { [string | number]: unknown } | { [string | number]: string }
         local key: string
@@ -6244,7 +6216,6 @@ end
     name: "union_of_indexers_3",
     fixture: "BuiltinsFixture",
     flags: { LuauRemoveConstraintSolverEmplace: true },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local tbl: { [string | number]: boolean | string } | { [string | number]: boolean | number }
         local key: string
@@ -6328,7 +6299,6 @@ end
     name: "oss_2597_constraint_forcing_bad_refinement",
     fixture: "BuiltinsFixture",
     flags: { LuauDontBlockRefinementUnconditionally: true, DebugLuauAssertOnForcedConstraint: true },
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         const MyClass = {
             __index = {},
