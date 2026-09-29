@@ -1,7 +1,7 @@
 // A `store` whose default is a table keeps the same table when a field of it
 // is set, so the global still holds its default object. A save writes such a
-// store when the table's contents differ from the default's, and leaves it
-// out while they are the same.
+// store whether or not it changed, so a field set in place survives the load
+// and a saved local that shares the table loads sharing it.
 
 import { describe, expect, test } from "vitest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
@@ -55,17 +55,20 @@ end
     expect(Object.keys(run.globals)).toContain("t");
   });
 
-  test("a store table left as its default is still left out of the save", () => {
+  test("a store table a saved closure shares stays one table after a load", () => {
     const run = saveAfterFirstLine(`store t = { n = 1 }
 -> s
 scene s
+  & local alias = t
+  & local get = function() return alias.n end
   First {t.n}.
-  Second {t.n}.
+  & t.n = 2
+  Second {get()}.
   fin
 end
 `);
     expect(run.errors).toEqual([]);
-    expect(run.first + run.rest).toBe("First 1.\nSecond 1.\n");
-    expect(Object.keys(run.globals)).not.toContain("t");
+    expect(run.first + run.rest).toBe("First 1.\nSecond 2.\n");
+    expect(Object.keys(run.globals)).toContain("t");
   });
 });

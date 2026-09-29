@@ -323,6 +323,28 @@ end
     expectSameAcrossSave(source, "First 11.\nSecond 12.\n");
   });
 
+  test("a store closure a saved local shares keeps one cell after the load", () => {
+    const source = `function make()
+  local n = 10
+  return function()
+    n = n + 1
+    return n
+  end
+end
+store inc = make()
+
+-> s
+scene s
+  & local alias = inc
+  First.
+  A {inc()}.
+  B {alias()}.
+  fin
+end
+`;
+    expectSameAcrossSave(source, "First.\nA 11.\nB 12.\n");
+  });
+
   test("a save written without upvalue cells still loads", () => {
     // A save whose pointers carry no cell id (the form every save had before
     // cells were written) loads each pointer as its own open cell.
