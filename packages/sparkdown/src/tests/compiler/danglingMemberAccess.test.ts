@@ -221,6 +221,7 @@ describe("a dangling member access (#1079)", () => {
     ["a block comment", "t.a.--[[note]]b"],
     ["a long-bracket block comment", "t.a.--[==[note]==]b"],
     ["two block comments", "t.a.--[[one]]--[[two]]b"],
+    ["no space, when the name is a keyword", "t.a.repeat"],
   ])("leaves a name after %s on the same line alone", (_name, access) => {
     const source = `function f()\n  local t = { a = { b = 1 } }\n  return ${access}\nend\n`;
     const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);

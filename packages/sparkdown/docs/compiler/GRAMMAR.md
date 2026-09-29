@@ -600,13 +600,16 @@ Real example:
 ```yaml
 LuauVariableDefinition:
   patterns:
+    - { include: "#LuauCommaLineBreak" }
     - { include: "#LuauComment" }
     - { include: "#LuauVariableAssignment" }
+    - { include: "#LuauCommaSeparator" }
+    - { include: "#LuauVariableDefinitionValue" }
   applyEndPatternLast: true
   end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 ```
 
-`LuauVariableAssignment` can consume across-line text. The end pattern is a lookahead for "end of line, unless a comment follows" — without `applyEndPatternLast`, the assignment would be cut short at the first line boundary even when the user meant to continue.
+The end pattern matches almost anywhere ("end of line, or any position not followed by a comment"), so the declaration closes exactly where none of its patterns match. At the end of a line nothing matches and it closes, except after a comma that ends the line: `LuauCommaLineBreak` consumes that comma, the line break and the next line's indent (§11.5), and the list continues with the next value. Because the declaration closes only where its patterns fail, its patterns must fail at whatever may follow a line break without being a value: `LuauVariableDefinitionValue` leaves out statements, `LuauVariableAssignment` refuses a reserved word before a comma or the line's end, and `LuauAccessPath` refuses a `scene` header and a contextual declaration (`type T`, `store x`). In a narrative body the declaration is `LuauSparkdownVariableDefinition`, which has no line-break pattern and so always ends at its line.
 
 **Rule of thumb:** if you find yourself reaching for negative lookaheads in the end pattern, ask first whether `applyEndPatternLast: true` would let you drop them.
 

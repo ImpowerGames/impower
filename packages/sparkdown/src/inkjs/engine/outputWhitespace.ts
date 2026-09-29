@@ -160,7 +160,7 @@ export function findOpenString(stream: InkObject[], hint: number): number {
   return -1;
 }
 
-function isBeginString(obj: InkObject | undefined): boolean {
+export function isBeginString(obj: InkObject | null | undefined): boolean {
   return (
     obj instanceof ControlCommand &&
     obj.commandType == ControlCommand.CommandType.BeginString
