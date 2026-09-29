@@ -6043,7 +6043,9 @@ repository:
     # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
     # is actually an expression — fall through to `LuauExpression`
     # at the outer `LuauVariableDefinition` level.
-    begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
+    # A block's closing keyword is never a target, so the `end` of a block
+    # after an unfinished value that took the line break closes the block.
+    begin: (?!(?:{{LUAU_END_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b)({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:
@@ -6064,7 +6066,8 @@ repository:
     # multi-RHS values. Previously the VA's own `LuauCommaSeparator`
     # pattern consumed the comma and an `ERROR_INCOMPLETE` followed —
     # the trailing RHS values were silently dropped from the tree.
-    end: (?={{BEAT}})|(?=$|{{WS}}|,)
+    # A line start ends it as it ends `LuauAssignmentOperation`.
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|,)
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -6861,7 +6864,7 @@ repository:
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)
@@ -7627,6 +7630,9 @@ repository:
   #
   # Only Luau-only contexts include it: in a body that also holds display
   # lines, a line starting with `.` is prose.
+  #
+  # `and` and `or` are tried before an access part, which would otherwise
+  # read either as a name.
   LuauLineContinuation:
     begin: ^({{WS}}*)(?={{LUAU_LINE_CONTINUATION}})
     beginCaptures:
@@ -7634,6 +7640,7 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauLogicalOperation" }
       - { include: "#LuauAccessPart" }
       - { include: "#LuauParenthetical" }
       - { include: "#LuauString" }
@@ -7641,7 +7648,6 @@ repository:
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
-      - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
     end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
@@ -8477,7 +8483,10 @@ repository:
       - { include: "#LuauAssignmentOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    # An assignment's value ends at its line's end; it only stands at the
+    # start of a line when a value that spans lines, such as an unfinished if
+    # expression, took the line break and ended there, which ends it too.
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
     beginCaptures:

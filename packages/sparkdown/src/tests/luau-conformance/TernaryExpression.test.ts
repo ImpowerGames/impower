@@ -510,6 +510,16 @@ describe("if expression across lines", () => {
       "Value 1 13.\n",
     ],
     [
+      "a line that begins with and or or in the condition, an arm and after the else value",
+      "Value {f(false)} {f(true)}.\nfunction f(c)\n  local y = if c\n    or false\n    then 5\n      and 6\n    else nil\n      or 7\n  return y\nend\n",
+      "Value 7 6.\n",
+    ],
+    [
+      "a line that begins with or after a value in brackets and in a statement",
+      "Value {f()}.\nfunction f()\n  local a = (false\n    or true)\n  local b = false\n    or a\n  return if b then 1 else 2\nend\n",
+      "Value 1.\n",
+    ],
+    [
       "arms that begin with a unary operator",
       "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c\n    then -1\n    else if not c then 2 else 3\n  return y\nend\n",
       "Value -1 2.\n",
@@ -616,6 +626,11 @@ describe("if expression without an else", () => {
     ["an empty else arm", "  local y = if true then 1 else\n", MISSING_CONDITION, "2:28-2:32"],
     ["a then arm with only a comment", "  local y = if true then -- no value\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["a then arm with only a continuation line", "  local y = if true then\n    + 1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a minus", "  local y = if true then\n    -\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a cast", "  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm at column 0 on the line after then", "  local y = if true then\n1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", MISSING_CONDITION, "3:17-3:21"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
   ])("%s: reports it on the keyword that is short and keeps what follows", (_name, partial, message, at) => {
@@ -624,6 +639,20 @@ describe("if expression without an else", () => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\nYou walk through it.\n");
+  });
+
+  // The function's own `end` at column 0 comes straight after the unfinished
+  // expression, so nothing indented separates the two.
+  test.each([
+    ["a then arm with only a comment", "  local y = if true\n    then -- still writing\n", MISSING_CONDITION, "3:5-3:9"],
+    ["no else yet", "  local y = if true\n    then 1\n", MISSING_ELSE, "2:13-2:15"],
+    ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
+    ["a reassignment with no else yet", "  x = if true\n    then 1\n", MISSING_ELSE, "2:7-2:9"],
+  ])("%s, right before the function's end: keeps the next function", (_name, body, message, at) => {
+    const source = `function f()\n${body}end\nfunction g()\n  return 6\nend\nSum {g()}.\n`;
+    expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
   });
 
   test("in a Sparkle prop binding", () => {

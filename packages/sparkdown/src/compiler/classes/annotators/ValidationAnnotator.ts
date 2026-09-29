@@ -159,40 +159,45 @@ function isInlineConditional(node: any): boolean {
   );
 }
 
-// The operations whose node begins with their operator; only `-` and `not`
-// can also begin a value.
-const BINARY_TAIL_OPERATIONS = new Set([
+// The operations whose node begins with their operator. Only `-`, `not` and
+// `#` can begin a value, and then only with an operand after them.
+const OPERATOR_FIRST_OPERATIONS = new Set([
   "LuauArithmeticOperation",
   "LuauCompareOperation",
   "LuauConcatOperation",
   "LuauLogicalOperation",
+  "LuauLengthOperation",
+  "LuauTypeCastOperation",
 ]);
-const UNARY_OPERATORS = new Set(["-", "not"]);
+const UNARY_OPERATORS = new Set(["-", "not", "#"]);
+
+// The first part of `node`'s `_content` from `start` on that is not a
+// comment or space.
+function firstPart(node: any, start = node?.firstChild): any {
+  let part = start;
+  while (part && IF_CLAUSE_TRIVIA.has(part.name)) part = part.nextSibling;
+  return part ?? null;
+}
 
 // Whether an if expression's clause holds a value: its first part that is not
 // its keyword, a comment or space is a value, not a line or an operator that
-// continues a value before it, which a clause with no value has none of.
+// continues a value before it, nor a unary operator with nothing after it.
 function clauseHasValue(
   clause: any,
   read: (from: number, to: number) => string,
 ): boolean {
   const content = childNamed(clause, `${clause.name}_content`);
-  for (let c = content?.firstChild; c; c = c.nextSibling) {
-    if (IF_CLAUSE_TRIVIA.has(c.name)) continue;
-    if (isLineContinuation(c)) return false;
-    if (BINARY_TAIL_OPERATIONS.has(c.name)) {
-      const operation = childNamed(c, `${c.name}_content`);
-      let operator = operation?.firstChild;
-      while (operator && IF_CLAUSE_TRIVIA.has(operator.name)) {
-        operator = operator.nextSibling;
-      }
-      if (operator && !UNARY_OPERATORS.has(read(operator.from, operator.to).trim())) {
-        return false;
-      }
+  const part = firstPart(content);
+  if (!part || isLineContinuation(part)) return false;
+  if (OPERATOR_FIRST_OPERATIONS.has(part.name)) {
+    const operator = firstPart(childNamed(part, `${part.name}_content`));
+    if (!operator) return false;
+    if (!UNARY_OPERATORS.has(read(operator.from, operator.to).trim())) {
+      return false;
     }
-    return true;
+    return firstPart(operator.parent, operator.nextSibling) !== null;
   }
-  return false;
+  return true;
 }
 
 // The first part an if expression lacks, reading it in order: a condition,
