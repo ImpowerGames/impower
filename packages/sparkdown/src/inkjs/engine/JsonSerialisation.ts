@@ -37,6 +37,9 @@ interface WriterMemo {
   ids: Map<object, number>;
   nextCellId: number;
   cellIds: Map<VariablePointerValue, number>;
+  // Each default global's table, by its underlying Map, to the global's
+  // name (`SetWriterAnchors`).
+  anchors: Map<object, string> | null;
 }
 
 export class JsonSerialisation {
@@ -64,8 +67,60 @@ export class JsonSerialisation {
       ids: new Map<object, number>(),
       nextCellId: 1,
       cellIds: new Map<VariablePointerValue, number>(),
+      anchors: null,
     };
     return w.__objGraphMemo;
+  }
+
+  // ----------------------------------------------------------------
+  // Anchored tables.
+  //
+  // A default global's table (a `store` table, a define, a `new`
+  // instance a store holds) exists in every story from init, and init
+  // wires other defaults to it (a define's prop can hold it). A save
+  // writes such a table's first occurrence with `"anchor": <global
+  // name>`, and a load restores the saved contents INTO the loading
+  // story's own default table instead of building a new one, so every
+  // reference to it, saved or rebuilt by init, stays one table. A plain
+  // table's contents are replaced; a define's store props are merged,
+  // since the rest of it is rebuilt by init.
+  // ----------------------------------------------------------------
+  public static SetWriterAnchors(
+    writer: SimpleJson.Writer,
+    anchors: Map<object, string>,
+  ): void {
+    JsonSerialisation.writerObjectMemo(writer).anchors = anchors;
+  }
+
+  private static _loadSessionAnchorResolver:
+    | ((name: string) => InkObject | null)
+    | null = null;
+
+  // Resolves an anchor to the loading story's default table of that name;
+  // set after `ResetObjectLoadSession`, which clears it.
+  public static SetLoadSessionAnchorResolver(
+    resolve: (name: string) => InkObject | null,
+  ): void {
+    this._loadSessionAnchorResolver = resolve;
+  }
+
+  // The loading story's default table for an anchored definition, taking
+  // the definition's id slot. Null when the anchor names no table here, or
+  // when a reference to the id was read first and already holds another
+  // table, in which case the definition fills that one as before.
+  private static anchoredObjectForLoad(
+    name: string,
+    objid: unknown,
+  ): ObjectValue | null {
+    const live = this._loadSessionAnchorResolver?.(name) ?? null;
+    if (!(live instanceof ObjectValue) || live.value === null) return null;
+    if (objid !== undefined) {
+      const id = parseInt(String(objid));
+      const slot = this._loadSessionObjectsById.get(id);
+      if (slot && slot !== live) return null;
+      this._loadSessionObjectsById.set(id, live);
+    }
+    return live;
   }
 
   private static _loadSessionObjectsById = new Map<number, ObjectValue>();
@@ -85,6 +140,7 @@ export class JsonSerialisation {
   public static ResetObjectLoadSession(): void {
     this._loadSessionObjectsById = new Map();
     this._loadSessionCellsById = new Map();
+    this._loadSessionAnchorResolver = null;
     this._pendingDefineRefs = [];
   }
 
@@ -434,6 +490,8 @@ export class JsonSerialisation {
         // NB: NOT `"#"` — that key is ink's Tag token in this wire
         // format.
         writer.WriteIntProperty("objid", memo.ids.get(map)!);
+        const anchor = memo.anchors?.get(map);
+        if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
       }
       writer.WritePropertyStart("obj");
       writer.WriteObjectStart();
@@ -1130,6 +1188,49 @@ export class JsonSerialisation {
         // standalone table exactly as before. The slot is claimed
         // BEFORE the entry recursion so cyclic refs inside the
         // entries find it.
+        const isDefine =
+          obj["defref"] !== undefined || obj["defself"] !== undefined;
+        const anchored =
+          obj["anchor"] !== undefined
+            ? JsonSerialisation.anchoredObjectForLoad(
+                String(obj["anchor"]),
+                obj["objid"],
+              )
+            : null;
+        if (anchored) {
+          // A frozen table can't have changed since init. Its entries are
+          // still read, so the tables they define get their ids.
+          const target = anchored.isFrozen
+            ? new Map<string, AbstractValue>()
+            : (anchored.value as Map<string, AbstractValue>);
+          if (!isDefine) target.clear();
+          for (const key in objContent) {
+            if (!Object.prototype.hasOwnProperty.call(objContent, key))
+              continue;
+            const child = this.JTokenToRuntimeObject(objContent[key]);
+            const childVal = asOrNull(child, AbstractValue);
+            if (childVal) target.set(key, childVal);
+          }
+          if (!isDefine && !anchored.isFrozen) {
+            const mtParsed =
+              obj["mt"] !== undefined
+                ? this.JTokenToRuntimeObject(obj["mt"])
+                : null;
+            anchored.metatable = asOrNull(mtParsed, ObjectValue);
+            if (obj["frz"]) anchored.Freeze();
+            if (obj["cap"] !== undefined) {
+              (target as any).__luauCapacity = parseInt(obj["cap"]);
+            } else {
+              delete (target as any).__luauCapacity;
+            }
+            if (obj["bnd"] !== undefined) {
+              (target as any).__luauBoundary = parseInt(obj["bnd"]);
+            } else {
+              delete (target as any).__luauBoundary;
+            }
+          }
+          return anchored;
+        }
         const result =
           obj["objid"] !== undefined
             ? JsonSerialisation.objectForLoadSessionId(parseInt(obj["objid"]))

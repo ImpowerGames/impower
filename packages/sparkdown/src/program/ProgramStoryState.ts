@@ -429,6 +429,10 @@ export class ProgramStoryState {
    *  sequence. */
   toJson(): string {
     const writer = new SimpleJson.Writer();
+    JsonSerialisation.SetWriterAnchors(
+      writer,
+      this.variablesState.DefaultTableAnchors(),
+    );
     writer.WriteObjectStart();
     writer.WriteProperty("engine", "program");
     writer.WritePropertyStart("position");
@@ -497,6 +501,9 @@ export class ProgramStoryState {
     // opens one: a table reference resolves against the tables this load
     // reads, never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
+    JsonSerialisation.SetLoadSessionAnchorResolver((name) =>
+      this.variablesState.DefaultGlobal(name),
+    );
     const position = obj["position"] as number[] | null;
     if (position) {
       const [id, entry, offset, sequenceId] = position as [

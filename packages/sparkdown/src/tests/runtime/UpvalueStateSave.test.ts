@@ -345,6 +345,29 @@ end
     expectSameAcrossSave(source, "First.\nA 11.\nB 12.\n");
   });
 
+  test("a define a store closure captured is the live define after the load", () => {
+    const source = `define Hero with
+  title = "wanderer"
+end
+
+function make()
+  local alias = Hero
+  return function() return alias end
+end
+
+store get = make()
+
+-> s
+scene s
+  First.
+  & local got = get()
+  Result {got.title} {rawequal(got, Hero)}.
+  fin
+end
+`;
+    expectSameAcrossSave(source, "First.\nResult wanderer true.\n");
+  });
+
   test("a save written without upvalue cells still loads", () => {
     // A save whose pointers carry no cell id (the form every save had before
     // cells were written) loads each pointer as its own open cell.

@@ -499,6 +499,23 @@ export class VariablesState extends VariablesStateAccessor<
     this._defaultGlobalVariables = new Map(this._globalVariables);
   }
 
+  // Each default global's table, by its underlying Map, to the global's
+  // name: the anchors a save writes (`JsonSerialisation.SetWriterAnchors`).
+  public DefaultTableAnchors(): Map<object, string> {
+    const anchors = new Map<object, string>();
+    for (const [name, value] of this._defaultGlobalVariables) {
+      if (value instanceof ObjectValue && value.value !== null) {
+        if (!anchors.has(value.value)) anchors.set(value.value, name);
+      }
+    }
+    return anchors;
+  }
+
+  // The default value of a global, which a load resolves an anchor to.
+  public DefaultGlobal(name: string): InkObject | null {
+    return this._defaultGlobalVariables.get(name) ?? null;
+  }
+
   public RetainListOriginsForAssignment(
     oldValue: InkObject,
     newValue: InkObject,
