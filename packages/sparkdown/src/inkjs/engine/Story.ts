@@ -38,6 +38,7 @@ import {
   stepBuiltinIterator,
   unwrapArgsForPureStdLibFn,
 } from "./StdLib";
+import { EXECUTION_WATCH_STEPS, executionWatch } from "./ExecutionWatch";
 import { StepLimitExceeded, StoryException } from "./StoryException";
 import { isLuauTruthy } from "./LuauTruthiness";
 import { PRNG } from "./PRNG";
@@ -1516,6 +1517,9 @@ export class Story extends InkObject {
     this.stepCount++;
     if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
       throw new StepLimitExceeded();
+    }
+    if ((this.stepCount & (EXECUTION_WATCH_STEPS - 1)) === 0) {
+      executionWatch.listener?.(this);
     }
     this.pausedBeforeCondition = null; // clear any previous pause
 

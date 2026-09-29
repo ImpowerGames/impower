@@ -1,7 +1,10 @@
 import { isRunnableProgram } from "@impower/sparkdown/src/compiler/utils/programSummary";
 import { getSharedAssetCache } from "./main/assets/sharedAssetCache";
 import { DisplayPreviewMessage } from "./main/workers/messages/DisplayPreviewMessage";
-import type { WorkerDisplayWorkspace } from "./main/workers/WorkerDisplayWorkspace";
+import type {
+  WorkerDisplayWorkspace,
+  WorkerHang,
+} from "./main/workers/WorkerDisplayWorkspace";
 import {
   ProtocolObserver,
   sendProtocolMessage,
@@ -32,6 +35,7 @@ import {
   type GameExecutedParams,
 } from "@impower/spark-engine/src/game/core/classes/messages/GameExecutedMessage";
 import { GameExitedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedMessage";
+import { GameWorkerRestartedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameWorkerRestartedMessage";
 import { GameExitedThreadMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameExitedThreadMessage";
 import { GameFinishedMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameFinishedMessage";
 import { GameHitBreakpointMessage } from "@impower/spark-engine/src/game/core/classes/messages/GameHitBreakpointMessage";
@@ -65,7 +69,10 @@ import { CompiledProgramMessage } from "@impower/sparkdown/src/compiler/classes/
 import { RemovedCompilerFileMessage } from "@impower/sparkdown/src/compiler/classes/messages/RemovedCompilerFileMessage";
 import { SelectedCompilerDocumentMessage } from "@impower/sparkdown/src/compiler/classes/messages/SelectedCompilerDocumentMessage";
 import type { SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { SparkdownWorkspace } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
+import {
+  CompilerRestartedError,
+  SparkdownWorkspace,
+} from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { Application, type GameEndpoint } from "./app/Application";
 import type { WorkerGameLink } from "./main/workers/WorkerGameLink";
 import type { MessageProtocolRequestType } from "@impower/jsonrpc/src/common/classes/MessageProtocolRequestType";
@@ -78,6 +85,7 @@ import { StopPlayMessage } from "./main/workers/messages/StopPlayMessage";
 import { conflate } from "./utils/conflate";
 import { describeSimulationFailure } from "./utils/describeSimulationFailure";
 import { programIdentity, type IdentifiableProgram } from "./utils/programIdentity";
+import { workerHangMessage } from "./utils/workerHangMessage";
 import { profile } from "./utils/profile";
 
 const COMMON_ASPECT_RATIOS = [
@@ -155,6 +163,15 @@ export function setWorkspace(
   workspace = ws;
 }
 
+/** Log `e`, unless it is what every request still waiting on the player's
+ *  worker is settled with when the worker is restarted (#679), which
+ *  `handleWorkerHang` reports once. */
+const reportUnlessRestarted = (e: unknown) => {
+  if (!(e instanceof CompilerRestartedError)) {
+    console.error(e);
+  }
+};
+
 /** PLAY's game in the worker, as the page follows it. */
 interface WorkerPlay {
   /** The summary of the program it runs. */
@@ -212,6 +229,10 @@ export class GamePlayerController {
   _workerPlay?: WorkerPlay;
   /** Stop listening to PLAY's game in the worker. */
   _stopListeningToPlay?: () => void;
+  /** PLAY's game in the worker while STOP waits for the worker to end it. */
+  _endingPlay?: WorkerPlay;
+  /** Stop hearing that the worker was restarted. */
+  _stopHearingHangs?: () => void;
   /** PLAY is setting up its game, so no preview may take the screen. */
   _startingPlay = false;
   _app?: Application;
@@ -404,6 +425,9 @@ export class GamePlayerController {
 
   setup(): void {
     this.registerProtocolHandlers();
+    this._stopHearingHangs = workspace?.addWorkerHangListener?.(
+      this.handleWorkerHang,
+    );
     this._mounted = true;
     this.publishGameState();
     window.addEventListener("contextmenu", this.handleContextMenu, true);
@@ -460,6 +484,8 @@ export class GamePlayerController {
     this._launchState = null;
     this.publishGameState();
     this._protocols.dispose();
+    this._stopHearingHangs?.();
+    this._stopHearingHangs = undefined;
     // What the worker's games show goes with the controller, as it goes when
     // the preview detaches or PLAY stops, and so does PLAY's application,
     // which no detach reaches.
@@ -1831,7 +1857,7 @@ export class GamePlayerController {
         // connection.
         workspace
           ?.programHeld(programIdentity(program)!)
-          .catch((e) => console.error(e));
+          .catch((e) => reportUnlessRestarted(e));
       }
       if (this.playing) {
         // Stop and restart game if we loaded a new game while the old game
@@ -1956,7 +1982,7 @@ export class GamePlayerController {
       if (play.run != null) {
         link
           .request(StopPlayMessage.type, { run: play.run })
-          .catch((e) => console.error(e));
+          .catch((e) => reportUnlessRestarted(e));
       }
       return false;
     };
@@ -2025,7 +2051,7 @@ export class GamePlayerController {
               });
             } catch (e) {
               // Ended before it connected; nothing is shown.
-              console.error(e);
+              reportUnlessRestarted(e);
             }
           },
           receive: (message) => link.receive(message),
@@ -2091,7 +2117,7 @@ export class GamePlayerController {
       this.updateLaunchStateIcon();
       return built.compiled === true;
     } catch (e) {
-      console.error(e);
+      reportUnlessRestarted(e);
       if (current()) {
         await this.destroyGameAndApp();
       } else {
@@ -2113,6 +2139,7 @@ export class GamePlayerController {
       return null;
     }
     this._workerPlay = undefined;
+    this._endingPlay = play;
     if (play.state === "starting") {
       // The start stops at its next step; the preview may take the screen.
       this._startingPlay = false;
@@ -2132,8 +2159,12 @@ export class GamePlayerController {
       });
       return stopped?.location ?? null;
     } catch (e) {
-      console.error(e);
+      reportUnlessRestarted(e);
       return null;
+    } finally {
+      if (this._endingPlay === play) {
+        this._endingPlay = undefined;
+      }
     }
   }
 
@@ -2218,6 +2249,11 @@ export class GamePlayerController {
       message: string;
       location: DocumentLocation;
     },
+    options?: {
+      /** Select where the run ended, as STOP does unless the line it ended
+       *  on is one the preview must not run again (`handleWorkerHang`). */
+      select?: boolean;
+    },
   ) {
     this._stops += 1;
     const plays = this._plays;
@@ -2266,7 +2302,7 @@ export class GamePlayerController {
             selected.range.start.line,
           )
         : undefined;
-    if (selected && workspace) {
+    if (selected && workspace && options?.select !== false) {
       // Ensure the workspace simulates a checkpoint from the selected location
       await workspace.selectTextDocument({
         textDocument: { uri: selected.uri },
@@ -2276,6 +2312,51 @@ export class GamePlayerController {
       });
     }
   }
+
+  /**
+   * The worker ran a story without yielding for longer than the page waits,
+   * and is being restarted (#679). Everything the page was waiting on it for
+   * is about to be settled as unanswered: STOP, a display, PLAY's start.
+   *
+   * PLAY, running or being stopped, ends as a run that raised an error does,
+   * with the selection left where it is: the line PLAY stopped on may be the
+   * one that never yields. A stopped preview gives up its screen; the
+   * workspace has set aside the point the worker was routing to, so neither
+   * the restarted worker nor the page runs it again until the script
+   * changes. The author is told what happened, where.
+   */
+  protected handleWorkerHang = (hang: WorkerHang) => {
+    const during =
+      this._workerPlay || this._endingPlay || this._startingPlay
+        ? "play"
+        : "preview";
+    const message = workerHangMessage(hang, during);
+    const location = hang.location;
+    if (this._runtimeRun && location) {
+      this.recordRuntimeError(this._runtimeRun.owner, {
+        message,
+        type: ErrorType.Error,
+        location,
+      });
+    }
+    sendProtocolMessage(
+      GameWorkerRestartedMessage.type.notification({
+        message,
+        location,
+        during,
+      }),
+      this.host,
+    );
+    if (this._workerPlay) {
+      this.stopGame("error", location ? { message, location } : undefined, {
+        select: false,
+      }).catch((e) => console.error(e));
+    } else if (during === "preview") {
+      this._previewPosition = null;
+      this.publishGameState();
+      this.detachWorkerPreview().catch((e) => console.error(e));
+    }
+  };
 
   /** Counts STOPs and the controller going, so a restart under way when
    *  one happens does not start the game again after it. */
@@ -2635,6 +2716,11 @@ export class GamePlayerController {
     if (!link || this._startingPlay || this._workerPlay) {
       return false;
     }
+    if (workspace?.isSetAside?.({ file, line })) {
+      // Displaying this point is what stopped the worker answering, and it
+      // would again: the preview waits for the script to change.
+      return false;
+    }
     if (!options?.speculative) {
       // The real document takes the screen back from any suggestion.
       this._completionShown = null;
@@ -2725,7 +2811,7 @@ export class GamePlayerController {
         ending,
       ]);
     } catch (e) {
-      console.error(e);
+      reportUnlessRestarted(e);
       return false;
     } finally {
       this._displayWaiters.delete(ended);
@@ -2790,7 +2876,7 @@ export class GamePlayerController {
       );
     }
     for (const request of sent) {
-      request.catch((e) => console.error(e));
+      request.catch((e) => reportUnlessRestarted(e));
     }
   }
 }

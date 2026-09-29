@@ -1,6 +1,7 @@
 import { ImageVocabularyCache, imageFileForCompiler } from "../utils/prepareImageFile";
 import { Port1MessageConnection } from "@impower/jsonrpc/src/browser/classes/Port1MessageConnection";
 import { WorkerMessageConnection } from "@impower/jsonrpc/src/browser/classes/WorkerMessageConnection";
+import { TextDocument } from "vscode-languageserver-textdocument";
 import type { File,Range } from "../../compiler";
 import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
 import {
@@ -19,7 +20,10 @@ import {
   type PreviewCompileProgramResult,
 } from "../../compiler/classes/messages/PreviewCompileProgramMessage";
 import { RemoveCompilerFileMessage } from "../../compiler/classes/messages/RemoveCompilerFileMessage";
-import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
+import {
+  SelectCompilerDocumentMessage,
+  type SelectCompilerDocumentResult,
+} from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
 import { SelectedCompilerDocumentMessage } from "../../compiler/classes/messages/SelectedCompilerDocumentMessage";
 import { UpdateCompilerDocumentMessage } from "../../compiler/classes/messages/UpdateCompilerDocumentMessage";
 import { UpdateCompilerFileMessage } from "../../compiler/classes/messages/UpdateCompilerFileMessage";
@@ -70,6 +74,16 @@ const globToRegex = (glob: string) => {
   );
 };
 
+/** What a request still waiting on the compiler's worker is settled with
+ *  when the worker is terminated and another started in its place
+ *  (`restartCompiler`). */
+export class CompilerRestartedError extends Error {
+  override name = "CompilerRestartedError";
+  constructor() {
+    super("The compiler's worker was restarted before it answered");
+  }
+}
+
 interface ProgramState {
   program?: SparkProgram;
   version: number;
@@ -88,7 +102,27 @@ export interface ClientCapabilities {
 }
 
 export abstract class SparkdownWorkspace {
-  protected _compilerChannelConnection: Port1MessageConnection;
+  protected _compilerChannelConnection!: Port1MessageConnection;
+
+  protected _compilerInlineWorkerContent: string;
+
+  protected _compilerWorkerUrl?: string;
+
+  protected _compilerWorker?: Worker;
+
+  /** Keep the text of every open document as the editor last sent it
+   *  (`_documentTexts`), which the compiler's worker otherwise holds alone,
+   *  so a worker started in place of one that stopped answering can be given
+   *  it (`restartCompiler`). A workspace that never restarts its worker
+   *  leaves this off. */
+  protected _mirrorDocumentTexts = false;
+
+  protected _documentTexts = new Map<string, TextDocument>();
+
+  /** The version of each document the files a restarted compiler was
+   *  configured with carry, so an update to it that was already folded into
+   *  them is not applied again. */
+  protected _configuredDocumentVersions = new Map<string, number>();
 
   get mainScriptFilename() {
     return "main.sd";
@@ -205,16 +239,26 @@ export abstract class SparkdownWorkspace {
 
   constructor(compilerInlineWorkerContent: string, profilerId?: string) {
     this._profilerId = profilerId;
-    const compilerWorker = new Worker(
-      URL.createObjectURL(
-        new Blob([compilerInlineWorkerContent], {
-          type: "text/javascript",
-        }),
-      ),
+    this._compilerInlineWorkerContent = compilerInlineWorkerContent;
+    this.startCompilerWorker();
+  }
+
+  protected createCompilerWorker(): Worker {
+    this._compilerWorkerUrl ??= URL.createObjectURL(
+      new Blob([this._compilerInlineWorkerContent], {
+        type: "text/javascript",
+      }),
     );
+    return new Worker(this._compilerWorkerUrl);
+  }
+
+  /** Start the compiler's worker and connect to it. */
+  protected startCompilerWorker() {
+    const compilerWorker = this.createCompilerWorker();
     compilerWorker.onerror = (e) => {
       console.error(e);
     };
+    this._compilerWorker = compilerWorker;
     const channel = new MessageChannel();
     const workerConnection = new WorkerMessageConnection(compilerWorker);
     this._compilerChannelConnection = new Port1MessageConnection(channel.port1);
@@ -225,6 +269,74 @@ export abstract class SparkdownWorkspace {
     }
     this.connectToWorker(workerConnection, channel.port2);
   }
+
+  /**
+   * Terminate the compiler's worker and start another in its place, given
+   * the project as the editor holds it now: every file, with the text of
+   * each open document as the editor last sent it. The new worker compiles
+   * the document compiled last, routing where a compile routes
+   * (`compileStartFrom`).
+   *
+   * Everything the old worker held goes with it, its warm compile state
+   * included, so the compile this runs is a cold one. Every request still
+   * waiting on it is settled with a {@link CompilerRestartedError}, after
+   * `onCompilerRestarted` has connected whatever talks to the worker to the
+   * new one (#679).
+   */
+  async restartCompiler(): Promise<void> {
+    const previous = this._compilerChannelConnection;
+    this._compilerWorker?.terminate();
+    this._initializedCompiler = false;
+    this._compilerConfigured = false;
+    this._compilerConfiguring = new Promise<void>((resolve) => {
+      this._resolveCompilerConfigured = resolve;
+    });
+    this._programTransport = new ProgramTransportDecoder();
+    this.startCompilerWorker();
+    this.onCompilerRestarted(this._compilerChannelConnection);
+    previous.abandon(new CompilerRestartedError());
+    const config = this._compilerConfig;
+    if (!config) {
+      // Never configured, so there is nothing to give the new worker yet:
+      // `initialize` configures it when it comes.
+      this._compilerConfiguring = undefined;
+      return;
+    }
+    await this.loadCompiler({
+      ...config,
+      files: this.currentCompilerFiles(),
+      startFrom: this.compileStartFrom(),
+    });
+    const uri = this._lastCompiledUri;
+    if (uri) {
+      await this.compile(uri, true);
+    }
+  }
+
+  /** Every file of the project for the compiler's configuration, with the
+   *  text of each document the editor has sent it, and the version each of
+   *  those carries noted, as the restarted compiler holds them. */
+  protected currentCompilerFiles(): File[] {
+    const files: File[] = [];
+    this._configuredDocumentVersions.clear();
+    for (const [uri, file] of this._watchedFiles) {
+      const document = this._documentTexts.get(uri);
+      const current = document
+        ? { ...file, text: document.getText(), version: document.version }
+        : file;
+      if (document) {
+        this._configuredDocumentVersions.set(uri, document.version);
+      }
+      files.push(
+        imageFileForCompiler(current, this._compilerConfig?.stripImageData),
+      );
+    }
+    return files;
+  }
+
+  /** Called once a restarted compiler's worker has been connected, before
+   *  the requests waiting on the old one are settled. */
+  protected onCompilerRestarted(_connection: Port1MessageConnection) {}
 
   protected async connectToWorker(
     workerConnection: WorkerMessageConnection,
@@ -652,18 +764,35 @@ export abstract class SparkdownWorkspace {
   }
 
   protected async updateCompilerDocument(
-    textDocument: { uri: string },
+    textDocument: { uri: string; version?: number },
     contentChanges: SparkdownDocumentContentChangeEvent[],
   ) {
     const update = (async () => {
       await this.compilerReady();
-      return this._compilerChannelConnection.sendRequest(
-        UpdateCompilerDocumentMessage.type,
-        {
+      const configured = this._configuredDocumentVersions.get(
+        textDocument.uri,
+      );
+      if (
+        configured != null &&
+        textDocument.version != null &&
+        textDocument.version <= configured
+      ) {
+        // A restarted compiler was configured with this change already.
+        return undefined;
+      }
+      return this._compilerChannelConnection
+        .sendRequest(UpdateCompilerDocumentMessage.type, {
           textDocument,
           contentChanges,
-        },
-      );
+        })
+        .catch((e) => {
+          if (e instanceof CompilerRestartedError) {
+            // The worker it was sent to is gone; the restarted one was given
+            // the document's text as the editor holds it.
+            return undefined;
+          }
+          throw e;
+        });
     })();
     this._documentUpdates = update.catch(() => {});
     return update;
@@ -908,6 +1037,11 @@ export abstract class SparkdownWorkspace {
           flush(mainScriptUri);
         }
         state.compilingDocumentVersion = undefined;
+        if (e instanceof CompilerRestartedError) {
+          // The worker it was sent to is gone; the restarted one compiles
+          // the project again (`restartCompiler`).
+          return undefined;
+        }
         throw e;
       }
       if (result?.program) {
@@ -1022,13 +1156,18 @@ export abstract class SparkdownWorkspace {
       CompileProgramMessage.type,
       {
         textDocument: { uri },
-        startFrom: this._documentSelected,
+        startFrom: this.compileStartFrom(),
       },
     );
     if (!result.program?.summary) {
       this._programTransport.decode(result.program);
     }
     return result;
+  }
+
+  /** Where a compile routes the preview to: the author's selection. */
+  protected compileStartFrom() {
+    return this._documentSelected;
   }
 
   program(uri: string) {
@@ -1046,6 +1185,17 @@ export abstract class SparkdownWorkspace {
     const textDocument = params.textDocument;
     this._openDocuments.add(textDocument.uri);
     this._documentVersions.set(textDocument.uri, textDocument.version);
+    if (this._mirrorDocumentTexts) {
+      this._documentTexts.set(
+        textDocument.uri,
+        TextDocument.create(
+          textDocument.uri,
+          textDocument.languageId,
+          textDocument.version,
+          textDocument.text,
+        ),
+      );
+    }
     this.updateCompilerDocument(textDocument, [
       { text: textDocument.text },
     ]).then(() => {
@@ -1074,6 +1224,10 @@ export abstract class SparkdownWorkspace {
     const textDocument = params.textDocument;
     const contentChanges = params.contentChanges;
     this._documentVersions.set(textDocument.uri, textDocument.version);
+    const mirrored = this._documentTexts.get(textDocument.uri);
+    if (mirrored) {
+      TextDocument.update(mirrored, contentChanges, textDocument.version);
+    }
     this.updateCompilerDocument(textDocument, contentChanges).then(() => {
       this.scheduleChangeCompile(textDocument.uri);
     });
@@ -1097,10 +1251,21 @@ export abstract class SparkdownWorkspace {
       line: selectedRange.start.line,
     };
     await this.compilerReady();
-    const result = await this._compilerChannelConnection.sendRequest(
-      SelectCompilerDocumentMessage.type,
-      params,
-    );
+    let result: SelectCompilerDocumentResult;
+    try {
+      result = await this._compilerChannelConnection.sendRequest(
+        SelectCompilerDocumentMessage.type,
+        params,
+      );
+    } catch (e) {
+      if (!(e instanceof CompilerRestartedError)) {
+        throw e;
+      }
+      // The worker it was sent to is gone. The restarted one routes to the
+      // selection as it compiles (`restartCompiler`), and the page hears of
+      // it from that compile.
+      return { ...params };
+    }
     this.sendNotification(SelectedCompilerDocumentMessage.method, result);
     return result;
   }
@@ -1135,6 +1300,7 @@ export abstract class SparkdownWorkspace {
     const type = this.getFileType(uri);
     if (type && (type !== "script" || !this._openDocuments.has(uri))) {
       // Changed file is an asset or an unopened script
+      this._documentTexts.delete(uri);
       const file = await this.trackFileUpdate(async () => {
         const file = await this.loadFile({ uri });
         this._watchedFiles.set(uri, file);
@@ -1170,6 +1336,7 @@ export abstract class SparkdownWorkspace {
       this._watchedFiles.delete(uri);
       this._programStates.delete(uri);
       this._documentVersions.delete(uri);
+      this._documentTexts.delete(uri);
       if (this._documentSelected?.file === uri) {
         this._documentSelected = undefined;
       }

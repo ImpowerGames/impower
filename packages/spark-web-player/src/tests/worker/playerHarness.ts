@@ -25,6 +25,13 @@ import UIManager from "../../app/managers/UIManager";
 import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
 import { ProgramHeldMessage } from "../../main/workers/messages/ProgramHeldMessage";
+import type { WorkerBusyParams } from "../../main/workers/messages/WorkerBusyMessage";
+import { SetAsidePoints } from "../../main/workers/SetAsidePoints";
+import type {
+  PreviewPoint,
+  WorkerHang,
+} from "../../main/workers/WorkerDisplayWorkspace";
+import { CompilerRestartedError } from "@impower/sparkdown/src/workspace/classes/SparkdownWorkspace";
 import { WorkerGameLink } from "../../main/workers/WorkerGameLink";
 import {
   createFakeImage,
@@ -41,6 +48,10 @@ export const MAIN_URI = "file:///local/main.sd";
 export class LoopbackConnection extends MessageConnection {
   peer?: LoopbackConnection;
 
+  /** Delivers nothing either way from now on, as a worker that is stuck
+   *  answers nothing and hears nothing. */
+  closed = false;
+
   protected _listeners = new Set<(e: MessageEvent) => void>();
 
   constructor(protected onPost?: (message: any) => void) {
@@ -51,6 +62,9 @@ export class LoopbackConnection extends MessageConnection {
     const copy = structuredClone(message);
     this.onPost?.(copy);
     const peer = this.peer;
+    if (this.closed || peer?.closed) {
+      return;
+    }
     setTimeout(() => {
       for (const listener of [...(peer?._listeners ?? [])]) {
         listener({ data: copy } as MessageEvent);
@@ -153,45 +167,59 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       onChannel.push(message);
     }
   });
-  const page = new LoopbackConnection();
-  const worker = new LoopbackConnection((message) => {
-    if (recordMessages) toPage.push(message);
-  });
-  page.peer = worker;
-  worker.peer = page;
-  const workerState = installPlayerWorker(worker);
   // The worker's clock, when the test drives it: the time in milliseconds,
   // and the frame callbacks waiting for the next tick.
   const clock = { now: 1_000_000, frames: [] as (() => void)[] };
-  if (options.manualClock) {
-    workerState.gameState.systemConfiguration.now = () => clock.now;
-    workerState.gameState.systemConfiguration.requestFrame = (callback) => {
-      clock.frames.push(callback);
-      return clock.frames.length;
-    };
-  }
-
-  await page.sendRequest(CompilerInitializeMessage.type, { profilerId: "test" });
   const versions = new Map(options.files.map((f) => [f.uri, 1]));
-  await page.sendRequest(ConfigureCompilerMessage.type, {
-    files: options.files.map((f) => ({
-      uri: f.uri,
-      type: "script",
-      name: f.uri.split("/").at(-1)!.split(".")[0]!,
-      ext: "sd",
-      text: f.text,
-      version: 1,
-      languageId: "sparkdown",
-    })),
-    definitions: {
-      optionals: DEFAULT_OPTIONAL_DEFINITIONS,
-      schemas: DEFAULT_SCHEMA_DEFINITIONS,
-      descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
-    },
-    skipValidation: true,
-    workspace: "file:///local",
-    startFrom: options.startFrom,
-  } as any);
+
+  /** Start a player's worker and give it the project, as the page's
+   *  workspace does, and again when it restarts one (`hang`). */
+  const startWorker = async () => {
+    const page = new LoopbackConnection();
+    const worker = new LoopbackConnection((message) => {
+      if (recordMessages) toPage.push(message);
+    });
+    page.peer = worker;
+    worker.peer = page;
+    const workerState = installPlayerWorker(worker);
+    if (options.manualClock) {
+      workerState.gameState.systemConfiguration.now = () => clock.now;
+      workerState.gameState.systemConfiguration.requestFrame = (callback) => {
+        clock.frames.push(callback);
+        return clock.frames.length;
+      };
+    }
+    await page.sendRequest(CompilerInitializeMessage.type, {
+      profilerId: "test",
+    });
+    await configure(page);
+    return { page, workerState };
+  };
+
+  const configure = (page: LoopbackConnection) =>
+    page.sendRequest(ConfigureCompilerMessage.type, {
+      files: options.files.map((f) => ({
+        uri: f.uri,
+        type: "script",
+        name: f.uri.split("/").at(-1)!.split(".")[0]!,
+        ext: "sd",
+        text: f.text,
+        version: 1,
+        languageId: "sparkdown",
+      })),
+      definitions: {
+        optionals: DEFAULT_OPTIONAL_DEFINITIONS,
+        schemas: DEFAULT_SCHEMA_DEFINITIONS,
+        descriptions: DEFAULT_DESCRIPTION_DEFINITIONS,
+      },
+      skipValidation: true,
+      workspace: "file:///local",
+      startFrom: options.startFrom,
+    } as any);
+
+  const started = await startWorker();
+  let page = started.page;
+  let workerState = started.workerState;
 
   let programVersion = 0;
   let completionRequest = 0;
@@ -199,9 +227,23 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   // The worker's answer to the last real program the page reported taking.
   let held: Promise<void> = Promise.resolve();
   const link = new WorkerGameLink(page);
+  // What the player's workspace offers the controller when its worker stops
+  // answering (#679); `hang` restarts the worker as it does.
+  const hangListeners = new Set<(hang: WorkerHang) => void>();
+  const setAsidePoints = new SetAsidePoints(
+    (): string => String(workspace.filesRevision),
+  );
   const workspace = {
     gameLink: link,
     filesRevision: 0,
+    addWorkerHangListener: (listener: (hang: WorkerHang) => void) => {
+      hangListeners.add(listener);
+      return () => {
+        hangListeners.delete(listener);
+      };
+    },
+    setAside: (point: PreviewPoint): void => setAsidePoints.add(point),
+    isSetAside: (point: PreviewPoint): boolean => setAsidePoints.has(point),
     previewCompile: async (params: any) => {
       const current = versions.get(params.textDocument.uri);
       if (current != null && current !== params.textDocument.version) {
@@ -243,6 +285,10 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   win.document.body.append(host);
   const controller: any = new GamePlayerController(host, refs);
   controller._mounted = true;
+  // As `setup` does, which the harness does not run.
+  controller._stopHearingHangs = workspace.addWorkerHangListener(
+    controller.handleWorkerHang,
+  );
   const createImage = (): ImageTarget => createFakeImage(options.holdImage);
   // Every message the worker's games send the page's managers.
   const toRouter: any[] = [];
@@ -350,9 +396,56 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     workspace,
     overlay,
     refs,
-    page,
+    /** The page's end of the worker, which a restart replaces. */
+    get page() {
+      return page;
+    },
     link,
-    workerState,
+    /** What the worker installed, which a restart replaces. */
+    get workerState() {
+      return workerState;
+    },
+    /** The worker stops answering, as one running a story that never
+     *  yields does; what the page sends it from now on waits. */
+    stall() {
+      page.closed = true;
+    },
+    /** The page's workspace hears from the stalled worker that it has run a
+     *  story for `busy.busyMs`, and restarts it as `SparkdownGameWorkspace`
+     *  does: it sets aside the point the worker was routing to and the line
+     *  it was running, tells the page's listeners, starts a worker in its
+     *  place and gives it the project, and settles whatever was waiting on
+     *  the old one. */
+    async hang(busy: WorkerBusyParams) {
+      page.closed = true;
+      if (busy.routingTo) {
+        workspace.setAside(busy.routingTo);
+      }
+      if (busy.location) {
+        workspace.setAside({
+          file: busy.location.uri,
+          line: busy.location.range.start.line,
+        });
+      }
+      let restarted!: () => void;
+      const hang: WorkerHang = {
+        busyMs: busy.busyMs,
+        location: busy.location,
+        restarted: new Promise<void>((resolve) => (restarted = resolve)),
+      };
+      for (const listener of [...hangListeners]) {
+        listener(hang);
+      }
+      const stuck = page;
+      const next = await startWorker();
+      page = next.page;
+      workerState = next.workerState;
+      link.reconnect(page);
+      stuck.abandon(new CompilerRestartedError());
+      restarted();
+      await settle();
+      return hang;
+    },
     toPage,
     onChannel,
     toEditor,
