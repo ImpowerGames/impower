@@ -9344,6 +9344,9 @@
           "include": "#LuauRegexLiteral"
         },
         {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
           "include": "#LuauArithmeticOperation"
         },
         {

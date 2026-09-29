@@ -6130,6 +6130,7 @@ repository:
       - { include: "#LuauFunctionDefinition" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
