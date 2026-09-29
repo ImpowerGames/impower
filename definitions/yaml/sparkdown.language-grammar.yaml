@@ -7750,22 +7750,23 @@ repository:
   # access path, its statement and the enclosing block end where they would
   # with the name in place, and the validator reports it.
   #
-  # In a body that also holds story lines, a sentence reads as an access path
-  # too (`Visit example.com.`), so the lookbehind takes the `.` as a dangling
-  # accessor only after a path that follows a value-position token: `=`, a
-  # comma, an opening bracket, a binary or unary operator, `return`, a
-  # condition keyword or a logical operator. A sentence that starts the line
-  # has none before its words, even one that is a single dotted word
-  # (`U.S.`); one with a comma or operator before a dotted word
-  # (`Well, U.S.`) is reported. A reserved word after the `.`, or after block
-  # comments on the same line, is not a name (`if t.a. then`); any other name
-  # there is (`t.a.--[[note]]b`); and `..` is the concatenation operator. A
-  # block comment ends at its first closing bracket, so the lookahead never
-  # skips code between two comments (`t.a.--[[a]] + --[[b]]c`). It
-  # is tried before `LuauPropertyAccessor`, which would take `. then` as a
-  # member.
+  # The lookbehind takes the `.` as a dangling accessor only after a path
+  # that follows a value-position token: `=`, a comma, an opening bracket, a
+  # binary or unary operator, `return`, a condition keyword, `in` or a
+  # logical operator. A line that starts with a path is left to the rules
+  # that end a function body at a line they cannot read, so a line of words
+  # in a function body (`Hello there.`) keeps that parse. Story lines are not
+  # allowed in a function body, and a line of words with a value-position
+  # token before its last word (`Well, friend.`) is reported here. A reserved
+  # word after the `.`, or after block comments on the same line, is not a
+  # name (`if t.a. then`); any other name there is (`t.a.--[[note]]b`); and
+  # `..` is the concatenation operator. A block comment ends at its first
+  # closing bracket and at the end of its line, so the lookahead never skips
+  # code between two comments (`t.a.--[[a]] + --[[b]]c`) or reads a name on a
+  # later line as the member. It is tried before `LuauPropertyAccessor`,
+  # which would take `. then` as a member.
   LuauDanglingAccessor:
-    match: (?<=(?:[=,(\[{<>+\-*/%^#]|\.\.|\b(?:return|if|elseif|while|until|and|or|not)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*)({{WS}}*)([.])(?![.]|{{WS}}*(?:--\[(=*)\[(?:[^\]]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
+    match: (?<=(?:[=,(\[{<>+\-*/%^#]|\.\.|\b(?:return|if|elseif|while|until|and|or|not|in)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*)({{WS}}*)([.])(?![.]|{{WS}}*(?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
     captures:
       1:
         patterns:

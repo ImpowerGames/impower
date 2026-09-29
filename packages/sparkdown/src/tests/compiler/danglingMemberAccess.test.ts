@@ -158,6 +158,18 @@ describe("a dangling member access (#1079)", () => {
       4,
     ],
     [
+      "a block comment that runs onto the next line",
+      "function f(t)\n  local y = 0\n  y = t.a.--[[ note\n  more ]]b\n  return y\nend\n",
+      "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+      5,
+    ],
+    [
+      "a generic `for` loop's iterator",
+      "function f(t)\n  local n = 0\n  for k in t.a. do\n  end\n  return n\nend\n",
+      "Expected identifier, got 'do'",
+      5,
+    ],
+    [
       "a method name",
       "function f()\n  local t = {}\n  local y = t:a.\n  return y\nend\n",
       "Expected identifier, got 'return'",
@@ -215,35 +227,33 @@ describe("a dangling member access (#1079)", () => {
     expect(errors.filter((d) => d.message.startsWith("Expected identifier"))).toEqual([]);
   });
 
-  // In a body that also holds story lines, a word before a period is the end
-  // of a sentence, not an access.
+  // A `.` after a path with no value-position token before it is left to the
+  // rules that end a function body at a line they cannot read, and a story
+  // line in story scope never reaches the access-path rules.
   it.each([
     [
-      "a function body",
+      "words at the start of a line in a function body",
       "function greet\n  Hello there.\n  How are you?\nend\n",
     ],
     [
-      "a function body with dotted words",
+      "dotted words at the start of a line in a function body",
       "function greet\n  Hello Mr.Smith.\n  Visit example.com.\n  He moved to the U.S.\n  How are you?\nend\n",
     ],
     [
-      "a function body with a line that is one dotted word",
+      "a line that is one dotted word in a function body",
       "function greet\n  U.S.\n  Next line.\nend\n",
     ],
     [
-      "a story `if` body",
-      "store flag = false\n\n-> start\n\nscene start\n  if flag then\n    Went down the true side.\n  end\nend\n",
+      "a story line in a story `if` body",
+      "store flag = false\n\n-> start\n\nscene start\n  if flag then\n    Went down the true side, and Tom.\n  end\nend\n",
     ],
-  ])("leaves a sentence's period in %s alone", (_name, source) => {
+    [
+      "a story line in a scene",
+      "-> start\n\nscene start\n  Hello there, friend. Made in China.\nend\n",
+    ],
+  ])("leaves the `.` of %s alone", (_name, source) => {
     const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
     expect(errors).toEqual([]);
-  });
-
-  it("keeps the story line after dotted words in a function body", () => {
-    const program = compile(
-      "function greet\n  Visit example.com.\n  How are you?\nend\n",
-    );
-    expect(JSON.stringify(program.compiled)).toContain('"^How are you?"');
   });
 
   it("leaves the story after the function in the root flow", () => {
