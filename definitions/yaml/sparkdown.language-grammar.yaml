@@ -264,7 +264,11 @@ variables:
   # Type unions written in expression context are an edge case that loses
   # the trailing-WS-as-OptionalSeparator optimization here — `|` in unions
   # still highlights via the type-context rules separately.
-  LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[?]|[&]|[-][>])
+  # Also excludes the optional-type suffix `?`: it is glued to the type it
+  # ends (`number?`), so the type rules that end with this pattern must not
+  # capture a zero-width separator before it for the formatter to widen into
+  # `number ?`. `LuauTypeOptionalOperator` reads the `?` itself.
+  LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>])
   # NOTE: Intentional exception to the "no capture groups in variables" rule. The `({{WS}}*)` group is captured on purpose — host
   # rules use the captured trailing whitespace as their final
   # `OptionalSeparator`. This pattern is appended to the end of nearly every
@@ -8803,11 +8807,12 @@ repository:
 
   # The suffix ends the type it follows, so it matches only after the end
   # of a type (a name, a closing bracket or quote, or another `?`). It
-  # takes in the whitespace after it only when a binary type operator
-  # follows on the same line (`number? | string`), so a line break or the
-  # next statement's first word is never read as part of the type.
+  # takes in the whitespace after it only when a binary operator follows on
+  # the same line (`number? | string`, `local u: number? = 1`), so a line
+  # break or the next statement's first word is never read as part of the
+  # type.
   LuauTypeOptionalOperator:
-    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}))?
+    match: (?<={{LUAU_TYPE_END}}{{WS}}*)({{LUAU_TYPE_OPTIONAL_OPERATOR}})(?:({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}))?
     captures:
       1:
         tag: typeOperator
