@@ -383,6 +383,81 @@ describe("Luau block without `end`", () => {
     expect(missingEndErrors(diags)).toEqual([]);
   });
 
+  test.each([
+    ["spaces", "end   "],
+    ["a `//` comment", "end // note"],
+    ["a divert", "end -> DONE"],
+    ["an explicit statement", "end & x = 1"],
+    ["a local", "end local b = 2"],
+  ])("a root-level block's `end` followed by %s on its line closes it", (_label, endLine) => {
+    const { diags } = compile(
+      ["store x = 0", "if true then", "  local a = 1", endLine, ""].join("\n"),
+    );
+    expect(missingEndErrors(diags)).toEqual([]);
+  });
+
+  test("a misread `end` followed by code and closed by a later `end` is not an error", () => {
+    // The grammar does not read `if {}` as an `if` block, so the function
+    // takes the `if`'s `end`, and `assert(…)` follows as a line of text; the
+    // last `end` closes the function.
+    const { diags } = compile(
+      [
+        "function run()",
+        '  local r if {} then r = 1 else r = 2 end assert(r == 1, "got " .. tostring(r))',
+        "end",
+        "",
+      ].join("\n"),
+    );
+    expect(missingEndErrors(diags)).toEqual([]);
+  });
+
+  test.each([
+    ["`while` loop", ["while false do", "  local a = 1"]],
+    ["`for` loop", ["for i = 1, 2 do", "  local a = 1"]],
+    ["`while` loop", ["while false do", "  Hello."]],
+  ])(
+    "an unclosed top-level %s at the end of the file is an error on its header",
+    (kind, lines) => {
+      const errs = missingEndErrors(
+        compile([...lines, "", "Hello there.", "done", ""].join("\n")).diags,
+      );
+      expect(errs).toHaveLength(1);
+      expect(errs[0]).toMatchObject({ startLine: 0, endLine: 0 });
+      expect(errs[0]!.message).toContain(`This ${kind} is missing`);
+    },
+  );
+
+  test("a function that takes its scene's `end` is reported with the scene", () => {
+    const errs = missingEndErrors(
+      compile(
+        ["scene main", "  function g()", "    local a = 1", "  Hi there.", "end", ""].join("\n"),
+      ).diags,
+    );
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
+    expect(errs[0]!.message).toContain("This function or the scene around it");
+  });
+
+  test("a `repeat` with no `until` around one that has its own is an error", () => {
+    const errs = compile(
+      [
+        "function f()",
+        "  repeat",
+        "    repeat",
+        "      local a = 1",
+        "    until true",
+        "  local b = 2",
+        "end",
+        "",
+        "Hello there.",
+        "done",
+        "",
+      ].join("\n"),
+    ).diags.filter((d) => d.severity === 1 && d.message.includes("`until`"));
+    expect(errs).toHaveLength(1);
+    expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
+  });
+
   test("one-line blocks report nothing", () => {
     const { diags, output } = compile(
       [

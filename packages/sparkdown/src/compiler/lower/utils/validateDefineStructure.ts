@@ -47,9 +47,10 @@ const TRIVIA = new Set([
   "Whitespace",
   "OptionalWhitespace",
   "ExtraWhitespace",
+  "RequiredWhitespace",
 ]);
 
-function isTrivia(node: SyntaxNode): boolean {
+export function isTrivia(node: SyntaxNode): boolean {
   return TRIVIA.has(node.name) || node.name.includes("Comment");
 }
 
