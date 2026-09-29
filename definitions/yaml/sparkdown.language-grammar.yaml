@@ -7735,35 +7735,28 @@ repository:
           - { include: "#LuauStdLibMethods" }
           - { include: "#LuauPropertyName" }
 
-  # A member access whose last `.` has no name after it on its line
-  # (`t.a.`), which Luau rejects. The last accessor, its name and the
-  # dangling `.` are read as one token, so the access path, its statement and
-  # the enclosing block end where they would with the name in place, and the
-  # validator reports the `.`. A reserved word after the `.` is not a name
-  # (`if t.a. then`); a name after a block comment on the same line is
-  # (`t.a.--[[note]]b`); and `..` is the concatenation operator. A single
-  # word before a `.` (`Hello there.`) reads as a sentence in a body that
-  # also holds story lines, so the rule needs an accessor before the name.
+  # A member access whose last `.` has no name after it on its line (`t.`,
+  # `t.a.`), which Luau rejects. That `.` is read as its own token, so the
+  # access path, its statement and the enclosing block end where they would
+  # with the name in place, and the validator reports it.
+  #
+  # In a body that also holds story lines, a sentence reads as an access path
+  # too (`Visit example.com.`), so the lookbehind takes the `.` as a dangling
+  # accessor only where a sentence does not begin: after a path that follows
+  # a value-position token (`=`, an opening bracket, `return`, a condition
+  # keyword or a logical operator), or a line holding nothing but a dotted
+  # path (`player.stats.`). A reserved word after the `.`, or after a block
+  # comment on the same line, is not a name (`if t.a. then`); any other name
+  # there is (`t.a.--[[note]]b`); and `..` is the concatenation operator. It
+  # is tried before `LuauPropertyAccessor`, which would take `. then` as a
+  # member.
   LuauDanglingAccessor:
-    match: ({{WS}}*)({{LUAU_ACCESSOR_OPERATOR}})({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)([.])(?![.]|{{WS}}*(?:(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}}|--\[(=*)\[.*?\]\7\]{{WS}}*{{LUAU_IDENTIFIER}}))
+    match: (?<=(?:=|[(\[{]|\b(?:return|if|elseif|while|until|and|or|not)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*|^{{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})+)({{WS}}*)([.])(?![.]|{{WS}}*(?:--\[(=*)\[.*?\]\3\]{{WS}}*)?(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
     captures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
       2:
-        patterns:
-          - { include: "#LuauAccessorOperator" }
-      3:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      4:
-        patterns:
-          - { include: "#LuauStdLibMethods" }
-          - { include: "#LuauPropertyName" }
-      5:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      6:
         tag: invalid
         name: invalid.illegal.luau
 

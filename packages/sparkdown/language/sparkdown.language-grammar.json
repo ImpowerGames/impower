@@ -11794,7 +11794,7 @@
       }
     },
     "LuauDanglingAccessor": {
-      "match": "((?:[^\\S\\n\\r])*)((?:[.]|[:]))((?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))((?:[^\\S\\n\\r])*)([.])(?![.]|(?:[^\\S\\n\\r])*(?:(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b))(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|--\\[(=*)\\[.*?\\]\\7\\](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))",
+      "match": "(?<=(?:=|[(\\[{]|\\b(?:return|if|elseif|while|until|and|or|not)\\b)(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.]|[:])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*|^(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*(?:[.]|[:])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))+)((?:[^\\S\\n\\r])*)([.])(?![.]|(?:[^\\S\\n\\r])*(?:--\\[(=*)\\[.*?\\]\\3\\](?:[^\\S\\n\\r])*)?(?!(?:(?:and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b))(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
       "captures": {
         "1": {
           "patterns": [
@@ -11804,37 +11804,6 @@
           ]
         },
         "2": {
-          "patterns": [
-            {
-              "include": "#LuauAccessorOperator"
-            }
-          ]
-        },
-        "3": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "4": {
-          "patterns": [
-            {
-              "include": "#LuauStdLibMethods"
-            },
-            {
-              "include": "#LuauPropertyName"
-            }
-          ]
-        },
-        "5": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "6": {
           "tag": "invalid",
           "name": "invalid.illegal.luau"
         }

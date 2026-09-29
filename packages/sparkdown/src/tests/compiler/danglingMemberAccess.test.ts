@@ -116,6 +116,24 @@ describe("a dangling member access (#1079)", () => {
       6,
     ],
     [
+      "a single name before the `.`",
+      "function f()\n  local t = {}\n  local y = t.\n  return y\nend\n",
+      "Expected identifier, got 'return'",
+      4,
+    ],
+    [
+      "the access alone on its line",
+      "function f()\n  local player = {}\n  player.stats.\n  return player\nend\n",
+      "Expected identifier, got 'return'",
+      4,
+    ],
+    [
+      "a reserved word after a same-line block comment",
+      "function f(t)\n  local y = 0\n  y = t.a.--[[note]]return 1\nend\n",
+      "Expected identifier, got 'return'",
+      3,
+    ],
+    [
       "a method name",
       "function f()\n  local t = {}\n  local y = t:a.\n  return y\nend\n",
       "Expected identifier, got 'return'",
@@ -180,12 +198,23 @@ describe("a dangling member access (#1079)", () => {
       "function greet\n  Hello there.\n  How are you?\nend\n",
     ],
     [
+      "a function body with dotted words",
+      "function greet\n  Hello Mr.Smith.\n  Visit example.com.\n  He moved to the U.S.\n  How are you?\nend\n",
+    ],
+    [
       "a story `if` body",
       "store flag = false\n\n-> start\n\nscene start\n  if flag then\n    Went down the true side.\n  end\nend\n",
     ],
   ])("leaves a sentence's period in %s alone", (_name, source) => {
     const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
     expect(errors).toEqual([]);
+  });
+
+  it("keeps the story line after dotted words in a function body", () => {
+    const program = compile(
+      "function greet\n  Visit example.com.\n  How are you?\nend\n",
+    );
+    expect(JSON.stringify(program.compiled)).toContain('"^How are you?"');
   });
 
   it("leaves the story after the function in the root flow", () => {

@@ -378,8 +378,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
     }
     // A member access whose last `.` has no name after it on its line
-    // (`t.a.`). The grammar reads the last accessor, its name and that `.` as
-    // one token, so the `.` is the node's last character. The wording is
+    // (`t.a.`). The grammar reads that `.`, after any whitespace before it, as
+    // its own token, so the `.` is the node's last character. The wording is
     // Luau's parser's, naming the token it meets instead of the name.
     if (nodeRef.name === "LuauDanglingAccessor") {
       const got = nextSignificantToken(nodeRef.to, (from, to) =>
