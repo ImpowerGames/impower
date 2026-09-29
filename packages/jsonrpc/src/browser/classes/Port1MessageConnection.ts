@@ -33,6 +33,11 @@ export class Port1MessageConnection extends MessageConnection {
     this._port1.removeEventListener(event, listener);
   }
 
+  /** Stop delivering and sending: the peer is gone for good. */
+  close() {
+    this._port1.close();
+  }
+
   override postMessage(message: any, transfer?: Transferable[]) {
     this._port1.postMessage(message, { transfer });
   }
