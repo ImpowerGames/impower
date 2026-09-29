@@ -8719,7 +8719,9 @@ repository:
   LuauTargetTypeCastOperator:
     tag: invalid
     name: invalid.illegal.luau
-    match: (?<=(?<![\w.])(?:{{LUAU_SCOPE_MODIFIERS}}){{WS}}+[^=\n\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})
+    # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
+    # there ("invalid pattern in look-behind").
+    match: (?<=\b(?:{{LUAU_SCOPE_MODIFIERS}}){{WS}}+[^=\n\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
