@@ -66,7 +66,7 @@ text.source.sparkdown [0..185]
  │       ├─ punctuation.whitespace.extra.sd [84..88]: "    "
  │       ├─ meta.template.expression.accessor.sd [88..89]: "."
  │       ├─ variable.other.property.luau [89..95]: "Button"
- │       ├─ punctuation.whitespace.extra.sd [95..96]: " "
+ │       ├─ punctuation.whitespace.optional.sd [95..96]: " "
  │       ├─ keyword.operator.assignment.luau [96..97]: "="
  │       ├─ punctuation.whitespace.optional.sd [97..98]: " "
  │       └─ constant.numeric.decimal.luau [98..99]: "1"

@@ -38,7 +38,8 @@ sparkdown [0..41]
      │   │   │       │       ├─ LuauTypeLiteral_content [19..25]
      │   │   │       │       │   └─ LuauPrimitiveType [19..25]
      │   │   │       │       │       ├─ LuauPrimitiveType_c1 [19..25]: "number"
-     │   │   │       │       │       └─ LuauPrimitiveType_c2 25
+     │   │   │       │       │       ├─ LuauPrimitiveType_c2 25
+     │   │   │       │       │       └─ LuauPrimitiveType_c3 25
      │   │   │       │       └─ LuauTypeLiteral_end 25
      │   │   │       └─ LuauTypeAnnotationOperation_end 25
      │   │   └─ LuauFunctionParameters_end [25..26]
