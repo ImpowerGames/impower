@@ -510,3 +510,119 @@ assert(table.nogetn() == 1, "got " .. tostring(table.nogetn()))`);
     expect(r.returnedOK).toBe(true);
   });
 });
+
+describe("a colon call on a library and a local named like it", () => {
+  const MISSING = ["Cannot find item or path named `table.nogetn`"];
+  const SHADOW = "local table = { nogetn = function(self) return 1 end }";
+
+  test("at top level, before the local", () => {
+    expect(
+      diagnoseWithLints(`& print(table:nogetn())\n${SHADOW}\n`),
+    ).toEqual(MISSING);
+  });
+
+  test("in a function written before a top-level local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    print(table:nogetn())\nend\n${SHADOW}\n`,
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test("in the same function, before the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    print(table:nogetn())\n    ${SHADOW}\n    print(table:nogetn())\nend\n`,
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test("outside the block that declares the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    do\n        ${SHADOW}\n        print(table:nogetn())\n    end\n    print(table:nogetn())\nend\n`,
+      ),
+    ).toEqual(MISSING);
+  });
+
+  test("after the local at top level, it reads the local", () => {
+    expect(
+      diagnoseWithLints(`${SHADOW}\n& print(table:nogetn())\n`),
+    ).toEqual([]);
+  });
+
+  test("in a function written after the local, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `${SHADOW}\nfunction run()\n    print(table:nogetn())\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test("in a closure created after the local, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `${SHADOW}\nlocal f = function() return table:nogetn() end\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test("inside the declaring block, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    do\n        ${SHADOW}\n        print(table:nogetn())\n    end\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test("in the condition of its repeat loop, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    repeat\n        ${SHADOW}\n    until table:nogetn() == 1\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+
+  test("as a loop variable, it reads the local", () => {
+    expect(
+      diagnoseWithLints(
+        `function run()\n    for _, table in ipairs({}) do\n        print(table:nogetn())\n    end\nend\n`,
+      ),
+    ).toEqual([]);
+  });
+});
+
+describe("a colon call on a library and a local named like it in a project of several scripts", () => {
+  const SHADOW = "local table = { nogetn = function(self) return 1 end }";
+  const missing = (sources: Record<string, string>) =>
+    diagnoseFilesDetailed(sources)
+      .filter((d) => d.message.startsWith("Cannot find item or path named"))
+      .map((d) => `${d.file}:${d.range!.start.line + 1}`);
+
+  test("is in scope in the including script, which runs after it", () => {
+    expect(
+      missing({
+        "main.sd": `& print(table:nogetn())\ninclude scripts/chapter.sd\nfunction late()\n    print(table:nogetn())\nend\n`,
+        "scripts/chapter.sd": `${SHADOW}\n`,
+      }),
+    ).toEqual([]);
+  });
+
+  test("is out of scope before it in its own script", () => {
+    expect(
+      missing({
+        "main.sd": `include scripts/chapter.sd\n`,
+        "scripts/chapter.sd": `function early()\n    print(table:nogetn())\nend\n${SHADOW}\ndo\n    function late()\n        print(table:nogetn())\n    end\nend\n`,
+      }),
+    ).toEqual(["scripts/chapter.sd:2"]);
+  });
+
+  test("is out of scope in an included script, which runs before it", () => {
+    expect(
+      missing({
+        "main.sd": `include scripts/chapter.sd\n${SHADOW}\n`,
+        "scripts/chapter.sd": `& print(table:nogetn())\nfunction chap()\n    print(table:nogetn())\nend\n`,
+      }),
+    ).toEqual(["scripts/chapter.sd:1", "scripts/chapter.sd:3"]);
+  });
+});

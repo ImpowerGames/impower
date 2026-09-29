@@ -1,0 +1,10 @@
+function f(): number?
+  local v: number?
+  local u: number? = 1
+  type T = number?
+  local s: string
+  return 5
+end
+local w: Foo?
+local x: number? | string = 1
+Hello.
