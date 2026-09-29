@@ -197,6 +197,32 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue(got)]);
   });
 
+  test.each([
+    ["a type declaration", "  type T = number\n  local x: T = 1\n  return x", "type"],
+    ["an exported type", "  export type T = number\n  return 1", "export"],
+    ["a store declaration", "  store s = 4\n  return s", "store"],
+    ["a define after an operator line", "  return 1\nend\ndefine cfg with\n  k = 1", "return"],
+  ])("directly before %s: the error, and the statement stays", (_name, after, got) => {
+    const { errorMessages } = collectDiagnostics(
+      `function f()\n  local a, g = 1,\n${after}\nend\nValue {f()}.\n`,
+    );
+    expect(errorMessages).toEqual([missingValue(got)]);
+  });
+
+  test("a define after an operator line that ends with a comma", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  define cfg with\n    k = 1\n  end\n  return g\nend\nValue {f()}.\n",
+    );
+    expect(errorMessages).toEqual([missingValue("define")]);
+  });
+
+  test("a `;` after an operator line that ends with a comma", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  local n = 3\n  local a, g = 1,\n    n\n    + 4,\n  ;\n  return g\nend\nValue {f()}.\n",
+    );
+    expect(errorMessages).toEqual([missingValue(";")]);
+  });
+
   test("before `continue` in a loop: the error, and `continue` stays a statement", () => {
     const { errorMessages } = collectDiagnostics(
       "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
@@ -247,6 +273,21 @@ describe("narrative body: the declaration ends at its line", () => {
     const { errors, text } = run("define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n");
     expect(errors).toEqual([]);
     expect(text).toBe("Value 3.\n");
+  });
+
+  test.each([
+    ["store", "store first = 1 store a, b = 2,\n  3\nValue {first}.\n"],
+    ["local", "store first = 1 local a, b = 2,\n  3\nValue {first}.\n"],
+  ])("a second %s declaration on the line ends at the line too", (_name, source) => {
+    const { errorMessages } = collectDiagnostics(source);
+    expect(errorMessages).toEqual([missingValue("3")]);
+  });
+
+  test("a statement after the comma on the same line is the error", () => {
+    const { errorMessages } = collectDiagnostics(
+      "-> one\nscene one\n  & local a, b = 1, local c = 2\n  Value {c}.\nend\n",
+    );
+    expect(errorMessages).toEqual([missingValue("local")]);
   });
 
   test("a declaration in an `&` statement ends at its line too", () => {

@@ -84,6 +84,7 @@ function lastSignificant(nodes: SyntaxNode[]): SyntaxNode | undefined {
 
 // The statements `LuauDeclarations` reaches besides the trailing ones, and
 // the blocks and loops `LuauControlBlock` does (matched by their suffix).
+// `statementBoundary.test.ts` holds this classification to the grammar.
 const DECLARATION_STATEMENTS = nodeNameSet([
   "LuauFunctionTypeDeclaration",
   "LuauDataTypeDeclaration",
@@ -98,17 +99,24 @@ const DECLARATION_STATEMENTS = nodeNameSet([
   "LuauMorph",
 ]);
 
+// Whether `name` is a node that starts a statement in a block, or a `;`
+// that ends one, so no value can begin with it.
+export function isStatementNodeName(name: string): boolean {
+  return (
+    name === "LuauSemicolonSeparator" ||
+    TRAILING_STATEMENT_NAMES.has(name) ||
+    DECLARATION_STATEMENTS.has(name) ||
+    /(?:Block|Blocks|Loop)$/.test(name)
+  );
+}
+
 // Whether `node`, the first node of a line in a block, is a statement rather
 // than a value: an anonymous function is a value.
 function startsStatement(node: SyntaxNode): boolean {
   if (node.name === "LuauFunctionDefinition") {
     return findOwnDeclarationName(node) != null;
   }
-  return (
-    TRAILING_STATEMENT_NAMES.has(node.name) ||
-    DECLARATION_STATEMENTS.has(node.name) ||
-    /(?:Block|Loop)$/.test(node.name)
-  );
+  return isStatementNodeName(node.name);
 }
 
 // Take the continuation `lowerStatements` set for the statement being

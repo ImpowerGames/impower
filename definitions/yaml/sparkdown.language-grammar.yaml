@@ -6081,7 +6081,10 @@ repository:
   # continued value, so a comma that ends the line is left without a value
   # and the lowerer reports it. Its content is the base declaration's, so a
   # statement after it on the same line (`& local x = 5 return`) stays
-  # inside it, where the lowerer reads it as a trailing statement.
+  # inside it, where the lowerer reads it as a trailing statement. A second
+  # declaration on the line is this rule too, ahead of the Luau declaration
+  # `LuauExpression` reaches, so it also ends at the line
+  # (`store a = 1 local b = 2,`).
   LuauSparkdownVariableDefinition:
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b(?!{{WS}}*function\b)({{WS}}*)
     beginCaptures:
@@ -6099,6 +6102,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
@@ -7602,8 +7606,11 @@ repository:
     # Not at a `scene` or `branch` header: the end closes there at once, and
     # an empty path repeated at the header is an empty-match loop for the
     # rule that includes it (a declaration whose comma ends the line before
-    # the header).
-    begin: (?!{{BEAT}})(?=(?!{{LUAU_TERMINATOR_KEYWORDS}}){{LUAU_IDENTIFIER}})
+    # the header). Not at a declaration that begins with a contextual word
+    # (`type T`, `export type T`, `store x`) either: no value begins that
+    # way, and a declaration whose comma ends the line before it must close
+    # there rather than read the word as a value.
+    begin: (?!{{BEAT}})(?!(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}}|{{LUAU_SCOPE_MODIFIERS}}{{WS}}+{{LUAU_IDENTIFIER}})(?=(?!{{LUAU_TERMINATOR_KEYWORDS}}){{LUAU_IDENTIFIER}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAccessPart" }

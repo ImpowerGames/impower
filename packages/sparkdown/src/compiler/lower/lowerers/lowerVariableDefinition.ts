@@ -81,9 +81,10 @@ export function lowerVariableDefinition(
   // trailing multi-RHS values. Collect them into `trailingStatements`
   // and lower them after the VA below.
   const trailingStatements: SyntaxNode[] = [];
-  // The definition's last significant node, so a comma with nothing after
-  // it can be reported.
-  let lastListNode: SyntaxNode | null = null;
+  // A comma no target or value has followed yet, so a comma with nothing
+  // after it, or with a statement after it, can be reported.
+  let unresolvedComma: SyntaxNode | null = null;
+  let unresolvedAfterAssignment = false;
 
   if (contentNode) {
     let child = contentNode.firstChild;
@@ -92,7 +93,8 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
-      lastListNode = child;
+      const pendingComma = unresolvedComma;
+      unresolvedComma = null;
       if (child.name === "LuauVariableAssignment") {
         const opNode = getDescendent("LuauAssignmentOperation", child);
         if (sawAssignmentOp) {
@@ -134,6 +136,8 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
+        unresolvedComma = child;
+        unresolvedAfterAssignment = sawAssignmentOp;
         child = child.nextSibling;
         continue;
       }
@@ -191,6 +195,12 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
+        // A statement where the comma needs a value (`store a = 1, return`)
+        // is Luau's missing-value error. A named function there stays a
+        // lenient trailing statement (`AnonymousFunctionValueList.test.ts`).
+        if (pendingComma && child.name !== "LuauFunctionDefinition") {
+          validateListComma(pendingComma, unresolvedAfterAssignment, ctx);
+        }
         trailingStatements.push(child);
         child = child.nextSibling;
         continue;
@@ -214,8 +224,8 @@ export function lowerVariableDefinition(
   const lastContinued = continuation.findLast((n) => !isSkippableName(n.name));
   if (lastContinued?.name === "LuauCommaSeparator") {
     validateListComma(lastContinued, true, ctx);
-  } else if (lastListNode && isCommaName(lastListNode.name)) {
-    validateListComma(lastListNode, sawAssignmentOp, ctx);
+  } else if (unresolvedComma) {
+    validateListComma(unresolvedComma, unresolvedAfterAssignment, ctx);
   }
 
   if (targets.length === 0) {
