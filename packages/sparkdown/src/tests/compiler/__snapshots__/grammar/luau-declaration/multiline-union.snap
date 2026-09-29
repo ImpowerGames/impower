@@ -81,10 +81,10 @@ sparkdown [0..195]
  │   │   │   │       │   ├─ LuauPrimitiveType [36..42]
  │   │   │   │       │   │   ├─ LuauPrimitiveType_c1 [36..42]: "number"
  │   │   │   │       │   │   └─ LuauPrimitiveType_c2 42
- │   │   │   │       │   │       └─ OptionalWhitespace 42
  │   │   │   │       │   ├─ LuauTypeOptionalOperator [42..43]
- │   │   │   │       │   │   ├─ LuauTypeOptionalOperator_c1 [42..43]: "?"
- │   │   │   │       │   │   └─ LuauTypeOptionalOperator_c2 43
+ │   │   │   │       │   │   ├─ LuauTypeOptionalOperator_c1 42
+ │   │   │   │       │   │   ├─ LuauTypeOptionalOperator_c2 [42..43]: "?"
+ │   │   │   │       │   │   └─ LuauTypeOptionalOperator_c3 43
  │   │   │   │       │   ├─ Newline [43..44]: "\n"
  │   │   │   │       │   └─ LuauTypeBinaryOperation [44..57]
  │   │   │   │       │       ├─ LuauTypeBinaryOperation_begin [44..48]
@@ -149,10 +149,10 @@ sparkdown [0..195]
  │   │       │   │   │       │   │   │       │   ├─ LuauPrimitiveType [68..74]
  │   │       │   │   │       │   │   │       │   │   ├─ LuauPrimitiveType_c1 [68..74]: "number"
  │   │       │   │   │       │   │   │       │   │   └─ LuauPrimitiveType_c2 74
- │   │       │   │   │       │   │   │       │   │       └─ OptionalWhitespace 74
  │   │       │   │   │       │   │   │       │   ├─ LuauTypeOptionalOperator [74..75]
- │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeOptionalOperator_c1 [74..75]: "?"
- │   │       │   │   │       │   │   │       │   │   └─ LuauTypeOptionalOperator_c2 75
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeOptionalOperator_c1 74
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeOptionalOperator_c2 [74..75]: "?"
+ │   │       │   │   │       │   │   │       │   │   └─ LuauTypeOptionalOperator_c3 75
  │   │       │   │   │       │   │   │       │   ├─ Newline [75..76]: "\n"
  │   │       │   │   │       │   │   │       │   └─ LuauTypeBinaryOperation [76..103]
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeBinaryOperation_begin [76..80]

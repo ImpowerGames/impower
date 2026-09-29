@@ -40,7 +40,7 @@ text.source.sparkdown [0..130]
  │       ├─ support.type.primitive.luau [65..71]: "number"
  │       ├─ punctuation.definition.template-expression.end.sd [71..72]: ">"
  │       ├─ keyword.operator.type.luau [72..73]: "?"
- │       ├─ punctuation.whitespace.extra.sd [73..74]: " "
+ │       ├─ punctuation.whitespace.optional.sd [73..74]: " "
  │       ├─ keyword.operator.assignment.luau [74..75]: "="
  │       ├─ punctuation.whitespace.optional.sd [75..76]: " "
  │       └─ constant.language.nil.luau [76..79]: "nil"
