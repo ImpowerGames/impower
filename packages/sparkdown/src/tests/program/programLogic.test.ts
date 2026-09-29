@@ -583,6 +583,77 @@ describe("a break from inside nested scoped blocks", () => {
   });
 });
 
+describe("a jump and a save inside a body", () => {
+  const text = [
+    "scene MAIN",
+    "  local a = 1",
+    "  for i = 1, 3 do",
+    "    local d = i * 2",
+    "    if d > 2 then",
+    "      Pass {i} {d} {a}.",
+    "    end",
+    "  end",
+    "  After {a}.",
+    "end",
+    "",
+  ].join("\n");
+  // The line of `Pass`, counting from 0, which a path the game resolves
+  // places.
+  const PASS_LINE = 5;
+  const scopeNames = (story: ProgramStory) =>
+    story.state.frame!.temporaryScopes.map((scope) => [...scope.keys()]);
+
+  // The current engine's `ChoosePathString` resets its call stack, so a
+  // flow chosen after another holds none of its temporaries.
+  it("starts a jump that resets the call stack with a fresh frame", () => {
+    const story = new ProgramStory(chunked(text));
+    story.ChoosePathString("MAIN");
+    storyBeats(story);
+    expect(scopeNames(story)).toEqual([["a"]]);
+    story.ChoosePathString("MAIN");
+    expect(scopeNames(story)).toEqual([[]]);
+  });
+
+  // A jump to a line inside the `if` inside the loop enters both bodies,
+  // with the loop's scope and the branch's open, however often it is made.
+  it("opens the scopes of the bodies a jump enters, the same on every jump", () => {
+    const root = chunked(text);
+    const story = new ProgramStory(root, {
+      locate: () => ({ uri: MAIN_URI, line: PASS_LINE, column: 6 }),
+    });
+    story.ChoosePathString("pass");
+    expect(story.state.blockStack).toHaveLength(2);
+    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+    story.ChoosePathString("pass");
+    expect(story.state.blockStack).toHaveLength(2);
+    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+  });
+
+  // A save inside the loop's `if` holds temporaries in three scopes and two
+  // blocks; a story loaded from it shows what the saving story shows next.
+  it("restores a state saved inside nested bodies, with its temporaries by scope", () => {
+    const root = chunked(text);
+    const whole = storyBeats(new ProgramStory(root), "MAIN").beats;
+    expect(whole.map((b) => b.text)).toEqual([
+      "Pass 2 4 1.\n",
+      "Pass 3 6 1.\n",
+      "After 1.\n",
+    ]);
+    const story = new ProgramStory(root);
+    story.ChoosePathString("MAIN");
+    story.Continue();
+    expect(story.state.blockStack).toHaveLength(2);
+    expect(scopeNames(story)).toEqual([["a"], ["__forIdx$", "__forStop$", "__forStep$", "i", "d"], []]);
+    const saved = story.state.toJson();
+    const resumed = new ProgramStory(root);
+    resumed.state.LoadJson(saved);
+    expect(resumed.state.toJson()).toBe(saved);
+    expect(resumed.state.blockStack).toHaveLength(2);
+    expect(scopeNames(resumed)).toEqual(scopeNames(story));
+    expect(storyBeats(resumed).beats).toEqual(whole.slice(1));
+  });
+});
+
 describe("a continue that returns between two lines", () => {
   // #779: the continue returns at the first line's newline without running
   // the assignment after it, and the next continue runs it once.
@@ -867,6 +938,25 @@ describe("the fallback", () => {
     expect(storyBeats(new ProgramStory(root)).beats.map((b) => b.text)).toEqual([
       `Size ${pairs} last ${pairs}.\n`,
     ]);
+  }, 60_000);
+
+  // An address is a chunk id times 2 ** 21 plus an offset, so a chunk of
+  // that many code words would name the next chunk's instructions.
+  it("names a statement too long for an address", () => {
+    expect(() =>
+      handWrittenProgram((e) => {
+        for (let i = 0; i < 2 ** 20; i += 1) {
+          e.emit(Op.Int, i);
+        }
+      }),
+    ).toThrow("a statement longer than an address holds");
+    expect(() =>
+      handWrittenProgram((e) => {
+        for (let i = 0; i < 2 ** 20 - 1; i += 1) {
+          e.emit(Op.Int, i);
+        }
+      }),
+    ).not.toThrow();
   }, 60_000);
 
   // A builtin's argument count is a 16-bit operand.

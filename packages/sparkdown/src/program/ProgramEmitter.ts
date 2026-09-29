@@ -60,8 +60,6 @@ export interface ProgramEmitter {
    *  keeps a hash of them, and the chunk is reused only while the program
    *  it is reused in gives the same facts. */
   reference(symbol: number): void;
-  /** The id of the symbol named `name`, interned when it is new. */
-  symbol(name: string): number;
   /** Emits `EnterBlock` for the body `body` of the statement, as block
    *  `flags` says (`BLOCK_LOOP` and the rest). Its resume offset is the next
    *  instruction until `blockResume` says otherwise. Returns the block's

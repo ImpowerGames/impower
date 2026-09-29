@@ -301,6 +301,8 @@ describe("randomized incremental edits on the statement chunks", () => {
         const failures: string[] = [];
         let compiles = 0;
         let chunked = 0;
+        // The untouched statements the edits' checks covered.
+        let checked = 0;
         let seed = 0x694 + index;
         const rand = () => {
           seed = (seed * 1103515245 + 12345) & 0x7fffffff;
@@ -350,8 +352,9 @@ describe("randomized incremental edits on the statement chunks", () => {
           if (incremental.chunks) {
             chunked += 1;
             const held = new Set(rootChunks(incremental.chunks));
-            const lost = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore)
-              .filter((chunk) => held.has(chunk) && !before.has(chunk));
+            const untouched = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore);
+            checked += untouched.length;
+            const lost = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
             if (lost.length) {
               failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: ${lost.length} untouched statements emitted again`);
             }
@@ -362,6 +365,8 @@ describe("randomized incremental edits on the statement chunks", () => {
         // so most compiles build chunks; a fuzz that always fell back would
         // pass the comparisons above without testing them.
         expect(chunked).toBeGreaterThan(compiles / 2);
+        // Every compile that built chunks checked some statement on average.
+        expect(checked).toBeGreaterThan(chunked);
       } finally {
         quiet();
       }
@@ -384,6 +389,8 @@ describe("randomized incremental edits on the statement chunks", () => {
           return seed / 0x7fffffff;
         };
         let chunked = 0;
+        // The untouched statements the edits' checks covered.
+        let checked = 0;
         // Whether the compile before the edit built chunks, so that its root is
         // the one the edit's untouched statements keep their chunks from.
         let previousChunked = true;
@@ -425,8 +432,9 @@ describe("randomized incremental edits on the statement chunks", () => {
           if (incremental.chunks) {
             chunked += 1;
             const held = new Set(rootChunks(incremental.chunks));
-            const lost = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore)
-              .filter((chunk) => held.has(chunk) && !before.has(chunk));
+            const untouched = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore);
+            checked += untouched.length;
+            const lost = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
             if (previousChunked && lost.length) {
               failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: ${lost.length} untouched statements emitted again`);
             }
@@ -438,6 +446,7 @@ describe("randomized incremental edits on the statement chunks", () => {
         }
         expect(failures, failures.join("\n")).toEqual([]);
         expect(chunked).toBeGreaterThan(EDITS / 3);
+        expect(checked).toBeGreaterThan(chunked);
       } finally {
         quiet();
       }

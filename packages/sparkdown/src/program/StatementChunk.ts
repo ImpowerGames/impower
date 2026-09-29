@@ -55,13 +55,17 @@ export const B_BREAK = 2;
 export const B_SCOPES_FLAGS = 3;
 export const B_HEAD_LINES = 4;
 
-/** A block row's flags: what the block's body is. */
+/** A block row's flag for a loop's body, which a `Leave` stops at. The flags
+ *  a choice's body, a `then` clause and a function's body take (section 1)
+ *  come with the slices that emit them. */
 export const BLOCK_LOOP = 1;
-export const BLOCK_CHOICE = 2;
-export const BLOCK_THEN = 4;
-export const BLOCK_FUNCTION = 8;
 export const BLOCK_FLAGS_MASK = 0xff;
 export const BLOCK_SCOPE_SHIFT = 8;
+
+/** The code words an address can name in one chunk: an address outside the
+ *  engine is `chunkId * ADDRESS_OFFSETS + offset` (section 1), so a chunk
+ *  with this many code words or more would name another chunk's. */
+export const ADDRESS_OFFSETS = 2 ** 21;
 
 export const codeWords = (chunk: StatementChunk): number =>
   chunk[H_CODE_WORDS]!;

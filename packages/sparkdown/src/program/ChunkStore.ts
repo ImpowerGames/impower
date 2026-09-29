@@ -83,12 +83,22 @@ export interface BodySource {
   headLines: number;
 }
 
+/** A global a declaration statement declares. */
+export interface DeclaredGlobal {
+  /** The name the story's `global decl` container assigns it under, its key
+   *  in `variableDeclarations`: a `define` that reuses a name under another
+   *  type is `$<type>_<name>`, and a builtin an author's declaration shadows
+   *  is `$prelude_<name>`, while the assignment's own name is the bare one. */
+  name: string;
+  assignment: VariableAssignment;
+}
+
 /** A statement that declares globals, as the compile hands it to the store. */
 export interface DeclarationSource extends StatementSource {
   /** The script it is written in. */
   uri: string;
   /** The globals it declares, in the order the story initializes them. */
-  globals: readonly VariableAssignment[];
+  globals: readonly DeclaredGlobal[];
 }
 
 /** One flow of the program, as the compile hands it to the store. */

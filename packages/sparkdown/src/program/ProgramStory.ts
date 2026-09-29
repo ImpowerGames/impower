@@ -68,6 +68,7 @@ import {
   type ProgramPosition,
 } from "./ProgramStoryState";
 import {
+  ADDRESS_OFFSETS,
   ANCHOR_STATEMENT,
   BLOCK_LOOP,
   B_BREAK,
@@ -98,10 +99,6 @@ type ErrorHandler = (
   source?: unknown,
   raised?: RaisedError | null,
 ) => void;
-
-// The address of an instruction outside the engine: its chunk id and its
-// offset in one number (docs/engine/binary-program.md, section 1).
-const ADDRESS_CHUNK = 2 ** 21;
 
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
@@ -443,7 +440,7 @@ export class ProgramStory {
   /** The address of the instruction at `offset` of the statement `chunk`,
    *  which names a decision to the route simulator. */
   static addressOf(chunk: StatementChunk, offset: number): string {
-    return String(chunkId(chunk) * ADDRESS_CHUNK + offset);
+    return String(chunkId(chunk) * ADDRESS_OFFSETS + offset);
   }
 
   // ------------------------------------------------------------ continuing

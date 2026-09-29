@@ -356,7 +356,12 @@ export class ProgramStoryState {
     this.carried = null;
   }
 
+  /** Ends the flow, with a fresh frame for the next, as the current engine's
+   *  `StoryState.ForceEnd` resets its call stack: a `ChoosePathString` that
+   *  resets the call stack keeps no temporary and no scope of the flow it
+   *  left. */
   ForceEnd(): void {
+    this.callStack?.Reset();
     this.DiscardLineEnd();
     this.position = null;
     this.blockStack = [];

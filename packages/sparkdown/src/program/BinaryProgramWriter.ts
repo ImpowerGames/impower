@@ -41,8 +41,9 @@ import {
   flagsOf,
   opOf,
 } from "./ProgramInstructions";
-import { internNumber, internString, internSymbol } from "./ProgramSymbols";
+import { internNumber, internString } from "./ProgramSymbols";
 import {
+  ADDRESS_OFFSETS,
   ANCHOR_STATEMENT,
   BLOCK_LOOP,
   BLOCK_ROW_WORDS,
@@ -100,8 +101,9 @@ export interface StatementInput {
 
 /** What the writer needs to emit a declaration statement's chunk. */
 export interface DeclarationInput extends StatementInput {
-  /** The globals the statement declares, in the order they initialize. */
-  globals: readonly VariableAssignment[];
+  /** The globals the statement declares, in the order they initialize, each
+   *  with the name it is assigned under. */
+  globals: readonly { name: string; assignment: VariableAssignment }[];
 }
 
 /** A statement the writer emitted. */
@@ -178,21 +180,16 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   /** A declaration statement's chunk: each global's initializer, then its
-   *  declaration as a global, as the current engine's `global decl`
-   *  container initializes it. */
+   *  declaration as a global under the name the current engine's `global
+   *  decl` container assigns it. */
   writeDeclaration(input: DeclarationInput): EmittedStatement {
     this.begin(input);
-    for (const global of input.globals) {
-      if (!global.expression) {
-        this.unsupported(global.typeName);
+    for (const { name, assignment } of input.globals) {
+      if (!assignment.expression) {
+        this.unsupported(assignment.typeName);
       }
-      this.emitObject(global.expression);
-      this.emit(
-        Op.SetVar,
-        this.variable(global.variableName),
-        0,
-        SET_DECLARE | SET_GLOBAL,
-      );
+      this.emitObject(assignment.expression);
+      this.emit(Op.SetVar, this.variable(name), 0, SET_DECLARE | SET_GLOBAL);
     }
     return this.finish(input);
   }
@@ -217,6 +214,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
   }
 
   protected finish(input: StatementInput): EmittedStatement {
+    if (this._code.length >= ADDRESS_OFFSETS) {
+      this.unsupported("a statement longer than an address holds");
+    }
     for (const { at, label } of this._fixups) {
       if (label.offset < 0) {
         this.unsupported("an unbound jump");
@@ -324,10 +324,6 @@ export class BinaryProgramWriter implements ProgramEmitter {
       }
     }
     this._references.push(symbol, factHash(this.facts(symbol)));
-  }
-
-  symbol(name: string): number {
-    return internSymbol(this.table, name);
   }
 
   enterBlock(body: object, flags = 0): number {

@@ -22,6 +22,7 @@ import type { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import type {
   BodySource,
   DeclarationSource,
+  DeclaredGlobal,
   FlowSource,
   ProgramFallback,
   StatementSource,
@@ -73,8 +74,8 @@ export interface ProgramFlowsInput {
  *  that makes the program fall back. */
 export interface ProgramFlows {
   flows: FlowSource[];
-  /** The global declarations, one source per declaring statement, in the
-   *  order the story initializes their globals. */
+  /** The global declarations, one source per run of a declaring statement's
+   *  globals, in the order the story initializes them. */
   declarations: DeclarationSource[];
   /** The first placement the build-out has not reached, in program order. */
   fallback?: ProgramFallback;
@@ -106,7 +107,8 @@ export interface ProgramFlows {
  *
  * The global declarations become the declaration statements of their
  * scripts, each holding the globals it declares in the order the story's
- * `global decl` container initializes them (constants first).
+ * `global decl` container initializes them (constants first), under the
+ * names that container assigns them.
  */
 export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
   const flows: FlowSource[] = [];
@@ -247,11 +249,18 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     flow.span = Math.max(0, end - flow.firstLine);
   }
 
-  // The globals the story initializes, in its order, each given to the
+  // The globals the story initializes, in its order and under the names it
+  // assigns them (their keys in `variableDeclarations`), each given to the
   // statement that declares it: its own placement's, or for a constant the
-  // placement of its `const` statement.
-  const byStatement = new Map<object, DeclarationSource>();
-  for (const declaration of input.story.variableDeclarations.values()) {
+  // placement of its `const` statement. A statement's globals that the story
+  // initializes one after another are one declaration; a statement whose
+  // globals it initializes with another statement's between them (a block
+  // that declares a constant, which the story initializes before every
+  // variable) is a declaration per run, so that the declarations run in the
+  // story's order.
+  let current: { block: object; source: DeclarationSource } | undefined;
+  const runs = new Map<object, number>();
+  for (const [name, declaration] of input.story.variableDeclarations) {
     if (!declaration.isGlobalDeclaration || !declaration.expression) {
       continue;
     }
@@ -269,30 +278,51 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       fail(declaration.typeName, input.uri, 0);
       continue;
     }
-    let source = byStatement.get(block);
-    if (!source) {
+    if (current?.block !== block) {
       // A declaration statement is its whole text, a block statement's
-      // bodies included, since a declaration can stand inside a body.
-      source = {
+      // bodies included, since a declaration can stand inside a body. A
+      // later run of the same statement is known by a key of its own, kept
+      // for as long as the statement's block is.
+      const run = runs.get(block) ?? 0;
+      runs.set(block, run + 1);
+      current = {
         block,
-        objects: [],
-        range: record.range,
-        firstLine: record.line,
-        source: record.source,
-        syntax: record.syntax,
-        reads: record.reads,
-        uri: record.uri,
-        globals: [],
+        source: {
+          block: run === 0 ? block : runKey(block, run),
+          objects: [],
+          range: record.range,
+          firstLine: record.line,
+          source: record.source,
+          syntax:
+            run === 0 ? record.syntax : () => `${record.syntax()}\u0000${run}`,
+          reads: record.reads,
+          uri: record.uri,
+          globals: [],
+        },
       };
-      byStatement.set(block, source);
-      out.declarations.push(source);
+      out.declarations.push(current.source);
     }
     // The statement's objects are its globals' initializers, which the
     // store reads the recorded values of.
-    (source.globals as VariableAssignment[]).push(declaration);
-    (source.objects as ParsedObject[]).push(declaration.expression);
+    (current.source.globals as DeclaredGlobal[]).push({
+      name,
+      assignment: declaration,
+    });
+    (current.source.objects as ParsedObject[]).push(declaration.expression);
   }
   return out;
+};
+
+// The keys of the runs after the first of a statement's declarations.
+const runKeys = new WeakMap<object, object[]>();
+
+const runKey = (block: object, run: number): object => {
+  let keys = runKeys.get(block);
+  if (!keys) {
+    keys = [];
+    runKeys.set(block, keys);
+  }
+  return (keys[run - 1] ??= {});
 };
 
 /** A statement source for a top-level statement, with the statements of its
