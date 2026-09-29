@@ -51,6 +51,7 @@ import {
   AstStatRepeat,
   AstStatReturn,
   AstStatTypeAlias,
+  AstStatTypeFunction,
   AstStatWhile,
   AstTableAccess,
   AstType,
@@ -146,6 +147,7 @@ import {
   tableType,
   TypeFun,
   TypeLevel,
+  typeFunctionInstanceType,
   typePack,
   unionType,
   variadicTypePack,
@@ -156,11 +158,13 @@ import {
   type GenericTypeDefinition,
   type GenericTypePackDefinition,
   type TypeArena,
+  type TypeFunctionInstanceType,
   type TypeId,
   type TypePack,
   type TypePackId,
   type TypePackVariant,
   type TypeVariant,
+  type UserDefinedFunctionData,
 } from "./Type";
 import type { TypeFunction, TypeFunctionRuntime } from "./TypeFunction";
 import { TypeIds } from "./TypeIds";
@@ -584,6 +588,9 @@ export class ConstraintGenerator {
 
   /** The private scope of each type alias, which its type parameters belong to. */
   private readonly astTypeAliasDefiningScopes = new Map<AstStatTypeAlias, Scope>();
+
+  /** The environment scope each type function's body is checked in, which the type functions of one block share. */
+  private readonly astTypeFunctionEnvironmentScopes = new Map<AstStatTypeFunction, Scope>();
 
   readonly dfg: DataFlowGraph;
   private readonly refinementArena = new RefinementArena();
@@ -1023,6 +1030,8 @@ export class ConstraintGenerator {
   private prototypeTypeDefinitions(scope: Scope, block: AstStatBlock): void {
     const typeNameLocations = new Map<string, Location>();
 
+    let hasTypeFunction = false;
+
     // Mutually recursive type aliases need every type binding in place
     // before any alias statement is checked.
     for (const stat of block.body) {
@@ -1066,6 +1075,45 @@ export class ConstraintGenerator {
 
         this.astTypeAliasDefiningScopes.set(alias, defnScope);
         typeNameLocations.set(alias.name, alias.location);
+      } else if (stat instanceof AstStatTypeFunction) {
+        const fn = stat;
+        hasTypeFunction = true;
+
+        // A syntactically illegal type function may have no name, and then no
+        // type is bound for it, as for a type alias. Luau binds its
+        // placeholder name, which would show in a duplicate's error.
+        if (fn.name === kParseNameError) continue;
+
+        const loc = typeNameLocations.get(fn.name);
+        if (loc) {
+          this.reportError(fn.location, { kind: "DuplicateTypeDefinition", name: fn.name, previousLocation: loc });
+          continue;
+        }
+
+        // The type takes one type parameter for each parameter of the function.
+        const typeParams: TypeId[] = [];
+        const quantifiedTypeParams: GenericTypeDefinition[] = [];
+        for (let i = 0; i < fn.body.args.length; i++) {
+          const ty = this.arena.addType(genericType({ name: `T${i}`, polarity: Polarity.Unknown }));
+          typeParams.push(ty);
+          quantifiedTypeParams.push({ ty });
+        }
+
+        // Luau registers the function with its type function runtime here,
+        // compiling it for the VM. Sparkdown has no VM, so a use of the type
+        // reports that it cannot be evaluated.
+
+        const udtfData: UserDefinedFunctionData = { definition: fn, environmentFunction: new Map(), environmentAlias: new Map() };
+
+        const typeFunctionTy = this.arena.addType(typeFunctionInstanceType(this.builtinTypes.typeFunctions.userFunc, typeParams, [], fn.name, udtfData));
+
+        const typeFunction = new TypeFun(typeFunctionTy, quantifiedTypeParams);
+        typeFunction.definitionLocation = fn.location;
+
+        if (fn.exported) scope.exportedTypeBindings.set(fn.name, typeFunction);
+        else scope.privateTypeBindings.set(fn.name, typeFunction);
+
+        typeNameLocations.set(fn.name, fn.location);
       } else if (stat instanceof AstStatDeclareExternType) {
         const classDeclaration = stat;
         // A syntactically illegal class may have no name, and then nothing is
@@ -1086,6 +1134,108 @@ export class ConstraintGenerator {
         scope.exportedTypeBindings.set(classDeclaration.name, initialFun);
 
         typeNameLocations.set(classDeclaration.name, classDeclaration.location);
+      }
+    }
+
+    if (hasTypeFunction) this.prototypeTypeFunctionEnvironment(scope, block);
+  }
+
+  /**
+   * Fills in the environments of the block's type functions: the one scope
+   * all their bodies are checked in, under the type function runtime's, where
+   * each type function of the block is a value; and the type functions and
+   * type aliases of the module's enclosing scopes that each one can see.
+   */
+  private prototypeTypeFunctionEnvironment(scope: Scope, block: AstStatBlock): void {
+    const typeFunctionEnvScope = Scope.child(this.typeFunctionRuntime.rootScope!);
+
+    const createdTypeFunctions: TypeFunctionInstanceType[] = [];
+    const referencedTypeFunctions = new Map<AstStatTypeFunction, TypeFunctionInstanceType>();
+
+    for (const stat of block.body) {
+      if (!(stat instanceof AstStatTypeFunction)) continue;
+      const fn = stat;
+
+      // As globals are prepopulated, each type function has a binding in the
+      // environment before any body is checked.
+      const bt = this.arena.addType(blockedType());
+      typeFunctionEnvScope.bindings.set(fn.name, { typeId: bt, location: fn.location });
+      this.astTypeFunctionEnvironmentScopes.set(fn, typeFunctionEnvScope);
+
+      // The type function already made for the name, which a duplicate shares.
+      const binding = scope.privateTypeBindings.get(fn.name) ?? scope.exportedTypeBindings.get(fn.name);
+      const mainTypeFun = binding ? get(binding.type, "TypeFunctionInstanceType") : undefined;
+      if (!mainTypeFun?.userFuncData) continue;
+
+      createdTypeFunctions.push(mainTypeFun);
+
+      const globalNames = new Set<string>();
+      visitAst(fn, {
+        visit: (node) => {
+          if (node instanceof AstExprGlobal) globalNames.add(node.name);
+          return true;
+        },
+      });
+
+      const userFuncData = mainTypeFun.userFuncData;
+
+      const addToEnvironment = (name: string, tf: TypeFun) => {
+        const ty = get(follow(tf.type), "TypeFunctionInstanceType");
+        if (ty?.userFuncData) {
+          if (userFuncData.environmentFunction.has(name)) return;
+
+          const definition = ty.userFuncData.definition;
+          userFuncData.environmentFunction.set(name, definition);
+
+          referencedTypeFunctions.set(definition, ty);
+
+          const existing = this.astTypeFunctionEnvironmentScopes.get(definition)?.linearSearchForBinding(name, /* traverseScopeChain */ false);
+          if (existing) typeFunctionEnvScope.bindings.set(definition.name, { typeId: existing.typeId, location: definition.location });
+        } else if (!ty) {
+          if (userFuncData.environmentAlias.has(name)) return;
+
+          // Only the aliases a body names are registered.
+          if (!globalNames.has(name)) return;
+
+          userFuncData.environmentAlias.set(name, tf);
+
+          typeFunctionEnvScope.bindings.set(name, { typeId: this.builtinTypes.anyType, location: tf.definitionLocation ?? new Location() });
+        }
+      };
+
+      // Up the scopes to register type functions and aliases, but without
+      // reaching into the global scope.
+      for (let curr: Scope | undefined = scope; curr && curr !== this.globalScope; curr = curr.parent) {
+        for (const [name, tf] of curr.privateTypeBindings) addToEnvironment(name, tf);
+        for (const [name, tf] of curr.exportedTypeBindings) addToEnvironment(name, tf);
+      }
+    }
+
+    // Each global a body names gets the environment's type for it.
+    for (const stat of block.body) {
+      if (!(stat instanceof AstStatTypeFunction)) continue;
+      visitAst(stat.body, {
+        visit: (node) => {
+          if (node instanceof AstExprGlobal) {
+            const ty = typeFunctionEnvScope.lookup(node.name);
+            if (ty) typeFunctionEnvScope.lvalueTypes.set(this.dfg.getDef(node), ty);
+          }
+          return true;
+        },
+      });
+    }
+
+    // A type function also sees the aliases of the type functions it can call.
+    for (const type of createdTypeFunctions) {
+      const sourceFuncData = type.userFuncData!;
+
+      for (const definition of sourceFuncData.environmentFunction.values()) {
+        const target = referencedTypeFunctions.get(definition);
+        if (!target) continue;
+
+        for (const [aliasName, alias] of target.userFuncData!.environmentAlias) {
+          if (!sourceFuncData.environmentAlias.has(aliasName)) sourceFuncData.environmentAlias.set(aliasName, alias);
+        }
       }
     }
   }
@@ -1141,6 +1291,7 @@ export class ConstraintGenerator {
       else if (stat instanceof AstStatFunction) return this.visitFunction(scope, stat);
       else if (stat instanceof AstStatLocalFunction) return this.visitLocalFunction(scope, stat);
       else if (stat instanceof AstStatTypeAlias) return this.visitTypeAlias(scope, stat);
+      else if (stat instanceof AstStatTypeFunction) return this.visitTypeFunction(scope, stat);
       else if (stat instanceof AstStatDeclareGlobal) return this.visitDeclareGlobal(scope, stat);
       else if (stat instanceof AstStatDeclareFunction) return this.visitDeclareFunction(scope, stat);
       else if (stat instanceof AstStatDeclareExternType) return this.visitDeclareExternType(scope, stat);
@@ -1708,6 +1859,51 @@ export class ConstraintGenerator {
       typeParameters: typeParams,
       typePackParameters: typePackParams,
     });
+
+    return ControlFlow.None;
+  }
+
+  /** Checks a type function's body in its type function environment. */
+  private visitTypeFunction(scope: Scope, fn: AstStatTypeFunction): ControlFlow {
+    if (fn.name === "typeof") this.reportError(fn.location, { kind: "ReservedIdentifier", name: "typeof" });
+
+    const environmentScope = this.astTypeFunctionEnvironmentScopes.get(fn);
+    if (!environmentScope) throw new InternalCompilerError("prototypeTypeDefinitions did not make a type function environment");
+
+    const startCheckpoint = checkpoint(this);
+    const sig = this.checkFunctionSignature(environmentScope, fn.body, /* expectedType */ undefined);
+
+    // The function's scope is also a child of the scope it is declared in.
+    scope.children.push(sig.signatureScope!);
+    this.interiorFreeTypes.push({ types: [], typePacks: [] });
+    this.checkFunctionBody(sig.bodyScope, fn.body);
+    const endCheckpoint = checkpoint(this);
+
+    const generalizedTy = this.arena.addType(blockedType());
+    const gc = this.addConstraint(sig.signatureScope!, fn.location, {
+      kind: "GeneralizationConstraint",
+      generalizedType: generalizedTy,
+      sourceType: sig.signature,
+      maybeDeprecatedAttr: undefined,
+      noGenerics: false,
+    });
+
+    const interior = this.interiorFreeTypes[this.interiorFreeTypes.length - 1]!;
+    sig.signatureScope!.interiorFreeTypes = interior.types;
+    sig.signatureScope!.interiorFreeTypePacks = interior.typePacks;
+
+    setOwner(get(generalizedTy, "BlockedType")!, gc);
+    this.interiorFreeTypes.pop();
+
+    addAllAsDependenciesAndChainReturns(startCheckpoint, endCheckpoint, this, gc);
+    const existingFunctionTy = environmentScope.lookup(fn.name);
+
+    if (!existingFunctionTy) throw new InternalCompilerError("prototypeTypeDefinitions did not populate the type function name");
+
+    const unpackedTy = follow(existingFunctionTy);
+
+    const bt = get(unpackedTy, "BlockedType");
+    if (bt && bt.owner === undefined) emplaceType(unpackedTy, boundType(generalizedTy));
 
     return ControlFlow.None;
   }
