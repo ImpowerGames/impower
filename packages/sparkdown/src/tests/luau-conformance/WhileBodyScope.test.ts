@@ -1,5 +1,35 @@
 import { describe, expect, test } from "vitest";
 import { runConformanceSource } from "./conformanceTestHarness";
+import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
+
+// The same loop written in a scene's body or at the top level, where it
+// runs in that flow rather than in a function.
+const WHILE_IN_FLOW = `& local y = "outer"
+while true do
+  local y = "inner"
+  break
+end
+y is {y}.`;
+const places: Record<string, string> = {
+  "in a scene": `-> s
+scene s
+${WHILE_IN_FLOW.split("\n").map((line) => `  ${line}`).join("\n")}
+  fin
+end
+`,
+  "at the top level": `${WHILE_IN_FLOW}
+`,
+};
+
+describe("while body scope in a scene or at the top level", () => {
+  for (const [place, source] of Object.entries(places)) {
+    test(`${place}, a body local shadows an outer local only inside the loop`, () => {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.errorMessages).toEqual([]);
+      expect(ctx.story.ContinueMaximally()).toBe("y is outer.\n");
+    });
+  }
+});
 
 // A `while` body is a block: its locals end with each iteration and never
 // replace a binding from an enclosing scope.
@@ -44,9 +74,9 @@ describe("while body scope", () => {
     expect(r.returnedOK).toBe(true);
   });
 
-  test("a closure captures a fresh body local on each iteration", () => {
+  test("a closure captures a fresh body local on each iteration and the outer local stays", () => {
     const r = runConformanceSource(
-      `local fns = {}\nlocal i = 0\nwhile i < 3 do\n  i = i + 1\n  local j = i\n  fns[i] = function() return j end\nend\nassert(fns[1]() == 1, "fns[1] is " .. tostring(fns[1]()))\nassert(fns[2]() == 2, "fns[2] is " .. tostring(fns[2]()))\nassert(fns[3]() == 3, "fns[3] is " .. tostring(fns[3]()))\n`,
+      `local fns = {}\nlocal i = 0\nlocal j = "outer"\nwhile i < 3 do\n  i = i + 1\n  local j = i\n  fns[i] = function() return j end\nend\nassert(fns[1]() == 1, "fns[1] is " .. tostring(fns[1]()))\nassert(fns[2]() == 2, "fns[2] is " .. tostring(fns[2]()))\nassert(fns[3]() == 3, "fns[3] is " .. tostring(fns[3]()))\nassert(j == "outer", "outer j replaced: " .. tostring(j))\n`,
     );
     expect(r.errorMessages).toEqual([]);
     expect(r.returnedOK).toBe(true);
