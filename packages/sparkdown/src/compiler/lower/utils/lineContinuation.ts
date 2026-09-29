@@ -3,8 +3,8 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 
 // A `LuauLineContinuation` is a line of Luau code that begins with `.name`,
-// `:name` or a binary operator and so continues the expression on the line
-// before it (`t` then `.a` reads as `t.a`). The grammar cannot nest it in the
+// `:name`, a binary operator or a cast's `::` and so continues the expression
+// on the line before it (`t` then `.a` reads as `t.a`). The grammar cannot nest it in the
 // expression, which has already closed at its own line's end, so it is a
 // sibling of the statement that line ended, and the lowerer joins the two.
 //
@@ -80,9 +80,11 @@ export function isLineContinuationUsed(
 // the line before them takes: one after a statement that does not end in a
 // value (`end`, a bare `return`), with no statement before it in its block,
 // or after a type that is not a name (`t :: { x: number }` then `.a`).
+// `advice` replaces the default advice, to join the line to its value.
 export function reportUntakenLineContinuation(
   nodes: SyntaxNode[],
   ctx: LowerContext,
+  advice = "Join it to the value it continues.",
 ): void {
   for (const node of nodes) {
     if (node.name !== "LuauLineContinuation" && node.name !== "LuauAccessPart") {
@@ -92,7 +94,7 @@ export function reportUntakenLineContinuation(
     const text = raw.trim();
     const from = node.from + raw.length - raw.trimStart().length;
     ctx.diagnostics?.push({
-      message: `\`${text}\` continues the line before it, which does not end in a value it can continue. Join it to the value it continues.`,
+      message: `\`${text}\` continues the line before it, which does not end in a value it can continue. ${advice}`,
       severity: ErrorType.Error,
       source: {
         fileName: null,

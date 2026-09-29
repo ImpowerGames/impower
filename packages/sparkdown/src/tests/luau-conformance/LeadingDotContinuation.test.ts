@@ -180,6 +180,11 @@ test.each([
     "3",
   ],
   [
+    "until condition",
+    "local t = { done = false }\nlocal n = 0\nrepeat\n  n += 1\n  t.done = n >= 2\nuntil t\n  .done\nreturn n",
+    "2",
+  ],
+  [
     "for range",
     "local t = { n = 3 }\nlocal s = 0\nfor i = 1, t\n  .n do\n  s = s + i\nend\nreturn s",
     "6",
@@ -211,6 +216,12 @@ test.each([
     "after a comment line holding an access",
     "local t = { a = 5 }\nlocal y = t\n-- .a\nreturn y.a",
     "5",
+  ],
+  ["holding a label first in a body", "::top::\nreturn 1", "1"],
+  [
+    "holding a label after a value line",
+    "local i = 1\n::continue::\nreturn i",
+    "1",
   ],
 ])("a line %s keeps its statements apart", (_name, body, value) => {
   const ctx = makeRuntimeStoryFromSource(inFunction(body));
@@ -250,6 +261,15 @@ test("a type cast line after `end` is reported with the line after it", () => {
   expect(ctx.errorMessages).toEqual([
     expect.stringContaining("`:: number` continues the line before it"),
     expect.stringContaining("`.a` continues the line before it"),
+  ]);
+});
+
+test("a continuation after a cast to a table type is reported with advice to parenthesize the cast", () => {
+  const ctx = makeRuntimeStoryFromSource(
+    inFunction("local t = { a = 4 }\nlocal y = t :: { x: number }\n  .a\nreturn 1"),
+  );
+  expect(ctx.errorMessages).toEqual([
+    expect.stringContaining("put the cast in parentheses"),
   ]);
 });
 

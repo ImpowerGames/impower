@@ -359,7 +359,10 @@ function lowerInner(
       // `LuauRepeatLoop` lowerer above (it peeks forward to grab the
       // condition). This case handles it here directly (there is no
       // parser fallback — the grammar+lowerers are the only path — that
-      // would otherwise treat `until X` as narrative text).
+      // would otherwise treat `until X` as narrative text). The lines that
+      // continue the condition were lowered with it there, which reports any
+      // that no value takes, so they are used here.
+      markLineContinuationUsed(takeLineContinuation(ctx), ctx);
       return lowerLuauUntilStatement(nodeRef, ctx);
     case "LuauBreakStatement":
       return lowerLuauBreakStatement(nodeRef, ctx);

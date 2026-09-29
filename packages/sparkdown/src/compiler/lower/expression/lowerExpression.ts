@@ -255,7 +255,15 @@ export function lowerExpressionFromNodes(
         const qualifies =
           qualifiable &&
           parts.every((p) => p.firstChild?.name === "LuauPropertyAccessor");
-        if (!qualifies) reportUntakenLineContinuation(parts, ctx);
+        // A cast takes no access parts of its own (`t :: T.a` qualifies the
+        // type), so the access the author meant needs the cast in parentheses.
+        if (!qualifies) {
+          reportUntakenLineContinuation(
+            parts,
+            ctx,
+            "To access the value the cast gives, put the cast in parentheses: `(value :: type)`.",
+          );
+        }
         i = last;
         continue;
       }
