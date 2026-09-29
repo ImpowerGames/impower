@@ -36,6 +36,11 @@ describe("a local's value list", () => {
     ["a name after a string-typed name", 'local x = 5\nlocal a: "p" | "q", b = "p", x\nreturn a .. b', "Value p5.\n"],
     ["a name after a semicolon-ended local", "local x = 5\nlocal a = 1; local b, c = 2, x\nreturn c", "Value 5.\n"],
     ["a name in an explicit statement", "local x = 5\n& local a: number, b: number = 1, x\nreturn b", "Value 5.\n"],
+    ["a name after a string naming a keyword and an escaped quote", 'local x = 5\nlocal m, b = "the store said \\"hi\\"", x\nreturn b', "Value 5.\n"],
+    ["a boolean after a single-quoted string naming a keyword and an escaped quote", "local m, b = 'a const \\'q\\'', true\nreturn tostring(b)", "Value true.\n"],
+    ["a boolean after a backtick string naming a keyword", "local m, b = `store {1}`, true\nreturn tostring(b)", "Value true.\n"],
+    ["a name after a method call", 'local s = "ab"\nlocal x = 5\nlocal a, b = s:upper(), x\nreturn a .. b', "Value AB5.\n"],
+    ["a name after a cast", "local x = 5\nlocal a, b = 1, x :: number\nreturn b", "Value 5.\n"],
   ])("reads %s as a value", (_, body, expected) => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
@@ -60,6 +65,10 @@ describe("a local's value list", () => {
     ["a nested index in a type", "local t = {1}\nlocal a: typeof(t[t[1]]), b: number = 1, 2\nreturn b", "Value 2.\n"],
     ["a block comment before the names", "local --[[c]] a, b = 1, 2\nreturn a + b", "Value 3.\n"],
     ["a block comment between the names", "local a, --[[c]] b, c = 1, 2, 3\nreturn b + c", "Value 5.\n"],
+    ["an escaped quote in a single-quoted string type", "local a: 'a\\'b', b: number = 'a\\'b', 2\nreturn b", "Value 2.\n"],
+    ["a table constructor in a type", "local a: typeof({ k = 1 }), b: number = { k = 1 }, 2\nreturn b", "Value 2.\n"],
+    ["a comparison in a type", "local a: typeof(1 == 1), b: number = true, 2\nreturn b", "Value 2.\n"],
+    ["a string type naming a keyword", 'local a: "my store", b: number = "my store", 5\nreturn b', "Value 5.\n"],
   ])("still reads %s", (_, body, expected) => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
@@ -70,6 +79,18 @@ describe("a local's value list", () => {
     );
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 1 true false.\n");
+  });
+
+  test("a store takes a later constant as a value", () => {
+    const ctx = makeRuntimeStoryFromSource("const K = 3\nstore a, b = 1, K\nValue {a} {b}.\n");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 1 3.\n");
+  });
+
+  test("a local outside a function takes a later name as a value", () => {
+    const ctx = makeRuntimeStoryFromSource("local x = 5\nlocal a, b = 1, x\nValue {b}.\n");
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
 
   test("a store still reads a typed name after a string-typed name", () => {
