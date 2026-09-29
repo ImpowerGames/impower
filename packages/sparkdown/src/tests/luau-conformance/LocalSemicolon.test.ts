@@ -34,6 +34,10 @@ const STATEMENTS = [
   "local x = f();",
   "local x: number = f();",
   "local a, b = 1, f();",
+  "local x: number;",
+  "local x = if t then 1 else 2;",
+  "local x = iffy;",
+  "local x = 1 +\n  2;",
 ] as const;
 
 describe("a local statement ends at a `;` directly after its value", () => {
@@ -53,6 +57,19 @@ describe("a local statement ends at a `;` directly after its value", () => {
       ]);
     },
   );
+
+  test.each([
+    ["local x: ;", "Expected type, got ';'"],
+    ["local x = if;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = -\n;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = -\n\n  ;", "Expected identifier when parsing expression, got ';'"],
+    ["local x = 1 + if;", "Expected identifier when parsing expression, got ';'"],
+    ["local x =\n;", "Expected identifier when parsing expression, got ';'"],
+  ])("%j reports the value left empty before its `;`", (statement, message) => {
+    expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
+      expect.stringContaining(message),
+    ]);
+  });
 
   test("a multi-name local still reads both names", () => {
     const source = `function g()\n  local a, b = 1, 2;\nend\n`;

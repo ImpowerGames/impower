@@ -113,6 +113,7 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
+const MISSING_TYPE = "Expected type, got ';'";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -358,10 +359,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // An operator directly before the `;` that ends its statement has no
-    // right operand; the grammar reads it as its own token.
+    // An operator or `if` with only line breaks before the `;` that ends its
+    // statement has no right operand; the grammar reads it as its own token.
     if (nodeRef.name === "LuauOperatorMissingOperand") {
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
+      return annotations;
+    }
+    // Likewise a type annotation `:` with no type before the `;`.
+    if (nodeRef.name === "LuauTypeAnnotationMissingType") {
+      this.error(annotations, MISSING_TYPE, nodeRef.from, nodeRef.to);
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
