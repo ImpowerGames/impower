@@ -122,10 +122,28 @@ describe("a dangling member access (#1079)", () => {
       4,
     ],
     [
-      "the access alone on its line",
-      "function f()\n  local player = {}\n  player.stats.\n  return player\nend\n",
-      "Expected identifier, got 'return'",
-      4,
+      "a later call argument",
+      "function f()\n  local t = {}\n  print(1, t.a.)\nend\n",
+      "Expected identifier, got ')'",
+      3,
+    ],
+    [
+      "an arithmetic operand",
+      "function f()\n  local t = {}\n  return 1 + t.\nend\n",
+      "Expected identifier, got 'end'",
+      3,
+    ],
+    [
+      "the length operator",
+      "function f()\n  local t = {}\n  return #t.a.\nend\n",
+      "Expected identifier, got 'end'",
+      3,
+    ],
+    [
+      "a concatenation operand",
+      "function f()\n  local t = {}\n  return \"x\" .. t.a.\nend\n",
+      "Expected identifier, got 'end'",
+      3,
     ],
     [
       "a reserved word after a same-line block comment",
@@ -207,6 +225,10 @@ describe("a dangling member access (#1079)", () => {
     [
       "a function body with dotted words",
       "function greet\n  Hello Mr.Smith.\n  Visit example.com.\n  He moved to the U.S.\n  How are you?\nend\n",
+    ],
+    [
+      "a function body with a line that is one dotted word",
+      "function greet\n  U.S.\n  Next line.\nend\n",
     ],
     [
       "a story `if` body",
