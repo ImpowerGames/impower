@@ -500,75 +500,102 @@ export class VariablesState extends VariablesStateAccessor<
     this.SnapshotInitTables();
   }
 
-  // Records every table reachable from a default global when the defaults
-  // are set, by its path from the global: `["t"]`, `["t","inner"]`, a
-  // metatable as `"#mt"`, and a closed upvalue's table as its key followed
-  // by `"#cv"`. Taken once, so the paths name the tables init built even
-  // after the story has changed or reassigned them. A table reachable by
-  // more than one path keeps the shortest, earliest one. The globals that
-  // are not constants are walked first, so a table a store reaches is
-  // restorable even when a constant also reaches it; the tables only
-  // constants reach are not.
+  // Records the graph of tables init built, as it stands when the defaults
+  // are set: each default global's table, and every edge from a table to
+  // another one. An edge is a key (`".key"`), a metatable (`"@mt"`), or a
+  // closed upvalue's table (`"@cv.key"`); a key segment always starts with
+  // `.` and a synthetic one with `@`, so no key can be taken for one. A
+  // table's anchor is a JSON array of its global's name and the segments
+  // to it, the shortest and earliest path found. Taken once, so anchors
+  // name the tables init built even after the story has changed or
+  // reassigned them. A table any constant reaches keeps its compiled
+  // contents, whichever other globals reach it too.
   private SnapshotInitTables() {
     this._initTablePaths = new Map();
-    this._initTablesByPath = new Map();
-    for (const constant of [false, true]) {
-      const queue: { table: ObjectValue; path: string[] }[] = [];
-      for (const [name, value] of this._defaultGlobalVariables) {
-        if (
-          value instanceof ObjectValue &&
-          this.constantNames.has(name) === constant
-        ) {
-          queue.push({ table: value, path: [name] });
-        }
+    this._initRoots = new Map();
+    this._initEdges = new Map();
+    this._constantInitTables = new Set();
+    const queue: { table: ObjectValue; path: string[] }[] = [];
+    for (const [name, value] of this._defaultGlobalVariables) {
+      if (value instanceof ObjectValue && value.value !== null) {
+        this._initRoots.set(name, value);
+        queue.push({ table: value, path: [name] });
       }
-      this.WalkInitTables(queue, constant);
     }
-  }
-
-  private WalkInitTables(
-    queue: { table: ObjectValue; path: string[] }[],
-    constant: boolean,
-  ) {
     for (let i = 0; i < queue.length; i++) {
       const { table, path } = queue[i]!;
-      const map = table.value;
-      if (map === null || this._initTablePaths.has(map)) continue;
-      const anchor = JSON.stringify(path);
-      this._initTablePaths.set(map, anchor);
-      this._initTablesByPath.set(anchor, { table, constant });
+      const map = table.value!;
+      if (this._initTablePaths.has(map)) continue;
+      this._initTablePaths.set(map, JSON.stringify(path));
+      const edges = new Map<string, ObjectValue>();
+      this._initEdges.set(map, edges);
+      const follow = (segment: string, child: ObjectValue) => {
+        if (child.value === null) return;
+        edges.set(segment, child);
+        queue.push({ table: child, path: [...path, segment] });
+      };
       for (const [key, entry] of map as Map<string, InkObject>) {
         if (entry instanceof ObjectValue) {
-          queue.push({ table: entry, path: [...path, key] });
+          follow("." + key, entry);
         } else if (
           entry instanceof VariablePointerValue &&
           entry.isClosed &&
           entry.closedValue instanceof ObjectValue
         ) {
-          queue.push({ table: entry.closedValue, path: [...path, key, "#cv"] });
+          follow("@cv." + key, entry.closedValue);
         }
       }
-      if (table.metatable) {
-        queue.push({ table: table.metatable, path: [...path, "#mt"] });
+      if (table.metatable) follow("@mt", table.metatable);
+    }
+    const constants: ObjectValue[] = [];
+    for (const [name, table] of this._initRoots) {
+      if (this.constantNames.has(name)) constants.push(table);
+    }
+    for (let i = 0; i < constants.length; i++) {
+      const map = constants[i]!.value!;
+      if (this._constantInitTables.has(map)) continue;
+      this._constantInitTables.add(map);
+      for (const child of this._initEdges.get(map)?.values() ?? []) {
+        constants.push(child);
       }
     }
   }
 
-  // Each table init built, by its underlying Map, to its path: the anchors
-  // a save writes (`JsonSerialisation.SetWriterAnchors`).
+  // Each table init built, by its underlying Map, to its anchor: the
+  // anchors a save writes (`JsonSerialisation.SetWriterAnchors`).
   public InitTableAnchors(): Map<object, string> {
     return this._initTablePaths;
   }
 
-  // The table init built at an anchor's path in this story, and whether a
-  // load may restore saved contents into it: a constant's tables are
+  // The table init built at an anchor's path in this story, following the
+  // path through the recorded init graph, so any path that exists here
+  // resolves, not only the one this story would write. Also whether a load
+  // may restore saved contents into it: a table a constant reaches is
   // determined by the compiled program, so a load only joins references to
-  // them.
+  // it.
   public InitTableAtAnchor(
     anchor: string,
   ): { table: ObjectValue; restore: boolean } | null {
-    const found = this._initTablesByPath.get(anchor);
-    return found ? { table: found.table, restore: !found.constant } : null;
+    let path: unknown;
+    try {
+      path = JSON.parse(anchor);
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(path) || typeof path[0] !== "string") return null;
+    let table = this._initRoots.get(path[0]) ?? null;
+    for (let i = 1; table && i < path.length; i++) {
+      const segment = path[i];
+      table =
+        typeof segment === "string"
+          ? (this._initEdges.get(table.value!)?.get(segment) ?? null)
+          : null;
+    }
+    if (!table) return null;
+    return {
+      table,
+      restore: !this._constantInitTables.has(table.value!),
+    };
   }
 
   public RetainListOriginsForAssignment(
@@ -682,12 +709,13 @@ export class VariablesState extends VariablesStateAccessor<
 
   private _globalVariables: Map<string, InkObject>;
   private _defaultGlobalVariables: Map<string, InkObject> = new Map();
-  // The tables init built (`SnapshotInitTables`), both ways.
+  // The tables init built (`SnapshotInitTables`): each one's anchor, each
+  // default global's table, the edges between them by segment, and the
+  // ones a constant reaches.
   private _initTablePaths: Map<object, string> = new Map();
-  private _initTablesByPath: Map<
-    string,
-    { table: ObjectValue; constant: boolean }
-  > = new Map();
+  private _initRoots: Map<string, ObjectValue> = new Map();
+  private _initEdges: Map<object, Map<string, ObjectValue>> = new Map();
+  private _constantInitTables: Set<object> = new Set();
 
   private _callStack: CallStack;
   private _changedVariablesForBatchObs: Set<string> | null = new Set();

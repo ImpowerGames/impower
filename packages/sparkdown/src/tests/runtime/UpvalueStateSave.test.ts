@@ -7,9 +7,14 @@
 // same compiled program loads the save and runs the rest. Both runs have to
 // print the same thing.
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function straight(source: string): { output: string; errors: string[] } {
   const { story, errorMessages } = makeRuntimeStoryFromSource(source);
@@ -366,6 +371,27 @@ scene s
 end
 `;
     expectSameAcrossSave(source, "First.\nResult wanderer true.\n");
+  });
+
+  test("a save the engine wrote before cells and anchors loads as it did then", () => {
+    // Written by the engine at `writtenBy`, which also loaded it and took
+    // the choice to produce `afterChoosingFirst`.
+    const fixture = JSON.parse(
+      readFileSync(
+        join(__dirname, "fixtures", "saves", "before-upvalue-cells.json"),
+        "utf8",
+      ),
+    );
+    const { compiledJson, errorMessages } = makeRuntimeStoryFromSource(
+      fixture.source,
+    );
+    const errors = [...errorMessages];
+    const story = new RuntimeStory(compiledJson as Record<string, any>);
+    story.onError = (m: string) => errors.push(m);
+    story.state.LoadJson(JSON.stringify(fixture.save));
+    story.ChooseChoiceIndex(0);
+    expect(story.ContinueMaximally()).toBe(fixture.afterChoosingFirst);
+    expect(errors).toEqual([]);
   });
 
   test("a save written without upvalue cells still loads", () => {

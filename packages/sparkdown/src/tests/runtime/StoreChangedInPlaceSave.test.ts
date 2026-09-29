@@ -266,6 +266,75 @@ end
     expect(errors).toEqual([]);
   });
 
+  test("a key that looks like a metatable edge stays its own table after a load", () => {
+    const run = saveAfterFirstLine(`store t = setmetatable({ ["#mt"] = { n = 1 }, ["@mt"] = { n = 3 } }, { n = 2 })
+-> main
+scene main
+  First.
+  Second {t["#mt"].n} {t["@mt"].n} {getmetatable(t).n} {rawequal(t["#mt"], getmetatable(t))}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.first + run.rest).toBe("First.\nSecond 1 3 2 false.\n");
+  });
+
+  test("a store that holds a constant's table keeps the edited program's constant", () => {
+    const scene = `-> main
+scene main
+  First.
+  Second {C.n} {rawequal(alias, C)}.
+  fin
+end
+`;
+    const before = makeRuntimeStoryFromSource(
+      `const C = { n = 1 }\nstore alias = C\n${scene}`,
+    );
+    const after = makeRuntimeStoryFromSource(
+      `const C = { n = 2 }\nstore alias = C\n${scene}`,
+    );
+    const errors = [...before.errorMessages, ...after.errorMessages];
+    expect(before.story.Continue()).toBe("First.\n");
+    const json = before.story.state.ToJson();
+    const loaded = new RuntimeStory(after.compiledJson as Record<string, any>);
+    loaded.onError = (m: string) => errors.push(m);
+    loaded.state.LoadJson(json);
+    expect(loaded.ContinueMaximally()).toBe("Second 2 true.\n");
+    expect(errors).toEqual([]);
+  });
+
+  test("an anchor naming a table by another path init gave it still resolves to that table", () => {
+    const source = `store a = { n = 1 }
+define Holder with
+  alias = a
+end
+-> main
+scene main
+  First.
+  & a.n = 2
+  Second {Holder.alias.n} {rawequal(Holder.alias, a)}.
+  fin
+end
+`;
+    const { story, compiledJson, errorMessages } =
+      makeRuntimeStoryFromSource(source);
+    const errors = [...errorMessages];
+    expect(story.Continue()).toBe("First.\n");
+    // A save that names the shared table by the define's path rather than
+    // the store's, as a program whose globals are declared differently
+    // would write.
+    const saved = story.state.ToJson();
+    expect(saved).toContain(`"anchor":"[\\"a\\"]"`);
+    const renamed = saved
+      .split(`"anchor":"[\\"a\\"]"`)
+      .join(`"anchor":"[\\"Holder\\",\\".alias\\"]"`);
+    const loaded = new RuntimeStory(compiledJson as Record<string, any>);
+    loaded.onError = (m: string) => errors.push(m);
+    loaded.state.LoadJson(renamed);
+    expect(loaded.ContinueMaximally()).toBe("Second 2 true.\n");
+    expect(errors).toEqual([]);
+  });
+
   test("a store's new instance a saved closure shares stays one table after a load", () => {
     const run = saveAfterFirstLine(`define Box with
   n = 1
