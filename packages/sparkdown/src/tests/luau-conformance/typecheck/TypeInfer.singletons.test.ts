@@ -457,7 +457,6 @@ local a: Animal = if true then { tag = 'cat', catfood = 'something' } else { tag
     name: "return_type_of_f_is_not_widened",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
-    unparsed: { defect: 881 }, // an if expression written over several lines
     source: `
         local function foo(f, x): "hello"? -- anyone there?
             return if x == "hi"

@@ -109,6 +109,9 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const TYPE_NAME_EXTRA_QUALIFIER =
   "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
+const IF_EXPRESSION_WITHOUT_ELSE =
+  "Expected 'else' when parsing if then else expression";
+const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -345,6 +348,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         nodeRef.to,
       );
       return annotations;
+    }
+    // A Luau if expression needs an `else` arm; the grammar closes one whose
+    // `else` never comes at the end of its lines so this can report it.
+    // Display text's `{if cond then text}` interpolation may leave it out.
+    if (
+      nodeRef.name === "LuauTernaryExpression" &&
+      nodeRef.node.parent?.name !== "LuauInterpolatedStringExpression_content"
+    ) {
+      const content = childNamed(nodeRef.node, "LuauTernaryExpression_content");
+      if (!content || !childNamed(content, "LuauElseExpression")) {
+        const ifKeyword = firstDescendant(nodeRef.node, LUAU_IF_KEYWORD);
+        this.error(
+          annotations,
+          IF_EXPRESSION_WITHOUT_ELSE,
+          ifKeyword?.from ?? nodeRef.from,
+          ifKeyword?.to ?? nodeRef.to,
+        );
+      }
     }
     if (nodeRef.name === "AssetCommandControl") {
       const context = getContextNames(nodeRef.node);

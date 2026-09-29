@@ -2038,13 +2038,13 @@ end
     fixture: "BuiltinsFixture",
     checks: [
       {
+        malformed: "`if l0.n0.n0 then … elseif _ then not _` has no else",
         source: `
         _ = if l0.n0.n0 then {n4(...,setmetatable(setmetatable(_),_)),_ == _,} elseif _.ceil._ then _ elseif _ then not _
     `,
         expect: [{ errors: "some" }],
       },
       {
-        unparsed: { defect: 923 }, // an if expression with an = before its else
         source: `
         do
         _ = if _[_] then {[_(\`\`)]="y",} elseif _ then _ elseif _[_] then "" elseif _ then _ elseif _[_] then {} elseif _[_] then false else ""
@@ -2108,6 +2108,7 @@ end
     // TypeInfer.test.cpp:2460 TEST_CASE_FIXTURE(Fixture, "read_table_type_refinements_persist_scope")
     name: "read_table_type_refinements_persist_scope",
     fixture: "Fixture",
+    malformed: "`else if _[…].setmetatable then if _ then _ … else ...` gives the middle if expression no else",
     source: `
 _ = {n0=_,},if _._ then ... else if _[if _ then _ else ({nil,})].setmetatable then if _ then _ elseif l0 then ... elseif _.n0 then _ elseif function<A>(l0)
 return _._G,_
@@ -2423,6 +2424,7 @@ export type t12 = {
     // TypeInfer.test.cpp:2796 TEST_CASE_FIXTURE(BuiltinsFixture, "fuzzer_missing_follow_in_instantiation2")
     name: "fuzzer_missing_follow_in_instantiation2",
     fixture: "BuiltinsFixture",
+    malformed: "the inner if expression takes the first else, so `elseif rawset(_) then (true)` leaves the outer one with no else",
     source: `
         _ = if {l0._,} then if _ then _ elseif rawset({[_]=_,[{_._,}]=_,}) then _ else {_._,} elseif rawset(_) then (true),""
     `,

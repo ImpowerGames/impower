@@ -428,9 +428,19 @@ describe("if expression across lines", () => {
       "Value 2.\n",
     ],
     [
-      "a value on the line after each keyword",
-      "Value {f()}.\nfunction f()\n  local x = if\n    false\n  then\n    1\n  else\n    2\n  return x\nend\n",
+      "a value on the line after then and else",
+      "Value {f()}.\nfunction f()\n  local x = if false\n  then\n    1\n  else\n    2\n  return x\nend\n",
       "Value 2.\n",
+    ],
+    [
+      "nested",
+      "Value {f()}.\nfunction f()\n  local y = if true\n    then if false\n      then 1\n      else 2\n    else 3\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "nested in the else arm",
+      "Value {f()}.\nfunction f()\n  local y = if false\n    then 1\n    else if false\n      then 2\n      else 3\n  return y\nend\n",
+      "Value 3.\n",
     ],
     [
       "a call argument",
@@ -449,6 +459,59 @@ describe("if expression across lines", () => {
       warnings: ctx.warningMessages,
       text: ctx.story.ContinueMaximally(),
     }).toEqual({ errors: [], warnings: [], text: expected });
+  });
+});
+
+// After `=`, `return` or an opening bracket, an `if` begins an expression
+// even when an `=` comes before its else, as in a table field.
+describe("if expression with an = before its else", () => {
+  test.each([
+    ['local x = if t[1] then {a = "y"} else 2\n  return x.a', "Value y.\n"],
+    ['local x = if t then {[1] = "y"} else 2\n  return x[1]', "Value y.\n"],
+    ['return if true then "a=b" else "c"', "Value a=b.\n"],
+    ["return if next({a = 1}) then 1 else 2", "Value 1.\n"],
+  ])("%s", (body, expected) => {
+    const ctx = makeRuntimeStoryFromSource(
+      `Value {f()}.\nfunction f()\n  local t = {1}\n  ${body}\nend\n`,
+    );
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(expected);
+  });
+});
+
+// Luau rejects an if expression with no else arm. One whose then or else is
+// not yet written ends with its own lines, so the lines and functions after
+// it are still read as they are written.
+describe("if expression without an else", () => {
+  const MISSING_ELSE = "Expected 'else' when parsing if then else expression";
+
+  test.each([
+    ["no then yet", "  local y = if true\n"],
+    ["no else yet", "  local y = if true\n    then 1\n"],
+    ["no else on one line", "  local y = if true then 1\n"],
+    ["a bare if", "  local y = if\n"],
+  ])("%s: reports it and keeps what follows", (_name, partial) => {
+    const ctx = makeRuntimeStoryFromSource(
+      `The door is open.\nSum {g()}.\nfunction f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nYou walk through it.\n`,
+    );
+    expect(ctx.errorMessages.filter((m) => m.includes(MISSING_ELSE))).toHaveLength(1);
+    expect(ctx.warningMessages.filter((m) => m.includes("Unknown global"))).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(
+      "The door is open.\nSum 6.\nYou walk through it.\n",
+    );
+  });
+
+  test("in a call argument, an index and a table", () => {
+    for (const expr of ["print(if c then 1)", "local t = {}\n  print(t[if c then 1])", "local t = {if c then 1}"]) {
+      const ctx = makeRuntimeStoryFromSource(`function f(c)\n  ${expr}\nend\n`);
+      expect(ctx.errorMessages.filter((m) => m.includes(MISSING_ELSE)), expr).toHaveLength(1);
+    }
+  });
+
+  test("display text may leave out the else", () => {
+    const ctx = makeRuntimeStoryFromSource(`A {if f() then "B"}.\nfunction f()\n  return true\nend\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("A B.\n");
   });
 });
 
