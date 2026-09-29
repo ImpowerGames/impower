@@ -1793,6 +1793,65 @@ const MERGEABLE: Set<string> = new Set([
 const isMergeable = (a: string, b: string) =>
   MERGEABLE.has(`${a}|${b}`) || MERGEABLE.has(`${b}|${a}`);
 
+// Folds quote rewrites into already-resolved edits. An edit that only
+// touches a rewrite changes different characters (`'x' .. 'y'` rewrites
+// `'x'` and the space after it), so the two are joined into one edit,
+// since touching edits are not applied independently. An edit inside a
+// rewrite's range gives way to it unless it outranks it.
+const foldQuoteRewrites = (
+  resolved: (TextEdit & { type: string })[],
+  quotes: (TextEdit & { type: string })[],
+  start: (e: TextEdit) => number,
+  end: (e: TextEdit) => number,
+): TextEdit[] => {
+  const result = [...resolved];
+  for (const quote of quotes) {
+    const q = structuredClone(quote);
+    const touching: (TextEdit & { type: string })[] = [];
+    let outranked = false;
+    for (const other of result) {
+      if (end(other) < start(q) || start(other) > end(q)) continue;
+      if (end(other) === start(q) || start(other) === end(q)) {
+        touching.push(other);
+      } else if (precedence(other.type) > precedence(q.type)) {
+        outranked = true;
+      }
+    }
+    if (outranked) continue;
+    const from = start(q);
+    const to = end(q);
+    // Edits wholly inside the rewrite give way to it.
+    const kept = result.filter(
+      (other) =>
+        touching.includes(other) ||
+        end(other) < from ||
+        start(other) > to,
+    );
+    let before = "";
+    let after = "";
+    for (const other of touching) {
+      if (end(other) === from && start(other) < from) {
+        before += other.newText;
+        q.range.start = other.range.start;
+      } else if (start(other) === to && end(other) > to) {
+        after += other.newText;
+        q.range.end = other.range.end;
+      } else if (start(other) === from) {
+        // A zero-width edit at the rewrite's start.
+        before += other.newText;
+      } else {
+        // A zero-width edit at the rewrite's end.
+        after += other.newText;
+      }
+    }
+    q.newText = before + q.newText + after;
+    result.length = 0;
+    result.push(...kept.filter((other) => !touching.includes(other)), q);
+    result.sort((a, b) => start(a) - start(b) || end(a) - end(b));
+  }
+  return result;
+};
+
 export const resolveFormattingConflicts = (
   edits: (TextEdit & { type: string })[] | undefined,
   document: SparkdownDocument,
@@ -1803,6 +1862,21 @@ export const resolveFormattingConflicts = (
 
   const start = (e: TextEdit) => document.offsetAt(e.range.start);
   const end = (e: TextEdit) => document.offsetAt(e.range.end);
+
+  // A quote rewrite (`'x'` → `"x"`) changes only the string's own
+  // characters, so it is folded in after the whitespace edits around it
+  // have been resolved against each other: folding it in first would
+  // join each of them to the rewrite, and two edits at one boundary
+  // (`'a'|'b'`) would both keep their space.
+  if (edits.some((e) => e.type === "quote_normalize")) {
+    const rest = resolveFormattingConflicts(
+      edits.filter((e) => e.type !== "quote_normalize"),
+      document,
+      formattingOnType,
+    ) as (TextEdit & { type: string })[];
+    const quotes = edits.filter((e) => e.type === "quote_normalize");
+    return foldQuoteRewrites(rest, quotes, start, end);
+  }
 
   // Union the prev edit's range with curr's, keeping prev's `newText`.
   const unionInto = (
@@ -1873,19 +1947,6 @@ export const resolveFormattingConflicts = (
       } else {
         unionInto(prev, curr);
       }
-      continue;
-    }
-
-    // A quote rewrite and a whitespace edit that only touch each other
-    // change different characters (`'x' .. 'y'` rewrites `'x'` and the
-    // space after it), so both apply: join them into one edit.
-    if (
-      end(prev) === start(curr) &&
-      (prev.type === "quote_normalize" || curr.type === "quote_normalize")
-    ) {
-      prev.newText += curr.newText;
-      prev.range.end = curr.range.end;
-      prev.type = "quote_normalize";
       continue;
     }
 

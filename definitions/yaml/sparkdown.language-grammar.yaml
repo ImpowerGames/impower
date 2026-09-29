@@ -300,10 +300,18 @@ variables:
   # tables, parentheses), which keep `?`: a value followed by a stray `?`, as in
   # a `x :: T?` cast that does not parse yet (#877), still takes the whitespace
   # before it as a separator, so formatting settles. Rules that a type can also
-  # be (strings and booleans) use the one above, because a type is glued to its
-  # `?`. Like it, this adds exactly one capture group to the host rule.
+  # be (strings and booleans) use `_LUAU_SHARED_OPERATOR_AHEAD_` below, because a
+  # type is glued to its `?`. Like the one above, this adds exactly one capture
+  # group to the host rule.
   LUAU_VALUE_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}}|[?])
   _LUAU_VALUE_OPERATOR_AHEAD_: (?:({{WS}}*)(?={{LUAU_VALUE_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
+  # The same lookahead for the rules a type and a value share (strings and
+  # booleans). As a type argument (`Box<"ok">`, `Box<true>`) one is followed
+  # directly by its generic's `>`, which is not a comparison, so no separator
+  # is taken before a `>` right after it. A comparison written with a space
+  # (`"a" > "b"`) still takes that space as a separator. Like the one above,
+  # this adds exactly one capture group to the host rule.
+  _LUAU_SHARED_OPERATOR_AHEAD_: (?:({{WS}}+|(?![>]))(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
   # The same lookahead for the type-only rules (names, primitives and the
   # bracketed types). A `<` or `>` after a type is a generic's bracket, never a
   # comparison, so it is not an operator here: the bracket stays glued to the
@@ -7953,7 +7961,7 @@ repository:
       - { include: "#LuauDoubleQuotedStringInterpolation" }
       - { include: "#Color" }
       - { include: "#PlainText" }
-    end: (["]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: (["]){{_LUAU_SHARED_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -7975,7 +7983,7 @@ repository:
       - { include: "#LuauStringEscape" }
       - { include: "#Color" }
       - { include: "#PlainText" }
-    end: ([']){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: ([']){{_LUAU_SHARED_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -8244,7 +8252,7 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauBoolean:
-    match: (true|false)\b{{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (true|false)\b{{_LUAU_SHARED_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: bool

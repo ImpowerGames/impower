@@ -39,6 +39,39 @@ Hello.
   expectFormatsTo(source, source);
 });
 
+test("formatting leaves a string or boolean type argument's closing bracket tight", () => {
+  const source = `local s: Box<"ok"> = nil
+local t: Box<'ok'> = nil
+local b: Box<true> = nil
+local n: Array<number?> = {}
+Hello.
+`;
+  expectFormatsTo(
+    source,
+    `local s: Box<"ok"> = nil
+local t: Box<"ok"> = nil
+local b: Box<true> = nil
+local n: Array<number?> = {}
+Hello.
+`,
+  );
+});
+
+test("formatting keeps the spaces of a comparison between strings or booleans", () => {
+  expectFormatsTo(
+    `local c = "a" > "b"
+local d = "a">"b"
+local e = true == false
+Hello.
+`,
+    `local c = "a" > "b"
+local d = "a" > "b"
+local e = true == false
+Hello.
+`,
+  );
+});
+
 test("formatting keeps the spaces of a comparison between names", () => {
   const source = `local c = a < b
 local d = a > b
@@ -115,6 +148,23 @@ Hello.
     `local s = "x" .. "y"
 local t = "x"
 local u: "x"? = nil
+Hello.
+`,
+  );
+});
+
+test("formatting a single-quoted string before a tight operator gives one space on each side", () => {
+  expectFormatsTo(
+    `type T = 'a'|'b'
+local w: 'a'&'b' = nil
+local x = 'a'+'b'
+local y = 'a'=="b"
+Hello.
+`,
+    `type T = "a" | "b"
+local w: "a" & "b" = nil
+local x = "a" + "b"
+local y = "a" == "b"
 Hello.
 `,
   );
