@@ -1,13 +1,13 @@
 // #1056 — a `store` with no value holds nil, and a story state holding it
 // serializes and reloads.
 //
-// `VariablesState.WriteJson` compares each global with its default through
-// `RuntimeObjectsEqual`, which read `valueObject.Equals` on a nil value's
-// `null` valueObject and threw, so the preview's route planner (and any save)
-// never got past writing the state.
+// A nil global compares equal to a nil default, so it serializes and is left
+// out of the save like any other unchanged store; a nil written over a
+// non-nil default is saved and reloaded as nil.
 
 import { describe, expect, test } from "vitest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { NullValue } from "../../inkjs/engine/Value";
 import { VariablesState } from "../../inkjs/engine/VariablesState";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
@@ -24,7 +24,7 @@ describe("a story state holding a nil store", () => {
     expect(() => story.state.toJson()).not.toThrow();
   });
 
-  test("a nil store saves and loads as nil", () => {
+  test("a nil store reloads as nil", () => {
     const src = "store trust\n\nHello there.\ndone\n";
     const { story, compiledJson } = makeRuntimeStoryFromSource(src);
     const saved = story.state.toJson();
@@ -33,8 +33,20 @@ describe("a story state holding a nil store", () => {
     loaded.state.LoadJson(saved);
     const trust = loaded.state.variablesState.GetVariableWithName("trust");
     expect(trust).not.toBeNull();
-    expect((trust as any).valueObject).toBeNull();
+    expect(trust).toBeInstanceOf(NullValue);
     expect(() => loaded.state.toJson()).not.toThrow();
+  });
+
+  test("a nil written over a non-nil default saves and loads as nil", () => {
+    const src = "store trust = 1\n\ntrust = nil\nHello there.\ndone\n";
+    const { story, compiledJson } = makeRuntimeStoryFromSource(src);
+    story.ContinueMaximally();
+    const saved = story.state.toJson();
+    expect(JSON.parse(saved).variablesState.trust).toBe("nil");
+
+    const loaded = new RuntimeStory(compiledJson as Record<string, any>);
+    loaded.state.LoadJson(saved);
+    expect(loaded.state.variablesState.GetVariableWithName("trust")).toBeInstanceOf(NullValue);
   });
 
   test("a store equal to its default is still left out of the save", () => {
