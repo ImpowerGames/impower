@@ -360,6 +360,41 @@ end
     ).toEqual(["2:0-4:3 DuplicateTypeDefinition:"]);
   });
 
+  // A nameless declaration is an editing state; its placeholder name is not a
+  // name an author wrote, so two of them are not a duplicate.
+  test("two nameless declarations are not a duplicate", () => {
+    const diagnostics = check(`
+type function (t)
+    return t
+end
+type function (u)
+    return u
+end
+`);
+    expect(diagnostics.filter((d) => d.includes("DuplicateTypeDefinition"))).toEqual([]);
+    expect(diagnostics.join("\n")).not.toContain("%error-id%");
+  });
+
+  test("a use inside a function reports that it cannot be evaluated once, on the use", () => {
+    const diagnostics = check(`
+function f()
+    type function F(t)
+        return t
+    end
+    local function g(): F<string>
+        return 1
+    end
+    return g()
+end
+`);
+    // The enclosing functions and the call of `g` carry the instance too, and
+    // a call of `g` is not a mismatch for it.
+    expect(diagnostics).toEqual([
+      `5:24-5:33 UserDefinedTypeFunctionError: ${CANNOT_EVALUATE}`,
+      "6:15-6:16 TypeMismatch: Expected this to be 'F<string>', but got 'number'; \nthe reduced type is `never`, and `number` is not a subtype of `never`",
+    ]);
+  });
+
   test("a script's top-level one reaches the checker", () => {
     const text = `---
 typecheck: strict
@@ -375,6 +410,40 @@ local x: U = 1
       `7:9-7:18 ${CANNOT_EVALUATE}`,
       "8:13-8:14 Expected this to be 'F<string>', but got 'number'; \nthe reduced type is `never`, and `number` is not a subtype of `never`",
     ]);
+  });
+
+  test("a use inside a script function reports that it cannot be evaluated once, on the use", () => {
+    const text = `---
+typecheck: strict
+---
+
+function f()
+  type function F(t)
+    return t
+  end
+  local function g(): F<string>
+    return 1
+  end
+  return g()
+end
+
+& f()
+done
+`;
+    expect(scriptDiagnostics(text).filter((d) => d.includes(CANNOT_EVALUATE))).toEqual([`8:22-8:31 ${CANNOT_EVALUATE}`]);
+  });
+
+  // A script is checked in non-strict mode unless it asks for strict. Luau's
+  // non-strict mode does not report a type function that cannot be reduced,
+  // for a builtin type function as for a user-defined one.
+  test("a script in the default mode reports nothing for a use", () => {
+    const text = `type function F(t)
+    return t
+end
+type U = F<string>
+local x: U = 1
+`;
+    expect(scriptDiagnostics(text)).toEqual([]);
   });
 
   test("a script's top-level one that nothing uses reports nothing", () => {

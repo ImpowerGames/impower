@@ -589,7 +589,7 @@ export class ConstraintGenerator {
   /** The private scope of each type alias, which its type parameters belong to. */
   private readonly astTypeAliasDefiningScopes = new Map<AstStatTypeAlias, Scope>();
 
-  /** The type function environment scope each type function's body is checked in. */
+  /** The environment scope each type function's body is checked in, which the type functions of one block share. */
   private readonly astTypeFunctionEnvironmentScopes = new Map<AstStatTypeFunction, Scope>();
 
   readonly dfg: DataFlowGraph;
@@ -1079,6 +1079,11 @@ export class ConstraintGenerator {
         const fn = stat;
         hasTypeFunction = true;
 
+        // A syntactically illegal type function may have no name, and then no
+        // type is bound for it, as for a type alias. Luau binds its
+        // placeholder name, which would show in a duplicate's error.
+        if (fn.name === kParseNameError) continue;
+
         const loc = typeNameLocations.get(fn.name);
         if (loc) {
           this.reportError(fn.location, { kind: "DuplicateTypeDefinition", name: fn.name, previousLocation: loc });
@@ -1136,10 +1141,10 @@ export class ConstraintGenerator {
   }
 
   /**
-   * Fills in the environments of the block's type functions: the scope each
-   * body is checked in, under the type function runtime's, where each type
-   * function of the block is a value; and the type functions and type aliases
-   * of the module's enclosing scopes that each one can see.
+   * Fills in the environments of the block's type functions: the one scope
+   * all their bodies are checked in, under the type function runtime's, where
+   * each type function of the block is a value; and the type functions and
+   * type aliases of the module's enclosing scopes that each one can see.
    */
   private prototypeTypeFunctionEnvironment(scope: Scope, block: AstStatBlock): void {
     const typeFunctionEnvScope = Scope.child(this.typeFunctionRuntime.rootScope!);

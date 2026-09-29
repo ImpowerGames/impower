@@ -492,6 +492,8 @@ export class TypeChecker2 {
   functionDeclStack: TypeId[] = [];
 
   seenTypeFunctionInstances = new Set<TypeId>();
+  /** The types checked where an annotation names them, which may also be an expression's type. */
+  seenAnnotatedTypeFunctionInstances = new Set<TypeId>();
 
   readonly normalizer: Normalizer;
   readonly subtyping: Subtyping;
@@ -667,9 +669,18 @@ export class TypeChecker2 {
     for (const internal of finder.internalPackFunctions) this.reportError({ kind: "PackWhereClauseNeeded", tp: internal }, location);
   }
 
-  private checkForTypeFunctionInhabitance(instance: TypeId, location: Location): TypeId {
-    if (this.seenTypeFunctionInstances.has(instance)) return instance;
-    this.seenTypeFunctionInstances.add(instance);
+  /**
+   * `inAnnotation` says the type is where an annotation names it. A
+   * user-defined type function that cannot be evaluated is reported only
+   * there: Luau reports it wherever an expression's type contains the
+   * instance, which with a VM happens only when evaluation itself fails, but
+   * Sparkdown has no VM, so every enclosing function, call and flow that
+   * carries the instance would repeat it where the author never named it.
+   */
+  private checkForTypeFunctionInhabitance(instance: TypeId, location: Location, inAnnotation = false): TypeId {
+    const seen = inAnnotation ? this.seenAnnotatedTypeFunctionInstances : this.seenTypeFunctionInstances;
+    if (seen.has(instance)) return instance;
+    seen.add(instance);
 
     const context = new TypeFunctionContext({
       arena: this.module.internalTypes,
@@ -681,7 +692,8 @@ export class TypeChecker2 {
       subtyping: this.subtyping,
     });
 
-    const errors = reduceTypeFunctions(instance, location, context, true).errors;
+    let errors = reduceTypeFunctions(instance, location, context, true).errors;
+    if (!inAnnotation) errors = errors.filter((e) => e.data.kind !== "UserDefinedTypeFunctionError");
     if (!this.isErrorSuppressing(location, instance)) this.reportErrors(errors);
     return instance;
   }
@@ -713,7 +725,7 @@ export class TypeChecker2 {
 
     if (this.module.constraintGenerationDidNotComplete && !ty) return this.builtinTypes.anyType;
 
-    return this.checkForTypeFunctionInhabitance(follow(ty!), annotation.location);
+    return this.checkForTypeFunctionInhabitance(follow(ty!), annotation.location, /* inAnnotation */ true);
   }
 
   private lookupPackAnnotation(annotation: AstTypePack): TypePackId | undefined {
@@ -2454,7 +2466,7 @@ export class TypeChecker2 {
 
   private visitType(ty: AstType): void {
     const resolvedTy = this.module.astResolvedTypes.get(ty);
-    if (resolvedTy) this.checkForTypeFunctionInhabitance(follow(resolvedTy), ty.location);
+    if (resolvedTy) this.checkForTypeFunctionInhabitance(follow(resolvedTy), ty.location, /* inAnnotation */ true);
 
     if (ty instanceof AstTypeReference) return this.visitTypeReference(ty);
     else if (ty instanceof AstTypeTable) return this.visitTypeTable(ty);
