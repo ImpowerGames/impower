@@ -73,6 +73,9 @@ describe("a local statement ends at a `;` directly after its value", () => {
     ["local x = if --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
     ["local foo = - --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
     ["local foo = - --[=[c]=] ;", "Expected identifier when parsing expression, got ';'"],
+    // A level-1 comment holding a level-0 close (`]]`) ends only at `]=]`.
+    ["local x: --[=[ ]] ]=] ;", "Expected type, got ';'"],
+    ["local x = if --[=[ ]] ]=] ;", "Expected identifier when parsing expression, got ';'"],
     ["local x: -- missing type\n;", "Expected type, got ';'"],
     ["local x = if -- missing value\n;", "Expected identifier when parsing expression, got ';'"],
     ["local foo = - -- missing operand\n;", "Expected identifier when parsing expression, got ';'"],

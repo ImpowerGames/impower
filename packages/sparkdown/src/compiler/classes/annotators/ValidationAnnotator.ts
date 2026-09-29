@@ -359,8 +359,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // An operator or `if` with only line breaks before the `;` that ends its
-    // statement has no right operand; the grammar reads it as its own token.
+    // An operator or `if` with only whitespace, line breaks or comments before
+    // the `;` that ends its statement has no right operand; the grammar reads
+    // it as its own token.
     if (nodeRef.name === "LuauOperatorMissingOperand") {
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;

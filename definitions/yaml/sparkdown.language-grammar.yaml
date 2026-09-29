@@ -278,13 +278,12 @@ variables:
   LUAU_TYPE_WHITESPACE_END: (?:{{WS}}(?!{{WS}}*(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|[&]|[|])))
   LUAU_TYPE_BINARY_OPERATORS: (?:[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
-  # A Luau comment, which Luau reads as trivia. A block comment's content may
-  # not hold a closing bracket of any level, so it ends at the first one and a
-  # comment that holds one (`--[=[ ]] ]=]`) is not skipped at all.
-  LUAU_TRIVIA_COMMENT: (?:--\[=*\[(?:[^\]]|\](?!=*\]))*\]=*\]|--(?!\[=*\[)[^\r\n]*)
   # The `;` that ends a statement, after any whitespace, line breaks and
-  # comments.
-  LUAU_SEMICOLON_AHEAD: (?:(?:{{WS}}|[\r\n]|{{LUAU_TRIVIA_COMMENT}})*[;])
+  # comments, which Luau reads as trivia. A block comment ends at the first
+  # closing bracket of its own level, as `LuauBlockComment` does, so its level
+  # is captured and matched by `\4`: every rule using this must put exactly
+  # three capture groups before it.
+  _LUAU_SEMICOLON_AHEAD_: (?:(?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*)*[;])
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
@@ -8505,7 +8504,7 @@ repository:
   LuauOperatorMissingOperand:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if)(?!\w))({{WS}}*)(?={{LUAU_SEMICOLON_AHEAD}})
+    match: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if)(?!\w))({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
 
   # A type annotation `:` with no type before the `;` that ends its statement
   # (`local x: ;`), read as one token as `LuauOperatorMissingOperand` reads
@@ -8513,7 +8512,7 @@ repository:
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{LUAU_SEMICOLON_AHEAD}})
+    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
