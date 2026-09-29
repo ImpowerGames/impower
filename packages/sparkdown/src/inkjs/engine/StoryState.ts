@@ -821,7 +821,22 @@ export class StoryState {
       // head/tail whitespace splitting and the newline trimming in
       // PushToOutputStreamIndividual, which would otherwise drop a
       // whitespace-only string's content entirely.
+      //
+      // A function called from inside the open string (its start is after the
+      // string's `BeginString`) still drops newlines until it shows something,
+      // as it does outside a string: a loop's pass newlines would otherwise
+      // pile up in the string, and reach it past a later `print`. A string
+      // opened inside the function starts at or after the function's start,
+      // so its literal newlines are kept.
       if (this.inStringEvaluation) {
+        const currEl = this.callStack.currentElement!;
+        if (
+          currEl.type == PushPopType.Function &&
+          currEl.functionStartInOutputStream > this._openStringIndex
+        ) {
+          if (text.isNewline) return;
+          if (text.isNonWhitespace) this.MarkFunctionsShown();
+        }
         this.outputStream.push(text);
         this.OutputStreamDirty();
         return;
