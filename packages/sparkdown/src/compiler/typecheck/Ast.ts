@@ -634,6 +634,21 @@ export class AstStatTypeAlias extends AstStat {
   }
 }
 
+export class AstStatTypeFunction extends AstStat {
+  readonly kind = "StatTypeFunction";
+  constructor(
+    location: Location,
+    public name: string,
+    public nameLocation: Location,
+    public body: AstExprFunction,
+    public exported: boolean,
+    /** Whether the declaration has parse errors, which keep a use of it from being evaluated. */
+    public hasErrors: boolean,
+  ) {
+    super(location);
+  }
+}
+
 export class AstStatDeclareGlobal extends AstStat {
   readonly kind = "StatDeclareGlobal";
   constructor(
@@ -1000,7 +1015,8 @@ export function visitAst(node: AstNode, v: AstVisitor): void {
     for (const g of node.generics) visitAst(g, v);
     for (const g of node.genericPacks) visitAst(g, v);
     visitAst(node.type, v);
-  } else if (node instanceof AstStatDeclareGlobal) visitAst(node.type, v);
+  } else if (node instanceof AstStatTypeFunction) visitAst(node.body, v);
+  else if (node instanceof AstStatDeclareGlobal) visitAst(node.type, v);
   else if (node instanceof AstStatDeclareFunction) {
     visitTypeList(v, node.params);
     visitAst(node.retTypes, v);

@@ -53,6 +53,7 @@ import {
   AstStatRepeat,
   AstStatReturn,
   AstStatTypeAlias,
+  AstStatTypeFunction,
   AstStatWhile,
   AstTypeFunction,
   AstTypeGroup,
@@ -307,6 +308,8 @@ class NonStrictTypeChecker {
       else if (stat instanceof AstStatFunction) return this.visitStatFunction(stat);
       else if (stat instanceof AstStatLocalFunction) return this.visitStatLocalFunction(stat);
       else if (stat instanceof AstStatTypeAlias) return this.visitStatTypeAlias(stat);
+      // Non-strict mode leaves a type function's body unchecked.
+      else if (stat instanceof AstStatTypeFunction) return new NonStrictContext();
       else if (stat instanceof AstStatDeclareFunction) return this.visitStatDeclareFunction(stat);
       else if (stat instanceof AstStatDeclareGlobal) return this.visitStatDeclareGlobal(stat);
       else if (stat instanceof AstStatDeclareExternType) return this.visitStatDeclareExternType(stat);
