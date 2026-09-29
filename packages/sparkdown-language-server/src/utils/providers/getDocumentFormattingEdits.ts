@@ -1605,9 +1605,16 @@ export const getFormatting = (
         // Strip redundant `\'` escapes — single-quote doesn't need
         // escaping inside a double-quoted string.
         const newContent = contentText.split("\\'").join("'");
+        // Stop at the closing quote: the node also holds the whitespace
+        // after it, which belongs to the separator edits around the next
+        // operator (`'x' .. 'y'`), and replacing it here would drop them.
+        const quoteEnd =
+          document.read(endNode.from, endNode.from + 1) === "'"
+            ? endNode.from + 1
+            : endNode.from;
         const range: Range = {
           start: document.positionAt(node.from),
-          end: document.positionAt(node.to),
+          end: document.positionAt(quoteEnd),
         };
         pushIfInRange({
           lineNumber: range.start.line + 1,
@@ -1866,6 +1873,19 @@ export const resolveFormattingConflicts = (
       } else {
         unionInto(prev, curr);
       }
+      continue;
+    }
+
+    // A quote rewrite and a whitespace edit that only touch each other
+    // change different characters (`'x' .. 'y'` rewrites `'x'` and the
+    // space after it), so both apply: join them into one edit.
+    if (
+      end(prev) === start(curr) &&
+      (prev.type === "quote_normalize" || curr.type === "quote_normalize")
+    ) {
+      prev.newText += curr.newText;
+      prev.range.end = curr.range.end;
+      prev.type = "quote_normalize";
       continue;
     }
 

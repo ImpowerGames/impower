@@ -50,6 +50,18 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "BranchKeyword",
 ]);
 
+// Binary operators spelled with punctuation that the formatter's
+// separator rule tightens against, mapped to their spelling and the
+// sides that need a forced space. `.` tightens on both sides, so `..`
+// forces both. `:` tightens only before it: the separator after `::`
+// already gives one space, and a forced one there would add a second.
+const SPACED_PUNCTUATION_OPERATORS: Partial<
+  Record<SparkdownNodeName, { spelling: string; forceAfter: boolean }>
+> = {
+  LuauConcatOperator: { spelling: "..", forceAfter: true },
+  LuauTypeCastOperator: { spelling: "::", forceAfter: false },
+};
+
 // Alternator forms whose ARM CONTENT is *display text* (not a Luau
 // expression). These carry typing-pacing significance: whitespace
 // between/around the `|` separators is part of the rendered output,
@@ -410,14 +422,16 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     }
     // Binary operators whose character spelling would trip the
     // default `separator` dispatch (because of `NO_SPACE_AFTER`/
-    // `NO_SPACE_BEFORE` rules for `.`). Emit `keyword_separator`
+    // `NO_SPACE_BEFORE` rules for `.` and `:`). Emit `keyword_separator`
     // at the actual operator-token boundaries so the formatter
-    // forces single spaces regardless of the `.` rule.
+    // forces single spaces regardless of those rules.
     // `..` (concat) is the main one — `"a".."b"` should be
-    // `"a" .. "b"`.
-    if (nodeRef.name === "LuauConcatOperator") {
-      // Find the `..` position by scanning past any leading WS the
-      // operator scope captured into its begin pattern.
+    // `"a" .. "b"` — and `::` (type cast) is the other: `y :: number`
+    // keeps its space before the `::`.
+    const spacedOperator = SPACED_PUNCTUATION_OPERATORS[nodeRef.name];
+    if (spacedOperator) {
+      // Find the operator's position by scanning past any leading WS
+      // the operator scope captured into its begin pattern.
       let opStart = nodeRef.from;
       while (
         opStart < nodeRef.to &&
@@ -426,8 +440,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       ) {
         opStart += 1;
       }
-      if (this.read(opStart, opStart + 2) === "..") {
-        const opEnd = opStart + 2;
+      const { spelling, forceAfter } = spacedOperator;
+      if (this.read(opStart, opStart + spelling.length) === spelling) {
+        const opEnd = opStart + spelling.length;
         // Suppress emissions adjacent to line breaks — line-leading
         // and line-trailing whitespace is handled by `indent` /
         // `trailing` dispatch, not by separator insertion.
@@ -470,7 +485,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
             ),
           );
         }
-        if (!isLineBreak(after)) {
+        if (forceAfter && !isLineBreak(after)) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
               opEnd,

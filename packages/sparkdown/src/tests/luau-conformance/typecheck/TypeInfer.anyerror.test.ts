@@ -305,7 +305,6 @@ local bar = foo.nutrition + 100
     // TypeInfer.anyerror.test.cpp:379 TEST_CASE_FIXTURE(Fixture, "prop_access_on_any_with_other_options")
     name: "prop_access_on_any_with_other_options",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function f(thing: any | string)
             local foo = thing.SomeRandomKey

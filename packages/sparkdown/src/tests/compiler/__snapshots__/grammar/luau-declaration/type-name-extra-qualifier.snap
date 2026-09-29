@@ -65,9 +65,10 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c3 [30..32]: "ui"
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c4 [32..39]
  │   │       │   │   │       │   │   │       │       │   └─ LuauTypeNameExtraQualifier [32..39]: ".Button"
- │   │       │   │   │       │   │   │       │       └─ LuauTypeName_c5 [39..40]
- │   │       │   │   │       │   │   │       │           └─ LuauTypeName_c5 [39..40]
- │   │       │   │   │       │   │   │       │               └─ OptionalWhitespace [39..40]: " "
+ │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c5 [39..40]
+ │   │       │   │   │       │   │   │       │       │   └─ LuauTypeName_c5 [39..40]
+ │   │       │   │   │       │   │   │       │       │       └─ OptionalWhitespace [39..40]: " "
+ │   │       │   │   │       │   │   │       │       └─ LuauTypeName_c6 40
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 40
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 40
  │   │       │   │   │       │   └─ LuauAssignmentOperation [40..43]
@@ -130,9 +131,8 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c3 [57..58]: "b"
  │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c4 [58..64]
  │   │       │   │   │       │   │   │       │   │   │   └─ LuauTypeNameExtraQualifier [58..64]: ".c.Foo"
- │   │       │   │   │       │   │   │       │   │   └─ LuauTypeName_c5 64
- │   │       │   │   │       │   │   │       │   │       └─ LuauTypeName_c5 64
- │   │       │   │   │       │   │   │       │   │           └─ OptionalWhitespace 64
+ │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeName_c5 64
+ │   │       │   │   │       │   │   │       │   │   └─ LuauTypeName_c6 64
  │   │       │   │   │       │   │   │       │   ├─ LuauTypeGenerics [64..72]
  │   │       │   │   │       │   │   │       │   │   ├─ LuauTypeGenerics_begin [64..65]
  │   │       │   │   │       │   │   │       │   │   │   └─ LuauTypeGenerics_begin_c1 [64..65]
@@ -143,13 +143,14 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │   │   │       ├─ LuauTypeLiteral_content [65..71]
  │   │       │   │   │       │   │   │       │   │   │       │   └─ LuauPrimitiveType [65..71]
  │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauPrimitiveType_c1 [65..71]: "number"
- │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauPrimitiveType_c2 71
- │   │       │   │   │       │   │   │       │   │   │       │           └─ OptionalWhitespace 71
+ │   │       │   │   │       │   │   │       │   │   │       │       ├─ LuauPrimitiveType_c2 71
+ │   │       │   │   │       │   │   │       │   │   │       │       └─ LuauPrimitiveType_c3 71
  │   │       │   │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 71
  │   │       │   │   │       │   │   │       │   │   └─ LuauTypeGenerics_end [71..72]
  │   │       │   │   │       │   │   │       │   │       ├─ LuauTypeGenerics_end_c1 [71..72]
  │   │       │   │   │       │   │   │       │   │       │   └─ PunctuationAngleClose [71..72]: ">"
- │   │       │   │   │       │   │   │       │   │       └─ LuauTypeGenerics_end_c2 72
+ │   │       │   │   │       │   │   │       │   │       ├─ LuauTypeGenerics_end_c2 72
+ │   │       │   │   │       │   │   │       │   │       └─ LuauTypeGenerics_end_c3 72
  │   │       │   │   │       │   │   │       │   └─ LuauTypeOptionalOperator [72..74]
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c1 72
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeOptionalOperator_c2 [72..73]: "?"
@@ -220,9 +221,10 @@ sparkdown [0..130]
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c3 [99..101]: "ui"
  │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c4 [101..110]
  │   │       │   │   │       │   │   │       │       │   └─ LuauTypeNameExtraQualifier [101..110]: " . Button"
- │   │       │   │   │       │   │   │       │       └─ LuauTypeName_c5 [110..111]
- │   │       │   │   │       │   │   │       │           └─ LuauTypeName_c5 [110..111]
- │   │       │   │   │       │   │   │       │               └─ OptionalWhitespace [110..111]: " "
+ │   │       │   │   │       │   │   │       │       ├─ LuauTypeName_c5 [110..111]
+ │   │       │   │   │       │   │   │       │       │   └─ LuauTypeName_c5 [110..111]
+ │   │       │   │   │       │   │   │       │       │       └─ OptionalWhitespace [110..111]: " "
+ │   │       │   │   │       │   │   │       │       └─ LuauTypeName_c6 111
  │   │       │   │   │       │   │   │       └─ LuauTypeLiteral_end 111
  │   │       │   │   │       │   │   └─ LuauTypeAnnotationOperation_end 111
  │   │       │   │   │       │   └─ LuauAssignmentOperation [111..114]

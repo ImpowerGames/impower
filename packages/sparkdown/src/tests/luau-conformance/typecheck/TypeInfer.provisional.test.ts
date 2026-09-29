@@ -28,7 +28,6 @@ portUpstreamFile("TypeInfer.provisional.test.cpp", [
     // TypeInfer.provisional.test.cpp:99 TEST_CASE_FIXTURE(BuiltinsFixture, "luau-polyfill.Array.filter")
     name: "luau-polyfill.Array.filter",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 --!strict
 -- Implements Javascript's \`Array.prototype.filter\` as defined below
@@ -177,7 +176,6 @@ end
     // TypeInfer.provisional.test.cpp:290 TEST_CASE_FIXTURE(Fixture, "discriminate_from_x_not_equal_to_nil")
     name: "discriminate_from_x_not_equal_to_nil",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         type T = {x: string, y: number} | {x: nil, y: nil}
 
@@ -624,7 +622,7 @@ return wrapStrictTable(Constants, "Constants")
     fixture: "BuiltinsFixture",
     module: "Module/Map",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
+    unparsed: { defect: 1106 }, // a local statement followed directly by ;
     source: `
 --!strict
 
@@ -729,7 +727,7 @@ foo(1 :: any)
     name: "luau_roact_useState_nilable_state_1",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
+    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         type Dispatch<A> = (A) -> ()
         type BasicStateAction<S> = ((S) -> S) | S
@@ -758,7 +756,7 @@ foo(1 :: any)
     // TypeInfer.provisional.test.cpp:1192 TEST_CASE_FIXTURE(BuiltinsFixture, "luau_roact_useState_minimization")
     name: "luau_roact_useState_minimization",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
+    unparsed: { defect: 877 }, // a :: cast to a type that is not also an expression
     source: `
         type BasicStateAction<S> = ((S) -> S) | S
         type Dispatch<A> = (A) -> ()
@@ -940,7 +938,6 @@ foo(1 :: any)
     name: "indexing_union_of_indexers",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function foo(
             t: { [string]: number } | { [number]: number }
@@ -976,7 +973,6 @@ foo(1 :: any)
     // TypeInfer.provisional.test.cpp:1484 TEST_CASE_FIXTURE(Fixture, "while_loops_fail_to_apply_refinements_1")
     name: "while_loops_fail_to_apply_refinements_1",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 type walkoptions = {
 	recursive: boolean?,
@@ -995,7 +991,6 @@ end
     // TypeInfer.provisional.test.cpp:1510 TEST_CASE_FIXTURE(Fixture, "while_loops_fail_to_apply_refinements_2")
     name: "while_loops_fail_to_apply_refinements_2",
     fixture: "Fixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
 type walkoptions = {
 	recursive: boolean?,
@@ -1050,7 +1045,6 @@ end
     // TypeInfer.provisional.test.cpp:1595 TEST_CASE_FIXTURE(BuiltinsFixture, "union_super_with_multiple_free_members_over_constrains_lower_bounds")
     name: "union_super_with_multiple_free_members_over_constrains_lower_bounds",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local function f<T, U>(x: T | U, y: T): T
             return y
@@ -1074,7 +1068,6 @@ end
     // TypeInfer.provisional.test.cpp:1630 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_union_of_indexers_should_error")
     name: "cli_181248_union_of_indexers_should_error",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local tbl: { good: boolean } | { bad: boolean }
         local key: string
@@ -1086,7 +1079,6 @@ end
     // TypeInfer.provisional.test.cpp:1645 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_union_of_indexers_with_one_good_option_should_error")
     name: "cli_181248_union_of_indexers_with_one_good_option_should_error",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local tbl: { good: boolean } | { [string]: string }
         local key: string
@@ -1109,7 +1101,6 @@ end
     // TypeInfer.provisional.test.cpp:1675 TEST_CASE_FIXTURE(BuiltinsFixture, "cli_181248_unreduced_union_of_indexers")
     name: "cli_181248_unreduced_union_of_indexers",
     fixture: "BuiltinsFixture",
-    unparsed: { defect: 875 }, // a type union written with spaces around |
     source: `
         local tbl: { [string]: "hi" } | { [string]: string}
         local key: string

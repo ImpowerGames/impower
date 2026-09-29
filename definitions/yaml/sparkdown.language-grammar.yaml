@@ -262,8 +262,10 @@ variables:
   # optional type's `?`.
   LUAU_TYPE_END: (?:[\w)}\]>"'`?])
   # The whitespace that ends a type, unless the optional-type suffix follows
-  # it (`number ?`), which Luau allows and which still belongs to the type.
-  LUAU_TYPE_WHITESPACE_END: (?:{{WS}}(?!{{WS}}*{{LUAU_TYPE_OPTIONAL_OPERATOR}}))
+  # it (`number ?`), which Luau allows and which still belongs to the type,
+  # or a union or intersection operator does (`number | string`), which
+  # continues the type.
+  LUAU_TYPE_WHITESPACE_END: (?:{{WS}}(?!{{WS}}*(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|[&]|[|])))
   LUAU_TYPE_BINARY_OPERATORS: (?:[&]|[|]|[-][>])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
@@ -298,11 +300,18 @@ variables:
   # tables, parentheses), which keep `?`: a value followed by a stray `?`, as in
   # a `x :: T?` cast that does not parse yet (#877), still takes the whitespace
   # before it as a separator, so formatting settles. Rules that a type can also
-  # be (names, primitives, strings, booleans and the bracketed types) use the
-  # one above, because a type is glued to its `?`. Like it, this adds exactly
-  # one capture group to the host rule.
+  # be (strings and booleans) use the one above, because a type is glued to its
+  # `?`. Like it, this adds exactly one capture group to the host rule.
   LUAU_VALUE_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}}|[?])
   _LUAU_VALUE_OPERATOR_AHEAD_: (?:({{WS}}*)(?={{LUAU_VALUE_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
+  # The same lookahead for the type-only rules (names, primitives and the
+  # bracketed types). A `<` or `>` after a type is a generic's bracket, never a
+  # comparison, so it is not an operator here: the bracket stays glued to the
+  # type (`Array<number>`, `Map<string, number>`). Whitespace before it is
+  # taken as extra whitespace, which the formatter removes (`Array <number >`
+  # becomes `Array<number>`). This adds two capture groups to the host rule:
+  # the separator before an operator, then the whitespace before a bracket.
+  _LUAU_TYPE_OPERATOR_AHEAD_: (?:({{WS}}*)(?![<>])(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|({{WS}}+)(?=[<>])|(?=$|.))
 
 patterns:
   - { include: "#EndOfLine" }
@@ -8812,7 +8821,7 @@ repository:
   # `LuauTypeNameExtraQualifier`, so the validator can report them and the
   # rest of the line stays inside the enclosing scope.
   LuauTypeName:
-    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}})((?:{{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*{{LUAU_IDENTIFIER}})+)?{{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (?:({{LUAU_IDENTIFIER}})({{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*))?({{LUAU_IDENTIFIER}})((?:{{LUAU_TYPE_QUALIFIER_DOT}}{{WS}}*{{LUAU_IDENTIFIER}})+)?{{_LUAU_TYPE_OPERATOR_AHEAD_}}
     captures:
       1:
         patterns:
@@ -8831,6 +8840,9 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+      6:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauTypeNameExtraQualifier:
     tag: invalid
@@ -8901,12 +8913,15 @@ repository:
     name: invalid.illegal.luau
     match: ({{LUAU_TYPE_OPTIONAL_OPERATOR}})
 
+  # The whitespace before the operator is a separator, as after it, so a union
+  # keeps one space on each side of its `|` wherever it is written
+  # (`number | string`, `(number | string)`).
   LuauTypeBinaryOperation:
     begin: ({{WS}}*)(?={{LUAU_TYPE_BINARY_OPERATORS}})
     beginCaptures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauTypeBinaryOperator" }
       - { include: "#LuauComment" }
@@ -8982,7 +8997,7 @@ repository:
   # `(?!{{LUAU_TYPE_QUALIFIER_DOT}})` leaves a module named like a primitive
   # (`string.Button`) to LuauTypeName.
   LuauPrimitiveType:
-    match: ({{LUAU_PRIMITIVE_TYPES}})(?!{{LUAU_TYPE_QUALIFIER_DOT}}){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: ({{LUAU_PRIMITIVE_TYPES}})(?!{{LUAU_TYPE_QUALIFIER_DOT}}){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: standard(typeName)
@@ -8990,6 +9005,9 @@ repository:
       2:
         patterns:
           - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauTypeofFunction:
     begin: (typeof|type)\b({{WS}}*)(?=[(])
@@ -9015,7 +9033,7 @@ repository:
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: ([)]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -9024,6 +9042,9 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauTypeofFunctionName:
     tag: function(typeName)
@@ -9044,7 +9065,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([>]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: ([>]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -9053,6 +9074,9 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauTypeTableStruct:
     brackets: true
@@ -9072,7 +9096,7 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: ([}]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -9081,6 +9105,9 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauTypeTableIndexer:
     brackets: true
@@ -9146,7 +9173,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([)]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: ([)]){{_LUAU_TYPE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -9155,6 +9182,9 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
 
   LuauTypeNamedFunctionParameter:
     begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)(?=[:])
