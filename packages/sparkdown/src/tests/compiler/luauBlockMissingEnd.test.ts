@@ -624,6 +624,39 @@ describe("Luau block without `end`", () => {
     expect(diags.filter((d) => d.severity === 1)).toEqual([]);
   });
 
+  test.each([
+    ["`while` loop", "while false do"],
+    ["`for` loop", "for i = 1, 2 do"],
+    ["`for` loop", "for k, v in pairs({}) do"],
+  ])(
+    "text after a top-level %s's `end` is a warning, not an error",
+    (kind, header) => {
+      const { diags } = compile(
+        [header, "  local x = 1", "end of story.", ""].join("\n"),
+      );
+      expect(diags.filter((d) => d.severity === 1)).toEqual([]);
+      const warnings = proseWarnings(diags);
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0]).toMatchObject({ startLine: 2, endLine: 2 });
+      expect(warnings[0]!.message).toContain(`the ${kind} above it`);
+    },
+  );
+
+  test("a top-level `repeat` whose story body is closed by `end` is missing its `until`", () => {
+    const errs = compile(
+      [
+        "repeat",
+        "  This is repeated story text.",
+        "end",
+        "Afterward.",
+        "",
+      ].join("\n"),
+    ).diags.filter((d) => d.severity === 1);
+    expect(errs).toHaveLength(1);
+    expect(errs[0]!.message).toContain("`until`");
+    expect(errs[0]).toMatchObject({ startLine: 0, endLine: 0 });
+  });
+
   test("a closed block whose `end` begins a line of text in a scene is a warning", () => {
     const { diags } = compile(
       [

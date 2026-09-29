@@ -236,9 +236,13 @@ interface ProseEnd {
 }
 
 // A root-level block's `end` keyword, when a line of text continues after the
-// keyword on its line.
-function proseEnd(root: SyntaxNode, ctx: LowerContext): ProseEnd | null {
-  const endKeyword = endKeywordOf(root);
+// keyword on its line. A loop's `end` is its `do` block's, `holder`.
+function proseEnd(
+  root: SyntaxNode,
+  holder: SyntaxNode,
+  ctx: LowerContext,
+): ProseEnd | null {
+  const endKeyword = endKeywordOf(holder);
   if (!endKeyword) return null;
   let next = root.nextSibling;
   while (next && skippable(next) && next.name !== "Newline") {
@@ -352,8 +356,12 @@ export function validateOpenBlocks(
       for (const block of openChain(node)) {
         open.push({ kind: "block", block });
       }
-      const block = asBlock(node);
-      const prose = block ? proseEnd(node, ctx) : null;
+      // A root-level loop's `end` closes its `do` block, which names the loop.
+      const holder = LOOPS[node.name]
+        ? loopBodyBlock(node as GrammarSyntaxNode<SparkdownNodeName>)
+        : node;
+      const block = holder ? asBlock(holder) : null;
+      const prose = block && holder ? proseEnd(node, holder, ctx) : null;
       if (block && prose) {
         report(
           diagnostics,
