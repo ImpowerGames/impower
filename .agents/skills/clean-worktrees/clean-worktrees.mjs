@@ -176,16 +176,24 @@ export function linkReason(scan, dir) {
 function listProcesses(exec) {
   const r =
     process.platform === "win32"
-      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", '$now = Get-Date; Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$(if ($_.CreationDate) { [int64]($now - $_.CreationDate).TotalMilliseconds })`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
+      ? /* windows-hide: caller */ exec("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", '$all = Get-CimInstance Win32_Process; $now = [DateTime]::UtcNow; $all | ForEach-Object { "$($_.ProcessId)`t$($_.ParentProcessId)`t$(if ($_.CreationDate) { [int64]($now - $_.CreationDate.ToUniversalTime()).TotalMilliseconds })`t$($_.Name)`t$($_.CommandLine)" }'], undefined, 60_000)
       : /* windows-hide: caller */ exec("ps", ["-eo", "pid=,ppid=,etimes=,comm=,args="], undefined, 60_000);
   if (r.status !== 0) return { ok: false, err: r.err || `exit ${r.status}` };
+  return { ok: true, list: parseProcesses(r.out) };
+}
+
+// One process per line of the listing `listProcesses` asks for. The clock is
+// read after the enumeration, so a process that started meanwhile has a
+// negative age; it is kept, with its age clamped to zero, since dropping the
+// line would hide a process that may name a tree.
+export function parseProcesses(text, win = process.platform === "win32") {
   const list = [];
-  for (const line of r.out.split(/\r?\n/)) {
-    const win = process.platform === "win32";
-    const m = win ? /^(\d+)\t(\d*)\t(\d*)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*)$/.exec(line);
-    if (m) list.push({ pid: Number(m[1]), ppid: m[2] === "" ? null : Number(m[2]), age: m[3] === "" ? null : Number(m[3]) * (win ? 1 : 1000), name: m[4], cmd: m[5] });
+  for (const line of text.split(/\r?\n/)) {
+    const m = win ? /^(\d+)\t(\d*)\t(-?\d*)\t([^\t]*)\t(.*)$/.exec(line) : /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*)$/.exec(line);
+    if (!m) continue;
+    list.push({ pid: Number(m[1]), ppid: m[2] === "" ? null : Number(m[2]), age: m[3] === "" ? null : Math.max(0, Number(m[3])) * (win ? 1 : 1000), name: m[4], cmd: m[5] });
   }
-  return { ok: true, list };
+  return list;
 }
 
 export const LOG_NAME = "clean-worktrees.log";
@@ -773,7 +781,7 @@ async function removeWorktree(entry, ctx, deps) {
 // sits beside any of them: that is the directory an interrupted probe renamed,
 // and the record it points at must survive until it is renamed back. Returns
 // the paths pruned, or why nothing was.
-export function pruneDeadRecords(entries, ctx, deps) {
+function pruneDeadRecords(entries, ctx, deps) {
   const dead = entries.filter((e) => e.prunable);
   if (!dead.length) return { pruned: [] };
   const probe = dead.find((e) => deps.exists(`${path.resolve(e.path)}${PROBE_SUFFIX}`));
@@ -789,16 +797,19 @@ export function pruneDeadRecords(entries, ctx, deps) {
 // registered worktree or leftover, and never its branch, so a ticket whose
 // pull request is still open or abandoned can give its disk back. It refuses
 // what must not be done: the main checkout, a path outside the worktrees root,
-// one holding another worktree or sitting inside one, the default branch, a
-// locked worktree, one with uncommitted changes, one a process or driver is
-// using (the caller's own shells, which name the path on the command line
-// that ran this, do not count) or that the rename probe finds held, one
+// an interrupted probe's `.removing` directory, one holding another worktree
+// or sitting inside one, the default branch, a locked worktree, a directory
+// that is gone, a target that is itself a link, one with uncommitted changes,
+// one a process or driver is using or that the rename probe finds held, one
 // holding a link that leads outside it (named) or a directory that cannot be
-// read. Otherwise every link inside is unlinked without being followed, and
-// the tree goes: through `git worktree remove` when git still knows it,
-// directly when git has already dropped it. Returns the exit code; a refusal
-// is thrown before anything is touched.
-export async function removeOne(target, ctx, deps, entries, record) {
+// read. The shell that ran this command does not count as a user, though its
+// command line names the path: only an ancestor whose own command line runs
+// this script with --remove, and only while each parent is at least as old as
+// its child (`ancestorsOf`). Otherwise every link inside is unlinked without
+// being followed, and the tree goes: through `git worktree remove` when git
+// still knows it, directly when git has already dropped it. Returns the exit
+// code; a refusal is thrown before anything is touched.
+async function removeOne(target, ctx, deps, entries, record) {
   const log = deps.log;
   const abs = path.resolve(target);
   const rel = path.relative(path.dirname(ctx.mainRoot), abs);
@@ -812,7 +823,7 @@ export async function removeOne(target, ctx, deps, entries, record) {
   if (entry?.branch && ctx.defaultBranches.has(entry.branch)) die(`${rel} holds the default branch ${entry.branch}, which is never removed; nothing was touched`);
   if (entry?.locked) die(`${rel} is locked (${entry.locked}); nothing was touched`);
   if (!deps.exists(abs)) die(entry ? `${abs} is already gone and git still holds its record; run this without --remove and it prunes the record` : `${abs} does not exist; nothing was touched`);
-  if (deps.isLink(abs)) die(`${rel} is itself a link, and unlinking what it points at would reach outside ${ctx.root}; remove the link by hand; nothing was touched`);
+  if (deps.isLink(abs)) die(`${rel} is itself a link, and unlinking the links inside it would act on what it points at, wherever that is; remove the link by hand; nothing was touched`);
   const live = Boolean(entry) && !entry.prunable;
   if (live) {
     const st = deps.exec("git", ["status", "--porcelain"], abs);
@@ -828,7 +839,7 @@ export async function removeOne(target, ctx, deps, entries, record) {
     // the tree. Only an ancestor whose own command line runs this script
     // counts as that shell, so an editor opened on the tree stays a user.
     const mine = ancestorsOf(deps.pid(), ctx.processes.list);
-    const users = usersOf(abs, ctx.processes.list, deps.pid()).filter((p) => !(mine.has(p.pid) && p.cmd.includes(SCRIPT_MARK)));
+    const users = usersOf(abs, ctx.processes.list, deps.pid()).filter((p) => !(mine.has(p.pid) && RUNS_SCRIPT.test(p.cmd)));
     if (users.length) holds.push(`its path is on the command line of ${listSome(users.map((p) => `pid ${p.pid} (${p.name})`), 2)}`);
   }
   for (const s of serverRows(probeServers(abs, deps))) holds.push(`its ${s.driver ?? "driver"} reports ${s.state === "unknown" ? `an unknown server state (${s.detail})` : `dev servers ${s.state}${s.url ? ` at ${s.url}` : ""}`}; the driver's \`down\` settles it`);
@@ -880,14 +891,16 @@ export async function removeOne(target, ctx, deps, entries, record) {
   return finish("removed", [...notes, entry?.branch ? `its branch ${entry.branch} stays` : ""].filter(Boolean).join("; "), scan.bytes);
 }
 
-// The text a command line holds when it runs this script.
-const SCRIPT_MARK = "clean-worktrees";
+// A command line that runs this script to remove one directory. The file name
+// and the option, not the skill's name, which a worktree's own path can hold
+// (a branch is named after its ticket).
+const RUNS_SCRIPT = /clean-worktrees\.mjs"?\s.*--remove\b/;
 
 // The pids of a process and the parents above it. A parent counts only when it
 // is at least as old as its child: on Windows a dead parent's pid is handed to
 // a new process, which is younger than the child that names it, and the walk
 // stops there. A process whose age is unknown ends the walk too.
-export function ancestorsOf(pid, list) {
+function ancestorsOf(pid, list) {
   const byPid = new Map(list.map((p) => [p.pid, p]));
   const chain = new Set([pid]);
   for (let p = byPid.get(pid); p; ) {
@@ -1185,7 +1198,7 @@ export function removeJobDir(dir) {
 // Unlinks every symlink and junction under a directory and returns how many,
 // never following one: a directory junction or symlink on Windows is removed
 // with rmdir, which deletes the reparse point and never its target.
-export function unlinkLinksIn(dir) {
+function unlinkLinksIn(dir) {
   let found = 0;
   const pending = [dir];
   while (pending.length) {

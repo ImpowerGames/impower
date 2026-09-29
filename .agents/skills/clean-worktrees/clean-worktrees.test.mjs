@@ -55,7 +55,7 @@ import { PROFILE_CLAIM_FILE, checkoutDir } from "../drive-web-editor/session-dir
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(here, "clean-worktrees.mjs");
-const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun } = await import(pathToFileURL(SCRIPT));
+const { classify, readReflog, parseArgs, serversFrom, serverRows, probeServers, recordedServer, usersOf, strayDirs, strayReason, unfinishedRemovals, strandedBranches, readLogRows, parseWorktreeList, formatBytes, scanTree, linkReason, main, LOG_NAME, jobRootOf, journalPids, cleanJobs, classifyJob, removeJobDir, liveDeps, cleanScratch, classifyRedgreen, classifyTestRun, parseProcesses } = await import(pathToFileURL(SCRIPT));
 const liveDepsListDirs = liveDeps.listDirs;
 const WIN = process.platform === "win32";
 // A case that can only hold where Windows itself supplies the behavior it
@@ -1331,8 +1331,9 @@ async function worldChecks(mainFn, report) {
     Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
     pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "cmd.exe", cmd: `cmd /c node clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}` });
     // pid 80 is what the dead parent's pid was handed to: younger than its
-    // supposed child, and running another checkout's launcher that names the path.
-    pw.processes.push({ pid: 80, ppid: 1, age: 100, name: "node.exe", cmd: `node clean-worktrees/detached-launch.mjs ${t.path}` });
+    // supposed child, and running the script for another removal that names the
+    // path, so only its age says it is not the shell that ran this one.
+    pw.processes.push({ pid: 80, ppid: 1, age: 100, name: "node.exe", cmd: `node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root ${MAIN} --remove ${t.path}` });
     const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
     assert.equal(r.status, 1, r.out);
     assert.match(r.out, /its path is on the command line of pid 80 \(node\.exe\)/);
@@ -1347,6 +1348,20 @@ async function worldChecks(mainFn, report) {
     const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", t.path);
     assert.equal(r.status, 1, r.out);
     assert.match(r.out, /its path is on the command line of pid 80 \(code\.exe\)/);
+    assert.deepEqual(pw.removed, []);
+  });
+  await step("--remove tells the script's own command line by its file name and option, not by a word a worktree's path can hold", async () => {
+    const pw = makeWorld();
+    const live = { path: R("impower.worktrees/fix/1068-clean-worktrees-recycled-pids"), head: "c68", branch: "fix/1068-clean-worktrees-recycled-pids", own: 1, unpushed: 0, remote: true, remoteAhead: 1, size: 1 * GB };
+    pw.trees.push(live);
+    pw.branches.add(live.branch);
+    pw.disk.set(live.path.toLowerCase(), { size: live.size, tree: live });
+    Object.assign(pw.processes.find((p) => p.pid === SELF_PID), { ppid: 90, age: 1_000 });
+    pw.processes.push({ pid: 90, ppid: 80, age: 5_000, name: "bash.exe", cmd: `bash -c "node .agents/skills/clean-worktrees/clean-worktrees.mjs --apply --root ${MAIN} --remove ${live.path}"` });
+    pw.processes.push({ pid: 80, ppid: 1, age: 9_000, name: "Code.exe", cmd: `"C:/Program Files/Microsoft VS Code/Code.exe" ${live.path}` });
+    const r = await run(mainFn, pw, MAIN, "--apply", "--root", MAIN, "--remove", live.path);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /its path is on the command line of pid 80 \(Code\.exe\)/);
     assert.deepEqual(pw.removed, []);
   });
   await step("--remove refuses a target that is itself a link, so it never unlinks what the link points at", () => refusedRemove("link", (pw) => {
@@ -1469,9 +1484,10 @@ try {
   await control("dead records are pruned beside a probe's leftover", [["if (probe) return {", "if (false) return {"]], ["dead records are left alone while an interrupted probe's leftover"]);
   await control("--remove takes a path outside the worktrees root", [["if (!isUnder(abs, ctx.root)) die(", "if (false) die("]], ["--remove refuses a path outside the worktrees root"]);
   await control("--remove takes a path inside a registered worktree", [["if (inside) die(", "if (false) die("]], ["--remove refuses a path inside a registered worktree"]);
-  await control("--remove counts the shells that ran it", [[".filter((p) => !(mine.has(p.pid) && p.cmd.includes(SCRIPT_MARK)))", ""]], ["--remove does not count the shells that ran it"]);
+  await control("--remove counts the shells that ran it", [[".filter((p) => !(mine.has(p.pid) && RUNS_SCRIPT.test(p.cmd)))", ""]], ["--remove does not count the shells that ran it"]);
   await control("--remove follows a recycled parent pid", [["parent.age < p.age", "false"]], ["--remove follows the parent pids only while each parent is older than its child"]);
-  await control("--remove exempts every ancestor, not the shell that ran the script", [[" && p.cmd.includes(SCRIPT_MARK)", ""]], ["--remove counts an ancestor that names the path without running the script"]);
+  await control("--remove exempts every ancestor, not the shell that ran the script", [[" && RUNS_SCRIPT.test(p.cmd)", ""]], ["--remove counts an ancestor that names the path without running the script"]);
+  await control("--remove tells the script's command line by the skill's name", [["const RUNS_SCRIPT = /clean-worktrees\\.mjs\"?\\s.*--remove\\b/;", "const RUNS_SCRIPT = /clean-worktrees/;"]], ["--remove tells the script's own command line by its file name and option"]);
   await control("--remove follows a link it was named by", [["if (deps.isLink(abs)) die(", "if (false) die("]], ["--remove refuses a target that is itself a link"]);
   await control("--remove skips the rename probe", [["const held = await probeHeld(abs, deps);\n  if (held?.outcome", "const held = null;\n  if (held?.outcome"]], ["--remove refuses a worktree a process holds", "--remove refuses when an interrupted probe's leftover is beside the tree"]);
   await control("--remove leaves a broken worktree's dead record", [["  if (entry?.prunable) {", "  if (false) {"]], ["--remove removes a broken worktree directly"]);
@@ -1924,7 +1940,20 @@ try {
     assert.ok(logged.includes("redgreen-cmdold") && logged.includes("finished-run"), `the log does not record the scratch removals: ${logged.join(", ")}`);
   });
 
-  await check("as a command, --apply prunes a dead worktree record, so git no longer refuses to delete the branch it held", () => {
+  await check("parseProcesses keeps a process that started while the listing ran, with its age clamped to zero, and reads the age in the platform's unit", () => {
+  const win = parseProcesses(["10\t5\t-16\tnode.exe\tnode a.js", "11\t\t\tSystem\t", "12\t5\t2500\tbash.exe\tbash -c x", "junk"].join("\r\n"), true);
+  assert.deepEqual(win, [
+    { pid: 10, ppid: 5, age: 0, name: "node.exe", cmd: "node a.js" },
+    { pid: 11, ppid: null, age: null, name: "System", cmd: "" },
+    { pid: 12, ppid: 5, age: 2500, name: "bash.exe", cmd: "bash -c x" },
+  ]);
+  assert.deepEqual(parseProcesses("  200   1   90 node node b.js\n  201 200 5 sh sh -c y", false), [
+    { pid: 200, ppid: 1, age: 90_000, name: "node", cmd: "node b.js" },
+    { pid: 201, ppid: 200, age: 5_000, name: "sh", cmd: "sh -c y" },
+  ]);
+});
+
+await check("as a command, --apply prunes a dead worktree record, so git no longer refuses to delete the branch it held", () => {
     mergedWorktree("fix/70-dead-record", true);
     fs.rmSync(wt("fix/70-dead-record"), { recursive: true, force: true });
     const refused = spawnSync("git", ["branch", "-D", "fix/70-dead-record"], { cwd: mainRoot, env, encoding: "utf8", windowsHide: true });
@@ -1944,11 +1973,17 @@ try {
     fs.writeFileSync(path.join(target, ".env.local"), "SECRET=x\n");
     // The shell that runs this names the path on its own command line, as an
     // agent's shell tool does; that shell is not a user of the tree.
-    // A compound command keeps sh from executing the script directly, which
-    // would leave no shell naming the path.
-    const lead = WIN ? "" : `cd "${mainRoot}" && `;
-    const r = spawnSync(`${lead}"${process.execPath}" "${SCRIPT}" --apply --root "${mainRoot}" --remove "${target}"`, { shell: true, cwd: mainRoot, env, encoding: "utf8", windowsHide: true, timeout: 120_000 });
+    // dash and bash run the last command of a -c string in place of the shell,
+    // which would leave no shell naming the path, so the string ends with an
+    // exit. A first command lists the processes that name the path, so the
+    // check cannot pass on any platform without a shell that does.
+    const probe = path.join(scratchTemp, "who-names-it.mjs");
+    fs.writeFileSync(probe, `import { liveDeps, usersOf } from ${JSON.stringify(pathToFileURL(SCRIPT).href)};\nconsole.log("NAMING " + usersOf(process.argv[2], liveDeps.processes().list, process.pid).length);\n`);
+    const node = `"${process.execPath}"`;
+    const trail = WIN ? "" : "; exit $?";
+    const r = spawnSync(`${node} "${probe}" "${target}" && ${node} "${SCRIPT}" --apply --root "${mainRoot}" --remove "${target}"${trail}`, { shell: true, cwd: mainRoot, env, encoding: "utf8", windowsHide: true, timeout: 120_000 });
     const out = (r.stdout ?? "") + (r.stderr ?? "");
+    assert.match(out, /NAMING [1-9]/, `no process other than the probe named the path, so the shell the exemption is for was absent:\n${out}`);
     assert.equal(r.status, 0, out);
     assert.match(out, /^removed\s+.*71-open-pr\s.*its branch fix\/71-open-pr stays/m);
     assert.ok(!fs.existsSync(target), "the worktree is still there");
@@ -1971,6 +2006,30 @@ try {
     assert.match(r.out, /is inside the worktree .*72-dirty-sub; name the worktree itself/);
     assert.equal(fs.readFileSync(path.join(src, "t.txt"), "utf8"), "edited\n");
     assert.equal(fs.readFileSync(path.join(src, "new-work.txt"), "utf8"), "new\n");
+  });
+
+  await check("as a command, --remove refuses a target that is itself a link and leaves what it points at in place", () => {
+    const outside = path.join(scratch, "link-target");
+    fs.mkdirSync(path.join(outside, "inner"), { recursive: true });
+    fs.writeFileSync(path.join(outside, "keep.txt"), "kept");
+    const link = wt("fix/74-a-link");
+    fs.mkdirSync(path.dirname(link), { recursive: true });
+    try {
+      fs.symlinkSync(outside, link, "junction");
+    } catch (err) {
+      console.log(`SKIP: a link named to --remove (creating a link needs a privilege this account lacks: ${err.code})`);
+      return;
+    }
+    const r = cli(mainRoot, "--apply", "--root", mainRoot, "--remove", link);
+    assert.equal(r.status, 1, r.out);
+    assert.match(r.out, /is itself a link/);
+    assert.ok(fs.lstatSync(link).isSymbolicLink(), "the link was removed");
+    assert.equal(fs.readFileSync(path.join(outside, "keep.txt"), "utf8"), "kept");
+    try {
+      fs.unlinkSync(link);
+    } catch {
+      fs.rmdirSync(link);
+    }
   });
 
   if (WIN) {
