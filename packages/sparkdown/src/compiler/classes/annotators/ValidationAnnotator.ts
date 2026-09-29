@@ -94,7 +94,9 @@ const LUAU_NUMBER = nodeNameSet([
 ]);
 // The inline text command (`<1.5x:...>`) reuses the number rule for its
 // control argument, where the surrounding syntax is not Luau.
-const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
+const LUAU_COMMENT = nodeNameSet(["LuauBlockComment", "LuauLineComment"]);
+
+const TEXT_COMMAND_CONTROL =nodeNameSet(["TextCommandControl"]);
 
 // The characters Luau's lexer skips after a `\z` escape. Narrower than JS
 // `\s`, which also matches non-breaking and other Unicode spaces.
@@ -332,6 +334,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
       return annotations;
+    }
+    // The grammar reads a `?` after a block comment as a suffix, because a
+    // lookbehind cannot see whether a type stands before the comment
+    // (`() -> --[[c]] ?`). Only a type before it makes it one.
+    if (nodeRef.name === "LuauTypeOptionalOperator") {
+      let prev = nodeRef.node.prevSibling;
+      while (prev && LUAU_COMMENT.has(prev.name)) {
+        prev = prev.prevSibling;
+      }
+      if (!prev) {
+        const operator = childNamed(nodeRef.node, "LuauTypeOptionalOperator_c2");
+        this.error(annotations, STRAY_OPTIONAL, operator.from, operator.to);
+        return annotations;
+      }
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
     // reads at most `module.Type`, so the segments after it are a syntax
