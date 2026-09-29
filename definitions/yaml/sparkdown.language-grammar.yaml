@@ -5891,8 +5891,13 @@ repository:
     # `)` or the end of a return type (`number`, `number?`, `{number}`,
     # `Array<T>`, `"x"`). The body opens there when a statement follows on
     # the same line (`function f() return 1 end`), or on the line break
-    # after it. The `>` of `function f<T>` is also a type end; it stays
-    # out of the way only because params follow it on the same line. A
+    # after it. A `(` after the header keyword and name begins the
+    # parameters (`function (x)`, `function f (x)`, `function f<T> (x)`), so
+    # before a `(` the body opens only where `LuauFunctionParameters` would
+    # not, which its header lookbehind names (`function f() (g)()`,
+    # `function f(): number (g)()`). The `>`
+    # of `function f<T>` is also a type end; it stays out of the way only
+    # because params follow it on the same line. A
     # parameter list moved to the next line is not supported with or
     # without generics. A return type takes in the line break after it,
     # as any type does, so the body also opens at the start of a line,
@@ -5900,7 +5905,7 @@ repository:
     # line to start with a character a statement can begin with: a line the
     # body cannot read (a stray `|` or `)`) closes the body, and reopening
     # it there would match nothing, again and again.
-    begin: (?<={{LUAU_TYPE_END}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:(<])\S)|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+    begin: (?<={{LUAU_TYPE_END}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:(<])\S)|(?<={{LUAU_TYPE_END}})(?<!\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)(?={{WS}}+[(])|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -6025,7 +6030,7 @@ repository:
     # as a union. That last end has to win over `LuauExpression`, which
     # would read the next line as a value, so the end is checked before
     # the patterns are.
-    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{LUAU_COMMENT_START}}|[,=]))
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))
 
   LuauVariableAssignment:
     # The lookahead distinguishes a TARGET identifier from an

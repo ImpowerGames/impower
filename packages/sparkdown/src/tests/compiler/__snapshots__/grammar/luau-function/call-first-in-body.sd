@@ -1,0 +1,5 @@
+function a() (g)() return 1 end
+function b(): number (g)() return 1 end
+function c (x) (g)() return x end
+function d<T> (x: T) (g)() return x end
+local e = function (x) (g)() return x end

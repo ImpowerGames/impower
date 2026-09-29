@@ -850,10 +850,10 @@ LuauTypeLiteral:
     - ...
     - { include: "#ExtraWhitespace" }
     - { include: "#Newline" }
-  end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{WS}}+\S)
+  end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)
 ```
 
-`LUAU_TYPE_LINE_BREAK` is `^{{WS}}*[^|\s]`: the start of a line with text that does not begin with `|`. Each pattern looks only at the line it is on. A line starting with `|` continues the type, a blank line is taken in as well, and any other line ends the type at its first column, before its indentation. A `--` line ends the type too, since outside Luau code `--` begins display text.
+`LUAU_TYPE_LINE_BREAK` is `^{{WS}}*[^|\s]`: the start of a line with text that does not begin with `|`. Each pattern looks only at the line it is on. A line starting with `|` continues the type, a blank line is taken in as well, and any other line ends the type at its first column, before its indentation. A `--` line ends the type too, since outside Luau code `--` begins display text. Whitespace in the middle of a line ends the type through `LUAU_TYPE_WHITESPACE_END`, which leaves out whitespace followed by the optional-type `?` (`number ?`), since that `?` still belongs to the type.
 
 The rule applies wherever the type is. In a Sparkdown alternator block, a declaration whose type ends an arm's line (`| local x: number`) takes the next arm's `|` line in as a union member, as Luau would read those lines; give the declaration a value, or keep the type off the end of the arm's line. In the same way, a display line starting with `|` right after a declaration that ends in its type is read into the type.
 

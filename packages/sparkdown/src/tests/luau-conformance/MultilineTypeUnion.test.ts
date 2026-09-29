@@ -88,10 +88,47 @@ describe("every statement of a function runs", () => {
     ["statements separated by semicolons on the header's line", `Value {f(3)}.\nfunction f(n) local x = {}; for i = 1, n do x[i] = i end;\n  return #x\nend\n`, "Value 3.\n"],
     ["a header ending in a colon", `Value {f(4)}.\nfunction f(x):\n  local y = x + 1\n  return y\nend\n`, "Value 5.\n"],
     ["call values after a comma", `Value {f()}.\nfunction f()\n  local a, b = math.sqrt(4), math.sqrt(9)\n  return a + b\nend\n`, "Value 5.\n"],
+    ["a call in parentheses first on the header's line", `Value {f()}.\nfunction f() (function() print(1) end)() return 5 end\n`, "Value 15.\n"],
+    ["a call in parentheses first after parameters", `Value {f(1)}.\nfunction f(a) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
+    ["a call in parentheses first after a return type ending in `?`", `Value {f()}.\nfunction f(): number? (function() print(1) end)() return 5 end\n`, "Value 15.\n"],
+    ["a call in parentheses first after a return type ending in a name", `Value {f()}.\nfunction f(): number (function() print(1) end)() return 5 end\n`, "Value 15.\n"],
+    ["parameters after a space, then a call in parentheses", `Value {f(1)}.\nfunction f (a) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
+    ["generic parameters after a space, then a call in parentheses", `Value {f(1)}.\nfunction f<T> (a: T) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
   ])("with %s", (_name, source, output) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(output);
+  });
+});
+
+// A declaration goes on across any run of whitespace before a comma or `=`.
+describe("a declaration with extra whitespace before a comma or `=`", () => {
+  test.each([
+    ["two spaces before a comma", `Value {f()}.\nfunction f()\n  local a, b = 2  , 3\n  return a + b\nend\n`],
+    ["two spaces before a comma between typed names", `Value {f()}.\nfunction f()\n  local a: number  , b: number = 2, 3\n  return a + b\nend\n`],
+    ["two spaces before `=`", `Value {f()}.\nfunction f()\n  local a  = 5\n  return a\nend\n`],
+  ])("keeps every value, with %s", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
+  });
+});
+
+// A return type takes in its line break, so a `.Name` line after it that
+// qualifies the type is the body's first line; it is still part of the type.
+describe("a return type qualified on the next line", () => {
+  test.each([
+    ["a function", `Value {f()}.\nfunction f(): types\n  .Button\n  return 5\nend\n`],
+    ["a function value", `local f = function(): types\n  .Button\n  return 5\nend\nValue {f()}.\n`],
+  ])("reads as one type in %s", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
+  });
+
+  test("with a second module prefix is reported", () => {
+    const ctx = makeRuntimeStoryFromSource(`Value {f()}.\nfunction f(): types.ui\n  .Button\n  return 5\nend\n`);
+    expect(ctx.errorMessages).toEqual([expect.stringContaining("takes at most one module prefix")]);
   });
 });
 

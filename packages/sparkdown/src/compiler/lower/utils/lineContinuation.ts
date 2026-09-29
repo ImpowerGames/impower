@@ -51,8 +51,37 @@ const SKIPPABLE: ReadonlySet<string> = new Set([
 // lines between them, as Luau reads them. Empty when the next line of code
 // does not continue it.
 export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
+  return collectLineContinuationFrom(node.nextSibling);
+}
+
+// The lines at the start of a function body that qualify the name its return
+// type ends with (`function f(): types` then `.Button`), with that return
+// type. A return type takes in the line break after it, so the body opens at
+// the next line and those lines are its first children rather than siblings
+// of a statement. Null when the body does not start with such lines.
+export function leadingReturnTypeQualifier(
+  bodyContent: SyntaxNode,
+): { returnType: SyntaxNode; lines: SyntaxNode[] } | null {
+  const body =
+    bodyContent.name === "LuauFunctionBody_content"
+      ? bodyContent.parent
+      : bodyContent.name === "LuauFunctionBody"
+        ? bodyContent
+        : null;
+  let returnType: SyntaxNode | null = null;
+  for (let n = body?.prevSibling ?? null; n; n = n.prevSibling) {
+    if (n.name === "LuauFunctionReturnType") returnType = n;
+    if (n.name === "LuauFunctionReturnType" || n.name === "LuauFunctionParameters") break;
+  }
+  if (!returnType || !endsInTypeName(returnType)) return null;
+  const lines = collectLineContinuationFrom(bodyContent.firstChild);
+  if (!isTypeQualifierContinuation(lines)) return null;
+  return { returnType, lines };
+}
+
+function collectLineContinuationFrom(start: SyntaxNode | null): SyntaxNode[] {
   const nodes: SyntaxNode[] = [];
-  let scan = node.nextSibling;
+  let scan = start;
   for (;;) {
     while (scan && CONTINUATION_BRIDGE.has(scan.name)) scan = scan.nextSibling;
     if (!scan || !isLineContinuation(scan)) return nodes;

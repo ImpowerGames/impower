@@ -33,6 +33,7 @@ import {
   isLineContinuation,
   isLineContinuationUsed,
   isTypeQualifierContinuation,
+  leadingReturnTypeQualifier,
   markLineContinuationUsed,
   reportUntakenLineContinuation,
   splitOnCommas,
@@ -444,6 +445,18 @@ export function lowerStatements(
     return { lowered, next: (last ?? end).nextSibling };
   };
   let child = parent.firstChild;
+  // A function body's first lines may qualify the name its return type ends
+  // with (`function f(): types` then `.Button`); they are part of the type.
+  const qualifier = leadingReturnTypeQualifier(parent);
+  if (qualifier) {
+    reportExtraTypeQualifiers(
+      qualifier.returnType,
+      continuationParts(qualifier.lines),
+      ctx,
+    );
+    const last = qualifier.lines[qualifier.lines.length - 1];
+    child = last?.nextSibling ?? null;
+  }
   while (child) {
     if (isLineContinuation(child)) {
       // A continuation line that no statement before it took.
