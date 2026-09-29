@@ -71,7 +71,9 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["a generic function return", "local v: () -> Array<number>?\nlocal s = 1\n"],
     ["a trailing comment", "type T = number? -- a comment\nlocal y = 1\n"],
     ["a block comment between the type and the `?`", "type T = number --[[c]] ?\nlocal y = 1\n"],
-    ["a block comment between a function return type and the `?`", "type F = () -> number --[[c]]?\nlocal y = 1\n"],
+    ["an optional array element", "local t: { number? } = {}\n"],
+    ["an optional array element after a comment", "local t: { --[[c]] number? } = {}\n"],
+    ["a block comment between a function return type and the `?`","type F = () -> number --[[c]]?\nlocal y = 1\n"],
   ])("an optional type before %s parses", (_name, snippet) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });

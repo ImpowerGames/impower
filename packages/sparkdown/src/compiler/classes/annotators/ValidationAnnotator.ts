@@ -94,7 +94,9 @@ const LUAU_NUMBER = nodeNameSet([
 ]);
 // The inline text command (`<1.5x:...>`) reuses the number rule for its
 // control argument, where the surrounding syntax is not Luau.
-const LUAU_COMMENT = nodeNameSet(["LuauBlockComment", "LuauLineComment"]);
+// The grammar's `LUAU_TYPE_END_BEFORE_OPTIONAL` without the `]` that a block
+// comment's close adds, tested against the two characters before a position.
+const LUAU_TYPE_END_BEFORE_OPTIONAL = /(?:[\w)}"'`?]|[^-]>)$/;
 
 const TEXT_COMMAND_CONTROL = nodeNameSet(["TextCommandControl"]);
 
@@ -322,6 +324,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /** The end of the text before the block comments (and the whitespace around
+   *  them) that end at `pos`, or null when no block comment ends there. */
+  startBeforeBlockComments(pos: number): number | null {
+    let skipped = false;
+    for (;;) {
+      while (pos > 0 && LUAU_WHITESPACE_RUN.test(this.read(pos - 1, pos))) {
+        pos -= 1;
+      }
+      let node = this.tree?.resolveInner(pos, -1) ?? null;
+      while (node && node.name !== "LuauBlockComment") {
+        node = node.parent;
+      }
+      if (!node || node.from >= pos) {
+        return skipped ? pos : null;
+      }
+      pos = node.from;
+      skipped = true;
+    }
+  }
+
   override enter(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     nodeRef: SparkdownSyntaxNodeRef,
@@ -337,14 +359,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
     // lookbehind cannot see whether a type stands before the comment
-    // (`() -> --[[c]] ?`). Only a type before it makes it one.
+    // (`() -> --[[c]] ?`). Only a type before the comments makes it one.
     if (nodeRef.name === "LuauTypeOptionalOperator") {
-      let prev = nodeRef.node.prevSibling;
-      while (prev && LUAU_COMMENT.has(prev.name)) {
-        prev = prev.prevSibling;
-      }
-      if (!prev) {
-        const operator = childNamed(nodeRef.node, "LuauTypeOptionalOperator_c2");
+      const operator = childNamed(nodeRef.node, "LuauTypeOptionalOperator_c2");
+      const before = this.startBeforeBlockComments(operator.from);
+      if (
+        before !== null &&
+        !LUAU_TYPE_END_BEFORE_OPTIONAL.test(this.read(Math.max(0, before - 2), before))
+      ) {
         this.error(annotations, STRAY_OPTIONAL, operator.from, operator.to);
         return annotations;
       }
