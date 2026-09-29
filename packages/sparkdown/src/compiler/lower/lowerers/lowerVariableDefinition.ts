@@ -96,7 +96,7 @@ export function lowerVariableDefinition(
       const pendingComma = unresolvedComma;
       unresolvedComma = null;
       if (child.name === "LuauVariableAssignment") {
-        const opNode = getDescendent("LuauAssignmentOperation", child);
+        const opNode = ownAssignmentOperation(child);
         if (sawAssignmentOp) {
           if (opNode) {
             // A second `=` (`local a = 1, x = 99`): Luau ends the list at
@@ -264,10 +264,8 @@ export function lowerVariableDefinition(
   // The LAST target's `LuauAssignmentOperation` carries the first
   // RHS value. Subsequent RHS values are at the def-content level.
   const lastTarget = targets[targets.length - 1]!;
-  let firstRhsOp: SyntaxNode | undefined = getDescendent(
-    "LuauAssignmentOperation",
-    lastTarget.assignNode,
-  );
+  let firstRhsOp: SyntaxNode | undefined =
+    ownAssignmentOperation(lastTarget.assignNode) ?? undefined;
   // The continuation's first comma group continues the last value; its
   // later groups are further values. When statements share the line after
   // the declaration, the continuation continues the last of them instead.
@@ -439,6 +437,14 @@ function withTrailingStatements(
     out.push(...unwrapBlockContent(block));
   }
   return out;
+}
+
+// A target's own `=`: the assignment operation directly in its content, not
+// one nested in its type annotation (`typeof({ k = 1 })`), which would read
+// as the declaration's `=` and turn the next target's `=` into a second one.
+function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | null {
+  const content = findChildByName(assignment, "LuauVariableAssignment_content");
+  return content ? findChildByName(content, "LuauAssignmentOperation") : null;
 }
 
 function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
