@@ -38,7 +38,6 @@ portUpstreamFile("TypeInfer.test.cpp", [
     // TypeInfer.test.cpp:103 TEST_CASE_FIXTURE(Fixture, "infer_locals_with_nil_value")
     name: "infer_locals_with_nil_value",
     fixture: "Fixture",
-    unparsed: { defect: 919 }, // a ; right after the value of a local
     source: `local f = nil; f = 'hello world'`,
     expect: [{ errors: 0 }, { type: "f", equals: "string?" }],
   },

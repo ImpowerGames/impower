@@ -3063,6 +3063,7 @@ repository:
       - { include: "#LuauDeclarations" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauArithmeticOperation" }
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
@@ -6056,8 +6057,9 @@ repository:
     # multi-RHS values. Previously the VA's own `LuauCommaSeparator`
     # pattern consumed the comma and an `ERROR_INCOMPLETE` followed —
     # the trailing RHS values were silently dropped from the tree.
-    # Terminate at `;` too, so `local x = f();` leaves the `;` to the
-    # outer `LuauVariableDefinition` instead of an unfinished node.
+    # Terminate before `;` too, so `local x = f();` closes this rule and
+    # `LuauVariableDefinition` before the `;`, which the enclosing
+    # statement context reads as `LuauSemicolonSeparator`.
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;])
 
   # ----------------------------------------------------------------------------
@@ -8482,6 +8484,14 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|(?!{{WS}})
+
+  # An operator with no operand before the `;` that ends its statement
+  # (`local foo = -;`), which Luau rejects. The value rules end before `;`,
+  # so the operator is read as one token here and the validator reports it.
+  LuauOperatorMissingOperand:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{WS}}*)({{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}})({{WS}}*)(?=;)
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})

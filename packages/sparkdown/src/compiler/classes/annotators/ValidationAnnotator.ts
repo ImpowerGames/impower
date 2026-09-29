@@ -108,6 +108,7 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
+const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.
@@ -331,6 +332,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // before it as its own token. The wording is Luau's parser's.
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+      return annotations;
+    }
+    // An operator directly before the `;` that ends its statement has no
+    // right operand; the grammar reads it as its own token.
+    if (nodeRef.name === "LuauOperatorMissingOperand") {
+      this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau

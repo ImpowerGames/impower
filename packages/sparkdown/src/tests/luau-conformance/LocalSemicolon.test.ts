@@ -45,6 +45,15 @@ describe("a local statement ends at a `;` directly after its value", () => {
     expect(checkLuau(`local t, f = {y = 1}, function() return 1 end\n${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
+  test.each(["local foo = -;", "local foo = - ;", "local foo = 1 +;", "local foo = 1 ==;", "local foo = a ..;", "foo = -;"])(
+    "%s still reports the operator with no operand",
+    (statement) => {
+      expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
+        expect.stringContaining("Expected identifier when parsing expression, got ';'"),
+      ]);
+    },
+  );
+
   test("a multi-name local still reads both names", () => {
     const source = `function g()\n  local a, b = 1, 2;\nend\n`;
     expect(nodeNames(source)).not.toContain("ERROR_INCOMPLETE");
