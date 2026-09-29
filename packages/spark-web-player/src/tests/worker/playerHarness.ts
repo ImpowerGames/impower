@@ -26,6 +26,7 @@ import { GamePlayerController, setWorkspace } from "../../GamePlayerController";
 import { installPlayerWorker } from "../../main/workers/installPlayerWorker";
 import { ProgramHeldMessage } from "../../main/workers/messages/ProgramHeldMessage";
 import type { WorkerBusyParams } from "../../main/workers/messages/WorkerBusyMessage";
+import { respondToWorkerHang } from "../../main/workers/respondToWorkerHang";
 import { SetAsidePoints } from "../../main/workers/SetAsidePoints";
 import type {
   PreviewPoint,
@@ -172,9 +173,9 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   const clock = { now: 1_000_000, frames: [] as (() => void)[] };
   const versions = new Map(options.files.map((f) => [f.uri, 1]));
 
-  /** Start a player's worker and give it the project, as the page's
-   *  workspace does, and again when it restarts one (`hang`). */
-  const startWorker = async () => {
+  /** Start a player's worker, as the page's workspace does, and again when
+   *  it restarts one (`hang`). */
+  const createWorker = () => {
     const page = new LoopbackConnection();
     const worker = new LoopbackConnection((message) => {
       if (recordMessages) toPage.push(message);
@@ -189,11 +190,15 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
         return clock.frames.length;
       };
     }
+    return { page, workerState };
+  };
+
+  /** Give a started worker the project. */
+  const initialize = async (page: LoopbackConnection) => {
     await page.sendRequest(CompilerInitializeMessage.type, {
       profilerId: "test",
     });
     await configure(page);
-    return { page, workerState };
   };
 
   const configure = (page: LoopbackConnection) =>
@@ -217,7 +222,8 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
       startFrom: options.startFrom,
     } as any);
 
-  const started = await startWorker();
+  const started = createWorker();
+  await initialize(started.page);
   let page = started.page;
   let workerState = started.workerState;
 
@@ -231,18 +237,19 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
   // answering (#679); `hang` restarts the worker as it does.
   const hangListeners = new Set<(hang: WorkerHang) => void>();
   const setAsidePoints = new SetAsidePoints(
-    (): string => String(workspace.filesRevision),
+    (): string => `${workspace.documentsRevision} ${workspace.filesRevision}`,
   );
   const workspace = {
     gameLink: link,
     filesRevision: 0,
+    /** Counts edits to open documents, as the player's workspace does. */
+    documentsRevision: 0,
     addWorkerHangListener: (listener: (hang: WorkerHang) => void) => {
       hangListeners.add(listener);
       return () => {
         hangListeners.delete(listener);
       };
     },
-    setAside: (point: PreviewPoint): void => setAsidePoints.add(point),
     isSetAside: (point: PreviewPoint): boolean => setAsidePoints.has(point),
     previewCompile: async (params: any) => {
       const current = versions.get(params.textDocument.uri);
@@ -412,37 +419,25 @@ export async function createPlayerHarness(options: PlayerHarnessOptions) {
     },
     /** The page's workspace hears from the stalled worker that it has run a
      *  story for `busy.busyMs`, and restarts it as `SparkdownGameWorkspace`
-     *  does: it sets aside the point the worker was routing to and the line
-     *  it was running, tells the page's listeners, starts a worker in its
-     *  place and gives it the project, and settles whatever was waiting on
-     *  the old one. */
+     *  does: `respondToWorkerHang` sets aside what the new worker must not
+     *  route to and tells the page's listeners; then a worker starts in the
+     *  old one's place, the game link moves to it, whatever was waiting on
+     *  the old one settles, and only then is the new one given the project,
+     *  as `restartCompiler` orders it. */
     async hang(busy: WorkerBusyParams) {
       page.closed = true;
-      if (busy.routingTo) {
-        workspace.setAside(busy.routingTo);
-      }
-      if (busy.location) {
-        workspace.setAside({
-          file: busy.location.uri,
-          line: busy.location.range.start.line,
-        });
-      }
-      let restarted!: () => void;
-      const hang: WorkerHang = {
-        busyMs: busy.busyMs,
-        location: busy.location,
-        restarted: new Promise<void>((resolve) => (restarted = resolve)),
-      };
-      for (const listener of [...hangListeners]) {
-        listener(hang);
-      }
+      const hang = respondToWorkerHang(busy, {
+        setAside: setAsidePoints,
+        selected,
+        listeners: hangListeners,
+      });
       const stuck = page;
-      const next = await startWorker();
+      const next = createWorker();
       page = next.page;
       workerState = next.workerState;
       link.reconnect(page);
       stuck.abandon(new CompilerRestartedError());
-      restarted();
+      await initialize(page);
       await settle();
       return hang;
     },

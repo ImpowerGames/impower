@@ -9,6 +9,7 @@
 // answers, as a worker that is stuck does not, and each later one answers at
 // once, recording what it was sent.
 import { describe, expect, it } from "vitest";
+import { AddCompilerFileMessage } from "../../compiler/classes/messages/AddCompilerFileMessage";
 import { CompileProgramMessage } from "../../compiler/classes/messages/CompileProgramMessage";
 import { ConfigureCompilerMessage } from "../../compiler/classes/messages/ConfigureCompilerMessage";
 import { SelectCompilerDocumentMessage } from "../../compiler/classes/messages/SelectCompilerDocumentMessage";
@@ -46,6 +47,12 @@ class StandInConnection {
     for (const request of this.requests.splice(0)) {
       request.reject(error);
     }
+  }
+
+  closed = false;
+
+  close() {
+    this.closed = true;
   }
 
   addEventListener() {}
@@ -183,6 +190,7 @@ describe("restarting the compiler's worker", () => {
     await workspace.restartCompiler();
 
     expect(workspace.terminated).toBe(1);
+    expect(workspace.stuck.closed).toBe(true);
     // The compile the stuck worker held settles, with nothing.
     expect(await compiling).toBeUndefined();
     const configure = workspace.restarted.requests.find(
@@ -247,5 +255,46 @@ describe("restarting the compiler's worker", () => {
 
     // Unrouted: the restarted worker routes to it as it compiles.
     expect(await selecting).toEqual(params);
+  });
+
+  it("settles a file change the stuck worker never answered", async () => {
+    const workspace = new TestWorkspace();
+    const creating = workspace.createFile("file://proj/other.sd");
+    await settle();
+    expect(workspace.stuck.sent).toContain(AddCompilerFileMessage.method);
+
+    await workspace.restartCompiler();
+
+    // It settles rather than throw, and the restarted worker has the file.
+    expect((await creating)?.uri).toBe("file://proj/other.sd");
+    const configure = workspace.restarted.requests.find(
+      (r) => r.method === ConfigureCompilerMessage.method,
+    )!;
+    expect(
+      configure.params.files.some((f: File) => f.uri === "file://proj/other.sd"),
+    ).toBe(true);
+  });
+
+  it("sends a document opened again after a restart, whatever version it starts from", async () => {
+    const workspace = new TestWorkspace();
+    await open(workspace, "Line one.\n");
+    await insertAtStart(workspace, 2, "BOB:\n  ");
+    await insertAtStart(workspace, 3, "~ ");
+    await workspace.restartCompiler();
+    await settle();
+
+    // The editor closes it and opens it again, its versions started over.
+    await workspace.closeTextDocument({ textDocument: { uri: MAIN } });
+    await open(workspace, "Line two.\n");
+    await settle();
+    const update = workspace.restarted.requests.find(
+      (r) => r.method === UpdateCompilerDocumentMessage.method,
+    );
+    expect(update?.params.textDocument).toEqual({
+      uri: MAIN,
+      languageId: "sparkdown",
+      version: 1,
+      text: "Line two.\n",
+    });
   });
 });

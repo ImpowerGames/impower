@@ -84,6 +84,14 @@ export class CompilerRestartedError extends Error {
   }
 }
 
+/** Settle a request quietly when the worker it went to was restarted: the
+ *  restarted one was given the project as the page holds it. */
+const unlessRestarted = (e: unknown) => {
+  if (!(e instanceof CompilerRestartedError)) {
+    throw e;
+  }
+};
+
 interface ProgramState {
   program?: SparkProgram;
   version: number;
@@ -121,7 +129,9 @@ export abstract class SparkdownWorkspace {
 
   /** The version of each document the files a restarted compiler was
    *  configured with carry, so an update to it that was already folded into
-   *  them is not applied again. */
+   *  them is not applied again. An entry goes once an update past it has
+   *  been sent, and when the document is opened, created or deleted, since a
+   *  document opened again can start its versions over. */
   protected _configuredDocumentVersions = new Map<string, number>();
 
   get mainScriptFilename() {
@@ -295,6 +305,7 @@ export abstract class SparkdownWorkspace {
     this.startCompilerWorker();
     this.onCompilerRestarted(this._compilerChannelConnection);
     previous.abandon(new CompilerRestartedError());
+    previous.close();
     const config = this._compilerConfig;
     if (!config) {
       // Never configured, so there is nothing to give the new worker yet:
@@ -780,6 +791,7 @@ export abstract class SparkdownWorkspace {
         // A restarted compiler was configured with this change already.
         return undefined;
       }
+      this._configuredDocumentVersions.delete(textDocument.uri);
       return this._compilerChannelConnection
         .sendRequest(UpdateCompilerDocumentMessage.type, {
           textDocument,
@@ -1185,6 +1197,7 @@ export abstract class SparkdownWorkspace {
     const textDocument = params.textDocument;
     this._openDocuments.add(textDocument.uri);
     this._documentVersions.set(textDocument.uri, textDocument.version);
+    this._configuredDocumentVersions.delete(textDocument.uri);
     if (this._mirrorDocumentTexts) {
       this._documentTexts.set(
         textDocument.uri,
@@ -1275,16 +1288,16 @@ export abstract class SparkdownWorkspace {
       if (this.getFileType(uri) === "script") {
         this._documentVersions.set(uri, 0);
       }
+      this._configuredDocumentVersions.delete(uri);
       const file = await this.loadFile({ uri });
       this._watchedFiles.set(uri, file);
       this.onCreatedFile(file);
       await this.compilerReady();
-      await this._compilerChannelConnection.sendRequest(
-        AddCompilerFileMessage.type,
-        {
+      await this._compilerChannelConnection
+        .sendRequest(AddCompilerFileMessage.type, {
           file: imageFileForCompiler(file, this._compilerConfig?.stripImageData),
-        },
-      );
+        })
+        .catch(unlessRestarted);
       return file;
     });
     if (
@@ -1307,15 +1320,14 @@ export abstract class SparkdownWorkspace {
         this._documentVersions.set(uri, file.version ?? 0);
         this.onChangedFile(file);
         await this.compilerReady();
-        await this._compilerChannelConnection.sendRequest(
-          UpdateCompilerFileMessage.type,
-          {
+        await this._compilerChannelConnection
+          .sendRequest(UpdateCompilerFileMessage.type, {
             file: imageFileForCompiler(
               file,
               this._compilerConfig?.stripImageData,
             ),
-          },
-        );
+          })
+          .catch(unlessRestarted);
         return file;
       });
       if (
@@ -1337,6 +1349,7 @@ export abstract class SparkdownWorkspace {
       this._programStates.delete(uri);
       this._documentVersions.delete(uri);
       this._documentTexts.delete(uri);
+      this._configuredDocumentVersions.delete(uri);
       if (this._documentSelected?.file === uri) {
         this._documentSelected = undefined;
       }
@@ -1344,12 +1357,11 @@ export abstract class SparkdownWorkspace {
         this.onDeletedFile(deletedFile!);
       }
       await this.compilerReady();
-      await this._compilerChannelConnection.sendRequest(
-        RemoveCompilerFileMessage.type,
-        {
+      await this._compilerChannelConnection
+        .sendRequest(RemoveCompilerFileMessage.type, {
           file: { uri },
-        },
-      );
+        })
+        .catch(unlessRestarted);
       return deletedFile;
     });
     if (

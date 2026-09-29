@@ -17,7 +17,9 @@ export const BUSY_NOTICE_EVERY_MS = 250;
  * A stretch begins at the first watch call after the thread last yielded and
  * ends when it yields, which a microtask queued at its start observes: it
  * runs as soon as the synchronous run it was queued in ends, and never while
- * a loop that does not end is still running. Since the first call comes
+ * a loop that does not end is still running. The stretch is the whole
+ * synchronous run a story steps in, so what runs between its steps in that
+ * run (a checkpoint, the game's own logic) counts too. Since the first call comes
  * `EXECUTION_WATCH_STEPS` into the stretch, a stretch is measured those
  * steps short, a few milliseconds; nothing here needs it closer.
  */

@@ -23,6 +23,7 @@ import type {
   WorkerDisplayWorkspace,
   WorkerHang,
 } from "./WorkerDisplayWorkspace";
+import { respondToWorkerHang } from "./respondToWorkerHang";
 import { SetAsidePoints } from "./SetAsidePoints";
 import { WorkerGameLink } from "./WorkerGameLink";
 import { WorkerWatchdog } from "./WorkerWatchdog";
@@ -85,45 +86,15 @@ export function installWorkspaceWorker(connection: MessageConnection) {
      *  waits. Whatever it was asked since is unanswered and will stay so: it
      *  is terminated and another started in its place, which is given the
      *  project as the editor holds it and routes to the author's selection,
-     *  unless that is set aside. The point the worker was routing to is set
-     *  aside, as is the line the story was running, and whoever listens may
-     *  set more aside before the restart. */
+     *  unless that is set aside (`respondToWorkerHang` decides what is, and
+     *  tells the listeners first). */
     protected onWorkerHang = (busy: WorkerBusyParams) => {
       this._watchdog.dispose();
-      if (busy.routingTo) {
-        this.setAside(busy.routingTo);
-        // The restarted worker routes to the author's selection first. The
-        // route that did not yield can have been headed elsewhere (a compile
-        // routes to where the author was when it began, and an editor sends
-        // selections the author did not make), and one to the selection can
-        // run into the same loop, which would cost another wait and another
-        // cold compile. The selection waits for the author to move or edit.
-        const selected = this._documentSelected;
-        if (selected) {
-          this.setAside(selected);
-        }
-      }
-      if (busy.location) {
-        this.setAside({
-          file: busy.location.uri,
-          line: busy.location.range.start.line,
-        });
-      }
-      let resolveRestarted!: () => void;
-      const hang: WorkerHang = {
-        busyMs: busy.busyMs,
-        location: busy.location,
-        restarted: new Promise<void>((resolve) => {
-          resolveRestarted = resolve;
-        }),
-      };
-      for (const listener of [...this._hangListeners]) {
-        try {
-          listener(hang);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+      respondToWorkerHang(busy, {
+        setAside: this._setAside,
+        selected: this._documentSelected,
+        listeners: this._hangListeners,
+      });
       console.warn(
         `The player's worker ran a script for ${busy.busyMs} ms without yielding, so it was restarted`,
         JSON.stringify({
@@ -135,9 +106,7 @@ export function installWorkspaceWorker(connection: MessageConnection) {
             : null,
         }),
       );
-      this.restartCompiler()
-        .catch((e) => console.error(e))
-        .finally(resolveRestarted);
+      this.restartCompiler().catch((e) => console.error(e));
     };
 
     addWorkerHangListener(listener: (hang: WorkerHang) => void) {
@@ -145,10 +114,6 @@ export function installWorkspaceWorker(connection: MessageConnection) {
       return () => {
         this._hangListeners.delete(listener);
       };
-    }
-
-    setAside(point: PreviewPoint) {
-      this._setAside.add(point);
     }
 
     isSetAside(point: PreviewPoint) {

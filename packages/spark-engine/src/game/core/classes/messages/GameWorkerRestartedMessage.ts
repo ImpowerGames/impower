@@ -18,7 +18,8 @@ export interface GameWorkerRestartedParams {
  * The player restarted its worker because the script it was running did not
  * yield (#679): a loop that never ends, or one that runs on for longer than
  * the player waits. PLAY, if it was running, has stopped, and the preview
- * does not run that line again until the script changes.
+ * does not route to the line the author was on, nor to any line once this
+ * has happened twice, until the script changes.
  */
 export class GameWorkerRestartedMessage {
   static readonly method = "game/workerRestarted";

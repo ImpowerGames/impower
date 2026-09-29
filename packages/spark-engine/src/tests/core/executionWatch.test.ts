@@ -5,7 +5,9 @@
 // line that called it, or in a scene that diverts to itself. Each call names
 // the story, whose position says which line was running.
 
+import "@impower/sparkdown/src/inkjs/engine/Container";
 import { afterEach, describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   EXECUTION_WATCH_STEPS,
   executionWatch,
@@ -76,10 +78,19 @@ const playWatched = async (source: string, line: number) => {
   game.setStartFrom({ file: MAIN_URI, line }, "first");
   game.start();
   // What the start ran, the builtins' declarations among it, is not the loop.
+  // The watch is called on multiples of the interval of the story's step
+  // count, which the start leaves wherever it ends; from one, the next call
+  // is a whole interval away.
   heard.length = 0;
+  game.story.stepCount = 1;
   // Advance past the first beat, into the loop.
   game.continue();
-  return { game, heard, errors: runtimeErrors(h.messages) };
+  return {
+    game,
+    heard,
+    errors: runtimeErrors(h.messages),
+    steps: game.story.stepCount - 1,
+  };
 };
 
 afterEach(() => {
@@ -111,11 +122,43 @@ describe("the execution watch (#679)", () => {
   }, 120_000);
 
   test("is not called by a beat that ends", async () => {
-    const { heard, errors } = await playWatched(
+    const { heard, errors, steps } = await playWatched(
       "BOB:\n  One.\n\nBOB:\n  Two.\n",
       0,
     );
     expect(errors).toEqual([]);
+    // A beat is far shorter than the interval, so it is never heard.
+    expect(steps).toBeGreaterThan(0);
+    expect(steps).toBeLessThan(EXECUTION_WATCH_STEPS);
     expect(heard).toEqual([]);
+  }, 120_000);
+
+  // The program engine (`ProgramStory`) does not call the watch. It never
+  // needs to while a program that can loop falls back to `Story`, which is
+  // what this pins: a loop needs a divert or a function call.
+  test.each([
+    ["a Luau loop in a function", LUAU_LOOP],
+    ["a scene that diverts to itself", DIVERT_LOOP],
+  ])("runs %s on the story engine, which is watched", (_name, source) => {
+    const compiler = new SparkdownCompiler();
+    compiler.configure({
+      files: [
+        {
+          uri: MAIN_URI,
+          type: "script",
+          name: "main",
+          ext: "sd",
+          text: source,
+          version: 1,
+          languageId: "sparkdown",
+        },
+      ] as never,
+      seedBuiltinsIntoStory: true,
+      emitCompiledProgram: false,
+      programChunks: true,
+    });
+    const program = compiler.compile({ textDocument: { uri: MAIN_URI } })
+      .program as any;
+    expect(program.fallback != null).toBe(true);
   }, 120_000);
 });

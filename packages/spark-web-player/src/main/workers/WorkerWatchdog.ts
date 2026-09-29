@@ -8,12 +8,15 @@ import {
  * How long the player's worker may run stories without yielding before the
  * page takes it for a script that never yields and restarts it (#679).
  *
- * Only story execution counts: the worker reports it (`WorkerBusyMessage`),
- * and a compile, which runs no story, reports nothing however long it takes.
- * The longest legitimate stretch is a route search or replay on a large
- * project; this is set well above the longest measured on the Raffles & Bunny
- * project (see the PR for #679), and under the eight seconds the engine's own
- * step ceiling takes to stop a loop that does nothing but loop.
+ * Only a stretch in which a story steps counts: the worker reports it
+ * (`WorkerBusyMessage`), and a compile, which runs no story, reports nothing
+ * however long it takes. The longest legitimate stretch is a route search or
+ * replay on a large project. On the Raffles & Bunny project (8,254-line main
+ * script) the longest measured was 307 ms, a cold route to line 7650 just
+ * after a restart; scrubs across the script stayed under 257 ms, and a 3.8 s
+ * cold compile reported nothing (#679). This is about ten times that, and
+ * under the eight seconds the engine's own step ceiling takes to stop a loop
+ * that does nothing but loop.
  */
 export const WORKER_HANG_AFTER_MS = 3_000;
 

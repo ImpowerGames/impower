@@ -153,6 +153,11 @@ export const completionKey = (
  *  on every arrow key reads as flicker. */
 const COMPLETION_PREPARING_STATUS_DELAY = 150;
 
+/** How long PLAY asked for while the worker restarts waits for the restarted
+ *  worker's program: a cold compile of a large project takes a few seconds
+ *  (#679). */
+const PROGRAM_AFTER_RESTART_WAIT_MS = 60_000;
+
 // Module-level singleton. Set via setWorkspace() before any controller is
 // constructed.
 let workspace: (SparkdownWorkspace & WorkerDisplayWorkspace) | undefined;
@@ -233,6 +238,9 @@ export class GamePlayerController {
   _endingPlay?: WorkerPlay;
   /** Stop hearing that the worker was restarted. */
   _stopHearingHangs?: () => void;
+  /** Settles once a program reaches the page after the worker was
+   *  restarted, which then holds none until it has compiled. */
+  _programAfterRestart?: { arrived: Promise<void>; arrive: () => void };
   /** PLAY is setting up its game, so no preview may take the screen. */
   _startingPlay = false;
   _app?: Application;
@@ -1199,7 +1207,7 @@ export class GamePlayerController {
         startFrom: { file: params.textDocument.uri, line },
       });
     } catch (e) {
-      console.error(e);
+      reportUnlessRestarted(e);
     } finally {
       this._completionEvaluating = null;
     }
@@ -1832,6 +1840,8 @@ export class GamePlayerController {
     for (const arrived of [...this._programWaiters]) {
       arrived();
     }
+    this._programAfterRestart?.arrive();
+    this._programAfterRestart = undefined;
     return this.loadNewestProgram(program);
   };
 
@@ -1929,6 +1939,21 @@ export class GamePlayerController {
       await this.loadingInitialProgram;
       // STOP, a newer PLAY or the controller going while it waited ended
       // this PLAY before it asked the worker for anything.
+      if (plays !== this._plays || stops !== this._stops || !this._mounted) {
+        return false;
+      }
+    }
+    if (this._programAfterRestart) {
+      // The worker was restarted and holds no program until its compile has
+      // reached the page: PLAY asked for before then runs what it compiles.
+      // A restart whose compile never delivers one (it threw) does not hold
+      // PLAY for ever.
+      await Promise.race([
+        this._programAfterRestart.arrived,
+        new Promise((resolve) =>
+          setTimeout(resolve, PROGRAM_AFTER_RESTART_WAIT_MS),
+        ),
+      ]);
       if (plays !== this._plays || stops !== this._stops || !this._mounted) {
         return false;
       }
@@ -2321,11 +2346,17 @@ export class GamePlayerController {
    * PLAY, running or being stopped, ends as a run that raised an error does,
    * with the selection left where it is: the line PLAY stopped on may be the
    * one that never yields. A stopped preview gives up its screen; the
-   * workspace has set aside the point the worker was routing to, so neither
-   * the restarted worker nor the page runs it again until the script
-   * changes. The author is told what happened, where.
+   * workspace has set aside what the restarted worker must not route to, and
+   * `updatePreview` does not ask for it either. A PLAY asked for before the
+   * restarted worker's program reaches the page waits for it. The author is
+   * told what happened, where.
    */
   protected handleWorkerHang = (hang: WorkerHang) => {
+    if (!this._programAfterRestart) {
+      let arrive!: () => void;
+      const arrived = new Promise<void>((resolve) => (arrive = resolve));
+      this._programAfterRestart = { arrived, arrive };
+    }
     const during =
       this._workerPlay || this._endingPlay || this._startingPlay
         ? "play"

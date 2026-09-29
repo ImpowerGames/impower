@@ -368,4 +368,75 @@ describe("the page, when the worker is restarted", () => {
       h.dispose();
     }
   }, 60_000);
+
+  it("pauses the preview until the script changes once a second route runs into the loop", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    try {
+      await h.compile();
+      await h.select(FIRST);
+      for (const line of [LOOPS, LAST]) {
+        h.stall();
+        await h.hang({
+          busyMs: WORKER_HANG_AFTER_MS,
+          location: at(LOOPS),
+          routingTo: { file: MAIN_URI, line },
+        });
+        await h.compile();
+      }
+      const messages = h.toEditor
+        .filter((m) => m.method === GameWorkerRestartedMessage.method)
+        .map((m) => m.params.message);
+      expect(messages[0]).toContain("will not show the line you were on");
+      expect(messages[1]).toContain("paused until the script changes");
+
+      // No line displays, not even one before the loop.
+      const displays = recordDisplays(h);
+      expect(
+        await h.controller.updatePreview(
+          h.controller._program!,
+          MAIN_URI,
+          FIRST,
+        ),
+      ).toBe(false);
+      expect(displays).toEqual([]);
+
+      // Until the script changes.
+      h.workspace.documentsRevision += 1;
+      await h.select(FIRST);
+      expect(displays).toContain(FIRST);
+      expect(h.overlay.textContent).toContain("The first beat.");
+    } finally {
+      h.dispose();
+    }
+  }, 60_000);
+
+  it("holds PLAY asked for while the worker restarts until the new worker's program arrives", async () => {
+    const h = await createPlayerHarness({
+      files: [{ uri: MAIN_URI, text: SOURCE }],
+      startFrom: { file: MAIN_URI, line: FIRST },
+    });
+    framesForStop(h);
+    try {
+      await h.compile();
+      await h.select(FIRST);
+      h.stall();
+      await h.hang({
+        busyMs: WORKER_HANG_AFTER_MS,
+        location: at(LOOPS),
+        routingTo: { file: MAIN_URI, line: LOOPS },
+      });
+      // The restarted worker has compiled nothing yet, and holds no program.
+      const played = h.controller.startGameAndApp();
+      expect(await settlesWithin(played, 200)).toBe("waiting");
+      await h.compile();
+      expect(await played).toBe(true);
+      expect(h.controller.playing).toBe(true);
+      await h.controller.stopGame("quit");
+    } finally {
+      h.dispose();
+    }
+  }, 60_000);
 });

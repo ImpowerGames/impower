@@ -14,9 +14,9 @@ export interface WorkerHang {
   busyMs: number;
   /** The line it was running, if the worker could say. */
   location: DocumentLocation | null;
-  /** Settles once the restarted worker has been given the project and has
-   *  compiled it. */
-  restarted: Promise<void>;
+  /** The preview routes to no point at all until the script changes: this
+   *  is the second hang since it last changed (`SetAsidePoints`). */
+  previewWithheld: boolean;
 }
 
 /** What the player's workspace offers the controller for the preview the
@@ -31,12 +31,9 @@ export interface WorkerDisplayWorkspace {
   programHeld(program: string): Promise<void>;
   /** Hear each time the worker is restarted because a story ran in it
    *  without yielding. A listener is called before any request still waiting
-   *  on the old worker is settled, and may set points aside. */
+   *  on the old worker is settled. */
   addWorkerHangListener(listener: (hang: WorkerHang) => void): () => void;
-  /** Keep the worker from running a route to `point` again, as a selection
-   *  or a compile would, until the project next changes: a preview of it is
-   *  what stopped the worker answering. */
-  setAside(point: PreviewPoint): void;
-  /** `point` is set aside (`setAside`). */
+  /** The preview must not route to `point` until the script changes: a
+   *  route to it, or through it, is what stopped the worker answering. */
   isSetAside(point: PreviewPoint): boolean;
 }
