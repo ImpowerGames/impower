@@ -27,7 +27,9 @@ import {
 import { wrapInWeave } from "./utils/wrapInWeave";
 import {
   collectLineContinuation,
+  continuationParts,
   endsInTypeName,
+  reportExtraTypeQualifiers,
   isLineContinuationUsed,
   isTypeQualifierContinuation,
   markLineContinuationUsed,
@@ -336,6 +338,11 @@ function lowerInner(
         isTypeQualifierContinuation(continuation)
       ) {
         markLineContinuationUsed(continuation, ctx);
+        reportExtraTypeQualifiers(
+          nodeRef.node,
+          continuationParts(continuation),
+          ctx,
+        );
       }
       return {};
     }

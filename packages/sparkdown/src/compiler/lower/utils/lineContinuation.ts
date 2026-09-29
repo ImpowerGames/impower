@@ -167,23 +167,96 @@ export function isTypeQualifierContinuation(nodes: SyntaxNode[]): boolean {
   return lines > 0;
 }
 
-// Whether the type syntax in `node` ends in a type name, leaving out any
-// comment and whitespace after it, so that a `.Name` continuation can
-// qualify it (`types` then `.Button`, but not `{ x: number }` then `.b`).
-// A `::` cast's type parses as a value, so its name is a `LuauVariable`, and a
+// Luau reads at most one module prefix in a type name (`module.Type`).
+export const TYPE_NAME_EXTRA_QUALIFIER =
+  "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
+
+// How many dot-separated segments the type name that the type syntax in
+// `node` ends with has, leaving out any comment and whitespace after it, or 0
+// when it does not end in a name, so that a `.Name` continuation can qualify
+// it (`types` then `.Button`, but not `{ x: number }` then `.b`). A `::`
+// cast's type parses as a value, so its name is a `LuauAccessPath`, and a
 // module named like a primitive (`string` then `.Button`) reads as a
 // `LuauPrimitiveType` until its qualifier is on the same line.
-const TYPE_NAME_NODES: ReadonlySet<string> = new Set([
-  "LuauTypeName",
-  "LuauPrimitiveType",
-  "LuauVariable",
-]);
+export function typeNameSegments(node: SyntaxNode): number {
+  for (let n = lastSignificantLeaf(node); n && n !== node; n = n.parent) {
+    if (n.name === "LuauPrimitiveType") return 1;
+    if (n.name === "LuauTypeName") {
+      if (hasDescendant(n, "LuauTypeNameExtraQualifier")) return 3;
+      return hasDescendant(n, "LuauVariableName") ? 2 : 1;
+    }
+    if (n.name === "LuauAccessPath") {
+      let segments = 0;
+      for (let part = firstContentChild(n); part; part = part.nextSibling) {
+        if (part.name !== "LuauAccessPart") continue;
+        const inner = part.firstChild?.name;
+        if (inner !== "LuauVariable" && inner !== "LuauPropertyAccessor") {
+          return 0;
+        }
+        segments++;
+      }
+      return segments;
+    }
+  }
+  return 0;
+}
 
 export function endsInTypeName(node: SyntaxNode): boolean {
-  for (let n = lastSignificantLeaf(node); n && n !== node; n = n.parent) {
-    if (TYPE_NAME_NODES.has(n.name)) return true;
+  return typeNameSegments(node) > 0;
+}
+
+// The access parts of `nodes`: those of each continuation line, and any
+// access part already expanded from one.
+export function continuationParts(nodes: SyntaxNode[]): SyntaxNode[] {
+  const parts: SyntaxNode[] = [];
+  for (const node of nodes) {
+    if (node.name === "LuauAccessPart") parts.push(node);
+    if (node.name !== "LuauLineContinuation") continue;
+    for (let part = lineContinuationContent(node); part; part = part.nextSibling) {
+      if (part.name === "LuauAccessPart") parts.push(part);
+    }
+  }
+  return parts;
+}
+
+// Report the continued `parts` that give the type name `typeNode` ends with
+// more than one module prefix (`types.ui` then `.Button`), as the same name
+// written on one line is reported.
+export function reportExtraTypeQualifiers(
+  typeNode: SyntaxNode,
+  parts: SyntaxNode[],
+  ctx: LowerContext,
+): void {
+  const extra = parts.slice(Math.max(0, 2 - typeNameSegments(typeNode)));
+  const first = extra[0];
+  const last = extra[extra.length - 1];
+  if (!first || !last) return;
+  ctx.diagnostics?.push({
+    message: TYPE_NAME_EXTRA_QUALIFIER,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(first.from) + 1,
+      endLineNumber: ctx.lineNumber(last.to) + 1,
+      startCharacterNumber: ctx.characterNumber(first.from) + 1,
+      endCharacterNumber: ctx.characterNumber(last.to) + 1,
+    },
+  });
+}
+
+function hasDescendant(node: SyntaxNode, name: string): boolean {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === name || hasDescendant(child, name)) return true;
   }
   return false;
+}
+
+function firstContentChild(node: SyntaxNode): SyntaxNode | null {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === `${node.name}_content`) return child.firstChild;
+  }
+  return null;
 }
 
 function lastSignificantLeaf(node: SyntaxNode): SyntaxNode | null {

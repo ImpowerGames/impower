@@ -54,6 +54,7 @@ import { syntheticId } from "../utils/documentTag";
 import {
   endsInTypeName,
   expandLineContinuations,
+  reportExtraTypeQualifiers,
   reportUntakenLineContinuation,
 } from "../utils/lineContinuation";
 
@@ -263,6 +264,8 @@ export function lowerExpressionFromNodes(
             ctx,
             "To access the value the cast gives, put the cast in parentheses: `(value :: type)`.",
           );
+        } else {
+          reportExtraTypeQualifiers(node, parts, ctx);
         }
         i = last;
         continue;

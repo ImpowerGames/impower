@@ -273,6 +273,20 @@ test("a continuation after a cast to a table type is reported with advice to par
   ]);
 });
 
+// Luau reads at most `module.Type`, so a continuation that gives a type name
+// a second module prefix is the same error as writing it on one line.
+test.each([
+  ["annotation", "local x: types.ui\n  .Button = 3\nreturn x"],
+  ["alias", "type A = types.ui\n  .Button\nreturn 1"],
+  ["cast", "local y = 1 :: types.ui\n  .Button\nreturn y"],
+  ["type split over two lines", "local x: types\n  .ui\n  .Button = 3\nreturn x"],
+])("a continued %s with a second module prefix is reported", (_name, body) => {
+  const ctx = makeRuntimeStoryFromSource(inFunction(body));
+  expect(ctx.errorMessages).toEqual([
+    expect.stringContaining("takes at most one module prefix"),
+  ]);
+});
+
 // In a scene, a line that begins with `.` is prose.
 test("a line starting with a dot after a statement in a scene is prose", () => {
   const ctx = makeRuntimeStoryFromSource("local y = 1\n.hello there\n");

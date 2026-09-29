@@ -16,8 +16,10 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import {
+  continuationParts,
   endsInTypeName,
   isTypeQualifierContinuation,
+  reportExtraTypeQualifiers,
   markLineContinuationUsed,
   splitOnCommas,
   takeLineContinuation,
@@ -226,6 +228,7 @@ export function lowerVariableDefinition(
       isTypeQualifierContinuation(qualifiers)
     ) {
       markLineContinuationUsed(qualifiers, ctx);
+      reportExtraTypeQualifiers(typed, continuationParts(qualifiers), ctx);
       if (opAt >= 0) {
         firstRhsOp = continued[opAt]!;
         firstRhsContinuation = continued.slice(opAt + 1);
