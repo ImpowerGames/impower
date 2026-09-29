@@ -1167,6 +1167,27 @@ function lowerTernaryExpression(
   return new TernaryExpression(branches);
 }
 
+// Luau's parser reads a function expression's `(` where the name sits,
+// so it reports `Expected '(' when parsing function, got 'NAME'`. The
+// squiggle covers the name.
+function reportNamedFunctionValue(declName: SyntaxNode, ctx: LowerContext) {
+  if (!ctx.diagnostics) return;
+  const nameNode = getDescendent("LuauFunctionName", declName) ?? declName;
+  const name = ctx.read(nameNode.from, nameNode.to).trim();
+  ctx.diagnostics.push({
+    message: `Expected '(' when parsing function, got '${name}'`,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(nameNode.from) + 1,
+      endLineNumber: ctx.lineNumber(nameNode.to) + 1,
+      startCharacterNumber: ctx.characterNumber(nameNode.from) + 1,
+      endCharacterNumber: ctx.characterNumber(nameNode.to) + 1,
+    },
+  });
+}
+
 // Lower an anonymous function literal (`function(x) return x * 2 end`)
 // in expression position. Synthesizes a uniquely-named knot from the
 // function's body, stashes the knot in `ctx.hoistedKnots` so the
@@ -1182,8 +1203,10 @@ function lowerTernaryExpression(
 //     runtime because the synthetic knot has no link to its lexical
 //     surroundings.
 //   - Named function definitions (`function name(...) ... end`) are
-//     handled by `lowerLuauFunctionDefinition` at statement level
-//     and never reach this path.
+//     handled by `lowerLuauFunctionDefinition` at statement level.
+//     A named one in a value position (`g = function named() ... end`)
+//     is a Luau parse error: it is reported at the name and then
+//     lowered as if anonymous, so the rest of the story compiles.
 function lowerAnonymousFunction(
   node: SyntaxNode,
   ctx: LowerContext,
@@ -1195,12 +1218,11 @@ function lowerAnonymousFunction(
     // primary cleanly.
     return null;
   }
-  // Skip named definitions — those are statement-level. Scope the check
-  // to this node's OWN header (not deep descendants); otherwise an
-  // anonymous outer fn containing a nested `local function NAME ... end`
-  // would be mis-classified as named and skipped, leaving the IIFE
-  // unlowered and `(IIFE)()` returning nil at runtime.
-  if (findOwnDeclarationName(node)) return null;
+  // Scope the name check to this node's OWN header (not deep
+  // descendants); otherwise an anonymous outer fn containing a nested
+  // `local function NAME ... end` would be reported as named.
+  const declName = findOwnDeclarationName(node);
+  if (declName) reportNamedFunctionValue(declName, ctx);
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;
   // Identify free variables (referenced inside the body but not bound
