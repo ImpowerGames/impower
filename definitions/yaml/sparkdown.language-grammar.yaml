@@ -7683,6 +7683,7 @@ repository:
     emit: true
     patterns:
       - { include: "#LuauFunctionAccessor" }
+      - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
       - { include: "#LuauFunctionDeclarationName" }
@@ -7932,6 +7933,37 @@ repository:
         patterns:
           - { include: "#LuauStdLibMethods" }
           - { include: "#LuauPropertyName" }
+
+  # A member access whose last `.` has no name after it on its line (`t.`,
+  # `t.a.`), which Luau rejects. That `.` is read as its own token, so the
+  # access path, its statement and the enclosing block end where they would
+  # with the name in place, and the validator reports it.
+  #
+  # The lookbehind takes the `.` as a dangling accessor only after a path
+  # that follows a value-position token: `=`, a comma, an opening bracket, a
+  # binary or unary operator, `return`, a condition keyword, `in` or a
+  # logical operator. A line that starts with a path is left to the rules
+  # that end a function body at a line they cannot read, so a line of words
+  # in a function body (`Hello there.`) keeps that parse. Story lines are not
+  # allowed in a function body, and a line of words with a value-position
+  # token before its last word (`Well, friend.`) is reported here. A name
+  # directly after the `.` is the member, even a keyword (`cfg.repeat`). After
+  # whitespace or block comments on the same line, a reserved word is not a
+  # name (`if t.a. then`) and any other name is (`t.a.--[[note]]b`); and `..`
+  # is the concatenation operator. A block comment ends at its first
+  # closing bracket and at the end of its line, so the lookahead never skips
+  # code between two comments (`t.a.--[[a]] + --[[b]]c`) or reads a name on a
+  # later line as the member. It is tried before `LuauPropertyAccessor`,
+  # which would take `. then` as a member.
+  LuauDanglingAccessor:
+    match: (?<=(?:[=,(\[{<>+\-*/%^#]|\.\.|\b(?:return|if|elseif|while|until|and|or|not|in)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*)({{WS}}*)([.])(?![.]|{{LUAU_IDENTIFIER}}|{{WS}}*(?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: invalid
+        name: invalid.illegal.luau
 
   LuauPropertyIndexer:
     brackets: true

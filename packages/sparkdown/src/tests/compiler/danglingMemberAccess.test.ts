@@ -1,0 +1,268 @@
+// A member access with nothing after its last `.` (`t.a.`) is a Luau syntax
+// error. It is reported at the `.`, and the rest of the line's statement, the
+// enclosing function and the story after it parse as if the name were there:
+// the function still ends at its own `end`, and the story below it stays in the
+// root flow.
+import "../../inkjs/engine/Container";
+import { describe, expect, it } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+
+const URI = "inmemory:///main.sd";
+
+function compile(text: string) {
+  const c = new SparkdownCompiler();
+  c.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  } as never);
+  return (c.compile({ textDocument: { uri: URI } } as never) as any).program;
+}
+
+interface Found {
+  message: string;
+  severity: number | undefined;
+  line: number | undefined;
+  character: number | undefined;
+}
+
+function diagnostics(program: any): Found[] {
+  const all: Found[] = [];
+  for (const list of Object.values(program.diagnostics ?? {}) as any[]) {
+    for (const d of list) {
+      all.push({
+        message: typeof d.message === "string" ? d.message : d.message?.value,
+        severity: d.severity,
+        line: d.range?.start?.line,
+        character: d.range?.start?.character,
+      });
+    }
+  }
+  return all;
+}
+
+// The ticket's script. Line 5 holds the dangling access.
+const SCRIPT = `$:
+  A QUIET ROOM
+
+function f()
+  local t = { a = { b = 7 } }
+  local y = t.a.
+  return y
+end
+
+BOB:
+  Value {f()}.
+`;
+
+describe("a dangling member access (#1079)", () => {
+  it("is reported as an error at the `.`", () => {
+    const errors = diagnostics(compile(SCRIPT)).filter((d) => d.severity === 1);
+    expect(errors).toEqual([
+      {
+        message: "Expected identifier, got 'return'",
+        severity: 1,
+        line: 5,
+        character: SCRIPT.split("\n")[5]!.lastIndexOf("."),
+      },
+    ]);
+  });
+
+  it("leaves the function ending at its own `end`", () => {
+    const program = compile(SCRIPT);
+    expect(program.pathLocations.functions).toEqual([
+      { path: "f", lines: [0, 3, 7] },
+    ]);
+  });
+
+  // Line 2 of each holds the dangling `.`; the function spans lines 0 to `end`.
+  it.each([
+    [
+      "whitespace before the `.`",
+      "function f()\n  local t = {}\n  local y = t.a .\n  return y\nend\n",
+      "Expected identifier, got 'return'",
+      4,
+    ],
+    [
+      "a trailing comment",
+      "function f()\n  local t = {}\n  local y = t.a. -- note\n  return y\nend\n",
+      "Expected identifier, got 'return'",
+      4,
+    ],
+    [
+      "an operator after the `.`",
+      "function f()\n  local t = { a = 1 }\n  return t.a. + 1\nend\n",
+      "Expected identifier, got '+'",
+      3,
+    ],
+    [
+      "a call argument",
+      "function f()\n  local t = {}\n  print(t.a.)\nend\n",
+      "Expected identifier, got ')'",
+      3,
+    ],
+    [
+      "a same-line `then`",
+      "function f(t)\n  local y = 0\n  if t.a. then\n    y = 1\n  end\n  return y\nend\n",
+      "Expected identifier, got 'then'",
+      6,
+    ],
+    [
+      "a single name before the `.`",
+      "function f()\n  local t = {}\n  local y = t.\n  return y\nend\n",
+      "Expected identifier, got 'return'",
+      4,
+    ],
+    [
+      "a later call argument",
+      "function f()\n  local t = {}\n  print(1, t.a.)\nend\n",
+      "Expected identifier, got ')'",
+      3,
+    ],
+    [
+      "an arithmetic operand",
+      "function f()\n  local t = {}\n  return 1 + t.\nend\n",
+      "Expected identifier, got 'end'",
+      3,
+    ],
+    [
+      "the length operator",
+      "function f()\n  local t = {}\n  return #t.a.\nend\n",
+      "Expected identifier, got 'end'",
+      3,
+    ],
+    [
+      "a concatenation operand",
+      "function f()\n  local t = {}\n  return \"x\" .. t.a.\nend\n",
+      "Expected identifier, got 'end'",
+      3,
+    ],
+    [
+      "a reserved word after a same-line block comment",
+      "function f(t)\n  local y = 0\n  y = t.a.--[[note]]return 1\nend\n",
+      "Expected identifier, got 'return'",
+      3,
+    ],
+    [
+      "an operator between two block comments",
+      "function f(t)\n  local y = 0\n  y = t.a.--[[one]] + --[[two]]b\n  return y\nend\n",
+      "Expected identifier, got '+'",
+      4,
+    ],
+    [
+      "a block comment that runs onto the next line",
+      "function f(t)\n  local y = 0\n  y = t.a.--[[ note\n  more ]]b\n  return y\nend\n",
+      "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+      5,
+    ],
+    [
+      "a generic `for` loop's iterator",
+      "function f(t)\n  local n = 0\n  for k in t.a. do\n  end\n  return n\nend\n",
+      "Expected identifier, got 'do'",
+      5,
+    ],
+    [
+      "a method name",
+      "function f()\n  local t = {}\n  local y = t:a.\n  return y\nend\n",
+      "Expected identifier, got 'return'",
+      4,
+    ],
+    [
+      "the name on the next line",
+      "function f()\n  local t = {}\n  local y = t.a.\n    b\n  return y\nend\n",
+      "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+      5,
+    ],
+  ])("with %s is reported at the `.`", (_name, source, message, endLine) => {
+    const program = compile(source);
+    const errors = diagnostics(program).filter((d) => d.severity === 1);
+    expect(errors).toEqual([
+      {
+        message,
+        severity: 1,
+        line: 2,
+        character: source.split("\n")[2]!.lastIndexOf("."),
+      },
+    ]);
+    expect(program.pathLocations.functions).toEqual([
+      { path: "f", lines: [0, 0, endLine] },
+    ]);
+  });
+
+  it("names <eof> when nothing follows the `.`", () => {
+    const source = "function f()\n  local t = {}\n  return t.a.";
+    const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
+    expect(errors).toContainEqual({
+      message: "Expected identifier, got <eof>",
+      severity: 1,
+      line: 2,
+      character: source.split("\n")[2]!.lastIndexOf("."),
+    });
+  });
+
+  it.each([
+    ["spaced", 'return t.a .. "y"'],
+    ["unspaced", 'return t.a.."y"'],
+  ])("leaves %s concatenation alone", (_name, line) => {
+    const source = `function f()\n  local t = { a = "x" }\n  ${line}\nend\n`;
+    expect(diagnostics(compile(source))).toEqual([]);
+  });
+
+  // Luau skips a comment between the `.` and the name, so these read `t.a.b`.
+  it.each([
+    ["a block comment", "t.a.--[[note]]b"],
+    ["a long-bracket block comment", "t.a.--[==[note]==]b"],
+    ["two block comments", "t.a.--[[one]]--[[two]]b"],
+    ["no space, when the name is a keyword", "t.a.repeat"],
+  ])("leaves a name after %s on the same line alone", (_name, access) => {
+    const source = `function f()\n  local t = { a = { b = 1 } }\n  return ${access}\nend\n`;
+    const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
+    expect(errors.filter((d) => d.message.startsWith("Expected identifier"))).toEqual([]);
+  });
+
+  // A `.` after a path with no value-position token before it is left to the
+  // rules that end a function body at a line they cannot read, and a story
+  // line in story scope never reaches the access-path rules.
+  it.each([
+    [
+      "words at the start of a line in a function body",
+      "function greet\n  Hello there.\n  How are you?\nend\n",
+    ],
+    [
+      "dotted words at the start of a line in a function body",
+      "function greet\n  Hello Mr.Smith.\n  Visit example.com.\n  He moved to the U.S.\n  How are you?\nend\n",
+    ],
+    [
+      "a line that is one dotted word in a function body",
+      "function greet\n  U.S.\n  Next line.\nend\n",
+    ],
+    [
+      "a story line in a story `if` body",
+      "store flag = false\n\n-> start\n\nscene start\n  if flag then\n    Went down the true side, and Tom.\n  end\nend\n",
+    ],
+    [
+      "a story line in a scene",
+      "-> start\n\nscene start\n  Hello there, friend. Made in China.\nend\n",
+    ],
+  ])("leaves the `.` of %s alone", (_name, source) => {
+    const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
+    expect(errors).toEqual([]);
+  });
+
+  it("leaves the story after the function in the root flow", () => {
+    const { paths, values } = compile(SCRIPT).pathLocations;
+    const valueLine: string[] = paths.filter(
+      (_: string, i: number) => values[i * 5 + 1] === 10,
+    );
+    expect(valueLine.length).toBeGreaterThan(0);
+    expect(valueLine.filter((path) => path.startsWith("f."))).toEqual([]);
+  });
+});

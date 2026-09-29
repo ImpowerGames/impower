@@ -15,6 +15,8 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
+import { RESERVED } from "../../lint/luauNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -122,6 +124,10 @@ const LUAU_COMMENT = nodeNameSet([
   "LuauDocLineComment",
   "LuauLineComment",
 ]);
+// Luau reads a name on a later line after a `.`, but a Sparkdown access path
+// ends with its line.
+const NAME_ON_LATER_LINE =
+  "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -569,6 +575,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.error(annotations, STRAY_OPTIONAL, operator.from, operator.to);
         return annotations;
       }
+    }
+    // A member access whose last `.` has no name after it on its line
+    // (`t.a.`). The grammar reads that `.`, after any whitespace before it, as
+    // its own token, so the `.` is the node's last character. The wording is
+    // Luau's parser's, naming the token it meets instead of the name.
+    if (nodeRef.name === "LuauDanglingAccessor") {
+      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+        this.read(from, to),
+      );
+      const nameOnLaterLine =
+        got != null &&
+        /^[A-Za-z_]/.test(got.text) &&
+        !RESERVED.has(got.text) &&
+        this.read(nodeRef.to, got.from).includes("\n");
+      const message = nameOnLaterLine
+        ? NAME_ON_LATER_LINE
+        : `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`;
+      this.error(annotations, message, nodeRef.to - 1, nodeRef.to);
+      return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
     // reads at most `module.Type`, so the segments after it are a syntax
