@@ -53,7 +53,7 @@ function isTrivia(node: SyntaxNode): boolean {
   return TRIVIA.has(node.name) || node.name.includes("Comment");
 }
 
-function makeSource(
+export function makeSource(
   from: number,
   to: number,
   ctx: LowerContext,
@@ -70,7 +70,7 @@ function makeSource(
 
 // The span of non-blank text starting at or after `from`, clipped to the end
 // of its line (and to `limit`), or null when only whitespace remains.
-function lineTextSpan(
+export function lineTextSpan(
   from: number,
   limit: number,
   ctx: LowerContext,
