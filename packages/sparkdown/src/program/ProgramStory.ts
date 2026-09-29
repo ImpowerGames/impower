@@ -2,10 +2,28 @@ import { Container } from "../inkjs/engine/Container";
 import { debugFileName } from "../compiler/utils/debugFileName";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { ErrorType, type RaisedError } from "../inkjs/engine/Error";
+import { NativeFunctionCall } from "../inkjs/engine/NativeFunctionCall";
 import { InkObject } from "../inkjs/engine/Object";
 import { cleanOutputWhitespace } from "../inkjs/engine/outputWhitespace";
-import { lookupStateAwareStdLib } from "../inkjs/engine/StdLib";
-import { Story } from "../inkjs/engine/Story";
+import type { Simulator } from "../inkjs/engine/Simulator";
+import {
+  BUILTIN_ITER_TAG,
+  lookupStateAwareStdLib,
+  stepBuiltinIterator,
+} from "../inkjs/engine/StdLib";
+import {
+  Story,
+  callNativeFunction,
+  captureString,
+  indexValue,
+  packTuple,
+  popLuauCondition,
+  readVariable,
+  shortCircuitDecides,
+  storeIndex,
+  tableFromPairs,
+  unpackTuple,
+} from "../inkjs/engine/Story";
 import {
   StepLimitExceeded,
   StoryException,
@@ -14,6 +32,7 @@ import { StringBuilder } from "../inkjs/engine/StringBuilder";
 import {
   AbstractValue,
   BoolValue,
+  DivertTargetValue,
   FloatValue,
   IntValue,
   MultiValue,
@@ -22,27 +41,46 @@ import {
   StringValue,
   Value,
 } from "../inkjs/engine/Value";
+import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
 import { Void } from "../inkjs/engine/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
   CALL_DISCARD,
   ConstValue,
+  JUMP_DECISION,
+  JUMP_LUAU,
+  KEEP_OR,
+  LEAVE_CONTINUE,
   NUM_FLOAT,
   Op,
+  SET_DECLARE,
+  SET_GLOBAL,
   auxOf,
   flagsOf,
   opOf,
 } from "./ProgramInstructions";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
 import { ROOT_FLOW_NAME } from "./ProgramSymbols";
-import { ProgramStoryState } from "./ProgramStoryState";
+import {
+  ProgramStoryState,
+  blockStackOf,
+  type ProgramPosition,
+} from "./ProgramStoryState";
 import {
   ANCHOR_STATEMENT,
+  BLOCK_LOOP,
+  B_BREAK,
+  B_RESUME,
   HEADER_WORDS,
+  blockField,
+  blockFlags,
+  blockScopes,
+  chunkId,
   codeWords,
   lineRowAt,
   lineRowField,
+  type StatementChunk,
 } from "./StatementChunk";
 
 /** What a caller needs to place a runtime path the current engine's path
@@ -61,26 +99,36 @@ type ErrorHandler = (
   raised?: RaisedError | null,
 ) => void;
 
+// The address of an instruction outside the engine: its chunk id and its
+// offset in one number (docs/engine/binary-program.md, section 1).
+const ADDRESS_CHUNK = 2 ** 21;
+
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
- * (docs/engine/binary-program.md, sections 3, 6 and 9): an eval stack, tables
- * built from their pairs, the `display` builtin dispatched through its `STDLIB`
- * entry, and a continue that returns at its line's newline.
+ * (docs/engine/binary-program.md, sections 3, 6 and 9): an eval stack, the
+ * value operations of the current engine (`Story`'s shared handlers), native
+ * functions and operators through `NativeFunctionCall`, variables through
+ * `VariablesState`, block statements whose bodies it enters and leaves
+ * through a block stack, decisions the route simulator can force, and a
+ * continue that returns at its line's newline.
  *
  * It presents the members of the current engine's `Story` that a `Game` uses
  * to create a game from a compile, continue, read a beat's display
  * instructions and run a preview compile's program, under the same names.
- * What it does not present yet belongs to later slices of #692: choices
- * (#697), route planning and addresses (#700), images and saves across
- * compiles (#699), and the debugger (#702).
+ * What it does not present yet belongs to later slices of #692: diverts and
+ * counts (#696), choices (#697), calls of functions (#698), images and saves
+ * across compiles (#699), addresses (#700) and the debugger (#702).
  *
- * The program's global declarations and the functions a host evaluates are not
- * emitted yet. Until they are (#695, #698), each engine keeps its own copy of
- * the current engine's story of the same compile (`ProgramRoot.runtimeStory`,
- * `Story.CopyWithOwnState`): `ResetState` runs the declarations on that copy,
- * whose globals this engine then reads and writes, and `HasFunction` and
- * `EvaluateFunction` run on it, against the same globals. Engines built from
- * one root share its chunks and nothing they write.
+ * Functions are not emitted yet. Until they are (#698), each engine keeps its
+ * own copy of the current engine's story of the same compile
+ * (`ProgramRoot.runtimeStory`, `Story.CopyWithOwnState`), which runs a
+ * function a chunk calls through a value (a generic `for`'s iterator, a
+ * metamethod) and the functions a host evaluates (`HasFunction`,
+ * `EvaluateFunction`). The copy's globals are this engine's, and the root
+ * element of its call stack is this engine's frame, whose scopes hold the
+ * temporaries. `ResetState` runs the program's declaration sequences against
+ * those globals. Engines built from one root share its chunks and nothing
+ * they write.
  */
 export class ProgramStory {
   collapseWhitespace = true;
@@ -95,7 +143,11 @@ export class ProgramStory {
   onExecute: ((path: string | undefined) => void) | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
 
-  simulator: unknown = null;
+  /** Forces the verdict of a decision (a `JumpIfFalse` with the decision
+   *  flag), keyed by the decision's address (`addressOf`). */
+  simulator: Simulator | null = null;
+  /** When set, a continue stops before it evaluates a decision, and
+   *  `pausedBeforeCondition` names the decision's address. */
   pauseBeforeEvaluatingConditions = false;
   pausedBeforeCondition: string | null = null;
 
@@ -103,6 +155,8 @@ export class ProgramStory {
   stepCount = 0;
   /** The `stepCount` past which a step throws `StepLimitExceeded`. */
   stepLimit: number | null = null;
+  /** How many declaration chunks this story has run. */
+  declarationsRun = 0;
 
   protected _state!: ProgramStoryState;
   protected _reader: BinaryProgramReader;
@@ -110,6 +164,10 @@ export class ProgramStory {
   // values are never written after they are made, so pushing one again
   // allocates nothing.
   protected _strings: StringValue[] = [];
+  // The native function of each `Native` operand, and the assignment of each
+  // `SetVar` operand, made once.
+  protected _natives = new Map<number, NativeFunctionCall>();
+  protected _assignments = new Map<number, VariableAssignment>();
   protected _asyncContinueActive = false;
   protected _recursiveContinueCount = 0;
   protected _stateIsPristine = false;
@@ -123,8 +181,8 @@ export class ProgramStory {
     this._runtimeStory =
       root.runtimeStory?.CopyWithOwnState() ??
       new Story(new Container(), null, null);
-    // An error the declarations raise while the globals initialize, or while a
-    // host evaluates a function, is reported as this story's.
+    // An error a function raises while a host evaluates it is reported as
+    // this story's.
     this._runtimeStory.onError = (message, type, source, raised) => {
       this.onError?.(message, type, source, raised);
     };
@@ -204,11 +262,14 @@ export class ProgramStory {
     return this._stateIsPristine;
   }
 
+  /** A fresh state: the story copy's, with no global initialized, then the
+   *  program's declaration chunks run in the order the current engine's
+   *  `global decl` container initializes the globals in. */
   ResetState(): void {
     this.IfAsyncWeCant("ResetState");
     const reactiveDepsEnabled =
       this._state?.variablesState?.reactiveDepsEnabled ?? false;
-    this._runtimeStory.ResetState();
+    this._runtimeStory.ResetState(false);
     const variablesState = this._runtimeStory.state.variablesState;
     variablesState.reactiveDepsEnabled = reactiveDepsEnabled;
     this._state = new ProgramStoryState(
@@ -218,7 +279,10 @@ export class ProgramStory {
       () => {
         this._stateIsPristine = false;
       },
+      this._runtimeStory.state.callStack,
     );
+    this.runDeclarations();
+    variablesState.SnapshotDefaultGlobals();
     const start = this.root.flowNamed(ROOT_FLOW_NAME);
     this._state.position = start ? { sequence: start, entry: 0, offset: 0 } : null;
     this._stateIsPristine = true;
@@ -270,7 +334,8 @@ export class ProgramStory {
 
   /** Moves to the start of a flow, named by its qualified name (the top-level
    *  content's flow is `""` or `"0"`), or to the statement a runtime path of
-   *  the current engine's path locations falls in. */
+   *  the current engine's path locations falls in, inside the blocks that
+   *  hold it. */
   ChoosePathString(path: string, resetCallstack = true, args: unknown[] = []): void {
     this.IfAsyncWeCant("call ChoosePathString right now");
     if (this.onChoosePathString !== null) this.onChoosePathString(path, args);
@@ -288,7 +353,7 @@ export class ProgramStory {
     }
     this._state.DiscardLineEnd();
     this._stateIsPristine = false;
-    this._state.position = target;
+    this.moveTo(target);
     this._state.didSafeExit = false;
     this._state.currentTurnIndex += 1;
   }
@@ -312,6 +377,18 @@ export class ProgramStory {
       args,
       returnTextOutput,
     );
+  }
+
+  /** Calls a function value, which runs on the story copy until functions
+   *  are emitted (#698), against this story's globals. */
+  CallLuauFunction(fnValue: AbstractValue, args: AbstractValue[]): AbstractValue[] {
+    return this._runtimeStory.CallLuauFunction(fnValue, args);
+  }
+
+  /** The container of the function or flow named `name`, which a read of a
+   *  name that is no variable gives as a function value. */
+  KnotContainerWithName(name: string): Container | null {
+    return this._runtimeStory.KnotContainerWithName(name);
   }
 
   IfAsyncWeCant(activityStr: string): void {
@@ -363,6 +440,12 @@ export class ProgramStory {
     );
   }
 
+  /** The address of the instruction at `offset` of the statement `chunk`,
+   *  which names a decision to the route simulator. */
+  static addressOf(chunk: StatementChunk, offset: number): string {
+    return String(chunkId(chunk) * ADDRESS_CHUNK + offset);
+  }
+
   // ------------------------------------------------------------ continuing
 
   /** `stepAtATime` runs one instruction and stays in an asynchronous
@@ -409,7 +492,7 @@ export class ProgramStory {
         this.AddError(e.message, undefined, e.useEndLineNumber);
         break;
       }
-      if (this._asyncContinueActive) {
+      if (this.pausedBeforeCondition !== null || this._asyncContinueActive) {
         break;
       }
     }
@@ -426,30 +509,37 @@ export class ProgramStory {
     }
 
     this._recursiveContinueCount--;
+    this.reportErrors();
+  }
 
-    if (state.hasError || state.hasWarning) {
-      if (this.onError !== null) {
-        if (state.hasError) {
-          const raised = state.raisedErrors;
-          state.currentErrors!.forEach((err, i) => {
-            this.onError!(err, ErrorType.Error, null, raised[i] ?? null);
-          });
-        }
-        if (state.hasWarning) {
-          const raised = state.raisedWarnings;
-          state.currentWarnings!.forEach((err, i) => {
-            this.onError!(err, ErrorType.Warning, null, raised[i] ?? null);
-          });
-        }
-        this.ResetErrors();
-      } else {
-        const first = state.hasError
-          ? state.currentErrors![0]!
-          : state.currentWarnings![0]!;
-        throw new StoryException(
-          `Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: ${first}`,
-        );
+  /** Hands the errors and warnings the continue raised to `onError`, or
+   *  throws the first when no handler is set (`Story.ContinueInternal`). */
+  protected reportErrors(): void {
+    const state = this._state;
+    if (!state.hasError && !state.hasWarning) {
+      return;
+    }
+    if (this.onError !== null) {
+      if (state.hasError) {
+        const raised = state.raisedErrors;
+        state.currentErrors!.forEach((err, i) => {
+          this.onError!(err, ErrorType.Error, null, raised[i] ?? null);
+        });
       }
+      if (state.hasWarning) {
+        const raised = state.raisedWarnings;
+        state.currentWarnings!.forEach((err, i) => {
+          this.onError!(err, ErrorType.Warning, null, raised[i] ?? null);
+        });
+      }
+      this.ResetErrors();
+    } else {
+      const first = state.hasError
+        ? state.currentErrors![0]!
+        : state.currentWarnings![0]!;
+      throw new StoryException(
+        `Ink had errors or warnings. It is strongly suggested that you assign an error handler to story.onError. The first issue was: ${first}`,
+      );
     }
   }
 
@@ -465,32 +555,92 @@ export class ProgramStory {
     return !state.inStringEvaluation && state.outputStreamEndsInNewline;
   }
 
-  /** Runs the instruction at the position. A sequence that runs out ends its
-   *  flow as `Done` does: the compiler ends every flow that does not end
-   *  itself with a `-> DONE`, and the top-level content with a `done`. */
+  /** Runs the instruction at the position. A body whose sequence runs out
+   *  resumes its owner at the block's resume offset first; a flow's sequence
+   *  that runs out ends the flow as `Done` does: the compiler ends every flow
+   *  that does not end itself with a `-> DONE`, and the top-level content
+   *  with a `done`. */
   Step(): void {
-    this.stepCount++;
-    if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
-      throw new StepLimitExceeded();
-    }
     const state = this._state;
     const position = state.position;
     if (!position) {
       return;
     }
-    const chunks = position.sequence.arrays.chunks;
-    while (
-      position.entry < chunks.length &&
-      position.offset >= codeWords(chunks[position.entry]!)
+    const chunk = this.fetch(position);
+    if (
+      chunk &&
+      this.pauseBeforeEvaluatingConditions &&
+      this.pausesAt(chunk, position.offset)
     ) {
-      position.entry += 1;
-      position.offset = 0;
+      // Stopped before the decision: nothing is consumed and the position
+      // does not move.
+      this.pausedBeforeCondition = ProgramStory.addressOf(chunk, position.offset);
+      return;
     }
-    const chunk = chunks[position.entry];
+    this.pausedBeforeCondition = null;
+    this.stepCount++;
+    if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
+      throw new StepLimitExceeded();
+    }
     if (!chunk) {
       this.done();
       return;
     }
+    this.execute(position, chunk);
+    // A statement whose last instruction ran rests at the start of the next.
+    const current = state.position;
+    if (current) {
+      const chunks = current.sequence.arrays.chunks;
+      if (
+        current.entry < chunks.length &&
+        current.offset >= codeWords(chunks[current.entry]!)
+      ) {
+        current.entry += 1;
+        current.offset = 0;
+      }
+    }
+  }
+
+  // --------------------------------------------------------------- internals
+
+  /** The chunk the position is in, after moving past the end of each
+   *  statement and each body the position has reached the end of; nothing
+   *  when the flow has run out. */
+  protected fetch(position: ProgramPosition): StatementChunk | undefined {
+    const state = this._state;
+    for (;;) {
+      const chunks = position.sequence.arrays.chunks;
+      while (
+        position.entry < chunks.length &&
+        position.offset >= codeWords(chunks[position.entry]!)
+      ) {
+        position.entry += 1;
+        position.offset = 0;
+      }
+      const chunk = chunks[position.entry];
+      if (chunk) {
+        return chunk;
+      }
+      const top = state.blockStack.pop();
+      if (!top) {
+        return undefined;
+      }
+      const owner = top.sequence.arrays.chunks[top.entry]!;
+      position.sequence = top.sequence;
+      position.entry = top.entry;
+      position.offset = blockField(owner, top.block, B_RESUME);
+    }
+  }
+
+  // Whether the instruction at `offset` is a decision.
+  protected pausesAt(chunk: StatementChunk, offset: number): boolean {
+    const w0 = chunk[HEADER_WORDS + offset]!;
+    return opOf(w0) === Op.JumpIfFalse && (flagsOf(w0) & JUMP_DECISION) !== 0;
+  }
+
+  /** Runs the instruction at the position, which `fetch` found in `chunk`. */
+  protected execute(position: ProgramPosition, chunk: StatementChunk): void {
+    const state = this._state;
     this._running = {
       sequence: position.sequence,
       entry: position.entry,
@@ -499,6 +649,7 @@ export class ProgramStory {
     const at = HEADER_WORDS + position.offset;
     const w0 = chunk[at]!;
     const arg = chunk[at + 1]!;
+    const flags = flagsOf(w0);
     position.offset += 2;
     switch (opOf(w0)) {
       case Op.LineStart:
@@ -515,6 +666,22 @@ export class ProgramStory {
       case Op.EndTag:
         state.PushToOutputStream(ControlCommand.EndTag());
         break;
+      case Op.Out: {
+        // Functions may evaluate to Void, in which case nothing is output.
+        if (state.evaluationStack.length > 0) {
+          const output = state.PopEvaluationStack();
+          if (!(output instanceof Void)) {
+            state.PushToOutputStream(new StringValue(output.toString()));
+          }
+        }
+        break;
+      }
+      case Op.BeginString:
+        state.PushToOutputStream(ControlCommand.BeginString());
+        break;
+      case Op.EndString:
+        state.PushEvaluationStack(captureString(state));
+        break;
       case Op.Str:
         state.PushEvaluationStack(
           (this._strings[arg] ??= new StringValue(this.root.table.strings[arg]!)),
@@ -526,24 +693,111 @@ export class ProgramStory {
       case Op.Num: {
         const value = this.root.table.numbers[arg]!;
         state.PushEvaluationStack(
-          flagsOf(w0) & NUM_FLOAT ? new FloatValue(value) : new IntValue(value),
+          flags & NUM_FLOAT ? new FloatValue(value) : new IntValue(value),
         );
         break;
       }
       case Op.Const:
         state.PushEvaluationStack(constValue(auxOf(w0)));
         break;
-      case Op.MakeTable:
-        this.makeTable(arg);
+      case Op.MakeTable: {
+        const stack = state.evaluationStack;
+        const between = stack.splice(stack.length - arg * 2, arg * 2);
+        state.PushEvaluationStack(tableFromPairs(between, 0));
+        break;
+      }
+      case Op.Dup:
+        state.PushEvaluationStack(state.PeekEvaluationStack()!);
         break;
       case Op.Pop:
         state.PopEvaluationStack();
+        break;
+      case Op.Pack:
+        packTuple(this, arg);
+        break;
+      case Op.Unpack:
+        unpackTuple(this, arg);
+        break;
+      case Op.Index: {
+        const key = state.PopEvaluationStack();
+        const base = state.PopEvaluationStack();
+        state.PushEvaluationStack(indexValue(this, base, key));
+        break;
+      }
+      case Op.StoreIndex: {
+        const value = state.PopEvaluationStack();
+        const key = state.PopEvaluationStack();
+        const base = state.PopEvaluationStack();
+        storeIndex(this, base, key, value);
+        break;
+      }
+      case Op.GetVar:
+        state.PushEvaluationStack(
+          readVariable(this, this.root.table.strings[arg]!),
+        );
+        break;
+      case Op.SetVar: {
+        let value = state.PopEvaluationStack();
+        // A variable holds one value: a multiple value keeps its first.
+        if (value instanceof MultiValue) {
+          value = value.values[0] ?? new NullValue();
+        }
+        state.variablesState.Assign(this.assignment(arg, flags), value);
+        break;
+      }
+      case Op.Native: {
+        const func = this.native(arg, auxOf(w0));
+        const params = state.PopEvaluationStack(func.numberOfParameters);
+        state.PushEvaluationStack(
+          callNativeFunction(this, func, params) as InkObject,
+        );
+        break;
+      }
+      case Op.JumpIfKeep:
+        if (shortCircuitDecides(this, flags & KEEP_OR ? "or" : "and")) {
+          position.offset += arg;
+        }
+        break;
+      case Op.JumpIfFalse:
+        if (!this.condition(chunk, position.offset - 2, flags)) {
+          position.offset += arg;
+        }
+        break;
+      case Op.Jump:
+        position.offset += arg;
+        break;
+      case Op.BeginScope:
+        state.frame?.PushScope();
+        break;
+      case Op.EndScope:
+        state.frame?.PopScope();
+        break;
+      case Op.EnterBlock: {
+        const body = this.root.body(chunk, arg);
+        if (!body) {
+          this.Error(`The program has no body for block ${arg} of the statement.`);
+        }
+        state.blockStack.push({
+          sequence: position.sequence,
+          entry: position.entry,
+          block: arg,
+        });
+        position.sequence = body;
+        position.entry = 0;
+        position.offset = 0;
+        break;
+      }
+      case Op.Leave:
+        this.leave((flags & LEAVE_CONTINUE) !== 0);
+        break;
+      case Op.CallValue:
+        this.callValue(auxOf(w0));
         break;
       case Op.CallStd:
         this.callStd(
           this.root.table.strings[arg]!,
           auxOf(w0),
-          (flagsOf(w0) & CALL_DISCARD) !== 0,
+          (flags & CALL_DISCARD) !== 0,
         );
         break;
       case Op.Done:
@@ -555,64 +809,197 @@ export class ProgramStory {
       default:
         this.Error(`unknown instruction ${opOf(w0)}`);
     }
-    // A statement whose last instruction ran rests at the start of the next.
-    const current = state.position;
-    if (
-      current &&
-      current.entry < chunks.length &&
-      current.offset >= codeWords(chunks[current.entry]!)
-    ) {
-      current.entry += 1;
-      current.offset = 0;
-    }
   }
 
-  // --------------------------------------------------------------- internals
+  /** Pops a condition and tests it: by Luau truthiness for an `if`
+   *  expression, and otherwise as the current engine tests a conditional
+   *  divert's condition. A decision's verdict is the route simulator's when
+   *  it forces one, and the story reports every decision's verdict. */
+  protected condition(
+    chunk: StatementChunk,
+    offset: number,
+    flags: number,
+  ): boolean {
+    const state = this._state;
+    if (flags & JUMP_LUAU) {
+      return popLuauCondition(this);
+    }
+    if (flags & JUMP_DECISION && this.simulator) {
+      const forced = this.simulator.forceCondition(
+        ProgramStory.addressOf(chunk, offset),
+      );
+      // A null verdict means the route says nothing about this decision, so
+      // the evaluated value stands.
+      if (forced != null) {
+        state.PopEvaluationStack();
+        state.PushEvaluationStack(new IntValue(forced ? 1 : 0));
+      }
+    }
+    const value = state.PopEvaluationStack();
+    const truthy = this.isTruthy(value);
+    if (flags & JUMP_DECISION && this.onEvaluateCondition) {
+      this.onEvaluateCondition(truthy);
+    }
+    return truthy;
+  }
+
+  /** A condition's truth as the current engine tests a conditional divert's
+   *  (`Story.IsTruthy`). */
+  protected isTruthy(obj: InkObject): boolean {
+    if (obj instanceof Value) {
+      if (obj instanceof DivertTargetValue) {
+        this.Error(
+          "Shouldn't use a divert target (to " +
+            obj.targetPath +
+            ") as a conditional value. Did you intend a function call 'likeThis()' or a read count check 'likeThis'? (no arrows)",
+        );
+      }
+      return obj.isTruthy;
+    }
+    return false;
+  }
+
+  /** Leaves the blocks up to the nearest loop body and resumes its owner at
+   *  the block's break offset, or at its resume offset for a `continue`. */
+  protected leave(isContinue: boolean): void {
+    const state = this._state;
+    const position = state.position!;
+    for (let top = state.blockStack.pop(); top; top = state.blockStack.pop()) {
+      const owner = top.sequence.arrays.chunks[top.entry]!;
+      if (blockFlags(owner, top.block) & BLOCK_LOOP) {
+        position.sequence = top.sequence;
+        position.entry = top.entry;
+        position.offset = blockField(
+          owner,
+          top.block,
+          isContinue ? B_RESUME : B_BREAK,
+        );
+        return;
+      }
+    }
+    this.Error(`${isContinue ? "continue" : "break"} outside a loop`);
+  }
+
+  /** Calls the value on top with the `count` arguments below it: a builtin
+   *  iterator steps, and anything else runs on the story copy until
+   *  functions are emitted (#698). What the call returns is pushed. */
+  protected callValue(count: number): void {
+    const state = this._state;
+    const target = state.PopEvaluationStack();
+    if (target instanceof ObjectValue) {
+      const tag = (target.value as Map<string, AbstractValue>)?.get(
+        BUILTIN_ITER_TAG,
+      );
+      if (tag != null) {
+        const iterCtrl = state.PopEvaluationStack();
+        const iterState = state.PopEvaluationStack();
+        state.PushEvaluationStack(
+          stepBuiltinIterator(
+            target,
+            iterState as AbstractValue,
+            iterCtrl as AbstractValue,
+          ),
+        );
+        return;
+      }
+    }
+    const args = state.PopEvaluationStack(count) as AbstractValue[];
+    const results = this.CallLuauFunction(target as AbstractValue, args);
+    state.PushEvaluationStack(
+      results.length === 1
+        ? results[0]!
+        : results.length === 0
+          ? new Void()
+          : new MultiValue(results),
+    );
+  }
+
+  /** The runtime assignment `SetVar`'s operands describe, made once. */
+  protected assignment(name: number, flags: number): VariableAssignment {
+    const key = name * 4 + (flags & (SET_DECLARE | SET_GLOBAL));
+    let assignment = this._assignments.get(key);
+    if (!assignment) {
+      assignment = new VariableAssignment(
+        this.root.table.strings[name]!,
+        (flags & SET_DECLARE) !== 0,
+      );
+      assignment.isGlobal = (flags & SET_GLOBAL) !== 0;
+      this._assignments.set(key, assignment);
+    }
+    return assignment;
+  }
+
+  /** The native function `Native`'s operands name, made once. */
+  protected native(name: number, arity: number): NativeFunctionCall {
+    const key = name * 0x10000 + arity;
+    let func = this._natives.get(key);
+    if (!func) {
+      func = NativeFunctionCall.CallWithName(this.root.table.strings[name]!, arity);
+      this._natives.set(key, func);
+    }
+    return func;
+  }
 
   protected done(): void {
     this._state.position = null;
+    this._state.blockStack = [];
     this._state.didSafeExit = true;
   }
 
-  /** Pops `pairs` key and value pairs and pushes the table they make, as the
-   *  current engine's `EndObject` does. The writer emits string keys only. */
-  protected makeTable(pairs: number): void {
-    const stack = this._state.evaluationStack;
-    const between = stack.splice(stack.length - pairs * 2, pairs * 2);
-    const entries = new Map<string, AbstractValue>();
-    const pairEnd = between.length - 1;
-    for (let i = 0; i + 1 < between.length; i += 2) {
-      const rawKey = between[i];
-      const keyObj = rawKey instanceof StringValue ? rawKey : null;
-      let valObj =
-        between[i + 1] instanceof AbstractValue
-          ? (between[i + 1] as AbstractValue)
-          : null;
-      if (!keyObj || keyObj.value === null || !valObj) continue;
-      const isLast = i + 1 === pairEnd;
-      if (
-        isLast &&
-        valObj instanceof MultiValue &&
-        /^[1-9]\d*$/.test(keyObj.value)
-      ) {
-        const startIdx = parseInt(keyObj.value, 10);
-        for (let k = 0; k < valObj.values.length; k++) {
-          const spreadVal = valObj.values[k]!;
-          if (spreadVal instanceof NullValue) continue;
-          entries.set(String(startIdx + k), spreadVal);
-        }
-      } else {
-        if (valObj instanceof MultiValue) {
-          valObj = valObj.values[0] ?? new NullValue();
-        }
-        if (valObj instanceof NullValue) {
-          entries.delete(keyObj.value);
-        } else {
-          entries.set(keyObj.value, valObj);
+  /** Moves to `target`, inside the blocks that hold it, with the scopes its
+   *  owners have open there. */
+  protected moveTo(target: ProgramPosition): void {
+    const state = this._state;
+    const blocks = blockStackOf(this.root, target.sequence);
+    if (!blocks) {
+      throw new StoryException("The position is in a block the program no longer has.");
+    }
+    state.position = target;
+    state.blockStack = blocks;
+    const frame = state.frame;
+    if (frame) {
+      for (const block of blocks) {
+        const owner = block.sequence.arrays.chunks[block.entry]!;
+        for (let s = 0; s < blockScopes(owner, block.block); s += 1) {
+          frame.PushScope();
         }
       }
     }
-    this._state.PushEvaluationStack(new ObjectValue(entries));
+  }
+
+  /** Runs the program's declaration chunks, in the order the root gives,
+   *  against the globals. An error stops the run, as it stops the current
+   *  engine's `global decl` container, and is reported as a continue's. */
+  protected runDeclarations(): void {
+    const state = this._state;
+    for (const chunk of this.root.initialization) {
+      const at = this.root.position(chunkId(chunk));
+      if (!at) {
+        continue;
+      }
+      const position: ProgramPosition = {
+        sequence: at.sequence,
+        entry: at.entry,
+        offset: 0,
+      };
+      state.position = position;
+      try {
+        while (position.offset < codeWords(chunk)) {
+          this.stepCount++;
+          this.execute(position, chunk);
+        }
+        this.declarationsRun += 1;
+      } catch (e) {
+        if (!(e instanceof StoryException)) {
+          throw e;
+        }
+        this.AddError(e.message, undefined, e.useEndLineNumber);
+        break;
+      }
+    }
+    state.position = null;
+    state.evaluationStack.length = 0;
+    this.reportErrors();
   }
 
   /** Calls a state-aware builtin as the current engine's `RunStdLibFunction`
@@ -668,9 +1055,10 @@ export class ProgramStory {
   }
 
   /** The script and lines of the instruction running, or of the last one
-   *  that ran: the line table row that covers it. The script is named as the
-   *  compiler names it in debug metadata, by its file name without the
-   *  extension. */
+   *  that ran: the line table row that covers it, counted from its
+   *  statement's first line or from the end of the statement's body it
+   *  follows. The script is named as the compiler names it in debug
+   *  metadata, by its file name without the extension. */
   protected sourceOfRunning():
     | { file: string; startLine: number; endLine: number }
     | undefined {
@@ -684,14 +1072,18 @@ export class ProgramStory {
       return undefined;
     }
     const row = lineRowAt(chunk, offset);
-    if (row < 0 || lineRowField(chunk, row, 1) !== ANCHOR_STATEMENT) {
+    if (row < 0) {
       return undefined;
     }
-    const first = this.root.lineOf(sequence, entry);
+    const anchor = lineRowField(chunk, row, 1);
+    const base =
+      anchor === ANCHOR_STATEMENT
+        ? this.root.lineOf(sequence, entry)
+        : this.root.blockEndLine(sequence, entry, anchor);
     return {
       file: debugFileName(sequence.uri) ?? "",
-      startLine: first + lineRowField(chunk, row, 2),
-      endLine: first + lineRowField(chunk, row, 4),
+      startLine: base + lineRowField(chunk, row, 2),
+      endLine: base + lineRowField(chunk, row, 4),
     };
   }
 
@@ -711,9 +1103,7 @@ export class ProgramStory {
    *  location, and in it the last `LineStart` at or before the location, or
    *  the statement's start when none is (a continuation, which joins the beat
    *  before it, or tags). */
-  protected placePath(
-    path: string,
-  ): { sequence: SequenceRow; entry: number; offset: number } | undefined {
+  protected placePath(path: string): ProgramPosition | undefined {
     const flow =
       path === "0" ? this.root.flowNamed(ROOT_FLOW_NAME) : this.root.flowNamed(path);
     if (flow) {

@@ -7,6 +7,7 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { loopExitOf, recordLoopDepth } from "../utils/statementShape";
 
 // `break` and `continue` — exit / restart the innermost enclosing
 // loop. Both lower to a `Divert` to the appropriate label, which each
@@ -38,6 +39,7 @@ import { wrapInWeave } from "../utils/wrapInWeave";
 function scopeUnwind(ctx: LowerContext, targetDepth: number): ParsedObject[] {
   const current = ctx.scopeDepth ?? 0;
   const count = Math.max(0, current - targetDepth);
+  recordLoopDepth(ctx, count);
   const out: ParsedObject[] = [];
   for (let i = 0; i < count; i++) {
     out.push(new Wrap(RuntimeControlCommand.EndScope()));
@@ -51,10 +53,9 @@ export function lowerLuauBreakStatement(
 ): CompiledBlock {
   const top = ctx.loopStack?.[ctx.loopStack.length - 1];
   if (!top) return {};
-  return wrapInWeave([
-    ...scopeUnwind(ctx, top.scopeDepth ?? 0),
-    new Divert([new Identifier(top.breakLabel)]),
-  ]);
+  const divert = new Divert([new Identifier(top.breakLabel)]);
+  loopExitOf.set(divert, "break");
+  return wrapInWeave([...scopeUnwind(ctx, top.scopeDepth ?? 0), divert]);
 }
 
 export function lowerLuauContinueStatement(
@@ -63,8 +64,7 @@ export function lowerLuauContinueStatement(
 ): CompiledBlock {
   const top = ctx.loopStack?.[ctx.loopStack.length - 1];
   if (!top) return {};
-  return wrapInWeave([
-    ...scopeUnwind(ctx, top.scopeDepth ?? 0),
-    new Divert([new Identifier(top.continueLabel)]),
-  ]);
+  const divert = new Divert([new Identifier(top.continueLabel)]);
+  loopExitOf.set(divert, "continue");
+  return wrapInWeave([...scopeUnwind(ctx, top.scopeDepth ?? 0), divert]);
 }

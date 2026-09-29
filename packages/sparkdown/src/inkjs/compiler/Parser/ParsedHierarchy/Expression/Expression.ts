@@ -2,6 +2,8 @@ import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { ParsedObject } from "../Object";
 import { InkObject as RuntimeObject } from "../../../../engine/Object";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export abstract class Expression extends ParsedObject {
   public abstract GenerateIntoContainer: (container: RuntimeContainer) => void;
@@ -36,6 +38,21 @@ export abstract class Expression extends ParsedObject {
 
   override get typeName(): string {
     return "Expression";
+  }
+
+  // The expression's value, then `Out` when the value is output, as
+  // `EvalOutput` follows the expression's runtime objects.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    this.EmitExpression(emitter);
+    if (this.outputWhenComplete) {
+      emitter.emit(Op.Out);
+    }
+  }
+
+  /** The code that pushes the expression's value. An expression the binary
+   *  program does not cover yet names itself. */
+  public EmitExpression(emitter: ProgramEmitter): void {
+    emitter.unsupported(this.typeName);
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

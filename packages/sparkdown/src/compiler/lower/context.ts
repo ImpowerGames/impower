@@ -266,6 +266,15 @@ export interface LowerContext {
    * pops on exit.
    */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
+  /**
+   * The statements whose lowering is running, the innermost last, with the
+   * top-level statement at the bottom (see `StatementShape`). Given by the
+   * compilation annotator when statement chunks are on; `lowerStatements`
+   * pushes each statement of a block's body while it lowers it, and a read
+   * of the context is recorded on the innermost statement. Absent for
+   * callers that keep no statement shapes.
+   */
+  statementStack?: import("./utils/statementShape").StatementShape[];
 }
 
 /**

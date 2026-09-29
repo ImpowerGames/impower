@@ -92,17 +92,16 @@ export class ObjectExpression extends Expression {
   };
 
   // Each key, then its value, then `MakeTable` with the pair count, which
-  // builds the table as `EndObject` does. A computed key is not emitted yet.
-  public override EmitProgram(emitter: ProgramEmitter): void {
-    if (this.outputWhenComplete) {
-      emitter.unsupported("output of an expression");
-    }
+  // builds the table as `EndObject` does: a computed key's value is the
+  // key, and a last value that is a multiple value spreads.
+  public override EmitExpression(emitter: ProgramEmitter): void {
     for (const entry of this._entries) {
       if (entry.key instanceof Expression) {
-        emitter.unsupported("computed table key");
+        emitter.emitObject(entry.key);
+      } else {
+        emitter.emit(Op.Str, emitter.string(entry.key));
       }
-      emitter.emit(Op.Str, emitter.string(entry.key));
-      entry.value.EmitProgram(emitter);
+      emitter.emitObject(entry.value);
     }
     emitter.emit(Op.MakeTable, this._entries.length);
   }

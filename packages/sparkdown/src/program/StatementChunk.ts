@@ -47,6 +47,22 @@ export const REFERENCE_ROW_WORDS = 2;
 /** The anchor of a line row that counts from the statement's first line. */
 export const ANCHOR_STATEMENT = -1;
 
+/** The fields of a block table row. */
+export const B_SEQUENCE = 0;
+export const B_RESUME = 1;
+export const B_BREAK = 2;
+/** The scope count, shifted left by `BLOCK_SCOPE_SHIFT`, beside the flags. */
+export const B_SCOPES_FLAGS = 3;
+export const B_HEAD_LINES = 4;
+
+/** A block row's flags: what the block's body is. */
+export const BLOCK_LOOP = 1;
+export const BLOCK_CHOICE = 2;
+export const BLOCK_THEN = 4;
+export const BLOCK_FUNCTION = 8;
+export const BLOCK_FLAGS_MASK = 0xff;
+export const BLOCK_SCOPE_SHIFT = 8;
+
 export const codeWords = (chunk: StatementChunk): number =>
   chunk[H_CODE_WORDS]!;
 
@@ -90,3 +106,22 @@ export const lineRowField = (
   row: number,
   field: number,
 ): number => chunk[lineTableStart(chunk) + row * LINE_ROW_WORDS + field]!;
+
+/** How many blocks the chunk's statement has. */
+export const blockCount = (chunk: StatementChunk): number =>
+  chunk[H_BLOCK_ROWS]!;
+
+/** One field of block table row `block` (`B_SEQUENCE` and the rest). */
+export const blockField = (
+  chunk: StatementChunk,
+  block: number,
+  field: number,
+): number => chunk[blockTableStart(chunk) + block * BLOCK_ROW_WORDS + field]!;
+
+/** The scopes the owner has open where it enters block `block`. */
+export const blockScopes = (chunk: StatementChunk, block: number): number =>
+  blockField(chunk, block, B_SCOPES_FLAGS) >>> BLOCK_SCOPE_SHIFT;
+
+/** What block `block`'s body is (`BLOCK_LOOP` and the rest). */
+export const blockFlags = (chunk: StatementChunk, block: number): number =>
+  blockField(chunk, block, B_SCOPES_FLAGS) & BLOCK_FLAGS_MASK;

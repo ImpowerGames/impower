@@ -15,6 +15,7 @@ import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { syntheticId } from "../utils/documentTag";
 import { findLoopDoBlock } from "../utils/loopDoBlock";
+import { loopOf, openBody } from "../utils/statementShape";
 import { wrapInWeave } from "../utils/wrapInWeave";
 
 // `while cond do BODY end` — compiles to a labeled Gather living at
@@ -105,7 +106,17 @@ export function lowerLuauWhileLoop(
     breakLabel,
     scopeDepth: ctx.scopeDepth ?? 0,
   });
-  const bodyStatements = lowerStatements(bodyContent, ctx, WHILE_BODY_SKIP);
+  const body = openBody(
+    ctx,
+    bodyContent?.from ?? doBlock.from,
+    bodyContent?.to ?? doBlock.to,
+  );
+  const bodyStatements = lowerStatements(
+    bodyContent,
+    ctx,
+    WHILE_BODY_SKIP,
+    body,
+  );
   ctx.loopStack?.pop();
 
   const tailDivert = new Divert([new Identifier(loopLabel)]);
@@ -140,6 +151,16 @@ export function lowerLuauWhileLoop(
   // No content — execution flows through and past it back to the
   // enclosing weave.
   const breakGather = new Gather(new Identifier(breakLabel), 1);
+
+  if (body) {
+    loopOf.set(gather, {
+      kind: "while",
+      body,
+      objects: [gather, breakGather],
+      test: branch,
+      init: [],
+    });
+  }
 
   // A chunk's content reaches the enclosing scene or top-level flow only
   // as a Weave; inside a body, `lowerStatements` unwraps it again.
