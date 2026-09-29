@@ -629,7 +629,8 @@ describe("if expression without an else", () => {
     ["a then arm with only a minus", "  local y = if true then\n    -\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm with only a cast", "  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a chain of unary operators", "  local y = if true then\n    not not\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a cast","  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["a then arm at column 0 on the line after then", "  local y = if true then\n1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", MISSING_CONDITION, "3:17-3:21"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
@@ -653,6 +654,13 @@ describe("if expression without an else", () => {
     expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Sum 6.\n");
+  });
+
+  test("in an & statement, followed by a statement at column 0", () => {
+    const source = `& x = 0\n& x = if true\n  then 1\nx = 6\nValue {x}.\n`;
+    expect(ifDiagnostics(source)).toEqual([`2:7-2:9 ${MISSING_ELSE}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
 
   test("in a Sparkle prop binding", () => {

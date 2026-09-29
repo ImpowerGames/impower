@@ -190,16 +190,25 @@ function clauseHasValue(
 ): boolean {
   const content = childNamed(clause, `${clause.name}_content`);
   const part = firstPart(content);
-  if (!part || isLineContinuation(part)) return false;
+  return !!part && !isLineContinuation(part) && isValue(part, read);
+}
+
+// Whether `part` begins a value. An operation that begins with its operator,
+// or an operator on its own, begins one only when the operator is unary and a
+// value follows it (`not x`, but not `not not`, which the grammar reads as one
+// operation holding both operators).
+function isValue(
+  part: any,
+  read: (from: number, to: number) => string,
+): boolean {
   if (OPERATOR_FIRST_OPERATIONS.has(part.name)) {
     const operator = firstPart(childNamed(part, `${part.name}_content`));
-    if (!operator) return false;
-    if (!UNARY_OPERATORS.has(read(operator.from, operator.to).trim())) {
-      return false;
-    }
-    return firstPart(operator.parent, operator.nextSibling) !== null;
+    return !!operator && isValue(operator, read);
   }
-  return true;
+  if (!part.name.endsWith("Operator")) return true;
+  if (!UNARY_OPERATORS.has(read(part.from, part.to).trim())) return false;
+  const operand = firstPart(part.parent, part.nextSibling);
+  return !!operand && isValue(operand, read);
 }
 
 // The first part an if expression lacks, reading it in order: a condition,

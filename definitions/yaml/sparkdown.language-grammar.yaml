@@ -3204,7 +3204,10 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|$
+    # A statement ends at its line's end; it only stands at the start of a
+    # line when a value that spans lines, such as an unfinished if
+    # expression, took the line break and ended there, which ends it too.
+    end: (?={{BEAT}})|$|(?=^)
 
   LuauExplicitStatementMark:
     tag: keyword
