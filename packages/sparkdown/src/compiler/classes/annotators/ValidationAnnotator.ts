@@ -11,6 +11,7 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
+import { TYPE_NAME_EXTRA_QUALIFIER } from "../../lower/utils/lineContinuation";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -107,8 +108,6 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
-const TYPE_NAME_EXTRA_QUALIFIER =
-  "A type name takes at most one module prefix\n> e.g. `types.Button`, not `types.ui.Button`";
 
 // Luau's `toUtf8` refuses code points above this, so `\u{80000000}` is a
 // malformed escape rather than a character.

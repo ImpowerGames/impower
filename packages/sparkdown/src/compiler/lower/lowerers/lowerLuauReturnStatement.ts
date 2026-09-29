@@ -5,9 +5,10 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
 import {
-  lowerExpressionFromContainer,
+  lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
+import { takeLineContinuation } from "../utils/lineContinuation";
 
 // `return X`          (single)   → ReturnType { expr }
 // `return X, Y, Z`    (multi)    → MultiReturnType { [X, Y, Z] } — packs
@@ -27,12 +28,14 @@ export function lowerLuauReturnStatement(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
 ): CompiledBlock {
+  // The lines that continue the last value (`return t` then `.a`).
+  const continuation = takeLineContinuation(ctx);
   const contentNode = findChildByName(
     nodeRef.node,
     `${nodeRef.node.name}_content`,
   );
   if (contentNode) {
-    const groups = splitContentOnCommas(contentNode);
+    const groups = splitContentOnCommas(contentNode, continuation);
     if (groups.length > 1) {
       const expressions = groups
         .map((nodes) => lowerExpressionFromNodes(nodes, ctx))
@@ -44,7 +47,11 @@ export function lowerLuauReturnStatement(
       // to single-value return so we still emit something useful.
     }
   }
-  const expr = lowerExpressionFromContainer(nodeRef.node, ctx);
+  const expr = lowerExpressionFromContainerAndContinuation(
+    nodeRef.node,
+    continuation,
+    ctx,
+  );
   return { content: [new ReturnType(expr ?? null)] };
 }
 
@@ -57,11 +64,19 @@ function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {
   return null;
 }
 
-function splitContentOnCommas(content: SyntaxNode): SyntaxNode[][] {
+// The content's comma-separated values, followed by the continuation lines,
+// whose commas separate further values.
+function splitContentOnCommas(
+  content: SyntaxNode,
+  continuation: SyntaxNode[],
+): SyntaxNode[][] {
+  const children: SyntaxNode[] = [];
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    children.push(child);
+  }
   const groups: SyntaxNode[][] = [];
   let current: SyntaxNode[] = [];
-  let child = content.firstChild;
-  while (child) {
+  for (const child of [...children, ...continuation]) {
     if (child.name === "LuauCommaSeparator") {
       if (current.length > 0) {
         groups.push(current);
@@ -70,7 +85,6 @@ function splitContentOnCommas(content: SyntaxNode): SyntaxNode[][] {
     } else if (!isSkippableName(child.name)) {
       current.push(child);
     }
-    child = child.nextSibling;
   }
   if (current.length > 0) groups.push(current);
   return groups;
