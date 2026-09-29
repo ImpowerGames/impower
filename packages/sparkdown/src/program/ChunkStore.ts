@@ -160,13 +160,26 @@ export interface ProgramBuild {
 
 // What the store knows of a chunk it emitted or reused: the syntax of the
 // statement it was emitted for, the lowering inputs that statement recorded,
-// and the values its emission recorded.
+// the values its emission recorded, and for a declaration chunk the names of
+// the globals it assigns, in order (`assignedNames`).
 interface ChunkInfo {
   syntax: string;
   reads: string;
   emitReads: readonly string[];
   resolutions: readonly string[];
+  globals?: string;
 }
+
+/** The names a declaration assigns, in order, or nothing for a statement of
+ *  a flow. Which of a statement's globals one declaration holds depends on
+ *  the declarations around it (a constant elsewhere splits it into runs), and
+ *  a global's name on the declarations of its name elsewhere (a `define` of
+ *  the name under another type, an author's declaration that shadows a
+ *  builtin), so a declaration chunk is kept only while they read the same. */
+const assignedNames = (statement: StatementSource): string | undefined =>
+  "globals" in statement
+    ? (statement as DeclarationSource).globals.map((g) => g.name).join("\u0000")
+    : undefined;
 
 /**
  * The chunk store (docs/engine/binary-program.md, section 9): the ordered
@@ -188,7 +201,8 @@ interface ChunkInfo {
  *   leaves it as it was;
  * - every lowering input its lowering recorded read the same, and every value
  *   its emission recorded (a continuation's group name, which the compiler
- *   numbers by document order) still reads the same;
+ *   numbers by document order) still reads the same; a declaration chunk also
+ *   assigns the same globals, by name and in order (`assignedNames`);
  * - every fact its reference table records about a symbol is unchanged.
  *
  * Otherwise the statement is emitted again and its chunk gets a new id. Chunk
@@ -372,6 +386,7 @@ export class ChunkStore {
             reads: declaration.reads,
             emitReads: emitted.reads,
             resolutions: emitted.resolutions,
+            globals: assignedNames(declaration),
           });
         } catch (e) {
           if (!(e instanceof UnsupportedConstruct)) {
@@ -741,7 +756,7 @@ export class ChunkStore {
   /** Whether a chunk's recorded values and facts still hold for `statement`. */
   protected holds(chunk: StatementChunk, statement: StatementSource): boolean {
     const info = this._info.get(chunk);
-    if (!info) {
+    if (!info || info.globals !== assignedNames(statement)) {
       return false;
     }
     const exclude = bodyObjects(statement);

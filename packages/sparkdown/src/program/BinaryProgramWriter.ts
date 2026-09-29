@@ -280,7 +280,8 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this.emit(op, 0, 0, flags);
   }
 
-  here(): ProgramLabel {
+  /** A label bound to the next instruction. */
+  protected here(): ProgramLabel {
     return { offset: this._code.length };
   }
 
@@ -305,7 +306,9 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return this.string(local);
   }
 
-  aliasVariable(name: string, local: string): void {
+  /** Gives the generated variable `name` the chunk-local name `local` (a
+   *  loop's hidden temporaries). */
+  protected aliasVariable(name: string, local: string): void {
     this._names.set(name, local);
   }
 
@@ -326,7 +329,10 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._references.push(symbol, factHash(this.facts(symbol)));
   }
 
-  enterBlock(body: object, flags = 0): number {
+  /** Emits `EnterBlock` for the body `body` of the statement, as block
+   *  `flags` says (`BLOCK_LOOP`). Its resume offset is the next instruction
+   *  until `blockResume` says otherwise. Returns the block's index. */
+  protected enterBlock(body: object, flags = 0): number {
     const k = this._blocks.findIndex((block) => block.body === body);
     if (k < 0 || this._blockStates[k]?.entered) {
       this.unsupported("a body the statement does not record");
@@ -344,11 +350,13 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return k;
   }
 
-  blockResume(block: number, label: ProgramLabel): void {
+  /** Sets where the owner resumes when block `block`'s sequence runs out. */
+  protected blockResume(block: number, label: ProgramLabel): void {
     this._blockStates[block]!.resume = label;
   }
 
-  blockBreak(block: number, label: ProgramLabel): void {
+  /** Sets where a `break` inside loop body `block` resumes the owner. */
+  protected blockBreak(block: number, label: ProgramLabel): void {
     this._blockStates[block]!.break = label;
   }
 

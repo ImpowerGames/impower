@@ -1,5 +1,7 @@
 // A screenplay made of the constructs the writer emits for logic (#695):
-// global declarations of every kind, locals, expressions and operators,
+// global declarations of every kind, one block statement among them that
+// declares a constant and a variable (which the story initializes apart, with
+// the other constants between them), locals, expressions and operators,
 // interpolation of every value type, tables with computed keys, property
 // stores, multiple assignment, `if` blocks with `elseif` and `else`, the
 // four loops with `break` and `continue` from inside nested blocks, nested
@@ -12,6 +14,10 @@ export function logicScreenplay(scenes = 5): string {
     "store flag = true",
     "store ratio = 1.5",
     "store nothing = nil",
+    "if true then",
+    "  const INNER = 2",
+    "  store inner_total = INNER + LIMIT",
+    "end",
     "const LIMIT = 3",
     "const DOUBLE_LIMIT = LIMIT * 2",
     "define hero as character with",
@@ -25,7 +31,7 @@ export function logicScreenplay(scenes = 5): string {
     L.push(`scene LOGIC_${s}`);
     L.push(`  The room ${s} is quiet.`);
     L.push(`  local n = ${s} + 2`);
-    L.push(`  Values {count} {flag} {ratio} {nothing} {bag.a} {items[1]} {DOUBLE_LIMIT}.`);
+    L.push(`  Values {count} {flag} {ratio} {nothing} {bag.a} {items[1]} {DOUBLE_LIMIT} {inner_total}.`);
     L.push("  if count > 2 then");
     L.push(`    HERO: Many {count} in ${s}.`);
     L.push("  elseif count == 1 then");
@@ -70,7 +76,7 @@ export function logicScreenplay(scenes = 5): string {
 }
 
 // Edits the logic fuzz inserts: text inside lines, new lines and blocks,
-// and fragments that open or close a block.
+// fragments that open or close a block, and a constant.
 export const LOGIC_INSERTS = [
   "x",
   "\n",
@@ -88,4 +94,7 @@ export const LOGIC_INSERTS = [
   "if ",
   "\n  Plain line.\n",
   "-- c",
+  // A constant, which changes how the story interleaves the block
+  // statement's constant and variable with the other declarations.
+  "const EXTRA = 1\n",
 ];

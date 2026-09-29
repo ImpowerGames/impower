@@ -29,8 +29,6 @@ export interface ProgramEmitter {
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump back to a label already bound. */
   jumpBack(op: number, label: ProgramLabel, flags?: number): void;
-  /** A label bound to the next instruction. */
-  here(): ProgramLabel;
   /** Binds a label, and every jump to it, to the next instruction. */
   bind(label: ProgramLabel): void;
   /** The id of `text` in the program table. */
@@ -42,9 +40,6 @@ export interface ProgramEmitter {
    *  the chunk's own, so that the chunk's code does not depend on where its
    *  statement stands. */
   variable(name: string): number;
-  /** Gives the generated variable `name` the chunk-local name `local` (a
-   *  loop's hidden temporaries). */
-  aliasVariable(name: string, local: string): void;
   /** Records a value the chunk's code depends on that a whole-program pass
    *  of the compiler rewrites in the parsed hierarchy in place, such as a
    *  continuation's canonical group name. A chunk is reused only while every
@@ -60,15 +55,6 @@ export interface ProgramEmitter {
    *  keeps a hash of them, and the chunk is reused only while the program
    *  it is reused in gives the same facts. */
   reference(symbol: number): void;
-  /** Emits `EnterBlock` for the body `body` of the statement, as block
-   *  `flags` says (`BLOCK_LOOP` and the rest). Its resume offset is the next
-   *  instruction until `blockResume` says otherwise. Returns the block's
-   *  index. */
-  enterBlock(body: object, flags?: number): number;
-  /** Sets where the owner resumes when block `block`'s sequence runs out. */
-  blockResume(block: number, label: ProgramLabel): void;
-  /** Sets where a `break` inside loop body `block` resumes the owner. */
-  blockBreak(block: number, label: ProgramLabel): void;
   /** Stops the statement's emission: the program falls back to the current
    *  engine as a whole and names `construct` (the parsed class's `typeName`,
    *  or the builtin's name). */

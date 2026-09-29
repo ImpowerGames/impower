@@ -10,7 +10,7 @@ import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compileScript, MAIN_URI, programCompiler } from "./programHarness";
+import { compileScript, describeRoot, MAIN_URI, programCompiler } from "./programHarness";
 
 function posAt(text: string, offset: number) {
   let line = 0;
@@ -95,11 +95,19 @@ const coldGlobals = (text: string, names: readonly string[]) => {
 /** Every global a story holds, by the name it is stored under, each read as
  *  plain data (a table as its entries). */
 const everyGlobal = (story: { variablesState: object }): Record<string, unknown> => {
-  const plain = (value: unknown): unknown => {
+  // A table met again on its own path reads as a cycle rather than
+  // recursing without end.
+  const plain = (value: unknown, path: readonly unknown[] = []): unknown => {
     const inner = (value as { valueObject?: unknown } | undefined)?.valueObject;
-    return inner instanceof Map
-      ? Object.fromEntries([...inner].map(([key, entry]) => [key, plain(entry)]))
-      : inner;
+    if (!(inner instanceof Map)) {
+      return inner;
+    }
+    if (path.includes(inner)) {
+      return "(cycle)";
+    }
+    return Object.fromEntries(
+      [...inner].map(([key, entry]) => [key, plain(entry, [...path, inner])]),
+    );
   };
   const globals = (story.variablesState as unknown as {
     _globalVariables: Map<string, unknown>;
@@ -202,6 +210,66 @@ describe("the declaration sequence", () => {
     // The `if` statement's globals are two declarations, before and after
     // `Z`'s.
     expect(program.chunks!.initialization).toHaveLength(3);
+  });
+
+  // Which of the `if` statement's globals one declaration holds depends on
+  // the constant below it, so an edit to that constant alone changes the
+  // `if` statement's declarations.
+  it("emits a statement's declarations again when an edit elsewhere changes which globals they hold", () => {
+    const text = [
+      "if true then",
+      "  const X = 1",
+      "  store y = 2",
+      "end",
+      "const Z = 5",
+      "Line {y} and {X}.",
+      "",
+    ].join("\n");
+    const s = session(text);
+    const cold = (source: string) =>
+      compileScript(source, { programChunks: true }).program.chunks!;
+    const names = ["X", "y"];
+    expect(declarationCode(s.root)).toEqual(declarationCode(cold(s.text)));
+    s.edit("const Z = 5\n", "");
+    expect(declarationCode(s.root)).toEqual([["Int 1", "SetVar X flags 3", "Int 2", "SetVar y flags 3"]]);
+    expect(describeRoot(s.root)).toEqual(describeRoot(cold(s.text)));
+    expect(globalsOf(new ProgramStory(s.root), names)).toEqual({ X: 1, y: 2 });
+    s.edit("end\n", "end\nconst Z = 5\n");
+    expect(describeRoot(s.root)).toEqual(describeRoot(cold(s.text)));
+    expect(globalsOf(new ProgramStory(s.root), [...names, "Z"])).toEqual({ X: 1, y: 2, Z: 5 });
+  });
+
+  // An author's `define` of a builtin's name and type shadows it: the
+  // builtin's declaration is then kept as `$prelude_action`, its own text
+  // unchanged.
+  it("emits a builtin's declaration again when an author's declaration shadows it or stops shadowing it", () => {
+    const c = programCompiler(
+      { [MAIN_URI]: "Line.\n" },
+      { programChunks: true, seedBuiltinsIntoStory: true },
+    );
+    let text = "Line.\n";
+    let version = 1;
+    const edit = (next: string) => {
+      version += 1;
+      c.compiler.updateDocument({
+        textDocument: { uri: MAIN_URI, version },
+        contentChanges: [{ range: { start: posAt(text, 0), end: posAt(text, text.length) }, text: next }],
+      });
+      text = next;
+      return c.compile().program;
+    };
+    const cold = () => {
+      const current = compileScript(text, { seedBuiltinsIntoStory: true }).story;
+      current.ResetState();
+      return everyGlobal(current);
+    };
+    c.compile();
+    const shadowing = "define action as typewriter with\n  letter_pause = 0.5\nend\nLine.\n";
+    for (const next of [shadowing, "Line.\n", shadowing]) {
+      const program = edit(next);
+      expect(program.fallback).toBeUndefined();
+      expect(everyGlobal(new ProgramStory(program.chunks!))).toEqual(cold());
+    }
   });
 
   it("runs no initializer for a compile that re-emitted only statements of flows", () => {
