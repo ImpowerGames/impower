@@ -40,16 +40,14 @@ import { isTrivia, lineTextSpan, makeSource } from "./validateDefineStructure";
 // The word `end` in a line of text closes a block the same way, as in
 // `The end of the scene.` under a function with no `end` of its own. For a
 // root-level block, the rest of such a line (`of the scene.`) is a root-level
-// line of text of its own. A block whose `end` is followed on its line by a
-// line of text is therefore held open until a later root-level `end` closes
-// it, which it does where the grammar misread the line (`if {} then … end
-// assert(x)` reads the `if`'s `end` as the function's). With no later `end`,
-// the tree still cannot tell prose from code the grammar read as text: a call
-// after a block's own `end` (`end bump()`) is read as a line of text too, and
-// the text before the `end` cannot tell either, since a bare name such as `The`
-// is a statement (a call of that name). Both readings leave that text
-// displayed rather than run, so the block gets a warning on its `end` line
-// that says so, rather than an error claiming its `end` is missing.
+// line of text of its own. The tree cannot tell that from code the grammar
+// read as text after a block's own `end` (`end bump()`, or `if {} then … end
+// assert(x)`, whose `if`'s `end` the grammar gives to the function around it),
+// and the text before the `end` cannot tell either, since a bare name such as
+// `The` is a statement (a call of that name). Every reading leaves that text
+// displayed rather than run, so a root-level block whose `end` is followed on
+// its line by a line of text gets a warning on that line that says so, rather
+// than an error claiming its `end` is missing.
 //
 // A `while` or `for` loop ends after its `do` block, whose `end` closes both,
 // so an unclosed `do` block that belongs to a loop is reported as the loop.
@@ -179,11 +177,9 @@ export function validateBlockEnds(
 ): InkDiagnostic[] {
   const diagnostics: InkDiagnostic[] = [];
   const cutOff = new Set(
-    OPENING_ROOTS.has(chunk.name)
-      ? openChain(chunk)
-          .filter((block) => block.closer === "until")
-          .map((block) => block.header.from)
-      : [],
+    openChain(chunk)
+      .filter((block) => block.closer === "until")
+      .map((block) => block.header.from),
   );
   const visit = (node: SyntaxNode, insideOpenRepeat: boolean) => {
     const block = asBlock(node);
@@ -213,7 +209,7 @@ export function validateBlockEnds(
 // for a `repeat`, `until`s) to close, outermost first. Only a block with no
 // `_end` node is open this way, and every such block holds the point where the
 // grammar stopped reading it, so they all lie on the path through each node's
-// last child that has text. A `repeat` on that path is cut off the same way.
+// last child that has text. A `repeat` on that path with no `until` of its own is cut off the same way.
 function openChain(root: SyntaxNode): Block[] {
   const chain: Block[] = [];
   let node: SyntaxNode | null = root;
@@ -221,7 +217,9 @@ function openChain(root: SyntaxNode): Block[] {
     if (END_BLOCKS[node.name]) {
       if (findChildByName(node, `${node.name}_end`)) break;
       chain.push(asBlock(node)!);
-    } else if (REPEAT_LOOPS.has(node.name)) {
+    } else if (REPEAT_LOOPS.has(node.name) && !hasUntil(node)) {
+      // A `repeat` whose `until` the grammar kept inside it is closed, even
+      // when a block inside it is not.
       chain.push({ header: node, label: "`repeat` loop", closer: "until" });
     }
     let child: SyntaxNode | null = node.lastChild;
@@ -257,23 +255,15 @@ function proseEnd(root: SyntaxNode, ctx: LowerContext): ProseEnd | null {
   return { endKeyword, rest };
 }
 
-const OPENING_ROOTS = nodeNameSet([
-  "LuauFunctionDefinition",
-  "LuauFunctionTypeDeclaration",
-  "LuauSparkdownIfBlock",
-  "LuauSparkdownDoBlock",
-  "LuauSparkdownWhileLoop",
-  "LuauSparkdownForLoop",
-  "LuauSparkdownRepeatLoop",
-]);
-
 type OpenEntry =
-  | { kind: "block"; block: Block; prose?: ProseEnd }
+  | { kind: "block"; block: Block }
   // A scene or branch, and the last block an `end` closed while it was open.
   | { kind: "scene" | "branch"; lastClosed?: Block };
 
 // Checks, over the root-level nodes of a whole document, the blocks that
-// chunks leave open for a later root-level `end` to close. Each root-level
+// chunks leave open for a later root-level `end` to close, whether the chunk
+// is itself a block or holds one (a function value in a `store`), and warns
+// about text after a root-level block's `end`. Each root-level
 // `end` closes the innermost block, scene or branch still open, and each
 // root-level `until` the innermost `repeat` that a story line cut off. A `branch`
 // sets aside every block still open before it, and a `scene` or the end of
@@ -288,16 +278,7 @@ export function validateOpenBlocks(
   const diagnostics: InkDiagnostic[] = [];
   const open: OpenEntry[] = [];
   const reportEntry = (entry: OpenEntry) => {
-    if (entry.kind === "block" && entry.prose) {
-      const { endKeyword, rest } = entry.prose;
-      report(
-        diagnostics,
-        endKeyword,
-        `The text after this \`end\`, \`${rest}\`, is read as a line of story text, not as code. If this \`end\` is a word in that line, the ${entry.block.label} above it has no closing \`end\` keyword of its own.`,
-        ctx,
-        ErrorType.Warning,
-      );
-    } else if (entry.kind === "block") {
+    if (entry.kind === "block") {
       const { header, label, closer } = entry.block;
       report(
         diagnostics,
@@ -330,8 +311,24 @@ export function validateOpenBlocks(
       closeAbove((entry) => entry.kind === "scene");
       open.push({ kind: "branch" });
     } else if (node.name === "LuauUntilStatement") {
-      const top = open.at(-1);
-      if (top?.kind === "block" && top.block.closer === "until") open.pop();
+      // An `until` closes the innermost `repeat` open since the last scene or
+      // branch; the blocks opened inside that `repeat` and still open are
+      // left without their `end`s.
+      let repeat = open.length - 1;
+      while (repeat >= 0) {
+        const entry = open[repeat]!;
+        if (entry.kind !== "block") {
+          repeat = -1;
+        } else if (entry.block.closer === "until") {
+          break;
+        } else {
+          repeat--;
+        }
+      }
+      if (repeat >= 0) {
+        while (open.length > repeat + 1) reportEntry(open.pop()!);
+        open.pop();
+      }
     } else if (node.name === "LuauEndKeyword") {
       // An `end` cannot close a `repeat`, so a `repeat` still open inside the
       // block it reaches is left without its `until`.
@@ -340,15 +337,8 @@ export function validateOpenBlocks(
       );
       const closed = open.pop();
       // The block an `end` closes, or the one a closing branch recorded, took
-      // the `end` of the scene or branch around it if that is left open. A
-      // block closed by a word in a line of text had an `end` of its own
-      // before it, so it took none.
-      const took =
-        closed?.kind === "block"
-          ? closed.prose === undefined
-            ? closed.block
-            : undefined
-          : closed?.lastClosed;
+      // the `end` of the scene or branch around it if that is left open.
+      const took = closed?.kind === "block" ? closed.block : closed?.lastClosed;
       if (took) {
         for (let i = open.length - 1; i >= 0; i--) {
           const entry = open[i]!;
@@ -358,14 +348,20 @@ export function validateOpenBlocks(
           }
         }
       }
-    } else if (OPENING_ROOTS.has(node.name)) {
+    } else {
       for (const block of openChain(node)) {
         open.push({ kind: "block", block });
       }
       const block = asBlock(node);
       const prose = block ? proseEnd(node, ctx) : null;
       if (block && prose) {
-        open.push({ kind: "block", block, prose });
+        report(
+          diagnostics,
+          prose.endKeyword,
+          `The text after this \`end\`, \`${prose.rest}\`, is read as a line of story text, not as code. If this \`end\` is a word in that line, the ${block.label} above it has no closing \`end\` keyword of its own.`,
+          ctx,
+          ErrorType.Warning,
+        );
       }
     }
   }

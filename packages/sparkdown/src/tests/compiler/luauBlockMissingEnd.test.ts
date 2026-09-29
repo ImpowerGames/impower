@@ -590,7 +590,41 @@ describe("Luau block without `end`", () => {
     expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
   });
 
-  test("a closed block whose `end` begins a line of text in a scene is not an error", () => {
+  test.each([
+    ["at the end of the file", ["store f = function()", "  local x = 1"]],
+    [
+      "before a scene",
+      [
+        "store f = function()",
+        "  local x = 1",
+        "",
+        "scene main",
+        "  Hi.",
+        "end",
+      ],
+    ],
+  ])(
+    "a function value with no `end` %s is an error on its line",
+    (_label, lines) => {
+      const errs = compile([...lines, ""].join("\n")).diags.filter(
+        (d) => d.severity === 1,
+      );
+      expect(errs).toHaveLength(1);
+      expect(errs[0]!.message).toContain("This function is missing");
+      expect(errs[0]).toMatchObject({ startLine: 0, endLine: 0 });
+    },
+  );
+
+  test("a function value closed by its `end` is not an error", () => {
+    const { diags } = compile(
+      ["store f = function()", "  local x = 1", "end", "", "Hi.", ""].join(
+        "\n",
+      ),
+    );
+    expect(diags.filter((d) => d.severity === 1)).toEqual([]);
+  });
+
+  test("a closed block whose `end` begins a line of text in a scene is a warning", () => {
     const { diags } = compile(
       [
         "-> main",
@@ -606,6 +640,10 @@ describe("Luau block without `end`", () => {
       ].join("\n"),
     );
     expect(diags.filter((d) => d.severity === 1)).toEqual([]);
+    const warnings = proseWarnings(diags);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({ startLine: 5, endLine: 5 });
+    expect(warnings[0]!.message).toContain("`of story.`");
   });
 
   test("a function that takes a branch's `end` inside a scene is reported", () => {
@@ -632,24 +670,35 @@ describe("Luau block without `end`", () => {
     expect(errs[0]).toMatchObject({ startLine: 6, endLine: 6 });
   });
 
-  test("an unclosed block inside a top-level `repeat` is an error", () => {
-    const errs = missingEndErrors(
-      compile(
-        [
-          "repeat",
-          "  if true then",
-          "    Hi.",
-          "until true",
-          "",
-          "Closing line.",
-          "done",
-          "",
-        ].join("\n"),
-      ).diags,
-    );
-    expect(errs).toHaveLength(1);
-    expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
-  });
+  test.each([
+    [
+      "a top-level `repeat`",
+      ["repeat", "  if true then", "    Hi.", "until true"],
+      1,
+    ],
+    [
+      "a `repeat` in a function",
+      [
+        "function f()",
+        "  repeat",
+        "    if true then",
+        "      Hi.",
+        "  until true",
+        "end",
+      ],
+      2,
+    ],
+  ])(
+    "an unclosed block inside %s closed by its `until` is the only error",
+    (_label, lines, ifLine) => {
+      const errs = compile(
+        [...lines, "", "Closing line.", "done", ""].join("\n"),
+      ).diags.filter((d) => d.severity === 1);
+      expect(errs).toHaveLength(1);
+      expect(errs[0]!.message).toContain("This `if` block is missing");
+      expect(errs[0]).toMatchObject({ startLine: ifLine, endLine: ifLine });
+    },
+  );
 
   test("a line of text beginning with `end` closes the function with a warning", () => {
     const { diags } = compile(
