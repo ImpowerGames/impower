@@ -284,6 +284,15 @@ variables:
   # significant. If you reach for this pattern elsewhere, remember it adds
   # exactly one capture group to the host rule.
   _LUAU_BINARY_OPERATOR_AHEAD_: (?:({{WS}}*)(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
+  # The same lookahead for the value-only rules (access paths, numbers, `nil`,
+  # tables, parentheses), which keep `?`: a value followed by a stray `?`, as in
+  # a `x :: T?` cast that does not parse yet (#877), still takes the whitespace
+  # before it as a separator, so formatting settles. Rules that a type can also
+  # be (names, primitives, strings, booleans and the bracketed types) use the
+  # one above, because a type is glued to its `?`. Like it, this adds exactly
+  # one capture group to the host rule.
+  LUAU_VALUE_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}}|[?])
+  _LUAU_VALUE_OPERATOR_AHEAD_: (?:({{WS}}*)(?={{LUAU_VALUE_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
 
 patterns:
   - { include: "#EndOfLine" }
@@ -7407,7 +7416,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAccessPart" }
-    end: (?={{BEAT}})|(?=$|{{WS}}*(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|\[))){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|\[))){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         emit: true
@@ -7830,7 +7839,7 @@ repository:
       - { include: "#LuauNumericDecimal" }
 
   LuauNumericHex:
-    match: (0_*[xX]_*[\da-fA-F_]*(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (0_*[xX]_*[\da-fA-F_]*(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: number
@@ -7841,7 +7850,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauNumericBinary:
-    match: (0_*[bB][01_]+(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (0_*[bB][01_]+(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: number
@@ -7852,7 +7861,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauNumericDecimal:
-    match: ((?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: ((?:\d[\d_]*(?:\.[\d_]*)?|\.\d[\d_]*)(?:[eE][\+\-]?_*\d[\d_]*(?:\.[\d_]*)?)?){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: number
@@ -8189,7 +8198,7 @@ repository:
           - { include: "#OptionalWhitespace" }
 
   LuauNil:
-    match: (nil(?!:))\b{{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    match: (nil(?!:))\b{{_LUAU_VALUE_OPERATOR_AHEAD_}}
     captures:
       1:
         tag: "null"
@@ -8217,7 +8226,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([}]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: ([}]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:
@@ -8261,7 +8270,7 @@ repository:
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ([)]){{_LUAU_BINARY_OPERATOR_AHEAD_}}
+    end: ([)]){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         patterns:

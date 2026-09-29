@@ -56,12 +56,28 @@ Hello.
 `);
 });
 
-test("formatting a `?` after a block comment reaches a stable result", () => {
+test("formatting a `?` after a block comment keeps one space before it", () => {
   const source = `local v: number --[[c]] ? = 1
 local w: number --[[c]]? = 1
 Hello.
 `;
+  const expected = `local v: number --[[c]] ? = 1
+local w: number --[[c]] ? = 1
+Hello.
+`;
+  expect(formatSource(source)).toBe(expected);
+  expect(formatSource(expected)).toBe(expected);
+});
+
+// `x :: T?` does not parse yet (#877): the cast target is read as a value, so
+// the `?` is text after a value. Formatting it must still settle, as it did
+// before the suffix rules changed, instead of toggling the space every pass.
+test.each([
+  ["a parenthesized cast", "local x = (y :: number?) or 1\nHello.\n"],
+  ["a table field cast", "local t = { a = y :: number? }\nHello.\n"],
+  ["a cast to a qualified name", "local x = (y :: Foo.Bar?) or 1\nHello.\n"],
+  ["a cast to a table type", "local x = (y :: {number}?) or 1\nHello.\n"],
+])("formatting %s settles after one pass", (_name, source) => {
   const once = formatSource(source);
-  expect(once).not.toContain("?=");
   expect(formatSource(once)).toBe(once);
 });
