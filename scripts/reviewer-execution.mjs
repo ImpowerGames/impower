@@ -1,5 +1,6 @@
 // Coordinator-owned execution of a finite, caller-authored operation list.
-// Reviewers select IDs only; they never supply code, paths, flags or environment.
+// Tests/benchmarks accept IDs only; editor IDs accept bounded UI data, never
+// coordinator code, paths, flags or environment supplied by the reviewer.
 import fs from "node:fs";
 import path from "node:path";
 import http from "node:http";

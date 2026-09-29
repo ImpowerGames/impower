@@ -39,6 +39,9 @@ export function validateEditorRequest(value) {
     if (!valid) throw new Error("Unknown or invalid editor step; only bounded built-in UI actions are delegated");
   }
   if (value.steps.filter(step => step.action === "shot").length > 4) throw new Error("At most four surface screenshots per request");
+  // Text becomes argv. JSON escaping conservatively accounts for quotes and
+  // backslashes; leave the rest of Windows' 32767-character limit for paths.
+  if (JSON.stringify(value.steps).length > 16384) throw new Error("Editor step payload exceeds 16384 serialized characters; split it into smaller requests");
   return value;
 }
 
@@ -47,6 +50,8 @@ export const executionPassed = result => result.exit === 0 && !result.signal && 
 export function createEditorSession(command, root, directory, run) {
   const session = `review-${randomUUID()}`;
   const environment = { IMPOWER_DRIVER_SESSION: session };
+  // This cache is coordinator configuration, never a reviewer request field.
+  if (process.env.PLAYWRIGHT_BROWSERS_PATH !== undefined) environment.PLAYWRIGHT_BROWSERS_PATH = process.env.PLAYWRIGHT_BROWSERS_PATH;
   const sessionDirectory = fs.mkdtempSync(path.join(directory, `editor-${command.id}-`));
   fs.writeFileSync(path.join(sessionDirectory, "session.json"), JSON.stringify({ root, session, driver: command.args[0] }), { flag: "wx" });
   let started = false;
