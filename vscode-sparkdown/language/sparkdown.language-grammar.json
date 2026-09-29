@@ -9931,7 +9931,7 @@
           "emit": true,
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#OptionalWhitespace"
             }
           ]
         }
@@ -9956,7 +9956,7 @@
           "emit": true,
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#OptionalWhitespace"
             }
           ]
         },
@@ -10346,7 +10346,7 @@
           "include": "#LuauCommaSeparator"
         },
         {
-          "include": "#ExtraWhitespace"
+          "include": "#RequiredWhitespace"
         },
         {
           "include": "#Newline"
@@ -12827,7 +12827,7 @@
         "1": {
           "patterns": [
             {
-              "include": "#ExtraWhitespace"
+              "include": "#OptionalWhitespace"
             }
           ]
         }

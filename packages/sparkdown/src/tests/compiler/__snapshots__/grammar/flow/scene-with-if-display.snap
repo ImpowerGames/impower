@@ -203,6 +203,7 @@ sparkdown [0..169]
  │   │       │   │   │   └─ LuauAssignmentOperation [113..117]
  │   │       │   │   │       ├─ LuauAssignmentOperation_begin 113
  │   │       │   │   │       │   └─ LuauAssignmentOperation_begin_c1 113
+ │   │       │   │   │       │       └─ OptionalWhitespace 113
  │   │       │   │   │       ├─ LuauAssignmentOperation_content [113..117]
  │   │       │   │   │       │   ├─ LuauAssignmentOperator [113..116]
  │   │       │   │   │       │   │   ├─ LuauAssignmentOperator_begin [113..116]

@@ -100,6 +100,7 @@ sparkdown [0..228]
  │   │       │   │   │   │   │   ├─ LuauAssignmentOperation [47..50]
  │   │       │   │   │   │   │   │   ├─ LuauAssignmentOperation_begin 47
  │   │       │   │   │   │   │   │   │   └─ LuauAssignmentOperation_begin_c1 47
+ │   │       │   │   │   │   │   │   │       └─ OptionalWhitespace 47
  │   │       │   │   │   │   │   │   ├─ LuauAssignmentOperation_content [47..50]
  │   │       │   │   │   │   │   │   │   ├─ LuauAssignmentOperator [47..49]
  │   │       │   │   │   │   │   │   │   │   ├─ LuauAssignmentOperator_begin [47..49]
@@ -347,6 +348,7 @@ sparkdown [0..228]
  │   │   └─ LuauAssignmentOperation [191..216]
  │   │       ├─ LuauAssignmentOperation_begin 191
  │   │       │   └─ LuauAssignmentOperation_begin_c1 191
+ │   │       │       └─ OptionalWhitespace 191
  │   │       ├─ LuauAssignmentOperation_content [191..216]
  │   │       │   ├─ LuauAssignmentOperator [191..193]
  │   │       │   │   ├─ LuauAssignmentOperator_begin [191..193]
@@ -370,6 +372,8 @@ sparkdown [0..228]
  │   │       │       │   ├─ LuauTernaryExpressionCondition [196..198]
  │   │       │       │   │   ├─ LuauTernaryExpressionCondition_begin 196
  │   │       │       │   │   │   └─ LuauTernaryExpressionCondition_begin_c1 196
+ │   │       │       │   │   │       └─ LuauTernaryExpressionCondition_begin_c1 196
+ │   │       │       │   │   │           └─ OptionalWhitespace 196
  │   │       │       │   │   ├─ LuauTernaryExpressionCondition_content [196..197]
  │   │       │       │   │   │   └─ LuauAccessPath [196..197]
  │   │       │       │   │   │       ├─ LuauAccessPath_begin 196
@@ -383,7 +387,7 @@ sparkdown [0..228]
  │   │       │       │   │   └─ LuauTernaryExpressionCondition_end [197..198]
  │   │       │       │   │       ├─ LuauTernaryExpressionCondition_end_c1 [197..198]
  │   │       │       │   │       │   └─ LuauTernaryExpressionCondition_end_c1 [197..198]
- │   │       │       │   │       │       └─ ExtraWhitespace [197..198]: " "
+ │   │       │       │   │       │       └─ OptionalWhitespace [197..198]: " "
  │   │       │       │   │       └─ LuauTernaryExpressionCondition_end_c2 198
  │   │       │       │   ├─ LuauThenExpression [198..204]
  │   │       │       │   │   ├─ LuauThenExpression_begin 198
@@ -401,7 +405,7 @@ sparkdown [0..228]
  │   │       │       │   │   │       ├─ LuauNumericDecimal_c1 [203..204]: "1"
  │   │       │       │   │   │       └─ LuauNumericDecimal_c2 204
  │   │       │       │   │   └─ LuauThenExpression_end 204
- │   │       │       │   ├─ ExtraWhitespace [204..205]: " "
+ │   │       │       │   ├─ RequiredWhitespace [204..205]: " "
  │   │       │       │   └─ LuauElseExpression [205..216]
  │   │       │       │       ├─ LuauElseExpression_begin 205
  │   │       │       │       ├─ LuauElseExpression_content [205..216]

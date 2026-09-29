@@ -68,6 +68,7 @@ sparkdown [0..90]
      │       │   │   │       │   └─ LuauAssignmentOperation [61..64]
      │       │   │   │       │       ├─ LuauAssignmentOperation_begin 61
      │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 61
+     │       │   │   │       │       │       └─ OptionalWhitespace 61
      │       │   │   │       │       ├─ LuauAssignmentOperation_content [61..64]
      │       │   │   │       │       │   ├─ LuauAssignmentOperator [61..63]
      │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [61..63]

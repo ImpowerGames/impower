@@ -182,6 +182,66 @@ Hello.
   );
 });
 
+// #1108
+test("formatting keeps one space before the `=` of a bracketed table key", () => {
+  const source = `local t = {["k"] = "v"}
+local u = {[k] = v, [1] = 2}
+local w = {k = v}
+Hello.
+`;
+  expectFormatsTo(source, source);
+  expectFormatsTo(
+    `local t = {["k"]= "v"}
+local u = {[k]=v}
+Hello.
+`,
+    `local t = {["k"] = "v"}
+local u = {[k] = v}
+Hello.
+`,
+  );
+});
+
+// #1109
+test("formatting keeps the spaces around an if expression's keywords", () => {
+  const source = `local y = if c then 1 else 2
+local z = if c then 1 elseif d then 2 else 3
+local w = if a and b then f(x) else {1, 2}
+Hello.
+`;
+  expectFormatsTo(source, source);
+  expectFormatsTo(
+    `local v = if c then 1 else 'c'
+local x = if  c  then  1  else  2
+Hello.
+`,
+    `local v = if c then 1 else "c"
+local x = if c then 1 else 2
+Hello.
+`,
+  );
+});
+
+// #1110
+test("formatting keeps one space between a keyword and a table or long string", () => {
+  const source = `function f()
+  return {1}
+end
+
+function g()
+  return [[s]]
+end
+for k in {1, 2} do
+end
+local w = if c then {1} else {2}
+local v = if c then [[a]] else (b)
+local t = f{1}
+local u = a[1]
+Hello.
+`;
+  expectFormatsTo(source, source);
+});
+
 // #1099
 test("formatting keeps the space before the `::` cast operator", () => {
   const source = `local x = y :: number

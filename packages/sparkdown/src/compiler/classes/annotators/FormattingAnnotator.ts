@@ -35,6 +35,7 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauRepeatKeyword",
   "LuauChooseKeyword",
   "LuauThenKeyword",
+  "LuauElseKeyword",
   "LuauControlKeyword",
   "LuauReturnKeyword",
   "LuauDoKeyword",
@@ -496,10 +497,10 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
     }
     // Keyword-trailing-space marker: only fires when the keyword is
-    // followed by `(` — that's the case where the default
-    // `separator` dispatch would tighten (function-call style) and
-    // produce `if(cond)` / `match(x)`. For other followers the
-    // existing mid-line separator dispatch handles spacing fine.
+    // followed by an opener the default `separator` dispatch would
+    // tighten (function-call style) and produce `if(cond)`,
+    // `return{1}` or `then[[s]]`. For other followers the existing
+    // mid-line separator dispatch handles spacing fine.
     // Inline alternators inside `{...}` interpolations skip this
     // so the collapsed form stays intact.
     if (KEYWORDS_REQUIRING_TRAILING_SPACE.has(nodeRef.name)) {
@@ -513,7 +514,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         break;
       }
       const nextChar = this.read(scanPos, scanPos + 1);
-      if (nextChar === "(") {
+      if (nextChar === "(" || nextChar === "{" || nextChar === "[") {
         // Any inline alternator (display-text variants AND
         // Luau-expression variants like `{plural(n)|one=...}`)
         // should stay tight — never `plural (n)`.

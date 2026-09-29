@@ -6470,13 +6470,16 @@ repository:
   # It also takes the whitespace after `elseif`, so an expression whose own
   # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
   # literal) still lands inside the condition rather than beside it.
+  # The whitespace after `if` or `elseif` and before `then` separates a keyword
+  # from its operand, so it is a separator the formatter keeps as one space
+  # (`if c then`, not `if cthen`).
   LuauTernaryExpressionCondition:
     begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
     beginCaptures:
       1:
         emit: true
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -6487,7 +6490,7 @@ repository:
       1:
         emit: true
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#OptionalWhitespace" }
       2:
         patterns:
           - { include: "#LuauThenKeyword" }
@@ -6756,7 +6759,11 @@ repository:
       # standing inside this expression.
       - { include: "#LuauTernaryKeyword" }
       - { include: "#LuauCommaSeparator" }
-      - { include: "#ExtraWhitespace" }
+      # The whitespace between a clause and the next keyword (`1 else`,
+      # `1 elseif`) separates them, so the formatter keeps it as one space.
+      # `RequiredWhitespace`, not `OptionalWhitespace`: a zero-width match in a
+      # scoped rule's patterns would stall the parser (GRAMMAR.md §12).
+      - { include: "#RequiredWhitespace" }
       - { include: "#Newline" }
     # End on a BEAT (next scene/branch), at end-of-line (statement
     # position: `local x = if c then 1 else 2` must close before the
@@ -8352,12 +8359,14 @@ repository:
   # Operations
   # ----------------------------------------------------------------------------
 
+  # The whitespace before the operator is a separator, as after it, so a
+  # bracketed table key keeps one space before its `=` (`{[k] = v}`).
   LuauAssignmentOperation:
     begin: ({{WS}}*)(?={{LUAU_ASSIGNMENT_OPERATORS}})
     beginCaptures:
       1:
         patterns:
-          - { include: "#ExtraWhitespace" }
+          - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauAssignmentOperator" }
       - { include: "#LuauComment" }
