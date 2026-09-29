@@ -495,6 +495,11 @@ describe("if expression across lines", () => {
       "Value 101 112.\n",
     ],
     [
+      "a minus line after the else arm's value",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 20\n    - 1\n  return y\nend\n",
+      "Value 1 19.\n",
+    ],
+    [
       "a continuation line after a returned else arm",
       "Value {f(true)} {f(false)}.\nfunction f(c)\n  return if c then 1 else 2\n    + 10\nend\n",
       "Value 1 12.\n",
@@ -503,6 +508,26 @@ describe("if expression across lines", () => {
       "a continuation line after a nested else arm",
       "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else if c then 2 else 3\n    + 10\n  return y\nend\n",
       "Value 1 13.\n",
+    ],
+    [
+      "arms that begin with a unary operator",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c\n    then -1\n    else if not c then 2 else 3\n  return y\nend\n",
+      "Value -1 2.\n",
+    ],
+    [
+      "a continuation line after a bracketed if expression",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = (if c then 1 else 2)\n    + 10\n  return y\nend\n",
+      "Value 11 12.\n",
+    ],
+    [
+      "a continuation line after a call whose last argument is an if expression",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = tostring(if c then 1 else 2)\n    .. \"0\"\n  return y\nend\n",
+      "Value 10 20.\n",
+    ],
+    [
+      "a minus line and an indexer line in the then arm",
+      "Value {f({5})}.\nfunction f(t)\n  local y = if t\n    then t\n      [1]\n      - 1\n    else 2\n  return y\nend\n",
+      "Value 4.\n",
     ],
     [
       "nested on the line after then",
@@ -589,6 +614,8 @@ describe("if expression without an else", () => {
     ["no then before elseif", "  local y = if true elseif false then 1 else 2\n", MISSING_THEN, "2:13-2:15"],
     ["an empty then arm", "  local y = if true then\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty else arm", "  local y = if true then 1 else\n", MISSING_CONDITION, "2:28-2:32"],
+    ["a then arm with only a comment", "  local y = if true then -- no value\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    ["a then arm with only a continuation line", "  local y = if true then\n    + 1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", MISSING_CONDITION, "3:17-3:21"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
   ])("%s: reports it on the keyword that is short and keeps what follows", (_name, partial, message, at) => {

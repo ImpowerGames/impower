@@ -263,6 +263,10 @@ variables:
   LUAU_MINUS_LINE_START: -(?![->])
   # A `[` that begins an indexer, not a `[[` or `[=[` long string.
   LUAU_INDEXER_LINE_CONTINUATION: (?:{{WS}}*\[(?!=*\[))
+  # A line that continues a value inside an expression that spans lines (an
+  # if expression's condition or arm): a continuation line, an indexer line,
+  # or a `-` line, which there reads as subtraction from the value before it.
+  LUAU_EXPRESSION_LINE_CONTINUATION: (?:{{LUAU_LINE_CONTINUATION}}|{{LUAU_INDEXER_LINE_CONTINUATION}}|{{WS}}*{{LUAU_MINUS_LINE_START}})
   # The `.` after a type's module name, with the whitespace Luau allows before
   # it. Every type rule that reads or yields to a qualified name uses this.
   LUAU_TYPE_QUALIFIER_DOT: '{{WS}}*[.]'
@@ -6485,11 +6489,12 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
+    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
     endCaptures:
       1:
         emit: true
@@ -6820,6 +6825,7 @@ repository:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -6831,7 +6837,7 @@ repository:
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:else|elseif)\b|{{LUAU_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)

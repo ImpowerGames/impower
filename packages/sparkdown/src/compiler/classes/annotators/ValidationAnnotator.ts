@@ -11,7 +11,10 @@ import {
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import { formatList } from "../../utils/formatList";
-import { TYPE_NAME_EXTRA_QUALIFIER } from "../../lower/utils/lineContinuation";
+import {
+  isLineContinuation,
+  TYPE_NAME_EXTRA_QUALIFIER,
+} from "../../lower/utils/lineContinuation";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -127,6 +130,9 @@ const IF_CLAUSE_TRIVIA = new Set([
   "LuauThenOperator",
   "LuauElseOperator",
   "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
   "LuauCommaSeparator",
   "ExtraWhitespace",
   "OptionalWhitespace",
@@ -149,10 +155,38 @@ function isInlineConditional(node: any): boolean {
   );
 }
 
-function clauseHasValue(clause: any): boolean {
+// The operations whose node begins with their operator; only `-` and `not`
+// can also begin a value.
+const BINARY_TAIL_OPERATIONS = new Set([
+  "LuauArithmeticOperation",
+  "LuauCompareOperation",
+  "LuauConcatOperation",
+  "LuauLogicalOperation",
+]);
+const UNARY_OPERATORS = new Set(["-", "not"]);
+
+// Whether an if expression's clause holds a value: its first part that is not
+// its keyword, a comment or space is a value, not a line or an operator that
+// continues a value before it, which a clause with no value has none of.
+function clauseHasValue(
+  clause: any,
+  read: (from: number, to: number) => string,
+): boolean {
   const content = childNamed(clause, `${clause.name}_content`);
   for (let c = content?.firstChild; c; c = c.nextSibling) {
-    if (!IF_CLAUSE_TRIVIA.has(c.name)) return true;
+    if (IF_CLAUSE_TRIVIA.has(c.name)) continue;
+    if (isLineContinuation(c)) return false;
+    if (BINARY_TAIL_OPERATIONS.has(c.name)) {
+      const operation = childNamed(c, `${c.name}_content`);
+      let operator = operation?.firstChild;
+      while (operator && IF_CLAUSE_TRIVIA.has(operator.name)) {
+        operator = operator.nextSibling;
+      }
+      if (operator && !UNARY_OPERATORS.has(read(operator.from, operator.to).trim())) {
+        return false;
+      }
+    }
+    return true;
   }
   return false;
 }
@@ -163,6 +197,7 @@ function clauseHasValue(clause: any): boolean {
 // the `if`, or the `elseif`, `then` or `else` of the clause that is short.
 function missingIfExpressionPart(
   node: any,
+  read: (from: number, to: number) => string,
 ): { message: string; at: any } | null {
   const content = childNamed(node, "LuauTernaryExpression_content");
   let at = firstDescendant(node, LUAU_IF_KEYWORD);
@@ -179,11 +214,11 @@ function missingIfExpressionPart(
   for (let c = content?.firstChild; c; c = c.nextSibling) {
     if (c.name === "LuauTernaryExpressionCondition") {
       if (expecting !== "condition") return missing();
-      if (!clauseHasValue(c)) return { message: IF_EXPRESSION_WITHOUT_VALUE, at };
+      if (!clauseHasValue(c, read)) return { message: IF_EXPRESSION_WITHOUT_VALUE, at };
       expecting = "then";
     } else if (c.name === "LuauThenExpression") {
       if (expecting !== "then") return missing();
-      if (!clauseHasValue(c)) {
+      if (!clauseHasValue(c, read)) {
         return {
           message: IF_EXPRESSION_WITHOUT_VALUE,
           at: firstDescendant(c, LUAU_THEN_KEYWORD) ?? at,
@@ -196,7 +231,7 @@ function missingIfExpressionPart(
       expecting = "condition";
     } else if (c.name === "LuauElseExpression") {
       if (expecting !== "else") return missing();
-      if (!clauseHasValue(c)) {
+      if (!clauseHasValue(c, read)) {
         return {
           message: IF_EXPRESSION_WITHOUT_VALUE,
           at: firstDescendant(c, LUAU_ELSE_KEYWORD) ?? at,
@@ -454,7 +489,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "LuauTernaryExpression" &&
       !isInlineConditional(nodeRef.node)
     ) {
-      const missing = missingIfExpressionPart(nodeRef.node);
+      const missing = missingIfExpressionPart(nodeRef.node, (from, to) =>
+        this.read(from, to),
+      );
       if (missing) {
         this.error(
           annotations,

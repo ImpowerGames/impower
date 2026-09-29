@@ -426,7 +426,7 @@ function continuedElseTailStart(nodes: SyntaxNode[]): number {
   let start = nodes.length;
   while (
     start > 0 &&
-    (nodes[start - 1]!.name === "LuauLineContinuation" ||
+    (isLineContinuation(nodes[start - 1]!) ||
       isSkippableName(nodes[start - 1]!.name))
   ) {
     start--;
@@ -438,7 +438,9 @@ function continuedElseTailStart(nodes: SyntaxNode[]): number {
 
 // The if expression with an else arm that `node`'s value ends in (`if c then
 // 1 else 2`, or `x + if c then 1 else 2`), found through the last operand
-// of the operations that hold it; null when the value ends in anything else.
+// of the operations that hold it; null when the value ends in anything else,
+// including a bracket that closes around one (`(if c then 1 else 2)`), whose
+// continuation applies to the bracketed value.
 function trailingIfExpressionWithElse(node: SyntaxNode): SyntaxNode | null {
   let current: SyntaxNode | null = node;
   while (current) {
@@ -448,6 +450,7 @@ function trailingIfExpressionWithElse(node: SyntaxNode): SyntaxNode | null {
         ? current
         : null;
     }
+    if (!OPERATION_WRAPPERS.has(current.name)) return null;
     let last: SyntaxNode | null = current.lastChild;
     while (
       last &&
