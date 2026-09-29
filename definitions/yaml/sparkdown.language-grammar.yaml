@@ -6042,14 +6042,19 @@ repository:
     # end-of-line just like a bare target, so the shape alone cannot
     # tell them apart. Targets all precede the `=`, so an identifier
     # is a target only when no `=` stands between it and the line's
-    # nearest scope keyword (`local`/`store`/`const`, all reserved
-    # names, so the keyword marks the definition's start). No quote
-    # may stand there either, so a keyword inside a string value
-    # (`local k, v = "store", x`) is not taken for the start. A target
-    # that follows a string-typed one (`local a: "p", b = …`) or a
-    # `LuauPropertyDefinition` key (`name = …` in a define body, with
+    # nearest scope keyword (`local`/`store`/`const`, all reserved as
+    # variable names, so the keyword marks the definition's start).
+    # The region between may hold whole quoted strings and whole
+    # `[…]` brackets, which a target's type can contain
+    # (`local a: "p", b: number`, `{ [string]: number }`), but no
+    # unpaired quote, backtick or `]`: those mean the keyword sits
+    # inside a string, a `[[…]]` long string or a `--[[…]]` comment
+    # (`local k, v = "store", x`, `local d, v = [[the local shop]], x`).
+    # A keyword after `.` or `:` is a field or method name
+    # (`local a, b = t.store, x`), not a scope keyword.
+    # A `LuauPropertyDefinition` key (`name = …` in a define body, with
     # no keyword) is a target by its own trailing `=`.
-    begin: (?:(?<={{LUAU_SCOPE_MODIFIERS}}[^=\n\r"'`]*)|(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
+    begin: (?:(?<=(?:^|[^.:\w]){{LUAU_SCOPE_MODIFIERS}}(?:[^=\n\r"'`\[\]]|"[^"\n\r]*"|'[^'\n\r]*'|\[[^\[\]\n\r]*\])*)|(?={{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:

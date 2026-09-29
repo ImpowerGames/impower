@@ -1,0 +1,6 @@
+local a, b = 1, x
+local c, d = true, false
+local e: "p", f: number = "p", 2
+local g, h = t.store, y
+local i = 1 j = 2
+local k = 1, m = 2

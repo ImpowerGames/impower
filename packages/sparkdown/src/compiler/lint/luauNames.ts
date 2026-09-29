@@ -213,8 +213,8 @@ function declaredNames(definition: SyntaxNode): SyntaxNode[] {
     const nameBegin = childNamed(assignment, "LuauVariableAssignment_begin");
     const token = nameBegin?.firstChild?.firstChild;
     if (token?.name === "LuauVariableName") names.push(token);
-    // The names end at the `=`; in `local a = b, c` the grammar also wraps
-    // the value `c` as an assignment.
+    // The names end at the `=`; in the invalid `local a = 1, b = 2` the
+    // grammar also wraps `b = 2` as an assignment.
     if (childNamed(assignment, "LuauVariableAssignment_content")) break;
   }
   return names;
