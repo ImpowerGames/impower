@@ -116,11 +116,8 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
-const MISSING_TYPE = "Expected type, got ";
-// The `;`, `,` or `=` a `LuauTypeAnnotationMissingType` stops before, after
-// the whitespace, line breaks and comments the grammar's lookahead skips.
-const TYPE_ANNOTATION_END_AHEAD =
-  /^(?:\s|--\[(=*)\[[\s\S]*?\]\1\]|--(?!\[=*\[)[^\r\n]*)*([;,=])/;
+const MISSING_TYPE = "Expected type";
+const LUAU_COMMENTS = ["LuauBlockComment", "LuauDocLineComment", "LuauLineComment"];
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -480,6 +477,31 @@ export class ValidationAnnotator extends SparkdownAnnotator<
 
   /** The end of the text before the block comments (and the whitespace around
    *  them) that end at `pos`, or null when no block comment ends there. */
+  /**
+   * The first character at or after `pos` that is not whitespace, a line
+   * break or inside a Luau comment the grammar read, or `""` at the end.
+   */
+  protected tokenAfterTrivia(pos: number): string {
+    for (;;) {
+      const char = this.read(pos, pos + 1);
+      if (!char) {
+        return "";
+      }
+      if (/\s/.test(char)) {
+        pos += 1;
+        continue;
+      }
+      let node = this.tree?.resolveInner(pos, 1) ?? null;
+      while (node && !LUAU_COMMENTS.includes(node.name)) {
+        node = node.parent;
+      }
+      if (!node || node.to <= pos) {
+        return char;
+      }
+      pos = node.to;
+    }
+  }
+
   protected startBeforeBlockComments(pos: number): number | null {
     let skipped = false;
     for (;;) {
@@ -521,9 +543,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // Likewise a type annotation `:` with no type before the `;`, `,` or `=`
     // after it; Luau names the token it found instead.
     if (nodeRef.name === "LuauTypeAnnotationMissingType") {
-      const after = this.read(nodeRef.to, this.text?.length ?? nodeRef.to);
-      const token = TYPE_ANNOTATION_END_AHEAD.exec(after)?.[2] ?? ";";
-      this.error(annotations, `${MISSING_TYPE}'${token}'`, nodeRef.from, nodeRef.to);
+      const token = this.tokenAfterTrivia(nodeRef.to);
+      this.error(
+        annotations,
+        token ? `${MISSING_TYPE}, got '${token}'` : MISSING_TYPE,
+        nodeRef.from,
+        nodeRef.to,
+      );
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a

@@ -38,6 +38,11 @@ describe("a type annotation with no type before `=` or `,`", () => {
     "local t = {m = function(self) return 1 end}\nlocal y, z = t:m(), 2",
     "function f(a: number, b: string) end",
     "local x: number = 1 == 1 and 1 or 2",
+    // A `,`, `=` or `;` inside a comment before the type is not the token.
+    "local x: -- count, in points\n  number = 1",
+    "local y: -- default = nil\n  number = 2",
+    "local z:\n  -- a note, here\n  number = 3",
+    "local w: -- ends; here\n  number = 4",
   ])("%j is unaffected", (statement) => {
     expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });

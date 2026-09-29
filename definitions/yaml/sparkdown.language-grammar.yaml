@@ -317,11 +317,12 @@ variables:
   # comments, which Luau reads as trivia. A block comment ends at the first
   # closing bracket of its own level, as `LuauBlockComment` does, so its level
   # is captured and matched by `\4`: every rule using this must put exactly
-  # three capture groups before it.
-  _LUAU_SEMICOLON_AHEAD_: (?:(?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*)*[;])
+  # three capture groups before it. A line comment must run to its line end,
+  # so the token is never a character inside it (`local x: -- a, b`).
+  _LUAU_SEMICOLON_AHEAD_: (?:(?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*[;])
   # The same, ending at the `;`, `,` or `=` (not `==`) that can follow a type
   # annotation, with the same capture-group rule.
-  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:(?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*)*(?:[;,]|=(?!=)))
+  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:(?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*(?:[;,]|=(?!=)))
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
