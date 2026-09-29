@@ -1730,6 +1730,10 @@ await check("with the production process lookup, a journal's recorded start deci
     assert.match(same.reason, new RegExp(`still running \\(pid ${child.pid}\\)`));
     const reused = classifyJob("pr-9", jobDir("pr-9-reused", "1"), deps, ctx);
     assert.equal(reused.remove, true, reused.reason);
+    const opaque = classifyJob("pr-9", jobDir("pr-9-opaque", "1"), { ...deps, processStart: () => { throw new Error("access denied"); } }, ctx);
+    assert.equal(opaque.remove, false);
+    assert.match(opaque.reason, new RegExp(`start time cannot be read, so whether it is the recorded one is unknown \\(pid ${child.pid}\\)`));
+    assert.doesNotMatch(opaque.reason, /still running/);
   } finally {
     child.kill();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -1741,7 +1745,7 @@ await check("a detached head on origin/main stays while an operation is in progr
   const clean = { headOnMain: true, inProgress: [], headLogUnknown: null, headLogOrphans: 0, headIdleMs: 3 * 24 * 3600_000 };
   assert.equal(classify(det, facts(clean)).remove, true, "an idle detached head with nothing in progress was kept");
   kept(det, facts({ ...clean, inProgress: ["rebase-merge"] }), "an operation is in progress in it (rebase-merge)");
-  kept(det, facts({ ...clean, headLogOrphans: 2 }), "its HEAD reflog reaches 2 commits that origin/main, every branch, remote and tag do not");
+  kept(det, facts({ ...clean, headLogOrphans: 2 }), "its HEAD reflog or per-worktree refs (refs/worktree, bisect, rewritten) reach 2 commits that origin/main, every branch, remote and tag do not");
   kept(det, facts({ ...clean, headIdleMs: 5 * 60_000 }), "its HEAD moved 5 min ago, within 24 hours");
   kept(det, facts({ ...clean, headLogUnknown: "its HEAD reflog could not be read (boom)" }), "its HEAD reflog could not be read (boom)");
 });
@@ -1755,7 +1759,7 @@ await check("a journal's recorded process still counts only while the pid's star
   assert.equal(recordedProcessAlive(21, procs.get(21), deps("t1")), true, "the same process");
   assert.equal(recordedProcessAlive(21, procs.get(21), deps("t2")), false, "a recycled pid");
   assert.equal(recordedProcessAlive(21, procs.get(21), deps(null)), false, "gone between the two checks");
-  assert.equal(recordedProcessAlive(21, procs.get(21), { pidAlive: () => true, processStart: () => { throw new Error("x"); } }), true, "start time unreadable");
+  assert.equal(recordedProcessAlive(21, procs.get(21), { pidAlive: () => true, processStart: () => { throw new Error("x"); } }), "unreadable", "start time unreadable");
   assert.equal(recordedProcessAlive(22, procs.get(22), deps("t9")), true, "a bare pid is judged by its number");
   assert.equal(recordedProcessAlive(21, procs.get(21), { pidAlive: () => false, processStart: () => "t1" }), false, "no such pid");
 });
@@ -2076,8 +2080,9 @@ await check("a merged review job whose recorded pid was recycled is removed; one
       assert.match(rowFor(r.out, "rebasing"), /^keep\s.*an operation is in progress in it \(rebase-merge\)/);
       assert.match(rowFor(r.out, "revisited"), /^keep\s.*its HEAD moved .* min ago, within 24 hours/);
       assert.match(rowFor(r.out, "visited-branch"), /^remove\s/);
-      assert.match(rowFor(r.out, "orphan"), /^keep\s.*its HEAD reflog reaches 1 commit that origin\/main, every branch, remote and tag do not/);
-      assert.match(rowFor(r.out, "wtref"), /^keep\s.*reaches 1 commit that origin\/main, every branch, remote and tag do not/);
+      const reach = /^keep\s.*its HEAD reflog or per-worktree refs \(refs\/worktree, bisect, rewritten\) reach 1 commit that origin\/main, every branch, remote and tag do not/;
+      assert.match(rowFor(r.out, "orphan"), reach);
+      assert.match(rowFor(r.out, "wtref"), reach);
       assert.match(rowFor(r.out, "ahead"), /^keep\s.*its commit is not known to be on origin\/main/);
     });
 

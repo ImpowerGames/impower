@@ -20,7 +20,7 @@
 // worktree, one git no longer sees as a worktree or whose directory is gone,
 // an unborn head, a detached head whose commit is not on origin/main, or one
 // with an operation in progress (a stopped rebase or bisect), commits only its
-// HEAD reflog reaches, or HEAD moved within the last day (a checkout a session
+// HEAD reflog or per-worktree refs reach, or HEAD moved within the last day (a checkout a session
 // may be about to use), uncommitted changes, commits on neither
 // origin/main nor the branch's remote, commits on the remote that are not on
 // origin/main, a branch with no commit made on it (a fresh worktree a session
@@ -339,11 +339,11 @@ export function usersOf(dir, processes, selfPid, platform = process.platform) {
 const listSome = (items, max) => (items.length > max ? `${items.slice(0, max).join(", ")} and ${items.length - max} more` : items.join(", "));
 
 // Why a detached head on origin/main still stays, from detachedHistory's facts.
-export function detachedKeeps(facts) {
+function detachedKeeps(facts) {
   const keep = [];
   if (facts.inProgress?.length) keep.push(`an operation is in progress in it (${facts.inProgress.join(", ")}); finish or abort it first`);
   if (facts.headLogUnknown) keep.push(`${facts.headLogUnknown}; left for a person`);
-  if (facts.headLogOrphans > 0) keep.push(`its HEAD reflog reaches ${n(facts.headLogOrphans, "commit")} that origin/main, every branch, remote and tag do not, which removing it would leave unreferenced`);
+  if (facts.headLogOrphans > 0) keep.push(`its HEAD reflog or per-worktree refs (refs/worktree, bisect, rewritten) reach ${n(facts.headLogOrphans, "commit")} that origin/main, every branch, remote and tag do not, which removing it would leave unreferenced`);
   if (facts.headIdleMs != null && facts.headIdleMs < DETACHED_IDLE_MS) keep.push(`its HEAD moved ${Math.max(0, Math.round(facts.headIdleMs / 60000))} min ago, within ${DETACHED_IDLE_MS / 3600000} hours; a fresh checkout a session may be working in, so remove it by hand when it is done`);
   return keep;
 }
@@ -517,10 +517,10 @@ export function readReflog(text) {
 // worktree's own git directory and HEAD reflog do: an operation left in
 // progress (a stopped rebase or bisect detaches HEAD at a clean commit),
 // commits made and then left behind by checking out another commit, which the
-// reflog alone still reaches, and when HEAD last moved, since a checkout made
+// reflog alone still reaches, or held only by a per-worktree ref, and when HEAD last moved, since a checkout made
 // moments ago is one a session may be about to use. Any answer git does not
 // give keeps the tree.
-export const DETACHED_IDLE_MS = 24 * 60 * 60 * 1000;
+const DETACHED_IDLE_MS = 24 * 60 * 60 * 1000;
 const IN_PROGRESS = ["rebase-merge", "rebase-apply", "BISECT_LOG", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"];
 const MAX_HEAD_LOG = 200;
 
@@ -1064,7 +1064,10 @@ export function recordedProcessAlive(pid, starts, deps) {
   try {
     now = deps.processStart(pid);
   } catch {
-    return true;
+    // Windows will not read the start time of a service or another user's
+    // process; whether it is the recorded one cannot be told, so the number
+    // keeps the directory, and the caller says why.
+    return "unreadable";
   }
   return now !== null && starts.has(now);
 }
@@ -1100,6 +1103,7 @@ export function classifyJob(name, dir, deps, ctx) {
   const { journals, unreadable } = jobJournals(dir);
   if (unreadable.length) keep.push(`${n(unreadable.length, "directory", "directories")} inside it could not be read (${listSome(unreadable, 2)})`);
   const live = new Set();
+  const unreadableStart = new Set();
   for (const journal of journals) {
     let procs;
     try {
@@ -1108,8 +1112,16 @@ export function classifyJob(name, dir, deps, ctx) {
       procs = null;
     }
     if (procs === null) keep.push(`the journal ${path.relative(dir, journal)} could not be read in full`);
-    else for (const [pid, starts] of procs) if (pid !== deps.pid() && recordedProcessAlive(pid, starts, deps)) live.add(pid);
+    else {
+      for (const [pid, starts] of procs) {
+        if (pid === deps.pid()) continue;
+        const alive = recordedProcessAlive(pid, starts, deps);
+        if (alive === "unreadable") unreadableStart.add(pid);
+        else if (alive) live.add(pid);
+      }
+    }
   }
+  if (unreadableStart.size) keep.push(`its journal records ${n(unreadableStart.size, "process", "processes")} whose pid is now held by a process whose start time cannot be read, so whether it is the recorded one is unknown (pid ${[...unreadableStart].join(", ")})`);
   if (live.size) keep.push(`its journal records ${n(live.size, "process", "processes")} still running (pid ${[...live].join(", ")})`);
   const using = commandLineReason(dir, deps, ctx);
   if (using) keep.push(using);
