@@ -117,11 +117,11 @@ text.source.sparkdown [0..228]
  ├─ keyword.control.if.luau [193..195]: "if"
  ├─ punctuation.whitespace.optional.sd [195..196]: " "
  ├─ variable.other.readwrite.luau [196..197]: "c"
- ├─ punctuation.whitespace.extra.sd [197..198]: " "
+ ├─ punctuation.whitespace.optional.sd [197..198]: " "
  ├─ keyword.control.then.luau [198..202]: "then"
  ├─ punctuation.whitespace.optional.sd [202..203]: " "
  ├─ constant.numeric.decimal.luau [203..204]: "1"
- ├─ punctuation.whitespace.extra.sd [204..205]: " "
+ ├─ punctuation.whitespace.required.sd [204..205]: " "
  ├─ keyword.control.else.luau [205..209]: "else"
  ├─ punctuation.whitespace.optional.sd [209..210]: " "
  ├─ meta.function.luau [210..216]

@@ -1,4 +1,5 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
+import { CALL_LIKE_OPENERS } from "../../utils/callLikeOpeners";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
@@ -21,12 +22,13 @@ import { SparkdownAnnotator } from "../SparkdownAnnotator";
 // shape that appears inside `{...}` interpolations — that's where the
 // pacing concern lives, since the surrounding context is display text.
 // Control / alternator keywords whose trailing whitespace MUST be
-// at least one space, even when followed by `(`. Prettier-style
-// `if (cond)` / `match (player_class)` separation — these aren't
-// function calls, the parens are arg grouping, so the keyword
-// shouldn't tighten against them like `foo(x)` does. Only triggers
-// for the multi-line / block forms; inline alternators inside `{}`
-// interpolations stay collapsed via `isInsideInlineAlternator`.
+// at least one space, even when followed by one of the
+// `CALL_LIKE_OPENERS`. Prettier-style `if (cond)` / `return {1}` /
+// `then [[s]]` separation — these aren't calls or indexes, so the
+// keyword shouldn't tighten against them like `foo(x)`, `f{1}` or
+// `a[1]` do. Applies on single-line and block forms alike; a control
+// keyword inside an inline alternator (`{plural(n)|...}`) stays
+// collapsed via `isInsideAnyInlineAlternator`.
 const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauIfKeyword",
   "LuauElseifKeyword",
@@ -35,6 +37,7 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauRepeatKeyword",
   "LuauChooseKeyword",
   "LuauThenKeyword",
+  "LuauElseKeyword",
   "LuauControlKeyword",
   "LuauReturnKeyword",
   "LuauDoKeyword",
@@ -46,9 +49,34 @@ const KEYWORDS_REQUIRING_TRAILING_SPACE = nodeNameSet([
   "LuauDefineKeyword",
   "LuauAsKeyword",
   "LuauInKeyword",
+  "LuauUntilKeyword",
   "SceneKeyword",
   "BranchKeyword",
 ]);
+
+// Keywords that continue an expression or statement after an operand.
+// Written glued to a closing bracket (`if(c)then`, `(1)else`), they get a
+// forced space before them, as the whitespace an author writes there is.
+const KEYWORDS_REQUIRING_LEADING_SPACE = nodeNameSet([
+  "LuauThenKeyword",
+  "LuauElseKeyword",
+  "LuauElseifKeyword",
+]);
+
+// Binary operators spelled with punctuation that the formatter's
+// separator rule tightens against, mapped to their spelling and the
+// sides that need a forced space. `.` tightens on both sides, so `..`
+// forces both. `:` tightens only before it: the separator after `::`
+// already gives one space, and a forced one there would add a second.
+const SPACED_PUNCTUATION_OPERATORS: Partial<
+  Record<SparkdownNodeName, { spelling: string; forceAfter: boolean }>
+> = {
+  LuauConcatOperator: { spelling: "..", forceAfter: true },
+  LuauTypeCastOperator: { spelling: "::", forceAfter: false },
+  // Only its `..=` spelling; the separator after the `=` gives the
+  // space after it.
+  LuauAssignmentOperator: { spelling: "..=", forceAfter: false },
+};
 
 // Alternator forms whose ARM CONTENT is *display text* (not a Luau
 // expression). These carry typing-pacing significance: whitespace
@@ -175,6 +203,9 @@ const NOT_AN_LHS = nodeNameSet([
   "LuauConcatOperator",
   "LuauLogicalOperator",
   "LuauCommaSeparator",
+  // An if expression's arm begins after its keyword (`then -1`).
+  "LuauThenOperator",
+  "LuauElseOperator",
 ]);
 
 // True iff `node` sits inside an inline UI element attribute
@@ -396,10 +427,11 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     // (Branch_end annotation removed — see Scene_end note above.)
     // Wordlike binary operators (`and`, `or`, `not`) — the
     // operator's trailing-WS capture sits between the keyword and
-    // its right operand. When the operand begins with `(`, the
+    // its right operand. When the operand begins with an opener, the
     // default separator would tighten (`and(y or z)` instead of
-    // `and (y or z)`). Emit `keyword_separator` right after the
-    // keyword text to force the space.
+    // `and (y or z)`, `or{}` instead of `or {}`). Emit
+    // `keyword_separator` right after the keyword text to force the
+    // space.
     if (nodeRef.name === "LuauLogicalOperator") {
       // Skip leading WS captured inside the operator's range to find
       // the keyword's start.
@@ -415,8 +447,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         const slice = this.read(kwStart, kwStart + kw.length);
         if (slice !== kw) continue;
         const kwEnd = kwStart + kw.length;
-        // Only emit when the operand starts with `(` — other operand
-        // shapes are handled fine by the default separator dispatch.
+        // Only emit when the operand starts with an opener — other
+        // operand shapes are handled fine by the default separator
+        // dispatch.
         let scan = kwEnd;
         while (
           this.read(scan, scan + 1) === " " ||
@@ -424,7 +457,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         ) {
           scan += 1;
         }
-        if (this.read(scan, scan + 1) === "(") {
+        if (CALL_LIKE_OPENERS.has(this.read(scan, scan + 1))) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
               kwEnd,
@@ -437,14 +470,16 @@ export class FormattingAnnotator extends SparkdownAnnotator<
     }
     // Binary operators whose character spelling would trip the
     // default `separator` dispatch (because of `NO_SPACE_AFTER`/
-    // `NO_SPACE_BEFORE` rules for `.`). Emit `keyword_separator`
+    // `NO_SPACE_BEFORE` rules for `.` and `:`). Emit `keyword_separator`
     // at the actual operator-token boundaries so the formatter
-    // forces single spaces regardless of the `.` rule.
+    // forces single spaces regardless of those rules.
     // `..` (concat) is the main one — `"a".."b"` should be
-    // `"a" .. "b"`.
-    if (nodeRef.name === "LuauConcatOperator") {
-      // Find the `..` position by scanning past any leading WS the
-      // operator scope captured into its begin pattern.
+    // `"a" .. "b"` — and `::` (type cast) is the other: `y :: number`
+    // keeps its space before the `::`.
+    const spacedOperator = SPACED_PUNCTUATION_OPERATORS[nodeRef.name];
+    if (spacedOperator) {
+      // Find the operator's position by scanning past any leading WS
+      // the operator scope captured into its begin pattern.
       let opStart = nodeRef.from;
       while (
         opStart < nodeRef.to &&
@@ -453,8 +488,9 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       ) {
         opStart += 1;
       }
-      if (this.read(opStart, opStart + 2) === "..") {
-        const opEnd = opStart + 2;
+      const { spelling, forceAfter } = spacedOperator;
+      if (this.read(opStart, opStart + spelling.length) === spelling) {
+        const opEnd = opStart + spelling.length;
         // Suppress emissions adjacent to line breaks — line-leading
         // and line-trailing whitespace is handled by `indent` /
         // `trailing` dispatch, not by separator insertion.
@@ -497,7 +533,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
             ),
           );
         }
-        if (!isLineBreak(after)) {
+        if (forceAfter && !isLineBreak(after)) {
           annotations.push(
             SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
               opEnd,
@@ -508,10 +544,10 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       }
     }
     // Keyword-trailing-space marker: only fires when the keyword is
-    // followed by `(` — that's the case where the default
-    // `separator` dispatch would tighten (function-call style) and
-    // produce `if(cond)` / `match(x)`. For other followers the
-    // existing mid-line separator dispatch handles spacing fine.
+    // followed by an opener the default `separator` dispatch would
+    // tighten (function-call style) and produce `if(cond)`,
+    // `return{1}` or `then[[s]]`. For other followers the existing
+    // mid-line separator dispatch handles spacing fine.
     // Inline alternators inside `{...}` interpolations skip this
     // so the collapsed form stays intact.
     if (KEYWORDS_REQUIRING_TRAILING_SPACE.has(nodeRef.name)) {
@@ -525,7 +561,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
         break;
       }
       const nextChar = this.read(scanPos, scanPos + 1);
-      if (nextChar === "(") {
+      if (CALL_LIKE_OPENERS.has(nextChar)) {
         // Any inline alternator (display-text variants AND
         // Luau-expression variants like `{plural(n)|one=...}`)
         // should stay tight — never `plural (n)`.
@@ -542,6 +578,24 @@ export class FormattingAnnotator extends SparkdownAnnotator<
             ),
           );
         }
+      }
+    }
+    // Keyword-leading-space marker: a clause keyword glued to the
+    // operand before it (`if(c)then`, `(1)else`) has no whitespace
+    // node for the separator dispatch to widen, so force the space.
+    if (KEYWORDS_REQUIRING_LEADING_SPACE.has(nodeRef.name)) {
+      const prevChar = this.read(nodeRef.from - 1, nodeRef.from);
+      if (
+        nodeRef.from > this.getLineAt(nodeRef.from).from &&
+        prevChar !== " " &&
+        prevChar !== "\t"
+      ) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+            nodeRef.from,
+            nodeRef.from,
+          ),
+        );
       }
     }
     if (nodeRef.name === "ChoiceMark") {
