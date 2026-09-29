@@ -39,7 +39,8 @@ describe("a local's value list", () => {
     ["a name after a string naming a keyword and an escaped quote", 'local x = 5\nlocal m, b = "the store said \\"hi\\"", x\nreturn b', "Value 5.\n"],
     ["a boolean after a single-quoted string naming a keyword and an escaped quote", "local m, b = 'a const \\'q\\'', true\nreturn tostring(b)", "Value true.\n"],
     ["a boolean after a backtick string naming a keyword", "local m, b = `store {1}`, true\nreturn tostring(b)", "Value true.\n"],
-    ["a name after a method call", 'local s = "ab"\nlocal x = 5\nlocal a, b = s:upper(), x\nreturn a .. b', "Value AB5.\n"],
+    ["a name after a method named store", "local t = {}\nt.store = function(self) return 2 end\nlocal x = 5\nlocal a, b = t:store(), x\nreturn a + b", "Value 7.\n"],
+    ["a name after a method call",'local s = "ab"\nlocal x = 5\nlocal a, b = s:upper(), x\nreturn a .. b', "Value AB5.\n"],
     ["a name after a cast", "local x = 5\nlocal a, b = 1, x :: number\nreturn b", "Value 5.\n"],
   ])("reads %s as a value", (_, body, expected) => {
     expect(run(body)).toEqual({ errors: [], output: expected });
