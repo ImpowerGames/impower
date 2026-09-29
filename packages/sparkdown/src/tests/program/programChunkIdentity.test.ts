@@ -553,6 +553,37 @@ describe("a block statement", () => {
 // can change that without touching the statement: a scene added below makes
 // a name that read nothing read the scene's count, which the writer does not
 // emit, so the program falls back as a cold compile of the text does.
+// A block statement's own text leaves its bodies out, so that an edit inside
+// a body keeps the owner's chunk. A body written on its owner's line leaves
+// out only its own text there: the condition or header beside it is the
+// owner's, and an edit to it emits the owner again.
+describe("a block statement written on one line", () => {
+  const scene = (statement: string) =>
+    ["store n = 0", "scene MAIN", "  Before!", `  ${statement}`, "  Result {n}.", "end", ""].join("\n");
+
+  for (const [part, before, after] of [
+    ["an `if` condition", "if 1 == 1 then n = 1 end", "if 1 == 2 then n = 1 end"],
+    ["an `if` condition with its `else` on the line", "if n == 0 then n = 5 else n = 7 end", "if n == 1 then n = 5 else n = 7 end"],
+    ["a `while` loop's test", "while n < 2 do n = n + 1 end", "while n < 3 do n = n + 1 end"],
+    ["a `for` loop's range", "for i = 1, 2 do n = n + i end", "for i = 1, 3 do n = n + i end"],
+  ] as const) {
+    it(`is emitted again when ${part} is edited, as a cold compile of the text emits it`, () => {
+      const s = session({ [MAIN]: scene(before).replace("Before!", "Before.") });
+      s.edit("Before.", "Before!");
+      const edited = s.edit(before, after);
+      const cold = programCompiler(
+        { [MAIN]: scene(after) },
+        { programChunks: true, seedBuiltinsIntoStory: true },
+      ).compile().program;
+      expect(cold.fallback).toBeUndefined();
+      expect(storyBeats(new ProgramStory(edited), "MAIN")).toEqual(
+        storyBeats(new ProgramStory(cold.chunks!), "MAIN"),
+      );
+      expect(describeRoot(edited)).toEqual(describeRoot(cold.chunks!));
+    });
+  }
+});
+
 describe("a name a chunk reads", () => {
   it("emits the chunk again when the name resolves to something else", () => {
     const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);

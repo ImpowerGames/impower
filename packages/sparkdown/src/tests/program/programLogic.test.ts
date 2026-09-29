@@ -657,6 +657,62 @@ describe("a jump and a save inside a body", () => {
     expect(scopeNames(resumed)).toEqual(scopeNames(story));
     expect(storyBeats(resumed).beats).toEqual(whole.slice(1));
   });
+
+  // A `while` body runs each pass in a scope its owner opens before entering
+  // it, which its block row counts, so a jump or a load into the body opens
+  // it, and the pass that runs out closes it.
+  const whileText = [
+    "scene MAIN",
+    "  local a = 1",
+    "  local i = 0",
+    "  while i < 3 do",
+    "    i = i + 1",
+    "    local d = i * 2",
+    "    if d > 2 then",
+    "      Pass {i} {d} {a}.",
+    "    end",
+    "  end",
+    "  After {a} {i}.",
+    "end",
+    "",
+  ].join("\n");
+  const WHILE_PASS_LINE = 7;
+
+  it("opens a while body's pass scope on a jump into it, the same on every jump", () => {
+    const story = new ProgramStory(chunked(whileText), {
+      locate: () => ({ uri: MAIN_URI, line: WHILE_PASS_LINE, column: 6 }),
+    });
+    story.ChoosePathString("pass");
+    expect(story.state.blockStack).toHaveLength(2);
+    // The flow's scope, the pass scope and the branch's.
+    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+    story.ChoosePathString("pass");
+    expect(story.state.blockStack).toHaveLength(2);
+    expect(story.state.frame!.temporaryScopes).toHaveLength(3);
+  });
+
+  it("restores a state saved inside a while body, and closes the pass scope after it", () => {
+    const root = chunked(whileText);
+    const whole = storyBeats(new ProgramStory(root), "MAIN").beats;
+    expect(whole.map((b) => b.text)).toEqual([
+      "Pass 2 4 1.\n",
+      "Pass 3 6 1.\n",
+      "After 1 3.\n",
+    ]);
+    const story = new ProgramStory(root);
+    story.ChoosePathString("MAIN");
+    story.Continue();
+    expect(story.state.blockStack).toHaveLength(2);
+    expect(scopeNames(story)).toEqual([["a", "i"], ["d"], []]);
+    const saved = story.state.toJson();
+    const resumed = new ProgramStory(root);
+    resumed.state.LoadJson(saved);
+    expect(resumed.state.toJson()).toBe(saved);
+    expect(resumed.state.blockStack).toHaveLength(2);
+    expect(scopeNames(resumed)).toEqual(scopeNames(story));
+    expect(storyBeats(resumed).beats).toEqual(whole.slice(1));
+    expect(scopeNames(resumed)).toEqual([["a", "i"]]);
+  });
 });
 
 describe("a continue that returns between two lines", () => {
