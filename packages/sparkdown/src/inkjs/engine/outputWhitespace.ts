@@ -1,8 +1,10 @@
+import { ControlCommand } from "./ControlCommand";
 import { throwNullException } from "./NullException";
+import type { InkObject } from "./Object";
 import { StringBuilder } from "./StringBuilder";
 import { StringValue } from "./Value";
 
-// The text rules both story engines apply to their output (the current
+// The rules both story engines apply to their output (the current
 // engine's `StoryState` and the binary program's `ProgramStoryState`), kept in
 // one place so the two cannot drift apart.
 
@@ -136,4 +138,31 @@ export function splitHeadTailWhitespace(
   }
 
   return listTexts;
+}
+
+/**
+ * The index of the outermost `BeginString` in `stream`, or -1 when the output
+ * is not inside a string evaluation. `hint` is the index a previous call
+ * returned: it is trusted only while it still holds a `BeginString`, so any
+ * rewrite of the stream in between costs at most one scan.
+ *
+ * Both engines ask this on every push. Inside an interpolation the
+ * `BeginString` sits before everything the evaluation pushes, so walking the
+ * stream on each call made a loop there cost more with every step (#1134).
+ */
+export function findOpenString(stream: InkObject[], hint: number): number {
+  if (hint >= 0 && hint < stream.length && isBeginString(stream[hint])) {
+    return hint;
+  }
+  for (let i = 0; i < stream.length; i++) {
+    if (isBeginString(stream[i])) return i;
+  }
+  return -1;
+}
+
+function isBeginString(obj: InkObject | undefined): boolean {
+  return (
+    obj instanceof ControlCommand &&
+    obj.commandType == ControlCommand.CommandType.BeginString
+  );
 }

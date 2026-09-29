@@ -19,6 +19,7 @@ export function generatePerfScreenplay(sceneCount: number): string {
     lines.push(`function helper_${i}(x):`);
     lines.push(`  local y = x + ${i}`);
     lines.push(`  return y * 2`);
+    lines.push("end");
     lines.push("");
   }
   lines.push("store trust = 0");

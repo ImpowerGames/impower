@@ -29,6 +29,10 @@ export abstract class MessageConnection {
 
   protected _postMessage: (message: any, transfer?: Transferable[]) => void;
 
+  /** Every request still waiting for its answer, each settled with the
+   *  error it is given by {@link abandon}. */
+  protected _pending = new Set<(error: Error) => void>();
+
   constructor(postMessage: (message: any, transfer?: Transferable[]) => void) {
     this._postMessage = postMessage;
   }
@@ -83,7 +87,24 @@ export abstract class MessageConnection {
     transfer?: Transferable[],
     onProgress?: (value: ProgressValue) => void,
   ): Promise<R> {
-    return new Promise<R>((resolve, reject) => {
+    return new Promise<R>((resolveRequest, rejectRequest) => {
+      const settle = () => {
+        this._pending.delete(abandon);
+        this.removeEventListener("message", onResponse);
+      };
+      const resolve = (value: R) => {
+        settle();
+        resolveRequest(value);
+      };
+      const reject = (error: unknown) => {
+        settle();
+        rejectRequest(error);
+      };
+      const abandon = (error: Error) => {
+        profile("end", this._profilerId, "request " + request.method);
+        reject(error);
+      };
+      this._pending.add(abandon);
       const onResponse = (e: MessageEvent) => {
         const message = e.data;
         if (typeof message === "object" && message !== null) {
@@ -118,11 +139,9 @@ export abstract class MessageConnection {
                         },
                   ),
                 );
-                this.removeEventListener("message", onResponse);
               } else if (message.result !== undefined) {
                 profile("end", this._profilerId, "request " + request.method);
                 resolve(message.result);
-                this.removeEventListener("message", onResponse);
               }
             } else if (isProgressResponse(message, request.method)) {
               onProgress?.(message.value);
@@ -146,7 +165,6 @@ export abstract class MessageConnection {
                   data: message,
                 }),
               );
-              this.removeEventListener("message", onResponse);
             }
           }
         }
@@ -157,6 +175,15 @@ export abstract class MessageConnection {
       this.postMessage(request, transfer);
       profile("end", this._profilerId, "send request " + request.method);
     });
+  }
+
+  /** Settle every request still waiting for its answer with `error`: the
+   *  peer that would answer them is gone, as a worker is once it has been
+   *  terminated, so nothing else will. */
+  abandon(error: Error) {
+    for (const abandon of [...this._pending]) {
+      abandon(error);
+    }
   }
 
   async sendRequest<M extends string, P, R>(
