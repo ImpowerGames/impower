@@ -53,11 +53,7 @@ store x = 5        # equivalent — implicit form, also works at top level
 & total = total + 1  # top-level reassignment needs the &
 ```
 
-Without `&`, a bare reassignment at the top level would parse as
-[`ImplicitAction`](definitions/yaml/sparkdown.language-grammar.yaml) text. The
-declaration form `store x = 5` parses as `LuauVariableDefinition` either way,
-which is why `& store x = 5` and `store x = 5` are interchangeable. See
-[`lowerExplicitStatement.ts`](src/compiler/lower/lowerers/lowerExplicitStatement.ts).
+Without `&`, a bare reassignment at the top level would parse as [`ImplicitAction`](definitions/yaml/sparkdown.language-grammar.yaml) text. The declaration form `store x = 5` parses as `LuauSparkdownVariableDefinition` either way, because `LuauExplicitStatement` includes that rule ahead of the rest of its content, which is why `& store x = 5` and `store x = 5` are interchangeable. See [`lowerExplicitStatement.ts`](src/compiler/lower/lowerers/lowerExplicitStatement.ts).
 
 ### Weaves use `choose ... then ... end` blocks, not mark-counting
 

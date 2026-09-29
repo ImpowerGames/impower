@@ -13,6 +13,7 @@
 // might refer to either of two declarations lists both.
 
 import { type SyntaxNode } from "@lezer/common";
+import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 import {
   childNamed,
   childrenOf,
@@ -213,17 +214,16 @@ function declaredNames(definition: SyntaxNode): SyntaxNode[] {
     const nameBegin = childNamed(assignment, "LuauVariableAssignment_begin");
     const token = nameBegin?.firstChild?.firstChild;
     if (token?.name === "LuauVariableName") names.push(token);
-    // Stops at the first name with a type annotation or an `=`, so names
-    // after a typed one are not collected. In the invalid
-    // `local a = 1, b = 2` the grammar also wraps `b = 2` as an assignment.
+    // The names end at the `=`; in `local a = b, c` the grammar also wraps
+    // the value `c` as an assignment.
     if (childNamed(assignment, "LuauVariableAssignment_content")) break;
   }
   return names;
 }
 
-/** The scope keyword a `LuauVariableDefinition` begins with, if any. */
+/** The scope keyword a variable definition begins with, if any. */
 function scopeOf(definition: SyntaxNode, src: Source): string {
-  const begin = childNamed(definition, "LuauVariableDefinition_begin");
+  const begin = childNamed(definition, `${definition.name}_begin`);
   return begin ? src.read(begin.from, begin.to).trim() : "";
 }
 
@@ -269,7 +269,7 @@ function readDeclarations(
     const kind = cursor.name;
     if (
       kind !== "LuauFunctionDefinition" &&
-      kind !== "LuauVariableDefinition" &&
+      !VARIABLE_DEFINITION_NAMES.has(kind) &&
       kind !== "LuauForLoop" &&
       !END_BLOCKS.has(kind)
     ) {
@@ -314,7 +314,7 @@ function readDeclarations(
         const at = nameNode.to;
         add(nameNode, "localFunction", at, at, scope.end, scope.nested);
       }
-    } else if (node.name === "LuauVariableDefinition") {
+    } else if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
       if (scopeOf(node, src) !== "local") continue;
       const scope = scopeEnd(node);
       if (!scope) continue;
