@@ -41,7 +41,7 @@ export function lowerExplicitStatement(
   // the story's global declarations, as its implicit form is, so it is not a
   // place in the flow and gets no rows.
   const weave = block.content?.[0];
-  const varDef = getDescendent("LuauVariableDefinition", nodeRef.node);
+  const varDef = getDescendent("LuauSparkdownVariableDefinition", nodeRef.node);
   const scopeNode = varDef && getDescendent("LuauScopeModifier", varDef);
   const scope = scopeNode ? ctx.read(scopeNode.from, scopeNode.to).trim() : "";
   if (weave instanceof Weave && (!varDef || scope === "local")) {
@@ -62,8 +62,8 @@ function lowerExplicitStatementContent(
   // ObjectValue stored in `obj` via StorePropertyAssignment.
   // `& store x = expr` / `& const x = expr` / `& local x = expr` —
   // declaration with explicit `&` prefix; delegated to `lowerVariableDefinition`
-  // since the grammar wraps the declaration in a nested `LuauVariableDefinition`
-  // node.
+  // since the grammar wraps the declaration in a nested
+  // `LuauSparkdownVariableDefinition` node.
   // `& foo()` — bare function-call statement: evaluate for side effects
   // and discard the return value. Lowered to a `FunctionCall` Expression
   // with `shouldPopReturnedValue = true` so the runtime pops the unused
@@ -77,7 +77,7 @@ function lowerExplicitStatementContent(
     ctx.diagnostics.push(...diagnostics);
   }
 
-  const varDef = getDescendent("LuauVariableDefinition", nodeRef.node);
+  const varDef = getDescendent("LuauSparkdownVariableDefinition", nodeRef.node);
   if (varDef) {
     // Re-route through the regular variable-definition lowerer so explicit
     // (`& store x = 5`) and implicit (`store x = 5`) forms produce

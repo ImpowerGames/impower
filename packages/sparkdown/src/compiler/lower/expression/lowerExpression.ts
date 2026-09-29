@@ -1,5 +1,6 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -211,6 +212,17 @@ export function lowerExpressionFromNodes(
   nodes: SyntaxNode[],
   ctx: LowerContext,
 ): Expression | null {
+  // Lines that continue a value ending in an if expression with an else arm
+  // belong to that arm, which runs to the end of the expression.
+  const tailAt = continuedElseTailStart(nodes);
+  if (tailAt >= 0) {
+    const ifExpression = trailingIfExpressionWithElse(nodes[tailAt - 1]!);
+    if (ifExpression) {
+      ctx.ifExpressionElseTails ??= new Map();
+      ctx.ifExpressionElseTails.set(ifExpression.from, nodes.slice(tailAt));
+      nodes = nodes.slice(0, tailAt);
+    }
+  }
   // A continuation line's parts (`t` then `.a`) follow the value before them.
   nodes = expandLineContinuations(nodes, ctx);
   const tokens: Token[] = [];
@@ -338,10 +350,23 @@ export function lowerExpressionFromNodes(
         continue;
       }
     }
+    const bareName = bareAssignmentName(node);
     if (extraParts.length > 0) {
       const expr = lowerAccessPath(node, ctx, extraParts);
       if (expr) tokens.push({ kind: "operand", expr });
       i = afterPath - 1;
+    } else if (bareName) {
+      // A name that is a later value in a declaration's list, which the
+      // grammar reads as a target-shaped assignment when a comma or the end
+      // of its line follows (`local a, g = 1, b`). It resolves as the same
+      // name in an access path, and the operators and parts of the lines
+      // that continue it (`b` then `+ 4`, or `t` then `.x`) apply to it.
+      const expr = lowerIdentifierPath(
+        [identifierAt(bareName, ctx)],
+        bareName,
+        ctx,
+      );
+      tokens.push({ kind: "operand", expr });
     } else {
       collectFromNode(node, ctx, tokens);
     }
@@ -407,6 +432,51 @@ export function lowerExpressionFromNodes(
     }
   }
   return prattParse(tokens, 0);
+}
+
+// The index in `nodes` where the continuation lines that end it begin, when
+// a value comes before them; -1 when no continuation line ends `nodes`.
+function continuedElseTailStart(nodes: SyntaxNode[]): number {
+  let start = nodes.length;
+  while (
+    start > 0 &&
+    (isLineContinuation(nodes[start - 1]!) ||
+      isSkippableName(nodes[start - 1]!.name))
+  ) {
+    start--;
+  }
+  while (start < nodes.length && isSkippableName(nodes[start]!.name)) start++;
+  if (start === nodes.length || start === 0) return -1;
+  return start;
+}
+
+// The if expression with an else arm that `node`'s value ends in (`if c then
+// 1 else 2`, or `x + if c then 1 else 2`), found through the last operand
+// of the operations that hold it; null when the value ends in anything else,
+// including a bracket that closes around one (`(if c then 1 else 2)`), whose
+// continuation applies to the bracketed value.
+function trailingIfExpressionWithElse(node: SyntaxNode): SyntaxNode | null {
+  let current: SyntaxNode | null = node;
+  while (current) {
+    if (current.name === "LuauTernaryExpression") {
+      const content = findChildByName(current, "LuauTernaryExpression_content");
+      return content && findChildByName(content, "LuauElseExpression")
+        ? current
+        : null;
+    }
+    if (!OPERATION_WRAPPERS.has(current.name)) return null;
+    let last: SyntaxNode | null = current.lastChild;
+    while (
+      last &&
+      (last.name.endsWith("_end") || isSkippableName(last.name))
+    ) {
+      last = last.prevSibling;
+    }
+    if (last?.name.endsWith("_content")) last = last.lastChild;
+    while (last && isSkippableName(last.name)) last = last.prevSibling;
+    current = last;
+  }
+  return null;
 }
 
 // ============================================================================
@@ -1248,8 +1318,11 @@ export function lowerPrimary(
       return lowerDivertTargetLiteral(node, ctx);
     case "LuauFunctionDefinition":
       return lowerAnonymousFunction(node, ctx);
-    case "LuauTernaryExpression":
-      return lowerTernaryExpression(node, ctx);
+    case "LuauTernaryExpression": {
+      const elseTail = ctx.ifExpressionElseTails?.get(node.from) ?? [];
+      ctx.ifExpressionElseTails?.delete(node.from);
+      return lowerTernaryExpression(node, ctx, elseTail);
+    }
     default:
       return null;
   }
@@ -1272,9 +1345,14 @@ export function lowerPrimary(
 // ternaries via `else if`, binary ops), lowered from the clause's
 // body nodes. Conditional evaluation is handled at runtime by the
 // generated jump layout — see TernaryExpression.
+//
+// `elseTail` holds the lines that continue the expression after its else
+// arm (`else 2` then `+ 1`): the else arm runs to the end of the expression
+// in Luau, so they extend that arm.
 function lowerTernaryExpression(
   node: SyntaxNode,
   ctx: LowerContext,
+  elseTail: SyntaxNode[] = [],
 ): Expression | null {
   const content = findChildByName(node, "LuauTernaryExpression_content") ?? node;
 
@@ -1320,7 +1398,10 @@ function lowerTernaryExpression(
       branches.push({ condition: pendingCond, value });
       pendingCond = null;
     } else if (child.name === "LuauElseExpression") {
-      const value = lowerExpressionFromNodes(collectClauseBody(child), ctx);
+      const value = lowerExpressionFromNodes(
+        [...collectClauseBody(child), ...elseTail],
+        ctx,
+      );
       if (!value) return null;
       branches.push({ condition: null, value });
     }
@@ -1517,7 +1598,7 @@ export function collectImmediateBodyDeclarations(
       }
       return;
     }
-    if (n.name === "LuauVariableDefinition") {
+    if (VARIABLE_DEFINITION_NAMES.has(n.name)) {
       const ids = collectVarDefIdentifiers(n, ctx);
       for (const id of ids) out.add(id);
     }
@@ -1629,7 +1710,7 @@ export function scanFreeVariables(
   // declared in any nested scope still satisfies "locally bound" for
   // the closure's outermost scope).
   walkAndCollect(bodyContent, (n) => {
-    if (n.name === "LuauVariableDefinition") {
+    if (VARIABLE_DEFINITION_NAMES.has(n.name)) {
       const ids = collectVarDefIdentifiers(n, ctx);
       for (const id of ids) bound.add(id);
       return;
@@ -1867,7 +1948,7 @@ function collectVarDefIdentifiers(
   varDef: SyntaxNode,
   ctx: LowerContext,
 ): string[] {
-  const content = findChildByName(varDef, "LuauVariableDefinition_content");
+  const content = findChildByName(varDef, `${varDef.name}_content`);
   if (!content) return [];
   const out: string[] = [];
   let child = content.firstChild;
@@ -2454,61 +2535,86 @@ export function lowerSimpleAccessPath(
   }
 
   if (identifiers.length > 0) {
-    // Sibling variadic subflow referenced as a VALUE (`call(c12, ...)`,
-    // `local h = c12`, `type(c12)`): variadic nested fns stay
-    // knot-form subflows of the enclosing function (see
-    // lowerLuauFunctionDefinition) — there's no local variable
-    // holding a closure, so a VariableReference would read nil and
-    // the runtime Knot fallback only checks TOP-LEVEL knots. No
-    // captures → a bare DivertTarget (the runtime value-call path
-    // packs `...` args for those). With captures → a closure-shaped
-    // value whose upval pointers snapshot the enclosing frame's
-    // cells at REFERENCE time, exactly like anonymous closures —
-    // `extractClosurePath` re-threads them below the user args at
-    // call time (vararg.luau line 74: `call(f, a)` where f captures
-    // `lim`).
-    if (
-      identifiers.length === 1 &&
-      resolveCallableBinding(identifiers[0]!.name, ctx) === "sibling"
-    ) {
-      const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
-      const knotName = info?.knotName ?? identifiers[0]!.name;
-      if (info && info.upvals.length > 0) {
-        return buildClosureExpression(knotName, info.upvals, info.arity);
-      }
-      return new DivertTarget(new Divert([new Identifier(knotName)]), true);
-    }
-    // Stdlib constant short-circuit: when the dotted path matches a
-    // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
-    // emit the value directly instead of a `VariableReference` that
-    // would fail to resolve at runtime. Compile-time substitution —
-    // no runtime dispatch needed.
-    const dotted = identifiers.map((id) => id.name).join(".");
-    const constVal = lookupStdLibConstant(dotted);
-    if (constVal !== undefined) {
-      if (typeof constVal === "number") {
-        return new NumberExpression(
-          constVal,
-          Number.isInteger(constVal) && Number.isFinite(constVal) ? "int" : "float",
-        );
-      }
-      if (typeof constVal === "string") {
-        return new StringExpression([new Text(constVal)]);
-      }
-      if (typeof constVal === "boolean") {
-        return new NumberExpression(constVal, "bool");
-      }
-    }
-    const ref = new VariableReference(identifiers);
-    // In a Sparkle binding, stamp the reference with its own token span, which
-    // its hoisted binding function has no statement to inherit from (see
-    // LowerContext.stampExpressionSpans).
-    if (ctx.stampExpressionSpans && parts.length > 0) {
-      stampDebugMetadata([ref], parts[0]!.from, parts[parts.length - 1]!.to, ctx);
-    }
-    return ref;
+    return lowerIdentifierPath(
+      identifiers,
+      { from: parts[0]!.from, to: parts[parts.length - 1]!.to },
+      ctx,
+    );
   }
   return null;
+}
+
+// The name of a `LuauVariableAssignment` that holds nothing but its name
+// (no type annotation, no `=`), or null for any other node.
+function bareAssignmentName(node: SyntaxNode): SyntaxNode | null {
+  if (node.name !== "LuauVariableAssignment") return null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauVariableAssignment_content") return null;
+  }
+  return getDescendent("LuauVariableName", node) ?? null;
+}
+
+// A dotted identifier chain (`a`, `a.b.c`) as a value, resolved as a
+// sibling subflow, a stdlib constant or a `VariableReference`. `span` is
+// the chain's source range.
+function lowerIdentifierPath(
+  identifiers: Identifier[],
+  span: { from: number; to: number },
+  ctx: LowerContext,
+): Expression {
+  // Sibling variadic subflow referenced as a VALUE (`call(c12, ...)`,
+  // `local h = c12`, `type(c12)`): variadic nested fns stay
+  // knot-form subflows of the enclosing function (see
+  // lowerLuauFunctionDefinition) — there's no local variable
+  // holding a closure, so a VariableReference would read nil and
+  // the runtime Knot fallback only checks TOP-LEVEL knots. No
+  // captures → a bare DivertTarget (the runtime value-call path
+  // packs `...` args for those). With captures → a closure-shaped
+  // value whose upval pointers snapshot the enclosing frame's
+  // cells at REFERENCE time, exactly like anonymous closures —
+  // `extractClosurePath` re-threads them below the user args at
+  // call time (vararg.luau line 74: `call(f, a)` where f captures
+  // `lim`).
+  if (
+    identifiers.length === 1 &&
+    resolveCallableBinding(identifiers[0]!.name, ctx) === "sibling"
+  ) {
+    const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
+    const knotName = info?.knotName ?? identifiers[0]!.name;
+    if (info && info.upvals.length > 0) {
+      return buildClosureExpression(knotName, info.upvals, info.arity);
+    }
+    return new DivertTarget(new Divert([new Identifier(knotName)]), true);
+  }
+  // Stdlib constant short-circuit: when the dotted path matches a
+  // registered constant (`math.pi`, `math.huge`, `_VERSION`, ...),
+  // emit the value directly instead of a `VariableReference` that
+  // would fail to resolve at runtime. Compile-time substitution —
+  // no runtime dispatch needed.
+  const dotted = identifiers.map((id) => id.name).join(".");
+  const constVal = lookupStdLibConstant(dotted);
+  if (constVal !== undefined) {
+    if (typeof constVal === "number") {
+      return new NumberExpression(
+        constVal,
+        Number.isInteger(constVal) && Number.isFinite(constVal) ? "int" : "float",
+      );
+    }
+    if (typeof constVal === "string") {
+      return new StringExpression([new Text(constVal)]);
+    }
+    if (typeof constVal === "boolean") {
+      return new NumberExpression(constVal, "bool");
+    }
+  }
+  const ref = new VariableReference(identifiers);
+  // In a Sparkle binding, stamp the reference with its own token span, which
+  // its hoisted binding function has no statement to inherit from (see
+  // LowerContext.stampExpressionSpans).
+  if (ctx.stampExpressionSpans) {
+    stampDebugMetadata([ref], span.from, span.to, ctx);
+  }
+  return ref;
 }
 
 // Build an `IndexExpression` chain for paths that include `[key]` indexers

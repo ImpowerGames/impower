@@ -600,18 +600,21 @@ Real example:
 ```yaml
 LuauPropertyDefinition:
   patterns:
+    - { include: "#LuauCommaLineBreak" }
     - { include: "#LuauComment" }
     - { include: "#LuauBracketKeyAssignment" }
     - { include: "#LuauVariableAssignment" }
+    - { include: "#LuauCommaSeparator" }
+    - { include: "#LuauVariableDefinitionValue" }
   applyEndPatternLast: true
   end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 ```
 
-The end pattern matches almost everywhere: at the end of the line, and at any point a comment does not follow. Checked first, it would close the rule straight after its `begin:`. Checked last, the property's key and value and a trailing comment are read first, and the rule closes at the first point none of them can take.
+The end pattern matches almost everywhere: at the end of the line, and at any point a comment does not follow. Checked first, it would close the rule straight after its `begin:`. Checked last, the property's key and value and a trailing comment are read first, and the rule closes at the first point none of them can take. At the end of a line nothing matches and it closes, except after a comma that ends the line: `LuauCommaLineBreak` consumes that comma, the line break and the next line's indent (§11.5), and the list continues with the next value.
 
 **Rule of thumb:** if you find yourself reaching for negative lookaheads in the end pattern, ask first whether `applyEndPatternLast: true` would let you drop them.
 
-**The limit:** with `applyEndPatternLast`, any inner pattern that matches wins over the end, including at the start of a line. A rule that has to close at the start of the next line (§11.5, "A construct that may go on at the next line") cannot use it when one of its patterns can match there. `LuauVariableDefinition` is such a rule: its `LuauExpression` pattern would read the next statement as another value, so its end pattern states where the definition goes on instead.
+**The limit:** with `applyEndPatternLast`, any inner pattern that matches wins over the end, including at the start of a line. A rule that has to close at the start of the next line (§11.5, "A construct that may go on at the next line") cannot use it when one of its patterns can match there. The two declaration rules (`LuauVariableDefinition` and `LuauSparkdownVariableDefinition`) are such rules: their value patterns would read the next line's call or assignment as another value, so their shared end pattern states where a declaration goes on instead, and stops at `LUAU_DECLARATION_STOP` where a comma's line break reaches a statement. A value on the line after a trailing comma is read only when it is indented, since the line break's rule then ends past the line start.
 
 The full list of rule properties lives in `packages/textmate-grammar-tree/src/grammar/types/GrammarDefinition.ts`.
 

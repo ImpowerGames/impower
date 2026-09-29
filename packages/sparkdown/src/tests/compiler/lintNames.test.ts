@@ -157,7 +157,7 @@ end
     expect(resolutions(source, "x")).toEqual(["L3 read -> parameter@L1"]);
   });
 
-  test("a local after another statement on its line, or nested in a narrative logic line, is still a local", () => {
+  test("a local the grammar nests inside another statement is still a local", () => {
     const source = `function run()
   local a = {} local b = a
   & local x = 5
@@ -185,7 +185,7 @@ end
     expect([...names.globalOccurrences.keys()]).toEqual([]);
   });
 
-  test("a redeclaration after another statement on its line hides the earlier local", () => {
+  test("a local declared after another statement on its line hides the outer local", () => {
     const source = `function run()
   local x = 1
   local a = {} local x = 3

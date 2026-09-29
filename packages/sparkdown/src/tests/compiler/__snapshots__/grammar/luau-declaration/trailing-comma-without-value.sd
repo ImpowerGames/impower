@@ -1,0 +1,20 @@
+function f(ok)
+  if ok then
+    local b, c = 2,
+  elseif not ok then
+    local d, e = 3,
+  else
+    local a, g = 1,
+    return 4
+  end
+  repeat
+    local h, i = 5,
+  until true
+  local j, k = 6,
+end
+store hp = 100,
+The hero has {hp} health.
+store mp = 50,
+scene one
+  Hi.
+end

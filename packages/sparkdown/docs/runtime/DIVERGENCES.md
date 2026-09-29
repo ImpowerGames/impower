@@ -53,11 +53,7 @@ store x = 5        # equivalent — implicit form, also works at top level
 & total = total + 1  # top-level reassignment needs the &
 ```
 
-Without `&`, a bare reassignment at the top level would parse as
-[`ImplicitAction`](definitions/yaml/sparkdown.language-grammar.yaml) text. The
-declaration form `store x = 5` parses as `LuauVariableDefinition` either way,
-which is why `& store x = 5` and `store x = 5` are interchangeable. See
-[`lowerExplicitStatement.ts`](src/compiler/lower/lowerers/lowerExplicitStatement.ts).
+Without `&`, a bare reassignment at the top level would parse as [`ImplicitAction`](definitions/yaml/sparkdown.language-grammar.yaml) text. The declaration form `store x = 5` parses as `LuauSparkdownVariableDefinition` either way, because `LuauExplicitStatement` includes that rule ahead of the rest of its content, which is why `& store x = 5` and `store x = 5` are interchangeable. See [`lowerExplicitStatement.ts`](src/compiler/lower/lowerers/lowerExplicitStatement.ts).
 
 ### Weaves use `choose ... then ... end` blocks, not mark-counting
 
@@ -648,6 +644,22 @@ Statement-level diagnostics (a missing `end`, an unexpected token, a bare `break
 In Luau, `return` reads an expression list that may begin on the next line. Sparkdown does the same when `return` is the whole of its line (a comment may follow it): the next non-blank line is the returned value unless it begins with `end`, `else`, `elseif`, `until`, `local`, `return`, `break`, `do`, `while`, `repeat`, `for` or `;`. A line beginning with `if` or `function` is read as the value, because both can start an expression. A `return` after any other code on its line, such as `if x then return`, `for i = 1, 3 do return`, `local t = 1 return` or `function f() return`, ends at that line, so a value written on the next line is not returned and never runs, and no error reports it (the `UnreachableCode` lint warns about it only in some layouts). Write the value on the `return` line, or start a new line with `return`.
 
 The grammar decides this from the `return`'s own line, and narrative code reaches the same rule through `&` statements, where the next line is prose: `& return`, `& f() return`, and forms that put a block keyword before `return`, such as `& repeat return` and `& y = if c then 1 else return`. So a `return` after other code has to end at its line.
+
+### An if expression continues on a line that begins its next clause
+
+In Luau, an if expression reads across line breaks like any expression. Sparkdown reads it across a line break only where the next line begins the clause that comes next or continues the one before it: a condition continues onto a line that begins with its `then`, and a `then` arm onto a line that begins with its `else` or `elseif`, and either continues onto a line that begins with `.name`, `:name`, `[`, `-`, another binary operator or `::`. After the `else` arm's value, a line that continues a value in Luau code (a function or other Luau block, where the same lines continue any value) extends the `else` arm, which runs to the end of the expression as it does in Luau (`else 2` then `+ 1` reads as `else 2 + 1`). In a narrative body, a line after the expression is narrative, as it is after any other value. A `then` or `else` at the end of its line takes its value from the next line, unless that line begins a statement (`end`, `until`, `local`, `return`, `break`, `do`, `while`, `repeat`, `for`, `;` or a named `function`). A value on the line after a `then` must be indented: at the start of a line it reads as the line after the expression, and the `then` arm is reported as having no value. An `if` that begins a line where a value is read, such as a nested if expression on the line after `then`, begins an if expression.
+
+```sparkdown
+local y = if c
+  then 1
+  elseif d
+  then 2
+  else 3
+```
+
+Any other line ends the expression. So an `if` alone at the end of its line, with its condition on the next line, ends the expression early, and so does a condition or arm whose next line begins with a value rather than one of the forms above. Sparkdown then reports the part the expression lacks in Luau's words: "Expected 'then' when parsing if then else expression", "Expected 'else' when parsing if then else expression", or "Expected identifier when parsing expression" for a missing condition or value. Start the condition on the `if` line. The grammar decides where an expression ends from the start of each line, without seeing the lines after it, so this is what keeps an if expression whose `then` or `else` is not yet written from reading the lines below it into itself.
+
+A whole `{…}` interpolation in display text is Sparkdown's inline conditional, which may leave out its `else` (`{if has_key then "The door opens."}`); an if expression anywhere else needs one, as in Luau.
 
 ### Four of Luau's lints, and no lint directives
 

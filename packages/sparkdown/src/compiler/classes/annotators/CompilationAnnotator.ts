@@ -26,6 +26,10 @@ import {
 } from "../../lower/utils/statementShape";
 import { validateBlockEnds } from "../../lower/utils/validateBlockEnds";
 import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import {
+  VARIABLE_DEFINITION_CONTENT_NAMES,
+  VARIABLE_DEFINITION_NAMES,
+} from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -167,7 +171,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
   // Cache the globally-addressable callable names per parse tree.
   // Computed lazily by walking the top-level statements once: every
   // `LuauExternalDeclaration` and every top-level `LuauFunctionDefinition`
-  // / `LuauVariableDefinition` lands in the set. Used by
+  // / variable definition lands in the set. Used by
   // `scanFreeVariables` in `lowerExpression.ts` to skip these when
   // collecting closure upvals — they're already reachable from any
   // nested-function call site via the regular divert resolver, so
@@ -328,13 +332,13 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       if (found) set.add(this.read(found.from, found.to).trim());
       return;
     }
-    if (node.name === "LuauVariableDefinition") {
+    if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
       // Top-level `store NAME = …` / `const NAME = …` — collect the
       // declared identifier(s). Each `LuauVariableAssignment` carries
       // one name in `LuauVariableName` under `_begin_c1`.
       let cur = node.firstChild;
       while (cur) {
-        if (cur.name === "LuauVariableDefinition_content") {
+        if (VARIABLE_DEFINITION_CONTENT_NAMES.has(cur.name)) {
           let inner = cur.firstChild;
           while (inner) {
             if (inner.name === "LuauVariableAssignment") {
