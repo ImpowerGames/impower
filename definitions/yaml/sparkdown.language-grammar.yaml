@@ -6056,7 +6056,9 @@ repository:
     # multi-RHS values. Previously the VA's own `LuauCommaSeparator`
     # pattern consumed the comma and an `ERROR_INCOMPLETE` followed —
     # the trailing RHS values were silently dropped from the tree.
-    end: (?={{BEAT}})|(?=$|{{WS}}|,)
+    # Terminate at `;` too, so `local x = f();` leaves the `;` to the
+    # outer `LuauVariableDefinition` instead of an unfinished node.
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;])
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)

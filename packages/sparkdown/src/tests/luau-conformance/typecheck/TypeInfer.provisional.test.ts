@@ -622,7 +622,6 @@ return wrapStrictTable(Constants, "Constants")
     fixture: "BuiltinsFixture",
     module: "Module/Map",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 1106 }, // a local statement followed directly by ;
     source: `
 --!strict
 
