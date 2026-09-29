@@ -10,6 +10,7 @@ import type { LowerContext } from "../context";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import {
   lowerExpressionFromContainer,
+  lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
 } from "./lowerExpression";
 
@@ -97,13 +98,13 @@ export function lowerTable(
       // An empty keyed-entry RHS (`{ a = }`) is the same parse error as a
       // statement-level empty RHS — flag it (the entry is dropped below).
       validateAssignmentValue(second, ctx);
-      const opContent = findChildByName(
+      // The rest of the group is the lines that continue the value
+      // (`a = t` then `.b`).
+      const value = lowerExpressionFromContainerAndContinuation(
         second,
-        "LuauAssignmentOperation_content",
+        group.slice(2),
+        ctx,
       );
-      const value = opContent
-        ? lowerExpressionFromContainer(opContent, ctx)
-        : null;
       if (key !== null && value) {
         entries.push(new ObjectExpressionEntry(key, value));
       }
