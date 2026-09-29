@@ -14,6 +14,7 @@ import { asOrNull } from "../../../../engine/TypeAssertion";
 import { StructDefinition } from "../Struct/StructDefinition";
 import { currentCompileEpoch } from "../CompileEpoch";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op, SET_DECLARE } from "../../../../../program/ProgramInstructions";
 
 export class VariableAssignment extends ParsedObject {
   private _runtimeAssignment: RuntimeVariableAssignment | null = null;
@@ -160,14 +161,25 @@ export class VariableAssignment extends ParsedObject {
   }
 
   // A global declaration runs nothing where it is written, as it generates
-  // nothing there: the story initializes every global when its state is
-  // reset. Until the declaration sequence is emitted, that initialization is
-  // the current engine's (see `ProgramStory`). Any other assignment is not
-  // emitted yet.
+  // nothing there: its initializer is a chunk of its script's declaration
+  // sequence, which the story runs when its state is reset. Any other
+  // assignment is its expression, then `SetVar`, which declares a temporary
+  // for a `local` and otherwise assigns as `VariablesState.Assign` does.
   public override EmitProgram(emitter: ProgramEmitter): void {
-    if (!this.isGlobalDeclaration) {
-      emitter.unsupported(this.typeName);
+    if (this.isGlobalDeclaration) {
+      return;
     }
+    if (!this.expression) {
+      // A statement the parser reported, whose value is missing.
+      emitter.unsupported("an assignment without a value");
+    }
+    emitter.emitObject(this.expression);
+    emitter.emit(
+      Op.SetVar,
+      emitter.variable(this.variableName),
+      0,
+      this.isNewTemporaryDeclaration ? SET_DECLARE : 0,
+    );
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {

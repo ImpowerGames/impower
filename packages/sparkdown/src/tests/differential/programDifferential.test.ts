@@ -1,16 +1,18 @@
-// The differential run of the binary program (#692, #694). It compiles shared
-// fixtures once per engine and compares what they show under the parity
-// contract of #692: each beat's text, tags and display tables, and the errors
-// and warnings with their source lines. A program that falls back runs on the
-// current engine as a whole, so only the programs that have their chunks are
-// compared, and the run reports the constructs the others fall back for.
+// The differential run of the binary program (#692, #694, #695). It compiles
+// shared fixtures once per engine and compares what they show under the
+// parity contract of #692: each beat's text, tags and display tables, and the
+// errors and warnings with their source lines. A program that falls back runs
+// on the current engine as a whole, so only the programs that have their
+// chunks are compared, and the run reports the constructs the others fall
+// back for.
 //
 // It also runs randomized incremental edits on the statement chunks, as
 // `incrementalEquivalence` and `incrementalCumulativeEquivalence` run them on
-// the current compile, over a screenplay made of the constructs the writer
-// emits: after each edit, the chunks compared by content, the flows and the
-// diagnostics equal a cold compile's, and every chunk of a statement the edit
-// did not touch is the chunk it was before.
+// the current compile, over two screenplays made of the constructs the writer
+// emits, one of display lines and one of logic: after each edit, the chunks
+// compared by content, the flows and the diagnostics equal a cold compile's,
+// and every chunk of a statement the edit did not touch is the chunk it was
+// before.
 //
 // It is kept out of the ordinary suite (`vitest.config.ts`) and runs alone:
 //   SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
@@ -26,8 +28,7 @@ import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Ex
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
-import { compilerNamedTexts } from "../../program/ChunkStore";
-import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
+import { LOGIC_INSERTS, logicScreenplay } from "../program/logicScreenplay";
 import {
   compileScript,
   describeRoot,
@@ -36,6 +37,11 @@ import {
   rootChunks,
   storyBeats,
 } from "../program/programHarness";
+import {
+  programStatements,
+  uniqueKeys,
+  untouchedChunks,
+} from "../program/programStatements";
 
 const FIXTURES = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -99,10 +105,10 @@ const silence = () => {
   };
 };
 
-// A screenplay made of the constructs the writer emits: scenes and a branch,
-// action and dialogue lines inline and in blocks, parentheticals and
-// directives, trailing and leading glue, breaks, tags, load lines, comments,
-// and `done`.
+// A screenplay made of the constructs the writer emits for display: scenes
+// and a branch, action and dialogue lines inline and in blocks,
+// parentheticals and directives, trailing and leading glue, breaks, tags,
+// load lines, comments, and `done`.
 function displayScreenplay(): string {
   const L: string[] = ["# opening tag", "Before any scene.", ""];
   for (let s = 0; s < 6; s++) {
@@ -199,49 +205,14 @@ const coldSurface = (text: string) => {
   return surface(c.compile({ textDocument: { uri: MAIN_URI } }).program);
 };
 
-/** Every statement of the main script with a chunk: its syntax (its node's
- *  name, starting column and text), its range and its chunk. */
-function statements(c: SparkdownCompiler) {
-  const document = c.documents.get(MAIN_URI)!;
-  const text = document.getText();
-  const out: { syntax: string; from: number; to: number; block: CompiledBlock; chunk: Int32Array }[] = [];
-  const cur = c.documents.annotations(MAIN_URI).compilations.iter();
-  while (cur.value) {
-    const block = cur.value.type as CompiledBlock;
-    const chunk = c.chunkStore?.chunkOf(block);
-    if (chunk) {
-      out.push({
-        syntax: `${block.node} ${document.positionAt(cur.from).character} ${text.slice(cur.from, cur.to)}`,
-        from: cur.from,
-        to: cur.to,
-        block,
-        chunk,
-      });
-    }
-    cur.next();
-  }
-  return out;
-}
+// The keys of the statements that stand once before an edit.
+const keysOf = (c: SparkdownCompiler) => uniqueKeys(programStatements(c));
 
-/** The chunks of the statements an edit covering `[from, to]` of the new text
- *  did not touch: away from the edit, written as a statement was before it,
- *  and with no recorded value that ties the chunk to another statement. */
-function untouchedChunks(
-  c: SparkdownCompiler,
-  from: number,
-  to: number,
-  syntaxBefore: ReadonlySet<string>,
-) {
-  return statements(c)
-    .filter(
-      (s) =>
-        (s.to < from - 1 || s.from > to + 1) &&
-        syntaxBefore.has(s.syntax) &&
-        !s.block.reads &&
-        compilerNamedTexts(s.block.content?.[0]?.content ?? []).length === 0,
-    )
-    .map((s) => s.chunk);
-}
+// The screenplays the randomized edits run on, each with its edits.
+const SCREENPLAYS = [
+  { name: "the display screenplay", text: displayScreenplay, inserts: INSERTS },
+  { name: "the logic screenplay", text: () => logicScreenplay(3), inserts: LOGIC_INSERTS },
+];
 
 describe("the differential run", () => {
   it("shows every shared fixture that has its chunks as the current engine does", () => {
@@ -267,10 +238,10 @@ describe("the differential run", () => {
     expect(compared.length).toBeGreaterThan(5);
   });
 
-  it("shows the beats fixture and the display screenplay as the current engine does", () => {
+  it("shows the beats fixture and the screenplays as the current engine does", () => {
     const { files } = buildBeatsFixture({ lines: 300 });
     const beats = files.get("main.sd")!.replace("include scripts/characters\n", "");
-    for (const text of [beats, displayScreenplay()]) {
+    for (const text of [beats, displayScreenplay(), logicScreenplay(3)]) {
       const quiet = silence();
       try {
         const scenes = [...text.matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);
@@ -293,8 +264,8 @@ describe("the differential run", () => {
   // The writer broken on purpose: the first key of each table it emits is
   // dropped, so every display table the engine builds lacks its first entry.
   it("fails when the writer is broken", () => {
-    const emit = ObjectExpression.prototype.EmitProgram;
-    ObjectExpression.prototype.EmitProgram = function (
+    const emit = ObjectExpression.prototype.EmitExpression;
+    ObjectExpression.prototype.EmitExpression = function (
       this: ObjectExpression,
       emitter: ProgramEmitter,
     ) {
@@ -314,7 +285,7 @@ describe("the differential run", () => {
         stable(storyBeats(current.story, "MAIN")),
       );
     } finally {
-      ObjectExpression.prototype.EmitProgram = emit;
+      ObjectExpression.prototype.EmitExpression = emit;
     }
   });
 });
@@ -322,148 +293,163 @@ describe("the differential run", () => {
 describe("randomized incremental edits on the statement chunks", () => {
   // As `incrementalEquivalence` runs its fuzz: each random edit from a freshly
   // configured compiler that has compiled once and made one warm-up edit.
-  it("gives each edit the chunks of a cold compile, and keeps untouched ones", () => {
-    const quiet = silence();
-    try {
-      const base = displayScreenplay();
-      const failures: string[] = [];
-      let compiles = 0;
-      let chunked = 0;
-      let seed = 0x694;
-      const rand = () => {
-        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-        return seed / 0x7fffffff;
-      };
-      for (let n = 0; n < 60; n++) {
-        const insert = INSERTS[Math.floor(rand() * INSERTS.length)]!;
-        const deleted = rand() < 0.4 ? 1 + Math.floor(rand() * 8) : 0;
-        const offset = Math.floor(rand() * base.length);
-        const after =
-          base.slice(0, offset) + insert + base.slice(offset + deleted);
-        const c = programCompiler({ [MAIN_URI]: base }, { programChunks: true });
-        c.compile();
-        const warm = base.indexOf("The room 0 is quiet.");
-        c.compiler.updateDocument({
-          textDocument: { uri: MAIN_URI, version: 2 },
-          contentChanges: [
-            { range: { start: posAt(base, warm), end: posAt(base, warm) }, text: "" },
-          ],
-        });
-        c.compile();
-        const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
-        const syntaxBefore = new Set(statements(c.compiler).map((s) => s.syntax));
-        c.compiler.updateDocument({
-          textDocument: { uri: MAIN_URI, version: 3 },
-          contentChanges: [
-            {
-              range: { start: posAt(base, offset), end: posAt(base, offset + deleted) },
-              text: insert,
-            },
-          ],
-        });
-        c.compiler.lastProgramBuild = undefined;
-        const { program: incremental, story } = c.compile();
-        compiles += 1;
-        if (story && !c.compiler.lastProgramBuild) {
-          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
-        }
-        const incrementalSurface = surface(incremental);
-        const cold = coldSurface(after);
-        const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(
-          (f) => stable(incrementalSurface[f]) !== stable(cold[f]),
-        );
-        if (fields.length) {
-          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset} fields={${fields.join(",")}}`);
-        }
-        if (incremental.chunks) {
-          chunked += 1;
-          const kept = untouchedChunks(c.compiler, offset, offset + insert.length, syntaxBefore);
-          const lost = kept.filter((chunk) => !before.has(chunk));
-          if (lost.length) {
-            failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: ${lost.length} untouched statements emitted again`);
+  for (const [index, screenplay] of SCREENPLAYS.entries()) {
+    it(`gives each edit of ${screenplay.name} the chunks of a cold compile, and keeps untouched ones`, () => {
+      const quiet = silence();
+      try {
+        const base = screenplay.text();
+        const failures: string[] = [];
+        let compiles = 0;
+        let chunked = 0;
+        // The untouched statements the edits' checks covered.
+        let checked = 0;
+        let seed = 0x694 + index;
+        const rand = () => {
+          seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+          return seed / 0x7fffffff;
+        };
+        for (let n = 0; n < 60; n++) {
+          const insert = screenplay.inserts[Math.floor(rand() * screenplay.inserts.length)]!;
+          const deleted = rand() < 0.4 ? 1 + Math.floor(rand() * 8) : 0;
+          const offset = Math.floor(rand() * base.length);
+          const after =
+            base.slice(0, offset) + insert + base.slice(offset + deleted);
+          const c = programCompiler({ [MAIN_URI]: base }, { programChunks: true });
+          c.compile();
+          const warm = base.indexOf("The room 0 is quiet.");
+          c.compiler.updateDocument({
+            textDocument: { uri: MAIN_URI, version: 2 },
+            contentChanges: [
+              { range: { start: posAt(base, warm), end: posAt(base, warm) }, text: "" },
+            ],
+          });
+          c.compile();
+          const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
+          const keysBefore = keysOf(c.compiler);
+          c.compiler.updateDocument({
+            textDocument: { uri: MAIN_URI, version: 3 },
+            contentChanges: [
+              {
+                range: { start: posAt(base, offset), end: posAt(base, offset + deleted) },
+                text: insert,
+              },
+            ],
+          });
+          c.compiler.lastProgramBuild = undefined;
+          const { program: incremental, story } = c.compile();
+          compiles += 1;
+          if (story && !c.compiler.lastProgramBuild) {
+            failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
+          }
+          const incrementalSurface = surface(incremental);
+          const cold = coldSurface(after);
+          const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(
+            (f) => stable(incrementalSurface[f]) !== stable(cold[f]),
+          );
+          if (fields.length) {
+            failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset} fields={${fields.join(",")}}`);
+          }
+          if (incremental.chunks) {
+            chunked += 1;
+            const held = new Set(rootChunks(incremental.chunks));
+            const untouched = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore);
+            checked += untouched.length;
+            const lost = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
+            if (lost.length) {
+              failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: ${lost.length} untouched statements emitted again`);
+            }
           }
         }
+        expect(failures, failures.join("\n")).toEqual([]);
+        // Most edits keep the program within the constructs the writer emits,
+        // so most compiles build chunks; a fuzz that always fell back would
+        // pass the comparisons above without testing them.
+        expect(chunked).toBeGreaterThan(compiles / 2);
+        // Every compile that built chunks checked some statement on average.
+        expect(checked).toBeGreaterThan(chunked);
+      } finally {
+        quiet();
       }
-      expect(failures, failures.join("\n")).toEqual([]);
-      // Most edits keep the program within the constructs the writer emits,
-      // so most compiles build chunks; a fuzz that always fell back would
-      // pass the comparisons above without testing them.
-      expect(chunked).toBeGreaterThan(compiles / 2);
-    } finally {
-      quiet();
-    }
-  });
+    });
+  }
 
   // As `incrementalCumulativeEquivalence` runs its fuzz: many edits through
   // one compiler, each compared with a cold compile of the text it leaves.
-  it("keeps the chunks of a cold compile through many edits of one compiler", () => {
-    const quiet = silence();
-    try {
-      let text = displayScreenplay();
-      const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
-      c.compile();
-      const failures: string[] = [];
-      let seed = 0x51ed694;
-      const rand = () => {
-        seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-        return seed / 0x7fffffff;
-      };
-      let chunked = 0;
-      // Whether the compile before the edit built chunks, so that its root is
-      // the one the edit's untouched statements keep their chunks from.
-      let previousChunked = true;
-      // An edit that made the program fall back is undone by the next edit,
-      // so the run spends most of its edits on a program that has its chunks.
-      let undo: { offset: number; length: number; text: string } | undefined;
-      const EDITS = 120;
-      for (let n = 0; n < EDITS; n++) {
-        let insert = INSERTS[Math.floor(rand() * INSERTS.length)]!;
-        let deleted = rand() < 0.4 ? 1 + Math.floor(rand() * 10) : 0;
-        let offset = Math.floor(rand() * text.length);
-        if (undo) {
-          ({ offset, length: deleted, text: insert } = undo);
-        }
-        const end = Math.min(offset + deleted, text.length);
-        undo = { offset, length: insert.length, text: text.slice(offset, end) };
-        const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
-        const syntaxBefore = new Set(statements(c.compiler).map((s) => s.syntax));
-        c.compiler.updateDocument({
-          textDocument: { uri: MAIN_URI, version: n + 2 },
-          contentChanges: [
-            { range: { start: posAt(text, offset), end: posAt(text, end) }, text: insert },
-          ],
-        });
-        text = text.slice(0, offset) + insert + text.slice(end);
-        c.compiler.lastProgramBuild = undefined;
-        const { program: incremental, story } = c.compile();
-        if (story && !c.compiler.lastProgramBuild) {
-          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
-        }
-        const incrementalSurface = surface(incremental);
-        const cold = coldSurface(text);
-        const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(
-          (f) => stable(incrementalSurface[f]) !== stable(cold[f]),
-        );
-        if (fields.length) {
-          failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset} fields={${fields.join(",")}}`);
-        }
-        if (incremental.chunks) {
-          chunked += 1;
-          const kept = untouchedChunks(c.compiler, offset, offset + insert.length, syntaxBefore);
-          const lost = kept.filter((chunk) => !before.has(chunk));
-          if (previousChunked && lost.length) {
-            failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: ${lost.length} untouched statements emitted again`);
+  for (const [index, screenplay] of SCREENPLAYS.entries()) {
+    it(`keeps the chunks of a cold compile through many edits of ${screenplay.name} by one compiler`, () => {
+      const quiet = silence();
+      try {
+        let text = screenplay.text();
+        const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
+        c.compile();
+        const failures: string[] = [];
+        let seed = 0x51ed694 + index;
+        const rand = () => {
+          seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+          return seed / 0x7fffffff;
+        };
+        let chunked = 0;
+        // The untouched statements the edits' checks covered.
+        let checked = 0;
+        // Whether the compile before the edit built chunks, so that its root is
+        // the one the edit's untouched statements keep their chunks from.
+        let previousChunked = true;
+        // An edit that made the program fall back is undone by the next edit,
+        // so the run spends most of its edits on a program that has its chunks.
+        let undo: { offset: number; length: number; text: string } | undefined;
+        const EDITS = 120;
+        for (let n = 0; n < EDITS; n++) {
+          let insert = screenplay.inserts[Math.floor(rand() * screenplay.inserts.length)]!;
+          let deleted = rand() < 0.4 ? 1 + Math.floor(rand() * 10) : 0;
+          let offset = Math.floor(rand() * text.length);
+          if (undo) {
+            ({ offset, length: deleted, text: insert } = undo);
+          }
+          const end = Math.min(offset + deleted, text.length);
+          undo = { offset, length: insert.length, text: text.slice(offset, end) };
+          const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
+          const keysBefore = keysOf(c.compiler);
+          c.compiler.updateDocument({
+            textDocument: { uri: MAIN_URI, version: n + 2 },
+            contentChanges: [
+              { range: { start: posAt(text, offset), end: posAt(text, end) }, text: insert },
+            ],
+          });
+          text = text.slice(0, offset) + insert + text.slice(end);
+          c.compiler.lastProgramBuild = undefined;
+          const { program: incremental, story } = c.compile();
+          if (story && !c.compiler.lastProgramBuild) {
+            failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
+          }
+          const incrementalSurface = surface(incremental);
+          const cold = coldSurface(text);
+          const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(
+            (f) => stable(incrementalSurface[f]) !== stable(cold[f]),
+          );
+          if (fields.length) {
+            failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset} fields={${fields.join(",")}}`);
+          }
+          if (incremental.chunks) {
+            chunked += 1;
+            const held = new Set(rootChunks(incremental.chunks));
+            const untouched = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore);
+            checked += untouched.length;
+            const lost = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
+            if (previousChunked && lost.length) {
+              failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: ${lost.length} untouched statements emitted again`);
+            }
+          }
+          previousChunked = !!incremental.chunks;
+          if (incremental.chunks) {
+            undo = undefined;
           }
         }
-        previousChunked = !!incremental.chunks;
-        if (incremental.chunks) {
-          undo = undefined;
-        }
+        expect(failures, failures.join("\n")).toEqual([]);
+        expect(chunked).toBeGreaterThan(EDITS / 3);
+        expect(checked).toBeGreaterThan(chunked);
+      } finally {
+        quiet();
       }
-      expect(failures, failures.join("\n")).toEqual([]);
-      expect(chunked).toBeGreaterThan(EDITS / 3);
-    } finally {
-      quiet();
-    }
-  });
+    });
+  }
 });

@@ -1,6 +1,8 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 // Lua's parenthesized-expression adjustment: `(expr)` always
 // evaluates to exactly ONE value. A multi-return call truncates to
@@ -28,6 +30,11 @@ export class SingleValueExpression extends Expression {
     this.innerExpression.GenerateIntoContainer(container);
     container.AddContent(ControlCommand.UnpackTuple(1));
   };
+
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    emitter.emitObject(this.innerExpression);
+    emitter.emit(Op.Unpack, 1);
+  }
 
   public override readonly toString = (): string => `(${this.innerExpression})`;
 }

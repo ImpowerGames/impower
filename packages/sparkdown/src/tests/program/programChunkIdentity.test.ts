@@ -233,8 +233,7 @@ const blockAt = (compiler: SparkdownCompiler, find: string) => {
 // can stand inside a block statement, below its chunk's top-level node. An
 // edit re-annotates the document from the edit onward, so an edit below the
 // block leaves the block as it was lowered, with statement chunks on or off;
-// the reads are kept only when they are on. (The writer does not emit an `if`
-// block yet, so this program falls back and only its lowering is compared.)
+// the reads are kept only when they are on.
 describe("a continuation inside a block", () => {
   const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
   const text = [
@@ -452,5 +451,173 @@ describe("a preview compile", () => {
     const after = rootChunks(s.store.current!);
     expect(after).toHaveLength(held.length);
     expect(after.every((chunk, i) => chunk === held[i])).toBe(true);
+  });
+});
+
+// An `if` and each loop is one chunk whose bodies are blocks (#695): the
+// owner's chunk names each body's sequence, and the statements of a body have
+// chunks of their own.
+describe("a block statement", () => {
+  const text = [
+    "store n = 0",
+    "scene MAIN",
+    "  Before.",
+    "  if n == 0 then",
+    "    In the if.",
+    "  else",
+    "    In the else.",
+    "  end",
+    "  while n < 2 do",
+    "    n = n + 1",
+    "    if n == 1 then",
+    "      In the nested if.",
+    "    end",
+    "    In the while.",
+    "  end",
+    "  for i = 1, 2 do",
+    "    In the for {i}.",
+    "  end",
+    "  for k, v in { a = 1 } do",
+    "    In the generic for {v}.",
+    "  end",
+    "  repeat",
+    "    In the repeat.",
+    "    n = n - 1",
+    "  until n <= 0",
+    "  do",
+    "    In the do.",
+    "  end",
+    "  After.",
+    "end",
+    "",
+  ].join("\n");
+
+  // The chunks of every sequence of a root, by the sequence's id, so that a
+  // test can say which sequence a new chunk stands in.
+  const sequencesOf = (root: ProgramRoot) =>
+    new Map([...root.sequences()].map((row) => [row.id, row.arrays.chunks]));
+
+  for (const [where, line] of [
+    ["an `if` branch", "In the if."],
+    ["an `else` branch", "In the else."],
+    ["a `while` body", "In the while."],
+    ["an `if` inside a `while` body", "In the nested if."],
+    ["a `for` body", "In the for {i}."],
+    ["a generic `for` body", "In the generic for {v}."],
+    ["a `repeat` body", "In the repeat."],
+    ["a `do` body", "In the do."],
+  ] as const) {
+    it(`re-emits only the statement edited in ${where}, and keeps its owners' chunks`, () => {
+      const s = session({ [MAIN]: text });
+      s.edit("Before.", "Before!");
+      const before = s.root;
+      const scene = before.flowNamed("MAIN")!.arrays.chunks;
+      const after = s.edit(line, line.replace(".", ", edited."));
+      expect(s.store.emittedLastBuild).toBe(1);
+      const added = newChunks(before, after);
+      expect(added).toHaveLength(1);
+      // Every statement of the scene, each owner included, is the chunk it
+      // was, so every body keeps the sequence id its owner names.
+      const sceneAfter = after.flowNamed("MAIN")!.arrays.chunks;
+      expect(sceneAfter).toHaveLength(scene.length);
+      expect(sceneAfter.every((chunk, i) => chunk === scene[i])).toBe(true);
+      // The new chunk stands in a body sequence, not in the scene's.
+      const sequence = [...sequencesOf(after)].find(([, chunks]) => chunks.includes(added[0]!));
+      expect(sequence![0]).not.toBe(after.flowNamed("MAIN")!.id);
+      expect(sequencesOf(before).has(sequence![0])).toBe(true);
+    });
+  }
+
+  // The line of the owner's `else` is its own, indentation included, since
+  // its row holds the column the `else` starts at.
+  it("is emitted again when its `else` moves along its line, as a cold compile emits it", () => {
+    const s = session({ [MAIN]: text });
+    s.edit("Before.", "Before!");
+    const edited = s.edit("  else\n", "   else\n");
+    const cold = programCompiler(
+      { [MAIN]: text.replace("Before.", "Before!").replace("  else\n", "   else\n") },
+      { programChunks: true, seedBuiltinsIntoStory: true },
+    ).compile().program;
+    expect(cold.fallback).toBeUndefined();
+    expect(describeRoot(edited)).toEqual(describeRoot(cold.chunks!));
+  });
+
+  // The owner's own line changed: its chunk is emitted again, and its bodies
+  // keep their sequences and their statements' chunks.
+  it("re-emits only the owner when its own line is edited", () => {
+    const s = session({ [MAIN]: text });
+    s.edit("Before.", "Before!");
+    const before = s.root;
+    // The `while` loop, after `Before.` and the `if`.
+    const owner = before.flowNamed("MAIN")!.arrays.chunks[2]!;
+    const body = before.body(owner, 0)!;
+    const after = s.edit("while n < 2 do", "while n < 3 do");
+    expect(s.store.emittedLastBuild).toBe(1);
+    const ownerAfter = after.flowNamed("MAIN")!.arrays.chunks[2]!;
+    expect(ownerAfter).not.toBe(owner);
+    expect(newChunks(before, after)).toEqual([ownerAfter]);
+    const bodyAfter = after.body(ownerAfter, 0)!;
+    expect(bodyAfter.id).toBe(body.id);
+    expect(bodyAfter.arrays.chunks).toHaveLength(body.arrays.chunks.length);
+    expect(bodyAfter.arrays.chunks.every((chunk, i) => chunk === body.arrays.chunks[i])).toBe(true);
+  });
+});
+
+// A chunk records how each name its code reads resolved. An edit elsewhere
+// can change that without touching the statement: a scene added below makes
+// a name that read nothing read the scene's count, which the writer does not
+// emit, so the program falls back as a cold compile of the text does.
+// A block statement's own text leaves out the lines its bodies hold alone, so
+// that an edit inside a body keeps the owner's chunk. A line that holds a
+// part of the owner is the owner's, with what a body writes on it: the
+// owner's rows hold the columns of its parts, so an edit to the condition, or
+// to a body beside it, emits the owner again.
+describe("a block statement written on one line", () => {
+  const scene = (statement: string) =>
+    ["store n = 0", "scene MAIN", "  Before!", `  ${statement}`, "  Result {n}.", "end", ""].join("\n");
+
+  for (const [part, before, after] of [
+    ["an `if` condition", "if 1 == 1 then n = 1 end", "if 1 == 2 then n = 1 end"],
+    ["an `if` condition with its `else` on the line", "if n == 0 then n = 5 else n = 7 end", "if n == 1 then n = 5 else n = 7 end"],
+    ["a `while` loop's test", "while n < 2 do n = n + 1 end", "while n < 3 do n = n + 1 end"],
+    ["a `for` loop's range", "for i = 1, 2 do n = n + i end", "for i = 1, 3 do n = n + i end"],
+    ["an `if` body", "if 1 == 1 then n = 1 end", "if 1 == 1 then n = 100 end"],
+    ["a body before an `elseif` on its line", "if false then n = 1 elseif true then n = 2 end", "if false then n = 10 elseif true then n = 2 end"],
+    ["a `while` body", "while n < 2 do n = n + 1 end", "while n < 2 do n = n + 10 end"],
+  ] as const) {
+    it(`is emitted again when ${part} is edited, as a cold compile of the text emits it`, () => {
+      const s = session({ [MAIN]: scene(before).replace("Before!", "Before.") });
+      s.edit("Before.", "Before!");
+      const edited = s.edit(before, after);
+      const cold = programCompiler(
+        { [MAIN]: scene(after) },
+        { programChunks: true, seedBuiltinsIntoStory: true },
+      ).compile().program;
+      expect(cold.fallback).toBeUndefined();
+      expect(storyBeats(new ProgramStory(edited), "MAIN")).toEqual(
+        storyBeats(new ProgramStory(cold.chunks!), "MAIN"),
+      );
+      expect(describeRoot(edited)).toEqual(describeRoot(cold.chunks!));
+    });
+  }
+});
+
+describe("a name a chunk reads", () => {
+  it("emits the chunk again when the name resolves to something else", () => {
+    const filler = Array.from({ length: 8 }, (_, i) => `Filler line ${i}.`);
+    const text = [...filler, "Seen {extra}.", ...filler, ""].join("\n");
+    const c = programCompiler({ [MAIN]: text }, { programChunks: true });
+    expect(c.compile().program.fallback).toBeUndefined();
+    const added = "scene extra\n  Inside.\nend\n";
+    c.compiler.updateDocument({
+      textDocument: { uri: MAIN, version: 2 },
+      contentChanges: [
+        { range: { start: posAt(text, text.length), end: posAt(text, text.length) }, text: added },
+      ],
+    });
+    const { program } = c.compile();
+    const cold = programCompiler({ [MAIN]: text + added }, { programChunks: true }).compile().program;
+    expect(cold.fallback?.construct).toBe("read count");
+    expect(program.fallback).toEqual(cold.fallback);
   });
 });

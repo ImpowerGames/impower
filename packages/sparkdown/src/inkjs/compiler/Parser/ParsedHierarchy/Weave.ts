@@ -129,16 +129,13 @@ export class Weave extends ParsedObject {
     return "Weave";
   }
 
-  // A block statement's weave holds the statement, which names what it is: a
-  // conditional, an alternator, a choice or a gather. A `choose` block's
-  // weave is the block itself. Neither is emitted yet.
+  // A weave that holds statements is their code in order. A `choose` block's
+  // weave is the block itself, which is not emitted yet.
   public override EmitProgram(emitter: ProgramEmitter): void {
     if (this.isChooseBlock) {
       emitter.unsupported("choose");
     }
-    for (const obj of this.content) {
-      obj.EmitProgram(emitter);
-    }
+    emitter.emitObjects(this.content);
   }
 
   public readonly ResolveWeavePointNaming = (): void => {

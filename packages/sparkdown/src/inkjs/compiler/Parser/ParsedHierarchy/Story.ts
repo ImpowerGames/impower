@@ -340,8 +340,13 @@ export class Story extends FlowBase {
     topLevelContent.splice(0, 0, ...flowsFromOtherFiles);
   }
 
+  /** Generates the runtime story. `initializeGlobals` false leaves its state
+   *  unreset, with no global initialized: a compile whose program runs from
+   *  statement chunks runs the declarations there, and resets the story only
+   *  when the program falls back. */
   public readonly ExportRuntime = (
     errorHandler: ErrorHandler | null = null,
+    initializeGlobals = true,
   ): RuntimeStory | null => {
     this._errorHandler = errorHandler;
 
@@ -614,7 +619,9 @@ export class Story extends FlowBase {
       console.error(e);
     }
 
-    runtimeStory.ResetState();
+    if (initializeGlobals) {
+      runtimeStory.ResetState();
+    }
 
     return runtimeStory;
   };
