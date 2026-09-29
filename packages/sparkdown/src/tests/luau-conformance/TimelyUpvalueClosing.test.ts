@@ -5,12 +5,15 @@
 // Two mechanisms under test:
 //   1. Close-on-redeclare (CallStack.SetTemporaryVariable): re-running
 //      a `local x = ...` declaration in the SAME scope frame — which
-//      loop bodies do every iteration, incl. the synthesized loop-var
-//      copy — creates a fresh cell, so open upvalues captured against
-//      the previous iteration's binding close with that iteration's
-//      value.
+//      `for` and `repeat` bodies do every iteration, incl. the
+//      synthesized loop-var copy — creates a fresh cell, so open
+//      upvalues captured against the previous iteration's binding close
+//      with that iteration's value. A `while` body instead opens and
+//      closes its own scope each iteration, and the EndScope closes
+//      them.
 //   2. Scope unwinding on break/continue (lowerLuauBreakContinue): a
-//      `break` nested in scoped blocks (`if` arms, `do` bodies) emits
+//      `break` nested in scoped blocks (`if` arms, `do` bodies, a
+//      `while` body) emits
 //      one EndScope per skipped block so the runtime scope stack stays
 //      balanced — a leaked frame made a later same-named `local`
 //      close a still-open upvalue against the wrong binding.

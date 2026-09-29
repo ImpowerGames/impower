@@ -49,6 +49,7 @@ import {
   AstStatRepeat,
   AstStatReturn,
   AstStatTypeAlias,
+  AstStatTypeFunction,
   AstStatWhile,
   AstType,
   AstTypeError,
@@ -443,6 +444,10 @@ export class DataFlowGraphBuilder {
         this.visitGenericPacks(s.genericPacks);
         this.visitType(s.type);
       });
+      return ControlFlow.None;
+    }
+    if (s instanceof AstStatTypeFunction) {
+      this.withScope(this.makeChildScope(), () => this.visitExpr(s.body));
       return ControlFlow.None;
     }
     if (s instanceof AstStatDeclareGlobal) {
