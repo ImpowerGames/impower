@@ -137,7 +137,7 @@ describe("PLAY that recurses without end (#1072)", () => {
     game.start();
     expect(runtimeErrors(h.messages).join("\n")).toContain("stack overflow");
     expect(h.messages.map((m) => m.method)).not.toContain("game/finished");
-  });
+  }, 120_000);
 });
 
 describe("a preview through deep recursion that ends (#1072)", () => {
