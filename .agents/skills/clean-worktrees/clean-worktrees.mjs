@@ -1409,7 +1409,9 @@ export function cleanJobs(ctx, deps, apply, record) {
 // removes. `runRedGreen` (drive-web-editor/redgreen.mjs) makes a redgreen-*
 // directory under the system temp directory for its snapshot and its red and
 // green logs, and leaves it for the report to cite. `test-suite.mjs start`
-// writes each run under <git-dir>/test-suites/<uuid>/; a linked worktree's git
+// (refused by the local-test hook, but runs left by earlier sessions remain
+// and `resume` continues them) writes each run under
+// <git-dir>/test-suites/<uuid>/; a linked worktree's git
 // dir goes with the worktree, and the main checkout's is pruned here.
 const REDGREEN_AGE_MS = 24 * 60 * 60 * 1000;
 

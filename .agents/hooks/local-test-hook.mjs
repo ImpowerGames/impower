@@ -11,10 +11,13 @@
 // package `npm test`, `npm run test`, `pnpm test` or `yarn test` whose script may run Vitest, including
 // the `test:*` scripts; and the typecheck with no project filter, whether
 // through `npm run typecheck` in a directory whose script is unfiltered (the
-// repository root) or through `scripts/typecheck.mjs` directly. Allowed: a
-// Vitest call naming existing test files, `node scripts/test-suite.mjs`, a
-// package's own `npm run typecheck`, which its script filters to that
-// package, and the typecheck with a filter or `--list`.
+// repository root) or through `scripts/typecheck.mjs` directly; and
+// `node scripts/test-suite.mjs start`, which runs a whole package suite and
+// has no override. Allowed: a Vitest call naming existing test files, the
+// suite runner's `run` (which requires named test files), `status` and
+// `resume` (which only continues an existing run), a package's own
+// `npm run typecheck`, which its script filters to that package, and the
+// typecheck with a filter or `--list`.
 //
 // The command is read with the typed-issue hook's tokenizer, so a mention in
 // a quoted string, a comment or a here-doc body does not count, and a call
@@ -42,10 +45,13 @@ const SINGLE_FILE =
 export const TEST_REASON =
   "Run only the test files under work locally, through the runner that sets the heap and worker caps and queues behind other runs, for example: " +
   SINGLE_FILE +
-  " (from .agents/skills/write-regression-test/references/vitest.md). The package result comes from the Test Suite workflow " +
-  "on the pushed head, which runs every touched package on each pull request; a whole-package run here duplicates it while " +
-  "competing with the other sessions on this machine. When you need a package result the workflow cannot give, such as a " +
-  "baseline on a base commit, use `node scripts/test-suite.mjs start <package-directory>`, which reserves the machine.";
+  " (from .agents/skills/write-regression-test/references/vitest.md). For the package result, push and read the Test Suite " +
+  "workflow on the pushed head, which runs every touched package on each pull request; a base-branch baseline likewise comes " +
+  "from that workflow's runs on the base branch. A whole-package run here duplicates it while competing with the other " +
+  "sessions on this machine.";
+
+export const START_REASON =
+  "`node scripts/test-suite.mjs start` runs a whole package suite locally, which is refused with no override. " + TEST_REASON;
 
 export const TYPECHECK_REASON =
   "The unfiltered typecheck checks all 41 projects for about four minutes, and the typecheck workflow runs it on every pull " +
@@ -338,7 +344,7 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         // Node runs that code instead, and every later argument is only data
         // for it. A guarded module loaded by `--import`, `--require`/`-r` or
         // `--loader` runs with no arguments of its own.
-        const guarded = /(?:^|[\\/=])(?:typecheck\.mjs|vitest(?:\.mjs)?)$/i;
+        const guarded = /(?:^|[\\/=])(?:typecheck\.mjs|test-suite\.mjs|vitest(?:\.mjs)?)$/i;
         const preload = /^(?:--import|--require|-r|--loader|--experimental-loader)(?:=|$)/;
         const code = args.findIndex((a) => /^(?:-[a-z]*[ep][a-z]*|--eval|--print)(?:=|$)/.test(a.text));
         const script = args.findIndex((a, k) => (code < 0 || k < code || preload.test(a.text) || preload.test(args[k - 1]?.text ?? "")) && guarded.test(a.text));
@@ -346,6 +352,9 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         const scriptArgs = script < 0 || preload.test(target) || preload.test(args[script - 1]?.text ?? "") ? [] : args.slice(script + 1);
         if (/typecheck\.mjs$/i.test(target) && unfilteredTypecheck(scriptArgs.map((a) => a.text))) reason = TYPECHECK_REASON;
         else if (/vitest(?:\.mjs)?$/i.test(target)) reason = vitestReason(scriptArgs, dir);
+        // The suite runner's first argument is its command; only `start`
+        // runs a whole package.
+        else if (/test-suite\.mjs$/i.test(target) && /^start$/i.test(scriptArgs[0]?.text ?? "")) reason = START_REASON;
       }
       if (reason) return reason;
     }
@@ -375,7 +384,7 @@ export async function main() {
     // An unparseable payload is refused only when it looks like it carries a
     // test or typecheck call, so a broken harness cannot let one through and
     // cannot block unrelated commands either.
-    if (/\b(?:vitest|typecheck)\b|\b(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b/i.test(raw)) {
+    if (/\b(?:vitest|typecheck)\b|test-suite\.mjs\W+start\b|\b(?:npm|pnpm|yarn)\s+(?:run\s+)?test\b/i.test(raw)) {
       deny("The local-test hook could not parse the tool payload, so it cannot tell how wide this run is. " + TEST_REASON);
     }
     return;
