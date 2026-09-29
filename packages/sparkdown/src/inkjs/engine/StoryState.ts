@@ -24,6 +24,7 @@ import type { RaisedError } from "./Error";
 import {
   cleanOutputWhitespace,
   findOpenString,
+  isBeginString,
   splitHeadTailWhitespace,
 } from "./outputWhitespace";
 
@@ -793,10 +794,17 @@ export class StoryState {
   public ResetOutput(objs: InkObject[] | null = null) {
     this.outputStream.length = 0;
     if (objs !== null) this.outputStream.push(...objs);
+    this.ForgetOpenStrings();
     this.OutputStreamDirty();
   }
 
   public PushToOutputStream(obj: InkObject | null) {
+    // Every `BeginString` reaches the stream through here, at its end.
+    if (isBeginString(obj)) {
+      this.innermostOpenString;
+      this._openStrings.push(this.outputStream.length);
+    }
+
     // The pending newline is written where the step is cut, when the continue
     // ends (`CarryOutputPastCut`). Written now, it would read as the line the
     // new output is on having ended already, and that line's own closing
@@ -821,7 +829,24 @@ export class StoryState {
       // head/tail whitespace splitting and the newline trimming in
       // PushToOutputStreamIndividual, which would otherwise drop a
       // whitespace-only string's content entirely.
+      //
+      // A function called from inside the open string (its start is after the
+      // string's `BeginString`) still drops newlines until it shows something,
+      // as it does outside a string: a loop's pass newlines would otherwise
+      // pile up in the string, and reach it past a later `print`. A string
+      // opened inside the function has its `BeginString` at or after the
+      // function's start, so its literal newlines are kept and its text does
+      // not count as the function showing something.
       if (this.inStringEvaluation) {
+        const currEl = this.callStack.currentElement!;
+        if (
+          currEl.type == PushPopType.Function &&
+          currEl.functionStartInOutputStream > this._openStringIndex &&
+          this.innermostOpenString < currEl.functionStartInOutputStream
+        ) {
+          if (text.isNewline) return;
+          if (text.isNonWhitespace) this.MarkFunctionsShown();
+        }
         this.outputStream.push(text);
         this.OutputStreamDirty();
         return;
@@ -859,6 +884,7 @@ export class StoryState {
     this.lineEndPending = false;
     this.heldPaths = [];
     this.outputStream.push(new StringValue("\n"));
+    this.ForgetOpenStrings();
     // A start of -1 marks a function that has shown something, whose
     // newlines are no longer dropped, and stays as it is.
     for (const element of this.callStack.elements) {
@@ -877,6 +903,7 @@ export class StoryState {
   public CloseOutputCut() {
     if (this.outputCut === null) return;
     this.outputStream.splice(this.outputCut, 0, new StringValue("\n"));
+    this.ForgetOpenStrings();
     this.outputCut = null;
     this.OutputStreamDirty();
   }
@@ -997,6 +1024,34 @@ export class StoryState {
       this.outputStream.push(obj);
       this.OutputStreamDirty();
     }
+  }
+
+  // The index of the innermost open `BeginString`, or -1. `_openStrings` holds
+  // the index of each `BeginString` pushed, innermost last; a string that has
+  // closed leaves its index past the stream's end or on other content, and
+  // falls off here. The stack is rebuilt with one scan when the stream is
+  // replaced or rewritten below its end (a reset, a cut, another flow), so a
+  // push costs the same however long a string has been open (#1134).
+  private get innermostOpenString(): number {
+    const stream = this.outputStream;
+    if (this._openStringsStream !== stream) {
+      this._openStringsStream = stream;
+      this._openStrings = [];
+      for (let i = 0; i < stream.length; i++) {
+        if (isBeginString(stream[i])) this._openStrings.push(i);
+      }
+    }
+    const open = this._openStrings;
+    while (open.length > 0) {
+      const i = open[open.length - 1]!;
+      if (i < stream.length && isBeginString(stream[i])) return i;
+      open.pop();
+    }
+    return -1;
+  }
+
+  private ForgetOpenStrings() {
+    this._openStringsStream = null;
   }
 
   // The functions on top of the call stack have shown something, so their
@@ -1302,6 +1357,10 @@ export class StoryState {
 
   // Where `inStringEvaluation` last found the open string (`findOpenString`).
   private _openStringIndex = -1;
+  // The open `BeginString` indices and the stream they index
+  // (`innermostOpenString`).
+  private _openStrings: number[] = [];
+  private _openStringsStream: InkObject[] | null = null;
 
   private _currentFlow: Flow;
   private _aliveFlowNames: string[] | null = null;
