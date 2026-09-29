@@ -52,6 +52,14 @@ describe("while body scope", () => {
     expect(r.returnedOK).toBe(true);
   });
 
+  test("return from the body leaves the caller's locals in place", () => {
+    const r = runConformanceSource(
+      `local function f(n)\n  local x = "f outer"\n  while true do\n    local x = "f inner " .. n\n    if n > 0 then\n      return x\n    end\n    break\n  end\n  return x\nend\nlocal x = "caller"\nfor n = 0, 3 do\n  local got = f(n)\n  local want = n > 0 and ("f inner " .. n) or "f outer"\n  assert(got == want, "f(" .. n .. ") is " .. tostring(got))\n  assert(x == "caller", "caller x replaced: " .. tostring(x))\nend\n`,
+    );
+    expect(r.errorMessages).toEqual([]);
+    expect(r.returnedOK).toBe(true);
+  });
+
   test("nested while loops keep their own locals", () => {
     const r = runConformanceSource(
       `local x = "outer"\nlocal i = 0\nlocal seen = ""\nwhile i < 2 do\n  i = i + 1\n  local x = "a" .. i\n  local k = 0\n  while k < 2 do\n    k = k + 1\n    local x = "b" .. k\n    seen = seen .. x\n  end\n  seen = seen .. x\nend\nassert(seen == "b1b2a1b1b2a2", "seen is " .. seen)\nassert(x == "outer", "outer x replaced: " .. tostring(x))\n`,
