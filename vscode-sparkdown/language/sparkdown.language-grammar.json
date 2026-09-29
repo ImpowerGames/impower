@@ -272,6 +272,7 @@
     "LUAU_TYPE_QUALIFIER_DOT": "{{WS}}*[.]",
     "LUAU_TYPE_OPTIONAL_OPERATOR": "(?:[?])",
     "LUAU_TYPE_END": "(?:[\\w)}\\]>\"'`?])",
+    "LUAU_FUNCTION_HEADER": "(?:\\b(?:function|scene|branch|external|component)\\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\\n]*>)?)",
     "LUAU_TYPE_END_BEFORE_OPTIONAL": "(?:[\\w)}\\]\"'`?]|[^-]>)",
     "LUAU_TYPE_WHITESPACE_END": "(?:{{WS}}(?!{{WS}}*(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|[&]|[|])))",
     "LUAU_TYPE_BINARY_OPERATORS": "(?:[&]|[|]|[-][>])",
@@ -9081,7 +9082,7 @@
     "LuauFunctionBody": {
       "tag": "meta",
       "name": "meta.function.body.luau",
-      "begin": "(?<=(?:[\\w)}\\]>\"'`?]))(?=(?:[^\\S\\n\\r])+(?!end\\b|(?:[-][-])|[:(<])\\S)|(?<=(?:[\\w)}\\]>\"'`?]))(?<!\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?)(?=(?:[^\\S\\n\\r])+[(])|(?<=(?:[\\w)}\\]>\"'`?]))(?:[^\\S\\n\\r])*\\n|^(?!(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|(?:[^\\S\\n\\r])*\\bend\\b)(?=(?:[^\\S\\n\\r])*[\\w\"'`(\\[{&\\-@#:;.])",
+      "begin": "(?<=(?:[\\w)}\\]>\"'`?]))(?<!(?:\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?))(?=(?:[^\\S\\n\\r])*(?!end\\b|(?:[-][-])|[:](?![:])|[<])\\S)|(?<=(?:[\\w)}\\]>\"'`?]))(?:[^\\S\\n\\r])*\\n|^(?!(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|(?:[^\\S\\n\\r])*\\bend\\b)(?=(?:[^\\S\\n\\r])*[\\w\"'`(\\[{&\\-@#:;.])",
       "patterns": [
         {
           "include": "#LuauBlockBody"
@@ -9093,7 +9094,7 @@
       "tag": "meta",
       "name": "meta.parameter.luau",
       "brackets": true,
-      "begin": "((?<=\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?(?:[^\\S\\n\\r])*|^(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)[(])",
+      "begin": "((?<=(?:\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?)(?:[^\\S\\n\\r])*|^(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)[(])",
       "beginCaptures": {
         "1": {
           "patterns": [

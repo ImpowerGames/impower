@@ -268,6 +268,12 @@ variables:
   # The last character of a type: a name, a closing bracket or quote, or an
   # optional type's `?`.
   LUAU_TYPE_END: (?:[\w)}\]>"'`?])
+  # A function header up to its parameter list: a header keyword, an optional
+  # dotted or colon name path and an optional generics `<T>` run (`function`,
+  # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
+  # opens its `(` only right after one, and `LuauFunctionBody` never opens
+  # there.
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
   # A type end that an optional-type `?` can follow: the `>` of a function
   # type's `->` is excluded, since no type ends there.
   LUAU_TYPE_END_BEFORE_OPTIONAL: (?:[\w)}\]"'`?]|[^-]>)
@@ -5907,14 +5913,13 @@ repository:
     # lookbehind takes the header's last character: the parameter list's
     # `)` or the end of a return type (`number`, `number?`, `{number}`,
     # `Array<T>`, `"x"`). The body opens there when a statement follows on
-    # the same line (`function f() return 1 end`), or on the line break
-    # after it. A `(` after the header keyword and name begins the
-    # parameters (`function (x)`, `function f (x)`, `function f<T> (x)`), so
-    # before a `(` the body opens only where `LuauFunctionParameters` would
-    # not, which its header lookbehind names (`function f() (g)()`,
-    # `function f(): number (g)()`). The `>`
-    # of `function f<T>` is also a type end; it stays out of the way only
-    # because params follow it on the same line. A
+    # the same line, with or without whitespace before it
+    # (`function f() return 1 end`, `function f()(g)() end`), or on the line
+    # break after it. The name and generics also end in a type-end
+    # character, so the body never opens right after `LUAU_FUNCTION_HEADER`,
+    # where `LuauFunctionParameters` opens instead (`function f (x)`,
+    # `function f<T>(x)`). A single `:` begins a return type, not a
+    # statement; `::` begins a label. A
     # parameter list moved to the next line is not supported with or
     # without generics. A return type takes in the line break after it,
     # as any type does, so the body also opens at the start of a line,
@@ -5922,7 +5927,7 @@ repository:
     # line to start with a character a statement can begin with: a line the
     # body cannot read (a stray `|` or `)`) closes the body, and reopening
     # it there would match nothing, again and again.
-    begin: (?<={{LUAU_TYPE_END}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:(<])\S)|(?<={{LUAU_TYPE_END}})(?<!\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)(?={{WS}}+[(])|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+    begin: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}*(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -5948,7 +5953,7 @@ repository:
     # parameter list: in
     #   function pack(first, ...) table.insert(t, 1, first) end
     # `table.insert(` has no header keyword before it and is mid-line.
-    begin: ((?<=\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
+    begin: ((?<={{LUAU_FUNCTION_HEADER}}{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
     beginCaptures:
       1:
         patterns:

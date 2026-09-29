@@ -3,3 +3,9 @@ function b(): number (g)() return 1 end
 function c (x) (g)() return x end
 function d<T> (x: T) (g)() return x end
 local e = function (x) (g)() return x end
+function f()(g)() return 1 end
+function t.g()(g)() return 1 end
+function t:m()(g)() return 1 end
+function h<T>()(g)() return 1 end
+local i = function()(g)() return 1 end
+function j()return 1 end

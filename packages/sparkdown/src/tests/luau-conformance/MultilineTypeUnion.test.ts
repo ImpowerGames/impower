@@ -94,6 +94,13 @@ describe("every statement of a function runs", () => {
     ["a call in parentheses first after a return type ending in a name", `Value {f()}.\nfunction f(): number (function() print(1) end)() return 5 end\n`, "Value 15.\n"],
     ["parameters after a space, then a call in parentheses", `Value {f(1)}.\nfunction f (a) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
     ["generic parameters after a space, then a call in parentheses", `Value {f(1)}.\nfunction f<T> (a: T) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
+    ["a call in parentheses right after the header", `Value {f()}.\nfunction f()(function() print(1) end)() return 5 end\n`, "Value 15.\n"],
+    ["a call in parentheses right after a return type", `Value {f()}.\nfunction f(): number(function() print(1) end)() return 5 end\n`, "Value 15.\n"],
+    ["a call in parentheses right after generic parameters", `Value {f(1)}.\nfunction f<T>(a: T)(function() print(a) end)() return 5 end\n`, "Value 15.\n"],
+    ["a call in parentheses right after a dotted header", `local t = {}\nfunction t.g()(function() print(1) end)() return 5 end\nValue {t.g()}.\n`, "Value 15.\n"],
+    ["a call in parentheses right after a method header", `local t = {}\nfunction t:m()(function() print(1) end)() return 5 end\nValue {t:m()}.\n`, "Value 15.\n"],
+    ["a call in parentheses right after an anonymous header", `local f = function()(function() print(1) end)() return 5 end\nValue {f()}.\n`, "Value 15.\n"],
+    ["statements right after the header", `Value {f()}.\nfunction f()local x = 5 return x end\n`, "Value 5.\n"],
   ])("with %s", (_name, source, output) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
