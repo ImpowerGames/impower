@@ -9,7 +9,7 @@
 // order it was created in, which stands in for the allocation address Luau
 // orders some sets by.
 
-import type { AstExprCall, DeprecatedInfo } from "./Ast";
+import type { AstExprCall, AstStatTypeFunction, DeprecatedInfo } from "./Ast";
 import type { BuiltinTypeFunctions } from "./BuiltinTypeFunctions";
 import type { Constraint } from "./Constraint";
 import type { ConstraintSolver } from "./ConstraintSolver";
@@ -449,12 +449,26 @@ export const enum TypeFunctionInstanceState {
   Stuck,
 }
 
+/**
+ * Luau's `UserDefinedFunctionData`: the declaration of a user-defined type
+ * function and the environment its evaluation sees. Luau also records how many
+ * scopes up each name is declared, which only its VM reads.
+ */
+export interface UserDefinedFunctionData {
+  definition: AstStatTypeFunction;
+  /** Each type function visible to the body, by name. */
+  environmentFunction: Map<string, AstStatTypeFunction>;
+  /** Each type alias the body names, by name. */
+  environmentAlias: Map<string, TypeFun>;
+}
+
 export interface TypeFunctionInstanceType {
   readonly kind: "TypeFunctionInstanceType";
   function: TypeFunction;
   typeArguments: TypeId[];
   packArguments: TypePackId[];
   userFuncName?: string;
+  userFuncData?: UserDefinedFunctionData;
   state: TypeFunctionInstanceState;
 }
 
@@ -782,6 +796,7 @@ export function typeFunctionInstanceType(
   typeArguments: TypeId[],
   packArguments: TypePackId[] = [],
   userFuncName?: string,
+  userFuncData?: UserDefinedFunctionData,
 ): TypeFunctionInstanceType {
   return {
     kind: "TypeFunctionInstanceType",
@@ -789,6 +804,7 @@ export function typeFunctionInstanceType(
     typeArguments,
     packArguments,
     userFuncName,
+    userFuncData,
     state: TypeFunctionInstanceState.Unsolved,
   };
 }

@@ -165,11 +165,13 @@ export function lowerVariableDefinition(
       // An anonymous function directly after a comma is a value in the
       // list (`local a, g = 1, function() ... end`), not a statement:
       // treating it as one drops the slot and shifts every later value
-      // one target left. Named functions stay trailing statements.
+      // one target left. A named one stays a trailing statement in a
+      // `local`; in a `store` it is a value, which expression lowering
+      // reports as a named function expression.
       if (
         child.name === "LuauFunctionDefinition" &&
         sawAssignmentOp &&
-        !findOwnDeclarationName(child) &&
+        (scope === "store" || !findOwnDeclarationName(child)) &&
         isCommaName(previousContentSibling(child)?.name)
       ) {
         currentRhsGroup.push(child);

@@ -30,6 +30,7 @@ import {
   continuationParts,
   endsInTypeName,
   reportExtraTypeQualifiers,
+  isLineContinuation,
   isLineContinuationUsed,
   isTypeQualifierContinuation,
   markLineContinuationUsed,
@@ -445,7 +446,7 @@ export function lowerStatements(
   };
   let child = parent.firstChild;
   while (child) {
-    if (child.name === "LuauLineContinuation") {
+    if (isLineContinuation(child)) {
       // A continuation line that no statement before it took.
       reportUntakenLineContinuation([child], ctx);
       child = child.nextSibling;
