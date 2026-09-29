@@ -74,12 +74,19 @@ describe("a type ending in `?` ends at the `?`", () => {
     ["an optional array element", "local t: { number? } = {}\n"],
     ["an optional array element after a comment", "local t: { --[[c]] number? } = {}\n"],
     ["a block comment between a function return type and the `?`","type F = () -> number --[[c]]?\nlocal y = 1\n"],
-    ["a block comment after a type alias's `=`", "type T = --[[c]] number\nlocal y = 1\n"],
-    ["a block comment after a type alias's `=` and before an optional type", "type T = --[[c]] number?\nlocal y = 1\n"],
-    ["a block comment after a type alias's `=` and before a table type", "type T = --[[c]] { number }\nlocal y = 1\n"],
-    ["a line comment after a type alias's `=`", "type T = -- c\n  number\nlocal y = 1\n"],
-    ["a block comment after an exported type alias's `=`", "export type T = --[[c]] number?\nlocal y = 1\n"],
   ])("an optional type before %s parses", (_name, snippet) => {
+    expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+  });
+
+  // A comment between an alias's `=` and its type is skipped, as it is after
+  // an annotation's `:`, so the type after it is read.
+  test.each([
+    ["a block comment before its type", "type T = --[[c]] number\nlocal y = 1\n"],
+    ["a block comment before an optional type", "type T = --[[c]] number?\nlocal y = 1\n"],
+    ["a block comment before a table type", "type T = --[[c]] { number }\nlocal y = 1\n"],
+    ["a line comment before a type on the next line", "type T = -- c\n  number\nlocal y = 1\n"],
+    ["an export and a block comment before an optional type", "export type T = --[[c]] number?\nlocal y = 1\n"],
+  ])("a type alias with %s after its `=` parses", (_name, snippet) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
