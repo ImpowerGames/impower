@@ -294,6 +294,47 @@ test("a line starting with a dot after a statement in a scene is prose", () => {
   expect(ctx.story.ContinueMaximally()).toBe(".hello there\n");
 });
 
+// No Luau statement begins with `-`, so a line that begins with it continues
+// the value on the line before it. Where no value comes before it (after a
+// comma, an opening bracket or a bare `return`) it begins a negative value.
+test.each([
+  ["subtraction line", "local a = 10\nlocal b = 3\nlocal total = a\n  - b\nreturn total", "7"],
+  ["unspaced subtraction line", "local a = 10\nlocal total = a\n  -3\nreturn total", "7"],
+  ["subtraction line in a reassignment", "local a = 10\na = a\n  - 3\nreturn a", "7"],
+  ["subtraction line in a return", "local a = 10\nreturn a\n  - 3", "7"],
+  ["subtraction line after a comment line", "local a = 10\nlocal total = a\n  -- note\n  - 3\nreturn total", "7"],
+  ["subtraction line after an operator line","local y = 1\n  + 9\n  - 3\nreturn y", "7"],
+  ["subtraction line in parentheses", "local a = 10\nreturn (a\n  - 3)", "7"],
+  ["subtraction line in an if condition", "local a = 10\nif a\n  - 3 == 7 then\n  return 1\nend\nreturn 2", "1"],
+  ["subtraction line in a while condition", "local a = 10\nwhile a\n  - 7 > 0 do\n  a = a - 1\nend\nreturn a", "7"],
+  ["negative table field after a comma", "local t = { 1,\n  -2 }\nreturn t[1] + t[2]", "-1"],
+  ["negative first table field", "local t = {\n  -2 }\nreturn t[1]", "-2"],
+  ["negative call argument after a comma", "local b = 3\nreturn math.max(1,\n  -b)", "1"],
+  ["negative first call argument", "local b = 3\nreturn math.abs(\n  -b)", "3"],
+  ["negative value after a bare return", "local b = 3\nreturn\n  -b", "-3"],
+  ["negative first condition line", "local b = 3\nif\n  -b < 0 then\n  return 1\nend\nreturn 2", "1"],
+])("a minus %s runs", (_name, body, value) => {
+  const ctx = makeRuntimeStoryFromSource(inFunction(body));
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe(`Value ${value}.\n`);
+});
+
+test.each([
+  ["after `end`", "local b = 3\nif true then\nend\n  - b\nreturn 1"],
+  ["at the start of a body", "  - 3\nreturn 1"],
+])("a minus line %s is reported", (_name, body) => {
+  const ctx = makeRuntimeStoryFromSource(inFunction(body));
+  expect(ctx.errorMessages).toEqual([
+    expect.stringContaining("continues the line before it"),
+  ]);
+});
+
+test("a line starting with a minus after a statement in a scene is prose", () => {
+  const ctx = makeRuntimeStoryFromSource("local y = 1\n- hello there\n");
+  expect(ctx.errorMessages).toEqual([]);
+  expect(ctx.story.ContinueMaximally()).toBe("- hello there\n");
+});
+
 test("a qualified type name continued on the next line parses", () => {
   expect(
     checkLuau("local x: types\n  .Button = 1").syntaxDiagnostics.map(

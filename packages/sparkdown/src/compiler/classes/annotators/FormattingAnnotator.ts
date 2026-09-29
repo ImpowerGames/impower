@@ -124,31 +124,46 @@ function isAfterUnaryOperator(node: SparkdownSyntaxNodeRef): boolean {
       n.name === "RequiredWhitespace" ||
       n.name === "TrailingWhitespace");
 
+  const significantBefore = (n: SyntaxNode | null): SyntaxNode | null => {
+    while (n && isInsignificant(n)) n = n.prevSibling;
+    return n;
+  };
+
   // Shape 2: operator's preceding sibling inside its content.
   // For `-x + y` (one operation with op,value,op,value children),
   // the `+` has `x` (a value) as its prev sibling inside content
-  // → binary. The `-` has nothing → unary.
-  let sib = opNode.prevSibling;
-  while (sib) {
-    if (!isInsignificant(sib)) return false; // has LHS → binary
-    sib = sib.prevSibling;
-  }
+  // → binary. The `-` has nothing → unary. An operator is not an LHS: the
+  // `-` in `a * -b` or `a - -b` follows one → unary.
+  const before = significantBefore(opNode.prevSibling);
+  if (before) return NOT_AN_LHS.has(before.name);
 
-  // A line that continues the line before it (`LuauLineContinuation`) takes
-  // its LHS from that line: `x + y` then `+ z` → binary.
-  if (operation.parent?.name === "LuauLineContinuation_content") return false;
+  // A line that continues the line before it (`LuauLineContinuation`, or
+  // `LuauMinusLineContinuation` in a statement body) takes its LHS from that
+  // line: `x + y` then `+ z`, or `x` then `- y` → binary.
+  if (
+    operation.parent?.name === "LuauLineContinuation_content" ||
+    operation.parent?.name === "LuauMinusLineContinuation_content"
+  ) {
+    return false;
+  }
 
   // Shape 1: operation's preceding sibling at its parent level.
   // For `1 + 2` (LHS sits OUTSIDE the operation as a sibling), the
-  // operation has `1` as prev sibling → binary.
-  sib = operation.prevSibling;
-  while (sib) {
-    if (!isInsignificant(sib)) return false; // has LHS → binary
-    sib = sib.prevSibling;
-  }
-
-  return true;
+  // operation has `1` as prev sibling → binary. An operator or a comma is not
+  // an LHS: the operation after it begins a value (`x = -y`, `{ 1, -2 }`,
+  // `f(a,` then `-b)`) → unary.
+  const lhs = significantBefore(operation.prevSibling);
+  return !lhs || NOT_AN_LHS.has(lhs.name);
 }
+
+const NOT_AN_LHS: ReadonlySet<string> = new Set([
+  "LuauArithmeticOperator",
+  "LuauAssignmentOperator",
+  "LuauCompareOperator",
+  "LuauConcatOperator",
+  "LuauLogicalOperator",
+  "LuauCommaSeparator",
+]);
 
 // True iff `node` sits inside an inline UI element attribute
 // (`#class=root`, `@click=fn`). Used to keep the `=` tight.

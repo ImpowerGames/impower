@@ -1,0 +1,28 @@
+function f()
+  local a = x
+    - y
+
+  local b = x
+    - y * 2
+
+  local t = {1,
+      -2,}
+
+  local c = g(a,
+      -b)
+
+  local d = (x
+      - y)
+
+  local e = {1, -2}
+  local h = g(a, -b)
+  local i = -y
+  local k = x == -1
+  local l = a * -b
+  local m = a and -b
+  local p = {a = -1}
+  x += -y
+  local q = a .. -b
+  local r = a - -b
+  return -x, -y
+end

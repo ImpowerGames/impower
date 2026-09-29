@@ -268,8 +268,8 @@ export interface LowerContext {
    */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
   /**
-   * The lines that continue the statement being lowered: each
-   * `LuauLineContinuation` after it (`t` then `.a`) and the rest of that
+   * The lines that continue the statement being lowered: each continuation
+   * line after it (`t` then `.a`, `a` then `- b`) and the rest of that
    * line. `lowerStatements` sets it before lowering the statement; the
    * statement's lowerer takes it with `takeLineContinuation` and joins it to
    * its last value.

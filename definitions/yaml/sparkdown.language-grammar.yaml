@@ -248,8 +248,9 @@ variables:
   # cast: an access, a binary operator that cannot begin an expression, or the
   # `::` of a type cast. `-` can begin an expression (`{ 1,` then `-2 }`) and
   # `[` a table key (`{ a,` then `[2] = b }`), so a line that begins with
-  # either is not a continuation; nor is a label (`::name::`), which also
-  # begins with `::`.
+  # either is not a continuation here; nor is a label (`::name::`), which also
+  # begins with `::`. No statement begins with `-`, so in a statement body a
+  # `-` line continues the line before it (`LuauMinusLineContinuation`).
   LUAU_LINE_CONTINUATION_OPERATOR: (?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*[:][:])|(?:and|or)\b)
   LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   # The `.` after a type's module name, with the whitespace Luau allows before
@@ -6108,6 +6109,7 @@ repository:
   LuauBlockBody:
     patterns:
       - { include: "#LuauLineContinuation" }
+      - { include: "#LuauMinusLineContinuation" }
       - { include: "#LuauControlBlock" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
@@ -7566,6 +7568,30 @@ repository:
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
     end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+
+  # A line of Luau code in a statement body that begins with `-` continues the
+  # expression on the line before it, since no statement begins with `-`
+  # (`local total = a` then `- b`). Inside brackets and conditions a `-` line
+  # may begin a new value (`{ 1,` then `-2 }`), and it already reads as part
+  # of the expression there, so only `LuauBlockBody` includes this rule. A
+  # `--` line is a comment.
+  LuauMinusLineContinuation:
+    begin: ^({{WS}}*)(?=-(?!-))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauAccessPart" }
+      - { include: "#LuauParenthetical" }
+      - { include: "#LuauString" }
+      - { include: "#LuauTable" }
+      - { include: "#LuauArithmeticOperation" }
+      - { include: "#LuauCompareOperation" }
+      - { include: "#LuauConcatOperation" }
+      - { include: "#LuauLogicalOperation" }
+      - { include: "#LuauTypeCastOperation" }
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|-(?!-)|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
   LuauFunctionCall:
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
