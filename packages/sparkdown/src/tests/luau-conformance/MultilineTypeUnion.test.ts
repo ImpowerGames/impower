@@ -95,7 +95,6 @@ describe("every statement of a function runs", () => {
     ["parameters after a space, then a call in parentheses", `Value {f(1)}.\nfunction f (a) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
     ["generic parameters after a space, then a call in parentheses", `Value {f(1)}.\nfunction f<T> (a: T) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
     ["a call in parentheses right after the header", `Value {f()}.\nfunction f()(function() print(1) end)() return 5 end\n`, "Value 15.\n"],
-    ["a call in parentheses right after a return type", `Value {f()}.\nfunction f(): number(function() print(1) end)() return 5 end\n`, "Value 15.\n"],
     ["a call in parentheses right after generic parameters", `Value {f(1)}.\nfunction f<T>(a: T)(function() print(a) end)() return 5 end\n`, "Value 15.\n"],
     ["a call in parentheses right after a dotted header", `local t = {}\nfunction t.g()(function() print(1) end)() return 5 end\nValue {t.g()}.\n`, "Value 15.\n"],
     ["a call in parentheses right after a method header", `local t = {}\nfunction t:m()(function() print(1) end)() return 5 end\nValue {t:m()}.\n`, "Value 15.\n"],
@@ -139,13 +138,17 @@ describe("a return type qualified on the next line", () => {
   });
 });
 
-// A line in a function that no statement can begin with opens no body, so the
-// parser moves on over it instead of opening empty bodies at its start.
-describe("a function line no statement begins with", () => {
+// The body opens only where a statement can begin: never at a line no
+// statement begins with, and with no whitespace only right after the
+// parameter list. Anywhere else the parser would open and close empty bodies
+// at one position until its empty-match limit.
+describe("a function body opens only where a statement can begin", () => {
   test.each([
     ["a stray `|`", "function f()\n| x\nend\n"],
     ["a stray `)`", "function f()\n) x\nend\n"],
     ["a stray `)` after a return type", "function f(): number\n) x\nend\n"],
+    ["a member read of a Sparkle keyword name", "function f()\nlocal layout = {}\nreturn layout.x\nend\n"],
+    ["a call right after the header", "function f()(g)() return 1 end\n"],
   ])("%s parses without an empty-match loop", (_name, source) => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {

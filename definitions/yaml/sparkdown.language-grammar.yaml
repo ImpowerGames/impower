@@ -5914,13 +5914,16 @@ repository:
     # lookbehind takes the header's last character: the parameter list's
     # `)` or the end of a return type (`number`, `number?`, `{number}`,
     # `Array<T>`, `"x"`). The body opens there when a statement follows on
-    # the same line, with or without whitespace before it
-    # (`function f() return 1 end`, `function f()(g)() end`), or on the line
-    # break after it. The name and generics also end in a type-end
-    # character, so the body never opens right after `LUAU_FUNCTION_HEADER`,
-    # where `LuauFunctionParameters` opens instead (`function f (x)`,
+    # the same line (`function f() return 1 end`), or on the line break
+    # after it. The name and generics also end in a type-end character, so
+    # the body never opens right after `LUAU_FUNCTION_HEADER`, where
+    # `LuauFunctionParameters` opens instead (`function f (x)`,
     # `function f<T>(x)`). A single `:` begins a return type, not a
-    # statement; `::` begins a label. A
+    # statement; `::` begins a label. Right after the parameter list's `)`
+    # the body also opens with no whitespace, before a character a statement
+    # can begin with (`function f()(g)() end`, `function f()return 1 end`);
+    # anywhere else, a statement needs whitespace before it, or the body
+    # would reopen before every character after one that closed it. A
     # parameter list moved to the next line is not supported with or
     # without generics. A return type takes in the line break after it,
     # as any type does, so the body also opens at the start of a line,
@@ -5928,7 +5931,7 @@ repository:
     # line to start with a character a statement can begin with: a line the
     # body cannot read (a stray `|` or `)`) closes the body, and reopening
     # it there would match nothing, again and again.
-    begin: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}*(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+    begin: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
