@@ -4,12 +4,37 @@
 // value, so the rest of the story compiles.
 
 import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
   collectDiagnostics,
   makeRuntimeStoryFromSource,
 } from "./runtimeTestHarness";
 
 const MESSAGE = "Expected '(' when parsing function, got 'named'";
+
+// The ranges of every error the compiler reports for `source`.
+function errorRanges(source: string): unknown[] {
+  const uri = "inmemory:///main.sd";
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  const result = compiler.compile({ textDocument: { uri } });
+  return Object.values(result.program.diagnostics ?? {})
+    .flat()
+    .filter((d) => (d as { severity?: number }).severity === 1)
+    .map((d) => (d as { range?: unknown }).range);
+}
 
 const store = "store g = function named() return 7 end\nValue {g()}.\n";
 const storeList = "store a, g = 1, function named() return 7 end\nValue {g()}.\n";
@@ -42,11 +67,13 @@ describe("named function in a value position", () => {
     ["dotted", "a.f"],
     ["method", "a:f"],
   ])("%s name: reports an error at the whole name", (_name, fnName) => {
-    const { errorMessages } = collectDiagnostics(
-      `store a = 999\nstore g = function ${fnName}() return 7 end\nValue {g()}.\n`,
-    );
+    const source = `store a = 999\nstore g = function ${fnName}() return 7 end\nValue {g()}.\n`;
+    const { errorMessages } = collectDiagnostics(source);
     expect(errorMessages).toEqual([
       `Expected '(' when parsing function, got '${fnName}'`,
+    ]);
+    expect(errorRanges(source)).toEqual([
+      { start: { line: 1, character: 19 }, end: { line: 1, character: 22 } },
     ]);
   });
 
@@ -61,7 +88,7 @@ describe("named function in a value position", () => {
     ["anonymous value", "store g = function() return 7 end\nValue {g()}.\n"],
     [
       "inline body starting with an access path",
-      "store t = 0\nstore g = function() t.x = 1 return 7 end\nValue {g()}.\n",
+      "store t = {}\nstore g = function() t.x = 1 return 7 end\nValue {g()}.\n",
     ],
   ])("%s reports nothing", (_name, source) => {
     const { errorMessages } = collectDiagnostics(source);
