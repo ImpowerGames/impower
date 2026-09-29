@@ -38,6 +38,9 @@ const STATEMENTS = [
   "local x = if t then 1 else 2;",
   "local x = iffy;",
   "local x = 1 +\n  2;",
+  "local x = - --[[c]] 1;",
+  "local x: --[[c]] number;",
+  "local x = - --[=[ ]] ]=] 1;",
 ] as const;
 
 describe("a local statement ends at a `;` directly after its value", () => {
@@ -65,6 +68,14 @@ describe("a local statement ends at a `;` directly after its value", () => {
     ["local foo = -\n\n  ;", "Expected identifier when parsing expression, got ';'"],
     ["local x = 1 + if;", "Expected identifier when parsing expression, got ';'"],
     ["local x =\n;", "Expected identifier when parsing expression, got ';'"],
+    // Comments are trivia to Luau, like the line breaks above.
+    ["local x: --[[c]] ;", "Expected type, got ';'"],
+    ["local x = if --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = - --[[c]] ;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = - --[=[c]=] ;", "Expected identifier when parsing expression, got ';'"],
+    ["local x: -- missing type\n;", "Expected type, got ';'"],
+    ["local x = if -- missing value\n;", "Expected identifier when parsing expression, got ';'"],
+    ["local foo = - -- missing operand\n;", "Expected identifier when parsing expression, got ';'"],
   ])("%j reports the value left empty before its `;`", (statement, message) => {
     expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
       expect.stringContaining(message),
