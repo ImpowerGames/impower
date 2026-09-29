@@ -45,6 +45,30 @@ variables:
   LUAU_RETURN_KEYWORDS: ["return"]
   LUAU_LOGICAL_KEYWORDS: ["and", "or", "not"]
   LUAU_MODULE_KEYWORDS: ["require", "export"]
+  LUAU_RESERVED_WORDS:
+    [
+      "and",
+      "break",
+      "do",
+      "else",
+      "elseif",
+      "end",
+      "false",
+      "for",
+      "function",
+      "if",
+      "in",
+      "local",
+      "nil",
+      "not",
+      "or",
+      "repeat",
+      "return",
+      "then",
+      "true",
+      "until",
+      "while",
+    ]
   LUAU_GLOBAL_DECLARATION_KEYWORDS: ["define"]
   # `type` is intentionally NOT included here. It IS a declaration
   # keyword for `type X = ...` type aliases (handled by the
@@ -5968,7 +5992,7 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauVariableDefinition:
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b(?!{{WS}}*function\b)({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -6002,9 +6026,16 @@ repository:
     # enclosing block, and the comma before it is left without a value (the
     # lowerer reports it, as Luau does). `LuauVariableDefinitionValue` is
     # `LuauExpression` without its statements for that reason, and
-    # `LuauVariableAssignment` refuses a keyword as a name. A statement
-    # after a complete declaration on the same line (`local x = 5 return
-    # x`) is therefore the enclosing body's next statement.
+    # `LuauVariableAssignment` refuses a reserved word before a comma or
+    # the end of its line. A statement after a complete declaration on the
+    # same line (`local x = 5 return x`) is therefore the enclosing body's
+    # next statement.
+    #
+    # Both declaration rules leave `local function`, `store function` and
+    # `const function` to `LuauFunctionDefinition`, whose begin takes the
+    # scope modifier itself; `LuauSparkdownVariableDefinition` is included
+    # ahead of it in narrative bodies. `luauVariableDefinitionValue.test.ts`
+    # holds the two rules' begin, captures and end together.
     patterns:
       - { include: "#LuauCommaLineBreak" }
       - { include: "#LuauComment" }
@@ -6022,7 +6053,7 @@ repository:
   # statement after it on the same line (`& local x = 5 return`) stays
   # inside it, where the lowerer reads it as a trailing statement.
   LuauSparkdownVariableDefinition:
-    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b({{WS}}*)
+    begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b(?!{{WS}}*function\b)({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -6044,8 +6075,9 @@ repository:
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
-  # `LuauVariableDefinition`), keeping `LuauFunctionDefinition` in their
-  # place so an anonymous function is still a value. The order is
+  # `LuauVariableDefinition`), keeping `LuauFunctionDefinition` in place
+  # of the statements, so an anonymous function is still a value, and
+  # `LuauUnitKeywords` in place of the keywords, so `...` is. The order is
   # `LuauExpression`'s; `luauVariableDefinitionValue.test.ts` holds the
   # two lists together.
   LuauVariableDefinitionValue:
@@ -6069,6 +6101,7 @@ repository:
       - { include: "#LuauString" }
       - { include: "#LuauBoolean" }
       - { include: "#LuauNil" }
+      - { include: "#LuauUnitKeywords" }
       - { include: "#LuauGenericsInstantiation" }
       - { include: "#LuauNewExpression" }
       - { include: "#LuauAccessPath" }
@@ -6084,16 +6117,21 @@ repository:
     # as a target since the next char after it is `(`, not `,`/`:`/
     # `=`). Target-shape identifiers are always followed by one of:
     #   `,` — continuing target list (`a, b = …`)
-    #   `:` — type annotation (`a: number = …`)
+    #   `:` — type annotation (`a: number = …`), but not a method call
+    #     (`s:upper()`), whose `:` is followed by a name and `(`; a
+    #     `typeof(x)` type is the exception
     #   `=` — assignment operator
     #   end-of-statement (newline / EOF / `--` line comment) —
     #     bare declaration (`local x` with no initializer)
     # Anything else (`g(`, `g.h`, `g[k]`, etc.) means the identifier
     # is actually an expression — fall through to `LuauExpression`
-    # at the outer `LuauVariableDefinition` level. A keyword is never a
-    # target: the `end` or `else` on the line after a comma that ends a
-    # declaration's line closes the enclosing block.
-    begin: (?!{{LUAU_TERMINATOR_KEYWORDS}})({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,:=]|--|\n|\r|$))
+    # at the outer `LuauVariableDefinition` level. A reserved word
+    # before a comma or the end of its line is never a target: `true`,
+    # `false` and `nil` there are values, and the `end` or `else` on the
+    # line after a comma that ends a declaration's line closes the
+    # enclosing block. A reserved word before `=` stays a target, so a
+    # define body can name a property `repeat`.
+    begin: (?!{{LUAU_RESERVED_WORDS}}{{WS}}*(?:--|,|$))({{LUAU_IDENTIFIER}})({{WS}}*)(?={{WS}}*(?:[,=]|:(?!{{WS}}*(?!typeof\b){{LUAU_IDENTIFIER}}{{WS}}*[(])|--|\n|\r|$))
     beginCaptures:
       1:
         patterns:

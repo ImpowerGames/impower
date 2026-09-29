@@ -26,6 +26,7 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import { Location, Position } from "./Location";
 import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
+import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
 export type TypecheckModeName = "strict" | "nonstrict" | "nocheck";
@@ -117,8 +118,7 @@ export function runFileUnit(uri: string, documentText: string): LuauUnit | undef
 
 // The statements of a `.sd` file that are Luau, wherever they sit.
 const LUAU_STATEMENTS = new Set([
-  "LuauVariableDefinition",
-  "LuauSparkdownVariableDefinition",
+  ...VARIABLE_DEFINITION_NAMES,
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
   "LuauReassignment",

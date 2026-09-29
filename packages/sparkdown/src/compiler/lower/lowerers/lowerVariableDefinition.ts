@@ -427,12 +427,14 @@ function withTrailingStatements(
 }
 
 // One value of the list. A bare name the grammar read as a target-shaped
-// `LuauVariableAssignment` is alone in its group (it ends at a comma or
-// the end of the line) and resolves as the same name in an access path.
+// `LuauVariableAssignment` (a name before a comma or the end of the line)
+// is alone in its group and has no content; it resolves as the same name
+// in an access path.
 function lowerValueGroup(nodes: SyntaxNode[], ctx: LowerContext) {
   const only = nodes.length === 1 ? nodes[0]! : null;
   const nameNode =
-    only?.name === "LuauVariableAssignment"
+    only?.name === "LuauVariableAssignment" &&
+    !findChildByName(only, "LuauVariableAssignment_content")
       ? getDescendent("LuauVariableName", only)
       : null;
   if (nameNode) {

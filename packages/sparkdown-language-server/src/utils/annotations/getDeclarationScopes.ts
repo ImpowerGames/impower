@@ -172,9 +172,7 @@ const getVariableScope = (
     return null;
   }
   let start = definition.to;
-  const content =
-    definition.getChild("LuauVariableDefinition_content") ??
-    definition.getChild("LuauSparkdownVariableDefinition_content");
+  const content = definition.getChild(`${definition.name}_content`);
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (TRAILING_STATEMENT_NAMES.has(child.name)) {
       start = child.from;

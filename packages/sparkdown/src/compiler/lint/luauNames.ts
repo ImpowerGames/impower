@@ -13,6 +13,7 @@
 // might refer to either of two declarations lists both.
 
 import { type SyntaxNode } from "@lezer/common";
+import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 import {
   childNamed,
   childrenOf,
@@ -268,8 +269,7 @@ function readDeclarations(
     const kind = cursor.name;
     if (
       kind !== "LuauFunctionDefinition" &&
-      kind !== "LuauVariableDefinition" &&
-      kind !== "LuauSparkdownVariableDefinition" &&
+      !VARIABLE_DEFINITION_NAMES.has(kind) &&
       kind !== "LuauForLoop" &&
       !END_BLOCKS.has(kind)
     ) {
@@ -314,10 +314,7 @@ function readDeclarations(
         const at = nameNode.to;
         add(nameNode, "localFunction", at, at, scope.end, scope.nested);
       }
-    } else if (
-      node.name === "LuauVariableDefinition" ||
-      node.name === "LuauSparkdownVariableDefinition"
-    ) {
+    } else if (VARIABLE_DEFINITION_NAMES.has(node.name)) {
       if (scopeOf(node, src) !== "local") continue;
       const scope = scopeEnd(node);
       if (!scope) continue;

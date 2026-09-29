@@ -65,6 +65,24 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
       "Value 4.\n",
     ],
     [
+      "a method call on the next line",
+      '  local s = "abc"\n  local a, g = 1,\n    s:upper()',
+      "return g",
+      "Value ABC.\n",
+    ],
+    [
+      "a method call on the same line",
+      '  local s = "abc"\n  local a, g = 1, s:upper()',
+      "return g",
+      "Value ABC.\n",
+    ],
+    [
+      "literals on the next line and on the same line",
+      "  local a, t, f, n = 1,\n    true, false,\n    nil\n  local b, u = 2, true",
+      "return tostring(t) .. tostring(f) .. tostring(n) .. tostring(u)",
+      "Value truefalseniltrue.\n",
+    ],
+    [
       "targets continued too",
       "  local a,\n    g = 1, 2",
       "return a + g * 10",
@@ -80,6 +98,15 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
     const { errors, text } = run(local(declaration, body));
     expect(errors).toEqual([]);
     expect(text).toBe(expected);
+  });
+
+  test.each([
+    ["on the same line", "function f(...)\n  local a, b = 0, ...\n  return b\nend\n"],
+    ["on the next line", "function f(...)\n  local a, b = 0,\n    ...\n  return b\nend\n"],
+  ])("a vararg value %s", (_name, fn) => {
+    const { errors, text } = run(`Value {f(7, 8)}.\n${fn}`);
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 7.\n");
   });
 
   test("a statement after a complete list stays its own statement", () => {
@@ -154,6 +181,23 @@ describe("narrative body: the declaration ends at its line", () => {
     const { errorMessages, warningMessages } = collectDiagnostics(source);
     expect(errorMessages).toEqual([missingValue(got)]);
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
+  });
+
+  test.each([
+    ["local", "local function f()\n  return 7\nend\nValue {f()}.\n"],
+    ["store", "store function f()\n  return 7\nend\nValue {f()}.\n"],
+    ["const", "const function f()\n  return 7\nend\nValue {f()}.\n"],
+    ["local in a scene", "-> one\nscene one\n  local function f()\n    return 7\n  end\n  Value {f()}.\nend\n"],
+  ])("a %s function is a function, not a declaration", (_name, source) => {
+    const { errors, text } = run(source);
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 7.\n");
+  });
+
+  test("a keyword can name a define property", () => {
+    const { errors, text } = run("define cfg with\n  repeat = 3\nend\nValue {cfg.repeat}.\n");
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 3.\n");
   });
 
   test("a declaration in an `&` statement ends at its line too", () => {

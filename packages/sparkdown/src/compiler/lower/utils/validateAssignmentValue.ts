@@ -17,6 +17,7 @@ const LOOKAHEAD = 4096;
 // side just like a bare `name =`.
 const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauLineComment",
+  "LuauDocLineComment",
   "LuauBlockComment",
   "LuauComment",
 ]);

@@ -74,11 +74,10 @@ describe("reads the rule recognizes", () => {
     ["a read in a repeat's until", "\nrepeat\n    local done = true\nuntil done\n"],
     ["a call through the local", "\nlocal f = print\nf(1)\n"],
     ["an index through the local", "\nlocal t = {}\nt.k = 1\n"],
-    // On one line the grammar nests what follows a declaration inside it;
-    // these shapes are from Luau's conformance suite.
+    // Statements after a declaration on its line; these shapes are from
+    // Luau's conformance suite.
     ["a read later on the same line", "\nlocal s, r = pcall(print) return s, r\n"],
     ["a read in a function statement on the same line", "\nlocal a = 1 function foo() return a end return foo()\n"],
-    ["a read after a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(x, a)\n"],
     // The grammar marks Sparkdown's structural words as keywords even where
     // they are names.
     ["a read of a local named `style`", "\nlocal style = {}\nsetStyle(style)\n"],
@@ -96,7 +95,6 @@ describe("reads the rule recognizes", () => {
     ["the name in a comment", "\nlocal x = 1\n-- x\n", 1],
     ["a local in a then arm read only in the else arm", "\nlocal c = true\nif c then\n    local y = 1\nelse\n    print(y)\nend\n", 3],
     ["a write from a narrative logic line", "\nlocal hp = 1\n& hp = 5\n", 1],
-    ["a redeclaration nested on another's line", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(a)\n", 1],
   ])("%s is not a read", (_name, body, line) => {
     expect(lintInFunction(body)).toEqual([
       {
@@ -104,6 +102,19 @@ describe("reads the rule recognizes", () => {
         message: expect.stringMatching(/^Variable '\w+' is never used; prefix with '_' to silence$/),
       },
     ]);
+  });
+
+  // A declaration after another on the same line is its own statement, as
+  // in Luau, so it hides the earlier local from the next line on.
+  const unused = (line: number) => ({
+    line,
+    message: "Variable 'x' is never used; prefix with '_' to silence",
+  });
+  test.each([
+    ["a read after it reads the redeclaration", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(x, a)\n", [unused(1)]],
+    ["no read leaves both unused", "\nlocal x = 1\nlocal a = {} local x = 3\nprint(a)\n", [unused(1), unused(2)]],
+  ])("a redeclaration after another declaration on its line: %s", (_name, body, expected) => {
+    expect(lintInFunction(body)).toEqual(expected);
   });
 });
 
@@ -113,7 +124,6 @@ describe("names the rule does not report", () => {
     ["an unused parameter", "\nlocal f = function(a) end\nreturn f\n"],
     ["an unused loop variable", "\nfor i = 1, 3 do\nend\n"],
     ["an unused generic-for variable", "\nfor k, v in pairs({}) do\n    print(v)\nend\n"],
-    // The grammar wraps the value `true` like a declared name.
     ["a value after the first in the list", "\nlocal _ = 1, true\n"],
   ])("%s", (_name, body) => {
     expect(lintInFunction(body)).toEqual([]);
