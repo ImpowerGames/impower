@@ -67,6 +67,44 @@ describe("loop newlines inside a function called from an interpolation", () => {
     expect(thousand.most).toBeLessThanOrEqual(1);
   });
 
+  test("reading the stream grows linearly with passes that keep whitespace", () => {
+    // `print(" ")` inside an interpolation pushes a kept space and each pass a
+    // newline, so the stream after the function's start grows by a space per
+    // pass. Deciding each newline must not reread that run (#1134): count the
+    // stream's element reads across the run.
+    const reads = (passes: number) => {
+      const ctx = makeRuntimeStoryFromSource(`function f()
+  local n = 0
+  while n < ${passes} do
+    n = n + 1
+    print(" ")
+  end
+  return n
+end
+
+BOB:
+  Spinning {f()}.
+`);
+      expect(ctx.errorMessages).toEqual([]);
+      ctx.story.collapseWhitespace = false;
+      const flow = (ctx.story.state as any)._currentFlow;
+      let count = 0;
+      flow.outputStream = new Proxy(flow.outputStream, {
+        get(target, key, receiver) {
+          if (typeof key === "string" && /^\d+$/.test(key)) count++;
+          return Reflect.get(target, key, receiver);
+        },
+      });
+      expect(runToEnd(ctx.story)).toContain(`${passes}.`);
+      return count;
+    };
+    const small = reads(200);
+    const large = reads(800);
+    // Four times the passes: linear reads grow about fourfold, a rescan of
+    // the kept run each pass about sixteenfold.
+    expect(large / small).toBeLessThan(8);
+  });
+
   // Controls: cases the fix must leave exactly as they were.
 
   test("a loop that makes no pass is unaffected", () => {
