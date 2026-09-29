@@ -10,6 +10,7 @@ import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot } from "../../program/ProgramRoot";
 import { ProgramStory } from "../../program/ProgramStory";
+import { chunkId } from "../../program/StatementChunk";
 import { compileScript, describeRoot, MAIN_URI, programCompiler } from "./programHarness";
 
 function posAt(text: string, offset: number) {
@@ -379,6 +380,23 @@ describe("a bad initializer", () => {
         message: typeof d.message === "string" ? d.message : d.message.value,
       }));
   };
+
+  // A root places every declaration chunk it lists, so no compile makes one
+  // it cannot; a root that answers nothing for one stands in for a store
+  // that broke that.
+  it("stops the declarations at a chunk the root cannot place, and names it", () => {
+    const { program } = compileScript("store a = 1\nstore b = 2\nHello {a} {b}.\n", {
+      programChunks: true,
+    });
+    const root = program.chunks!;
+    expect(root.initialization).toHaveLength(2);
+    const unplaced = chunkId(root.initialization[1]!);
+    const broken: ProgramRoot = Object.create(root);
+    broken.position = (id, near) => (id === unplaced ? undefined : root.position(id, near));
+    expect(() => new ProgramStory(broken)).toThrow(
+      `The program has no place for declaration chunk ${unplaced}.`,
+    );
+  });
 
   it("reports a constant that reads a variable on the line it reports it without chunks", () => {
     const text = "store y = 2\nconst C = y + 1\nHello.\n";

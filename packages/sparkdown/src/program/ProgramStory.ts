@@ -977,7 +977,15 @@ export class ProgramStory {
     for (const chunk of this.root.initialization) {
       const at = this.root.position(chunkId(chunk));
       if (!at) {
-        continue;
+        // The root places every declaration chunk it lists. One it cannot
+        // place stops the run as an initializer's error does, as `EnterBlock`
+        // raises a body the root does not hold, rather than leaving its
+        // globals unassigned.
+        state.position = null;
+        this.AddError(
+          `The program has no place for declaration chunk ${chunkId(chunk)}.`,
+        );
+        break;
       }
       const position: ProgramPosition = {
         sequence: at.sequence,
