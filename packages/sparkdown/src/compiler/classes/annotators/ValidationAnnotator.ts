@@ -116,7 +116,11 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
-const MISSING_TYPE = "Expected type, got ';'";
+const MISSING_TYPE = "Expected type, got ";
+// The `;`, `,` or `=` a `LuauTypeAnnotationMissingType` stops before, after
+// the whitespace, line breaks and comments the grammar's lookahead skips.
+const TYPE_ANNOTATION_END_AHEAD =
+  /^(?:\s|--\[(=*)\[[\s\S]*?\]\1\]|--(?!\[=*\[)[^\r\n]*)*([;,=])/;
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -514,9 +518,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // Likewise a type annotation `:` with no type before the `;`.
+    // Likewise a type annotation `:` with no type before the `;`, `,` or `=`
+    // after it; Luau names the token it found instead.
     if (nodeRef.name === "LuauTypeAnnotationMissingType") {
-      this.error(annotations, MISSING_TYPE, nodeRef.from, nodeRef.to);
+      const after = this.read(nodeRef.to, this.text?.length ?? nodeRef.to);
+      const token = TYPE_ANNOTATION_END_AHEAD.exec(after)?.[2] ?? ";";
+      this.error(annotations, `${MISSING_TYPE}'${token}'`, nodeRef.from, nodeRef.to);
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
