@@ -22,6 +22,11 @@ function f(c)
         then 1
         else 2
     else 3
+  local k = if c
+    .ok
+    then a
+      + 1
+    else b
   return tostring(10 + if c
     then a
     else b)

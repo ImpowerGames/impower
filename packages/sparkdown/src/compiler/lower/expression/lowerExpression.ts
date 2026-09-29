@@ -209,6 +209,17 @@ export function lowerExpressionFromNodes(
   nodes: SyntaxNode[],
   ctx: LowerContext,
 ): Expression | null {
+  // Lines that continue a value ending in an if expression with an else arm
+  // belong to that arm, which runs to the end of the expression.
+  const tailAt = continuedElseTailStart(nodes);
+  if (tailAt >= 0) {
+    const ifExpression = trailingIfExpressionWithElse(nodes[tailAt - 1]!);
+    if (ifExpression) {
+      ctx.ifExpressionElseTails ??= new Map();
+      ctx.ifExpressionElseTails.set(ifExpression.from, nodes.slice(tailAt));
+      nodes = nodes.slice(0, tailAt);
+    }
+  }
   // A continuation line's parts (`t` then `.a`) follow the value before them.
   nodes = expandLineContinuations(nodes, ctx);
   const tokens: Token[] = [];
@@ -405,6 +416,48 @@ export function lowerExpressionFromNodes(
     }
   }
   return prattParse(tokens, 0);
+}
+
+// The index in `nodes` where the continuation lines that end it begin, when
+// a value comes before them; -1 when no continuation line ends `nodes`.
+function continuedElseTailStart(nodes: SyntaxNode[]): number {
+  let start = nodes.length;
+  while (
+    start > 0 &&
+    (nodes[start - 1]!.name === "LuauLineContinuation" ||
+      isSkippableName(nodes[start - 1]!.name))
+  ) {
+    start--;
+  }
+  while (start < nodes.length && isSkippableName(nodes[start]!.name)) start++;
+  if (start === nodes.length || start === 0) return -1;
+  return start;
+}
+
+// The if expression with an else arm that `node`'s value ends in (`if c then
+// 1 else 2`, or `x + if c then 1 else 2`), found through the last operand
+// of the operations that hold it; null when the value ends in anything else.
+function trailingIfExpressionWithElse(node: SyntaxNode): SyntaxNode | null {
+  let current: SyntaxNode | null = node;
+  while (current) {
+    if (current.name === "LuauTernaryExpression") {
+      const content = findChildByName(current, "LuauTernaryExpression_content");
+      return content && findChildByName(content, "LuauElseExpression")
+        ? current
+        : null;
+    }
+    let last: SyntaxNode | null = current.lastChild;
+    while (
+      last &&
+      (last.name.endsWith("_end") || isSkippableName(last.name))
+    ) {
+      last = last.prevSibling;
+    }
+    if (last?.name.endsWith("_content")) last = last.lastChild;
+    while (last && isSkippableName(last.name)) last = last.prevSibling;
+    current = last;
+  }
+  return null;
 }
 
 // ============================================================================
@@ -1246,8 +1299,11 @@ export function lowerPrimary(
       return lowerDivertTargetLiteral(node, ctx);
     case "LuauFunctionDefinition":
       return lowerAnonymousFunction(node, ctx);
-    case "LuauTernaryExpression":
-      return lowerTernaryExpression(node, ctx);
+    case "LuauTernaryExpression": {
+      const elseTail = ctx.ifExpressionElseTails?.get(node.from) ?? [];
+      ctx.ifExpressionElseTails?.delete(node.from);
+      return lowerTernaryExpression(node, ctx, elseTail);
+    }
     default:
       return null;
   }
@@ -1270,9 +1326,14 @@ export function lowerPrimary(
 // ternaries via `else if`, binary ops), lowered from the clause's
 // body nodes. Conditional evaluation is handled at runtime by the
 // generated jump layout — see TernaryExpression.
+//
+// `elseTail` holds the lines that continue the expression after its else
+// arm (`else 2` then `+ 1`): the else arm runs to the end of the expression
+// in Luau, so they extend that arm.
 function lowerTernaryExpression(
   node: SyntaxNode,
   ctx: LowerContext,
+  elseTail: SyntaxNode[] = [],
 ): Expression | null {
   const content = findChildByName(node, "LuauTernaryExpression_content") ?? node;
 
@@ -1318,7 +1379,10 @@ function lowerTernaryExpression(
       branches.push({ condition: pendingCond, value });
       pendingCond = null;
     } else if (child.name === "LuauElseExpression") {
-      const value = lowerExpressionFromNodes(collectClauseBody(child), ctx);
+      const value = lowerExpressionFromNodes(
+        [...collectClauseBody(child), ...elseTail],
+        ctx,
+      );
       if (!value) return null;
       branches.push({ condition: null, value });
     }

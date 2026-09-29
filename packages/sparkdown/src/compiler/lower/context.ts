@@ -282,6 +282,14 @@ export interface LowerContext {
    * that is not among them.
    */
   usedLineContinuations?: Set<number> | null;
+  /**
+   * The continuation lines that extend an if expression's else arm, keyed
+   * by the if expression's start offset: the else arm runs to the end of
+   * the expression, so `else 2` then `+ 1` reads as `else 2 + 1`.
+   * `lowerExpressionFromNodes` sets an entry and the if-expression lowerer
+   * takes it.
+   */
+  ifExpressionElseTails?: Map<number, SyntaxNode[]>;
 }
 
 /**

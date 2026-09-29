@@ -6458,9 +6458,9 @@ repository:
   # rule begins by taking leading whitespace (`not`, `#`, `-`, a `function`
   # literal) still lands inside the condition rather than beside it.
   # A condition reads on to the next line only when that line begins with its
-  # `then`. Any other line ends it, so a condition whose `then` is not yet
-  # written ends with its own line rather than reading the lines below into
-  # the expression.
+  # `then` or continues the condition (`LuauLineContinuation`). Any other
+  # line ends it, so a condition whose `then` is not yet written ends with
+  # its own line rather than reading the lines below into the expression.
   LuauTernaryExpressionCondition:
     begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
     beginCaptures:
@@ -6469,11 +6469,12 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
+    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
     endCaptures:
       1:
         emit: true
@@ -6802,17 +6803,19 @@ repository:
     patterns:
       - { include: "#LuauThenOperator" }
       - { include: "#LuauComment" }
+      - { include: "#LuauLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     # End at the next ternary clause keyword, at a BEAT, or at a closing
     # bracket / arg separator. The arm reads on to the next line only when
-    # that line begins with its `else` or `elseif`, so the enclosing
+    # that line begins with its `else` or `elseif` or continues the arm's
+    # value (`LuauLineContinuation`), so the enclosing
     # expression, which ends at the end of a line, stays open while that
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:else|elseif)\b))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:else|elseif)\b|{{LUAU_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)

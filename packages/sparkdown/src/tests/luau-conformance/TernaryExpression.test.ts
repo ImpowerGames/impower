@@ -470,6 +470,41 @@ describe("if expression across lines", () => {
       "Value 11.\n",
     ],
     [
+      "a continuation line in the condition and the then arm",
+      "Value {f({ok = true, a = 1})}.\nfunction f(t)\n  local y = if t\n    .ok\n    then t\n      .a\n      + 10\n    else 2\n  return y\nend\n",
+      "Value 11.\n",
+    ],
+    [
+      "a continuation line in an elseif condition",
+      "Value {f(2)}.\nfunction f(c)\n  local y = if c\n    == 1\n    then 1\n    elseif c\n      == 2\n    then 2\n    else 3\n  return y\nend\n",
+      "Value 2.\n",
+    ],
+    [
+      "an operation after the else arm's value on its line",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 2 + 10\n  return y\nend\n",
+      "Value 1 12.\n",
+    ],
+    [
+      "a continuation line after the else arm's value",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else 2\n    + 10\n  return y\nend\n",
+      "Value 1 12.\n",
+    ],
+    [
+      "a continuation line after the else arm, with an operand before the expression",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = 100 + if c then 1 else 2\n    + 10\n  return y\nend\n",
+      "Value 101 112.\n",
+    ],
+    [
+      "a continuation line after a returned else arm",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  return if c then 1 else 2\n    + 10\nend\n",
+      "Value 1 12.\n",
+    ],
+    [
+      "a continuation line after a nested else arm",
+      "Value {f(true)} {f(false)}.\nfunction f(c)\n  local y = if c then 1 else if c then 2 else 3\n    + 10\n  return y\nend\n",
+      "Value 1 13.\n",
+    ],
+    [
       "nested on the line after then",
       "Value {f(true, false)}.\nfunction f(a, b)\n  local y = if a\n    then\n      if b\n        then 1\n        else 2\n    else 3\n  return y\nend\n",
       "Value 2.\n",
