@@ -7,6 +7,7 @@
 // enclosing `then` or `do` once its else arm is complete, including when
 // that arm is glued to the `then` or `do` with no whitespace.
 import { describe, expect, test } from "vitest";
+import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
@@ -74,6 +75,28 @@ function ifDiagnostics(source: string): string[] {
       const { start, end } = d.range;
       return `${start.line + 1}:${start.character + 1}-${end.line + 1}:${end.character + 1} ${d.message?.value ?? d.message}`;
     });
+}
+
+// How many reassignment statements a source parses into.
+function reassignmentCount(source: string): number {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: "inmemory:///main.sd",
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text: source,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  });
+  compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
+  const docs = (compiler as any).documents;
+  const tree = String(printTree(docs.tree("inmemory:///main.sd"), docs.get("inmemory:///main.sd")));
+  return tree.match(/\bLuauReassignment \[/g)?.length ?? 0;
 }
 
 describe("if-then-else expressions", () => {
@@ -675,7 +698,7 @@ describe("if expression without an else", () => {
 
   // Each clause that can end the line of an unfinished if expression. An
   // empty then or else arm stops the call when it runs, with or without the
-  // next line, so those two are checked by their diagnostics alone.
+  // next line, so every row also counts the two reassignments in the tree.
   test.each([
     ["no then yet", "  x = if true\n", `4:7-4:9 ${MISSING_THEN}`, "Value 6.\n"],
     ["then ending the line", "  x = if true then\n", `4:15-4:19 ${MISSING_CONDITION}`, null],
@@ -684,6 +707,7 @@ describe("if expression without an else", () => {
   ])("in a reassignment with %s, followed by a reassignment at column 0", (_name, partial, diagnostic, value) => {
     const source = `Value {f()}.\nfunction f()\n  local x = 0\n${partial}x = 6\n  return x\nend\n`;
     expect(ifDiagnostics(source)).toEqual([diagnostic]);
+    expect(reassignmentCount(source)).toBe(2);
     if (value !== null) {
       const ctx = makeRuntimeStoryFromSource(source);
       expect(ctx.story.ContinueMaximally()).toBe(value);

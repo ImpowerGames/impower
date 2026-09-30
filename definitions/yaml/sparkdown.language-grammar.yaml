@@ -246,8 +246,9 @@ variables:
   # of taking it, and a statement it is part of, such as a `LuauReassignment`
   # (which has nothing at a line start that ends it), ends at the end of its
   # own line rather than reading the next line (`x = 6`, `print(x)`,
-  # `local y = 1`) into itself.
-  BEFORE_LUAU_COLUMN_0_LINE: (?={{NL}}(?!\s|(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;]))
+  # `local y = 1`) into itself. The `\S` keeps it from matching at the end of
+  # a line that a line-by-line tokenizer (VS Code) sees with nothing after.
+  BEFORE_LUAU_COLUMN_0_LINE: (?={{NL}}(?=\S)(?!(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;]))
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
