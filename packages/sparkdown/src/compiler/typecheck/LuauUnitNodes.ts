@@ -77,17 +77,37 @@ export const SPARKDOWN_EXPRESSIONS = new Set([
 // Nodes that may sit anywhere in Luau: trivia and punctuation.
 export const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
 
+// The scope modifiers that are Luau's; any other (`store`) is Sparkdown's own,
+// and the checker reads its declaration without it.
+export const LUAU_SCOPE_MODIFIERS = new Set(["local", "const"]);
+
 /**
  * Whether the type checker reads a node as Luau: a node of one of a file's
- * Luau statements, outside what is Sparkdown's own in it. A flow header's
+ * Luau statements, outside what is Sparkdown's own in it, and not in a
+ * declaration whose scope modifier is Sparkdown's own (`store x: = 1`), whose
+ * annotation the checker reads without its declaration. A flow header's
  * parameters are not among them: the checker reads them only when they are
  * Luau's as written.
  */
-export function isCheckedLuau(node: SyntaxNode): boolean {
+export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number) => string): boolean {
   for (let n: SyntaxNode | null = node; n; n = n.parent) {
     if (SPARKDOWN_ONLY.has(n.name) || SPARKDOWN_EXPRESSIONS.has(n.name)) return false;
     if (!n.name.startsWith("Luau") && !NEUTRAL.test(n.name)) return false;
+    if (VARIABLE_DEFINITION_NAMES.has(n.name)) {
+      const modifier = findChild(n.getChild(`${n.name}_begin`)?.firstChild ?? null, "LuauScopeModifier");
+      if (modifier && !LUAU_SCOPE_MODIFIERS.has(read(modifier.from, modifier.to).trim())) return false;
+    }
     if (n.parent && !n.parent.parent) return LUAU_STATEMENTS.has(n.name);
   }
   return false;
+}
+
+/** The first node of a name among a node and its later siblings, and under them, depth first. */
+function findChild(node: SyntaxNode | null, name: string): SyntaxNode | null {
+  for (let child = node; child; child = child.nextSibling) {
+    if (child.name === name) return child;
+    const found = findChild(child.firstChild, name);
+    if (found) return found;
+  }
+  return null;
 }

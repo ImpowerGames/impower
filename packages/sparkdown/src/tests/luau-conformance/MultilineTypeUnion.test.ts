@@ -86,7 +86,6 @@ describe("every statement of a function runs", () => {
   test.each([
     ["a typed local on the header's line", `Value {f()}.\nfunction f() local x: number = 5\n  return x\nend\n`, "Value 5.\n"],
     ["statements separated by semicolons on the header's line", `Value {f(3)}.\nfunction f(n) local x = {}; for i = 1, n do x[i] = i end;\n  return #x\nend\n`, "Value 3.\n"],
-    ["a header ending in a colon", `Value {f(4)}.\nfunction f(x):\n  local y = x + 1\n  return y\nend\n`, "Value 5.\n"],
     ["call values after a comma", `Value {f()}.\nfunction f()\n  local a, b = math.sqrt(4), math.sqrt(9)\n  return a + b\nend\n`, "Value 5.\n"],
     ["a call in parentheses first on the header's line", `Value {f()}.\nfunction f() (function() print(1) end)() return 5 end\n`, "Value 15.\n"],
     ["a call in parentheses first after parameters", `Value {f(1)}.\nfunction f(a) (function() print(a) end)() return 5 end\n`, "Value 15.\n"],
@@ -107,6 +106,15 @@ describe("every statement of a function runs", () => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(output);
+  });
+
+  // A header ending in a colon has a return type with nothing in it, which
+  // Luau reports on the next line's first token (#1174); the statements
+  // after it still run.
+  test("with a header ending in a colon, which is reported", () => {
+    const ctx = makeRuntimeStoryFromSource(`Value {f(4)}.\nfunction f(x):\n  local y = x + 1\n  return y\nend\n`);
+    expect(ctx.errorMessages).toEqual(["Expected type, got 'local'"]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
 });
 

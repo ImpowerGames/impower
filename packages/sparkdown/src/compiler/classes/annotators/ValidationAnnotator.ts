@@ -555,6 +555,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /** The end of the token before `pos`, past the whitespace and block
+   *  comments before it, where Luau's range for a token it did not expect
+   *  begins. */
+  protected endOfTokenBefore(pos: number): number {
+    const before = this.startBeforeBlockComments(pos) ?? pos;
+    let end = before;
+    while (end > 0 && LUAU_WHITESPACE_RUN.test(this.read(end - 1, end))) {
+      end -= 1;
+    }
+    return end;
+  }
+
   /** The end of the text before the block comments (and the whitespace around
    *  them) that end at `pos`, or null when no block comment ends there. */
   protected startBeforeBlockComments(pos: number): number | null {
@@ -589,12 +601,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // only where the checker does not read the Luau: in a flow header's
     // parameters and in Sparkdown's own constructs.
     const checkerReportsType =
-      TYPE_ERROR_TOKENS.has(nodeRef.name) && isCheckedLuau(nodeRef.node);
+      TYPE_ERROR_TOKENS.has(nodeRef.name) && isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to));
     // A `?` only ends the type before it; the grammar reads one with no type
-    // before it as its own token. The wording is Luau's parser's.
+    // before it as its own token. The wording and range are Luau's parser's,
+    // from the end of the token before it.
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
       if (!checkerReportsType) {
-        this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+        this.error(annotations, STRAY_OPTIONAL, this.endOfTokenBefore(nodeRef.from), nodeRef.to);
       }
       return annotations;
     }
@@ -605,7 +618,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.error(
           annotations,
           `${MISSING_TYPE}, got '${this.read(colon.from, colon.to)}'`,
-          colon.from,
+          this.endOfTokenBefore(colon.from),
           colon.to,
         );
       }
@@ -617,15 +630,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // type checker reports where it reads the Luau.
     if (nodeRef.name === "LuauOperatorMissingOperand") {
       const isCast = this.read(nodeRef.from, nodeRef.to).trim() === "::";
-      if (!isCast || !isCheckedLuau(nodeRef.node)) {
+      if (!isCast || !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))) {
         this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       }
       return annotations;
     }
     // Likewise a type annotation `:`, or a type's `|`, `&` or `->`, with no
-    // type before the `;`, `,` or `=` after it; Luau names the token it found
-    // instead. After a name in a value, the `:` starts a method call, which is
-    // missing its name.
+    // type before the token after it that cannot start one; Luau names the
+    // token it found instead. After a name in a value, the `:` starts a
+    // method call, which is missing its name.
     if (
       nodeRef.name === "LuauTypeAnnotationMissingType" ||
       nodeRef.name === "LuauTypeBinaryOperatorMissingType"
@@ -634,8 +647,22 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (!isMethodColon && checkerReportsType) {
         return annotations;
       }
+      if (!isMethodColon) {
+        // Luau's range, as the checker reports it: from the end of the
+        // operator to the end of the token it found.
+        const operator = /^\s*(->|[:|&])/.exec(this.read(nodeRef.from, nodeRef.to));
+        const from = nodeRef.from + (operator?.[0].length ?? 0);
+        const got = nextSignificantToken(nodeRef.to, (a, b) => this.read(a, b));
+        this.error(
+          annotations,
+          `${MISSING_TYPE}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
+          from,
+          got == null ? nodeRef.to : got.from + got.text.length,
+        );
+        return annotations;
+      }
       const token = this.tokenAfterTrivia(nodeRef.to);
-      const expected = isMethodColon ? MISSING_METHOD_NAME : MISSING_TYPE;
+      const expected = MISSING_METHOD_NAME;
       this.error(
         annotations,
         token ? `${expected}, got '${token}'` : expected,

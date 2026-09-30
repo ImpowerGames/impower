@@ -162,11 +162,13 @@ describe("the reported layouts", () => {
 
   // A narrative body's declaration ends at its line, but a comma that ends
   // the line among its targets carries them onto the next line, as in Luau
-  // code, so the line after it is not narrative (#1166).
+  // code, so the line after it is not narrative (#1166), indented or not.
   test.each([
     ["local a,\n  b :: number", ["1:4-1:6 Expected identifier when parsing expression, got '::'"]],
+    ["local a,\nb :: number", ["1:2-1:4 Expected identifier when parsing expression, got '::'"]],
     ["scene s\n  local a,\n    b :: number\n  Hello.\nend", ["2:6-2:8 Expected identifier when parsing expression, got '::'"]],
     ["local a,\n  b: number", []],
+    ["local a,\nb: number", []],
     ["local a, -- the first\n  b: number,\n  c = 1, 2, 3", []],
   ])("in a narrative body, %j reports %j", (source, messages) => {
     const reported = diagnoseDetailed(`${source}\n`)
@@ -184,6 +186,23 @@ describe("the reported layouts", () => {
       },
     });
     expect(prose).toEqual(source.includes("Hello.") ? ["Hello."] : []);
+  });
+
+  // In a Sparkdown document the checker reads its Luau statements with the
+  // rest left out: the error at the end of that Luau runs to the next line as
+  // Luau's end-of-file range does, and one before a scene's `end` names that
+  // `end`. A `store` declaration and a scene's parameters are Sparkdown's own,
+  // and the validator reports them, with the range the checker would give.
+  test.each([
+    ["local x:", ["0:8-1:0 Expected type, got <eof>"]],
+    ["scene s\n  local x:\nend", ["1:10-2:3 Expected type, got 'end'"]],
+    ["store x: = 1", ["0:8-0:10 Expected type, got '='"]],
+    ["scene s(a: )\nend", ["0:10-0:12 Expected type, got ')'"]],
+  ])("in a Sparkdown document, %j reports %j", (source, messages) => {
+    const reported = diagnoseDetailed(`${source}\n`)
+      .filter((d) => d.code !== "LocalUnused")
+      .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${d.message}`);
+    expect(reported).toEqual(messages);
   });
 
   // The loop still binds its variables when they are annotated.

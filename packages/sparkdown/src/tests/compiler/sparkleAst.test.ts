@@ -423,6 +423,20 @@ end
     expect(forNode.else).toBeUndefined();
   });
 
+  // A loop variable's type annotation does not change its name (#1174).
+  test.each([
+    ["generic", "for k: string, v: number in scores do", ["k", "v"]],
+    ["numeric", "for i: number = 1, 3 do", ["i"]],
+  ])("a %s for's annotated bindings are their names", (_kind, header, bindings) => {
+    const ast = screenAst(`layout t with
+  ${header}
+    text "{${bindings[0]}}"
+  end
+end
+`);
+    expect(ast.t.children[0].bindings).toEqual(bindings);
+  });
+
   test("match/case/else lowers to a MatchNode (expr + case arms + else)", () => {
     const ast = screenAst(`layout sheet with
   match player.class do

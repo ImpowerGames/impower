@@ -15,6 +15,7 @@
 // check from scratch gives.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
+import { RESERVED } from "../lint/luauNames";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
 import { errorToString, UnknownSymbolContext } from "./Error";
@@ -58,6 +59,16 @@ export interface TypecheckDiagnostic {
 // type can stand, and names the token it found there. Every other syntax
 // error is Sparkdown's own validator's to report.
 const REPORTED_SYNTAX_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing variable name, got ':'$/;
+const MISSING_TYPE = /^Expected type, got /;
+
+// A `::` stands where an annotation's `:` does after a name that is not a
+// keyword, after a scope modifier with no name (`local :: number`), or after
+// the `)` of a function's parameters (`function f() :: number`), where Luau
+// reports no cast. After anything else it is an expression's error, such as
+// an if expression's `then` with no value before a cast, which is
+// Sparkdown's own validator's to report.
+const ANNOTATION_COLON_AFTER = /(?:(?:^|[^\w])([A-Za-z_]\w*)|(\)))\s*$/;
+const SCOPE_MODIFIERS = new Set(["local", "const", "store"]);
 
 // Syntax Sparkdown adds to Luau's, which Luau's parser rejects, is not
 // reported: the divert-target type (`function f(target: ->)`), which stands
@@ -138,17 +149,38 @@ export class SparkdownTypechecker {
     const checks: LuauUnitCheck[] = [];
     this.documentChecks.set(uri, checks);
     let lineStarts: number[] | undefined;
-    // Whether the grammar reads the character before a document position as syntax Sparkdown adds to Luau's.
-    const isSparkdownSyntax = (position: { line: number; character: number }) => {
+    const lineStartsOf = () => {
       if (!lineStarts) {
         lineStarts = [0];
         for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) lineStarts.push(i + 1);
       }
-      const offset = (lineStarts[position.line] ?? text.length) + position.character - 1;
+      return lineStarts;
+    };
+    const offsetOf = (position: { line: number; character: number }) =>
+      (lineStartsOf()[position.line] ?? text.length) + position.character;
+    // Whether the grammar reads the character before a document position as syntax Sparkdown adds to Luau's.
+    const isSparkdownSyntax = (position: { line: number; character: number }) => {
+      const offset = offsetOf(position) - 1;
       for (let node: SyntaxNode | null = tree.resolveInner(Math.max(offset, 0), 1); node; node = node.parent) {
         if (SPARKDOWN_SYNTAX.has(node.name)) return true;
       }
       return false;
+    };
+    // Whether a `::` at a document position stands where an annotation's `:` does.
+    const isAnnotationColon = (position: { line: number; character: number }) => {
+      const offset = offsetOf(position);
+      const before = ANNOTATION_COLON_AFTER.exec(text.slice(Math.max(0, offset - 200), offset));
+      if (!before) return false;
+      const word = before[1];
+      return word === undefined || !RESERVED.has(word) || SCOPE_MODIFIERS.has(word);
+    };
+    // A range that does not end after its start, as at the end of a unit,
+    // whose trailing line break is not in its text, ends at the start of the
+    // next line, where Luau's end-of-file range ends when the source ends
+    // with a line break.
+    const rangeEnd = (start: { line: number; character: number }, end: { line: number; character: number }) => {
+      if (end.line > start.line || (end.line === start.line && end.character > start.character)) return end;
+      return start.line + 1 < lineStartsOf().length ? { line: start.line + 1, character: 0 } : start;
     };
     const report = (entry: CachedUnit, unit: LuauUnit) => {
       checks.push(entry.check);
@@ -159,14 +191,17 @@ export class SparkdownTypechecker {
       const reportedTokens = new Set<string>();
       for (const error of entry.check.errors) {
         if (error.data.kind === "SyntaxError") {
-          if (!REPORTED_SYNTAX_ERROR.test(error.data.message) || error.data.message === DIVERT_TARGET_TYPE) continue;
+          const message = error.data.message;
+          if (!REPORTED_SYNTAX_ERROR.test(message) || message === DIVERT_TARGET_TYPE) continue;
           const start = documentPosition(unit, error.location.begin);
-          const end = documentPosition(unit, error.location.end);
+          const end = rangeEnd(start, documentPosition(unit, error.location.end));
+          // Every other reported error's range is the `::` alone.
+          if (message.endsWith("got '::'") && !MISSING_TYPE.test(message) && !isAnnotationColon(start)) continue;
           // The error's range ends with the token Luau found.
           const token = `${end.line}:${end.character}`;
           if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
           reportedTokens.add(token);
-          diagnostics.push({ start, end, code: "SyntaxError", message: error.data.message, syntax: true });
+          diagnostics.push({ start, end, code: "SyntaxError", message, syntax: true });
           continue;
         }
         const diagnostic: TypecheckDiagnostic = {

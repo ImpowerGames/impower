@@ -568,7 +568,7 @@ describe("checking a port against the manifest", () => {
     const checks = [
       { source: "", unparsed: { defect: 0 }, expect: [] },
       { source: "", unparsed: { divergence: "Not a section" }, expect: [] },
-      { source: "", unparsed: { divergence: "A malformed type annotation is not reported" }, expect: [] },
+      { source: "", unparsed: { divergence: "A malformed type annotation is reported only where its type cannot begin" }, expect: [] },
       { source: "", unparsed: { divergence: "`\"...\"` interpolates; `'...'` does not" }, expect: [] },
       { source: "", module: "", expect: [] },
       { source: "", malformed: "", expect: [] },

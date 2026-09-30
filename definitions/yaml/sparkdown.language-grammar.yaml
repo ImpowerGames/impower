@@ -6235,7 +6235,11 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    # As the Luau declaration's, but a line start right after a
+    # `LuauTargetCommaLineBreak` does not end it, so an unindented target
+    # goes on too (`local a,` then `b :: number`): in a narrative body no
+    # lowerer carries the line in, as it does in Luau code.
+    end: (?={{BEAT}})|(?=$|[;)\]}])|(?=^)(?<![,]{{WS}}*(?:--[^\r\n]*)?\r?\n)|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
 
   # A comma that ends its line among a narrative declaration's targets, with
   # no `=` before it on its line (`local a,` then `b: number`), read as

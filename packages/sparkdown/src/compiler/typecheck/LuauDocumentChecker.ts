@@ -26,7 +26,7 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import { Location, Position } from "./Location";
 import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
-import { FLOW_HEADERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
+import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
 export type TypecheckModeName = "strict" | "nonstrict" | "nocheck";
@@ -306,6 +306,8 @@ interface Flow {
   varargs: Vararg[];
   /** Whether the flow's own parameters end with `...`, which is then the first of `varargs`. */
   variadic: boolean;
+  /** The `end` that closes the flow, if one does. */
+  end?: SyntaxNode;
 }
 
 /** Removes `[from, to)` from sorted, disjoint spans. */
@@ -337,7 +339,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     if (SPARKDOWN_ONLY.has(name)) return true;
     if (name === "LuauScopeModifier") {
       const text = documentText.slice(node.from, node.to).trim();
-      return text !== "local" && text !== "const";
+      return !LUAU_SCOPE_MODIFIERS.has(text);
     }
     return !name.startsWith("Luau") && !NEUTRAL.test(name);
   };
@@ -456,7 +458,9 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
         open.push(flow);
       }
     } else if (node.name === "LuauEndKeyword") {
-      open.pop();
+      // A branch's `end` closes the branch, not the flow it is checked in.
+      const closed = open.pop();
+      if (closed && !open.includes(closed)) closed.end = node;
     } else if (node.name === "LuauFunctionDefinition") {
       keepLuau(prelude, node);
     } else if (LUAU_STATEMENTS.has(node.name)) {
@@ -511,8 +515,18 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
       text.push(...built.text);
       lines.push(...built.lines);
     }
-    text.push(...bodyLines.text, "end");
-    lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);
+    // The function ends at the flow's own `end`, at its column, so an error
+    // Luau reports at the `end` (a type missing before it) is placed there.
+    if (flow.end) {
+      const endText = documentText.slice(flow.end.from, flow.end.to);
+      const at = flow.end.from + endText.length - endText.trimStart().length;
+      const endLine = index.lineAt(at);
+      text.push(...bodyLines.text, `${" ".repeat(at - index.starts[endLine]!)}end`);
+      lines.push(...bodyLines.lines, endLine);
+    } else {
+      text.push(...bodyLines.text, "end");
+      lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);
+    }
     units.flows.push({ kind: "flow", text: text.join("\n"), lines });
   }
   return units;

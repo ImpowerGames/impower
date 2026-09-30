@@ -1184,7 +1184,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
       bindings = ctx
         .read(condContent.from, inKw.from)
         .split(",")
-        .map((s) => s.trim())
+        .map(loopVariableName)
         .filter(Boolean);
       const iterableNodes: SyntaxNode[] = [];
       let c = condContent.firstChild;
@@ -1235,6 +1235,12 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   return forNode;
 }
 
+/** A loop variable's name, from its text in the header, without the type
+ *  annotation after it (`item: number` is `item`). */
+function loopVariableName(text: string): string {
+  return /^\s*([A-Za-z_]\w*)/.exec(text)?.[1] ?? text.trim();
+}
+
 /** Parse a numeric `for` header (`i = from, to[, step]`, no `in`) from its
  *  `LuauForCondition_content`. The loop var is the text before the `= from`
  *  assignment; `from` is the assignment's value; `to`/`step` are the
@@ -1251,7 +1257,7 @@ function parseNumericForHeader(
   if (!asn) {
     return null;
   }
-  const loopVar = ctx.read(condContent.from, asn.from).trim();
+  const loopVar = loopVariableName(ctx.read(condContent.from, asn.from));
   if (!loopVar) {
     return null;
   }
