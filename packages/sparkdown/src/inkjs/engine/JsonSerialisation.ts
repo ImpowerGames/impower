@@ -40,6 +40,8 @@ interface WriterMemo {
   // Each table init built, by its underlying Map, to its path from a
   // default global (`SetWriterAnchors`).
   anchors: Map<object, string> | null;
+  // Each closed upvalue cell init built to its anchor.
+  cellAnchors: Map<VariablePointerValue, string> | null;
 }
 
 export class JsonSerialisation {
@@ -68,6 +70,7 @@ export class JsonSerialisation {
       nextCellId: 1,
       cellIds: new Map<VariablePointerValue, number>(),
       anchors: null,
+      cellAnchors: null,
     };
     return w.__objGraphMemo;
   }
@@ -89,12 +92,50 @@ export class JsonSerialisation {
   // define's store props are merged and its freeze flag restored, since
   // init rebuilds the rest. A constant's table only joins references: its
   // contents are the compiled program's, never the save's.
+  //
+  // A closed upvalue cell a closure init built holds is anchored the same
+  // way, by the closure's path and the cell's key: a load restores the
+  // saved value into the loading story's own cell, so closures init built
+  // that share it (and that the save may not write) keep sharing it.
   // ----------------------------------------------------------------
   public static SetWriterAnchors(
     writer: SimpleJson.Writer,
     anchors: Map<object, string>,
+    cellAnchors: Map<VariablePointerValue, string>,
   ): void {
-    JsonSerialisation.writerObjectMemo(writer).anchors = anchors;
+    const memo = JsonSerialisation.writerObjectMemo(writer);
+    memo.anchors = anchors;
+    memo.cellAnchors = cellAnchors;
+  }
+
+  private static _loadSessionCellAnchorResolver:
+    | ((
+        anchor: string,
+      ) => { cell: VariablePointerValue; restore: boolean } | null)
+    | null = null;
+
+  // Resolves a cell anchor to the loading story's cell at that path; set
+  // after `ResetObjectLoadSession`, which clears it.
+  public static SetLoadSessionCellAnchorResolver(
+    resolve: (
+      anchor: string,
+    ) => { cell: VariablePointerValue; restore: boolean } | null,
+  ): void {
+    this._loadSessionCellAnchorResolver = resolve;
+  }
+
+  // The loading story's cell for an anchored occurrence, which takes the
+  // occurrence's cell slot; null as for `anchoredObjectForLoad`.
+  private static anchoredCellForLoad(
+    anchor: string,
+    id: number,
+  ): { cell: VariablePointerValue; restore: boolean } | null {
+    const found = this._loadSessionCellAnchorResolver?.(anchor) ?? null;
+    if (!found) return null;
+    const slot = this._loadSessionCellsById.get(id);
+    if (slot && slot !== found.cell) return null;
+    this._loadSessionCellsById.set(id, found.cell);
+    return found;
   }
 
   private static _loadSessionAnchorResolver:
@@ -149,6 +190,7 @@ export class JsonSerialisation {
     this._loadSessionObjectsById = new Map();
     this._loadSessionCellsById = new Map();
     this._loadSessionAnchorResolver = null;
+    this._loadSessionCellAnchorResolver = null;
     this._pendingDefineRefs = [];
   }
 
@@ -588,12 +630,15 @@ export class JsonSerialisation {
       if (varPtrVal.contextIndex > 0 || varPtrVal.isClosed) {
         const memo = JsonSerialisation.writerObjectMemo(writer);
         const existingId = memo.cellIds.get(varPtrVal);
+        const anchor = memo.cellAnchors?.get(varPtrVal);
         if (existingId !== undefined) {
           writer.WriteIntProperty("cell", existingId);
+          if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
         } else {
           const id = memo.nextCellId++;
           memo.cellIds.set(varPtrVal, id);
           writer.WriteIntProperty("cell", id);
+          if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
           if (varPtrVal.isClosed) {
             writer.WriteIntProperty("closed", 1);
             if (varPtrVal.closedValue) {
@@ -1032,8 +1077,24 @@ export class JsonSerialisation {
         // its id; the occurrence that carries the closed state closes it.
         // A pointer written without a cell id loads as its own pointer.
         if (obj["cell"] !== undefined) {
+          const id = parseInt(obj["cell"]);
+          const anchored =
+            obj["anchor"] !== undefined
+              ? JsonSerialisation.anchoredCellForLoad(String(obj["anchor"]), id)
+              : null;
+          if (anchored) {
+            // A cell a constant reaches keeps its compiled value; the saved
+            // value is still read, so the tables it defines get their ids.
+            if (obj["closed"] && obj["cv"] !== undefined) {
+              const value = this.JTokenToRuntimeObject(obj["cv"]);
+              if (anchored.restore) anchored.cell.closedValue = value;
+            } else if (obj["closed"] && anchored.restore) {
+              anchored.cell.closedValue = null;
+            }
+            return anchored.cell;
+          }
           const cell = JsonSerialisation.upvalueCellForLoadSessionId(
-            parseInt(obj["cell"]),
+            id,
             propValue.toString(),
             contextIndex,
           );

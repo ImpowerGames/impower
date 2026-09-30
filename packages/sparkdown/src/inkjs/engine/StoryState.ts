@@ -592,6 +592,7 @@ export class StoryState {
     JsonSerialisation.SetWriterAnchors(
       writer,
       this.variablesState.InitTableAnchors(),
+      this.variablesState.InitCellAnchors(),
     );
     writer.WriteObjectStart();
 
@@ -677,6 +678,9 @@ export class StoryState {
     JsonSerialisation.ResetObjectLoadSession();
     JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
       this.variablesState.InitTableAtAnchor(anchor),
+    );
+    JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
+      this.variablesState.InitCellAtAnchor(anchor),
     );
 
     let jSaveVersion = jObject["inkSaveVersion"];

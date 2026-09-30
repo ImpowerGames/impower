@@ -514,6 +514,8 @@ export class VariablesState extends VariablesStateAccessor<
     this._initTablePaths = new Map();
     this._initRoots = new Map();
     this._initEdges = new Map();
+    this._initCellEdges = new Map();
+    this._initCellPaths = new Map();
     this._constantInitTables = new Set();
     const queue: { table: ObjectValue; path: string[] }[] = [];
     for (const [name, value] of this._defaultGlobalVariables) {
@@ -537,12 +539,25 @@ export class VariablesState extends VariablesStateAccessor<
       for (const [key, entry] of map as Map<string, InkObject>) {
         if (entry instanceof ObjectValue) {
           follow("." + key, entry);
-        } else if (
-          entry instanceof VariablePointerValue &&
-          entry.isClosed &&
-          entry.closedValue instanceof ObjectValue
-        ) {
-          follow("@cv." + key, entry.closedValue);
+        } else if (entry instanceof VariablePointerValue && entry.isClosed) {
+          // A closed upvalue cell a closure init built holds: other
+          // closures init built can share it, so it is anchored like a
+          // table, by the path of the closure holding it.
+          let cells = this._initCellEdges.get(map);
+          if (!cells) {
+            cells = new Map();
+            this._initCellEdges.set(map, cells);
+          }
+          cells.set(key, entry);
+          if (!this._initCellPaths.has(entry)) {
+            this._initCellPaths.set(
+              entry,
+              JSON.stringify([...path, "@cell." + key]),
+            );
+          }
+          if (entry.closedValue instanceof ObjectValue) {
+            follow("@cv." + key, entry.closedValue);
+          }
         }
       }
       if (table.metatable) follow("@mt", table.metatable);
@@ -576,26 +591,62 @@ export class VariablesState extends VariablesStateAccessor<
   public InitTableAtAnchor(
     anchor: string,
   ): { table: ObjectValue; restore: boolean } | null {
+    const path = VariablesState.ParseAnchor(anchor);
+    const table = path ? this.InitTableAtPath(path) : null;
+    if (!table) return null;
+    return {
+      table,
+      restore: !this._constantInitTables.has(table.value!),
+    };
+  }
+
+  // Each closed upvalue cell init built to its anchor: the path of a
+  // closure holding it followed by `"@cell." + key`.
+  public InitCellAnchors(): Map<VariablePointerValue, string> {
+    return this._initCellPaths;
+  }
+
+  // The cell init built at an anchor's path in this story, and whether a
+  // load may restore a saved value into it (not when a constant reaches the
+  // closure holding it).
+  public InitCellAtAnchor(
+    anchor: string,
+  ): { cell: VariablePointerValue; restore: boolean } | null {
+    const path = VariablesState.ParseAnchor(anchor);
+    const last = path?.[path.length - 1];
+    if (!path || path.length < 2 || !last?.startsWith("@cell.")) return null;
+    const table = this.InitTableAtPath(path.slice(0, -1));
+    const cell = table
+      ? this._initCellEdges.get(table.value!)?.get(last.slice("@cell.".length))
+      : undefined;
+    if (!cell) return null;
+    return {
+      cell,
+      restore: !this._constantInitTables.has(table!.value!),
+    };
+  }
+
+  private static ParseAnchor(anchor: string): string[] | null {
     let path: unknown;
     try {
       path = JSON.parse(anchor);
     } catch {
       return null;
     }
-    if (!Array.isArray(path) || typeof path[0] !== "string") return null;
-    let table = this._initRoots.get(path[0]) ?? null;
+    if (!Array.isArray(path) || path.length === 0) return null;
+    return path.every((segment) => typeof segment === "string")
+      ? (path as string[])
+      : null;
+  }
+
+  // Follows a path from a default global's init table through the
+  // recorded edges.
+  private InitTableAtPath(path: string[]): ObjectValue | null {
+    let table = this._initRoots.get(path[0]!) ?? null;
     for (let i = 1; table && i < path.length; i++) {
-      const segment = path[i];
-      table =
-        typeof segment === "string"
-          ? (this._initEdges.get(table.value!)?.get(segment) ?? null)
-          : null;
+      table = this._initEdges.get(table.value!)?.get(path[i]!) ?? null;
     }
-    if (!table) return null;
-    return {
-      table,
-      restore: !this._constantInitTables.has(table.value!),
-    };
+    return table;
   }
 
   public RetainListOriginsForAssignment(
@@ -716,6 +767,11 @@ export class VariablesState extends VariablesStateAccessor<
   private _initRoots: Map<string, ObjectValue> = new Map();
   private _initEdges: Map<object, Map<string, ObjectValue>> = new Map();
   private _constantInitTables: Set<object> = new Set();
+  // The closed upvalue cells init built: each table's cells by key, and
+  // each cell's anchor.
+  private _initCellEdges: Map<object, Map<string, VariablePointerValue>> =
+    new Map();
+  private _initCellPaths: Map<VariablePointerValue, string> = new Map();
 
   private _callStack: CallStack;
   private _changedVariablesForBatchObs: Set<string> | null = new Set();

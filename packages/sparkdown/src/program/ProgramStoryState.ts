@@ -432,6 +432,7 @@ export class ProgramStoryState {
     JsonSerialisation.SetWriterAnchors(
       writer,
       this.variablesState.InitTableAnchors(),
+      this.variablesState.InitCellAnchors(),
     );
     writer.WriteObjectStart();
     writer.WriteProperty("engine", "program");
@@ -503,6 +504,9 @@ export class ProgramStoryState {
     JsonSerialisation.ResetObjectLoadSession();
     JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
       this.variablesState.InitTableAtAnchor(anchor),
+    );
+    JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
+      this.variablesState.InitCellAtAnchor(anchor),
     );
     const position = obj["position"] as number[] | null;
     if (position) {

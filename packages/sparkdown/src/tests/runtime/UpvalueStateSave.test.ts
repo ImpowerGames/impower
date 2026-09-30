@@ -373,6 +373,30 @@ end
     expectSameAcrossSave(source, "First.\nResult wanderer true.\n");
   });
 
+  test("a saved closure keeps sharing its cell with a closure a define holds from init", () => {
+    // Only `inc` reaches the save (through the scene local); `get` is held
+    // by the define, which init rebuilds and the save does not write.
+    const source = `function make()
+  local n = 0
+  return {
+    inc = function() n = n + 1 return n end,
+    get = function() return n end
+  }
+end
+define Holder with
+  pair = make()
+end
+-> main
+scene main
+  & local inc = Holder.pair.inc
+  First {inc()}.
+  Second {inc()} {Holder.pair.get()}.
+  fin
+end
+`;
+    expectSameAcrossSave(source, "First 1.\nSecond 2 2.\n");
+  });
+
   test("a save the engine wrote before cells and anchors loads as it did then", () => {
     // Written by the engine at `writtenBy`, which also loaded it and took
     // the choice to produce `afterChoosingFirst`.
