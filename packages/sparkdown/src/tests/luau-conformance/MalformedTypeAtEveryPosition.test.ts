@@ -88,9 +88,10 @@ for (const { name, template, followers, nothingIsValid } of POSITIONS) {
       const valid = !!shape.valid || (!!nothingIsValid && shape.type === "");
       cases.push({ position: name, shape: shape.name, source, valid });
     }
-    // The annotation's own `:` doubled, or written twice.
+    // The annotation's own `:` doubled (also after a block comment), or
+    // written twice.
     if (template.includes(": T")) {
-      for (const colon of [" :: number", " : : number"]) {
+      for (const colon of [" :: number", " --[[c]] :: number", " : : number"]) {
         cases.push({ position: name, shape: `\`${colon.trim()}\` for its \`:\``, source: tidy(template.replace(": T", colon).replace("F", follower)), valid: false });
       }
     }
@@ -226,6 +227,8 @@ describe("the reported layouts", () => {
     ["a parameter", `function f(a --[[${long}]] :: number) end`],
     ["a parameter, with a leveled comment", `function f(a --[==[${long}]==] :: number) end`],
     ["a table field", `local t: { a --[[${long}]] :: number } = nil`],
+    ["a parameter, with an opener in the comment's text", "function f(a --[[ ( --[[ ]] :: number) end"],
+    ["a parameter, after two comments", "function f(a --[[x]] --[[y]] :: number) end"],
   ])("a long comment before `::` in %s reports Luau's one error", (_position, source) => {
     const result = checkLuau(`${source}\n`);
     const luau = luauTypeErrors(result.diagnostics);

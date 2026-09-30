@@ -184,9 +184,13 @@ export class SparkdownTypechecker {
         if (!close) break;
         const closeStart = end - close[0].length;
         const opener = `--[${close[1]}[`;
-        const open = text.lastIndexOf(opener, closeStart);
+        // The comment opens at the first opener after the close before it,
+        // since a comment's own text can hold another opener
+        // (`--[[ a --[[ b ]]`).
+        const previousClose = text.lastIndexOf(close[0], closeStart - close[0].length);
+        const open = text.indexOf(opener, previousClose < 0 ? 0 : previousClose + close[0].length);
         // Only a comment that this bracket closes (not `t[a[1]]`).
-        if (open < 0 || text.indexOf(close[0], open + opener.length) !== closeStart) break;
+        if (open < 0 || open >= closeStart || text.indexOf(close[0], open + opener.length) !== closeStart) break;
         end = open;
       }
       const before = ANNOTATION_COLON_AFTER.exec(text.slice(Math.max(0, end - 200), end));
