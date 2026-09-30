@@ -142,6 +142,32 @@ function countDescendants(node: SyntaxNode, names: Set<string>): number {
 
 const UNTIL = nodeNameSet(["LuauUntilStatement"]);
 
+// How many more `until`s lie inside `repeat` than `repeat` loops nested in it
+// to take them.
+function untilsLeftInside(repeat: SyntaxNode): number {
+  return countDescendants(repeat, UNTIL) - countDescendants(repeat, REPEAT_LOOPS);
+}
+
+// Whether the grammar read the loop's own `until` into one of its statements
+// (#1092), as in `repeat & local z = 1 until true`, which
+// `lowerLuauRepeatLoop` reports. An `until` inside a block of the loop (an
+// `if` left without its `end`, a nested `repeat`) is not one: the block
+// reports itself, or takes the `until` as its own.
+export function untilReadIntoStatement(repeat: SyntaxNode): boolean {
+  if (untilsLeftInside(repeat) <= 0) return false;
+  const inStatement = (node: SyntaxNode): boolean => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (child.name === "LuauUntilStatement") return true;
+      if (END_BLOCKS[child.name] || LOOPS[child.name] || REPEAT_LOOPS.has(child.name)) {
+        continue;
+      }
+      if (inStatement(child)) return true;
+    }
+    return false;
+  };
+  return inStatement(repeat);
+}
+
 // Whether the `until`s that follow `repeat` or lie inside it are enough for
 // it and the `repeat` loops nested in it. The grammar can end nested loops at
 // the same `until` and hang it after the outermost, where Luau gives it to the
@@ -150,10 +176,7 @@ function hasUntil(repeat: SyntaxNode): boolean {
   let next = repeat.nextSibling;
   while (next && skippable(next)) next = next.nextSibling;
   const following = next?.name === "LuauUntilStatement" ? 1 : 0;
-  return (
-    following + countDescendants(repeat, UNTIL) >
-    countDescendants(repeat, REPEAT_LOOPS)
-  );
+  return following + untilsLeftInside(repeat) > 0;
 }
 
 // The `end` keyword inside a block's `_end` node, if it has one.

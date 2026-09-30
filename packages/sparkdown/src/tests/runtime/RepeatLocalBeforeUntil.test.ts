@@ -45,6 +45,16 @@ describe("a repeat loop whose body ends with a local declaration", () => {
     expect(r.output).toBe("Result 3.\n");
   });
 
+  // A loop nested directly in another is #1195; a block between them keeps
+  // each `until` with its own loop.
+  test("a loop nested in a block inside another loop runs without an error", () => {
+    const r = run(
+      "function f()\n  local n = 0\n  repeat\n    do repeat n = n + 1 local z = 1 until true end\n  until true\n  return n\nend\n\nResult {f()}.\n",
+    );
+    expect(r.errors).toEqual([]);
+    expect(r.output).toBe("Result 1.\n");
+  });
+
   test("the top level shows the line after the loop", () => {
     const r = run(
       "store n = 0\nrepeat n = n + 1 local z = 1 until true\nCount {n}.\n",

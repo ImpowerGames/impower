@@ -17,6 +17,7 @@ import { collectLineContinuation } from "../utils/lineContinuation";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lineTextSpan, makeSource } from "../utils/validateDefineStructure";
+import { untilReadIntoStatement } from "../utils/validateBlockEnds";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import { syntheticId } from "../utils/documentTag";
 import {
@@ -193,26 +194,12 @@ function findNextUntilSibling(repeatNode: SyntaxNode): SyntaxNode | null {
 const UNPAIRED_UNTIL =
   "This `repeat` loop could not be read up to its `until`, so it and the lines after it in its block are left out. Put `until` on its own line.";
 
-function countDescendants(node: SyntaxNode, names: ReadonlySet<string>): number {
-  let count = 0;
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (names.has(child.name)) count++;
-    count += countDescendants(child, names);
-  }
-  return count;
-}
-
-const UNTIL = nodeNameSet(["LuauUntilStatement"]);
-const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
-
-// A loop with no `until` after it, but with more `until`s inside it than
-// nested loops to take them, had its `until` read into one of its statements
-// (#1092). `validateBlockEnds` leaves that loop alone, since its `until` is
-// not missing, so the loop that is dropped here says so.
+// A loop with no `until` after it whose `until` the grammar read into one of
+// its statements (#1092). `validateBlockEnds` leaves that loop alone, since
+// its `until` is not missing, so the loop that is dropped here says so. Both
+// count the loop's `until`s the same way (`untilReadIntoStatement`).
 function reportUnpairedUntil(repeat: SyntaxNode, ctx: LowerContext): void {
-  if (countDescendants(repeat, UNTIL) <= countDescendants(repeat, REPEAT_LOOPS)) {
-    return;
-  }
+  if (!untilReadIntoStatement(repeat)) return;
   const line = lineTextSpan(repeat.from, repeat.to, ctx);
   if (!line) return;
   ctx.diagnostics?.push({
