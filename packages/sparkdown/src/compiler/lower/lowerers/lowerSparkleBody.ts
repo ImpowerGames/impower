@@ -1181,11 +1181,15 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   if (condContent) {
     const inKw = firstDescendant(condContent, nodeNameSet(["LuauInKeyword"]));
     if (inKw) {
-      bindings = ctx
-        .read(condContent.from, inKw.from)
-        .split(",")
-        .map(loopVariableName)
-        .filter(Boolean);
+      // Each variable is a path of its own before `in`; a type annotation
+      // after one is not, so a comma inside its type is not a separator
+      // (`for k: {a: number, b: string}, v in scores`).
+      for (let c = condContent.firstChild; c && c.to <= inKw.from; c = c.nextSibling) {
+        if (c.name === "LuauAccessPath") {
+          bindings.push(loopVariableName(ctx.read(c.from, c.to)));
+        }
+      }
+      bindings = bindings.filter(Boolean);
       const iterableNodes: SyntaxNode[] = [];
       let c = condContent.firstChild;
       while (c) {

@@ -164,6 +164,11 @@ const LUAU_NAME = /^[A-Za-z_]\w*/;
 const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
   GRAMMAR_DEFINITION.variables.LUAU_NON_TYPE_KEYWORDS,
 );
+// Whitespace or a Luau comment, and a Luau token as Luau's lexer reads it: a
+// name or keyword, a number (with its digits, `.`, `_`, exponent and
+// suffix), a multi-character operator, or one character.
+const LUAU_TRIVIA = /\s+|--\[(=*)\[[\s\S]*?\]\1\]|--[^\n]*/y;
+const LUAU_TOKEN = /[A-Za-z_]\w*|(?:\d|\.\d)[\d._]*(?:[eE][+-]?)?\w*|\.\.\.|\.\.=?|\/\/=?|[=~<>]=|::|->|[+\-*/%^]=|\S/y;
 // The `end` line a `run` file's wrapper closes its function with.
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
 const STRAY_CLOSING_BRACKET =
@@ -678,7 +683,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    */
   protected luauTokenAfter(pos: number): { text: string | null; to: number } {
     const read = (from: number, to: number) => this.read(from, to);
-    const got = nextSignificantToken(pos, read);
+    const got = this.luauTokenAt(pos);
     if (got && !read(pos, got.from).includes("\n")) {
       return { text: got.text, to: got.from + got.text.length };
     }
@@ -690,6 +695,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return { text: null, to: this.text?.lineAt(got.from).from ?? got.from };
     }
     return { text: null, to: this.text?.length ?? pos };
+  }
+
+  /** The Luau token at or after `pos`, past whitespace and comments of any
+   *  length, read whole as Luau's lexer reads it (`123`, `..`, `::`), or
+   *  `null` at the end of the text. */
+  protected luauTokenAt(pos: number): { text: string; from: number } | null {
+    const rest = this.read(pos, this.text?.length ?? pos);
+    let i = 0;
+    for (;;) {
+      LUAU_TRIVIA.lastIndex = i;
+      const trivia = LUAU_TRIVIA.exec(rest);
+      if (!trivia || !trivia[0]) break;
+      i += trivia[0].length;
+    }
+    LUAU_TOKEN.lastIndex = i;
+    const token = LUAU_TOKEN.exec(rest);
+    return token ? { text: token[0], from: pos + i } : null;
   }
 
   /** The end of the token before `pos`, past the whitespace and block

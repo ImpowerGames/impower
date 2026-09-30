@@ -74,7 +74,7 @@ const MISSING_NAME = /^Expected identifier when parsing (?:variable name|table f
 // validator's to report.
 const ANNOTATION_COLON_AFTER = /(?:(?:^|[^\w])([A-Za-z_]\w*)|(\)))\s*$/;
 // A block comment's close at the end of text, with its level.
-const BLOCK_COMMENT_CLOSE_AT_END = /\](=*)\]\s*$/;
+const BLOCK_COMMENT_CLOSE_AT_END = /\](=*)\]$/;
 const SCOPE_MODIFIERS = new Set(["local", "const", "store"]);
 
 // Syntax Sparkdown adds to Luau's, which Luau's parser rejects, is not
@@ -175,14 +175,21 @@ export class SparkdownTypechecker {
     };
     // Whether a `::` at a document position stands where an annotation's `:` does.
     const isAnnotationColon = (position: { line: number; character: number }) => {
-      const offset = offsetOf(position);
-      let preceding = text.slice(Math.max(0, offset - 200), offset);
-      for (let close = BLOCK_COMMENT_CLOSE_AT_END.exec(preceding); close; close = BLOCK_COMMENT_CLOSE_AT_END.exec(preceding)) {
-        const open = preceding.lastIndexOf(`--[${close[1]}[`, close.index);
-        if (open < 0) break;
-        preceding = preceding.slice(0, open);
+      // The end of the code before the `::`, past whitespace and block
+      // comments of any length.
+      let end = offsetOf(position);
+      for (;;) {
+        while (end > 0 && /\s/.test(text[end - 1]!)) end -= 1;
+        const close = BLOCK_COMMENT_CLOSE_AT_END.exec(text.slice(Math.max(0, end - 64), end));
+        if (!close) break;
+        const closeStart = end - close[0].length;
+        const opener = `--[${close[1]}[`;
+        const open = text.lastIndexOf(opener, closeStart);
+        // Only a comment that this bracket closes (not `t[a[1]]`).
+        if (open < 0 || text.indexOf(close[0], open + opener.length) !== closeStart) break;
+        end = open;
       }
-      const before = ANNOTATION_COLON_AFTER.exec(preceding);
+      const before = ANNOTATION_COLON_AFTER.exec(text.slice(Math.max(0, end - 200), end));
       if (!before) return false;
       const word = before[1];
       return word === undefined || !RESERVED.has(word) || SCOPE_MODIFIERS.has(word);

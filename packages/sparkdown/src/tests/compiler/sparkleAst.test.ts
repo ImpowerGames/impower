@@ -426,6 +426,8 @@ end
   // A loop variable's type annotation does not change its name (#1174).
   test.each([
     ["generic", "for k: string, v: number in scores do", ["k", "v"]],
+    ["table-typed", "for k: {a: number, b: string}, v in scores do", ["k", "v"]],
+    ["function-typed", "for k: (number, string) -> nil, v in scores do", ["k", "v"]],
     ["numeric", "for i: number = 1, 3 do", ["i"]],
   ])("a %s for's annotated bindings are their names", (_kind, header, bindings) => {
     const ast = screenAst(`layout t with

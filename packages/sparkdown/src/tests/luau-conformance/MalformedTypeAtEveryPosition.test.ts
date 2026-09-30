@@ -31,6 +31,13 @@ function luauTypeErrors(diagnostics: LuauDiagnostic[]): string[] {
     .map(describeDiagnostic);
 }
 
+/** A `.sd` document's errors, as `line:character-line:character message`. */
+function documentErrors(source: string): string[] {
+  return diagnoseDetailed(`${source}\n`)
+    .filter((d) => d.code !== "LocalUnused")
+    .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${d.message}`);
+}
+
 // Every position a type can appear, with `T` where the type goes and `F`
 // where what follows it goes, and what can follow it there. Luau allows
 // empty type arguments (`B<>`), so there nothing is not malformed.
@@ -200,11 +207,30 @@ describe("the reported layouts", () => {
     ["scene s(a, :: number)\nend", ["0:11-0:13 Expected identifier when parsing variable name, got '::'"]],
     ["scene s(a :: number)\nend", ["0:10-0:12 Expected ')' (to close '(' at column 8), got '::'"]],
     ["scene s(a --[[c]] :: number)\nend", ["0:18-0:20 Expected ')' (to close '(' at column 8), got '::'"]],
+    // A token Luau reads whole.
+    ["scene s(a: 123)\nend", ["0:10-0:14 Expected type, got '123'"]],
+    ["scene s(a: ..)\nend", ["0:10-0:13 Expected type, got '..'"]],
   ])("in a Sparkdown document, %j reports %j", (source, messages) => {
-    const reported = diagnoseDetailed(`${source}\n`)
-      .filter((d) => d.code !== "LocalUnused")
-      .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${d.message}`);
-    expect(reported).toEqual(messages);
+    expect(documentErrors(source)).toEqual(messages);
+  });
+
+  // A block comment of any length before the `::` or the token Luau finds.
+  const long = "x".repeat(5000);
+  test.each([
+    ["a local target", `local x --[[${long}]] :: number`, ["0:5015-0:5017 Expected identifier when parsing expression, got '::'"]],
+    ["a store declaration", `store x: --[[${long}]] = 1`, ["0:8-0:5017 Expected type, got '='"]],
+  ])("in a Sparkdown document, a long comment in %s", (_position, source, messages) => {
+    expect(documentErrors(source)).toEqual(messages);
+  });
+  test.each([
+    ["a parameter", `function f(a --[[${long}]] :: number) end`],
+    ["a parameter, with a leveled comment", `function f(a --[==[${long}]==] :: number) end`],
+    ["a table field", `local t: { a --[[${long}]] :: number } = nil`],
+  ])("a long comment before `::` in %s reports Luau's one error", (_position, source) => {
+    const result = checkLuau(`${source}\n`);
+    const luau = luauTypeErrors(result.diagnostics);
+    expect(luau).toHaveLength(1);
+    expect(result.syntaxDiagnostics.map(describeDiagnostic)).toEqual(luau);
   });
 
   // The loop still binds its variables when they are annotated.
