@@ -1,6 +1,7 @@
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { Range } from "@codemirror/state";
+import type { SyntaxNode } from "@lezer/common";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import VALID_STYLE_PROPS_DATA from "../../constants/validStyleProps.json";
@@ -15,6 +16,8 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
+import { RESERVED } from "../../lint/luauNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -117,8 +120,11 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
+const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
+const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
 const MISSING_TYPE_NODES = nodeNameSet([
   "LuauTypeAnnotationMissingType",
+  "LuauTypeBinaryOperatorMissingType",
   "LuauFunctionReturnMissingType",
 ]);
 const EMPTY_AT_END_OPERATIONS = nodeNameSet([
@@ -142,6 +148,10 @@ const LUAU_COMMENT = nodeNameSet([
   "LuauDocLineComment",
   "LuauLineComment",
 ]);
+// Luau reads a name on a later line after a `.`, but a Sparkdown access path
+// ends with its line.
+const NAME_ON_LATER_LINE =
+  "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -541,6 +551,37 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     );
   }
 
+  /**
+   * Whether a missing-type `:` is read as part of an access path (`t.a: = 2`)
+   * other than a `for` loop variable's annotation (`for i: = 1, 3`): the name
+   * directly after `for` or after a comma before the loop's `in` or `=`.
+   */
+  protected isMethodColon(node: SyntaxNode): boolean {
+    const part = node.parent;
+    if (part?.name !== "LuauAccessPart") {
+      return false;
+    }
+    let path: SyntaxNode | null = part.parent;
+    while (path && path.name !== "LuauAccessPath") {
+      path = path.parent;
+    }
+    if (!path || path.parent?.name !== "LuauForCondition_content") {
+      return true;
+    }
+    if (part.prevSibling?.name !== "LuauAccessPart" || part.prevSibling.prevSibling) {
+      return true;
+    }
+    for (let before = path.prevSibling; before; before = before.prevSibling) {
+      if (
+        before.name === "LuauInKeyword" ||
+        before.name === "LuauAssignmentOperation"
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /** The end of the text before the block comments (and the whitespace around
    *  them) that end at `pos`, or null when no block comment ends there. */
   protected startBeforeBlockComments(pos: number): number | null {
@@ -581,17 +622,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // Likewise a type annotation or return type `:` with no type before the
-    // `;`, `,`, `=` or keyword after it; Luau names the token it found
-    // instead.
+    // Likewise a type annotation or return type `:`, or a type's `|`, `&` or
+    // `->`, with no type before the `;`, `,`, `=` or keyword after it; Luau
+    // names the token it found instead. After a name in a value, the `:`
+    // starts a method call, which is missing its name.
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const token = this.tokenAfterTrivia(nodeRef.to);
+      const expected = this.isMethodColon(nodeRef.node)
+        ? MISSING_METHOD_NAME
+        : MISSING_TYPE;
       this.error(
         annotations,
-        `${MISSING_TYPE}, got ${token ? `'${token}'` : "<eof>"}`,
+        `${expected}, got ${token ? `'${token}'` : "<eof>"}`,
         nodeRef.from,
         nodeRef.to,
       );
+      return annotations;
+    }
+    // A `::` after a declaration's target, where an annotation takes one `:`.
+    if (nodeRef.name === "LuauTargetTypeCastOperator") {
+      this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
       return annotations;
     }
     // The grammar only sees the text it has read so far, so it cannot tell an
@@ -621,6 +671,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.error(annotations, STRAY_OPTIONAL, operator.from, operator.to);
         return annotations;
       }
+    }
+    // A member access whose last `.` has no name after it on its line
+    // (`t.a.`). The grammar reads that `.`, after any whitespace before it, as
+    // its own token, so the `.` is the node's last character. The wording is
+    // Luau's parser's, naming the token it meets instead of the name.
+    if (nodeRef.name === "LuauDanglingAccessor") {
+      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+        this.read(from, to),
+      );
+      const nameOnLaterLine =
+        got != null &&
+        /^[A-Za-z_]/.test(got.text) &&
+        !RESERVED.has(got.text) &&
+        this.read(nodeRef.to, got.from).includes("\n");
+      const message = nameOnLaterLine
+        ? NAME_ON_LATER_LINE
+        : `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`;
+      this.error(annotations, message, nodeRef.to - 1, nodeRef.to);
+      return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
     // reads at most `module.Type`, so the segments after it are a syntax

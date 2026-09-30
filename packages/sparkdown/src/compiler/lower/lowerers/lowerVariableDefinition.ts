@@ -5,6 +5,7 @@ import {
 } from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { ErrorType } from "../../../inkjs/engine/Error";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
@@ -35,6 +36,7 @@ import {
 } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
+import { statementSource } from "../utils/statementSource";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import {
   forwardBlockDiagnostics,
@@ -319,9 +321,17 @@ export function lowerVariableDefinition(
   const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
 
   // `const x = expr` — must be single-target, single-RHS. Reject
-  // multi-target const and multi-RHS const (Luau doesn't support
-  // either form for `const`).
+  // multi-target const and multi-RHS const with an error on the
+  // declaration; without it every read of the undeclared name is
+  // silently nil.
   if (scope === "const") {
+    if (targets.length > 1 || expressions.length > 1) {
+      ctx.diagnostics?.push({
+        message: "A `const` takes one name and one value",
+        severity: ErrorType.Error,
+        source: statementSource(nodeRef, ctx),
+      });
+    }
     if (targets.length !== 1 || expressions.length !== 1) return {};
     return wrapInWeave(
       withTrailingStatements(

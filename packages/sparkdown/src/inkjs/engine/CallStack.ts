@@ -41,6 +41,11 @@ export class CallStack {
 
     this._threads.length = 0;
     this._threads.push(value);
+    // The thread now stands in for the one it was copied from (a taken
+    // choice), so it closes the cells that thread's scopes would have.
+    for (const el of value.callstack) {
+      el.AdoptBorrowedUpvalues();
+    }
   }
 
   get canPop() {
@@ -409,6 +414,13 @@ export namespace CallStack {
     // captured pointer becomes self-contained at frame-pop time.
     public openUpvalues: VariablePointerValue[] = [];
 
+    // The open upvalues of the element this one was copied from. A copy
+    // (a `<-` thread, or the thread a choice would continue on) holds the
+    // same cells in its copied scopes but never closes them, since the
+    // thread it was copied from may still bind their variables; it adopts
+    // them only once it replaces that thread (`AdoptBorrowedUpvalues`).
+    public borrowedUpvalues: VariablePointerValue[] = [];
+
     constructor(
       type: PushPopType,
       pointer: Pointer,
@@ -481,7 +493,19 @@ export namespace CallStack {
         this.evaluationStackHeightWhenPushed;
       copy.functionStartInOutputStream = this.functionStartInOutputStream;
       copy.previousPointer = this.previousPointer.copy();
+      copy.borrowedUpvalues = [...this.openUpvalues, ...this.borrowedUpvalues];
       return copy;
+    }
+
+    // Take over closing the borrowed cells still open, as the element this
+    // one was copied from would have.
+    public AdoptBorrowedUpvalues() {
+      for (const ptr of this.borrowedUpvalues) {
+        if (!ptr.isClosed && !this.openUpvalues.includes(ptr)) {
+          this.openUpvalues.push(ptr);
+        }
+      }
+      this.borrowedUpvalues = [];
     }
   }
 
@@ -580,6 +604,14 @@ export namespace CallStack {
             }
           }
 
+          // The open upvalue cells registered with this element, owned and
+          // borrowed, by the same cell ids the closures holding them were
+          // written with.
+          el.openUpvalues = Thread.ReadUpvalueCells(jElementObj["upvalues"]);
+          el.borrowedUpvalues = Thread.ReadUpvalueCells(
+            jElementObj["borrowedUpvalues"],
+          );
+
           this.callstack.push(el);
         }
 
@@ -589,6 +621,27 @@ export namespace CallStack {
           this.previousPointer = storyContext.PointerAtPath(prevPath);
         }
       }
+    }
+
+    // Writes the cells still open, if any, under `property`.
+    public static WriteUpvalueCells(
+      writer: SimpleJson.Writer,
+      property: string,
+      cells: VariablePointerValue[],
+    ) {
+      const open = cells.filter((ptr) => !ptr.isClosed);
+      if (open.length === 0) return;
+      writer.WritePropertyStart(property);
+      JsonSerialisation.WriteListRuntimeObjs(writer, open);
+      writer.WritePropertyEnd();
+    }
+
+    public static ReadUpvalueCells(jCells: unknown): VariablePointerValue[] {
+      if (!Array.isArray(jCells)) return [];
+      return JsonSerialisation.JArrayToRuntimeObjList(jCells).filter(
+        (cell): cell is VariablePointerValue =>
+          cell instanceof VariablePointerValue,
+      );
     }
 
     public Copy() {
@@ -656,6 +709,13 @@ export namespace CallStack {
           writer.WriteArrayEnd();
           writer.WritePropertyEnd();
         }
+
+        Thread.WriteUpvalueCells(writer, "upvalues", el.openUpvalues);
+        Thread.WriteUpvalueCells(
+          writer,
+          "borrowedUpvalues",
+          el.borrowedUpvalues,
+        );
 
         writer.WriteObjectEnd();
       }

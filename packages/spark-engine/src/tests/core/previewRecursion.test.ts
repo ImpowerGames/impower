@@ -7,10 +7,11 @@
 // program, so a display that runs for minutes leaves the preview blank for
 // the rest of the session.
 //
-// The first shape is the one the ticket found: a dangling `t.a.` inside a
-// function leaves the function open, the story below it compiles into the
-// function's body, and a preview of the `Value {f()}` line enters that body,
-// whose interpolation calls the function it is in.
+// The ticket found it through a dangling `t.a.` inside a function, which left
+// the function open and compiled the story below it into the function's body
+// (#1079), so a preview of the `Value {f()}` line entered that body, whose
+// interpolation called the function it was in. That parse now keeps the
+// function closed; the recursion cases use functions that call themselves.
 
 import { describe, expect, test } from "vitest";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
@@ -63,11 +64,7 @@ const previewOf = async (source: string, line: number, limits?: Limits) => {
   };
 };
 
-/** The ticket's script as the editor held it after the `.` was typed. It
- *  recurses only because that parse leaves `f` open and compiles the `BOB:`
- *  line into it (#1079); once the parse keeps `f` closed, the cases that use
- *  it fail on their "stack overflow" assertions and need a script that still
- *  recurses in the same way. */
+/** The ticket's script as the editor held it after the `.` was typed. */
 const DANGLING_ACCESS = [
   "$:",
   "  A QUIET ROOM",
@@ -94,9 +91,30 @@ const SELF_CALL = [
   "",
 ].join("\n");
 
-describe("a preview that recurses without end (#1072)", () => {
-  test("stops on a stack overflow when a dangling access leaves the function open", async () => {
+/** A function that displays a line and then calls itself, from a dialogue
+ *  line, so each call does the work of a displayed line. */
+const DISPLAY_SELF_CALL = [
+  "function f()",
+  '  display("Again.")',
+  "  return f()",
+  "end",
+  "",
+  "BOB:",
+  "  Value {f()}.",
+  "",
+].join("\n");
+
+describe("a preview of a dangling access (#1079)", () => {
+  test("shows the line below the function without recursing", async () => {
     const result = await previewOf(DANGLING_ACCESS, 10, LIMITS);
+    expect(result.errors.join("\n")).not.toContain("stack overflow");
+    expect(result.text).toContain("Value");
+  }, 120_000);
+});
+
+describe("a preview that recurses without end (#1072)", () => {
+  test("stops on a stack overflow when each call displays a line", async () => {
+    const result = await previewOf(DISPLAY_SELF_CALL, 6, LIMITS);
     expect(result.errors.join("\n")).toContain("stack overflow");
     expect(result.advancesUsed).toBeLessThan(LIMITS.steps);
   }, 120_000);
@@ -108,9 +126,9 @@ describe("a preview that recurses without end (#1072)", () => {
   }, 120_000);
 
   test("reaches the default call depth long before the default step budget", async () => {
-    // Measured on the ticket's shape, whose calls each display a line, so
-    // the headroom holds for recursion heavier than a bare call.
-    const measured = await previewOf(DANGLING_ACCESS, 10, LIMITS);
+    // Measured on calls that each display a line, so the headroom holds for
+    // recursion heavier than a bare call.
+    const measured = await previewOf(DISPLAY_SELF_CALL, 6, LIMITS);
     expect(measured.errors.join("\n")).toContain("stack overflow");
     const perCall = measured.advancesUsed / LIMITS.depth;
     expect(perCall).toBeGreaterThan(1);
