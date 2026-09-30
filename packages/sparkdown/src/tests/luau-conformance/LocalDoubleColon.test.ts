@@ -27,9 +27,15 @@ describe("a local target followed by `::`", () => {
     },
   );
 
-  test.each(["local x :: number", "local x :: number = 1", "local a, b :: number"])(
+  // A type takes in the line break after it (#1053), so a declaration that
+  // ends in one spans that line break, as `local x: number` does (#1183).
+  test.each([
+    ["local x :: number", 1],
+    ["local x :: number = 1", 0],
+    ["local a, b :: number", 1],
+  ] as const)(
     "%j in a narrative body stays one declaration, with no prose after it",
-    (statement) => {
+    (statement, lineBreak) => {
       const tree = parseSource(`${statement}\n`);
       const names: string[] = [];
       const cur = tree.cursor();
@@ -37,9 +43,24 @@ describe("a local target followed by `::`", () => {
         if (cur.name === "LuauSparkdownVariableDefinition") names.push(`${cur.from}-${cur.to}`);
         if (/^(ImplicitAction|TextChunk)$/.test(cur.name)) names.push(cur.name);
       } while (cur.next());
-      // A type at the end of its line takes the line break in (#1053).
-      expect(names).toHaveLength(1);
-      expect([`0-${statement.length}`, `0-${statement.length + 1}`]).toContain(names[0]);
+      expect(names).toEqual([`0-${statement.length + lineBreak}`]);
+    },
+  );
+
+  test.each(["local x :: number", "local a, b :: number"])(
+    "%j ends at its line, so the next line is prose",
+    (statement) => {
+      const tree = parseSource(`${statement}\nhello\n`);
+      const names: string[] = [];
+      const cur = tree.cursor();
+      do {
+        if (/^(LuauSparkdownVariableDefinition|TextChunk)$/.test(cur.name)) names.push(`${cur.name} ${cur.from}-${cur.to}`);
+      } while (cur.next());
+      const next = statement.length + 1;
+      expect(names).toEqual([
+        `LuauSparkdownVariableDefinition 0-${next}`,
+        `TextChunk ${next}-${next + "hello".length}`,
+      ]);
     },
   );
 
