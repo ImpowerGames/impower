@@ -144,18 +144,35 @@ assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high"
   const hooks = JSON.parse(fs.readFileSync(installReviewerHooks(home), "utf8")).hooks.PreToolUse;
   assert.equal(hooks.length, 1);
   assert.equal(new RegExp(hooks[0].matcher).test("Bash") && new RegExp(hooks[0].matcher).test("apply_patch"), true);
+  // A real Codex event carries the session id; the shared entry point's
+  // session-title gate refuses an event without one.
+  const sessionId = `reviewer-hook-test-${process.pid}-${Date.now()}`;
   const runHook = (hook, command) => {
-    const payload = JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd: outside, tool_input: { command } });
+    const payload = JSON.stringify({ session_id: sessionId, hook_event_name: "PreToolUse", tool_name: "Bash", cwd: outside, tool_input: { command } });
     const [shell, args] = process.platform === "win32" ? ["powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", hook.commandWindows]] : ["sh", ["-c", hook.command]];
-    try { return { status: 0, stdout: execFileSync(shell, args, { cwd: outside, input: payload, encoding: "utf8", windowsHide: true, stdio: ["pipe", "pipe", "pipe"] }) }; }
-    catch (error) { return { status: error.status, stdout: error.stdout ?? "" }; }
+    try { return { status: 0, stdout: execFileSync(shell, args, { cwd: outside, input: payload, encoding: "utf8", windowsHide: true, stdio: ["pipe", "pipe", "pipe"] }), stderr: "" }; }
+    catch (error) { return { status: error.status, stdout: error.stdout ?? "", stderr: error.stderr ?? "" }; }
   };
   for (const command of ["npx vitest run", "git stash push -m probe", "gh issue create --title probe --body probe"]) {
     const result = runHook(hooks[0].hooks[0], command);
-    assert.equal(result.status, 0, command);
+    assert.equal(result.status, 0, `${command}: ${result.stderr}`);
     assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny", `the reviewer hook refuses ${command}`);
   }
-  assert.equal(runHook(hooks[0].hooks[0], "git status").stdout.trim(), "", "an ordinary command passes the reviewer hook");
+  const ordinary = runHook(hooks[0].hooks[0], "git status");
+  assert.equal(ordinary.status, 0, `an ordinary command passes the reviewer hook: ${ordinary.stderr}`);
+  assert.equal(ordinary.stdout.trim(), "", "an ordinary command draws no decision");
+  // A policy path holding shell expansion syntax and quotes runs that exact
+  // file; a decoy at the path an expansion would name exits 0 and says nothing.
+  const literalDir = fs.mkdtempSync(path.join(scratch, "hook-literal-"));
+  const literalEntry = path.join(literalDir, "$HOME o'k ’q", "policy.mjs");
+  fs.mkdirSync(path.dirname(literalEntry));
+  fs.writeFileSync(literalEntry, `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: "deny", permissionDecisionReason: "literal policy" } }));`);
+  const decoyDir = path.join(literalDir, `${os.homedir()} o'k ’q`);
+  if (!fs.existsSync(decoyDir)) try { fs.mkdirSync(decoyDir, { recursive: true }); fs.writeFileSync(path.join(decoyDir, "policy.mjs"), ""); } catch {}
+  const literalHook = JSON.parse(fs.readFileSync(installReviewerHooks(fs.mkdtempSync(path.join(scratch, "hook-literal-home-")), { entry: literalEntry }), "utf8")).hooks.PreToolUse[0].hooks[0];
+  const literal = runHook(literalHook, "git status");
+  assert.equal(literal.status, 0, `the literal policy path runs: ${literal.stderr}`);
+  assert.equal(JSON.parse(literal.stdout).hookSpecificOutput.permissionDecisionReason, "literal policy", "the hook runs the policy at its literal path, not an expanded one");
   const brokenHome = fs.mkdtempSync(path.join(scratch, "hook-broken-"));
   const broken = path.join(scratch, "broken-hook.mjs");
   fs.writeFileSync(broken, "process.exit(1);");

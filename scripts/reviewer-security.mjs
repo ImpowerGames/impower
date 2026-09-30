@@ -66,10 +66,13 @@ export const reviewerHookEntry=path.join(path.dirname(path.dirname(fileURLToPath
 // so every failure of the wrapper is converted to exit 2.
 export function installReviewerHooks(home,{node=process.execPath,entry=reviewerHookEntry}={}) {
   if(!fs.statSync(entry,{throwIfNoEntry:false})?.isFile())throw new Error(`Repository hook entry point missing at ${entry}; reviewer not launched`);
-  const quote=value=>`"${value.replaceAll('"','')}"`;
+  // Single-quoted literals: neither shell expands `$` inside them, so a path
+  // holding `$name` cannot resolve to a different policy file. PowerShell also
+  // ends a literal at the typographic single quotes, so those are doubled too.
+  const posix=value=>"'"+value.replaceAll("'","'\"'\"'")+"'",powershell=value=>"'"+value.replace(/['‘’‚‛]/g,'$&$&')+"'";
   const hook={type:'command',timeout:10,
-    command:`${quote(node)} ${quote(entry)} codex || { printf "%s\\n" "Repository hook: Node policy check failed." >&2; exit 2; }`,
-    commandWindows:`$ErrorActionPreference = "Stop"; try { & ${quote(node)} ${quote(entry)} codex; if ($LASTEXITCODE -ne 0) { throw "Node policy check failed." } } catch { [Console]::Error.WriteLine("Repository hook: " + $_.Exception.Message); exit 2 }`};
+    command:`${posix(node)} ${posix(entry)} codex || { printf "%s\\n" "Repository hook: Node policy check failed." >&2; exit 2; }`,
+    commandWindows:`$ErrorActionPreference = "Stop"; try { & ${powershell(node)} ${powershell(entry)} codex; if ($LASTEXITCODE -ne 0) { throw "Node policy check failed." } } catch { [Console]::Error.WriteLine("Repository hook: " + $_.Exception.Message); exit 2 }`};
   const file=path.join(home,'hooks.json');
   fs.writeFileSync(file,JSON.stringify({hooks:{PreToolUse:[{matcher:'^(Bash|apply_patch|Write|Edit)$',hooks:[hook]}]}},null,2),{flag:'wx'});
   return file;
