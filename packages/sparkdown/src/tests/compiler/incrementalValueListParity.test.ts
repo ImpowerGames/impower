@@ -82,6 +82,7 @@ describe("a continued local list after an incremental edit to its `=`", () => {
     ["gaining its `=`", "local aa, bb == 1,\n  helper", "bb ==", "bb ="],
     ["losing its `=`", "local aa, bb = 1,\n  helper", "bb =", "bb =="],
     ["three lines, gaining its `=`", "local aa, bb == 1,\n  2,\n  helper", "bb ==", "bb ="],
+    ["gaining its `=` before a name with its own", "local aa, bb == 1,\n  helper = 2", "bb ==", "bb ="],
   ])("annotates a later-line name as a cold parse does when %s", (_, declaration, find, replace) => {
     let text = script(declaration);
     const incremental = open(text);
@@ -126,11 +127,15 @@ describe("the re-annotation window after an edit inside a declaration", () => {
     expect(windows[0]!).toBeLessThan(text.indexOf("helper()", name));
   });
 
+  // An edit inside a value changes no `=` and no name in the list, so the
+  // window stays the reparsed range even when a name follows the value.
   it.each([
     ["a table", "local t = {", "}"],
     ["a closure", "local g = function()", "end"],
+    ["a table followed by a name", "local t, u = {", "}, helper"],
+    ["a closure followed by a name", "local g, h = function()", "end, helper"],
   ])("stops at the reparsed range inside %s value", (_, first, last) => {
-    const comma = last === "}" ? "," : "";
+    const comma = first.endsWith("{") ? "," : "";
     const rows = Array.from({ length: 200 }, (_, i) => `  row_${i} = ${i} + 1${comma}`);
     let text = script([first, ...rows, last].join("\n"));
     const registry = open(text);

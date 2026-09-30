@@ -67,6 +67,34 @@ describe("a name in a declaration's value list", () => {
   });
 });
 
+// A name after the list's `=` is a value even when the grammar gives it a
+// type or an `=` of its own: `local a = 1, b = 2` reads `b` and then fails on
+// the second `=`, as the lowerer and the lints read it.
+describe.each([
+  ["with a second `=`", "local a = 1, helper = 2"],
+  ["with a type", "local a = 1, helper: number"],
+])("a name after the list's `=` %s", (_, declaration) => {
+  const source = `function helper()\nend\nfunction f()\n  ${declaration}\n  helper()\nend\n`;
+
+  test("is not a declaration", () => {
+    const decls = annotationsFor(source, "declarations").map((d) => `${d.value} ${d.text}`);
+    expect(decls).toContain("var a");
+    expect(decls).not.toContain("var helper");
+  });
+
+  test("is a read reference", () => {
+    const refs = annotationsFor(source, "references");
+    const value = refs.find((r) => r.from === offsetOf(source, "helper", 2));
+    expect(value?.value.kind).toBe("read");
+  });
+
+  test("does not rebind the function it names", () => {
+    const tokens = annotationsFor(source, "semantics");
+    const call = tokens.find((t) => t.from === offsetOf(source, "helper", 3));
+    expect(call?.value.tokenType).toBe("function");
+  });
+});
+
 // A target's own `=` is the one directly after its name and type: the
 // `k = 1` inside `typeof({ k = 1 })` is not the list's `=`, so a bare name
 // after it, before a statement on the same line, is still declared.
