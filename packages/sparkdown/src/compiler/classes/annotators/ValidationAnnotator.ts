@@ -20,6 +20,7 @@ import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue"
 import { RESERVED } from "../../lint/luauNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -139,10 +140,12 @@ const TYPE_COLON_BEGINS = nodeNameSet([
 const LUAU_TYPE_LITERAL = nodeNameSet(["LuauTypeLiteral"]);
 const LUAU_NAME_START = /[A-Za-z_]/;
 const LUAU_NAME = /^[A-Za-z_]\w*/;
-// A `run` file is compiled as a document of its own, its text wrapped in a
-// function that ends with this line.
-const RUN_QUERY = "?run=";
-const RUN_WRAPPER_END = "end\n";
+// The keywords that cannot start a type, which leave an annotation empty.
+const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
+  GRAMMAR_DEFINITION.variables.LUAU_NON_TYPE_KEYWORDS,
+);
+// The `end` line a `run` file's wrapper closes its function with.
+const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
 const LUAU_COMMENT = nodeNameSet([
   "LuauBlockComment",
   "LuauDocLineComment",
@@ -545,7 +548,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   protected isRunWrapperEnd(pos: number): boolean {
     const length = this.text?.length ?? 0;
     return (
-      !!this.uri?.includes(RUN_QUERY) &&
+      !!this.uri &&
+      runWrapperName(this.uri) !== undefined &&
       pos === length - RUN_WRAPPER_END.length &&
       this.read(pos, length) === RUN_WRAPPER_END
     );
@@ -646,15 +650,24 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     // The grammar only sees the text it has read so far, so it cannot tell an
     // annotation that the end of the file leaves empty (`local w:` on a
-    // `.luau` file's last line); the whole text is here.
+    // `.luau` file's last line), nor one whose next line starts past the
+    // chunk of text it was given, where it reads that line's keyword as the
+    // type. The whole text is here.
     if (EMPTY_AT_END_OPERATIONS.has(nodeRef.name)) {
       const colon = firstDescendant(nodeRef.node, TYPE_COLON_BEGINS);
+      const token = colon ? this.tokenAfterTrivia(colon.to) : undefined;
       if (
         colon &&
-        !firstDescendant(nodeRef.node, LUAU_TYPE_LITERAL) &&
-        !this.tokenAfterTrivia(colon.to)
+        (token
+          ? LUAU_NON_TYPE_KEYWORDS.has(token)
+          : !firstDescendant(nodeRef.node, LUAU_TYPE_LITERAL))
       ) {
-        this.error(annotations, `${MISSING_TYPE}, got <eof>`, colon.from, colon.to);
+        this.error(
+          annotations,
+          `${MISSING_TYPE}, got ${token ? `'${token}'` : "<eof>"}`,
+          colon.from,
+          colon.to,
+        );
         return annotations;
       }
     }

@@ -21,9 +21,16 @@ describe("a type annotation left empty at the end of its line", () => {
     ["function g(): = nil end\n", "0:12-0:14 SyntaxError: Expected type, got '='"],
     ["function g():\n  local x = 1\nend\n", "0:12-0:13 SyntaxError: Expected type, got 'local'"],
     ["local f = function():\n  return 1\nend\n", "0:20-0:21 SyntaxError: Expected type, got 'return'"],
+    ["type function F(t):\n  return t\nend\n", "0:18-0:19 SyntaxError: Expected type, got 'return'"],
   ])("%j reports the missing type on the colon", (source, message) => {
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
   });
+
+  // Every error a script's compile reports, with its range.
+  const errorsIn = (file: string, sources: Record<string, string>) =>
+    diagnoseFilesDetailed(sources)
+      .filter((d) => d.file === file && d.severity === 1)
+      .map(({ range, message }) => `${range!.start.line}:${range!.start.character}-${range!.end.line}:${range!.end.character} ${message}`);
 
   // A `.luau` file is also validated as it is, where its last line is the
   // end of the text rather than the `end` of the function `run` wraps it in.
@@ -31,13 +38,37 @@ describe("a type annotation left empty at the end of its line", () => {
     ["local w:", "0:7-0:8 Expected type, got <eof>"],
     ["local w:\n", "0:7-0:8 Expected type, got <eof>"],
     ["local w: -- a note\n", "0:7-0:9 Expected type, got <eof>"],
-    ["function g():\n", "0:12-0:13 Expected type, got <eof>"],
     ["local w:\nlocal z = 1\n", "0:7-0:8 Expected type, got 'local'"],
   ])("%j in a .luau file reports the missing type on the colon", (source, message) => {
-    const found = diagnoseFilesDetailed({ "snippet.luau": source })
-      .filter((d) => d.file === "snippet.luau" && d.message.startsWith("Expected type"))
-      .map(({ range, message }) => `${range!.start.line}:${range!.start.character}-${range!.end.line}:${range!.end.character} ${message}`);
-    expect(found).toEqual([message]);
+    expect(errorsIn("snippet.luau", { "snippet.luau": source })).toEqual([message]);
+  });
+
+  // A function whose header ends the file is unclosed too, as Luau also says.
+  test("a return type that ends a .luau file", () => {
+    expect(errorsIn("snippet.luau", { "snippet.luau": "function g():\n" })).toEqual([
+      "0:0-0:13 This function is missing its closing `end` keyword. Without it, the lines below it are read as part of this function, up to the next `scene`, `branch` or the end of the file.",
+      "0:12-0:13 Expected type, got <eof>",
+    ]);
+  });
+
+  // The language server hands the parser about 16 KB at a time, ending each
+  // piece at a line end, so the parser cannot look past `local w:` when it
+  // ends the first piece.
+  test("an annotation whose next line starts the next piece of the text", () => {
+    const filler = "-- filler\n".repeat(1638);
+    expect(filler.length).toBe(16380);
+    const source = `${filler}local w:\nlocal z = 1\n`;
+    expect(errorsIn("snippet.luau", { "snippet.luau": source })).toEqual([
+      "1638:7-1638:8 Expected type, got 'local'",
+    ]);
+  });
+
+  // The implicit `function` of a method in a `define` block.
+  test("a method's return type", () => {
+    const source = "define hero as character with\n  greet():\n    return 1\n  end\nend\nHi.\n";
+    expect(errorsIn("main.sd", { "main.sd": source })).toEqual([
+      "1:9-1:10 Expected type, got 'return'",
+    ]);
   });
 
   test.each([

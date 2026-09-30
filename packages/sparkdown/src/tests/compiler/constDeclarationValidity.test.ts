@@ -115,9 +115,12 @@ describe("const declaration validity", () => {
     expect(r.errors).toBeGreaterThan(0);
   });
 
-  it("a local of the same name shadows without a spurious const error", () => {
+  // Fails until #1177: the local and the const are both reported as a
+  // `Duplicate identifier`. This passed only while the header was written
+  // `function f():`, which left the body uncompiled (#1152).
+  it.fails("a local of the same name shadows without a spurious const error", () => {
     const r = check(
-      "const SHOW = 5\nfunction f():\n  local SHOW = 1\n  return SHOW\nend",
+      "const SHOW = 5\nfunction f()\n  local SHOW = 1\n  return SHOW\nend",
     );
     expect(r.hasProgram).toBe(true);
     expect(r.errors).toBe(0);
