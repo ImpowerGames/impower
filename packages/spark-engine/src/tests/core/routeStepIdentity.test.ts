@@ -230,7 +230,7 @@ describe("branches do not share an identity", () => {
 
 scene start
   Opening beat.
-  if flag
+  if flag then
     True branch beat.
   else
     False branch beat.
