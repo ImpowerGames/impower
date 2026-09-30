@@ -295,7 +295,8 @@ function isContinuationLine(
 }
 
 // A declaration list continued after a comma that ends its line
-// (`LuauCommaLineBreak`) indents its later lines one level past the
+// (`LuauCommaLineBreak`, or `LuauTargetCommaLineBreak` among a narrative
+// declaration's targets) indents its later lines one level past the
 // declaration, as stylua does:
 //
 //   local a, b = 1,
@@ -310,16 +311,18 @@ function isContinuationLine(
 //     {
 //       k = 5,
 //     }
+const COMMA_LINE_BREAKS = new Set(["LuauCommaLineBreak", "LuauTargetCommaLineBreak"]);
+const DECLARATION_CONTENTS = new Set(["LuauVariableDefinition_content", "LuauSparkdownVariableDefinition_content"]);
 function isCommaContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
 ): boolean {
   for (let i = 0; i < stack.length; i++) {
     const node = stack[i];
     if (!node) continue;
-    if (node.name === "LuauCommaLineBreak") return true;
-    if (stack[i + 1]?.name !== "LuauVariableDefinition_content") continue;
+    if (COMMA_LINE_BREAKS.has(node.name)) return true;
+    if (!DECLARATION_CONTENTS.has(stack[i + 1]?.name ?? "")) continue;
     for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
-      if (prev.name === "LuauCommaLineBreak" && spansLineBreak(prev)) {
+      if (COMMA_LINE_BREAKS.has(prev.name) && spansLineBreak(prev)) {
         return true;
       }
     }
@@ -330,7 +333,7 @@ function isCommaContinuationLine(
 // A comma followed by a block comment and the value on its own line
 // (`1, --[[c]] 2`) does not continue the list onto another line.
 function spansLineBreak(lineBreak: SyntaxNode) {
-  const content = lineBreak.getChild("LuauCommaLineBreak_content");
+  const content = lineBreak.getChild(`${lineBreak.name}_content`);
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (child.name === "Newline") return true;
   }

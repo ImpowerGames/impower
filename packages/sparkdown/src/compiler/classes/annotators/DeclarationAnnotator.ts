@@ -36,6 +36,7 @@ const BEFORE_BARE_TARGET = nodeNameSet([
   "LuauAccessPath",
   "LuauCommaSeparator",
   "LuauCommaLineBreak",
+  "LuauTargetCommaLineBreak",
   "OptionalWhitespace",
   "ExtraWhitespace",
   "RequiredWhitespace",

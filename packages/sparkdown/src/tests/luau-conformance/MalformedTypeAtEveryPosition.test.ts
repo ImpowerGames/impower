@@ -1,0 +1,212 @@
+import { describe, expect, test } from "vitest";
+import { diagnoseDetailed } from "./diagnosticTestHarness";
+import { checkLuau, describeDiagnostic, type LuauDiagnostic } from "./typecheckTestHarness";
+import { parseSource } from "../compiler/grammarSnapshot";
+
+// A type that is missing, or that cannot start with the token where one must
+// stand, is one syntax error wherever a type can appear, worded and placed as
+// Luau's parser reports it: from the end of the token before it to the end of
+// the token Luau found instead (#1174). So is an annotation written with `::`,
+// which Luau words by where it stands, and one with no name before it.
+
+// Luau's errors for those; its other syntax errors are not type errors.
+const TYPE_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing variable name, got ':'$/;
+
+/**
+ * Luau's own type errors for a snippet, one for each token it found: its
+ * parser can name a token again as it recovers (`Expected type, got '::'`,
+ * then `Expected ')' (to close '(' at column 11), got '::'`), and the first
+ * error at the token, which begins first, is the one Sparkdown reports.
+ */
+function luauTypeErrors(diagnostics: LuauDiagnostic[]): string[] {
+  const tokens = new Set<string>();
+  return diagnostics
+    .filter((d) => {
+      if (d.code !== "SyntaxError" || !TYPE_ERROR.test(d.message)) return false;
+      const token = `${d.endLine}:${d.endColumn}`;
+      if (tokens.has(token)) return false;
+      tokens.add(token);
+      return true;
+    })
+    .map(describeDiagnostic);
+}
+
+// Every position a type can appear, with `T` where the type goes and `F`
+// where what follows it goes, and what can follow it there. Luau allows
+// empty type arguments (`B<>`), so there nothing is not malformed.
+const POSITIONS: { name: string; template: string; followers: string[]; nothingIsValid?: true }[] = [
+  { name: "local target", template: "local x: T F", followers: ["= 1", ", y = 1, 2", ";", "\nlocal z = 1", "", "-- note\nlocal z = 1", "--[[c]] = 1"] },
+  { name: "local target continued", template: "local a,\n  b: T F", followers: ["= 1, 2", "\nlocal z = 1", ""] },
+  { name: "numeric for variable", template: "for i: T F", followers: ["= 1, 3 do end"] },
+  { name: "generic for variable", template: "for k: T F", followers: ["in pairs({}) do end", ", v in pairs({}) do end"] },
+  { name: "last generic for variable", template: "for k, v: T F", followers: ["in pairs({}) do end"] },
+  { name: "parameter", template: "function f(a: T F", followers: [") end", ", b) end"] },
+  { name: "return type", template: "function f(): T F", followers: ["end", "\n  return 1\nend"] },
+  { name: "type alias", template: "type A = T F", followers: ["", ";", "\nlocal z = 1"] },
+  { name: "union operand", template: "local x: number | T F", followers: ["= 1", ";", ""] },
+  { name: "union operand in parentheses", template: "local f: (number | T F", followers: [") -> nil = nil"] },
+  { name: "union operand in a table", template: "local t: { a: number | T F", followers: ["} = nil"] },
+  { name: "union operand in generics", template: "type B<U> = U\nlocal a: B<number | T F", followers: ["> = nil"] },
+  { name: "intersection operand", template: "local g: (number & T F", followers: [") -> nil = nil"] },
+  { name: "function type result", template: "local f: (number) -> T F", followers: ["= nil", ";", ""] },
+  { name: "function type result pack", template: "local h: () -> (number | T F", followers: [") = nil"] },
+  { name: "generic argument", template: "type B<U> = U\nlocal a: B<T F", followers: ["> = nil"], nothingIsValid: true },
+  { name: "second generic argument", template: "type B<U, V> = U\nlocal a: B<number, T F", followers: ["> = nil"] },
+  { name: "table field", template: "local t: { a: T F", followers: ["} = nil", ", b: number } = nil"] },
+  { name: "table indexer", template: "local t: { [string]: T F", followers: ["} = nil"] },
+];
+
+// The malformed shapes a type can take, and a valid one.
+const SHAPES: { name: string; type: string; valid?: true }[] = [
+  { name: "nothing", type: "" },
+  { name: "a trailing |", type: "number |" },
+  { name: "a trailing &", type: "number &" },
+  { name: "a trailing ->", type: "(number) ->" },
+  { name: "a stray ?", type: "?" },
+  { name: "a ? before its type", type: "?number" },
+  { name: "a second :", type: ": number" },
+  { name: "a ::", type: ":: number" },
+  { name: "a type", type: "number", valid: true },
+];
+
+// A snippet as written by hand: one space between tokens where an empty
+// shape leaves two, none at a line's end, and a line break at the end.
+const tidy = (source: string) => `${source.replace(/(?<=\S) {2,}/g, " ").replace(/ +(?=\n|$)/g, "")}\n`;
+
+const cases: { position: string; shape: string; source: string; valid: boolean }[] = [];
+for (const { name, template, followers, nothingIsValid } of POSITIONS) {
+  for (const follower of followers) {
+    for (const shape of SHAPES) {
+      const source = tidy(template.replace("T", shape.type).replace("F", follower));
+      const valid = !!shape.valid || (!!nothingIsValid && shape.type === "");
+      cases.push({ position: name, shape: shape.name, source, valid });
+    }
+    // The annotation's own `:` doubled, or written twice.
+    if (template.includes(": T")) {
+      for (const colon of [" :: number", " : : number"]) {
+        cases.push({ position: name, shape: `\`${colon.trim()}\` for its \`:\``, source: tidy(template.replace(": T", colon).replace("F", follower)), valid: false });
+      }
+    }
+  }
+}
+
+describe("a malformed type at every position", () => {
+  test.each(cases.filter((c) => !c.valid).map((c) => [c.position, c.shape, c.source] as const))(
+    "%s with %s: %j reports Luau's one error",
+    (_position, _shape, source) => {
+      const result = checkLuau(source);
+      const luau = luauTypeErrors(result.diagnostics);
+      expect(luau).toHaveLength(1);
+      expect(result.syntaxDiagnostics.map(describeDiagnostic)).toEqual(luau);
+    },
+  );
+
+  test.each(cases.filter((c) => c.valid).map((c) => [c.position, c.shape, c.source] as const))(
+    "%s with %s: %j is unaffected",
+    (_position, _shape, source) => {
+      const result = checkLuau(source);
+      expect(luauTypeErrors(result.diagnostics)).toEqual([]);
+      expect(result.syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+    },
+  );
+});
+
+describe("the reported layouts", () => {
+  test.each([
+    // #1152: a `:` at the end of its line, with the next line's token.
+    ["local w:\nlocal z = 1", "0:8-1:5 SyntaxError: Expected type, got 'local'"],
+    ["function g()\n  local w:\nend", "1:10-2:3 SyntaxError: Expected type, got 'end'"],
+    ["local w:", "0:8-1:0 SyntaxError: Expected type, got <eof>"],
+    ["function g():\n  return 1\nend", "0:13-1:8 SyntaxError: Expected type, got 'return'"],
+    ["function g(a: number): end", "0:22-0:26 SyntaxError: Expected type, got 'end'"],
+    ["function g(): = nil end", "0:13-0:15 SyntaxError: Expected type, got '='"],
+    // #1164: before `in`.
+    ["for k: in pairs({}) do end", "0:6-0:9 SyntaxError: Expected type, got 'in'"],
+    ["for k, v: in pairs({}) do end", "0:9-0:12 SyntaxError: Expected type, got 'in'"],
+    // #1166: a `::` on a target continued onto the next line.
+    ["local a,\n  b :: number", "1:4-1:6 SyntaxError: Expected identifier when parsing expression, got '::'"],
+    // #1167: no name before the annotation.
+    ["local :: number", "0:6-0:8 SyntaxError: Expected identifier when parsing variable name, got '::'"],
+    ["local : number", "0:6-0:7 SyntaxError: Expected identifier when parsing variable name, got ':'"],
+    ["local a, : number", "0:9-0:10 SyntaxError: Expected identifier when parsing variable name, got ':'"],
+    // #1168: two separate colons.
+    ["local c : : number", "0:9-0:11 SyntaxError: Expected type, got ':'"],
+    ["local c: : number", "0:8-0:10 SyntaxError: Expected type, got ':'"],
+    // #1170: a trailing `|` or `&` before a closing bracket.
+    ["local t: { a: number | } = nil", "0:22-0:24 SyntaxError: Expected type, got '}'"],
+    ["local f: (number |) -> nil = nil", "0:18-0:19 SyntaxError: Expected type, got ')'"],
+    ["type A<T> = T\nlocal a: A<number |> = nil", "1:19-1:20 SyntaxError: Expected type, got '>'"],
+    ["local g: (number &) -> nil = nil", "0:18-0:19 SyntaxError: Expected type, got ')'"],
+    ["local h: () -> (number |) = nil", "0:24-0:25 SyntaxError: Expected type, got ')'"],
+    ["function f(a: ) end", "0:13-0:15 SyntaxError: Expected type, got ')'"],
+  ])("%j reports %j", (source, message) => {
+    expect(checkLuau(`${source}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
+  });
+
+  test.each([
+    "local x: number = 1",
+    "for k, v: number in pairs({a = 1}) do end",
+    "for k: number | string, v: string? in pairs({}) do end",
+    "for i: number = 1, 3 do end",
+    "local t: { a: number | string } = { a = 1 }",
+    "local z:\n  number = 1",
+    "local m: number |\n  string = 1",
+    "function g():\n  number\n  return 1\nend",
+    "local t = {m = function(self) return {} end}\nfor k in t:m() do end",
+    // Sparkdown's divert-target type and a label, which Luau's parser rejects.
+    "function cut_to(escape: ->) end",
+    "::top::\nlocal x = 1",
+  ])("%j is unaffected", (source) => {
+    expect(checkLuau(`${source}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
+  });
+
+  // A narrative body's declaration ends at its line, but a comma that ends
+  // the line among its targets carries them onto the next line, as in Luau
+  // code, so the line after it is not narrative (#1166).
+  test.each([
+    ["local a,\n  b :: number", ["1:4-1:6 Expected identifier when parsing expression, got '::'"]],
+    ["scene s\n  local a,\n    b :: number\n  Hello.\nend", ["2:6-2:8 Expected identifier when parsing expression, got '::'"]],
+    ["local a,\n  b: number", []],
+    ["local a, -- the first\n  b: number,\n  c = 1, 2, 3", []],
+  ])("in a narrative body, %j reports %j", (source, messages) => {
+    const reported = diagnoseDetailed(`${source}\n`)
+      .filter((d) => d.code !== "LocalUnused")
+      .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${d.message}`);
+    expect(reported).toEqual(messages);
+    // The only prose is the scene's `Hello.`.
+    const prose: string[] = [];
+    const text = `${source}\n`;
+    parseSource(text).iterate({
+      enter: (node) => {
+        if (!/^(ImplicitAction|InlineDialogue|BlockDialogue)$/.test(node.name)) return;
+        prose.push(text.slice(node.from, node.to).trim());
+        return false;
+      },
+    });
+    expect(prose).toEqual(source.includes("Hello.") ? ["Hello."] : []);
+  });
+
+  // The loop still binds its variables when they are annotated.
+  test("an annotated loop variable is bound", () => {
+    const tree = parseSource("function f(t)\n  for k: number | string, v: number in pairs(t) do end\nend\n");
+    const targets: string[] = [];
+    tree.iterate({
+      enter: (node) => {
+        if (node.name !== "LuauForCondition_content") return;
+        for (let child = node.node.firstChild; child; child = child.nextSibling) {
+          if (child.name === "LuauInKeyword") break;
+          targets.push(child.name);
+        }
+        return false;
+      },
+    });
+    expect(targets).toEqual([
+      "LuauAccessPath",
+      "LuauTypeAnnotationOperation",
+      "LuauCommaSeparator",
+      "LuauAccessPath",
+      "LuauTypeAnnotationOperation",
+      "RequiredWhitespace",
+    ]);
+  });
+});

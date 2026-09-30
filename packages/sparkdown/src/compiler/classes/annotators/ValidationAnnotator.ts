@@ -18,6 +18,7 @@ import {
 } from "../../lower/utils/lineContinuation";
 import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
 import { RESERVED } from "../../lint/luauNames";
+import { isCheckedLuau } from "../../typecheck/LuauUnitNodes";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -120,6 +121,16 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
+// The grammar's tokens for a type that is missing or malformed, and for a
+// declaration target's `::`.
+const TYPE_ERROR_TOKENS = nodeNameSet([
+  "LuauTypeStrayOptionalOperator",
+  "LuauTypeStrayColon",
+  "LuauTypeAnnotationMissingType",
+  "LuauTypeBinaryOperatorMissingType",
+  "LuauTargetTypeCastOperator",
+  "LuauTypeOptionalOperator",
+]);
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
 const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
 const LUAU_COMMENT = nodeNameSet([
@@ -571,17 +582,44 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (this.validateLuauLiteral(annotations, nodeRef)) {
       return annotations;
     }
+    // A type that is missing or malformed in Luau the type checker reads is
+    // reported by the checker, with Luau's parser's wording and range, since
+    // Luau's parser has a point wherever a type can stand (see
+    // `SparkdownTypechecker`). The grammar's tokens for one are reported here
+    // only where the checker does not read the Luau: in a flow header's
+    // parameters and in Sparkdown's own constructs.
+    const checkerReportsType =
+      TYPE_ERROR_TOKENS.has(nodeRef.name) && isCheckedLuau(nodeRef.node);
     // A `?` only ends the type before it; the grammar reads one with no type
     // before it as its own token. The wording is Luau's parser's.
     if (nodeRef.name === "LuauTypeStrayOptionalOperator") {
-      this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+      if (!checkerReportsType) {
+        this.error(annotations, STRAY_OPTIONAL, nodeRef.from, nodeRef.to);
+      }
+      return annotations;
+    }
+    // Likewise a `:` or `::` where a type must begin.
+    if (nodeRef.name === "LuauTypeStrayColon") {
+      if (!checkerReportsType) {
+        const colon = childNamed(nodeRef.node, "LuauTypeStrayColon_c1");
+        this.error(
+          annotations,
+          `${MISSING_TYPE}, got '${this.read(colon.from, colon.to)}'`,
+          colon.from,
+          colon.to,
+        );
+      }
       return annotations;
     }
     // An operator or `if` with only whitespace, line breaks or comments before
     // the `;` that ends its statement has no right operand; the grammar reads
-    // it as its own token.
+    // it as its own token. A cast's `::` has no type after it, which the
+    // type checker reports where it reads the Luau.
     if (nodeRef.name === "LuauOperatorMissingOperand") {
-      this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
+      const isCast = this.read(nodeRef.from, nodeRef.to).trim() === "::";
+      if (!isCast || !isCheckedLuau(nodeRef.node)) {
+        this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
+      }
       return annotations;
     }
     // Likewise a type annotation `:`, or a type's `|`, `&` or `->`, with no
@@ -592,10 +630,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       nodeRef.name === "LuauTypeAnnotationMissingType" ||
       nodeRef.name === "LuauTypeBinaryOperatorMissingType"
     ) {
+      const isMethodColon = this.isMethodColon(nodeRef.node);
+      if (!isMethodColon && checkerReportsType) {
+        return annotations;
+      }
       const token = this.tokenAfterTrivia(nodeRef.to);
-      const expected = this.isMethodColon(nodeRef.node)
-        ? MISSING_METHOD_NAME
-        : MISSING_TYPE;
+      const expected = isMethodColon ? MISSING_METHOD_NAME : MISSING_TYPE;
       this.error(
         annotations,
         token ? `${expected}, got '${token}'` : expected,
@@ -606,13 +646,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     // A `::` after a declaration's target, where an annotation takes one `:`.
     if (nodeRef.name === "LuauTargetTypeCastOperator") {
-      this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
+      if (!checkerReportsType) {
+        this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
+      }
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
     // lookbehind cannot see whether a type stands before the comment
     // (`() -> --[[c]] ?`). Only a type before the comments makes it one.
-    if (nodeRef.name === "LuauTypeOptionalOperator") {
+    if (nodeRef.name === "LuauTypeOptionalOperator" && !checkerReportsType) {
       const operator = childNamed(nodeRef.node, "LuauTypeOptionalOperator_c2");
       const before = this.startBeforeBlockComments(operator.from);
       if (

@@ -72,6 +72,31 @@ variables:
       "until",
       "while",
     ]
+  # The reserved words that cannot start a type: all but `nil`, `true` and
+  # `false`, which are types, and `continue`, which Luau reads as a name
+  # where a type stands. A type ends before one, so it never reads the next
+  # statement's keyword or its block's `end`.
+  LUAU_NON_TYPE_KEYWORDS:
+    [
+      "and",
+      "break",
+      "do",
+      "else",
+      "elseif",
+      "end",
+      "for",
+      "function",
+      "if",
+      "in",
+      "local",
+      "not",
+      "or",
+      "repeat",
+      "return",
+      "then",
+      "until",
+      "while",
+    ]
   LUAU_GLOBAL_DECLARATION_KEYWORDS: ["define"]
   # `type` is intentionally NOT included here. It IS a declaration
   # keyword for `type X = ...` type aliases (handled by the
@@ -355,9 +380,13 @@ variables:
   # so the token is never a character inside it (`local x: -- a, b`).
   _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
   _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
-  # The same, ending at the `;`, `,` or `=` (not `==`) that can follow a type
-  # annotation, with the same capture-group rule.
-  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,]|=(?!=)))
+  # The same, ending at a token that cannot start the type that must follow
+  # a type annotation's `:` or a type's `|`, `&` or `->`: a `;`, `,` or `=`
+  # (not `==`), a closing bracket or `>`, or a keyword that cannot start a
+  # type, which is where the next statement or the block's `end` begins (so
+  # a `:` at the end of its line with `local` or `end` on the next is empty,
+  # where one with a type there is not). Same capture-group rule.
+  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,)\]}>]|=(?!=)|{{LUAU_NON_TYPE_KEYWORDS}}))
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
@@ -6092,7 +6121,9 @@ repository:
     # A `;` ends the return type as it ends the type, so the body opens
     # before it (`function f(): number; g()`), and so does a block comment
     # on its line that code follows (`function f(): number --[[c]] g()`).
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|;)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # It also ends at another token that cannot start the type, which leaves
+    # the return type empty (`function f(): end`, `function f(): = nil end`).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|[;=,)\]}>]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauFunctionName:
     tag: function(name)
@@ -6174,8 +6205,11 @@ repository:
   # The declaration in a narrative body (the root, a scene, or a sparkdown
   # `if`, loop or `choose` around dialogue and actions, and an `&`
   # statement). It ends at its line: the next line is prose, never a
-  # continued value, so a comma that ends the line is left without a value
-  # and the lowerer reports it. It ends as the Luau declaration does, so a
+  # continued value, so a comma that ends the line among its values is left
+  # without a value and the lowerer reports it. A comma that ends the line
+  # among its targets, before any `=`, is the exception: no list of targets
+  # ends with one, so the targets go on on the next line
+  # (`LuauTargetCommaLineBreak`). It ends as the Luau declaration does, so a
   # statement after it on the same line (`& local x = 5 return`) is the
   # body's next statement. A second declaration on the line is this rule
   # too, ahead of the Luau declaration `LuauExpression` reaches, so it also
@@ -6194,6 +6228,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauTargetCommaLineBreak" }
       - { include: "#LuauComment" }
       - { include: "#LuauTargetTypeCast" }
       - { include: "#LuauVariableAssignment" }
@@ -6201,6 +6236,31 @@ repository:
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
     end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+
+  # A comma that ends its line among a narrative declaration's targets, with
+  # no `=` before it on its line (`local a,` then `b: number`), read as
+  # `LuauCommaLineBreak` is in Luau code, so the targets go on on the next
+  # line. A comma after the `=` is among the values, and the declaration
+  # still ends at its line (`store hp = 100,` then prose). Its consumers read
+  # it where they read `LuauCommaSeparator` and `LuauCommaLineBreak`.
+  LuauTargetCommaLineBreak:
+    begin: (?<=^[^=\n\r]*)({{WS}}*)([,])({{WS}}*)(?=$|{{LUAU_COMMENT_START}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: operator
+        name: keyword.operator.comma.luau
+      3:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
@@ -7745,18 +7805,26 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAccessPart" }
-    end: (?={{BEAT}})|(?=$|{{WS}}*(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|\[))){{_LUAU_VALUE_OPERATOR_AHEAD_}}
+    # A `for` loop variable's path is its name alone, and ends before the
+    # `:` of the variable's type annotation (`for k: number | string, v in t`,
+    # `for i: number = 1, 3`), which is then read as the type it is. The
+    # variable is the name right after `for`, or after a comma in the header
+    # (VS Code's regex engine refuses a lookaround inside a lookbehind, so
+    # the lookbehind does not stop at the header's `in`). A `:` after a name
+    # followed by a method name and its arguments stays a method call.
+    end: (?={{BEAT}})|(?=$|{{WS}}*(?:{{LUAU_BINARY_OPERATORS}}|{{LUAU_TERMINATOR_KEYWORDS}})|(?!{{WS}}*(?:{{LUAU_IDENTIFIER}}|{{LUAU_ACCESSOR_OPERATOR}}|\[))|(?<=\bfor{{WS}}+{{LUAU_IDENTIFIER}}|\bfor\b[^\n\r]*[,]{{WS}}*{{LUAU_IDENTIFIER}})(?={{WS}}*{{LUAU_TYPE_ANNOTATION_OPERATOR}})(?!{{WS}}*[:]{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*{{LUAU_FUNCTION_CALL_START}})){{_LUAU_VALUE_OPERATOR_AHEAD_}}
     endCaptures:
       1:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
 
-  # A `:` with no name before the `;`, `,` or `=` after it is a part of the
-  # path (`t.a: = 2`, `for i: = 1, 3`), so the path does not stop unfinished
-  # at the colon. The validator words it as Luau does: a missing type for a
-  # `for` loop variable, whose annotation the path also reads (`for i: number`),
-  # and a missing method name anywhere else.
+  # A `:` with no name before the token after it that no name can be (`;`,
+  # `,`, `=`, a closing bracket or a keyword) is a part of the path
+  # (`t.a: = 2`), so the path does not stop unfinished at the colon. The
+  # validator reports it as Luau words it, a missing method name, except
+  # after a `for` loop variable the path reads on a line the header
+  # continues onto, where the type checker reports a missing type.
   LuauAccessPart:
     emit: true
     patterns:
@@ -8867,7 +8935,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})
 
   LuauTargetTypeCastOperator:
     tag: invalid
@@ -9306,7 +9374,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauTypeAssignmentOperator:
     match: ([=])({{WS}}*)
@@ -9362,11 +9430,12 @@ repository:
     match: (.+)
 
   LuauTypeLiteral:
-    begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
+    begin: (?=(?!{{LUAU_NON_TYPE_KEYWORDS}}){{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>]|[:])
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeOptionalOperator" }
       - { include: "#LuauTypeStrayOptionalOperator" }
+      - { include: "#LuauTypeStrayColon" }
       - { include: "#LuauTypeBinaryOperation" }
       - { include: "#LuauTypeTableStruct" }
       - { include: "#LuauString" }
@@ -9387,8 +9456,9 @@ repository:
     # operator has taken it in or the optional-type suffix follows it
     # (`number ?`); whitespace before the line break does not. It also ends
     # before a block comment on its line that code follows
-    # (`function f(): number --[[c]] g()`, see `LUAU_BLOCK_COMMENT_ON_LINE`).
-    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # (`function f(): number --[[c]] g()`, see `LUAU_BLOCK_COMMENT_ON_LINE`),
+    # and before a keyword that cannot start a type.
+    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}}|{{LUAU_NON_TYPE_KEYWORDS}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   # `->` as a type annotation marks the parameter as carrying a
   # divert-target value (sparkdown's analogue of ink's typed-divert
@@ -9439,6 +9509,22 @@ repository:
     name: invalid.illegal.luau
     match: ({{LUAU_TYPE_OPTIONAL_OPERATOR}})
 
+  # Likewise a `:` or `::` where a type must begin (`local x: : number`,
+  # `function f(): :: number`, `number | : string`, `{ a :: number }`),
+  # which Luau rejects, read as one token so the type after it still parses,
+  # with the whitespace after it, as an operator's. Where a `:` begins an
+  # annotation (after a table field's name, or the first `:` of
+  # `local x: : number`), the annotation's own rule reads it.
+  LuauTypeStrayColon:
+    match: ([:][:]?)({{WS}}*)
+    captures:
+      1:
+        tag: invalid
+        name: invalid.illegal.luau
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
   # The whitespace before the operator is a separator, as after it, so a union
   # keeps one space on each side of its `|` wherever it is written
   # (`number | string`, `(number | string)`).
@@ -9453,7 +9539,7 @@ repository:
       - { include: "#LuauTypeBinaryOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   # A `|`, `&` or `->` with no type before the `;`, `,` or `=` after it
   # (`local m: number | = 1`), read as one token as
@@ -9501,7 +9587,7 @@ repository:
       - { include: "#LuauTypeAnnotationOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=]|{{LUAU_NON_TYPE_KEYWORDS}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauTypeAnnotationOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)

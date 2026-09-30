@@ -26,7 +26,7 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import { Location, Position } from "./Location";
 import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
-import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
+import { FLOW_HEADERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
 export type TypecheckModeName = "strict" | "nonstrict" | "nocheck";
@@ -115,77 +115,6 @@ export function runFileUnit(uri: string, documentText: string): LuauUnit | undef
   const firstLine = prefix.split("\n").length - 1;
   return { kind: "file", text, lines: text.split("\n").map((_, i) => firstLine + i) };
 }
-
-// The statements of a `.sd` file that are Luau, wherever they sit.
-const LUAU_STATEMENTS = new Set([
-  ...VARIABLE_DEFINITION_NAMES,
-  "LuauFunctionDefinition",
-  "LuauExplicitStatement",
-  "LuauReassignment",
-  "LuauReturnStatement",
-  "LuauBreakStatement",
-  "LuauContinueStatement",
-  "LuauDataTypeDeclaration",
-  "LuauFunctionTypeDeclaration",
-  "LuauIfBlock",
-  "LuauWhileLoop",
-  "LuauForLoop",
-  "LuauRepeatLoop",
-  "LuauDoBlock",
-  "LuauSparkdownIfBlock",
-  "LuauSparkdownWhileLoop",
-  "LuauSparkdownForLoop",
-  "LuauSparkdownRepeatLoop",
-  "LuauSparkdownDoBlock",
-  "LuauSparkdownReturnStatement",
-  "LuauSparkdownChooseBlock",
-]);
-
-// The headers that begin a flow.
-const FLOW_HEADERS = new Set(["Scene", "Branch"]);
-
-// Nodes inside Luau statements that are Sparkdown's own: the `&` that marks
-// a statement, the `choose`, `then` and `end` of a `choose` block, and the
-// constructs Luau has no syntax for. A `choose` block opens no scope (a
-// choice's statements run in its flow's), so the statements inside it are
-// kept where they stand.
-const SPARKDOWN_ONLY = new Set([
-  "LuauExplicitStatementMark",
-  "LuauSparkdownChooseBlock_begin",
-  "LuauSparkdownChooseThenClause_begin",
-  "LuauSparkdownChooseBlock_end",
-  "LuauDefine",
-  "LuauStyle",
-  "LuauLayout",
-  "LuauScreen",
-  "LuauAnimation",
-  "LuauTheme",
-  "LuauComponent",
-  "LuauMorph",
-  "LuauUIElement",
-  "LuauSparkdownAlternatorBlocks",
-  "LuauSparkdownConditionalAlternatorBlock",
-  "LuauSparkdownSequentialAlternatorBlock",
-  "LuauSparkdownSingleLineConditionalAlternatorBlock",
-  "LuauSparkdownSingleLineSequentialAlternatorBlock",
-  "LuauSparkdownInlineGluedConditionalAlternatorBlock",
-  "LuauSparkdownInlineGluedSequentialAlternatorBlock",
-]);
-
-// Sparkdown's own expressions, which Luau has no syntax for: alternators,
-// divert targets and regular expressions. Each is checked as a call of the
-// checker's `any` value, `_G` unless the document writes that name itself
-// (see `ANY_NAMES`), or as the value alone where the expression is too short
-// for the call, so the rest of its statement is checked as written.
-const SPARKDOWN_EXPRESSIONS = new Set([
-  "LuauConditionalAlternatorBlock",
-  "LuauSequentialAlternatorBlock",
-  "LuauDivertTargetLiteral",
-  "LuauRegexLiteral",
-]);
-
-// Nodes that may sit anywhere in Luau: trivia and punctuation.
-const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
 
 // Nodes whose text is Luau as it stands: strings and comments. A backtick
 // string's interpolations are the exception (see `keepInterpolations`).

@@ -79,12 +79,13 @@ export function validateAssignmentValue(
 
 // The same Luau parse error for a comma in a declaration's list with nothing
 // after it: `local a, b = 1,` before a line that starts with `end` or a
-// statement in Luau code, or any such comma in a narrative body, where the
-// declaration ends at its line. Luau reads the next token as the missing
-// value (or, before the `=`, the missing name) and reports it; the squiggle
-// points at the comma.
+// statement in Luau code, or such a comma among the values in a narrative
+// body, where the declaration ends at its line. Luau reads the next token as
+// the missing value (or, before the `=`, the missing name) and reports it;
+// the squiggle points at the comma.
 //
-// `comma` is a `LuauCommaSeparator` or `LuauCommaLineBreak` grammar node.
+// `comma` is a `LuauCommaSeparator`, `LuauCommaLineBreak` or
+// `LuauTargetCommaLineBreak` grammar node.
 export function validateListComma(
   comma: SyntaxNode,
   afterAssignment: boolean,

@@ -14,7 +14,7 @@
 // only through that check. So a check that reuses results always gives what a
 // check from scratch gives.
 
-import type { Tree } from "@lezer/common";
+import type { SyntaxNode, Tree } from "@lezer/common";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
 import { errorToString, UnknownSymbolContext } from "./Error";
@@ -35,7 +35,7 @@ import { Mode } from "./Module";
 import { Scope } from "./Scope";
 import { follow, persist, TypeArena, TypeFun } from "./Type";
 
-/** A type warning, in document lines and characters. */
+/** A type warning, or a type Luau's parser cannot read, in document lines and characters. */
 export interface TypecheckDiagnostic {
   start: { line: number; character: number };
   end: { line: number; character: number };
@@ -44,7 +44,27 @@ export interface TypecheckDiagnostic {
   message: string;
   /** For an `UnknownSymbol` that is not a type, the name. */
   unknownGlobal?: string;
+  /** Whether this is a syntax error, which is an error rather than a warning. */
+  syntax?: boolean;
 }
+
+// The syntax errors of Luau's parser that the checker reports: a type that
+// is missing, or that cannot start with the token where one must stand
+// (`Expected type, got '='`), an annotation written with `::`
+// (`local x :: number`, `for i :: number`), which Luau words by where it
+// stands, and an annotation with no name before it (`local : number`).
+// Sparkdown's grammar reads a type only far enough to find where it ends, so
+// it has no point at which it expected one; Luau's parser has one wherever a
+// type can stand, and names the token it found there. Every other syntax
+// error is Sparkdown's own validator's to report.
+const REPORTED_SYNTAX_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing variable name, got ':'$/;
+
+// Syntax Sparkdown adds to Luau's, which Luau's parser rejects, is not
+// reported: the divert-target type (`function f(target: ->)`), which stands
+// where a type must begin, so Luau's error for it is this one, and a label
+// (`::name::`), which the grammar names.
+const DIVERT_TARGET_TYPE = "Expected type, got '->'";
+const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
 
 interface CachedUnit {
   check: LuauUnitCheck;
@@ -117,11 +137,38 @@ export class SparkdownTypechecker {
     const diagnostics: TypecheckDiagnostic[] = [];
     const checks: LuauUnitCheck[] = [];
     this.documentChecks.set(uri, checks);
+    let lineStarts: number[] | undefined;
+    // Whether the grammar reads the character before a document position as syntax Sparkdown adds to Luau's.
+    const isSparkdownSyntax = (position: { line: number; character: number }) => {
+      if (!lineStarts) {
+        lineStarts = [0];
+        for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) lineStarts.push(i + 1);
+      }
+      const offset = (lineStarts[position.line] ?? text.length) + position.character - 1;
+      for (let node: SyntaxNode | null = tree.resolveInner(Math.max(offset, 0), 1); node; node = node.parent) {
+        if (SPARKDOWN_SYNTAX.has(node.name)) return true;
+      }
+      return false;
+    };
     const report = (entry: CachedUnit, unit: LuauUnit) => {
       checks.push(entry.check);
+      // The tokens a syntax error has been reported at. Luau's parser can
+      // report a token again as it recovers (`Expected type, got '::'`, then
+      // `Expected ')' (to close '(' at column 11), got '::'`); each is
+      // reported once, with the first error, which begins first.
+      const reportedTokens = new Set<string>();
       for (const error of entry.check.errors) {
-        // Syntax is Sparkdown's own validator's to report.
-        if (error.data.kind === "SyntaxError") continue;
+        if (error.data.kind === "SyntaxError") {
+          if (!REPORTED_SYNTAX_ERROR.test(error.data.message) || error.data.message === DIVERT_TARGET_TYPE) continue;
+          const start = documentPosition(unit, error.location.begin);
+          const end = documentPosition(unit, error.location.end);
+          // The error's range ends with the token Luau found.
+          const token = `${end.line}:${end.character}`;
+          if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
+          reportedTokens.add(token);
+          diagnostics.push({ start, end, code: "SyntaxError", message: error.data.message, syntax: true });
+          continue;
+        }
         const diagnostic: TypecheckDiagnostic = {
           start: documentPosition(unit, error.location.begin),
           end: documentPosition(unit, error.location.end),

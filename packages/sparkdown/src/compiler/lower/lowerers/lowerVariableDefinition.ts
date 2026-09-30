@@ -506,9 +506,14 @@ function bareVariableNameFromAccessPath(
 }
 
 // A comma that ends its line is `LuauCommaLineBreak`, which also holds the
-// line break and any comment before the next value.
+// line break and any comment before the next value, or, among a narrative
+// declaration's targets, `LuauTargetCommaLineBreak`.
 function isCommaName(name: string | undefined): boolean {
-  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
+  return (
+    name === "LuauCommaSeparator" ||
+    name === "LuauCommaLineBreak" ||
+    name === "LuauTargetCommaLineBreak"
+  );
 }
 
 function isSkippableName(name: string): boolean {
