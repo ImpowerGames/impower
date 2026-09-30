@@ -18,8 +18,11 @@ import {
 } from "../../lower/utils/lineContinuation";
 import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
 import { RESERVED } from "../../lint/luauNames";
+import { isTrivia, soleVariableName } from "../../lint/luauTree";
+import { VARIABLE_DEFINITION_CONTENT_NAMES } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -122,8 +125,54 @@ const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
 const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
-const LUAU_COMMENT = nodeNameSet([
+const MISSING_VARIABLE_NAME = "Expected identifier when parsing variable name";
+const DECLARATION_COMMA = nodeNameSet([
+  "LuauCommaSeparator",
+  "LuauCommaLineBreak",
+]);
+const DECLARATION_ASSIGNMENT = nodeNameSet(["LuauAssignmentOperation"]);
+const MISSING_TYPE_NODES = nodeNameSet([
+  "LuauTypeAnnotationMissingType",
+  "LuauTypeBinaryOperatorMissingType",
+  "LuauFunctionReturnMissingType",
+]);
+const EMPTY_AT_END_OPERATIONS = nodeNameSet([
+  "LuauTypeAnnotationOperation",
+  "LuauFunctionReturnType",
+]);
+// The `:` of each, with the whitespace around it on its line.
+const TYPE_COLON_BEGINS = nodeNameSet([
+  "LuauTypeAnnotationOperator_begin",
+  "LuauFunctionReturnType_begin",
+]);
+const LUAU_TYPE_LITERAL = nodeNameSet(["LuauTypeLiteral"]);
+const LUAU_NAME_START = /[A-Za-z_]/;
+const LUAU_NAME = /^[A-Za-z_]\w*/;
+// The keywords that cannot start a type, which leave an annotation empty.
+const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
+  GRAMMAR_DEFINITION.variables.LUAU_NON_TYPE_KEYWORDS,
+);
+// The `end` line a `run` file's wrapper closes its function with.
+const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
+const STRAY_CLOSING_BRACKET =
+  "Expected identifier when parsing expression, got ']'";
+// A block comment after a type that closes on a later line is its own rule
+// (`LuauTypeTrailingBlockComment`), which differs in what it leaves after
+// its close: the whitespace before code, or, before code right after the
+// close, the closing brackets, which the body reads as
+// `LuauTypeTrailingBlockCommentClose`.
+const LUAU_BLOCK_COMMENT_OPENINGS: SparkdownNodeName[] = [
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+];
+const LUAU_BLOCK_COMMENT_NAMES: SparkdownNodeName[] = [
+  ...LUAU_BLOCK_COMMENT_OPENINGS,
+  "LuauTypeTrailingBlockCommentClose",
+];
+const LUAU_BLOCK_COMMENT_OPENING = nodeNameSet(LUAU_BLOCK_COMMENT_OPENINGS);
+const LUAU_BLOCK_COMMENT = nodeNameSet(LUAU_BLOCK_COMMENT_NAMES);
+const LUAU_COMMENT = nodeNameSet([
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauDocLineComment",
   "LuauLineComment",
 ]);
@@ -253,6 +302,23 @@ const IF_EXPRESSION_WITHOUT_THEN =
   "Expected 'then' when parsing if then else expression";
 const IF_EXPRESSION_WITHOUT_ELSE =
   "Expected 'else' when parsing if then else expression";
+// Luau's parser reports an if statement's condition that no `then` follows
+// in these words (`parseIf`, for an `elseif` too), naming the token it found.
+const IF_STATEMENT_WITHOUT_THEN = "Expected 'then' when parsing if statement";
+const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
+  "LuauIfBlockCondition",
+  "LuauElseifBlockCondition",
+]);
+// The parts of an if statement's condition that are not its expression.
+const IF_CONDITION_TRIVIA = nodeNameSet([
+  "LuauConditionLeadingBreak",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+  "ExtraWhitespace",
+  "Newline",
+]);
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
@@ -263,7 +329,7 @@ const IF_CLAUSE_TRIVIA = new Set([
   "LuauComment",
   "LuauLineComment",
   "LuauDocLineComment",
-  "LuauBlockComment",
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauCommaSeparator",
   "ExtraWhitespace",
   "OptionalWhitespace",
@@ -468,6 +534,21 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return search(commandNode);
   }
 
+  /**
+   * Where an if statement's condition expression ends: after the last part
+   * of the condition that is not a space or line break, before any part the
+   * grammar could not read into the expression (`flag` in `if flag print(1)`).
+   */
+  protected conditionExpressionEnd(condition: any): number {
+    const content = childNamed(condition, `${condition.name}_content`);
+    let end = content?.from ?? condition.from;
+    for (let c = content?.firstChild; c; c = c.nextSibling) {
+      if (c.name === "ERROR_INCOMPLETE") break;
+      if (!IF_CONDITION_TRIVIA.has(c.name)) end = c.to;
+    }
+    return end;
+  }
+
   protected error(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     message: string,
@@ -589,9 +670,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return false;
     }
-    if (name === "LuauBlockComment") {
-      if (!childNamed(nodeRef.node, "LuauBlockComment_end")) {
+    if (LUAU_BLOCK_COMMENT_OPENING.has(name)) {
+      if (!childNamed(nodeRef.node, `${name}_end`)) {
         this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
+        return true;
+      }
+      return false;
+    }
+    // The grammar reads closing brackets before code as a trailing type
+    // comment's close wherever a statement or parameter can begin, since no
+    // pattern can see the comment's opening on an earlier line. Brackets that
+    // no such comment ends right before are Luau's first unexpected token.
+    if (name === "LuauTypeTrailingBlockCommentClose") {
+      if (!this.endsTrailingTypeComment(nodeRef.from)) {
+        this.error(annotations, STRAY_CLOSING_BRACKET, nodeRef.from, nodeRef.from + 1);
         return true;
       }
       return false;
@@ -600,13 +692,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * The first character at or after `pos` that is not whitespace, a line
-   * break or inside a Luau comment the grammar read, or `""` at the end.
+   * The Luau token at or after `pos`, past whitespace, line breaks and the
+   * Luau comments the grammar read: a whole name or keyword, or one
+   * character. `""` at the end of the Luau, which for a `run` file is the
+   * `end` its wrapper closes its function with.
    */
   protected tokenAfterTrivia(pos: number): string {
     for (;;) {
       const char = this.read(pos, pos + 1);
-      if (!char) {
+      if (!char || this.isRunWrapperEnd(pos)) {
         return "";
       }
       if (/\s/.test(char)) {
@@ -618,10 +712,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         node = node.parent;
       }
       if (!node || node.to <= pos) {
-        return char;
+        if (!LUAU_NAME_START.test(char)) {
+          return char;
+        }
+        const lineTo = this.text?.lineAt(pos).to ?? pos + 1;
+        return this.read(pos, lineTo).match(LUAU_NAME)?.[0] ?? char;
       }
       pos = node.to;
     }
+  }
+
+  /** Whether `pos` is the `end` a `run` file's wrapper closes it with
+   *  (`runFileUnit`), which is not in the file. */
+  protected isRunWrapperEnd(pos: number): boolean {
+    const length = this.text?.length ?? 0;
+    return (
+      !!this.uri &&
+      runWrapperName(this.uri) !== undefined &&
+      pos === length - RUN_WRAPPER_END.length &&
+      this.read(pos, length) === RUN_WRAPPER_END
+    );
   }
 
   /**
@@ -655,6 +765,42 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /** Whether a `LuauTypeTrailingBlockComment` ends at `pos`, leaving its
+   *  closing brackets to the body there. */
+  protected endsTrailingTypeComment(pos: number): boolean {
+    let node = this.tree?.resolveInner(pos, -1) ?? null;
+    while (node && node.name !== "LuauTypeTrailingBlockComment") {
+      node = node.parent;
+    }
+    return node?.to === pos;
+  }
+
+  /**
+   * The part of a declaration's content before `node` (its targets, the
+   * commas between them and, from the first `=` on, its values), past
+   * comments and whitespace: `null` when `node` comes first, and `undefined`
+   * when an `=` comes before it, since `node` is then among the values, not
+   * the targets.
+   */
+  protected declarationTargetBefore(
+    node: SyntaxNode,
+  ): SyntaxNode | null | undefined {
+    let before: SyntaxNode | null = null;
+    for (let sibling = node.prevSibling; sibling; sibling = sibling.prevSibling) {
+      if (
+        DECLARATION_ASSIGNMENT.has(sibling.name) ||
+        (sibling.name === "LuauVariableAssignment" &&
+          sibling.getChild("LuauVariableAssignment_content")?.getChild("LuauAssignmentOperation"))
+      ) {
+        return undefined;
+      }
+      if (!before && !isTrivia(sibling)) {
+        before = sibling;
+      }
+    }
+    return before;
+  }
+
   /** The end of the text before the block comments (and the whitespace around
    *  them) that end at `pos`, or null when no block comment ends there. */
   protected startBeforeBlockComments(pos: number): number | null {
@@ -664,7 +810,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         pos -= 1;
       }
       let node = this.tree?.resolveInner(pos, -1) ?? null;
-      while (node && node.name !== "LuauBlockComment") {
+      while (node && !LUAU_BLOCK_COMMENT.has(node.name)) {
         node = node.parent;
       }
       if (!node || node.from >= pos) {
@@ -695,21 +841,18 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // Likewise a type annotation `:`, or a type's `|`, `&` or `->`, with no
-    // type before the `;`, `,` or `=` after it; Luau names the token it found
-    // instead. After a name in a value, the `:` starts a method call, which is
-    // missing its name.
-    if (
-      nodeRef.name === "LuauTypeAnnotationMissingType" ||
-      nodeRef.name === "LuauTypeBinaryOperatorMissingType"
-    ) {
+    // Likewise a type annotation or return type `:`, or a type's `|`, `&` or
+    // `->`, with no type before the `;`, `,`, `=` or keyword after it; Luau
+    // names the token it found instead. After a name in a value, the `:`
+    // starts a method call, which is missing its name.
+    if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const token = this.tokenAfterTrivia(nodeRef.to);
       const expected = this.isMethodColon(nodeRef.node)
         ? MISSING_METHOD_NAME
         : MISSING_TYPE;
       this.error(
         annotations,
-        token ? `${expected}, got '${token}'` : expected,
+        `${expected}, got ${token ? `'${token}'` : "<eof>"}`,
         nodeRef.from,
         nodeRef.to,
       );
@@ -719,6 +862,83 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "LuauTargetTypeCastOperator") {
       this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
       return annotations;
+    }
+    // A `:` or `::` among a declaration's targets that has no name before it
+    // (`local :: number`, `local a, : number`), or a `::` after a target on a
+    // line continued from a trailing comma, which `LuauTargetTypeCast` cannot
+    // see (`local a,` then `b :: number`). The grammar reads each as an
+    // annotation or cast in the declaration's own content.
+    if (
+      (nodeRef.name === "LuauTypeCastOperation" ||
+        nodeRef.name === "LuauTypeAnnotationOperation") &&
+      VARIABLE_DEFINITION_CONTENT_NAMES.has(nodeRef.node.parent?.name ?? "")
+    ) {
+      const operator = nodeRef.name === "LuauTypeCastOperation" ? "::" : ":";
+      const from = nodeRef.from + this.read(nodeRef.from, nodeRef.to).indexOf(operator);
+      const before = this.declarationTargetBefore(nodeRef.node);
+      if (before === null || (before && DECLARATION_COMMA.has(before.name))) {
+        this.error(
+          annotations,
+          `${MISSING_VARIABLE_NAME}, got '${operator}'`,
+          from,
+          from + operator.length,
+        );
+        return annotations;
+      }
+      const comma = before && this.declarationTargetBefore(before);
+      if (
+        operator === "::" &&
+        before &&
+        before.name === "LuauAccessPath" &&
+        soleVariableName(before) &&
+        comma &&
+        DECLARATION_COMMA.has(comma.name)
+      ) {
+        this.error(annotations, TARGET_TYPECAST, from, from + operator.length);
+        return annotations;
+      }
+    }
+    // A second annotation `:` where the type should be (`local c: : number`).
+    // Luau's range runs from the end of the first `:` to the end of the second.
+    if (nodeRef.name === "LuauTypeAnnotationOperator") {
+      let previous = nodeRef.node.prevSibling;
+      while (previous && isTrivia(previous)) {
+        previous = previous.prevSibling;
+      }
+      if (previous?.name === "LuauTypeAnnotationOperator") {
+        const colonEnd = (node: SyntaxNode) =>
+          node.from + this.read(node.from, node.to).indexOf(":") + 1;
+        this.error(
+          annotations,
+          `${MISSING_TYPE}, got ':'`,
+          colonEnd(previous),
+          colonEnd(nodeRef.node),
+        );
+        return annotations;
+      }
+    }
+    // The grammar only sees the text it has read so far, so it cannot tell an
+    // annotation that the end of the file leaves empty (`local w:` on a
+    // `.luau` file's last line), nor one whose next line starts past the
+    // chunk of text it was given, where it reads that line's keyword as the
+    // type. The whole text is here.
+    if (EMPTY_AT_END_OPERATIONS.has(nodeRef.name)) {
+      const colon = firstDescendant(nodeRef.node, TYPE_COLON_BEGINS);
+      const token = colon ? this.tokenAfterTrivia(colon.to) : undefined;
+      if (
+        colon &&
+        (token
+          ? LUAU_NON_TYPE_KEYWORDS.has(token)
+          : !firstDescendant(nodeRef.node, LUAU_TYPE_LITERAL))
+      ) {
+        this.error(
+          annotations,
+          `${MISSING_TYPE}, got ${token ? `'${token}'` : "<eof>"}`,
+          colon.from,
+          colon.to,
+        );
+        return annotations;
+      }
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
     // lookbehind cannot see whether a type stands before the comment
@@ -791,6 +1011,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           missing.message,
           missing.at?.from ?? nodeRef.from,
           missing.at?.to ?? nodeRef.to,
+        );
+      }
+    }
+    // An if statement's condition that its line ends without a `then`: the
+    // grammar ends the condition there, so the branch's first line stays in
+    // its body. Luau names the token after the condition's expression, which
+    // is the first one the grammar could not read into it.
+    if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
+      const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
+      if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
+        const got = nextSignificantToken(
+          this.conditionExpressionEnd(nodeRef.node),
+          (from, to) => this.read(from, to),
+        );
+        const eof = this.tree?.length ?? nodeRef.to;
+        this.error(
+          annotations,
+          `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
+          got?.from ?? eof,
+          got == null ? eof : got.from + got.text.length,
         );
       }
     }

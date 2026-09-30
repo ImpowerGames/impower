@@ -94,6 +94,8 @@ const UNION_LINE_BRIDGE: ReadonlySet<string> = new Set([
   "LuauLineComment",
   "LuauDocLineComment",
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+  "LuauTypeTrailingBlockCommentClose",
 ]);
 
 // The same lookups, with the same bound, that `DeclarationAnnotator` makes
