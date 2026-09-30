@@ -5,6 +5,7 @@ import {
 } from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
+import { ErrorType } from "../../../inkjs/engine/Error";
 import { ConstantDeclaration } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { MultiVariableAssignment } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Variable/MultiVariableAssignment";
@@ -319,9 +320,24 @@ export function lowerVariableDefinition(
   const expressions = firstRhs ? [firstRhs, ...trailingExprs] : trailingExprs;
 
   // `const x = expr` — must be single-target, single-RHS. Reject
-  // multi-target const and multi-RHS const (Luau doesn't support
-  // either form for `const`).
+  // multi-target const and multi-RHS const with an error on the
+  // declaration (Luau has no `const`, so there is no Luau message to
+  // match); without it every read of the undeclared name is silently nil.
   if (scope === "const") {
+    if (targets.length > 1 || expressions.length > 1) {
+      ctx.diagnostics?.push({
+        message: "A `const` takes one name and one value",
+        severity: ErrorType.Error,
+        source: {
+          fileName: null,
+          filePath: ctx.filePath ?? null,
+          startLineNumber: ctx.lineNumber(nodeRef.from) + 1,
+          endLineNumber: ctx.lineNumber(nodeRef.to) + 1,
+          startCharacterNumber: ctx.characterNumber(nodeRef.from) + 1,
+          endCharacterNumber: ctx.characterNumber(nodeRef.to) + 1,
+        },
+      });
+    }
     if (targets.length !== 1 || expressions.length !== 1) return {};
     return wrapInWeave(
       withTrailingStatements(
