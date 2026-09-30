@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawnDetached } from './detached-launch.mjs';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import { runHandoff,checkReviewRound,plannedReviewerPending,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute,validateSlotWait } from './agent-handoff.mjs';
+import { runHandoff,checkReviewRound,plannedReviewerPending,verifyNativeReviewResult,validateReviewRecovery,validateNativeReviewArgs,configuredRoute,validateSlotWait,checkCrossVendor } from './agent-handoff.mjs';
 import { reviewerEnvironment } from './reviewer-security.mjs';
 import { executionCommands } from './reviewer-execution.mjs';
 import { checkWriterEffort } from './reviewer-defaults.mjs';
@@ -74,6 +74,7 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
   // refuses outside the review job root; refusing here happens before the
   // job's files or the worktree freeze exist.
   assertInsideJobRoot([['jobDir',plan.jobDir],...plan.reviews.flatMap(review=>[[`review ${review.id} prompt`,review.prompt],...(review.permissions?.cwd!==undefined?[[`review ${review.id} reviewer directory`,review.permissions.cwd]]:[])])],jobRoot??reviewJobRoot(plan.worktree),`in pr-${plan.pr}${path.sep}round-${plan.round}`);
+  checkCrossVendor(plan,jobRoot??reviewJobRoot(plan.worktree));
   assertFrozen(plan);
   return plan;
 }
@@ -88,7 +89,7 @@ export async function createReviewJob(input,host,{verifyExecutable=verifyReviewe
   writeExclusive(path.join(plan.jobDir,'events.jsonl'),{version:1,sequence:1,eventId:randomUUID(),jobId:plan.jobId,time:new Date().toISOString(),event:'accepted',capability});
   try {reserveFreeze(plan,plan.jobDir);}catch(error){withJob(plan.jobDir,()=>appendEvent(plan.jobDir,'blocked',{reason:error.message}));return jobStatus(plan.jobDir);}
   const steps=Object.fromEntries(plan.reviews.map((review,index)=>[review.id,{role:'review',round:plan.round,reviewers:plan.reviewers,model:plan.reviewer,nativeResult:nativeResultType(review.transport),effort:review.effort,permissions:review.permissions,executable:review.executable,args:review.args,prompt:review.prompt,execution:review.execution,next:[plan.reviews[index+1]?.id??null]}]));
-  writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,completedRoundReviews:plan.completedRoundReviews,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,slotWaitSeconds:plan.slotWaitSeconds,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
+  writeExclusive(path.join(plan.jobDir,'handoff.json'),{worktree:plan.worktree,journal:path.join(plan.jobDir,'handoff.jsonl'),pr:plan.pr,writer:plan.writer,writerEffort:plan.writerEffort,reviewer:plan.reviewer,completedReviewRound:plan.completedReviewRound,reviewedHead:plan.reviewedHead,completedRoundReviews:plan.completedRoundReviews,finalCorrections:plan.finalCorrections,reviewRoundLimit:plan.reviewRoundLimit,extendedReviewAuthorization:plan.extendedReviewAuthorization,slotWaitSeconds:plan.slotWaitSeconds,usageLimitJournal:plan.usageLimitJournal,sameVendorAuthorization:plan.sameVendorAuthorization,maxSteps:plan.reviews.length,first:plan.reviews[0].id,steps});
   return jobStatus(plan.jobDir);
 }
 export async function launchReviewWorker(dir,{spawnWorker=spawnDetached}={}) {
