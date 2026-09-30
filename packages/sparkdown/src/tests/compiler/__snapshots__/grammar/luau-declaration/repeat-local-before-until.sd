@@ -1,0 +1,3 @@
+store n = 0
+repeat n = n + 1 local z = 1 until true
+Count {n}.
