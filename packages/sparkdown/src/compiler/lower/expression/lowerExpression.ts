@@ -1,6 +1,9 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
+import {
+  VARIABLE_DEFINITION_NAMES,
+  valueListAssignmentName,
+} from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -1858,6 +1861,13 @@ export function scanFreeVariables(
       maybeCaptureFree(ctx.read(nameNode.from, nameNode.to));
       return;
     }
+    // A name in a declaration's value list (`x` in `local a, b = 1, x`) is
+    // shaped like a target, so it has no `LuauVariable`, but it reads `x`.
+    const valueName = valueListAssignmentName(n);
+    if (valueName) {
+      maybeCaptureFree(ctx.read(valueName.from, valueName.to));
+      return;
+    }
     // Reference to a stdlib-named identifier in expression value
     // position (e.g. `local m = count` where `count` is a locally-
     // declared shadow of the `count.*` namespace). The grammar tags
@@ -1953,7 +1963,8 @@ function collectVarDefIdentifiers(
   const out: string[] = [];
   let child = content.firstChild;
   while (child) {
-    if (child.name === "LuauVariableAssignment") {
+    // A value in the list (`x` in `local a, b = 1, x`) declares nothing.
+    if (child.name === "LuauVariableAssignment" && !valueListAssignmentName(child)) {
       const nameNode = getDescendent("LuauVariableName", child);
       if (nameNode) out.push(ctx.read(nameNode.from, nameNode.to));
     }

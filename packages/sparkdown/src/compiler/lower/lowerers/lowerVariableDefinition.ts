@@ -2,6 +2,7 @@ import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import {
   VARIABLE_DEFINITION_BEGIN_NAMES,
   VARIABLE_DEFINITION_END_NAMES,
+  ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -437,14 +438,6 @@ function withTrailingStatements(
     out.push(...unwrapBlockContent(block));
   }
   return out;
-}
-
-// A target's own `=`: the assignment operation directly in its content, not
-// one nested in its type annotation (`typeof({ k = 1 })`), which would read
-// as the declaration's `=` and turn the next target's `=` into a second one.
-function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | null {
-  const content = findChildByName(assignment, "LuauVariableAssignment_content");
-  return content ? findChildByName(content, "LuauAssignmentOperation") : null;
 }
 
 function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {

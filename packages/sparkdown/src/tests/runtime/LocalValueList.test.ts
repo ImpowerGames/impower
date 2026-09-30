@@ -85,6 +85,16 @@ describe("a local's value list", () => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
 
+  // A closure captures the names it reads from the enclosing function. A
+  // name in a value list is one of them, not a local of the closure.
+  test.each([
+    ["a local function", "local x = 5\nlocal function inner()\n  local a, b = 1, x\n  return b\nend\nreturn inner()", "Value 5.\n"],
+    ["an anonymous function", "local x = 5\nlocal inner = function()\n  local a, b = 1, x\n  return b\nend\nreturn inner()", "Value 5.\n"],
+    ["a local function, after a boolean","local x = 5\nlocal function inner()\n  local a, b, c = 1, true, x\n  return c\nend\nreturn inner()", "Value 5.\n"],
+  ])("reads a captured name in a value list inside %s", (_, body, expected) => {
+    expect(run(body)).toEqual({ errors: [], output: expected });
+  });
+
   test("a store reads its value past its table type", () => {
     const ctx = makeRuntimeStoryFromSource("store S: typeof({ k = 1 }) = 9\nValue {S}.\n");
     expect(ctx.errorMessages).toEqual([]);
