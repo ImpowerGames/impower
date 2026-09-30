@@ -6,8 +6,8 @@ import { randomUUID } from "node:crypto";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
-import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
-import { resolveReviewer, applyResolvedReviewer } from "./reviewer-defaults.mjs";
+import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs,codexReviewMode} from './reviewer-security.mjs';
+import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-defaults.mjs";
 import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
 import { installFingerprint, installChanges } from "./reviewed-install.mjs";
@@ -157,6 +157,45 @@ export function exitFailure(name, output, diagnostics) {
   return new Error(`Role ${name} failed${found ? `; route unavailable: ${found}` : ""}; inspect ${output}`);
 }
 
+// The route failures that mean the provider's allowance is spent, as opposed
+// to a rejected credential or a CLI too old for the model.
+const usageLimitPattern = /hit your .*limit|usage limit|rate limit|too many requests|\b429\s+too many|(status|http|error)\W{0,3}429\b|quota exceeded|exceeded .*quota/i;
+export const usageLimitWindowMs = 6 * 60 * 60 * 1000;
+
+// Review is cross-vendor. A reviewer of the writer's own vendor, whether the
+// defaults' fallback or an explicit route, launches only when the plan names a
+// journal in which this launcher recorded a cross-vendor reviewer blocked by a
+// usage limit within the window. Routes of neither known vendor are not judged.
+export function checkCrossVendor(config, root, now = Date.now()) {
+  const vendor = routeVendor(config.writer);
+  const evidence = config.usageLimitJournal;
+  const authorization = config.sameVendorAuthorization;
+  if (vendor === null || vendor !== routeVendor(config.reviewer)) {
+    if (evidence !== undefined || authorization !== undefined) throw new Error("usageLimitJournal and sameVendorAuthorization apply only to a reviewer of the writer's vendor");
+    return undefined;
+  }
+  // The user may ask for a same-vendor reviewer outright; the plan then
+  // carries their request verbatim in place of the journal.
+  if (authorization !== undefined) {
+    if (typeof authorization !== "string" || !authorization.trim()) throw new Error("sameVendorAuthorization must carry the user's request for a same-vendor reviewer verbatim");
+    if (evidence !== undefined) throw new Error("Supply usageLimitJournal or sameVendorAuthorization, not both");
+    return { sameVendorAuthorization: authorization };
+  }
+  const refuse = (why) => new Error(`Reviewer ${config.reviewer} shares the writer's vendor, which is allowed only after the cross-vendor default was blocked by a usage limit, or on the user's explicit request carried in sameVendorAuthorization: ${why}`);
+  if (typeof evidence !== "string" || !path.isAbsolute(evidence)) throw refuse("launch the cross-vendor default first and, if its journal ends blocked by a usage limit, supply that journal's absolute path as usageLimitJournal");
+  assertInsideJobRoot([["usageLimitJournal", evidence]], root, "the blocked cross-vendor plan's journal");
+  let rows;
+  try { rows = fs.readFileSync(evidence, "utf8").split("\n").filter(Boolean).map((line) => JSON.parse(line)); }
+  catch (error) { throw refuse(`usageLimitJournal ${evidence} is unreadable (${error.message})`); }
+  const launch = rows.findLastIndex((row) => row.event === "launching" && row.role === "review" && ![null, vendor].includes(routeVendor(String(row.model ?? ""))));
+  if (launch < 0) throw refuse(`${evidence} records no cross-vendor reviewer launch`);
+  const blocked = rows.slice(launch + 1).find((row) => row.event === "blocked");
+  if (!blocked || !usageLimitPattern.test(blocked.reason ?? "")) throw refuse(`${evidence} does not end blocked by a usage limit${blocked ? ` (${String(blocked.reason).slice(0, 200)})` : ""}; any other failure is fixed or reported, not reviewed around`);
+  const age = now - Date.parse(blocked.time);
+  if (!(age >= 0 && age <= usageLimitWindowMs)) throw refuse(`${evidence} was blocked at ${blocked.time}, more than ${usageLimitWindowMs / 3600000} hours ago; launch the cross-vendor default again`);
+  return { usageLimitJournal: evidence, usageLimitRoute: rows[launch].model, usageLimitReason: blocked.reason, usageLimitTime: blocked.time };
+}
+
 // A probe with the review step's own executable, arguments and environment
 // shows whether the route answers before a reviewer slot is reserved. A route
 // answers only when it exits 0 and its output carries the requested OK. Every
@@ -189,7 +228,7 @@ export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120
   if (!codex) {
     try { version = `; installed CLI ${execFileSync(step.executable, ["--version"], { encoding: "utf8", timeout: 15000, windowsHide: true }).trim()}`; } catch {}
   }
-  throw new Error(`Reviewer route ${step.model} unavailable before slot reservation: ${detail || `exit code ${code}`}${version}; choose another route or wait for it to recover`);
+  throw new Error(`Reviewer route ${step.model} unavailable before slot reservation: ${detail || `exit code ${code}`}${version}; ${usageLimitPattern.test(detail ?? "") ? "wait for the limit to reset, or name this plan's journal as usageLimitJournal in a plan for a same-vendor reviewer" : "repair the route or wait for it to recover; this failure does not permit a same-vendor reviewer"}`);
 }
 
 // Configuration is a local, caller-authored artifact. Comments and child output
@@ -211,7 +250,8 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   config.reviewer = selection.reviewer;
   if (!config.writer || !config.reviewer || configuredRoute(config.writer) === configuredRoute(config.reviewer)) throw new Error("Supply distinct writer and reviewer model routes");
   if (selection.resolved) for (const [name, step] of Object.entries(config.steps)) if (step.role === "review") config.steps[name] = applyResolvedReviewer(step, selection);
-  const reviewerRow = selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, rowWriterEffort: selection.rowWriterEffort, matchedOn: selection.matchedOn, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {};
+  const sameVendor = checkCrossVendor(config, root);
+  const reviewerRow = { ...(selection.resolved ? { reviewerEffort: selection.reviewerEffort, reviewerResolved: { writerEffort: config.writerEffort, rowWriterEffort: selection.rowWriterEffort, matchedOn: selection.matchedOn, ticketEffort: selection.ticketEffort, fallback: selection.fallback, index: selection.index } } : {}), ...(sameVendor ? { sameVendor } : {}) };
   const reviewRoundLimit = config.reviewRoundLimit ?? 3;
   validateReviewRecovery(config);
   if (!Number.isInteger(config.maxSteps) || config.maxSteps < 1 || config.maxSteps > 30) throw new Error("maxSteps must be 1..30");
@@ -317,6 +357,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       };
       const executionClient = executionClientCommand(cwd);
       const executionPrompt = step.execution ? `\nLauncher execution service: the caller authorized these operations: ${step.execution.map(op => op.id).join(", ")}. Use the command ${executionClient} with no argument to list their exact commands. For tests and benchmarks, one operation ID requests and awaits its fixed-input result; each such ID runs once and later requests return its retained result. Editor operations instead require the bounded request JSON described below, with a separate requestId for each attempt. Requests execute outside the reviewer sandbox through the coordinator, against reviewed head ${head}; Vitest retains its machine-wide reservation and process census. Read the actual test summaries or benchmark report in output; exit zero alone does not establish coverage. Do not print the service environment token. Other commands, arbitrary flags, external projects and reviewer-authored probes are not delegated.\n` : "";
+      const accessPrompt = step.nativeResult === "codex-jsonl" && codexReviewMode(step) === "full-access" ? `\nExecution access: you run without a sandbox, as the user, under the repository's shared hook policy (typed issues, shared stash, local test runs, write hazards). The reviewed checkout ${cwd} is frozen: do not modify it. For executable evidence, clone reviewed head ${head} into your private directory, install dependencies there with PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1, and run tests, including probes you write, only through node scripts/test-suite.mjs run <package> <test-file> [test-file ...] --wait <seconds>, which takes the machine-wide reservation. Record each command and its result in your report.\n` : "";
       const editorPrompt = step.execution?.some(op => op.kind === "editor") ? `\nEditor delegation: read ${path.join(cwd, ".agents/skills/review-pr/references/editor-delegation.md")}. For an editor operation, use ${executionClient} <operation-id> <absolute-request.json>. Write that JSON with your editor tool in your private directory. The coordinator starts the supported editor/player driver, applies bounded UI data and returns its transcript. The client saves PNG copies in your current private directory; open and inspect those images. Each requestId runs once; use a fresh requestId for a new attempt and repeat the identical request to retrieve retained evidence. The operation's maxRequests bounds attempts. The coordinator owns and stops this separate session after your process exits. Do not run up/down directly for this delegation or claim the lens was performed without inspecting successful task evidence and screenshots.\n` : "";
       try {
         if (step.execution) {
@@ -350,7 +391,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
         if(identityRow)append(identityRow);
         if(launchError)throw launchError;
-        child.stdin.end(prompt + executionPrompt + editorPrompt);
+        child.stdin.end(prompt + accessPrompt + executionPrompt + editorPrompt);
         result = await exited;
         activeChild = null;
       } catch(error) {
