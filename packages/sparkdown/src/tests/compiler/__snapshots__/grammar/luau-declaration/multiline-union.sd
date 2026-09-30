@@ -1,0 +1,14 @@
+function f(x: number
+    | string): number?
+    | string
+  local v: number?
+    | string
+    | boolean = 1
+  type T = number
+
+    | string
+  local s: string
+  return x
+end
+local w: number
+Hello.

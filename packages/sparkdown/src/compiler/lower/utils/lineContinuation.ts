@@ -58,14 +58,53 @@ const SKIPPABLE: ReadonlySet<string> = new Set([
 // comma does (`n` then `+ 4,` then `5`), unless that line starts a statement;
 // the comma is then left without a value, and the declaration reports it.
 export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
+  return collectLineContinuationFrom(node, node.nextSibling);
+}
+
+// The lines at the start of a function body that qualify the name its return
+// type ends with (`function f(): types` then `.Button`), with that return
+// type. A return type takes in the line break after it, so the body opens at
+// the next line and those lines are its first children rather than siblings
+// of a statement. Null when the body does not start with such lines.
+export function leadingReturnTypeQualifier(
+  bodyContent: SyntaxNode,
+): { returnType: SyntaxNode; lines: SyntaxNode[] } | null {
+  const body =
+    bodyContent.name === "LuauFunctionBody_content"
+      ? bodyContent.parent
+      : bodyContent.name === "LuauFunctionBody"
+        ? bodyContent
+        : null;
+  let returnType: SyntaxNode | null = null;
+  for (let n = body?.prevSibling ?? null; n; n = n.prevSibling) {
+    if (n.name === "LuauFunctionReturnType") returnType = n;
+    if (n.name === "LuauFunctionReturnType" || n.name === "LuauFunctionParameters") break;
+  }
+  if (!returnType || !endsInTypeName(returnType)) return null;
+  const lines = collectLineContinuationFrom(null, bodyContent.firstChild);
+  if (!isTypeQualifierContinuation(lines)) return null;
+  return { returnType, lines };
+}
+
+// The continuation lines from `start` on. After the statement `node`, a line
+// after a comma that ends a declaration's line is carried too, unless it
+// starts a statement.
+function collectLineContinuationFrom(
+  node: SyntaxNode | null,
+  start: SyntaxNode | null,
+): SyntaxNode[] {
   const nodes: SyntaxNode[] = [];
-  let scan = node.nextSibling;
+  let scan = start;
   for (;;) {
     while (scan && CONTINUATION_BRIDGE.has(scan.name)) scan = scan.nextSibling;
     if (!scan) return nodes;
+    const afterComma =
+      nodes.length === 0
+        ? node != null && endsOnValueComma(node)
+        : lastSignificant(nodes)?.name === "LuauCommaSeparator";
     const carried =
-      node.name === "LuauVariableDefinition" &&
-      lastSignificant(nodes)?.name === "LuauCommaSeparator" &&
+      node?.name === "LuauVariableDefinition" &&
+      afterComma &&
       !startsStatement(scan);
     if (!carried && !isLineContinuation(scan)) return nodes;
     while (scan && scan.name !== "Newline") {
@@ -73,6 +112,108 @@ export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
       scan = scan.nextSibling;
     }
   }
+}
+
+// The `= value` that ends the union member lines after the declaration
+// `node`, across blank and comment lines, which the declaration ended
+// before (`local v: number` then `-- note` then `| string = 1`).
+export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
+  if (!endsInTypeAnnotation(node)) return null;
+  let value: SyntaxNode | null = null;
+  for (let scan = node.nextSibling; scan; scan = scan.nextSibling) {
+    if (SKIPPABLE.has(scan.name)) continue;
+    if (scan.name !== "LuauTypeUnionLineContinuation") break;
+    for (let part = firstContentChild(scan); part; part = part.nextSibling) {
+      if (part.name === "LuauAssignmentOperation") value = part;
+    }
+  }
+  return value;
+}
+
+// Whether the declaration `node` ends in its last target's type annotation,
+// with no value after it (`local v: number`).
+function endsInTypeAnnotation(node: SyntaxNode): boolean {
+  if (node.name !== "LuauVariableDefinition" && node.name !== "LuauSparkdownVariableDefinition") {
+    return false;
+  }
+  let content: SyntaxNode | null = null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === `${node.name}_content`) content = child;
+  }
+  let last: SyntaxNode | null = content?.lastChild ?? null;
+  while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
+  return (
+    last?.name === "LuauVariableAssignment" &&
+    hasDescendant(last, "LuauTypeAnnotationOperation") &&
+    !hasDescendant(last, "LuauAssignmentOperation")
+  );
+}
+
+// Whether the union member line `line` (a `LuauTypeUnionLineContinuation`)
+// continues a type: the nearest node before it, across blank and comment
+// lines, is a declaration that ends in its type, a type alias, an annotated
+// parameter, or another such line with no value; or it starts a function
+// body after the function's return type.
+export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
+  let prev = line.prevSibling;
+  while (prev && SKIPPABLE.has(prev.name)) prev = prev.prevSibling;
+  if (!prev) {
+    const body = line.parent?.name === "LuauFunctionBody_content" ? line.parent.parent : null;
+    for (let n = body?.prevSibling ?? null; n; n = n.prevSibling) {
+      if (n.name === "LuauFunctionReturnType") return true;
+      if (n.name === "LuauFunctionParameters") return false;
+    }
+    return false;
+  }
+  if (prev.name === "LuauTypeUnionLineContinuation") {
+    return !hasDescendant(prev, "LuauAssignmentOperation");
+  }
+  return (
+    prev.name === "LuauDataTypeDeclaration" ||
+    prev.name === "LuauTypeAnnotationOperation" ||
+    endsInTypeAnnotation(prev)
+  );
+}
+
+// Report a union member line that continues no type (`print(1)` then
+// `-- note` then `| string`), which Luau rejects.
+export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext): void {
+  const raw = ctx.read(line.from, line.to);
+  const text = raw.trim();
+  const from = line.from + raw.length - raw.trimStart().length;
+  ctx.diagnostics?.push({
+    message: `\`${text}\` continues a type, but the line before it does not end in one.`,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(from) + 1,
+      endLineNumber: ctx.lineNumber(line.to) + 1,
+      startCharacterNumber: ctx.characterNumber(from) + 1,
+      endCharacterNumber: ctx.characterNumber(line.to) + 1,
+    },
+  });
+}
+
+// Whether the declaration `node` ends on a comma after its `=`: its comma's
+// line break reached an unindented line, where the declaration ends, so the
+// value after the comma is on the lines that follow it.
+function endsOnValueComma(node: SyntaxNode): boolean {
+  let content: SyntaxNode | null = null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === `${node.name}_content`) content = child;
+  }
+  let last: SyntaxNode | null = content?.lastChild ?? null;
+  while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
+  if (last?.name !== "LuauCommaSeparator" && last?.name !== "LuauCommaLineBreak") {
+    return false;
+  }
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauVariableAssignment" && hasDescendant(child, "LuauAssignmentOperation")) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function lastSignificant(nodes: SyntaxNode[]): SyntaxNode | undefined {
