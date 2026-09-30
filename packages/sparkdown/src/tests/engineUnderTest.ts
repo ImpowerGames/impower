@@ -62,6 +62,17 @@ class TestProgramStory extends ProgramStory {
   }
 }
 
+/** The current engine's story of a program that fell back, whose external
+ *  functions are the functions `withTestExternals` wrote, as on the program
+ *  engine. */
+class TestRuntimeStory extends RuntimeStory {
+  readonly externals = new Map<string, (...args: any[]) => unknown>();
+
+  override BindExternalFunction(name: string, fn: (...args: any[]) => unknown): void {
+    this.externals.set(name, fn);
+  }
+}
+
 if (PROGRAM_ENGINE && !STDLIB[TEST_EXTERNAL]) {
   // As `Story.CallExternalFunction` calls a bound function: with each
   // argument's JS value, and what it returns made a value again, or nothing.
@@ -117,19 +128,46 @@ export function testCompiler(): SparkdownCompiler {
   return PROGRAM_ENGINE ? new ProgramEngineCompiler() : new SparkdownCompiler();
 }
 
+/**
+ * The constructs a test's program may fall back for, which then runs on the
+ * current engine: those other slices of the binary program emit (#692), a
+ * divert, a divert target, a read count and a sequence (#696) and a `choose`
+ * block, a choice and a gather (#697); an included script's top-level
+ * content, a `run` statement's call among it, which the design leaves to the
+ * current engine (docs/engine/binary-program.md, What is built); and an
+ * assignment the parser left without its value, which the writer never
+ * emits.
+ */
+const FALLS_BACK_ELSEWHERE: ReadonlySet<string> = new Set([
+  "Divert",
+  "DivertTarget",
+  "read count",
+  "Sequence",
+  "choose",
+  "Choice",
+  "Gather",
+  "IncludedFile",
+  "an assignment without a value",
+]);
+
 /** The story of a compile's `program.compiled`: on the program engine, the
- *  engine over its root. A program that fell back to the current engine is
- *  refused there, so that no test passes on the current engine unnoticed. */
+ *  engine over its root. A program that fell back to the current engine runs
+ *  there only for a construct the program engine leaves to another slice
+ *  (`FALLS_BACK_ELSEWHERE`), and is refused for any other, so that no test
+ *  passes on the current engine unnoticed. */
 export function testStory(compiled: Record<string, any>): RuntimeStory {
   const root = roots.get(compiled);
   if (root) {
     return new TestProgramStory(root) as unknown as RuntimeStory;
   }
   const fallback = fallbacks.get(compiled);
-  if (fallback) {
+  if (!fallback) {
+    return new RuntimeStory(compiled);
+  }
+  if (!FALLS_BACK_ELSEWHERE.has(fallback.construct)) {
     throw new Error(
       `The program falls back to the current engine for ${fallback.construct} at ${fallback.uri} line ${fallback.line + 1}.`,
     );
   }
-  return new RuntimeStory(compiled);
+  return new TestRuntimeStory(compiled);
 }

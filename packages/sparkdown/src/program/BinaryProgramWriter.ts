@@ -845,12 +845,20 @@ export class BinaryProgramWriter implements ProgramEmitter {
     });
     // A row covers the statement's own parts: a range that runs into a body
     // below its start (a loop's objects span the whole loop) ends with the
-    // line before the body, so that an edit inside the body changes no row.
+    // line before the body, and one that runs on through a body starting on
+    // its first line (a closure written after the start of its statement,
+    // whose body goes on below) ends with that line, so that an edit inside
+    // the body changes no row.
     let end = range.endLineNumber - 1;
     let endColumn = Math.max(0, range.endCharacterNumber - 1);
     for (const block of this._blocks) {
-      if (block.firstLine > start && block.firstLine <= end) {
-        end = Math.max(start, block.firstLine - 1);
+      const below = block.firstLine > start && block.firstLine <= end;
+      const fromFirstLine =
+        block.firstLine === start &&
+        block.firstLine + block.span - 1 > start &&
+        end > start;
+      if (below || fromFirstLine) {
+        end = below ? block.firstLine - 1 : start;
         endColumn = this._lineEnd?.(end) ?? 0;
         break;
       }

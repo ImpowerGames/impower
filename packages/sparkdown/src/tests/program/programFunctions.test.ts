@@ -785,6 +785,30 @@ describe("a function's symbol", () => {
     expect(storyBeats(new ProgramStory(removed))).toEqual(coldRun);
   });
 
+  // A closure whose body starts on its statement's first line and runs on
+  // below it: the statement's line row keeps to that line, so a line inserted
+  // inside the body leaves the statement's chunk as a cold compile emits it.
+  it("keeps the chunk of a statement whose closure runs on below its first line when a line is inserted in the body", () => {
+    const s = session(
+      [
+        "local ok, message = pcall(function() local a = 1",
+        "  local b = 2",
+        "  error(\"no\", 0)",
+        "end)",
+        "Guarded {ok} {message}.",
+        "",
+      ].join("\n"),
+    );
+    const owner = entryOf(s.root, 0);
+    const root = s.edit("  local b = 2\n", "  local b = 2\n  local c = 3\n");
+    expect(s.store.emittedLastBuild).toBe(1);
+    expect(entryOf(root, 0)).toBe(owner);
+    expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
+    expect(texts(storyBeats(new ProgramStory(root)).beats)).toEqual([
+      "Guarded false no.\n",
+    ]);
+  });
+
   // A chunk is kept while the names its code assigns are assigned as they
   // were: those of an assignment, of a multiple assignment and of a loop's
   // variables, and the locals a function's entry declares for the functions

@@ -19,9 +19,11 @@ export interface ProgramStatement {
   /** The statement's node name, the column it starts at and its text. */
   syntax: string;
   /** The syntax, with everything the statement's chunk depends on outside
-   *  it: what its lowering read, and how the names it reads resolved. A
-   *  statement an edit left with the same key is one the edit did not
-   *  touch. */
+   *  it: the kinds of the block statements it stands in, what its lowering
+   *  read, and how the names it reads resolved. A statement an edit left
+   *  with the same key is one the edit did not touch. A function definition
+   *  an edit moves out of an `if` block, or into one, keeps its text but not
+   *  its chunk: the story defines one where it runs the other in place. */
   key: string;
   from: number;
   to: number;
@@ -91,7 +93,12 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
   const document = c.documents.get(MAIN_URI)!;
   const text = document.getText();
   const out: ProgramStatement[] = [];
-  const visit = (shape: StatementShape, base: number, key: object) => {
+  const visit = (
+    shape: StatementShape,
+    base: number,
+    key: object,
+    owners: string,
+  ) => {
     const from = base + shape.from;
     const to = base + shape.to;
     const flowChunk = store?.chunkOf(key);
@@ -105,6 +112,7 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
         syntax,
         key: [
           flowChunk ? "statement" : "declaration",
+          owners,
           syntax,
           readsKey(shape.reads),
           ...resolutionsOf(
@@ -122,7 +130,7 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
     }
     for (const body of shape.bodies) {
       for (const nested of body.statements) {
-        visit(nested, base, nested);
+        visit(nested, base, nested, `${owners}/${shape.node}`);
       }
     }
   };
@@ -138,6 +146,7 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
         },
         cur.from,
         block,
+        "",
       );
     }
     cur.next();

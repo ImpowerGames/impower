@@ -210,7 +210,11 @@ const coldSurface = (text: string) => {
   return surface(c.compile({ textDocument: { uri: MAIN_URI } }).program);
 };
 
-// The keys of the statements that stand once before an edit.
+// The keys of the statements that stand once before an edit. A key holds how
+// the names of its statement resolved, which the parsed objects report only
+// until any compiler compiles again (`CompileEpoch.ts`), so the keys of a
+// compile, and the untouched statements found by them, are taken before the
+// cold compile it is compared with.
 const keysOf = (c: SparkdownCompiler) => uniqueKeys(programStatements(c));
 
 // The screenplays the randomized edits run on, each with its edits.
@@ -347,6 +351,9 @@ describe("randomized incremental edits on the statement chunks", () => {
           if (story && !c.compiler.lastProgramBuild) {
             failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
           }
+          const untouched = incremental.chunks
+            ? untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore)
+            : [];
           const incrementalSurface = surface(incremental);
           const cold = coldSurface(after);
           const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(
@@ -358,7 +365,6 @@ describe("randomized incremental edits on the statement chunks", () => {
           if (incremental.chunks) {
             chunked += 1;
             const held = new Set(rootChunks(incremental.chunks));
-            const untouched = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore);
             checked += untouched.length;
             const lost = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
             if (lost.length) {
@@ -388,6 +394,7 @@ describe("randomized incremental edits on the statement chunks", () => {
         let text = screenplay.text();
         const c = programCompiler({ [MAIN_URI]: text }, { programChunks: true });
         c.compile();
+        let keysBefore = keysOf(c.compiler);
         const failures: string[] = [];
         let seed = 0x51ed694 + index;
         const rand = () => {
@@ -414,7 +421,6 @@ describe("randomized incremental edits on the statement chunks", () => {
           const end = Math.min(offset + deleted, text.length);
           undo = { offset, length: insert.length, text: text.slice(offset, end) };
           const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
-          const keysBefore = keysOf(c.compiler);
           c.compiler.updateDocument({
             textDocument: { uri: MAIN_URI, version: n + 2 },
             contentChanges: [
@@ -427,6 +433,10 @@ describe("randomized incremental edits on the statement chunks", () => {
           if (story && !c.compiler.lastProgramBuild) {
             failures.push(`#${n} insert=${JSON.stringify(insert)} del=${deleted} @${offset}: the chunk build did not finish`);
           }
+          const untouched = incremental.chunks
+            ? untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore)
+            : [];
+          keysBefore = keysOf(c.compiler);
           const incrementalSurface = surface(incremental);
           const cold = coldSurface(text);
           const fields = (Object.keys(cold) as (keyof typeof cold)[]).filter(
@@ -438,7 +448,6 @@ describe("randomized incremental edits on the statement chunks", () => {
           if (incremental.chunks) {
             chunked += 1;
             const held = new Set(rootChunks(incremental.chunks));
-            const untouched = untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore);
             checked += untouched.length;
             const lost = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
             if (previousChunked && lost.length) {
