@@ -7,7 +7,8 @@ import {
   Text,
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
-import { Tree } from "@lezer/common";
+import { SyntaxNode, Tree } from "@lezer/common";
+import { nextSignificantToken } from "../lower/utils/validateAssignmentValue";
 import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
@@ -439,10 +440,84 @@ export class SparkdownCombinedAnnotator {
       annotate,
       changeDesc,
     );
+    if (!annotate || annotate.has("validations")) {
+      const wide = this.validationWindow(tree, text, editStart, reparsedTo);
+      if (
+        wide.from < editStart ||
+        (reparsedTo != null && (wide.to == null || wide.to > reparsedTo))
+      ) {
+        this.reannotate(
+          tree,
+          wide.from,
+          wide.to,
+          iteratingFrom,
+          iteratingTo,
+          new Set<keyof SparkdownAnnotators>(["validations"]),
+        );
+      }
+    }
     if (runsCompilations) {
       this.relowerStaleCompilations(tree);
     }
     return this.current;
+  }
+
+  /**
+   * The window the validations are run over again after an edit whose own
+   * window is `[from, to]`. Some checks read past their node to the next
+   * token, across blank and comment lines, and name that token or report at
+   * it: a line in a Luau body that is not a statement (`luauStatementError`),
+   * a `.` that no name follows, and an if condition that no `then` follows.
+   * So an edit can change the report of the last line before it that holds
+   * a token, and a report the edit's window does not reach can stand at the
+   * first token after it. The window starts with that line and ends with the
+   * line of that token; without `to` it runs to the end of the document.
+   */
+  protected validationWindow(
+    tree: Tree,
+    text: Text,
+    from: number,
+    to: number | undefined,
+  ): { from: number; to: number | undefined } {
+    const read = (a: number, b: number) =>
+      text.sliceString(a, Math.min(b, text.length));
+    let line = text.lineAt(from);
+    while (line.number > 1) {
+      const previous = text.line(line.number - 1);
+      line = previous;
+      if (!this.holdsOnlyTrivia(tree, previous, read)) {
+        break;
+      }
+    }
+    if (to == null) {
+      return { from: line.from, to };
+    }
+    const next = nextSignificantToken(text.lineAt(to).to, read);
+    return {
+      from: line.from,
+      to: next ? text.lineAt(next.from).to : text.length,
+    };
+  }
+
+  /** Whether `line` holds nothing but whitespace and comments. */
+  protected holdsOnlyTrivia(
+    tree: Tree,
+    line: { from: number; to: number; text: string },
+    read: (from: number, to: number) => string,
+  ): boolean {
+    const indent = line.text.length - line.text.trimStart().length;
+    if (indent === line.text.length) {
+      return true;
+    }
+    let comment: SyntaxNode | null = tree.resolveInner(line.from + indent, 1);
+    while (comment && !comment.name.endsWith("Comment")) {
+      comment = comment.parent;
+    }
+    if (!comment) {
+      return false;
+    }
+    const next = nextSignificantToken(comment.to, read);
+    return next == null || next.from > line.to;
   }
 
   /**

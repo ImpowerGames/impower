@@ -24,8 +24,11 @@ import { syntheticId } from "./utils/documentTag";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromContainerAndContinuation,
+  lowerCallArgsNode,
   lowerExpressionFromNodes,
+  lowerNamedCall,
 } from "./expression/lowerExpression";
+import { findOwnDeclarationName } from "./utils/findOwnDeclarationName";
 import { wrapInWeave } from "./utils/wrapInWeave";
 import {
   collectLineContinuation,
@@ -571,6 +574,44 @@ function followsDanglingDot(start: SyntaxNode, ctx: LowerContext): boolean {
   return false;
 }
 
+// The strings and tables after `node`, across blank and comment lines, up to
+// the first other node.
+function callArgsOnLaterLines(node: SyntaxNode): SyntaxNode[] {
+  const args: SyntaxNode[] = [];
+  for (let next = node.nextSibling; next; next = next.nextSibling) {
+    if (TRIVIA_BEFORE_STATEMENT.has(next.name)) continue;
+    if (!CALL_ARGS_ON_LATER_LINES.has(next.name)) break;
+    args.push(next);
+  }
+  return args;
+}
+
+const CALL_ARGS_ON_LATER_LINES: ReadonlySet<string> = new Set([
+  "LuauDoubleQuotedString",
+  "LuauSingleQuotedString",
+  "LuauMultilineString",
+  "LuauInterpolatedString",
+  "LuauTable",
+]);
+
+// Whether a function definition has no name: not `function f()`, nor a
+// property target such as `function t.f()`, which is written as an access
+// path.
+function isAnonymousFunction(node: SyntaxNode): boolean {
+  if (findOwnDeclarationName(node) != null) return false;
+  const content = findChildByName(node, "LuauFunctionDefinition_content");
+  for (let part = (content ?? node).firstChild; part; part = part.nextSibling) {
+    if (part.name === "LuauAccessPath") return false;
+  }
+  return true;
+}
+
+// The name an access path is, when it is a single name (`print`).
+function plainName(path: SyntaxNode, ctx: LowerContext): string | null {
+  const text = ctx.read(path.from, path.to).trim();
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(text) ? text : null;
+}
+
 // The nodes a statement can start with that begin a value which is never a
 // call or an assignment target.
 const EXPRESSION_STATEMENT_STARTS: ReadonlySet<string> = new Set([
@@ -587,6 +628,7 @@ const EXPRESSION_STATEMENT_STARTS: ReadonlySet<string> = new Set([
   "LuauLengthOperation",
   "LuauLogicalOperation",
   "LuauParenthetical",
+  "LuauUnitKeywords",
 ]);
 
 const TRIVIA_BEFORE_STATEMENT: ReadonlySet<string> = new Set([
@@ -666,10 +708,34 @@ function lowerStatementAt(
     }
     // The lines that continue the call (`obj` then `:method()`).
     const continuation = collectLineContinuation(consumedParen ?? child);
-    const lastNode =
+    let lastNode =
       continuation[continuation.length - 1] ?? consumedParen ?? child;
     callNodes.push(...continuation);
-    const callExpr = lowerExpressionFromNodes(callNodes, ctx);
+    // The strings and tables on the lines after it are call arguments
+    // (`print` then `"hello"`), as Luau reads them: no statement begins with
+    // one. A name they follow is called as `print "hello"` calls it.
+    const laterArgs = callArgsOnLaterLines(lastNode);
+    let callExpr: Expression | null;
+    if (laterArgs.length > 0 && callNodes.length === 1) {
+      // The first is the callee's own argument, as on one line: a name is
+      // the function it names, and a path lowers with it as its call
+      // (`table.sort{}`).
+      const first = laterArgs[0]!;
+      const name = plainName(child, ctx);
+      callExpr = name
+        ? lowerNamedCall(name, lowerCallArgsNode(first, ctx), child, ctx)
+        : lowerExpressionFromNodes([child, first], ctx);
+      lastNode = first;
+      laterArgs.shift();
+    } else {
+      callExpr = lowerExpressionFromNodes(callNodes, ctx);
+    }
+    for (const arg of laterArgs) {
+      if (callExpr) {
+        callExpr = new CallValueExpression(callExpr, lowerCallArgsNode(arg, ctx));
+      }
+      lastNode = arg;
+    }
     // Compute the statement's source range — spans the access path
     // plus the trailing parenthetical (if any) and the lines that continue
     // it. Used by `wrapInWeave` to attach per-statement debug metadata so
@@ -774,9 +840,12 @@ function lowerStatementAt(
       }
     }
   }
-  // A value that is not a call (`1 + 2`, `"hi"`, `{}`, `not a`, `(t)`) is
-  // no statement Luau can read either.
-  if (EXPRESSION_STATEMENT_STARTS.has(child.name)) {
+  // A value that is not a call (`1 + 2`, `"hi"`, `{}`, `not a`, `(t)`, `...`,
+  // `function() end`) is no statement Luau can read either.
+  if (
+    EXPRESSION_STATEMENT_STARTS.has(child.name) ||
+    (child.name === "LuauFunctionDefinition" && isAnonymousFunction(child))
+  ) {
     return reportExpressionStatement(child, child, ctx);
   }
   const { lowered, last } = lowerContinued(child, ctx, () =>

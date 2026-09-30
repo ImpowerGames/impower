@@ -6,6 +6,7 @@
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { checkLuau } from "../luau-conformance/typecheckTestHarness";
@@ -230,6 +231,46 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);
   });
 
+  it.each([
+    ["an anonymous function", "function greet()\n  function() end\nend\n"],
+    ["`...`", "function greet(...)\n  ...\nend\n"],
+  ])("reports %s as a statement with Luau's first error", (_, source) => {
+    expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+  });
+
+  it("calls a name or a call with the strings and tables on the lines after it", () => {
+    const source = [
+      'store got = ""',
+      "",
+      "function note(s)",
+      "  got = got .. s",
+      "end",
+      "",
+      "function size(t)",
+      "  got = got .. #t",
+      "end",
+      "",
+      "function f()",
+      "  local t = { add = note }",
+      "  note",
+      '    "a"',
+      "  size",
+      "    { 1, 2 }",
+      "  note -- the next one",
+      "",
+      "    'b'",
+      "  t.add",
+      '    "c"',
+      "  return got",
+      "end",
+      "",
+      "{f()}",
+      "",
+    ].join("\n");
+    expect(errorsOf(source)).toEqual([]);
+    expect(playedLines(source)).toEqual(["a2bc\n"]);
+  });
+
   it("reports Luau's range past a long comment before the next token", () => {
     const source = `function greet()\n  Hi, Bob\n  --[[${"x".repeat(5000)}]]\nend\n`;
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);
@@ -367,5 +408,66 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
     expect(errorsOf(source).map((d) => d.message)).toEqual([
       "Expected identifier when parsing expression, got 'return'",
     ]);
+  });
+});
+
+describe("an edit after a line whose error names the next token (#1158)", () => {
+  // Each check reads past its line, across blank and comment lines, to the
+  // next token, and names it or reports at it. An edit on those lines must
+  // leave the validations a cold parse gives, after earlier edits in the
+  // block have given the parser places to restart inside it.
+  const ANNOTATORS = ["implicits", "references", "compilations", "validations", "declarations"];
+
+  const position = (text: string, offset: number) => {
+    const before = text.slice(0, offset).split("\n");
+    return { line: before.length - 1, character: before[before.length - 1]!.length };
+  };
+
+  function validations(registry: SparkdownDocumentRegistry) {
+    const found: string[] = [];
+    const iter = (registry.annotations(URI) as any).validations.iter(0);
+    while (iter.value) {
+      found.push(`${iter.from}-${iter.to} ${iter.value.type.message}`);
+      iter.next();
+    }
+    return found;
+  }
+
+  function open(text: string) {
+    const registry = new SparkdownDocumentRegistry(ANNOTATORS as never);
+    registry.add({ textDocument: { uri: URI, text, version: 1, languageId: "sparkdown" } });
+    return registry;
+  }
+
+  it.each([
+    ["a line that is not a statement", "  Well, friend."],
+    ["a `.` no name follows", "  local x = t."],
+    ["an if condition no `then` follows", "  if x"],
+  ])("keeps %s reported as a cold parse reports it", (_, line) => {
+    const scenes = Array.from({ length: 6 }, (_, s) => `scene s${s}\n  Line ${s} here.\nend\n`);
+    let text = `${scenes.join("\n")}\nfunction f(t, x)\n  local a = 1\n${line}\n\n  local b = 2\nend\n`;
+    const registry = open(text);
+    let version = 2;
+    const edits: ((text: string) => [number, number, string])[] = [
+      (t) => [t.indexOf("local a = 1") + 10, 0, "1"],
+      (t) => [t.indexOf("local b = 2") + 10, 0, "2"],
+      (t) => [t.indexOf("\n\n  local b") + 1, 0, "  y = 3\n"],
+      (t) => [t.indexOf("  y = 3\n"), 8, ""],
+      (t) => [t.indexOf("\n\n  local b") + 1, 0, "  -- a note\n"],
+      (t) => [t.indexOf("  -- a note\n"), 0, "  z = 4\n"],
+    ];
+    for (const edit of edits) {
+      const [offset, removed, inserted] = edit(text);
+      registry.update({
+        textDocument: { uri: URI, version: version++ },
+        contentChanges: [
+          { range: { start: position(text, offset), end: position(text, offset + removed) }, text: inserted },
+        ],
+      } as never);
+      text = text.slice(0, offset) + inserted + text.slice(offset + removed);
+      const cold = open(text);
+      expect(registry.tree(URI)!.toString(), JSON.stringify(inserted)).toBe(cold.tree(URI)!.toString());
+      expect(validations(registry), JSON.stringify(inserted)).toEqual(validations(cold));
+    }
   });
 });

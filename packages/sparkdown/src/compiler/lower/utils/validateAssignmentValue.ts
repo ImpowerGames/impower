@@ -4,12 +4,8 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
 
-// How far past the `=` to scan for the token Luau reports as "got '<token>'".
-// Generous enough to skip whitespace, blank lines, and a trailing comment to
-// the next real token. If the next token were somehow farther than this (only
-// reachable with thousands of chars of pure whitespace/comments — never in
-// authored content) the message degrades to `got <eof>`; the diagnostic still
-// fires, since emptiness is detected from the parse tree, not this window.
+// The first window `nextSignificantToken` reads for the next token, which
+// it doubles until the token is whole or the document ends.
 const LOOKAHEAD = 4096;
 
 // Grammar node names that carry no value — whitespace and comments. A comment

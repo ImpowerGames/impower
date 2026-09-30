@@ -504,7 +504,7 @@ const CALL_ARG_NODE_NAMES = nodeNameSet([
 
 // Lower a call's argument node — a parenthetical's comma-split list,
 // or the single-literal sugar forms above.
-function lowerCallArgsNode(
+export function lowerCallArgsNode(
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression[] {
@@ -2488,41 +2488,7 @@ export function lowerSimpleAccessPath(
           const argLists = collectAllCallParameterArgLists(inner, ctx);
           const args = argLists[0] ?? [];
           if (nameStr) {
-            // If the callee name resolves to an enclosing-scope
-            // LOCAL binding (not a stdlib, knot, or sibling
-            // variadic SubFlow), route through `CallValueExpression`
-            // on a `VariableReference` instead of `FunctionCall`.
-            // Otherwise the lowerer emits `Divert(-> NAME)` which
-            // fails compile-time `target not found` when NAME is a
-            // variable, not a knot. The runtime variable-divert
-            // path already handles closures, `__call` metamethods,
-            // and (now) `__stdlib_fn` markers from a CallValue
-            // dispatch site.
-            //
-            // We DON'T re-route for stdlib names, top-level callables,
-            // or sibling variadic SubFlows — those resolve via
-            // FunctionCall + Divert correctly. Limiting the re-route
-            // to declared-locals avoids regressing the common path.
-            // The sibling-subflow check comes FIRST: it's the
-            // innermost binding, so a variadic `function foo(...)` in
-            // THIS function shadows a same-named local in an outer
-            // scope (see isSiblingSubFlowName).
-            if (resolveCallableBinding(nameStr, ctx) === "local") {
-              const receiver = new VariableReference([new Identifier(nameStr)]);
-              const baseCall = new CallValueExpression(receiver, args);
-              return wrapChainedValueCalls(baseCall, argLists.slice(1));
-            }
-            // Sibling subflows dispatch against their CONTAINER name
-            // — mangled when the source name was redefined (see
-            // SiblingSubFlowInfo.knotName).
-            const callName =
-              siblingSubFlowInfo(nameStr, ctx)?.knotName ?? nameStr;
-            const base = makeGlobalFunctionCall(
-              new Identifier(callName),
-              withSiblingSubFlowUpvalArgs(nameStr, args, ctx),
-              inner,
-              ctx,
-            );
+            const base = lowerNamedCall(nameStr, args, inner, ctx);
             return wrapChainedValueCalls(base, argLists.slice(1));
           }
         }
@@ -2542,6 +2508,49 @@ export function lowerSimpleAccessPath(
     );
   }
   return null;
+}
+
+// A call of the function the name `nameStr` binds, with `args`. `callNode` is
+// the call's syntax, for the stdlib deprecation hint.
+export function lowerNamedCall(
+  nameStr: string,
+  args: Expression[],
+  callNode: SyntaxNode,
+  ctx: LowerContext,
+): Expression {
+  // If the callee name resolves to an enclosing-scope
+  // LOCAL binding (not a stdlib, knot, or sibling
+  // variadic SubFlow), route through `CallValueExpression`
+  // on a `VariableReference` instead of `FunctionCall`.
+  // Otherwise the lowerer emits `Divert(-> NAME)` which
+  // fails compile-time `target not found` when NAME is a
+  // variable, not a knot. The runtime variable-divert
+  // path already handles closures, `__call` metamethods,
+  // and (now) `__stdlib_fn` markers from a CallValue
+  // dispatch site.
+  //
+  // We DON'T re-route for stdlib names, top-level callables,
+  // or sibling variadic SubFlows — those resolve via
+  // FunctionCall + Divert correctly. Limiting the re-route
+  // to declared-locals avoids regressing the common path.
+  // The sibling-subflow check comes FIRST: it's the
+  // innermost binding, so a variadic `function foo(...)` in
+  // THIS function shadows a same-named local in an outer
+  // scope (see isSiblingSubFlowName).
+  if (resolveCallableBinding(nameStr, ctx) === "local") {
+    const receiver = new VariableReference([new Identifier(nameStr)]);
+    return new CallValueExpression(receiver, args);
+  }
+  // Sibling subflows dispatch against their CONTAINER name
+  // — mangled when the source name was redefined (see
+  // SiblingSubFlowInfo.knotName).
+  const callName = siblingSubFlowInfo(nameStr, ctx)?.knotName ?? nameStr;
+  return makeGlobalFunctionCall(
+    new Identifier(callName),
+    withSiblingSubFlowUpvalArgs(nameStr, args, ctx),
+    callNode,
+    ctx,
+  );
 }
 
 // The name of a `LuauVariableAssignment` that holds nothing but its name
