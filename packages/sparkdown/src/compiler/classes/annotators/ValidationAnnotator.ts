@@ -122,8 +122,16 @@ const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
 const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
-const LUAU_COMMENT = nodeNameSet([
+// A block comment after a type that closes on a later line is its own rule
+// (`LuauTypeTrailingBlockComment`), which differs only in the whitespace it
+// leaves after its close.
+const LUAU_BLOCK_COMMENT_NAMES: SparkdownNodeName[] = [
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+];
+const LUAU_BLOCK_COMMENT = nodeNameSet(LUAU_BLOCK_COMMENT_NAMES);
+const LUAU_COMMENT = nodeNameSet([
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauDocLineComment",
   "LuauLineComment",
 ]);
@@ -478,8 +486,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return false;
     }
-    if (name === "LuauBlockComment") {
-      if (!childNamed(nodeRef.node, "LuauBlockComment_end")) {
+    if (LUAU_BLOCK_COMMENT.has(name)) {
+      if (!childNamed(nodeRef.node, `${name}_end`)) {
         this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
         return true;
       }
@@ -553,7 +561,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         pos -= 1;
       }
       let node = this.tree?.resolveInner(pos, -1) ?? null;
-      while (node && node.name !== "LuauBlockComment") {
+      while (node && !LUAU_BLOCK_COMMENT.has(node.name)) {
         node = node.parent;
       }
       if (!node || node.from >= pos) {

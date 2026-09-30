@@ -9364,6 +9364,7 @@ repository:
   LuauTypeLiteral:
     begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
     patterns:
+      - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeOptionalOperator" }
       - { include: "#LuauTypeStrayOptionalOperator" }
@@ -9389,6 +9390,57 @@ repository:
     # before a block comment on its line that code follows
     # (`function f(): number --[[c]] g()`, see `LUAU_BLOCK_COMMENT_ON_LINE`).
     end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+
+  # A block comment right after a type that closes on a later line
+  # (`local w: number --[[a` then `b]] print(1)`). No pattern on the
+  # opening line can see what follows the close, so the type reads the
+  # comment in, and the close decides: this rule ends as `LuauBlockComment`
+  # does, but takes the whitespace after the close only when the type can go
+  # on there (a type operator, the `?` suffix, what ends the type anyway, a
+  # comment or the line's end). Before code it leaves that whitespace, so the
+  # type, the rules around it and a declaration end there as they do after
+  # `number print(1)`, and a return type's body opens there. A comment that
+  # closes on its line is `LuauBlockComment`, which ends the type before it
+  # when code follows (`LUAU_BLOCK_COMMENT_ON_LINE`). The opening line alone
+  # cannot tell a comment after a type from one after an operator or a comma
+  # on a later line, so only `LuauTypeLiteral`, which reads a comment only
+  # after type text of its own, includes this rule.
+  LuauTypeTrailingBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    begin: (?<={{LUAU_TYPE_END}}{{WS}}*)(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+      - { include: "#Newline" }
+    end: (\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_TYPE_CODE_AHEAD}})|)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
 
   # `->` as a type annotation marks the parameter as carrying a
   # divert-target value (sparkdown's analogue of ink's typed-divert

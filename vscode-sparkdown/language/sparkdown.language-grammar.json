@@ -14100,6 +14100,9 @@
       "begin": "(?=(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)|[?]|[&]|[|]|[{]|[(]|[<]|[\"]|[']|[`]|[-][>])",
       "patterns": [
         {
+          "include": "#LuauTypeTrailingBlockComment"
+        },
+        {
           "include": "#LuauComment"
         },
         {
@@ -14149,6 +14152,84 @@
         }
       ],
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=[,;)\\]}>=]|(?:^(?:[^\\S\\n\\r])*[^|\\s]))|(?<=\\S)(?=(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[?])|[&]|[|])))(?:[^\\S\\n\\r])*\\S)|(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)(?=(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[=*\\[(?:[^\\]\\n]|\\](?!=*\\]))*\\]=*\\](?:[^\\S\\n\\r])*)(?![|&?.<>=,;)\\]}]|[-][>]|(?:[^\\S\\n\\r])|$|(?:[-][-])))"
+    },
+    "LuauTypeTrailingBlockComment": {
+      "tag": "blockComment",
+      "name": "comment.block.luau",
+      "begin": "(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)(?!(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[=*\\[(?:[^\\]\\n]|\\](?!=*\\]))*\\]=*\\](?:[^\\S\\n\\r])*))((?:[^\\S\\n\\r])*)(--\\[)([=]*)(\\[)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#Whitespace"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauCommentMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauCommentMark"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#LuauCommentMark"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauDocCommentTags"
+        },
+        {
+          "include": "#LuauBlockCommentContent"
+        },
+        {
+          "include": "#Newline"
+        }
+      ],
+      "end": "(\\])(\\3)(\\])((?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r]))(?!(?![|&?.<>=,;)\\]}]|[-][>]|(?:[^\\S\\n\\r])|$|(?:[-][-])))|)",
+      "endCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauCommentMark"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauCommentMark"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauCommentMark"
+            }
+          ]
+        },
+        "4": {
+          "emit": true,
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      }
     },
     "LuauDivertTargetType": {
       "tag": "standard(typeName)",
