@@ -528,8 +528,7 @@ function reportExpressionStatement(
     }
     if (n.from >= lastNode.from) last = n;
   }
-  const before = ctx.read(Math.max(0, start.from - 512), start.from).trimEnd();
-  if (dangling || (before.endsWith(".") && !before.endsWith(".."))) return last;
+  if (dangling || followsDanglingDot(start, ctx)) return last;
   const error = luauStatementError(start.from, (from, to) => ctx.read(from, to));
   if (error) {
     ctx.diagnostics?.push({
@@ -547,6 +546,41 @@ function reportExpressionStatement(
   }
   return last;
 }
+
+// Whether the statement before `start`, across blank and comment lines, ends
+// with a `.` that no name follows on its line: a dangling access
+// (`LuauDanglingAccessor`) or a line that is not a Luau statement ending in
+// one (`Hello.`).
+function followsDanglingDot(start: SyntaxNode, ctx: LowerContext): boolean {
+  let prev = start.prevSibling;
+  while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
+  if (!prev) return false;
+  if (prev.name === "LuauInvalidStatement") {
+    const text = ctx.read(prev.from, prev.to).trimEnd();
+    return text.endsWith(".") && !text.endsWith("..");
+  }
+  const cursor = prev.cursor();
+  do {
+    if (
+      cursor.name === "LuauDanglingAccessor" &&
+      ctx.read(cursor.to, prev.to).trim() === ""
+    ) {
+      return true;
+    }
+  } while (cursor.next() && cursor.from < prev.to);
+  return false;
+}
+
+const TRIVIA_BEFORE_STATEMENT: ReadonlySet<string> = new Set([
+  "Newline",
+  "ExtraWhitespace",
+  "Whitespace",
+  "OptionalWhitespace",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauBlockComment",
+  "LuauDocLineComment",
+]);
 
 // Lowers the statement that starts at `child` into `result`, and returns the
 // last sibling node the statement consumed, the lines that continue it

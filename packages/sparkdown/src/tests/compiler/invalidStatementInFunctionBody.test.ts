@@ -176,6 +176,19 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     });
   });
 
+  it("reports a lone name after a number that ends with `.`, which is no dangling access", () => {
+    // `1.` is a number; the name on the next line is a statement of its own.
+    const source = "function f()\n  local x = 1.\n  y\nend\n";
+    expect(errorsOf(source)).toEqual([
+      {
+        message: "Incomplete statement: expected assignment or a function call",
+        severity: 1,
+        start: { line: 2, character: 2 },
+        end: { line: 2, character: 3 },
+      },
+    ]);
+  });
+
   it("keeps an `end` in a string or a comment inside the line, so the function ends at its own", () => {
     for (const line of ['He said "the end" today.', "Hello there -- the end"]) {
       const source = `function greet()\n  ${line}\nend\nAfter it.\n`;
@@ -295,6 +308,25 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
     ].join("\n");
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual(["21\n"]);
+  });
+
+  it("leaves a narrative reassignment at its line, so the story line after it plays", () => {
+    const source = [
+      "store x = 0",
+      "",
+      "-> A",
+      "",
+      "scene A",
+      "  x =",
+      "  Hello there.",
+      "  done",
+      "end",
+      "",
+    ].join("\n");
+    expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
+      [5, "Expected identifier when parsing expression, got 'Hello'"],
+    ]);
+    expect(playedLines(source)).toEqual(["Hello there.\n"]);
   });
 
   it("still reports an `=` whose next line starts a statement", () => {
