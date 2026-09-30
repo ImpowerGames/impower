@@ -310,19 +310,28 @@ end
   });
 
   test("an unquoted value ends at `;` and at the block's `}`, and a quoted value may hold `{`, `}` and `;`", () => {
-    const style = structOf(
-      `style s with
+    const braced = `style s with
   &.a { color = red; content = "a { b } ; c"; width = 10px }
 end
-`,
-      "style",
-      "s",
-    );
+`;
+    const style = structOf(braced, "style", "s");
     expect(style["&.a"]).toEqual({
       color: "red",
       content: "a { b } ; c",
       width: "10px",
     });
+    // A full compile reports what the indented form of the same body reports.
+    const indented = `style s with
+  &.a:
+    color = red
+    content = "a { b } ; c"
+    width = 10px
+end
+`;
+    expect(structOf(indented, "style", "s")).toEqual(style);
+    const messages = (text: string) =>
+      diagnosticsOf(text).map((d) => `${d.severity} ${d.message}`);
+    expect(messages(braced)).toEqual(messages(indented));
     const animation = structOf(
       `animation a with
   timing { easing = "steps(2; x)"; duration = 3 }
