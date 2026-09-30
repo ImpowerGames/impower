@@ -64,8 +64,9 @@ export class DefineTypeNameIndex {
 
   /**
    * Carry the index through one edit. `from`/`to` are the window of the new
-   * tree that is being re-examined, in new-document coordinates — the same
-   * window the annotators re-run over.
+   * tree that the parser re-examined, in new-document coordinates. The
+   * annotators' window can run further, to the last name of a
+   * `local`/`store`/`const` list, which holds no define type.
    */
   update(
     tree: Tree,

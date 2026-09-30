@@ -30,6 +30,7 @@ import { type SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef"
 import {
   VARIABLE_DEFINITION_CONTENT_NAMES,
   VARIABLE_DEFINITION_NAMES,
+  valueListAssignmentName,
 } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
@@ -350,7 +351,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         if (VARIABLE_DEFINITION_CONTENT_NAMES.has(cur.name)) {
           let inner = cur.firstChild;
           while (inner) {
-            if (inner.name === "LuauVariableAssignment") {
+            // A value in the list (`x` in `store a, b = 1, x`) declares nothing.
+            if (inner.name === "LuauVariableAssignment" && !valueListAssignmentName(inner)) {
               const nameNode = this.findDescendant(inner, "LuauVariableName");
               if (nameNode) set.add(this.read(nameNode.from, nameNode.to).trim());
             }
