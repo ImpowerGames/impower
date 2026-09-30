@@ -2,13 +2,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {git} from './review-job-store.mjs';
-import {validateCodexSandboxStorage,isSupportedCodexVersion} from './reviewer-security.mjs';
+import {validateCodexSandboxStorage,validateCodexAuthHome,codexReviewMode,isSupportedCodexVersion,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
 
 export function verifyReviewerExecutable(review) {
   if(review.transport!=='native-codex-jsonl')return;
   if(process.platform!=='win32')throw new Error('Automatic native Codex reviewer is verified on Windows only; use awaited mode');
   const version=execFileSync(review.executable,['--version'],{encoding:'utf8',windowsHide:true,timeout:10000}).trim();
-  if(!isSupportedCodexVersion(/^codex-cli (\S+)$/.exec(version)?.[1]))throw new Error('Native Codex reviewer version is unverified; use awaited mode');
+  const minimum=codexReviewMode(review)==='full-access'?minimumFullAccessCodexVersion:minimumCodexVersion;
+  if(!isSupportedCodexVersion(/^codex-cli (\S+)$/.exec(version)?.[1],minimum))throw new Error(`Native Codex reviewer version is unverified (this route needs ${minimum} or later); use awaited mode`);
 }
 
 export const nativeResultType=transport=>{
@@ -44,7 +45,7 @@ export function validateCodexReviewer(review,plan) {
       if(!['multi_agent','multi_agent_v2'].includes(feature)||disabled.has(feature))throw new Error('Unsupported or duplicate Codex feature override');
       disabled.add(feature);continue;
     }
-    if(['--json','--skip-git-repo-check','--ignore-user-config','--ignore-rules','--strict-config'].includes(flag)) {
+    if(['--json','--skip-git-repo-check','--ignore-user-config','--ignore-rules','--strict-config','--dangerously-bypass-hook-trust'].includes(flag)) {
       if(values.has(flag))throw new Error('Duplicate Codex reviewer flag');values.set(flag,true);continue;
     }
     if(!['--model','--cd','--sandbox','--output-last-message','-c'].includes(flag)||index+1>=args.length-1)throw new Error('Unsupported or ambiguous Codex reviewer argument');
@@ -61,24 +62,37 @@ export function validateCodexReviewer(review,plan) {
   // missing or mismatched argument and step field together.
   const missing=[];
   const need=(ok,label)=>{if(!ok)missing.push(label);};
-  need(config.get('windows.sandbox')==='elevated','-c windows.sandbox="elevated"');
+  // The full-access grammar runs as the user under the repository hooks the
+  // launcher installs; the sandbox settings have no effect there, so they are refused.
+  const fullAccess=codexReviewMode(review)==='full-access';
   for(const flag of ['--ignore-user-config','--ignore-rules','--strict-config','--json','--skip-git-repo-check'])need(values.get(flag),flag);
   need(config.get('model_provider')==='openai','-c model_provider="openai"');
-  need(JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))==='[]','-c sandbox_workspace_write.writable_roots=[]');
-  need(config.get('sandbox_workspace_write.exclude_tmpdir_env_var')===true,'-c sandbox_workspace_write.exclude_tmpdir_env_var=true');
-  need(config.get('sandbox_workspace_write.exclude_slash_tmp')===true,'-c sandbox_workspace_write.exclude_slash_tmp=true');
   for(const feature of ['multi_agent','multi_agent_v2'])need(disabled.has(feature),`--disable ${feature}`);
+  const sandboxKeys=['windows.sandbox','sandbox_workspace_write.network_access','sandbox_workspace_write.writable_roots','sandbox_workspace_write.exclude_tmpdir_env_var','sandbox_workspace_write.exclude_slash_tmp'];
+  if(fullAccess) {
+    need(values.get('--dangerously-bypass-hook-trust'),'--dangerously-bypass-hook-trust (the launcher installs the repository hooks in the reviewer home)');
+    for(const key of sandboxKeys)need(!config.has(key),`no -c ${key} (sandbox settings do not apply to danger-full-access)`);
+    for(const field of ['windowsSandbox','sandboxStateHome'])need(permission[field]===undefined,`no step permissions.${field} (sandbox settings do not apply to danger-full-access)`);
+    need(path.isAbsolute(permission.codexHome??''),'step permissions.codexHome as the absolute existing Codex home holding auth.json');
+  } else {
+    need(!values.has('--dangerously-bypass-hook-trust'),'no --dangerously-bypass-hook-trust (the sandboxed route installs no hooks)');
+    need(config.get('windows.sandbox')==='elevated','-c windows.sandbox="elevated"');
+    need(JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))==='[]','-c sandbox_workspace_write.writable_roots=[]');
+    need(config.get('sandbox_workspace_write.exclude_tmpdir_env_var')===true,'-c sandbox_workspace_write.exclude_tmpdir_env_var=true');
+    need(config.get('sandbox_workspace_write.exclude_slash_tmp')===true,'-c sandbox_workspace_write.exclude_slash_tmp=true');
+  }
   const effortValid=['low','medium','high','xhigh','max','ultra'].includes(review.effort);
   need(values.get('--model')===plan.reviewer,`--model ${plan.reviewer}`);
   need(effortValid,'step effort (low, medium, high, xhigh, max or ultra) on a step with an explicit reviewer');
   need(effortValid&&config.get('model_reasoning_effort')===review.effort,`-c model_reasoning_effort="${effortValid?review.effort:'<step effort>'}"`);
-  need(permission.sandbox==='workspace-write','step permissions.sandbox "workspace-write"');
+  const sandbox=fullAccess?'danger-full-access':'workspace-write';
+  need(permission.sandbox===sandbox,`step permissions.sandbox "${sandbox}"`);
   need(permission.approvalPolicy==='never','step permissions.approvalPolicy "never"');
   need(permission.networkAccess===true,'step permissions.networkAccess true');
   need(permission.artifactWrites==='handoff-directory','step permissions.artifactWrites "handoff-directory"');
-  need(values.get('--sandbox')==='workspace-write'&&values.get('--sandbox')===permission.sandbox,'--sandbox workspace-write');
+  need(values.get('--sandbox')===sandbox&&values.get('--sandbox')===permission.sandbox,`--sandbox ${sandbox}`);
   need(config.get('approval_policy')==='never'&&config.get('approval_policy')===permission.approvalPolicy,'-c approval_policy="never"');
-  need(config.get('sandbox_workspace_write.network_access')===true&&config.get('sandbox_workspace_write.network_access')===permission.networkAccess,'-c sandbox_workspace_write.network_access=true');
+  if(!fullAccess)need(config.get('sandbox_workspace_write.network_access')===true&&config.get('sandbox_workspace_write.network_access')===permission.networkAccess,'-c sandbox_workspace_write.network_access=true');
   need(path.isAbsolute(permission.cwd??''),'step permissions.cwd as an absolute private directory');
   need(values.has('--cd')&&values.get('--cd')===permission.cwd,'--cd <step permissions.cwd>');
   need(values.has('--output-last-message'),'--output-last-message <fresh report in step permissions.cwd>');
@@ -86,7 +100,8 @@ export function validateCodexReviewer(review,plan) {
   const root=fs.realpathSync.native(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
   const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
   if(contains(root,worktree)||contains(worktree,root)||contains(root,job)||contains(job,root)||contains(root,common)||contains(common,root))throw new Error('Codex reviewer writes must exclude repository and supervisor state');
-  validateCodexSandboxStorage(permission,job,worktree);
+  if(fullAccess)validateCodexAuthHome(permission,worktree);
+  else validateCodexSandboxStorage(permission,job,worktree);
   const report=values.get('--output-last-message');
   if(!path.isAbsolute(report??'')||fs.existsSync(report)||fs.realpathSync.native(path.dirname(report))!==root)throw new Error('A fresh final report inside the private reviewer directory is required');
 }
