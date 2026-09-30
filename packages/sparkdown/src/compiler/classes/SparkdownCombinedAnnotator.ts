@@ -7,7 +7,7 @@ import {
   Text,
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
-import { SyntaxNode, Tree } from "@lezer/common";
+import { type SyntaxNode, Tree } from "@lezer/common";
 import { nextSignificantToken } from "../lower/utils/validateAssignmentValue";
 import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";

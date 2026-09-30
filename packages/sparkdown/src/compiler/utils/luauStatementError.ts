@@ -10,8 +10,9 @@ export interface LuauStatementError {
 }
 
 /**
- * Luau's first syntax error for the statement that starts at `from`, as
- * Luau's parser reports it, with its range. The statement's line is read
+ * Luau's first syntax error for the statement that starts at `from` and
+ * whose syntax ends at `nodeEnd` (a table can span lines), as Luau's parser
+ * reports it, with its range. The statement's lines are read
  * with the text after it up to the end of the line holding the next token,
  * however far that is, which is as far as Luau reads before it reports a
  * statement it cannot finish (`Hi, Bob` then `end` reports `got 'end'` at
@@ -21,8 +22,9 @@ export interface LuauStatementError {
 export function luauStatementError(
   from: number,
   read: (from: number, to: number) => string,
+  nodeEnd: number = from,
 ): LuauStatementError | null {
-  const lineEnd = endOfLine(from, read);
+  const lineEnd = endOfLine(Math.max(from, nodeEnd - 1), read);
   const next = nextSignificantToken(lineEnd, read);
   const to = next ? endOfLine(next.from + next.text.length, read) : lineEnd;
   const text = read(from, to);

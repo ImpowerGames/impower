@@ -234,6 +234,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   it.each([
     ["an anonymous function", "function greet()\n  function() end\nend\n"],
     ["`...`", "function greet(...)\n  ...\nend\n"],
+    ["a table written across lines", "function greet()\n  {\n    answer = 42,\n  }\nend\n"],
   ])("reports %s as a statement with Luau's first error", (_, source) => {
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);
   });
@@ -261,6 +262,8 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "    'b'",
       "  t.add",
       '    "c"',
+      "  (note)",
+      '    "d"',
       "  return got",
       "end",
       "",
@@ -268,7 +271,7 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "",
     ].join("\n");
     expect(errorsOf(source)).toEqual([]);
-    expect(playedLines(source)).toEqual(["a2bc\n"]);
+    expect(playedLines(source)).toEqual(["a2bcd\n"]);
   });
 
   it("reports Luau's range past a long comment before the next token", () => {

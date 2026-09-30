@@ -531,8 +531,14 @@ function reportExpressionStatement(
     }
     if (n.from >= lastNode.from) last = n;
   }
-  if (dangling || followsDanglingDot(start, ctx)) return last;
-  const error = luauStatementError(start.from, (from, to) => ctx.read(from, to));
+  if (dangling || followsDanglingDot(start, ctx) || followsMissingValue(start, ctx)) {
+    return last;
+  }
+  const error = luauStatementError(
+    start.from,
+    (from, to) => ctx.read(from, to),
+    last.to,
+  );
   if (error) {
     ctx.diagnostics?.push({
       message: error.message,
@@ -549,6 +555,26 @@ function reportExpressionStatement(
   }
   return last;
 }
+
+// Whether the statement before `start`, across blank and comment lines, ends
+// with a word or an operator that a value must follow (`then`, `else`, `=`,
+// `,`, `+`, `and`, an opening bracket). Luau reads the line at `start` as
+// that value, and the missing value is already reported where the grammar
+// ended the statement before it (`local y = if true then` then `1` at
+// column 0).
+function followsMissingValue(start: SyntaxNode, ctx: LowerContext): boolean {
+  let prev = start.prevSibling;
+  while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
+  if (!prev) return false;
+  const text = ctx
+    .read(prev.from, start.from)
+    .replace(/--(?!\[=*\[)[^\n]*/g, "")
+    .trimEnd();
+  return VALUE_EXPECTED_AT_END.test(text);
+}
+
+const VALUE_EXPECTED_AT_END =
+  /(?:(?<![A-Za-z0-9_])(?:then|else|elseif|and|or|not|in)|[=,(\[{+\-*\/%^<>#]|\.\.)$/;
 
 // Whether the statement before `start`, across blank and comment lines, ends
 // with a `.` that no name follows on its line: a dangling access
@@ -820,6 +846,11 @@ function lowerStatementAt(
     const continuation = collectLineContinuation(lastNode);
     callNodes.push(...continuation);
     lastNode = continuation[continuation.length - 1] ?? lastNode;
+    // The strings and tables on the lines after it are call arguments, as
+    // after a name (`(note)` then `"x"`).
+    const laterArgs = callArgsOnLaterLines(lastNode);
+    callNodes.push(...laterArgs);
+    lastNode = laterArgs[laterArgs.length - 1] ?? lastNode;
     if (callNodes.length > 1) {
       const callExpr = lowerExpressionFromNodes(callNodes, ctx);
       if (
