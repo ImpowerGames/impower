@@ -7,9 +7,14 @@
 // once that replaces the parent, and a finished thread's own value once the
 // thread ends.
 
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Runs to the first choice, takes it and runs the rest; again from a save
 // taken at the choice, loaded into a fresh story.
@@ -193,5 +198,144 @@ end
     expect(run.beforeChoice).toBe("Main 1.\n");
     expect(run.afterChoice).toBe("Pick\nResult 1 2.\n");
     expect(run.afterLoad).toBe("Pick\nResult 1 2.\n");
+  });
+
+  test("a choice from a `<-` thread started while an inner local shadows the captured name reads the captured variable", () => {
+    const run = chooseFirst(`store get = nil
+-> main
+scene main
+  & local x = "outer"
+  & get = function() return x end
+  do
+    local x = "inner"
+    <- side
+  end
+  done
+end
+scene side
+  choose
+    * Pick
+      Result {get()}.
+      fin
+  end
+  done
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.afterChoice).toBe("Pick\nResult outer.\n");
+    expect(run.afterLoad).toBe("Pick\nResult outer.\n");
+  });
+
+  test("a save the engine wrote before cells recorded their scope reopens a borrowed cell for the taken choice", () => {
+    // Written by the engine at `writtenBy` at `Mid.`, inside the block,
+    // while the pending choice's thread still borrowed the open cell. That
+    // engine printed `afterChoosingFirstThere` after loading it.
+    const fixture = JSON.parse(
+      readFileSync(
+        join(
+          __dirname,
+          "fixtures",
+          "saves",
+          "thread-borrowed-cells-before-scopes.json",
+        ),
+        "utf8",
+      ),
+    );
+    expect(JSON.stringify(fixture.save)).toContain('"borrowedUpvalues"');
+    expect(JSON.stringify(fixture.save)).not.toContain('"si"');
+    const { compiledJson, errorMessages } = makeRuntimeStoryFromSource(
+      fixture.source,
+    );
+    const errors = [...errorMessages];
+    const story = new RuntimeStory(compiledJson as Record<string, any>);
+    story.onError = (m: string) => errors.push(m);
+    story.state.LoadJson(JSON.stringify(fixture.save));
+    story.ContinueMaximally();
+    story.ChooseChoiceIndex(0);
+    expect(story.ContinueMaximally()).toBe("Pick\nResult 5.\n");
+    expect(errors).toEqual([]);
+  });
+});
+
+describe("closures over a variable an inner local of the same name shadows", () => {
+  test("the closure reads the variable it captured, not the shadowing local", () => {
+    const run = straightAndRestored(`-> main
+scene main
+  & local x = "outer"
+  & local get = function() return x end
+  First.
+  do
+    local x = "inner"
+    Read {get()}.
+  end
+  After {get()}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.straight).toBe("First.\nRead outer.\nAfter outer.\n");
+    expect(run.restored).toBe("First.\nRead outer.\nAfter outer.\n");
+  });
+
+  test("the closure writes the variable it captured, not the shadowing local", () => {
+    const run = straightAndRestored(`-> main
+scene main
+  & local x = "outer"
+  & local set = function(v) x = v end
+  First.
+  do
+    local x = "inner"
+    & set("written")
+    Inner {x}.
+  end
+  Outer {x}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.straight).toBe("First.\nInner inner.\nOuter written.\n");
+    expect(run.restored).toBe("First.\nInner inner.\nOuter written.\n");
+  });
+
+  test("the captured variable's cell stays open when the shadowing block ends", () => {
+    const run = straightAndRestored(`store get = nil
+-> main
+scene main
+  do
+    local x = "outer"
+    get = function() return x end
+    First.
+    do
+      local x = "inner"
+    end
+    x = "changed"
+  end
+  Result {get()}.
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.straight).toBe("First.\nResult changed.\n");
+    expect(run.restored).toBe("First.\nResult changed.\n");
+  });
+
+  test("a closure over the shadowing local gets a cell of its own", () => {
+    const run = straightAndRestored(`-> main
+scene main
+  & local x = "outer"
+  & local getOuter = function() return x end
+  First.
+  do
+    local x = "inner"
+    local getInner = function() return x end
+    x = "inner2"
+    Both {getOuter()} {getInner()}.
+  end
+  fin
+end
+`);
+    expect(run.errors).toEqual([]);
+    expect(run.straight).toBe("First.\nBoth outer inner2.\n");
+    expect(run.restored).toBe("First.\nBoth outer inner2.\n");
   });
 });

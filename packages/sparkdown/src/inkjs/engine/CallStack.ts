@@ -196,17 +196,26 @@ export class CallStack {
   }
 
   // Look for an existing open upvalue in the given frame matching
-  // `variableName`. Used by the auto-resolve path so multiple closures
-  // capturing the same variable share a single pointer (Lua semantics:
-  // when one closure writes, the others see the change).
+  // `variableName` bound in scope `scopeIndex`. Used by the auto-resolve
+  // path so multiple closures capturing the same variable share a single
+  // pointer (Lua semantics: when one closure writes, the others see the
+  // change), while a closure over an inner `local x` that shadows a
+  // captured outer `x` gets a cell of its own.
   public FindOpenUpvalue(
     contextIndex: number,
     variableName: string,
+    scopeIndex: number,
   ): VariablePointerValue | null {
     const frame = this.callStack[contextIndex - 1];
     if (!frame) return null;
     for (const ptr of frame.openUpvalues) {
-      if (!ptr.isClosed && ptr.variableName === variableName) return ptr;
+      if (
+        !ptr.isClosed &&
+        ptr.variableName === variableName &&
+        frame.ScopeIndexOf(ptr) === scopeIndex
+      ) {
+        return ptr;
+      }
     }
     return null;
   }
@@ -223,9 +232,12 @@ export class CallStack {
     }
   }
 
+  // `scopeIndex`, when an open cell supplies one, reads the binding in
+  // that scope rather than the innermost binding of the name.
   public GetTemporaryVariableWithName(
     name: string | null,
     contextIndex: number = -1,
+    scopeIndex: number = -1,
   ) {
     // contextIndex 0 means global, so index is actually 1-based
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
@@ -245,6 +257,9 @@ export class CallStack {
     // scoping: an inner `local x` shadows an outer `x` for the duration
     // of the inner block.
     const scopes = contextElement.temporaryScopes;
+    if (scopeIndex >= 0 && name !== null && scopes[scopeIndex]?.has(name)) {
+      return scopes[scopeIndex]!.get(name) ?? null;
+    }
     for (let i = scopes.length - 1; i >= 0; i--) {
       const varValue = tryGetValueFromMap(scopes[i]!, name, null);
       if (varValue.exists) return varValue.result;
@@ -252,11 +267,14 @@ export class CallStack {
     return null;
   }
 
+  // `scopeIndex`, when an open cell supplies one, reassigns the binding in
+  // that scope rather than the innermost binding of the name.
   public SetTemporaryVariable(
     name: string,
     value: any,
     declareNew: boolean,
     contextIndex: number = -1,
+    scopeIndex: number = -1,
   ) {
     if (contextIndex == -1) contextIndex = this.currentElementIndex + 1;
 
@@ -282,11 +300,17 @@ export class CallStack {
         // "upvalues & loops (validates timely closing)" block).
         // Genuine shadowing (`local x` in an INNER scope) never hits
         // this path — the outer binding stays alive in its own frame
-        // and PopScope closes it when that block exits.
+        // and PopScope closes it when that block exits. Only cells bound
+        // in this innermost scope close: one over an outer `x` stays open.
+        const innerIndex = scopes.length - 1;
         if (contextElement!.openUpvalues.length > 0) {
           const stillOpen: VariablePointerValue[] = [];
           for (const ptr of contextElement!.openUpvalues) {
-            if (!ptr.isClosed && ptr.variableName === name) {
+            if (
+              !ptr.isClosed &&
+              ptr.variableName === name &&
+              contextElement!.ScopeIndexOf(ptr) === innerIndex
+            ) {
               ptr.closedValue = (oldValue.result as InkObject) ?? null;
               continue;
             }
@@ -297,11 +321,19 @@ export class CallStack {
         // A copied thread no longer binds a borrowed cell whose binding
         // this declaration replaces.
         contextElement!.ReleaseBorrowedUpvalues(
-          scopes.length - 1,
+          innerIndex,
           (ptrName) => ptrName === name,
         );
       }
       inner.set(name, value);
+      return;
+    }
+
+    // An open cell's write goes to the binding it captured.
+    if (scopeIndex >= 0 && scopes[scopeIndex]?.has(name)) {
+      const frame = scopes[scopeIndex]!;
+      ListValue.RetainListOriginsForAssignment(frame.get(name) ?? null, value);
+      frame.set(name, value);
       return;
     }
 
@@ -415,11 +447,9 @@ export namespace CallStack {
     // thread it was copied from may still bind their variables; it adopts
     // them only once it replaces that thread (`AdoptBorrowedUpvalues`).
     // A cell stays borrowed only while the copy still binds its variable:
-    // `borrowedUpvalueScopes[i]` is the index of the scope that binds
-    // `borrowedUpvalues[i]`, and the cell is released when that scope pops
-    // or redeclares the variable.
+    // it is released when the scope that binds it (`scopeIndex`) pops or
+    // redeclares the variable.
     public borrowedUpvalues: VariablePointerValue[] = [];
-    public borrowedUpvalueScopes: number[] = [];
 
     constructor(
       type: PushPopType,
@@ -462,15 +492,17 @@ export namespace CallStack {
     // return a end end` must let the escaped closure read 1 after the
     // do-block ends. Without this, the pointer survived to the frame
     // pop, by which time the binding was gone, and closed as a
-    // dangling null. Upvalues whose names live in OUTER scopes of
-    // this frame stay open (their binding is still alive).
+    // dangling null. Upvalues bound in OUTER scopes of this frame stay
+    // open (their binding is still alive), even when the popped scope
+    // held a same-named `local` that shadowed them.
     public PopScope() {
       if (this.temporaryScopes.length > 1) {
-        const popping = this.temporaryScopes[this.temporaryScopes.length - 1]!;
+        const poppingIndex = this.temporaryScopes.length - 1;
+        const popping = this.temporaryScopes[poppingIndex]!;
         if (this.openUpvalues.length > 0) {
           const stillOpen: VariablePointerValue[] = [];
           for (const ptr of this.openUpvalues) {
-            if (!ptr.isClosed && popping.has(ptr.variableName)) {
+            if (!ptr.isClosed && this.ScopeIndexOf(ptr) === poppingIndex) {
               ptr.closedValue = popping.get(ptr.variableName) ?? null;
               continue;
             }
@@ -478,9 +510,7 @@ export namespace CallStack {
           }
           this.openUpvalues = stillOpen;
         }
-        this.ReleaseBorrowedUpvalues(this.temporaryScopes.length - 1, (name) =>
-          popping.has(name),
-        );
+        this.ReleaseBorrowedUpvalues(poppingIndex, () => true);
         this.temporaryScopes.pop();
       }
     }
@@ -493,15 +523,24 @@ export namespace CallStack {
       return -1;
     }
 
+    // The scope holding the binding `ptr` captured here: its recorded
+    // scope while that still binds the name, otherwise (a cell loaded from
+    // a save written before scopes were recorded) the innermost binding.
+    public ScopeIndexOf(ptr: VariablePointerValue) {
+      if (this.temporaryScopes[ptr.scopeIndex]?.has(ptr.variableName)) {
+        return ptr.scopeIndex;
+      }
+      return this.ScopeIndexBinding(ptr.variableName);
+    }
+
     // Close every open cell registered with this element with the value of
-    // its binding here. Innermost-first matches the lookup order used
-    // elsewhere. A cell whose binding can't be found (shouldn't happen if it
-    // was registered correctly) closes holding null, so reads return null
-    // rather than chasing a dangling contextIndex.
+    // its binding here. A cell whose binding can't be found (shouldn't
+    // happen if it was registered correctly) closes holding null, so reads
+    // return null rather than chasing a dangling contextIndex.
     public CloseOpenUpvalues() {
       for (const ptr of this.openUpvalues) {
         if (ptr.isClosed) continue;
-        const scope = this.ScopeIndexBinding(ptr.variableName);
+        const scope = this.ScopeIndexOf(ptr);
         ptr.closedValue =
           scope >= 0
             ? (this.temporaryScopes[scope]!.get(ptr.variableName) ?? null)
@@ -518,16 +557,19 @@ export namespace CallStack {
       released: (name: string) => boolean,
     ) {
       if (this.borrowedUpvalues.length === 0) return;
-      const cells: VariablePointerValue[] = [];
-      const scopes: number[] = [];
-      this.borrowedUpvalues.forEach((ptr, i) => {
-        const scope = this.borrowedUpvalueScopes[i]!;
-        if (scope === scopeIndex && released(ptr.variableName)) return;
-        cells.push(ptr);
-        scopes.push(scope);
-      });
-      this.borrowedUpvalues = cells;
-      this.borrowedUpvalueScopes = scopes;
+      this.borrowedUpvalues = this.borrowedUpvalues.filter(
+        (ptr) =>
+          !(ptr.scopeIndex === scopeIndex && released(ptr.variableName)),
+      );
+    }
+
+    // Record `ptr` as borrowed. A cell without a recorded scope takes the
+    // one it resolves to here, so later scope changes in the copy can't
+    // move it.
+    public BorrowUpvalue(ptr: VariablePointerValue, from: Element) {
+      if (ptr.scopeIndex < 0) ptr.scopeIndex = from.ScopeIndexOf(ptr);
+      if (ptr.scopeIndex < 0) return;
+      this.borrowedUpvalues.push(ptr);
     }
 
     public Copy() {
@@ -542,14 +584,9 @@ export namespace CallStack {
       copy.functionStartInOutputStream = this.functionStartInOutputStream;
       copy.previousPointer = this.previousPointer.copy();
       for (const ptr of this.openUpvalues) {
-        if (ptr.isClosed) continue;
-        const scope = this.ScopeIndexBinding(ptr.variableName);
-        if (scope < 0) continue;
-        copy.borrowedUpvalues.push(ptr);
-        copy.borrowedUpvalueScopes.push(scope);
+        if (!ptr.isClosed) copy.BorrowUpvalue(ptr, this);
       }
       copy.borrowedUpvalues.push(...this.borrowedUpvalues);
-      copy.borrowedUpvalueScopes.push(...this.borrowedUpvalueScopes);
       return copy;
     }
 
@@ -565,7 +602,6 @@ export namespace CallStack {
         }
       }
       this.borrowedUpvalues = [];
-      this.borrowedUpvalueScopes = [];
     }
   }
 
@@ -667,25 +703,15 @@ export namespace CallStack {
           // The open upvalue cells registered with this element, and the
           // cells it borrowed, by the same cell ids the closures holding them
           // were written with.
+          // A cell written before cells recorded their scope takes the
+          // innermost binding of its name here, which is how the engine
+          // that wrote the save resolved it.
           el.openUpvalues = Thread.ReadUpvalueCells(jElementObj["upvalues"]);
-          const borrowed = JsonSerialisation.JArrayToRuntimeObjList(
-            Array.isArray(jElementObj["borrowedUpvalues"])
-              ? jElementObj["borrowedUpvalues"]
-              : [],
-          );
-          const borrowedScopes = jElementObj["borrowedScopes"];
-          borrowed.forEach((cell, i) => {
-            if (!(cell instanceof VariablePointerValue)) return;
-            // A save written before scopes were recorded takes the innermost
-            // binding, which is the right one unless the copy shadowed the
-            // variable after it was made.
-            const scope = Array.isArray(borrowedScopes)
-              ? parseInt(borrowedScopes[i])
-              : el.ScopeIndexBinding(cell.variableName);
-            if (!(scope >= 0)) return;
-            el.borrowedUpvalues.push(cell);
-            el.borrowedUpvalueScopes.push(scope);
-          });
+          for (const cell of Thread.ReadUpvalueCells(
+            jElementObj["borrowedUpvalues"],
+          )) {
+            el.BorrowUpvalue(cell, el);
+          }
 
           this.callstack.push(el);
         }
@@ -800,11 +826,6 @@ export namespace CallStack {
         if (el.borrowedUpvalues.length > 0) {
           writer.WritePropertyStart("borrowedUpvalues");
           JsonSerialisation.WriteListRuntimeObjs(writer, el.borrowedUpvalues);
-          writer.WritePropertyEnd();
-          writer.WritePropertyStart("borrowedScopes");
-          writer.WriteArrayStart();
-          for (const scope of el.borrowedUpvalueScopes) writer.WriteInt(scope);
-          writer.WriteArrayEnd();
           writer.WritePropertyEnd();
         }
 
