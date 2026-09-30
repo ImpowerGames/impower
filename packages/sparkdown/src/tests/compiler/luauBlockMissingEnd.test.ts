@@ -723,30 +723,43 @@ describe("Luau block without `end`", () => {
     expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
   });
 
-  test("an unclosed `if` inside a `repeat` in a function takes the function's `end`, as with any Luau line", () => {
+  test("an unclosed `if` inside a `repeat` in a function reports its blocks as it does with any Luau line", () => {
     // `Hi.` is a line of the `if`'s body, as `local y = 1` would be (#1158),
-    // so the lines report as Luau lines do: the function is left without its
-    // `end`, and the text below it is read as its body.
-    const errs = compile(
+    // so the blocks left open are the ones the Luau line leaves open, and the
+    // line itself is reported on its own.
+    const source = (line: string) =>
       [
         "function f()",
         "  repeat",
         "    if true then",
-        "      Hi.",
+        `      ${line}`,
         "  until true",
         "end",
         "",
         "Closing line.",
         "done",
         "",
-      ].join("\n"),
-    ).diags.filter((d) => d.severity === 1);
-    expect([...errs].sort((a, b) => a.startLine - b.startLine).map((d) => [d.startLine, d.message.split(" ")[0]])).toEqual([
-      [0, "This"],
-      [3, "Expected"],
-      [7, "Incomplete"],
+      ].join("\n");
+    // Every block left without its `end` or `until`.
+    const blockErrors = (text: string) =>
+      compile(text)
+        .diags.filter(
+          (d) =>
+            d.severity === 1 &&
+            d.message.startsWith("This ") &&
+            d.message.includes("missing its closing"),
+        )
+        .map((d) => [d.startLine, d.message])
+        .sort();
+    const expected = blockErrors(source("local y = 1"));
+    expect(expected.length).toBeGreaterThan(0);
+    expect(blockErrors(source("Hi."))).toEqual(expected);
+    const lineErrors = compile(source("Hi.")).diags.filter(
+      (d) => d.severity === 1 && d.startLine === 3,
+    );
+    expect(lineErrors.map((d) => d.message)).toEqual([
+      "Expected identifier, got 'until'",
     ]);
-    expect(errs[0]!.message).toContain("This function is missing");
   });
 
   test("a line of text beginning with `end` closes the function with a warning", () => {
