@@ -10,6 +10,7 @@ describe("a for loop variable's annotation with no type", () => {
   test.each([
     ["for i: = 1, 3 do end", "0:5-0:7 SyntaxError: Expected type, got '='"],
     ["for i:= 1, 3 do end", "0:5-0:6 SyntaxError: Expected type, got '='"],
+    ["for i : = 1, 3 do end", "0:5-0:8 SyntaxError: Expected type, got '='"],
     ["for i: --[[c]] = 1, 3 do end", "0:5-0:7 SyntaxError: Expected type, got '='"],
     ["for k: , v in pairs({}) do end", "0:5-0:7 SyntaxError: Expected type, got ','"],
     ["for k, v: , w in pairs({}) do end", "0:8-0:10 SyntaxError: Expected type, got ','"],
@@ -33,7 +34,8 @@ describe("a `:` after a name in a value with no method name", () => {
   test.each([
     ["local t = {}\nt.a: = 2", "1:3-1:5 SyntaxError: Expected identifier when parsing method name, got '='"],
     ["local t = {}\nt: = 2", "1:1-1:3 SyntaxError: Expected identifier when parsing method name, got '='"],
-    ["local t = {}\nt.a:, t.b = 1, 2", "1:3-1:4 SyntaxError: Expected identifier when parsing method name, got ','"],
+    ["local t = {a = {}}\nt.a.b: = 3", "1:5-1:7 SyntaxError: Expected identifier when parsing method name, got '='"],
+    ["local t = {}\nt.a:, t.b = 1, 2","1:3-1:4 SyntaxError: Expected identifier when parsing method name, got ','"],
     // Inside a loop's body the colon is a method call's, not the loop variable's.
     [
       "local t = {}\nfor i = 1, 3 do t.a: = i end",
