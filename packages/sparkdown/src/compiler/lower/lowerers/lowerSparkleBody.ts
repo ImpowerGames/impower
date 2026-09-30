@@ -8,6 +8,7 @@ import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Fu
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import {
+  collectForLoopTargetNames,
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
@@ -1184,12 +1185,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
       // Each variable is a path of its own before `in`; a type annotation
       // after one is not, so a comma inside its type is not a separator
       // (`for k: {a: number, b: string}, v in scores`).
-      for (let c = condContent.firstChild; c && c.to <= inKw.from; c = c.nextSibling) {
-        if (c.name === "LuauAccessPath") {
-          bindings.push(loopVariableName(ctx.read(c.from, c.to)));
-        }
-      }
-      bindings = bindings.filter(Boolean);
+      bindings = collectForLoopTargetNames(condContent, ctx);
       const iterableNodes: SyntaxNode[] = [];
       let c = condContent.firstChild;
       while (c) {
@@ -1239,14 +1235,8 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   return forNode;
 }
 
-/** A loop variable's name, from its text in the header, without the type
- *  annotation after it (`item: number` is `item`). */
-function loopVariableName(text: string): string {
-  return /^\s*([A-Za-z_]\w*)/.exec(text)?.[1] ?? text.trim();
-}
-
 /** Parse a numeric `for` header (`i = from, to[, step]`, no `in`) from its
- *  `LuauForCondition_content`. The loop var is the text before the `= from`
+ *  `LuauForCondition_content`. The loop var is the name before the `= from`
  *  assignment; `from` is the assignment's value; `to`/`step` are the
  *  comma-separated expressions after it. Returns null if it doesn't look
  *  numeric (no assignment / no `to`). */
@@ -1261,7 +1251,7 @@ function parseNumericForHeader(
   if (!asn) {
     return null;
   }
-  const loopVar = loopVariableName(ctx.read(condContent.from, asn.from));
+  const loopVar = collectForLoopTargetNames(condContent, ctx)[0];
   if (!loopVar) {
     return null;
   }

@@ -164,10 +164,12 @@ const LUAU_NAME = /^[A-Za-z_]\w*/;
 const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
   GRAMMAR_DEFINITION.variables.LUAU_NON_TYPE_KEYWORDS,
 );
-// Whitespace or a Luau comment, and a Luau token as Luau's lexer reads it: a
-// name or keyword, a number (with its digits, `.`, `_`, exponent and
-// suffix), a multi-character operator, or one character.
-const LUAU_TRIVIA = /\s+|--\[(=*)\[[\s\S]*?\]\1\]|--[^\n]*/y;
+// Whitespace or a closed Luau comment, the opener of a block comment that
+// never closes, and a Luau token as Luau's lexer reads it: a name or
+// keyword, a number (with its digits, `.`, `_`, exponent and suffix), a
+// multi-character operator, or one character.
+const LUAU_TRIVIA = /\s+|--\[(=*)\[[\s\S]*?\]\1\]|--(?!\[=*\[)[^\n]*/y;
+const LUAU_BLOCK_COMMENT_OPENER = /--\[=*\[/y;
 const LUAU_TOKEN = /[A-Za-z_]\w*|(?:\d|\.\d)[\d._]*(?:[eE][+-]?)?\w*|\.\.\.|\.\.=?|\/\/=?|[=~<>]=|::|->|[+\-*/%^]=|\S/y;
 // The `end` line a `run` file's wrapper closes its function with.
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
@@ -679,11 +681,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
    * flow's `end`, or a statement's, which the grammar may have read as the
    * type when it had only part of the text). Otherwise the Luau ends
    * (`null`, `<eof>`), and the range ends at the start of the next line, as
-   * Luau's does at the end of a unit.
+   * Luau's does at the end of a unit. `undefined` where a block comment that
+   * never closes stands instead: that comment's own error
+   * (`UNFINISHED_COMMENT`) is the one error there, as it is in the Luau the
+   * checker reads.
    */
-  protected luauTokenAfter(pos: number): { text: string | null; to: number } {
+  protected luauTokenAfter(pos: number): { text: string | null; to: number } | undefined {
     const read = (from: number, to: number) => this.read(from, to);
     const got = this.luauTokenAt(pos);
+    if (got === undefined) return undefined;
     if (got && !read(pos, got.from).includes("\n")) {
       return { text: got.text, to: got.from + got.text.length };
     }
@@ -698,9 +704,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /** The Luau token at or after `pos`, past whitespace and comments of any
-   *  length, read whole as Luau's lexer reads it (`123`, `..`, `::`), or
-   *  `null` at the end of the text. */
-  protected luauTokenAt(pos: number): { text: string; from: number } | null {
+   *  length, read whole as Luau's lexer reads it (`123`, `..`, `::`), `null`
+   *  at the end of the text, or `undefined` at a block comment that never
+   *  closes. */
+  protected luauTokenAt(pos: number): { text: string; from: number } | null | undefined {
     const rest = this.read(pos, this.text?.length ?? pos);
     let i = 0;
     for (;;) {
@@ -709,6 +716,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (!trivia || !trivia[0]) break;
       i += trivia[0].length;
     }
+    LUAU_BLOCK_COMMENT_OPENER.lastIndex = i;
+    if (LUAU_BLOCK_COMMENT_OPENER.test(rest)) return undefined;
     LUAU_TOKEN.lastIndex = i;
     const token = LUAU_TOKEN.exec(rest);
     return token ? { text: token[0], from: pos + i } : null;
@@ -845,6 +854,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         const operator = /^\s*(->|[:|&])/.exec(this.read(nodeRef.from, nodeRef.to));
         const from = nodeRef.from + (operator?.[0].length ?? 0);
         const got = this.luauTokenAfter(nodeRef.to);
+        if (!got) return annotations;
         this.error(
           annotations,
           `${MISSING_TYPE}, got ${got.text == null ? "<eof>" : `'${got.text}'`}`,
@@ -982,6 +992,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       ) {
         const from = colon.from + this.read(colon.from, colon.to).indexOf(":") + 1;
         const got = this.luauTokenAfter(from);
+        if (!got) return annotations;
         this.error(
           annotations,
           `${MISSING_TYPE}, got ${got.text == null ? "<eof>" : `'${got.text}'`}`,

@@ -208,6 +208,13 @@ describe("the reported layouts", () => {
     ["scene s(a, :: number)\nend", ["0:11-0:13 Expected identifier when parsing variable name, got '::'"]],
     ["scene s(a :: number)\nend", ["0:10-0:12 Expected ')' (to close '(' at column 8), got '::'"]],
     ["scene s(a --[[c]] :: number)\nend", ["0:18-0:20 Expected ')' (to close '(' at column 8), got '::'"]],
+    // An opener in a string or a line comment before the real comment.
+    ['local marker = "--[["\nlocal x --[[c]] :: number', ["1:16-1:18 Expected identifier when parsing expression, got '::'"]],
+    ["-- --[[\nlocal x --[[real]] :: number", ["1:19-1:21 Expected identifier when parsing expression, got '::'"]],
+    // A block comment that never closes where the type goes is the one
+    // error there, in a `store` declaration as in a `local` one.
+    ["local x: --[[ unfinished\nlocal y = 1", ["0:9-2:0 Expected identifier when parsing expression, got unfinished comment"]],
+    ["store x: --[[ unfinished\nlocal y = 1", ["0:9-2:0 Expected identifier when parsing expression, got unfinished comment"]],
     // A token Luau reads whole.
     ["scene s(a: 123)\nend", ["0:10-0:14 Expected type, got '123'"]],
     ["scene s(a: ..)\nend", ["0:10-0:13 Expected type, got '..'"]],
@@ -228,6 +235,9 @@ describe("the reported layouts", () => {
     ["a parameter, with a leveled comment", `function f(a --[==[${long}]==] :: number) end`],
     ["a table field", `local t: { a --[[${long}]] :: number } = nil`],
     ["a parameter, with an opener in the comment's text", "function f(a --[[ ( --[[ ]] :: number) end"],
+    ["a local target, after an opener in a string", 'local marker = "--[["\nlocal x --[[c]] :: number'],
+    ["a local target, after an opener in a line comment", "-- --[[\nlocal x --[[real]] :: number"],
+    ["a local target, with a comment of a high level", `local x --[${"=".repeat(70)}[c]${"=".repeat(70)}] :: number`],
     ["a parameter, after two comments", "function f(a --[[x]] --[[y]] :: number) end"],
   ])("a long comment before `::` in %s reports Luau's one error", (_position, source) => {
     const result = checkLuau(`${source}\n`);

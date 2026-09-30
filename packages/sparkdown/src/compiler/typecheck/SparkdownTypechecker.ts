@@ -18,10 +18,11 @@ import type { SyntaxNode, Tree } from "@lezer/common";
 import { RESERVED } from "../lint/luauNames";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
+import { describeTokenBefore } from "./DefinitionParser";
 import { errorToString, UnknownSymbolContext } from "./Error";
 import { Frontend } from "./Frontend";
 import { lintComments } from "./Linter";
-import { Location } from "./Location";
+import { Location, type Position } from "./Location";
 import {
   checkLuauUnit,
   documentPosition,
@@ -68,13 +69,11 @@ const MISSING_NAME = /^Expected identifier when parsing (?:variable name|table f
 // A `::` stands where an annotation's `:` does after a name that is not a
 // keyword, after a scope modifier with no name (`local :: number`), or after
 // the `)` of a function's parameters (`function f() :: number`), where Luau
-// reports no cast, past any block comments between (`local x --[[c]] ::`).
-// After anything else it is an expression's error, such as an if
-// expression's `then` with no value before a cast, which is Sparkdown's own
-// validator's to report.
-const ANNOTATION_COLON_AFTER = /(?:(?:^|[^\w])([A-Za-z_]\w*)|(\)))\s*$/;
-// A block comment's close at the end of text, with its level.
-const BLOCK_COMMENT_CLOSE_AT_END = /\](=*)\]$/;
+// reports no cast, with any comments between (`local x --[[c]] ::`). After
+// anything else it is an expression's error, such as an if expression's
+// `then` with no value before a cast, which is Sparkdown's own validator's to
+// report. Luau's lexer reads the token before it, as Luau's parser does.
+const NAME_TOKEN = /^'([A-Za-z_]\w*)'$/;
 const SCOPE_MODIFIERS = new Set(["local", "const", "store"]);
 
 // Syntax Sparkdown adds to Luau's, which Luau's parser rejects, is not
@@ -173,30 +172,13 @@ export class SparkdownTypechecker {
       }
       return false;
     };
-    // Whether a `::` at a document position stands where an annotation's `:` does.
-    const isAnnotationColon = (position: { line: number; character: number }) => {
-      // The end of the code before the `::`, past whitespace and block
-      // comments of any length.
-      let end = offsetOf(position);
-      for (;;) {
-        while (end > 0 && /\s/.test(text[end - 1]!)) end -= 1;
-        const close = BLOCK_COMMENT_CLOSE_AT_END.exec(text.slice(Math.max(0, end - 64), end));
-        if (!close) break;
-        const closeStart = end - close[0].length;
-        const opener = `--[${close[1]}[`;
-        // The comment opens at the first opener after the close before it,
-        // since a comment's own text can hold another opener
-        // (`--[[ a --[[ b ]]`).
-        const previousClose = text.lastIndexOf(close[0], closeStart - close[0].length);
-        const open = text.indexOf(opener, previousClose < 0 ? 0 : previousClose + close[0].length);
-        // Only a comment that this bracket closes (not `t[a[1]]`).
-        if (open < 0 || open >= closeStart || text.indexOf(close[0], open + opener.length) !== closeStart) break;
-        end = open;
-      }
-      const before = ANNOTATION_COLON_AFTER.exec(text.slice(Math.max(0, end - 200), end));
-      if (!before) return false;
-      const word = before[1];
-      return word === undefined || !RESERVED.has(word) || SCOPE_MODIFIERS.has(word);
+    // Whether a `::` Luau reports at a position of a unit stands where an
+    // annotation's `:` does, from the token Luau's lexer reads before it.
+    const isAnnotationColon = (unit: LuauUnit, position: Position) => {
+      const before = describeTokenBefore(unit.text, position);
+      if (before === "')'") return true;
+      const word = before === undefined ? undefined : NAME_TOKEN.exec(before)?.[1];
+      return word !== undefined && (!RESERVED.has(word) || SCOPE_MODIFIERS.has(word));
     };
     // A range that ends at the end of a unit, whose trailing line break is
     // not in its text, ends at the start of the next line, where Luau's
@@ -225,7 +207,7 @@ export class SparkdownTypechecker {
           const start = documentPosition(unit, error.location.begin);
           const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"));
           // Every other reported error's range is the `::` alone.
-          if (message.endsWith("got '::'") && !MISSING_TYPE.test(message) && !MISSING_NAME.test(message) && !isAnnotationColon(start)) continue;
+          if (message.endsWith("got '::'") && !MISSING_TYPE.test(message) && !MISSING_NAME.test(message) && !isAnnotationColon(unit, error.location.begin)) continue;
           // The error's range ends with the token Luau found.
           const token = `${end.line}:${end.character}`;
           if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
