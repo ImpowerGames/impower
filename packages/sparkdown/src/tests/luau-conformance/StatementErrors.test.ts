@@ -9,7 +9,11 @@
 // a silent omission would read as "covered".
 
 import { describe, expect, test } from "vitest";
-import { diagnose, diagnoseInFunction } from "./diagnosticTestHarness";
+import {
+  diagnose,
+  diagnoseDetailed,
+  diagnoseInFunction,
+} from "./diagnosticTestHarness";
 
 // Luau: recovery_error_limit_1
 // `parse("local a = ")` reports exactly one error.
@@ -26,15 +30,28 @@ describe("an assignment with no value", () => {
 // "Missing initializer in const declaration"
 describe("const without an initializer", () => {
   test("const c", () => {
-    expect(diagnoseInFunction("const c")).toContain(
+    expect(diagnoseInFunction("const c")).toEqual([
       "Missing initializer in const declaration",
+    ]);
+  });
+
+  test("const c at the top level, on the declaration", () => {
+    expect(diagnoseDetailed("const c").map((d) => [d.message, d.range])).toEqual(
+      [
+        [
+          "Missing initializer in const declaration",
+          { start: { line: 0, character: 0 }, end: { line: 0, character: 7 } },
+        ],
+      ],
     );
   });
 
-  test("const c at the top level", () => {
-    expect(diagnose("const c")).toContain(
-      "Missing initializer in const declaration",
-    );
+  // An `=` with a malformed value has an initializer; only the expression
+  // error applies, as for `local a = `.
+  test("const c = ", () => {
+    expect(diagnose("const c = ")).toEqual([
+      "Expected identifier when parsing expression, got <eof>",
+    ]);
   });
 });
 

@@ -331,7 +331,7 @@ export function lowerVariableDefinition(
         severity: ErrorType.Error,
         source: statementSource(nodeRef, ctx),
       });
-    } else if (expressions.length === 0) {
+    } else if (expressions.length === 0 && !sawAssignmentOp) {
       ctx.diagnostics?.push({
         message: "Missing initializer in const declaration",
         severity: ErrorType.Error,
