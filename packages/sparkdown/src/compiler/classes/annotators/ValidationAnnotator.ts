@@ -551,9 +551,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // Likewise a type annotation `:` with no type before the `;`, `,` or `=`
-    // after it; Luau names the token it found instead.
-    if (nodeRef.name === "LuauTypeAnnotationMissingType") {
+    // Likewise a type annotation `:`, or a type's `|`, `&` or `->`, with no
+    // type before the `;`, `,` or `=` after it; Luau names the token it found
+    // instead.
+    if (
+      nodeRef.name === "LuauTypeAnnotationMissingType" ||
+      nodeRef.name === "LuauTypeBinaryOperatorMissingType"
+    ) {
       const token = this.tokenAfterTrivia(nodeRef.to);
       this.error(
         annotations,
