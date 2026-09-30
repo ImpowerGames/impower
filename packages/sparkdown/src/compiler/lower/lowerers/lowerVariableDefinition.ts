@@ -322,8 +322,8 @@ export function lowerVariableDefinition(
 
   // `const x = expr` — must be single-target, single-RHS. Reject
   // multi-target const and multi-RHS const with an error on the
-  // declaration (Luau has no `const`, so there is no Luau message to
-  // match); without it every read of the undeclared name is silently nil.
+  // declaration; without it every read of the undeclared name is
+  // silently nil.
   if (scope === "const") {
     if (targets.length > 1 || expressions.length > 1) {
       ctx.diagnostics?.push({
