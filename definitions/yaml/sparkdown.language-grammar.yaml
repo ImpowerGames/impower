@@ -6819,16 +6819,18 @@ repository:
         patterns:
           - { include: "#LuauThenKeyword" }
 
-  # The line breaks, blank lines and indentation between an `if` or `elseif`
-  # that ends its line and the condition's first token on a later line. Taking
-  # them here means the condition's line-start end is first tested on the line
-  # after the one the condition begins on, not on that line itself.
+  # The line breaks, blank lines, comments and indentation between an `if` or
+  # `elseif` that ends its line (or has only a comment after it) and the
+  # condition's first token on a later line. Taking them here means the
+  # condition's line-start end is first tested on the line after the one the
+  # condition begins on, not on that line itself.
   LuauConditionLeadingBreak:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)(?={{WS}}*$)
+    begin: (?<=\b(?:else)?if\b{{WS}}*)(?={{WS}}*(?:$|{{LUAU_COMMENT_START}}))
     patterns:
+      - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?=\S)
+    end: (?=\S)(?!{{LUAU_COMMENT_START}})
 
   # ----------------------------------------------------------------------------
   # Else Block

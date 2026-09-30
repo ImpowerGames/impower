@@ -10307,8 +10307,11 @@
       }
     },
     "LuauConditionLeadingBreak": {
-      "begin": "(?<=\\b(?:else)?if\\b(?:[^\\S\\n\\r])*)(?=(?:[^\\S\\n\\r])*$)",
+      "begin": "(?<=\\b(?:else)?if\\b(?:[^\\S\\n\\r])*)(?=(?:[^\\S\\n\\r])*(?:$|(?:[-][-])))",
       "patterns": [
+        {
+          "include": "#LuauComment"
+        },
         {
           "include": "#ExtraWhitespace"
         },
@@ -10316,7 +10319,7 @@
           "include": "#Newline"
         }
       ],
-      "end": "(?=\\S)"
+      "end": "(?=\\S)(?!(?:[-][-]))"
     },
     "LuauSparkdownElseBlock": {
       "begin": "((?:[^\\S\\n\\r])*)(else)\\b((?:[^\\S\\n\\r])*)",

@@ -61,6 +61,10 @@ describe("an if statement without `then`", () => {
     ["several lines after `if`", "local a, b = true, false\nif\n\n  a and\n  b\nthen\nend\n"],
     ["a blank line before `then`", "local flag = true\nif flag\n\nthen\nend\n"],
     ["a comment-only line before `then`", "local flag = true\nif flag\n  -- note\nthen\nend\n"],
+    ["a comment-only line between `if` and its first line", "local flag = true\nif\n  -- note\n  flag\nthen\nend\n"],
+    ["a comment-only line between `elseif` and its first line", "local flag = true\nif flag then\nelseif\n  -- note\n  flag\nthen\nend\n"],
+    ["a comment after `if` on its line", "local flag = true\nif -- note\n  flag\nthen\nend\n"],
+    ["a block comment after `if` on its line", "local flag = true\nif --[[ note ]]\n  flag\nthen\nend\n"],
   ])("a condition with %s still reads to its `then`", (_, source) => {
     expect(luauSyntaxErrors(source)).toEqual([]);
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
@@ -84,9 +88,12 @@ describe("an if statement without `then`", () => {
   test.each([
     ["whose `then` is on a later line", "  if flag\n    and flag\n    then\n"],
     ["that begins on the line after `if`", "  if\n    flag\n  then\n"],
+    ["that begins after a comment-only line", "  if\n    -- note\n    flag\n  then\n"],
   ])("in a story, a condition %s keeps both branches", (_, header) => {
     const program = compile(STORY.replace("  if flag\n", header));
     expect(diagnosticsOf(program).map(describeLsp)).toEqual([]);
-    expect(JSON.stringify(program.compiled)).toContain('"^Went down the true side."');
+    const compiled = JSON.stringify(program.compiled);
+    expect(compiled).toContain('"^Went down the true side."');
+    expect(compiled).toContain('"^Went down the false side."');
   });
 });
