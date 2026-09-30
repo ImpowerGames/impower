@@ -3,6 +3,7 @@ import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
+import { ownAssignmentOperation } from "../../utils/variableDefinitionNames";
 import { findOwnDeclarationName } from "./findOwnDeclarationName";
 
 // A `LuauLineContinuation` is a line of Luau code that begins with `.name`,
@@ -38,6 +39,8 @@ const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
   "LuauDocLineComment",
   "LuauBlockComment",
   "LuauTypeTrailingBlockComment",
+  "LuauUncallableValueTrailingBlockComment",
+  "LuauCallableValueTrailingBlockComment",
   "LuauTypeTrailingBlockCommentClose",
 ]);
 
@@ -148,7 +151,7 @@ function endsInTypeAnnotation(node: SyntaxNode): boolean {
   return (
     last?.name === "LuauVariableAssignment" &&
     hasDescendant(last, "LuauTypeAnnotationOperation") &&
-    !hasDescendant(last, "LuauAssignmentOperation")
+    !ownAssignmentOperation(last)
   );
 }
 
@@ -219,7 +222,7 @@ function endsOnValueComma(node: SyntaxNode): boolean {
     return false;
   }
   for (let child = content?.firstChild; child; child = child.nextSibling) {
-    if (child.name === "LuauVariableAssignment" && hasDescendant(child, "LuauAssignmentOperation")) {
+    if (child.name === "LuauVariableAssignment" && ownAssignmentOperation(child)) {
       return true;
     }
   }

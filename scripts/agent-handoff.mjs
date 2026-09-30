@@ -6,7 +6,7 @@ import { randomUUID } from "node:crypto";
 import { reserveReviewerSlot, releaseReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 import { withJob,retryBusy,git,failureDetails } from './review-job-store.mjs';
 import { verifyCodexReviewResult,validateCodexReviewer,verifyReviewerExecutable } from './native-reviewer.mjs';
-import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs} from './reviewer-security.mjs';
+import {nativeReviewerEnvironment,protectPrivatePath,nativeCodexArgs,codexReviewMode} from './reviewer-security.mjs';
 import { resolveReviewer, applyResolvedReviewer, routeVendor } from "./reviewer-defaults.mjs";
 import { reviewJobRoot, assertInsideJobRoot } from "./review-job-root.mjs";
 import { validateExecutionShape, executionCommands, startExecutionService, executionClientCommand } from "./reviewer-execution.mjs";
@@ -357,6 +357,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       };
       const executionClient = executionClientCommand(cwd);
       const executionPrompt = step.execution ? `\nLauncher execution service: the caller authorized these operations: ${step.execution.map(op => op.id).join(", ")}. Use the command ${executionClient} with no argument to list their exact commands. For tests and benchmarks, one operation ID requests and awaits its fixed-input result; each such ID runs once and later requests return its retained result. Editor operations instead require the bounded request JSON described below, with a separate requestId for each attempt. Requests execute outside the reviewer sandbox through the coordinator, against reviewed head ${head}; Vitest retains its machine-wide reservation and process census. Read the actual test summaries or benchmark report in output; exit zero alone does not establish coverage. Do not print the service environment token. Other commands, arbitrary flags, external projects and reviewer-authored probes are not delegated.\n` : "";
+      const accessPrompt = step.nativeResult === "codex-jsonl" && codexReviewMode(step) === "full-access" ? `\nExecution access: you run without a sandbox, as the user, under the repository's shared hook policy (typed issues, shared stash, local test runs, write hazards). The reviewed checkout ${cwd} is frozen: do not modify it. For executable evidence, clone reviewed head ${head} into your private directory, install dependencies there with PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1, and run tests, including probes you write, only through node scripts/test-suite.mjs run <package> <test-file> [test-file ...] --wait <seconds>, which takes the machine-wide reservation. Record each command and its result in your report.\n` : "";
       const editorPrompt = step.execution?.some(op => op.kind === "editor") ? `\nEditor delegation: read ${path.join(cwd, ".agents/skills/review-pr/references/editor-delegation.md")}. For an editor operation, use ${executionClient} <operation-id> <absolute-request.json>. Write that JSON with your editor tool in your private directory. The coordinator starts the supported editor/player driver, applies bounded UI data and returns its transcript. The client saves PNG copies in your current private directory; open and inspect those images. Each requestId runs once; use a fresh requestId for a new attempt and repeat the identical request to retrieve retained evidence. The operation's maxRequests bounds attempts. The coordinator owns and stops this separate session after your process exits. Do not run up/down directly for this delegation or claim the lens was performed without inspecting successful task evidence and screenshots.\n` : "";
       try {
         if (step.execution) {
@@ -390,7 +391,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
         append({ event: "running", index, step: current, pid: child.pid, startedAt: new Date().toISOString(), head, output, completion });
         if(identityRow)append(identityRow);
         if(launchError)throw launchError;
-        child.stdin.end(prompt + executionPrompt + editorPrompt);
+        child.stdin.end(prompt + accessPrompt + executionPrompt + editorPrompt);
         result = await exited;
         activeChild = null;
       } catch(error) {

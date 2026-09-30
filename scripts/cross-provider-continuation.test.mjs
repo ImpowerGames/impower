@@ -19,7 +19,7 @@ import {continuationHost,continuationClaimIdentity} from './continuation-host.mj
 import {claudeContinuationHost,claudeReceiptMarker,sendClaudeFrame,readClaudeRows,verifyClaudeClaimConfiguration} from './claude-continuation-host.mjs';
 import {recordClaudeHook,appendClaudeReceipt} from './claude-continuation-hook.mjs';
 import {verifyReviewerExecutable} from './native-reviewer.mjs';
-import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment} from './reviewer-security.mjs';
+import {protectPrivatePath,reviewerEnvironment,nativeReviewerEnvironment,isSupportedCodexVersion,minimumFullAccessCodexVersion,reviewerHookEntry} from './reviewer-security.mjs';
 import {claudeClaimArgv,renderClaudeClaimCommand} from './claude-claim-proof.mjs';
 import {testShell} from '../.agents/skills/drive-web-editor/redgreen.mjs';
 import {removeScratch} from './remove-scratch.mjs';
@@ -97,6 +97,34 @@ const plan={worktree:repo,jobDir:path.join(scratch,'job'),head,base:head,pr:548,
   const alias=path.join(scratch,'review-alias');fs.symlinkSync(privateDir,alias,process.platform==='win32'?'junction':'dir');
   const aliased=structuredClone(plan);aliased.jobDir=path.join(alias,'job');assert.throws(()=>validateReviewPlan(aliased),/writes must exclude/);
   console.log('PASS: declared reviewer arguments reject alternate roots/configuration, shared private directories, missing feature disables and mismatched versions');
+
+  // The supervised route accepts the full-access grammar, and its reviewer
+  // environment holds only the authentication copy and the repository hooks.
+  const authHome=path.join(scratch,'auth-home');fs.mkdirSync(authHome);fs.writeFileSync(path.join(authHome,'auth.json'),'{"fixture":true}');fs.writeFileSync(path.join(authHome,'config.toml'),'model_provider="unwanted"');
+  const fullAccess=structuredClone(plan),fullReview=fullAccess.reviews[0];
+  fullReview.permissions={sandbox:'danger-full-access',approvalPolicy:'never',networkAccess:true,cwd:privateDir,artifactWrites:'handoff-directory',codexHome:authHome};
+  fullReview.args=['exec','--model','gpt-6-astra','-c','model_reasoning_effort="medium"','-c','approval_policy="never"','--sandbox','danger-full-access','-c','model_provider="openai"','--cd',privateDir,'--skip-git-repo-check','--ignore-user-config','--ignore-rules','--strict-config','--json','--disable','multi_agent','--disable','multi_agent_v2','--dangerously-bypass-hook-trust','--output-last-message',path.join(privateDir,'report.md'),'-'];
+  assert.doesNotThrow(()=>validateReviewPlan(fullAccess),'the supervised route accepts the full-access Codex grammar');
+  for(const extra of [['-c','sandbox_workspace_write.network_access=true'],['--dangerously-bypass-approvals-and-sandbox'],['--add-dir',repo],['--sandbox','workspace-write']]){const invalid=structuredClone(fullAccess);invalid.reviews[0].args.splice(-1,0,...extra);assert.throws(()=>validateReviewPlan(invalid));}
+  assert.equal(isSupportedCodexVersion('0.158.0',minimumFullAccessCodexVersion),false,'the full-access route needs the build its hook loading was observed on');
+  assert.equal(isSupportedCodexVersion(minimumFullAccessCodexVersion,minimumFullAccessCodexVersion),true);
+  const originalFullExec=childProcess.execFileSync;
+  try {
+    childProcess.execFileSync=(executable,args,options)=>{
+      if(executable==='gh')return 'fixture-full-access-token';
+      assert.notEqual(args?.[0],'doctor','the full-access route runs no sandbox provisioning check');
+      return originalFullExec(executable,args,options);
+    };
+    syncBuiltinESMExports();
+    const fullDirectory=path.join(scratch,'full-access-artifacts');fs.mkdirSync(fullDirectory);
+    const env=nativeReviewerEnvironment({...fullReview,nativeResult:'codex-jsonl'},fullDirectory,{PATH:process.env.PATH,CODEX_HOME:authHome,OPENAI_API_KEY:'fixture-key'},{worktree:repo});
+    assert.deepEqual(fs.readdirSync(env.CODEX_HOME).sort(),['auth.json','hooks.json'],'the fresh home holds only the authentication copy and the hooks');
+    assert.equal(fs.readFileSync(path.join(env.CODEX_HOME,'auth.json'),'utf8'),'{"fixture":true}');
+    protectPrivatePath(path.join(env.CODEX_HOME,'auth.json'),{verifyOnly:true});
+    assert.ok(fs.readFileSync(path.join(env.CODEX_HOME,'hooks.json'),'utf8').includes(JSON.stringify(reviewerHookEntry).slice(1,-1)),'the hooks run the launcher checkout\'s shared entry point');
+    assert.equal(env.OPENAI_API_KEY,undefined);assert.equal(env.GH_TOKEN,'fixture-full-access-token');assert.equal(env.GIT_CONFIG_KEY_0,'safe.directory');
+  } finally {childProcess.execFileSync=originalFullExec;syncBuiltinESMExports();}
+  console.log('PASS: the full-access Codex route passes the supervised plan gate and receives only its authentication copy, repository hooks and delegated report access');
 
   const stream=[{type:'thread.started',thread_id:randomUUID()},{type:'turn.started'},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Full review posted and completion written.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}];
   const output=path.join(privateDir,'stdout.jsonl');

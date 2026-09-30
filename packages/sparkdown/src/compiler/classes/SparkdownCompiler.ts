@@ -6749,20 +6749,21 @@ export class SparkdownCompiler {
 
   /**
    * Type checks the Luau of every script in the program and reports what the
-   * checker finds as warnings. The project's mode is `config.typecheck.mode`
-   * ("nonstrict" unless a define changes it); a `.sd` file's `typecheck:`
-   * front matter field overrides it for that file, and a `.luau` file's own
-   * `--!` first line does for that file.
+   * checker finds as warnings, and a type Luau's parser cannot read as an
+   * error. The project's mode is `config.typecheck.mode` ("nonstrict" unless
+   * a define changes it); a `.sd` file's `typecheck:` front matter field
+   * overrides it for that file, and a `.luau` file's own `--!` first line does
+   * for that file.
    */
   validateTypes(program: SparkProgram) {
     const uri = program.uri;
     profile("start", this._profilerId, "validateTypes", uri);
     // Plain text: a type's printed form (`<T>(T) -> T`, `*error-type*`) is not markdown.
-    const warn = (scriptUri: string, range: Range, code: string, message: string) => {
+    const report = (scriptUri: string, range: Range, code: string, message: string, severity: DiagnosticSeverity = DiagnosticSeverity.Warning) => {
       ((program.diagnostics ??= {})[scriptUri] ??= []).push({
         range,
         code,
-        severity: DiagnosticSeverity.Warning,
+        severity,
         message,
         source: LANGUAGE_NAME,
       });
@@ -6784,11 +6785,11 @@ export class SparkdownCompiler {
           const tree = this.documents.tree(scriptUri);
           const setting = doc && tree ? configTypecheckSetting(tree, (from, to) => doc.read(from, to)) : undefined;
           if (doc && setting) {
-            warn(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", message);
+            report(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", message);
             placed = true;
           }
         }
-        if (!placed) warn(uri, { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, "UnknownTypecheckMode", message);
+        if (!placed) report(uri, { start: { line: 0, character: 0 }, end: { line: 0, character: 0 } }, "UnknownTypecheckMode", message);
       }
     }
 
@@ -6803,18 +6804,24 @@ export class SparkdownCompiler {
       if (setting) {
         const fileMode = modeFromName(setting.value);
         if (fileMode !== undefined) mode = fileMode;
-        else warn(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", unknownModeMessage(setting.value));
+        else report(scriptUri, doc.range(setting.from, setting.to), "UnknownTypecheckMode", unknownModeMessage(setting.value));
       }
-      // A name Sparkdown's own resolver cannot find is already reported there.
+      // A name Sparkdown's own resolver cannot find is already reported there,
+      // and so is a token Sparkdown already reports an error at.
       const unresolved: { name: string; range: Range }[] = [];
+      const errors: Range[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
+        if (d.severity === DiagnosticSeverity.Error) errors.push(d.range);
       }
       for (const d of this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode)) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
-        warn(scriptUri, { start: d.start, end: d.end }, d.code, d.message);
+        // A syntax error's range ends with the token Luau found.
+        const token = { line: d.end.line, character: Math.max(d.end.character - 1, 0) };
+        if (d.syntax && errors.some((range) => rangeContains(range, token))) continue;
+        report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
     }
     this._typechecker.endCompile();
