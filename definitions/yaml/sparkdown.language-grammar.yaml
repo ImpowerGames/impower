@@ -6060,8 +6060,11 @@ repository:
     # unless that line closes the function. That opening also needs the
     # line to start with a character a statement can begin with: a line the
     # body cannot read (a stray `|` or `)`) closes the body, and reopening
-    # it there would match nothing, again and again.
-    begin: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+    # it there would match nothing, again and again. After a return type whose
+    # trailing block comment spans lines and closes right before code
+    # (`b]]print(1)`), it opens before the closing brackets the comment
+    # leaves, which the body reads (`LuauTypeTrailingBlockCommentClose`).
+    begin: (?<!{{LUAU_FUNCTION_HEADER}})(?=\]=*\]{{LUAU_TYPE_CODE_AHEAD}})|(?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -6093,6 +6096,7 @@ repository:
         patterns:
           - { include: "#PunctuationParenOpen" }
     patterns:
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauTypeUnionLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauVariadicParameter" }
@@ -6140,8 +6144,10 @@ repository:
       - { include: "#Newline" }
     # A `;` ends the return type as it ends the type, so the body opens
     # before it (`function f(): number; g()`), and so does a block comment
-    # on its line that code follows (`function f(): number --[[c]] g()`).
-    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|;)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+    # on its line that code follows (`function f(): number --[[c]] g()`), and
+    # so does the `]` a trailing block comment spanning lines leaves before
+    # code (`LuauTypeTrailingBlockCommentClose`).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|;|\])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauFunctionName:
     tag: function(name)
@@ -6336,8 +6342,10 @@ repository:
     # `^` ends it at the next line when its type annotation took in the
     # line break. Terminate before `;` too, so `local x = f();` closes this
     # rule and `LuauVariableDefinition` before the `;`, which the enclosing
-    # statement context reads as `LuauSemicolonSeparator`.
-    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    # statement context reads as `LuauSemicolonSeparator`. It ends before the
+    # `]` that a type's trailing block comment leaves before code
+    # (`LuauTypeTrailingBlockCommentClose`), as the declaration does.
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -6416,6 +6424,7 @@ repository:
   # author writes one we'd rather highlight it than emit an `UNRECOGNIZED`.
   LuauBlockBody:
     patterns:
+      - { include: "#LuauTypeTrailingBlockCommentClose" }
       - { include: "#LuauTypeUnionLineContinuation" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
@@ -9452,6 +9461,7 @@ repository:
   LuauTypeLiteral:
     begin: (?={{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>])
     patterns:
+      - { include: "#LuauTypeTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeOptionalOperator" }
       - { include: "#LuauTypeStrayOptionalOperator" }
@@ -9477,6 +9487,77 @@ repository:
     # before a block comment on its line that code follows
     # (`function f(): number --[[c]] g()`, see `LUAU_BLOCK_COMMENT_ON_LINE`).
     end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
+
+  # A block comment right after a type that closes on a later line
+  # (`local w: number --[[a` then `b]] print(1)`). No pattern on the
+  # opening line can see what follows the close, so the type reads the
+  # comment in, and the close decides: this rule ends as `LuauBlockComment`
+  # does, but takes the whitespace after the close only when the type can go
+  # on there (a type operator, the `?` suffix, what ends the type anyway, a
+  # comment or the line's end). Before code it leaves that whitespace, so the
+  # type, the rules around it and a declaration end there as they do after
+  # `number print(1)`, and a return type's body opens there. Before code
+  # right after the close (`b]]print(1)`) there is no whitespace to leave, so
+  # it ends before its closing brackets instead: the type and every rule
+  # around it end before a `]`, and the enclosing body or parameter list
+  # reads the brackets as `LuauTypeTrailingBlockCommentClose`. A comment that
+  # closes on its line is `LuauBlockComment`, which ends the type before it
+  # when code follows (`LUAU_BLOCK_COMMENT_ON_LINE`). The opening line alone
+  # cannot tell a comment after a type from one after an operator or a comma
+  # on a later line, so only `LuauTypeLiteral`, which reads a comment only
+  # after type text of its own, includes this rule.
+  LuauTypeTrailingBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    begin: (?<={{LUAU_TYPE_END}}{{WS}}*)(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+      - { include: "#Newline" }
+    end: (?=\]\3\]{{LUAU_TYPE_CODE_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_TYPE_CODE_AHEAD}})|)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # The closing brackets of a `LuauTypeTrailingBlockComment` that code
+  # follows directly, which that rule leaves so the rules around the type
+  # end before them (`b]]print(1)`). Only a statement body and a parameter
+  # list, where those rules stop, include it, and only before code. No
+  # pattern can see the comment's opening on an earlier line, so it also
+  # matches brackets no comment opened (`]]print(1)` alone); the validator
+  # reports those, as Luau does.
+  LuauTypeTrailingBlockCommentClose:
+    tag: blockComment
+    name: comment.block.luau
+    match: (\]=*\])(?={{LUAU_TYPE_CODE_AHEAD}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
 
   # `->` as a type annotation marks the parameter as carrying a
   # divert-target value (sparkdown's analogue of ink's typed-divert
