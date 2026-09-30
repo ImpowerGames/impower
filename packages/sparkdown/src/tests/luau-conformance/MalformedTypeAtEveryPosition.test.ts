@@ -230,4 +230,19 @@ describe("the reported layouts", () => {
       "RequiredWhitespace",
     ]);
   });
+
+  // A method call after a comma in the header is not a variable's annotation.
+  test.each([
+    "function f(t)\n  for k, v in pairs({}), t:m() do end\nend\n",
+    "function f(t)\n  for k, v in pairs({}), t:m --[[c]] () do end\nend\n",
+    "function f(t)\n  for k in iter(1, t:m --[[c]] ()) do end\nend\n",
+  ])("%j reads no annotation", (source) => {
+    const annotations: string[] = [];
+    parseSource(source).iterate({
+      enter: (node) => {
+        if (node.name === "LuauTypeAnnotationOperation") annotations.push(source.slice(node.from, node.to));
+      },
+    });
+    expect(annotations).toEqual([]);
+  });
 });
