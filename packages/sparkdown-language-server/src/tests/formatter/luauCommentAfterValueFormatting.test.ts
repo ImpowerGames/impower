@@ -35,6 +35,17 @@ end
   );
 });
 
+test("formatting leaves a call whose arguments follow a block comment", () => {
+  const source = `function f(g)
+  local w = g --[[c]] (2)
+  local v = g --[[a
+  ]] (3)
+  return w
+end
+`;
+  expectFormatsTo(source, source);
+});
+
 test("formatting leaves a statement after a same-line block comment after a value", () => {
   const source = `function f()
   local w = 5 --[[c]] print(1)

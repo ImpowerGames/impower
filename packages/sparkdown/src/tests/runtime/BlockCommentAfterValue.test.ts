@@ -200,4 +200,81 @@ describe("a statement after a same-line block comment after a value runs", () =>
   test("a line comment after a value still ends the statement", () => {
     expect(run("  local w = 5 -- print(1)")).toBe("Value 5.\n");
   });
+
+  // A leveled comment closes only at brackets of its own level.
+  test.each([
+    ["an operator", "  local w = 5 --[=[a]]b]=] + 1", "Value 6.\n"],
+    ["a statement", "  local w = 5 --[=[a]]b]=] print(1)", "Value 15.\n"],
+    [
+      "a type union",
+      "  local w: number --[=[a]]b]=] | string = 5",
+      "Value 5.\n",
+    ],
+  ])("a leveled comment holding `]]` before %s", (_name, body, expected) => {
+    expect(run(body)).toBe(expected);
+  });
+
+  test("a comment right after `local` keeps the declaration", () => {
+    expect(run("  local --[[c]] w = 5")).toBe("Value 5.\n");
+  });
+
+  test("the typed and multi-value forms end before the comment", () => {
+    expect(run("  local w: number = 5 --[[c]] print(1)")).toBe("Value 15.\n");
+    expect(run("  local a, w = 1, 5 --[[c]] print(1)")).toBe("Value 15.\n");
+    expect(run("  local w = 1\n  w += 4 --[[c]] print(1)")).toBe("Value 15.\n");
+  });
+});
+
+// A block comment after a value that closes on a later line: a statement
+// after the close is the next statement, as on one line.
+describe("a statement after a block comment spanning lines runs", () => {
+  test.each([
+    ["local", "  local w = 5 --[[a\n  ]] print(1)", "Value 15.\n"],
+    [
+      "reassignment",
+      "  local w = 0\n  w = 5 --[[a\n  ]] print(1)",
+      "Value 15.\n",
+    ],
+    ["binary value", "  local w = 2 + 3 --[[a\n  ]] print(1)", "Value 15.\n"],
+    ["string value", '  local w = "5" --[[a\n  ]] print(1)', "Value 15.\n"],
+    ["call value", "  local w = tostring(5) --[[a\n  ]] print(1)", "Value 15.\n"],
+    ["leveled comment", "  local w = 5 --[==[a\n  ]==] print(1)", "Value 15.\n"],
+    ["no space after the close", "  local w = 5 --[[a\n  ]]print(1)", "Value 15.\n"],
+    [
+      "reassignment, no space after the close",
+      "  local w = 0\n  w = 5 --[[a\n  ]]print(1)",
+      "Value 15.\n",
+    ],
+    ["assignment after", "  local w = 5 --[[a\n  ]] w = w + 1", "Value 6.\n"],
+    [
+      "if statement after",
+      "  local w = 5 --[[a\n  ]] if w then print(1) end",
+      "Value 15.\n",
+    ],
+    [
+      "parenthesized statement after a number",
+      "  local w = 5 --[[a\n  ]] (function() print(1) end)()",
+      "Value 15.\n",
+    ],
+  ])("%s", (_name, body, expected) => {
+    expect(run(body)).toBe(expected);
+  });
+
+  test.each([
+    ["an operator", "  local w = 5 --[[a\n  ]] + 1", "Value 6.\n"],
+    ["a concatenation", '  local w = "a" --[[a\n  ]] .. "b"', "Value ab.\n"],
+    ["an operand", "  local w = 3 + --[[a\n  ]] 2", "Value 5.\n"],
+    [
+      "a call's arguments",
+      "  local g = function(v) return v * 3 end\n  local w = g --[[a\n  ]] (2)",
+      "Value 6.\n",
+    ],
+    [
+      "a list's next value",
+      "  local t = {5 --[[a\n  ]], 6}\n  local w = t[2]",
+      "Value 6.\n",
+    ],
+  ])("the value goes on past the comment to %s", (_name, body, expected) => {
+    expect(run(body)).toBe(expected);
+  });
 });
