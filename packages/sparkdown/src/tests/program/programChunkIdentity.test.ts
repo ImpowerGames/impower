@@ -684,6 +684,50 @@ describe("a name a chunk reads", () => {
   });
 });
 
+// The root of a cold compile of `source`, and what the program engine shows
+// running a root.
+const coldRoot = (source: string) =>
+  programCompiler(
+    { [MAIN]: source },
+    { programChunks: true, seedBuiltinsIntoStory: true },
+  ).compile().program.chunks!;
+const shows = (root: ProgramRoot) =>
+  storyBeats(new ProgramStory(root)).beats.map((beat) => beat.text.trim());
+
+// A function a statement writes captures the names its body reads: the
+// statement's code passes them and binds them at the function's entry, as a
+// call of a variadic function passes them. The body's lines are not the
+// statement's syntax, so its lowering records them, and the store emits the
+// statement again when an edit to the body changes them.
+describe("a statement that writes a function", () => {
+  const demo = (fn: string[]) =>
+    [
+      "function demo()",
+      "  local a = 1",
+      "  local b = 2",
+      ...fn.map((l) => `  ${l}`),
+      "  return f()",
+      "end",
+      "Got {tostring(demo())}.",
+      "",
+    ].join("\n");
+  it.each([
+    ["a closure", ["local f = function()", "  return a", "end"], "return b", "Got 2."],
+    ["a local function", ["local function f()", "  return a", "end"], "return b", "Got 2."],
+    ["a function declared with `...`, and the call to it", ["function f(...)", "  return a", "end"], "return b", "Got 2."],
+    ["a closure whose body reads one more name", ["local f = function()", "  return a", "end"], "return a + b", "Got 3."],
+  ])("is emitted again when an edit to the body of %s changes the names it captures", (_name, fn, replace, line) => {
+    const text = demo(fn);
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 1."]);
+    const edited = s.edit("return a", replace);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("return a", replace))),
+    );
+    expect(shows(edited)).toEqual([line]);
+  });
+});
+
 // A `local` hides a variadic function of its name for the rest of its block,
 // and a closure written after it in the block captures the local where it
 // called the function before (`shadowSiblingSubFlow`). The closure's own
@@ -705,13 +749,7 @@ describe("a statement whose meaning a block's local changes", () => {
     "Got {run()}.",
     "",
   ].join("\n");
-  const cold = (source: string) =>
-    programCompiler(
-      { [MAIN]: source },
-      { programChunks: true, seedBuiltinsIntoStory: true },
-    ).compile().program.chunks!;
-  const shows = (root: ProgramRoot) =>
-    storyBeats(new ProgramStory(root)).beats.map((beat) => beat.text.trim());
+  const cold = coldRoot;
 
   it("is emitted again when an edit names the local after the function, and when it names it back", () => {
     const s = session({ [MAIN]: text });

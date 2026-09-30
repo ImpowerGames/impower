@@ -1898,6 +1898,7 @@ export function scanFreeVariables(
       if (isShadowedLocal(name)) maybeCaptureFree(name);
     }
   });
+  recordCaptureRead(ctx, free);
   return free;
 }
 
@@ -2599,6 +2600,14 @@ function lowerIdentifierPath(
   ) {
     const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
     const knotName = info?.knotName ?? identifiers[0]!.name;
+    if (info) {
+      // The subflow's definition decides the pointers the value holds and
+      // the arity it records.
+      recordSiblingRead(
+        ctx,
+        `value:${identifiers[0]!.name}=${info.upvals.join(",")}/${info.arity}`,
+      );
+    }
     if (info && info.upvals.length > 0) {
       return buildClosureExpression(knotName, info.upvals, info.arity);
     }
@@ -2818,6 +2827,23 @@ function recordSiblingRead(ctx: LowerContext, read: string): void {
 }
 
 /**
+ * Records in the running statement's reads the names a function it writes
+ * captures, in order (`scanFreeVariables`): the statement's code passes them
+ * to the function and the function's entry binds them, and the function's
+ * body, whose lines are not the statement's syntax, decides them, so the
+ * binary program's chunk store emits the statement again when an edit inside
+ * the body changes them (`ChunkStore.take`). Each scan is recorded in the
+ * order the lowering makes it, since two functions of one statement can
+ * capture the same names.
+ */
+export function recordCaptureRead(
+  ctx: LowerContext,
+  names: readonly string[],
+): void {
+  currentStatement(ctx)?.reads.other.push(`captures:${names.join(",")}`);
+}
+
+/**
  * The names the statements of `block` declare as locals themselves
  * (`local x`, `local function f`), not those declared inside the blocks
  * within it: what a `repeat` loop's `until` condition sees of its body.
@@ -2914,13 +2940,15 @@ function siblingSubFlowUpvals(
 
 // Prepend a sibling subflow's upval pointers to a call's arg list.
 // No-op (returns `args` unchanged) when `name` isn't a registered
-// sibling subflow or captures nothing.
+// sibling subflow or captures nothing. The subflow's body decides the
+// pointers, so the calling statement records them (`recordSiblingRead`).
 function withSiblingSubFlowUpvalArgs(
   name: string,
   args: Expression[],
   ctx: LowerContext,
 ): Expression[] {
   const upvals = siblingSubFlowUpvals(name, ctx);
+  if (upvals) recordSiblingRead(ctx, `upvals:${name}=${upvals.join(",")}`);
   if (!upvals || upvals.length === 0) return args;
   return [
     ...upvals.map((n) => new VariablePointerExpression(n)),

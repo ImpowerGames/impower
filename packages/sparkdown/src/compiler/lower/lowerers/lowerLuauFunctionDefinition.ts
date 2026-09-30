@@ -26,6 +26,7 @@ import {
   buildClosureExpression,
   collectImmediateBodyDeclarations,
   countUserParameters,
+  recordCaptureRead,
   scanFreeVariables,
   shadowSiblingSubFlow,
 } from "../expression/lowerExpression";
@@ -258,6 +259,8 @@ function lowerNestedNamedFunction(
     !!selfName && bodyReferencesNameAsCall(node, ctx, selfName);
   if (isSelfReferential && !upvals.includes(selfName)) {
     upvals.push(selfName);
+    // The body's call to itself decides this capture as well.
+    recordCaptureRead(ctx, [selfName]);
   }
 
   const fn = buildAnonymousFunction(node, synthName, ctx, upvals);
