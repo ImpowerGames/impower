@@ -261,6 +261,27 @@ variables:
   # keywords `LuauReturnStatement` stops at, a `;`, and a named
   # function declaration (a `function` literal is a value).
   LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
+  # The start of a reassignment statement: its targets (a name with `.field`,
+  # `[index]` or `(call)` suffixes, or several names separated by commas) and
+  # an assignment operator. `LuauReassignment` begins here, and the rules that
+  # end before a following reassignment look ahead for it.
+  LUAU_REASSIGNMENT_START: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}'
+  # Just before the line break of an if expression's line when the next line
+  # begins at column 0 with anything an if expression does not read on to:
+  # not a clause keyword (`then`, `else`, `elseif`), a continuation, a
+  # comment, or a closing bracket or separator. Such a line ends the
+  # expression anyway, so the expression stops before the line break instead
+  # of taking it, and a statement it is part of, such as a `LuauReassignment`
+  # (which has nothing at a line start that ends it), ends at the end of its
+  # own line rather than reading the next line (`x = 6`, `print(x)`,
+  # `local y = 1`) into itself. The `\S` keeps it from matching at the end of
+  # a line that a line-by-line tokenizer (VS Code) sees with nothing after.
+  BEFORE_LUAU_COLUMN_0_LINE: (?={{NL}}(?=\S)(?!(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;]))
+  # The same, for an `else` that ends its line: its arm takes a column-0 value
+  # from the next line (`else` then `"c"`), so it stops only before a column-0
+  # line that cannot be a value, one that begins a statement
+  # (`LUAU_STATEMENT_LINE_START`) or a reassignment (`x = 6`, `a.b += 1`).
+  BEFORE_LUAU_COLUMN_0_STATEMENT: (?={{NL}}(?:{{LUAU_STATEMENT_LINE_START}}|(?!(?:then|else|elseif)\b){{LUAU_REASSIGNMENT_START}}))
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -3332,7 +3353,7 @@ repository:
     # target case so `a, b = 10, 20` parses as a single reassignment.
     # `LuauCommaSeparator` is added to the inner patterns so commas
     # between targets AND between RHS expressions can be consumed.
-    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}})
     beginCaptures:
       1:
         patterns:
@@ -3383,7 +3404,7 @@ repository:
     # `end`/newline, never `}`; a table-literal VALUE consumes its own
     # braces before this end is checked, and reassignment statements never
     # appear inside a table).
-    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -6594,7 +6615,7 @@ repository:
     # the call-statement alternative). (`until` itself is excluded —
     # it's this rule's own keyword; nested repeats close their own
     # until first.)
-    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    end: (?={{BEAT}})|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
 
   # ----------------------------------------------------------------------------
   # Do Block
@@ -6766,7 +6787,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b
+    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b|{{BEFORE_LUAU_COLUMN_0_LINE}}
     endCaptures:
       1:
         emit: true
@@ -7081,6 +7102,13 @@ repository:
     # this expression with it. `ValidationAnnotator` reports the missing
     # clause or value.
     #
+    # When the next line starts at column 0, the condition, the then arm and
+    # the `then` keyword instead stop before the line break
+    # (`BEFORE_LUAU_COLUMN_0_LINE`), and the `else` keyword stops there only
+    # before a line that cannot be its value (`BEFORE_LUAU_COLUMN_0_STATEMENT`),
+    # so the statement the expression belongs to ends with its own line and
+    # the next line is read on its own.
+    #
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
     # `if if c then 1 else 2 then`. Each condition takes the whitespace
@@ -7115,7 +7143,7 @@ repository:
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)
@@ -7137,7 +7165,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
 
   LuauElseExpression:
     begin: (?=(?:else)\b)
@@ -7175,7 +7203,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})
+    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_STATEMENT}}
 
   # ----------------------------------------------------------------------------
   # Alternator Blocks
