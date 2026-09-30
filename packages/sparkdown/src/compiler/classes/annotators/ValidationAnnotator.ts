@@ -154,8 +154,25 @@ const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
 );
 // The `end` line a `run` file's wrapper closes its function with.
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
-const LUAU_COMMENT = nodeNameSet([
+const STRAY_CLOSING_BRACKET =
+  "Expected identifier when parsing expression, got ']'";
+// A block comment after a type that closes on a later line is its own rule
+// (`LuauTypeTrailingBlockComment`), which differs in what it leaves after
+// its close: the whitespace before code, or, before code right after the
+// close, the closing brackets, which the body reads as
+// `LuauTypeTrailingBlockCommentClose`.
+const LUAU_BLOCK_COMMENT_OPENINGS: SparkdownNodeName[] = [
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+];
+const LUAU_BLOCK_COMMENT_NAMES: SparkdownNodeName[] = [
+  ...LUAU_BLOCK_COMMENT_OPENINGS,
+  "LuauTypeTrailingBlockCommentClose",
+];
+const LUAU_BLOCK_COMMENT_OPENING = nodeNameSet(LUAU_BLOCK_COMMENT_OPENINGS);
+const LUAU_BLOCK_COMMENT = nodeNameSet(LUAU_BLOCK_COMMENT_NAMES);
+const LUAU_COMMENT = nodeNameSet([
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauDocLineComment",
   "LuauLineComment",
 ]);
@@ -174,6 +191,23 @@ const IF_EXPRESSION_WITHOUT_THEN =
   "Expected 'then' when parsing if then else expression";
 const IF_EXPRESSION_WITHOUT_ELSE =
   "Expected 'else' when parsing if then else expression";
+// Luau's parser reports an if statement's condition that no `then` follows
+// in these words (`parseIf`, for an `elseif` too), naming the token it found.
+const IF_STATEMENT_WITHOUT_THEN = "Expected 'then' when parsing if statement";
+const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
+  "LuauIfBlockCondition",
+  "LuauElseifBlockCondition",
+]);
+// The parts of an if statement's condition that are not its expression.
+const IF_CONDITION_TRIVIA = nodeNameSet([
+  "LuauConditionLeadingBreak",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+  "ExtraWhitespace",
+  "Newline",
+]);
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
@@ -184,7 +218,7 @@ const IF_CLAUSE_TRIVIA = new Set([
   "LuauComment",
   "LuauLineComment",
   "LuauDocLineComment",
-  "LuauBlockComment",
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauCommaSeparator",
   "ExtraWhitespace",
   "OptionalWhitespace",
@@ -389,6 +423,21 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return search(commandNode);
   }
 
+  /**
+   * Where an if statement's condition expression ends: after the last part
+   * of the condition that is not a space or line break, before any part the
+   * grammar could not read into the expression (`flag` in `if flag print(1)`).
+   */
+  protected conditionExpressionEnd(condition: any): number {
+    const content = childNamed(condition, `${condition.name}_content`);
+    let end = content?.from ?? condition.from;
+    for (let c = content?.firstChild; c; c = c.nextSibling) {
+      if (c.name === "ERROR_INCOMPLETE") break;
+      if (!IF_CONDITION_TRIVIA.has(c.name)) end = c.to;
+    }
+    return end;
+  }
+
   protected error(
     annotations: Range<SparkdownAnnotation<Diagnostic>>[],
     message: string,
@@ -510,9 +559,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return false;
     }
-    if (name === "LuauBlockComment") {
-      if (!childNamed(nodeRef.node, "LuauBlockComment_end")) {
+    if (LUAU_BLOCK_COMMENT_OPENING.has(name)) {
+      if (!childNamed(nodeRef.node, `${name}_end`)) {
         this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
+        return true;
+      }
+      return false;
+    }
+    // The grammar reads closing brackets before code as a trailing type
+    // comment's close wherever a statement or parameter can begin, since no
+    // pattern can see the comment's opening on an earlier line. Brackets that
+    // no such comment ends right before are Luau's first unexpected token.
+    if (name === "LuauTypeTrailingBlockCommentClose") {
+      if (!this.endsTrailingTypeComment(nodeRef.from)) {
+        this.error(annotations, STRAY_CLOSING_BRACKET, nodeRef.from, nodeRef.from + 1);
         return true;
       }
       return false;
@@ -594,6 +654,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /** Whether a `LuauTypeTrailingBlockComment` ends at `pos`, leaving its
+   *  closing brackets to the body there. */
+  protected endsTrailingTypeComment(pos: number): boolean {
+    let node = this.tree?.resolveInner(pos, -1) ?? null;
+    while (node && node.name !== "LuauTypeTrailingBlockComment") {
+      node = node.parent;
+    }
+    return node?.to === pos;
+  }
+
   /**
    * The part of a declaration's content before `node` (its targets, the
    * commas between them and, from the first `=` on, its values), past
@@ -629,7 +699,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         pos -= 1;
       }
       let node = this.tree?.resolveInner(pos, -1) ?? null;
-      while (node && node.name !== "LuauBlockComment") {
+      while (node && !LUAU_BLOCK_COMMENT.has(node.name)) {
         node = node.parent;
       }
       if (!node || node.from >= pos) {
@@ -823,6 +893,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           missing.message,
           missing.at?.from ?? nodeRef.from,
           missing.at?.to ?? nodeRef.to,
+        );
+      }
+    }
+    // An if statement's condition that its line ends without a `then`: the
+    // grammar ends the condition there, so the branch's first line stays in
+    // its body. Luau names the token after the condition's expression, which
+    // is the first one the grammar could not read into it.
+    if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
+      const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
+      if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
+        const got = nextSignificantToken(
+          this.conditionExpressionEnd(nodeRef.node),
+          (from, to) => this.read(from, to),
+        );
+        const eof = this.tree?.length ?? nodeRef.to;
+        this.error(
+          annotations,
+          `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
+          got?.from ?? eof,
+          got == null ? eof : got.from + got.text.length,
         );
       }
     }

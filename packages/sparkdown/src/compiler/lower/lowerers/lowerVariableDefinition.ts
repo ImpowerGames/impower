@@ -139,8 +139,15 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
-        unresolvedComma = child;
-        unresolvedAfterAssignment = sawAssignmentOp;
+        // Before the `=` the comma separates names, so an if expression
+        // after it is the missing binding name Luau reports, not a value.
+        const value = sawAssignmentOp ? commaLineBreakValue(child) : null;
+        if (value) {
+          currentRhsGroup.push(value);
+        } else {
+          unresolvedComma = child;
+          unresolvedAfterAssignment = sawAssignmentOp;
+        }
         child = child.nextSibling;
         continue;
       }
@@ -516,6 +523,15 @@ function isCommaName(name: string | undefined): boolean {
   return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
 }
 
+// The if expression a `LuauCommaLineBreak` holds after its line break, when
+// the next line starts with one unindented (`local a, g = 1,` then `if c`):
+// the declaration cannot read it there, so the comma does.
+function commaLineBreakValue(comma: SyntaxNode): SyntaxNode | null {
+  if (comma.name !== "LuauCommaLineBreak") return null;
+  const content = comma.getChild("LuauCommaLineBreak_content");
+  return content?.getChild("LuauTernaryExpression") ?? null;
+}
+
 function isSkippableName(name: string): boolean {
   return (
     name === "ExtraWhitespace" ||
@@ -525,6 +541,8 @@ function isSkippableName(name: string): boolean {
     name === "LuauLineComment" ||
     name === "LuauDocLineComment" ||
     name === "LuauBlockComment" ||
+    name === "LuauTypeTrailingBlockComment" ||
+    name === "LuauTypeTrailingBlockCommentClose" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace" ||
     VARIABLE_DEFINITION_BEGIN_NAMES.has(name) ||

@@ -275,7 +275,7 @@ describe("a position already expanded is not expanded again", () => {
 
 scene start
   Opening beat.
-  if flag
+  if flag then
     Went down the true side.
   else
     Went down the false side.
@@ -340,7 +340,7 @@ describe("every branch of a decision stays reachable", () => {
 
 scene start
   Opening beat.
-  if flag
+  if flag then
     Went down the true side.
   else
     Went down the false side.
