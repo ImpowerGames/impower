@@ -492,6 +492,14 @@ export class VariablePointerValue extends Value<string> {
   private _closedValue: InkObject | null = null;
   private _isClosed: boolean = false;
 
+  // Which of its frame's block scopes holds the binding an open cell
+  // captured (`CallStack.Element.temporaryScopes` index), or -1 when
+  // unknown (a cell loaded from a save written before scopes were
+  // recorded), which resolves the innermost binding of the name. The
+  // name alone can't tell an outer `x` from an inner `local x` that
+  // shadows it after the capture.
+  public scopeIndex: number = -1;
+
   public get closedValue(): InkObject | null {
     return this._closedValue;
   }
@@ -503,6 +511,13 @@ export class VariablePointerValue extends Value<string> {
 
   public get isClosed(): boolean {
     return this._isClosed;
+  }
+
+  // Binds the cell to a live frame again. Used when a taken choice's thread,
+  // which still binds the variable, replaces the thread that closed the cell.
+  public Reopen() {
+    this._closedValue = null;
+    this._isClosed = false;
   }
 
   constructor(variableName: string, contextIndex: number = -1) {
@@ -543,7 +558,9 @@ export class VariablePointerValue extends Value<string> {
     return "VariablePointerValue(" + this.variableName + ")";
   }
   public override Copy() {
-    return new VariablePointerValue(this.variableName, this.contextIndex);
+    const copy = new VariablePointerValue(this.variableName, this.contextIndex);
+    copy.scopeIndex = this.scopeIndex;
+    return copy;
   }
 }
 

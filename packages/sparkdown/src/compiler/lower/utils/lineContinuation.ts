@@ -37,6 +37,8 @@ const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
   "LuauLineComment",
   "LuauDocLineComment",
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+  "LuauTypeTrailingBlockCommentClose",
 ]);
 
 const SKIPPABLE: ReadonlySet<string> = new Set([
@@ -197,7 +199,8 @@ export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext):
 
 // Whether the declaration `node` ends on a comma after its `=`: its comma's
 // line break reached an unindented line, where the declaration ends, so the
-// value after the comma is on the lines that follow it.
+// value after the comma is on the lines that follow it. A comma's line break
+// that holds an if expression (`1,` then an unindented `if c`) has its value.
 function endsOnValueComma(node: SyntaxNode): boolean {
   let content: SyntaxNode | null = null;
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -206,6 +209,12 @@ function endsOnValueComma(node: SyntaxNode): boolean {
   let last: SyntaxNode | null = content?.lastChild ?? null;
   while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
   if (last?.name !== "LuauCommaSeparator" && last?.name !== "LuauCommaLineBreak") {
+    return false;
+  }
+  if (
+    last.name === "LuauCommaLineBreak" &&
+    last.getChild("LuauCommaLineBreak_content")?.getChild("LuauTernaryExpression")
+  ) {
     return false;
   }
   for (let child = content?.firstChild; child; child = child.nextSibling) {

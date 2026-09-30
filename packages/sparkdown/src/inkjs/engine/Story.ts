@@ -312,11 +312,17 @@ export function openVariablePointer(
   // closures share the same cell. The shared pointer also makes
   // the close-on-pop step a single observable event for all
   // closures that captured this variable.
-  const existing = callStack.FindOpenUpvalue(contextIdx, name);
+  // The cell records which block scope binds the name here, the
+  // binding a closure made at this point captures, so a later inner
+  // `local` of the same name doesn't take its place.
+  const scopeIdx =
+    callStack.elements[contextIdx - 1]?.ScopeIndexBinding(name) ?? -1;
+  const existing = callStack.FindOpenUpvalue(contextIdx, name, scopeIdx);
   if (existing) {
     return existing;
   }
   const newPtr = new VariablePointerValue(name, contextIdx);
+  newPtr.scopeIndex = scopeIdx;
   callStack.RegisterOpenUpvalue(newPtr, contextIdx);
   return newPtr;
 }

@@ -7,6 +7,7 @@
 // enclosing `then` or `do` once its else arm is complete, including when
 // that arm is glued to the `then` or `do` with no whitespace.
 import { describe, expect, test } from "vitest";
+import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
 import { testCompiler, testStory } from "../engineUnderTest";
@@ -73,6 +74,11 @@ function ifDiagnostics(source: string): string[] {
       const { start, end } = d.range;
       return `${start.line + 1}:${start.character + 1}-${end.line + 1}:${end.character + 1} ${d.message?.value ?? d.message}`;
     });
+}
+
+// How many reassignment statements a source parses into.
+function reassignmentCount(source: string): number {
+  return stripAnsi(dumpTree(source)).match(/\bLuauReassignment \[/g)?.length ?? 0;
 }
 
 describe("if-then-else expressions", () => {
@@ -660,6 +666,63 @@ describe("if expression without an else", () => {
     expect(ifDiagnostics(source)).toEqual([`2:7-2:9 ${MISSING_ELSE}`]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+  });
+
+  test.each([
+    ["a reassignment", "="],
+    ["a compound assignment", "+="],
+  ])("in %s, followed by a statement at column 0", (_name, op) => {
+    const source = `Value {f()}.\nfunction f()\n  local x = 0\n  x ${op} if true\n    then 1\nx = 6\n  return x\nend\n`;
+    expect(ifDiagnostics(source)).toEqual([`4:${op.length + 6}-4:${op.length + 8} ${MISSING_ELSE}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+  });
+
+  // Each clause that can end the line of an unfinished if expression. An
+  // empty then or else arm stops the call when it runs, with or without the
+  // next line, so every row also counts the two reassignments in the tree.
+  test.each([
+    ["no then yet", "  x = if true\n", `4:7-4:9 ${MISSING_THEN}`, "Value 6.\n"],
+    ["then ending the line", "  x = if true then\n", `4:15-4:19 ${MISSING_CONDITION}`, null],
+    ["else ending the line", "  x = if false then 1 else\n", `4:23-4:27 ${MISSING_CONDITION}`, null],
+    ["no then after elseif", "  x = if false then 1\n    elseif true\n", `5:5-5:11 ${MISSING_THEN}`, "Value 6.\n"],
+  ])("in a reassignment with %s, followed by a reassignment at column 0", (_name, partial, diagnostic, value) => {
+    const source = `Value {f()}.\nfunction f()\n  local x = 0\n${partial}x = 6\n  return x\nend\n`;
+    expect(ifDiagnostics(source)).toEqual([diagnostic]);
+    expect(reassignmentCount(source)).toBe(2);
+    if (value !== null) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.story.ContinueMaximally()).toBe(value);
+    }
+  });
+
+  test.each([
+    ["a return", "return 6"],
+    ["a local declaration", "local y = 6\nx = y"],
+    ["a call", "set(6)"],
+    ["an if statement", "if true then x = 6 end"],
+    ["a do block", "do x = 6 end"],
+    ["a while loop", "while x ~= 6 do x = 6 end"],
+    ["a for loop", "for i = 6, 6 do x = i end"],
+  ])("in a reassignment, followed by %s at column 0", (_name, next) => {
+    const source = `Value {f()}.\nlocal x = 0\nfunction set(v)\n  x = v\nend\nfunction f()\n  x = if true\n    then 1\n${next}\n  return x\nend\n`;
+    expect(ifDiagnostics(source)).toEqual([`7:7-7:9 ${MISSING_ELSE}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+  });
+
+  // A column-0 line after an if expression's line that belongs to the
+  // expression still does: a clause keyword, a continuation, and the value of
+  // an else arm.
+  test.each([
+    ["then and else at column 0", "local a = true\nlocal x = if a\nthen 1\nelse 2\n", "Value 1.\n"],
+    ["a continuation at column 0", 'local a = true\nlocal x = if a then "x"\n.. "z"\nelse "y"\n', "Value xz.\n"],
+    ["an else value at column 0", 'local a = false\nlocal x = if a then "a" else\n"c"\n', "Value c.\n"],
+    ["an else value at column 0 that is a name", "local a = false\nlocal n = 4\nlocal x = if a then 1 else\nn\n", "Value 4.\n"],
+  ])("%s stays in the expression", (_name, lines, value) => {
+    const ctx = makeRuntimeStoryFromSource(`${lines}Value {x}.\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(value);
   });
 
   test("in a Sparkle prop binding", () => {

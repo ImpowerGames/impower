@@ -324,8 +324,9 @@ export class VariablesState extends VariablesStateAccessor<
   public GetVariableWithName(
     name: string | null,
     contextIndex: number = -1,
+    scopeIndex: number = -1,
   ): InkObject | null {
-    let varValue = this.GetRawVariableWithName(name, contextIndex);
+    let varValue = this.GetRawVariableWithName(name, contextIndex, scopeIndex);
 
     // var varPointer = varValue as VariablePointerValue;
     let varPointer = asOrNull(varValue, VariablePointerValue);
@@ -364,7 +365,13 @@ export class VariablesState extends VariablesStateAccessor<
     );
   }
 
-  public GetRawVariableWithName(name: string | null, contextIndex: number) {
+  // `scopeIndex`, from an open upvalue cell, picks the block scope whose
+  // binding the cell captured.
+  public GetRawVariableWithName(
+    name: string | null,
+    contextIndex: number,
+    scopeIndex: number = -1,
+  ) {
     let varValue: InkObject | null = null;
 
     // Luau-superset semantics: locals shadow globals. Check the
@@ -376,7 +383,11 @@ export class VariablesState extends VariablesStateAccessor<
     // any same-named global. See `do local g = … end` patterns in
     // calls.luau (line 22–31) which previously read the OUTER global
     // `g = false` from inside the do-block.
-    varValue = this._callStack.GetTemporaryVariableWithName(name, contextIndex);
+    varValue = this._callStack.GetTemporaryVariableWithName(
+      name,
+      contextIndex,
+      scopeIndex,
+    );
     if (varValue != null) return varValue;
 
     if (contextIndex == 0 || contextIndex == -1) {
@@ -408,7 +419,11 @@ export class VariablesState extends VariablesStateAccessor<
     if (pointer.isClosed) {
       return pointer.closedValue;
     }
-    return this.GetVariableWithName(pointer.variableName, pointer.contextIndex);
+    return this.GetVariableWithName(
+      pointer.variableName,
+      pointer.contextIndex,
+      pointer.scopeIndex,
+    );
   }
 
   public Assign(varAss: VariableAssignment, value: InkObject) {
@@ -417,6 +432,9 @@ export class VariablesState extends VariablesStateAccessor<
       return throwNullException("name");
     }
     let contextIndex = -1;
+    // The block scope an open upvalue cell captured, once the write is
+    // redirected through one.
+    let scopeIndex = -1;
 
     let setGlobal = false;
     if (varAss.isNewDeclaration) {
@@ -450,7 +468,7 @@ export class VariablesState extends VariablesStateAccessor<
       do {
         // existingPointer = GetRawVariableWithName (name, contextIndex) as VariablePointerValue;
         existingPointer = asOrNull(
-          this.GetRawVariableWithName(name, contextIndex),
+          this.GetRawVariableWithName(name, contextIndex, scopeIndex),
           VariablePointerValue,
         );
         if (existingPointer != null) {
@@ -465,6 +483,7 @@ export class VariablesState extends VariablesStateAccessor<
           }
           name = existingPointer.variableName;
           contextIndex = existingPointer.contextIndex;
+          scopeIndex = existingPointer.scopeIndex;
           setGlobal = contextIndex == 0;
         }
       } while (existingPointer != null);
@@ -483,7 +502,11 @@ export class VariablesState extends VariablesStateAccessor<
     // the bare assignment as a new-global creation.
     if (
       !varAss.isNewDeclaration &&
-      this._callStack.GetTemporaryVariableWithName(name, contextIndex) === null
+      this._callStack.GetTemporaryVariableWithName(
+        name,
+        contextIndex,
+        scopeIndex,
+      ) === null
     ) {
       this.SetGlobal(name, value);
       return;
@@ -493,6 +516,7 @@ export class VariablesState extends VariablesStateAccessor<
       value,
       varAss.isNewDeclaration,
       contextIndex,
+      scopeIndex,
     );
   }
 

@@ -659,6 +659,11 @@ export class JsonSerialisation {
           memo.cellIds.set(varPtrVal, id);
           writer.WriteIntProperty("cell", id);
           if (anchor !== undefined) writer.WriteProperty("anchor", anchor);
+          // The block scope whose binding the cell captured, kept even
+          // when closed: a taken choice's thread can reopen it.
+          if (varPtrVal.scopeIndex >= 0) {
+            writer.WriteIntProperty("si", varPtrVal.scopeIndex);
+          }
           if (varPtrVal.isClosed) {
             writer.WriteIntProperty("closed", 1);
             if (varPtrVal.closedValue) {
@@ -1131,6 +1136,7 @@ export class JsonSerialisation {
             propValue.toString(),
             contextIndex,
           );
+          if (obj["si"] !== undefined) cell.scopeIndex = parseInt(obj["si"]);
           if (obj["closed"]) {
             cell.closedValue =
               obj["cv"] !== undefined
