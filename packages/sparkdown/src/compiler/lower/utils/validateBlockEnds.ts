@@ -150,17 +150,17 @@ function untilsLeftInside(repeat: SyntaxNode): number {
 
 // Whether the grammar read the loop's own `until` into one of its statements
 // (#1092), as in `repeat & local z = 1 until true`, which
-// `lowerLuauRepeatLoop` reports. An `until` inside a block of the loop (an
-// `if` left without its `end`, a nested `repeat`) is not one: the block
-// reports itself, or takes the `until` as its own.
+// `lowerLuauRepeatLoop` reports. An `until` inside a nested `repeat`, or
+// inside a block left without its `end` (which took the `until` and reports
+// itself), is not one; an `until` read into a statement inside a closed block
+// is.
 export function untilReadIntoStatement(repeat: SyntaxNode): boolean {
   if (untilsLeftInside(repeat) <= 0) return false;
   const inStatement = (node: SyntaxNode): boolean => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
       if (child.name === "LuauUntilStatement") return true;
-      if (END_BLOCKS[child.name] || LOOPS[child.name] || REPEAT_LOOPS.has(child.name)) {
-        continue;
-      }
+      if (REPEAT_LOOPS.has(child.name)) continue;
+      if (END_BLOCKS[child.name] && !endKeywordOf(child)) continue;
       if (inStatement(child)) return true;
     }
     return false;

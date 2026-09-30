@@ -77,6 +77,15 @@ describe("a repeat loop whose body ends with a local declaration", () => {
 // `&` statement, cannot be paired with its condition; it is reported rather
 // than dropped without a word.
 describe("a repeat loop whose until is read inside a statement", () => {
+  test("is reported inside a closed block of the loop", () => {
+    const ctx = makeRuntimeStoryFromSource(
+      "function f()\n  repeat\n    if true then\n      & local z = 1 until true\n    end\nend\n",
+    );
+    expect(ctx.errorMessages).toEqual([
+      "This `repeat` loop could not be read up to its `until`, so it and the lines after it in its block are left out. Put `until` on its own line.",
+    ]);
+  });
+
   test("is reported", () => {
     const ctx = makeRuntimeStoryFromSource(
       "store n = 0\nrepeat & local z = 1 until true\nCount {n}.\n",
