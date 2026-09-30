@@ -622,15 +622,48 @@ function spreadLastCallArg(story: any, count: number): number {
   return count;
 }
 
+// Adjusts each of the `count` arguments a call site pushed but the last to
+// one value, as Luau adjusts an expression that does not end a list: a
+// multiple value (a `g()` multi-return) gives its first value, or nil when
+// it has none, and a call that returned none (`Void`) gives nil. The last
+// argument is `spreadLastCallArg`'s.
+function adjustEarlierCallArgs(story: any, count: number): void {
+  const stack: unknown[] = story.state.evaluationStack;
+  const last = stack.length - 1;
+  let from = Math.max(0, stack.length - count);
+  while (
+    from < last &&
+    !(stack[from] instanceof MultiValue || stack[from] instanceof Void)
+  ) {
+    from++;
+  }
+  if (from >= last) return;
+  const lastArg = story.state.PopEvaluationStack();
+  const earlier: unknown[] = [];
+  for (let i = from; i < last; i++) {
+    earlier.unshift(story.state.PopEvaluationStack());
+  }
+  for (const v of earlier) {
+    story.state.PushEvaluationStack(
+      v instanceof MultiValue
+        ? (v.values[0] ?? new NullValue())
+        : v instanceof Void
+          ? new NullValue()
+          : v,
+    );
+  }
+  story.state.PushEvaluationStack(lastArg);
+}
+
 /**
  * Adjusts the `count` arguments a call site pushed to the `fixed` parameters
  * of a function that declared no `...`, as Luau passes a call's arguments:
- * the last one spreads (`spreadLastCallArg`), the values past the parameters
- * are dropped once evaluated, and the parameters past the values are nil.
- * An earlier argument that gave several values keeps its first, which its
- * parameter's binding takes.
+ * each argument but the last gives one value (`adjustEarlierCallArgs`), the
+ * last one spreads (`spreadLastCallArg`), the values past the parameters are
+ * dropped once evaluated, and the parameters past the values are nil.
  */
 export function adjustCallArgs(story: any, count: number, fixed: number): void {
+  adjustEarlierCallArgs(story, count);
   const effective = spreadLastCallArg(story, count);
   for (let i = effective; i < fixed; i++) {
     story.state.PushEvaluationStack(new NullValue());
@@ -640,19 +673,21 @@ export function adjustCallArgs(story: any, count: number, fixed: number): void {
   }
 }
 
-// Lua value-call argument normalization for a VARIADIC target whose
-// callee was only known at runtime (the static call site never
-// emitted a `PackTuple`): bind the first `fixedCount` args
-// positionally (padding missing ones with nil) and pack the rest
-// into ONE MultiValue for the `...` slot's parameter binding. The
-// callable must already be popped; the user args sit on top of the
-// eval stack. The last call-site arg spreads first, per Lua
-// (`spreadLastCallArg`).
+/**
+ * Arranges the `callSiteArgCount` arguments a call site pushed for a
+ * function of `fixedCount` fixed parameters and a `...`, as Luau passes
+ * them: each argument but the last gives one value
+ * (`adjustEarlierCallArgs`), the last one spreads (`spreadLastCallArg`),
+ * the fixed parameters take the first values, nil past the values, and the
+ * rest are packed into one multiple value for the `...` slot's binding. The
+ * callable must already be off the stack.
+ */
 export function packVariadicValueCallArgs(
   story: any,
   callSiteArgCount: number,
   fixedCount: number,
 ): void {
+  adjustEarlierCallArgs(story, callSiteArgCount);
   const effective = spreadLastCallArg(story, callSiteArgCount);
   const args: AbstractValue[] = [];
   for (let i = 0; i < effective; i++) {
@@ -906,9 +941,10 @@ function stepIteratorCall(story: any, iterator: ObjectValue, count: number): voi
 // Runs a builtin a value holds (an ObjectValue marked `__stdlib_fn`, which a
 // reference to a name like `math.abs` or `select` makes) and pushes its
 // result, as a direct call of it runs: the `count` arguments the call site
-// pushed, spread by `spreadCallArgs`. A call that does not say how many
-// passes a builtin of fixed arity that many, and cannot call a variadic one
-// here: returns false, with the stack untouched.
+// pushed, spread by `spreadCallArgs`, of which a builtin of fixed arity takes
+// the first it declares, the rest evaluated and dropped. A call that does
+// not say how many passes a builtin of fixed arity that many, and cannot call
+// a variadic one here: returns false, with the stack untouched.
 function runBuiltinCall(
   story: any,
   entry: StdLibEntry,
@@ -922,6 +958,9 @@ function runBuiltinCall(
     args.unshift(story.state.PopEvaluationStack());
   }
   spreadCallArgs(args);
+  if (entry.arity >= 0 && args.length > entry.arity) {
+    args.length = entry.arity;
+  }
   const values = unwrapArgsForPureStdLibFn(entry, args, story, name);
   // A builtin of numbers given fewer arguments than it takes raises what its
   // direct call raises (`NativeFunctionCall.Call`), once the arguments it was
@@ -4121,6 +4160,13 @@ export class Story extends InkObject {
     this._state.ResetOutput();
 
     this.state.StartFunctionEvaluationFromGame(funcContainer, args);
+    // A function takes the host's arguments as a call gives them
+    // (`arrangeArgsFor`); a flow that binds nothing, as a scene does, takes
+    // them as they are.
+    const target = new ContainerTarget(funcContainer);
+    if (target.bindings > 0) {
+      arrangeArgsFor(this, target, args?.length ?? 0);
+    }
 
     // Evaluate the function, and collect the string output
     let stringOutput = new StringBuilder();
@@ -5078,8 +5124,10 @@ export class Story extends InkObject {
         this.state.callStack.PopThread();
 
         didPop = true;
-      } else {
-        this.state.TryExitFunctionEvaluationFromGame();
+      } else if (this.state.TryExitFunctionEvaluationFromGame()) {
+        // A function a host evaluates returns no value when it runs off its
+        // end, as a function a call enters does, whatever arguments it left.
+        this.state.PushEvaluationStack(new Void());
       }
 
       if (didPop && !this.state.currentPointer.isNull) {

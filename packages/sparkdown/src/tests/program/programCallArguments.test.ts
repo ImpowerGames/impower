@@ -1,14 +1,16 @@
-// A call passes the function it calls the arguments Luau passes (#1215): its
-// last argument spreads its values, and a call that returned none gives none;
-// the values past the function's parameters are dropped once evaluated, and
-// the parameters past the values are nil; a variadic function's `...` takes
-// the rest. Every way of calling does so, on both engines and on the current
-// engine running the story's JSON: a function the compile found, a function
-// value in a local, a global or a table field, a closure, a method, a table's
-// `__call` handler, a builtin iterator (#1216), a variadic closure called by
-// name (#1217), a builtin through a value, and the functions `pcall` and a
-// metamethod call. Each case notes the line Luau shows, but a builtin through
-// a value that raises is compared with the direct call of its builtin.
+// A call passes the function it calls the arguments Luau passes (#1215): each
+// argument but the last gives one value; the last spreads its values, and a
+// call that returned none gives none; the values past the function's
+// parameters are dropped once evaluated, and the parameters past the values
+// are nil; a variadic function's `...` takes the rest. Every way of calling
+// does so, on both engines and on the current engine running the story's
+// JSON: a function the compile found, a function value in a local, a global
+// or a table field, a closure, a method, a table's `__call` handler, a
+// builtin iterator (#1216), a variadic closure called by name (#1217), a
+// builtin through a value, the functions `pcall` and a metamethod call, and a
+// function the host evaluates. Each case notes the line Luau shows, but a
+// builtin through a value that raises is compared with the direct call of its
+// builtin.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { Story } from "../../inkjs/engine/Story";
@@ -16,8 +18,9 @@ import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";
 
 // Functions the cases call: of one parameter, of two, a `__call` handler,
-// variadic, with no parameters and a body that begins with a table, and ones
-// that return none, one, two and three values.
+// variadic (`vf` counts the values of the first value its `...` holds), with
+// no parameters and a body that begins with a table, and ones that return
+// none, one, two and three values.
 const FUNCTIONS = [
   "function f0(a0)",
   "  return 4",
@@ -36,6 +39,10 @@ const FUNCTIONS = [
   "end",
   "function v1(a, ...)",
   "  return tostring(a) .. \":\" .. select(\"#\", ...)",
+  "end",
+  "function vf(...)",
+  "  local first = ...",
+  "  return select(\"#\", first)",
   "end",
   "function mk()",
   "  local t = {}",
@@ -113,6 +120,9 @@ describe("a call to a function the compile found (#1215)", () => {
     ["leaves nothing behind as a statement", inRun(["f0(2, 3)", "local t = { 1 }"]), "Got 1,nil,nil."],
     ["drops an argument past the parameters at the top level", topLevel(["local t = { 1, f0(2, 3) }"]), "Got 1,4,nil."],
     ["gives the first value of an earlier argument that returns two", inRun(["local t = { 1, f1(g2(), 5) }"]), "Got 1,1,nil."],
+    ["passes nil for an earlier argument that returns none", inRun(["local s = f2(g0(), 5)"], "s"), "Got nil/5."],
+    ["gives a variadic function the first value of an earlier argument that returns two", inRun([], "vf(g2(), 9)"), "Got 1."],
+    ["gives a variadic function nil for an earlier argument that returns none", inRun([], "vf(g0(), 9)"), "Got 1."],
     ["drops the values past the parameters of a last argument that returns two", inRun(["local x = f1(g2())"], "tostring(x)"), "Got 1."],
     ["drops them in a table", inRun(["local t = { 0, f1(g2()) }"]), "Got 0,1,nil."],
     ["drops them in a concatenation", inRun([], "\"x\" .. f1(g2())"), "Got x1."],
@@ -142,6 +152,8 @@ describe("a call through a function value", () => {
     ["in a top-level local passes nil for a parameter past the arguments", topLevel(["local g = f2", "local t = { 1, g(5) }"]), "Got 1,5/nil,nil."],
     ["in a local drops an argument to a function with no parameters whose body begins with a table", inRun(["local m = mk", "local t = { 1, m(9) }"]), "Got 1,5,nil."],
     ["in a local passes a variadic function nil and no extras for a last argument that returns none", inRun(["local w = v1"], "w(0, g0())"), "Got 0:0."],
+    ["in a local gives a variadic function the first value of an earlier argument that returns two", inRun(["local w = vf"], "w(g2(), 9)"), "Got 1."],
+    ["in a table field gives a variadic function nil for an earlier argument that returns none", inRun(["local o = { w = vf }"], "o.w(g0(), 9)"), "Got 1."],
     ["that pcall calls drops an argument past the parameters", inRun(["local ok, v, w = pcall(f0, 2, 3)", "local t = { 1, ok, v, w }"]), "Got 1,true,4."],
     ["that pcall calls with no parameters drops the argument", inRun(["local ok, v, w = pcall(nine, 2)", "local t = { 1, ok, v, w }"]), "Got 1,true,9."],
     ["that a length metamethod names drops the operand past its parameters", inRun(["local c = setmetatable({}, { __len = nine })", "local t = { 1, #c }"]), "Got 1,9,nil."],
@@ -155,6 +167,7 @@ describe("a call through a closure, a method or a table's `__call` handler", () 
     ["in a global drops an argument past the parameters", inRun(["g = function(a) return 4 end", "local t = { 1, g(2, 3) }"]), "Got 1,4,nil."],
     ["in a global passes nil for a parameter past the arguments", inRun(["g = function(a, b) return tostring(a) .. \"/\" .. tostring(b) end", "local t = { 1, g(5) }"]), "Got 1,5/nil,nil."],
     ["in a top-level local drops an argument past the parameters", topLevel(["local g = function(a) return 4 end", "local t = { 1, g(2, 3) }"]), "Got 1,4,nil."],
+    ["that is variadic, in a local, gives its `...` the first value of an earlier argument that returns two", inRun(["local cf = function(...) local first = ... return select(\"#\", first) end"], "cf(g2(), 9)"), "Got 1."],
     ["as a method drops an argument past the parameters", inRun(["local o = { m = function(self, a) return 4 end }", "local t = { 1, o:m(2, 3) }"]), "Got 1,4,nil."],
     ["as a `__call` handler drops an argument past the parameters", inRun(["local c = setmetatable({}, { __call = function(self, a) return 4 end })", "local t = { 1, c(2, 3) }"]), "Got 1,4,nil."],
     ["as a `__call` handler that names a function passes nil for a parameter past the arguments", inRun(["local c = setmetatable({}, { __call = h2 })", "local t = { 1, c() }"]), "Got 1,table/nil,nil."],
@@ -225,6 +238,8 @@ describe("a builtin called through a value", () => {
     ["in a top-level local drops an argument past its parameters", topLevel(["local f = tostring", "local t = { 1, f(2, 3) }"]), "Got 1,2,nil."],
     ["in a table field drops an argument past its parameters", inRun(["local o = { f = tostring }", "local t = { 1, o.f(2, 3) }"]), "Got 1,2,nil."],
     ["in a global drops an argument past its parameters", inRun(["gf = tostring", "local t = { 1, gf(2, 3) }"]), "Got 1,2,nil."],
+    ["of numbers, in a local, drops an argument past its parameters without checking it", inRun(["local f = math.abs", "local t = { 1, f(-2, \"x\") }"]), "Got 1,2,nil."],
+    ["of numbers, in a table field, drops an argument past its parameters without checking it", inRun(["local o = { f = math.fmod }", "local t = { 1, o.f(7, 3, \"x\") }"]), "Got 1,1,nil."],
     ["that takes any number of arguments, in a top-level local", topLevel(["local s = select", "local n = s(\"#\", 1, 2)"], "n"), "Got 2."],
     ["that takes any number of arguments, in a top-level local, counts none for a last argument that returns none", topLevel(["local s = select", "local n = s(\"#\", g0())"], "n"), "Got 0."],
     ["that takes any number of arguments, in a table field, counts none for a last argument that returns none", inRun(["local o = { s = select }", "local n = o.s(\"#\", g0())"], "tostring(n)"), "Got 0."],
@@ -267,6 +282,60 @@ describe("a builtin called through a value", () => {
     expect(raised).toEqual(raisedBy(inRun(direct)));
     for (const lines of Object.values(raised)) {
       expect(lines.slice(1)).toEqual([expect.stringContaining(error)]);
+    }
+  });
+});
+
+describe("a function a host evaluates (`EvaluateFunction`)", () => {
+  // The functions a host evaluates, as the UI evaluates an event handler with
+  // the event, and a scene, which binds nothing and takes what it is passed
+  // as it is.
+  const HOST = [
+    "function first(a)",
+    "  return a",
+    "end",
+    "function pair(a, b)",
+    "  return tostring(a) .. \"/\" .. tostring(b)",
+    "end",
+    "function count(...)",
+    "  return select(\"#\", ...)",
+    "end",
+    "function head(a, ...)",
+    "  return tostring(a) .. \":\" .. select(\"#\", ...)",
+    "end",
+    "function noop()",
+    "end",
+    "Hello.",
+    "done",
+    "",
+    "scene quiet",
+    "end",
+    "",
+  ].join("\n");
+  it.each([
+    ["drops an argument past the parameters", "first", [5, 6], 5],
+    ["passes nil for a parameter past the arguments", "pair", [7], "7/nil"],
+    ["packs a variadic function's arguments for its `...`", "count", [1, 2], 2],
+    ["packs none for a variadic function given none", "count", [], 0],
+    ["gives a variadic function's fixed parameter the first argument", "head", [1, 2, 3], "1:2"],
+    ["returns nothing from a function with no parameters that returns nothing", "noop", [9], null],
+    ["leaves a scene the argument it binds no parameter for", "quiet", [4], 4],
+  ])("%s", (_name, name, args, result) => {
+    const current = compileScript(HOST);
+    current.story.ResetState();
+    const json = new Story(current.program.compiled as Record<string, unknown>);
+    const { program } = compileScript(HOST, { programChunks: true });
+    expect(program.fallback).toBeUndefined();
+    const stories = {
+      current: current.story,
+      program: new ProgramStory(program.chunks!),
+      json,
+    };
+    for (const [engine, story] of Object.entries(stories)) {
+      expect([engine, story.EvaluateFunction(name, args)]).toEqual([
+        engine,
+        result,
+      ]);
     }
   });
 });

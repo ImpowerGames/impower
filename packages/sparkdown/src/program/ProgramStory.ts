@@ -464,6 +464,12 @@ export class ProgramStory {
       state.evaluationStack.length,
     );
     this.passArguments(args);
+    // A function takes the host's arguments as a call gives them
+    // (`arrangeArgsFor`); a scene, which binds nothing, takes them as they
+    // are, as on the current engine.
+    if (target.bindings > 0) {
+      arrangeArgsFor(this, target, args?.length ?? 0);
+    }
 
     const stringOutput = new StringBuilder();
     while (this.canContinue) {
