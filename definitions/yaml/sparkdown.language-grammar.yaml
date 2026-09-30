@@ -393,8 +393,11 @@ variables:
   # The comment closes only at brackets of its own level, as
   # `LuauBlockComment` does, so a `]]` inside `--[=[a]]b]=]` does not close
   # it. A variable cannot hold a backreference that every use can number, so
-  # levels up to three are spelled out; a longer level closes at any level.
-  LUAU_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[(?:\[(?:[^\]\n]|\](?!\]))*\]\]|=\[(?:[^\]\n]|\](?!=\]))*\]=\]|==\[(?:[^\]\n]|\](?!==\]))*\]==\]|===\[(?:[^\]\n]|\](?!===\]))*\]===\]|={4,}\[(?:[^\]\n]|\](?!=*\]))*\]=*\])(?:{{WS}}*))
+  # levels up to three are spelled out, and a comment of a longer level is
+  # never one of these: after a value or a type it is read by
+  # `LuauValueTrailingBlockComment` or `LuauTypeTrailingBlockComment`,
+  # whose ends match the level, on its opening line as on a later one.
+  LUAU_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[(?:\[(?:[^\]\n]|\](?!\]))*\]\]|=\[(?:[^\]\n]|\](?!=\]))*\]=\]|==\[(?:[^\]\n]|\](?!==\]))*\]==\]|===\[(?:[^\]\n]|\](?!===\]))*\]===\])(?:{{WS}}*))
   # What follows a block comment that ends a type: anything but a type
   # operator, the `?` suffix, a qualifier or generics, or what ends the type
   # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
@@ -9598,7 +9601,8 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
-  # A block comment after a value that closes on a later line, read as
+  # A block comment after a value that closes on a later line (or on its
+  # own line, at a level `LUAU_BLOCK_COMMENT_ON_LINE` does not spell out), read as
   # `LuauTypeTrailingBlockComment` reads one after a type: when a statement
   # follows the close (`local w = 5 --[[a` then `]] print(1)`), it leaves
   # the whitespace after the close, so the value, the rules around it and

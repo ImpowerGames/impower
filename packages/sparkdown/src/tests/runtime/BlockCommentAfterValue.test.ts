@@ -148,6 +148,17 @@ describe("a statement after a same-line block comment after a value runs", () =>
     expect(run(callees + body)).toBe(expected);
   });
 
+  // A call statement, not a value: the comment between the callee and its
+  // arguments is trivia, so the call runs.
+  test.each([
+    ["on its line", "  g --[[c]] (2)"],
+    ["with no spaces", "  g--[[c]](2)"],
+    ["with a dotted callee", "  local t = {g = g}\n  t.g --[[c]] (2)"],
+  ])("a call statement with a comment before its arguments, %s", (_name, call) => {
+    const body = `  local w = 0\n  local g = function(v) w = v end\n${call}`;
+    expect(run(body)).toBe("Value 2.\n");
+  });
+
   test("the comment ending the line is the control", () => {
     expect(run("  local w = 5 --[[c]]\n  print(1)")).toBe("Value 15.\n");
   });
@@ -205,6 +216,21 @@ describe("a statement after a same-line block comment after a value runs", () =>
   test.each([
     ["an operator", "  local w = 5 --[=[a]]b]=] + 1", "Value 6.\n"],
     ["a statement", "  local w = 5 --[=[a]]b]=] print(1)", "Value 15.\n"],
+    [
+      "an operator, at level four",
+      "  local w = 5 --[====[a]=] print(9) b]====] + 1",
+      "Value 6.\n",
+    ],
+    [
+      "a statement, at level four",
+      "  local w = 5 --[====[a]]b]====] print(1)",
+      "Value 15.\n",
+    ],
+    [
+      "an operator, at level five",
+      "  local w = 5 --[=====[a]====]b]=====] + 1",
+      "Value 6.\n",
+    ],
     [
       "a type union",
       "  local w: number --[=[a]]b]=] | string = 5",

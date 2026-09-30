@@ -38,6 +38,8 @@ const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
   "LuauDocLineComment",
   "LuauBlockComment",
   "LuauTypeTrailingBlockComment",
+  "LuauUncallableValueTrailingBlockComment",
+  "LuauCallableValueTrailingBlockComment",
   "LuauTypeTrailingBlockCommentClose",
 ]);
 
