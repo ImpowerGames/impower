@@ -138,7 +138,9 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
-        const value = commaLineBreakValue(child);
+        // Before the `=` the comma separates names, so an if expression
+        // after it is the missing binding name Luau reports, not a value.
+        const value = sawAssignmentOp ? commaLineBreakValue(child) : null;
         if (value) {
           currentRhsGroup.push(value);
         } else {

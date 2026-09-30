@@ -277,6 +277,15 @@ describe("Luau code: a comma with nothing after it", () => {
     expect(errorMessages).toEqual([missingValue("continue")]);
   });
 
+  test("before the `=`, an unindented if expression after the targets' comma is a missing binding name", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f(c)\n  local a,\nif c then 2 else 3\n  return a\nend\nValue {f(true)}.\n",
+    );
+    expect(errorMessages).toEqual([
+      "Expected identifier when parsing binding name, got 'if'",
+    ]);
+  });
+
   test("before a name, the targets' comma is a missing binding name", () => {
     const { errorMessages } = collectDiagnostics("function f()\n  local a,\nend\n");
     expect(errorMessages).toEqual([
