@@ -3,6 +3,8 @@ import { nodeNameSet } from "../../utils/nodeNameSet";
 import {
   VARIABLE_DEFINITION_CONTENT_NAMES,
   VARIABLE_DEFINITION_NAMES,
+  isValueListName,
+  ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
 import { soleVariableName } from "../../lint/luauTree";
 import { Range } from "@codemirror/state";
@@ -54,10 +56,7 @@ function isBareDeclarationTarget(node: SyntaxNode | undefined): boolean {
   if (soleVariableName(path)?.from !== node?.from) return false;
   for (let prev = path.prevSibling; prev; prev = prev.prevSibling) {
     if (!BEFORE_BARE_TARGET.has(prev.name)) return false;
-    if (
-      prev.name === "LuauVariableAssignment" &&
-      getDescendent("LuauAssignmentOperation", prev)
-    ) {
+    if (prev.name === "LuauVariableAssignment" && ownAssignmentOperation(prev)) {
       return false;
     }
   }
@@ -142,6 +141,10 @@ export class DeclarationAnnotator extends SparkdownAnnotator<
         !ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
         !isBareDeclarationTarget(nodeRef.node)
       ) {
+        return annotations;
+      }
+      // A value in the list (`x` in `local a, b = 1, x`) declares nothing.
+      if (isValueListName(nodeRef.node)) {
         return annotations;
       }
       const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES);

@@ -1,3 +1,5 @@
+import { type SyntaxNode } from "@lezer/common";
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { nodeNameSet } from "./nodeNameSet";
 
 // A `local`, `store` or `const` declaration: `LuauVariableDefinition` in Luau
@@ -25,3 +27,78 @@ export const VARIABLE_DEFINITION_END_NAMES = nodeNameSet([
   "LuauVariableDefinition_end",
   "LuauSparkdownVariableDefinition_end",
 ]);
+
+// A `LuauVariableAssignment`'s own `=`: the assignment operation directly in
+// its content, next to its type annotation. An `=` nested in that type
+// (`local a: typeof({ k = 1 })`) is part of the type, not the declaration's.
+export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | null {
+  return (
+    assignment
+      .getChild("LuauVariableAssignment_content")
+      ?.getChild("LuauAssignmentOperation") ?? null
+  );
+}
+
+// The name of a `LuauVariableAssignment` that holds nothing but its name (no
+// type annotation, no `=`), or null for any other node. A comment after the
+// name (`x -- note`, which the grammar puts in the assignment's content) does
+// not count.
+export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
+  if (node.name !== "LuauVariableAssignment") return null;
+  const content = node.getChild("LuauVariableAssignment_content");
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (!child.name.includes("Comment") && !child.name.endsWith("Whitespace")) {
+      return null;
+    }
+  }
+  return assignmentListName(node);
+}
+
+// The name a `LuauVariableAssignment` puts in its declaration's list: the one
+// before its type annotation and `=`, never a name inside them.
+export function assignmentListName(node: SyntaxNode): SyntaxNode | null {
+  if (node.name !== "LuauVariableAssignment") return null;
+  const begin = node.getChild("LuauVariableAssignment_begin");
+  return begin ? (getDescendent("LuauVariableName", begin) ?? null) : null;
+}
+
+// The name of a `LuauVariableAssignment` that is a VALUE in its
+// declaration's list, not a target (#1116). The grammar reads any name
+// before a comma or the end of its line as a target-shaped assignment, so
+// in `local a, b = 1, x` the `x` is one too. It is a value when an earlier
+// assignment in the same declaration took the list's `=`, even when it has a
+// type or an `=` of its own (`local a = 1, b = 2` reads `b`, then fails on
+// the second `=`). The annotators and the closure scan ask here. The
+// lowerer's list walk, the lints' `declaredNames`, `DeclarationAnnotator`'s
+// bare targets, `ValidationAnnotator`'s declaration targets and
+// `lineContinuation`'s declaration checks walk the list themselves, taking
+// the `=` from `ownAssignmentOperation`, which is the same rule.
+//
+// The answer depends on earlier siblings, so an incremental re-annotation
+// that ends inside a declaration's list runs past its last name
+// (`SparkdownCombinedAnnotator.update`).
+export function valueListAssignmentName(node: SyntaxNode): SyntaxNode | null {
+  if (!node.parent || !VARIABLE_DEFINITION_CONTENT_NAMES.has(node.parent.name)) {
+    return null;
+  }
+  const name = assignmentListName(node);
+  if (!name) return null;
+  for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
+    if (prev.name === "LuauVariableAssignment" && ownAssignmentOperation(prev)) {
+      return name;
+    }
+  }
+  return null;
+}
+
+// Whether a `LuauVariableName` is the name of a value-list assignment
+// (`x` in `local a, b = 1, x`): it sits at a declaration-shaped site but is
+// read, not declared.
+export function isValueListName(nameNode: SyntaxNode): boolean {
+  for (let cur = nameNode.parent, depth = 0; cur && depth < 6; cur = cur.parent, depth++) {
+    if (cur.name === "LuauVariableAssignment") {
+      return valueListAssignmentName(cur)?.from === nameNode.from;
+    }
+  }
+  return false;
+}
