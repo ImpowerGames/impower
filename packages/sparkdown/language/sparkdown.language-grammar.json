@@ -11596,6 +11596,9 @@
       "emit": true,
       "patterns": [
         {
+          "include": "#LuauTypeAnnotationMissingType"
+        },
+        {
           "include": "#LuauFunctionAccessor"
         },
         {
