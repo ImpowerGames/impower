@@ -634,6 +634,32 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /**
+   * Where the type checker does not read the Luau (a flow header or a
+   * `store` declaration), the token Luau would find after `pos` if it did,
+   * and where Luau's range for it ends: the next token on its line, or on a
+   * later line that is Luau the checker reads or starts with a keyword (a
+   * flow's `end`, or a statement's, which the grammar may have read as the
+   * type when it had only part of the text). Otherwise the Luau ends
+   * (`null`, `<eof>`), and the range ends at the start of the next line, as
+   * Luau's does at the end of a unit.
+   */
+  protected luauTokenAfter(pos: number): { text: string | null; to: number } {
+    const read = (from: number, to: number) => this.read(from, to);
+    const got = nextSignificantToken(pos, read);
+    if (got && !read(pos, got.from).includes("\n")) {
+      return { text: got.text, to: got.from + got.text.length };
+    }
+    if (got) {
+      const node = this.tree?.resolveInner(got.from, 1) ?? null;
+      if (LUAU_NON_TYPE_KEYWORDS.has(got.text) || (node && isCheckedLuau(node, read))) {
+        return { text: got.text, to: got.from + got.text.length };
+      }
+      return { text: null, to: this.text?.lineAt(got.from).from ?? got.from };
+    }
+    return { text: null, to: this.text?.length ?? pos };
+  }
+
   /** The end of the token before `pos`, past the whitespace and block
    *  comments before it, where Luau's range for a token it did not expect
    *  begins. */
@@ -764,12 +790,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         // operator to the end of the token it found.
         const operator = /^\s*(->|[:|&])/.exec(this.read(nodeRef.from, nodeRef.to));
         const from = nodeRef.from + (operator?.[0].length ?? 0);
-        const got = nextSignificantToken(nodeRef.to, (a, b) => this.read(a, b));
+        const got = this.luauTokenAfter(nodeRef.to);
         this.error(
           annotations,
-          `${MISSING_TYPE}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
+          `${MISSING_TYPE}, got ${got.text == null ? "<eof>" : `'${got.text}'`}`,
           from,
-          got == null ? nodeRef.to : got.from + got.text.length,
+          got.to,
         );
         return annotations;
       }
@@ -789,6 +815,43 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
       }
       return annotations;
+    }
+    // Likewise in a flow header's parameters, which the checker does not
+    // read: a `:` or `::` with no name before it (`scene s(: number)`,
+    // `scene s(a, :: number)`), or a `::` after a name (`scene s(a :: number)`),
+    // worded as Luau's parser words one among a function's parameters.
+    if (
+      (nodeRef.name === "LuauTypeCastOperation" ||
+        nodeRef.name === "LuauTypeAnnotationOperation") &&
+      nodeRef.node.parent?.name === "LuauFunctionParameters_content" &&
+      !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))
+    ) {
+      const operator = nodeRef.name === "LuauTypeCastOperation" ? "::" : ":";
+      const from = nodeRef.from + this.read(nodeRef.from, nodeRef.to).indexOf(operator);
+      let before = nodeRef.node.prevSibling;
+      while (before && isTrivia(before)) {
+        before = before.prevSibling;
+      }
+      if (!before || before.name === "LuauCommaSeparator") {
+        this.error(
+          annotations,
+          `${MISSING_VARIABLE_NAME}, got '${operator}'`,
+          from,
+          from + operator.length,
+        );
+        return annotations;
+      }
+      const parameters = nodeRef.node.parent.parent;
+      if (operator === "::" && parameters) {
+        const column = parameters.from - (this.text?.lineAt(parameters.from).from ?? 0) + 1;
+        this.error(
+          annotations,
+          `Expected ')' (to close '(' at column ${column}), got '::'`,
+          from,
+          from + operator.length,
+        );
+        return annotations;
+      }
     }
     // A `:` or `::` among a declaration's targets that has no name before it
     // (`local :: number`, `local a, : number`), or a `::` after a target on a
@@ -844,12 +907,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         return annotations;
       }
     }
-    // The grammar only sees the text it has read so far, so it cannot tell an
-    // annotation that the end of the file leaves empty (`local w:` on a
-    // `.luau` file's last line), nor one whose next line starts past the
-    // chunk of text it was given, where it reads that line's keyword as the
-    // type. The whole text is here. In Luau the type checker reads, the
-    // checker reports it.
+    // An annotation with no type before the end of its line where the
+    // declaration ends there (`store x:` before a line of story), which the
+    // grammar reads with no token for the missing type. The grammar only
+    // sees the text it has read so far, so it also cannot tell one whose
+    // next line starts past the chunk of text it was given, where it reads
+    // that line's keyword as the type. The whole text is here. In Luau the
+    // type checker reads, the checker reports it; elsewhere the range is
+    // the checker's, from the `:` to the token Luau would find.
     if (
       EMPTY_AT_END_OPERATIONS.has(nodeRef.name) &&
       !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))
@@ -858,15 +923,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const token = colon ? this.tokenAfterTrivia(colon.to) : undefined;
       if (
         colon &&
-        (token
-          ? LUAU_NON_TYPE_KEYWORDS.has(token)
-          : !firstDescendant(nodeRef.node, LUAU_TYPE_LITERAL))
+        ((token && LUAU_NON_TYPE_KEYWORDS.has(token)) ||
+          !firstDescendant(nodeRef.node, LUAU_TYPE_LITERAL))
       ) {
+        const from = colon.from + this.read(colon.from, colon.to).indexOf(":") + 1;
+        const got = this.luauTokenAfter(from);
         this.error(
           annotations,
-          `${MISSING_TYPE}, got ${token ? `'${token}'` : "<eof>"}`,
-          colon.from,
-          colon.to,
+          `${MISSING_TYPE}, got ${got.text == null ? "<eof>" : `'${got.text}'`}`,
+          from,
+          got.to,
         );
         return annotations;
       }
@@ -874,6 +940,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // The grammar reads a `?` after a block comment as a suffix, because a
     // lookbehind cannot see whether a type stands before the comment
     // (`() -> --[[c]] ?`). Only a type before the comments makes it one.
+    // Luau's range begins at the end of the token before the comments.
     if (nodeRef.name === "LuauTypeOptionalOperator" && !checkerReportsType) {
       const operator = childNamed(nodeRef.node, "LuauTypeOptionalOperator_c2");
       const before = this.startBeforeBlockComments(operator.from);
@@ -881,7 +948,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         before !== null &&
         !LUAU_TYPE_END_BEFORE_OPTIONAL.test(this.read(Math.max(0, before - 2), before))
       ) {
-        this.error(annotations, STRAY_OPTIONAL, operator.from, operator.to);
+        this.error(annotations, STRAY_OPTIONAL, this.endOfTokenBefore(operator.from), operator.to);
         return annotations;
       }
     }

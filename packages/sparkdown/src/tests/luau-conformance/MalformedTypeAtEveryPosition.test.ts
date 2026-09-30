@@ -10,7 +10,7 @@ import { parseSource } from "../compiler/grammarSnapshot";
 // which Luau words by where it stands, and one with no name before it.
 
 // Luau's errors for those; its other syntax errors are not type errors.
-const TYPE_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing variable name, got ':'$/;
+const TYPE_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing (?:variable name|table field), got ':'$/;
 
 /**
  * Luau's own type errors for a snippet, one for each token it found: its
@@ -87,6 +87,13 @@ for (const { name, template, followers, nothingIsValid } of POSITIONS) {
         cases.push({ position: name, shape: `\`${colon.trim()}\` for its \`:\``, source: tidy(template.replace(": T", colon).replace("F", follower)), valid: false });
       }
     }
+    // No name before the annotation.
+    const named = /\w+: T/;
+    if (named.test(template)) {
+      for (const colon of [": number", ":: number"]) {
+        cases.push({ position: name, shape: `\`${colon}\` with no name`, source: tidy(template.replace(named, colon).replace("F", follower)), valid: false });
+      }
+    }
   }
 }
 
@@ -139,6 +146,14 @@ describe("the reported layouts", () => {
     ["local g: (number &) -> nil = nil", "0:18-0:19 SyntaxError: Expected type, got ')'"],
     ["local h: () -> (number |) = nil", "0:24-0:25 SyntaxError: Expected type, got ')'"],
     ["function f(a: ) end", "0:13-0:15 SyntaxError: Expected type, got ')'"],
+    // A `::` after a block comment.
+    ["function f(a --[[c]] :: number) end", "0:21-0:23 SyntaxError: Expected ')' (to close '(' at column 11), got '::'"],
+    ["local t: { a --[[c]] :: number } = nil", "0:21-0:23 SyntaxError: Expected '}' (to close '{' at column 10), got '::'"],
+    ["function f() --[[c]] :: number end", "0:21-0:23 SyntaxError: Expected identifier when parsing expression, got '::'"],
+    ["for k --[[c]] :: number in pairs({}) do end", "0:14-0:16 SyntaxError: Expected 'in' when parsing for loop, got '::'"],
+    // A table type's field with no name.
+    ["local t: { a: number, : string } = nil", "0:22-0:23 SyntaxError: Expected identifier when parsing table field, got ':'"],
+    ["local t: { a: number, :: string } = nil", "0:22-0:24 SyntaxError: Expected identifier when parsing table field, got '::'"],
   ])("%j reports %j", (source, message) => {
     expect(checkLuau(`${source}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
   });
@@ -170,9 +185,21 @@ describe("the reported layouts", () => {
   // and the validator reports them, with the range the checker would give.
   test.each([
     ["local x:", ["0:8-1:0 Expected type, got <eof>"]],
+    ["local x: --[[c]]\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
     ["scene s\n  local x:\nend", ["1:10-2:3 Expected type, got 'end'"]],
+    ["local x --[[c]] :: number", ["0:16-0:18 Expected identifier when parsing expression, got '::'"]],
     ["store x: = 1", ["0:8-0:10 Expected type, got '='"]],
+    ["store x:", ["0:8-1:0 Expected type, got <eof>"]],
+    ["store x:\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
+    ["store x: -- note\nStory.", ["0:8-1:0 Expected type, got <eof>"]],
+    ["store x:\nlocal y = 1", ["0:8-1:5 Expected type, got 'local'"]],
+    ["scene s\n  store x:\nend", ["1:10-2:3 Expected type, got 'end'"]],
     ["scene s(a: )\nend", ["0:10-0:12 Expected type, got ')'"]],
+    ["scene s(a: --[[c]] ?)\nend", ["0:10-0:20 Expected type, got '?'"]],
+    ["scene s(: number)\nend", ["0:8-0:9 Expected identifier when parsing variable name, got ':'"]],
+    ["scene s(a, :: number)\nend", ["0:11-0:13 Expected identifier when parsing variable name, got '::'"]],
+    ["scene s(a :: number)\nend", ["0:10-0:12 Expected ')' (to close '(' at column 8), got '::'"]],
+    ["scene s(a --[[c]] :: number)\nend", ["0:18-0:20 Expected ')' (to close '(' at column 8), got '::'"]],
   ])("in a Sparkdown document, %j reports %j", (source, messages) => {
     const reported = diagnoseDetailed(`${source}\n`)
       .filter((d) => d.code !== "LocalUnused")

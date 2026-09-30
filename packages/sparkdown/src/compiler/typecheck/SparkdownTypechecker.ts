@@ -53,21 +53,28 @@ export interface TypecheckDiagnostic {
 // is missing, or that cannot start with the token where one must stand
 // (`Expected type, got '='`), an annotation written with `::`
 // (`local x :: number`, `for i :: number`), which Luau words by where it
-// stands, and an annotation with no name before it (`local : number`).
+// stands, and an annotation with no name before it (`local : number`,
+// `function f(:: number)`, `{ a: number, : string }`).
 // Sparkdown's grammar reads a type only far enough to find where it ends, so
 // it has no point at which it expected one; Luau's parser has one wherever a
 // type can stand, and names the token it found there. Every other syntax
 // error is Sparkdown's own validator's to report.
-const REPORTED_SYNTAX_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing variable name, got ':'$/;
+const REPORTED_SYNTAX_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing (?:variable name|table field), got ':'$/;
 const MISSING_TYPE = /^Expected type, got /;
+// Luau's error for an annotation with no name before it, where a name must
+// stand.
+const MISSING_NAME = /^Expected identifier when parsing (?:variable name|table field), got /;
 
 // A `::` stands where an annotation's `:` does after a name that is not a
 // keyword, after a scope modifier with no name (`local :: number`), or after
 // the `)` of a function's parameters (`function f() :: number`), where Luau
-// reports no cast. After anything else it is an expression's error, such as
-// an if expression's `then` with no value before a cast, which is
-// Sparkdown's own validator's to report.
+// reports no cast, past any block comments between (`local x --[[c]] ::`).
+// After anything else it is an expression's error, such as an if
+// expression's `then` with no value before a cast, which is Sparkdown's own
+// validator's to report.
 const ANNOTATION_COLON_AFTER = /(?:(?:^|[^\w])([A-Za-z_]\w*)|(\)))\s*$/;
+// A block comment's close at the end of text, with its level.
+const BLOCK_COMMENT_CLOSE_AT_END = /\](=*)\]\s*$/;
 const SCOPE_MODIFIERS = new Set(["local", "const", "store"]);
 
 // Syntax Sparkdown adds to Luau's, which Luau's parser rejects, is not
@@ -169,18 +176,29 @@ export class SparkdownTypechecker {
     // Whether a `::` at a document position stands where an annotation's `:` does.
     const isAnnotationColon = (position: { line: number; character: number }) => {
       const offset = offsetOf(position);
-      const before = ANNOTATION_COLON_AFTER.exec(text.slice(Math.max(0, offset - 200), offset));
+      let preceding = text.slice(Math.max(0, offset - 200), offset);
+      for (let close = BLOCK_COMMENT_CLOSE_AT_END.exec(preceding); close; close = BLOCK_COMMENT_CLOSE_AT_END.exec(preceding)) {
+        const open = preceding.lastIndexOf(`--[${close[1]}[`, close.index);
+        if (open < 0) break;
+        preceding = preceding.slice(0, open);
+      }
+      const before = ANNOTATION_COLON_AFTER.exec(preceding);
       if (!before) return false;
       const word = before[1];
       return word === undefined || !RESERVED.has(word) || SCOPE_MODIFIERS.has(word);
     };
-    // A range that does not end after its start, as at the end of a unit,
-    // whose trailing line break is not in its text, ends at the start of the
-    // next line, where Luau's end-of-file range ends when the source ends
-    // with a line break.
-    const rangeEnd = (start: { line: number; character: number }, end: { line: number; character: number }) => {
-      if (end.line > start.line || (end.line === start.line && end.character > start.character)) return end;
-      return start.line + 1 < lineStartsOf().length ? { line: start.line + 1, character: 0 } : start;
+    // A range that ends at the end of a unit, whose trailing line break is
+    // not in its text, ends at the start of the next line, where Luau's
+    // end-of-file range ends when the source ends with a line break.
+    const rangeEnd = (
+      start: { line: number; character: number },
+      end: { line: number; character: number },
+      atEnd: boolean,
+    ) => {
+      const after = end.line > start.line || (end.line === start.line && end.character > start.character);
+      if (after && (!atEnd || end.character === 0)) return end;
+      const line = after ? end.line : start.line;
+      return line + 1 < lineStartsOf().length ? { line: line + 1, character: 0 } : after ? end : start;
     };
     const report = (entry: CachedUnit, unit: LuauUnit) => {
       checks.push(entry.check);
@@ -194,9 +212,9 @@ export class SparkdownTypechecker {
           const message = error.data.message;
           if (!REPORTED_SYNTAX_ERROR.test(message) || message === DIVERT_TARGET_TYPE) continue;
           const start = documentPosition(unit, error.location.begin);
-          const end = rangeEnd(start, documentPosition(unit, error.location.end));
+          const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"));
           // Every other reported error's range is the `::` alone.
-          if (message.endsWith("got '::'") && !MISSING_TYPE.test(message) && !isAnnotationColon(start)) continue;
+          if (message.endsWith("got '::'") && !MISSING_TYPE.test(message) && !MISSING_NAME.test(message) && !isAnnotationColon(start)) continue;
           // The error's range ends with the token Luau found.
           const token = `${end.line}:${end.character}`;
           if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
