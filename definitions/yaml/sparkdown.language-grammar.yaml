@@ -264,6 +264,9 @@ variables:
   ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
   ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
+  # The text between a regex literal's slashes (`@/x/`), shared by
+  # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
+  LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
   LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
   # A `-` followed by another `-` begins a comment, never subtraction: Luau
@@ -358,11 +361,13 @@ variables:
   # value ends in a word, a closing bracket, a quote, the vararg `...` or a
   # regex literal (`@/x/`, whose closing `/` is never read as division), and
   # not in a keyword operator (`a and --[[c]] b` keeps its operand).
-  # A statement that begins with `(` (`5 --[[c]] (function() end)()`) is only
-  # the next statement after a value that cannot be called: a number (a digit
-  # that does not end a name), a quoted string or `...`. After a name or a
-  # call, Luau reads the `(` as a call of that value (`g (2)`).
-  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/(?:\\.|[^/\\\r\n])+/){{WS}}*)(?<![^\w.](?:and|or|not){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|(?<=(?:\d|["'`]|\.\.\.){{WS}}*)(?<![A-Za-z_]\w*{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(]))
+  # A statement that begins with `(` (`5 --[[c]] (function() end)()`) is read
+  # as the grammar reads it with no comment there: the next statement after
+  # any value but a name. The value ends in a closing bracket, a quote, `...`,
+  # a regex literal, or a word that is a number of any spelling (`0x5`, `5e0`,
+  # `1_000`), `true`, `false`, `nil` or a function's `end`. After a name
+  # (`g`, `t.x`), the `(` is a call of it, as in Luau (`g (2)`).
+  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/){{WS}}*)(?<![^\w.](?:and|or|not){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|(?<=(?:[)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/[dgimsuvy]*|(?:^|[^\w.])(?:\d[\w.]*|true|false|nil|end)){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(]))
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
@@ -9868,7 +9873,7 @@ repository:
   LuauRegexLiteral:
     tag: regexp
     name: string.regexp.sd
-    match: (@)([/])((?:\\.|[^/\\\r\n])+)([/])([dgimsuvy]*)
+    match: (@)([/])({{LUAU_REGEX_BODY}})([/])([dgimsuvy]*)
     captures:
       "1":
         tag: definition(string)

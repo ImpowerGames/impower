@@ -98,6 +98,41 @@ describe("a statement after a same-line block comment after a value runs", () =>
     );
   });
 
+  // A `(` after the comment is read as it is with no comment there: the next
+  // statement after any value but a name.
+  test.each([
+    "5",
+    "0x5",
+    "5e0",
+    "1_000",
+    "true",
+    "nil",
+    '"s"',
+    "[[s]]",
+    "[=[s]=]",
+    "{}",
+    "{1}",
+    "@/x/",
+    "@/x/i",
+    "function() end",
+    "t[1]",
+    "g()",
+    "(g)",
+  ])("a parenthesized statement after `%s` runs", (value) => {
+    const body = `  local w = 5\n  local t = {1}\n  local g = function() end\n  local r = ${value} --[[c]] (function() print(1) end)()`;
+    expect(run(body)).toBe("Value 15.\n");
+  });
+
+  test("a parenthesized statement after the comment calls a name, as without it", () => {
+    const g = "  local g = function(v) return function() end end\n";
+    expect(run(`${g}  local w = 5\n  local r = g (function() print(1) end)()`)).toBe(
+      "Value 5.\n",
+    );
+    expect(
+      run(`${g}  local w = 5\n  local r = g --[[c]] (function() print(1) end)()`),
+    ).toBe("Value 5.\n");
+  });
+
   test("the comment ending the line is the control", () => {
     expect(run("  local w = 5 --[[c]]\n  print(1)")).toBe("Value 15.\n");
   });
@@ -137,6 +172,12 @@ describe("a statement after a same-line block comment after a value runs", () =>
     ["boolean type, `?`", "  local w: true --[[c]] ? = true", "Value true.\n"],
     ["string union", '  local w: "a" --[[c]] | "b" = "a"', "Value a.\n"],
     ["number type, `?`", "  local w: number --[[c]] ? = 5", "Value 5.\n"],
+    ["number union", "  local w: number --[[c]] | string = 5", "Value 5.\n"],
+    [
+      "table intersection",
+      "  local v: {x: number} --[[c]] & {y: number} = {x = 5, y = 6}\n  local w = v.x",
+      "Value 5.\n",
+    ],
   ])("a %s after a block comment keeps its value", (_name, body, expected) => {
     expect(run(body)).toBe(expected);
   });
