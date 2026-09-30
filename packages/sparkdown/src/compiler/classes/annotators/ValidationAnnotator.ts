@@ -156,14 +156,20 @@ const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
 const STRAY_CLOSING_BRACKET =
   "Expected identifier when parsing expression, got ']'";
-// A block comment after a type that closes on a later line is its own rule
-// (`LuauTypeTrailingBlockComment`), which differs in what it leaves after
-// its close: the whitespace before code, or, before code right after the
-// close, the closing brackets, which the body reads as
-// `LuauTypeTrailingBlockCommentClose`.
+// A block comment after a type or a value that closes on a later line is its
+// own rule (`LuauTypeTrailingBlockComment`, and the two value rules), which
+// differs in what it leaves after its close: the whitespace before code, or,
+// before code right after the close, the closing brackets, which the body
+// reads as `LuauTypeTrailingBlockCommentClose`.
+const LUAU_TRAILING_BLOCK_COMMENTS: SparkdownNodeName[] = [
+  "LuauTypeTrailingBlockComment",
+  "LuauUncallableValueTrailingBlockComment",
+  "LuauCallableValueTrailingBlockComment",
+];
+const LUAU_TRAILING_BLOCK_COMMENT = nodeNameSet(LUAU_TRAILING_BLOCK_COMMENTS);
 const LUAU_BLOCK_COMMENT_OPENINGS: SparkdownNodeName[] = [
   "LuauBlockComment",
-  "LuauTypeTrailingBlockComment",
+  ...LUAU_TRAILING_BLOCK_COMMENTS,
 ];
 const LUAU_BLOCK_COMMENT_NAMES: SparkdownNodeName[] = [
   ...LUAU_BLOCK_COMMENT_OPENINGS,
@@ -654,11 +660,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
-  /** Whether a `LuauTypeTrailingBlockComment` ends at `pos`, leaving its
-   *  closing brackets to the body there. */
+  /** Whether a trailing block comment after a type or a value ends at `pos`,
+   *  leaving its closing brackets to the body there. */
   protected endsTrailingTypeComment(pos: number): boolean {
     let node = this.tree?.resolveInner(pos, -1) ?? null;
-    while (node && node.name !== "LuauTypeTrailingBlockComment") {
+    while (node && !LUAU_TRAILING_BLOCK_COMMENT.has(node.name)) {
       node = node.parent;
     }
     return node?.to === pos;
