@@ -40,11 +40,18 @@ export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | nul
 }
 
 // The name of a `LuauVariableAssignment` that holds nothing but its name (no
-// type annotation, no `=`), or null for any other node.
+// type annotation, no `=`), or null for any other node. A comment after the
+// name (`x -- note`, which the grammar puts in the assignment's content) does
+// not count.
 export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
   if (node.name !== "LuauVariableAssignment") return null;
-  if (node.getChild("LuauVariableAssignment_content")) return null;
-  return getDescendent("LuauVariableName", node) ?? null;
+  const content = node.getChild("LuauVariableAssignment_content");
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (!child.name.includes("Comment") && !child.name.endsWith("Whitespace")) {
+      return null;
+    }
+  }
+  return assignmentListName(node);
 }
 
 // The name a `LuauVariableAssignment` puts in its declaration's list: the one
