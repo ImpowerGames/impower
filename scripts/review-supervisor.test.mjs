@@ -177,6 +177,11 @@ try {
     const f=await fixture();
     for(const changes of [{completedReviewRound:1,round:2},{completedReviewRound:3,round:3,reviewedHead:head},{extendedReviewAuthorization:'invalid'}])await assert.rejects(createReviewJob({...f.input,...changes,jobDir:path.join(scratch,'bad-recovery')},f.host),/reviewedHead|finalCorrections|extendedReviewAuthorization/);
     assert.equal(fs.existsSync(path.join(scratch,'bad-recovery')),false);
+    const finalRound={...f.input,completedReviewRound:3,round:3,reviewedHead:head,finalCorrections:true};
+    assert.throws(()=>validateReviewPlan(finalRound),/no automatic review/);
+    assert.doesNotThrow(()=>validateReviewPlan({...finalRound,completedRoundReviews:1,reviewers:2}),'a reviewer the final round still plans may review its corrections');
+    assert.throws(()=>validateReviewPlan({...finalRound,completedRoundReviews:2,reviewers:2}),/no automatic review/);
+    assert.throws(()=>validateReviewPlan({...f.input,reviewers:4}),/planned reviewer count/);
     for(const flag of ['--fallback-model','--settings','--agents','--append-system-prompt'])assert.throws(()=>validateReviewPlan({...f.input,reviews:[{...f.input.reviews[0],args:[...f.input.reviews[0].args,flag,'override']}]}),/Unsupported automatic/);
   }
   {
