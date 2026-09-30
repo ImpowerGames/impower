@@ -705,8 +705,14 @@ export namespace CallStack {
           // were written with.
           // A cell written before cells recorded their scope takes the
           // innermost binding of its name here, which is how the engine
-          // that wrote the save resolved it.
+          // that wrote the save resolved it, and keeps it, so a later inner
+          // `local` of the same name doesn't take its place.
           el.openUpvalues = Thread.ReadUpvalueCells(jElementObj["upvalues"]);
+          for (const cell of el.openUpvalues) {
+            if (cell.scopeIndex < 0) {
+              cell.scopeIndex = el.ScopeIndexBinding(cell.variableName);
+            }
+          }
           for (const cell of Thread.ReadUpvalueCells(
             jElementObj["borrowedUpvalues"],
           )) {
