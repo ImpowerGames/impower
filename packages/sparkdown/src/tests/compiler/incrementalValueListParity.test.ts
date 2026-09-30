@@ -3,8 +3,10 @@
 // that adds or removes that `=` reparses only its own line once the function
 // has been edited before (the parser then has split points inside it), so
 // the later name lies outside the reparsed range. The annotations must still
-// equal a cold parse's: `SparkdownCombinedAnnotator.update` runs its window
-// past the list's last bare name, and no further.
+// equal a cold parse's, on every annotation channel:
+// `SparkdownCombinedAnnotator.update` runs its window to the end of the list's
+// last name (a bare name, or one with a type or an `=` of its own), and no
+// further.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -14,7 +16,19 @@ import {
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
 const URI = "inmemory:///value-list.sd";
-const CHANNELS: (keyof SparkdownAnnotators)[] = ["declarations", "references", "semantics"];
+const CHANNELS: (keyof SparkdownAnnotators)[] = [
+  "colors",
+  "characters",
+  "declarations",
+  "compilations",
+  "references",
+  "validations",
+  "implicits",
+  "formatting",
+  "links",
+  "lenses",
+  "semantics",
+];
 
 let nextVersion = 2;
 
@@ -36,7 +50,14 @@ function snapshot(registry: SparkdownDocumentRegistry) {
   for (const key of CHANNELS) {
     const iter = annotations[key]!.iter(0);
     while (iter.value) {
-      out.push(`${key} ${iter.from}-${iter.to} ${JSON.stringify(iter.value.type)}`);
+      // A compiled chunk's payload is circular; its range still compares.
+      let value: string;
+      try {
+        value = JSON.stringify(iter.value.type) ?? "undefined";
+      } catch {
+        value = "<unserializable>";
+      }
+      out.push(`${key} ${iter.from}-${iter.to} ${value}`);
       iter.next();
     }
   }
@@ -83,6 +104,11 @@ describe("a continued local list after an incremental edit to its `=`", () => {
     ["losing its `=`", "local aa, bb = 1,\n  helper", "bb =", "bb =="],
     ["three lines, gaining its `=`", "local aa, bb == 1,\n  2,\n  helper", "bb ==", "bb ="],
     ["gaining its `=` before a name with its own", "local aa, bb == 1,\n  helper = 2", "bb ==", "bb ="],
+    ["gaining its `=` in a `const`", "const aa, bb == 1,\n  helper", "bb ==", "bb ="],
+    ["gaining its `=` with a comment line in the list", "local aa, bb == 1,\n  -- note\n  helper", "bb ==", "bb ="],
+    ["gaining its `=` before a name and a comment", "local aa, bb == 1,\n  helper -- note", "bb ==", "bb ="],
+    ["pasting `= 1` into it", "local aa, bb == 7,\n  helper", "bb == 7", "bb = 1"],
+    ["deleting `= 1` from it", "local aa, bb = 1, 2,\n  helper", "bb = 1, 2", "bb == 1, 2"],
     // The list sits inside a delimited value that is itself followed by a
     // name, so the outer declaration adds nothing but the inner one must.
     [
@@ -108,7 +134,7 @@ describe("a continued local list after an incremental edit to its `=`", () => {
     expect(incremental.tree(URI)!.toString()).toBe(cold.tree(URI)!.toString());
     // Non-vacuity: the parser's reparsed range stops before the later-line
     // name, so only the widened window re-annotates it.
-    const name = text.indexOf("helper", text.indexOf(replace));
+    const name = text.indexOf("helper", text.indexOf("aa, bb"));
     expect(reparsedTo(incremental)).not.toBeNull();
     expect(reparsedTo(incremental)!).toBeLessThan(name);
     expect(snapshot(incremental)).toEqual(snapshot(cold));
