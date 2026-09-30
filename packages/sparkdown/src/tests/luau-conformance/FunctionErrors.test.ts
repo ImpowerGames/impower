@@ -61,7 +61,8 @@ describe.skip("variadic not last (diverges: accepted silently; the type cases ar
     );
   });
 
-  // A malformed type annotation is not reported (DIVERGENCES.md).
+  // A malformed type annotation is reported only where its type cannot
+  // begin (DIVERGENCES.md); these are the other kind.
   test.each([
     [
       "function foo(): (...number, string) end",
