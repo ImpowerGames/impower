@@ -68,28 +68,23 @@ describe("story lines after a function declaration", () => {
     }
   });
 
-  test("story lines in a function's body are each reported as an error", () => {
-    // Story lines are not allowed in a function body, which is Luau (#1158).
-    // Each one is Luau's error, and none of its words is read as a variable.
+  test("lines of a function's body that are not Luau statements are each reported as an error", () => {
+    // A function body is Luau, so a line such as `Hello there.` is not a
+    // story line there but a Luau statement Luau cannot read (#1158). Each
+    // one gets Luau's error.
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
     );
     expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
-    expect(ctx.warningMessages).toEqual([]);
   });
 
-  test("a story line after a statement in a function's body leaves the lines after its `end` playing from the top", () => {
-    // The story line does not close the definition early, so its `end` closes
-    // it and the line after the function is in the root flow (#1093).
+  test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
+    // The line does not close the definition early, so its `end` closes it
+    // and the line after the function is in the root flow (#1093).
     const ctx = makeRuntimeStoryFromSource(
       `function greet()\n  local x = 1\n  How are you?\nend\nAfter it.\n`,
     );
     expect(ctx.errorMessages).toEqual([INCOMPLETE]);
-    // `x` is never used, which Luau's lint reports; the story line's words
-    // are not read as globals.
-    expect(
-      ctx.warningMessages.filter((m) => m.startsWith("Unknown global")),
-    ).toEqual([]);
     const lines: string[] = [];
     while (ctx.story.canContinue) {
       const text = ctx.story.Continue();

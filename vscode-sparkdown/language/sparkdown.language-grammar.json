@@ -9576,7 +9576,7 @@
           "include": "#LuauControlBlock"
         },
         {
-          "include": "#LuauStoryLine"
+          "include": "#LuauInvalidStatement"
         },
         {
           "include": "#LuauExpression"
@@ -9595,8 +9595,8 @@
         }
       ]
     },
-    "LuauStoryLine": {
-      "match": "^((?:[^\\S\\n\\r])*)((?!(?:\\b(?:scene|branch)\\b|\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b|(?:\\b(?:end)\\b|\\b(?:do|if|for|while|repeat)\\b|\\b(?:then|elseif|else)\\b|\\b(?:break|continue)\\b|\\b(?:in)\\b|\\b(?:until)\\b|\\b(?:goto)\\b|\\b(?:return)\\b|\\b(?:and|or|not)\\b|\\b(?:define)\\b|\\b(?:local|const|function)\\b|\\b(?:require|export)\\b)|\\b(?:store|local|const)\\b|\\b(?:read|write)\\b|\\b(?:match|plural)\\b|\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b|type)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])+[A-Za-z0-9_][^\\r\\n]*?)(?=(?:[^\\S\\n\\r])*$)",
+    "LuauInvalidStatement": {
+      "match": "^((?:[^\\S\\n\\r])*)((?!(?:\\b(?:scene|branch)\\b|\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b|(?:\\b(?:end)\\b|\\b(?:do|if|for|while|repeat)\\b|\\b(?:then|elseif|else)\\b|\\b(?:break|continue)\\b|\\b(?:in)\\b|\\b(?:until)\\b|\\b(?:goto)\\b|\\b(?:return)\\b|\\b(?:and|or|not)\\b|\\b(?:define)\\b|\\b(?:local|const|function)\\b|\\b(?:require|export)\\b)|\\b(?:store|local|const)\\b|\\b(?:read|write)\\b|\\b(?:match|plural)\\b|\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b|type)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.](?![.])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*(?:(?:[^\\S\\n\\r])+(?!(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)[A-Za-z0-9_]|(?:[^\\S\\n\\r])*[!?]|(?:[^\\S\\n\\r])*,(?![^\\r\\n]*=)|(?:[^\\S\\n\\r])*[.](?![.])(?!(?:[^\\S\\n\\r])*[A-Za-z_]))(?:(?!(?:[^\\S\\n\\r])+(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)[^\\r\\n])*?)(?=(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])+(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)",
       "captures": {
         "1": {
           "patterns": [
@@ -9606,10 +9606,92 @@
           ]
         },
         "2": {
-          "tag": "invalid",
-          "name": "invalid.illegal.luau"
+          "patterns": [
+            {
+              "include": "#LuauInvalidStatementToken"
+            },
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
         }
       }
+    },
+    "LuauInvalidStatementToken": {
+      "patterns": [
+        {
+          "include": "#LuauInvalidStatementLogicalKeyword"
+        },
+        {
+          "include": "#LuauInvalidStatementKeyword"
+        },
+        {
+          "include": "#LuauInvalidStatementName"
+        },
+        {
+          "include": "#LuauInvalidStatementNumber"
+        },
+        {
+          "include": "#LuauInvalidStatementString"
+        },
+        {
+          "include": "#LuauInvalidStatementAccessor"
+        },
+        {
+          "include": "#LuauInvalidStatementComma"
+        },
+        {
+          "include": "#LuauInvalidStatementOperator"
+        },
+        {
+          "include": "#LuauInvalidStatementCharacter"
+        }
+      ]
+    },
+    "LuauInvalidStatementLogicalKeyword": {
+      "tag": "logicOperator",
+      "name": "keyword.operator.logical.luau keyword.operator.wordlike.luau",
+      "match": "\\b(?:\\b(?:and|or|not)\\b)\\b"
+    },
+    "LuauInvalidStatementKeyword": {
+      "tag": "controlKeyword",
+      "name": "keyword.control.luau",
+      "match": "\\b(?:\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b)\\b"
+    },
+    "LuauInvalidStatementName": {
+      "tag": "variableName",
+      "name": "variable.other.readwrite.luau",
+      "match": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))"
+    },
+    "LuauInvalidStatementNumber": {
+      "tag": "number",
+      "name": "constant.numeric.decimal.luau",
+      "match": "\\d[\\d_]*(?:[.]\\d[\\d_]*)?"
+    },
+    "LuauInvalidStatementString": {
+      "tag": "string",
+      "name": "string.quoted.luau",
+      "match": "\"[^\"\\r\\n]*\"?|'[^'\\r\\n]*'?|`[^`\\r\\n]*`?"
+    },
+    "LuauInvalidStatementAccessor": {
+      "tag": "separator",
+      "name": "meta.template.expression.accessor.sd",
+      "match": "[.]"
+    },
+    "LuauInvalidStatementComma": {
+      "tag": "operator",
+      "name": "keyword.operator.comma.luau",
+      "match": "[,]"
+    },
+    "LuauInvalidStatementOperator": {
+      "tag": "operator",
+      "name": "keyword.operator.luau",
+      "match": "[-+*/%^#=<>~(){}\\[\\]:;]"
+    },
+    "LuauInvalidStatementCharacter": {
+      "tag": "invalid",
+      "name": "invalid.illegal.luau",
+      "match": "[^\\s]"
     },
     "LuauSparkdownForLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",

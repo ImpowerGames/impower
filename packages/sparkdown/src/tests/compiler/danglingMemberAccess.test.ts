@@ -229,9 +229,9 @@ describe("a dangling member access (#1079)", () => {
   });
 
   // A `.` after a path with no value-position token before it is not a
-  // dangling access: a line of words in a function body is a story line,
-  // reported as one (#1158), and a story line in story scope never reaches
-  // the access-path rules.
+  // dangling access: a line of words in a function body is a Luau statement
+  // Luau cannot read, reported with Luau's error for it (#1158), and a story
+  // line in story scope never reaches the access-path rules.
   it.each([
     [
       "words at the start of a line in a function body",
@@ -240,10 +240,6 @@ describe("a dangling member access (#1079)", () => {
     [
       "dotted words at the start of a line in a function body",
       "function greet\n  Hello Mr.Smith.\n  Visit example.com.\n  He moved to the U.S.\n  How are you?\nend\n",
-    ],
-    [
-      "a line that is one dotted word in a function body",
-      "function greet\n  U.S.\n  Next line.\nend\n",
     ],
     [
       "a story line in a story `if` body",

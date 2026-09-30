@@ -47,8 +47,9 @@ export interface PathLocationTable {
  * A function container and the source lines its declaration spans.
  *
  * Story lines written after a function's `end` can be compiled into the
- * function's container (#834), so a row under the container is only function
- * code when it starts within these lines. A hoisted function literal records
+ * function's container when the grammar cut the function's body off at a
+ * line it could not read as Luau (#834), so a row under the container is only
+ * function code when it starts within these lines. A hoisted function literal records
  * no lines: nothing but its own body is compiled into its container. Neither
  * does a function whose declaration's script cannot be resolved; every row
  * under a container without lines is function code.

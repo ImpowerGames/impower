@@ -1,0 +1,15 @@
+function greet(n)
+  Hello there, friend.
+  I will return tomorrow.
+  salt and pepper.
+  Hello!
+  U.S. is big.
+  Well, friend.
+  He said "hi" to 3 people?
+  if n > 1 then
+    How are you?
+  end
+  Hello
+  a, b = b, a
+end
+After it.

@@ -131,11 +131,117 @@ const LUAU_COMMENT = nodeNameSet([
 // ends with its line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
-// Luau's parser reports a line of words in a Luau body (`Hello there.`) at
-// its first word, the expression it read before the next name.
 const INCOMPLETE_STATEMENT =
   "Incomplete statement: expected assignment or a function call";
-const FIRST_WORD = /^[A-Za-z_][A-Za-z0-9_]*/;
+const NAME = /[A-Za-z_][A-Za-z0-9_]*/y;
+const INLINE_SPACE = /[^\S\r\n]*/y;
+
+/** The text Luau's parser names a token by in "got '…'", `<eof>` for none. */
+const gotToken = (token: { text: string } | null) =>
+  token == null ? "<eof>" : `'${token.text}'`;
+
+/**
+ * Luau's error for the `.` at `dot` that no name follows on its line: the
+ * token after it, or, when that is a name on a later line, the rule that a
+ * Sparkdown access path ends with its line. It is reported at the `.`.
+ */
+function danglingDotError(
+  dot: number,
+  read: (from: number, to: number) => string,
+): { message: string; from: number; to: number } {
+  const got = nextSignificantToken(dot + 1, read);
+  const nameOnLaterLine =
+    got != null &&
+    /^[A-Za-z_]/.test(got.text) &&
+    !RESERVED.has(got.text) &&
+    read(dot + 1, got.from).includes("\n");
+  return {
+    message: nameOnLaterLine
+      ? NAME_ON_LATER_LINE
+      : `Expected identifier, got ${gotToken(got)}`,
+    from: dot,
+    to: dot + 1,
+  };
+}
+
+/**
+ * Luau's first error for a line in a Luau body that is not a Luau statement
+ * (`LuauInvalidStatement`), the line's text starting at `from`. Luau reads the line's first name or
+ * dotted path as an expression. Followed by a comma, it is the first target
+ * of an assignment, whose next target must be a name and whose targets must
+ * be followed by `=`. Followed by anything else, a statement that is only an
+ * expression is incomplete, which Luau reports at the expression. A `.` with
+ * no name after it on the line is reported as `danglingDotError` says.
+ */
+function invalidStatementError(
+  line: string,
+  from: number,
+  read: (from: number, to: number) => string,
+): { message: string; from: number; to: number } {
+  const skipSpace = (i: number) => {
+    INLINE_SPACE.lastIndex = i;
+    INLINE_SPACE.exec(line);
+    return INLINE_SPACE.lastIndex;
+  };
+  const nameEnd = (i: number) => {
+    NAME.lastIndex = i;
+    return NAME.exec(line) ? NAME.lastIndex : -1;
+  };
+  // A name and its `.name` members, where a space may stand on either side
+  // of a `.`; `dot` is set when a `.` has no name after it on the line.
+  const readPath = (start: number) => {
+    let end = nameEnd(start);
+    for (;;) {
+      const at = skipSpace(end);
+      if (line[at] !== "." || line[at + 1] === ".") return { start, end };
+      const member = nameEnd(skipSpace(at + 1));
+      if (member < 0) return { start, end: at + 1, dot: at };
+      end = member;
+    }
+  };
+  // The token at `i` on the line, or the next one after the line.
+  const tokenAt = (i: number) => {
+    if (i < line.length) {
+      const end = nameEnd(i);
+      return { text: line.slice(i, end < 0 ? i + 1 : end), from: from + i };
+    }
+    return nextSignificantToken(from + line.length, read);
+  };
+  let path = readPath(0);
+  if (path.dot != null) return danglingDotError(from + path.dot, read);
+  let next = skipSpace(path.end);
+  if (line[next] !== ",") {
+    return {
+      message: INCOMPLETE_STATEMENT,
+      from: from + path.start,
+      to: from + path.end,
+    };
+  }
+  while (line[next] === ",") {
+    const start = skipSpace(next + 1);
+    if (nameEnd(start) < 0) {
+      const got = tokenAt(start);
+      const at = got && got.from < from + line.length ? got : null;
+      return {
+        message: `Expected identifier when parsing expression, got ${gotToken(got)}`,
+        from: at?.from ?? from + next,
+        to: at ? at.from + at.text.length : from + next + 1,
+      };
+    }
+    path = readPath(start);
+    if (path.dot != null) return danglingDotError(from + path.dot, read);
+    next = skipSpace(path.end);
+  }
+  // Luau names the token after the targets, which may be on a later line;
+  // the error stays on this line, at that token or at the last target.
+  const got = tokenAt(next);
+  const onLine = got != null && got.from < from + line.length;
+  return {
+    message: `Expected '=' when parsing assignment, got ${gotToken(got)}`,
+    from: onLine ? got.from : from + path.start,
+    to: onLine ? got.from + got.text.length : from + path.end,
+  };
+}
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -633,33 +739,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // its own token, so the `.` is the node's last character. The wording is
     // Luau's parser's, naming the token it meets instead of the name.
     if (nodeRef.name === "LuauDanglingAccessor") {
-      const got = nextSignificantToken(nodeRef.to, (from, to) =>
-        this.read(from, to),
+      const { message, from, to } = danglingDotError(
+        nodeRef.to - 1,
+        (from, to) => this.read(from, to),
       );
-      const nameOnLaterLine =
-        got != null &&
-        /^[A-Za-z_]/.test(got.text) &&
-        !RESERVED.has(got.text) &&
-        this.read(nodeRef.to, got.from).includes("\n");
-      const message = nameOnLaterLine
-        ? NAME_ON_LATER_LINE
-        : `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`;
-      this.error(annotations, message, nodeRef.to - 1, nodeRef.to);
+      this.error(annotations, message, from, to);
       return annotations;
     }
-    // A line of words in a Luau body (`Hello there.`). Luau's first error for
-    // it is reported; the errors Luau's recovery finds in the rest of its
-    // words are not.
-    if (nodeRef.name === "LuauStoryLine") {
-      const line = childNamed(nodeRef.node, "LuauStoryLine_c2");
-      const from = line?.from ?? nodeRef.from;
-      const word = FIRST_WORD.exec(this.read(from, line?.to ?? nodeRef.to));
-      this.error(
-        annotations,
-        INCOMPLETE_STATEMENT,
-        from,
-        from + (word?.[0].length ?? 0),
+    // A line in a Luau body that is not a statement (`Hello there.`). Luau's
+    // first error for it is reported; the errors Luau's recovery finds in the
+    // rest of the line are not.
+    if (nodeRef.name === "LuauInvalidStatement") {
+      const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
+      const lineFrom = line?.from ?? nodeRef.from;
+      const { message, from, to } = invalidStatementError(
+        this.read(lineFrom, line?.to ?? nodeRef.to),
+        lineFrom,
+        (from, to) => this.read(from, to),
       );
+      this.error(annotations, message, from, to);
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
