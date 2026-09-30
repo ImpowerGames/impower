@@ -84,7 +84,9 @@ export interface ProgramTableRemap {
  * chunk becomes invalid, because its pointers referred to the old numbering.
  * The symbols in `keep.symbols` are interned again, in the order of their old
  * ids (docs/engine/binary-program.md, section 2, Reseed); every other entry
- * is dropped. The remap says where each old id went.
+ * is dropped. The remap says where each old id went: a reseed keeps no string
+ * and no number, so those remaps hold -1 throughout, and the chunks the next
+ * compile emits again intern what they need.
  */
 export const reseedProgramTable = (
   table: ProgramTable,

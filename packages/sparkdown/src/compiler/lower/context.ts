@@ -14,9 +14,15 @@ import type { CompilationConfig } from "../classes/annotators/CompilationAnnotat
  * `>` break take (`lexicalRouting` in `lowerDisplay.ts`). The node that read
  * it is named with the read, since a continuation can stand inside a block
  * statement below the chunk's top-level node, and the question is its own.
+ *
+ * `unreachable` is the range of the statements a `done` or `fin` leaves
+ * unreachable, which its hint covers (`unreachableRead` in
+ * `lowerDoneOrFin.ts`): the statements after it in its scope, which an edit
+ * below it changes. It decides the hint and not the statement's code, so the
+ * chunk store does not compare it.
  */
 export interface LoweringRead {
-  kind: "routing";
+  kind: "routing" | "unreachable";
   value: string;
   /** The name of the node that read it. */
   node: string;

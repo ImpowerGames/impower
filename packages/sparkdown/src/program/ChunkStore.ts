@@ -199,15 +199,17 @@ interface FunctionPart {
 // What the store knows of a chunk it emitted or reused: the syntax of the
 // statement it was emitted for, the lowering inputs that statement recorded,
 // the values its emission recorded, for a declaration chunk the names of the
-// globals it assigns, in order (`assignedNames`), the functions it writes,
-// the anonymous symbols of other statements' functions its code refers to,
-// and the table generation its ids belong to.
+// globals it assigns, in order (`assignedNames`), the function declared at
+// the top level it defines, the functions it writes, the anonymous symbols of
+// other statements' functions its code refers to, and the table generation
+// its ids belong to.
 interface ChunkInfo {
   syntax: string;
   reads: string;
   emitReads: readonly string[];
   resolutions: readonly string[];
   globals?: string;
+  defines?: string;
   parts: readonly FunctionPart[];
   anonymousReferences: readonly number[];
   /** The locals each function the statement writes declares at its entry
@@ -762,9 +764,11 @@ export class ChunkStore {
   /** Gives each function `statement` writes its symbol, and the old block
    *  its body takes its sequence id from: a function declared at the top
    *  level its name's; a kept chunk's functions the symbols the chunk has; a
-   *  statement emitted again in place its old chunk's functions' symbols, by
-   *  aligning the functions by their own source; and any other function a
-   *  new anonymous symbol. */
+   *  statement emitted again in place the anonymous symbols of its old
+   *  chunk's functions, by aligning the functions by their own source; and
+   *  any other function a new anonymous symbol. A name's symbol goes only to
+   *  the function declared under the name, so a function that an edit moves
+   *  inside another is not given it by its old statement. */
   protected planFunctions(
     statement: StatementSource,
     chunk: StatementChunk | undefined,
@@ -798,8 +802,10 @@ export class ChunkStore {
       );
       functions.forEach((k, i) => {
         const part = pairs[i] === undefined ? undefined : oldParts[pairs[i]!];
-        plan.symbols[k] = part?.symbol;
-        plan.oldBlocks[k] = part?.block;
+        if (part && isAnonymousSymbol(this.table, part.symbol)) {
+          plan.symbols[k] = part.symbol;
+          plan.oldBlocks[k] = part.block;
+        }
       });
     }
     for (const k of functions) {
@@ -925,6 +931,7 @@ export class ChunkStore {
       emitReads: emitted.reads,
       resolutions: emitted.resolutions,
       globals: assignedNames(statement),
+      defines: statement.defines,
       parts: bodies.flatMap((body, k) =>
         body.fn
           ? [{ fingerprint: fingerprintOf(body), symbol: plan!.symbols[k]!, block: k }]
@@ -1192,6 +1199,7 @@ export class ChunkStore {
       !info ||
       info.generation !== this.table.generation ||
       info.globals !== assignedNames(statement) ||
+      info.defines !== statement.defines ||
       info.hoisted !== hoistedOf(statement)
     ) {
       return false;
@@ -1278,12 +1286,6 @@ export class ChunkStore {
   /** The declaration chunk emitted or reused for a statement's block. */
   declarationChunkOf(block: object): StatementChunk | undefined {
     return this._byDeclaration.get(block);
-  }
-
-  /** The symbol the last build gave a function (a `FlowBase`), for a test
-   *  that asserts a function keeps its symbol. */
-  functionSymbolOf(fn: object): number | undefined {
-    return this.symbolOf(fn);
   }
 }
 
@@ -1378,7 +1380,7 @@ const fingerprintOf = (body: BodySource): string =>
  * paired with the new in order. Returns, per new part, the index of its old
  * part, or nothing.
  */
-export const alignParts = (
+const alignParts = (
   now: readonly string[],
   was: readonly string[],
 ): (number | undefined)[] => {
@@ -1508,7 +1510,10 @@ export const compilerNamedTexts = (
  *  the writer records them (`VariableReference.EmitExpression`,
  *  `Divert.EmitCall`), leaving out the objects in `exclude` and the
  *  declarations a flow's statement holds, whose initializers are the
- *  declaration sequence's code and not the statement's. */
+ *  declaration sequence's code and not the statement's. Of a function the
+ *  statement runs in place, the chunk's code declares the locals its lowering
+ *  hoisted (`emitFunctionInPlace`); its body, and the functions the story
+ *  places among its flows, are other chunks' code. */
 export const resolutionsOf = (
   objects: readonly ParsedObject[],
   exclude?: ReadonlySet<ParsedObject>,
@@ -1520,6 +1525,10 @@ export const resolutionsOf = (
       obj instanceof ConstantDeclaration ||
       (obj instanceof VariableAssignment && obj.isGlobalDeclaration)
     ) {
+      return;
+    }
+    if (obj instanceof FlowBase) {
+      (functionShapeOf.get(obj)?.hoisted ?? []).forEach(visit);
       return;
     }
     if (obj instanceof VariableReference || obj instanceof VariableAssignment) {

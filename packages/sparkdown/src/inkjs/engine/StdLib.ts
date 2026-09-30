@@ -2372,12 +2372,13 @@ function resolveParentType(
 // A table a builtin changes in place, or whose metatable, frozen flag or
 // length hints it changes, marked through the write barrier of the story it
 // runs on (`VariablesState.WriteBarrier`, docs/engine/binary-program.md,
-// section 7).
+// section 7). Only a pure builtin runs without a story, and none changes a
+// table.
 type Written = (table: ObjectValue | null | undefined) => void;
 const writtenIn =
   (story: any): Written =>
   (table) => {
-    if (table) story?.state?.variablesState?.WriteBarrier?.(table);
+    if (table) story.state.variablesState.WriteBarrier(table);
   };
 
 // Walk a type/instance's `__index` chain (self first, then ancestors).
@@ -2525,10 +2526,11 @@ function linkWaitingStructuralChildren(
 
 // A `display({ parts })` table carries words whose tags sit between pieces of
 // text, each part a string or a `{ tag }` table, in the order written. Join
-// them into the `text` and `tags` every other display table carries.
-function joinDisplayParts(table: Map<string, AbstractValue>): void {
+// them into the `text` and `tags` every other display table carries. True
+// when it wrote them.
+function joinDisplayParts(table: Map<string, AbstractValue>): boolean {
   const parts = table.get("parts");
-  if (!(parts instanceof ObjectValue) || !parts.value) return;
+  if (!(parts instanceof ObjectValue) || !parts.value) return false;
   let text = "";
   const tags = new Map<string, AbstractValue>();
   const ordered = [...parts.value.entries()].sort(
@@ -2548,6 +2550,7 @@ function joinDisplayParts(table: Map<string, AbstractValue>): void {
   if (tags.size > 0) {
     table.set("tags", new ObjectValue(tags));
   }
+  return true;
 }
 
 // What a line that begins with `..` and joins nothing raises.
@@ -3171,8 +3174,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1, // variadic — actual count comes from compile-site capture
     fn: (story, args) => {
       const payload = args[0];
-      if (payload instanceof ObjectValue && payload.value) {
-        joinDisplayParts(payload.value);
+      if (
+        payload instanceof ObjectValue &&
+        payload.value &&
+        joinDisplayParts(payload.value)
+      ) {
+        writtenIn(story)(payload);
       }
       const flag = (key: string) => {
         const value =

@@ -2,10 +2,11 @@
 // chunks and run by the program engine (#698, docs/engine/binary-program.md,
 // sections 2, 3, 7 and 10).
 import "../../inkjs/engine/Container";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { CallStack } from "../../inkjs/engine/CallStack";
 import type { InkObject } from "../../inkjs/engine/Object";
 import { Path } from "../../inkjs/engine/Path";
+import { VariablesState } from "../../inkjs/engine/VariablesState";
 import {
   DivertTargetValue,
   MultiValue,
@@ -208,6 +209,14 @@ describe("functions on the program engine", () => {
         errors: [],
         defined: true,
       },
+      // A `do` block inside a top-level one lowers into the story's content
+      // too.
+      {
+        text: "do\n  do\n    function run(n)\n      return n * 2\n    end\n  end\n  local x = 1\nend\nHello {run(2)}.\n",
+        beats: ["Hello 4.\n"],
+        errors: [],
+        defined: true,
+      },
       {
         text: "store y = 0\nif true then\n  function run()\n    y = 5\n  end\nend\nHello {y}.\n",
         beats: ["Hello 5.\n"],
@@ -237,6 +246,68 @@ describe("functions on the program engine", () => {
       const { program } = compileScript(text, { programChunks: true });
       expect(new ProgramStory(program.chunks!).HasFunction("run")).toBe(defined);
     }
+  });
+
+  // A host evaluates a scene as it evaluates a function, as a UI handler or
+  // binding naming one does: `HasFunction` finds it, and `EvaluateFunction`
+  // runs it from its start until it ends, collecting what it writes.
+  it("runs a scene a host evaluates as a function, as the current engine does", () => {
+    const text = [
+      "store visits = 0",
+      "Start.",
+      "done",
+      "",
+      "scene intro",
+      "  Hello.",
+      "end",
+      "",
+      "scene counted",
+      "  visits = visits + 1",
+      "  Visit {visits} of {double(visits)}.",
+      "  done",
+      "  Never.",
+      "end",
+      "",
+      "scene quiet",
+      "end",
+      "",
+      "function double(n)",
+      "  return n * 2",
+      "end",
+    ].join("\n");
+    const evaluations: [string, unknown[]][] = [
+      ["intro", []],
+      ["counted", []],
+      ["counted", []],
+      ["quiet", []],
+      ["double", [4]],
+    ];
+    const evaluate = (story: {
+      ContinueMaximally(): string;
+      HasFunction(name: string): boolean;
+      EvaluateFunction(name: string, args: unknown[], output: boolean): unknown;
+    }) => [
+      story.ContinueMaximally(),
+      ...evaluations.map(([name, args]) => ({
+        name,
+        has: story.HasFunction(name),
+        result: story.EvaluateFunction(name, args, true),
+      })),
+    ];
+    const { program } = compileScript(text, { programChunks: true });
+    expect(program.fallback).toBeUndefined();
+    const current = compileScript(text);
+    current.story.ResetState();
+    const expected = evaluate(current.story);
+    expect(evaluate(new ProgramStory(program.chunks!))).toEqual(expected);
+    expect(expected).toEqual([
+      "Start.\n",
+      { name: "intro", has: true, result: { returned: null, output: "Hello.\n" } },
+      { name: "counted", has: true, result: { returned: null, output: "Visit 1 of 2.\n" } },
+      { name: "counted", has: true, result: { returned: null, output: "Visit 2 of 4.\n" } },
+      { name: "quiet", has: true, result: { returned: null, output: "" } },
+      { name: "double", has: true, result: { returned: 8, output: "" } },
+    ]);
   });
 });
 
@@ -348,14 +419,70 @@ describe("a function value", () => {
     expect(made.value!.get("__closure_fn")).toBeInstanceOf(SymbolValue);
     expect(values.filter((value) => value instanceof SymbolValue).length).toBeGreaterThan(3);
   });
+
+  // Every program's table starts at the same generation, so the id of a
+  // value a save of another program holds can name a different function
+  // here; the value carries its function's name.
+  it("that a save of another program holds calls the function of its name, not the one its id names here", () => {
+    const run = (lines: string[]) => {
+      const { program } = compileScript(lines.join("\n"), { programChunks: true });
+      expect(program.fallback).toBeUndefined();
+      return { story: new ProgramStory(program.chunks!), root: program.chunks! };
+    };
+    const saving = run([
+      "store held = 0",
+      "held = second",
+      "Saved.",
+      "done",
+      "",
+      "function first()",
+      "  return 1",
+      "end",
+      "",
+      "function second()",
+      "  return 2",
+      "end",
+    ]);
+    expect(saving.story.ContinueMaximally()).toBe("Saved.\n");
+    const saved = saving.story.state.toJson();
+
+    const loading = run([
+      "store held = 0",
+      "Loaded.",
+      "done",
+      "",
+      "function first()",
+      "  return 1",
+      "end",
+      "",
+      "function extra()",
+      "  return 3",
+      "end",
+      "",
+      "function second()",
+      "  return 2",
+      "end",
+      "",
+      "function callHeld()",
+      "  return held()",
+      "end",
+    ]);
+    const id = (root: ProgramRoot, name: string) => root.table.symbolIds.get(name);
+    expect(loading.root.generation).toBe(saving.root.generation);
+    expect(id(loading.root, "extra")).toBe(id(saving.root, "second"));
+    loading.story.state.LoadJson(saved);
+    expect(loading.story.EvaluateFunction("callHeld")).toBe(2);
+  });
 });
 
 describe("the write barrier", () => {
   // Each statement between the two beats changes a table in place, or what a
-  // table is beside its entries, or writes a closed upvalue cell: a counter
-  // closure whose variable outlived the frame that declared it.
+  // table is beside its entries, or steps an iterator, whose table keeps its
+  // cursor, or writes a closed upvalue cell: a counter closure whose variable
+  // outlived the frame that declared it.
   const text = [
     "store t = { 1, 2 }",
+    "store positioned = { 1, 2 }",
     "store removed = { 1, 2, 3 }",
     "store sorted = { 3, 1, 2 }",
     "store moved = {}",
@@ -367,11 +494,14 @@ describe("the write barrier", () => {
     "store shaped = {}",
     "store cleared = { 1, 2, 3 }",
     "store hinted = { 1, 2, 3 }",
+    "store it = string.gmatch(\"a b\", \"%a+\")",
+    "store holder = { step = string.gmatch(\"x y\", \"%a+\") }",
     "store n = 0",
     "store count = 0",
     "store counter = makeCounter()",
     "One.",
     "& table.insert(t, 3)",
+    "& table.insert(positioned, 1, 0)",
     "& table.remove(removed)",
     "& table.sort(sorted)",
     "& table.move(sorted, 1, 2, 1, moved)",
@@ -382,6 +512,8 @@ describe("the write barrier", () => {
     "& setmetatable(shaped, { __index = { x = 1 } })",
     "& table.clear(cleared)",
     "n = #hinted",
+    "& it()",
+    "& holder.step()",
     "& counter()",
     "Two {#t} {count} {n}.",
     "done",
@@ -396,6 +528,7 @@ describe("the write barrier", () => {
   ].join("\n");
   const changed = [
     "t",
+    "positioned",
     "removed",
     "sorted",
     "moved",
@@ -406,9 +539,10 @@ describe("the write barrier", () => {
     "shaped",
     "cleared",
     "hinted",
+    "it",
   ];
 
-  it("marks every table a builtin changes in place, and the closed cell a closure writes, once the statement that changes it runs", () => {
+  it("marks each table these builtins change in place, and the closed cell a closure writes, once the statement that changes it runs", () => {
     const { expected, actual } = bothEngines(text);
     expect(actual).toEqual(expected);
     expect(texts(expected.beats)).toEqual(["One.\n", "Two 3 1 3.\n"]);
@@ -424,6 +558,9 @@ describe("the write barrier", () => {
       ) as VariablePointerValue;
     const what = () => ({
       t: table("t").value!.size,
+      positioned: [...table("positioned").value!.values()].map(
+        (v) => v.valueObject,
+      ),
       removed: table("removed").value!.size,
       sorted: [...table("sorted").value!.values()].map((v) => v.valueObject),
       moved: table("moved").value!.size,
@@ -445,6 +582,7 @@ describe("the write barrier", () => {
     const before = what();
     expect(before).toEqual({
       t: 2,
+      positioned: [1, 2],
       removed: 3,
       sorted: [3, 1, 2],
       moved: 0,
@@ -467,6 +605,7 @@ describe("the write barrier", () => {
     expect(story.Continue()).toBe("Two 3 1 3.\n");
     expect(what()).toEqual({
       t: 3,
+      positioned: [0, 1, 2],
       removed: 2,
       sorted: [1, 2, 3],
       moved: 2,
@@ -484,7 +623,102 @@ describe("the write barrier", () => {
     for (const name of changed) {
       expect(second.tables.has(table(name)), name).toBe(true);
     }
+    // The iterator a table field holds, stepped as a value rather than
+    // through a variable.
+    const step = table("holder").value!.get("step") as ObjectValue;
+    expect(second.tables.has(step), "holder.step").toBe(true);
     expect([...second.cells]).toEqual([cell()]);
+  });
+
+  it("marks the table display joins the parts of, and the one whose unjoined `continues` it drops", () => {
+    const text = [
+      "store shown = { parts = { \"Hello \", { tag = \"wave\" }, \"there\" } }",
+      "store unjoined = { text = \"Again\", continues = true }",
+      "One.",
+      "& display(shown)",
+      "& display(unjoined)",
+      "Two.",
+      "done",
+    ].join("\n");
+    const { expected, actual } = bothEngines(text);
+    expect(actual).toEqual(expected);
+    expect(texts(expected.beats)).toEqual([
+      "One.\n",
+      "Hello there\n",
+      "Again\n",
+      "Two.\n",
+    ]);
+
+    const { program } = compileScript(text, { programChunks: true });
+    const story = new ProgramStory(program.chunks!);
+    // The warning the unjoined line raises.
+    story.onError = () => {};
+    const globals = story.variablesState;
+    globals.trackWrites = true;
+    const table = (name: string) => globals.GetVariableWithName(name) as ObjectValue;
+    const marked = () => {
+      const { tables } = globals.TakeWrites();
+      return ["shown", "unjoined"].filter((name) => tables.has(table(name)));
+    };
+    expect(story.Continue()).toBe("One.\n");
+    expect(marked()).toEqual([]);
+    expect(story.Continue()).toBe("Hello there\n");
+    expect(table("shown").value!.get("text")?.valueObject).toBe("Hello there");
+    expect(marked()).toEqual(["shown"]);
+    expect(story.Continue()).toBe("Again\n");
+    expect(table("unjoined").value!.has("continues")).toBe(false);
+    expect(marked()).toEqual(["unjoined"]);
+  });
+
+  it("marks the tables the defines change as the declarations run", () => {
+    // `hero` names a define as its parent, and `child` a block declared
+    // after it, which links it when it runs.
+    const text = [
+      "define base as thing with",
+      "  store hp = 3",
+      "end",
+      "define hero as base with",
+      "  name = \"Hero\"",
+      "end",
+      "animation child as parent with",
+      "  duration = 1",
+      "end",
+      "animation parent with",
+      "  duration = 2",
+      "end",
+      "One.",
+      "done",
+    ].join("\n");
+    const { program } = compileScript(text, { programChunks: true });
+    expect(program.fallback).toBeUndefined();
+    // The declarations run as the story is made, before a test can set
+    // `trackWrites` on its globals, so every call to the barrier is counted.
+    const barrier = vi.spyOn(VariablesState.prototype, "WriteBarrier");
+    let story: ProgramStory;
+    let marked: Set<ObjectValue>;
+    try {
+      story = new ProgramStory(program.chunks!);
+      marked = new Set(barrier.mock.calls.map(([table]) => table));
+    } finally {
+      barrier.mockRestore();
+    }
+    const table = (name: string) =>
+      story.variablesState.GetVariableWithName(name) as ObjectValue;
+    // `__def` marks each define and every type it registers it in, `thing`
+    // made here because no define declares it; `__defs` marks each block
+    // and its type, and the metatable of the block that waited for its
+    // parent.
+    for (const name of [
+      "base",
+      "thing",
+      "$base_hero",
+      "animation",
+      "$animation_child",
+      "$animation_parent",
+    ]) {
+      expect(marked.has(table(name)), name).toBe(true);
+    }
+    expect(marked.has(table("$animation_child").metatable!)).toBe(true);
   });
 });
 
@@ -613,6 +847,43 @@ describe("a stack trace", () => {
     expect(shown).toContain("<SOMEWHERE IN inner>");
     expect(shown).toContain("Names __synth_0/frames/0.");
   });
+
+  // Inside a block of a function the current engine names a frame by the
+  // container its position is in: `debug.info` gives the block's container,
+  // `$b`, and the trace adds the container's path, `outer.0.$b`. Neither is a
+  // name of the function. The program engine holds no path, and names the
+  // function by its symbol there too, as Luau names it.
+  it("names a frame inside a block by its function's symbol, where the current engine names the block's container", () => {
+    const text = [
+      "store trace = \"\"",
+      "store name = \"\"",
+      "store looped = \"\"",
+      "name = outer()",
+      "looped = loop()",
+      "{trace}",
+      "Named {name} {looped}.",
+      "done",
+      "",
+      "function outer()",
+      "  if true then",
+      "    trace = debug.traceback(\"here\")",
+      "    return debug.info(1, \"n\")",
+      "  end",
+      "end",
+      "",
+      "function loop()",
+      "  for i = 1, 1 do",
+      "    return debug.info(1, \"n\")",
+      "  end",
+      "end",
+    ].join("\n");
+    const { program } = compileScript(text, { programChunks: true });
+    expect(program.fallback).toBeUndefined();
+    expect(texts(storyBeats(new ProgramStory(program.chunks!)).beats)).toEqual([
+      "here\nstack traceback:\n=== THREAD 1/1 (current) ===\n[TUNNEL] <SOMEWHERE IN 0>\n[FUNCTION] <SOMEWHERE IN outer>\n\n",
+      "Named outer loop.\n",
+    ]);
+  });
 });
 
 describe("a function's symbol", () => {
@@ -691,6 +962,31 @@ describe("a function's symbol", () => {
     expect(exportSymbol(after, 0)).not.toBe(symbol);
     // The closure made before the edit calls its own function's new code.
     expect(callKeep(root, made)).toBe("first");
+  });
+
+  // Deleting the `end` of the function above a function declared at the top
+  // level moves the second inside the first, where it is left in place as a
+  // closure. A name's symbol belongs to the function declared under the name,
+  // so the moved function takes an anonymous symbol, as in a cold compile.
+  it("is not kept by a function an edit moves inside another function", () => {
+    const s = session(
+      [
+        "Before {describe(1)} {inner()}.",
+        "done",
+        "",
+        "function describe(n)",
+        "  return \"#\" .. n",
+        "end",
+        "",
+        "function inner()",
+        "  return 2",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    s.edit("Before", "Before!");
+    const root = s.edit("  return \"#\" .. n\nend\n", "  return \"#\" .. n\n");
+    expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
   });
 
   // A call's code depends on its callee's parameters: a variadic callee
@@ -864,6 +1160,28 @@ describe("a function's symbol", () => {
     ]);
   });
 
+  // A function the story runs in place, inside an `if` block, whose body
+  // passes a closure to a builtin: the story places the closure among the
+  // function's own flows, whose code is other chunks'.
+  it("keeps the chunk of a function run in place whose body passes a closure, when an edit to the next line lowers it again", () => {
+    const s = session(
+      [
+        "Before.",
+        "if false then",
+        "  function sortDescending(t)",
+        "    table.sort(t, function(x, y) return x > y end)",
+        "    return table.concat(t, \",\")",
+        "  end",
+        "end",
+        "After.",
+        "",
+      ].join("\n"),
+    );
+    const root = s.edit("After.", "After!");
+    expect(s.store.emittedLastBuild).toBe(1);
+    expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
+  });
+
   it("carries a closure made before the table is reseeded to its own function after it", () => {
     const s = session(
       [
@@ -892,5 +1210,36 @@ describe("a function's symbol", () => {
     const root = s.edit("Kept {keep()}.", "Still kept {keep()}.");
     expect(root.generation).toBe(ref.generation + 1);
     expect(callKeep(root, made)).toBe("kept");
+  });
+});
+
+describe("a call to a function a top-level assignment names too", () => {
+  // `count = 0` at the top level makes `count` a global only as its
+  // assignment resolves, after the calls generated in the compile have found
+  // the function `count`. The call in a scene an edit to another scene
+  // leaves unchanged is carried, and finds its target again after that.
+  it("calls the function after an edit to another scene, as a cold compile does", () => {
+    const s = session(
+      [
+        "Before any scene.",
+        "",
+        "scene FN_0",
+        "  The room is quiet.",
+        "end",
+        "",
+        "scene FN_1",
+        "  Pair {count(1, 2)}.",
+        "end",
+        "",
+        "function count(...)",
+        "  return select(\"#\", ...)",
+        "end",
+        "",
+      ].join("\n"),
+    );
+    s.edit("Before any scene.", "count = 0\nBefore any scene.");
+    expect(describeRoot(s.root)).toEqual(describeRoot(cold(s.text)));
+    const root = s.edit("The room is quiet.", "The room is quiet!");
+    expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
   });
 });

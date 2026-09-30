@@ -3,16 +3,18 @@
 // story that runs on without yielding is heard however it loops: in a Luau
 // loop inside one function call, which the story sees as a single step of the
 // line that called it, or in a scene that diverts to itself. Each call names
-// the story, whose position says which line was running.
+// the story, whose position says which line was running. The program engine
+// (`ProgramStory`), which runs a program compiled to statement chunks, calls
+// the watch on the same steps.
 
 import "@impower/sparkdown/src/inkjs/engine/Container";
 import { afterEach, describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "@impower/sparkdown/src/compiler/classes/SparkdownCompiler";
 import {
   EXECUTION_WATCH_STEPS,
   executionWatch,
   type WatchedStory,
 } from "@impower/sparkdown/src/inkjs/engine/ExecutionWatch";
+import { ProgramStory } from "@impower/sparkdown/src/program/ProgramStory";
 import { Game } from "../../game/core/classes/Game";
 import { createHarness, MAIN_URI } from "../ui/harness/uiTestHarness";
 
@@ -60,10 +62,16 @@ const runtimeErrors = (messages: any[]) =>
     .map((m) => String(m.params.message));
 
 /** PLAY `source` from `line` (zero-based) with a lowered step budget, and
- *  every story the watch heard from, with the line each was running. */
-const playWatched = async (source: string, line: number) => {
+ *  every story the watch heard from, with the line each was running. With
+ *  `programChunks`, the game runs the program engine if the program compiles
+ *  to statement chunks. */
+const playWatched = async (
+  source: string,
+  line: number,
+  programChunks = false,
+) => {
   const heard: { story: WatchedStory; line: number | null }[] = [];
-  const h = createHarness(source, line);
+  const h = createHarness(source, line, { programChunks });
   await h.ready;
   h.reset();
   const game = h.game as any;
@@ -133,42 +141,26 @@ describe("the execution watch (#679)", () => {
     expect(heard).toEqual([]);
   }, 120_000);
 
-  // The program engine (`ProgramStory`) does not call the watch. It never
-  // needs to while a program that can loop falls back to `Story`, which is
-  // what this pins: a loop needs a divert or a function call.
-  const compileToChunks = (source: string) => {
-    const compiler = new SparkdownCompiler();
-    compiler.configure({
-      files: [
-        {
-          uri: MAIN_URI,
-          type: "script",
-          name: "main",
-          ext: "sd",
-          text: source,
-          version: 1,
-          languageId: "sparkdown",
-        },
-      ] as never,
-      seedBuiltinsIntoStory: true,
-      emitCompiledProgram: false,
-      programChunks: true,
-    });
-    return compiler.compile({ textDocument: { uri: MAIN_URI } }).program as any;
-  };
-
-  // The construct is what makes the program fall back: a call for the Luau
-  // loop, whose own statements are inside the function it calls, and the
-  // divert for the scene. A fixture whose fallback came from anything else
-  // would stop pinning this once the program engine learned that construct.
-  test.each([
-    ["a Luau loop in a function", LUAU_LOOP, "FunctionCall"],
-    ["a scene that diverts to itself", DIVERT_LOOP, "Divert"],
-  ])("runs %s on the story engine, which is watched", (_name, source, construct) => {
-    expect(compileToChunks(source).fallback?.construct).toBe(construct);
+  // The program engine has no runtime paths, so the story it passes names no
+  // line; that it is still running is what the worker needs to hear.
+  test("hears a Luau loop inside one function call on the program engine", async () => {
+    const { game, heard, errors } = await playWatched(LUAU_LOOP, 9, true);
+    expect(game.story).toBeInstanceOf(ProgramStory);
+    expect(errors.join("\n")).toContain("possible infinite loop");
+    expect(heard.length).toBeGreaterThanOrEqual(LEAST_CALLS);
+    expect(heard.every((h) => h.story === game.story)).toBe(true);
   }, 120_000);
 
-  test("runs a script with no loop on the program engine", () => {
-    expect(compileToChunks("BOB:\n  One.\n\nBOB:\n  Two.\n").fallback).toBeUndefined();
+  test("is not called by a beat that ends on the program engine", async () => {
+    const { game, heard, errors, steps } = await playWatched(
+      "BOB:\n  One.\n\nBOB:\n  Two.\n",
+      0,
+      true,
+    );
+    expect(game.story).toBeInstanceOf(ProgramStory);
+    expect(errors).toEqual([]);
+    expect(steps).toBeGreaterThan(0);
+    expect(steps).toBeLessThan(EXECUTION_WATCH_STEPS);
+    expect(heard).toEqual([]);
   }, 120_000);
 });

@@ -444,6 +444,24 @@ export class Divert extends ParsedObject {
     return branchDeclares(top);
   }
 
+  // A bare `name = …` makes `name` a global only as its assignment resolves
+  // (`VariableAssignment.ResolveReferences`), after every divert generated in
+  // the compile has found its target. A divert whose runtime object a reused
+  // flow carries finds its target again after that, and gives way to a flow
+  // of the name as a divert generated in the compile does: a function of the
+  // name is called rather than the global.
+  private autoGlobalGivesWay(name: string, isGlobal: boolean): boolean {
+    if (!isGlobal) {
+      return false;
+    }
+    const declaration = this.story.variableDeclarations.get(name);
+    return (
+      declaration !== undefined &&
+      !declaration.isDeclaration &&
+      this.target?.ResolveFromContext(this) != null
+    );
+  }
+
   public readonly ResolveTargetContent = (): void => {
     if (this.isEmpty || this.isEnd) {
       return;
@@ -462,7 +480,10 @@ export class Divert extends ParsedObject {
             this,
           );
 
-          if (resolveResult.found) {
+          if (
+            resolveResult.found &&
+            !this.autoGlobalGivesWay(variableTargetName, resolveResult.isGlobal)
+          ) {
             // A parameter needs no divert-target marking to be diverted to:
             // parameters are untyped, and `name: ->` is only an annotation.
             this.runtimeDivert.variableDivertName = variableTargetName;

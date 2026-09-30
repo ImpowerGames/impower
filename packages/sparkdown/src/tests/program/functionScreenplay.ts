@@ -3,11 +3,8 @@
 // function the story takes out of a `do` block and one it leaves in an `if`
 // block, closures that capture a local and write a global, a closure made by
 // a closure, a comparator a builtin calls, a protected call, the method of a
-// define, and display lines that call them through interpolation. A scene
-// ends at its `end`, with no `done`: the hint a `done` raises over the lines
-// after it is sized by lowering it against its neighbours, which an
-// incremental compile does not always lower again, so that an edit below it
-// can leave its range as it was, program chunks on or off.
+// define, and display lines that call them through interpolation. Each scene
+// ends with `done`, whose hint covers what an edit writes after it.
 export function functionScreenplay(scenes = 3): string {
   const L: string[] = [
     "store total = 0",
@@ -46,6 +43,7 @@ export function functionScreenplay(scenes = 3): string {
     L.push("      total = 0");
     L.push("    end");
     L.push("  end");
+    L.push("  done");
     L.push("end");
     L.push("");
   }

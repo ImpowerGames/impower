@@ -694,10 +694,51 @@ export function spreadLastMultiIfNonVariadic(
   for (const v of top.values) story.state.PushEvaluationStack(v);
 }
 
-// Pushes what a builtin or a function a call ran returned: nothing is a
-// no-value `Void`, a JS array a multiple value, and a JS value its runtime
-// value.
-function pushStdLibResult(story: any, result: unknown): void {
+// Lua-style call-arg spread of a builtin's arguments, in place: the
+// syntactically LAST arg (rightmost) spreads its MultiValue into multiple
+// args; earlier args truncate any MultiValue to its first inner value.
+// `print(math.modf(3.7))` → `print(3, 0.7)`; `f(math.modf(x), 1)` →
+// `f(3, 1)` (modf truncated since it's not the last arg). Pure stdlib fns
+// (registered with NativeFunctionCall) don't pass through here and continue
+// to auto-unwrap via MultiValue's transparent valueObject.
+//
+// Void (from `(function() end)()`) is conceptually an empty MultiValue. As
+// the last arg, it spreads to 0 values — `select('#', (function() end)())`
+// returns 0, matching Luau's empty-return semantics. As a non-last arg, it's
+// clamped to nil (same as MultiValue truncation).
+export function spreadStdLibArgs(args: unknown[]): void {
+  for (let k = 0; k < args.length; k++) {
+    const a = args[k];
+    if (a instanceof MultiValue) {
+      if (k === args.length - 1) {
+        args.splice(k, 1, ...a.values);
+      } else {
+        args[k] = a.values[0] ?? new NullValue();
+      }
+    } else if (a instanceof Void) {
+      if (k === args.length - 1) {
+        args.splice(k, 1);
+      } else {
+        args[k] = new NullValue();
+      }
+    }
+  }
+}
+
+// Pushes what a builtin or a function a call ran returned. A JS array is a
+// multiple return (`math.modf`, `string.byte`, `table.unpack`), pushed as one
+// `MultiValue` slot whose elements are wrapped by `Value.Create`: a
+// single-value consumer sees its first value through MultiValue's
+// transparent `valueObject`, and a multiple assignment spreads it with
+// `UnpackTuple`. An InkObject is pushed as it is, and a JS primitive wrapped
+// (number → IntValue/FloatValue, string → StringValue, boolean → BoolValue).
+// No value (`table.insert`, `print`, ...) pushes the `Void` sentinel so the
+// eval stack stays balanced: a call in statement position is followed by a
+// static PopEvaluatedValue, which would otherwise consume whatever operand
+// sat beneath (`1 + #pack(7, 8)` lost the `1` to an inner `table.insert`).
+// Void coerces to nil in single-value contexts and spreads to zero values in
+// call-arg position, matching Lua's "no return values".
+export function pushStdLibResult(story: any, result: unknown): void {
   if (result !== undefined) {
     if (Array.isArray(result)) {
       const wrapped: AbstractValue[] = [];
@@ -717,9 +758,6 @@ function pushStdLibResult(story: any, result: unknown): void {
       if (w !== null) story.state.PushEvaluationStack(w);
     }
   } else {
-    // Void return (`print`, `table.insert`, ...): push
-    // the Void sentinel so the eval stack stays
-    // balanced — same contract as RunStdLibFunction.
     story.state.PushEvaluationStack(new Void());
   }
 }
@@ -3851,81 +3889,8 @@ export class Story extends InkObject {
           for (let i = 0; i < arity; i++) {
             args.unshift(this.state.PopEvaluationStack());
           }
-          // Lua-style call-arg spread: the syntactically LAST arg
-          // (rightmost) spreads its MultiValue into multiple args;
-          // earlier args truncate any MultiValue to its first inner
-          // value. `print(math.modf(3.7))` → `print(3, 0.7)`;
-          // `f(math.modf(x), 1)` → `f(3, 1)` (modf truncated since
-          // it's not the last arg). Pure stdlib fns (registered with
-          // NativeFunctionCall) don't pass through here and continue
-          // to auto-unwrap via MultiValue's transparent valueObject.
-          //
-          // Void (from `(function() end)()`) is conceptually an
-          // empty MultiValue. As the last arg, it spreads to 0
-          // values — `select('#', (function() end)())` returns 0,
-          // matching Luau's empty-return semantics. As a non-last
-          // arg, it's clamped to nil (same as MultiValue truncation).
-          for (let k = 0; k < args.length; k++) {
-            const a = args[k];
-            if (a instanceof MultiValue) {
-              if (k === args.length - 1) {
-                args.splice(k, 1, ...a.values);
-              } else {
-                args[k] = a.values[0] ?? new NullValue();
-              }
-            } else if (a instanceof Void) {
-              if (k === args.length - 1) {
-                args.splice(k, 1);
-              } else {
-                args[k] = new NullValue();
-              }
-            }
-          }
-          const result = entry.fn(this, args);
-          if (result !== undefined) {
-            // Multi-return: a JS array from the stdlib fn becomes a
-            // `MultiValue` slot. Each element is wrapped via
-            // `Value.Create` (so primitives auto-promote). Used by
-            // `math.modf`, `string.byte`, `utf8.codepoint`,
-            // `table.unpack`, etc. Single-value consumers see the
-            // first inner value via MultiValue's transparent
-            // `valueObject` getter; multi-target assignment uses an
-            // `UnpackTuple` ControlCommand to distribute the slots.
-            if (Array.isArray(result)) {
-              const wrappedValues: AbstractValue[] = [];
-              for (const r of result) {
-                if (r instanceof InkObject) {
-                  wrappedValues.push(r as AbstractValue);
-                } else {
-                  const w = Value.Create(r);
-                  if (w !== null) wrappedValues.push(w);
-                }
-              }
-              this.state.PushEvaluationStack(new MultiValue(wrappedValues));
-            } else {
-              // If `fn` returned an InkObject (Value subclass, Void,
-              // etc.) push it directly. JS primitives get wrapped
-              // via `Value.Create` (number → IntValue/FloatValue,
-              // string → StringValue, boolean → BoolValue).
-              const wrapped =
-                result instanceof InkObject ? result : Value.Create(result);
-              if (wrapped !== null) {
-                this.state.PushEvaluationStack(wrapped);
-              }
-            }
-          } else {
-            // The stdlib fn returned no value (`table.insert`,
-            // `table.sort`, `print`, ...). Push the Void sentinel so
-            // the eval stack stays BALANCED: statement-position call
-            // sites emit a static PopEvaluatedValue, which previously
-            // consumed whatever operand happened to sit beneath
-            // (silently no-opping only when the stack was empty) —
-            // `1 + #pack(7, 8)` lost the `1` to an inner
-            // `table.insert` statement. Void coerces to nil in
-            // single-value contexts and spreads to zero values in
-            // call-arg position, matching Lua's "no return values".
-            this.state.PushEvaluationStack(new Void());
-          }
+          spreadStdLibArgs(args);
+          pushStdLibResult(this, entry.fn(this, args));
           break;
         }
 

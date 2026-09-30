@@ -23,7 +23,7 @@ import type { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarch
 import { Wrap } from "../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
 import { displayTableFlag } from "./displayCallFlags";
 import { hash64 } from "./hash64";
-import { bodyStatements } from "./programFlows";
+import { heldObjectsOf } from "./programFlows";
 import type {
   EmittedObject,
   ProgramEmitter,
@@ -510,7 +510,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const body = bodyOfBlock.get(obj);
       if (body) {
         // A `do` block: its scope, its body, and the scope's end.
-        const objectsOfBody = bodyStatements(body).flatMap((s) => s.objects);
+        const objectsOfBody = heldObjectsOf(body);
         this.requireHeld(objectsOfBody, objects);
         this.expect(
           objectsOfBody.every((part, k) => objects[i + 1 + k] === part),
@@ -544,7 +544,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.emitObjects(content);
       return;
     }
-    const objectsOfBody = bodyStatements(body).flatMap((s) => s.objects);
+    const objectsOfBody = heldObjectsOf(body);
     this.requireHeld(objectsOfBody, content);
     let start = objectsOfBody.length
       ? content.indexOf(objectsOfBody[0]!)
@@ -583,7 +583,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     body: ParsedObject[];
     test: readonly ParsedObject[];
   } {
-    const body = bodyStatements(loop.body).flatMap((s) => s.objects);
+    const body = heldObjectsOf(loop.body);
     const test = branchContent(loop.test);
     this.requireHeld(body, [
       ...test,

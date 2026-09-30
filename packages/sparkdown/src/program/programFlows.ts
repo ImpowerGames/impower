@@ -562,18 +562,19 @@ const statementOf = (
   };
 };
 
-/** A statement of a body, from the shape its lowering recorded. Its syntax
- *  is read as a top-level statement's is, from the start of its node with
- *  the line's indentation, so that a statement moved into a body or out of
- *  one keeps its syntax. */
+/** A statement of a body, from the shape its lowering recorded, without a
+ *  flow the story took out of a `do` block it is (`bodyStatements`). Its
+ *  syntax is read as a top-level statement's is, from the start of its node
+ *  with the line's indentation, so that a statement moved into a body or out
+ *  of one keeps its syntax. */
 const nestedStatement = (
   shape: StatementShape,
   record: StatementRecord,
 ): StatementSource => {
   const firstLine = record.lineAt!(firstNonSpace(record.text!, shape));
-  const objects = shape.objects.flatMap((obj) =>
-    obj instanceof Statement ? obj.content : [obj],
-  );
+  const objects = shape.objects
+    .flatMap((obj) => (obj instanceof Statement ? obj.content : [obj]))
+    .filter((obj) => !isStoryFlow(obj));
   const range = objects[0]?.ownDebugMetadata ?? null;
   if (shape.bodies.length > 0) {
     return statementOf(
@@ -687,12 +688,21 @@ export const readsKey = (reads: StatementReads): string =>
  *  its lowering recorded but one that writes a function the story took out
  *  of the block as a flow of its own. The story takes the flows out of its
  *  own content, which a `do` block written at the top level lowers into
- *  (`FlowBase.SplitWeaveAndSubFlowContent`); such a function's definition is
- *  a statement of its flow, and the block's body holds nothing of it. */
+ *  (`FlowBase.SplitWeaveAndSubFlowContent`), and a `do` block inside it too;
+ *  such a function's definition is a statement of its flow, and the block's
+ *  body holds nothing of it. */
 export const bodyStatements = (body: BodyShape): StatementShape[] =>
   body.statements.filter(
     (statement) =>
       statement.objects.length === 0 || !statement.objects.every(isStoryFlow),
+  );
+
+/** The objects of a body's statements that run where the body stands: those
+ *  of `bodyStatements`, without a flow the story took out of a `do` block
+ *  those statements hold. */
+export const heldObjectsOf = (body: BodyShape): ParsedObject[] =>
+  bodyStatements(body).flatMap((statement) =>
+    statement.objects.filter((obj) => !isStoryFlow(obj)),
   );
 
 // A flow the story holds among its own.

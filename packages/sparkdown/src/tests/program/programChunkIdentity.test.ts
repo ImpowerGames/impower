@@ -51,10 +51,15 @@ function session(texts: Record<string, string>) {
   });
   let text = texts[MAIN]!;
   let version = 1;
-  let root = c.compile().program.chunks!;
+  let program = c.compile().program;
+  let root = program.chunks!;
   return {
     get root() {
       return root;
+    },
+    /** The program of the last compile. */
+    get program() {
+      return program;
     },
     get store() {
       return c.compiler.chunkStore!;
@@ -78,7 +83,7 @@ function session(texts: Record<string, string>) {
         ],
       });
       text = text.slice(0, offset) + replace + text.slice(offset + find.length);
-      const program = c.compile().program;
+      program = c.compile().program;
       expect(program.fallback).toBeUndefined();
       root = program.chunks!;
       return root;
@@ -170,6 +175,56 @@ describe("a recorded lowering input", () => {
       expect.arrayContaining([["target", "dialogue"], ["character", "RIVAL"]]),
     );
   });
+});
+
+// A `done` raises a hint over the statements after it in its scope, which its
+// lowering finds outside its own syntax and records. An edit far enough below
+// it that the reparse leaves it carried, but that changes those statements,
+// lowers it again although its own text is the same. The hint is not its
+// code, so the store keeps its chunk and emits only the statement added.
+describe("the statements a `done` leaves unreachable", () => {
+  const filler = Array.from({ length: 6 }, (_, i) => `Filler line ${i}.`);
+  const text = [
+    ...filler,
+    "scene intro",
+    "  Hello.",
+    "  done",
+    "  Never.",
+    "  Line 2.",
+    "  Line 3.",
+    "  Also never.",
+    "end",
+    ...filler,
+    "",
+  ].join("\n");
+  const hints = (program: { diagnostics?: Record<string, unknown[]> }) =>
+    ((program.diagnostics?.[MAIN] ?? []) as any[])
+      .filter((d) => String(d.message?.value ?? d.message).startsWith("Unreachable"))
+      .map(
+        (d) =>
+          `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character}`,
+      );
+
+  const edits: [string, string, string][] = [
+    ["one added after them", "  Also never.\n", "  Also never.\n  Still never.\n"],
+    ["one added among them", "  Line 3.\n", "  Line 3.\n  Line 3b.\n"],
+  ];
+  for (const [edit, find, replace] of edits) {
+    it(`are hinted as a cold compile hints them after an edit below the \`done\`: ${edit}`, () => {
+      const s = session({ [MAIN]: text });
+      s.edit("Filler line 0.", "Filler line 0!");
+      expect(hints(s.program)).toEqual(["9:0-12:13"]);
+      const after = s.edit(find, replace);
+      expect(s.store.emittedLastBuild).toBe(1);
+      const edited = text.replace("Filler line 0.", "Filler line 0!").replace(find, replace);
+      const cold = programCompiler(
+        { [MAIN]: edited },
+        { programChunks: true, seedBuiltinsIntoStory: true },
+      ).compile().program;
+      expect(hints(s.program)).toEqual(hints(cold));
+      expect(describeRoot(after)).toEqual(describeRoot(cold.chunks!));
+    });
+  }
 });
 
 // Tags written right after the inline text of a line are a statement of their

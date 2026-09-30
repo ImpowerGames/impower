@@ -3,6 +3,10 @@ import { debugFileName } from "../compiler/utils/debugFileName";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
 import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import { ErrorType, type RaisedError } from "../inkjs/engine/Error";
+import {
+  EXECUTION_WATCH_STEPS,
+  executionWatch,
+} from "../inkjs/engine/ExecutionWatch";
 import { InkList } from "../inkjs/engine/InkList";
 import { NativeFunctionCall } from "../inkjs/engine/NativeFunctionCall";
 import { InkObject } from "../inkjs/engine/Object";
@@ -24,9 +28,11 @@ import {
   openVariablePointer,
   packTuple,
   popLuauCondition,
+  pushStdLibResult,
   readVariable,
   shortCircuitDecides,
   spreadLastMultiIfNonVariadic,
+  spreadStdLibArgs,
   storeIndex,
   tableFromPairs,
   tryInvokeStdLibMarkerValue,
@@ -423,11 +429,12 @@ export class ProgramStory {
     }
   }
 
-  /** Runs the function declared at the top level under `functionName` with
-   *  `args` from outside the story, in a frame of its own that ends when the
-   *  function returns, collecting the text it writes against an output of
-   *  its own, as the current engine's `Story.EvaluateFunction` does: its
-   *  result is what the function returns, as a JS value. */
+  /** Runs the function or scene declared at the top level under
+   *  `functionName` with `args` from outside the story, in a frame of its own
+   *  that ends when the function returns or the scene ends, collecting the
+   *  text it writes against an output of its own, as the current engine's
+   *  `Story.EvaluateFunction` does: its result is what the function returns,
+   *  as a JS value. */
   EvaluateFunction(
     functionName: string,
     args: any[] = [],
@@ -440,7 +447,9 @@ export class ProgramStory {
       throw new Error("Function is empty or white space.");
     }
     const found = this.FlowValueNamed(functionName);
-    const target = found ? this.targetOf(found.ref.symbol) : null;
+    const target = found
+      ? (this.targetOf(found.ref.symbol) ?? this.sceneTargetOf(found.ref.symbol))
+      : null;
     if (!target) {
       throw new Error("Function doesn't exist: '" + functionName + "'");
     }
@@ -1013,6 +1022,9 @@ export class ProgramStory {
     if (this.stepLimit !== null && this.stepCount > this.stepLimit) {
       throw new StepLimitExceeded();
     }
+    if ((this.stepCount & (EXECUTION_WATCH_STEPS - 1)) === 0) {
+      executionWatch.listener?.(this);
+    }
     if (!chunk) {
       this.done();
       return;
@@ -1372,16 +1384,25 @@ export class ProgramStory {
 
   /** The id in this root's table of the symbol `ref` names: its own id when
    *  it was made in this root's table generation, and otherwise the id the
-   *  reseeds since then gave it (`ProgramRoot.symbolFrom`), or for a symbol
-   *  they dropped, the id of its name when it has one. */
+   *  reseeds since then gave it (`ProgramRoot.symbolFrom`). A symbol whose id
+   *  here names a symbol with another name, as the id of a value a save of
+   *  another program holds can, or one the reseeds dropped, is the symbol of
+   *  its name, when it has one. */
   protected symbolIn(ref: SymbolRef): number | undefined {
-    if (ref.generation === this.root.generation) {
-      return ref.symbol;
+    const table = this.root.table;
+    const id =
+      ref.generation === this.root.generation
+        ? ref.symbol
+        : this.root.symbolFrom(ref.symbol, ref.generation);
+    if (
+      id !== undefined &&
+      (ref.name === null
+        ? isAnonymousSymbol(table, id)
+        : table.symbols[id] === ref.name)
+    ) {
+      return id;
     }
-    return (
-      this.root.symbolFrom(ref.symbol, ref.generation) ??
-      (ref.name === null ? undefined : this.root.table.symbolIds.get(ref.name))
-    );
+    return ref.name === null ? undefined : table.symbolIds.get(ref.name);
   }
 
   /** The function `symbol` names in the root, or null when the root defines
@@ -1411,6 +1432,16 @@ export class ProgramStory {
       this._targets.set(symbol, target);
     }
     return target;
+  }
+
+  /** The scene `symbol` names, run from the start of its flow, as the
+   *  current engine runs a knot a host evaluates as a function; or null when
+   *  `symbol` names no scene. A scene binds no parameters. */
+  protected sceneTargetOf(symbol: number): SymbolTarget | null {
+    const flow = this.root.flow(symbol);
+    return flow?.kind === SymbolKind.Scene
+      ? new SymbolTarget(symbol, { sequence: flow, entry: 0, offset: 0 }, false, 0)
+      : null;
   }
 
   /** Pushes a call frame of `type` that returns to the position, inside the
@@ -1694,45 +1725,12 @@ export class ProgramStory {
     for (let i = 0; i < arity; i++) {
       args.unshift(this._state.PopEvaluationStack());
     }
-    for (let k = 0; k < args.length; k++) {
-      const a = args[k];
-      if (a instanceof MultiValue) {
-        if (k === args.length - 1) {
-          args.splice(k, 1, ...a.values);
-        } else {
-          args[k] = a.values[0] ?? new NullValue();
-        }
-      } else if (a instanceof Void) {
-        if (k === args.length - 1) {
-          args.splice(k, 1);
-        } else {
-          args[k] = new NullValue();
-        }
-      }
-    }
+    spreadStdLibArgs(args);
     const result = entry.fn(this as unknown as Story, args);
     if (discard) {
       return;
     }
-    if (result === undefined) {
-      this._state.PushEvaluationStack(new Void());
-    } else if (Array.isArray(result)) {
-      const wrapped: AbstractValue[] = [];
-      for (const r of result) {
-        if (r instanceof InkObject) {
-          wrapped.push(r as AbstractValue);
-        } else {
-          const w = Value.Create(r);
-          if (w !== null) wrapped.push(w);
-        }
-      }
-      this._state.PushEvaluationStack(new MultiValue(wrapped));
-    } else {
-      const wrapped = result instanceof InkObject ? result : Value.Create(result);
-      if (wrapped !== null) {
-        this._state.PushEvaluationStack(wrapped);
-      }
-    }
+    pushStdLibResult(this, result);
   }
 
   /** The script and lines of the instruction running, or of the last one
