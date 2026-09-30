@@ -32,6 +32,7 @@ import { NativeFunctionCall } from "./NativeFunctionCall";
 import {
   BUILTIN_ITER_TAG,
   GLOBALS_PROXY_TAG,
+  isPureNumberStdLibOp,
   isStdLibFunctionName,
   isStdLibNamespaceName,
   luauTypeOf,
@@ -921,10 +922,16 @@ function runBuiltinCall(
     args.unshift(story.state.PopEvaluationStack());
   }
   spreadCallArgs(args);
-  pushStdLibResult(
-    story,
-    entry.fn(story, unwrapArgsForPureStdLibFn(entry, args, story, name)),
-  );
+  const values = unwrapArgsForPureStdLibFn(entry, args, story, name);
+  // A builtin of numbers given fewer arguments than it takes raises what its
+  // direct call raises (`NativeFunctionCall.Call`), once the arguments it was
+  // given are numbers; every other builtin checks its own arguments, as its
+  // direct call leaves it to.
+  if (values.length < entry.arity && isPureNumberStdLibOp(name)) {
+    const short = name.slice(name.lastIndexOf(".") + 1);
+    story.Error(`missing argument #${values.length + 1} to '${short}'`);
+  }
+  pushStdLibResult(story, entry.fn(story, values));
   return true;
 }
 

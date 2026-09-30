@@ -7,7 +7,8 @@
 // value in a local, a global or a table field, a closure, a method, a table's
 // `__call` handler, a builtin iterator (#1216), a variadic closure called by
 // name (#1217), a builtin through a value, and the functions `pcall` and a
-// metamethod call. Each case notes the line Luau shows.
+// metamethod call. Each case notes the line Luau shows, but a builtin through
+// a value that raises is compared with the direct call of its builtin.
 import "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { Story } from "../../inkjs/engine/Story";
@@ -229,5 +230,43 @@ describe("a builtin called through a value", () => {
     ["that takes any number of arguments, in a table field, counts none for a last argument that returns none", inRun(["local o = { s = select }", "local n = o.s(\"#\", g0())"], "tostring(n)"), "Got 0."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
+  });
+
+  // Each call through a value runs in a script of as many lines as the one
+  // that calls its builtin directly, so both raise from the same line. The
+  // story's JSON has no lines: its errors name the place in the compiled
+  // code, which differs between the two scripts and is left out.
+  const raisedBy = (text: string) => {
+    const { current, program, json } = shown(text);
+    const unplaced = json.map((line) =>
+      line.replace(/\(Ink Pointer -> [^)]*\)/, "(Ink Pointer)"),
+    );
+    return { current, program, json: unplaced };
+  };
+  it.each([
+    [
+      "of numbers raises a missing argument",
+      ["local f = math.abs", "local t = { 1, f() }"],
+      ["local f = nil", "local t = { 1, math.abs() }"],
+      "missing argument #1 to 'abs'",
+    ],
+    [
+      "of numbers raises an argument that is no number before a missing one",
+      ["local f = math.fmod", "local t = { 1, f(\"x\") }"],
+      ["local f = nil", "local t = { 1, math.fmod(\"x\") }"],
+      "invalid argument #1 to 'fmod' (number expected, got string)",
+    ],
+    [
+      "in a table field raises a missing argument for a last argument that returns none",
+      ["local o = { f = string.format }", "local t = { 1, o.f(\"%s\", g0()) }"],
+      ["local o = nil", "local t = { 1, string.format(\"%s\", g0()) }"],
+      "missing argument #2",
+    ],
+  ])("%s, as its direct call does", (_name, through, direct, error) => {
+    const raised = raisedBy(inRun(through));
+    expect(raised).toEqual(raisedBy(inRun(direct)));
+    for (const lines of Object.values(raised)) {
+      expect(lines.slice(1)).toEqual([expect.stringContaining(error)]);
+    }
   });
 });
