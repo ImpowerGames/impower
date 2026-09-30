@@ -121,7 +121,8 @@ const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
-const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
+const TARGET_TYPECAST =
+  "Expected identifier when parsing expression, got '::' (a type annotation takes a single ':')";
 const LUAU_COMMENT = nodeNameSet([
   "LuauBlockComment",
   "LuauDocLineComment",

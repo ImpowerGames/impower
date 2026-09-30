@@ -22,7 +22,7 @@ describe("a local target followed by `::`", () => {
       const col = statement.indexOf("::");
       // Compared without the code, so the expected text holds no error name.
       expect(syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message])).toEqual([
-        [0, col, 0, col + 2, "Expected identifier when parsing expression, got '::'"],
+        [0, col, 0, col + 2, "Expected identifier when parsing expression, got '::' (a type annotation takes a single ':')"],
       ]);
     },
   );
