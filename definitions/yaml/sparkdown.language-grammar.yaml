@@ -9461,7 +9461,10 @@ repository:
   # The closing brackets of a `LuauTypeTrailingBlockComment` that code
   # follows directly, which that rule leaves so the rules around the type
   # end before them (`b]]print(1)`). Only a statement body and a parameter
-  # list, where those rules stop, include it, and only before code.
+  # list, where those rules stop, include it, and only before code. No
+  # pattern can see the comment's opening on an earlier line, so it also
+  # matches brackets no comment opened (`]]print(1)` alone); the validator
+  # reports those, as Luau does.
   LuauTypeTrailingBlockCommentClose:
     tag: blockComment
     name: comment.block.luau

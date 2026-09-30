@@ -122,6 +122,8 @@ const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
 const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
+const STRAY_CLOSING_BRACKET =
+  "Expected identifier when parsing expression, got ']'";
 // A block comment after a type that closes on a later line is its own rule
 // (`LuauTypeTrailingBlockComment`), which differs in what it leaves after
 // its close: the whitespace before code, or, before code right after the
@@ -167,7 +169,7 @@ const IF_CLAUSE_TRIVIA = new Set([
   "LuauComment",
   "LuauLineComment",
   "LuauDocLineComment",
-  "LuauBlockComment",
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauCommaSeparator",
   "ExtraWhitespace",
   "OptionalWhitespace",
@@ -500,6 +502,17 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return false;
     }
+    // The grammar reads closing brackets before code as a trailing type
+    // comment's close wherever a statement or parameter can begin, since no
+    // pattern can see the comment's opening on an earlier line. Brackets that
+    // no such comment ends right before are Luau's first unexpected token.
+    if (name === "LuauTypeTrailingBlockCommentClose") {
+      if (!this.endsTrailingTypeComment(nodeRef.from)) {
+        this.error(annotations, STRAY_CLOSING_BRACKET, nodeRef.from, nodeRef.from + 1);
+        return true;
+      }
+      return false;
+    }
     return false;
   }
 
@@ -557,6 +570,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
     }
     return false;
+  }
+
+  /** Whether a `LuauTypeTrailingBlockComment` ends at `pos`, leaving its
+   *  closing brackets to the body there. */
+  protected endsTrailingTypeComment(pos: number): boolean {
+    let node = this.tree?.resolveInner(pos, -1) ?? null;
+    while (node && node.name !== "LuauTypeTrailingBlockComment") {
+      node = node.parent;
+    }
+    return node?.to === pos;
   }
 
   /** The end of the text before the block comments (and the whitespace around

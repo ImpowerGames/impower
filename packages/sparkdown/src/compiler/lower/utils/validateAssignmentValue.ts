@@ -19,6 +19,8 @@ const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauLineComment",
   "LuauDocLineComment",
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+  "LuauTypeTrailingBlockCommentClose",
   "LuauComment",
 ]);
 

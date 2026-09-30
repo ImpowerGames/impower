@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
+import { checkLuau } from "../luau-conformance/typecheckTestHarness";
 
 // A block comment right after a Luau type that closes on a later line
 // (#1180). The type reads it in, since its opening line cannot see what
@@ -98,6 +99,35 @@ describe("a block comment spanning lines after an operator or comma", () => {
     ["declaration's comma, with the target right after the close", body(["local a, --[[c", "]]b = 1, 4", "return a + b"]), "Value 5.\n"],
   ])("%s keeps the type or target after the close", (_name, source, output) => {
     expect(run(source)).toEqual({ errors: [], output });
+  });
+});
+
+test("a type name continued on the line after the close keeps its qualifier", () => {
+  const source = `function f(): types --[[a\nb]]\n.Button\n  return 15\nend\nQualifier {f()}.\n`;
+  expect(run(source)).toEqual({ errors: [], output: "Qualifier 15.\n" });
+});
+
+describe("closing brackets before code", () => {
+  const syntax = (source: string) =>
+    checkLuau(source).syntaxDiagnostics.map((d) => [d.line, d.column, d.endLine, d.endColumn, d.message]);
+
+  test.each([
+    ["a typed local's comment", `function f()\n  local w: number --[[a\n  b]]print(1)\n  return 5\nend\n`],
+    ["a return type's comment", `function f(): number --[[a\n  b]]print(1)\n  return 5\nend\n`],
+  ])("that close %s are not reported", (_name, source) => {
+    expect(syntax(source)).toEqual([]);
+  });
+
+  // No trailing type comment opened before them, so they are the first token
+  // Luau cannot read, and it names the first `]`.
+  test.each([
+    ["in a function body", `function f()\n]]print(1)\n  return 15\nend\n`, 1, 0],
+    ["right after a function header", `function f()]]print(1)\n  return 15\nend\n`, 0, 12],
+    ["in a parameter list", `function f(a: number, ]]b)\n  return 15\nend\n`, 0, 22],
+  ] as const)("%s with no comment before them are reported", (_name, source, line, column) => {
+    expect(syntax(source)).toEqual([
+      [line, column, line, column + 1, "Expected identifier when parsing expression, got ']'"],
+    ]);
   });
 });
 
