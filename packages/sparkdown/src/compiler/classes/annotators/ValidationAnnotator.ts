@@ -584,10 +584,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // Likewise a type annotation `:` with no type before the `;`, `,` or `=`
-    // after it; Luau names the token it found instead. After a name in a
-    // value, the `:` starts a method call, which is missing its name.
-    if (nodeRef.name === "LuauTypeAnnotationMissingType") {
+    // Likewise a type annotation `:`, or a type's `|`, `&` or `->`, with no
+    // type before the `;`, `,` or `=` after it; Luau names the token it found
+    // instead. After a name in a value, the `:` starts a method call, which is
+    // missing its name.
+    if (
+      nodeRef.name === "LuauTypeAnnotationMissingType" ||
+      nodeRef.name === "LuauTypeBinaryOperatorMissingType"
+    ) {
       const token = this.tokenAfterTrivia(nodeRef.to);
       const expected = this.isMethodColon(nodeRef.node)
         ? MISSING_METHOD_NAME
