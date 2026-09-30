@@ -32,6 +32,10 @@ function namedContainers(source: string): Record<string, unknown> {
   return (root.at(-1) ?? {}) as Record<string, unknown>;
 }
 
+// Luau's parser's error for a line of words in a function body.
+const INCOMPLETE =
+  "Incomplete statement: expected assignment or a function call";
+
 const holds = (container: unknown, text: string) =>
   JSON.stringify(container).includes(JSON.stringify(`^${text}`));
 
@@ -64,16 +68,39 @@ describe("story lines after a function declaration", () => {
     }
   });
 
-  test("the story lines of a function whose body holds them stay in the function", () => {
-    // A story line in a function's body closes the definition early, and the
-    // rest of the body follows it as chunks of its own; they are still the
-    // function's.
-    const named = namedContainers(
+  test("story lines in a function's body are each reported as an error", () => {
+    // Story lines are not allowed in a function body, which is Luau (#1158).
+    // Each one is Luau's error, and none of its words is read as a variable.
+    const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect(holds(named["greet"], "How are you?")).toBe(true);
-    expect(holds(named["A"], "Line one.")).toBe(true);
-    expect(holds(named["greet"], "Line one.")).toBe(false);
+    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
+    expect(ctx.warningMessages).toEqual([]);
+  });
+
+  test("a story line after a statement in a function's body leaves the lines after its `end` playing from the top", () => {
+    // The story line does not close the definition early, so its `end` closes
+    // it and the line after the function is in the root flow (#1093).
+    const ctx = makeRuntimeStoryFromSource(
+      `function greet()\n  local x = 1\n  How are you?\nend\nAfter it.\n`,
+    );
+    expect(ctx.errorMessages).toEqual([INCOMPLETE]);
+    // `x` is never used, which Luau's lint reports; the story line's words
+    // are not read as globals.
+    expect(
+      ctx.warningMessages.filter((m) => m.startsWith("Unknown global")),
+    ).toEqual([]);
+    const lines: string[] = [];
+    while (ctx.story.canContinue) {
+      const text = ctx.story.Continue();
+      if (text) {
+        lines.push(text);
+      }
+    }
+    expect(lines).toEqual(["After it.\n"]);
+    const root = (ctx.compiledJson as { root: unknown[] }).root;
+    const named = (root.at(-1) ?? {}) as Record<string, unknown>;
+    expect(holds(named["greet"], "After it.")).toBe(false);
   });
 
   test("lines after a function declared inside a scene stay in the scene", () => {

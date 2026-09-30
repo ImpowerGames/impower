@@ -9566,6 +9566,9 @@
           "include": "#LuauControlBlock"
         },
         {
+          "include": "#LuauStoryLine"
+        },
+        {
           "include": "#LuauExpression"
         },
         {
@@ -9581,6 +9584,22 @@
           "include": "#Newline"
         }
       ]
+    },
+    "LuauStoryLine": {
+      "match": "^((?:[^\\S\\n\\r])*)((?!(?:\\b(?:scene|branch)\\b|\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b|(?:\\b(?:end)\\b|\\b(?:do|if|for|while|repeat)\\b|\\b(?:then|elseif|else)\\b|\\b(?:break|continue)\\b|\\b(?:in)\\b|\\b(?:until)\\b|\\b(?:goto)\\b|\\b(?:return)\\b|\\b(?:and|or|not)\\b|\\b(?:define)\\b|\\b(?:local|const|function)\\b|\\b(?:require|export)\\b)|\\b(?:store|local|const)\\b|\\b(?:read|write)\\b|\\b(?:match|plural)\\b|\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b|type)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])+[A-Za-z0-9_][^\\r\\n]*?)(?=(?:[^\\S\\n\\r])*$)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "invalid",
+          "name": "invalid.illegal.luau"
+        }
+      }
     },
     "LuauSparkdownForLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",

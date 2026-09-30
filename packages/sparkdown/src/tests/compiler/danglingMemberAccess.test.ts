@@ -228,9 +228,10 @@ describe("a dangling member access (#1079)", () => {
     expect(errors.filter((d) => d.message.startsWith("Expected identifier"))).toEqual([]);
   });
 
-  // A `.` after a path with no value-position token before it is left to the
-  // rules that end a function body at a line they cannot read, and a story
-  // line in story scope never reaches the access-path rules.
+  // A `.` after a path with no value-position token before it is not a
+  // dangling access: a line of words in a function body is a story line,
+  // reported as one (#1158), and a story line in story scope never reaches
+  // the access-path rules.
   it.each([
     [
       "words at the start of a line in a function body",
@@ -254,7 +255,9 @@ describe("a dangling member access (#1079)", () => {
     ],
   ])("leaves the `.` of %s alone", (_name, source) => {
     const errors = diagnostics(compile(source)).filter((d) => d.severity === 1);
-    expect(errors).toEqual([]);
+    expect(
+      errors.filter((d) => d.message.startsWith("Expected identifier")),
+    ).toEqual([]);
   });
 
   it("leaves the story after the function in the root flow", () => {

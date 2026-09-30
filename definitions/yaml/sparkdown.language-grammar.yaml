@@ -6299,6 +6299,7 @@ repository:
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauMinusLineContinuation" }
       - { include: "#LuauControlBlock" }
+      - { include: "#LuauStoryLine" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       # Statement separator (`local x = {}; for i=1,n do ... end`).
@@ -6309,6 +6310,26 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+
+  # A line of words in a Luau body (`Hello there.`, `I will return
+  # tomorrow`). Story lines are not allowed there. No Luau statement begins
+  # with a name followed on the same line, after whitespace, by another name
+  # or a number, so such a line is taken whole, to its last non-blank
+  # character, and the validator reports Luau's error for it once, instead
+  # of the errors of reading its words as Luau; the body goes on to its own
+  # `end`. A line that goes on an expression from the line before it never
+  # reaches this rule: a trailing operator takes the line break, and a
+  # leading one is a line continuation. A first word that begins a statement
+  # or a block, a scene or a branch is left to its own rule.
+  LuauStoryLine:
+    match: ^({{WS}}*)((?!(?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)\b){{LUAU_IDENTIFIER}}{{WS}}+[A-Za-z0-9_][^\r\n]*?)(?={{WS}}*$)
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: invalid
+        name: invalid.illegal.luau
 
   # ----------------------------------------------------------------------------
   # For Loop
@@ -7950,11 +7971,10 @@ repository:
   # The lookbehind takes the `.` as a dangling accessor only after a path
   # that follows a value-position token: `=`, a comma, an opening bracket, a
   # binary or unary operator, `return`, a condition keyword, `in` or a
-  # logical operator. A line that starts with a path is left to the rules
-  # that end a function body at a line they cannot read, so a line of words
-  # in a function body (`Hello there.`) keeps that parse. Story lines are not
-  # allowed in a function body, and a line of words with a value-position
-  # token before its last word (`Well, friend.`) is reported here. A name
+  # logical operator. A line of words in a Luau body (`Hello there, friend.`)
+  # is `LuauStoryLine`, which takes the whole line before this rule is
+  # tried. A line whose first word is not followed by another (`Well,
+  # friend.`) is still read as code, and its `.` is reported here. A name
   # directly after the `.` is the member, even a keyword (`cfg.repeat`). After
   # whitespace or block comments on the same line, a reserved word is not a
   # name (`if t.a. then`) and any other name is (`t.a.--[[note]]b`); and `..`

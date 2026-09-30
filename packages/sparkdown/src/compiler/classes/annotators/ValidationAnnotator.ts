@@ -131,6 +131,11 @@ const LUAU_COMMENT = nodeNameSet([
 // ends with its line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
+// Luau's parser reports a line of words in a Luau body (`Hello there.`) at
+// its first word, the expression it read before the next name.
+const INCOMPLETE_STATEMENT =
+  "Incomplete statement: expected assignment or a function call";
+const FIRST_WORD = /^[A-Za-z_][A-Za-z0-9_]*/;
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -640,6 +645,21 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         ? NAME_ON_LATER_LINE
         : `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`;
       this.error(annotations, message, nodeRef.to - 1, nodeRef.to);
+      return annotations;
+    }
+    // A line of words in a Luau body (`Hello there.`). Luau's first error for
+    // it is reported; the errors Luau's recovery finds in the rest of its
+    // words are not.
+    if (nodeRef.name === "LuauStoryLine") {
+      const line = childNamed(nodeRef.node, "LuauStoryLine_c2");
+      const from = line?.from ?? nodeRef.from;
+      const word = FIRST_WORD.exec(this.read(from, line?.to ?? nodeRef.to));
+      this.error(
+        annotations,
+        INCOMPLETE_STATEMENT,
+        from,
+        from + (word?.[0].length ?? 0),
+      );
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau

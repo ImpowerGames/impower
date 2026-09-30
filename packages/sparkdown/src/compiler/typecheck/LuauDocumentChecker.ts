@@ -148,9 +148,11 @@ const FLOW_HEADERS = new Set(["Scene", "Branch"]);
 // a statement, the `choose`, `then` and `end` of a `choose` block, and the
 // constructs Luau has no syntax for. A `choose` block opens no scope (a
 // choice's statements run in its flow's), so the statements inside it are
-// kept where they stand.
+// kept where they stand. A story line in a Luau body is not Luau either; it
+// is reported as an error of its own.
 const SPARKDOWN_ONLY = new Set([
   "LuauExplicitStatementMark",
+  "LuauStoryLine",
   "LuauSparkdownChooseBlock_begin",
   "LuauSparkdownChooseThenClause_begin",
   "LuauSparkdownChooseBlock_end",
