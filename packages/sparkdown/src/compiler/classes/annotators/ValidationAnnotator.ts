@@ -119,8 +119,7 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
-const TARGET_TYPECAST =
-  "Expected identifier when parsing expression, got '::' (a type annotation takes a single ':')";
+const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
 const LUAU_COMMENT = nodeNameSet([
   "LuauBlockComment",
   "LuauDocLineComment",
