@@ -41,7 +41,7 @@ import {
   splitOnCommas,
   takeLineContinuation,
 } from "./utils/lineContinuation";
-import { isListCommaName } from "../utils/listCommaNames";
+import { commaLineBreakValue, isListCommaName } from "../utils/listCommaNames";
 import {
   validateAssignmentValue,
   validateReassignmentList,
@@ -842,6 +842,10 @@ function scanMultiTargetReassignment(
             trailingExprGroups.push(current);
             current = [];
           }
+          // An unindented if expression after the line break is the comma's
+          // own child (`a, g = 1,` then `if c`), and the next value.
+          const held = commaLineBreakValue(post);
+          if (held) current.push(held);
           last = post;
           post = post.nextSibling;
           continue;

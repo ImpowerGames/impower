@@ -2,7 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { isListCommaName } from "../../utils/listCommaNames";
+import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import { findOwnDeclarationName } from "./findOwnDeclarationName";
 
@@ -38,6 +38,8 @@ const CONTINUATION_BRIDGE: ReadonlySet<string> = new Set([
   "LuauLineComment",
   "LuauDocLineComment",
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+  "LuauTypeTrailingBlockCommentClose",
 ]);
 
 const SKIPPABLE: ReadonlySet<string> = new Set([
@@ -207,8 +209,10 @@ export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext):
 
 // Whether the declaration `node` ends on a comma after its `=`: its comma's
 // line break reached an unindented line, where the declaration ends, so the
-// value after the comma is on the lines that follow it. A reassignment never
-// ends there: it ends on a comma only before a statement.
+// value after the comma is on the lines that follow it. A comma's line break
+// that holds an if expression (`1,` then an unindented `if c`) has its value.
+// A reassignment never ends there: it ends on a comma only before a
+// statement.
 function endsOnValueComma(node: SyntaxNode): boolean {
   let content: SyntaxNode | null = null;
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -216,7 +220,9 @@ function endsOnValueComma(node: SyntaxNode): boolean {
   }
   let last: SyntaxNode | null = content?.lastChild ?? null;
   while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
-  if (!isListCommaName(last?.name)) return false;
+  if (!last || !isListCommaName(last.name) || commaLineBreakValue(last)) {
+    return false;
+  }
   for (let child = content?.firstChild; child; child = child.nextSibling) {
     if (child.name === "LuauVariableAssignment" && hasDescendant(child, "LuauAssignmentOperation")) {
       return true;

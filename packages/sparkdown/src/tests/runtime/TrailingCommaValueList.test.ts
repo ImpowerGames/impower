@@ -139,6 +139,53 @@ describe("Luau code: a declaration list continues after a trailing comma", () =>
     expect(text).toBe("Value 7.\n");
   });
 
+  // Luau reads an if expression after a comma wherever its line starts.
+  test.each([
+    ["indented", "    "],
+    ["unindented", ""],
+  ])("an if expression on the lines after the comma, %s", (_name, indent) => {
+    const { errors, text } = run(
+      `Value {f(true)}{f(false)}.\nfunction f(c)\n  local a, g = 1,\n${indent}if c\n${indent}then 2\n${indent}else 3\n  return g\nend\n`,
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 23.\n");
+  });
+
+  test.each([
+    [
+      "its clauses indented",
+      "  local a, g = 1,\nif c\n  then 2\n  else 3",
+      "return g",
+      "Value 2.\n",
+    ],
+    [
+      "an assignment on the line after it stays a statement",
+      "  local a, g = 1,\nif c then 2 else 3\n  g = g + 5",
+      "return g",
+      "Value 7.\n",
+    ],
+    [
+      "after comment and blank lines, with a value after it",
+      "  local a, g, h = 1, -- note\n\n  -- more\nif c then 2 else 3, 4",
+      "return g * 10 + h",
+      "Value 24.\n",
+    ],
+  ])("an unindented if expression after the comma: %s", (_name, declaration, body, expected) => {
+    const { errors, text } = run(
+      `Value {f(true)}.\nfunction f(c)\n${declaration}\n  ${body}\nend\n`,
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe(expected);
+  });
+
+  test("an unindented if after a type annotation stays an if statement", () => {
+    const { errors, text } = run(
+      "Value {f(true)}.\nfunction f(c)\n  local v: number\nif c then\n  v = 1\nend\n  return v\nend\n",
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 1.\n");
+  });
+
   test("a statement after a complete list stays its own statement", () => {
     const { errors, text } = run(local("  local a, g = 1, 2\n  g = 3", "return g"));
     expect(errors).toEqual([]);
@@ -228,6 +275,15 @@ describe("Luau code: a comma with nothing after it", () => {
       "function f()\n  for i = 1, 2 do\n    local a, g = 1,\n    continue\n  end\n  return 1\nend\nValue {f()}.\n",
     );
     expect(errorMessages).toEqual([missingValue("continue")]);
+  });
+
+  test("before the `=`, an unindented if expression after the targets' comma is a missing binding name", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f(c)\n  local a,\nif c then 2 else 3\n  return a\nend\nValue {f(true)}.\n",
+    );
+    expect(errorMessages).toEqual([
+      "Expected identifier when parsing binding name, got 'if'",
+    ]);
   });
 
   test("before a name, the targets' comma is a missing binding name", () => {

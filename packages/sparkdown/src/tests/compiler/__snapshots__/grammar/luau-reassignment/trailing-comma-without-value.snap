@@ -173,8 +173,12 @@ sparkdown [0..160]
  │   │       │   │   │   │   │       │       └─ LuauCommaLineBreak_begin_c3 61
  │   │       │   │   │   │   │       │           └─ OptionalWhitespace 61
  │   │       │   │   │   │   │       ├─ LuauCommaLineBreak_content [61..64]
- │   │       │   │   │   │   │       │   ├─ Newline [61..62]: "\n"
- │   │       │   │   │   │   │       │   └─ ExtraWhitespace [62..64]: "  "
+ │   │       │   │   │   │   │       │   └─ LuauCommaLineBreakGap [61..64]
+ │   │       │   │   │   │   │       │       ├─ LuauCommaLineBreakGap_begin 61
+ │   │       │   │   │   │   │       │       ├─ LuauCommaLineBreakGap_content [61..64]
+ │   │       │   │   │   │   │       │       │   ├─ Newline [61..62]: "\n"
+ │   │       │   │   │   │   │       │       │   └─ ExtraWhitespace [62..64]: "  "
+ │   │       │   │   │   │   │       │       └─ LuauCommaLineBreakGap_end 64
  │   │       │   │   │   │   │       └─ LuauCommaLineBreak_end 64
  │   │       │   │   │   │   └─ LuauReassignment_end 64
  │   │       │   │   │   └─ LuauElseBlock [64..85]
@@ -245,8 +249,12 @@ sparkdown [0..160]
  │   │       │   │   │       │       │       │       └─ LuauCommaLineBreak_begin_c3 82
  │   │       │   │   │       │       │       │           └─ OptionalWhitespace 82
  │   │       │   │   │       │       │       ├─ LuauCommaLineBreak_content [82..85]
- │   │       │   │   │       │       │       │   ├─ Newline [82..83]: "\n"
- │   │       │   │   │       │       │       │   └─ ExtraWhitespace [83..85]: "  "
+ │   │       │   │   │       │       │       │   └─ LuauCommaLineBreakGap [82..85]
+ │   │       │   │   │       │       │       │       ├─ LuauCommaLineBreakGap_begin 82
+ │   │       │   │   │       │       │       │       ├─ LuauCommaLineBreakGap_content [82..85]
+ │   │       │   │   │       │       │       │       │   ├─ Newline [82..83]: "\n"
+ │   │       │   │   │       │       │       │       │   └─ ExtraWhitespace [83..85]: "  "
+ │   │       │   │   │       │       │       │       └─ LuauCommaLineBreakGap_end 85
  │   │       │   │   │       │       │       └─ LuauCommaLineBreak_end 85
  │   │       │   │   │       │       └─ LuauReassignment_end 85
  │   │       │   │   │       └─ LuauElseBlock_end 85
@@ -314,8 +322,12 @@ sparkdown [0..160]
  │   │       │   │   │       │       └─ LuauCommaLineBreak_begin_c3 100
  │   │       │   │   │       │           └─ OptionalWhitespace 100
  │   │       │   │   │       ├─ LuauCommaLineBreak_content [100..103]
- │   │       │   │   │       │   ├─ Newline [100..101]: "\n"
- │   │       │   │   │       │   └─ ExtraWhitespace [101..103]: "  "
+ │   │       │   │   │       │   └─ LuauCommaLineBreakGap [100..103]
+ │   │       │   │   │       │       ├─ LuauCommaLineBreakGap_begin 100
+ │   │       │   │   │       │       ├─ LuauCommaLineBreakGap_content [100..103]
+ │   │       │   │   │       │       │   ├─ Newline [100..101]: "\n"
+ │   │       │   │   │       │       │   └─ ExtraWhitespace [101..103]: "  "
+ │   │       │   │   │       │       └─ LuauCommaLineBreakGap_end 103
  │   │       │   │   │       └─ LuauCommaLineBreak_end 103
  │   │       │   │   └─ LuauReassignment_end 103
  │   │       │   ├─ LuauReturnStatement [103..111]

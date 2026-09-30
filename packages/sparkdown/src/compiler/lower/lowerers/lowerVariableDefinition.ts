@@ -30,7 +30,7 @@ import {
   typeUnionLineValue,
   takeLineContinuation,
 } from "../utils/lineContinuation";
-import { isListCommaName } from "../../utils/listCommaNames";
+import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import {
   validateAssignmentValue,
   validateListComma,
@@ -139,8 +139,15 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
-        unresolvedComma = child;
-        unresolvedAfterAssignment = sawAssignmentOp;
+        // Before the `=` the comma separates names, so an if expression
+        // after it is the missing binding name Luau reports, not a value.
+        const value = sawAssignmentOp ? commaLineBreakValue(child) : null;
+        if (value) {
+          currentRhsGroup.push(value);
+        } else {
+          unresolvedComma = child;
+          unresolvedAfterAssignment = sawAssignmentOp;
+        }
         child = child.nextSibling;
         continue;
       }
@@ -512,7 +519,6 @@ function bareVariableNameFromAccessPath(
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
 }
 
-
 function isSkippableName(name: string): boolean {
   return (
     name === "ExtraWhitespace" ||
@@ -522,6 +528,8 @@ function isSkippableName(name: string): boolean {
     name === "LuauLineComment" ||
     name === "LuauDocLineComment" ||
     name === "LuauBlockComment" ||
+    name === "LuauTypeTrailingBlockComment" ||
+    name === "LuauTypeTrailingBlockCommentClose" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace" ||
     VARIABLE_DEFINITION_BEGIN_NAMES.has(name) ||

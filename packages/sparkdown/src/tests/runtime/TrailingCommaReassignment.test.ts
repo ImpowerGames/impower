@@ -76,6 +76,12 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     ["a length value on the next line", "  a, g = 1,\n    #t", "return g", "Value 0.\n"],
     ["a number with a leading point on the next line", "  a, g = 1,\n    .5", "return g", "Value 0.5.\n"],
     ["a value on an unindented line", "  a, g = 1,\n2", "return g", "Value 2.\n"],
+    [
+      "an if expression on an unindented line",
+      "  local c = true\n  a, g = 1,\nif c then 2 else 3",
+      "return g",
+      "Value 2.\n",
+    ],
   ])("%s", (_name, body, ret, expected) => {
     const { errors, text } = run(fn(body, ret));
     expect(errors).toEqual([]);

@@ -82,16 +82,20 @@ sparkdown [0..141]
  │   │       │   │   │   │   │       └─ LuauCommaLineBreak_begin_c3 [30..31]
  │   │       │   │   │   │   │           └─ OptionalWhitespace [30..31]: " "
  │   │       │   │   │   │   ├─ LuauCommaLineBreak_content [31..43]
- │   │       │   │   │   │   │   ├─ LuauLineComment [31..38]
- │   │       │   │   │   │   │   │   ├─ LuauLineComment_begin [31..33]
- │   │       │   │   │   │   │   │   │   ├─ LuauLineComment_begin_c1 31
- │   │       │   │   │   │   │   │   │   └─ LuauLineComment_begin_c2 [31..33]
- │   │       │   │   │   │   │   │   │       └─ LuauCommentMark [31..33]: "--"
- │   │       │   │   │   │   │   │   ├─ LuauLineComment_content [33..38]
- │   │       │   │   │   │   │   │   │   └─ LuauLineCommentContent [33..38]: " note"
- │   │       │   │   │   │   │   │   └─ LuauLineComment_end 38
- │   │       │   │   │   │   │   ├─ Newline [38..39]: "\n"
- │   │       │   │   │   │   │   └─ ExtraWhitespace [39..43]: "    "
+ │   │       │   │   │   │   │   └─ LuauCommaLineBreakGap [31..43]
+ │   │       │   │   │   │   │       ├─ LuauCommaLineBreakGap_begin 31
+ │   │       │   │   │   │   │       ├─ LuauCommaLineBreakGap_content [31..43]
+ │   │       │   │   │   │   │       │   ├─ LuauLineComment [31..38]
+ │   │       │   │   │   │   │       │   │   ├─ LuauLineComment_begin [31..33]
+ │   │       │   │   │   │   │       │   │   │   ├─ LuauLineComment_begin_c1 31
+ │   │       │   │   │   │   │       │   │   │   └─ LuauLineComment_begin_c2 [31..33]
+ │   │       │   │   │   │   │       │   │   │       └─ LuauCommentMark [31..33]: "--"
+ │   │       │   │   │   │   │       │   │   ├─ LuauLineComment_content [33..38]
+ │   │       │   │   │   │   │       │   │   │   └─ LuauLineCommentContent [33..38]: " note"
+ │   │       │   │   │   │   │       │   │   └─ LuauLineComment_end 38
+ │   │       │   │   │   │   │       │   ├─ Newline [38..39]: "\n"
+ │   │       │   │   │   │   │       │   └─ ExtraWhitespace [39..43]: "    "
+ │   │       │   │   │   │   │       └─ LuauCommaLineBreakGap_end 43
  │   │       │   │   │   │   └─ LuauCommaLineBreak_end 43
  │   │       │   │   │   └─ LuauNumericDecimal [43..44]
  │   │       │   │   │       ├─ LuauNumericDecimal_c1 [43..44]: "4"
@@ -155,19 +159,23 @@ sparkdown [0..141]
  │   │       │   │   │   │   │       └─ LuauCommaLineBreak_begin_c3 62
  │   │       │   │   │   │   │           └─ OptionalWhitespace 62
  │   │       │   │   │   │   ├─ LuauCommaLineBreak_content [62..92]
- │   │       │   │   │   │   │   ├─ Newline [62..63]: "\n"
- │   │       │   │   │   │   │   ├─ Newline [63..64]: "\n"
- │   │       │   │   │   │   │   ├─ LuauLineComment [64..87]
- │   │       │   │   │   │   │   │   ├─ LuauLineComment_begin [64..70]
- │   │       │   │   │   │   │   │   │   ├─ LuauLineComment_begin_c1 [64..68]
- │   │       │   │   │   │   │   │   │   │   └─ Whitespace [64..68]: "    "
- │   │       │   │   │   │   │   │   │   └─ LuauLineComment_begin_c2 [68..70]
- │   │       │   │   │   │   │   │   │       └─ LuauCommentMark [68..70]: "--"
- │   │       │   │   │   │   │   │   ├─ LuauLineComment_content [70..87]
- │   │       │   │   │   │   │   │   │   └─ LuauLineCommentContent [70..87]: " the second value"
- │   │       │   │   │   │   │   │   └─ LuauLineComment_end 87
- │   │       │   │   │   │   │   ├─ Newline [87..88]: "\n"
- │   │       │   │   │   │   │   └─ ExtraWhitespace [88..92]: "    "
+ │   │       │   │   │   │   │   └─ LuauCommaLineBreakGap [62..92]
+ │   │       │   │   │   │   │       ├─ LuauCommaLineBreakGap_begin 62
+ │   │       │   │   │   │   │       ├─ LuauCommaLineBreakGap_content [62..92]
+ │   │       │   │   │   │   │       │   ├─ Newline [62..63]: "\n"
+ │   │       │   │   │   │   │       │   ├─ Newline [63..64]: "\n"
+ │   │       │   │   │   │   │       │   ├─ LuauLineComment [64..87]
+ │   │       │   │   │   │   │       │   │   ├─ LuauLineComment_begin [64..70]
+ │   │       │   │   │   │   │       │   │   │   ├─ LuauLineComment_begin_c1 [64..68]
+ │   │       │   │   │   │   │       │   │   │   │   └─ Whitespace [64..68]: "    "
+ │   │       │   │   │   │   │       │   │   │   └─ LuauLineComment_begin_c2 [68..70]
+ │   │       │   │   │   │   │       │   │   │       └─ LuauCommentMark [68..70]: "--"
+ │   │       │   │   │   │   │       │   │   ├─ LuauLineComment_content [70..87]
+ │   │       │   │   │   │   │       │   │   │   └─ LuauLineCommentContent [70..87]: " the second value"
+ │   │       │   │   │   │   │       │   │   └─ LuauLineComment_end 87
+ │   │       │   │   │   │   │       │   ├─ Newline [87..88]: "\n"
+ │   │       │   │   │   │   │       │   └─ ExtraWhitespace [88..92]: "    "
+ │   │       │   │   │   │   │       └─ LuauCommaLineBreakGap_end 92
  │   │       │   │   │   │   └─ LuauCommaLineBreak_end 92
  │   │       │   │   │   └─ LuauNumericDecimal [92..93]
  │   │       │   │   │       ├─ LuauNumericDecimal_c1 [92..93]: "6"

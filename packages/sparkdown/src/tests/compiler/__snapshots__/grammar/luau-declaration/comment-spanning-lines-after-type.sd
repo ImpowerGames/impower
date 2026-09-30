@@ -1,0 +1,25 @@
+function f(): number --[[a
+  b]] print(1)
+  local w: number --[[a
+  b]] print(w)
+  local u: number --[[a
+  b]] | string = 5
+  local v: number --[==[a
+  b]==]
+  | string
+  local p: {number} --[[a
+  b]], q = {1}, 2
+  type A = --[[c
+  ]] number
+  local r, --[[c
+  ]] s = 1, 2
+  local t: number --[[a
+  b]]print(t)
+  return 5
+end
+function g(): number --[[a
+  b]]print(1)
+  local u: number --[[a
+  b]]= 5
+  return u
+end

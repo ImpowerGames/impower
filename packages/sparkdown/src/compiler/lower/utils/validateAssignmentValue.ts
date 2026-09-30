@@ -3,7 +3,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
-import { isListCommaName } from "../../utils/listCommaNames";
+import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 
 // How far past the `=` to scan for the token Luau reports as "got '<token>'".
 // Generous enough to skip whitespace, blank lines, and a trailing comment to
@@ -20,6 +20,8 @@ const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauLineComment",
   "LuauDocLineComment",
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+  "LuauTypeTrailingBlockCommentClose",
   "LuauComment",
 ]);
 
@@ -158,7 +160,9 @@ export function validateReassignmentList(
       validateListComma(last, true, ctx);
       return;
     }
-    last = child;
+    // A comma that holds its value (an unindented if expression after the
+    // line break) is followed by that value, not left without one.
+    last = commaLineBreakValue(child) ?? child;
   }
   if (!sawAssignment) return;
   const lastContinued = continuation.findLast((n) => !isInsignificant(n.name));

@@ -338,8 +338,11 @@ function isCommaContinuationLine(
 // A comma followed by a block comment and the value on its own line
 // (`1, --[[c]] 2`) does not continue the list onto another line.
 function spansLineBreak(lineBreak: SyntaxNode) {
-  const content = lineBreak.getChild("LuauCommaLineBreak_content");
-  for (let child = content?.firstChild; child; child = child.nextSibling) {
+  const gap = lineBreak
+    .getChild("LuauCommaLineBreak_content")
+    ?.getChild("LuauCommaLineBreakGap")
+    ?.getChild("LuauCommaLineBreakGap_content");
+  for (let child = gap?.firstChild; child; child = child.nextSibling) {
     if (child.name === "Newline") return true;
   }
   return false;
