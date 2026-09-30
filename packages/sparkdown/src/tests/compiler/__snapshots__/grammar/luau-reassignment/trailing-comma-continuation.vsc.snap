@@ -104,11 +104,12 @@ text.source.sparkdown [0..182]
  │           ├─ meta.parameter.luau [137..139]
  │           │   ├─ punctuation.definition.template-expression.begin.sd [137..138]: "("
  │           │   └─ punctuation.definition.template-expression.end.sd [138..139]: ")"
- │           ├─ meta.function.luau [139..148]
- │           │   ├─ punctuation.whitespace.optional.sd [139..140]: " "
- │           │   ├─ keyword.control.luau [140..146]: "return"
- │           │   ├─ punctuation.whitespace.optional.sd [146..147]: " "
- │           │   └─ constant.numeric.decimal.luau [147..148]: "6"
+ │           ├─ meta.function.body.luau [139..148]
+ │           │   └─ meta.function.luau [139..148]
+ │           │       ├─ punctuation.whitespace.optional.sd [139..140]: " "
+ │           │       ├─ keyword.control.luau [140..146]: "return"
+ │           │       ├─ punctuation.whitespace.optional.sd [146..147]: " "
+ │           │       └─ constant.numeric.decimal.luau [147..148]: "6"
  │           ├─ punctuation.whitespace.optional.sd [148..149]: " "
  │           └─ keyword.control.end.luau [149..152]: "end"
  ├─ Newline [152..153]: "\n"

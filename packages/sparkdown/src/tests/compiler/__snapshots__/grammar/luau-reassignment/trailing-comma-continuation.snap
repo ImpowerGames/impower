@@ -356,20 +356,24 @@ sparkdown [0..182]
  │   │       │   │   │       │   │   └─ LuauFunctionParameters_end [138..139]
  │   │       │   │   │       │   │       └─ LuauFunctionParameters_end_c1 [138..139]
  │   │       │   │   │       │   │           └─ PunctuationParenClose [138..139]: ")"
- │   │       │   │   │       │   └─ LuauReturnStatement [139..148]
- │   │       │   │   │       │       ├─ LuauReturnStatement_begin [139..147]
- │   │       │   │   │       │       │   ├─ LuauReturnStatement_begin_c1 [139..140]
- │   │       │   │   │       │       │   │   └─ OptionalWhitespace [139..140]: " "
- │   │       │   │   │       │       │   ├─ LuauReturnStatement_begin_c2 [140..146]
- │   │       │   │   │       │       │   │   └─ LuauControlKeyword [140..146]: "return"
- │   │       │   │   │       │       │   └─ LuauReturnStatement_begin_c3 [146..147]
- │   │       │   │   │       │       │       └─ LuauReturnStatement_begin_c3 [146..147]
- │   │       │   │   │       │       │           └─ OptionalWhitespace [146..147]: " "
- │   │       │   │   │       │       ├─ LuauReturnStatement_content [147..148]
- │   │       │   │   │       │       │   └─ LuauNumericDecimal [147..148]
- │   │       │   │   │       │       │       ├─ LuauNumericDecimal_c1 [147..148]: "6"
- │   │       │   │   │       │       │       └─ LuauNumericDecimal_c2 148
- │   │       │   │   │       │       └─ LuauReturnStatement_end 148
+ │   │       │   │   │       │   └─ LuauFunctionBody [139..148]
+ │   │       │   │   │       │       ├─ LuauFunctionBody_begin 139
+ │   │       │   │   │       │       ├─ LuauFunctionBody_content [139..148]
+ │   │       │   │   │       │       │   └─ LuauReturnStatement [139..148]
+ │   │       │   │   │       │       │       ├─ LuauReturnStatement_begin [139..147]
+ │   │       │   │   │       │       │       │   ├─ LuauReturnStatement_begin_c1 [139..140]
+ │   │       │   │   │       │       │       │   │   └─ OptionalWhitespace [139..140]: " "
+ │   │       │   │   │       │       │       │   ├─ LuauReturnStatement_begin_c2 [140..146]
+ │   │       │   │   │       │       │       │   │   └─ LuauControlKeyword [140..146]: "return"
+ │   │       │   │   │       │       │       │   └─ LuauReturnStatement_begin_c3 [146..147]
+ │   │       │   │   │       │       │       │       └─ LuauReturnStatement_begin_c3 [146..147]
+ │   │       │   │   │       │       │       │           └─ OptionalWhitespace [146..147]: " "
+ │   │       │   │   │       │       │       ├─ LuauReturnStatement_content [147..148]
+ │   │       │   │   │       │       │       │   └─ LuauNumericDecimal [147..148]
+ │   │       │   │   │       │       │       │       ├─ LuauNumericDecimal_c1 [147..148]: "6"
+ │   │       │   │   │       │       │       │       └─ LuauNumericDecimal_c2 148
+ │   │       │   │   │       │       │       └─ LuauReturnStatement_end 148
+ │   │       │   │   │       │       └─ LuauFunctionBody_end 148
  │   │       │   │   │       └─ LuauFunctionDefinition_end [148..152]
  │   │       │   │   │           ├─ LuauFunctionDefinition_end_c1 [148..149]
  │   │       │   │   │           │   └─ LuauFunctionDefinition_end_c1 [148..149]

@@ -5,6 +5,7 @@ import { type SparkdownNodeName } from "@impower/sparkdown/src/compiler/types/Sp
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { TRAILING_STATEMENT_NAMES } from "@impower/sparkdown/src/compiler/utils/trailingStatementNames";
 import { VARIABLE_DEFINITION_NAMES } from "@impower/sparkdown/src/compiler/utils/variableDefinitionNames";
+import { findOwnDeclarationName } from "@impower/sparkdown/src/compiler/lower/utils/findOwnDeclarationName";
 import { type GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/types/GrammarSyntaxNode";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type Tree } from "@lezer/common";
@@ -82,6 +83,19 @@ const LUAU_BRANCHES = nodeNameSet([
 
 const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
 
+// What may come between a declaration and a union member line that
+// continues its type: blank lines, indentation and comments.
+const UNION_LINE_BRIDGE: ReadonlySet<string> = new Set([
+  "Newline",
+  "ExtraWhitespace",
+  "Whitespace",
+  "OptionalWhitespace",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+]);
+
 // The same lookups, with the same bound, that `DeclarationAnnotator` makes
 // before it records a `var` or `param`, so an annotated declaration always
 // finds its declaring construct here.
@@ -140,9 +154,10 @@ const getSectionEnd = (tree: Tree, definition: Node) => {
 
 /**
  * The span a Luau `local` is visible in. It starts where its declaring
- * statement ends, so it is not offered in its own initializer; when the
- * grammar nests the statements that follow on the same line inside the
- * declaration (`local a = 1 return a`), it starts at the first of them. It
+ * statement's text ends, so it is not offered in its own initializer,
+ * including a function value in it; a statement that follows on the same
+ * line (`local a = 1 return a`) is the declaration's sibling and so comes
+ * after that point. It
  * ends at the end of its block (one of `LUAU_BLOCKS`), or at the next
  * branch of an `if` or arm of an alternator, and a `repeat` loop's locals
  * stay visible in its `until` condition. A local in no block, written
@@ -171,10 +186,38 @@ const getVariableScope = (
   if (!inCursorScript) {
     return null;
   }
-  let start = definition.to;
+  // A type annotation at the end of the line takes in the line breaks after
+  // it, so the definition's node can end lines after its text. Whitespace
+  // on the declaration's own line is still part of it: a cursor after
+  // `local a = ` is in the initializer.
+  const text = read(definition.from, definition.to);
+  const trimmed = text.trimEnd();
+  let start = text.slice(trimmed.length).includes("\n")
+    ? definition.from + trimmed.length
+    : definition.to;
+  // A union member line after a comment line continues the declaration's
+  // type (`local v: number` then `-- note` then `| string = 5`) and can hold
+  // its value, so the names are visible only after the last such line.
+  for (let next = definition.nextSibling; next; next = next.nextSibling) {
+    if (next.name === "LuauTypeUnionLineContinuation") {
+      const lineText = read(next.from, next.to);
+      const lineTrimmed = lineText.trimEnd();
+      start = lineText.slice(lineTrimmed.length).includes("\n")
+        ? next.from + lineTrimmed.length
+        : next.to;
+    } else if (!UNION_LINE_BRIDGE.has(next.name)) {
+      break;
+    }
+  }
+  // A statement the definition's content holds after a comma comes after
+  // the declaration, so the names are visible from it. An anonymous
+  // function there is a value, in which they are not.
   const content = definition.getChild(`${definition.name}_content`);
   for (let child = content?.firstChild; child; child = child.nextSibling) {
-    if (TRAILING_STATEMENT_NAMES.has(child.name)) {
+    if (
+      TRAILING_STATEMENT_NAMES.has(child.name) &&
+      !(child.name === "LuauFunctionDefinition" && !findOwnDeclarationName(child))
+    ) {
       start = child.from;
       break;
     }
@@ -222,6 +265,7 @@ const getVariableScope = (
 const getParameterScope = (
   tree: Tree,
   from: number,
+  read: (from: number, to: number) => string,
   inCursorScript: boolean,
 ): LocalScope | null | undefined => {
   const name = tree.resolveInner(from, 1) as Node;
@@ -238,10 +282,17 @@ const getParameterScope = (
   if (!inCursorScript) {
     return null;
   }
+  // The parameters are visible from the header's end: after the return type
+  // when there is one, which takes in the line breaks after it, so a body
+  // can open lines later and a function with no body has only its header.
+  const returnType = owner.getChild("LuauFunctionReturnType");
+  const headerEnd = returnType
+    ? returnType.from + read(returnType.from, returnType.to).trimEnd().length
+    : parameters.to;
   const body = owner.getChild("LuauFunctionBody");
   return body
-    ? { from: body.from, to: body.to }
-    : { from: parameters.to, to: owner.to };
+    ? { from: Math.min(body.from, headerEnd), to: body.to }
+    : { from: headerEnd, to: owner.to };
 };
 
 export const getDeclarationScopes = (
@@ -271,7 +322,7 @@ export const getDeclarationScopes = (
           tree && type === "var"
             ? getVariableScope(tree, cur.from, read, inCursorScript)
             : tree && type === "param"
-              ? getParameterScope(tree, cur.from, inCursorScript)
+              ? getParameterScope(tree, cur.from, read, inCursorScript)
               : undefined;
         if (localScope !== undefined) {
           // Local: visible only after its declaration and inside its block

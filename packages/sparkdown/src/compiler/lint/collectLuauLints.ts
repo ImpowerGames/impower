@@ -96,8 +96,9 @@ function statementsOf(content: SyntaxNode | null): (SyntaxNode | null)[] {
   return out;
 }
 
-/** The node whose children are a function's body statements. A multi-line
- *  body is wrapped in `LuauFunctionBody`; a one-line body is not. */
+/** The node whose children are a function's body statements. A function
+ *  with a statement in it wraps them in `LuauFunctionBody`; one with none,
+ *  and a `define` method, has no wrapper. */
 function functionBodyContent(fn: SyntaxNode): SyntaxNode | null {
   const content = contentOf(fn);
   const body = childNamed(content, "LuauFunctionBody");

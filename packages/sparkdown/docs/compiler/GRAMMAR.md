@@ -598,10 +598,11 @@ You need this when:
 Real example:
 
 ```yaml
-LuauVariableDefinition:
+LuauPropertyDefinition:
   patterns:
     - { include: "#LuauCommaLineBreak" }
     - { include: "#LuauComment" }
+    - { include: "#LuauBracketKeyAssignment" }
     - { include: "#LuauVariableAssignment" }
     - { include: "#LuauCommaSeparator" }
     - { include: "#LuauVariableDefinitionValue" }
@@ -609,9 +610,11 @@ LuauVariableDefinition:
   end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
 ```
 
-The end pattern matches almost anywhere ("end of line, or any position not followed by a comment"), so the declaration closes exactly where none of its patterns match. At the end of a line nothing matches and it closes, except after a comma that ends the line: `LuauCommaLineBreak` consumes that comma, the line break and the next line's indent (§11.5), and the list continues with the next value. Because the declaration closes only where its patterns fail, its patterns must fail at whatever may follow a line break without being a value: `LuauVariableDefinitionValue` leaves out statements, `LuauVariableAssignment` refuses a reserved word before a comma or the line's end, and `LuauAccessPath` refuses a `scene` header and a contextual declaration (`type T`, `store x`). In a narrative body the declaration is `LuauSparkdownVariableDefinition`, which has no line-break pattern and so always ends at its line.
+The end pattern matches almost everywhere: at the end of the line, and at any point a comment does not follow. Checked first, it would close the rule straight after its `begin:`. Checked last, the property's key and value and a trailing comment are read first, and the rule closes at the first point none of them can take. At the end of a line nothing matches and it closes, except after a comma that ends the line: `LuauCommaLineBreak` consumes that comma, the line break and the next line's indent (§11.5), and the list continues with the next value.
 
 **Rule of thumb:** if you find yourself reaching for negative lookaheads in the end pattern, ask first whether `applyEndPatternLast: true` would let you drop them.
+
+**The limit:** with `applyEndPatternLast`, any inner pattern that matches wins over the end, including at the start of a line. A rule that has to close at the start of the next line (§11.5, "A construct that may go on at the next line") cannot use it when one of its patterns can match there. The two declaration rules (`LuauVariableDefinition` and `LuauSparkdownVariableDefinition`) are such rules: their value patterns would read the next line's call or assignment as another value, so their shared end pattern states where a declaration goes on instead, and stops at `LUAU_DECLARATION_STOP` where a comma's line break reaches a statement. After a trailing comma, the declaration reads an indented value itself, since the line break's rule then ends past the line start; an unindented one ends the declaration at that line's start, and the lowerer carries that line in as the value (`collectLineContinuation`).
 
 The full list of rule properties lives in `packages/textmate-grammar-tree/src/grammar/types/GrammarDefinition.ts`.
 
@@ -839,6 +842,27 @@ For `if\n  a == 1 and\n  b == 2\n  then …`, the begin fires right after `if`, 
 - **A scope-end pattern like `(?=$|{{WS}})` is a single-line bound.** It terminates the scope as soon as the first whitespace or end-of-line is hit on the opening line — useful for "one-line construct" rules, fatal for "spans newlines" rules. When making a rule newline-flexible, drop the `$|{{WS}}` half of the end pattern and replace with a specific terminator (a keyword, a BEAT, a closing delimiter) so the scope can survive intermediate whitespace.
 
 > IMPORTANT: textmate-grammar-tree, the runtime parser we use for compiling scripts, happens to be more permissive than vscode's textmate highlighter — a `begin:` like `if\b\s*` can in fact consume past `\n` there. **Don't rely on that.** The same grammar ships to VS Code, where the extra match silently fails and highlighting diverges from the runtime tree.
+
+**A construct that may go on at the next line.** The Operation / Operator split works because the line ends on the operator, which says the construct goes on. A Luau type is the harder case: `local v: number?` may be the whole type, or the next line may start with `| string` and continue it as a union. Nothing on the first line decides it, and no pattern may look past the line break to find out. So the type does not end at the line break; it takes the break in and lets the next line decide:
+
+```yaml
+LuauTypeLiteral:
+  patterns:
+    - ...
+    - { include: "#LuauTypeBinaryOperation" } # `| string` on the next line
+    - ...
+    - { include: "#ExtraWhitespace" }
+    - { include: "#Newline" }
+  end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)
+```
+
+`LUAU_TYPE_LINE_BREAK` is `^{{WS}}*[^|\s]`: the start of a line with text that does not begin with `|`. Each pattern looks only at the line it is on. A line starting with `|` continues the type, a blank line is taken in as well, and any other line ends the type at its first column, before its indentation. A `--` line ends the type too, since outside Luau code `--` begins display text; in Luau code (`LuauBlockBody`), a `|` line after it still continues the type, as its own `LuauTypeUnionLineContinuation` node, which the lowerer skips (reporting one that continues no type) and whose `= value` a declaration ending in its type takes; `LuauFunctionParameters` includes it too. A block comment after a type or value that closes on its line and that code follows (`function f(): number --[[c]] g()`, `local w: number --[[a]b]] print(w)`) ends the type, the rules around it, and a declaration and its assignment when a statement follows, before the comment (`LUAU_BLOCK_COMMENT_ON_LINE`), so the body opens there after a return type. Each use checks that a type or value ends before the comment, so a comment right after an operator or comma leaves the rule going. A block comment that spans lines is read into the type; code after its close on the same line is not reached. Whitespace in the middle of a line ends the type through `LUAU_TYPE_WHITESPACE_END`, which leaves out whitespace followed by the optional-type `?` (`number ?`), since that `?` still belongs to the type.
+
+The rule applies wherever the type is. In a Sparkdown alternator block, a declaration whose type ends an arm's line (`| local x: number`) takes the next arm's `|` line in as a union member, as Luau would read those lines; give the declaration a value, or keep the type off the end of the arm's line. In the same way, a display line starting with `|` right after a declaration that ends in its type is read into the type.
+
+The cost is that every rule around a type is still open when the type ends there, so each one also needs an end at the start of the line. The rules that contain a type (`LuauTypeBinaryOperation`, `LuauTypeAnnotationOperation`, `LuauTypeAssignment`, `LuauFunctionReturnType`, `LuauDataTypeDeclaration`) end at `LUAU_TYPE_LINE_BREAK` too; a bare `^` would close `LuauTypeBinaryOperation` as it opens on an unindented `| string` line. The statements they sit in (`LuauVariableAssignment`, `LuauVariableDefinition`) end at `^`, since they only reach a line start once the type has ended. A rule that misses its line-start end takes the next line's statement as more of itself, and an unindented next line is where that shows.
+
+`LuauFunctionBody` opens right after its header: on the header's line when a statement follows there (with no whitespace needed right after the parameter list's `)`, or before a `;` or a block comment), otherwise on the line break after it. It is tried before the definition's comment rule, since a block comment right after the header begins at the same position. The name and generics end in the same characters as the header's last parameter or return type, so the body never opens right after `LUAU_FUNCTION_HEADER`, the header up to its parameter list, which `LuauFunctionParameters` also uses. A return type takes that line break in, so after one the body opens at the start of the next line. Opening on the header's line keeps every statement of the function inside the body; a body that opened at a later line start would leave the statements before it out of the function's lowering. At a line start the body opens only before a character a statement can begin with: the line-start alternative matches no text, so on a line no statement begins with (a stray `|` or `)`) it would open and close an empty body at the same position until the parser's empty-match limit stopped it.
 
 ### 11.6 A line that continues the line before it
 

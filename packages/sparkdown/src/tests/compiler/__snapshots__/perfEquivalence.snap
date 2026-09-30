@@ -23195,6 +23195,16 @@
             },
             "ev",
             {
+              "VAR?": "x"
+            },
+            0,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
+            },
+            "ev",
+            {
               "VAR?": "y"
             },
             2,
@@ -23206,6 +23216,16 @@
           "helper_1": [
             {
               "temp=": "x"
+            },
+            "ev",
+            {
+              "VAR?": "x"
+            },
+            1,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
             },
             "ev",
             {
@@ -23223,6 +23243,16 @@
             },
             "ev",
             {
+              "VAR?": "x"
+            },
+            2,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
+            },
+            "ev",
+            {
               "VAR?": "y"
             },
             2,
@@ -23234,6 +23264,16 @@
           "helper_3": [
             {
               "temp=": "x"
+            },
+            "ev",
+            {
+              "VAR?": "x"
+            },
+            3,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
             },
             "ev",
             {
@@ -29295,114 +29335,6 @@
     },
     "diagnostics": {
       "inmemory:///main.sd": [
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 45
-            },
-            "start": {
-              "character": 9,
-              "line": 45
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 50
-            },
-            "start": {
-              "character": 9,
-              "line": 50
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 55
-            },
-            "start": {
-              "character": 9,
-              "line": 55
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 60
-            },
-            "start": {
-              "character": 9,
-              "line": 60
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
         {
           "message": {
             "kind": "markdown",
@@ -133515,6 +133447,27 @@
       ],
       "helper_0.1": [
         0,
+        44,
+        2,
+        44,
+        17
+      ],
+      "helper_0.10": [
+        0,
+        45,
+        2,
+        45,
+        14
+      ],
+      "helper_0.11": [
+        0,
+        45,
+        2,
+        45,
+        14
+      ],
+      "helper_0.12": [
+        0,
         45,
         2,
         45,
@@ -133522,33 +133475,54 @@
       ],
       "helper_0.2": [
         0,
-        45,
+        44,
         2,
-        45,
-        14
+        44,
+        17
       ],
       "helper_0.3": [
         0,
-        45,
+        44,
         2,
-        45,
-        14
+        44,
+        17
       ],
       "helper_0.4": [
         0,
-        45,
+        44,
         2,
-        45,
-        14
+        44,
+        17
       ],
       "helper_0.5": [
+        0,
+        44,
+        2,
+        44,
+        17
+      ],
+      "helper_0.6": [
+        0,
+        44,
+        2,
+        44,
+        17
+      ],
+      "helper_0.7": [
         0,
         45,
         2,
         45,
         14
       ],
-      "helper_0.6": [
+      "helper_0.8": [
+        0,
+        45,
+        2,
+        45,
+        14
+      ],
+      "helper_0.9": [
         0,
         45,
         2,
@@ -133564,6 +133538,27 @@
       ],
       "helper_1.1": [
         0,
+        49,
+        2,
+        49,
+        17
+      ],
+      "helper_1.10": [
+        0,
+        50,
+        2,
+        50,
+        14
+      ],
+      "helper_1.11": [
+        0,
+        50,
+        2,
+        50,
+        14
+      ],
+      "helper_1.12": [
+        0,
         50,
         2,
         50,
@@ -133571,33 +133566,54 @@
       ],
       "helper_1.2": [
         0,
-        50,
+        49,
         2,
-        50,
-        14
+        49,
+        17
       ],
       "helper_1.3": [
         0,
-        50,
+        49,
         2,
-        50,
-        14
+        49,
+        17
       ],
       "helper_1.4": [
         0,
-        50,
+        49,
         2,
-        50,
-        14
+        49,
+        17
       ],
       "helper_1.5": [
+        0,
+        49,
+        2,
+        49,
+        17
+      ],
+      "helper_1.6": [
+        0,
+        49,
+        2,
+        49,
+        17
+      ],
+      "helper_1.7": [
         0,
         50,
         2,
         50,
         14
       ],
-      "helper_1.6": [
+      "helper_1.8": [
+        0,
+        50,
+        2,
+        50,
+        14
+      ],
+      "helper_1.9": [
         0,
         50,
         2,
@@ -133613,6 +133629,27 @@
       ],
       "helper_2.1": [
         0,
+        54,
+        2,
+        54,
+        17
+      ],
+      "helper_2.10": [
+        0,
+        55,
+        2,
+        55,
+        14
+      ],
+      "helper_2.11": [
+        0,
+        55,
+        2,
+        55,
+        14
+      ],
+      "helper_2.12": [
+        0,
         55,
         2,
         55,
@@ -133620,33 +133657,54 @@
       ],
       "helper_2.2": [
         0,
-        55,
+        54,
         2,
-        55,
-        14
+        54,
+        17
       ],
       "helper_2.3": [
         0,
-        55,
+        54,
         2,
-        55,
-        14
+        54,
+        17
       ],
       "helper_2.4": [
         0,
-        55,
+        54,
         2,
-        55,
-        14
+        54,
+        17
       ],
       "helper_2.5": [
+        0,
+        54,
+        2,
+        54,
+        17
+      ],
+      "helper_2.6": [
+        0,
+        54,
+        2,
+        54,
+        17
+      ],
+      "helper_2.7": [
         0,
         55,
         2,
         55,
         14
       ],
-      "helper_2.6": [
+      "helper_2.8": [
+        0,
+        55,
+        2,
+        55,
+        14
+      ],
+      "helper_2.9": [
         0,
         55,
         2,
@@ -133662,6 +133720,27 @@
       ],
       "helper_3.1": [
         0,
+        59,
+        2,
+        59,
+        17
+      ],
+      "helper_3.10": [
+        0,
+        60,
+        2,
+        60,
+        14
+      ],
+      "helper_3.11": [
+        0,
+        60,
+        2,
+        60,
+        14
+      ],
+      "helper_3.12": [
+        0,
         60,
         2,
         60,
@@ -133669,33 +133748,54 @@
       ],
       "helper_3.2": [
         0,
-        60,
+        59,
         2,
-        60,
-        14
+        59,
+        17
       ],
       "helper_3.3": [
         0,
-        60,
+        59,
         2,
-        60,
-        14
+        59,
+        17
       ],
       "helper_3.4": [
         0,
-        60,
+        59,
         2,
-        60,
-        14
+        59,
+        17
       ],
       "helper_3.5": [
+        0,
+        59,
+        2,
+        59,
+        17
+      ],
+      "helper_3.6": [
+        0,
+        59,
+        2,
+        59,
+        17
+      ],
+      "helper_3.7": [
         0,
         60,
         2,
         60,
         14
       ],
-      "helper_3.6": [
+      "helper_3.8": [
+        0,
+        60,
+        2,
+        60,
+        14
+      ],
+      "helper_3.9": [
         0,
         60,
         2,
@@ -157322,6 +157422,16 @@
             },
             "ev",
             {
+              "VAR?": "x"
+            },
+            0,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
+            },
+            "ev",
+            {
               "VAR?": "y"
             },
             2,
@@ -157333,6 +157443,16 @@
           "helper_1": [
             {
               "temp=": "x"
+            },
+            "ev",
+            {
+              "VAR?": "x"
+            },
+            1,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
             },
             "ev",
             {
@@ -157350,6 +157470,16 @@
             },
             "ev",
             {
+              "VAR?": "x"
+            },
+            2,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
+            },
+            "ev",
+            {
               "VAR?": "y"
             },
             2,
@@ -157361,6 +157491,16 @@
           "helper_3": [
             {
               "temp=": "x"
+            },
+            "ev",
+            {
+              "VAR?": "x"
+            },
+            3,
+            "+",
+            "/ev",
+            {
+              "temp=": "y"
             },
             "ev",
             {
@@ -163422,114 +163562,6 @@
     },
     "diagnostics": {
       "inmemory:///main.sd": [
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 45
-            },
-            "start": {
-              "character": 9,
-              "line": 45
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 50
-            },
-            "start": {
-              "character": 9,
-              "line": 50
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 55
-            },
-            "start": {
-              "character": 9,
-              "line": 55
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
-        {
-          "message": {
-            "kind": "markdown",
-            "value": "Cannot find variable named `y`"
-          },
-          "range": {
-            "end": {
-              "character": 10,
-              "line": 60
-            },
-            "start": {
-              "character": 9,
-              "line": 60
-            }
-          },
-          "relatedInformation": [
-            {
-              "location": {
-                "range": "[Circular]",
-                "uri": "inmemory:///main.sd"
-              },
-              "message": ""
-            }
-          ],
-          "severity": 2,
-          "source": "sparkdown"
-        },
         {
           "message": {
             "kind": "markdown",
@@ -267642,6 +267674,27 @@
       ],
       "helper_0.1": [
         0,
+        44,
+        2,
+        44,
+        17
+      ],
+      "helper_0.10": [
+        0,
+        45,
+        2,
+        45,
+        14
+      ],
+      "helper_0.11": [
+        0,
+        45,
+        2,
+        45,
+        14
+      ],
+      "helper_0.12": [
+        0,
         45,
         2,
         45,
@@ -267649,33 +267702,54 @@
       ],
       "helper_0.2": [
         0,
-        45,
+        44,
         2,
-        45,
-        14
+        44,
+        17
       ],
       "helper_0.3": [
         0,
-        45,
+        44,
         2,
-        45,
-        14
+        44,
+        17
       ],
       "helper_0.4": [
         0,
-        45,
+        44,
         2,
-        45,
-        14
+        44,
+        17
       ],
       "helper_0.5": [
+        0,
+        44,
+        2,
+        44,
+        17
+      ],
+      "helper_0.6": [
+        0,
+        44,
+        2,
+        44,
+        17
+      ],
+      "helper_0.7": [
         0,
         45,
         2,
         45,
         14
       ],
-      "helper_0.6": [
+      "helper_0.8": [
+        0,
+        45,
+        2,
+        45,
+        14
+      ],
+      "helper_0.9": [
         0,
         45,
         2,
@@ -267691,6 +267765,27 @@
       ],
       "helper_1.1": [
         0,
+        49,
+        2,
+        49,
+        17
+      ],
+      "helper_1.10": [
+        0,
+        50,
+        2,
+        50,
+        14
+      ],
+      "helper_1.11": [
+        0,
+        50,
+        2,
+        50,
+        14
+      ],
+      "helper_1.12": [
+        0,
         50,
         2,
         50,
@@ -267698,33 +267793,54 @@
       ],
       "helper_1.2": [
         0,
-        50,
+        49,
         2,
-        50,
-        14
+        49,
+        17
       ],
       "helper_1.3": [
         0,
-        50,
+        49,
         2,
-        50,
-        14
+        49,
+        17
       ],
       "helper_1.4": [
         0,
-        50,
+        49,
         2,
-        50,
-        14
+        49,
+        17
       ],
       "helper_1.5": [
+        0,
+        49,
+        2,
+        49,
+        17
+      ],
+      "helper_1.6": [
+        0,
+        49,
+        2,
+        49,
+        17
+      ],
+      "helper_1.7": [
         0,
         50,
         2,
         50,
         14
       ],
-      "helper_1.6": [
+      "helper_1.8": [
+        0,
+        50,
+        2,
+        50,
+        14
+      ],
+      "helper_1.9": [
         0,
         50,
         2,
@@ -267740,6 +267856,27 @@
       ],
       "helper_2.1": [
         0,
+        54,
+        2,
+        54,
+        17
+      ],
+      "helper_2.10": [
+        0,
+        55,
+        2,
+        55,
+        14
+      ],
+      "helper_2.11": [
+        0,
+        55,
+        2,
+        55,
+        14
+      ],
+      "helper_2.12": [
+        0,
         55,
         2,
         55,
@@ -267747,33 +267884,54 @@
       ],
       "helper_2.2": [
         0,
-        55,
+        54,
         2,
-        55,
-        14
+        54,
+        17
       ],
       "helper_2.3": [
         0,
-        55,
+        54,
         2,
-        55,
-        14
+        54,
+        17
       ],
       "helper_2.4": [
         0,
-        55,
+        54,
         2,
-        55,
-        14
+        54,
+        17
       ],
       "helper_2.5": [
+        0,
+        54,
+        2,
+        54,
+        17
+      ],
+      "helper_2.6": [
+        0,
+        54,
+        2,
+        54,
+        17
+      ],
+      "helper_2.7": [
         0,
         55,
         2,
         55,
         14
       ],
-      "helper_2.6": [
+      "helper_2.8": [
+        0,
+        55,
+        2,
+        55,
+        14
+      ],
+      "helper_2.9": [
         0,
         55,
         2,
@@ -267789,6 +267947,27 @@
       ],
       "helper_3.1": [
         0,
+        59,
+        2,
+        59,
+        17
+      ],
+      "helper_3.10": [
+        0,
+        60,
+        2,
+        60,
+        14
+      ],
+      "helper_3.11": [
+        0,
+        60,
+        2,
+        60,
+        14
+      ],
+      "helper_3.12": [
+        0,
         60,
         2,
         60,
@@ -267796,33 +267975,54 @@
       ],
       "helper_3.2": [
         0,
-        60,
+        59,
         2,
-        60,
-        14
+        59,
+        17
       ],
       "helper_3.3": [
         0,
-        60,
+        59,
         2,
-        60,
-        14
+        59,
+        17
       ],
       "helper_3.4": [
         0,
-        60,
+        59,
         2,
-        60,
-        14
+        59,
+        17
       ],
       "helper_3.5": [
+        0,
+        59,
+        2,
+        59,
+        17
+      ],
+      "helper_3.6": [
+        0,
+        59,
+        2,
+        59,
+        17
+      ],
+      "helper_3.7": [
         0,
         60,
         2,
         60,
         14
       ],
-      "helper_3.6": [
+      "helper_3.8": [
+        0,
+        60,
+        2,
+        60,
+        14
+      ],
+      "helper_3.9": [
         0,
         60,
         2,

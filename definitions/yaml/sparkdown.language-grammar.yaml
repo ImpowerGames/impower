@@ -311,6 +311,18 @@ variables:
   # The last character of a type: a name, a closing bracket or quote, or an
   # optional type's `?`.
   LUAU_TYPE_END: (?:[\w)}\]>"'`?])
+  # A function header up to its parameter list: a header keyword, an optional
+  # dotted or colon name path and an optional generics `<T>` run (`function`,
+  # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
+  # opens its `(` only right after one, and `LuauFunctionBody` never opens
+  # there.
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
+  # A token that a declaration's comma line break (`LuauCommaLineBreak`)
+  # can reach but that begins a statement rather than a value: a statement
+  # keyword or a type declaration. An `if` there is an if expression, as in
+  # Luau. The declaration ends before it, so it is the enclosing block's
+  # next statement.
+  LUAU_DECLARATION_STOP: (?:(?:end|else|elseif|until|return|break|continue|goto|local|store|const|do|while|repeat|for)\b|(?:export{{WS}}+)?type{{WS}}+{{LUAU_IDENTIFIER}})
   # A type end that an optional-type `?` can follow: the `>` of a function
   # type's `->` is excluded, since no type ends there.
   LUAU_TYPE_END_BEFORE_OPTIONAL: (?:[\w)}\]"'`?]|[^-]>)
@@ -320,6 +332,28 @@ variables:
   # continues the type.
   LUAU_TYPE_WHITESPACE_END: (?:{{WS}}(?!{{WS}}*(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|[&]|[|])))
   LUAU_TYPE_BINARY_OPERATORS: (?:[&]|[|]|[-][>])
+  # The start of a line that ends the type before it, and every rule that
+  # contains the type: any line with text that does not start with `|`. A
+  # line starting with `|` continues the type as a union, and a blank line
+  # keeps it open for the line after. `&` and `->` begin Sparkdown
+  # statements at the start of a line, so they end the type there.
+  LUAU_TYPE_LINE_BREAK: (?:^{{WS}}*[^|\s])
+  # A block comment that closes on its own line, with the whitespace after
+  # it. Its text may hold a `]` that does not close it (`--[[a]b]]`,
+  # `--[=[a]b]=]`). After a type or a value, when code follows it, the type,
+  # every rule around it, and a declaration end before it
+  # (`function f(): number --[[c]] g()`, `local w: number --[[c]] print(w)`).
+  # Each use checks that a type or value ends before it, so a comment after
+  # an operator or a comma (`type A = --[[c]] number`,
+  # `local a, --[[c]] b = 1, 2`) leaves the rule going.
+  LUAU_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[=*\[(?:[^\]\n]|\](?!=*\]))*\]=*\]{{WS}}*)
+  # What follows a block comment that ends a type: anything but a type
+  # operator, the `?` suffix, a qualifier or generics, or what ends the type
+  # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
+  LUAU_TYPE_CODE_AHEAD: (?![|&?.<>=,;)\]}]|[-][>]|{{WS}}|$|{{LUAU_COMMENT_START}})
+  # What follows a block comment that ends a declaration or its assignment:
+  # a word that begins a statement, not `and` or `or`.
+  LUAU_STATEMENT_CODE_AHEAD: (?=(?!(?:and|or)\b)[A-Za-z_])
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
@@ -5960,18 +5994,23 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauComment" }
-      - { include: "#LuauGenericsDeclaration" }
-      - { include: "#LuauFunctionReturnType" }
-      - { include: "#LuauFunctionDeclarationName" }
-      - { include: "#LuauFunctionParameters" }
       # `LuauFunctionBody` opens AFTER the close-paren of the param
       # list (or after a return-type annotation), so its lookbehind
       # anchors on the last header char. Keeping body in
       # its own rule lets `bare-assignment-in-body` style content
       # (e.g. `& x = expr`) parse without polluting the function-
       # header context. `LuauBlockBody` then matches statements inside.
+      # It comes before the name and parameter rules because it can open
+      # at the start of a line, where the parameter rule would take a
+      # body line such as `print(x)` as a parameter list, and before the
+      # comment rule because a block comment right after the header begins
+      # at the same position and belongs to the body.
       - { include: "#LuauFunctionBody" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnType" }
+      - { include: "#LuauFunctionDeclarationName" }
+      - { include: "#LuauFunctionParameters" }
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
@@ -5987,14 +6026,33 @@ repository:
     tag: meta
     name: meta.function.body.luau
     # Anchored: opens once the function header (params / return type)
-    # is closed and at least one newline has passed. The lookbehind takes
-    # the header's last character: the parameter list's `)` or the end of
-    # a return type (`number`, `number?`, `{number}`, `Array<T>`, `"x"`).
-    # `\n` requires the body to start on a new line. The `>` of
-    # `function f<T>` is also a type end; it stays out of the way only
-    # because params follow it on the same line. A parameter list moved to
-    # the next line is not supported with or without generics.
-    begin: (?<={{LUAU_TYPE_END}}){{WS}}*\n
+    # is closed, so every statement of the function is inside it. The
+    # lookbehind takes the header's last character: the parameter list's
+    # `)` or the end of a return type (`number`, `number?`, `{number}`,
+    # `Array<T>`, `"x"`). The body opens there when a statement follows on
+    # the same line (`function f() return 1 end`), or on the line break
+    # after it. The name and generics also end in a type-end character, so
+    # the body never opens right after `LUAU_FUNCTION_HEADER`, where
+    # `LuauFunctionParameters` opens instead (`function f (x)`,
+    # `function f<T>(x)`). A single `:` begins a return type, not a
+    # statement; `::` begins a label. Right after the parameter list's `)`
+    # the body also opens with no whitespace, before a character a statement
+    # can begin with (`function f()(g)() end`, `function f()return 1 end`);
+    # anywhere else, a statement needs whitespace before it, or the body
+    # would reopen before every character after one that closed it. It also
+    # opens before a `;` or a block comment right after the header, with or
+    # without whitespace (`function f(): number; g()`,
+    # `function f() --[[c]] g()`); left in the header, a block comment takes
+    # the whitespace after it, and the body would open only at the next
+    # statement's own whitespace, leaving the one before it out. A
+    # parameter list moved to the next line is not supported with or
+    # without generics. A return type takes in the line break after it,
+    # as any type does, so the body also opens at the start of a line,
+    # unless that line closes the function. That opening also needs the
+    # line to start with a character a statement can begin with: a line the
+    # body cannot read (a stray `|` or `)`) closes the body, and reopening
+    # it there would match nothing, again and again.
+    begin: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -6015,20 +6073,18 @@ repository:
     #     `external host(x)`; or
     #   - line-start + identifier — define-block method headers
     #     (`NAME(params)` on its own line inside LuauMethodDefinition).
-    # The earlier any-identifier lookbehind let BARE-CALL STATEMENTS
-    # in one-line function bodies match as parameter lists:
-    #   function pack(first, ...) ... table.insert(t, 1, first) ...
-    # ate `(t, 1, first)` as a bogus second param list (one-line
-    # bodies parse directly inside LuauFunctionDefinition_content
-    # where this rule stays live, since LuauFunctionBody only opens
-    # after a newline). `table.insert(` now fails the lookbehind —
-    # no header keyword before it, and it's mid-line.
-    begin: ((?<=\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
+    # Naming the header keywords, rather than accepting any identifier,
+    # keeps a call written after the header from being read as a
+    # parameter list: in
+    #   function pack(first, ...) table.insert(t, 1, first) end
+    # `table.insert(` has no header keyword before it and is mid-line.
+    begin: ((?<={{LUAU_FUNCTION_HEADER}}{{WS}}*|^{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*)[(])
     beginCaptures:
       1:
         patterns:
           - { include: "#PunctuationParenOpen" }
     patterns:
+      - { include: "#LuauTypeUnionLineContinuation" }
       - { include: "#LuauComment" }
       - { include: "#LuauVariadicParameter" }
       - { include: "#LuauFunctionParameter" }
@@ -6073,7 +6129,10 @@ repository:
       - { include: "#LuauTypeLiteral" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?=$|{{WS}})
+    # A `;` ends the return type as it ends the type, so the body opens
+    # before it (`function f(): number; g()`), and so does a block comment
+    # on its line that code follows (`function f(): number --[[c]] g()`).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{WS}}|;)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauFunctionName:
     tag: function(name)
@@ -6113,16 +6172,14 @@ repository:
     # the line break. A narrative body declares with
     # `LuauSparkdownVariableDefinition`, which ends at its line.
     #
-    # The declaration closes where none of its patterns match, so after a
-    # line break it must not match a statement: a line that starts with
-    # `end`, `else`, `until`, `return` or a `scene` header belongs to the
-    # enclosing block, and the comma before it is left without a value (the
-    # lowerer reports it, as Luau does). `LuauVariableDefinitionValue` is
-    # `LuauExpression` without its statements for that reason, and
-    # `LuauVariableAssignment` refuses a reserved word before a comma or
-    # the end of its line. A statement after a complete declaration on the
-    # same line (`local x = 5 return x`) is therefore the enclosing body's
-    # next statement.
+    # After a line break it must not take a statement: a line that starts
+    # with `end`, `else`, `until`, `return`, another statement keyword or a
+    # `scene` header belongs to the enclosing block, and the comma before it
+    # is left without a value (the lowerer reports it, as Luau does).
+    # `LuauVariableDefinitionValue` is `LuauExpression` without its
+    # statements for that reason, `LuauVariableAssignment` refuses a
+    # reserved word before a comma or the end of its line, and the end
+    # stops at `LUAU_DECLARATION_STOP`.
     #
     # Both declaration rules leave `local function`, `store function` and
     # `const function` to `LuauFunctionDefinition`, whose begin takes the
@@ -6136,19 +6193,33 @@ repository:
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauVariableDefinitionValue" }
-    applyEndPatternLast: true
-    end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+    # The definition's parts follow one another directly (a value's call
+    # arguments are a sibling `LuauParenthetical`), or after whitespace
+    # when the next part is a comment, a comma or the `=` before the values
+    # (a target with a type annotation ends before its ` = value`). It
+    # ends at whitespace before anything else, so a statement later on the
+    # line (`local x = 5 return x`) is the enclosing body's next statement;
+    # at a `;` or a closing bracket; at the end of the line; before a
+    # statement that a comma's line break reaches; and at the start of the
+    # next line, where the line break was taken in by a type annotation
+    # that could have gone on as a union. That last end has to win over the
+    # patterns, which would read the next line's call or assignment as a
+    # value, so the end is checked before the patterns are. After a
+    # trailing comma, an indented value is read here, since
+    # `LuauCommaLineBreak` then ends past the line start; an unindented one
+    # ends the declaration, and the lowerer carries that line in as the
+    # value (`collectLineContinuation`).
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
 
   # The declaration in a narrative body (the root, a scene, or a sparkdown
   # `if`, loop or `choose` around dialogue and actions, and an `&`
   # statement). It ends at its line: the next line is prose, never a
   # continued value, so a comma that ends the line is left without a value
-  # and the lowerer reports it. Its content is the base declaration's, so a
-  # statement after it on the same line (`& local x = 5 return`) stays
-  # inside it, where the lowerer reads it as a trailing statement. A second
-  # declaration on the line is this rule too, ahead of the Luau declaration
-  # `LuauExpression` reaches, so it also ends at the line
-  # (`store a = 1 local b = 2,`).
+  # and the lowerer reports it. It ends as the Luau declaration does, so a
+  # statement after it on the same line (`& local x = 5 return`) is the
+  # body's next statement. A second declaration on the line is this rule
+  # too, ahead of the Luau declaration `LuauExpression` reaches, so it also
+  # ends at the line (`store a = 1 local b = 2,`).
   LuauSparkdownVariableDefinition:
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b(?!{{WS}}*function\b)({{WS}}*)
     beginCaptures:
@@ -6169,8 +6240,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
-    applyEndPatternLast: true
-    end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
@@ -6252,11 +6322,11 @@ repository:
     # multi-RHS values. Previously the VA's own `LuauCommaSeparator`
     # pattern consumed the comma and an `ERROR_INCOMPLETE` followed —
     # the trailing RHS values were silently dropped from the tree.
-    # Terminate before `;` too, so `local x = f();` closes this rule and
-    # `LuauVariableDefinition` before the `;`, which the enclosing
+    # `^` ends it at the next line when its type annotation took in the
+    # line break. Terminate before `;` too, so `local x = f();` closes this
+    # rule and `LuauVariableDefinition` before the `;`, which the enclosing
     # statement context reads as `LuauSemicolonSeparator`.
-    # A line start ends it as it ends `LuauAssignmentOperation`.
-    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;])
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -6335,6 +6405,7 @@ repository:
   # author writes one we'd rather highlight it than emit an `UNRECOGNIZED`.
   LuauBlockBody:
     patterns:
+      - { include: "#LuauTypeUnionLineContinuation" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauMinusLineContinuation" }
@@ -7887,6 +7958,29 @@ repository:
   # (`{ a,` then `[2] = b }`), so `LuauTable` leaves this rule out; every other
   # context that includes `LuauLineContinuation` includes it. A `[[` or `[=[`
   # line begins a long string.
+  # A line of Luau code that begins with `|` continues, as a union member,
+  # the type that ended an earlier line, when a comment-only line came
+  # between (`local v: number` then `-- note` then `| string`). A type takes
+  # in blank lines and a `|` line itself, but a `--` line ends it
+  # (`LUAU_TYPE_LINE_BREAK`), since outside Luau code a `--` line is story
+  # text. Only `LuauBlockBody` and `LuauFunctionParameters` include this rule:
+  # in a narrative body a `|` line is an alternator arm. Types do not reach the runtime, so the
+  # lowerer skips the line, and a declaration that ended before it takes the
+  # `= value` the line ends with.
+  LuauTypeUnionLineContinuation:
+    begin: ^({{WS}}*)(?=[|](?![|]))
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauTypeBinaryOperation" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauComment" }
+    # It ends where its type does: at the next line of code, the line's end,
+    # or a comma or closing bracket (`| string)` in a parameter list).
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|[,;)\]}])
+
   LuauIndexerLineContinuation:
     begin: ^({{WS}}*)(?={{LUAU_INDEXER_LINE_CONTINUATION}})
     beginCaptures:
@@ -9179,12 +9273,12 @@ repository:
     # statements that ends at its own `end`. The body runs only while types
     # are checked, so the compiler emits nothing for the declaration.
     patterns:
+      - { include: "#LuauFunctionBody" }
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauTypeFunctionName" }
       - { include: "#LuauFunctionParameters" }
-      - { include: "#LuauFunctionBody" }
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
     endCaptures:
@@ -9237,7 +9331,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
       - { include: "#LuauTypeAssignment" }
-    end: (?={{BEAT}})|(?={{WS}}*(?:$|(?!{{LUAU_COMMENT_START}}|{{LUAU_IDENTIFIER}}|[=])))
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|{{WS}}*(?:$|(?!{{LUAU_COMMENT_START}}|{{LUAU_IDENTIFIER}}|[=])))
 
   LuauTypeAssignment:
     begin: ([=])({{WS}}*)
@@ -9252,7 +9346,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauTypeAssignmentOperator:
     match: ([=])({{WS}}*)
@@ -9324,7 +9418,17 @@ repository:
       - { include: "#LuauTypeofFunction" }
       - { include: "#LuauVariadicType" }
       - { include: "#LuauTypeName" }
-    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+      # A type goes on across the line break (GRAMMAR.md §11.5): the
+      # whitespace before it and the line break are the type's own, and
+      # the next line either continues it with `|` or ends it at its start.
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    # Whitespace in the middle of a line ends the type, unless a type
+    # operator has taken it in or the optional-type suffix follows it
+    # (`number ?`); whitespace before the line break does not. It also ends
+    # before a block comment on its line that code follows
+    # (`function f(): number --[[c]] g()`, see `LUAU_BLOCK_COMMENT_ON_LINE`).
+    end: (?={{BEAT}})|(?=[,;)\]}>=]|{{LUAU_TYPE_LINE_BREAK}})|(?<=\S)(?={{LUAU_TYPE_WHITESPACE_END}}{{WS}}*\S)|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   # `->` as a type annotation marks the parameter as carrying a
   # divert-target value (sparkdown's analogue of ink's typed-divert
@@ -9347,8 +9451,9 @@ repository:
   # whitespace, because a block comment between the type and the `?` has
   # already taken it in. It takes in the whitespace after it only when a
   # binary operator follows on the same line (`number? | string`,
-  # `local u: number? = 1`), so a line break or the next statement's first
-  # word is never read as part of the type. The `>` of a function type's `->`
+  # `local u: number? = 1`), so it never takes in the next statement's
+  # first word. Whether the next line continues the type is decided by
+  # LuauTypeLiteral, as for any other type. The `>` of a function type's `->`
   # ends no type, so a `?` after it falls to the stray-operator rule; the
   # lookbehind spells that out as `[^-]>` because VS Code's regex engine
   # refuses a lookbehind nested in another.
@@ -9388,7 +9493,7 @@ repository:
       - { include: "#LuauTypeBinaryOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   # A `|`, `&` or `->` with no type before the `;`, `,` or `=` after it
   # (`local m: number | = 1`), read as one token as
@@ -9436,7 +9541,7 @@ repository:
       - { include: "#LuauTypeAnnotationOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_TYPE_CODE_AHEAD}})
 
   LuauTypeAnnotationOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)
