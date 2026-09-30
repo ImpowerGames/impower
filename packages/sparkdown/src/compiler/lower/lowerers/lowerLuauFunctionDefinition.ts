@@ -27,6 +27,7 @@ import {
   collectImmediateBodyDeclarations,
   countUserParameters,
   scanFreeVariables,
+  shadowSiblingSubFlow,
 } from "../expression/lowerExpression";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
@@ -342,7 +343,9 @@ function lowerNestedNamedFunction(
     return wrapInWeave([assignClosure]);
   }
 
-  // Local (or no enclosing hoist buffer — top-level chunk).
+  // Local (or no enclosing hoist buffer — top-level chunk). The local
+  // hides a variadic function of its name for the rest of its block.
+  shadowSiblingSubFlow(selfName, ctx);
   if (isSelfReferential) {
     const declareNil = new VariableAssignment({
       variableIdentifier: new Identifier(selfName),

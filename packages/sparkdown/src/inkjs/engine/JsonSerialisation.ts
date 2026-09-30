@@ -432,6 +432,10 @@ export class JsonSerialisation {
         writer.WriteIntProperty("exArgs", divert.externalArgs);
       }
 
+      if (divTypeKey === "f()" && divert.callArgCount >= 0) {
+        writer.WriteIntProperty("argc", divert.callArgCount);
+      }
+
       writer.WriteObjectEnd();
       return;
     }
@@ -1195,6 +1199,10 @@ export class JsonSerialisation {
         if (external) {
           if ((propValue = obj["exArgs"]))
             divert.externalArgs = parseInt(propValue);
+        }
+
+        if ("argc" in obj) {
+          divert.callArgCount = parseInt(obj["argc"]);
         }
 
         return divert;

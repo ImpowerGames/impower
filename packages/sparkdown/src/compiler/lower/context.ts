@@ -279,6 +279,15 @@ export interface LowerContext {
    */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
   /**
+   * The blocks being lowered, the innermost last: each `lowerStatements`
+   * call pushes one, with what to undo when the block ends. A `local`
+   * declared in a block hides a sibling subflow of its name in the same
+   * function for the rest of the block, as Luau scopes a local, and the
+   * subflow is visible again after it (`shadowSiblingSubFlow`). Absent for
+   * callers that lower no function bodies.
+   */
+  blockEndStack?: (() => void)[][];
+  /**
    * The statements whose lowering is running, the innermost last, with the
    * top-level statement at the bottom (see `StatementShape`). Given by the
    * compilation annotator when statement chunks are on; `lowerStatements`

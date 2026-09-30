@@ -20,12 +20,19 @@ import {
   type SymbolKindValue,
 } from "../../program/ProgramSymbols";
 import { ProgramStory } from "../../program/ProgramStory";
+import { cumulativeEdits } from "./cumulativeEdits";
+import { FUNCTION_INSERTS, functionScreenplay } from "./functionScreenplay";
 import {
   describeRoot,
   programCompiler,
   rootChunks,
   storyBeats,
 } from "./programHarness";
+import {
+  programStatements,
+  uniqueKeys,
+  untouchedChunks,
+} from "./programStatements";
 
 const MAIN = "inmemory:///main.sd";
 const CHARACTERS = "inmemory:///scripts/characters.sd";
@@ -674,5 +681,63 @@ describe("a name a chunk reads", () => {
     const cold = programCompiler({ [MAIN]: text + added }, { programChunks: true }).compile().program;
     expect(cold.fallback?.construct).toBe("read count");
     expect(program.fallback).toEqual(cold.fallback);
+  });
+});
+
+describe("a statement an edit moves past the statements that keep their chunks", () => {
+  // The cumulative fuzz of the function screenplay (programDifferential)
+  // replayed through the edits after which its seeds 12345 and 99991 found
+  // untouched statements emitted again (#1221): a scene header broken by a
+  // function inserted into it, which moves the scene's statements into the
+  // flow above past statements that keep their chunks; a function defined
+  // twice; a function in a `do` block; an `end` inserted above a closure's
+  // statement; and a scene's `if` block, a line and `done` after an edit to
+  // the scene.
+  it.each([
+    [12345, 104],
+    [99991, 77],
+  ])("keeps its chunk through the cumulative fuzz's edits with seed %i", (seed, count) => {
+    const { warn, error } = console;
+    console.warn = console.error = () => {};
+    try {
+      let text = functionScreenplay(3);
+      const c = programCompiler({ [MAIN]: text }, { programChunks: true });
+      c.compile();
+      let keysBefore = uniqueKeys(programStatements(c.compiler));
+      const edits = cumulativeEdits(seed, FUNCTION_INSERTS);
+      const emittedAgain: string[] = [];
+      // Whether the compile before the edit built chunks, so that its root is
+      // the one the edit's untouched statements keep their chunks from.
+      let previousChunked = true;
+      for (let n = 0; n < count; n++) {
+        const { offset, end, insert } = edits.next(text);
+        const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
+        c.compiler.updateDocument({
+          textDocument: { uri: MAIN, version: n + 2 },
+          contentChanges: [
+            { range: { start: posAt(text, offset), end: posAt(text, end) }, text: insert },
+          ],
+        });
+        text = text.slice(0, offset) + insert + text.slice(end);
+        const { program } = c.compile();
+        const untouched = program.chunks
+          ? untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore)
+          : [];
+        keysBefore = uniqueKeys(programStatements(c.compiler));
+        if (program.chunks && previousChunked) {
+          const held = new Set(rootChunks(program.chunks));
+          const again = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
+          if (again.length) {
+            emittedAgain.push(`#${n}: ${again.length}`);
+          }
+        }
+        previousChunked = !!program.chunks;
+        edits.built(!!program.chunks);
+      }
+      expect(emittedAgain).toEqual([]);
+    } finally {
+      console.warn = warn;
+      console.error = error;
+    }
   });
 });

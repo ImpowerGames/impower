@@ -428,6 +428,10 @@ export function lowerStatements(
   body?: BodyShape,
 ): ParsedObject[] {
   if (!parent) return [];
+  // The block is on the context's block stack while its statements lower:
+  // what its `local`s hide is undone when it ends (`blockEndStack`). No
+  // frame is added for it, since a block nests this function once per level.
+  ctx.blockEndStack?.push([]);
   const result: ParsedObject[] = [];
   // Each statement of a block's body is recorded with the objects it
   // lowered to (see `StatementShape`), when the context keeps shapes.
@@ -482,6 +486,7 @@ export function lowerStatements(
   }
   ctx.lineContinuation = enclosingContinuation;
   ctx.usedLineContinuations = enclosingUsed;
+  ctx.blockEndStack?.pop()?.forEach((end) => end());
   return result;
 }
 

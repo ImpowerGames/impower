@@ -19,11 +19,7 @@ import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
 import { DivertTarget } from "./DivertTarget";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import {
-  ConstValue,
-  LEAVE_CONTINUE,
-  Op,
-} from "../../../../../program/ProgramInstructions";
+import { LEAVE_CONTINUE, Op } from "../../../../../program/ProgramInstructions";
 import { loopExitOf } from "../../../../../compiler/lower/utils/statementShape";
 
 export class Divert extends ParsedObject {
@@ -126,11 +122,13 @@ export class Divert extends ParsedObject {
 
   /** A function call's code: its arguments, then the call. A function the
    *  compile found is called by its symbol (`Call`), with a pointer for each
-   *  argument it takes by reference and, for a variadic function, nil for
-   *  each fixed parameter the call leaves out and the extra arguments packed
-   *  into the one value its `...` binds, as `GenerateRuntimeObject` pushes
-   *  them. A name that is no function the compile found is read as a
-   *  variable when the call runs (`CallVar`), whatever it holds then. */
+   *  argument it takes by reference, as `GenerateRuntimeObject` pushes them.
+   *  A name that is no function the compile found is read as a variable
+   *  when the call runs (`CallVar`), whatever it holds then. Both carry the
+   *  number of arguments written, and the call arranges those arguments for
+   *  the function it enters: its parameters, the surplus dropped and the
+   *  missing nil, or for a variadic function its fixed parameters with the
+   *  rest packed into the one value its `...` binds. */
   public EmitCall(emitter: ProgramEmitter): void {
     const target = this.targetContent;
     const variable = this._runtimeDivert?.variableDivertName;
@@ -150,9 +148,6 @@ export class Divert extends ParsedObject {
       emitter.unsupported(this.typeName);
     }
     const params = flow.args ?? [];
-    const variadic =
-      params.length > 0 && !!params[params.length - 1]!.isVararg;
-    const fixed = variadic ? params.length - 1 : params.length;
     this.args.forEach((arg, i) => {
       const param = i < params.length ? params[i]! : null;
       if (param?.isByReference && !param.isVararg) {
@@ -165,12 +160,6 @@ export class Divert extends ParsedObject {
         emitter.emitObject(arg);
       }
     });
-    if (variadic) {
-      for (let p = this.args.length; p < fixed; p += 1) {
-        emitter.emit(Op.Const, 0, ConstValue.Nil);
-      }
-      emitter.emit(Op.Pack, Math.max(0, this.args.length - fixed));
-    }
     const symbol = emitter.functionSymbol(flow);
     emitter.reference(symbol);
     emitter.emit(Op.Call, symbol, this.args.length);
@@ -178,7 +167,8 @@ export class Divert extends ParsedObject {
 
   /** How a function call's target resolved, as the chunk of its statement
    *  records it: a variable read when the call runs, or a function and the
-   *  kind of each of its parameters, which decide the call's code. */
+   *  kind of each of its parameters (the call passes a by-reference one a
+   *  pointer at its argument). */
   get callResolutionKey(): string {
     const name = this.target?.dotSeparatedComponents ?? "";
     const variable = this._runtimeDivert?.variableDivertName;
@@ -218,10 +208,14 @@ export class Divert extends ParsedObject {
 
     this.CheckArgumentValidity();
 
-    // Passing arguments to the knot. Even with zero call-site args,
-    // a variadic target needs a `PackTuple(0)` emitted so the
-    // function-entry binding still pops a (empty) `MultiValue` into
-    // the `__varargs__` slot.
+    // Passing arguments to the knot. A function call arranges its
+    // arguments for the function it enters when it runs, whichever
+    // function that is, as Luau does (`callArgCount`, the number the call
+    // site pushes): the surplus dropped and the missing nil, or a variadic
+    // function's extras packed for its `...`. A divert, tunnel or thread
+    // to a variadic flow packs them here: even with zero args, it needs a
+    // `PackTuple(0)` emitted so the flow's entry binding still pops a
+    // (empty) `MultiValue` into the `__varargs__` slot.
     let targetArgumentsPreview: Argument[] | null = null;
     if (this.targetContent) {
       targetArgumentsPreview = (this.targetContent as FlowBase).args;
@@ -230,8 +224,12 @@ export class Divert extends ParsedObject {
       !!targetArgumentsPreview &&
       targetArgumentsPreview.length > 0 &&
       !!targetArgumentsPreview[targetArgumentsPreview.length - 1]!.isVararg;
+    const packsArguments = targetIsVariadicPreview && !this.isFunctionCall;
+    if (this.isFunctionCall) {
+      this.runtimeDivert.callArgCount = this.args.length;
+    }
     const requiresArgCodeGen =
-      (this.args !== null && this.args.length > 0) || targetIsVariadicPreview;
+      (this.args !== null && this.args.length > 0) || packsArguments;
     if (
       requiresArgCodeGen ||
       this.isFunctionCall ||
@@ -256,14 +254,14 @@ export class Divert extends ParsedObject {
         const targetArguments: Argument[] | null = targetArgumentsPreview;
 
         // Variadic target detection: if the target's last formal arg
-        // is marked `isVararg`, we pack the surplus call-site args
-        // into a single `MultiValue` via `PackTuple(extra)` after
-        // they've all been pushed. The function entry then binds N+1
-        // params normally — regular args plus one `__varargs__` slot
-        // receiving the packed MultiValue. Surplus is computed as
-        // `args.length - regular_arity` (clamped to 0+). Caller may
-        // supply fewer args than the regular arity, in which case the
-        // vararg slot gets `PackTuple(0)` → empty `MultiValue`.
+        // is marked `isVararg`, a divert that is no function call packs
+        // the surplus args into a single `MultiValue` via
+        // `PackTuple(extra)` after they've all been pushed. The flow's
+        // entry then binds N+1 params normally — regular args plus one
+        // `__varargs__` slot receiving the packed MultiValue. Surplus is
+        // computed as `args.length - regular_arity` (clamped to 0+). The
+        // divert may supply fewer args than the regular arity, in which
+        // case the vararg slot gets `PackTuple(0)` → empty `MultiValue`.
         const targetIsVariadic =
           !!targetArguments &&
           targetArguments.length > 0 &&
@@ -279,6 +277,9 @@ export class Divert extends ParsedObject {
         // targets still hit `CheckArgumentValidity`'s strict check.
         const nullPadding = Math.max(0, regularArity - argsToPush.length);
 
+        // How many args are pushed: a by-reference error below stops the
+        // pushes, and a function call arranges the args it pushed.
+        let pushed = 0;
         for (let ii = 0; ii < argsToPush.length; ++ii) {
           const argToPass: Expression = argsToPush[ii]!;
           let argExpected: Argument | null = null;
@@ -324,9 +325,12 @@ export class Divert extends ParsedObject {
             // Normal value being passed: evaluate it as normal
             argToPass.GenerateIntoContainer(container);
           }
+          pushed += 1;
         }
 
-        if (targetIsVariadic) {
+        if (this.isFunctionCall) {
+          this.runtimeDivert.callArgCount = pushed;
+        } else if (targetIsVariadic) {
           // Push `NullValue` for any regular params the caller
           // under-supplied. They land BETWEEN the regular pushed
           // args and the soon-to-be-packed vararg slot; the

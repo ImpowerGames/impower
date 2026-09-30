@@ -29,6 +29,7 @@ import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Ex
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
+import { cumulativeEdits } from "../program/cumulativeEdits";
 import {
   FUNCTION_INSERTS,
   functionScreenplay,
@@ -387,8 +388,16 @@ describe("randomized incremental edits on the statement chunks", () => {
 
   // As `incrementalCumulativeEquivalence` runs its fuzz: many edits through
   // one compiler, each compared with a cold compile of the text it leaves.
-  for (const [index, screenplay] of SCREENPLAYS.entries()) {
-    it(`keeps the chunks of a cold compile through many edits of ${screenplay.name} by one compiler`, () => {
+  // The function screenplay runs besides with the seeds that found statements
+  // an edit moved past the ones keeping their chunks (#1221).
+  const cumulativeRuns = SCREENPLAYS.flatMap((screenplay, index) =>
+    [
+      0x51ed694 + index,
+      ...(screenplay.inserts === FUNCTION_INSERTS ? [12345, 99991] : []),
+    ].map((seed, run) => ({ screenplay, seed, run })),
+  );
+  for (const { screenplay, seed, run } of cumulativeRuns) {
+    it(`keeps the chunks of a cold compile through many edits of ${screenplay.name} by one compiler${run === 0 ? "" : `, with seed ${seed}`}`, () => {
       const quiet = silence();
       try {
         let text = screenplay.text();
@@ -396,11 +405,7 @@ describe("randomized incremental edits on the statement chunks", () => {
         c.compile();
         let keysBefore = keysOf(c.compiler);
         const failures: string[] = [];
-        let seed = 0x51ed694 + index;
-        const rand = () => {
-          seed = (seed * 1103515245 + 12345) & 0x7fffffff;
-          return seed / 0x7fffffff;
-        };
+        const edits = cumulativeEdits(seed, screenplay.inserts);
         let chunked = 0;
         // The untouched statements the edits' checks covered.
         let checked = 0;
@@ -409,17 +414,9 @@ describe("randomized incremental edits on the statement chunks", () => {
         let previousChunked = true;
         // An edit that made the program fall back is undone by the next edit,
         // so the run spends most of its edits on a program that has its chunks.
-        let undo: { offset: number; length: number; text: string } | undefined;
         const EDITS = 120;
         for (let n = 0; n < EDITS; n++) {
-          let insert = screenplay.inserts[Math.floor(rand() * screenplay.inserts.length)]!;
-          let deleted = rand() < 0.4 ? 1 + Math.floor(rand() * 10) : 0;
-          let offset = Math.floor(rand() * text.length);
-          if (undo) {
-            ({ offset, length: deleted, text: insert } = undo);
-          }
-          const end = Math.min(offset + deleted, text.length);
-          undo = { offset, length: insert.length, text: text.slice(offset, end) };
+          const { offset, end, insert, deleted } = edits.next(text);
           const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
           c.compiler.updateDocument({
             textDocument: { uri: MAIN_URI, version: n + 2 },
@@ -455,9 +452,7 @@ describe("randomized incremental edits on the statement chunks", () => {
             }
           }
           previousChunked = !!incremental.chunks;
-          if (incremental.chunks) {
-            undo = undefined;
-          }
+          edits.built(!!incremental.chunks);
         }
         expect(failures, failures.join("\n")).toEqual([]);
         expect(chunked).toBeGreaterThan(EDITS / 3);

@@ -444,6 +444,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // these names from inner closures must skip upval capture so the
       // call site resolves via FunctionCall + static `PackTuple`.
       const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
+      // Per-chunk stack of the blocks being lowered, each with what its end
+      // undoes (`LowerContext.blockEndStack`).
+      const blockEndStack: (() => void)[][] = [];
       const callableNames = this.computeGlobalCallableNames();
       const globalCallableReads = new Map<string, boolean>();
       const typeNames = this.computeDefineTypeNames();
@@ -514,6 +517,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
+        blockEndStack,
       };
       let lowered = lower(nodeRef, ctx);
       // The Luau blocks this chunk's own nodes show to be left open. A chunk

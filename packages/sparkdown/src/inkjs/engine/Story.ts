@@ -39,6 +39,7 @@ import {
   lookupStateAwareStdLib,
   stepBuiltinIterator,
   unwrapArgsForPureStdLibFn,
+  type StdLibEntry,
 } from "./StdLib";
 import { EXECUTION_WATCH_STEPS, executionWatch } from "./ExecutionWatch";
 import { StepLimitExceeded, StoryException } from "./StoryException";
@@ -94,11 +95,35 @@ class ContainerTarget implements FunctionTarget {
     readonly path: Path | null = null,
   ) {}
   get variadic(): boolean {
-    return containerIsVariadic(this.container);
+    return containerBindings(this.container).variadic;
   }
   get bindings(): number {
-    return countLeadingParamBindings(this.container);
+    return containerBindings(this.container).bindings;
   }
+}
+
+// The parameter bindings of each function container a call has entered. A
+// container's content is fixed once generated (a compile that changes the
+// function generates a new container), so every call reads them once.
+const CONTAINER_BINDINGS = new WeakMap<
+  object,
+  { variadic: boolean; bindings: number }
+>();
+
+function containerBindings(container: any): {
+  variadic: boolean;
+  bindings: number;
+} {
+  if (!container) return { variadic: false, bindings: 0 };
+  let known = CONTAINER_BINDINGS.get(container);
+  if (!known) {
+    known = {
+      variadic: containerIsVariadic(container),
+      bindings: countLeadingParamBindings(container),
+    };
+    CONTAINER_BINDINGS.set(container, known);
+  }
+  return known;
 }
 
 // If `callTarget` is a closure `ObjectValue` (the shape produced by
@@ -546,54 +571,72 @@ function tryUnaryMetamethod(
   return (results && results[0]) || new NullValue();
 }
 
-// Returns true if the container's first content op is a vararg-slot
-// parameter binding — i.e. the target function declared `...` as a
-// parameter. Used by the multi-return spread logic to skip spreading
-// for variadic targets (whose extras have already been packed into a
-// `MultiValue` by `PackTuple` at the call site).
+// A function container's content starts with its parameter bindings, one
+// `VariableAssignment` per parameter, which its entry pops off the eval stack
+// (`FlowBase.GenerateArgumentVariableAssignments` writes them before anything
+// else), the vararg slot first for a function that declared `...`. A function
+// with no parameters starts with its body, which can begin with an assignment
+// too (`local t = {}` is a table's commands and then one), so only the run
+// from the first item binds parameters.
+const isParamBinding = (item: unknown): boolean =>
+  typeof (item as { isVarargsSlot?: boolean } | null)?.isVarargsSlot ===
+  "boolean";
+
+// Whether the function declared `...`. Used by the multi-return spread logic
+// to skip spreading for variadic targets (whose extras have already been
+// packed into a `MultiValue` by `PackTuple` at the call site).
 function containerIsVariadic(target: any): boolean {
-  if (!target) return false;
-  const content = target._content;
-  if (!Array.isArray(content)) return false;
-  for (const item of content) {
-    const va = item as { isVarargsSlot?: boolean; variableName?: string };
-    if (va && typeof va.isVarargsSlot === "boolean") {
-      return va.isVarargsSlot === true;
-    }
-    // Skip non-VariableAssignment items (the function entry binding
-    // is the first content); bail out if we hit a different kind of
-    // op to keep the scan O(1)-ish.
-    if (item && (item as any).commandType !== undefined) {
-      continue;
-    }
-    break;
-  }
-  return false;
+  const first = target?._content?.[0];
+  return isParamBinding(first) && first.isVarargsSlot === true;
 }
 
-// Count the leading parameter-binding `VariableAssignment` ops in a
-// function container's content — the slots its entry bytecode pops
-// off the eval stack. Skips any leading ControlCommands (mirroring
-// `containerIsVariadic`'s scan) and stops at the first non-VA item
-// after the run starts. For a variadic function the count INCLUDES
-// the `__varargs__` slot.
+// How many values the function's entry binds, the `__varargs__` slot of a
+// variadic function included.
 function countLeadingParamBindings(target: any): number {
-  if (!target) return 0;
-  const content = target._content;
+  const content = target?._content;
   if (!Array.isArray(content)) return 0;
   let n = 0;
-  for (const item of content) {
-    const va = item as { isVarargsSlot?: boolean };
-    if (va && typeof va.isVarargsSlot === "boolean") {
-      n++;
-      continue;
-    }
-    if (n === 0 && item && (item as any).commandType !== undefined) {
-      continue;
-    }
-    break;
+  while (n < content.length && isParamBinding(content[n])) {
+    n++;
   }
   return n;
+}
+
+// Spreads the last of the `count` arguments a call site pushed, as Luau
+// passes a call's last argument: a multiple value (a `g()` multi-return)
+// gives each of its values, and a call that returned none (`Void`) gives
+// none. Returns how many values the arguments are now.
+function spreadLastCallArg(story: any, count: number): number {
+  if (count <= 0) return count;
+  const last = story.state.PeekEvaluationStack();
+  if (last instanceof MultiValue) {
+    story.state.PopEvaluationStack();
+    for (const v of last.values) story.state.PushEvaluationStack(v);
+    return count - 1 + last.values.length;
+  }
+  if (last instanceof Void) {
+    story.state.PopEvaluationStack();
+    return count - 1;
+  }
+  return count;
+}
+
+/**
+ * Adjusts the `count` arguments a call site pushed to the `fixed` parameters
+ * of a function that declared no `...`, as Luau passes a call's arguments:
+ * the last one spreads (`spreadLastCallArg`), the values past the parameters
+ * are dropped once evaluated, and the parameters past the values are nil.
+ * An earlier argument that gave several values keeps its first, which its
+ * parameter's binding takes.
+ */
+export function adjustCallArgs(story: any, count: number, fixed: number): void {
+  const effective = spreadLastCallArg(story, count);
+  for (let i = effective; i < fixed; i++) {
+    story.state.PushEvaluationStack(new NullValue());
+  }
+  for (let i = fixed; i < effective; i++) {
+    story.state.PopEvaluationStack();
+  }
 }
 
 // Lua value-call argument normalization for a VARIADIC target whose
@@ -602,22 +645,14 @@ function countLeadingParamBindings(target: any): number {
 // positionally (padding missing ones with nil) and pack the rest
 // into ONE MultiValue for the `...` slot's parameter binding. The
 // callable must already be popped; the user args sit on top of the
-// eval stack. A trailing MultiValue (a `g()` multi-return as the
-// last call-site arg) spreads first, per Lua.
+// eval stack. The last call-site arg spreads first, per Lua
+// (`spreadLastCallArg`).
 export function packVariadicValueCallArgs(
   story: any,
   callSiteArgCount: number,
   fixedCount: number,
 ): void {
-  let effective = callSiteArgCount;
-  if (effective > 0) {
-    const top = story.state.PeekEvaluationStack();
-    if (top instanceof MultiValue) {
-      story.state.PopEvaluationStack();
-      for (const v of top.values) story.state.PushEvaluationStack(v);
-      effective += top.values.length - 1;
-    }
-  }
+  const effective = spreadLastCallArg(story, callSiteArgCount);
   const args: AbstractValue[] = [];
   for (let i = 0; i < effective; i++) {
     args.unshift(story.state.PopEvaluationStack() as AbstractValue);
@@ -629,6 +664,81 @@ export function packVariadicValueCallArgs(
   story.state.PushEvaluationStack(new MultiValue(extras));
 }
 
+/**
+ * Arranges the `count` arguments a call site pushed for the function
+ * `target` it enters: exactly its parameters (`adjustCallArgs`), or a
+ * variadic function's fixed parameters, the values its entry binds less the
+ * `...` slot, with the rest packed for its `...`
+ * (`packVariadicValueCallArgs`).
+ */
+export function arrangeArgsFor(
+  story: any,
+  target: FunctionTarget,
+  count: number,
+): void {
+  if (target.variadic) {
+    packVariadicValueCallArgs(story, count, Math.max(0, target.bindings - 1));
+  } else {
+    adjustCallArgs(story, count, target.bindings);
+  }
+}
+
+/**
+ * Arranges the `count` arguments a call site pushed for `callable`, which
+ * is off the stack, when it is a closure: as `arrangeArgsFor` does for a
+ * function, with the fixed parameters its table counts
+ * (`__closure_user_arity`), before its upvalues are placed below them
+ * (`extractClosureTarget`). Returns whether it arranged them; any other
+ * callable, and any callable when the count is -1, which says the call site
+ * did not record it, takes the arguments as they are.
+ */
+export function arrangeClosureArgs(
+  story: any,
+  callable: unknown,
+  count: number,
+): boolean {
+  if (count < 0 || !(callable instanceof ObjectValue)) return false;
+  const map = callable.value as Map<string, AbstractValue> | null;
+  const arity = map?.get("__closure_user_arity");
+  if (!(arity instanceof IntValue)) return false;
+  const target: FunctionTarget | null = story.FunctionTargetOf(
+    map?.get("__closure_fn"),
+  );
+  if (target?.variadic) {
+    packVariadicValueCallArgs(story, count, arity.value ?? 0);
+  } else {
+    adjustCallArgs(story, count, arity.value ?? 0);
+  }
+  return true;
+}
+
+/** The parameters the function value `callable` binds: its fixed ones, and
+ *  whether a `...` takes the rest. A closure's table says so, and a function
+ *  value names the function (`FunctionTargetOf`); any other value, a builtin
+ *  or a table, is null. */
+function bindingsOf(
+  story: any,
+  callable: unknown,
+): { fixed: number; variadic: boolean } | null {
+  if (callable instanceof ObjectValue) {
+    const map = callable.value as Map<string, AbstractValue> | null;
+    const arity = map?.get("__closure_user_arity");
+    if (!(arity instanceof IntValue)) return null;
+    const target: FunctionTarget | null = story.FunctionTargetOf(
+      map?.get("__closure_fn"),
+    );
+    // `__closure_user_arity` counts the fixed parameters only.
+    return { fixed: arity.value ?? 0, variadic: target?.variadic ?? false };
+  }
+  const target: FunctionTarget | null = isFunctionReference(callable)
+    ? story.FunctionTargetOf(callable)
+    : null;
+  if (target === null) return null;
+  return target.variadic
+    ? { fixed: Math.max(0, target.bindings - 1), variadic: true }
+    : { fixed: target.bindings, variadic: false };
+}
+
 // Lua argument-count normalization for the JS-driven call paths
 // (`CallLuauFunction` / `CallLuauFunctionProtected`): extra args are
 // DISCARDED and missing args pad with nil, exactly as a Lua call
@@ -636,29 +746,22 @@ export function packVariadicValueCallArgs(
 // callee that never pops it survives the call on the eval stack and
 // gets mis-collected as a return value — e.g. the `__len` metamethod
 // receives the table operand per Lua, but a zero-param handler
-// (`__len = function() return 42 end`) left the table stranded, and
-// `#t` "returned" the table itself. Variadic callees bind their
-// fixed params positionally and receive the extras packed into one
-// MultiValue (the `__varargs__` slot — same shape a static call
-// site's PackTuple produces); arity comes from the closure's
-// `__closure_user_arity` field, so plain DivertTargetValue functions
-// (top-level knots) pass through unchanged.
+// (`__len = function() return 42 end`, or a function declared with no
+// parameters) left the table stranded, and `#t` "returned" the table
+// itself. Variadic callees bind their fixed params positionally and
+// receive the extras packed into one MultiValue (the `__varargs__`
+// slot — same shape a static call site's PackTuple produces). The
+// parameters come from `bindingsOf`: a closure's table, or the
+// function a function value names.
 export function normalizeLuauCallArgs(
   story: any,
   fnValue: AbstractValue,
   args: AbstractValue[],
 ): AbstractValue[] {
-  if (!(fnValue instanceof ObjectValue)) return args;
-  const map = fnValue.value as Map<string, AbstractValue> | null;
-  const arityVal = map?.get("__closure_user_arity");
-  if (!(arityVal instanceof IntValue) || typeof arityVal.value !== "number") {
-    return args;
-  }
-  const arity = arityVal.value;
-  const target: FunctionTarget | null = story.FunctionTargetOf(
-    map?.get("__closure_fn"),
-  );
-  if (target?.variadic) {
+  const bindings = bindingsOf(story, fnValue);
+  if (bindings === null) return args;
+  const arity = bindings.fixed;
+  if (bindings.variadic) {
     // Spread a trailing MultiValue, then pack extras beyond the
     // fixed arity for the `...` slot.
     const spread = [...args];
@@ -680,7 +783,9 @@ export function normalizeLuauCallArgs(
 // its inner values onto the eval stack so the callee's parameter
 // binding pops them individually. Skipped for variadic targets —
 // their compile-time `PackTuple` already handled the spread and the
-// trailing `MultiValue` is the `__varargs__` slot value.
+// trailing `MultiValue` is the `__varargs__` slot value. Only for a
+// call whose argument count the story does not record; a call that
+// records it adjusts its arguments instead (`adjustCallArgs`).
 export function spreadLastMultiIfNonVariadic(
   story: any,
   target: FunctionTarget | null,
@@ -694,19 +799,20 @@ export function spreadLastMultiIfNonVariadic(
   for (const v of top.values) story.state.PushEvaluationStack(v);
 }
 
-// Lua-style call-arg spread of a builtin's arguments, in place: the
-// syntactically LAST arg (rightmost) spreads its MultiValue into multiple
-// args; earlier args truncate any MultiValue to its first inner value.
-// `print(math.modf(3.7))` → `print(3, 0.7)`; `f(math.modf(x), 1)` →
-// `f(3, 1)` (modf truncated since it's not the last arg). Pure stdlib fns
-// (registered with NativeFunctionCall) don't pass through here and continue
-// to auto-unwrap via MultiValue's transparent valueObject.
+// Lua-style call-arg spread of a builtin's arguments, or a `__call`
+// handler's, in place: the syntactically LAST arg (rightmost) spreads its
+// MultiValue into multiple args; earlier args truncate any MultiValue to its
+// first inner value. `print(math.modf(3.7))` → `print(3, 0.7)`;
+// `f(math.modf(x), 1)` → `f(3, 1)` (modf truncated since it's not the last
+// arg). Pure stdlib fns called directly (registered with NativeFunctionCall)
+// don't pass through here and continue to auto-unwrap via MultiValue's
+// transparent valueObject.
 //
 // Void (from `(function() end)()`) is conceptually an empty MultiValue. As
 // the last arg, it spreads to 0 values — `select('#', (function() end)())`
 // returns 0, matching Luau's empty-return semantics. As a non-last arg, it's
 // clamped to nil (same as MultiValue truncation).
-export function spreadStdLibArgs(args: unknown[]): void {
+export function spreadCallArgs(args: unknown[]): void {
   for (let k = 0; k < args.length; k++) {
     const a = args[k];
     if (a instanceof MultiValue) {
@@ -774,17 +880,110 @@ function pushCallResults(story: any, results: AbstractValue[] | null): void {
   }
 }
 
+// Steps a builtin iterator a value holds (`pairs(t)`, `string.gmatch(...)`),
+// which advances its own cursor in place: pops the (state, ctrl) arguments of
+// the generic-for protocol and pushes the next (key, value) MultiValue. A
+// call that says how many arguments it passed (`it()`, `it(s, c, x)`) has
+// them adjusted to those two first, as a function of two parameters would.
+function stepIteratorCall(story: any, iterator: ObjectValue, count: number): void {
+  if (count >= 0) {
+    adjustCallArgs(story, count, 2);
+  }
+  // Args were pushed (state, ctrl) — pops reverse that.
+  const iterCtrl = story.state.PopEvaluationStack();
+  const iterState = story.state.PopEvaluationStack();
+  const result = stepBuiltinIterator(
+    iterator,
+    iterState as AbstractValue,
+    iterCtrl as AbstractValue,
+  );
+  // A step moves the iterator's cursor, which it keeps in its table.
+  story.state.variablesState.WriteBarrier(iterator);
+  story.state.PushEvaluationStack(result);
+}
+
+// Runs a builtin a value holds (an ObjectValue marked `__stdlib_fn`, which a
+// reference to a name like `math.abs` or `select` makes) and pushes its
+// result, as a direct call of it runs: the `count` arguments the call site
+// pushed, spread by `spreadCallArgs`. A call that does not say how many
+// passes a builtin of fixed arity that many, and cannot call a variadic one
+// here: returns false, with the stack untouched.
+function runBuiltinCall(
+  story: any,
+  entry: StdLibEntry,
+  name: string,
+  count: number,
+): boolean {
+  const popCount = count >= 0 ? count : entry.arity >= 0 ? entry.arity : -1;
+  if (popCount < 0) return false;
+  const args: any[] = [];
+  for (let i = 0; i < popCount; i++) {
+    args.unshift(story.state.PopEvaluationStack());
+  }
+  spreadCallArgs(args);
+  pushStdLibResult(
+    story,
+    entry.fn(story, unwrapArgsForPureStdLibFn(entry, args, story, name)),
+  );
+  return true;
+}
+
+// Calls the `__call` handler of `table`'s metatable with the table and the
+// call's arguments, and pushes what it returns: the `count` arguments the
+// call site pushed, spread by `spreadCallArgs`, which `CallLuauFunction`
+// adjusts to the handler's parameters. A call that does not say how many
+// passes as many as the handler's closure takes besides the table, and none
+// to a handler that is a function value.
+function callThroughHandler(
+  story: any,
+  table: AbstractValue,
+  callHandler: AbstractValue,
+  count: number,
+): void {
+  let popCount = count;
+  if (popCount < 0) {
+    popCount = 0;
+    if (callHandler instanceof ObjectValue) {
+      const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
+        "__closure_user_arity",
+      );
+      if (arityVal instanceof IntValue) {
+        // The closure's signature is `(self, ...userArgs)`, so self
+        // accounts for one of its slots.
+        popCount = (arityVal.value ?? 1) - 1;
+      }
+    }
+  }
+  const userArgs: AbstractValue[] = [];
+  for (let i = 0; i < popCount; i++) {
+    userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
+  }
+  if (count >= 0) {
+    spreadCallArgs(userArgs);
+  }
+  pushCallResults(
+    story,
+    story.CallLuauFunction(callHandler, [table, ...userArgs]) as
+      | AbstractValue[]
+      | null,
+  );
+}
+
 /**
  * A call through what the variable `varName` holds, as a divert whose target
  * is a variable runs it on either engine: a builtin iterator steps, a builtin
- * of fixed arity runs, and a table whose metatable has `__call` calls its
- * handler, each pushing what the call returns; a closure or a function value
- * gives the function to enter, with its arguments arranged for its entry.
- * Returns that function, or null when the call is done.
+ * runs, and a table whose metatable has `__call` calls its handler, each
+ * pushing what the call returns; a closure or a function value gives the
+ * function to enter, with its arguments arranged for its entry
+ * (`arrangeClosureArgs`, `arrangeArgsFor`). Returns that function, or null
+ * when the call is done.
+ * `callSiteArgCount` is the number of arguments the call site pushed, or -1
+ * when the story does not record it.
  */
 export function callVariableTarget(
   story: any,
   varName: string | null,
+  callSiteArgCount: number = -1,
 ): FunctionTarget | null {
   const varContents = story.state.variablesState.GetVariableWithName(varName);
 
@@ -795,73 +994,33 @@ export function callVariableTarget(
         ")",
     );
   }
+  const arranged = arrangeClosureArgs(story, varContents, callSiteArgCount);
   // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
   // stored in a variable: the call site here is a regular
-  // FunctionCall lowered into a variable-target Divert. The
-  // iterator advances its own cursor in place; we pop the
-  // (state, ctrl) args the call site pushed and replace
-  // them with the next (key, value) MultiValue.
+  // FunctionCall lowered into a variable-target Divert.
   if (varContents instanceof ObjectValue) {
     const tag = (varContents.value as Map<string, AbstractValue>)?.get(
       BUILTIN_ITER_TAG,
     );
     if (tag != null) {
-      // Args were pushed (state, ctrl) — pops reverse that.
-      const iterCtrl = story.state.PopEvaluationStack();
-      const iterState = story.state.PopEvaluationStack();
-      const result = stepBuiltinIterator(
-        varContents,
-        iterState as AbstractValue,
-        iterCtrl as AbstractValue,
-      );
-      // A step moves the iterator's cursor, which it keeps in its table.
-      story.state.variablesState.WriteBarrier(varContents);
-      story.state.PushEvaluationStack(result);
+      stepIteratorCall(story, varContents, callSiteArgCount);
       return null;
     }
   }
   // Stdlib-function reference: variable holds an ObjectValue
   // marked with `__stdlib_fn` (the call-site reference resolved
   // to a name like `math.abs` whose actual implementation lives
-  // in the STDLIB registry, not as an ink knot). Look up the
-  // entry, pop its args, invoke `entry.fn`, push the result.
-  // Variadic stdlib entries (`arity === -1`) can't be dispatched
-  // here yet — the call site didn't push an arg count — and
-  // fall through to the existing error. Fixed-arity entries
-  // (which covers the common case: `math.abs`, `tostring`,
-  // `type`, etc.) work.
+  // in the STDLIB registry, not as an ink knot). A variadic entry
+  // (`arity === -1`) that a story without the call's argument
+  // count reaches falls through to the error below.
   if (varContents instanceof ObjectValue) {
     const stdlibTag = (varContents.value as Map<string, AbstractValue>)?.get(
       "__stdlib_fn",
     );
     if (stdlibTag instanceof StringValue) {
-      const stdlibName = stdlibTag.value;
-      const entry = lookupAnyStdLib(stdlibName!);
-      if (entry && entry.arity >= 0) {
-        const args: any[] = [];
-        for (let i = 0; i < entry.arity; i++) {
-          args.unshift(story.state.PopEvaluationStack());
-        }
-        // Last-arg MultiValue spread (matches RunStdLibFunction
-        // semantics). Earlier args truncate any MultiValue to
-        // its first inner value.
-        for (let k = 0; k < args.length; k++) {
-          const a = args[k];
-          if (a instanceof MultiValue) {
-            if (k === args.length - 1) {
-              args.splice(k, 1, ...a.values);
-            } else {
-              args[k] = a.values[0] ?? new NullValue();
-            }
-          }
-        }
-        pushStdLibResult(
-          story,
-          entry.fn(
-            story,
-            unwrapArgsForPureStdLibFn(entry, args, story, stdlibName!),
-          ),
-        );
+      const stdlibName = stdlibTag.value!;
+      const entry = lookupAnyStdLib(stdlibName);
+      if (entry && runBuiltinCall(story, entry, stdlibName, callSiteArgCount)) {
         return null;
       }
     }
@@ -873,39 +1032,24 @@ export function callVariableTarget(
   // `extractClosureTarget` for the shape contract.
   const closureTarget = extractClosureTarget(varContents, story);
   if (closureTarget !== null) {
-    // Multi-return spread for non-variadic closures: see the
-    // helper. extractClosureTarget has already pushed the upvals
-    // and re-pushed user args, so the spread check sees the
-    // syntactically-last user arg on top.
-    spreadLastMultiIfNonVariadic(story, closureTarget);
+    // Multi-return spread for a non-variadic closure whose call did not
+    // say how many arguments it passed: extractClosureTarget has already
+    // pushed the upvals and re-pushed user args, so the spread check sees
+    // the syntactically-last user arg on top.
+    if (!arranged) {
+      spreadLastMultiIfNonVariadic(story, closureTarget);
+    }
     return closureTarget;
   }
   if (varContents instanceof ObjectValue) {
     // `__call` metamethod: the variable holds a regular table
     // (not a closure, not a builtin iterator) whose metatable
-    // defines `__call`. Dispatch via the same handler used in
-    // the `CallValueAsFunction` op. Returns null to skip the
-    // normal divert finalize step (CallLuauFunction set up
-    // its own divert + frame).
+    // defines `__call`. Returns null to skip the normal divert
+    // finalize step (CallLuauFunction set up its own divert +
+    // frame).
     const callHandler = lookupMetamethod(varContents, "__call");
     if (callHandler != null) {
-      const userArgs: AbstractValue[] = [];
-      if (callHandler instanceof ObjectValue) {
-        const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
-          "__closure_user_arity",
-        );
-        if (arityVal instanceof IntValue) {
-          const userArity = arityVal.value ?? 1;
-          for (let i = 0; i < userArity - 1; i++) {
-            userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
-          }
-        }
-      }
-      const args = [varContents as AbstractValue, ...userArgs];
-      pushCallResults(
-        story,
-        story.CallLuauFunction(callHandler, args) as AbstractValue[] | null,
-      );
+      callThroughHandler(story, varContents, callHandler, callSiteArgCount);
       return null;
     }
     // Plain table with no `__call` — fall through to the error.
@@ -933,8 +1077,13 @@ export function callVariableTarget(
     }
     story.Error(errorMessage);
   }
-  // Spread last-arg MultiValue for non-variadic targets.
-  spreadLastMultiIfNonVariadic(story, target);
+  // The arguments arranged for the function; a call that did not say how
+  // many it passed spreads a last-arg MultiValue for a non-variadic target.
+  if (callSiteArgCount >= 0) {
+    arrangeArgsFor(story, target!, callSiteArgCount);
+  } else {
+    spreadLastMultiIfNonVariadic(story, target);
+  }
   return target;
 }
 
@@ -960,7 +1109,16 @@ export function callValueAsFunction(
   // Arguments must already be on the eval stack *below* the target —
   // they remain there for the function's parameter-binding bytecode
   // (a sequence of `temp=` assignments at the function's entry) to
-  // pop.
+  // pop. A call that says how many it pushed has them arranged for
+  // the function first (`arrangeClosureArgs`, `arrangeArgsFor`): spread,
+  // cut or padded to its parameters, or packed for its `...` — otherwise
+  // the function would bind the LAST args instead of the first
+  // (`foo(1, 2, 3)` against `function foo(a, b)` would bind a=2, b=3), or
+  // dig into the caller's eval context for missing ones. The call-site
+  // arg count is
+  // encoded on the ControlCommand via CallValueExpression's
+  // `CallValueAsFunction(this.args.length)`; -1 means "untracked"
+  // (legacy bytecode).
   //
   // Closure dispatch: when the target is a closure-shaped
   // `ObjectValue` (has `__closure_fn` / `__closure_upvals`
@@ -971,122 +1129,36 @@ export function callValueAsFunction(
   // with upvals prepended to user params, so parameter
   // binding reads them in the right order. See
   // `lowerAnonymousFunction` in `lowerExpression.ts`.
-  //
-  // Luau under-supplied args: if the call site pushed fewer
-  // args than the closure's user arity, pad with `NullValue`
-  // BEFORE popping for upval reordering — otherwise
-  // `extractClosureTarget` would dig into the caller's eval
-  // context. The call-site arg count is encoded on the
-  // ControlCommand via CallValueExpression's
-  // `CallValueAsFunction(this.args.length)`; -1 means
-  // "untracked" (legacy bytecode).
-  if (callSiteArgCount >= 0) {
-    // Peek the callTarget BEFORE popping to know the closure's
-    // user arity, then normalize the eval-stack args to
-    // exactly `userArity` values so `extractClosureTarget` can
-    // pop them cleanly. Two adjustments:
-    //   1. If the LAST positional arg is a MultiValue (from
-    //      `g()` returning multiple values), spread its inner
-    //      values inline. This is what
-    //      `spreadLastMultiIfNonVariadic` does, but we need
-    //      it BEFORE the pop loop so the count is right.
-    //   2. If after spread the effective arg count is still
-    //      less than `userArity`, pad with nil on top so the
-    //      missing trailing params bind to nil rather than
-    //      digging into caller-context.
-    const peeked = story.state.PeekEvaluationStack();
-    if (peeked instanceof ObjectValue) {
-      const peekedMap = peeked.value as Map<string, AbstractValue>;
-      const userArityVal = peekedMap?.get("__closure_user_arity");
-      if (userArityVal instanceof IntValue) {
-        const userArity = userArityVal.value ?? 0;
-        // VARIADIC closure target: `__closure_user_arity`
-        // counts fixed params only; the extras must pack into
-        // one MultiValue for the `...` slot instead of being
-        // dropped by the overflow logic below.
-        const fnTarget: FunctionTarget | null = story.FunctionTargetOf(
-          peekedMap?.get("__closure_fn"),
-        );
-        const isVariadicTarget = fnTarget?.variadic ?? false;
-        if (isVariadicTarget) {
-          const callable = story.state.PopEvaluationStack();
-          packVariadicValueCallArgs(story, callSiteArgCount, userArity);
-          story.state.PushEvaluationStack(callable as AbstractValue);
-        } else {
-          const callable = story.state.PopEvaluationStack();
-          let effectiveArgCount = callSiteArgCount;
-          if (callSiteArgCount > 0) {
-            const lastArg = story.state.PeekEvaluationStack();
-            if (lastArg instanceof MultiValue) {
-              story.state.PopEvaluationStack();
-              for (const v of lastArg.values) {
-                story.state.PushEvaluationStack(v);
-              }
-              effectiveArgCount = callSiteArgCount - 1 + lastArg.values.length;
-            }
-          }
-          if (effectiveArgCount < userArity) {
-            for (let i = effectiveArgCount; i < userArity; i++) {
-              story.state.PushEvaluationStack(new NullValue());
-            }
-          } else if (effectiveArgCount > userArity) {
-            // Lua overflow semantics: extra args at a non-variadic
-            // call site are dropped. Without this the closure's
-            // param binding would pop the LAST args instead of
-            // the first — `foo(1, 2, 3)` against `function
-            // foo(a, b)` would bind a=2, b=3 (wrong) instead of
-            // a=1, b=2.
-            for (let i = userArity; i < effectiveArgCount; i++) {
-              story.state.PopEvaluationStack();
-            }
-          }
-          story.state.PushEvaluationStack(callable as AbstractValue);
-        }
-      }
-    }
-  }
   const callTarget = story.state.PopEvaluationStack();
+  const arranged = arrangeClosureArgs(story, callTarget, callSiteArgCount);
   // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
   // returns an ObjectValue marked with `__builtin_iter`. The
   // iterator advances its own cursor on each call (stored on
   // the same ObjectValue), so we can't dispatch via the
   // closure path — there's no underlying knot to divert to.
-  // Instead, pop the (state, ctrl) args that the generic-for
-  // call site pushed, advance the iterator, and push the
-  // resulting (key, value) pair as a MultiValue.
+  // The step honors (state, ctrl) when state is non-nil
+  // (stateless Lua protocol); stateful iterators (gmatch,
+  // utf8codes) pass nil state and use the marker's internal
+  // cursor.
   if (callTarget instanceof ObjectValue) {
     const tag = (callTarget.value as Map<string, AbstractValue>)?.get(
       BUILTIN_ITER_TAG,
     );
     if (tag != null) {
-      // Call sites push 2 args (state, ctrl) — both the
-      // generic-for protocol and manual iterator invocation
-      // (`inext(t, 2)`). Pops reverse the push order. The
-      // step honors them when state is non-nil (stateless
-      // Lua protocol); stateful iterators (gmatch,
-      // utf8codes) pass nil state and use the marker's
-      // internal cursor.
-      const iterCtrl = story.state.PopEvaluationStack();
-      const iterState = story.state.PopEvaluationStack();
-      const result = stepBuiltinIterator(
-        callTarget,
-        iterState as AbstractValue,
-        iterCtrl as AbstractValue,
-      );
-      // A step moves the iterator's cursor, which it keeps in its table.
-      story.state.variablesState.WriteBarrier(callTarget);
-      story.state.PushEvaluationStack(result);
+      stepIteratorCall(story, callTarget, callSiteArgCount);
       return;
     }
   }
   const closureTarget = extractClosureTarget(callTarget, story);
   if (closureTarget !== null) {
     story.EnterFunction(closureTarget);
-    // ZERO-arg call sites have nothing to spread — the eval
-    // stack's top belongs to the CALLER (`local a,b,c = g(),
-    // g()`: the second g()'s dispatch must not spread the
-    // first g()'s pending multi-return — calls.luau line 207).
-    if (callSiteArgCount !== 0) {
+    // A call that did not say how many args it pushed spreads a
+    // last multi-return. ZERO-arg call sites have nothing to
+    // spread — the eval stack's top belongs to the CALLER
+    // (`local a,b,c = g(), g()`: the second g()'s dispatch must
+    // not spread the first g()'s pending multi-return —
+    // calls.luau line 207).
+    if (!arranged && callSiteArgCount !== 0) {
       spreadLastMultiIfNonVariadic(story, closureTarget);
     }
     return;
@@ -1094,50 +1166,19 @@ export function callValueAsFunction(
   // `__stdlib_fn` marker dispatch: the target is an
   // ObjectValue tagged with a stdlib function name (created
   // by the variable-lookup fallback for stdlib references
-  // like `local f = type` / `local abs = math.abs`). Look up
-  // the entry, pop args by its fixed arity, invoke `entry.fn`,
-  // and push the result. Variadic stdlib entries (`arity ===
-  // -1`) dispatch using the CALL-SITE arg count carried on
-  // the CallValueAsFunction command (`_callValueArgCount`,
-  // set by CallValueExpression at lower time) — needed for
-  // `for k in next, t do` where the generic-for protocol
-  // calls the first-class `next` (variadic) with exactly two
-  // args (basic.luau lines 253-258).
+  // like `local f = type` / `local abs = math.abs`), which runs
+  // with the args the call site pushed (`runBuiltinCall`) —
+  // for `for k in next, t do` the generic-for protocol calls
+  // the first-class `next` (variadic) with exactly two args
+  // (basic.luau lines 253-258).
   if (callTarget instanceof ObjectValue) {
     const stdlibTag = (callTarget.value as Map<string, AbstractValue>)?.get(
       "__stdlib_fn",
     );
     if (stdlibTag instanceof StringValue) {
-      const stdlibName = stdlibTag.value;
-      const entry = lookupAnyStdLib(stdlibName!);
-      const popCount =
-        entry && entry.arity >= 0
-          ? entry.arity
-          : entry && callSiteArgCount >= 0
-            ? callSiteArgCount
-            : -1;
-      if (entry && popCount >= 0) {
-        const args: any[] = [];
-        for (let i = 0; i < popCount; i++) {
-          args.unshift(story.state.PopEvaluationStack());
-        }
-        for (let k = 0; k < args.length; k++) {
-          const a = args[k];
-          if (a instanceof MultiValue) {
-            if (k === args.length - 1) {
-              args.splice(k, 1, ...a.values);
-            } else {
-              args[k] = a.values[0] ?? new NullValue();
-            }
-          }
-        }
-        pushStdLibResult(
-          story,
-          entry.fn(
-            story,
-            unwrapArgsForPureStdLibFn(entry, args, story, stdlibName!),
-          ),
-        );
+      const stdlibName = stdlibTag.value!;
+      const entry = lookupAnyStdLib(stdlibName);
+      if (entry && runBuiltinCall(story, entry, stdlibName, callSiteArgCount)) {
         return;
       }
     }
@@ -1145,39 +1186,13 @@ export function callValueAsFunction(
   // `__call` metamethod: the target is a plain ObjectValue
   // (table) that isn't a closure or builtin iterator, but its
   // metatable defines `__call`. Lua semantics: `t(args...)`
-  // becomes `__call(t, args...)`. Dispatched via
-  // `story.CallLuauFunction` with the table prepended as
-  // `self`. Limitation: closure-form `__call` handlers infer
-  // the user-arg count from `__closure_user_arity`; bare
-  // DivertTarget handlers (no upvalues, no arity metadata)
-  // are called with only `self` as the arg — extra user args
-  // pushed at the call site remain on the eval stack and may
-  // disturb subsequent operations. Authors hitting this can
-  // wrap the handler as a closure (e.g. add a stub upval) to
-  // force the closure path.
+  // becomes `__call(t, args...)`, which `callThroughHandler`
+  // dispatches via `story.CallLuauFunction` with the table
+  // prepended as `self`.
   if (callTarget instanceof ObjectValue) {
     const callHandler = lookupMetamethod(callTarget, "__call");
     if (callHandler != null) {
-      const userArgs: AbstractValue[] = [];
-      if (callHandler instanceof ObjectValue) {
-        const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
-          "__closure_user_arity",
-        );
-        if (arityVal instanceof IntValue) {
-          const userArity = arityVal.value ?? 1;
-          // Pop (userArity - 1) user args — the closure's
-          // signature is `(self, ...userArgs)`, so self
-          // accounts for one of its slots.
-          for (let i = 0; i < userArity - 1; i++) {
-            userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
-          }
-        }
-      }
-      const args = [callTarget as AbstractValue, ...userArgs];
-      pushCallResults(
-        story,
-        story.CallLuauFunction(callHandler, args) as AbstractValue[] | null,
-      );
+      callThroughHandler(story, callTarget, callHandler, callSiteArgCount);
       return;
     }
   }
@@ -1223,20 +1238,16 @@ export function callValueAsFunction(
         (callTarget ? " (got " + callTarget + ")" : ""),
     );
   }
-  story.EnterFunction(target);
-  if (target.variadic && callSiteArgCount >= 0) {
-    // Variadic function reached as a bare DivertTargetValue
-    // (e.g. a sibling variadic subflow passed first-class):
-    // no static PackTuple ran, so bind fixed params
-    // positionally and pack the extras here. Fixed count =
-    // the target's param-binding slots minus the `...` slot.
-    const fixedCount = Math.max(0, target.bindings - 1);
-    packVariadicValueCallArgs(story, callSiteArgCount, fixedCount);
-  } else if (callSiteArgCount !== 0) {
-    // Zero-arg call sites have nothing to spread — don't
-    // touch the caller's pending eval-stack values.
+  // The arguments arranged for the function: a variadic function reached
+  // as a bare DivertTargetValue (e.g. a sibling variadic subflow passed
+  // first-class) gets its extras packed here. A call that did not say how
+  // many args it pushed spreads a last multi-return instead.
+  if (callSiteArgCount >= 0) {
+    arrangeArgsFor(story, target, callSiteArgCount);
+  } else {
     spreadLastMultiIfNonVariadic(story, target);
   }
+  story.EnterFunction(target);
 }
 
 // `t[k] = v` Lua-fidelity dispatch. If `k` already exists directly on
@@ -1887,7 +1898,11 @@ export function packTuple(story: any, n: number): void {
   // the regular arg and the rest land in the vararg
   // MultiValue we're building. E.g. `f(pcall(...))` against
   // `function f(head, ...)`: pcall returns
-  // `MultiValue([true, nil])` → head=true, ...=(nil).
+  // `MultiValue([true, nil])` → head=true, ...=(nil). Only a
+  // divert to a variadic flow packs its args at its site now,
+  // and a function call of a story written before calls
+  // recorded their arg count; a function call packs them when
+  // it runs (`arrangeArgsFor`).
   if (n === 0 && story.state.evaluationStack.length > 0) {
     const peeked = story.state.PeekEvaluationStack();
     if (peeked instanceof MultiValue) {
@@ -3259,6 +3274,7 @@ export class Story extends InkObject {
         const target = callVariableTarget(
           this,
           currentDivert.variableDivertName,
+          currentDivert.callArgCount,
         ) as ContainerTarget | null;
         if (target === null) {
           return true;
@@ -3276,18 +3292,25 @@ export class Story extends InkObject {
         this.Error("Divert target not found.");
       } else {
         this.state.divertedPointer = currentDivert.targetPointer.copy();
-        // Spread last-arg MultiValue for non-variadic static-dispatch
-        // function calls. Detected via `pushesToStack` +
-        // Function push-type — the same pair that marks a divert as
-        // a Lua-style function call (vs a knot jump / tunnel).
+        // Static-dispatch function calls, detected via `pushesToStack` +
+        // Function push-type — the same pair that marks a divert as a
+        // Lua-style function call (vs a knot jump / tunnel), pass the
+        // function the arguments the call site pushed arranged for its
+        // parameters. A story that does not record the count packed a
+        // variadic function's arguments where the call was written, and
+        // spreads the last arg's MultiValue for a non-variadic function.
         if (
           currentDivert.pushesToStack &&
           currentDivert.stackPushType === PushPopType.Function
         ) {
-          spreadLastMultiIfNonVariadic(
-            this,
-            new ContainerTarget(currentDivert.targetPointer.container),
+          const target = new ContainerTarget(
+            currentDivert.targetPointer.container,
           );
+          if (currentDivert.callArgCount < 0) {
+            spreadLastMultiIfNonVariadic(this, target);
+          } else {
+            arrangeArgsFor(this, target, currentDivert.callArgCount);
+          }
         }
       }
 
@@ -3889,7 +3912,7 @@ export class Story extends InkObject {
           for (let i = 0; i < arity; i++) {
             args.unshift(this.state.PopEvaluationStack());
           }
-          spreadStdLibArgs(args);
+          spreadCallArgs(args);
           pushStdLibResult(this, entry.fn(this, args));
           break;
         }

@@ -2788,6 +2788,32 @@ function resolveCallableBinding(
   return null;
 }
 
+/**
+ * Hides the sibling subflow `name` of the innermost function for the rest of
+ * the block being lowered, as a `local` of that name declared in the block
+ * hides it in Luau: calls and references to the name after the declaration
+ * dispatch to the local's value, as a rebound name's do
+ * (`resolveCallableBinding`), and the subflow is visible again when the
+ * block ends (`lowerStatements`). Without it, a call to the local would pass
+ * the subflow's upvalues before its own arguments.
+ */
+export function shadowSiblingSubFlow(name: string, ctx: LowerContext): void {
+  const frame = ctx.siblingSubFlowNamesStack?.at(-1);
+  const hidden = frame?.get(name);
+  const ends = ctx.blockEndStack?.at(-1);
+  if (!frame || !hidden || hidden.rebound || !ends) {
+    return;
+  }
+  const shadow: SiblingSubFlowInfo = { ...hidden, rebound: true };
+  frame.set(name, shadow);
+  ends.push(() => {
+    // A redefinition of the subflow later in the block replaced the shadow.
+    if (frame.get(name) === shadow) {
+      frame.set(name, hidden);
+    }
+  });
+}
+
 // Is `name` a variadic sibling SubFlow in ANY enclosing function
 // scope? Variadic nested fns (`function foo(...)`) lower as real
 // SubFlows with no `local NAME = closure` binding. NOTE: call/value

@@ -672,13 +672,17 @@ describe("the write barrier", () => {
 
   it("marks the tables the defines change as the declarations run", () => {
     // `hero` names a define as its parent, and `child` a block declared
-    // after it, which links it when it runs.
+    // after it, which links it when it runs. `lonely` names no parent and
+    // inherits nothing, so no other define marks it.
     const text = [
       "define base as thing with",
       "  store hp = 3",
       "end",
       "define hero as base with",
       "  name = \"Hero\"",
+      "end",
+      "define lonely with",
+      "  value = 1",
       "end",
       "animation child as parent with",
       "  duration = 1",
@@ -712,6 +716,7 @@ describe("the write barrier", () => {
       "base",
       "thing",
       "$base_hero",
+      "lonely",
       "animation",
       "$animation_child",
       "$animation_parent",
@@ -989,9 +994,8 @@ describe("a function's symbol", () => {
     expect(describeRoot(root)).toEqual(describeRoot(cold(s.text)));
   });
 
-  // A call's code depends on its callee's parameters: a variadic callee
-  // takes its extra arguments packed. The function's symbol's facts in the
-  // callers' reference tables name them.
+  // A call's chunk depends on its callee's parameters, which the function's
+  // symbol's facts in the callers' reference tables name.
   it("re-emits the callers of a function whose parameter list changes, and no other statement", () => {
     const s = session(
       [

@@ -1049,7 +1049,10 @@ export class ChunkStore {
    * parts (`_inherit`). Of the statements left, only the outermost count:
    * the statements of a left statement's bodies are part of it, as the
    * statements of a function written on its owner's line are, whose columns
-   * move when a function is inserted before it (`nesting`).
+   * move when a function is inserted before it (`nesting`). The statements
+   * no run matched are then matched in order by their syntax with the old
+   * chunks no run took, wherever those were, as statements an edit moved
+   * past an anchor are (#1221).
    */
   protected align(
     statements: readonly StatementSource[],
@@ -1067,6 +1070,28 @@ export class ChunkStore {
     let lastOld = -1;
     let runStart = 0;
     const result = kept.slice();
+    // Takes the old chunk when it can be kept; otherwise the statement,
+    // whose syntax is the old one's, is emitted again in place.
+    const take = (i: number, o: number): boolean => {
+      const chunk = old[o]!;
+      const info = this._info.get(chunk);
+      const statement = statements[i]!;
+      if (
+        !info ||
+        used.has(chunk) ||
+        this._inherit.has(statement) ||
+        info.syntax !== statement.syntax()
+      ) {
+        return false;
+      }
+      used.add(chunk);
+      if (info.reads !== statement.reads || !this.holds(chunk, statement)) {
+        this._inherit.set(statement, chunk);
+        return true;
+      }
+      result[i] = chunk;
+      return true;
+    };
     const matchRun = (newFrom: number, newTo: number, oldFrom: number, oldTo: number) => {
       const candidates: number[] = [];
       for (let i = newFrom; i < newTo; i += 1) {
@@ -1082,28 +1107,6 @@ export class ChunkStore {
         olds.push(o);
       }
       const syntaxOf = (o: number) => this._info.get(old[o]!)?.syntax;
-      // Takes the old chunk when it can be kept; otherwise the statement,
-      // whose syntax is the old one's, is emitted again in place.
-      const take = (i: number, o: number): boolean => {
-        const chunk = old[o]!;
-        const info = this._info.get(chunk);
-        const statement = statements[i]!;
-        if (
-          !info ||
-          used.has(chunk) ||
-          this._inherit.has(statement) ||
-          info.syntax !== statement.syntax()
-        ) {
-          return false;
-        }
-        used.add(chunk);
-        if (info.reads !== statement.reads || !this.holds(chunk, statement)) {
-          this._inherit.set(statement, chunk);
-          return true;
-        }
-        result[i] = chunk;
-        return true;
-      };
       // From the front, then from the back, while the syntax matches.
       let front = 0;
       while (
@@ -1189,6 +1192,30 @@ export class ChunkStore {
         runStart = i + 1;
       }
     }
+    // Statements an edit moved past the anchors, as a scene's statements
+    // move into the flow above when its header is broken, find their old
+    // chunks outside their run: the old chunks no run took are matched with
+    // the statements no run matched, in order, by syntax.
+    const unmatched = new Map<string, number[]>();
+    old.forEach((chunk, o) => {
+      const syntax = used.has(chunk) ? undefined : this._info.get(chunk)?.syntax;
+      if (syntax !== undefined) {
+        const olds = unmatched.get(syntax);
+        if (olds) {
+          olds.push(o);
+        } else {
+          unmatched.set(syntax, [o]);
+        }
+      }
+    });
+    statements.forEach((statement, i) => {
+      if (!result[i] && !this._inherit.has(statement)) {
+        const o = unmatched.get(statement.syntax())?.shift();
+        if (o !== undefined) {
+          take(i, o);
+        }
+      }
+    });
     return result;
   }
 

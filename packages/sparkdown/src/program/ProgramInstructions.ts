@@ -88,11 +88,13 @@ export const Op = {
    *  the one it captured. */
   VarPtr: 35,
   /** Calls the function the symbol `arg` names with the `aux` arguments on
-   *  the stack, in a frame that returns after this instruction. */
+   *  the stack, adjusted to its parameters, in a frame that returns after
+   *  this instruction. */
   Call: 36,
   /** Calls what the variable `arg` names holds, with the `aux` arguments
    *  on the stack: a function value, a closure, a builtin, a builtin
-   *  iterator or a table with `__call`. */
+   *  iterator or a table with `__call`, each taking them as its parameters
+   *  do. */
   CallVar: 37,
   /** Pops the function frame, leaving the value on top as the result, and
    *  resumes the caller after its call. */

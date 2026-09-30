@@ -16,6 +16,7 @@ import type { Simulator } from "../inkjs/engine/Simulator";
 import { lookupStateAwareStdLib } from "../inkjs/engine/StdLib";
 import {
   Story,
+  arrangeArgsFor,
   callNativeFunction,
   callValueAsFunction,
   callVariableTarget,
@@ -31,8 +32,7 @@ import {
   pushStdLibResult,
   readVariable,
   shortCircuitDecides,
-  spreadLastMultiIfNonVariadic,
-  spreadStdLibArgs,
+  spreadCallArgs,
   storeIndex,
   tableFromPairs,
   tryInvokeStdLibMarkerValue,
@@ -1251,14 +1251,18 @@ export class ProgramStory {
         if (!target) {
           this.Error("Divert target not found.");
         }
-        // A last argument that is a multiple value spreads for a function
-        // that is not variadic, as a static call's does.
-        spreadLastMultiIfNonVariadic(this, target);
+        // The arguments the call wrote, arranged for the function's
+        // parameters, as a static call's are.
+        arrangeArgsFor(this, target, auxOf(w0));
         this.EnterFunction(target);
         break;
       }
       case Op.CallVar: {
-        const target = callVariableTarget(this, this.root.table.strings[arg]!);
+        const target = callVariableTarget(
+          this,
+          this.root.table.strings[arg]!,
+          auxOf(w0),
+        );
         if (target !== null) {
           this.EnterFunction(target);
         }
@@ -1725,7 +1729,7 @@ export class ProgramStory {
     for (let i = 0; i < arity; i++) {
       args.unshift(this._state.PopEvaluationStack());
     }
-    spreadStdLibArgs(args);
+    spreadCallArgs(args);
     const result = entry.fn(this as unknown as Story, args);
     if (discard) {
       return;
