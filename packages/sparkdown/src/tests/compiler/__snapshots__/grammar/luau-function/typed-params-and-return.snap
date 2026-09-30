@@ -73,25 +73,26 @@ sparkdown [0..150]
      │   │   └─ LuauFunctionParameters_end [52..53]
      │   │       └─ LuauFunctionParameters_end_c1 [52..53]
      │   │           └─ PunctuationParenClose [52..53]: ")"
-     │   ├─ LuauFunctionReturnType [53..61]
+     │   ├─ LuauFunctionReturnType [53..62]
      │   │   ├─ LuauFunctionReturnType_begin [53..55]
      │   │   │   ├─ LuauFunctionReturnType_begin_c1 [53..54]
      │   │   │   │   └─ LuauTypeOperator [53..54]: ":"
      │   │   │   └─ LuauFunctionReturnType_begin_c2 [54..55]
      │   │   │       └─ LuauFunctionReturnType_begin_c2 [54..55]
      │   │   │           └─ OptionalWhitespace [54..55]: " "
-     │   │   ├─ LuauFunctionReturnType_content [55..61]
-     │   │   │   └─ LuauTypeLiteral [55..61]
+     │   │   ├─ LuauFunctionReturnType_content [55..62]
+     │   │   │   └─ LuauTypeLiteral [55..62]
      │   │   │       ├─ LuauTypeLiteral_begin 55
-     │   │   │       ├─ LuauTypeLiteral_content [55..61]
-     │   │   │       │   └─ LuauPrimitiveType [55..61]
-     │   │   │       │       ├─ LuauPrimitiveType_c1 [55..61]: "string"
-     │   │   │       │       ├─ LuauPrimitiveType_c2 61
-     │   │   │       │       └─ LuauPrimitiveType_c3 61
-     │   │   │       └─ LuauTypeLiteral_end 61
-     │   │   └─ LuauFunctionReturnType_end 61
-     │   └─ LuauFunctionBody [61..147]
-     │       ├─ LuauFunctionBody_begin [61..62]: "\n"
+     │   │   │       ├─ LuauTypeLiteral_content [55..62]
+     │   │   │       │   ├─ LuauPrimitiveType [55..61]
+     │   │   │       │   │   ├─ LuauPrimitiveType_c1 [55..61]: "string"
+     │   │   │       │   │   ├─ LuauPrimitiveType_c2 61
+     │   │   │       │   │   └─ LuauPrimitiveType_c3 61
+     │   │   │       │   └─ Newline [61..62]: "\n"
+     │   │   │       └─ LuauTypeLiteral_end 62
+     │   │   └─ LuauFunctionReturnType_end 62
+     │   └─ LuauFunctionBody [62..147]
+     │       ├─ LuauFunctionBody_begin 62
      │       ├─ LuauFunctionBody_content [62..147]
      │       │   ├─ LuauIfBlock [62..129]
      │       │   │   ├─ LuauIfBlock_begin [62..67]

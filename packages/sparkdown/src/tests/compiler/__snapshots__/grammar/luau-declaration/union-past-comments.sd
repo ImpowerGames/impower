@@ -1,0 +1,28 @@
+function f(): number --[[c]] print(1) return 5 end
+function g()
+  local v: number
+  -- note
+  | string = 5
+  local w: number --[[c]] print(w)
+  return v
+end
+function h()
+  local a, b = 1,
+2
+  return b
+end
+function i(x: number
+  -- note
+  | string)
+  local w: number --[[a]b]] print(w)
+  local p, --[[c]] q = 1, 2
+  local u: number --[=[a]b]=] print(u)
+  local c, d = 1,
+    if x then
+      2
+    else
+      3
+  return d
+end
+function j(): number --[[a]b]] return 1 end
+type K = --[[c]] number

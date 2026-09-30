@@ -4,19 +4,19 @@ import { findChildByName } from "./alternatorArms";
 // Returns the syntax node whose children contain a function-body's
 // statements. Handles both parse-tree shapes the grammar can produce:
 //
-//   1. **Wrapped body** (when the function body starts on a new line
-//      after the header). The grammar's `LuauFunctionBody` begin/end
-//      region captures the body content inside a
-//      `LuauFunctionBody > LuauFunctionBody_content` subtree. Body
-//      statements live there, separated from the header pieces (name,
-//      parameters, return type) that remain direct children of
-//      `LuauFunctionDefinition_content`.
+//   1. **Wrapped body** (any function with a statement in it). The
+//      grammar's `LuauFunctionBody` opens right after the header, on the
+//      header's line when a statement follows there and otherwise on the
+//      next line, so every statement lives inside a
+//      `LuauFunctionBody > LuauFunctionBody_content` subtree, separated
+//      from the header pieces (name, parameters, return type) that remain
+//      direct children of `LuauFunctionDefinition_content`.
 //
-//   2. **Inline body** (one-line `function f() body end`). No
-//      `LuauFunctionBody` wrapper fires, and body statements live as
-//      direct children of `LuauFunctionDefinition_content` alongside
-//      the header pieces. The caller's `FUNCTION_BODY_SKIP` set
-//      filters out the header pieces.
+//   2. **No body wrapper** (`function f() end`, or a `define` method,
+//      whose rule has no `LuauFunctionBody`). Anything after the header
+//      lives as direct children of the definition's `_content` alongside
+//      the header pieces. The caller's `FUNCTION_BODY_SKIP` set filters
+//      out the header pieces.
 //
 // Returns `null` if no body content is available (e.g. the input
 // isn't a function-definition node, or it has no `_content` child).
