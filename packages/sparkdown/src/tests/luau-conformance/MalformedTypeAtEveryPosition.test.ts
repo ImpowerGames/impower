@@ -160,33 +160,8 @@ describe("the reported layouts", () => {
     expect(checkLuau(`${source}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
 
-  // A narrative body's declaration ends at its line, but a comma that ends
-  // the line among its targets carries them onto the next line, as in Luau
-  // code, so the line after it is not narrative (#1166), indented or not.
-  test.each([
-    ["local a,\n  b :: number", ["1:4-1:6 Expected identifier when parsing expression, got '::'"]],
-    ["local a,\nb :: number", ["1:2-1:4 Expected identifier when parsing expression, got '::'"]],
-    ["scene s\n  local a,\n    b :: number\n  Hello.\nend", ["2:6-2:8 Expected identifier when parsing expression, got '::'"]],
-    ["local a,\n  b: number", []],
-    ["local a,\nb: number", []],
-    ["local a, -- the first\n  b: number,\n  c = 1, 2, 3", []],
-  ])("in a narrative body, %j reports %j", (source, messages) => {
-    const reported = diagnoseDetailed(`${source}\n`)
-      .filter((d) => d.code !== "LocalUnused")
-      .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${d.message}`);
-    expect(reported).toEqual(messages);
-    // The only prose is the scene's `Hello.`.
-    const prose: string[] = [];
-    const text = `${source}\n`;
-    parseSource(text).iterate({
-      enter: (node) => {
-        if (!/^(ImplicitAction|InlineDialogue|BlockDialogue)$/.test(node.name)) return;
-        prose.push(text.slice(node.from, node.to).trim());
-        return false;
-      },
-    });
-    expect(prose).toEqual(source.includes("Hello.") ? ["Hello."] : []);
-  });
+  // In a narrative body a declaration ends at its line, so a target on the
+  // line after a comma is story (`LocalAnnotationColons.test.ts`).
 
   // In a Sparkdown document the checker reads its Luau statements with the
   // rest left out: the error at the end of that Luau runs to the next line as

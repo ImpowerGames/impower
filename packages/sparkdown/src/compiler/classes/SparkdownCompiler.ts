@@ -155,6 +155,7 @@ import { SparkdownDocumentRegistry } from "./SparkdownDocumentRegistry";
 import { SparkdownFileRegistry } from "./SparkdownFileRegistry";
 import { ChunkStore, type ProgramBuild } from "../../program/ChunkStore";
 import { debugFileName } from "../utils/debugFileName";
+import { runWrapperText, runWrapperUri } from "../utils/runWrapper";
 import {
   programFlows,
   type StatementRecord,
@@ -3328,13 +3329,13 @@ export class SparkdownCompiler {
           // Together: the parent calls the wrapper at the run-site,
           // and the wrapper definition lives at the end where it
           // doesn't terminate the parent's main flow.
-          const wrapped = `& ${wrapperName}()\nfunction ${wrapperName}()\n${rawContent}\nend\n`;
+          const wrapped = runWrapperText(wrapperName, rawContent);
           // Stash the wrapped content under a virtual URI derived
           // from the .luau file's URI. The `?run` query suffix
           // keeps it distinct from any raw .luau document registered
           // separately. The compiler treats it as a normal `.sd`
           // source from this point on.
-          const virtualUri = `${resolvedFilePath}?run=${wrapperName}`;
+          const virtualUri = runWrapperUri(resolvedFilePath, wrapperName);
           this.documents.add({
             textDocument: {
               uri: virtualUri,

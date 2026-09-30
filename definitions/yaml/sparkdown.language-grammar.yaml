@@ -3452,6 +3452,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauFunctionParameters" }
+      - { include: "#LuauFunctionReturnMissingType" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -5997,6 +5998,7 @@ repository:
       - { include: "#LuauFunctionBody" }
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnMissingType" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
@@ -6205,11 +6207,8 @@ repository:
   # The declaration in a narrative body (the root, a scene, or a sparkdown
   # `if`, loop or `choose` around dialogue and actions, and an `&`
   # statement). It ends at its line: the next line is prose, never a
-  # continued value, so a comma that ends the line among its values is left
-  # without a value and the lowerer reports it. A comma that ends the line
-  # among its targets, before any `=`, is the exception: no list of targets
-  # ends with one, so the targets go on on the next line
-  # (`LuauTargetCommaLineBreak`). It ends as the Luau declaration does, so a
+  # continued value, so a comma that ends the line is left without a value
+  # and the lowerer reports it. It ends as the Luau declaration does, so a
   # statement after it on the same line (`& local x = 5 return`) is the
   # body's next statement. A second declaration on the line is this rule
   # too, ahead of the Luau declaration `LuauExpression` reaches, so it also
@@ -6228,43 +6227,13 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
-      - { include: "#LuauTargetCommaLineBreak" }
       - { include: "#LuauComment" }
       - { include: "#LuauTargetTypeCast" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
-    # As the Luau declaration's, but a line start right after a
-    # `LuauTargetCommaLineBreak` does not end it, so an unindented target
-    # goes on too (`local a,` then `b :: number`): in a narrative body no
-    # lowerer carries the line in, as it does in Luau code.
-    end: (?={{BEAT}})|(?=$|[;)\]}])|(?=^)(?<![,]{{WS}}*(?:--[^\r\n]*)?\r?\n)|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
-
-  # A comma that ends its line among a narrative declaration's targets, with
-  # no `=` before it on its line (`local a,` then `b: number`), read as
-  # `LuauCommaLineBreak` is in Luau code, so the targets go on on the next
-  # line. A comma after the `=` is among the values, and the declaration
-  # still ends at its line (`store hp = 100,` then prose). Its consumers read
-  # it where they read `LuauCommaSeparator` and `LuauCommaLineBreak`.
-  LuauTargetCommaLineBreak:
-    begin: (?<=^[^=\n\r]*)({{WS}}*)([,])({{WS}}*)(?=$|{{LUAU_COMMENT_START}})
-    beginCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: operator
-        name: keyword.operator.comma.luau
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-    patterns:
-      - { include: "#LuauComment" }
-      - { include: "#ExtraWhitespace" }
-      - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}}|{{LUAU_COMMENT_START}})
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
@@ -8910,11 +8879,20 @@ repository:
   # (`local x: ;`, `local x: = 1`, `local a: , b`), read as one token as
   # `LuauOperatorMissingOperand` reads an operator. Luau words this one
   # differently, so it has its own rule. `LuauAccessPart` also reads it, after
-  # a name (`t.a: = 2`).
+  # a name (`t.a: = 2`). A `:` with nothing after it on its line takes its
+  # type from the next line, so a next line that starts with a statement
+  # keyword or `end` leaves it empty too (`local w:` then `local z = 1`).
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
     match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
+
+  # The same for a function's return type (`function g():` then `return 1`,
+  # `function g(a: number): end`), which follows the parameter list's `)`.
+  LuauFunctionReturnMissingType:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: (?<=[)]{{WS}}*)({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
   # A `::` after a declaration's target (`local x :: number`), where a type
   # annotation takes a single `:`. Luau rejects it; without this token the
@@ -9311,6 +9289,7 @@ repository:
       - { include: "#LuauFunctionBody" }
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnMissingType" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauTypeFunctionName" }
       - { include: "#LuauFunctionParameters" }

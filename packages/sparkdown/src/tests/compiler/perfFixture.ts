@@ -16,7 +16,7 @@ export function generatePerfScreenplay(sceneCount: number): string {
   }
   // A couple of helper functions.
   for (let i = 0; i < 4; i++) {
-    lines.push(`function helper_${i}(x):`);
+    lines.push(`function helper_${i}(x)`);
     lines.push(`  local y = x + ${i}`);
     lines.push(`  return y * 2`);
     lines.push("end");

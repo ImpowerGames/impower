@@ -5039,6 +5039,9 @@
           "include": "#LuauFunctionParameters"
         },
         {
+          "include": "#LuauFunctionReturnMissingType"
+        },
+        {
           "include": "#LuauFunctionReturnType"
         },
         {
@@ -9110,6 +9113,9 @@
           "include": "#LuauGenericsDeclaration"
         },
         {
+          "include": "#LuauFunctionReturnMissingType"
+        },
+        {
           "include": "#LuauFunctionReturnType"
         },
         {
@@ -9337,9 +9343,6 @@
       },
       "patterns": [
         {
-          "include": "#LuauTargetCommaLineBreak"
-        },
-        {
           "include": "#LuauComment"
         },
         {
@@ -9358,43 +9361,7 @@
           "include": "#LuauExpression"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=$|[;)\\]}])|(?=^)(?<![,](?:[^\\S\\n\\r])*(?:--[^\\r\\n]*)?\\r?\\n)|(?=(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])|(?:[-][-])|[,=]))|(?=(?:(?:end|else|elseif|until|return|break|continue|goto|local|store|const|do|while|repeat|for)\\b|(?:export(?:[^\\S\\n\\r])+)?type(?:[^\\S\\n\\r])+(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))|(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)(?=(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[=*\\[(?:[^\\]\\n]|\\](?!=*\\]))*\\]=*\\](?:[^\\S\\n\\r])*)(?=(?!(?:and|or)\\b)[A-Za-z_]))"
-    },
-    "LuauTargetCommaLineBreak": {
-      "begin": "(?<=^[^=\\n\\r]*)((?:[^\\S\\n\\r])*)([,])((?:[^\\S\\n\\r])*)(?=$|(?:[-][-]))",
-      "beginCaptures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "tag": "operator",
-          "name": "keyword.operator.comma.luau"
-        },
-        "3": {
-          "emit": true,
-          "patterns": [
-            {
-              "include": "#OptionalWhitespace"
-            }
-          ]
-        }
-      },
-      "patterns": [
-        {
-          "include": "#LuauComment"
-        },
-        {
-          "include": "#ExtraWhitespace"
-        },
-        {
-          "include": "#Newline"
-        }
-      ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?!$|(?:[^\\S\\n\\r])|(?:[-][-]))"
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=^|$|[;)\\]}])|(?=(?:[^\\S\\n\\r])+(?!(?:[^\\S\\n\\r])|(?:[-][-])|[,=]))|(?=(?:(?:end|else|elseif|until|return|break|continue|goto|local|store|const|do|while|repeat|for)\\b|(?:export(?:[^\\S\\n\\r])+)?type(?:[^\\S\\n\\r])+(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)))|(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)(?=(?:(?:[^\\S\\n\\r])*(?:[-][-])\\[=*\\[(?:[^\\]\\n]|\\](?!=*\\]))*\\]=*\\](?:[^\\S\\n\\r])*)(?=(?!(?:and|or)\\b)[A-Za-z_]))"
     },
     "LuauVariableDefinitionValue": {
       "patterns": [
@@ -13328,6 +13295,11 @@
       "name": "invalid.illegal.luau",
       "match": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,)\\]}>]|=(?!=)|\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)))"
     },
+    "LuauFunctionReturnMissingType": {
+      "tag": "invalid",
+      "name": "invalid.illegal.luau",
+      "match": "(?<=[)](?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,)\\]}>]|=(?!=)|\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)))"
+    },
     "LuauTargetTypeCast": {
       "begin": "(?<=\\b(?:\\b(?:store|local|const)\\b)(?:[^\\S\\n\\r])+[^=\\n\\r]*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)((?:[:][:]))((?:[^\\S\\n\\r])*)",
       "beginCaptures": {
@@ -13948,6 +13920,9 @@
         },
         {
           "include": "#LuauGenericsDeclaration"
+        },
+        {
+          "include": "#LuauFunctionReturnMissingType"
         },
         {
           "include": "#LuauFunctionReturnType"

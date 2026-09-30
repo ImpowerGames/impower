@@ -116,14 +116,6 @@ describe("const declaration validity", () => {
     expect(r.errors).toBeGreaterThan(0);
   });
 
-  it("a local of the same name shadows without a spurious const error", () => {
-    const r = check(
-      "const SHOW = 5\nfunction f()\n  local SHOW = 1\n  return SHOW\nend",
-    );
-    expect(r.hasProgram).toBe(true);
-    expect(r.errors).toBe(0);
-  });
-
   it.each([
     ["a local in a function", "function f()\n  local SHOW = 1\n  return SHOW\nend"],
     ["a local in a function with a return type", "function f(): number\n  local SHOW = 1\n  return SHOW\nend"],

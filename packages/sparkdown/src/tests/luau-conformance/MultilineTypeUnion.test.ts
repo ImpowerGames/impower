@@ -108,11 +108,12 @@ describe("every statement of a function runs", () => {
     expect(ctx.story.ContinueMaximally()).toBe(output);
   });
 
-  // A header ending in a colon has a return type with nothing in it, which
-  // Luau reports on the next line's first token (#1174); the statements
-  // after it still run.
+  // A header ending in a colon has an empty return type, which Luau rejects
+  // (#1152); the body still opens at the next line, so its statements run.
   test("with a header ending in a colon, which is reported", () => {
-    const ctx = makeRuntimeStoryFromSource(`Value {f(4)}.\nfunction f(x):\n  local y = x + 1\n  return y\nend\n`);
+    const ctx = makeRuntimeStoryFromSource(
+      `Value {f(4)}.\nfunction f(x):\n  local y = x + 1\n  return y\nend\n`,
+    );
     expect(ctx.errorMessages).toEqual(["Expected type, got 'local'"]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
   });
