@@ -208,6 +208,57 @@ describe("a local that a block declares with the name of a variadic function of 
       "Got 13,5,8.",
     );
   });
+
+  // A loop's variables are locals of its body, and a `repeat` loop's `until`
+  // condition sees the locals of its body.
+  const withFoo = (lines: string[]) =>
+    [
+      "function run()",
+      "  local base = 10",
+      "  function foo(n, ...) return base + n end",
+      ...lines.map((line) => `  ${line}`),
+      "end",
+      "Got {run()}.",
+      "",
+    ].join("\n");
+  it.each([
+    [
+      "is what a generic `for` loop's body calls when a loop variable has the name",
+      withFoo([
+        "local result = 0",
+        "for _, foo in ipairs({ function(u) return u.x end }) do",
+        "  result = foo({ x = 5 })",
+        "end",
+        "return result",
+      ]),
+      "Got 5.",
+    ],
+    [
+      "is what a numeric `for` loop's body reads when its variable has the name",
+      withFoo([
+        "local result = 0",
+        "for foo = 7, 7 do",
+        "  result = foo",
+        "end",
+        "return result",
+      ]),
+      "Got 7.",
+    ],
+    [
+      "is what a `repeat` loop's `until` condition calls when its body declares it",
+      withFoo([
+        "local count = 0",
+        "repeat",
+        "  count = count + 1",
+        "  local foo = function(u) return u.x == 5 end",
+        "until foo({ x = 5 })",
+        "return count",
+      ]),
+      "Got 1.",
+    ],
+  ])("%s", (_name, text, line) => {
+    expectShows(text, line);
+  });
 });
 
 describe("a variadic closure called by name (#1217)", () => {

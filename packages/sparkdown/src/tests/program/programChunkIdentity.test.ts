@@ -684,6 +684,49 @@ describe("a name a chunk reads", () => {
   });
 });
 
+// A `local` hides a variadic function of its name for the rest of its block,
+// and a closure written after it in the block captures the local where it
+// called the function before (`shadowSiblingSubFlow`). The closure's own
+// statement is unchanged by an edit that names the local after the function,
+// so its lowering records what it found the name to be, and the store emits
+// it again when that changes.
+describe("a statement whose meaning a block's local changes", () => {
+  const text = [
+    "function run()",
+    "  function foo(...) return 10 end",
+    "  do",
+    "    local zoo = function() return 5 end",
+    "    local bar = function()",
+    "      return foo()",
+    "    end",
+    "    return bar()",
+    "  end",
+    "end",
+    "Got {run()}.",
+    "",
+  ].join("\n");
+  const cold = (source: string) =>
+    programCompiler(
+      { [MAIN]: source },
+      { programChunks: true, seedBuiltinsIntoStory: true },
+    ).compile().program.chunks!;
+  const shows = (root: ProgramRoot) =>
+    storyBeats(new ProgramStory(root)).beats.map((beat) => beat.text.trim());
+
+  it("is emitted again when an edit names the local after the function, and when it names it back", () => {
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 10."]);
+    const shadowed = s.edit("local zoo", "local foo");
+    expect(describeRoot(shadowed)).toEqual(
+      describeRoot(cold(text.replace("local zoo", "local foo"))),
+    );
+    expect(shows(shadowed)).toEqual(["Got 5."]);
+    const restored = s.edit("local foo", "local zoo");
+    expect(describeRoot(restored)).toEqual(describeRoot(cold(text)));
+    expect(shows(restored)).toEqual(["Got 10."]);
+  });
+});
+
 describe("a statement an edit moves past the statements that keep their chunks", () => {
   // The cumulative fuzz of the function screenplay (programDifferential)
   // replayed through the edits after which its seeds 12345 and 99991 found

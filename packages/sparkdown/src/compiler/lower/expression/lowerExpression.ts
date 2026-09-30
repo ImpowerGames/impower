@@ -44,6 +44,7 @@ import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import {
   closeFunctionBody,
+  currentStatement,
   openFunctionBody,
 } from "../utils/statementShape";
 import { lowerTable } from "./lowerTable";
@@ -1584,8 +1585,7 @@ export function collectImmediateBodyDeclarations(
       // are NOT recorded as enclosing-scope locals. Variadic nested
       // fns route through `lowerNestedAsSubFlow` which only
       // registers the SubFlow — there's no `local NAME = closureValue`
-      // binding emitted (the variadic call site needs static dispatch
-      // for `PackTuple`, see comment in `lowerLuauFunctionDefinition`).
+      // binding emitted (see `lowerLuauFunctionDefinition`).
       // Recording the name as a local would make `scanFreeVariables`
       // capture the name as an upval in any sibling closure, then
       // `VariablePointerExpression(NAME)` would resolve to nil at
@@ -1772,21 +1772,30 @@ export function scanFreeVariables(
   // Is `name` a sibling SubFlow in some enclosing scope? Variadic
   // nested fns route through `lowerNestedAsSubFlow` and don't emit
   // a `local NAME = closure` binding — capturing them as upvals
-  // would `VariablePointerExpression(NAME)` to nil at runtime and
-  // also bypasses the static `PackTuple` setup that variadic
-  // dispatch requires. Instead, references fall through to
+  // would `VariablePointerExpression(NAME)` to nil at runtime, since
+  // NAME is no variable. Instead, references fall through to
   // FunctionCall dispatch at the call site, which resolves NAME via
-  // ink's relative-path walk to the enclosing-scope subFlow.
+  // ink's relative-path walk to the enclosing-scope subFlow. The
+  // answer decides what the closure captures, so the statement
+  // records it (`recordSiblingRead`).
   const isSiblingSubFlow = (name: string) => {
     const stack = ctx.siblingSubFlowNamesStack;
     if (!stack) return false;
+    let named = false;
     for (let i = stack.length - 1; i >= 0; i--) {
       const entry = stack[i]!.get(name);
+      named ||= entry !== undefined;
       // Rebound entries (`f = <expr>` over a global/former subflow)
       // are dispatch metadata only — they must NOT suppress upval
       // capture decisions; the name resolves like any other
       // global/local reference here.
-      if (entry !== undefined && !entry.rebound) return true;
+      if (entry !== undefined && !entry.rebound) {
+        recordSiblingRead(ctx, `capture:${name}=subflow`);
+        return true;
+      }
+    }
+    if (named) {
+      recordSiblingRead(ctx, `capture:${name}=value`);
     }
     return false;
   };
@@ -2781,7 +2790,9 @@ function resolveCallableBinding(
     if (sibling !== undefined) {
       // Rebound names (`f = <expr>` over a former subflow or a bare
       // global) dispatch as VALUE calls, not static diverts.
-      return sibling.rebound ? "local" : "sibling";
+      const binding = sibling.rebound ? "local" : "sibling";
+      recordSiblingRead(ctx, `call:${name}=${binding}`);
+      return binding;
     }
     if (locals[i]?.has(name)) return "local";
   }
@@ -2789,13 +2800,62 @@ function resolveCallableBinding(
 }
 
 /**
+ * Records in the running statement's reads what its lowering found a name
+ * to be among the sibling subflows: whether a call reaches the subflow or a
+ * value (`resolveCallableBinding`), and whether a closure captures the name
+ * (`scanFreeVariables`). A `local` of the name that an edit adds or removes
+ * changes the answer (`shadowSiblingSubFlow`) and the statement's code, not
+ * its syntax, and the binary program's chunk store emits a statement again
+ * when its reads change.
+ */
+function recordSiblingRead(ctx: LowerContext, read: string): void {
+  const reads = currentStatement(ctx)?.reads.other;
+  if (reads && !reads.includes(read)) {
+    reads.push(read);
+  }
+}
+
+/**
+ * The names the statements of `block` declare as locals themselves
+ * (`local x`, `local function f`), not those declared inside the blocks
+ * within it: what a `repeat` loop's `until` condition sees of its body.
+ */
+export function blockLocalNames(block: SyntaxNode, ctx: LowerContext): string[] {
+  const names: string[] = [];
+  for (let child = block.firstChild; child; child = child.nextSibling) {
+    // The statement's own modifier, which starts it; a function without one
+    // can hold a `local` in its body.
+    const scope = getDescendent("LuauScopeModifier", child);
+    if (
+      !scope ||
+      ctx.read(child.from, scope.from).trim() !== "" ||
+      ctx.read(scope.from, scope.to).trim() !== "local"
+    ) {
+      continue;
+    }
+    if (VARIABLE_DEFINITION_NAMES.has(child.name)) {
+      names.push(...collectVarDefIdentifiers(child, ctx));
+    } else if (child.name === "LuauFunctionDefinition") {
+      const declaration = findOwnDeclarationName(child);
+      const nameNode =
+        declaration && getDescendent("LuauFunctionName", declaration);
+      if (nameNode) {
+        names.push(ctx.read(nameNode.from, nameNode.to));
+      }
+    }
+  }
+  return names;
+}
+
+/**
  * Hides the sibling subflow `name` of the innermost function for the rest of
- * the block being lowered, as a `local` of that name declared in the block
- * hides it in Luau: calls and references to the name after the declaration
- * dispatch to the local's value, as a rebound name's do
- * (`resolveCallableBinding`), and the subflow is visible again when the
- * block ends (`lowerStatements`). Without it, a call to the local would pass
- * the subflow's upvalues before its own arguments.
+ * the block being lowered, as a `local` of that name declared in the block,
+ * or a loop's variable of that name, hides it in Luau: calls and references
+ * to the name after the declaration dispatch to the local's value, as a
+ * rebound name's do (`resolveCallableBinding`), and the subflow is visible
+ * again when the block ends (`lowerStatements`, or the loop that pushed a
+ * block of its own for its variables). Without it, a call to the local would
+ * pass the subflow's upvalues before its own arguments.
  */
 export function shadowSiblingSubFlow(name: string, ctx: LowerContext): void {
   const frame = ctx.siblingSubFlowNamesStack?.at(-1);

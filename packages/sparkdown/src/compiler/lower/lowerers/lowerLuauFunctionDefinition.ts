@@ -124,14 +124,12 @@ export function lowerLuauFunctionDefinition(
       : "";
     const isLocal = scopeText === "local";
     // Variadic functions (`function f(a, ...) ... end`) keep the
-    // legacy subFlow-knot form rather than converting to a local
-    // closure. Static-dispatch is the only path that handles the
-    // call-site `PackTuple` for the `...` slot today; routing
-    // through `CallValueAsFunction` would need extra runtime work to
-    // pack surplus args without the lowerer knowing the target's
-    // arity. Trade-off: no upvalue capture for variadic functions
-    // — acceptable for V1 since varargs use rarely overlaps with
-    // closure capture in practice.
+    // subFlow-knot form rather than converting to a local closure: a
+    // call reaches them by path, passing the upvalues they capture
+    // before its own arguments (`lowerNestedAsSubFlow`), and packs
+    // their `...` when it runs, as every call arranges its arguments
+    // (`arrangeArgsFor`). A `local` of the name hides the subflow for
+    // the rest of its block (`shadowSiblingSubFlow`).
     const argsPreview = lowerArguments(nodeRef.node, ctx);
     const isVariadic =
       argsPreview.length > 0 && !!argsPreview[argsPreview.length - 1]!.isVararg;
@@ -368,9 +366,9 @@ function lowerNestedNamedFunction(
   return wrapInWeave([declaration]);
 }
 
-// Variadic nested fns keep the legacy "subFlow `Function` attached to
-// the enclosing flow" shape so their call sites can reach the static-
-// dispatch path that handles `PackTuple` for the `...` slot.
+// Variadic nested fns keep the "subFlow `Function` attached to the
+// enclosing flow" shape, which their call sites reach by path; the call
+// packs the `...` slot when it runs (`arrangeArgsFor`).
 // Upvalue capture works by prepending the body's free variables as
 // PARAMETERS (the same shape closures use): every call site prepends
 // matching `VariablePointerExpression`s (see the sibling-subflow

@@ -441,8 +441,8 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // Per-chunk stack of "sibling subflow" names — nested function
       // declarations that route through `lowerNestedAsSubFlow` (variadic
       // fns) rather than emitting a local-binding closure. References to
-      // these names from inner closures must skip upval capture so the
-      // call site resolves via FunctionCall + static `PackTuple`.
+      // these names from inner closures skip upval capture, as the names
+      // are no variables: the call site reaches the subflow by path.
       const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
       // Per-chunk stack of the blocks being lowered, each with what its end
       // undoes (`LowerContext.blockEndStack`).

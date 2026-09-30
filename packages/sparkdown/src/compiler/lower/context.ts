@@ -264,8 +264,7 @@ export interface LowerContext {
    * which resolves to nil since NAME is a SubFlow not a variable.
    * Instead the inner-closure body's references fall through to
    * `FunctionCall` dispatch, which resolves NAME via ink's relative-
-   * path walk and routes through the static `PackTuple` setup that
-   * variadic dispatch requires.
+   * path walk; the call packs the subflow's `...` when it runs.
    *
    * The upvalue-name list is the subflow's free variables: the
    * subflow prepends them as parameters and every call site prepends
