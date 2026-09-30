@@ -7,8 +7,8 @@ The checks verify mechanical properties only (template boundaries, placeholder c
 - Independence: the writer and reviewer are distinct configured model routes, the launch arguments select the reviewer route, and one undirected reviewer is always present.
 - Reviewer duties, inside the delimited prompt block: an independent first pass recorded before reading other current-round reports; test honesty and repository rules checked by every reviewer; unverified concerns and coverage gaps labelled separately from confirmed findings; no edits inside the repo tree; destructive experiments only in a scratch repository.
 - Process discipline: reviewers run as separate fresh processes, the coordinator waits for each to exit and confirms its report landed, and a missing comment alone never justifies a relaunch.
-- Adjudication: every finding gets a disposition on the PR (accepted, rejected, already covered or deferred), and behavior-changing corrections are themselves independently reviewed.
-- Rounds: the autonomous cap is three rounds, extensions need explicit user authorization recorded by the launcher, nothing resets the count, and exhausting the cap never grants readiness.
+- Adjudication: every finding gets a disposition on the PR (accepted, rejected, already covered or deferred), behavior-changing corrections are themselves independently reviewed, each report is adjudicated and corrected before the round's next reviewer launches, and the writer settles its own suspicions by experiment rather than waiting for a reviewer to raise them.
+- Rounds: a round's reviewers are fixed before its first launch and corrections between them neither add a reviewer nor start a round, the autonomous cap is three rounds, extensions need explicit user authorization recorded by the launcher, nothing resets the count, and exhausting the cap never grants readiness.
 
 Before publishing an edit to the feature review skills or their shared reference, confirm each of these is still stated where a reader following the workflow reaches it:
 

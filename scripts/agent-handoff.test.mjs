@@ -184,6 +184,31 @@ config.journal = path.join(scratch, "changed-third-round-head.jsonl");
 git("commit", "--allow-empty", "-m", "correction after review");
 write(); await assert.rejects(runHandoff(file), /same round requires the recorded reviewed head/);
 assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+// A reviewer the round still plans launches on the corrected head, at the round
+// limit too; once the planned count is spent the correction needs a new round.
+config.completedRoundReviews = 1;
+config.steps.first.reviewers = 2;
+for (const finalCorrections of [false, true]) {
+  config.finalCorrections = finalCorrections;
+  config.journal = path.join(scratch, `planned-reviewer-after-correction-${finalCorrections}.jsonl`);
+  write(); await assert.rejects(runHandoff(file), /posted comment IDs/, "a planned reviewer must launch on the corrected head before its fixture's empty report is rejected");
+  assert.ok(fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+}
+config.completedRoundReviews = 2;
+config.journal = path.join(scratch, "spent-reviewers-final-corrections.jsonl");
+write(); await assert.rejects(runHandoff(file), /no automatic review/);
+config.finalCorrections = false;
+config.journal = path.join(scratch, "spent-reviewers-changed-head.jsonl");
+write(); await assert.rejects(runHandoff(file), /same round requires the recorded reviewed head/);
+assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+config.steps.first.reviewers = 4;
+config.journal = path.join(scratch, "oversized-reviewer-count.jsonl");
+write(); await assert.rejects(runHandoff(file), /planned reviewer count/);
+delete config.steps.first.reviewers;
+config.completedRoundReviews = 0;
+write(); await assert.rejects(runHandoff(file), /completedRoundReviews/);
+assert.equal(fs.existsSync(config.journal), false);
+delete config.completedRoundReviews;
 config.journal = path.join(scratch, "missing-recovery-state.jsonl");
 delete config.finalCorrections;
 write(); await assert.rejects(runHandoff(file), /finalCorrections/);
@@ -319,6 +344,23 @@ try {
   const raisedCorrected=fs.readFileSync(raisedCap.journal,"utf8").trim().split("\n").map(JSON.parse);
   assert.equal(raisedCorrected.find(row=>row.event==="completed").finalCorrections,true);
   assert.equal(raisedCorrected.filter(row=>row.event==="launching").length,1,"actual corrections after round six still block another lens");
+
+  // Two planned reviewers with a correction between them share round 1; the
+  // same chain with one planned reviewer stops before the second launches.
+  const betweenReviewers = (reviewers, journal) => ({ ...lifecycle, first:"first", maxSteps:3, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,journal), steps:{
+    first:{...lifecycle.steps.review,round:1,reviewers,args:[lifecycleChild,"first-review","--model","reviewer-test"],next:["next-review"]},
+    "next-review":{...extendedLifecycle.steps.implement},
+    review:{...lifecycle.steps.review,round:1,reviewers},
+  }});
+  const corrected2 = betweenReviewers(2,"correction-between-reviewers.jsonl");
+  fs.writeFileSync(file,JSON.stringify(corrected2)); await runHandoff(file);
+  const betweenCompleted=fs.readFileSync(corrected2.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="completed");
+  assert.deepEqual(betweenCompleted.map(row=>row.completedRoundReviews),[1,1,2],"each validated reviewer of the round is counted");
+  assert.ok(betweenCompleted.every(row=>row.completedRound===1),"a correction between planned reviewers stays in its round");
+  assert.notEqual(betweenCompleted[2].reviewedHead,betweenCompleted[0].reviewedHead,"the second reviewer records the corrected head");
+  const unplanned = betweenReviewers(1,"correction-after-last-reviewer.jsonl");
+  fs.writeFileSync(file,JSON.stringify(unplanned)); await assert.rejects(runHandoff(file),/same round requires the recorded reviewed head/);
+  assert.equal(fs.readFileSync(unplanned.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="launching").length,2,"a correction after the last planned reviewer cannot launch another in its round");
 
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;
