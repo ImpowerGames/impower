@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { collectDiagnostics } from "../runtime/runtimeTestHarness";
 
 // Colons around a declaration's targets that Luau rejects: a `::` after a
 // target on a line continued from a trailing comma (#1166), a `:` or `::`
@@ -84,6 +85,44 @@ describe("an annotation written with two separate colons (#1168)", () => {
       [0, 9, 0, 11, "Expected type, got ':'"],
     ]);
   });
+});
+
+// `checkLuau` compiles its snippet as a function body. In a narrative body
+// (a script's top level or a scene) the declaration ends at its line, so
+// these check every error the compiled script reports there.
+describe("in a narrative body", () => {
+  test.each([
+    ["local :: number", "Expected identifier when parsing variable name, got '::'"],
+    ["local : number", "Expected identifier when parsing variable name, got ':'"],
+    ["local a, :: number", "Expected identifier when parsing variable name, got '::'"],
+    ["store : number", "Expected identifier when parsing variable name, got ':'"],
+    ["local c : : number", "Expected type, got ':'"],
+    ["local c: : number = 1", "Expected type, got ':'"],
+    ["scene S\n  local :: number\nend", "Expected identifier when parsing variable name, got '::'"],
+    ["scene S\n  local c : : number\nend", "Expected type, got ':'"],
+    // A function in the script is Luau code, where the comma continues the list.
+    ["function f()\n  local a,\n    b :: number\nend", "Expected identifier when parsing expression, got '::'"],
+  ])("%j reports the one error", (source, message) => {
+    expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([message]);
+  });
+
+  // The next line is story, so a trailing comma is the only error, as it is
+  // before a target with a valid annotation (`TrailingCommaValueList`).
+  test.each(["local a,\nb :: number", "local a,\nb: number", "scene S\n  local a,\n  b :: number\nend"])(
+    "%j reports only the trailing comma",
+    (source) => {
+      expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([
+        "Expected identifier when parsing binding name, got 'b'",
+      ]);
+    },
+  );
+
+  test.each(["local x: number", "local x: {a: number}", "local f: (a: number) -> ()", "local x = 1\nlocal y = x :: number"])(
+    "%j stays free of errors",
+    (source) => {
+      expect(collectDiagnostics(`${source}\n`).errorMessages).toEqual([]);
+    },
+  );
 });
 
 describe("colons Luau accepts stay free of syntax errors", () => {

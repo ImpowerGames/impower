@@ -18,6 +18,8 @@ import {
 } from "../../lower/utils/lineContinuation";
 import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
 import { RESERVED } from "../../lint/luauNames";
+import { isTrivia, soleVariableName } from "../../lint/luauTree";
+import { VARIABLE_DEFINITION_CONTENT_NAMES } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -123,26 +125,11 @@ const MISSING_TYPE = "Expected type";
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
 const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
 const MISSING_VARIABLE_NAME = "Expected identifier when parsing variable name";
-// A declaration's content: its targets, the commas between them and, from
-// the first `=` on, its values.
-const DECLARATION_CONTENT = nodeNameSet([
-  "LuauVariableDefinition_content",
-  "LuauSparkdownVariableDefinition_content",
-]);
 const DECLARATION_COMMA = nodeNameSet([
   "LuauCommaSeparator",
   "LuauCommaLineBreak",
 ]);
 const DECLARATION_ASSIGNMENT = nodeNameSet(["LuauAssignmentOperation"]);
-const LUAU_TRIVIA = nodeNameSet([
-  "LuauComment",
-  "LuauLineComment",
-  "LuauDocLineComment",
-  "LuauBlockComment",
-  "ExtraWhitespace",
-  "OptionalWhitespace",
-  "Newline",
-]);
 const LUAU_COMMENT = nodeNameSet([
   "LuauBlockComment",
   "LuauDocLineComment",
@@ -566,9 +553,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * The part of a declaration's content before `node`, past comments and
-   * whitespace: `null` when `node` comes first, and `undefined` when an `=`
-   * comes before it, since `node` is then among the values, not the targets.
+   * The part of a declaration's content before `node` (its targets, the
+   * commas between them and, from the first `=` on, its values), past
+   * comments and whitespace: `null` when `node` comes first, and `undefined`
+   * when an `=` comes before it, since `node` is then among the values, not
+   * the targets.
    */
   protected declarationTargetBefore(
     node: SyntaxNode,
@@ -582,20 +571,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       ) {
         return undefined;
       }
-      if (!before && !LUAU_TRIVIA.has(sibling.name)) {
+      if (!before && !isTrivia(sibling)) {
         before = sibling;
       }
     }
     return before;
-  }
-
-  /** Whether an access path is one name (`b`), with no member or call. */
-  protected isSingleName(node: SyntaxNode): boolean {
-    if (node.name !== "LuauAccessPath") {
-      return false;
-    }
-    const parts = node.getChild("LuauAccessPath_content")?.getChildren("LuauAccessPart") ?? [];
-    return parts.length === 1 && parts[0]!.firstChild?.name === "LuauVariable" && parts[0]!.firstChild.nextSibling === null;
   }
 
   /** The end of the text before the block comments (and the whitespace around
@@ -671,7 +651,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (
       (nodeRef.name === "LuauTypeCastOperation" ||
         nodeRef.name === "LuauTypeAnnotationOperation") &&
-      DECLARATION_CONTENT.has(nodeRef.node.parent?.name ?? "")
+      VARIABLE_DEFINITION_CONTENT_NAMES.has(nodeRef.node.parent?.name ?? "")
     ) {
       const operator = nodeRef.name === "LuauTypeCastOperation" ? "::" : ":";
       const from = nodeRef.from + this.read(nodeRef.from, nodeRef.to).indexOf(operator);
@@ -689,7 +669,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       if (
         operator === "::" &&
         before &&
-        this.isSingleName(before) &&
+        before.name === "LuauAccessPath" &&
+        soleVariableName(before) &&
         comma &&
         DECLARATION_COMMA.has(comma.name)
       ) {
@@ -701,7 +682,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // Luau's range runs from the end of the first `:` to the end of the second.
     if (nodeRef.name === "LuauTypeAnnotationOperator") {
       let previous = nodeRef.node.prevSibling;
-      while (previous && LUAU_TRIVIA.has(previous.name)) {
+      while (previous && isTrivia(previous)) {
         previous = previous.prevSibling;
       }
       if (previous?.name === "LuauTypeAnnotationOperator") {
