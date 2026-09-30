@@ -159,6 +159,28 @@ describe("a statement after a same-line block comment after a value runs", () =>
     expect(run(body)).toBe("Value 2.\n");
   });
 
+  // A comment between an assignment target and its `=` is trivia as well.
+  test.each([
+    ["a name", "  local w = 0\n  w --[[c]] = 5", "Value 5.\n"],
+    ["a field", "  local t = {}\n  t.x --[[c]] = 5\n  local w = t.x", "Value 5.\n"],
+    ["a declaration", "  local w --[[c]] = 5", "Value 5.\n"],
+  ])("a comment after %s as an assignment target", (_name, body, expected) => {
+    expect(run(body)).toBe(expected);
+  });
+
+  test("a call statement whose arguments follow a comment spanning lines runs", () => {
+    expect(
+      run("  local w = 0\n  local g = function(v) w = v end\n  g --[[a\n  ]] (2)"),
+    ).toBe("Value 2.\n");
+  });
+
+  test("a level-four comment keeps a type union and an operand", () => {
+    expect(run("  local w: number --[====[a]]b]====] | string = 5")).toBe(
+      "Value 5.\n",
+    );
+    expect(run("  local w = 5 + --[====[c]====] 1")).toBe("Value 6.\n");
+  });
+
   test("the comment ending the line is the control", () => {
     expect(run("  local w = 5 --[[c]]\n  print(1)")).toBe("Value 15.\n");
   });
