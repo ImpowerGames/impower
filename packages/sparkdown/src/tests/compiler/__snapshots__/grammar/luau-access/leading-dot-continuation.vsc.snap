@@ -21,8 +21,8 @@ text.source.sparkdown [0..185]
  │       ├─ keyword.operator.assignment.luau [27..28]: "="
  │       ├─ punctuation.whitespace.optional.sd [28..29]: " "
  │       ├─ variable.other.readwrite.luau [29..30]: "t"
- │       └─ comment.line.double-dash.luau [30..38]
- │           ├─ punctuation.whitespace.sd [30..31]: " "
+ │       ├─ punctuation.whitespace.optional.sd [30..31]: " "
+ │       └─ comment.line.double-dash.luau [31..38]
  │           ├─ comment.luau [31..33]: "--"
  │           └─ punctuation.definition.comment.content.sd [33..38]: " note"
  ├─ Newline [38..39]: "\n"

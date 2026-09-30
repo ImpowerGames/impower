@@ -44,47 +44,48 @@ sparkdown [0..185]
  │   │       │   │   │       └─ LuauVariableDefinition_begin_c3 [24..25]
  │   │       │   │   │           └─ OptionalWhitespace [24..25]: " "
  │   │       │   │   ├─ LuauVariableDefinition_content [25..38]
- │   │       │   │   │   ├─ LuauVariableAssignment [25..30]
- │   │       │   │   │   │   ├─ LuauVariableAssignment_begin [25..27]
- │   │       │   │   │   │   │   ├─ LuauVariableAssignment_begin_c1 [25..26]
- │   │       │   │   │   │   │   │   └─ LuauVariableName [25..26]: "y"
- │   │       │   │   │   │   │   └─ LuauVariableAssignment_begin_c2 [26..27]
- │   │       │   │   │   │   │       └─ OptionalWhitespace [26..27]: " "
- │   │       │   │   │   │   ├─ LuauVariableAssignment_content [27..30]
- │   │       │   │   │   │   │   └─ LuauAssignmentOperation [27..30]
- │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_begin 27
- │   │       │   │   │   │   │       │   └─ LuauAssignmentOperation_begin_c1 27
- │   │       │   │   │   │   │       │       └─ OptionalWhitespace 27
- │   │       │   │   │   │   │       ├─ LuauAssignmentOperation_content [27..30]
- │   │       │   │   │   │   │       │   ├─ LuauAssignmentOperator [27..29]
- │   │       │   │   │   │   │       │   │   ├─ LuauAssignmentOperator_begin [27..29]
- │   │       │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 27
- │   │       │   │   │   │   │       │   │   │   │   └─ OptionalWhitespace 27
- │   │       │   │   │   │   │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [27..28]: "="
- │   │       │   │   │   │   │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [28..29]
- │   │       │   │   │   │   │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [28..29]
- │   │       │   │   │   │   │       │   │   │           └─ OptionalWhitespace [28..29]: " "
- │   │       │   │   │   │   │       │   │   └─ LuauAssignmentOperator_end 29
- │   │       │   │   │   │   │       │   └─ LuauAccessPath [29..30]
- │   │       │   │   │   │   │       │       ├─ LuauAccessPath_begin 29
- │   │       │   │   │   │   │       │       ├─ LuauAccessPath_content [29..30]
- │   │       │   │   │   │   │       │       │   └─ LuauAccessPart [29..30]
- │   │       │   │   │   │   │       │       │       └─ LuauVariable [29..30]
- │   │       │   │   │   │   │       │       │           └─ LuauVariable_c1 [29..30]
- │   │       │   │   │   │   │       │       │               └─ LuauVariableName [29..30]: "t"
- │   │       │   │   │   │   │       │       └─ LuauAccessPath_end 30
- │   │       │   │   │   │   │       │           └─ LuauAccessPath_end_c1 30
- │   │       │   │   │   │   │       └─ LuauAssignmentOperation_end 30
- │   │       │   │   │   │   └─ LuauVariableAssignment_end 30
- │   │       │   │   │   └─ LuauLineComment [30..38]
- │   │       │   │   │       ├─ LuauLineComment_begin [30..33]
- │   │       │   │   │       │   ├─ LuauLineComment_begin_c1 [30..31]
- │   │       │   │   │       │   │   └─ Whitespace [30..31]: " "
- │   │       │   │   │       │   └─ LuauLineComment_begin_c2 [31..33]
- │   │       │   │   │       │       └─ LuauCommentMark [31..33]: "--"
- │   │       │   │   │       ├─ LuauLineComment_content [33..38]
- │   │       │   │   │       │   └─ LuauLineCommentContent [33..38]: " note"
- │   │       │   │   │       └─ LuauLineComment_end 38
+ │   │       │   │   │   └─ LuauVariableAssignment [25..38]
+ │   │       │   │   │       ├─ LuauVariableAssignment_begin [25..27]
+ │   │       │   │   │       │   ├─ LuauVariableAssignment_begin_c1 [25..26]
+ │   │       │   │   │       │   │   └─ LuauVariableName [25..26]: "y"
+ │   │       │   │   │       │   └─ LuauVariableAssignment_begin_c2 [26..27]
+ │   │       │   │   │       │       └─ OptionalWhitespace [26..27]: " "
+ │   │       │   │   │       ├─ LuauVariableAssignment_content [27..38]
+ │   │       │   │   │       │   └─ LuauAssignmentOperation [27..38]
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_begin 27
+ │   │       │   │   │       │       │   └─ LuauAssignmentOperation_begin_c1 27
+ │   │       │   │   │       │       │       └─ OptionalWhitespace 27
+ │   │       │   │   │       │       ├─ LuauAssignmentOperation_content [27..38]
+ │   │       │   │   │       │       │   ├─ LuauAssignmentOperator [27..29]
+ │   │       │   │   │       │       │   │   ├─ LuauAssignmentOperator_begin [27..29]
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c1 27
+ │   │       │   │   │       │       │   │   │   │   └─ OptionalWhitespace 27
+ │   │       │   │   │       │       │   │   │   ├─ LuauAssignmentOperator_begin_c2 [27..28]: "="
+ │   │       │   │   │       │       │   │   │   └─ LuauAssignmentOperator_begin_c3 [28..29]
+ │   │       │   │   │       │       │   │   │       └─ LuauAssignmentOperator_begin_c3 [28..29]
+ │   │       │   │   │       │       │   │   │           └─ OptionalWhitespace [28..29]: " "
+ │   │       │   │   │       │       │   │   └─ LuauAssignmentOperator_end 29
+ │   │       │   │   │       │       │   ├─ LuauAccessPath [29..31]
+ │   │       │   │   │       │       │   │   ├─ LuauAccessPath_begin 29
+ │   │       │   │   │       │       │   │   ├─ LuauAccessPath_content [29..30]
+ │   │       │   │   │       │       │   │   │   └─ LuauAccessPart [29..30]
+ │   │       │   │   │       │       │   │   │       └─ LuauVariable [29..30]
+ │   │       │   │   │       │       │   │   │           └─ LuauVariable_c1 [29..30]
+ │   │       │   │   │       │       │   │   │               └─ LuauVariableName [29..30]: "t"
+ │   │       │   │   │       │       │   │   └─ LuauAccessPath_end [30..31]
+ │   │       │   │   │       │       │   │       └─ LuauAccessPath_end_c1 [30..31]
+ │   │       │   │   │       │       │   │           └─ LuauAccessPath_end_c1 [30..31]
+ │   │       │   │   │       │       │   │               └─ OptionalWhitespace [30..31]: " "
+ │   │       │   │   │       │       │   └─ LuauLineComment [31..38]
+ │   │       │   │   │       │       │       ├─ LuauLineComment_begin [31..33]
+ │   │       │   │   │       │       │       │   ├─ LuauLineComment_begin_c1 31
+ │   │       │   │   │       │       │       │   └─ LuauLineComment_begin_c2 [31..33]
+ │   │       │   │   │       │       │       │       └─ LuauCommentMark [31..33]: "--"
+ │   │       │   │   │       │       │       ├─ LuauLineComment_content [33..38]
+ │   │       │   │   │       │       │       │   └─ LuauLineCommentContent [33..38]: " note"
+ │   │       │   │   │       │       │       └─ LuauLineComment_end 38
+ │   │       │   │   │       │       └─ LuauAssignmentOperation_end 38
+ │   │       │   │   │       └─ LuauVariableAssignment_end 38
  │   │       │   │   └─ LuauVariableDefinition_end 38
  │   │       │   ├─ Newline [38..39]: "\n"
  │   │       │   ├─ LuauLineContinuation [39..45]

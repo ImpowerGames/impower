@@ -135,6 +135,19 @@ describe("a statement after a same-line block comment after a value runs", () =>
     ).toBe("Value 5.\n");
   });
 
+  // A comment between a callee and its arguments is trivia: the call stands.
+  test.each([
+    ["parentheses", "  local w = g --[[c]] (2)", "Value 6.\n"],
+    ["parentheses, no spaces", "  local w = g--[[c]](2)", "Value 6.\n"],
+    ["reassignment", "  local w = 0\n  w = g --[[c]] (2)", "Value 6.\n"],
+    ["string argument", '  local w = s --[[c]] "x"', "Value x!.\n"],
+    ["table argument", "  local w = t --[[c]] {2}", "Value 2.\n"],
+  ])("a call with a comment before its %s", (_name, body, expected) => {
+    const callees =
+      '  local g = function(v) return v * 3 end\n  local s = function(v) return v .. "!" end\n  local t = function(v) return v[1] end\n';
+    expect(run(callees + body)).toBe(expected);
+  });
+
   test("the comment ending the line is the control", () => {
     expect(run("  local w = 5 --[[c]]\n  print(1)")).toBe("Value 15.\n");
   });

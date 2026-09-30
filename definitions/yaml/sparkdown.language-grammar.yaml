@@ -443,7 +443,15 @@ variables:
   # capture a zero-width separator before it for the formatter to widen into
   # `number ?`. `LuauTypeOptionalOperator` reads the `?` itself, together with
   # any whitespace before it.
-  LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>])
+  # Includes a comment start: a value or a type takes the whitespace before a
+  # comment as its separator, so the rule around it stays open across a
+  # block comment to what follows (a call's arguments, `g --[[c]] (2)`; a
+  # type's `?`, `|` or `&`), as Luau reads a comment as trivia. A value still
+  # ends before a comment with a statement after it on the line, through
+  # `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`, and a type through
+  # `LUAU_BLOCK_COMMENT_ON_LINE`. `--` itself is never an operator (see
+  # `LUAU_ARITHMETIC_OPERATORS`).
+  LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>]|{{LUAU_COMMENT_START}})
   # NOTE: Intentional exception to the "no capture groups in variables" rule. The `({{WS}}*)` group is captured on purpose — host
   # rules use the captured trailing whitespace as their final
   # `OptionalSeparator`. This pattern is appended to the end of nearly every
@@ -468,13 +476,9 @@ variables:
   # booleans). As a type argument (`Box<"ok">`, `Box<true>`) one is followed
   # directly by its generic's `>`, which is not a comparison, so no separator
   # is taken before a `>` right after it. A comparison written with a space
-  # (`"a" > "b"`) still takes that space as a separator. As a type does (see
-  # `_LUAU_TYPE_OPERATOR_AHEAD_` below), one also takes the whitespace before
-  # a comment, so a literal type stays open across a block comment to its
-  # `?` or `|` (`"a" --[[c]] ? `); as a value, it still ends before a comment
-  # with code after it through `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`. Like the
-  # one above, this adds exactly one capture group to the host rule.
-  _LUAU_SHARED_OPERATOR_AHEAD_: (?:({{WS}}+|(?![>]))(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}}|{{LUAU_COMMENT_START}})|(?=$|.))
+  # (`"a" > "b"`) still takes that space as a separator. Like the one above,
+  # this adds exactly one capture group to the host rule.
+  _LUAU_SHARED_OPERATOR_AHEAD_: (?:({{WS}}+|(?![>]))(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
   # The same lookahead for the type-only rules (names, primitives and the
   # bracketed types). A `<` or `>` after a type is a generic's bracket, never a
   # comparison, so it is not an operator here: the bracket stays glued to the
@@ -482,11 +486,7 @@ variables:
   # taken as extra whitespace, which the formatter removes (`Array <number >`
   # becomes `Array<number>`). This adds two capture groups to the host rule:
   # the separator before an operator, then the whitespace before a bracket.
-  # A type also takes the whitespace before a comment as its separator, so
-  # the type stays open across a block comment to the `?`, `|` or `&` after
-  # it (`number --[[c]] ?`); a type ends before a comment with code after it
-  # through `LUAU_BLOCK_COMMENT_ON_LINE` instead.
-  _LUAU_TYPE_OPERATOR_AHEAD_: (?:({{WS}}*)(?![<>])(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}}|{{LUAU_COMMENT_START}})|({{WS}}+)(?=[<>])|(?=$|.))
+  _LUAU_TYPE_OPERATOR_AHEAD_: (?:({{WS}}*)(?![<>])(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|({{WS}}+)(?=[<>])|(?=$|.))
 
 patterns:
   - { include: "#EndOfLine" }
