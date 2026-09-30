@@ -310,9 +310,17 @@ variables:
   ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
   ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
+  # The text between a regex literal's slashes (`@/x/`), shared by
+  # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
+  LUAU_REGEX_BODY: (?:\\.|[^/\\\r\n])+
   LUAU_ASSIGNMENT_OPERATORS: (?:\+=|-=|\/=|\/\/=|\*=|%=|\^=|\.\.=|=(?!=))
   LUAU_COMPARE_OPERATORS: (?:==|~=|<=?|>=?)
-  LUAU_ARITHMETIC_OPERATORS: (?:\+|-|%|\*|\/\/|\/|\^)
+  # A `-` followed by another `-` begins a comment, never subtraction: Luau
+  # reads `5 --[[c]] f()` as `5` then the call, and `5 - -x` (with a space)
+  # as subtraction of a negation. Every operator lookahead built on this set
+  # therefore leaves a value's trailing whitespace before a comment, so the
+  # rule reading the value still ends there.
+  LUAU_ARITHMETIC_OPERATORS: (?:\+|-(?!-)|%|\*|\/\/|\/|\^)
   LUAU_CONCAT_OPERATOR: (?<![.])(?:[.][.])(?![.])
   LUAU_TYPECAST_OPERATOR: (?:[:][:])
   LUAU_LENGTH_OPERATOR: (?:[#])
@@ -384,7 +392,14 @@ variables:
   # Each use checks that a type or value ends before it, so a comment after
   # an operator or a comma (`type A = --[[c]] number`,
   # `local a, --[[c]] b = 1, 2`) leaves the rule going.
-  LUAU_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[=*\[(?:[^\]\n]|\](?!=*\]))*\]=*\]{{WS}}*)
+  # The comment closes only at brackets of its own level, as
+  # `LuauBlockComment` does, so a `]]` inside `--[=[a]]b]=]` does not close
+  # it. A variable cannot hold a backreference that every use can number, so
+  # levels up to three are spelled out, and a comment of a longer level is
+  # never one of these: after a value or a type it is read by
+  # `LuauValueTrailingBlockComment` or `LuauTypeTrailingBlockComment`,
+  # whose ends match the level, on its opening line as on a later one.
+  LUAU_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[(?:\[(?:[^\]\n]|\](?!\]))*\]\]|=\[(?:[^\]\n]|\](?!=\]))*\]=\]|==\[(?:[^\]\n]|\](?!==\]))*\]==\]|===\[(?:[^\]\n]|\](?!===\]))*\]===\])(?:{{WS}}*))
   # What follows a block comment that ends a type: anything but a type
   # operator, the `?` suffix, a qualifier or generics, or what ends the type
   # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
@@ -392,6 +407,31 @@ variables:
   # What follows a block comment that ends a declaration or its assignment:
   # a word that begins a statement, not `and` or `or`.
   LUAU_STATEMENT_CODE_AHEAD: (?=(?!(?:and|or)\b)[A-Za-z_])
+  # Just after a value and the whitespace before a comment: the value ends
+  # in a word, a closing bracket, a quote, the vararg `...` or a regex literal
+  # (`@/x/`, whose closing `/` is never read as division), and the word is
+  # not a keyword operator (`a and --[[c]] b` keeps its operand) or a scope
+  # modifier (`local --[[c]] w = 5`).
+  AFTER_LUAU_VALUE: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/){{WS}}*)(?<!(?:^|[^\w.])(?:and|or|not|local|store|const){{WS}}*))
+  # Just after a value that Luau cannot call, which a statement beginning
+  # with `(` can follow (`5 --[[c]] (function() end)()`): a literal, which is
+  # not a prefix expression. That is a word that is a number of any spelling
+  # (`0x5`, `5e0`, `1_000`, `.5`), `true`, `false`, `nil` or a function's
+  # `end`; `...`; a regex literal; or a closing quote, `}` or long bracket
+  # (`]]`, `]=]`), read as a string or table literal. After a prefix
+  # expression, `(` is a call of it, as in Luau: after a name (`g (2)`), a
+  # call (`g() --[[c]] (2)`), a parenthesized value or an index (`t[1]`), whose
+  # closing `)` or single `]` is not in this set. A call written with a string
+  # or table argument (`f"x"`, `f{1}`) or an index holding an index
+  # (`t[a[1]]`) ends like a literal, so a `(` statement after one of those and
+  # a comment is read as a new statement.
+  AFTER_LUAU_UNCALLABLE_VALUE: (?<=(?:[}"'`]|\]=*\]|\.\.\.|@/{{LUAU_REGEX_BODY}}/[dgimsuvy]*|(?:^|[^\w.])(?:\.?\d[\w.]*|true|false|nil|end)){{WS}}*)
+  # A block comment after a value, with a statement after it on the same
+  # line (`w = 5 --[[c]] print(1)`, `local w = 5--[[c]] print(1)`). The
+  # comment takes the whitespace after it, so a rule that ends at whitespace
+  # before the next statement ends here instead, before the comment. A
+  # comment that spans lines is `LuauValueTrailingBlockComment`.
+  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:{{AFTER_LUAU_VALUE}}(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{AFTER_LUAU_UNCALLABLE_VALUE}}(?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(]))
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
@@ -424,7 +464,15 @@ variables:
   # capture a zero-width separator before it for the formatter to widen into
   # `number ?`. `LuauTypeOptionalOperator` reads the `?` itself, together with
   # any whitespace before it.
-  LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>])
+  # Includes a comment start: a value or a type takes the whitespace before a
+  # comment as its separator, so the rule around it stays open across a
+  # block comment to what follows (a call's arguments, `g --[[c]] (2)`; a
+  # type's `?`, `|` or `&`), as Luau reads a comment as trivia. A value still
+  # ends before a comment with a statement after it on the line, through
+  # `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`, and a type through
+  # `LUAU_BLOCK_COMMENT_ON_LINE`. `--` itself is never an operator (see
+  # `LUAU_ARITHMETIC_OPERATORS`).
+  LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD: (?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>]|{{LUAU_COMMENT_START}})
   # NOTE: Intentional exception to the "no capture groups in variables" rule. The `({{WS}}*)` group is captured on purpose — host
   # rules use the captured trailing whitespace as their final
   # `OptionalSeparator`. This pattern is appended to the end of nearly every
@@ -3362,6 +3410,7 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauAccessPath" }
@@ -3407,7 +3456,13 @@ repository:
     # `end`/newline, never `}`; a table-literal VALUE consumes its own
     # braces before this end is checked, and reassignment statements never
     # appear inside a table).
-    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    #
+    # A block comment between the value and the next statement takes the
+    # whitespace these lookaheads need, so `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`
+    # ends the reassignment before that comment instead. It also ends before
+    # the closing brackets that a `LuauValueTrailingBlockComment` spanning
+    # lines leaves when a statement follows them directly (`]]print(1)`).
+    end: (?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\]=*\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -6208,6 +6263,7 @@ repository:
     # holds the two rules' begin, captures and end together.
     patterns:
       - { include: "#LuauCommaLineBreak" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauTargetTypeCast" }
       - { include: "#LuauVariableAssignment" }
@@ -6231,7 +6287,7 @@ repository:
     # value (`collectLineContinuation`). An unindented if expression, which
     # would otherwise be read as an if statement, is read inside
     # `LuauCommaLineBreak` instead.
-    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # The declaration in a narrative body (the root, a scene, or a sparkdown
   # `if`, loop or `choose` around dialogue and actions, and an `&`
@@ -6262,7 +6318,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
@@ -6356,7 +6412,7 @@ repository:
     # statement context reads as `LuauSemicolonSeparator`. It ends before the
     # `]` that a type's trailing block comment leaves before code
     # (`LuauTypeTrailingBlockCommentClose`), as the declaration does.
-    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;\]])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
@@ -8884,12 +8940,14 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauAssignmentOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
     # An assignment's value ends at its line's end; it only stands at the
     # start of a line when a value that spans lines, such as an unfinished if
-    # expression, took the line break and ended there, which ends it too.
-    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])
+    # expression, took the line break and ended there, which ends it too. It
+    # also ends before a block comment with a statement after it.
+    end: (?={{BEAT}})|(?=$|^|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
   LuauAssignmentOperator:
     begin: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}})({{WS}}*)
     beginCaptures:
@@ -9025,9 +9083,10 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauArithmeticOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   LuauArithmeticOperator:
     begin: ({{WS}}*)({{LUAU_ARITHMETIC_OPERATORS}})({{WS}}*)
@@ -9063,9 +9122,10 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauCompareOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   LuauCompareOperator:
     begin: ({{WS}}*)({{LUAU_COMPARE_OPERATORS}})({{WS}}*)
@@ -9101,9 +9161,10 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauConcatOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   LuauConcatOperator:
     begin: ({{WS}}*)({{LUAU_CONCAT_OPERATOR}})({{WS}}*)
@@ -9139,9 +9200,10 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauLengthOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   LuauLengthOperator:
     begin: ({{WS}}*)({{LUAU_LENGTH_OPERATOR}})({{WS}}*)
@@ -9180,9 +9242,10 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauLogicalOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   LuauLogicalOperator:
     begin: ({{WS}}*)({{LUAU_LOGICAL_KEYWORDS}})({{WS}}*)
@@ -9217,9 +9280,10 @@ repository:
     patterns:
       - { include: "#LuauOperatorMissingOperand" }
       - { include: "#LuauTypeCastOperator" }
+      - { include: "#LuauValueTrailingBlockComment" }
       - { include: "#LuauComment" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])
+    end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   LuauTypeCastOperator:
     begin: ({{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
@@ -9593,6 +9657,100 @@ repository:
       - { include: "#LuauBlockCommentContent" }
       - { include: "#Newline" }
     end: (?=\]\3\]{{LUAU_TYPE_CODE_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_TYPE_CODE_AHEAD}})|)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  # A block comment after a value that closes on a later line (or on its
+  # own line, at a level `LUAU_BLOCK_COMMENT_ON_LINE` does not spell out), read as
+  # `LuauTypeTrailingBlockComment` reads one after a type: when a statement
+  # follows the close (`local w = 5 --[[a` then `]] print(1)`), it leaves
+  # the whitespace after the close, so the value, the rules around it and
+  # the declaration or reassignment end there as they do after
+  # `5 print(1)`; with no whitespace (`]]print(1)`) it ends before its
+  # closing brackets, which the enclosing body reads as
+  # `LuauTypeTrailingBlockCommentClose`. Anything else after the close (an
+  # operator, a comma, a call's arguments after a name) keeps the value
+  # going, and the comment takes the whitespace as `LuauBlockComment` does.
+  # A statement beginning with `(` counts only after a value that cannot be
+  # called (see `AFTER_LUAU_UNCALLABLE_VALUE`). The rules that end before a
+  # comment on one line (`LUAU_VALUE_COMMENT_BEFORE_STATEMENT`) include this
+  # one ahead of `LuauComment`.
+  LuauValueTrailingBlockComment:
+    patterns:
+      - { include: "#LuauUncallableValueTrailingBlockComment" }
+      - { include: "#LuauCallableValueTrailingBlockComment" }
+
+  LuauUncallableValueTrailingBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    begin: (?:{{AFTER_LUAU_UNCALLABLE_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+      - { include: "#Newline" }
+    end: (?=\]\3\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}}|[(])|)
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+
+  LuauCallableValueTrailingBlockComment:
+    tag: blockComment
+    name: comment.block.luau
+    begin: (?:{{AFTER_LUAU_VALUE}})(?!{{LUAU_BLOCK_COMMENT_ON_LINE}})({{WS}}*)(--\[)([=]*)(\[)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      3:
+        patterns:
+          - { include: "#LuauCommentMark" }
+      4:
+        patterns:
+          - { include: "#LuauCommentMark" }
+    patterns:
+      - { include: "#LuauDocCommentTags" }
+      - { include: "#LuauBlockCommentContent" }
+      - { include: "#Newline" }
+    end: (?=\]\3\]{{LUAU_STATEMENT_CODE_AHEAD}})|(\])(\3)(\])({{WS}}*(?!{{WS}})(?!{{LUAU_STATEMENT_CODE_AHEAD}})|)
     endCaptures:
       1:
         patterns:
@@ -10088,7 +10246,7 @@ repository:
   LuauRegexLiteral:
     tag: regexp
     name: string.regexp.sd
-    match: (@)([/])((?:\\.|[^/\\\r\n])+)([/])([dgimsuvy]*)
+    match: (@)([/])({{LUAU_REGEX_BODY}})([/])([dgimsuvy]*)
     captures:
       "1":
         tag: definition(string)

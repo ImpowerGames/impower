@@ -11,6 +11,8 @@ export const efforts = ["low", "medium", "high", "xhigh", "max"];
 export const ticketEfforts = ["low", "medium", "high", "correctness-critical"];
 const stripContext = (value) => value.replace(/\[[^\]]+\]$/, "");
 const isClaude = (route) => route.startsWith("claude-");
+// The vendor a route belongs to, or null for a route of neither known vendor.
+export const routeVendor = (route) => { const bare = stripContext(route); return isClaude(bare) ? "claude" : bare.startsWith("gpt-") ? "codex" : null; };
 // Codex also accepts an ultra reasoning effort; Claude stops at max.
 export const writerEfforts = (writer) => isClaude(stripContext(writer)) ? efforts : [...efforts, "ultra"];
 
