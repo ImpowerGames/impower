@@ -83,6 +83,20 @@ describe("a continued local list after an incremental edit to its `=`", () => {
     ["losing its `=`", "local aa, bb = 1,\n  helper", "bb =", "bb =="],
     ["three lines, gaining its `=`", "local aa, bb == 1,\n  2,\n  helper", "bb ==", "bb ="],
     ["gaining its `=` before a name with its own", "local aa, bb == 1,\n  helper = 2", "bb ==", "bb ="],
+    // The list sits inside a delimited value that is itself followed by a
+    // name, so the outer declaration adds nothing but the inner one must.
+    [
+      "gaining its `=` inside a closure value",
+      "local g, h = function()\n  local aa, bb == 1,\n    helper\n  helper()\nend, 1",
+      "bb ==",
+      "bb =",
+    ],
+    [
+      "gaining its `=` inside a table value",
+      "local t, u = { k = function()\n  local aa, bb == 1,\n    helper\n  helper()\nend }, 1",
+      "bb ==",
+      "bb =",
+    ],
   ])("annotates a later-line name as a cold parse does when %s", (_, declaration, find, replace) => {
     let text = script(declaration);
     const incremental = open(text);
