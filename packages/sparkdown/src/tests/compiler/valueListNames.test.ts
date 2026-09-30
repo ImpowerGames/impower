@@ -59,10 +59,19 @@ describe("a name in a declaration's value list", () => {
   test("is a reference in the semantic tokens and keeps what it refers to", () => {
     const tokens = annotationsFor(SOURCE, "semantics");
     const valueX = tokens.find((t) => t.from === offsetOf(SOURCE, "x", 2));
-    expect(valueX?.value.tokenModifiers ?? []).not.toContain("declaration");
+    expect(valueX?.value).toEqual({ tokenType: "variable", tokenModifiers: [] });
     // Naming `helper` in a value list does not rebind it as a variable, so
     // the call on the next line is still a function.
     const call = tokens.find((t) => t.from === offsetOf(SOURCE, "helper", 3));
     expect(call?.value.tokenType).toBe("function");
   });
+});
+
+// A target's own `=` is the one directly after its name and type: the
+// `k = 1` inside `typeof({ k = 1 })` is not the list's `=`, so a bare name
+// after it, before a statement on the same line, is still declared.
+test("a bare name after a table type is a declaration", () => {
+  const source = "function f()\n  local a: typeof({ k = 1 }), b return b\nend\n";
+  const decls = annotationsFor(source, "declarations").map((d) => `${d.value} ${d.text}`);
+  expect(decls).toEqual(expect.arrayContaining(["var a", "var b"]));
 });

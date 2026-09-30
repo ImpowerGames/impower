@@ -28,19 +28,23 @@ export const VARIABLE_DEFINITION_END_NAMES = nodeNameSet([
   "LuauSparkdownVariableDefinition_end",
 ]);
 
-function childNamed(parent: SyntaxNode, name: string): SyntaxNode | null {
-  for (let child = parent.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) return child;
-  }
-  return null;
-}
-
 // A `LuauVariableAssignment`'s own `=`: the assignment operation directly in
 // its content, next to its type annotation. An `=` nested in that type
 // (`local a: typeof({ k = 1 })`) is part of the type, not the declaration's.
 export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | null {
-  const content = childNamed(assignment, "LuauVariableAssignment_content");
-  return content ? childNamed(content, "LuauAssignmentOperation") : null;
+  return (
+    assignment
+      .getChild("LuauVariableAssignment_content")
+      ?.getChild("LuauAssignmentOperation") ?? null
+  );
+}
+
+// The name of a `LuauVariableAssignment` that holds nothing but its name (no
+// type annotation, no `=`), or null for any other node.
+export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
+  if (node.name !== "LuauVariableAssignment") return null;
+  if (node.getChild("LuauVariableAssignment_content")) return null;
+  return getDescendent("LuauVariableName", node) ?? null;
 }
 
 // The name of a `LuauVariableAssignment` that is a VALUE in its
@@ -48,16 +52,23 @@ export function ownAssignmentOperation(assignment: SyntaxNode): SyntaxNode | nul
 // before a comma or the end of its line as a target-shaped assignment, so
 // in `local a, b = 1, x` the `x` is one too. It is a value when it holds
 // only its name and an earlier assignment in the same declaration took the
-// list's `=`. Every reader that asks "does this declare a name?" asks here.
+// list's `=`. The annotators and the closure scan ask here. The lowerer's
+// list walk and the lints' `declaredNames` walk the list in order instead,
+// switching to values (or stopping) at the first `ownAssignmentOperation`,
+// which is the same rule.
+//
+// The answer depends on earlier siblings, so an incremental re-annotation
+// that ends inside a declaration runs to its end
+// (`SparkdownCombinedAnnotator.update`).
 export function valueListAssignmentName(node: SyntaxNode): SyntaxNode | null {
-  if (node.name !== "LuauVariableAssignment") return null;
   if (!node.parent || !VARIABLE_DEFINITION_CONTENT_NAMES.has(node.parent.name)) {
     return null;
   }
-  if (childNamed(node, "LuauVariableAssignment_content")) return null;
+  const name = nameOnlyAssignmentName(node);
+  if (!name) return null;
   for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
     if (prev.name === "LuauVariableAssignment" && ownAssignmentOperation(prev)) {
-      return getDescendent("LuauVariableName", node) ?? null;
+      return name;
     }
   }
   return null;

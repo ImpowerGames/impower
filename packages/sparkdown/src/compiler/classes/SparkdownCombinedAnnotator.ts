@@ -7,7 +7,8 @@ import {
   Text,
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
-import { Tree } from "@lezer/common";
+import { type SyntaxNode, Tree } from "@lezer/common";
+import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
@@ -53,6 +54,33 @@ function annotationValueKey(value: SparkdownAnnotation<any>): string {
   // rather than risk dropping a distinct annotation.
   uncomparableCounter += 1;
   return `!:${uncomparableCounter}`;
+}
+
+/**
+ * `to`, moved to the end of the outermost `local`/`store`/`const` declaration
+ * it falls strictly inside, if any. `undefined` (the end of the document) is
+ * kept.
+ */
+function extendToDeclarationEnd(
+  tree: Tree,
+  to: number | undefined,
+): number | undefined {
+  if (to == null) return to;
+  let end = to;
+  for (
+    let node: SyntaxNode | null = tree.resolveInner(to, -1);
+    node;
+    node = node.parent
+  ) {
+    if (
+      VARIABLE_DEFINITION_NAMES.has(node.name) &&
+      node.from < to &&
+      node.to > end
+    ) {
+      end = node.to;
+    }
+  }
+  return end;
 }
 
 export type SparkdownAnnotationRanges = {
@@ -430,10 +458,16 @@ export class SparkdownCombinedAnnotator {
     // whole block on every keystroke. Annotators that depend on preceding
     // context rebuild it in `begin()` instead; see `SemanticAnnotator`.
     // Without `reparsedTo` the window runs to the end of the document.
+    //
+    // The one widening kept is to the end of a `local`/`store`/`const`
+    // declaration the window stops inside: whether a later name in its list
+    // is a target or a value depends on an earlier name
+    // (`valueListAssignmentName`), so an edit to the list's `=` changes names
+    // past the reparsed range. A declaration is a few lines at most.
     this.reannotate(
       tree,
       editStart,
-      reparsedTo ?? undefined,
+      extendToDeclarationEnd(tree, reparsedTo ?? undefined),
       iteratingFrom,
       iteratingTo,
       annotate,

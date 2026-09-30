@@ -46,7 +46,9 @@ describe("a local's value list", () => {
     expect(run(body)).toEqual({ errors: [], output: expected });
   });
 
-  // Shapes that read correctly before #1116 was fixed and must keep working.
+  // Shapes whose names and values are told apart by their shape alone: a
+  // name first, a same-line statement, a bare list, and typed names whose
+  // types hold strings, brackets or comments.
   test.each([
     ["a name first", "local x = 5\nlocal a, b = x, 1\nreturn a + b", "Value 6.\n"],
     ["a name in a later statement on the line", "local x = 5\nlocal a, b = 1, x return b", "Value 5.\n"],

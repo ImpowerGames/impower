@@ -2,6 +2,7 @@ import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import {
   VARIABLE_DEFINITION_NAMES,
+  nameOnlyAssignmentName,
   valueListAssignmentName,
 } from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
@@ -353,7 +354,7 @@ export function lowerExpressionFromNodes(
         continue;
       }
     }
-    const bareName = bareAssignmentName(node);
+    const bareName = nameOnlyAssignmentName(node);
     if (extraParts.length > 0) {
       const expr = lowerAccessPath(node, ctx, extraParts);
       if (expr) tokens.push({ kind: "operand", expr });
@@ -2553,16 +2554,6 @@ export function lowerSimpleAccessPath(
     );
   }
   return null;
-}
-
-// The name of a `LuauVariableAssignment` that holds nothing but its name
-// (no type annotation, no `=`), or null for any other node.
-function bareAssignmentName(node: SyntaxNode): SyntaxNode | null {
-  if (node.name !== "LuauVariableAssignment") return null;
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === "LuauVariableAssignment_content") return null;
-  }
-  return getDescendent("LuauVariableName", node) ?? null;
 }
 
 // A dotted identifier chain (`a`, `a.b.c`) as a value, resolved as a
