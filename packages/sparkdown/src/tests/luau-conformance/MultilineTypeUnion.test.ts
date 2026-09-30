@@ -121,6 +121,7 @@ describe("a type in Luau code goes on past comments", () => {
     ["a comment line before a union member with a value", `Value {f()}.\nfunction f()\n  local v: number\n  -- note\n  | string = 5\n  return v\nend\n`],
     ["a comment line in a type alias", `Value {f()}.\nfunction f()\n  type T = number\n  -- note\n  | string\n  return 5\nend\n`],
     ["a comment line in a return type", `Value {f()}.\nfunction f(): number\n  -- note\n  | string\n  return 5\nend\n`],
+    ["a comment line in a parameter's type", `Value {f(1)}.\nfunction f(x: number\n  -- note\n  | string)\n  return 5\nend\n`],
     ["a block comment and code after a return type", `Value {f()}.\nfunction f(): number --[[c]] return 5 end\n`],
     ["a block comment and code after a continued return type", `Value {f()}.\nfunction f(): number\n  | string --[[c]] return 5 end\n`],
   ])("with %s", (_name, source) => {
@@ -132,10 +133,35 @@ describe("a type in Luau code goes on past comments", () => {
   test.each([
     ["a return type", `Value {f()}.\nfunction f(): number --[[c]] print(1) return 5 end\n`],
     ["a typed local", `Value {f()}.\nfunction f()\n  local w: number --[[c]] print(1)\n  return 5\nend\n`],
+    ["a typed local, holding a `]`", `Value {f()}.\nfunction f()\n  local w: number --[[a]b]] print(1)\n  return 5\nend\n`],
+    ["a typed local, with a level", `Value {f()}.\nfunction f()\n  local w: number --[=[a]b]=] print(1)\n  return 5\nend\n`],
+    ["a return type, holding a `]`", `Value {f()}.\nfunction f(): number --[[a]b]] print(1) return 5 end\n`],
   ])("a block comment after %s leaves the call after it a statement", (_name, source) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe("Value 15.\n");
+  });
+
+  test.each([
+    ["a comma", `Value {f()}.\nfunction f()\n  local a, --[[c]] b = 2, 3\n  return a + b\nend\n`],
+    ["an `=`", `Value {f()}.\nfunction f()\n  local a: number = --[[c]] 5\n  return a\nend\n`],
+    ["a type annotation's `:`", `Value {f()}.\nfunction f()\n  local a: --[[c]] number = 5\n  return a\nend\n`],
+  ])("a block comment right after %s leaves the declaration going", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 5.\n");
+  });});
+
+// A `|` line after a comment line that continues no type is Luau's error, and
+// its value goes to no declaration.
+describe("a union member line that continues no type", () => {
+  test.each([
+    ["after a call", `Value {f()}.\nfunction f()\n  print(1)\n  -- note\n  | string\n  return 5\nend\n`],
+    ["after an untyped local", `Value {f()}.\nfunction f()\n  local v\n  -- note\n  | string = 5\n  return v\nend\n`],
+    ["at the start of a function with no return type", `Value {f()}.\nfunction f()\n  | string = print(9)\n  return 5\nend\n`],
+  ])("is reported %s", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual([expect.stringContaining("continues a type, but the line before it does not end in one")]);
   });
 });
 
@@ -146,6 +172,7 @@ describe("a value on an unindented line after a trailing comma", () => {
     ["a number", `Value {f()}.\nfunction f()\n  local a, g = 1,\n2\n  return g\nend\n`, "Value 2.\n"],
     ["a call", `Value {f()}.\nfunction f()\n  local a, g = 1,\nmath.max(2, 5)\n  return g\nend\n`, "Value 5.\n"],
     ["two values over two lines", `Value {f()}.\nfunction f()\n  local a, g, b = 1,\n2,\n3\n  return a + g * 10 + b * 100\nend\n`, "Value 321.\n"],
+    ["an indented if expression over several lines", `Value {f(true)}.\nfunction f(c)\n  local a, g = 1,\n    if c then\n      2\n    else\n      3\n  return g\nend\n`, "Value 2.\n"],
   ])("is read as %s", (_name, source, output) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);

@@ -355,6 +355,12 @@ describe("provider · scope after a type that ends its line", () => {
     expect(namesAt(source, "param")).not.toContain("p");
   });
 
+  test("a local is not in scope in the value of a union line that continues its type", () => {
+    const source = "function f()\n  local v: number\n  -- note\n  | string = @@\n  return v\nend\n";
+    expect(namesAt(source, "var")).not.toContain("v");
+    expect(namesAt(source.replace("= @@\n  return v", "= 5\n  return @@"), "var")).toContain("v");
+  });
+
   test("a local is not in scope after the `=` on its own line", () => {
     expect(namesAt("function f()\n  local a = @@\nend\n", "var")).not.toContain("a");
   });

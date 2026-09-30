@@ -33,7 +33,9 @@ import {
   isLineContinuation,
   isLineContinuationUsed,
   isTypeQualifierContinuation,
+  hasTypeUnionLineOwner,
   leadingReturnTypeQualifier,
+  reportUnownedTypeUnionLine,
   markLineContinuationUsed,
   reportUntakenLineContinuation,
   splitOnCommas,
@@ -456,7 +458,9 @@ export function lowerStatements(
     }
     if (child.name === "LuauTypeUnionLineContinuation") {
       // A union member line after a comment line: types do not reach the
-      // runtime, and the declaration before it took its `= value`.
+      // runtime, and the declaration before it took its `= value`. One that
+      // continues no type is Luau's error.
+      if (!hasTypeUnionLineOwner(child)) reportUnownedTypeUnionLine(child, ctx);
       child = child.nextSibling;
       continue;
     }

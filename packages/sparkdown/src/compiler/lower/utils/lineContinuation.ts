@@ -118,6 +118,7 @@ function collectLineContinuationFrom(
 // `node`, across blank and comment lines, which the declaration ended
 // before (`local v: number` then `-- note` then `| string = 1`).
 export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
+  if (!endsInTypeAnnotation(node)) return null;
   let value: SyntaxNode | null = null;
   for (let scan = node.nextSibling; scan; scan = scan.nextSibling) {
     if (SKIPPABLE.has(scan.name)) continue;
@@ -127,6 +128,71 @@ export function typeUnionLineValue(node: SyntaxNode): SyntaxNode | null {
     }
   }
   return value;
+}
+
+// Whether the declaration `node` ends in its last target's type annotation,
+// with no value after it (`local v: number`).
+function endsInTypeAnnotation(node: SyntaxNode): boolean {
+  if (node.name !== "LuauVariableDefinition" && node.name !== "LuauSparkdownVariableDefinition") {
+    return false;
+  }
+  let content: SyntaxNode | null = null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === `${node.name}_content`) content = child;
+  }
+  let last: SyntaxNode | null = content?.lastChild ?? null;
+  while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
+  return (
+    last?.name === "LuauVariableAssignment" &&
+    hasDescendant(last, "LuauTypeAnnotationOperation") &&
+    !hasDescendant(last, "LuauAssignmentOperation")
+  );
+}
+
+// Whether the union member line `line` (a `LuauTypeUnionLineContinuation`)
+// continues a type: the nearest node before it, across blank and comment
+// lines, is a declaration that ends in its type, a type alias, an annotated
+// parameter, or another such line with no value; or it starts a function
+// body after the function's return type.
+export function hasTypeUnionLineOwner(line: SyntaxNode): boolean {
+  let prev = line.prevSibling;
+  while (prev && SKIPPABLE.has(prev.name)) prev = prev.prevSibling;
+  if (!prev) {
+    const body = line.parent?.name === "LuauFunctionBody_content" ? line.parent.parent : null;
+    for (let n = body?.prevSibling ?? null; n; n = n.prevSibling) {
+      if (n.name === "LuauFunctionReturnType") return true;
+      if (n.name === "LuauFunctionParameters") return false;
+    }
+    return false;
+  }
+  if (prev.name === "LuauTypeUnionLineContinuation") {
+    return !hasDescendant(prev, "LuauAssignmentOperation");
+  }
+  return (
+    prev.name === "LuauDataTypeDeclaration" ||
+    prev.name === "LuauTypeAnnotationOperation" ||
+    endsInTypeAnnotation(prev)
+  );
+}
+
+// Report a union member line that continues no type (`print(1)` then
+// `-- note` then `| string`), which Luau rejects.
+export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext): void {
+  const raw = ctx.read(line.from, line.to);
+  const text = raw.trim();
+  const from = line.from + raw.length - raw.trimStart().length;
+  ctx.diagnostics?.push({
+    message: `\`${text}\` continues a type, but the line before it does not end in one.`,
+    severity: ErrorType.Error,
+    source: {
+      fileName: null,
+      filePath: ctx.filePath ?? null,
+      startLineNumber: ctx.lineNumber(from) + 1,
+      endLineNumber: ctx.lineNumber(line.to) + 1,
+      startCharacterNumber: ctx.characterNumber(from) + 1,
+      endCharacterNumber: ctx.characterNumber(line.to) + 1,
+    },
+  });
 }
 
 // Whether the declaration `node` ends on a comma after its `=`: its comma's
