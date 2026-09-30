@@ -47,6 +47,12 @@ export function checkReviewRound(round, completedRound, finalCorrections, review
   if (finalCorrections && completedRound >= reviewRoundLimit) throw new Error(`Final corrections after round ${reviewRoundLimit} require explicit user direction for further review; no automatic review`);
 }
 
+// A round's reviewers run one at a time and the writer may correct between them,
+// so a reviewer the round still plans may launch on a head the last one did not see.
+export function plannedReviewerPending(round, completedRound, completedRoundReviews, reviewers) {
+  return round === completedRound && Number.isInteger(completedRoundReviews) && Number.isInteger(reviewers) && completedRoundReviews < reviewers;
+}
+
 export function verifyNativeReviewResult(output,format='claude-json') {
   if(format==='codex-jsonl')return verifyCodexReviewResult(output);
   if(format!=='claude-json')throw new Error('Unsupported native reviewer result transport');
@@ -64,9 +70,10 @@ export function validateReviewRecovery(config) {
   if(!Number.isInteger(config.completedReviewRound)||config.completedReviewRound<0||config.completedReviewRound>limit)throw new Error(`Supply completedReviewRound from 0 through ${limit}, including on recovery`);
   if((config.completedReviewRound===limit&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections!==undefined&&typeof config.finalCorrections!=='boolean')||(config.finalCorrections&&config.completedReviewRound<3))throw new Error(`Supply finalCorrections from the journal for recovery at round 3 or later; round-${limit} recovery requires it`);
   if(config.completedReviewRound>0&&!/^[a-f0-9]{40}$/.test(config.reviewedHead??''))throw new Error('Supply reviewedHead from the journal when recovering a review round');
+  if(config.completedRoundReviews!==undefined&&(!Number.isInteger(config.completedRoundReviews)||config.completedRoundReviews<1||config.completedReviewRound<1))throw new Error('Supply completedRoundReviews from the journal as a positive integer, and only with a nonzero completedReviewRound');
 }
 
-const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds"];
+const planFields = ["pr", "first", "completedReviewRound", "reviewedHead", "completedRoundReviews", "finalCorrections", "reviewRoundLimit", "extendedReviewAuthorization", "slotWaitSeconds"];
 
 // Checks the fields the chain reads only later, so a malformed plan is refused
 // before any lock, journal, slot or child exists.
@@ -78,7 +85,8 @@ export function validatePlanShape(config) {
   for (const [name, step] of Object.entries(config.steps)) {
     validateExecutionShape(step);
     const misplaced = planFields.filter((field) => Object.hasOwn(step ?? {}, field));
-    if (misplaced.length) throw new Error(`Move ${misplaced.join(", ")} from step ${name} to the top level of the plan; only round, not completedReviewRound, belongs on a review step`);
+    if (misplaced.length) throw new Error(`Move ${misplaced.join(", ")} from step ${name} to the top level of the plan; only round and reviewers, not completedReviewRound, belong on a review step`);
+    if (step?.reviewers !== undefined && (!Number.isInteger(step.reviewers) || step.reviewers < 1 || step.reviewers > 3)) throw new Error(`Step ${name} reviewers must be its round's planned reviewer count, an integer from 1 through 3`);
   }
 }
 
@@ -243,6 +251,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   let current = config.first;
   let completedRound = config.completedReviewRound;
   let reviewedHead = config.reviewedHead ?? null;
+  let completedRoundReviews = config.completedRoundReviews ?? null;
   let finalCorrections = config.finalCorrections ?? false;
   let activeChild;
   const usedReports=new Set();
@@ -261,11 +270,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       if (index >= config.maxSteps) throw new Error("Handoff step budget reached; human review required");
       const step = config.steps[current];
       if (!step) throw new Error(`Unknown step: ${current}`);
-      if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections, reviewRoundLimit);
+      const plannedPending = step.role === "review" && plannedReviewerPending(step.round, completedRound, completedRoundReviews, step.reviewers);
+      if (step.role === "review") checkReviewRound(step.round, completedRound, finalCorrections && !plannedPending, reviewRoundLimit);
       const head = gitHead(cwd), status = gitStatus(cwd);
       if (status) throw new Error("Handoff requires a clean committed worktree");
       const install = step.role === "review" ? installFingerprint(cwd) : null;
-      if (step.role === "review" && step.round === completedRound && head !== reviewedHead) throw new Error("A pending lens in the same round requires the recorded reviewed head; corrections need a new round");
+      if (step.role === "review" && step.round === completedRound && head !== reviewedHead && !plannedPending) throw new Error("A pending lens in the same round requires the recorded reviewed head unless the round still plans a reviewer (the step's reviewers above completedRoundReviews); corrections after its last planned reviewer need a new round");
       const artifacts = fs.mkdtempSync(path.join(path.dirname(journal), `handoff-${index}-${step.role}-`));
       if(step.nativeResult==='codex-jsonl')protectPrivatePath(artifacts);
       const writable=step.nativeResult==='codex-jsonl'?fs.realpathSync.native(fs.mkdtempSync(path.join(path.dirname(journal),`completion-${index}-`))):artifacts;
@@ -276,7 +286,7 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       const diagnostics=step.nativeResult?path.join(artifacts,'stderr.log'):output;
       const args=step.nativeResult==='codex-jsonl'?nativeCodexArgs(step,writable):step.args;
       const reportNotBefore=new Date().toISOString();
-      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken });
+      append({ event: "launching", index, step: current, role: step.role, model: step.model, ...(step.role === "review" ? reviewerRow : {}), round: step.round, completedRound, reviewedHead, completedRoundReviews, finalCorrections, head, output, diagnostics, completion, args,reportNotBefore,reportToken });
       const log = fs.openSync(output, "wx");
       let stderr;
       try{stderr=diagnostics===output?log:fs.openSync(diagnostics,'wx');}catch(error){fs.closeSync(log);throw error;}
@@ -404,11 +414,12 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       }
       if (gitStatus(cwd)) throw new Error("Role left uncommitted work");
       if (step.role === "review") {
-        if (step.round > completedRound) finalCorrections = false;
+        completedRoundReviews = step.round > completedRound ? 1 : completedRoundReviews === null ? null : completedRoundReviews + 1;
+        if (step.round > completedRound || head !== reviewedHead) finalCorrections = false;
         completedRound = step.round; reviewedHead = head;
       }
       if (step.role !== "review" && completedRound === reviewRoundLimit && done.head !== reviewedHead) finalCorrections = true;
-      append({ head:done.head,next:done.next,commentIds:done.commentIds,summary:done.summary,event: "completed", index, step: current, completedRound, reviewedHead, finalCorrections });
+      append({ head:done.head,next:done.next,commentIds:done.commentIds,summary:done.summary,event: "completed", index, step: current, completedRound, reviewedHead, completedRoundReviews, finalCorrections });
       current = done.next;
     }
     append({ event: "finished" });
