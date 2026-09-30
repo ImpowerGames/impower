@@ -36,6 +36,7 @@ import {
 } from "../utils/validateAssignmentValue";
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
+import { statementSource } from "../utils/statementSource";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import {
   forwardBlockDiagnostics,
@@ -328,14 +329,7 @@ export function lowerVariableDefinition(
       ctx.diagnostics?.push({
         message: "A `const` takes one name and one value",
         severity: ErrorType.Error,
-        source: {
-          fileName: null,
-          filePath: ctx.filePath ?? null,
-          startLineNumber: ctx.lineNumber(nodeRef.from) + 1,
-          endLineNumber: ctx.lineNumber(nodeRef.to) + 1,
-          startCharacterNumber: ctx.characterNumber(nodeRef.from) + 1,
-          endCharacterNumber: ctx.characterNumber(nodeRef.to) + 1,
-        },
+        source: statementSource(nodeRef, ctx),
       });
     }
     if (targets.length !== 1 || expressions.length !== 1) return {};

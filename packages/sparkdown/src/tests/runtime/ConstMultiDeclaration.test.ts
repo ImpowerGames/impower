@@ -29,6 +29,16 @@ describe("const with more than one name or value", () => {
     expect(errors.filter((m) => m.includes(RULE))).toHaveLength(1);
   });
 
+  test.each([
+    ["table", 'const t = {x = 1, y = 2}\nValue {t.y}.\n', "Value 2.\n"],
+    ["string", 'const s = "a, b"\nValue {s}.\n', "Value a, b.\n"],
+    ["call arguments", "const m = math.max(1, 2)\nValue {m}.\n", "Value 2.\n"],
+  ])("commas inside a single value (%s) are not extra values", (_l, source, expected) => {
+    const { errors, text } = run(source);
+    expect(errors).toEqual([]);
+    expect(text).toBe(expected);
+  });
+
   test("a single const still declares its constant", () => {
     const { errors, text } = run("const a = 1\nValue {a}.\n");
     expect(errors).toEqual([]);
