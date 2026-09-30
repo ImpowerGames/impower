@@ -149,6 +149,16 @@ const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
   "LuauIfBlockCondition",
   "LuauElseifBlockCondition",
 ]);
+// The parts of an if statement's condition that are not its expression.
+const IF_CONDITION_TRIVIA = nodeNameSet([
+  "LuauConditionLeadingBreak",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+  "ExtraWhitespace",
+  "Newline",
+]);
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
@@ -374,7 +384,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     let end = content?.from ?? condition.from;
     for (let c = content?.firstChild; c; c = c.nextSibling) {
       if (c.name === "ERROR_INCOMPLETE") break;
-      if (c.name !== "Newline" && c.name !== "ExtraWhitespace") end = c.to;
+      if (!IF_CONDITION_TRIVIA.has(c.name)) end = c.to;
     }
     return end;
   }

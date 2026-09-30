@@ -42,6 +42,9 @@ describe("an if statement without `then`", () => {
     ["a statement on the next line", "local flag = true\nif flag\n  print(1)\nend\n"],
     ["`end` on the next line", "local flag = true\nif flag\nend\n"],
     ["an `elseif` whose next line is a statement", "local flag = true\nif flag then\nelseif flag\n  print(1)\nend\n"],
+    ["a statement after a blank line", "local flag = true\nif flag\n\n  print(1)\nend\n"],
+    ["a statement after a comment-only line", "local flag = true\nif flag\n  -- note\n  print(1)\nend\n"],
+    ["a condition on the line after `if`, then a statement", "local flag = true\nif\n  flag\n  print(1)\nend\n"],
   ])("%s is reported as Luau reports it", (_, source) => {
     const expected = luauSyntaxErrors(source);
     expect(expected).toEqual([expect.stringContaining("Expected 'then' when parsing if statement, got '")]);
@@ -53,6 +56,11 @@ describe("an if statement without `then`", () => {
     ["a next line that continues with an operator", "local flag, b = true, false\nif flag\n  and b then\nend\n"],
     ["an operator that ends the line", "local flag, b = true, false\nif flag and\n  b then\nend\n"],
     ["an access on the next line", "local t = {a = true}\nif t\n  .a then\nend\n"],
+    ["its first line after `if`", "local flag = true\nif\n  flag\nthen\nend\n"],
+    ["its first line after `elseif`", "local flag = true\nif flag then\nelseif\n  flag\nthen\nend\n"],
+    ["several lines after `if`", "local a, b = true, false\nif\n\n  a and\n  b\nthen\nend\n"],
+    ["a blank line before `then`", "local flag = true\nif flag\n\nthen\nend\n"],
+    ["a comment-only line before `then`", "local flag = true\nif flag\n  -- note\nthen\nend\n"],
   ])("a condition with %s still reads to its `then`", (_, source) => {
     expect(luauSyntaxErrors(source)).toEqual([]);
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
@@ -73,9 +81,11 @@ describe("an if statement without `then`", () => {
     expect(compiled).toContain('"^Went down the false side."');
   });
 
-  test("in a story, a condition whose `then` is on a later line keeps both branches", () => {
-    const source = STORY.replace("  if flag\n", "  if flag\n    and flag\n    then\n");
-    const program = compile(source);
+  test.each([
+    ["whose `then` is on a later line", "  if flag\n    and flag\n    then\n"],
+    ["that begins on the line after `if`", "  if\n    flag\n  then\n"],
+  ])("in a story, a condition %s keeps both branches", (_, header) => {
+    const program = compile(STORY.replace("  if flag\n", header));
     expect(diagnosticsOf(program).map(describeLsp)).toEqual([]);
     expect(JSON.stringify(program.compiled)).toContain('"^Went down the true side."');
   });
