@@ -358,6 +358,34 @@ end
     );
     expect(animation.timing).toEqual({ duration: 3, delay: 1 });
   });
+
+  test("a `--` right after a number, boolean or quoted value begins a comment, as in the indented form", () => {
+    const braced = `theme t with
+  a { x = 1-- } ; comment
+    y = true-- }
+    z = "q"-- }
+    w = var(--gap)
+  }
+  list { 2-- } ; comment
+  }
+end
+`;
+    const indented = `theme t with
+  a:
+    x = 1-- } ; comment
+    y = true-- }
+    z = "q"-- }
+    w = var(--gap)
+  list:
+    - 2-- } ; comment
+end
+`;
+    const struct = structOf(braced, "theme", "t");
+    expect(struct.a).toEqual({ x: 1, y: true, z: "q", w: "var(--gap)" });
+    expect(struct.list).toEqual([2]);
+    expect(struct).toEqual(structOf(indented, "theme", "t"));
+    expect(errorsOf(braced)).toEqual([]);
+  });
 });
 
 describe("commas", () => {
@@ -504,6 +532,26 @@ end
     expect(structOf(text, "animation", "after").timing).toEqual({
       duration: 2,
     });
+  });
+
+  test("a `}` at the end of a line outside every block is invalid syntax, not part of a value", () => {
+    const afterClose = `animation a with
+  timing {
+    duration = 1 }
+    delay = 2 }
+end
+`;
+    expect(errorsOf(afterClose)).toMatchObject([
+      { message: "Invalid syntax", line: 3, character: 14, text: "}" },
+    ]);
+    const scalar = `theme t with
+  value = 1 }
+end
+`;
+    expect(errorsOf(scalar)).toMatchObject([
+      { message: "Invalid syntax", line: 1, character: 12, text: "}" },
+    ]);
+    expect(structOf(scalar, "theme", "t").value).toBe(1);
   });
 
   test("a stray `}` is invalid syntax", () => {

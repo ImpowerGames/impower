@@ -319,8 +319,11 @@ variables:
   STRUCT_BLOCK_HEADER: (?:[^\s{};"=,][^{};"\n]*?)
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
-  # A body line whose first token opens a block or a list entry, or is a `}`.
-  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|[}]))
+  # A body line whose first token opens a block or a list entry, or that holds
+  # an unquoted `}` anywhere: a `}` outside every block is stray, and reading
+  # its line as block entries is what reports it (`delay = 2 }` after the block
+  # it meant to close has closed).
+  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|(?:{{STRUCT_BLOCK_QUOTED}}|[^"\n])*?[}]))
   # An unclosed block ends where the declaration's `end` starts a line.
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
@@ -330,14 +333,19 @@ variables:
   # or a block (`, b {`, `, > text {`). A value cannot hold an unquoted `{`,
   # so text after a comma that runs to a `{` is the next block's header.
   STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
+  # A whole number, boolean or quoted value. After one, a `--` can only begin a
+  # comment, so it needs no whitespace before it (`opacity = 1-- note`), as the
+  # indented form's typed reader already reads it. Anywhere else `--` can be
+  # part of a value (`var(--x)`).
+  STRUCT_BLOCK_LITERAL: (?:[-+]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
   # An unquoted property value ends at the end of its line, a `;`, a brace, a
   # comma that ends the entry or precedes another one, or a `--` comment after
-  # whitespace. Any other comma stays part of the value.
+  # whitespace or a literal. Any other comma stays part of the value.
   STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}})|{{WS}}+{{LUAU_COMMENT_START}})
-  STRUCT_BLOCK_VALUE: (?:(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))
+  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{LUAU_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))
   # A bare list value also ends at any comma.
   STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},])|{{WS}}+{{LUAU_COMMENT_START}})
-  STRUCT_BLOCK_ITEM: (?:(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?={{STRUCT_BLOCK_ITEM_END}}))
+  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{LUAU_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?={{STRUCT_BLOCK_ITEM_END}}))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.

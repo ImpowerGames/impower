@@ -1,4 +1,4 @@
-text.source.sparkdown [0..204]
+text.source.sparkdown [0..290]
  ├─ meta.theme.luau [0..15]
  │   ├─ keyword.control.theme.luau [0..5]: "theme"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -103,6 +103,61 @@ text.source.sparkdown [0..204]
  │   ├─ punctuation.whitespace.sd [197..198]: " "
  │   └─ punctuation.definition.template-expression.end.sd [198..199]: "}"
  ├─ Newline [199..200]: "\n"
- ├─ meta.theme.luau [200..203]
- │   └─ keyword.control.end.luau [200..203]: "end"
- └─ Newline [203..204]: "\n"
+ ├─ meta.theme.luau [200..231]
+ │   ├─ punctuation.whitespace.sd [200..202]: "  "
+ │   ├─ entity.name.type.class.view.sd [202..207]: "notes"
+ │   ├─ punctuation.whitespace.sd [207..208]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [208..209]: "{"
+ │   ├─ punctuation.whitespace.sd [209..210]: " "
+ │   ├─ variable.other.property.define.sd [210..211]: "x"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [211..212]: " "
+ │   ├─ keyword.operator.assignment.sd [212..213]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [213..214]: " "
+ │   ├─ constant.numeric.sd [214..215]
+ │   │   └─ constant.numeric.sd [214..215]: "1"
+ │   └─ comment.line.double-dash.luau [215..231]
+ │       ├─ comment.luau [215..217]: "--"
+ │       └─ punctuation.definition.comment.content.sd [217..231]: " } ; a comment"
+ ├─ Newline [231..232]: "\n"
+ ├─ meta.theme.luau [232..248]
+ │   ├─ punctuation.whitespace.sd [232..236]: "    "
+ │   ├─ variable.other.property.define.sd [236..237]: "y"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [237..238]: " "
+ │   ├─ keyword.operator.assignment.sd [238..239]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [239..240]: " "
+ │   ├─ constant.language.boolean.true.sd [240..244]
+ │   │   └─ constant.language.boolean.true.sd [240..244]: "true"
+ │   └─ comment.line.double-dash.luau [244..248]
+ │       ├─ comment.luau [244..246]: "--"
+ │       └─ punctuation.definition.comment.content.sd [246..248]: " }"
+ ├─ Newline [248..249]: "\n"
+ ├─ meta.theme.luau [249..267]
+ │   ├─ punctuation.whitespace.sd [249..253]: "    "
+ │   ├─ variable.other.property.define.sd [253..254]: "w"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [254..255]: " "
+ │   ├─ keyword.operator.assignment.sd [255..256]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [256..257]: " "
+ │   ├─ entity.name.function.sd [257..260]: "var"
+ │   ├─ punctuation.definition.template-expression.begin.sd [260..261]: "("
+ │   └─ comment.line.double-dash.luau [261..267]
+ │       ├─ comment.luau [261..263]: "--"
+ │       └─ punctuation.definition.comment.content.sd [263..267]: "gap)"
+ ├─ Newline [267..268]: "\n"
+ ├─ meta.theme.luau [268..271]
+ │   ├─ punctuation.whitespace.sd [268..270]: "  "
+ │   └─ punctuation.definition.template-expression.end.sd [270..271]: "}"
+ ├─ Newline [271..272]: "\n"
+ ├─ meta.theme.luau [272..285]
+ │   ├─ punctuation.whitespace.sd [272..274]: "  "
+ │   ├─ variable.other.property.define.sd [274..279]: "plain"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [279..280]: " "
+ │   ├─ keyword.operator.assignment.sd [280..281]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [281..282]: " "
+ │   ├─ constant.numeric.sd [282..283]
+ │   │   └─ constant.numeric.sd [282..283]: "1"
+ │   ├─ punctuation.whitespace.sd [283..284]: " "
+ │   └─ invalid.illegal.struct-block-close.sd [284..285]: "}"
+ ├─ Newline [285..286]: "\n"
+ ├─ meta.theme.luau [286..289]
+ │   └─ keyword.control.end.luau [286..289]: "end"
+ └─ Newline [289..290]: "\n"

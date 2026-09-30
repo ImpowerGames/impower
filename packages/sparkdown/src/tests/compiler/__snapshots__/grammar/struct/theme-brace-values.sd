@@ -6,4 +6,9 @@ theme dusk with
   }
   fonts { "Courier Prime"; serif }
   transitions { transition-property = background-color, opacity }
+  notes { x = 1-- } ; a comment
+    y = true-- }
+    w = var(--gap)
+  }
+  plain = 1 }
 end
