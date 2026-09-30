@@ -14,6 +14,8 @@ import { MultipleConditionExpression } from "../Expression/MultipleConditionExpr
 import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
 import { asOrNull } from "../../../../engine/TypeAssertion";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 export class DivertTarget extends Expression {
   private _runtimeDivert: RuntimeDivert | null = null;
@@ -51,6 +53,19 @@ export class DivertTarget extends Expression {
 
   override get typeName(): string {
     return "DivertTarget";
+  }
+
+  // A function held as a value, or a flow's: `Sym` of its symbol. The
+  // symbol's facts (its kind, and a function's parameters) are recorded, so
+  // the chunk is emitted again when the target changes what it is.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    const target = asOrNull(this.divert.targetContent, FlowBase);
+    if (!target) {
+      emitter.unsupported(this.typeName);
+    }
+    const symbol = emitter.functionSymbol(target);
+    emitter.reference(symbol);
+    emitter.emit(Op.Sym, symbol);
   }
 
   public readonly GenerateIntoContainer = (

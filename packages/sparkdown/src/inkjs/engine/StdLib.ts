@@ -351,6 +351,7 @@ export function luauTypeOf(v: any): string {
     const ctorName = v?.constructor?.name;
     if (
       ctorName === "DivertTargetValue" ||
+      ctorName === "SymbolValue" ||
       ctorName === "VariablePointerValue"
     ) {
       return "function";
@@ -1372,6 +1373,7 @@ function classifyGsubRepl(
   const ctorName = repl?.constructor?.name;
   if (
     ctorName === "DivertTargetValue" ||
+    ctorName === "SymbolValue" ||
     ctorName === "VariablePointerValue"
   ) {
     return "function";
@@ -2970,7 +2972,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // Both should serialize to a stable opaque token so authors
       // can use tostring(fn) in interpolations without leaking
       // internal representation.
-      if (ctorName === "DivertTargetValue") {
+      if (ctorName === "DivertTargetValue" || ctorName === "SymbolValue") {
         const path = (v as any).value;
         return `function: ${path?.toString?.() ?? "<unknown>"}`;
       }
@@ -5912,7 +5914,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     fn: (story, args) => {
       const msg = args.length > 0 ? coerceString(args[0]) : null;
-      const trace = story.state.callStack.callStackTrace;
+      const trace = story.CallStackTrace();
       const header = msg != null && msg !== "" ? msg + "\nstack traceback:\n" : "stack traceback:\n";
       return header + trace;
     },
@@ -5933,17 +5935,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story, [levelArg, optsArg]) => {
       const level = Math.floor(coerceNumber(levelArg) ?? 1);
       const opts = coerceString(optsArg) ?? "";
-      const elements = story.state.callStack.elements;
+      const frames = story.CallFrameCount();
       // Lua convention: level 1 is the caller of `debug.info`. The
       // current call sits at the top of the JS stack but we map
       // `level - 1` directly into the inkjs callstack (which is
       // ordered bottom-up). So level 1 = top of stack.
-      const idx = elements.length - level;
-      if (idx < 0 || idx >= elements.length) return new NullValue();
-      const frame = elements[idx];
-      const ptr = frame?.currentPointer;
-      const container = ptr && !ptr.isNull ? ptr.container : null;
-      const pathStr = container?.path?.toString() ?? "?";
+      const idx = frames - level;
+      if (idx < 0 || idx >= frames) return new NullValue();
+      const pathStr = story.CallFramePath(idx) ?? "?";
       const name = pathStr.includes(".")
         ? pathStr.substring(pathStr.lastIndexOf(".") + 1)
         : pathStr;

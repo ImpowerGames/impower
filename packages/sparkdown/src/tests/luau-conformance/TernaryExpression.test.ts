@@ -7,17 +7,16 @@
 // enclosing `then` or `do` once its else arm is complete, including when
 // that arm is glued to the `then` or `do` with no whitespace.
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileAndCapture(source: string): {
   errors: string[];
   recorded: unknown[];
   text: string;
 } {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -37,7 +36,7 @@ function compileAndCapture(source: string): {
   if (!result.program.compiled) {
     return { errors: ["NO_COMPILED"], recorded: [], text: "" };
   }
-  const story = new RuntimeStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.compiled as Record<string, any>);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);
@@ -52,7 +51,7 @@ function compileAndCapture(source: string): {
 // The if-expression syntax errors of a source, as `line:col-line:col message`
 // with one-based positions.
 function ifDiagnostics(source: string): string[] {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {

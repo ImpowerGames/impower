@@ -42,6 +42,10 @@ import { lowerDivertPath } from "../utils/lowerDivertPath";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
+import {
+  closeFunctionBody,
+  openFunctionBody,
+} from "../utils/statementShape";
 import { lowerTable } from "./lowerTable";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
@@ -2105,17 +2109,20 @@ export function buildAnonymousFunction(
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
-  const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, node);
+  const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
-  return new Function(
+  const fn = new Function(
     new Identifier(name),
     [...innerHoisted, ...body, ...nested],
     args as Argument[],
   );
+  closeFunctionBody(ctx, shape, fn, node, innerHoisted);
+  return fn;
 }
 
 function lowerDivertTargetLiteral(

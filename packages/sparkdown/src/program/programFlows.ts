@@ -1,15 +1,20 @@
 // Loads the engine's modules in the order that settles their import cycle
 // (see `CompilationAnnotator`).
 import "../inkjs/engine/Container";
-import type {
-  BodyShape,
-  StatementReads,
-  StatementShape,
+import {
+  functionOfBody,
+  functionShapeOf,
+  type BodyShape,
+  type FunctionShape,
+  type StatementReads,
+  type StatementShape,
 } from "../compiler/lower/utils/statementShape";
 import { AuthorWarning } from "../inkjs/compiler/Parser/ParsedHierarchy/AuthorWarning";
 import { ConstantDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
+import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
 import type { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
@@ -60,8 +65,8 @@ export interface ProgramFlowsInput {
   /** The script the compile started from, whose top-level content is the
    *  program's top-level flow. */
   uri: string;
-  /** The script the compiler seeds the builtins from, whose functions run
-   *  on the current engine (see `ProgramStory`). */
+  /** The script the compiler seeds the builtins from, whose top-level
+   *  content holds declarations alone. */
   preludeUri?: string;
   /** The compiled block each placed object came from. */
   blockOf(obj: ParsedObject): object | undefined;
@@ -81,12 +86,8 @@ export interface ProgramFlows {
   fallback?: ProgramFallback;
   /** Every such placement, counted by the construct it names. */
   unsupported: Record<string, number>;
-  /** The compiled blocks of the program's functions, which run on the
-   *  current engine until they are emitted (#698). A compile in which one of
-   *  them is new runs the declarations again, since an initializer may call
-   *  a function. */
-  functionBlocks: object[];
-  /** How many functions the program has. */
+  /** How many functions the program has: the functions declared at the top
+   *  level and those written inside statements. */
   functions: number;
 }
 
@@ -116,7 +117,6 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     flows,
     declarations: [],
     unsupported: {},
-    functionBlocks: [],
     functions: 0,
   };
   const fail = (construct: string, uri: string, line: number) => {
@@ -124,6 +124,9 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     out.unsupported[construct] = (out.unsupported[construct] ?? 0) + 1;
   };
   const headerLines: { uri: string; line: number }[] = [];
+  // The flows of the functions declared at the top level, which span their
+  // own definitions.
+  const functionFlows: FlowSource[] = [];
 
   const statementsOf = (
     content: readonly ParsedObject[],
@@ -180,13 +183,57 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     return statements;
   };
 
+  // A function declared at the top level is a flow of its own, whose one
+  // statement is its definition: the chunk binds the parameters and enters
+  // the body. So is the evaluator a UI binding's lowering hoisted to the top
+  // level under a name of its own, whose definition is the binding's source.
+  // A function written inside a statement is a block of that statement's
+  // chunk, which the statement's source carries.
+  const visitFunction = (flow: FlowBase, header: object | undefined) => {
+    out.functions += 1;
+    const own = functionShapeOf.get(flow);
+    if (own && !own.named) {
+      return;
+    }
+    const record = header ? input.record(header) : undefined;
+    if (own) {
+      if (!record || !record.lineAt || !record.text) {
+        fail(flow.typeName, record?.uri ?? input.uri, record?.line ?? 0);
+        return;
+      }
+      functionFlows.push(evaluatorFlow(flow, own, record));
+      return;
+    }
+    const shape = record?.shape;
+    const body = shape?.bodies.find((b) => functionOfBody.has(b));
+    if (!header || !record || !shape || !body || !record.lineAt || !record.text) {
+      fail(flow.typeName, record?.uri ?? input.uri, record?.line ?? 0);
+      return;
+    }
+    const name = flow.identifier?.name ?? "";
+    const definition = statementOf(
+      header,
+      [],
+      record.range,
+      record.line,
+      shape,
+      record,
+    );
+    definition.defines = name;
+    functionFlows.push({
+      name,
+      kind: SymbolKind.Function,
+      uri: record.uri,
+      firstLine: record.line,
+      span: record.lineAt(Math.max(0, shape.to - 1)) + 1 - record.line,
+      statements: [definition],
+    });
+  };
+
   const visitFlow = (flow: FlowBase, prefix: string) => {
     const header = input.blockOf(flow);
     if (flow.isFunction) {
-      out.functions += 1;
-      if (header) {
-        out.functionBlocks.push(header);
-      }
+      visitFunction(flow, header);
       return;
     }
     const record = header ? input.record(header) : undefined;
@@ -196,8 +243,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       return;
     }
     if (record.uri === input.preludeUri) {
-      out.functions += 1;
-      out.functionBlocks.push(header!);
+      fail(flow.typeName, record.uri, record.line);
       return;
     }
     if ((flow.args?.length ?? 0) > 0) {
@@ -248,6 +294,7 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
     }
     flow.span = Math.max(0, end - flow.firstLine);
   }
+  flows.push(...functionFlows);
 
   // The globals the story initializes, in its order and under the names it
   // assigns them (their keys in `variableDeclarations`), each given to the
@@ -303,14 +350,115 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       out.declarations.push(current.source);
     }
     // The statement's objects are its globals' initializers, which the
-    // store reads the recorded values of.
+    // store reads the recorded values of. A function an initializer creates
+    // (a `define`'s method, a closure a `store` holds) is a block of the
+    // declaration's chunk.
     (current.source.globals as DeclaredGlobal[]).push({
       name,
       assignment: declaration,
     });
     (current.source.objects as ParsedObject[]).push(declaration.expression);
+    const bodies = functionBodiesOf([declaration.expression], record);
+    if (bodies.length > 0) {
+      (current.source as { bodies?: BodySource[] }).bodies = [
+        ...(current.source.bodies ?? []),
+        ...bodies,
+      ];
+      current.source.lineEnd = record.lineEnd;
+    }
   }
   return out;
+};
+
+/** The flow of a UI binding's evaluator (`FunctionShape.named`): a function
+ *  flow named by the evaluator's name, whose one statement defines it, holds
+ *  the binding's source and has the evaluator's body as its one body. The
+ *  definition is known by the evaluator, which the compile keeps for as long
+ *  as it keeps the statement whose lowering built it. A statement of the body
+ *  that has no range of its own takes the evaluator's, which is the
+ *  binding's. */
+const evaluatorFlow = (
+  flow: FlowBase,
+  own: FunctionShape,
+  record: StatementRecord,
+): FlowSource => {
+  const name = flow.identifier?.name ?? "";
+  const lineAt = record.lineAt!;
+  const text = record.text!;
+  const range = flow.ownDebugMetadata;
+  const firstLine = lineAt(own.from);
+  const statements = own.body.statements.map((nested) => {
+    const statement = nestedStatement(nested, record);
+    return statement.range ? statement : { ...statement, range };
+  });
+  let source: string | undefined;
+  const sourceOf = () => (source ??= text(own.from, own.to));
+  let syntax: string | undefined;
+  const definition: StatementSource = {
+    block: flow,
+    objects: [],
+    range,
+    firstLine,
+    source: sourceOf,
+    syntax: () =>
+      (syntax ??= `${name}\u0000${record.columnAt?.(own.from) ?? 0}\u0000${sourceOf()}`),
+    reads: "",
+    bodies: [bodyOf(own.body, statements, lineAt, firstLine, text)],
+    lineEnd: record.lineEnd,
+    defines: name,
+  };
+  return {
+    name,
+    kind: SymbolKind.Function,
+    uri: record.uri,
+    firstLine,
+    span: lineAt(Math.max(own.from, own.to - 1)) + 1 - firstLine,
+    statements: [definition],
+  };
+};
+
+/** The bodies of the functions the objects create as values, with their
+ *  statements, for a statement whose own shape does not hold them (a
+ *  declaration, whose initializers are the objects). */
+const functionBodiesOf = (
+  objects: readonly ParsedObject[],
+  record: StatementRecord,
+): BodySource[] => {
+  if (!record.lineAt || !record.text) {
+    return [];
+  }
+  const out: BodySource[] = [];
+  const seen = new Set<ParsedObject>();
+  const visit = (obj: ParsedObject) => {
+    if (obj instanceof DivertTarget) {
+      const target = obj.divert.targetContent;
+      const fn = target ? functionShapeOf.get(target) : undefined;
+      if (target && fn && !seen.has(target)) {
+        seen.add(target);
+        const statements = fn.body.statements.map((nested) =>
+          nestedStatement(nested, record),
+        );
+        out.push(
+          bodyOf(fn.body, statements, record.lineAt!, record.line, record.text),
+        );
+      }
+    }
+    // A call reaches its arguments through `args`, since a call the runtime
+    // tree was generated for no longer holds them in `content`.
+    const children = obj instanceof FunctionCall ? obj.args : obj.content;
+    for (const child of children ?? []) {
+      visit(child);
+    }
+  };
+  objects.forEach(visit);
+  // In source order, so that each body's lines follow the one above it.
+  out.sort((a, b) => a.firstLine - b.firstLine);
+  let above = record.line;
+  return out.map((body) => {
+    const headLines = Math.max(0, body.firstLine - above);
+    above = body.firstLine + body.span;
+    return { ...body, headLines };
+  });
 };
 
 // The keys of the runs after the first of a statement's declarations.
@@ -361,11 +509,14 @@ const statementOf = (
   const bodies: BodySource[] = [];
   let above = firstLine;
   const cuts: { from: number; to: number }[] = [];
-  for (const body of shape.bodies) {
+  // In source order: a function written in a loop's condition is lowered
+  // before the loop's body, but stands above it.
+  const ordered = [...shape.bodies].sort((a, b) => a.headEnd - b.headEnd);
+  for (const body of ordered) {
     const statements = body.statements.map((nested) =>
       nestedStatement(nested, record),
     );
-    const source = bodyOf(body, statements, lineAt, above);
+    const source = bodyOf(body, statements, lineAt, above, text);
     bodies.push(source);
     above = source.firstLine + source.span;
     cuts.push({ from: lineAt(body.headEnd) + 1, to: lineAt(body.nextStart) });
@@ -428,12 +579,14 @@ const nestedStatement = (
  *  after the part that heads it to the line before the part after it; a
  *  statement written on the heading part's line, or on the next part's,
  *  widens it to hold the statement. `above` is the line after the owner's
- *  previous body, or the owner's first line. */
+ *  previous body, or the owner's first line. A function's body carries the
+ *  function, and the function's own source as `text` reads it. */
 const bodyOf = (
   shape: BodyShape,
   statements: StatementSource[],
   lineAt: (offset: number) => number,
   above: number,
+  text?: (from: number, to: number) => string,
 ): BodySource => {
   let first = lineAt(shape.headEnd) + 1;
   let end = lineAt(shape.nextStart);
@@ -446,12 +599,16 @@ const bodyOf = (
     end = Math.max(end, last.firstLine + 1);
   }
   end = Math.max(end, first);
+  const fn = functionOfBody.get(shape);
+  const part = fn ? functionShapeOf.get(fn) : undefined;
   return {
     shape,
     statements,
     firstLine: first,
     span: end - first,
     headLines: first - above,
+    fn,
+    partSource: part && text ? () => text(part.from, part.to) : undefined,
   };
 };
 

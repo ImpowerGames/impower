@@ -19,7 +19,11 @@ import { Story } from "../Story";
 import { VariableReference } from "../Variable/VariableReference";
 import { DivertTarget } from "./DivertTarget";
 import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
-import { LEAVE_CONTINUE, Op } from "../../../../../program/ProgramInstructions";
+import {
+  ConstValue,
+  LEAVE_CONTINUE,
+  Op,
+} from "../../../../../program/ProgramInstructions";
 import { loopExitOf } from "../../../../../compiler/lower/utils/statementShape";
 
 export class Divert extends ParsedObject {
@@ -118,6 +122,77 @@ export class Divert extends ParsedObject {
     } else {
       emitter.unsupported(this.typeName);
     }
+  }
+
+  /** A function call's code: its arguments, then the call. A function the
+   *  compile found is called by its symbol (`Call`), with a pointer for each
+   *  argument it takes by reference and, for a variadic function, nil for
+   *  each fixed parameter the call leaves out and the extra arguments packed
+   *  into the one value its `...` binds, as `GenerateRuntimeObject` pushes
+   *  them. A name that is no function the compile found is read as a
+   *  variable when the call runs (`CallVar`), whatever it holds then. */
+  public EmitCall(emitter: ProgramEmitter): void {
+    const target = this.targetContent;
+    const variable = this._runtimeDivert?.variableDivertName;
+    if (this._runtimeDivert?.isExternal) {
+      emitter.unsupported("external");
+    }
+    emitter.recordResolution(this.callResolutionKey);
+    if (variable != null) {
+      for (const arg of this.args) {
+        emitter.emitObject(arg);
+      }
+      emitter.emit(Op.CallVar, emitter.string(variable), this.args.length);
+      return;
+    }
+    const flow = asOrNull(target, FlowBase);
+    if (!flow || !flow.isFunction) {
+      emitter.unsupported(this.typeName);
+    }
+    const params = flow.args ?? [];
+    const variadic =
+      params.length > 0 && !!params[params.length - 1]!.isVararg;
+    const fixed = variadic ? params.length - 1 : params.length;
+    this.args.forEach((arg, i) => {
+      const param = i < params.length ? params[i]! : null;
+      if (param?.isByReference && !param.isVararg) {
+        const name = asOrNull(arg, VariableReference)?.name;
+        if (name == null) {
+          emitter.unsupported("a by-reference argument that is no variable");
+        }
+        emitter.emit(Op.VarPtr, emitter.variable(name));
+      } else {
+        emitter.emitObject(arg);
+      }
+    });
+    if (variadic) {
+      for (let p = this.args.length; p < fixed; p += 1) {
+        emitter.emit(Op.Const, 0, ConstValue.Nil);
+      }
+      emitter.emit(Op.Pack, Math.max(0, this.args.length - fixed));
+    }
+    const symbol = emitter.functionSymbol(flow);
+    emitter.reference(symbol);
+    emitter.emit(Op.Call, symbol, this.args.length);
+  }
+
+  /** How a function call's target resolved, as the chunk of its statement
+   *  records it: a variable read when the call runs, or a function and the
+   *  kind of each of its parameters, which decide the call's code. */
+  get callResolutionKey(): string {
+    const name = this.target?.dotSeparatedComponents ?? "";
+    const variable = this._runtimeDivert?.variableDivertName;
+    if (variable != null) {
+      return `call:${variable}:variable`;
+    }
+    const flow = asOrNull(this.targetContent, FlowBase);
+    if (!flow) {
+      return `call:${name}:none`;
+    }
+    const params = (flow.args ?? [])
+      .map((p) => (p.isByReference ? "ref" : p.isVararg ? "..." : "value"))
+      .join(",");
+    return `call:${name}:${flow.isFunction ? "function" : "flow"}:${params}`;
   }
 
   public readonly GenerateRuntimeObject = () => {

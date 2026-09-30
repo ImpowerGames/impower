@@ -3222,6 +3222,9 @@ export class SparkdownCompiler {
               bindingEvaluators.set(name, k);
             }
             topLevelFlowBaseObjs.push(k);
+            if (this._config.programChunks) {
+              this._placedBy.set(k, compiledBlock);
+            }
           }
         }
       }
@@ -4525,7 +4528,6 @@ export class SparkdownCompiler {
       {
         flows: flows.flows,
         declarations: flows.declarations,
-        functionBlocks: flows.functionBlocks,
         lineCount,
       },
       !this._previewing && !flows.fallback,

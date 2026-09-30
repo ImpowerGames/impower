@@ -56,14 +56,18 @@ export const B_SCOPES_FLAGS = 3;
 export const B_HEAD_LINES = 4;
 
 /** A block row's flag for a loop's body, which a `Leave` stops at. The flags
- *  a choice's body, a `then` clause and a function's body take (section 1)
- *  come with the slices that emit them. */
+ *  a choice's body and a `then` clause take (section 1) come with the slices
+ *  that emit them. */
 export const BLOCK_LOOP = 1;
 /** A block row's flag for a loop body that runs each pass in a scope of its
  *  own, as a `while` body does: the owner opens the scope right before
  *  `EnterBlock`, a `break` or `continue` in the body closes it before its
  *  `Leave`, and the engine closes it when the body's sequence runs out. */
 export const BLOCK_PASS_SCOPE = 2;
+/** A block row's flag for a function's body, which the function's entry code
+ *  enters after binding its parameters (section 10). The owner resumes after
+ *  the body at the function's return of nothing. */
+export const BLOCK_FUNCTION = 4;
 export const BLOCK_FLAGS_MASK = 0xff;
 export const BLOCK_SCOPE_SHIFT = 8;
 
@@ -115,6 +119,18 @@ export const lineRowField = (
   row: number,
   field: number,
 ): number => chunk[lineTableStart(chunk) + row * LINE_ROW_WORDS + field]!;
+
+/** How many symbols the chunk exports. */
+export const exportCount = (chunk: StatementChunk): number =>
+  chunk[H_EXPORT_ROWS]!;
+
+/** The symbol export row `row` defines. */
+export const exportSymbol = (chunk: StatementChunk, row: number): number =>
+  chunk[exportTableStart(chunk) + row * EXPORT_ROW_WORDS]!;
+
+/** The offset of the code that defines export row `row`'s symbol. */
+export const exportOffset = (chunk: StatementChunk, row: number): number =>
+  chunk[exportTableStart(chunk) + row * EXPORT_ROW_WORDS + 1]!;
 
 /** How many blocks the chunk's statement has. */
 export const blockCount = (chunk: StatementChunk): number =>

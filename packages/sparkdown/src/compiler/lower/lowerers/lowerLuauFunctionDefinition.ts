@@ -33,6 +33,10 @@ import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
+import {
+  closeFunctionBody,
+  openFunctionBody,
+} from "../utils/statementShape";
 
 // `function name(args) BODY end` → Knot(name, [], args, isFunction=true) with
 // the body content placed in the Knot's _rootWeave. parseIncrementally
@@ -177,13 +181,15 @@ export function lowerLuauFunctionDefinition(
   // `LowerContext`).
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
-  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, nodeRef.node);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
   const knot = new Knot(identifier, [], args, true);
+  closeFunctionBody(ctx, shape, knot, nodeRef.node, hoistedDecls);
   // A definition closes at its `end` or just before a following `scene` or
   // `branch`, and records either as its end. One whose body holds story
   // lines closes incomplete at the first of them, and the rest of its body,
@@ -437,7 +443,8 @@ function lowerNestedAsSubFlow(
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
-  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, node);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
@@ -447,6 +454,7 @@ function lowerNestedAsSubFlow(
     [...innerHoisted, ...body, ...nested],
     [...upvalArgs, ...args],
   );
+  closeFunctionBody(ctx, shape, fn, node, innerHoisted);
   fn._outsideBlocks = isWrittenInFunctionBody(node);
   enclosingScope.push(fn);
   return {};
@@ -581,7 +589,8 @@ function lowerPropertyTargetFunctionDefinition(
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
-  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, node);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
@@ -592,6 +601,7 @@ function lowerPropertyTargetFunctionDefinition(
     [...innerHoisted, ...body, ...nested],
     finalArgs,
   );
+  closeFunctionBody(ctx, shape, fn, node, innerHoisted);
 
   const stack = ctx.functionScopeStack;
   const enclosingScope =

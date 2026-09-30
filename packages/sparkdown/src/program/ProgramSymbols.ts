@@ -9,6 +9,10 @@ export const SymbolKind = {
   Root: 0,
   Scene: 1,
   Branch: 2,
+  /** A function declared at the top level, whose flow is its definition. A
+   *  function written inside a statement is a block of that statement's
+   *  chunk, under an anonymous symbol. */
+  Function: 3,
 } as const;
 
 export type SymbolKindValue = (typeof SymbolKind)[keyof typeof SymbolKind];
@@ -27,6 +31,42 @@ export const internSymbol = (table: ProgramTable, name: string): number => {
     table.symbolIds.set(name, id);
   }
   return id;
+};
+
+// What an anonymous symbol's entry in the table holds in place of a name. No
+// name an author writes starts with it.
+const ANONYMOUS = "\u0000";
+
+/** A new anonymous symbol: one that belongs to a part of a statement (a
+ *  function written inside the statement), which has no name to be found
+ *  by and is handed on by aligning the statement's parts when the statement
+ *  is emitted again (docs/engine/binary-program.md, section 2). */
+export const anonymousSymbol = (table: ProgramTable): number => {
+  const id = table.symbols.length;
+  const entry = `${ANONYMOUS}${id}`;
+  table.symbols.push(entry);
+  table.symbolIds.set(entry, id);
+  return id;
+};
+
+/** Whether symbol `id` of `table` is anonymous. */
+export const isAnonymousSymbol = (table: ProgramTable, id: number): boolean =>
+  table.symbols[id]?.startsWith(ANONYMOUS) ?? false;
+
+/** Gives each anonymous symbol of `table` the entry its id names, as
+ *  `anonymousSymbol` makes it, after a reseed renumbered the symbols, so that
+ *  no entry a later anonymous symbol takes is already held. A reseed keeps
+ *  the order of the ids it keeps, so no renamed entry meets one still to be
+ *  renamed. */
+export const renumberAnonymousSymbols = (table: ProgramTable): void => {
+  table.symbols.forEach((entry, id) => {
+    const renamed = `${ANONYMOUS}${id}`;
+    if (entry.startsWith(ANONYMOUS) && entry !== renamed) {
+      table.symbolIds.delete(entry);
+      table.symbols[id] = renamed;
+      table.symbolIds.set(renamed, id);
+    }
+  });
 };
 
 export const internString = (table: ProgramTable, text: string): number => {

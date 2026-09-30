@@ -12,6 +12,8 @@ import {
   NullValue,
   ObjectValue,
   AbstractValue,
+  SymbolRef,
+  SymbolValue,
 } from "./Value";
 import { ControlCommand } from "./ControlCommand";
 import { PushPopType } from "./PushPop";
@@ -474,6 +476,24 @@ export class JsonSerialisation {
       return;
     }
 
+    // A binary program's function value, which holds its symbol within a
+    // session: its id, the table generation of the id, its name (empty for
+    // an anonymous symbol) and how it prints.
+    if (obj instanceof SymbolValue) {
+      const ref = obj.ref;
+      writer.WriteObjectStart();
+      writer.WritePropertyStart("^sym");
+      writer.WriteArrayStart();
+      writer.WriteInt(ref.symbol);
+      writer.WriteInt(ref.generation);
+      writer.Write(ref.name ?? "");
+      writer.Write(ref.label);
+      writer.WriteArrayEnd();
+      writer.WritePropertyEnd();
+      writer.WriteObjectEnd();
+      return;
+    }
+
     let varPtrVal = asOrNull(obj, VariablePointerValue);
     if (varPtrVal) {
       writer.WriteObjectStart();
@@ -897,6 +917,19 @@ export class JsonSerialisation {
       if (obj["^->"]) {
         propValue = obj["^->"];
         return new DivertTargetValue(new Path(propValue.toString()));
+      }
+
+      // A binary program's function value.
+      if (Array.isArray(obj["^sym"])) {
+        const [symbol, generation, name, label] = obj["^sym"];
+        return new SymbolValue(
+          new SymbolRef(
+            Number(symbol),
+            Number(generation),
+            name ? String(name) : null,
+            String(label ?? ""),
+          ),
+        );
       }
 
       // VariablePointerValue

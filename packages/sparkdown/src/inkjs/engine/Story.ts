@@ -2,6 +2,7 @@ import { Container } from "./Container";
 import { InkObject } from "./Object";
 import { JsonSerialisation } from "./JsonSerialisation";
 import { StoryState } from "./StoryState";
+import type { CallStack } from "./CallStack";
 import { ControlCommand } from "./ControlCommand";
 import { PushPopType } from "./PushPop";
 import { ChoicePoint } from "./ChoicePoint";
@@ -20,6 +21,7 @@ import {
   AbstractValue,
   MultiValue,
   NullValue,
+  SymbolValue,
 } from "./Value";
 import { Path } from "./Path";
 import { Void } from "./Void";
@@ -69,12 +71,45 @@ if (!Number.isInteger) {
   };
 }
 
+/**
+ * A function a call enters, as the call handlers the two engines share read
+ * it: the container of a path on the current engine, and the entry of a
+ * symbol on the binary program's (`ProgramStory`). A story that runs the
+ * shared handlers gives the function a function value names
+ * (`FunctionTargetOf`), and enters one in a new function frame
+ * (`EnterFunction`).
+ */
+export interface FunctionTarget {
+  /** Whether the function binds a `...` slot after its fixed parameters. */
+  readonly variadic: boolean;
+  /** How many values the function's entry binds, its `...` slot
+   *  included. */
+  readonly bindings: number;
+}
+
+/** The function a container of the current engine's tree is. */
+class ContainerTarget implements FunctionTarget {
+  constructor(
+    readonly container: any,
+    readonly path: Path | null = null,
+  ) {}
+  get variadic(): boolean {
+    return containerIsVariadic(this.container);
+  }
+  get bindings(): number {
+    return countLeadingParamBindings(this.container);
+  }
+}
+
 // If `callTarget` is a closure `ObjectValue` (the shape produced by
 // `lowerAnonymousFunction` for closures with captured upvals),
 // reorder the eval stack to put upvals before user args and return
-// the synthetic knot's path. Returns `null` if `callTarget` isn't a
-// closure — caller falls back to plain `DivertTargetValue` handling.
-function extractClosurePath(callTarget: any, story: any): any | null {
+// the function its `__closure_fn` names. Returns `null` if `callTarget`
+// isn't a closure — caller falls back to plain function-value handling.
+export function extractClosureTarget(
+  callTarget: any,
+  story: any,
+): FunctionTarget | null {
   if (!(callTarget instanceof ObjectValue)) return null;
   const map = callTarget.value;
   if (!(map instanceof Map)) return null;
@@ -82,13 +117,13 @@ function extractClosurePath(callTarget: any, story: any): any | null {
   const upvalsVal = map.get("__closure_upvals");
   const userArityVal = map.get("__closure_user_arity");
   if (
-    !(fnVal instanceof DivertTargetValue) ||
     !(upvalsVal instanceof ObjectValue) ||
     !(userArityVal instanceof IntValue)
   ) {
     return null;
   }
-  if (fnVal.value === null) return null;
+  const target: FunctionTarget | null = story.FunctionTargetOf(fnVal);
+  if (target === null) return null;
   const upvalsMap = upvalsVal.value;
   if (!(upvalsMap instanceof Map)) return null;
   // `__closure_user_arity` counts FIXED params only. A variadic
@@ -96,9 +131,7 @@ function extractClosurePath(callTarget: any, story: any): any | null {
   // call-site normalization (packVariadicValueCallArgs /
   // normalizeLuauCallArgs) pushed on top of the fixed args — so the
   // upval reorder must lift fixed args AND the pack above the upvals.
-  const fnContainer = story.ContentAtPath(fnVal.value).obj;
-  const popCount =
-    (userArityVal.value ?? 0) + (containerIsVariadic(fnContainer) ? 1 : 0);
+  const popCount = (userArityVal.value ?? 0) + (target.variadic ? 1 : 0);
   // Pop K user args (they sit on top of the stack — well, ABOVE the
   // closure value which we already popped).
   const userArgs: AbstractValue[] = [];
@@ -115,7 +148,7 @@ function extractClosurePath(callTarget: any, story: any): any | null {
   // Re-push user args in original order so the function's parameter
   // binding reads them last.
   for (const a of userArgs) story.state.PushEvaluationStack(a);
-  return fnVal.value;
+  return target;
 }
 
 // Lua's index-type rule: only tables (and strings, via their library
@@ -132,7 +165,7 @@ function luauIndexTargetError(v: unknown): string | null {
   if (v instanceof IntValue || v instanceof FloatValue) {
     return "attempt to index a number value";
   }
-  if (v instanceof DivertTargetValue) {
+  if (isFunctionReference(v)) {
     return "attempt to index a function value";
   }
   if (
@@ -178,7 +211,7 @@ function luauMapKeyString(v: any): string {
 // (or stores `nil` at it). Does NOT walk the metatable's own metatable
 // — Lua only consults a single level of metatable indirection per
 // metamethod lookup.
-function lookupMetamethod(
+export function lookupMetamethod(
   obj: any,
   name: string,
 ): AbstractValue | null {
@@ -228,7 +261,7 @@ function indexThroughMetatable(
     return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
   }
   // DivertTargetValue / bare-knot — function form.
-  if (indexFn instanceof DivertTargetValue) {
+  if (isFunctionReference(indexFn)) {
     const results = story.CallLuauFunction(indexFn, [
       base,
       new StringValue(keyStr),
@@ -236,6 +269,56 @@ function indexThroughMetatable(
     return (results[0] as AbstractValue) ?? null;
   }
   return null;
+}
+
+/** Whether `v` is a function held by reference: a divert target on the
+ *  current engine, or a symbol value on the binary program's. */
+export function isFunctionReference(v: unknown): boolean {
+  return v instanceof DivertTargetValue || v instanceof SymbolValue;
+}
+
+/**
+ * The pointer at the variable `name` a closure captures or a call passes by
+ * reference, resolved against the current frame of `callStack` and
+ * registered there as an open upvalue, which the frame closes when the
+ * variable's scope or the frame itself ends. A variable a closure already
+ * captured gives the pointer it captured, and an open pointer at the same
+ * variable of the same frame is shared, so every closure that captures a
+ * variable writes one cell.
+ */
+export function openVariablePointer(
+  callStack: CallStack,
+  name: string,
+): VariablePointerValue {
+  let contextIdx = callStack.ContextForVariableNamed(name);
+  // Upvalue flattening (Lua semantics): if the slot we're about
+  // to point at ALREADY holds a VariablePointerValue — i.e. a
+  // captured upval being re-captured by a nested closure
+  // (`local a = 1 function foo() return function() return a
+  // end end`: foo's prepended upval param `a` holds the pointer
+  // to the outer cell) — reuse that pointer directly so every
+  // nesting level shares ONE cell. Without this, the inner
+  // closure points at foo's slot, reads dereference only one
+  // level, and the OUTER pointer leaks out raw (`Can't cast …
+  // from 0 to 5` when the leaked pointer hits a comparison).
+  const slotValue =
+    contextIdx > 0 ? callStack.GetTemporaryVariableWithName(name, contextIdx) : null;
+  if (slotValue instanceof VariablePointerValue) {
+    return slotValue;
+  }
+  // Lua-style upvalue dedup: if a closure / by-ref arg created
+  // earlier in this frame's lifetime already produced an open
+  // pointer for (contextIdx, varName), reuse it so multiple
+  // closures share the same cell. The shared pointer also makes
+  // the close-on-pop step a single observable event for all
+  // closures that captured this variable.
+  const existing = callStack.FindOpenUpvalue(contextIdx, name);
+  if (existing) {
+    return existing;
+  }
+  const newPtr = new VariablePointerValue(name, contextIdx);
+  callStack.RegisterOpenUpvalue(newPtr, contextIdx);
+  return newPtr;
 }
 
 // Maps a `NativeFunctionCall` operator name to the Luau metamethod
@@ -293,6 +376,9 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
   if (a instanceof DivertTargetValue && b instanceof DivertTargetValue) {
     return a.value?.toString() === b.value?.toString();
   }
+  if (a instanceof SymbolValue && b instanceof SymbolValue) {
+    return a.ref.Equals(b.ref);
+  }
   return false;
 }
 
@@ -307,7 +393,7 @@ function sameLuauFunctionValue(a: any, b: any): boolean {
 // for entries marked `validatesArgs`, whose `fn` raises its own
 // Luau-exact message (e.g. `missing argument #1 to 'clear' (table
 // expected)`); the generic raise can't know the expected type.
-function tryInvokeStdLibMarkerValue(
+export function tryInvokeStdLibMarkerValue(
   story: any,
   fnValue: any,
   args: AbstractValue[],
@@ -512,7 +598,7 @@ function countLeadingParamBindings(target: any): number {
 // callable must already be popped; the user args sit on top of the
 // eval stack. A trailing MultiValue (a `g()` multi-return as the
 // last call-site arg) spreads first, per Lua.
-function packVariadicValueCallArgs(
+export function packVariadicValueCallArgs(
   story: any,
   callSiteArgCount: number,
   fixedCount: number,
@@ -551,7 +637,7 @@ function packVariadicValueCallArgs(
 // site's PackTuple produces); arity comes from the closure's
 // `__closure_user_arity` field, so plain DivertTargetValue functions
 // (top-level knots) pass through unchanged.
-function normalizeLuauCallArgs(
+export function normalizeLuauCallArgs(
   story: any,
   fnValue: AbstractValue,
   args: AbstractValue[],
@@ -563,21 +649,20 @@ function normalizeLuauCallArgs(
     return args;
   }
   const arity = arityVal.value;
-  const fnTarget = map?.get("__closure_fn");
-  if (fnTarget instanceof DivertTargetValue && fnTarget.value != null) {
-    const target = story.ContentAtPath(fnTarget.value).obj;
-    if (containerIsVariadic(target)) {
-      // Spread a trailing MultiValue, then pack extras beyond the
-      // fixed arity for the `...` slot.
-      const spread = [...args];
-      const last = spread[spread.length - 1];
-      if (last instanceof MultiValue) {
-        spread.splice(spread.length - 1, 1, ...last.values);
-      }
-      const fixed = spread.slice(0, arity);
-      while (fixed.length < arity) fixed.push(new NullValue());
-      return [...fixed, new MultiValue(spread.slice(arity))];
+  const target: FunctionTarget | null = story.FunctionTargetOf(
+    map?.get("__closure_fn"),
+  );
+  if (target?.variadic) {
+    // Spread a trailing MultiValue, then pack extras beyond the
+    // fixed arity for the `...` slot.
+    const spread = [...args];
+    const last = spread[spread.length - 1];
+    if (last instanceof MultiValue) {
+      spread.splice(spread.length - 1, 1, ...last.values);
     }
+    const fixed = spread.slice(0, arity);
+    while (fixed.length < arity) fixed.push(new NullValue());
+    return [...fixed, new MultiValue(spread.slice(arity))];
   }
   const out = args.slice(0, arity);
   while (out.length < arity) out.push(new NullValue());
@@ -590,14 +675,520 @@ function normalizeLuauCallArgs(
 // binding pops them individually. Skipped for variadic targets —
 // their compile-time `PackTuple` already handled the spread and the
 // trailing `MultiValue` is the `__varargs__` slot value.
-function spreadLastMultiIfNonVariadic(story: any, target: any): void {
-  if (containerIsVariadic(target)) return;
+export function spreadLastMultiIfNonVariadic(
+  story: any,
+  target: FunctionTarget | null,
+): void {
+  if (target?.variadic) return;
   const stack = story.state.evaluationStack;
   if (stack.length === 0) return;
   const top = stack[stack.length - 1];
   if (!(top instanceof MultiValue)) return;
   story.state.PopEvaluationStack();
   for (const v of top.values) story.state.PushEvaluationStack(v);
+}
+
+// Pushes what a builtin or a function a call ran returned: nothing is a
+// no-value `Void`, a JS array a multiple value, and a JS value its runtime
+// value.
+function pushStdLibResult(story: any, result: unknown): void {
+  if (result !== undefined) {
+    if (Array.isArray(result)) {
+      const wrapped: AbstractValue[] = [];
+      for (const r of result) {
+        if (r instanceof InkObject) {
+          wrapped.push(r as AbstractValue);
+        } else {
+          const w = Value.Create(r);
+          if (w !== null) wrapped.push(w);
+        }
+      }
+      story.state.PushEvaluationStack(new MultiValue(wrapped));
+    } else if (result instanceof InkObject) {
+      story.state.PushEvaluationStack(result as AbstractValue);
+    } else {
+      const w = Value.Create(result);
+      if (w !== null) story.state.PushEvaluationStack(w);
+    }
+  } else {
+    // Void return (`print`, `table.insert`, ...): push
+    // the Void sentinel so the eval stack stays
+    // balanced — same contract as RunStdLibFunction.
+    story.state.PushEvaluationStack(new Void());
+  }
+}
+
+// Pushes the values a `__call` or `__namecall` handler returned: one value,
+// several as a multiple value, and none as nil.
+function pushCallResults(story: any, results: AbstractValue[] | null): void {
+  if (results && results.length === 1) {
+    story.state.PushEvaluationStack(results[0]!);
+  } else if (results && results.length > 1) {
+    story.state.PushEvaluationStack(new MultiValue(results));
+  } else {
+    story.state.PushEvaluationStack(new NullValue());
+  }
+}
+
+/**
+ * A call through what the variable `varName` holds, as a divert whose target
+ * is a variable runs it on either engine: a builtin iterator steps, a builtin
+ * of fixed arity runs, and a table whose metatable has `__call` calls its
+ * handler, each pushing what the call returns; a closure or a function value
+ * gives the function to enter, with its arguments arranged for its entry.
+ * Returns that function, or null when the call is done.
+ */
+export function callVariableTarget(
+  story: any,
+  varName: string | null,
+): FunctionTarget | null {
+  const varContents = story.state.variablesState.GetVariableWithName(varName);
+
+  if (varContents == null) {
+    story.Error(
+      "Tried to divert using a target from a variable that could not be found (" +
+        varName +
+        ")",
+    );
+  }
+  // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
+  // stored in a variable: the call site here is a regular
+  // FunctionCall lowered into a variable-target Divert. The
+  // iterator advances its own cursor in place; we pop the
+  // (state, ctrl) args the call site pushed and replace
+  // them with the next (key, value) MultiValue.
+  if (varContents instanceof ObjectValue) {
+    const tag = (varContents.value as Map<string, AbstractValue>)?.get(
+      BUILTIN_ITER_TAG,
+    );
+    if (tag != null) {
+      // Args were pushed (state, ctrl) — pops reverse that.
+      const iterCtrl = story.state.PopEvaluationStack();
+      const iterState = story.state.PopEvaluationStack();
+      const result = stepBuiltinIterator(
+        varContents,
+        iterState as AbstractValue,
+        iterCtrl as AbstractValue,
+      );
+      story.state.PushEvaluationStack(result);
+      return null;
+    }
+  }
+  // Stdlib-function reference: variable holds an ObjectValue
+  // marked with `__stdlib_fn` (the call-site reference resolved
+  // to a name like `math.abs` whose actual implementation lives
+  // in the STDLIB registry, not as an ink knot). Look up the
+  // entry, pop its args, invoke `entry.fn`, push the result.
+  // Variadic stdlib entries (`arity === -1`) can't be dispatched
+  // here yet — the call site didn't push an arg count — and
+  // fall through to the existing error. Fixed-arity entries
+  // (which covers the common case: `math.abs`, `tostring`,
+  // `type`, etc.) work.
+  if (varContents instanceof ObjectValue) {
+    const stdlibTag = (varContents.value as Map<string, AbstractValue>)?.get(
+      "__stdlib_fn",
+    );
+    if (stdlibTag instanceof StringValue) {
+      const stdlibName = stdlibTag.value;
+      const entry = lookupAnyStdLib(stdlibName!);
+      if (entry && entry.arity >= 0) {
+        const args: any[] = [];
+        for (let i = 0; i < entry.arity; i++) {
+          args.unshift(story.state.PopEvaluationStack());
+        }
+        // Last-arg MultiValue spread (matches RunStdLibFunction
+        // semantics). Earlier args truncate any MultiValue to
+        // its first inner value.
+        for (let k = 0; k < args.length; k++) {
+          const a = args[k];
+          if (a instanceof MultiValue) {
+            if (k === args.length - 1) {
+              args.splice(k, 1, ...a.values);
+            } else {
+              args[k] = a.values[0] ?? new NullValue();
+            }
+          }
+        }
+        pushStdLibResult(
+          story,
+          entry.fn(
+            story,
+            unwrapArgsForPureStdLibFn(entry, args, story, stdlibName!),
+          ),
+        );
+        return null;
+      }
+    }
+  }
+
+  // Closure value: variable holds a closure-shaped ObjectValue.
+  // Rearrange the eval stack (push upvals before user args)
+  // and divert to the synthetic knot's path. See
+  // `extractClosureTarget` for the shape contract.
+  const closureTarget = extractClosureTarget(varContents, story);
+  if (closureTarget !== null) {
+    // Multi-return spread for non-variadic closures: see the
+    // helper. extractClosureTarget has already pushed the upvals
+    // and re-pushed user args, so the spread check sees the
+    // syntactically-last user arg on top.
+    spreadLastMultiIfNonVariadic(story, closureTarget);
+    return closureTarget;
+  }
+  if (varContents instanceof ObjectValue) {
+    // `__call` metamethod: the variable holds a regular table
+    // (not a closure, not a builtin iterator) whose metatable
+    // defines `__call`. Dispatch via the same handler used in
+    // the `CallValueAsFunction` op. Returns null to skip the
+    // normal divert finalize step (CallLuauFunction set up
+    // its own divert + frame).
+    const callHandler = lookupMetamethod(varContents, "__call");
+    if (callHandler != null) {
+      const userArgs: AbstractValue[] = [];
+      if (callHandler instanceof ObjectValue) {
+        const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
+          "__closure_user_arity",
+        );
+        if (arityVal instanceof IntValue) {
+          const userArity = arityVal.value ?? 1;
+          for (let i = 0; i < userArity - 1; i++) {
+            userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
+          }
+        }
+      }
+      const args = [varContents as AbstractValue, ...userArgs];
+      pushCallResults(
+        story,
+        story.CallLuauFunction(callHandler, args) as AbstractValue[] | null,
+      );
+      return null;
+    }
+    // Plain table with no `__call` — fall through to the error.
+    story.Error(
+      "Tried to divert to a target from a variable, but the variable (" +
+        varName +
+        ") contained '" +
+        varContents +
+        "'.",
+    );
+  }
+  const target: FunctionTarget | null = isFunctionReference(varContents)
+    ? story.FunctionTargetOf(varContents)
+    : null;
+  if (target === null) {
+    let intContent = asOrNull(varContents, IntValue);
+    let errorMessage =
+      "Tried to divert to a target from a variable, but the variable (" +
+      varName +
+      ") didn't contain a divert target, it ";
+    if (intContent instanceof IntValue && intContent.value == 0) {
+      errorMessage += "was empty/null (the value 0).";
+    } else {
+      errorMessage += "contained '" + varContents + "'.";
+    }
+    story.Error(errorMessage);
+  }
+  // Spread last-arg MultiValue for non-variadic targets.
+  spreadLastMultiIfNonVariadic(story, target);
+  return target;
+}
+
+/**
+ * Calls the value on top of the evaluation stack with the arguments below it,
+ * as `CallValueAsFunction` does on either engine: a closure, a function value
+ * or a variadic function is entered in a new function frame, with its
+ * arguments padded, cut, spread or packed for its entry; a builtin iterator
+ * steps and a builtin runs; a table calls its `__call` handler, and a nil
+ * whose receiver has `__namecall` calls that. `callSiteArgCount` is the
+ * number of arguments the call site pushed, or -1 when it did not say.
+ */
+export function callValueAsFunction(
+  story: any,
+  callSiteArgCount: number,
+): void {
+  // Pops a `DivertTargetValue` (regular fn) OR a closure
+  // `ObjectValue` off the eval stack and diverts to the
+  // corresponding path, pushing a Function call-stack frame
+  // so a later `~ret` / `PopFunction` returns control to the
+  // instruction after this one.
+  //
+  // Arguments must already be on the eval stack *below* the target —
+  // they remain there for the function's parameter-binding bytecode
+  // (a sequence of `temp=` assignments at the function's entry) to
+  // pop.
+  //
+  // Closure dispatch: when the target is a closure-shaped
+  // `ObjectValue` (has `__closure_fn` / `__closure_upvals`
+  // entries), the handler pops the K user args (count via
+  // `__closure_user_arity`), pushes the N upvals from
+  // `__closure_upvals` (in index order), then re-pushes the
+  // user args. The synthetic knot's signature was lowered
+  // with upvals prepended to user params, so parameter
+  // binding reads them in the right order. See
+  // `lowerAnonymousFunction` in `lowerExpression.ts`.
+  //
+  // Luau under-supplied args: if the call site pushed fewer
+  // args than the closure's user arity, pad with `NullValue`
+  // BEFORE popping for upval reordering — otherwise
+  // `extractClosureTarget` would dig into the caller's eval
+  // context. The call-site arg count is encoded on the
+  // ControlCommand via CallValueExpression's
+  // `CallValueAsFunction(this.args.length)`; -1 means
+  // "untracked" (legacy bytecode).
+  if (callSiteArgCount >= 0) {
+    // Peek the callTarget BEFORE popping to know the closure's
+    // user arity, then normalize the eval-stack args to
+    // exactly `userArity` values so `extractClosureTarget` can
+    // pop them cleanly. Two adjustments:
+    //   1. If the LAST positional arg is a MultiValue (from
+    //      `g()` returning multiple values), spread its inner
+    //      values inline. This is what
+    //      `spreadLastMultiIfNonVariadic` does, but we need
+    //      it BEFORE the pop loop so the count is right.
+    //   2. If after spread the effective arg count is still
+    //      less than `userArity`, pad with nil on top so the
+    //      missing trailing params bind to nil rather than
+    //      digging into caller-context.
+    const peeked = story.state.PeekEvaluationStack();
+    if (peeked instanceof ObjectValue) {
+      const peekedMap = peeked.value as Map<string, AbstractValue>;
+      const userArityVal = peekedMap?.get("__closure_user_arity");
+      if (userArityVal instanceof IntValue) {
+        const userArity = userArityVal.value ?? 0;
+        // VARIADIC closure target: `__closure_user_arity`
+        // counts fixed params only; the extras must pack into
+        // one MultiValue for the `...` slot instead of being
+        // dropped by the overflow logic below.
+        const fnTarget: FunctionTarget | null = story.FunctionTargetOf(
+          peekedMap?.get("__closure_fn"),
+        );
+        const isVariadicTarget = fnTarget?.variadic ?? false;
+        if (isVariadicTarget) {
+          const callable = story.state.PopEvaluationStack();
+          packVariadicValueCallArgs(story, callSiteArgCount, userArity);
+          story.state.PushEvaluationStack(callable as AbstractValue);
+        } else {
+          const callable = story.state.PopEvaluationStack();
+          let effectiveArgCount = callSiteArgCount;
+          if (callSiteArgCount > 0) {
+            const lastArg = story.state.PeekEvaluationStack();
+            if (lastArg instanceof MultiValue) {
+              story.state.PopEvaluationStack();
+              for (const v of lastArg.values) {
+                story.state.PushEvaluationStack(v);
+              }
+              effectiveArgCount = callSiteArgCount - 1 + lastArg.values.length;
+            }
+          }
+          if (effectiveArgCount < userArity) {
+            for (let i = effectiveArgCount; i < userArity; i++) {
+              story.state.PushEvaluationStack(new NullValue());
+            }
+          } else if (effectiveArgCount > userArity) {
+            // Lua overflow semantics: extra args at a non-variadic
+            // call site are dropped. Without this the closure's
+            // param binding would pop the LAST args instead of
+            // the first — `foo(1, 2, 3)` against `function
+            // foo(a, b)` would bind a=2, b=3 (wrong) instead of
+            // a=1, b=2.
+            for (let i = userArity; i < effectiveArgCount; i++) {
+              story.state.PopEvaluationStack();
+            }
+          }
+          story.state.PushEvaluationStack(callable as AbstractValue);
+        }
+      }
+    }
+  }
+  const callTarget = story.state.PopEvaluationStack();
+  // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
+  // returns an ObjectValue marked with `__builtin_iter`. The
+  // iterator advances its own cursor on each call (stored on
+  // the same ObjectValue), so we can't dispatch via the
+  // closure path — there's no underlying knot to divert to.
+  // Instead, pop the (state, ctrl) args that the generic-for
+  // call site pushed, advance the iterator, and push the
+  // resulting (key, value) pair as a MultiValue.
+  if (callTarget instanceof ObjectValue) {
+    const tag = (callTarget.value as Map<string, AbstractValue>)?.get(
+      BUILTIN_ITER_TAG,
+    );
+    if (tag != null) {
+      // Call sites push 2 args (state, ctrl) — both the
+      // generic-for protocol and manual iterator invocation
+      // (`inext(t, 2)`). Pops reverse the push order. The
+      // step honors them when state is non-nil (stateless
+      // Lua protocol); stateful iterators (gmatch,
+      // utf8codes) pass nil state and use the marker's
+      // internal cursor.
+      const iterCtrl = story.state.PopEvaluationStack();
+      const iterState = story.state.PopEvaluationStack();
+      const result = stepBuiltinIterator(
+        callTarget,
+        iterState as AbstractValue,
+        iterCtrl as AbstractValue,
+      );
+      story.state.PushEvaluationStack(result);
+      return;
+    }
+  }
+  const closureTarget = extractClosureTarget(callTarget, story);
+  if (closureTarget !== null) {
+    story.EnterFunction(closureTarget);
+    // ZERO-arg call sites have nothing to spread — the eval
+    // stack's top belongs to the CALLER (`local a,b,c = g(),
+    // g()`: the second g()'s dispatch must not spread the
+    // first g()'s pending multi-return — calls.luau line 207).
+    if (callSiteArgCount !== 0) {
+      spreadLastMultiIfNonVariadic(story, closureTarget);
+    }
+    return;
+  }
+  // `__stdlib_fn` marker dispatch: the target is an
+  // ObjectValue tagged with a stdlib function name (created
+  // by the variable-lookup fallback for stdlib references
+  // like `local f = type` / `local abs = math.abs`). Look up
+  // the entry, pop args by its fixed arity, invoke `entry.fn`,
+  // and push the result. Variadic stdlib entries (`arity ===
+  // -1`) dispatch using the CALL-SITE arg count carried on
+  // the CallValueAsFunction command (`_callValueArgCount`,
+  // set by CallValueExpression at lower time) — needed for
+  // `for k in next, t do` where the generic-for protocol
+  // calls the first-class `next` (variadic) with exactly two
+  // args (basic.luau lines 253-258).
+  if (callTarget instanceof ObjectValue) {
+    const stdlibTag = (callTarget.value as Map<string, AbstractValue>)?.get(
+      "__stdlib_fn",
+    );
+    if (stdlibTag instanceof StringValue) {
+      const stdlibName = stdlibTag.value;
+      const entry = lookupAnyStdLib(stdlibName!);
+      const popCount =
+        entry && entry.arity >= 0
+          ? entry.arity
+          : entry && callSiteArgCount >= 0
+            ? callSiteArgCount
+            : -1;
+      if (entry && popCount >= 0) {
+        const args: any[] = [];
+        for (let i = 0; i < popCount; i++) {
+          args.unshift(story.state.PopEvaluationStack());
+        }
+        for (let k = 0; k < args.length; k++) {
+          const a = args[k];
+          if (a instanceof MultiValue) {
+            if (k === args.length - 1) {
+              args.splice(k, 1, ...a.values);
+            } else {
+              args[k] = a.values[0] ?? new NullValue();
+            }
+          }
+        }
+        pushStdLibResult(
+          story,
+          entry.fn(
+            story,
+            unwrapArgsForPureStdLibFn(entry, args, story, stdlibName!),
+          ),
+        );
+        return;
+      }
+    }
+  }
+  // `__call` metamethod: the target is a plain ObjectValue
+  // (table) that isn't a closure or builtin iterator, but its
+  // metatable defines `__call`. Lua semantics: `t(args...)`
+  // becomes `__call(t, args...)`. Dispatched via
+  // `story.CallLuauFunction` with the table prepended as
+  // `self`. Limitation: closure-form `__call` handlers infer
+  // the user-arg count from `__closure_user_arity`; bare
+  // DivertTarget handlers (no upvalues, no arity metadata)
+  // are called with only `self` as the arg — extra user args
+  // pushed at the call site remain on the eval stack and may
+  // disturb subsequent operations. Authors hitting this can
+  // wrap the handler as a closure (e.g. add a stub upval) to
+  // force the closure path.
+  if (callTarget instanceof ObjectValue) {
+    const callHandler = lookupMetamethod(callTarget, "__call");
+    if (callHandler != null) {
+      const userArgs: AbstractValue[] = [];
+      if (callHandler instanceof ObjectValue) {
+        const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
+          "__closure_user_arity",
+        );
+        if (arityVal instanceof IntValue) {
+          const userArity = arityVal.value ?? 1;
+          // Pop (userArity - 1) user args — the closure's
+          // signature is `(self, ...userArgs)`, so self
+          // accounts for one of its slots.
+          for (let i = 0; i < userArity - 1; i++) {
+            userArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
+          }
+        }
+      }
+      const args = [callTarget as AbstractValue, ...userArgs];
+      pushCallResults(
+        story,
+        story.CallLuauFunction(callHandler, args) as AbstractValue[] | null,
+      );
+      return;
+    }
+  }
+  const target: FunctionTarget | null = story.FunctionTargetOf(callTarget);
+  if (target === null) {
+    // `__namecall` fallback (Luau): a colon-call whose method
+    // lookup missed arrives here with a NIL target — the
+    // receiver was threaded as the FIRST pushed arg
+    // (`CallValueExpression(IndexExpression(recv, name),
+    // [recv, ...])`). If that receiver's metatable defines
+    // `__namecall`, dispatch `__namecall(self, args...)`
+    // (basic.luau line 462's userdata namecall). Heuristic:
+    // non-colon nil-target calls whose first arg happens to
+    // carry __namecall would also match, but Lua errors on
+    // those anyway, so the worst case is a more permissive
+    // dispatch than stock Luau.
+    const nmArgCount = callSiteArgCount;
+    if (callTarget instanceof NullValue && nmArgCount >= 1) {
+      const nmArgs: AbstractValue[] = [];
+      for (let i = 0; i < nmArgCount; i++) {
+        nmArgs.unshift(story.state.PopEvaluationStack() as AbstractValue);
+      }
+      const nmReceiver = nmArgs[0];
+      const nmHandler =
+        nmReceiver instanceof ObjectValue
+          ? lookupMetamethod(nmReceiver, "__namecall")
+          : null;
+      if (nmHandler != null && !(nmHandler instanceof NullValue)) {
+        pushCallResults(
+          story,
+          story.CallLuauFunction(nmHandler, nmArgs) as AbstractValue[] | null,
+        );
+        return;
+      }
+      // No __namecall — restore the popped args so the error
+      // below reports with the stack intact.
+      for (const a of nmArgs) story.state.PushEvaluationStack(a);
+    }
+    // Lua's exact message shape — iter.luau line 174 matches
+    // `attempt to call a nil value` through pcall.
+    throw new StoryException(
+      `attempt to call a ${luauTypeOf(callTarget)} value` +
+        (callTarget ? " (got " + callTarget + ")" : ""),
+    );
+  }
+  story.EnterFunction(target);
+  if (target.variadic && callSiteArgCount >= 0) {
+    // Variadic function reached as a bare DivertTargetValue
+    // (e.g. a sibling variadic subflow passed first-class):
+    // no static PackTuple ran, so bind fixed params
+    // positionally and pack the extras here. Fixed count =
+    // the target's param-binding slots minus the `...` slot.
+    const fixedCount = Math.max(0, target.bindings - 1);
+    packVariadicValueCallArgs(story, callSiteArgCount, fixedCount);
+  } else if (callSiteArgCount !== 0) {
+    // Zero-arg call sites have nothing to spread — don't
+    // touch the caller's pending eval-stack values.
+    spreadLastMultiIfNonVariadic(story, target);
+  }
 }
 
 // `t[k] = v` Lua-fidelity dispatch. If `k` already exists directly on
@@ -673,7 +1264,7 @@ function newindexThroughMetatable(
       depth + 1,
     );
   }
-  if (newindexFn instanceof DivertTargetValue) {
+  if (isFunctionReference(newindexFn)) {
     story.CallLuauFunction(newindexFn, [
       base,
       new StringValue(keyStr),
@@ -688,7 +1279,8 @@ function newindexThroughMetatable(
 // binary program's engine (`ProgramStory`), which runs the same values
 // through them. `story` is either engine: what they read of it is its
 // `state` (the globals, the evaluation stack, the output), `Error`,
-// `CallLuauFunction` and `KnotContainerWithName`.
+// `CallLuauFunction` and `FlowValueNamed`, and the call handlers above read
+// `FunctionTargetOf` and `EnterFunction` besides.
 
 /** The table the key and value pairs of `between` from `first` on make, as
  *  `EndObject` builds it: a computed key reads as a map key, a nil value is
@@ -1043,14 +1635,12 @@ export function readVariable(story: any, name: string | null): InkObject {
 
   // Lua-style first-class fn fallback: if no variable named
   // `<name>` exists but a knot/function `<name>` IS defined,
-  // resolve to a `DivertTargetValue` pointing at the knot.
+  // resolve to its value: a `DivertTargetValue` pointing at the
+  // knot, or on the binary program's engine a symbol value.
   // This makes `local f = double` work as if the user had
   // written `local f = -> double`. Common authoring pattern.
   if (foundValue == null && name) {
-    const knotContainer = story.KnotContainerWithName(name);
-    if (knotContainer && knotContainer.path) {
-      foundValue = new DivertTargetValue(knotContainer.path);
-    }
+    foundValue = story.FlowValueNamed(name);
   }
 
   // Stdlib-function-name fallback: `type`, `assert`, `print`,
@@ -1103,7 +1693,7 @@ export function readVariable(story: any, name: string | null): InkObject {
         if (segs.length > 2) {
           story.Error("attempt to index a nil value");
         }
-      } else if (story.KnotContainerWithName(segs[0]!)) {
+      } else if (story.FlowValueNamed(segs[0]!)) {
         story.Error("attempt to index a function value");
       } else {
         story.Error("attempt to index a nil value");
@@ -2147,6 +2737,61 @@ export class Story extends InkObject {
     else return null;
   }
 
+  /** The stack trace `debug.traceback` prints: each call frame of each
+   *  thread, from the outermost, with the path of the container it is in. */
+  public CallStackTrace(): string {
+    return this.state.callStack.callStackTrace;
+  }
+
+  /** How many call frames the current thread has, for `debug.info`. */
+  public CallFrameCount(): number {
+    return this.state.callStack.elements.length;
+  }
+
+  /** The path of the container call frame `index` of the current thread is
+   *  in, counting from the outermost, as `debug.info` names a frame, or null
+   *  for a frame with no position. */
+  public CallFramePath(index: number): string | null {
+    const ptr = this.state.callStack.elements[index]?.currentPointer;
+    const container = ptr && !ptr.isNull ? ptr.container : null;
+    return container?.path?.toString() ?? null;
+  }
+
+  /** The value a read of `name` gives when no variable has that name but a
+   *  knot or function does: a divert target to it, or null. */
+  public FlowValueNamed(name: string): DivertTargetValue | null {
+    const knotContainer = this.KnotContainerWithName(name);
+    return knotContainer && knotContainer.path
+      ? new DivertTargetValue(knotContainer.path)
+      : null;
+  }
+
+  /** The function a function value names for the shared call handlers: the
+   *  container a divert target's path leads to, or null for any other
+   *  value. */
+  public FunctionTargetOf(value: unknown): FunctionTarget | null {
+    if (value instanceof DivertTargetValue && value.value !== null) {
+      return new ContainerTarget(
+        this.ContentAtPath(value.value).obj,
+        value.value,
+      );
+    }
+    return null;
+  }
+
+  /** Enters `target`, a function the shared call handlers found
+   *  (`FunctionTargetOf`), in a new function frame. */
+  public EnterFunction(target: FunctionTarget): void {
+    this.state.divertedPointer = this.PointerAtPath(
+      (target as ContainerTarget).path!,
+    );
+    this.state.callStack.Push(
+      PushPopType.Function,
+      undefined,
+      this.state.outputStream.length,
+    );
+  }
+
   public PointerAtPath(path: Path) {
     if (path.length == 0) return Pointer.Null;
 
@@ -2310,50 +2955,10 @@ export class Story extends InkObject {
       // var varPointer = currentContentObj as VariablePointerValue;
       let varPointer = asOrNull(currentContentObj, VariablePointerValue);
       if (varPointer && varPointer.contextIndex == -1) {
-        let contextIdx = this.state.callStack.ContextForVariableNamed(
+        currentContentObj = openVariablePointer(
+          this.state.callStack,
           varPointer.variableName,
         );
-        // Upvalue flattening (Lua semantics): if the slot we're about
-        // to point at ALREADY holds a VariablePointerValue — i.e. a
-        // captured upval being re-captured by a nested closure
-        // (`local a = 1 function foo() return function() return a
-        // end end`: foo's prepended upval param `a` holds the pointer
-        // to the outer cell) — reuse that pointer directly so every
-        // nesting level shares ONE cell. Without this, the inner
-        // closure points at foo's slot, reads dereference only one
-        // level, and the OUTER pointer leaks out raw (`Can't cast …
-        // from 0 to 5` when the leaked pointer hits a comparison).
-        const slotValue =
-          contextIdx > 0
-            ? this.state.callStack.GetTemporaryVariableWithName(
-                varPointer.variableName,
-                contextIdx,
-              )
-            : null;
-        if (slotValue instanceof VariablePointerValue) {
-          currentContentObj = slotValue;
-        } else {
-          // Lua-style upvalue dedup: if a closure / by-ref arg created
-          // earlier in this frame's lifetime already produced an open
-          // pointer for (contextIdx, varName), reuse it so multiple
-          // closures share the same cell. The shared pointer also makes
-          // the close-on-pop step a single observable event for all
-          // closures that captured this variable.
-          const existing = this.state.callStack.FindOpenUpvalue(
-            contextIdx,
-            varPointer.variableName,
-          );
-          if (existing) {
-            currentContentObj = existing;
-          } else {
-            const newPtr = new VariablePointerValue(
-              varPointer.variableName,
-              contextIdx,
-            );
-            this.state.callStack.RegisterOpenUpvalue(newPtr, contextIdx);
-            currentContentObj = newPtr;
-          }
-        }
       }
 
       // Expression evaluation content
@@ -2589,187 +3194,14 @@ export class Story extends InkObject {
       }
 
       if (currentDivert.hasVariableTarget) {
-        let varName = currentDivert.variableDivertName;
-
-        let varContents =
-          this.state.variablesState.GetVariableWithName(varName);
-
-        if (varContents == null) {
-          this.Error(
-            "Tried to divert using a target from a variable that could not be found (" +
-              varName +
-              ")",
-          );
-        } else {
-          // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
-          // stored in a variable: the call site here is a regular
-          // FunctionCall lowered into a variable-target Divert. The
-          // iterator advances its own cursor in place; we pop the
-          // (state, ctrl) args the call site pushed and replace
-          // them with the next (key, value) MultiValue.
-          if (varContents instanceof ObjectValue) {
-            const tag = (varContents.value as Map<string, AbstractValue>)?.get(
-              BUILTIN_ITER_TAG,
-            );
-            if (tag != null) {
-              // Args were pushed (state, ctrl) — pops reverse that.
-              const iterCtrl = this.state.PopEvaluationStack();
-              const iterState = this.state.PopEvaluationStack();
-              const result = stepBuiltinIterator(
-                varContents,
-                iterState as AbstractValue,
-                iterCtrl as AbstractValue,
-              );
-              this.state.PushEvaluationStack(result);
-              return true;
-            }
-          }
-          // Stdlib-function reference: variable holds an ObjectValue
-          // marked with `__stdlib_fn` (the call-site reference resolved
-          // to a name like `math.abs` whose actual implementation lives
-          // in the STDLIB registry, not as an ink knot). Look up the
-          // entry, pop its args, invoke `entry.fn`, push the result.
-          // Variadic stdlib entries (`arity === -1`) can't be dispatched
-          // here yet — the call site didn't push an arg count — and
-          // fall through to the existing error. Fixed-arity entries
-          // (which covers the common case: `math.abs`, `tostring`,
-          // `type`, etc.) work.
-          if (varContents instanceof ObjectValue) {
-            const stdlibTag = (varContents.value as Map<string, AbstractValue>)?.get(
-              "__stdlib_fn",
-            );
-            if (stdlibTag instanceof StringValue) {
-              const stdlibName = stdlibTag.value;
-              const entry = lookupAnyStdLib(stdlibName!);
-              if (entry && entry.arity >= 0) {
-                const args: any[] = [];
-                for (let i = 0; i < entry.arity; i++) {
-                  args.unshift(this.state.PopEvaluationStack());
-                }
-                // Last-arg MultiValue spread (matches RunStdLibFunction
-                // semantics). Earlier args truncate any MultiValue to
-                // its first inner value.
-                for (let k = 0; k < args.length; k++) {
-                  const a = args[k];
-                  if (a instanceof MultiValue) {
-                    if (k === args.length - 1) {
-                      args.splice(k, 1, ...a.values);
-                    } else {
-                      args[k] = a.values[0] ?? new NullValue();
-                    }
-                  }
-                }
-                const result = entry.fn(
-                  this,
-                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName!),
-                );
-                if (result !== undefined) {
-                  if (Array.isArray(result)) {
-                    const wrapped: AbstractValue[] = [];
-                    for (const r of result) {
-                      if (r instanceof InkObject) {
-                        wrapped.push(r as AbstractValue);
-                      } else {
-                        const w = Value.Create(r);
-                        if (w !== null) wrapped.push(w);
-                      }
-                    }
-                    this.state.PushEvaluationStack(new MultiValue(wrapped));
-                  } else if (result instanceof InkObject) {
-                    this.state.PushEvaluationStack(result as AbstractValue);
-                  } else {
-                    const w = Value.Create(result);
-                    if (w !== null) this.state.PushEvaluationStack(w);
-                  }
-                } else {
-                  // Void return (`print`, `table.insert`, ...): push
-                  // the Void sentinel so the eval stack stays
-                  // balanced — same contract as RunStdLibFunction.
-                  this.state.PushEvaluationStack(new Void());
-                }
-                return true;
-              }
-            }
-          }
-
-          // Closure value: variable holds a closure-shaped ObjectValue.
-          // Rearrange the eval stack (push upvals before user args)
-          // and divert to the synthetic knot's path. See
-          // `extractClosurePath` for the shape contract.
-          const closurePath = extractClosurePath(varContents, this);
-          if (closurePath !== null) {
-            this.state.divertedPointer = this.PointerAtPath(closurePath);
-            // Multi-return spread for non-variadic closures: see the
-            // helper. extractClosurePath has already pushed the upvals
-            // and re-pushed user args, so the spread check sees the
-            // syntactically-last user arg on top.
-            const closureTarget = this.ContentAtPath(closurePath).obj;
-            spreadLastMultiIfNonVariadic(this, closureTarget);
-          } else if (varContents instanceof ObjectValue) {
-            // `__call` metamethod: the variable holds a regular table
-            // (not a closure, not a builtin iterator) whose metatable
-            // defines `__call`. Dispatch via the same handler used in
-            // the `CallValueAsFunction` op. Returns true to skip the
-            // normal divert finalize step (CallLuauFunction set up
-            // its own divert + frame).
-            const callHandler = lookupMetamethod(varContents, "__call");
-            if (callHandler != null) {
-              const userArgs: AbstractValue[] = [];
-              if (callHandler instanceof ObjectValue) {
-                const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
-                  "__closure_user_arity",
-                );
-                if (arityVal instanceof IntValue) {
-                  const userArity = arityVal.value ?? 1;
-                  for (let i = 0; i < userArity - 1; i++) {
-                    userArgs.unshift(
-                      this.state.PopEvaluationStack() as AbstractValue,
-                    );
-                  }
-                }
-              }
-              const args = [varContents as AbstractValue, ...userArgs];
-              const results = this.CallLuauFunction(callHandler, args) as
-                | AbstractValue[]
-                | null;
-              if (results && results.length === 1) {
-                this.state.PushEvaluationStack(results[0]!);
-              } else if (results && results.length > 1) {
-                this.state.PushEvaluationStack(new MultiValue(results));
-              } else {
-                this.state.PushEvaluationStack(new NullValue());
-              }
-              return true;
-            }
-            // Plain table with no `__call` — fall through to the error.
-            this.Error(
-              "Tried to divert to a target from a variable, but the variable (" +
-                varName +
-                ") contained '" +
-                varContents +
-                "'.",
-            );
-          } else if (!(varContents instanceof DivertTargetValue)) {
-            let intContent = asOrNull(varContents, IntValue);
-            let errorMessage =
-              "Tried to divert to a target from a variable, but the variable (" +
-              varName +
-              ") didn't contain a divert target, it ";
-            if (intContent instanceof IntValue && intContent.value == 0) {
-              errorMessage += "was empty/null (the value 0).";
-            } else {
-              errorMessage += "contained '" + varContents + "'.";
-            }
-            this.Error(errorMessage);
-          } else {
-            this.state.divertedPointer = this.PointerAtPath(
-              varContents.targetPath,
-            );
-            // Spread last-arg MultiValue for non-variadic targets.
-            const target = this.ContentAtPath(varContents.targetPath).obj;
-            spreadLastMultiIfNonVariadic(this, target);
-          }
+        const target = callVariableTarget(
+          this,
+          currentDivert.variableDivertName,
+        ) as ContainerTarget | null;
+        if (target === null) {
+          return true;
         }
+        this.state.divertedPointer = this.PointerAtPath(target.path!);
       } else if (currentDivert.isExternal) {
         this.CallExternalFunction(
           currentDivert.targetPathString,
@@ -2790,8 +3222,10 @@ export class Story extends InkObject {
           currentDivert.pushesToStack &&
           currentDivert.stackPushType === PushPopType.Function
         ) {
-          const target = currentDivert.targetPointer.container;
-          spreadLastMultiIfNonVariadic(this, target);
+          spreadLastMultiIfNonVariadic(
+            this,
+            new ContainerTarget(currentDivert.targetPointer.container),
+          );
         }
       }
 
@@ -3072,357 +3506,9 @@ export class Story extends InkObject {
           break;
         }
 
-        case ControlCommand.CommandType.CallValueAsFunction: {
-          // Pops a `DivertTargetValue` (regular fn) OR a closure
-          // `ObjectValue` off the eval stack and diverts to the
-          // corresponding path, pushing a Function call-stack frame
-          // so a later `~ret` / `PopFunction` returns control to the
-          // instruction after this one.
-          //
-          // Arguments must already be on the eval stack *below* the target —
-          // they remain there for the function's parameter-binding bytecode
-          // (a sequence of `temp=` assignments at the function's entry) to
-          // pop.
-          //
-          // Closure dispatch: when the target is a closure-shaped
-          // `ObjectValue` (has `__closure_fn` / `__closure_upvals`
-          // entries), the handler pops the K user args (count via
-          // `__closure_user_arity`), pushes the N upvals from
-          // `__closure_upvals` (in index order), then re-pushes the
-          // user args. The synthetic knot's signature was lowered
-          // with upvals prepended to user params, so parameter
-          // binding reads them in the right order. See
-          // `lowerAnonymousFunction` in `lowerExpression.ts`.
-          //
-          // Luau under-supplied args: if the call site pushed fewer
-          // args than the closure's user arity, pad with `NullValue`
-          // BEFORE popping for upval reordering — otherwise
-          // `extractClosurePath` would dig into the caller's eval
-          // context. The call-site arg count is encoded on the
-          // ControlCommand via CallValueExpression's
-          // `CallValueAsFunction(this.args.length)`; -1 means
-          // "untracked" (legacy bytecode).
-          const callSiteArgCount = evalCommand._callValueArgCount;
-          if (callSiteArgCount >= 0) {
-            // Peek the callTarget BEFORE popping to know the closure's
-            // user arity, then normalize the eval-stack args to
-            // exactly `userArity` values so `extractClosurePath` can
-            // pop them cleanly. Two adjustments:
-            //   1. If the LAST positional arg is a MultiValue (from
-            //      `g()` returning multiple values), spread its inner
-            //      values inline. This is what
-            //      `spreadLastMultiIfNonVariadic` does, but we need
-            //      it BEFORE the pop loop so the count is right.
-            //   2. If after spread the effective arg count is still
-            //      less than `userArity`, pad with nil on top so the
-            //      missing trailing params bind to nil rather than
-            //      digging into caller-context.
-            const peeked = this.state.PeekEvaluationStack();
-            if (peeked instanceof ObjectValue) {
-              const peekedMap = peeked.value as Map<string, AbstractValue>;
-              const userArityVal = peekedMap?.get("__closure_user_arity");
-              if (userArityVal instanceof IntValue) {
-                const userArity = userArityVal.value ?? 0;
-                // VARIADIC closure target: `__closure_user_arity`
-                // counts fixed params only; the extras must pack into
-                // one MultiValue for the `...` slot instead of being
-                // dropped by the overflow logic below.
-                const fnTargetVal = peekedMap?.get("__closure_fn");
-                const isVariadicTarget =
-                  fnTargetVal instanceof DivertTargetValue &&
-                  fnTargetVal.value != null &&
-                  containerIsVariadic(this.ContentAtPath(fnTargetVal.value).obj);
-                if (isVariadicTarget) {
-                  const callable = this.state.PopEvaluationStack();
-                  packVariadicValueCallArgs(this, callSiteArgCount, userArity);
-                  this.state.PushEvaluationStack(callable as AbstractValue);
-                } else {
-                  const callable = this.state.PopEvaluationStack();
-                  let effectiveArgCount = callSiteArgCount;
-                  if (callSiteArgCount > 0) {
-                    const lastArg = this.state.PeekEvaluationStack();
-                    if (lastArg instanceof MultiValue) {
-                      this.state.PopEvaluationStack();
-                      for (const v of lastArg.values) {
-                        this.state.PushEvaluationStack(v);
-                      }
-                      effectiveArgCount =
-                        callSiteArgCount - 1 + lastArg.values.length;
-                    }
-                  }
-                  if (effectiveArgCount < userArity) {
-                    for (let i = effectiveArgCount; i < userArity; i++) {
-                      this.state.PushEvaluationStack(new NullValue());
-                    }
-                  } else if (effectiveArgCount > userArity) {
-                    // Lua overflow semantics: extra args at a non-variadic
-                    // call site are dropped. Without this the closure's
-                    // param binding would pop the LAST args instead of
-                    // the first — `foo(1, 2, 3)` against `function
-                    // foo(a, b)` would bind a=2, b=3 (wrong) instead of
-                    // a=1, b=2.
-                    for (let i = userArity; i < effectiveArgCount; i++) {
-                      this.state.PopEvaluationStack();
-                    }
-                  }
-                  this.state.PushEvaluationStack(callable as AbstractValue);
-                }
-              }
-            }
-          }
-          const callTarget = this.state.PopEvaluationStack();
-          // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
-          // returns an ObjectValue marked with `__builtin_iter`. The
-          // iterator advances its own cursor on each call (stored on
-          // the same ObjectValue), so we can't dispatch via the
-          // closure path — there's no underlying knot to divert to.
-          // Instead, pop the (state, ctrl) args that the generic-for
-          // call site pushed, advance the iterator, and push the
-          // resulting (key, value) pair as a MultiValue.
-          if (callTarget instanceof ObjectValue) {
-            const tag = (callTarget.value as Map<string, AbstractValue>)?.get(
-              BUILTIN_ITER_TAG,
-            );
-            if (tag != null) {
-              // Call sites push 2 args (state, ctrl) — both the
-              // generic-for protocol and manual iterator invocation
-              // (`inext(t, 2)`). Pops reverse the push order. The
-              // step honors them when state is non-nil (stateless
-              // Lua protocol); stateful iterators (gmatch,
-              // utf8codes) pass nil state and use the marker's
-              // internal cursor.
-              const iterCtrl = this.state.PopEvaluationStack();
-              const iterState = this.state.PopEvaluationStack();
-              const result = stepBuiltinIterator(
-                callTarget,
-                iterState as AbstractValue,
-                iterCtrl as AbstractValue,
-              );
-              this.state.PushEvaluationStack(result);
-              break;
-            }
-          }
-          const closurePath = extractClosurePath(callTarget, this);
-          if (closurePath !== null) {
-            this.state.divertedPointer = this.PointerAtPath(closurePath);
-            this.state.callStack.Push(
-              PushPopType.Function,
-              undefined,
-              this.state.outputStream.length,
-            );
-            const closureTarget = this.ContentAtPath(closurePath).obj;
-            // ZERO-arg call sites have nothing to spread — the eval
-            // stack's top belongs to the CALLER (`local a,b,c = g(),
-            // g()`: the second g()'s dispatch must not spread the
-            // first g()'s pending multi-return — calls.luau line 207).
-            if (evalCommand._callValueArgCount !== 0) {
-              spreadLastMultiIfNonVariadic(this, closureTarget);
-            }
-            break;
-          }
-          // `__stdlib_fn` marker dispatch: the target is an
-          // ObjectValue tagged with a stdlib function name (created
-          // by the variable-lookup fallback for stdlib references
-          // like `local f = type` / `local abs = math.abs`). Look up
-          // the entry, pop args by its fixed arity, invoke `entry.fn`,
-          // and push the result. Variadic stdlib entries (`arity ===
-          // -1`) dispatch using the CALL-SITE arg count carried on
-          // the CallValueAsFunction command (`_callValueArgCount`,
-          // set by CallValueExpression at lower time) — needed for
-          // `for k in next, t do` where the generic-for protocol
-          // calls the first-class `next` (variadic) with exactly two
-          // args (basic.luau lines 253-258).
-          if (callTarget instanceof ObjectValue) {
-            const stdlibTag = (callTarget.value as Map<string, AbstractValue>)?.get(
-              "__stdlib_fn",
-            );
-            if (stdlibTag instanceof StringValue) {
-              const stdlibName = stdlibTag.value;
-              const entry = lookupAnyStdLib(stdlibName!);
-              const callSiteArgCount =
-                evalCommand._callValueArgCount ?? -1;
-              const popCount =
-                entry && entry.arity >= 0
-                  ? entry.arity
-                  : entry && callSiteArgCount >= 0
-                    ? callSiteArgCount
-                    : -1;
-              if (entry && popCount >= 0) {
-                const args: any[] = [];
-                for (let i = 0; i < popCount; i++) {
-                  args.unshift(this.state.PopEvaluationStack());
-                }
-                for (let k = 0; k < args.length; k++) {
-                  const a = args[k];
-                  if (a instanceof MultiValue) {
-                    if (k === args.length - 1) {
-                      args.splice(k, 1, ...a.values);
-                    } else {
-                      args[k] = a.values[0] ?? new NullValue();
-                    }
-                  }
-                }
-                const result = entry.fn(
-                  this,
-                  unwrapArgsForPureStdLibFn(entry, args, this, stdlibName!),
-                );
-                if (result !== undefined) {
-                  if (Array.isArray(result)) {
-                    const wrapped: AbstractValue[] = [];
-                    for (const r of result) {
-                      if (r instanceof InkObject) {
-                        wrapped.push(r as AbstractValue);
-                      } else {
-                        const w = Value.Create(r);
-                        if (w !== null) wrapped.push(w);
-                      }
-                    }
-                    this.state.PushEvaluationStack(new MultiValue(wrapped));
-                  } else if (result instanceof InkObject) {
-                    this.state.PushEvaluationStack(result as AbstractValue);
-                  } else {
-                    const w = Value.Create(result);
-                    if (w !== null) this.state.PushEvaluationStack(w);
-                  }
-                } else {
-                  // Void return (`print`, `table.insert`, ...): push
-                  // the Void sentinel so the eval stack stays
-                  // balanced — same contract as RunStdLibFunction.
-                  this.state.PushEvaluationStack(new Void());
-                }
-                break;
-              }
-            }
-          }
-          // `__call` metamethod: the target is a plain ObjectValue
-          // (table) that isn't a closure or builtin iterator, but its
-          // metatable defines `__call`. Lua semantics: `t(args...)`
-          // becomes `__call(t, args...)`. Dispatched via
-          // `story.CallLuauFunction` with the table prepended as
-          // `self`. Limitation: closure-form `__call` handlers infer
-          // the user-arg count from `__closure_user_arity`; bare
-          // DivertTarget handlers (no upvalues, no arity metadata)
-          // are called with only `self` as the arg — extra user args
-          // pushed at the call site remain on the eval stack and may
-          // disturb subsequent operations. Authors hitting this can
-          // wrap the handler as a closure (e.g. add a stub upval) to
-          // force the closure path.
-          if (callTarget instanceof ObjectValue) {
-            const callHandler = lookupMetamethod(callTarget, "__call");
-            if (callHandler != null) {
-              const userArgs: AbstractValue[] = [];
-              if (callHandler instanceof ObjectValue) {
-                const arityVal = (callHandler.value as Map<string, AbstractValue>)?.get(
-                  "__closure_user_arity",
-                );
-                if (arityVal instanceof IntValue) {
-                  const userArity = arityVal.value ?? 1;
-                  // Pop (userArity - 1) user args — the closure's
-                  // signature is `(self, ...userArgs)`, so self
-                  // accounts for one of its slots.
-                  for (let i = 0; i < userArity - 1; i++) {
-                    userArgs.unshift(
-                      this.state.PopEvaluationStack() as AbstractValue,
-                    );
-                  }
-                }
-              }
-              const args = [callTarget as AbstractValue, ...userArgs];
-              const results = this.CallLuauFunction(callHandler, args) as
-                | AbstractValue[]
-                | null;
-              if (results && results.length === 1) {
-                this.state.PushEvaluationStack(results[0]!);
-              } else if (results && results.length > 1) {
-                this.state.PushEvaluationStack(new MultiValue(results));
-              } else {
-                this.state.PushEvaluationStack(new NullValue());
-              }
-              break;
-            }
-          }
-          const targetVal = asOrNull(callTarget, DivertTargetValue);
-          if (targetVal === null || targetVal.value === null) {
-            // `__namecall` fallback (Luau): a colon-call whose method
-            // lookup missed arrives here with a NIL target — the
-            // receiver was threaded as the FIRST pushed arg
-            // (`CallValueExpression(IndexExpression(recv, name),
-            // [recv, ...])`). If that receiver's metatable defines
-            // `__namecall`, dispatch `__namecall(self, args...)`
-            // (basic.luau line 462's userdata namecall). Heuristic:
-            // non-colon nil-target calls whose first arg happens to
-            // carry __namecall would also match, but Lua errors on
-            // those anyway, so the worst case is a more permissive
-            // dispatch than stock Luau.
-            const nmArgCount = evalCommand._callValueArgCount ?? -1;
-            if (callTarget instanceof NullValue && nmArgCount >= 1) {
-              const nmArgs: AbstractValue[] = [];
-              for (let i = 0; i < nmArgCount; i++) {
-                nmArgs.unshift(
-                  this.state.PopEvaluationStack() as AbstractValue,
-                );
-              }
-              const nmReceiver = nmArgs[0];
-              const nmHandler =
-                nmReceiver instanceof ObjectValue
-                  ? lookupMetamethod(nmReceiver, "__namecall")
-                  : null;
-              if (nmHandler != null && !(nmHandler instanceof NullValue)) {
-                const results = this.CallLuauFunction(nmHandler, nmArgs) as
-                  | AbstractValue[]
-                  | null;
-                if (results && results.length === 1) {
-                  this.state.PushEvaluationStack(results[0]!);
-                } else if (results && results.length > 1) {
-                  this.state.PushEvaluationStack(new MultiValue(results));
-                } else {
-                  this.state.PushEvaluationStack(new NullValue());
-                }
-                break;
-              }
-              // No __namecall — restore the popped args so the error
-              // below reports with the stack intact.
-              for (const a of nmArgs) this.state.PushEvaluationStack(a);
-            }
-            // Lua's exact message shape — iter.luau line 174 matches
-            // `attempt to call a nil value` through pcall.
-            throw new StoryException(
-              `attempt to call a ${luauTypeOf(callTarget)} value` +
-                (callTarget ? " (got " + callTarget + ")" : ""),
-            );
-          }
-          this.state.divertedPointer = this.PointerAtPath(targetVal.value);
-          this.state.callStack.Push(
-            PushPopType.Function,
-            undefined,
-            this.state.outputStream.length,
-          );
-          const targetContainer = this.ContentAtPath(targetVal.value).obj;
-          if (
-            containerIsVariadic(targetContainer) &&
-            evalCommand._callValueArgCount >= 0
-          ) {
-            // Variadic function reached as a bare DivertTargetValue
-            // (e.g. a sibling variadic subflow passed first-class):
-            // no static PackTuple ran, so bind fixed params
-            // positionally and pack the extras here. Fixed count =
-            // the target's param-binding slots minus the `...` slot.
-            const fixedCount = Math.max(
-              0,
-              countLeadingParamBindings(targetContainer) - 1,
-            );
-            packVariadicValueCallArgs(
-              this,
-              evalCommand._callValueArgCount,
-              fixedCount,
-            );
-          } else if (evalCommand._callValueArgCount !== 0) {
-            // Zero-arg call sites have nothing to spread — don't
-            // touch the caller's pending eval-stack values.
-            spreadLastMultiIfNonVariadic(this, targetContainer);
-          }
+        case ControlCommand.CommandType.CallValueAsFunction:
+          callValueAsFunction(this, evalCommand._callValueArgCount ?? -1);
           break;
-        }
 
         case ControlCommand.CommandType.BeginScope:
           // Push a new innermost temporary-variable scope on the
@@ -4105,13 +4191,13 @@ export class Story extends InkObject {
       // Lua call-site semantics: discard extra args / pad missing
       // with nil (see normalizeLuauCallArgs).
       const callArgs = normalizeLuauCallArgs(this, fnValue, args);
-      // Closure case: extractClosurePath modifies the eval stack
+      // Closure case: extractClosureTarget modifies the eval stack
       // (pops user args, pushes upvals, re-pushes user args). So push
       // user args first, then let it rearrange.
       if (fnValue instanceof ObjectValue) {
         for (const a of callArgs) this.state.PushEvaluationStack(a);
-        const p = extractClosurePath(fnValue, this);
-        if (p == null) {
+        const target = extractClosureTarget(fnValue, this);
+        if (target == null) {
           // Not a closure-shaped ObjectValue. Restore stack + bail.
           for (let i = 0; i < callArgs.length; i++)
             this.state.PopEvaluationStack();
@@ -4127,7 +4213,7 @@ export class Story extends InkObject {
             "CallLuauFunction: ObjectValue is not a closure (missing `__closure_fn`)",
           );
         }
-        path = p as Path;
+        path = (target as ContainerTarget).path;
       } else if (fnValue instanceof DivertTargetValue) {
         for (const a of callArgs) this.state.PushEvaluationStack(a);
         path = fnValue.value;
@@ -4294,8 +4380,8 @@ export class Story extends InkObject {
       const callArgs = normalizeLuauCallArgs(this, fnValue, args);
       if (fnValue instanceof ObjectValue) {
         for (const a of callArgs) this.state.PushEvaluationStack(a);
-        const p = extractClosurePath(fnValue, this);
-        if (p == null) {
+        const target = extractClosureTarget(fnValue, this);
+        if (target == null) {
           for (let i = 0; i < callArgs.length; i++)
             this.state.PopEvaluationStack();
           // `__call` metamethod: same callable-table rewrite as
@@ -4314,7 +4400,7 @@ export class Story extends InkObject {
               "pcall: target ObjectValue is not a closure (missing `__closure_fn`)",
           };
         }
-        path = p as Path;
+        path = (target as ContainerTarget).path;
       } else if (fnValue instanceof DivertTargetValue) {
         for (const a of callArgs) this.state.PushEvaluationStack(a);
         path = fnValue.value;

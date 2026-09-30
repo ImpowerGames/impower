@@ -325,24 +325,19 @@ describe("the declaration sequence", () => {
     expect(globalsOf(new ProgramStory(s.root), names)).toEqual(coldGlobals(s.text, names));
   });
 
-  // An initializer cannot call a function on the program engine until
-  // functions are emitted (#698): such a call makes the program fall back.
-  // A function's edit still runs every declaration again, which is the rule
-  // that keeps such an initializer's global fresh.
+  // An initializer can call a function, so a function's edit runs every
+  // declaration again, which keeps such an initializer's global fresh.
   it("runs every declaration again when a function changes", () => {
     const s = session(
-      ["store a = 1", "function f()", "  return 1", "end", "Line {a}.", ""].join("\n"),
+      ["store g = f()", "Line {g}.", "", "function f()", "  return 1", "end", ""].join("\n"),
     );
+    expect(globalsOf(new ProgramStory(s.root), ["g"])).toEqual({ g: 1 });
     const runs = s.store.initializerRuns;
     s.edit("return 1", "return 2");
     expect(s.build.declarationsChanged).toBe(true);
     expect(s.store.initializerRuns).toBe(runs + 1);
-    expect(globalsOf(new ProgramStory(s.root), ["a"])).toEqual(coldGlobals(s.text, ["a"]));
-    const { program } = compileScript(
-      "function f()\n  return 1\nend\nstore g = f()\nLine {g}.\n",
-      { programChunks: true },
-    );
-    expect(program.fallback?.construct).toBe("FunctionCall");
+    expect(globalsOf(new ProgramStory(s.root), ["g"])).toEqual(coldGlobals(s.text, ["g"]));
+    expect(globalsOf(new ProgramStory(s.root), ["g"])).toEqual({ g: 2 });
   });
 
   it("gives every global a cold compile's value through a series of edits", () => {

@@ -204,15 +204,15 @@ describe("the engine", () => {
 describe("the fallback", () => {
   it("names a construct at the top level, and emits the current program", () => {
     const { program } = compileScript(
-      "function f()\n  return 1\nend\nOne.\nYou have {f()}.\n",
+      "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\nend\n",
       { programChunks: true },
     );
     expect(program.chunks).toBeUndefined();
     expect(program.compiled).toBeTruthy();
     expect(program.fallback).toEqual({
-      construct: "FunctionCall",
+      construct: "Divert",
       uri: MAIN_URI,
-      line: 4,
+      line: 2,
     });
   });
 
@@ -257,7 +257,7 @@ describe("the fallback", () => {
   });
 
   it("runs a program that fell back on the current engine", () => {
-    const text = "function f()\n  return 1\nend\nOne.\nYou have {f()}.\n";
+    const text = "One.\nTwo.\n-> MAIN\n\nscene MAIN\n  Three.\nend\n";
     const { program } = compileScript(text, { programChunks: true });
     const current = compileScript(text);
     expect(program.compiled).toEqual(current.program.compiled);

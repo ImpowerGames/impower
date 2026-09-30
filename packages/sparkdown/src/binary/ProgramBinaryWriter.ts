@@ -67,21 +67,50 @@ export const createProgramTable = (): ProgramTable => ({
   generation: 0,
 });
 
+/** What a reseed did to a table: the generation it started, and for each id
+ *  space, the new id of each old id, or -1 for an entry it dropped. */
+export interface ProgramTableRemap {
+  generation: number;
+  strings: Int32Array;
+  numbers: Int32Array;
+  symbols: Int32Array;
+}
+
 /**
  * Reseed a table, dropping entries no longer referenced.
  *
  * The table only grows while a session runs, so strings from deleted content
  * accumulate. Callers reseed when the waste is worth the cost: every cached
  * chunk becomes invalid, because its pointers referred to the old numbering.
+ * The symbols in `keep.symbols` are interned again, in the order of their old
+ * ids (docs/engine/binary-program.md, section 2, Reseed); every other entry
+ * is dropped. The remap says where each old id went.
  */
-export const reseedProgramTable = (table: ProgramTable): void => {
+export const reseedProgramTable = (
+  table: ProgramTable,
+  keep: { symbols?: Iterable<number> } = {},
+): ProgramTableRemap => {
+  const strings = new Int32Array(table.strings.length).fill(-1);
+  const numbers = new Int32Array(table.numbers.length).fill(-1);
+  const symbols = new Int32Array(table.symbols.length).fill(-1);
+  const oldSymbols = table.symbols;
   table.strings = [];
   table.stringIds = new Map();
   table.numbers = [];
   table.numberIds = new Map();
   table.symbols = [];
   table.symbolIds = new Map();
+  const kept = [...new Set(keep.symbols ?? [])]
+    .filter((id) => oldSymbols[id] !== undefined)
+    .sort((a, b) => a - b);
+  for (const id of kept) {
+    const name = oldSymbols[id]!;
+    symbols[id] = table.symbols.length;
+    table.symbolIds.set(name, table.symbols.length);
+    table.symbols.push(name);
+  }
   table.generation += 1;
+  return { generation: table.generation, strings, numbers, symbols };
 };
 
 /**

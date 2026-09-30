@@ -1,34 +1,44 @@
 import { Container } from "../inkjs/engine/Container";
 import { debugFileName } from "../compiler/utils/debugFileName";
 import { ControlCommand } from "../inkjs/engine/ControlCommand";
+import { DebugMetadata } from "../inkjs/engine/DebugMetadata";
 import { ErrorType, type RaisedError } from "../inkjs/engine/Error";
+import { InkList } from "../inkjs/engine/InkList";
 import { NativeFunctionCall } from "../inkjs/engine/NativeFunctionCall";
 import { InkObject } from "../inkjs/engine/Object";
 import { cleanOutputWhitespace } from "../inkjs/engine/outputWhitespace";
+import { PushPopType } from "../inkjs/engine/PushPop";
 import type { Simulator } from "../inkjs/engine/Simulator";
-import {
-  BUILTIN_ITER_TAG,
-  lookupStateAwareStdLib,
-  stepBuiltinIterator,
-} from "../inkjs/engine/StdLib";
+import { lookupStateAwareStdLib } from "../inkjs/engine/StdLib";
 import {
   Story,
   callNativeFunction,
+  callValueAsFunction,
+  callVariableTarget,
   captureString,
+  extractClosureTarget,
   indexValue,
+  isFunctionReference,
+  lookupMetamethod,
+  normalizeLuauCallArgs,
+  openVariablePointer,
   packTuple,
   popLuauCondition,
   readVariable,
   shortCircuitDecides,
+  spreadLastMultiIfNonVariadic,
   storeIndex,
   tableFromPairs,
+  tryInvokeStdLibMarkerValue,
   unpackTuple,
+  type FunctionTarget,
 } from "../inkjs/engine/Story";
 import {
   StepLimitExceeded,
   StoryException,
 } from "../inkjs/engine/StoryException";
 import { StringBuilder } from "../inkjs/engine/StringBuilder";
+import { asOrThrows } from "../inkjs/engine/TypeAssertion";
 import {
   AbstractValue,
   BoolValue,
@@ -39,13 +49,18 @@ import {
   NullValue,
   ObjectValue,
   StringValue,
+  SymbolRef,
+  SymbolValue,
   Value,
+  ValueType,
+  VariablePointerValue,
 } from "../inkjs/engine/Value";
 import { VariableAssignment } from "../inkjs/engine/VariableAssignment";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
 import { Void } from "../inkjs/engine/Void";
 import { BinaryProgramReader } from "./BinaryProgramReader";
 import {
+  CALL_ARGS_UNKNOWN,
   CALL_DISCARD,
   ConstValue,
   JUMP_DECISION,
@@ -56,16 +71,19 @@ import {
   Op,
   SET_DECLARE,
   SET_GLOBAL,
+  SET_VARARGS,
   auxOf,
   flagsOf,
   opOf,
 } from "./ProgramInstructions";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
-import { ROOT_FLOW_NAME } from "./ProgramSymbols";
+import { ROOT_FLOW_NAME, SymbolKind, isAnonymousSymbol } from "./ProgramSymbols";
 import {
   ProgramStoryState,
   blockStackOf,
+  type BlockEntry,
   type ProgramPosition,
+  type SuspendedLineEnd,
 } from "./ProgramStoryState";
 import {
   ADDRESS_OFFSETS,
@@ -101,32 +119,65 @@ type ErrorHandler = (
   raised?: RaisedError | null,
 ) => void;
 
+/** The function a symbol names, as the call handlers the two engines share
+ *  read it (`FunctionTarget`): where its entry code starts, and what its
+ *  entry binds, which the leading `SetVar`s of that code say. */
+class SymbolTarget implements FunctionTarget {
+  constructor(
+    readonly symbol: number,
+    readonly entry: ProgramPosition,
+    readonly variadic: boolean,
+    readonly bindings: number,
+  ) {}
+}
+
+/** An instruction that ran: its chunk's sequence and entry, and its
+ *  offset. */
+interface RunningInstruction {
+  sequence: SequenceRow;
+  entry: number;
+  offset: number;
+}
+
+// What a callback suspends of the step that calls it, and gets back when it
+// returns (`ProgramStory.CallLuauFunction`).
+interface SuspendedStep {
+  depth: number;
+  evalHeight: number;
+  position: ProgramPosition | null;
+  blocks: BlockEntry[];
+  output: InkObject[];
+  lineEnd: SuspendedLineEnd;
+  pause: boolean;
+  running: RunningInstruction | null;
+}
+
 /**
  * `ProgramStory` runs a program's statement chunks with an integer cursor
- * (docs/engine/binary-program.md, sections 3, 6 and 9): an eval stack, the
+ * (docs/engine/binary-program.md, sections 3, 6, 9 and 10): an eval stack, the
  * value operations of the current engine (`Story`'s shared handlers), native
  * functions and operators through `NativeFunctionCall`, variables through
  * `VariablesState`, block statements whose bodies it enters and leaves
- * through a block stack, decisions the route simulator can force, and a
+ * through a block stack, calls of functions in frames that return to the
+ * instruction after the call, decisions the route simulator can force, and a
  * continue that returns at its line's newline.
  *
  * It presents the members of the current engine's `Story` that a `Game` uses
  * to create a game from a compile, continue, read a beat's display
- * instructions and run a preview compile's program, under the same names.
- * What it does not present yet belongs to later slices of #692: diverts and
- * counts (#696), choices (#697), calls of functions (#698), images and saves
- * across compiles (#699), addresses (#700) and the debugger (#702).
+ * instructions, run a preview compile's program and evaluate a function
+ * (`HasFunction`, `EvaluateFunction`), and the members the builtins read
+ * (`CallLuauFunction`, `CallLuauFunctionProtected`, `CallStackTrace`, ...),
+ * under the same names. What it does not present yet belongs to later slices
+ * of #692: diverts and counts (#696), choices (#697), images and saves across
+ * compiles (#699), addresses (#700) and the debugger (#702).
  *
- * Functions are not emitted yet. Until they are (#698), each engine keeps its
- * own copy of the current engine's story of the same compile
- * (`ProgramRoot.runtimeStory`, `Story.CopyWithOwnState`), which runs a
- * function a chunk calls through a value (a generic `for`'s iterator, a
- * metamethod) and the functions a host evaluates (`HasFunction`,
- * `EvaluateFunction`). The copy's globals are this engine's, and the root
- * element of its call stack is this engine's frame, whose scopes hold the
- * temporaries. `ResetState` runs the program's declaration sequences against
- * those globals. Engines built from one root share its chunks and nothing
- * they write.
+ * Each engine keeps its own copy of the current engine's story of the same
+ * compile (`ProgramRoot.runtimeStory`, `Story.CopyWithOwnState`), which runs
+ * nothing: its `VariablesState` holds this engine's globals, and its call
+ * stack this engine's frames, whose scopes hold the temporaries and whose
+ * open upvalues close as the current engine's do. `ResetState` runs the
+ * program's declaration sequences against those globals. Engines built from
+ * one root share its chunks and nothing they write.
  */
 export class ProgramStory {
   collapseWhitespace = true;
@@ -140,6 +191,10 @@ export class ProgramStory {
    *  the game (#700). */
   onExecute: ((path: string | undefined) => void) | null = null;
   onChoosePathString: ((path: string, args: unknown[]) => void) | null = null;
+
+  /** Formats the message the `error` builtin raises, as the current engine's
+   *  `Story.errorMessageFormatter` does; it reads `currentDebugMetadata`. */
+  errorMessageFormatter?: (story: any, message: string) => string;
 
   /** Forces the verdict of a decision (a `JumpIfFalse` with the decision
    *  flag), keyed by the decision's address (`addressOf`). */
@@ -160,8 +215,11 @@ export class ProgramStory {
   protected _reader: BinaryProgramReader;
   // The value a `Str` pushes, made once per string of the program table:
   // values are never written after they are made, so pushing one again
-  // allocates nothing.
+  // allocates nothing. The same holds for the function value a `Sym` pushes.
   protected _strings: StringValue[] = [];
+  protected _symbols = new Map<number, SymbolValue>();
+  // The function each symbol names, found once.
+  protected _targets = new Map<number, SymbolTarget | null>();
   // The native function of each `Native` operand, and the assignment of each
   // `SetVar` operand, made once.
   protected _natives = new Map<number, NativeFunctionCall>();
@@ -179,11 +237,6 @@ export class ProgramStory {
     this._runtimeStory =
       root.runtimeStory?.CopyWithOwnState() ??
       new Story(new Container(), null, null);
-    // An error a function raises while a host evaluates it is reported as
-    // this story's.
-    this._runtimeStory.onError = (message, type, source, raised) => {
-      this.onError?.(message, type, source, raised);
-    };
     this.ResetState();
   }
 
@@ -360,33 +413,403 @@ export class ProgramStory {
     throw new Error(`choice out of range: ${choiceIdx}`);
   }
 
+  /** Whether a scene or a function declared at the top level has the name,
+   *  as the current engine finds a knot by name (`Story.HasFunction`). */
   HasFunction(functionName: string): boolean {
-    return this._runtimeStory.HasFunction(functionName);
+    try {
+      return this.FlowValueNamed(functionName) !== null;
+    } catch (e) {
+      return false;
+    }
   }
 
+  /** Runs the function declared at the top level under `functionName` with
+   *  `args` from outside the story, in a frame of its own that ends when the
+   *  function returns, collecting the text it writes against an output of
+   *  its own, as the current engine's `Story.EvaluateFunction` does: its
+   *  result is what the function returns, as a JS value. */
   EvaluateFunction(
     functionName: string,
     args: any[] = [],
     returnTextOutput = false,
   ): any {
     this.IfAsyncWeCant("evaluate a function");
-    return this._runtimeStory.EvaluateFunction(
-      functionName,
-      args,
-      returnTextOutput,
+    if (functionName == null) {
+      throw new Error("Function is null");
+    } else if (functionName == "" || functionName.trim() == "") {
+      throw new Error("Function is empty or white space.");
+    }
+    const found = this.FlowValueNamed(functionName);
+    const target = found ? this.targetOf(found.ref.symbol) : null;
+    if (!target) {
+      throw new Error("Function doesn't exist: '" + functionName + "'");
+    }
+    const state = this._state;
+    const outputStreamBefore = [...state.outputStream];
+    const lineEnd = state.SuspendLineEnd();
+    state.ResetOutput();
+
+    this.enter(
+      target,
+      PushPopType.FunctionEvaluationFromGame,
+      state.evaluationStack.length,
     );
+    this.passArguments(args);
+
+    const stringOutput = new StringBuilder();
+    while (this.canContinue) {
+      stringOutput.Append(this.Continue());
+    }
+    const textOutput = stringOutput.toString();
+
+    state.ResetOutput(outputStreamBefore);
+    state.ResumeLineEnd(lineEnd);
+
+    const result = this.completeFunctionEvaluation();
+    return returnTextOutput ? { returned: result, output: textOutput } : result;
   }
 
-  /** Calls a function value, which runs on the story copy until functions
-   *  are emitted (#698), against this story's globals. */
+  /**
+   * Calls a function value from inside a step, as a builtin that takes a
+   * function does (`table.sort`'s comparator, a metamethod, `gsub`'s
+   * replacement), and returns what it left on the eval stack, as the current
+   * engine's `Story.CallLuauFunction` does: the call enters the function in a
+   * frame of its own and steps until that frame returns, against an output of
+   * its own, and the step that called it resumes where it was.
+   */
   CallLuauFunction(fnValue: AbstractValue, args: AbstractValue[]): AbstractValue[] {
-    return this._runtimeStory.CallLuauFunction(fnValue, args);
+    if (fnValue instanceof VariablePointerValue) {
+      const resolved = this._state.variablesState.GetVariableWithName(
+        fnValue.variableName,
+      ) as AbstractValue | null;
+      if (resolved == null) {
+        throw new StoryException(
+          "CallLuauFunction: variable pointer references unresolved variable",
+        );
+      }
+      return this.CallLuauFunction(resolved, args);
+    }
+
+    // A builtin referenced first-class runs directly.
+    const stdlibResults = tryInvokeStdLibMarkerValue(this, fnValue, args);
+    if (stdlibResults != null) return stdlibResults;
+
+    const state = this._state;
+    const suspended = this.suspendStep();
+    try {
+      // Lua call-site semantics: extra arguments are discarded and missing
+      // ones are nil.
+      const callArgs = normalizeLuauCallArgs(this, fnValue, args);
+      let target: FunctionTarget | null;
+      if (fnValue instanceof ObjectValue) {
+        for (const a of callArgs) state.PushEvaluationStack(a);
+        target = extractClosureTarget(fnValue, this);
+        if (target == null) {
+          for (let i = 0; i < callArgs.length; i++) state.PopEvaluationStack();
+          // A table whose metatable has `__call` is called through it.
+          const callHandler = lookupMetamethod(fnValue, "__call");
+          if (callHandler != null && !(callHandler instanceof NullValue)) {
+            return this.CallLuauFunction(callHandler, [fnValue, ...args]);
+          }
+          throw new StoryException(
+            "CallLuauFunction: ObjectValue is not a closure (missing `__closure_fn`)",
+          );
+        }
+      } else if (isFunctionReference(fnValue)) {
+        for (const a of callArgs) state.PushEvaluationStack(a);
+        target = this.FunctionTargetOf(fnValue);
+      } else {
+        throw new StoryException(
+          `CallLuauFunction: expected a function value, got ${fnValue}`,
+        );
+      }
+      if (target == null) {
+        throw new StoryException(
+          "CallLuauFunction: could not resolve function value to a path",
+        );
+      }
+      this.EnterFunction(target);
+      // Bounded, counting the steps of callbacks nested inside this one,
+      // which all run inside one of its own steps.
+      const MAX_STEPS = 100000;
+      const firstStep = this.stepCount;
+      while (
+        state.callStack.elements.length > suspended.depth &&
+        state.position !== null
+      ) {
+        this.Step();
+        if (this.stepCount - firstStep > MAX_STEPS) {
+          throw new StoryException(
+            "CallLuauFunction: callback exceeded step limit (possible infinite loop)",
+          );
+        }
+      }
+      const results: AbstractValue[] = [];
+      while (state.evaluationStack.length > suspended.evalHeight) {
+        results.unshift(state.PopEvaluationStack() as AbstractValue);
+      }
+      return results;
+    } finally {
+      this.resumeStep(suspended, false);
+    }
   }
 
-  /** The container of the function or flow named `name`, which a read of a
-   *  name that is no variable gives as a function value. */
-  KnotContainerWithName(name: string): Container | null {
-    return this._runtimeStory.KnotContainerWithName(name);
+  /**
+   * The protected form of `CallLuauFunction`, which `pcall` and `xpcall`
+   * call, as the current engine's `Story.CallLuauFunctionProtected` does: an
+   * error the function raises, thrown or added, is trapped and taken off the
+   * story's errors, and returned as the call's error message.
+   */
+  CallLuauFunctionProtected(
+    fnValue: AbstractValue,
+    args: AbstractValue[],
+  ): { ok: boolean; values: AbstractValue[]; errorMessage?: string } {
+    if (fnValue instanceof VariablePointerValue) {
+      const resolved = this._state.variablesState.GetVariableWithName(
+        fnValue.variableName,
+      ) as AbstractValue | null;
+      if (resolved == null) {
+        return {
+          ok: false,
+          values: [],
+          errorMessage: "pcall: variable pointer references unresolved variable",
+        };
+      }
+      return this.CallLuauFunctionProtected(resolved, args);
+    }
+
+    const state = this._state;
+    // A builtin referenced first-class runs directly, with what it raises
+    // trapped.
+    if (
+      fnValue instanceof ObjectValue &&
+      (fnValue.value as Map<string, AbstractValue>)?.get("__stdlib_fn") != null
+    ) {
+      const errCountBefore = state.currentErrors?.length ?? 0;
+      try {
+        const values = tryInvokeStdLibMarkerValue(this, fnValue, args);
+        if (values != null) {
+          const errsNow = state.currentErrors;
+          if (errsNow && errsNow.length > errCountBefore) {
+            const msg = errsNow[errCountBefore]!;
+            errsNow.length = errCountBefore;
+            return { ok: false, values: [], errorMessage: msg };
+          }
+          return { ok: true, values };
+        }
+      } catch (e) {
+        if (e instanceof StoryException) {
+          const errsNow = state.currentErrors;
+          if (errsNow && errsNow.length > errCountBefore) {
+            errsNow.length = errCountBefore;
+          }
+          return { ok: false, values: [], errorMessage: e.message };
+        }
+        throw e;
+      }
+    }
+
+    const savedErrorCount = state.currentErrors?.length ?? 0;
+    const suspended = this.suspendStep();
+    let trappedError: string | null = null;
+    try {
+      const callArgs = normalizeLuauCallArgs(this, fnValue, args);
+      let target: FunctionTarget | null;
+      if (fnValue instanceof ObjectValue) {
+        for (const a of callArgs) state.PushEvaluationStack(a);
+        target = extractClosureTarget(fnValue, this);
+        if (target == null) {
+          for (let i = 0; i < callArgs.length; i++) state.PopEvaluationStack();
+          const callHandler = lookupMetamethod(fnValue, "__call");
+          if (callHandler != null && !(callHandler instanceof NullValue)) {
+            return this.CallLuauFunctionProtected(callHandler, [fnValue, ...args]);
+          }
+          return {
+            ok: false,
+            values: [],
+            errorMessage:
+              "pcall: target ObjectValue is not a closure (missing `__closure_fn`)",
+          };
+        }
+      } else if (isFunctionReference(fnValue)) {
+        for (const a of callArgs) state.PushEvaluationStack(a);
+        target = this.FunctionTargetOf(fnValue);
+      } else {
+        return {
+          ok: false,
+          values: [],
+          errorMessage: `pcall: expected a function value, got ${fnValue}`,
+        };
+      }
+      if (target == null) {
+        return {
+          ok: false,
+          values: [],
+          errorMessage: "pcall: could not resolve function value to a path",
+        };
+      }
+      this.EnterFunction(target);
+
+      // Bounded as in `CallLuauFunction`, nested callbacks' steps included.
+      const MAX_STEPS = 100000;
+      const firstStep = this.stepCount;
+      while (
+        state.callStack.elements.length > suspended.depth &&
+        state.position !== null
+      ) {
+        try {
+          this.Step();
+        } catch (e) {
+          if (e instanceof StoryException) {
+            trappedError = e.message;
+            break;
+          }
+          throw e;
+        }
+        // A builtin can add an error without throwing it.
+        const errs = state.currentErrors;
+        if (errs && errs.length > savedErrorCount) {
+          trappedError = errs[savedErrorCount]!;
+          errs.length = savedErrorCount;
+          break;
+        }
+        if (this.stepCount - firstStep > MAX_STEPS) {
+          trappedError =
+            "pcall: callback exceeded step limit (possible infinite loop)";
+          break;
+        }
+      }
+
+      const errs2 = state.currentErrors;
+      if (errs2 && errs2.length > savedErrorCount) {
+        if (trappedError == null) trappedError = errs2[savedErrorCount]!;
+        errs2.length = savedErrorCount;
+      }
+
+      if (trappedError != null) {
+        return { ok: false, values: [], errorMessage: trappedError };
+      }
+
+      const results: AbstractValue[] = [];
+      while (state.evaluationStack.length > suspended.evalHeight) {
+        results.unshift(state.PopEvaluationStack() as AbstractValue);
+      }
+      // A function that returns nothing leaves a `Void`, which pcall reads
+      // as no value.
+      while (results.length > 0 && results[0] instanceof Void) {
+        results.shift();
+      }
+      return { ok: true, values: results };
+    } finally {
+      this.resumeStep(suspended, true);
+    }
+  }
+
+  /** The value a read of `name` gives when no variable has that name but a
+   *  scene or a function declared at the top level does: the symbol value of
+   *  its flow, as the current engine gives a divert target to its knot
+   *  (`Story.FlowValueNamed`), or null. */
+  FlowValueNamed(name: string): SymbolValue | null {
+    const symbol = this.root.table.symbolIds.get(name);
+    if (symbol === undefined) {
+      return null;
+    }
+    const kind = this.root.flow(symbol)?.kind;
+    return kind === SymbolKind.Scene || kind === SymbolKind.Function
+      ? this.symbolValue(symbol)
+      : null;
+  }
+
+  /** The function a function value names for the shared call handlers: the
+   *  entry of a symbol value's function in the root, or null for any other
+   *  value and for a symbol the root defines no function for. */
+  FunctionTargetOf(value: unknown): FunctionTarget | null {
+    if (!(value instanceof SymbolValue)) {
+      return null;
+    }
+    const symbol = this.symbolIn(value.ref);
+    return symbol === undefined ? null : this.targetOf(symbol);
+  }
+
+  /** Enters `target`, a function the shared call handlers found
+   *  (`FunctionTargetOf`), in a new function frame that returns to the
+   *  position after the call. */
+  EnterFunction(target: FunctionTarget): void {
+    this.enter(target as SymbolTarget, PushPopType.Function);
+  }
+
+  /** The stack trace `debug.traceback` prints, as the current engine's call
+   *  stack prints it: each call frame from the outermost, with the function
+   *  it runs, named by its symbol, or for the flow's own frame, the flow's
+   *  name. */
+  CallStackTrace(): string {
+    const sb = new StringBuilder();
+    sb.AppendFormat("=== THREAD {0}/{1} {2}===\n", 1, 1, "(current) ");
+    const elements = this._state.callStack.elements;
+    for (let i = 0; i < elements.length; i++) {
+      if (elements[i]!.type == PushPopType.Function) sb.Append("  [FUNCTION] ");
+      else sb.Append("  [TUNNEL] ");
+      const name = this.CallFramePath(i);
+      if (name !== null) {
+        sb.Append("<SOMEWHERE IN ");
+        sb.Append(name);
+        sb.AppendLine(">");
+      }
+    }
+    return sb.toString();
+  }
+
+  /** How many call frames there are, for `debug.info`. */
+  CallFrameCount(): number {
+    return this._state.callStack.elements.length;
+  }
+
+  /** The name of call frame `index`, counting from the outermost, as
+   *  `debug.info` names a frame: the name of the function a call frame runs,
+   *  or for the flow's own frame, the name of the flow it is in (`0` for the
+   *  top-level content, as the current engine's path of that container
+   *  reads); null for a frame with no position. */
+  CallFramePath(index: number): string | null {
+    const state = this._state;
+    const elements = state.callStack.elements;
+    const element = elements[index];
+    if (!element) {
+      return null;
+    }
+    const above = elements[index + 1];
+    const position =
+      index === elements.length - 1
+        ? state.position
+        : above
+          ? (state.frameOf(above)?.returnTo ?? null)
+          : null;
+    if (!position) {
+      return null;
+    }
+    const frame = state.frameOf(element);
+    if (frame) {
+      return this.root.labelOf(frame.symbol);
+    }
+    const flow = position.sequence.flow;
+    if (flow < 0) {
+      return "global decl";
+    }
+    const name = this.root.labelOf(flow);
+    return name === ROOT_FLOW_NAME ? "0" : name;
+  }
+
+  /** The source of the instruction running, or of the last one that ran, as
+   *  debug metadata: its script's name and its lines, counting from 1. */
+  get currentDebugMetadata(): DebugMetadata | null {
+    const where = this.sourceOfRunning();
+    if (!where) {
+      return null;
+    }
+    const dm = new DebugMetadata();
+    dm.fileName = where.file;
+    dm.startLineNumber = where.startLine + 1;
+    dm.endLineNumber = where.endLine + 1;
+    return dm;
   }
 
   IfAsyncWeCant(activityStr: string): void {
@@ -404,6 +827,16 @@ export class ProgramStory {
   Error(message: string, useEndLineNumber = false): never {
     const e = new StoryException(message);
     e.useEndLineNumber = useEndLineNumber;
+    throw e;
+  }
+
+  /** Raises `message` in place of `cause`, an error a callback raised,
+   *  keeping where the callback raised it (`Story.ErrorFrom`). */
+  ErrorFrom(message: string, cause: unknown): never {
+    const e = new StoryException(message);
+    if (cause instanceof StoryException) {
+      e.raisedPath = cause.raisedPath;
+    }
     throw e;
   }
 
@@ -702,6 +1135,14 @@ export class ProgramStory {
       case Op.Const:
         state.PushEvaluationStack(constValue(auxOf(w0)));
         break;
+      case Op.Sym:
+        state.PushEvaluationStack(this.symbolValue(arg));
+        break;
+      case Op.VarPtr:
+        state.PushEvaluationStack(
+          openVariablePointer(state.callStack, this.root.table.strings[arg]!),
+        );
+        break;
       case Op.MakeTable: {
         const stack = state.evaluationStack;
         const between = stack.splice(stack.length - arg * 2, arg * 2);
@@ -740,8 +1181,9 @@ export class ProgramStory {
         break;
       case Op.SetVar: {
         let value = state.PopEvaluationStack();
-        // A variable holds one value: a multiple value keeps its first.
-        if (value instanceof MultiValue) {
+        // A variable holds one value: a multiple value keeps its first,
+        // except in a variadic function's `...` local, which keeps it whole.
+        if (value instanceof MultiValue && !(flags & SET_VARARGS)) {
           value = value.values[0] ?? new NullValue();
         }
         state.variablesState.Assign(this.assignment(arg, flags), value);
@@ -792,8 +1234,31 @@ export class ProgramStory {
       case Op.Leave:
         this.leave((flags & LEAVE_CONTINUE) !== 0);
         break;
-      case Op.CallValue:
-        this.callValue(auxOf(w0));
+      case Op.Call: {
+        const target = this.targetOf(arg);
+        if (!target) {
+          this.Error("Divert target not found.");
+        }
+        // A last argument that is a multiple value spreads for a function
+        // that is not variadic, as a static call's does.
+        spreadLastMultiIfNonVariadic(this, target);
+        this.EnterFunction(target);
+        break;
+      }
+      case Op.CallVar: {
+        const target = callVariableTarget(this, this.root.table.strings[arg]!);
+        if (target !== null) {
+          this.EnterFunction(target);
+        }
+        break;
+      }
+      case Op.CallValue: {
+        const count = auxOf(w0);
+        callValueAsFunction(this, count === CALL_ARGS_UNKNOWN ? -1 : count);
+        break;
+      }
+      case Op.Return:
+        this.returnFromFunction();
         break;
       case Op.CallStd:
         this.callStd(
@@ -846,13 +1311,16 @@ export class ProgramStory {
   }
 
   /** A condition's truth as the current engine tests a conditional divert's
-   *  (`Story.IsTruthy`). */
+   *  (`Story.IsTruthy`): a function value is refused, named as the current
+   *  engine names its divert target. */
   protected isTruthy(obj: InkObject): boolean {
     if (obj instanceof Value) {
-      if (obj instanceof DivertTargetValue) {
+      if (obj instanceof DivertTargetValue || obj instanceof SymbolValue) {
+        const target =
+          obj instanceof SymbolValue ? obj.ref.label : obj.targetPath;
         this.Error(
           "Shouldn't use a divert target (to " +
-            obj.targetPath +
+            target +
             ") as a conditional value. Did you intend a function call 'likeThis()' or a read count check 'likeThis'? (no arrows)",
         );
       }
@@ -882,48 +1350,232 @@ export class ProgramStory {
     this.Error(`${isContinue ? "continue" : "break"} outside a loop`);
   }
 
-  /** Calls the value on top with the `count` arguments below it: a builtin
-   *  iterator steps, and anything else runs on the story copy until
-   *  functions are emitted (#698). What the call returns is pushed. */
-  protected callValue(count: number): void {
-    const state = this._state;
-    const target = state.PopEvaluationStack();
-    if (target instanceof ObjectValue) {
-      const tag = (target.value as Map<string, AbstractValue>)?.get(
-        BUILTIN_ITER_TAG,
+  /** The function value of `symbol`, made once. It holds the symbol's name,
+   *  or nothing for an anonymous symbol, and prints as the current engine
+   *  prints the divert target of the function's container. */
+  protected symbolValue(symbol: number): SymbolValue {
+    let value = this._symbols.get(symbol);
+    if (!value) {
+      const table = this.root.table;
+      value = new SymbolValue(
+        new SymbolRef(
+          symbol,
+          this.root.generation,
+          isAnonymousSymbol(table, symbol) ? null : table.symbols[symbol]!,
+          this.root.labelOf(symbol),
+        ),
       );
-      if (tag != null) {
-        const iterCtrl = state.PopEvaluationStack();
-        const iterState = state.PopEvaluationStack();
-        state.PushEvaluationStack(
-          stepBuiltinIterator(
-            target,
-            iterState as AbstractValue,
-            iterCtrl as AbstractValue,
-          ),
+      this._symbols.set(symbol, value);
+    }
+    return value;
+  }
+
+  /** The id in this root's table of the symbol `ref` names: its own id when
+   *  it was made in this root's table generation, and otherwise the id the
+   *  reseeds since then gave it (`ProgramRoot.symbolFrom`), or for a symbol
+   *  they dropped, the id of its name when it has one. */
+  protected symbolIn(ref: SymbolRef): number | undefined {
+    if (ref.generation === this.root.generation) {
+      return ref.symbol;
+    }
+    return (
+      this.root.symbolFrom(ref.symbol, ref.generation) ??
+      (ref.name === null ? undefined : this.root.table.symbolIds.get(ref.name))
+    );
+  }
+
+  /** The function `symbol` names in the root, or null when the root defines
+   *  none: its entry, and what the `SetVar`s its entry code starts with bind,
+   *  the first of which binds the last parameter. */
+  protected targetOf(symbol: number): SymbolTarget | null {
+    let target = this._targets.get(symbol);
+    if (target === undefined) {
+      target = null;
+      const entry = this.root.functionEntry(symbol);
+      if (entry) {
+        const chunk = entry.sequence.arrays.chunks[entry.entry]!;
+        let bindings = 0;
+        let variadic = false;
+        for (let at = entry.offset; at < codeWords(chunk); at += 2) {
+          const w0 = chunk[HEADER_WORDS + at]!;
+          if (opOf(w0) !== Op.SetVar) {
+            break;
+          }
+          if (bindings === 0) {
+            variadic = (flagsOf(w0) & SET_VARARGS) !== 0;
+          }
+          bindings += 1;
+        }
+        target = new SymbolTarget(symbol, entry, variadic, bindings);
+      }
+      this._targets.set(symbol, target);
+    }
+    return target;
+  }
+
+  /** Pushes a call frame of `type` that returns to the position, inside the
+   *  blocks the position is inside, and moves to `target`'s entry, where the
+   *  frame is inside no block yet. */
+  protected enter(target: SymbolTarget, type: PushPopType, evalHeight = 0): void {
+    const state = this._state;
+    state.PushFrame(
+      type,
+      { returnTo: state.position, blocks: state.blockStack, symbol: target.symbol },
+      evalHeight,
+    );
+    state.position = {
+      sequence: target.entry.sequence,
+      entry: target.entry.entry,
+      offset: target.entry.offset,
+    };
+    state.blockStack = [];
+  }
+
+  /** `Return`: leaves the value on top as the function's result, pops the
+   *  function's frame and resumes its caller where the call left it. A frame
+   *  a host's evaluation pushed ends the evaluation and stays, for
+   *  `completeFunctionEvaluation` to pop. A return outside a function is the
+   *  current engine's error. */
+  protected returnFromFunction(): void {
+    const state = this._state;
+    const callStack = state.callStack;
+    const element = callStack.currentElement!;
+    if (element.type == PushPopType.FunctionEvaluationFromGame) {
+      state.position = null;
+      state.didSafeExit = true;
+      return;
+    }
+    if (element.type != PushPopType.Function || !callStack.canPop) {
+      let expected =
+        element.type == PushPopType.Function
+          ? "function return statement (return)"
+          : "tunnel onwards statement (->->)";
+      if (!callStack.canPop) {
+        expected = "end of flow (-> END or choice)";
+      }
+      this.Error(
+        "Found function return statement (return), when expected " + expected,
+      );
+    }
+    const frame = state.PopCallStack();
+    state.position = frame?.returnTo ?? null;
+    state.blockStack = frame?.blocks ?? [];
+  }
+
+  /** Pops the frame of a host's evaluation and returns what the function
+   *  returned as a JS value (`StoryState.CompleteFunctionEvaluationFromGame`). */
+  protected completeFunctionEvaluation(): unknown {
+    const state = this._state;
+    const element = state.callStack.currentElement!;
+    if (element.type != PushPopType.FunctionEvaluationFromGame) {
+      throw new Error(
+        "Expected external function evaluation to be complete. Stack trace: " +
+          this.CallStackTrace(),
+      );
+    }
+    const height = element.evaluationStackHeightWhenPushed;
+    let returnedObj: InkObject | null = null;
+    while (state.evaluationStack.length > height) {
+      const poppedObj = state.PopEvaluationStack();
+      if (returnedObj === null) returnedObj = poppedObj;
+    }
+    const frame = state.PopCallStack(PushPopType.FunctionEvaluationFromGame);
+    state.position = frame?.returnTo ?? null;
+    state.blockStack = frame?.blocks ?? [];
+    if (returnedObj) {
+      if (returnedObj instanceof Void) return null;
+      const returnVal = asOrThrows(returnedObj, Value);
+      // A function value is returned as the text of its target.
+      if (returnVal.valueType == ValueType.DivertTarget) {
+        return "-> " + returnVal.valueObject.toString();
+      }
+      return returnVal.valueObject;
+    }
+    return null;
+  }
+
+  /** Pushes a host's arguments (`StoryState.PassArgumentsToEvaluationStack`):
+   *  a runtime value as it is, and a number, string, boolean or list as the
+   *  value it makes. */
+  protected passArguments(args: any[] | null): void {
+    if (args === null) {
+      return;
+    }
+    for (const arg of args) {
+      if (arg instanceof InkObject) {
+        this._state.PushEvaluationStack(arg);
+        continue;
+      }
+      if (
+        !(
+          typeof arg === "number" ||
+          typeof arg === "string" ||
+          typeof arg === "boolean" ||
+          arg instanceof InkList
+        )
+      ) {
+        throw new Error(
+          "ink arguments when calling EvaluateFunction / ChoosePathStringWithParameters must be" +
+            "number, string, bool or InkList. Argument was " +
+            (arg == null ? "null" : arg.constructor.name),
         );
-        return;
+      }
+      this._state.PushEvaluationStack(Value.Create(arg)!);
+    }
+  }
+
+  /** What a callback suspends of the step that calls it: the frames, the
+   *  eval stack's height, the position and its blocks, the output and its
+   *  line end, the pause before decisions (the decisions a route forces are
+   *  the story's, not a callback's) and the instruction running. */
+  protected suspendStep(): SuspendedStep {
+    const state = this._state;
+    const suspended: SuspendedStep = {
+      depth: state.callStack.elements.length,
+      evalHeight: state.evaluationStack.length,
+      position: state.position,
+      blocks: state.blockStack,
+      output: [...state.outputStream],
+      lineEnd: state.SuspendLineEnd(),
+      pause: this.pauseBeforeEvaluatingConditions,
+      running: this._running,
+    };
+    state.ResetOutput();
+    this.pauseBeforeEvaluatingConditions = false;
+    return suspended;
+  }
+
+  /** Resumes the step a callback suspended, popping the frames the callback
+   *  left when it raised an error and, for a protected call, what it left on
+   *  the eval stack. */
+  protected resumeStep(suspended: SuspendedStep, dropValues: boolean): void {
+    const state = this._state;
+    while (state.callStack.elements.length > suspended.depth) {
+      state.PopCallStack();
+    }
+    if (dropValues) {
+      while (state.evaluationStack.length > suspended.evalHeight) {
+        state.PopEvaluationStack();
       }
     }
-    const args = state.PopEvaluationStack(count) as AbstractValue[];
-    const results = this.CallLuauFunction(target as AbstractValue, args);
-    state.PushEvaluationStack(
-      results.length === 1
-        ? results[0]!
-        : results.length === 0
-          ? new Void()
-          : new MultiValue(results),
-    );
+    state.position = suspended.position;
+    state.blockStack = suspended.blocks;
+    state.ResetOutput(suspended.output);
+    state.ResumeLineEnd(suspended.lineEnd);
+    this.pauseBeforeEvaluatingConditions = suspended.pause;
+    this._running = suspended.running;
   }
 
   /** The runtime assignment `SetVar`'s operands describe, made once. */
   protected assignment(name: number, flags: number): VariableAssignment {
-    const key = name * 4 + (flags & (SET_DECLARE | SET_GLOBAL));
+    const mask = SET_DECLARE | SET_GLOBAL | SET_VARARGS;
+    const key = name * 8 + (flags & mask);
     let assignment = this._assignments.get(key);
     if (!assignment) {
       assignment = new VariableAssignment(
         this.root.table.strings[name]!,
         (flags & SET_DECLARE) !== 0,
+        (flags & SET_VARARGS) !== 0,
       );
       assignment.isGlobal = (flags & SET_GLOBAL) !== 0;
       this._assignments.set(key, assignment);
@@ -971,9 +1623,15 @@ export class ProgramStory {
 
   /** Runs the program's declaration chunks, in the order the root gives,
    *  against the globals. An error stops the run, as it stops the current
-   *  engine's `global decl` container, and is reported as a continue's. */
+   *  engine's `global decl` container, and is reported as a continue's. An
+   *  initializer that calls a function steps into it, and a chunk's run ends
+   *  when its own frame has run its last instruction. No decision pauses the
+   *  run: the decisions a route forces are the story's. */
   protected runDeclarations(): void {
     const state = this._state;
+    const pause = this.pauseBeforeEvaluatingConditions;
+    this.pauseBeforeEvaluatingConditions = false;
+    const depth = state.callStack.elements.length;
     for (const chunk of this.root.initialization) {
       const at = this.root.position(chunkId(chunk));
       if (!at) {
@@ -987,16 +1645,24 @@ export class ProgramStory {
         );
         break;
       }
-      const position: ProgramPosition = {
-        sequence: at.sequence,
-        entry: at.entry,
-        offset: 0,
+      state.position = { sequence: at.sequence, entry: at.entry, offset: 0 };
+      state.blockStack = [];
+      // Whether the declaration's own frame stands past the chunk's code,
+      // which a step that runs its last instruction leaves at the next
+      // entry of the declaration sequence.
+      const finished = (): boolean => {
+        const p = state.position;
+        return (
+          p === null ||
+          (state.callStack.elements.length <= depth &&
+            (p.sequence !== at.sequence ||
+              p.entry !== at.entry ||
+              p.offset >= codeWords(chunk)))
+        );
       };
-      state.position = position;
       try {
-        while (position.offset < codeWords(chunk)) {
-          this.stepCount++;
-          this.execute(position, chunk);
+        while (!finished()) {
+          this.Step();
         }
         this.declarationsRun += 1;
       } catch (e) {
@@ -1006,8 +1672,13 @@ export class ProgramStory {
         this.AddError(e.message, undefined, e.useEndLineNumber);
         break;
       }
+      if (state.hasError) {
+        break;
+      }
     }
+    this.pauseBeforeEvaluatingConditions = pause;
     state.position = null;
+    state.blockStack = [];
     state.evaluationStack.length = 0;
     this.reportErrors();
   }
@@ -1098,11 +1769,7 @@ export class ProgramStory {
   }
 
   /** The instruction the last step ran. */
-  protected _running: {
-    sequence: SequenceRow;
-    entry: number;
-    offset: number;
-  } | null = null;
+  protected _running: RunningInstruction | null = null;
 
   /** The position a path names: a flow by its qualified name, the top-level
    *  content's flow as `""` or `"0"`, or the content a path's location starts

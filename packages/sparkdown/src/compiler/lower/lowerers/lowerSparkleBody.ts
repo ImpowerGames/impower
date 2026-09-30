@@ -27,6 +27,11 @@ import {
 } from "../../types/SparkleNode";
 import { type SparkRange } from "../../types/SparkRange";
 import { stampDebugMetadata } from "../utils/debugMetadata";
+import {
+  closeFunctionBody,
+  lowerEvaluatorStatement,
+  openEvaluatorBody,
+} from "../utils/statementShape";
 import { documentTag } from "../utils/documentTag";
 import { unescapeString } from "../utils/unescapeString";
 import {
@@ -389,11 +394,15 @@ function lowerBinding(
   if (!already && ctx.hoistedKnots) {
     // The expression lives in the `_content` child; passing the wrapper node
     // works — `lowerExpressionFromContainer` skips the brace punctuation (same
-    // call shape as `lowerInterpolatedString`).
-    const expr = lowerExpressionFromContainer(interpNode, ctx);
+    // call shape as `lowerInterpolatedString`). With statement shapes on, the
+    // evaluator's body is recorded as the one statement it returns, for the
+    // binary program (`openEvaluatorBody`).
+    const body = openEvaluatorBody(ctx, interpNode.from, interpNode.to);
     const fn = new Function(
       new Identifier(exprId),
-      [new ReturnType(expr ?? null)],
+      lowerEvaluatorStatement(ctx, body, interpNode, interpNode, () => [
+        new ReturnType(lowerExpressionFromContainer(interpNode, ctx) ?? null),
+      ]),
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
     // Stamp the hoisted evaluator with the binding's source span so a compile
@@ -401,6 +410,7 @@ function lowerBinding(
     // binding, not at line 0 (a Function with no debugMetadata makes the
     // inner-node error walk hit null → 0:0). remapContent later rebases it.
     stampDebugMetadata([fn], interpNode.from, interpNode.to, ctx);
+    closeFunctionBody(ctx, body, fn, interpNode, [], true);
     ctx.hoistedKnots.push(fn);
   }
   return {
@@ -477,13 +487,16 @@ function lowerComponentArg(
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );
   if (!already && ctx.hoistedKnots) {
-    const expr = lowerExpressionFromNodes(argNodes, ctx);
+    const body = openEvaluatorBody(ctx, first.from, last.to);
     const fn = new Function(
       new Identifier(exprId),
-      [new ReturnType(expr ?? null)],
+      lowerEvaluatorStatement(ctx, body, first, last, () => [
+        new ReturnType(lowerExpressionFromNodes(argNodes, ctx) ?? null),
+      ]),
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
     stampDebugMetadata([fn], first.from, last.to, ctx);
+    closeFunctionBody(ctx, body, fn, { from: first.from, to: last.to }, [], true);
     ctx.hoistedKnots.push(fn);
   }
   return {
@@ -629,13 +642,17 @@ function lowerHandlerClosure(
   );
   if (!already && ctx.hoistedKnots) {
     const body = firstDescendant(closureNode, EVENT_CLOSURE_BODY);
-    const stmts = lowerStatements(body, ctx);
+    // With statement shapes on, each statement of the closure is recorded on
+    // the evaluator's body, for the binary program (`openEvaluatorBody`).
+    const shape = openEvaluatorBody(ctx, closureNode.from, closureNode.to);
+    const stmts = lowerStatements(body, ctx, undefined, shape);
     const fn = new Function(
       new Identifier(exprId),
       stmts,
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
     stampDebugMetadata([fn], closureNode.from, closureNode.to, ctx);
+    closeFunctionBody(ctx, shape, fn, closureNode, [], true);
     ctx.hoistedKnots.push(fn);
   }
   return {
@@ -1146,13 +1163,16 @@ function lowerBindingFromNodes(nodes: SyntaxNode[], ctx: LowerContext): Binding 
     (o) => o instanceof Function && o.identifier?.name === exprId,
   );
   if (!already && ctx.hoistedKnots) {
-    const expr = lowerExpressionFromNodes(nodes, ctx);
+    const body = openEvaluatorBody(ctx, first.from, last.to);
     const fn = new Function(
       new Identifier(exprId),
-      [new ReturnType(expr ?? null)],
+      lowerEvaluatorStatement(ctx, body, first, last, () => [
+        new ReturnType(lowerExpressionFromNodes(nodes, ctx) ?? null),
+      ]),
       loopVars.map((n) => new Argument(new Identifier(n), false, false)),
     );
     stampDebugMetadata([fn], first.from, last.to, ctx);
+    closeFunctionBody(ctx, body, fn, { from: first.from, to: last.to }, [], true);
     ctx.hoistedKnots.push(fn);
   }
   return {

@@ -13,9 +13,8 @@
 // `story.Error` on falsy), so failures arrive through `story.onError`
 // and end up in `errorMessages` alongside compile-time errors.
 
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { pathLocation } from "../../compiler/utils/pathLocationTable";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { PROGRAM_ENGINE, testCompiler, testStory } from "../engineUnderTest";
 
 export interface ConformanceResult {
   /** Compile-time errors surfaced by sparkdown's diagnostics pipeline. */
@@ -76,7 +75,7 @@ export function runConformanceSource(
 ): ConformanceResult {
   const wrappedSource = `${PREAMBLE}\n${fixtureSource}\n${EPILOGUE}`;
 
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -142,7 +141,7 @@ export function runConformanceSource(
     };
   }
 
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.compiled as Record<string, any>);
 
   // Luau-spec `error(msg)` prepends `<source>:<line>: ` to the
   // message. Sparkdown production hosts (the LSP) intentionally
@@ -173,6 +172,12 @@ export function runConformanceSource(
   // Luau fixtures that hard-code specific lines.
   const pathLocations = program.pathLocations;
   const lookupUserLineFromPointer = (): number | null => {
+    // The program engine knows the line of the instruction running from its
+    // chunk's line table.
+    if (PROGRAM_ENGINE) {
+      const dm = story.currentDebugMetadata;
+      return dm ? Math.max(1, dm.startLineNumber - PREAMBLE_LINE_COUNT) : null;
+    }
     const ptr = story.state.currentPointer;
     const candidates: import("../../inkjs/engine/Object").InkObject[] = [];
     if (ptr && !ptr.isNull) {

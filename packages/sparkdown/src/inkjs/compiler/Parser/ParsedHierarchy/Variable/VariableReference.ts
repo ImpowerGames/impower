@@ -305,17 +305,14 @@ export class VariableReference extends Expression {
   }
 
   // A variable read, with `VariableReference`'s runtime fallbacks (a dotted
-  // name walked through tables, `_G`, a builtin's marker, nil). A read count
-  // and a function value are not emitted yet.
+  // name walked through tables, `_G`, a function's name as its value, a
+  // builtin's marker, nil). A read count is not emitted yet.
   public override EmitExpression(emitter: ProgramEmitter): void {
     if (this.isListItemReference) {
       emitter.unsupported("list");
     }
     if (this.resolvedAs === "count") {
       emitter.unsupported("read count");
-    }
-    if (this.resolvedAs === "function") {
-      emitter.unsupported("function value");
     }
     emitter.recordResolution(this.resolutionKey);
     emitter.emit(Op.GetVar, emitter.variable(this.name));

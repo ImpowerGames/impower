@@ -58,6 +58,11 @@ export interface ProgramEmitter {
    *  keeps a hash of them, and the chunk is reused only while the program
    *  it is reused in gives the same facts. */
   reference(symbol: number): void;
+  /** The symbol of a function of the program (a `FlowBase`): its qualified
+   *  name's for a function declared at the top level, and the anonymous one
+   *  of the statement that writes it otherwise. A function the program does
+   *  not define stops the statement's emission. */
+  functionSymbol(fn: object): number;
   /** Stops the statement's emission: the program falls back to the current
    *  engine as a whole and names `construct` (the parsed class's `typeName`,
    *  or the builtin's name). */
