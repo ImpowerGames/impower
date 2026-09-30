@@ -254,9 +254,16 @@ export class VariablesState extends VariablesStateAccessor<
         val instanceof ObjectValue
           ? JsonSerialisation.defineSerializationInfo(val)
           : null;
+      // Any other table or function global is written even while it holds
+      // its default object: a field set or a captured variable changed in
+      // place leaves the object the same, and a saved local or closure may
+      // share the object, which a load reproduces only from the save.
       if (defInfo) {
         if (defInfo.storeNames.size === 0) continue;
-      } else if (VariablesState.dontSaveDefaultValues) {
+      } else if (
+        VariablesState.dontSaveDefaultValues &&
+        !(val instanceof ObjectValue)
+      ) {
         if (this._defaultGlobalVariables.has(name)) {
           let defaultVal = this._defaultGlobalVariables.get(name)!;
           if (this.RuntimeObjectsEqual(val, defaultVal)) continue;
@@ -490,6 +497,156 @@ export class VariablesState extends VariablesStateAccessor<
 
   public SnapshotDefaultGlobals() {
     this._defaultGlobalVariables = new Map(this._globalVariables);
+    this.SnapshotInitTables();
+  }
+
+  // Records the graph of tables init built, as it stands when the defaults
+  // are set: each default global's table, and every edge from a table to
+  // another one. An edge is a key (`".key"`), a metatable (`"@mt"`), or a
+  // closed upvalue's table (`"@cv.key"`); a key segment always starts with
+  // `.` and a synthetic one with `@`, so no key can be taken for one. A
+  // table's anchor is a JSON array of its global's name and the segments
+  // to it, the shortest and earliest path found. Taken once, so anchors
+  // name the tables init built even after the story has changed or
+  // reassigned them. A table any constant reaches keeps its compiled
+  // contents, whichever other globals reach it too.
+  private SnapshotInitTables() {
+    this._initTablePaths = new Map();
+    this._initRoots = new Map();
+    this._initEdges = new Map();
+    this._initCellEdges = new Map();
+    this._initCellPaths = new Map();
+    this._constantInitTables = new Set();
+    const queue: { table: ObjectValue; path: string[] }[] = [];
+    for (const [name, value] of this._defaultGlobalVariables) {
+      if (value instanceof ObjectValue && value.value !== null) {
+        this._initRoots.set(name, value);
+        queue.push({ table: value, path: [name] });
+      }
+    }
+    for (let i = 0; i < queue.length; i++) {
+      const { table, path } = queue[i]!;
+      const map = table.value!;
+      if (this._initTablePaths.has(map)) continue;
+      this._initTablePaths.set(map, JSON.stringify(path));
+      const edges = new Map<string, ObjectValue>();
+      this._initEdges.set(map, edges);
+      const follow = (segment: string, child: ObjectValue) => {
+        if (child.value === null) return;
+        edges.set(segment, child);
+        queue.push({ table: child, path: [...path, segment] });
+      };
+      for (const [key, entry] of map as Map<string, InkObject>) {
+        if (entry instanceof ObjectValue) {
+          follow("." + key, entry);
+        } else if (entry instanceof VariablePointerValue && entry.isClosed) {
+          // A closed upvalue cell a closure init built holds: other
+          // closures init built can share it, so it is anchored like a
+          // table, by the path of the closure holding it.
+          let cells = this._initCellEdges.get(map);
+          if (!cells) {
+            cells = new Map();
+            this._initCellEdges.set(map, cells);
+          }
+          cells.set(key, entry);
+          if (!this._initCellPaths.has(entry)) {
+            this._initCellPaths.set(
+              entry,
+              JSON.stringify([...path, "@cell." + key]),
+            );
+          }
+          if (entry.closedValue instanceof ObjectValue) {
+            follow("@cv." + key, entry.closedValue);
+          }
+        }
+      }
+      if (table.metatable) follow("@mt", table.metatable);
+    }
+    const constants: ObjectValue[] = [];
+    for (const [name, table] of this._initRoots) {
+      if (this.constantNames.has(name)) constants.push(table);
+    }
+    for (let i = 0; i < constants.length; i++) {
+      const map = constants[i]!.value!;
+      if (this._constantInitTables.has(map)) continue;
+      this._constantInitTables.add(map);
+      for (const child of this._initEdges.get(map)?.values() ?? []) {
+        constants.push(child);
+      }
+    }
+  }
+
+  // Each table init built, by its underlying Map, to its anchor: the
+  // anchors a save writes (`JsonSerialisation.SetWriterAnchors`).
+  public InitTableAnchors(): Map<object, string> {
+    return this._initTablePaths;
+  }
+
+  // The table init built at an anchor's path in this story, following the
+  // path through the recorded init graph, so any path that exists here
+  // resolves, not only the one this story would write. Also whether a load
+  // may restore saved contents into it: a table a constant reaches is
+  // determined by the compiled program, so a load only joins references to
+  // it.
+  public InitTableAtAnchor(
+    anchor: string,
+  ): { table: ObjectValue; restore: boolean } | null {
+    const path = VariablesState.ParseAnchor(anchor);
+    const table = path ? this.InitTableAtPath(path) : null;
+    if (!table) return null;
+    return {
+      table,
+      restore: !this._constantInitTables.has(table.value!),
+    };
+  }
+
+  // Each closed upvalue cell init built to its anchor: the path of a
+  // closure holding it followed by `"@cell." + key`.
+  public InitCellAnchors(): Map<VariablePointerValue, string> {
+    return this._initCellPaths;
+  }
+
+  // The cell init built at an anchor's path in this story, and whether a
+  // load may restore a saved value into it (not when a constant reaches the
+  // closure holding it).
+  public InitCellAtAnchor(
+    anchor: string,
+  ): { cell: VariablePointerValue; restore: boolean } | null {
+    const path = VariablesState.ParseAnchor(anchor);
+    const last = path?.[path.length - 1];
+    if (!path || path.length < 2 || !last?.startsWith("@cell.")) return null;
+    const table = this.InitTableAtPath(path.slice(0, -1));
+    const cell = table
+      ? this._initCellEdges.get(table.value!)?.get(last.slice("@cell.".length))
+      : undefined;
+    if (!cell) return null;
+    return {
+      cell,
+      restore: !this._constantInitTables.has(table!.value!),
+    };
+  }
+
+  private static ParseAnchor(anchor: string): string[] | null {
+    let path: unknown;
+    try {
+      path = JSON.parse(anchor);
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(path) || path.length === 0) return null;
+    return path.every((segment) => typeof segment === "string")
+      ? (path as string[])
+      : null;
+  }
+
+  // Follows a path from a default global's init table through the
+  // recorded edges.
+  private InitTableAtPath(path: string[]): ObjectValue | null {
+    let table = this._initRoots.get(path[0]!) ?? null;
+    for (let i = 1; table && i < path.length; i++) {
+      table = this._initEdges.get(table.value!)?.get(path[i]!) ?? null;
+    }
+    return table;
   }
 
   public RetainListOriginsForAssignment(
@@ -603,6 +760,18 @@ export class VariablesState extends VariablesStateAccessor<
 
   private _globalVariables: Map<string, InkObject>;
   private _defaultGlobalVariables: Map<string, InkObject> = new Map();
+  // The tables init built (`SnapshotInitTables`): each one's anchor, each
+  // default global's table, the edges between them by segment, and the
+  // ones a constant reaches.
+  private _initTablePaths: Map<object, string> = new Map();
+  private _initRoots: Map<string, ObjectValue> = new Map();
+  private _initEdges: Map<object, Map<string, ObjectValue>> = new Map();
+  private _constantInitTables: Set<object> = new Set();
+  // The closed upvalue cells init built: each table's cells by key, and
+  // each cell's anchor.
+  private _initCellEdges: Map<object, Map<string, VariablePointerValue>> =
+    new Map();
+  private _initCellPaths: Map<VariablePointerValue, string> = new Map();
 
   private _callStack: CallStack;
   private _changedVariablesForBatchObs: Set<string> | null = new Set();

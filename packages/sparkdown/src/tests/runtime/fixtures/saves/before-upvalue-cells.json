@@ -1,0 +1,104 @@
+{
+  "writtenBy": "5953687795a05c8828fa2261cba8a20f7c9fabfb",
+  "source": "store t = { n = 1 }\nstore score = 0\n-> main\nscene main\n  & local x = \"outer\"\n  & local get = function() return x end\n  & t = { n = 2 }\n  & score = 3\n  First.\n  choose\n    * Pick\n      & x = \"changed\"\n      Picked {get()} {t.n} {score}.\n  end\n  fin\nend\n",
+  "save": {
+    "flows": {
+      "DEFAULT_FLOW": {
+        "callstack": {
+          "threads": [
+            {
+              "callstack": [
+                {
+                  "exp": false,
+                  "type": 0,
+                  "temps": [
+                    {
+                      "x": "^outer",
+                      "get": {
+                        "objid": 1,
+                        "obj": {
+                          "__closure_fn": {
+                            "^->": "__synth_0"
+                          },
+                          "__closure_upvals": {
+                            "objid": 2,
+                            "obj": {
+                              "0": {
+                                "^var": "x",
+                                "ci": 1
+                              }
+                            }
+                          },
+                          "__closure_user_arity": 0
+                        }
+                      },
+                      "$r": {
+                        "^->": "main.59.0.$r1"
+                      }
+                    }
+                  ]
+                }
+              ],
+              "threadIndex": 0,
+              "previousContentObject": "main.59.0.10"
+            }
+          ],
+          "threadCounter": 1
+        },
+        "outputStream": [],
+        "choiceThreads": {
+          "1": {
+            "callstack": [
+              {
+                "path": "main.59.0.10",
+                "exp": false,
+                "type": 0,
+                "temps": [
+                  {
+                    "x": "^outer",
+                    "get": {
+                      "objref": 1
+                    },
+                    "$r": {
+                      "^->": "main.59.0.$r1"
+                    }
+                  }
+                ]
+              }
+            ],
+            "threadIndex": 1,
+            "previousContentObject": "main.59.0.9"
+          }
+        },
+        "currentChoices": [
+          {
+            "text": "Pick",
+            "index": 0,
+            "originalChoicePath": "main.59.0.10",
+            "originalThreadIndex": 1,
+            "targetPath": "main.59.c-0"
+          }
+        ]
+      }
+    },
+    "currentFlowName": "DEFAULT_FLOW",
+    "variablesState": {
+      "t": {
+        "objid": 3,
+        "obj": {
+          "n": 2
+        }
+      },
+      "score": 3
+    },
+    "evalStack": [],
+    "visitCounts": {},
+    "turnIndices": {},
+    "turnIdx": -1,
+    "storySeed": 29,
+    "previousRandom": 0,
+    "inkSaveVersion": 11,
+    "inkFormatVersion": 22
+  },
+  "afterChoosingFirst": "Pick\nPicked changed 2 3.\n"
+}
