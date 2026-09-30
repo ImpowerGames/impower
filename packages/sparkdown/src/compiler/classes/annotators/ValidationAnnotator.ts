@@ -119,6 +119,7 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
+const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
 const LUAU_COMMENT = nodeNameSet([
   "LuauBlockComment",
   "LuauDocLineComment",
@@ -560,6 +561,11 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         nodeRef.from,
         nodeRef.to,
       );
+      return annotations;
+    }
+    // A `::` after a declaration's target, where an annotation takes one `:`.
+    if (nodeRef.name === "LuauTargetTypeCastOperator") {
+      this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
