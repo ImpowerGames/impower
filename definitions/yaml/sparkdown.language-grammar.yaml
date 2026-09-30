@@ -9273,10 +9273,21 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
     patterns:
+      - { include: "#LuauTypeBinaryOperatorMissingType" }
       - { include: "#LuauTypeBinaryOperator" }
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
     end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+
+  # A `|`, `&` or `->` with no type before the `;`, `,` or `=` after it
+  # (`local m: number | = 1`), read as one token as
+  # `LuauTypeAnnotationMissingType` reads a `:`. A `->` counts only after the
+  # end of a type (`(number) -> = nil`): a bare `->` is the divert-target type
+  # (`f(escape: ->, b)`).
+  LuauTypeBinaryOperatorMissingType:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: ({{WS}}*)((?:[&]|[|])|(?<={{LUAU_TYPE_END_BEFORE_OPTIONAL}}{{WS}}*)[-][>])({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
   LuauTypeBinaryOperator:
     begin: ({{WS}}*)({{LUAU_TYPE_BINARY_OPERATORS}})({{WS}}*)
