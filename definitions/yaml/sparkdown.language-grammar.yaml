@@ -6617,6 +6617,12 @@ repository:
     # `then` keyword closes it. Critically, `then` is excluded from
     # `LuauKeyword` so the inner `LuauExpression` can't snatch it
     # before this rule's end pattern fires.
+    # A later line continues the condition only when it begins with its
+    # `then` or continues the expression (`LuauLineContinuation`), as in
+    # `LuauTernaryExpressionCondition`. Any other line ends it, so a condition
+    # written without `then` ends with its own line rather than reading the
+    # branch's first line into the expression; `ValidationAnnotator` reports
+    # the missing `then`.
     begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauLineContinuation" }
@@ -6625,7 +6631,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}})
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))
     endCaptures:
       1:
         emit: true
@@ -6718,7 +6724,8 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
 
   LuauElseifBlockCondition:
-    # See `LuauIfBlockCondition` for the multi-line trick.
+    # See `LuauIfBlockCondition` for the multi-line trick and the line that
+    # ends a condition written without `then`.
     begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
       - { include: "#LuauLineContinuation" }
@@ -6727,7 +6734,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}})
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))
     endCaptures:
       1:
         emit: true
