@@ -28,6 +28,7 @@ import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
+import { RUN_QUERY, RUN_WRAPPER_SUFFIX, runWrapperName, runWrapperPrefix } from "../utils/runWrapper";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
 export type TypecheckModeName = "strict" | "nonstrict" | "nocheck";
@@ -87,8 +88,6 @@ function utf16Column(text: string, byteColumn: number): number {
   return column + Math.max(0, byteColumn - bytes);
 }
 
-const RUN_QUERY = "?run=";
-
 /** Whether a document is a Luau file, which is Luau from its first line to its last. */
 export function isLuauFile(uri: string): boolean {
   const path = uri.split(/[?#]/, 1)[0]!;
@@ -106,13 +105,11 @@ export function luauFileUnit(documentText: string): LuauUnit {
  * `end`). The file's text is the unit.
  */
 export function runFileUnit(uri: string, documentText: string): LuauUnit | undefined {
-  const at = uri.indexOf(RUN_QUERY);
-  if (at < 0) return undefined;
-  const wrapper = uri.slice(at + RUN_QUERY.length);
-  const prefix = `& ${wrapper}()\nfunction ${wrapper}()\n`;
-  const suffix = "\nend\n";
-  if (!documentText.startsWith(prefix) || !documentText.endsWith(suffix)) return undefined;
-  const text = documentText.slice(prefix.length, documentText.length - suffix.length);
+  const wrapper = runWrapperName(uri);
+  if (wrapper === undefined) return undefined;
+  const prefix = runWrapperPrefix(wrapper);
+  if (!documentText.startsWith(prefix) || !documentText.endsWith(RUN_WRAPPER_SUFFIX)) return undefined;
+  const text = documentText.slice(prefix.length, documentText.length - RUN_WRAPPER_SUFFIX.length);
   const firstLine = prefix.split("\n").length - 1;
   return { kind: "file", text, lines: text.split("\n").map((_, i) => firstLine + i) };
 }
