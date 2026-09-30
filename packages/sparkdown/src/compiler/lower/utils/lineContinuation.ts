@@ -48,6 +48,21 @@ const SKIPPABLE: ReadonlySet<string> = new Set([
   "LuauReturnLineBreak",
 ]);
 
+// The statements whose continued line can end with a comma that carries
+// their value list on (see `collectLineContinuation`).
+const COMMA_CARRYING_STATEMENTS = nodeNameSet([
+  "LuauVariableDefinition",
+  "LuauReassignment",
+]);
+
+// A comma between two items of a list: `LuauCommaSeparator`, or, in Luau
+// code, `LuauCommaLineBreak`, a comma that ends its line and also holds the
+// line break and any comment before the next item. Every consumer of a list
+// that includes `LuauCommaLineBreak` asks this rather than naming the nodes.
+export function isListCommaName(name: string | undefined): boolean {
+  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
+}
+
 // The lines that continue the statement `node`: each continuation line after
 // it, with the rest of its line (`.a = 1`), across any blank or comment
 // lines between them, as Luau reads them. Empty when the next line of code
@@ -58,11 +73,6 @@ const SKIPPABLE: ReadonlySet<string> = new Set([
 // line-ending comma does (`n` then `+ 4,` then `5`), unless that line starts
 // a statement; the comma is then left without a value, and the statement
 // reports it.
-const COMMA_CARRYING_STATEMENTS = nodeNameSet([
-  "LuauVariableDefinition",
-  "LuauReassignment",
-]);
-
 export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
   return collectLineContinuationFrom(node, node.nextSibling);
 }
@@ -202,9 +212,10 @@ export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext):
   });
 }
 
-// Whether the declaration or reassignment `node` ends on a comma after its `=`: its comma's
+// Whether the declaration `node` ends on a comma after its `=`: its comma's
 // line break reached an unindented line, where the declaration ends, so the
-// value after the comma is on the lines that follow it.
+// value after the comma is on the lines that follow it. A reassignment never
+// ends there: it ends on a comma only before a statement.
 function endsOnValueComma(node: SyntaxNode): boolean {
   let content: SyntaxNode | null = null;
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -212,12 +223,8 @@ function endsOnValueComma(node: SyntaxNode): boolean {
   }
   let last: SyntaxNode | null = content?.lastChild ?? null;
   while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
-  if (last?.name !== "LuauCommaSeparator" && last?.name !== "LuauCommaLineBreak") {
-    return false;
-  }
+  if (!isListCommaName(last?.name)) return false;
   for (let child = content?.firstChild; child; child = child.nextSibling) {
-    // A reassignment holds its `=` directly (`a, g = 1,`).
-    if (child.name === "LuauAssignmentOperation") return true;
     if (child.name === "LuauVariableAssignment" && hasDescendant(child, "LuauAssignmentOperation")) {
       return true;
     }

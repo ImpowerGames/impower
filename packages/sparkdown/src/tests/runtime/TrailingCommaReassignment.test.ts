@@ -65,6 +65,15 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
       "Value 75.\n",
     ],
     ["an extra value for a single target", "  g = 1,\n    2", "return g", "Value 1.\n"],
+    [
+      "a comment-only line, then a blank line",
+      "  t.a, t.g = 1,\n    -- comment-only line\n\n    2",
+      "return t.g",
+      "Value 2.\n",
+    ],
+    ["a negative value on the next line", "  a, g = 1,\n    -2", "return g", "Value -2.\n"],
+    ["a `not` value on the next line", "  a, g = 1,\n    not a", "return tostring(g)", "Value false.\n"],
+    ["a value on an unindented line", "  a, g = 1,\n2", "return g", "Value 2.\n"],
   ])("%s", (_name, body, ret, expected) => {
     const { errors, text } = run(fn(body, ret));
     expect(errors).toEqual([]);
@@ -80,6 +89,18 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     const { errors, text } = run(fn(body, ret));
     expect(errors).toEqual([]);
     expect(text).toBe(expected);
+  });
+
+  // Luau evaluates every value, then assigns as many as there are targets.
+  const bump = "  local calls = 0\n  local function bump() calls = calls + 1 return 9 end\n";
+  test.each([
+    ["on the next line", `${bump}  g = 1,\n    bump()`, "return g * 10 + calls"],
+    ["on the same line", `${bump}  g = 1, bump()`, "return g * 10 + calls"],
+    ["to a field target", `${bump}  t.g = 1,\n    bump()`, "return t.g * 10 + calls"],
+  ])("an extra value for a single target is still evaluated (%s)", (_name, body, ret) => {
+    const { errors, text } = run(fn(body, ret));
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 11.\n");
   });
 });
 
@@ -120,6 +141,54 @@ describe("Luau code: a reassignment comma with nothing after it", () => {
     );
     expect(errorMessages).toEqual([missingValue("=")]);
   });
+
+  // Every other statement that can start the line after the comma, each in a
+  // place it can stand, and the statement stays with its block.
+  const inLoop = (line: string) =>
+    `function f()\n  local a, g = 0, 0\n  for i = 1, 2 do\n    a, g = 1,\n    ${line}\n  end\n  return a\nend\nValue {f()}.\n`;
+  const inBody = (lines: string) =>
+    `function f()\n  local a, g = 0, 0\n  a, g = 1,\n${lines}\n  return a\nend\nValue {f()}.\n`;
+  test.each([
+    ["break", inLoop("break"), "break"],
+    ["continue", inLoop("continue"), "continue"],
+    ["goto", inBody("  goto done\n  ::done::"), "goto"],
+    ["a label", inBody("  ::done::"), ":"],
+    ["do", inBody("  do\n    a = 2\n  end"), "do"],
+    ["while", inBody("  while false do\n  end"), "while"],
+    ["for", inBody("  for i = 1, 2 do\n  end"), "for"],
+    ["repeat", inBody("  repeat\n  until true"), "repeat"],
+    ["a named function", inBody("  function h()\n    return 1\n  end"), "function"],
+    ["a store declaration", inBody("  store s = 4"), "store"],
+    ["a type declaration", inBody("  type T = number"), "type"],
+    ["a define", inBody("  define cfg with\n    k = 1\n  end"), "define"],
+    [
+      "elseif",
+      "function f(ok)\n  local a, g = 0, 0\n  if ok then\n    a, g = 1,\n  elseif not ok then\n    return 2\n  end\nend\nValue {f(false)}.\n",
+      "elseif",
+    ],
+  ])("before %s: the error", (_name, source, got) => {
+    const { errorMessages } = collectDiagnostics(source);
+    expect(errorMessages).toEqual([missingValue(got)]);
+  });
+
+  test("a `&` statement in a function body ends at its line", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  local a, g = 0, 0\n  & a, g = 1,\n  return g\nend\nValue {f()}.\n",
+    );
+    expect(errorMessages).toContain(missingValue("return"));
+  });
+});
+
+describe("Luau code: an operator that cannot begin a value after a comma", () => {
+  test.each([
+    ["on the next line", "  a, g = 1,\n    + 2", "+"],
+    ["after a comment-only line", "  a, g = 1,\n    -- c\n\n+    2", "+"],
+    ["on the same line", "  a, g = 1, * 2", "*"],
+    ["`and` on the next line", "  a, g = 1,\n    and a", "and"],
+  ])("%s: the error", (_name, body, got) => {
+    const { errorMessages } = collectDiagnostics(fn(body, "return g"));
+    expect(errorMessages).toEqual([missingValue(got)]);
+  });
 });
 
 describe("narrative body: the reassignment ends at its line", () => {
@@ -154,5 +223,13 @@ describe("narrative body: the reassignment ends at its line", () => {
       "store a, b = 0, 0\n-> one\nscene one\n  a, b = 1, 2\n  Value {a}.\nend\n",
     );
     expect(errorMessages).toEqual([]);
+  });
+
+  test("in a sparkdown `if` around story: the error, and the story line is untouched", () => {
+    const { errorMessages, warningMessages } = collectDiagnostics(
+      "store a, b = 0, 0\n-> one\nscene one\n  if true then\n    a, b = 1,\n    The hero has {a} health.\n  end\nend\n",
+    );
+    expect(errorMessages).toEqual([missingValue("The")]);
+    expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 });

@@ -294,6 +294,12 @@ function isContinuationLine(
   return isCommaContinuationLine(stack);
 }
 
+// The statements whose value list continues after a comma that ends its line.
+const COMMA_CONTINUED_CONTENT = new Set<string>([
+  "LuauVariableDefinition_content",
+  "LuauReassignment_content",
+]);
+
 // A declaration or reassignment list continued after a comma that ends its
 // line (`LuauCommaLineBreak`) indents its later lines one level past the
 // statement, as stylua does:
@@ -304,7 +310,7 @@ function isContinuationLine(
 //     4
 //
 // The comment-only lines between sit inside the line break. Everything the
-// declaration holds after a line break is on a continued line, so it takes
+// statement holds after a line break is on a continued line, so it takes
 // the extra level on every line it spans, and a table, call or function
 // started there keeps its body one level deeper than its opener:
 //
@@ -312,10 +318,6 @@ function isContinuationLine(
 //     {
 //       k = 5,
 //     }
-const COMMA_CONTINUED_CONTENT = new Set<string>([
-  "LuauVariableDefinition_content",
-  "LuauReassignment_content",
-]);
 function isCommaContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
 ): boolean {

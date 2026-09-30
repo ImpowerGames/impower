@@ -23,6 +23,7 @@ import {
 import {
   continuationParts,
   endsInTypeName,
+  isListCommaName,
   isTypeQualifierContinuation,
   reportExtraTypeQualifiers,
   markLineContinuationUsed,
@@ -133,7 +134,7 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
-      if (isCommaName(child.name)) {
+      if (isListCommaName(child.name)) {
         if (currentRhsGroup.length > 0) {
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
@@ -177,7 +178,7 @@ export function lowerVariableDefinition(
         child.name === "LuauFunctionDefinition" &&
         sawAssignmentOp &&
         (scope === "store" || !findOwnDeclarationName(child)) &&
-        isCommaName(previousContentSibling(child)?.name)
+        isListCommaName(previousContentSibling(child)?.name)
       ) {
         currentRhsGroup.push(child);
         child = child.nextSibling;
@@ -505,11 +506,6 @@ function bareVariableNameFromAccessPath(
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
 }
 
-// A comma that ends its line is `LuauCommaLineBreak`, which also holds the
-// line break and any comment before the next value.
-function isCommaName(name: string | undefined): boolean {
-  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
-}
 
 function isSkippableName(name: string): boolean {
   return (

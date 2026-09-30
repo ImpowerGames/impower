@@ -3,6 +3,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
+import { isListCommaName } from "./lineContinuation";
 
 // How far past the `=` to scan for the token Luau reports as "got '<token>'".
 // Generous enough to skip whitespace, blank lines, and a trailing comment to
@@ -128,9 +129,11 @@ export function validateSecondAssignment(
 // after `&`): a comma after the `=` with no value after it, where the list
 // ended (at a statement on the next line in Luau code, at the line's end in
 // a narrative body, or at a statement after the lines `continuation` holds,
-// which continue the last value), and a second `=` after a comma that ends
-// its line (`a, g = 1,` then `x = 99`). `content` is the statement's content
-// node, whose children are its targets, commas, operation and values.
+// which continue the last value), a comma followed by an operator that
+// cannot begin a value (`a, g = 1,` then `+ 2`), and a second `=` after a
+// comma that ends its line (`a, g = 1,` then `x = 99`). Each is reported
+// once, at the first. `content` is the statement's content node, whose
+// children are its targets, commas, operation and values.
 export function validateReassignmentList(
   content: SyntaxNode,
   continuation: readonly SyntaxNode[],
@@ -146,6 +149,14 @@ export function validateReassignmentList(
         return;
       }
       sawAssignment = true;
+    } else if (
+      sawAssignment &&
+      last &&
+      isListCommaName(last.name) &&
+      startsWithBinaryOperator(child, ctx)
+    ) {
+      validateListComma(last, true, ctx);
+      return;
     }
     last = child;
   }
@@ -153,12 +164,27 @@ export function validateReassignmentList(
   const lastContinued = continuation.findLast((n) => !isInsignificant(n.name));
   if (lastContinued?.name === "LuauCommaSeparator") {
     validateListComma(lastContinued, true, ctx);
-  } else if (
-    !lastContinued &&
-    (last?.name === "LuauCommaSeparator" || last?.name === "LuauCommaLineBreak")
-  ) {
-    validateListComma(last, true, ctx);
+  } else if (!lastContinued && isListCommaName(last?.name)) {
+    validateListComma(last!, true, ctx);
   }
+}
+
+// The operators that can begin a value: unary minus, `not` and the length
+// `#`. The grammar reads every other operator after a comma as an operation
+// with no left operand.
+const UNARY_OPERATORS: ReadonlySet<string> = new Set(["-", "not", "#"]);
+
+// Whether `node` is an operation that starts with an operator that cannot
+// begin a value (`+ 2`, `.. "s"`, `and x`).
+function startsWithBinaryOperator(node: SyntaxNode, ctx: LowerContext): boolean {
+  if (!node.name.endsWith("Operation")) return false;
+  let first: SyntaxNode | null = null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === `${node.name}_content`) first = child.firstChild;
+  }
+  while (first && isInsignificant(first.name)) first = first.nextSibling;
+  if (!first?.name.endsWith("Operator")) return false;
+  return !UNARY_OPERATORS.has(ctx.read(first.from, first.to).trim());
 }
 
 // The token Luau would report after `pos`. Scans forward over whitespace,

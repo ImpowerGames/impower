@@ -32,6 +32,7 @@ import {
   reportExtraTypeQualifiers,
   isLineContinuation,
   isLineContinuationUsed,
+  isListCommaName,
   isTypeQualifierContinuation,
   hasTypeUnionLineOwner,
   leadingReturnTypeQualifier,
@@ -295,8 +296,17 @@ function lowerInner(
         scan = scan.nextSibling;
       }
       if (firstAccessPath) {
-        const multi = scanMultiTargetReassignment(firstAccessPath);
-        if (multi) return lowerMultiTargetReassignment(multi, ctx);
+        // A single target with extra values (`g = 1, bump()`, or `g = 1,`
+        // then `bump()`) goes the multi-target way too, which evaluates
+        // every value and assigns the first, as Luau does. A compound
+        // operator (`g += 1, 2`) takes no list and stays single-target.
+        const multi = scanMultiTargetReassignment(firstAccessPath, true);
+        if (
+          multi &&
+          (multi.targets.length > 1 || isPlainAssignment(multi.op, ctx))
+        ) {
+          return lowerMultiTargetReassignment(multi, ctx);
+        }
       }
 
       // Single-target fallback. The lowerer helper takes the
@@ -783,12 +793,16 @@ interface MultiTargetReassignment {
 //   AccessPath  [Comma AccessPath]+  AssignmentOperation  [Comma Expr]*
 //
 // Returns the collected pieces if at least 2 targets sit before the
-// assignment op; returns `null` otherwise so the caller can fall back to
-// single-target lowering. Anything unexpected between the multi-target
-// pieces (e.g. a stray identifier) also returns `null` rather than risk a
-// silent mis-parse.
+// assignment op, or, with `withExtraValues`, one target followed by more
+// than one value (`g = 1, bump()`, whose extra values Luau still evaluates);
+// returns `null` otherwise so the caller can fall back to single-target
+// lowering. Only a caller whose siblings end with the statement (a
+// reassignment node's content) passes `withExtraValues`. Anything
+// unexpected between the multi-target pieces (e.g. a stray identifier) also
+// returns `null` rather than risk a silent mis-parse.
 function scanMultiTargetReassignment(
   firstTarget: SyntaxNode,
+  withExtraValues = false,
 ): MultiTargetReassignment | null {
   const targets: SyntaxNode[] = [firstTarget];
   let cursor: SyntaxNode | null = firstTarget.nextSibling;
@@ -808,7 +822,7 @@ function scanMultiTargetReassignment(
       return null;
     }
     if (cursor.name === "LuauAssignmentOperation") {
-      if (targets.length < 2) return null;
+      if (targets.length < 2 && !withExtraValues) return null;
       const op = cursor;
       const trailingExprGroups: SyntaxNode[][] = [];
       let current: SyntaxNode[] = [];
@@ -837,6 +851,7 @@ function scanMultiTargetReassignment(
         post = post.nextSibling;
       }
       if (current.length > 0) trailingExprGroups.push(current);
+      if (targets.length < 2 && trailingExprGroups.length === 0) return null;
       return { targets, op, trailingExprGroups, lastNode: last };
     }
     return null;
@@ -844,11 +859,10 @@ function scanMultiTargetReassignment(
   return null;
 }
 
-// A comma between values: a comma that ends its line in Luau code is
-// `LuauCommaLineBreak`, which also holds the line break and any comment
-// before the next value.
-function isListCommaName(name: string | undefined): boolean {
-  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
+// Whether the `LuauAssignmentOperation` `op` is a plain `=`.
+function isPlainAssignment(op: SyntaxNode, ctx: LowerContext): boolean {
+  const operator = getDescendent("LuauAssignmentOperator", op);
+  return !!operator && ctx.read(operator.from, operator.to).trim() === "=";
 }
 
 function skipBridges(n: SyntaxNode | null): SyntaxNode | null {

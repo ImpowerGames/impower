@@ -238,14 +238,21 @@ variables:
   # keywords `LuauReturnStatement` stops at, a `;`, and a named
   # function declaration (a `function` literal is a value).
   LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
-  # What begins a statement or ends a block rather than continuing a value
-  # list when it begins the line after a comma that ends its line: the
-  # above, the keywords that close an `if` arm, `continue`, and a
-  # declaration that starts with a contextual keyword (`store x`,
-  # `type T`, `export type`, `define cfg`). An `if` expression is a value.
-  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_STATEMENT_LINE_START}}|(?:else|elseif|then|continue)\b|(?:store|const|type|export|define)\b{{WS}}+{{LUAU_IDENTIFIER}})
+  # What begins a statement or ends a block rather than continuing a
+  # reassignment's value list when it begins the line after a comma that
+  # ends its line: what ends a declaration there (`LUAU_DECLARATION_STOP`),
+  # what begins a statement line (`LUAU_STATEMENT_LINE_START`), `then`, a
+  # label, and the named blocks `LuauDeclarations` reaches (`define cfg`,
+  # `style s` and the like). An `if` expression and a `function` literal are
+  # values. Unlike a declaration, whose value rule leaves statements out,
+  # the reassignment reads its values with `LuauExpression`, so a statement
+  # this list misses would be read as a value.
+  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\b{{WS}}+{{LUAU_IDENTIFIER}})
+  # The start of a bare reassignment: a target access path, or a list of
+  # them, then an assignment operator (see `LuauReassignment`).
+  LUAU_REASSIGNMENT_START: (?:{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
   # Where a reassignment ends on its own line (see `LuauReassignment`).
-  LUAU_REASSIGNMENT_END: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+  LUAU_REASSIGNMENT_END: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -3307,14 +3314,14 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauReassignment:
-    # The lookahead approximates Lua's "suffixed expression then `=`"
-    # rule. An access path may include dot-accessors (`a.b`), bracket
-    # indexers (`a[k]`), OR a multi-target comma list (`a, b`). The
-    # `,{{WS}}*{{LUAU_IDENTIFIER}}` alternative captures the multi-
-    # target case so `a, b = 10, 20` parses as a single reassignment.
-    # `LuauCommaSeparator` is added to the inner patterns so commas
-    # between targets AND between RHS expressions can be consumed.
-    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    # The lookahead (`LUAU_REASSIGNMENT_START`) approximates Lua's
+    # "suffixed expression then `=`" rule. An access path may include
+    # dot-accessors (`a.b`), bracket indexers (`a[k]`), OR a multi-target
+    # comma list (`a, b`). The `,{{WS}}*{{LUAU_IDENTIFIER}}` alternative
+    # captures the multi-target case so `a, b = 10, 20` parses as a single
+    # reassignment. `LuauCommaSeparator` is added to the inner patterns so
+    # commas between targets AND between RHS expressions can be consumed.
+    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}})
     beginCaptures:
       1:
         patterns:
@@ -3383,9 +3390,10 @@ repository:
   # or `choose` around dialogue and actions). It ends at its line: the next
   # line is prose, never a continued value, so a comma that ends the line is
   # left without a value and the lowerer reports it. Its begin, content and
-  # end are otherwise `LuauReassignment`'s.
+  # end are otherwise `LuauReassignment`'s; `reassignmentRules.test.ts`
+  # holds the two rules together.
   LuauSparkdownReassignment:
-    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}})
     beginCaptures:
       1:
         patterns:

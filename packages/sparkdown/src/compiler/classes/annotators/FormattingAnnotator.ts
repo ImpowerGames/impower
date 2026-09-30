@@ -203,6 +203,9 @@ const NOT_AN_LHS = nodeNameSet([
   "LuauConcatOperator",
   "LuauLogicalOperator",
   "LuauCommaSeparator",
+  // A comma that ends its line in a declaration or reassignment list
+  // (`a, g = 1,` then `-2`).
+  "LuauCommaLineBreak",
   // An if expression's arm begins after its keyword (`then -1`).
   "LuauThenOperator",
   "LuauElseOperator",

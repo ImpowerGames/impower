@@ -115,4 +115,12 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     const source = ["function f()", "  local a, g = 0, 0", "  a, g = 1,", "end", ""].join("\n");
     expect(formatSource(source)).toBe(source);
   });
+
+  test.each([
+    ["a reassignment", "  a, g = 1,"],
+    ["a declaration", "  local b, c = 1,"],
+  ])("keeps a negative value on the continued line of %s unary", (_name, line) => {
+    const source = ["function f()", "  local a, g = 0, 0", line, "    -2", "  return g", "end", ""].join("\n");
+    expect(formatSource(source)).toBe(source);
+  });
 });
