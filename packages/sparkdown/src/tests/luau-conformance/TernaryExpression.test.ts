@@ -663,6 +663,16 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
 
+  test.each([
+    ["a reassignment", "="],
+    ["a compound assignment", "+="],
+  ])("in %s, followed by a statement at column 0", (_name, op) => {
+    const source = `Value {f()}.\nfunction f()\n  local x = 0\n  x ${op} if true\n    then 1\nx = 6\n  return x\nend\n`;
+    expect(ifDiagnostics(source)).toEqual([`4:${op.length + 6}-4:${op.length + 8} ${MISSING_ELSE}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+  });
+
   test("in a Sparkle prop binding", () => {
     const ctx = makeRuntimeStoryFromSource(
       `layout main with\n  text "x" #opacity={if true then 1}\nend\n`,
