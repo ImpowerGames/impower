@@ -117,6 +117,26 @@ const UNFINISHED_COMMENT =
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
+const MISSING_TYPE_NODES = nodeNameSet([
+  "LuauTypeAnnotationMissingType",
+  "LuauFunctionReturnMissingType",
+]);
+const EMPTY_AT_END_OPERATIONS = nodeNameSet([
+  "LuauTypeAnnotationOperation",
+  "LuauFunctionReturnType",
+]);
+// The `:` of each, with the whitespace around it on its line.
+const TYPE_COLON_BEGINS = nodeNameSet([
+  "LuauTypeAnnotationOperator_begin",
+  "LuauFunctionReturnType_begin",
+]);
+const LUAU_TYPE_LITERAL = nodeNameSet(["LuauTypeLiteral"]);
+const LUAU_NAME_START = /[A-Za-z_]/;
+const LUAU_NAME = /^[A-Za-z_]\w*/;
+// A `run` file is compiled as a document of its own, its text wrapped in a
+// function that ends with this line.
+const RUN_QUERY = "?run=";
+const RUN_WRAPPER_END = "end\n";
 const LUAU_COMMENT = nodeNameSet([
   "LuauBlockComment",
   "LuauDocLineComment",
@@ -480,13 +500,15 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
-   * The first character at or after `pos` that is not whitespace, a line
-   * break or inside a Luau comment the grammar read, or `""` at the end.
+   * The Luau token at or after `pos`, past whitespace, line breaks and the
+   * Luau comments the grammar read: a whole name or keyword, or one
+   * character. `""` at the end of the Luau, which for a `run` file is the
+   * `end` its wrapper closes its function with.
    */
   protected tokenAfterTrivia(pos: number): string {
     for (;;) {
       const char = this.read(pos, pos + 1);
-      if (!char) {
+      if (!char || this.isRunWrapperEnd(pos)) {
         return "";
       }
       if (/\s/.test(char)) {
@@ -498,10 +520,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         node = node.parent;
       }
       if (!node || node.to <= pos) {
-        return char;
+        if (!LUAU_NAME_START.test(char)) {
+          return char;
+        }
+        const lineTo = this.text?.lineAt(pos).to ?? pos + 1;
+        return this.read(pos, lineTo).match(LUAU_NAME)?.[0] ?? char;
       }
       pos = node.to;
     }
+  }
+
+  /** Whether `pos` is the `end` a `run` file's wrapper closes it with
+   *  (`runFileUnit`), which is not in the file. */
+  protected isRunWrapperEnd(pos: number): boolean {
+    const length = this.text?.length ?? 0;
+    return (
+      !!this.uri?.includes(RUN_QUERY) &&
+      pos === length - RUN_WRAPPER_END.length &&
+      this.read(pos, length) === RUN_WRAPPER_END
+    );
   }
 
   /** The end of the text before the block comments (and the whitespace around
@@ -544,17 +581,32 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // Likewise a type annotation `:` with no type before the `;`, `,` or `=`
-    // after it; Luau names the token it found instead.
-    if (nodeRef.name === "LuauTypeAnnotationMissingType") {
+    // Likewise a type annotation or return type `:` with no type before the
+    // `;`, `,`, `=` or keyword after it; Luau names the token it found
+    // instead.
+    if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const token = this.tokenAfterTrivia(nodeRef.to);
       this.error(
         annotations,
-        token ? `${MISSING_TYPE}, got '${token}'` : MISSING_TYPE,
+        `${MISSING_TYPE}, got ${token ? `'${token}'` : "<eof>"}`,
         nodeRef.from,
         nodeRef.to,
       );
       return annotations;
+    }
+    // The grammar only sees the text it has read so far, so it cannot tell an
+    // annotation that the end of the file leaves empty (`local w:` on a
+    // `.luau` file's last line); the whole text is here.
+    if (EMPTY_AT_END_OPERATIONS.has(nodeRef.name)) {
+      const colon = firstDescendant(nodeRef.node, TYPE_COLON_BEGINS);
+      if (
+        colon &&
+        !firstDescendant(nodeRef.node, LUAU_TYPE_LITERAL) &&
+        !this.tokenAfterTrivia(colon.to)
+      ) {
+        this.error(annotations, `${MISSING_TYPE}, got <eof>`, colon.from, colon.to);
+        return annotations;
+      }
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
     // lookbehind cannot see whether a type stands before the comment
