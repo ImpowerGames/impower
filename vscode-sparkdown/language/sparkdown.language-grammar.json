@@ -13745,6 +13745,18 @@
       },
       "patterns": [
         {
+          "include": "#LuauCommaLineBreakGap"
+        },
+        {
+          "include": "#LuauTernaryExpression"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?<!,(?:[^\\S\\n\\r])*)(?!^if\\b)"
+    },
+    "LuauCommaLineBreakGap": {
+      "begin": "(?=$|(?:[-][-]))",
+      "patterns": [
+        {
           "include": "#LuauComment"
         },
         {

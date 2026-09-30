@@ -1,0 +1,16 @@
+function f(c)
+  local a, g = 1,
+if c
+then 2
+else 3
+  g = g + 1
+  local b, h, k = 1, -- note
+
+  -- more
+if c then 2 else 3, 4
+  local v: number
+if c then
+  v = 1
+end
+  return g
+end
