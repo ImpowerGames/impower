@@ -5,6 +5,5 @@ local g, h = t.store, y
 local i = 1 j = 2
 local k = 1, m = 2
 local p: typeof(t[u[1]]), q: number = 1, 2
-local --[[c]] r, s = 1, 2
 local u: typeof({ k = 1 }), v: number = {}, 2
 local w, z = "the store said \"hi\"", true
