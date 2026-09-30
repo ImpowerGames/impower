@@ -6092,7 +6092,7 @@ repository:
     patterns:
       - { include: "#LuauCommaLineBreak" }
       - { include: "#LuauComment" }
-      - { include: "#LuauTargetTypeCastOperator" }
+      - { include: "#LuauTargetTypeCast" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauVariableDefinitionValue" }
@@ -6124,7 +6124,7 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauTargetTypeCastOperator" }
+      - { include: "#LuauTargetTypeCast" }
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
@@ -8715,13 +8715,30 @@ repository:
   # annotation takes a single `:`. Luau rejects it; without this token the
   # target reads as an expression and the `::` as a cast. Only targets
   # stand between the scope modifier and it (no `=` earlier on the line),
-  # so a cast in a value (`local y = x :: number`) is untouched.
+  # so a cast in a value (`local y = x :: number`) is untouched. The type
+  # after it is read as an annotation's type, so the declaration goes on
+  # past it: a narrative one does not leave the type as a line of prose,
+  # and the type is not read as another target before a comment.
+  LuauTargetTypeCast:
+    # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
+    # there ("invalid pattern in look-behind").
+    begin: (?<=\b(?:{{LUAU_SCOPE_MODIFIERS}}){{WS}}+[^=\n\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauTargetTypeCastOperator" }
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+
   LuauTargetTypeCastOperator:
     tag: invalid
     name: invalid.illegal.luau
-    # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
-    # there ("invalid pattern in look-behind").
-    match: (?<=\b(?:{{LUAU_SCOPE_MODIFIERS}}){{WS}}+[^=\n\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})
+    match: {{LUAU_TYPECAST_OPERATOR}}
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})

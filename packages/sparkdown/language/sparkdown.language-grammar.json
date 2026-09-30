@@ -9266,7 +9266,7 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#LuauTargetTypeCastOperator"
+          "include": "#LuauTargetTypeCast"
         },
         {
           "include": "#LuauVariableAssignment"
@@ -9312,7 +9312,7 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#LuauTargetTypeCastOperator"
+          "include": "#LuauTargetTypeCast"
         },
         {
           "include": "#LuauVariableAssignment"
@@ -13213,10 +13213,38 @@
       "name": "invalid.illegal.luau",
       "match": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,]|=(?!=))))"
     },
+    "LuauTargetTypeCast": {
+      "begin": "(?<=\\b(?:\\b(?:store|local|const)\\b)(?:[^\\S\\n\\r])+[^=\\n\\r]*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)((?:[:][:]))((?:[^\\S\\n\\r])*)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#LuauTargetTypeCastOperator"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#OptionalWhitespace"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauTypeLiteral"
+        }
+      ],
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=$|(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[?])|[&]|[|])))|[,;)\\]}>=])"
+    },
     "LuauTargetTypeCastOperator": {
       "tag": "invalid",
       "name": "invalid.illegal.luau",
-      "match": "(?<=\\b(?:\\b(?:store|local|const)\\b)(?:[^\\S\\n\\r])+[^=\\n\\r]*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)((?:[:][:]))"
+      "match": "(.+)"
     },
     "LuauArithmeticOperation": {
       "begin": "((?:[^\\S\\n\\r])*)(?=(?:\\+|-|%|\\*|\\/\\/|\\/|\\^))",
