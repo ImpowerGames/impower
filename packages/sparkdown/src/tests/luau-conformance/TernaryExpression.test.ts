@@ -7,8 +7,8 @@
 // enclosing `then` or `do` once its else arm is complete, including when
 // that arm is glued to the `then` or `do` with no whitespace.
 import { describe, expect, test } from "vitest";
-import { printTree } from "@impower/textmate-grammar-tree/src/tree/utils/printTree";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
@@ -79,24 +79,7 @@ function ifDiagnostics(source: string): string[] {
 
 // How many reassignment statements a source parses into.
 function reassignmentCount(source: string): number {
-  const compiler = new SparkdownCompiler();
-  compiler.configure({
-    files: [
-      {
-        uri: "inmemory:///main.sd",
-        type: "script",
-        name: "main",
-        ext: "sd",
-        text: source,
-        version: 1,
-        languageId: "sparkdown",
-      },
-    ],
-  });
-  compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
-  const docs = (compiler as any).documents;
-  const tree = String(printTree(docs.tree("inmemory:///main.sd"), docs.get("inmemory:///main.sd")));
-  return tree.match(/\bLuauReassignment \[/g)?.length ?? 0;
+  return stripAnsi(dumpTree(source)).match(/\bLuauReassignment \[/g)?.length ?? 0;
 }
 
 describe("if-then-else expressions", () => {
@@ -727,6 +710,20 @@ describe("if expression without an else", () => {
     expect(ifDiagnostics(source)).toEqual([`7:7-7:9 ${MISSING_ELSE}`]);
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+  });
+
+  // A column-0 line after an if expression's line that belongs to the
+  // expression still does: a clause keyword, a continuation, and the value of
+  // an else arm.
+  test.each([
+    ["then and else at column 0", "local a = true\nlocal x = if a\nthen 1\nelse 2\n", "Value 1.\n"],
+    ["a continuation at column 0", 'local a = true\nlocal x = if a then "x"\n.. "z"\nelse "y"\n', "Value xz.\n"],
+    ["an else value at column 0", 'local a = false\nlocal x = if a then "a" else\n"c"\n', "Value c.\n"],
+    ["an else value at column 0 that is a name", "local a = false\nlocal n = 4\nlocal x = if a then 1 else\nn\n", "Value 4.\n"],
+  ])("%s stays in the expression", (_name, lines, value) => {
+    const ctx = makeRuntimeStoryFromSource(`${lines}Value {x}.\n`);
+    expect(ctx.errorMessages).toEqual([]);
+    expect(ctx.story.ContinueMaximally()).toBe(value);
   });
 
   test("in a Sparkle prop binding", () => {

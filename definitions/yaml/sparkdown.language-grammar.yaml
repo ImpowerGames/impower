@@ -249,6 +249,11 @@ variables:
   # `local y = 1`) into itself. The `\S` keeps it from matching at the end of
   # a line that a line-by-line tokenizer (VS Code) sees with nothing after.
   BEFORE_LUAU_COLUMN_0_LINE: (?={{NL}}(?=\S)(?!(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;]))
+  # The same, for an `else` that ends its line: its arm takes a column-0 value
+  # from the next line (`else` then `"c"`), so it stops only before a column-0
+  # line that cannot be a value, one that begins a statement
+  # (`LUAU_STATEMENT_LINE_START`) or a reassignment (`x = 6`, `a.b += 1`).
+  BEFORE_LUAU_COLUMN_0_STATEMENT: (?={{NL}}(?:{{LUAU_STATEMENT_LINE_START}}|(?!(?:then|else|elseif)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}))
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -6993,6 +6998,13 @@ repository:
     # this expression with it. `ValidationAnnotator` reports the missing
     # clause or value.
     #
+    # When the next line starts at column 0, the condition, the then arm and
+    # the `then` keyword instead stop before the line break
+    # (`BEFORE_LUAU_COLUMN_0_LINE`), and the `else` keyword stops there only
+    # before a line that cannot be its value (`BEFORE_LUAU_COLUMN_0_STATEMENT`),
+    # so the statement the expression belongs to ends with its own line and
+    # the next line is read on its own.
+    #
     # The last alternative ends the expression before the `then` of an if
     # statement or the `do` of a while loop whose condition it is:
     # `if if c then 1 else 2 then`. Each condition takes the whitespace
@@ -7087,7 +7099,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
+    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_STATEMENT}}
 
   # ----------------------------------------------------------------------------
   # Alternator Blocks
