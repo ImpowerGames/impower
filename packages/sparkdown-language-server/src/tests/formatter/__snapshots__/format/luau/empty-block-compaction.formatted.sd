@@ -2,6 +2,13 @@ function empty() end
 
 function alsoEmpty() end
 
+function typed(): number end
+
+function typedAfterBlank(): number end
+
+function typedUnion(): number
+  | string end
+
 function notEmpty()
   return 1
 end

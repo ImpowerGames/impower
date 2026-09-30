@@ -594,6 +594,11 @@ export class StoryState {
   }
 
   public WriteJson(writer: SimpleJson.Writer) {
+    JsonSerialisation.SetWriterAnchors(
+      writer,
+      this.variablesState.InitTableAnchors(),
+      this.variablesState.InitCellAnchors(),
+    );
     writer.WriteObjectStart();
 
     writer.WritePropertyStart("flows");
@@ -676,6 +681,12 @@ export class StoryState {
     // references resolve against the tables this load materializes,
     // never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
+    JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
+      this.variablesState.InitTableAtAnchor(anchor),
+    );
+    JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
+      this.variablesState.InitCellAtAnchor(anchor),
+    );
 
     let jSaveVersion = jObject["inkSaveVersion"];
     if (jSaveVersion == null) {

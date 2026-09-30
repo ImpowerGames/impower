@@ -583,6 +583,12 @@ export class ObjectValue extends Value<Map<string, AbstractValue>> {
   public Freeze(): void {
     this._frozen = true;
   }
+  // Sets the freeze flag a loaded save recorded for this table, which a
+  // load restores into a table the loading story already has; scripts only
+  // ever freeze.
+  public RestoreFrozen(frozen: boolean): void {
+    this._frozen = frozen;
+  }
   public get metatable(): ObjectValue | null {
     return this._metatable;
   }

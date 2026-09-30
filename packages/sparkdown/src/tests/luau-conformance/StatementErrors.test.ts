@@ -24,7 +24,9 @@ describe("an assignment with no value", () => {
 
 // Luau: error_const_not_initialized
 // "Missing initializer in const declaration"
-describe.skip("const without an initializer (diverges: accepted silently)", () => {
+// Diverges: `const c` is accepted silently, and the multi-name forms report
+// sparkdown's own rule, "A `const` takes one name and one value", instead.
+describe.skip("const without an initializer (diverges: see above)", () => {
   test.each([
     ["const c", "const c"],
     ["const a, b = nil", "const a, b = nil"],

@@ -12,7 +12,7 @@ import { StringBuilder } from "../inkjs/engine/StringBuilder";
 import { Tag } from "../inkjs/engine/Tag";
 import { ObjectValue, StringValue } from "../inkjs/engine/Value";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
-import type { CallStack } from "../inkjs/engine/CallStack";
+import { CallStack } from "../inkjs/engine/CallStack";
 import {
   findOpenString,
   isBeginString,
@@ -715,9 +715,9 @@ export class ProgramStoryState {
 
   /** The state as JSON: the position as a chunk id, its entry and offset and
    *  its sequence's id, the output and eval stack, the line end, the globals,
-   *  and the call frames, each with its temporaries scope by scope and, for a
-   *  frame a call pushed, the position its caller resumes at and the symbol
-   *  of its function. A position past the last statement of its sequence,
+   *  and the call frames, each with its temporaries scope by scope, the
+   *  upvalue cells still open on it and, for a frame a call pushed, the
+   *  position its caller resumes at and the symbol of its function. A position past the last statement of its sequence,
    *  where a flow rests after its last beat, has no chunk: it is written with
    *  chunk id -1 and named by its sequence alone. The blocks a position is
    *  inside are not written: they follow from its sequence. A position holds
@@ -725,6 +725,11 @@ export class ProgramStoryState {
    *  last statement, its sequence. */
   toJson(): string {
     const writer = new SimpleJson.Writer();
+    JsonSerialisation.SetWriterAnchors(
+      writer,
+      this.variablesState.InitTableAnchors(),
+      this.variablesState.InitCellAnchors(),
+    );
     writer.WriteObjectStart();
     writer.WriteProperty("engine", "program");
     writer.WritePropertyStart("position");
@@ -773,6 +778,9 @@ export class ProgramStoryState {
         }
         w.WriteArrayEnd();
         w.WritePropertyEnd();
+        // The cells still open on the frame, by the ids the closures holding
+        // them are written with, as the current engine's frames write them.
+        CallStack.Thread.WriteUpvalueCells(w, "upvalues", element.openUpvalues);
         w.WriteObjectEnd();
       }
       w.WriteArrayEnd();
@@ -808,6 +816,12 @@ export class ProgramStoryState {
     // opens one: a table reference resolves against the tables this load
     // reads, never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
+    JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
+      this.variablesState.InitTableAtAnchor(anchor),
+    );
+    JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
+      this.variablesState.InitCellAtAnchor(anchor),
+    );
     this.position = this.placePosition(obj["position"]);
     this.blockStack = this.blocksOf(this.position);
     this.evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
@@ -855,6 +869,7 @@ export class ProgramStoryState {
       if (element.temporaryScopes.length === 0) {
         element.temporaryScopes = [new Map()];
       }
+      element.openUpvalues = CallStack.Thread.ReadUpvalueCells(saved["upvalues"]);
     });
     // A `new`-instance table saved with its class's name links again to the
     // live class global, now that the globals are loaded.
