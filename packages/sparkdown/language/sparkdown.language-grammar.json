@@ -149,6 +149,26 @@
       "until",
       "while"
     ],
+    "LUAU_NON_TYPE_KEYWORDS": [
+      "and",
+      "break",
+      "do",
+      "else",
+      "elseif",
+      "end",
+      "for",
+      "function",
+      "if",
+      "in",
+      "local",
+      "not",
+      "or",
+      "repeat",
+      "return",
+      "then",
+      "until",
+      "while"
+    ],
     "LUAU_GLOBAL_DECLARATION_KEYWORDS": [
       "define"
     ],
@@ -310,7 +330,7 @@
     "LUAU_VALUE_BINARY_OPERATORS": "(?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})",
     "_LUAU_TRIVIA_AHEAD_": "(?:{{WS}}|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*",
     "_LUAU_SEMICOLON_AHEAD_": "(?:{{_LUAU_TRIVIA_AHEAD_}}[;])",
-    "_LUAU_TYPE_ANNOTATION_END_AHEAD_": "(?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,]|=(?!=)))",
+    "_LUAU_TYPE_ANNOTATION_END_AHEAD_": "(?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,]|=(?!=)|{{LUAU_NON_TYPE_KEYWORDS}}))",
     "LUAU_BINARY_OPERATORS": "(?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})",
     "LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD": "(?:{{LUAU_VALUE_BINARY_OPERATORS}}|[&]|[-][>])",
     "_LUAU_BINARY_OPERATOR_AHEAD_": "(?:({{WS}}*)(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))",
@@ -5019,6 +5039,9 @@
           "include": "#LuauFunctionParameters"
         },
         {
+          "include": "#LuauFunctionReturnMissingType"
+        },
+        {
           "include": "#LuauFunctionReturnType"
         },
         {
@@ -9088,6 +9111,9 @@
         },
         {
           "include": "#LuauGenericsDeclaration"
+        },
+        {
+          "include": "#LuauFunctionReturnMissingType"
         },
         {
           "include": "#LuauFunctionReturnType"
@@ -13273,7 +13299,12 @@
     "LuauTypeAnnotationMissingType": {
       "tag": "invalid",
       "name": "invalid.illegal.luau",
-      "match": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,]|=(?!=))))"
+      "match": "((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,]|=(?!=)|\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)))"
+    },
+    "LuauFunctionReturnMissingType": {
+      "tag": "invalid",
+      "name": "invalid.illegal.luau",
+      "match": "(?<=[)](?:[^\\S\\n\\r])*)((?:[^\\S\\n\\r])*)((?<![:])(?:[:])(?![:]))((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,]|=(?!=)|\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)))"
     },
     "LuauTargetTypeCast": {
       "begin": "(?<=\\b(?:\\b(?:store|local|const)\\b)(?:[^\\S\\n\\r])+[^=\\n\\r]*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:[^\\S\\n\\r])*)((?:[:][:]))((?:[^\\S\\n\\r])*)",
@@ -13897,6 +13928,9 @@
           "include": "#LuauGenericsDeclaration"
         },
         {
+          "include": "#LuauFunctionReturnMissingType"
+        },
+        {
           "include": "#LuauFunctionReturnType"
         },
         {
@@ -14315,7 +14349,7 @@
     "LuauTypeBinaryOperatorMissingType": {
       "tag": "invalid",
       "name": "invalid.illegal.luau",
-      "match": "((?:[^\\S\\n\\r])*)((?:[&]|[|])|(?<=(?:[\\w)}\\]\"'`?]|[^-]>)(?:[^\\S\\n\\r])*)[-][>])((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,]|=(?!=))))"
+      "match": "((?:[^\\S\\n\\r])*)((?:[&]|[|])|(?<=(?:[\\w)}\\]\"'`?]|[^-]>)(?:[^\\S\\n\\r])*)[-][>])((?:[^\\S\\n\\r])*)(?=(?:(?:(?:[^\\S\\n\\r])|[\\r\\n]|--\\[(=*)\\[(?:[^\\]]|\\](?!\\4\\]))*\\]\\4\\]|--(?!\\[=*\\[)[^\\r\\n]*(?![^\\r\\n]))*(?:[;,]|=(?!=)|\\b(?:and|break|do|else|elseif|end|for|function|if|in|local|not|or|repeat|return|then|until|while)\\b)))"
     },
     "LuauTypeBinaryOperator": {
       "begin": "((?:[^\\S\\n\\r])*)((?:[&]|[|]|[-][>]))((?:[^\\S\\n\\r])*)",
