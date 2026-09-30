@@ -1,6 +1,7 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { CALL_LIKE_OPENERS } from "../../utils/callLikeOpeners";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { oneLineTableBraces } from "../../utils/oneLineTableBraces";
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -597,6 +598,26 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           ),
         );
       }
+    }
+    // A one-line table constructor or table type is spaced inside its
+    // braces (`{ a = 1 }`, `{ number }`). The separator rule tightens after
+    // every `{` and before every `}`, as interpolation braces need, so the
+    // table forces one space at each brace and the whitespace edits there
+    // merge into it.
+    const tableBraces = oneLineTableBraces(nodeRef.node, (from, to) =>
+      this.read(from, to),
+    );
+    if (tableBraces) {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+          tableBraces.open + 1,
+          tableBraces.open + 1,
+        ),
+        SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+          tableBraces.close,
+          tableBraces.close,
+        ),
+      );
     }
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(

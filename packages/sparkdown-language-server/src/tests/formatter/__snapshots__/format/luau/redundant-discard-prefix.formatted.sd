@@ -3,7 +3,7 @@ external host_record(v)
 done
 
 function run()
-  local t = {1, 2, 3}
+  local t = { 1, 2, 3 }
   host_record(42)
   table.insert(t, 99)
   local x = 5

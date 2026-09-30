@@ -1,5 +1,6 @@
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
+import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
 import { structArrayItemInlineEntry } from "@impower/sparkdown/src/compiler/utils/structArrayItemInlineEntry";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
@@ -1766,11 +1767,20 @@ export const getFormatting = (
             start: document.positionAt(contentFrom + leftBound),
             end: document.positionAt(contentFrom + rightBound),
           };
+          // A spaced one-line table keeps its space before the `}`
+          // (`{ 1, 2 }`): the deletion outranks the space the
+          // annotator forces there, so it writes that space itself.
+          const reachesClose = contentFrom + rightBound === contentTo;
+          const spaced =
+            reachesClose &&
+            oneLineTableBraces(tableNode, (from, to) =>
+              document.read(from, to),
+            ) != null;
           pushIfInRange({
             lineNumber: range.start.line + 1,
             range,
             oldText: document.getText(range),
-            newText: "",
+            newText: spaced ? " " : "",
             type: "trailing_comma_delete",
           });
         }
