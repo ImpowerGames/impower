@@ -22,6 +22,7 @@ describe("a type annotation left empty at the end of its line", () => {
     ["function g():\n  local x = 1\nend\n", "0:12-0:13 SyntaxError: Expected type, got 'local'"],
     ["local f = function():\n  return 1\nend\n", "0:20-0:21 SyntaxError: Expected type, got 'return'"],
     ["type function F(t):\n  return t\nend\n", "0:18-0:19 SyntaxError: Expected type, got 'return'"],
+    ["type function F(t): = nil end\n", "0:18-0:20 SyntaxError: Expected type, got '='"],
   ])("%j reports the missing type on the colon", (source, message) => {
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
   });
@@ -64,11 +65,12 @@ describe("a type annotation left empty at the end of its line", () => {
   });
 
   // The implicit `function` of a method in a `define` block.
-  test("a method's return type", () => {
-    const source = "define hero as character with\n  greet():\n    return 1\n  end\nend\nHi.\n";
-    expect(errorsIn("main.sd", { "main.sd": source })).toEqual([
-      "1:9-1:10 Expected type, got 'return'",
-    ]);
+  test.each([
+    ["  greet():\n    return 1\n  end\n", "1:9-1:10 Expected type, got 'return'"],
+    ["  greet(): = nil end\n", "1:9-1:11 Expected type, got '='"],
+  ])("a method's return type in %j", (method, message) => {
+    const source = `define hero as character with\n${method}end\nHi.\n`;
+    expect(errorsIn("main.sd", { "main.sd": source })).toEqual([message]);
   });
 
   test.each([
