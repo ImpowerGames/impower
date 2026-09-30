@@ -355,9 +355,14 @@ variables:
   # line (`w = 5 --[[c]] print(1)`, `local w = 5--[[c]] print(1)`). The
   # comment takes the whitespace after it, so a rule that ends at whitespace
   # before the next statement ends here instead, before the comment. The
-  # value ends in a word, a closing bracket or a quote, and not in a keyword
-  # operator (`a and --[[c]] b` keeps its operand).
-  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:(?<=[\w)}\]"'`]{{WS}}*)(?<![^\w.](?:and|or|not){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}}))
+  # value ends in a word, a closing bracket, a quote, the vararg `...` or a
+  # regex literal (`@/x/`, whose closing `/` is never read as division), and
+  # not in a keyword operator (`a and --[[c]] b` keeps its operand).
+  # A statement that begins with `(` (`5 --[[c]] (function() end)()`) is only
+  # the next statement after a value that cannot be called: a number (a digit
+  # that does not end a name), a quoted string or `...`. After a name or a
+  # call, Luau reads the `(` as a call of that value (`g (2)`).
+  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/(?:\\.|[^/\\\r\n])+/){{WS}}*)(?<![^\w.](?:and|or|not){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|(?<=(?:\d|["'`]|\.\.\.){{WS}}*)(?<![A-Za-z_]\w*{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(]))
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
@@ -411,9 +416,13 @@ variables:
   # booleans). As a type argument (`Box<"ok">`, `Box<true>`) one is followed
   # directly by its generic's `>`, which is not a comparison, so no separator
   # is taken before a `>` right after it. A comparison written with a space
-  # (`"a" > "b"`) still takes that space as a separator. Like the one above,
-  # this adds exactly one capture group to the host rule.
-  _LUAU_SHARED_OPERATOR_AHEAD_: (?:({{WS}}+|(?![>]))(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}})|(?=$|.))
+  # (`"a" > "b"`) still takes that space as a separator. As a type does (see
+  # `_LUAU_TYPE_OPERATOR_AHEAD_` below), one also takes the whitespace before
+  # a comment, so a literal type stays open across a block comment to its
+  # `?` or `|` (`"a" --[[c]] ? `); as a value, it still ends before a comment
+  # with code after it through `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`. Like the
+  # one above, this adds exactly one capture group to the host rule.
+  _LUAU_SHARED_OPERATOR_AHEAD_: (?:({{WS}}+|(?![>]))(?={{LUAU_BINARY_OPERATOR_AHEAD_LOOKAHEAD}}|{{LUAU_COMMENT_START}})|(?=$|.))
   # The same lookahead for the type-only rules (names, primitives and the
   # bracketed types). A `<` or `>` after a type is a generic's bracket, never a
   # comparison, so it is not an operator here: the bracket stays glued to the
@@ -6189,7 +6198,7 @@ repository:
     # `LuauCommaLineBreak` then ends past the line start; an unindented one
     # ends the declaration, and the lowerer carries that line in as the
     # value (`collectLineContinuation`).
-    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # The declaration in a narrative body (the root, a scene, or a sparkdown
   # `if`, loop or `choose` around dialogue and actions, and an `&`
@@ -6220,7 +6229,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
       - { include: "#LuauExpression" }
-    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
@@ -6306,7 +6315,7 @@ repository:
     # line break. Terminate before `;` too, so `local x = f();` closes this
     # rule and `LuauVariableDefinition` before the `;`, which the enclosing
     # statement context reads as `LuauSemicolonSeparator`.
-    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+    end: (?={{BEAT}})|(?=^|$|{{WS}}|[,;])|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}
 
   # ----------------------------------------------------------------------------
   # Control Blocks (For, While, Repeat, If, Elseif, Else, Do)
