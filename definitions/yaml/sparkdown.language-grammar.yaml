@@ -8852,7 +8852,10 @@ repository:
   # untouched, and a target on a continuation line is not seen. The type
   # after it is read as an annotation's type, so the declaration goes on
   # past it: a narrative one does not leave the type as a line of prose,
-  # and the type is not read as another target before a comment.
+  # and the type is not read as another target before a comment. The type
+  # takes in the line break after it, as any type does, so this rule also
+  # ends at the start of the next line (`LUAU_TYPE_LINE_BREAK`), as
+  # `LuauTypeAnnotationOperation` does.
   LuauTargetTypeCast:
     # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
     # there ("invalid pattern in look-behind").
@@ -8867,7 +8870,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauTypeLiteral" }
-    end: (?={{BEAT}})|(?=$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
 
   LuauTargetTypeCastOperator:
     tag: invalid
