@@ -7681,9 +7681,15 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
+  # A `:` with no name before the `;`, `,` or `=` after it is a part of the
+  # path (`t.a: = 2`, `for i: = 1, 3`), so the path does not stop unfinished
+  # at the colon. The validator words it as Luau does: a missing type for a
+  # `for` loop variable, whose annotation the path also reads (`for i: number`),
+  # and a missing method name anywhere else.
   LuauAccessPart:
     emit: true
     patterns:
+      - { include: "#LuauTypeAnnotationMissingType" }
       - { include: "#LuauFunctionAccessor" }
       - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
@@ -8737,7 +8743,8 @@ repository:
   # A type annotation `:` with no type before the `;`, `,` or `=` after it
   # (`local x: ;`, `local x: = 1`, `local a: , b`), read as one token as
   # `LuauOperatorMissingOperand` reads an operator. Luau words this one
-  # differently, so it has its own rule.
+  # differently, so it has its own rule. `LuauAccessPart` also reads it, after
+  # a name (`t.a: = 2`).
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
