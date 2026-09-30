@@ -72,6 +72,29 @@ variables:
       "until",
       "while",
     ]
+  # The reserved words that cannot start a type: all but `nil`, `true` and
+  # `false`, which are types, and `continue`, which Luau reads as a name.
+  LUAU_NON_TYPE_KEYWORDS:
+    [
+      "and",
+      "break",
+      "do",
+      "else",
+      "elseif",
+      "end",
+      "for",
+      "function",
+      "if",
+      "in",
+      "local",
+      "not",
+      "or",
+      "repeat",
+      "return",
+      "then",
+      "until",
+      "while",
+    ]
   LUAU_GLOBAL_DECLARATION_KEYWORDS: ["define"]
   # `type` is intentionally NOT included here. It IS a declaration
   # keyword for `type X = ...` type aliases (handled by the
@@ -355,9 +378,12 @@ variables:
   # so the token is never a character inside it (`local x: -- a, b`).
   _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
   _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
-  # The same, ending at the `;`, `,` or `=` (not `==`) that can follow a type
-  # annotation, with the same capture-group rule.
-  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,]|=(?!=)))
+  # The same, ending at a token that cannot start the type a type annotation
+  # needs: the `;`, `,` or `=` (not `==`) that can follow one, or a keyword
+  # that starts a statement, closes a block or joins an expression (which the
+  # next line's statement or the enclosing block's `end` starts with). Same
+  # capture-group rule.
+  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,]|=(?!=)|{{LUAU_NON_TYPE_KEYWORDS}}))
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
@@ -3423,6 +3449,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauFunctionParameters" }
+      - { include: "#LuauFunctionReturnMissingType" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauBlockBody" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -5968,6 +5995,7 @@ repository:
       - { include: "#LuauFunctionBody" }
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnMissingType" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionParameters" }
@@ -8862,11 +8890,20 @@ repository:
   # (`local x: ;`, `local x: = 1`, `local a: , b`), read as one token as
   # `LuauOperatorMissingOperand` reads an operator. Luau words this one
   # differently, so it has its own rule. `LuauAccessPart` also reads it, after
-  # a name (`t.a: = 2`).
+  # a name (`t.a: = 2`). A `:` with nothing after it on its line takes its
+  # type from the next line, so a next line that starts with a statement
+  # keyword or `end` leaves it empty too (`local w:` then `local z = 1`).
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
     match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
+
+  # The same for a function's return type (`function g():` then `return 1`,
+  # `function g(a: number): end`), which follows the parameter list's `)`.
+  LuauFunctionReturnMissingType:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: (?<=[)]{{WS}}*)({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
   # A `::` after a declaration's target (`local x :: number`), where a type
   # annotation takes a single `:`. Luau rejects it; without this token the
@@ -9263,6 +9300,7 @@ repository:
       - { include: "#LuauFunctionBody" }
       - { include: "#LuauComment" }
       - { include: "#LuauGenericsDeclaration" }
+      - { include: "#LuauFunctionReturnMissingType" }
       - { include: "#LuauFunctionReturnType" }
       - { include: "#LuauTypeFunctionName" }
       - { include: "#LuauFunctionParameters" }
