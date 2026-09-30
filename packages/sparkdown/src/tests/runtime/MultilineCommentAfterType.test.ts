@@ -3,8 +3,9 @@ import { makeRuntimeStoryFromSource } from "./runtimeTestHarness";
 
 // A block comment right after a Luau type that closes on a later line
 // (#1180). The type reads it in, since its opening line cannot see what
-// follows the close; code after the close is the next statement, while a
-// type operator, `=` or comma there continues the type or its declaration.
+// follows the close; code after the close, with or without whitespace
+// before it, is the next statement, while a type operator, `=` or comma
+// there continues the type or its declaration.
 
 function run(source: string) {
   const ctx = makeRuntimeStoryFromSource(source);
@@ -43,6 +44,32 @@ describe("a block comment spanning lines after a type, with a call after its clo
   });
 });
 
+describe("a block comment spanning lines after a type, with code right after its close", () => {
+  test.each([
+    ["typed local", body(["local w: number --[[a", "b]]print(1)", "w = 5", "return w"])],
+    [
+      "return type",
+      `Value {f()}.\nfunction f(): number --[[a\n  b]]print(1)\n  return 5\nend\n`,
+    ],
+    ["optional type", body(["local w: number? --[[a", "b]]print(1)", "w = 5", "return w"])],
+    ["table type", body(["local w: {number} --[[a", "b]]print(1)", "w = {5}", "return w[1]"])],
+    ["union type", body(["local w: number | string --[[a", "b]]print(1)", "w = 5", "return w"])],
+    ["type declaration", body(["type A = number --[[a", "b]]print(1)", "local w: A = 5", "return w"])],
+    ["comment level", body(["local w: number --[==[a", "b]==]print(1)", "w = 5", "return w"])],
+    ["a parenthesized call", body(["local w: number --[[a", "b]](print)(1)", "w = 5", "return w"])],
+  ])("%s runs the call", (_name, source) => {
+    expect(run(source)).toEqual({ errors: [], output: "Value 15.\n" });
+  });
+
+  test.each([
+    ["a union member", body(["local w: number --[[a", "b]]|string", "w = 5", "return w"]), "Value 5.\n"],
+    ["a value", body(["local w: number --[[a", "b]]= 5", "return w"]), "Value 5.\n"],
+    ["another target", body(["local w: number --[[a", "b]], v = 5, 6", "return w + v"]), "Value 11.\n"],
+  ])("%s right after the close continues the declaration", (_name, source, output) => {
+    expect(run(source)).toEqual({ errors: [], output });
+  });
+});
+
 describe("a block comment spanning lines after a type, with the type or declaration going on", () => {
   test.each([
     ["a union member after the close", body(["local w: number --[[a", "b]] | string", "w = 5", "return w"]), "Value 5.\n"],
@@ -66,6 +93,9 @@ describe("a block comment spanning lines after an operator or comma", () => {
     ["type declaration's =", body(["type A = --[[c", "]] number", "local w: A = 5", "return w"]), "Value 5.\n"],
     ["annotation's :", body(["local w: --[[c", "]] number = 5", "return w"]), "Value 5.\n"],
     ["declaration's comma", body(["local a, --[[c", "]] b = 1, 4", "return a + b"]), "Value 5.\n"],
+    ["type declaration's =, with the type right after the close", body(["type A = --[[c", "]]number", "local w: A = 5", "return w"]), "Value 5.\n"],
+    ["annotation's :, with the type right after the close", body(["local w: --[[c", "]]number = 5", "return w"]), "Value 5.\n"],
+    ["declaration's comma, with the target right after the close", body(["local a, --[[c", "]]b = 1, 4", "return a + b"]), "Value 5.\n"],
   ])("%s keeps the type or target after the close", (_name, source, output) => {
     expect(run(source)).toEqual({ errors: [], output });
   });

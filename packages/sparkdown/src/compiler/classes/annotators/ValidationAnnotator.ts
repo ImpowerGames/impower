@@ -123,12 +123,19 @@ const MISSING_TYPE = "Expected type";
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
 const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
 // A block comment after a type that closes on a later line is its own rule
-// (`LuauTypeTrailingBlockComment`), which differs only in the whitespace it
-// leaves after its close.
-const LUAU_BLOCK_COMMENT_NAMES: SparkdownNodeName[] = [
+// (`LuauTypeTrailingBlockComment`), which differs in what it leaves after
+// its close: the whitespace before code, or, before code right after the
+// close, the closing brackets, which the body reads as
+// `LuauTypeTrailingBlockCommentClose`.
+const LUAU_BLOCK_COMMENT_OPENINGS: SparkdownNodeName[] = [
   "LuauBlockComment",
   "LuauTypeTrailingBlockComment",
 ];
+const LUAU_BLOCK_COMMENT_NAMES: SparkdownNodeName[] = [
+  ...LUAU_BLOCK_COMMENT_OPENINGS,
+  "LuauTypeTrailingBlockCommentClose",
+];
+const LUAU_BLOCK_COMMENT_OPENING = nodeNameSet(LUAU_BLOCK_COMMENT_OPENINGS);
 const LUAU_BLOCK_COMMENT = nodeNameSet(LUAU_BLOCK_COMMENT_NAMES);
 const LUAU_COMMENT = nodeNameSet([
   ...LUAU_BLOCK_COMMENT_NAMES,
@@ -486,7 +493,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return false;
     }
-    if (LUAU_BLOCK_COMMENT.has(name)) {
+    if (LUAU_BLOCK_COMMENT_OPENING.has(name)) {
       if (!childNamed(nodeRef.node, `${name}_end`)) {
         this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
         return true;
