@@ -33,6 +33,9 @@ import {
   isLineContinuation,
   isLineContinuationUsed,
   isTypeQualifierContinuation,
+  hasTypeUnionLineOwner,
+  leadingReturnTypeQualifier,
+  reportUnownedTypeUnionLine,
   markLineContinuationUsed,
   reportUntakenLineContinuation,
   splitOnCommas,
@@ -434,10 +437,30 @@ export function lowerStatements(
   const enclosingContinuation = ctx.lineContinuation;
   const enclosingUsed = ctx.usedLineContinuations;
   let child = parent.firstChild;
+  // A function body's first lines may qualify the name its return type ends
+  // with (`function f(): types` then `.Button`); they are part of the type.
+  const qualifier = leadingReturnTypeQualifier(parent);
+  if (qualifier) {
+    reportExtraTypeQualifiers(
+      qualifier.returnType,
+      continuationParts(qualifier.lines),
+      ctx,
+    );
+    const last = qualifier.lines[qualifier.lines.length - 1];
+    child = last?.nextSibling ?? null;
+  }
   while (child) {
     if (isLineContinuation(child)) {
       // A continuation line that no statement before it took.
       reportUntakenLineContinuation([child], ctx);
+      child = child.nextSibling;
+      continue;
+    }
+    if (child.name === "LuauTypeUnionLineContinuation") {
+      // A union member line after a comment line: types do not reach the
+      // runtime, and the declaration before it took its `= value`. One that
+      // continues no type is Luau's error.
+      if (!hasTypeUnionLineOwner(child)) reportUnownedTypeUnionLine(child, ctx);
       child = child.nextSibling;
       continue;
     }

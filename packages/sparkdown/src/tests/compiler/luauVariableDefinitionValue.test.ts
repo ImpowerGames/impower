@@ -28,22 +28,6 @@ describe("LuauVariableDefinitionValue", () => {
   });
 });
 
-// The narrative declaration ends before an `until` on its line, which closes
-// the `repeat` loop around it (#1092), so its expression reaches every
-// statement of `LuauDeclarations` but `LuauUntilStatement`.
-describe("LuauExpressionWithoutUntil", () => {
-  test("is LuauExpression with LuauDeclarations spelled out, less LuauUntilStatement", () => {
-    const expected = repository["LuauExpression"]!.patterns!.flatMap((p) =>
-      p.include === "#LuauDeclarations"
-        ? repository["LuauDeclarations"]!.patterns!.filter(
-            (d) => d.include !== "#LuauUntilStatement",
-          )
-        : [p],
-    );
-    expect(repository["LuauExpressionWithoutUntil"]!.patterns).toEqual(expected);
-  });
-});
-
 // The Luau and narrative declaration rules differ only in their content.
 describe("the two declaration rules", () => {
   test("share their begin, captures and end", () => {

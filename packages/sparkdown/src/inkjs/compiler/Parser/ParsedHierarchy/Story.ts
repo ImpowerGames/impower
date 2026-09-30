@@ -1181,10 +1181,18 @@ export class Story extends FlowBase {
       }
     }
 
+    // A parameter, or a local declared inside a flow, may shadow a constant,
+    // as it may shadow a knot or a builtin (see above): references inside
+    // its scope read the local. A local at the story's own top level shares
+    // the constant's scope, so the two still collide.
+    const shadowsConstant =
+      symbolType === SymbolType.Arg ||
+      (symbolType === SymbolType.Temp && ClosestFlowBase(obj) !== this);
+
     // Global variable collision
     const constDecl =
       (identifier?.name && this.constants.get(identifier.name)) || null;
-    if (constDecl && constDecl !== obj) {
+    if (constDecl && constDecl !== obj && !shadowsConstant) {
       this.NameConflictError(constDecl, constDecl.identifier!, identifier);
     }
 
@@ -1209,7 +1217,9 @@ export class Story extends FlowBase {
       // a DIFFERENT type (e.g. `style.image`) coexists with it (namespaced as a
       // type-scoped singleton; see FlowBase.AddNewVariableDeclaration). Only a
       // genuine plain-var collision should error here.
-      !varDecl.isDefineDeclaration
+      !varDecl.isDefineDeclaration &&
+      // A parameter or a local in a flow may shadow a constant (see above).
+      !(shadowsConstant && varDecl.isConstantDeclaration)
     ) {
       this.NameConflictError(obj, identifier, varDecl.identifier!);
     }
