@@ -24,11 +24,25 @@ describe("an assignment with no value", () => {
 
 // Luau: error_const_not_initialized
 // "Missing initializer in const declaration"
-// Diverges: `const c` is accepted silently, and the multi-name forms report
-// sparkdown's own rule, "A `const` takes one name and one value", instead.
-describe.skip("const without an initializer (diverges: see above)", () => {
+describe("const without an initializer", () => {
+  test("const c", () => {
+    expect(diagnoseInFunction("const c")).toContain(
+      "Missing initializer in const declaration",
+    );
+  });
+
+  test("const c at the top level", () => {
+    expect(diagnose("const c")).toContain(
+      "Missing initializer in const declaration",
+    );
+  });
+});
+
+// Luau: error_const_not_initialized (multi-name cases)
+// Diverges: the multi-name forms report sparkdown's own rule, "A `const`
+// takes one name and one value", instead.
+describe.skip("const with several names (diverges: see above)", () => {
   test.each([
-    ["const c", "const c"],
     ["const a, b = nil", "const a, b = nil"],
     ["const a, b, c = f(), 42", "const a, b, c = f(), 42"],
     ["const a, b, c = ..., 42", "const a, b, c = ..., 42"],
