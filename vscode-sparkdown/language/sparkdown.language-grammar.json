@@ -9324,11 +9324,150 @@
           "include": "#LuauSparkdownVariableDefinition"
         },
         {
-          "include": "#LuauExpression"
+          "include": "#LuauExpressionWithoutUntil"
         }
       ],
       "applyEndPatternLast": true,
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|(?=$|(?:[^\\S\\n\\r])*(?!(?:[-][-])))"
+    },
+    "LuauExpressionWithoutUntil": {
+      "patterns": [
+        {
+          "include": "#LuauComment"
+        },
+        {
+          "include": "#LuauTernaryExpression"
+        },
+        {
+          "include": "#LuauAlternatorBlocks"
+        },
+        {
+          "include": "#LuauDivertTargetLiteral"
+        },
+        {
+          "include": "#LuauShebang"
+        },
+        {
+          "include": "#LuauStyle"
+        },
+        {
+          "include": "#LuauLayout"
+        },
+        {
+          "include": "#LuauScreen"
+        },
+        {
+          "include": "#LuauComponent"
+        },
+        {
+          "include": "#LuauAnimation"
+        },
+        {
+          "include": "#LuauTheme"
+        },
+        {
+          "include": "#LuauMorph"
+        },
+        {
+          "include": "#LuauDefine"
+        },
+        {
+          "include": "#LuauFunctionDefinition"
+        },
+        {
+          "include": "#LuauVariableDefinition"
+        },
+        {
+          "include": "#LuauFunctionTypeDeclaration"
+        },
+        {
+          "include": "#LuauDataTypeDeclaration"
+        },
+        {
+          "include": "#LuauReturnStatement"
+        },
+        {
+          "include": "#LuauGotoStatement"
+        },
+        {
+          "include": "#LuauBreakStatement"
+        },
+        {
+          "include": "#LuauContinueStatement"
+        },
+        {
+          "include": "#LuauLabel"
+        },
+        {
+          "include": "#LuauAssignmentOperation"
+        },
+        {
+          "include": "#LuauRegexLiteral"
+        },
+        {
+          "include": "#LuauOperatorMissingOperand"
+        },
+        {
+          "include": "#LuauArithmeticOperation"
+        },
+        {
+          "include": "#LuauCompareOperation"
+        },
+        {
+          "include": "#LuauConcatOperation"
+        },
+        {
+          "include": "#LuauLengthOperation"
+        },
+        {
+          "include": "#LuauLogicalOperation"
+        },
+        {
+          "include": "#LuauTypeCastOperation"
+        },
+        {
+          "include": "#LuauParenthetical"
+        },
+        {
+          "include": "#LuauAttribute"
+        },
+        {
+          "include": "#LuauNumber"
+        },
+        {
+          "include": "#LuauString"
+        },
+        {
+          "include": "#LuauBoolean"
+        },
+        {
+          "include": "#LuauNil"
+        },
+        {
+          "include": "#LuauKeyword"
+        },
+        {
+          "include": "#LuauGenericsInstantiation"
+        },
+        {
+          "include": "#LuauNewExpression"
+        },
+        {
+          "include": "#LuauAccessPath"
+        },
+        {
+          "include": "#LuauTable"
+        },
+        {
+          "include": "#LuauChainedFunctionCall"
+        },
+        {
+          "include": "#LuauChainedPropertyAccess"
+        },
+        {
+          "include": "#LuauTypeAnnotationOperation"
+        }
+      ]
     },
     "LuauVariableDefinitionValue": {
       "patterns": [

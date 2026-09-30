@@ -16,6 +16,8 @@ import { findChildByName } from "../utils/alternatorArms";
 import { collectLineContinuation } from "../utils/lineContinuation";
 import { wrapInScope } from "../utils/wrapInScope";
 import { wrapInWeave } from "../utils/wrapInWeave";
+import { lineTextSpan, makeSource } from "../utils/validateDefineStructure";
+import { ErrorType } from "../../../inkjs/engine/Error";
 import { syntheticId } from "../utils/documentTag";
 import {
   extendStatement,
@@ -78,7 +80,10 @@ export function lowerLuauRepeatLoop(
   const bodyContent =
     findChildByName(nodeRef.node, `${nodeRef.node.name}_content`) ?? nodeRef.node;
   const untilNode = findNextUntilSibling(nodeRef.node);
-  if (!untilNode) return {};
+  if (!untilNode) {
+    reportUnpairedUntil(nodeRef.node, ctx);
+    return {};
+  }
   const condContent =
     findChildByName(untilNode, "LuauUntilStatement_content") ?? untilNode;
   // The lines that continue the condition (`until t` then `.done`); the
@@ -183,6 +188,38 @@ function findNextUntilSibling(repeatNode: SyntaxNode): SyntaxNode | null {
     n = n.nextSibling;
   }
   return null;
+}
+
+const UNPAIRED_UNTIL =
+  "This `repeat` loop could not be read up to its `until`, so it and the lines after it in its block are left out. Put `until` on its own line.";
+
+function countDescendants(node: SyntaxNode, names: ReadonlySet<string>): number {
+  let count = 0;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (names.has(child.name)) count++;
+    count += countDescendants(child, names);
+  }
+  return count;
+}
+
+const UNTIL = nodeNameSet(["LuauUntilStatement"]);
+const REPEAT_LOOPS = nodeNameSet(["LuauRepeatLoop", "LuauSparkdownRepeatLoop"]);
+
+// A loop with no `until` after it, but with more `until`s inside it than
+// nested loops to take them, had its `until` read into one of its statements
+// (#1092). `validateBlockEnds` leaves that loop alone, since its `until` is
+// not missing, so the loop that is dropped here says so.
+function reportUnpairedUntil(repeat: SyntaxNode, ctx: LowerContext): void {
+  if (countDescendants(repeat, UNTIL) <= countDescendants(repeat, REPEAT_LOOPS)) {
+    return;
+  }
+  const line = lineTextSpan(repeat.from, repeat.to, ctx);
+  if (!line) return;
+  ctx.diagnostics?.push({
+    message: UNPAIRED_UNTIL,
+    severity: ErrorType.Error,
+    source: makeSource(line.from, line.to, ctx),
+  });
 }
 
 // Sibling consumed by `lowerLuauRepeatLoop`. The dispatch case for

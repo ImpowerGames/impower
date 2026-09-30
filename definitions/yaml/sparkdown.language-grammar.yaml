@@ -6108,7 +6108,10 @@ repository:
   # inside it, where the lowerer reads it as a trailing statement. A second
   # declaration on the line is this rule too, ahead of the Luau declaration
   # `LuauExpression` reaches, so it also ends at the line
-  # (`store a = 1 local b = 2,`).
+  # (`store a = 1 local b = 2,`). An `until` after it on the line is the
+  # exception: it closes the `repeat` loop around the declaration
+  # (`repeat n = n + 1 local z = 1 until true`), so the declaration's content
+  # is `LuauExpressionWithoutUntil` and the declaration ends before it (#1092).
   LuauSparkdownVariableDefinition:
     begin: ({{WS}}*)({{LUAU_SCOPE_MODIFIERS}})\b(?!{{WS}}*function\b)({{WS}}*)
     beginCaptures:
@@ -6128,9 +6131,61 @@ repository:
       - { include: "#LuauVariableAssignment" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#LuauSparkdownVariableDefinition" }
-      - { include: "#LuauExpression" }
+      - { include: "#LuauExpressionWithoutUntil" }
     applyEndPatternLast: true
     end: (?={{BEAT}})|(?=$|{{WS}}*(?!{{LUAU_COMMENT_START}}))
+
+  # `LuauExpression` with `LuauDeclarations` spelled out in its place, less
+  # `LuauUntilStatement`, for the narrative declaration above. The order is
+  # `LuauExpression`'s; `luauVariableDefinitionValue.test.ts` holds the lists
+  # together.
+  LuauExpressionWithoutUntil:
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTernaryExpression" }
+      - { include: "#LuauAlternatorBlocks" }
+      - { include: "#LuauDivertTargetLiteral" }
+      - { include: "#LuauShebang" }
+      - { include: "#LuauStyle" }
+      - { include: "#LuauLayout" }
+      - { include: "#LuauScreen" }
+      - { include: "#LuauComponent" }
+      - { include: "#LuauAnimation" }
+      - { include: "#LuauTheme" }
+      - { include: "#LuauMorph" }
+      - { include: "#LuauDefine" }
+      - { include: "#LuauFunctionDefinition" }
+      - { include: "#LuauVariableDefinition" }
+      - { include: "#LuauFunctionTypeDeclaration" }
+      - { include: "#LuauDataTypeDeclaration" }
+      - { include: "#LuauReturnStatement" }
+      - { include: "#LuauGotoStatement" }
+      - { include: "#LuauBreakStatement" }
+      - { include: "#LuauContinueStatement" }
+      - { include: "#LuauLabel" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauRegexLiteral" }
+      - { include: "#LuauOperatorMissingOperand" }
+      - { include: "#LuauArithmeticOperation" }
+      - { include: "#LuauCompareOperation" }
+      - { include: "#LuauConcatOperation" }
+      - { include: "#LuauLengthOperation" }
+      - { include: "#LuauLogicalOperation" }
+      - { include: "#LuauTypeCastOperation" }
+      - { include: "#LuauParenthetical" }
+      - { include: "#LuauAttribute" }
+      - { include: "#LuauNumber" }
+      - { include: "#LuauString" }
+      - { include: "#LuauBoolean" }
+      - { include: "#LuauNil" }
+      - { include: "#LuauKeyword" }
+      - { include: "#LuauGenericsInstantiation" }
+      - { include: "#LuauNewExpression" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauTable" }
+      - { include: "#LuauChainedFunctionCall" }
+      - { include: "#LuauChainedPropertyAccess" }
+      - { include: "#LuauTypeAnnotationOperation" }
 
   # `LuauExpression` without the statements it reaches through
   # `LuauDeclarations` and without bare keywords (see
