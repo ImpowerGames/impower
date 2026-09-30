@@ -51,7 +51,7 @@ import {
 //                             (`color = white`) → a style prop on the parent.
 //
 // Nesting is reconstructed from the indentation column (the grammar emits flat
-// body-line siblings), mirroring lowerStructBody's `parseBlock`.
+// body-line siblings), as `readStructBodyEntries` nests the static struct.
 
 interface NodeLine {
   indent: number;
@@ -815,7 +815,7 @@ function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValu
 }
 
 /** Indent of line i's first child line, or null if i has no deeper-indented
- *  follower (leaf). Mirrors lowerStructBody.nextChildIndent. */
+ *  follower (leaf), as `readStructBodyEntries` decides it. */
 function nextChildIndent(
   lines: NodeLine[],
   i: number,

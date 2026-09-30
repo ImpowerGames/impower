@@ -1,0 +1,549 @@
+import { describe, expect, test } from "vitest";
+import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { compileSource } from "./compileSnapshot";
+
+// #1223: `style`, `animation`, `theme` and `morph` bodies accept brace blocks
+// (#1222). A brace body lowers to the struct its indented form lowers to, in
+// both struct readers: the style reader (`lowerStructBody`) and the typed
+// reader behind `animation`, `theme` and `morph` (`lowerStructBodyTyped`).
+
+type StructType = "style" | "animation" | "theme" | "morph";
+
+function structOf(source: string, type: StructType, name: string): any {
+  const entry = compileSource(source).find(
+    (e) => e.block?.context?.[type]?.[name],
+  );
+  return entry?.block?.context?.[type]?.[name];
+}
+
+const URI = "file:///main.sd";
+
+interface Found {
+  message: string;
+  severity: number | undefined;
+  line: number;
+  character: number;
+  text: string;
+}
+
+/** Every diagnostic a full compile reports, with the text it underlines. */
+function diagnosticsOf(text: string): Found[] {
+  const compiler = new SparkdownCompiler();
+  compiler.configure({
+    files: [
+      {
+        uri: URI,
+        type: "script",
+        name: "main",
+        ext: "sd",
+        text,
+        version: 1,
+        languageId: "sparkdown",
+      },
+    ],
+  } as any);
+  const program = compiler.compile({ textDocument: { uri: URI } }).program;
+  const lines = text.split("\n");
+  return (program.diagnostics?.[URI] ?? []).map((d) => {
+    const { start, end } = d.range;
+    return {
+      message: typeof d.message === "string" ? d.message : d.message.value,
+      severity: d.severity,
+      line: start.line,
+      character: start.character,
+      text:
+        start.line === end.line
+          ? lines[start.line]!.slice(start.character, end.character)
+          : lines[start.line]!.slice(start.character),
+    };
+  });
+}
+
+const errorsOf = (text: string) =>
+  diagnosticsOf(text).filter((d) => d.severity === 1);
+
+const STYLE_INDENTED = `style button with
+  cursor = pointer
+  &.secondary:
+    background-color = slate_50
+  > text.label:
+    text-weight = 600
+  @hovered, @pressed:
+    background-color = sky_50
+  @screen-size(sm):
+    width = 100%
+    > text:
+      font-size = 12px
+end
+`;
+
+const STYLE_BRACED = `style button with
+  cursor = pointer
+  &.secondary { background-color = slate_50 }
+  > text.label { text-weight = 600 }
+  @hovered, @pressed { background-color = sky_50 }
+  @screen-size(sm) {
+    width = 100%
+    > text { font-size = 12px }
+  }
+end
+`;
+
+const LIST_INDENTED = `animation pulse with
+  keyframes:
+    -
+      offset = 0
+      opacity = 0
+    -
+      offset = 0.5
+      opacity = 1
+      transform = "scale(1.1)"
+    -
+      offset = 1
+      opacity = 0
+  timing:
+    duration = 0.4
+    easing = ease-in-out
+    iterations = infinite
+end
+`;
+
+const LIST_BRACED = `animation pulse with
+  keyframes {
+    { offset = 0; opacity = 0 }
+    {
+      offset = 0.5
+      opacity = 1
+      transform = "scale(1.1)"
+    }
+    { offset = 1; opacity = 0 }
+  }
+  timing {
+    duration = 0.4
+    easing = ease-in-out
+    iterations = infinite
+  }
+end
+`;
+
+const POSITIONS_INDENTED = `animation fade with
+  keyframes:
+    from:
+      opacity = 0
+    40%:
+      opacity = 0.5
+    to:
+      opacity = 1
+  timing:
+    duration = 0.4
+    easing = ease-in-out
+end
+`;
+
+const POSITIONS_BRACED = `animation fade with
+  keyframes {
+    from { opacity = 0 }
+    40% { opacity = 0.5 }
+    to { opacity = 1 }
+  }
+  timing = {
+    duration = 0.4,
+    easing = ease-in-out,
+  }
+end
+`;
+
+const THEME_INDENTED = `theme dusk with
+  colors:
+    primary = red
+    surface = "#101010"
+  spacing:
+    sm = 4
+    md = 8
+  fonts:
+    - "Courier Prime"
+    - serif
+end
+`;
+
+const THEME_BRACED = `theme dusk with
+  colors {
+    primary = red
+    surface = "#101010"
+  }
+  spacing { sm = 4; md = 8 }
+  fonts { "Courier Prime"; serif }
+end
+`;
+
+describe("a brace body lowers to the struct of its indented form", () => {
+  test("a style with nested selectors, states and a breakpoint", () => {
+    const indented = structOf(STYLE_INDENTED, "style", "button");
+    expect(indented["&.secondary"]).toEqual({ "background-color": "slate_50" });
+    expect(structOf(STYLE_BRACED, "style", "button")).toEqual(indented);
+  });
+
+  test("an animation whose keyframes are a list, with timing", () => {
+    const indented = structOf(LIST_INDENTED, "animation", "pulse");
+    expect(indented.keyframes).toHaveLength(3);
+    expect(structOf(LIST_BRACED, "animation", "pulse")).toEqual(indented);
+  });
+
+  test("an animation whose keyframes use positions, with timing", () => {
+    const indented = structOf(POSITIONS_INDENTED, "animation", "fade");
+    expect(indented.keyframes.map((k: any) => k.offset)).toEqual([0, 0.4, 1]);
+    expect(structOf(POSITIONS_BRACED, "animation", "fade")).toEqual(indented);
+  });
+
+  test("a theme", () => {
+    const indented = structOf(THEME_INDENTED, "theme", "dusk");
+    expect(indented.fonts).toEqual(["Courier Prime", "serif"]);
+    expect(structOf(THEME_BRACED, "theme", "dusk")).toEqual(indented);
+  });
+
+  test("an indented header may hold brace lines", () => {
+    const mixed = `animation fade with
+  keyframes:
+    from { opacity = 0 }
+    40% { opacity = 0.5 }
+    to { opacity = 1 }
+  timing:
+    duration = 0.4
+    easing = ease-in-out
+end
+`;
+    expect(structOf(mixed, "animation", "fade")).toEqual(
+      structOf(POSITIONS_INDENTED, "animation", "fade"),
+    );
+  });
+
+  test("a brace body reports what its indented form reports", () => {
+    const messages = (text: string) =>
+      diagnosticsOf(text).map((d) => d.message);
+    for (const [indented, braced] of [
+      [STYLE_INDENTED, STYLE_BRACED],
+      [LIST_INDENTED, LIST_BRACED],
+      [POSITIONS_INDENTED, POSITIONS_BRACED],
+      [THEME_INDENTED, THEME_BRACED],
+    ] as const) {
+      expect(messages(braced), braced).toEqual(messages(indented));
+      expect(errorsOf(braced), braced).toEqual([]);
+    }
+  });
+});
+
+describe("block spellings", () => {
+  test("`header = { … }` lowers like `header { … }`", () => {
+    const withEquals = structOf(
+      `animation a with
+  timing = { duration = 1; delay = 2 }
+  keyframes = {
+    from = { opacity = 0 }
+    to = { opacity = 1 }
+  }
+end
+`,
+      "animation",
+      "a",
+    );
+    const without = structOf(
+      `animation a with
+  timing { duration = 1; delay = 2 }
+  keyframes {
+    from { opacity = 0 }
+    to { opacity = 1 }
+  }
+end
+`,
+      "animation",
+      "a",
+    );
+    expect(withEquals).toEqual(without);
+    expect(withEquals.timing).toEqual({ duration: 1, delay: 2 });
+    const style = (text: string) => structOf(text, "style", "s");
+    expect(style("style s with\n  &.a = { color = red }\nend\n")).toEqual(
+      style("style s with\n  &.a { color = red }\nend\n"),
+    );
+  });
+
+  test("a one-line block and a nested one-line block lower like their multi-line forms", () => {
+    const oneLine = structOf(
+      `morph m with
+  keyframes { { offset = 0; eyes { state = open; translate = 0 8px } }; { offset = 1; eyes { state = closed } } }
+  timing { duration = 1; delay = 0.5 }
+end
+`,
+      "morph",
+      "m",
+    );
+    const multiLine = structOf(
+      `morph m with
+  keyframes {
+    {
+      offset = 0
+      eyes {
+        state = open
+        translate = 0 8px
+      }
+    }
+    {
+      offset = 1
+      eyes {
+        state = closed
+      }
+    }
+  }
+  timing {
+    duration = 1
+    delay = 0.5
+  }
+end
+`,
+      "morph",
+      "m",
+    );
+    expect(oneLine).toEqual(multiLine);
+    expect(oneLine.keyframes[0]).toEqual({
+      offset: 0,
+      eyes: { state: "open", translate: "0 8px" },
+    });
+  });
+
+  test("an unquoted value ends at `;` and at the block's `}`, and a quoted value may hold `{`, `}` and `;`", () => {
+    const style = structOf(
+      `style s with
+  &.a { color = red; content = "a { b } ; c"; width = 10px }
+end
+`,
+      "style",
+      "s",
+    );
+    expect(style["&.a"]).toEqual({
+      color: "red",
+      content: "a { b } ; c",
+      width: "10px",
+    });
+    const animation = structOf(
+      `animation a with
+  timing { easing = "steps(2; x)"; duration = 3 }
+end
+`,
+      "animation",
+      "a",
+    );
+    expect(animation.timing).toEqual({ easing: "steps(2; x)", duration: 3 });
+  });
+
+  test("a `--` comment inside a block is not part of any value", () => {
+    const animation = structOf(
+      `animation a with
+  timing {
+    -- how long it plays
+    duration = 3 -- seconds
+    delay = 1; -- then this
+  }
+end
+`,
+      "animation",
+      "a",
+    );
+    expect(animation.timing).toEqual({ duration: 3, delay: 1 });
+  });
+});
+
+describe("commas", () => {
+  test("a comma at the end of a line and a comma directly before `}` are ignored", () => {
+    const text = `animation a with
+  timing {
+    duration = 1,
+    delay = 2,
+  }
+  keyframes { from { opacity = 0, }; to { opacity = 1 }, }
+end
+`;
+    const struct = structOf(text, "animation", "a");
+    expect(struct.timing).toEqual({ duration: 1, delay: 2 });
+    expect(struct.keyframes).toEqual([
+      { opacity: 0, offset: 0 },
+      { opacity: 1, offset: 1 },
+    ]);
+    expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a comma between two properties on one line is one error that names `;`", () => {
+    const text = `animation a with
+  timing { duration = 1, delay = 2 }
+end
+`;
+    const errors = errorsOf(text);
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ line: 1, text: "," });
+    expect(errors[0]!.message).toContain("`;`");
+    // Both entries are still read.
+    expect(structOf(text, "animation", "a").timing).toEqual({
+      duration: 1,
+      delay: 2,
+    });
+  });
+
+  test("a comma between two list values on one line is one error that names `;`", () => {
+    const text = `morph m with
+  method = match
+  keyframes {
+    from { eyes { state = open } }
+    to { eyes { state = closed } }
+  }
+  clips {
+    { between { a }; targets { b, c } }
+  }
+end
+`;
+    const errors = errorsOf(text).filter((d) => d.message.includes("`;`"));
+    expect(errors).toHaveLength(1);
+    expect(errors[0]).toMatchObject({ line: 7, text: "," });
+    expect(structOf(text, "morph", "m").clips).toEqual([
+      { between: ["a"], targets: ["b", "c"] },
+    ]);
+  });
+
+  test("a comma inside a property's value stays part of the value", () => {
+    const text = `style s with
+  &.a {
+    transition-property = background-color, opacity
+    font-family = "Courier Prime", serif
+  }
+end
+`;
+    expect(structOf(text, "style", "s")["&.a"]).toEqual({
+      "transition-property": "background-color, opacity",
+      "font-family": '"Courier Prime", serif',
+    });
+    expect(errorsOf(text)).toEqual([]);
+  });
+});
+
+describe("unbalanced braces", () => {
+  test("an unclosed `{` is an error on that brace, and the next declaration compiles with its own content", () => {
+    const text = `animation broken with
+  keyframes {
+    from { opacity = 0 }
+    to { opacity = 1
+  }
+end
+
+animation after with
+  timing {
+    duration = 2
+  }
+end
+`;
+    const errors = errorsOf(text);
+    const unclosed = errors.filter((d) => d.message.includes("closing `}`"));
+    expect(unclosed).toHaveLength(1);
+    expect(unclosed[0]).toMatchObject({ line: 1, character: 12, text: "{" });
+    expect(structOf(text, "animation", "after")).toEqual({
+      $type: "animation",
+      $name: "after",
+      timing: { duration: 2 },
+    });
+  });
+
+  test("an unclosed `{` on the last block ends at the declaration's `end`", () => {
+    const text = `animation broken with
+  timing {
+    duration = 1
+end
+
+animation after with
+  timing { duration = 2 }
+end
+`;
+    const unclosed = errorsOf(text).filter((d) =>
+      d.message.includes("closing `}`"),
+    );
+    expect(unclosed).toMatchObject([{ line: 1, text: "{" }]);
+    expect(structOf(text, "animation", "broken").timing).toEqual({
+      duration: 1,
+    });
+    expect(structOf(text, "animation", "after").timing).toEqual({
+      duration: 2,
+    });
+  });
+
+  test("a stray `}` is invalid syntax", () => {
+    const text = `animation a with
+  timing { duration = 1 }
+  }
+end
+`;
+    const errors = errorsOf(text);
+    expect(errors).toMatchObject([
+      { message: "Invalid syntax", line: 2, text: "}" },
+    ]);
+    expect(structOf(text, "animation", "a").timing).toEqual({ duration: 1 });
+  });
+});
+
+describe("indentation inside a block", () => {
+  const BODY = `morph m with
+  method = match
+  keyframes {
+    from {
+      eyes {
+        state = open
+      }
+    }
+    to { eyes { state = closed } }
+  }
+  clips {
+    {
+      between { a }
+      targets {
+        b
+        c
+      }
+    }
+  }
+end
+`;
+
+  test("changing any line's indentation, or removing it, leaves the struct unchanged", () => {
+    const expected = structOf(BODY, "morph", "m");
+    expect(expected.clips).toEqual([{ between: ["a"], targets: ["b", "c"] }]);
+    const lines = BODY.split("\n");
+    // Every line after a block's `{` up to its `}`.
+    const isInside = (index: number) =>
+      index >= 3 && index <= 18 && index !== 10;
+    const inside = lines
+      .map((line, index) => ({ line, index }))
+      .filter(({ index }) => isInside(index));
+    for (const { line, index } of inside) {
+      for (const indent of ["", " ", "\t", "          "]) {
+        const changed = [...lines];
+        changed[index] = indent + line.trimStart();
+        const source = changed.join("\n");
+        expect(structOf(source, "morph", "m"), source).toEqual(expected);
+      }
+    }
+    const flat = lines
+      .map((line, index) => (isInside(index) ? line.trimStart() : line))
+      .join("\n");
+    expect(structOf(flat, "morph", "m")).toEqual(expected);
+    expect(diagnosticsOf(flat).filter((d) => d.severity === 1)).toEqual([]);
+  });
+
+  test("an indented-form `key:` header or `-` item inside a block is invalid syntax", () => {
+    const text = `theme t with
+  colors {
+    accents:
+      - red
+  }
+end
+`;
+    const errors = errorsOf(text);
+    expect(errors).toMatchObject([
+      { message: "Invalid syntax", line: 2, text: "accents:" },
+      { message: "Invalid syntax", line: 3, text: "-" },
+    ]);
+  });
+});

@@ -307,6 +307,33 @@ variables:
   # Operators consumed by the restored struct-body per-line wrapper rules.
   ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
   ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
+  # Brace blocks in struct bodies (`LuauStructBlockLine`). A quoted run holds
+  # no `"` of its own, so it can only close at its first unescaped quote or run
+  # to the end of the line, and the value patterns below cannot backtrack into
+  # it to end a value at a `;` or `}` it contains.
+  STRUCT_BLOCK_QUOTED: (?:"(?:\\.|[^"\\\n])*(?:"|$))
+  # A block header: a key, a selector or a keyframe position. It holds no
+  # brace, `;` or quote, and does not start with `=` or `,`.
+  STRUCT_BLOCK_HEADER: (?:[^\s{};"=,][^{};"\n]*?)
+  # Between a header and its `{`: whitespace and the optional `=`.
+  STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
+  # A body line whose first token opens a block or a list entry, or is a `}`.
+  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|[}]))
+  # An unclosed block ends where the declaration's `end` starts a line.
+  STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
+  # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
+  # comment. It is ignored.
+  STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))
+  # A comma followed by another entry on the same line (`, b = 2`, `, b {`).
+  STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*{{STYLE_PROPERTY_NAME}}{{WS}}*[={])
+  # An unquoted property value ends at the end of its line, a `;`, a brace, a
+  # comma that ends the entry or precedes another one, or a `--` comment after
+  # whitespace. Any other comma stays part of the value.
+  STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}})|{{WS}}+{{LUAU_COMMENT_START}})
+  STRUCT_BLOCK_VALUE: (?:(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))
+  # A bare list value also ends at any comma.
+  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},])|{{WS}}+{{LUAU_COMMENT_START}})
+  STRUCT_BLOCK_ITEM: (?:(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?={{STRUCT_BLOCK_ITEM_END}}))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
@@ -3655,7 +3682,9 @@ repository:
       # blocks, `> selector:` rules, `@breakpoint:` directives, bare
       # markers). Captured opaquely line-by-line — the lowerer reads the
       # raw text and parses the indentation structure itself. (See
-      # lowerLuauStyle / lowerLuauUI.)
+      # lowerLuauStyle / lowerLuauUI.) A line that opens a brace block is
+      # read as a `LuauStructBlockLine` instead.
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3695,6 +3724,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3730,6 +3760,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3767,6 +3798,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -5402,6 +5434,198 @@ repository:
     tag: content
     name: meta.struct.body.fallback.luau
     match: (.+)$
+
+  # ----------------------------------------------------------------------------
+  # Brace blocks in `style`, `animation`, `theme` and `morph` bodies (#1222).
+  #
+  # A block is `header { … }`, with an optional `=` before the `{`. A list is a
+  # block whose entries are bare: `{ … }` for an object, a value for a scalar.
+  # Entries end at a newline, a `;` or the block's `}`, so indentation means
+  # nothing inside a block. The indented forms (`key:` headers, `-` items) are
+  # still read line by line outside blocks (`LuauStructBodyLine`) and are
+  # invalid inside one.
+  #
+  # A body line whose first token opens a block or a list entry, or is a stray
+  # `}`, is a `LuauStructBlockLine`. It ends at the end of the line its last
+  # block closes on, so entries after a block on that line are its entries too.
+  # A block opens on its header's line, so a line that holds no `{` before its
+  # first quote or `;` stays an indented-form line.
+  # ----------------------------------------------------------------------------
+  LuauStructBlockLine:
+    begin: ^(?={{STRUCT_BLOCK_LINE_START}})
+    patterns:
+      - { include: "#LuauStructStrayBlockClose" }
+      - { include: "#LuauStructBlockEntries" }
+    end: $|(?={{STRUCT_BLOCK_BAIL}})
+
+  # Everything an entry position inside a block (or after one on a block line)
+  # can hold. Every character is tiled: a bare list value takes anything the
+  # rules before it leave (GRAMMAR.md §17).
+  LuauStructBlockEntries:
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#Whitespace" }
+      - { include: "#Newline" }
+      - { include: "#LuauStructBlockSeparator" }
+      - { include: "#LuauStructBlockTrailingComma" }
+      - { include: "#LuauStructBlockEntryComma" }
+      - { include: "#LuauStructBlock" }
+      - { include: "#LuauStructListBlock" }
+      - { include: "#LuauStructBlockProperty" }
+      - { include: "#LuauStructBlockIndentedHeader" }
+      - { include: "#LuauStructBlockItemMark" }
+      - { include: "#LuauStructListValue" }
+
+  # `header { … }` / `header = { … }`. The `{ … }` is its own bracket rule, so
+  # bracket matching pairs the braces alone.
+  LuauStructBlock:
+    begin: ({{STRUCT_BLOCK_HEADER}})({{STRUCT_BLOCK_ASSIGN}})(?=[{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockKey" }
+      2:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+          - { include: "#Whitespace" }
+    patterns:
+      - { include: "#LuauStructBlockBody" }
+    end: (?<=[}])|(?={{STRUCT_BLOCK_BAIL}})
+
+  # A block's header: its key, selector or keyframe position. The parts are
+  # highlighted by the rules an indented `key:` header uses, so a keyframe
+  # position (`from`, `40%`) is a `LuauKeyframeSelector` here too. A character
+  # none of them reads is a `LuauStructBlockKeyChar`, so the key always spans
+  # the whole header and both engines read every part of it (GRAMMAR.md §17).
+  LuauStructBlockKey:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauElementAttribute" }
+          - { include: "#LuauKeyframeSelector" }
+          - { include: "#SelectorPropertyNamePart" }
+          - { include: "#ComponentName" }
+          - { include: "#PropertyName" }
+          - { include: "#LuauStructBlockKeyChar" }
+
+  LuauStructBlockKeyChar:
+    match: (.)
+
+  # The braces of a `header { … }` block and their entries. Without its `}` the
+  # block ends where the declaration's `end` starts a line, or at the next
+  # `scene` / `branch`.
+  LuauStructBlockBody:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauStructBlockEntries" }
+    end: ([}])|(?={{STRUCT_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
+
+  # A bare `{ … }` entry: one object of the enclosing list.
+  LuauStructListBlock:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauStructBlockEntries" }
+    end: ([}])|(?={{STRUCT_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
+
+  LuauStructBlockOpen:
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
+    match: ([{])
+
+  LuauStructBlockClose:
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
+    match: ([}])
+
+  # `name = value` inside a block. The key and value are read by the same rules
+  # as an indented `name = value` line; the value ends at the line's end, a
+  # `;` or the block's `}` (`STRUCT_BLOCK_VALUE`).
+  LuauStructBlockProperty:
+    match: (\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})({{STRUCT_BLOCK_VALUE}}?)
+    captures:
+      1:
+        patterns:
+          - { include: "#BuiltinComponentName" }
+          - { include: "#StylingDeclarationScalarPropertyName" }
+      2:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      3:
+        patterns:
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
+          - { include: "#StylingValue" }
+          - { include: "#UnquotedStringFieldValue" }
+
+  # A bare value entry: one scalar of the enclosing list.
+  LuauStructListValue:
+    match: ({{STRUCT_BLOCK_ITEM}})
+    captures:
+      1:
+        patterns:
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
+          - { include: "#StylingValue" }
+          - { include: "#UnquotedStringFieldValue" }
+
+  LuauStructBlockSeparator:
+    tag: punctuation
+    name: punctuation.separator.semicolon.sd
+    match: ([;])
+
+  # A comma that ends an entry is ignored, so a block written like a multi-line
+  # `define` table reads.
+  LuauStructBlockTrailingComma:
+    tag: punctuation
+    name: punctuation.separator.comma.sd
+    match: ([,])(?={{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))
+
+  # A comma between two entries on one line. Entries are separated by `;`.
+  LuauStructBlockEntryComma:
+    tag: invalid
+    name: invalid.illegal.struct-entry-comma.sd
+    match: ([,])
+
+  # An indented-form `key:` header inside a block.
+  LuauStructBlockIndentedHeader:
+    tag: invalid
+    name: invalid.illegal.struct-block-header.sd
+    match: ([^{};"\n]+?{{WS}}*[:])(?={{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))
+
+  # An indented-form `-` item mark inside a block.
+  LuauStructBlockItemMark:
+    tag: invalid
+    name: invalid.illegal.struct-block-item.sd
+    match: ([-])(?={{WS}}|$)
+
+  # A `}` that closes no block.
+  LuauStructStrayBlockClose:
+    tag: invalid
+    name: invalid.illegal.struct-block-close.sd
+    match: ([}])
 
   # ----------------------------------------------------------------------------
   # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a

@@ -1,0 +1,10 @@
+theme t with
+  colors { primary = red, secondary = blue }
+  names { a, b }
+  old {
+    accents:
+      - red
+  }
+  }
+  x { y = 1 } z = 2
+end

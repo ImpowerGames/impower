@@ -36,12 +36,12 @@ const describeValue = (value: unknown): string =>
 
 // Where a field that is written in the wrong place belongs.
 const HOME: Record<string, string> = {};
-for (const f of MORPH_TIMING_FIELDS) HOME[f] = "in `timing:`";
+for (const f of MORPH_TIMING_FIELDS) HOME[f] = "in `timing { … }`";
 for (const f of MORPH_POLICY_FIELDS)
-  HOME[f] = "at the morph root or under a label in `layers:`";
+  HOME[f] = "at the morph root or under a label in `layers { … }`";
 for (const f of MORPH_CONTAINER_FIELDS)
-  HOME[f] = "in a keyframe container such as `eyes:`";
-for (const f of MORPH_CLIP_FIELDS) HOME[f] = "in a `clips:` entry";
+  HOME[f] = "in a keyframe container such as `eyes { … }`";
+for (const f of MORPH_CLIP_FIELDS) HOME[f] = "in a `clips { … }` entry";
 for (const f of ["keyframes", "layers", "clips"]) HOME[f] = "at the morph root";
 HOME["timing"] = "at the morph root";
 HOME["offset"] = "directly in a keyframe";
@@ -208,14 +208,14 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (!isRecord(layers)) {
       push(
         valueSpan(own, "layers"),
-        "`layers` holds labels, each with its own `blend`, `method` or `fallback`: `layers:` then `creases:` then `fallback = scale`.",
+        "`layers` holds labels, each with its own `blend`, `method` or `fallback`: `layers { creases { fallback = scale } }`.",
       );
     } else {
       for (const [label, policy] of Object.entries(layers)) {
         if (!isRecord(policy)) {
           push(
             src(layers)?.lines.get(label),
-            `\`${label}\` under \`layers:\` is a label: write \`${label}:\` and put its \`blend\`, \`method\` or \`fallback\` beneath it.`,
+            `\`${label}\` in \`layers { … }\` is a label: write \`${label} { … }\` with its \`blend\`, \`method\` or \`fallback\` inside.`,
           );
           continue;
         }
@@ -229,7 +229,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
   const timing = own["timing"];
   if (timing !== undefined) {
     if (!isRecord(timing)) {
-      push(valueSpan(own, "timing"), "`timing` is a container: `timing:` with fields such as `duration = 0.25` beneath it.");
+      push(valueSpan(own, "timing"), "`timing` is a block of fields: `timing { duration = 0.25 }`.");
     } else {
       checkFields(timing, "timing");
       checkTiming(timing, (field, message) =>
@@ -245,8 +245,8 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
       push(
         keySpan(own, "keyframes"),
         isRecord(keyframes)
-          ? "Write each keyframe as a position key (`from:`, `50%:`, `to:`) or as a `-` item with an `offset`."
-          : "`keyframes` is a list of poses: `keyframes:` then position keys (`from:`, `50%:`, `to:`) or `-` items.",
+          ? "Write each keyframe as a position (`from { … }`, `50% { … }`, `to { … }`) or as a `{ … }` entry with an `offset`."
+          : "`keyframes` is a list of poses: `keyframes { … }` holding positions (`from { … }`, `50% { … }`, `to { … }`) or `{ … }` entries.",
       );
     } else {
       let previous: { offset: number; span?: SourceSpan } | null = null;
@@ -255,7 +255,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         if (!isRecord(keyframe)) {
           push(
             itemLine,
-            "A keyframe is a pose, not a single value: write containers such as `eyes:` with `state = closed` beneath the keyframe.",
+            "A keyframe is a pose, not a single value: write containers such as `eyes { state = closed }` inside the keyframe.",
           );
           return;
         }
@@ -288,12 +288,12 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
             ) {
               push(
                 keySpan(keyframe, key),
-                `\`${key}\` belongs in a container naming the group or layer it poses: \`eyes:\` then \`${key} = …\`.`,
+                `\`${key}\` belongs in a container naming the group or layer it poses: \`eyes { ${key} = … }\`.`,
               );
             } else {
               push(
                 line,
-                `\`${key} = …\` is not a pose. Write \`${key}:\` and put \`state = …\` or a layer property beneath it.`,
+                `\`${key} = …\` is not a pose. Write \`${key} { … }\` with \`state = …\` or a layer property inside.`,
               );
             }
             continue;
@@ -306,7 +306,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
           if (!hasState && !hasProperty) {
             push(
               containerLine,
-              `\`${key}:\` poses nothing: add \`state = …\` or a layer property such as \`translate = 0 8px\`.`,
+              `\`${key} { … }\` poses nothing: add \`state = …\` or a layer property such as \`translate = 0 8px\`.`,
             );
           }
           if (hasState) {
@@ -327,7 +327,7 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         if (poses === 0) {
           push(
             itemLine ?? lineSpan(keyframe),
-            "This keyframe poses nothing: add a container such as `eyes:` with `state = …` beneath it.",
+            "This keyframe poses nothing: add a container such as `eyes { state = … }`.",
           );
         }
       });
@@ -340,13 +340,13 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
     if (!Array.isArray(clips)) {
       push(
         keySpan(own, "clips"),
-        "`clips` is a list: each `-` entry has `between:` and `targets:` label lists.",
+        "`clips` is a list: each `{ … }` entry has `between { … }` and `targets { … }` label lists.",
       );
     } else {
       clips.forEach((clip, index) => {
         const itemLine = src(clips)?.items[index];
         if (!isRecord(clip)) {
-          push(itemLine, "A clip entry needs `between:` and `targets:` label lists beneath its `-`.");
+          push(itemLine, "A clip entry is a `{ … }` entry with `between { … }` and `targets { … }` label lists.");
           return;
         }
         checkFields(clip, "clip");
@@ -354,11 +354,11 @@ export function validateMorphDeclaration(decl: MorphDeclaration): MorphIssue[] {
         for (const field of MORPH_CLIP_FIELDS) {
           const list = clip[field];
           if (list === undefined) {
-            push(itemLine ?? lineSpan(clip), `This clip entry needs \`${field}:\` with at least one layer label.`);
+            push(itemLine ?? lineSpan(clip), `This clip entry needs \`${field} { … }\` with at least one layer label.`);
             continue;
           }
           if (!Array.isArray(list) || list.length === 0) {
-            push(keySpan(clip, field), `\`${field}\` is a list of layer labels: \`${field}:\` then \`- eyelash-left\`.`);
+            push(keySpan(clip, field), `\`${field}\` is a list of layer labels: \`${field} { eyelash-left }\`.`);
             continue;
           }
           lists[field] = [];
@@ -490,7 +490,7 @@ export function morphValueProblems(
   return problems;
 }
 
-/** Check the timing values written in one `timing:` container. */
+/** Check the timing values written in one `timing` container. */
 function checkTiming(
   timing: Record<string, unknown>,
   report: (field: string, message: string) => void,

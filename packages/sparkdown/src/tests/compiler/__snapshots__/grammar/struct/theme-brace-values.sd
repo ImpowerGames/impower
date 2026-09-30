@@ -1,0 +1,9 @@
+theme dusk with
+  colors {
+    primary = red
+    surface = "#101010"
+    label = "a { b } ; c"
+  }
+  fonts { "Courier Prime"; serif }
+  transitions { transition-property = background-color, opacity }
+end
