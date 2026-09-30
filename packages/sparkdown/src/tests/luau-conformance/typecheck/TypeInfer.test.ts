@@ -1353,7 +1353,6 @@ end
     // TypeInfer.test.cpp:1734 TEST_CASE_FIXTURE(Fixture, "leading_bar_no_type")
     name: "leading_bar_no_type",
     fixture: "Fixture",
-    malformed: "`|` has no type after it",
     source: `
         type Bar = |
     `,
@@ -1367,7 +1366,6 @@ end
     // TypeInfer.test.cpp:1745 TEST_CASE_FIXTURE(Fixture, "leading_ampersand_no_type")
     name: "leading_ampersand_no_type",
     fixture: "Fixture",
-    malformed: "`&` has no type after it",
     source: `
         type Amp = &
     `,
