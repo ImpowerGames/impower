@@ -1,4 +1,4 @@
-// The differential run of the binary program (#692, #694, #695). It compiles
+// The differential run of the binary program (#692, #694, #695, #698). It compiles
 // shared fixtures once per engine and compares what they show under the
 // parity contract of #692: each beat's text, tags and display tables, and the
 // errors and warnings with their source lines. A program that falls back runs
@@ -8,8 +8,9 @@
 //
 // It also runs randomized incremental edits on the statement chunks, as
 // `incrementalEquivalence` and `incrementalCumulativeEquivalence` run them on
-// the current compile, over two screenplays made of the constructs the writer
-// emits, one of display lines and one of logic: after each edit, the chunks
+// the current compile, over three screenplays made of the constructs the
+// writer emits, one of display lines, one of logic and one of functions: after
+// each edit, the chunks
 // compared by content, the flows and the diagnostics equal a cold compile's,
 // and every chunk of a statement the edit did not touch is the chunk it was
 // before.
@@ -28,6 +29,10 @@ import { ObjectExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Ex
 import type { ProgramEmitter } from "../../program/ProgramEmitter";
 import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
+import {
+  FUNCTION_INSERTS,
+  functionScreenplay,
+} from "../program/functionScreenplay";
 import { LOGIC_INSERTS, logicScreenplay } from "../program/logicScreenplay";
 import {
   compileScript,
@@ -212,6 +217,7 @@ const keysOf = (c: SparkdownCompiler) => uniqueKeys(programStatements(c));
 const SCREENPLAYS = [
   { name: "the display screenplay", text: displayScreenplay, inserts: INSERTS },
   { name: "the logic screenplay", text: () => logicScreenplay(3), inserts: LOGIC_INSERTS },
+  { name: "the function screenplay", text: () => functionScreenplay(3), inserts: FUNCTION_INSERTS },
 ];
 
 describe("the differential run", () => {
@@ -241,7 +247,7 @@ describe("the differential run", () => {
   it("shows the beats fixture and the screenplays as the current engine does", () => {
     const { files } = buildBeatsFixture({ lines: 300 });
     const beats = files.get("main.sd")!.replace("include scripts/characters\n", "");
-    for (const text of [beats, displayScreenplay(), logicScreenplay(3)]) {
+    for (const text of [beats, displayScreenplay(), logicScreenplay(3), functionScreenplay(3)]) {
       const quiet = silence();
       try {
         const scenes = [...text.matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);

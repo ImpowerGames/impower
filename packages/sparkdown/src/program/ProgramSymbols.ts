@@ -80,6 +80,16 @@ export const internString = (table: ProgramTable, text: string): number => {
 };
 
 export const internNumber = (table: ProgramTable, value: number): number => {
+  // A map key reads negative zero as zero, but it prints as `-0`: it is
+  // found by its sign.
+  if (Object.is(value, -0)) {
+    let zero = table.numbers.findIndex((n) => Object.is(n, -0));
+    if (zero < 0) {
+      zero = table.numbers.length;
+      table.numbers.push(value);
+    }
+    return zero;
+  }
   let id = table.numberIds.get(value);
   if (id === undefined) {
     id = table.numbers.length;

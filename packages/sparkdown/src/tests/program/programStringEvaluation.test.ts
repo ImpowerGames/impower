@@ -15,14 +15,17 @@ import { Story } from "../../inkjs/engine/Story";
 import { StringValue } from "../../inkjs/engine/Value";
 import { ProgramStoryState } from "../../program/ProgramStoryState";
 
-const newState = () =>
-  new ProgramStoryState(
+const newState = () => {
+  const story = new Story(new Container(), null, null);
+  story.ResetState(false);
+  return new ProgramStoryState(
     null as never,
     null as never,
     (text) => text,
     () => {},
-    new Story(new Container(), null, null).state.callStack,
+    story.state.callStack,
   );
+};
 
 /** Counts the entries of `state`'s output stream that are read. */
 const countReads = (state: ProgramStoryState) => {

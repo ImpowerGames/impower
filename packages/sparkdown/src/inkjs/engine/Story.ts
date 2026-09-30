@@ -770,6 +770,8 @@ export function callVariableTarget(
         iterState as AbstractValue,
         iterCtrl as AbstractValue,
       );
+      // A step moves the iterator's cursor, which it keeps in its table.
+      story.state.variablesState.WriteBarrier(varContents);
       story.state.PushEvaluationStack(result);
       return null;
     }
@@ -1027,6 +1029,8 @@ export function callValueAsFunction(
         iterState as AbstractValue,
         iterCtrl as AbstractValue,
       );
+      // A step moves the iterator's cursor, which it keeps in its table.
+      story.state.variablesState.WriteBarrier(callTarget);
       story.state.PushEvaluationStack(result);
       return;
     }
@@ -1225,6 +1229,7 @@ function newindexThroughMetatable(
         throw new StoryException("attempt to modify a readonly table");
       }
       base.value.set(keyStr, newVal);
+      story.state.variablesState.WriteBarrier(base);
       return true;
     }
     return false;
@@ -1240,6 +1245,7 @@ function newindexThroughMetatable(
         throw new StoryException("attempt to modify a readonly table");
       }
       base.value!.set(keyStr, newVal);
+      story.state.variablesState.WriteBarrier(base);
       return true;
     }
     return false;
@@ -1481,6 +1487,7 @@ export function storeIndex(
       } else {
         storeBase.value.set(keyStr, val);
       }
+      story.state.variablesState.WriteBarrier(storeBase);
       // Reactive dep tracking: an in-place table mutation, keyed by the
       // table's backing-Map identity (a binding that read this table
       // re-runs). Cheap no-op when reactive tracking is disabled.
@@ -1774,7 +1781,18 @@ export function callNativeFunction(
   if (mmResult !== null) {
     return mmResult;
   }
-  return func.Call(funcParams);
+  // `#` leaves the boundary it finds on the table's map as a hint for the
+  // next read, which is part of what the table is.
+  const table =
+    fname === "LEN" && funcParams[0] instanceof ObjectValue
+      ? funcParams[0]
+      : null;
+  const hint = table ? (table.value as any)?.__luauBoundary : undefined;
+  const result = func.Call(funcParams);
+  if (table && (table.value as any)?.__luauBoundary !== hint) {
+    story.state.variablesState.WriteBarrier(table);
+  }
+  return result;
 }
 
 /** Pops `n` values and pushes them as one multiple value, as `PackTuple`

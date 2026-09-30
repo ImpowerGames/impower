@@ -1,6 +1,9 @@
-// The statements of a compiler's main script that have chunks, top-level and
-// inside the bodies of block statements, for the tests that check which
-// statements an edit left with their chunks.
+// The statements of a compiler's main script that have chunks in the chunk
+// store's current root, top-level and inside the bodies of block statements,
+// for the tests that check which statements an edit left with their chunks.
+// A statement the store emitted a chunk for in an earlier root, which the
+// current program no longer runs (a function a broken `define` above it
+// swallows), has none.
 import "../../inkjs/engine/Container";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
@@ -10,7 +13,7 @@ import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { compilerNamedTexts, resolutionsOf } from "../../program/ChunkStore";
 import { readsKey } from "../../program/programFlows";
-import { MAIN_URI } from "./programHarness";
+import { MAIN_URI, rootChunks } from "./programHarness";
 
 export interface ProgramStatement {
   /** The statement's node name, the column it starts at and its text. */
@@ -84,6 +87,7 @@ export function untouchedChunks(
 
 export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
   const store = c.chunkStore;
+  const held = new Set(store?.current ? rootChunks(store.current) : []);
   const document = c.documents.get(MAIN_URI)!;
   const text = document.getText();
   const out: ProgramStatement[] = [];
@@ -92,7 +96,7 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
     const to = base + shape.to;
     const flowChunk = store?.chunkOf(key);
     const chunk = flowChunk ?? store?.declarationChunkOf(key);
-    if (chunk) {
+    if (chunk && held.has(chunk)) {
       const syntax = `${shape.node} ${document.positionAt(from).character} ${text.slice(from, to)}`;
       const bodies = new Set(
         shape.bodies.flatMap((body) => body.statements.flatMap((s) => s.objects)),

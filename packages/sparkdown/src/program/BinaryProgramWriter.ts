@@ -4,6 +4,7 @@ import "../inkjs/engine/Container";
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
 import {
   bodyOfBlock,
+  functionShapeOf,
   loopOf,
   type LoopShape,
 } from "../compiler/lower/utils/statementShape";
@@ -13,6 +14,7 @@ import { Conditional } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditiona
 import type { ConditionalSingleBranch } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { CallValueExpression } from "../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
+import type { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -21,6 +23,7 @@ import type { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarch
 import { Wrap } from "../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
 import { displayTableFlag } from "./displayCallFlags";
 import { hash64 } from "./hash64";
+import { bodyStatements } from "./programFlows";
 import type {
   EmittedObject,
   ProgramEmitter,
@@ -411,6 +414,43 @@ export class BinaryProgramWriter implements ProgramEmitter {
     return symbol;
   }
 
+  emitFunctionInPlace(fn: object): void {
+    const flow = fn as FlowBase;
+    const shape = functionShapeOf.get(flow);
+    if (!shape) {
+      this.unsupported(flow.typeName);
+    }
+    this.emitParameters(
+      (flow.args ?? []).map((arg) => ({
+        name: arg.identifier?.name ?? "",
+        vararg: !!arg.isVararg,
+      })),
+      shape.hoisted,
+    );
+    this.enterBlock(shape.body);
+  }
+
+  /** Binds a function's parameters from the evaluation stack, last first as
+   *  the arguments were pushed, and declares the locals the lowering hoisted
+   *  to the top of its body. */
+  protected emitParameters(
+    params: FunctionInput["params"],
+    hoisted: readonly ParsedObject[],
+  ): void {
+    for (let p = params.length - 1; p >= 0; p -= 1) {
+      const param = params[p]!;
+      this.emit(
+        Op.SetVar,
+        this.variable(param.name),
+        0,
+        SET_DECLARE | (param.vararg ? SET_VARARGS : 0),
+      );
+    }
+    for (const local of hoisted) {
+      this.emitObject(local as ParsedObject);
+    }
+  }
+
   /** The entry code of each function the statement writes, after the
    *  statement's own code, which jumps past it: the chunk exports the
    *  function's symbol where its entry binds the parameters, last first as
@@ -434,18 +474,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.row(fn.range);
       this._scopes = 0;
       this._exports.push(fn.symbol, this._code.length);
-      for (let p = fn.params.length - 1; p >= 0; p -= 1) {
-        const param = fn.params[p]!;
-        this.emit(
-          Op.SetVar,
-          this.variable(param.name),
-          0,
-          SET_DECLARE | (param.vararg ? SET_VARARGS : 0),
-        );
-      }
-      for (const local of fn.hoisted) {
-        this.emitObject(local as ParsedObject);
-      }
+      this.emitParameters(fn.params, fn.hoisted);
       this.enterBlock(block.body, BLOCK_FUNCTION);
       this.emit(Op.Const, 0, ConstValue.Void);
       this.emit(Op.Return);
@@ -481,7 +510,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const body = bodyOfBlock.get(obj);
       if (body) {
         // A `do` block: its scope, its body, and the scope's end.
-        const objectsOfBody = body.statements.flatMap((s) => s.objects);
+        const objectsOfBody = bodyStatements(body).flatMap((s) => s.objects);
         this.requireHeld(objectsOfBody, objects);
         this.expect(
           objectsOfBody.every((part, k) => objects[i + 1 + k] === part),
@@ -515,7 +544,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.emitObjects(content);
       return;
     }
-    const objectsOfBody = body.statements.flatMap((s) => s.objects);
+    const objectsOfBody = bodyStatements(body).flatMap((s) => s.objects);
     this.requireHeld(objectsOfBody, content);
     let start = objectsOfBody.length
       ? content.indexOf(objectsOfBody[0]!)
@@ -554,7 +583,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     body: ParsedObject[];
     test: readonly ParsedObject[];
   } {
-    const body = loop.body.statements.flatMap((s) => s.objects);
+    const body = bodyStatements(loop.body).flatMap((s) => s.objects);
     const test = branchContent(loop.test);
     this.requireHeld(body, [
       ...test,
@@ -856,7 +885,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       case Op.CallVar:
         return JSON.stringify(this.table.strings[arg]);
       case Op.Num:
-        return String(this.table.numbers[arg]);
+        return numberText(this.table.numbers[arg]!);
       case Op.Sym:
       case Op.Call:
         return this.describeSymbol(arg);
@@ -955,7 +984,8 @@ export const branchContent = (
     ._innerWeave?.content ?? [];
 
 /** A multiple assignment's targets: its values unpacked to as many as it
- *  has targets, and each target assigned in order, the first first. */
+ *  has targets, and each target assigned in order, the first first, as its
+ *  own assignment records it. */
 export const emitTargets = (
   emitter: ProgramEmitter,
   assignment: MultiVariableAssignment,
@@ -963,6 +993,7 @@ export const emitTargets = (
   const targets = assignment.targetAssignments;
   emitter.emit(Op.Unpack, targets.length);
   for (const target of targets) {
+    emitter.recordResolution(target.resolutionKey);
     emitter.emit(
       Op.SetVar,
       emitter.variable(target.variableName),
@@ -998,6 +1029,11 @@ const isConditionalOf = (
 
 /** The hash a reference table row keeps of the facts about its symbol. */
 export const factHash = (facts: string): number => hash64(facts)[1];
+
+/** A number of the table as text, negative zero as `-0`, which `String`
+ *  writes as `0`. */
+const numberText = (value: number): string =>
+  Object.is(value, -0) ? "-0" : String(value);
 
 /** The source a fingerprint hashes: each line trimmed, and blank lines left
  *  out, so that re-indenting a statement keeps its fingerprint. */
@@ -1054,7 +1090,7 @@ export const describeInstruction = (
     case Op.Call:
       return `${name} ${symbol(arg)}/${aux}${flagText}`;
     case Op.Num:
-      return `${name} ${table.numbers[arg]}${flags ? " float" : ""}`;
+      return `${name} ${numberText(table.numbers[arg]!)}${flags ? " float" : ""}`;
     case Op.Int:
     case Op.MakeTable:
     case Op.Pack:

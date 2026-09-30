@@ -25,6 +25,13 @@ export interface ProgramEmitter {
    *  a block of the statement, and its other objects as the statement's own
    *  code. */
   emitBranchBody(branch: object): void;
+  /** Emits a function (a `FlowBase`) that runs where it is written: one
+   *  written at the top level inside a block that the story leaves it in,
+   *  whose container the current engine runs as content of the block. Its
+   *  parameters are bound from the evaluation stack, the locals the lowering
+   *  hoisted to the top of its body are declared, and its body runs as a
+   *  block of the statement. */
+  emitFunctionInPlace(fn: object): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump to a label the caller already holds, bound or not: a

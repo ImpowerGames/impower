@@ -1032,16 +1032,18 @@ describe("the fallback", () => {
     });
   }
 
-  // The compiler moves a function out of the block it is defined in, and
-  // functions are emitted by #698.
-  it("names a function defined inside a block by its class, and not by the block", () => {
+  // The story takes a function out of a `do` block written at the top level,
+  // and leaves one in any other block, where its body runs; both are emitted
+  // (programFunctions.test.ts runs them).
+  it("names no construct for a function defined inside a block", () => {
     for (const text of [
       "do\n  function run()\n    return 1\n  end\nend\nHello.\n",
       "store x = true\nif x then\n  function run()\n    return 1\n  end\nend\nHello.\n",
       "while false do\n  function run()\n    return 1\n  end\nend\nHello.\n",
     ]) {
       const { program } = compileScript(text, { programChunks: true });
-      expect(program.fallback?.construct).toBe("Function");
+      expect(program.fallback?.construct).toBeUndefined();
+      expect(program.chunks).toBeDefined();
     }
   });
 

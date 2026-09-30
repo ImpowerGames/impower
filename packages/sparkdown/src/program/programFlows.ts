@@ -13,9 +13,10 @@ import { AuthorWarning } from "../inkjs/compiler/Parser/ParsedHierarchy/AuthorWa
 import { ConstantDeclaration } from "../inkjs/compiler/Parser/ParsedHierarchy/Declaration/ConstantDeclaration";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { DivertTarget } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/DivertTarget";
-import type { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
+import { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
+import { Knot } from "../inkjs/compiler/Parser/ParsedHierarchy/Knot";
 import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Statement } from "../inkjs/compiler/Parser/ParsedHierarchy/Statement";
 import { Stitch } from "../inkjs/compiler/Parser/ParsedHierarchy/Stitch";
@@ -185,18 +186,21 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
 
   // A function declared at the top level is a flow of its own, whose one
   // statement is its definition: the chunk binds the parameters and enters
-  // the body. So is the evaluator a UI binding's lowering hoisted to the top
-  // level under a name of its own, whose definition is the binding's source.
-  // A function written inside a statement is a block of that statement's
-  // chunk, which the statement's source carries.
+  // the body. So is one written at the top level inside a `do` block, whose
+  // content the story takes as its own, with the function among its flows:
+  // its definition is the statement of the block's body that writes it. So
+  // is the evaluator a UI binding's lowering hoisted to the top level under a
+  // name of its own, whose definition is the binding's source. A function a
+  // statement creates as a value is a block of that statement's chunk, which
+  // the statement's source carries.
   const visitFunction = (flow: FlowBase, header: object | undefined) => {
     out.functions += 1;
     const own = functionShapeOf.get(flow);
-    if (own && !own.named) {
+    if (own && !own.named && !(flow instanceof Knot)) {
       return;
     }
     const record = header ? input.record(header) : undefined;
-    if (own) {
+    if (own?.named) {
       if (!record || !record.lineAt || !record.text) {
         fail(flow.typeName, record?.uri ?? input.uri, record?.line ?? 0);
         return;
@@ -205,18 +209,29 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       return;
     }
     const shape = record?.shape;
-    const body = shape?.bodies.find((b) => functionOfBody.has(b));
-    if (!header || !record || !shape || !body || !record.lineAt || !record.text) {
+    // The definition at the top level is the statement, whose function the
+    // compile builds anew as the story's flow; one inside a block is the
+    // statement that writes the flow itself.
+    const writer = !shape
+      ? undefined
+      : shape.bodies.some((b) => functionOfBody.has(b))
+        ? shape
+        : writerOf(shape, flow);
+    if (!header || !record || !writer || !record.lineAt || !record.text) {
       fail(flow.typeName, record?.uri ?? input.uri, record?.line ?? 0);
       return;
     }
     const name = flow.identifier?.name ?? "";
+    const nested = writer !== shape;
+    const firstLine = nested
+      ? record.lineAt(firstNonSpace(record.text, writer))
+      : record.line;
     const definition = statementOf(
-      header,
+      nested ? writer : header,
       [],
-      record.range,
-      record.line,
-      shape,
+      nested ? (flow.ownDebugMetadata ?? null) : record.range,
+      firstLine,
+      writer,
       record,
     );
     definition.defines = name;
@@ -224,8 +239,8 @@ export const programFlows = (input: ProgramFlowsInput): ProgramFlows => {
       name,
       kind: SymbolKind.Function,
       uri: record.uri,
-      firstLine: record.line,
-      span: record.lineAt(Math.max(0, shape.to - 1)) + 1 - record.line,
+      firstLine,
+      span: record.lineAt(Math.max(0, writer.to - 1)) + 1 - firstLine,
       statements: [definition],
     });
   };
@@ -387,7 +402,7 @@ const evaluatorFlow = (
   const text = record.text!;
   const range = flow.ownDebugMetadata;
   const firstLine = lineAt(own.from);
-  const statements = own.body.statements.map((nested) => {
+  const statements = bodyStatements(own.body).map((nested) => {
     const statement = nestedStatement(nested, record);
     return statement.range ? statement : { ...statement, range };
   });
@@ -435,7 +450,7 @@ const functionBodiesOf = (
       const fn = target ? functionShapeOf.get(target) : undefined;
       if (target && fn && !seen.has(target)) {
         seen.add(target);
-        const statements = fn.body.statements.map((nested) =>
+        const statements = bodyStatements(fn.body).map((nested) =>
           nestedStatement(nested, record),
         );
         out.push(
@@ -495,7 +510,9 @@ const topLevelStatement = (
   return statementOf(block, objects, record.range, record.line, shape, record);
 };
 
-/** A statement source for a statement with the shape `shape`. */
+/** A statement source for a statement with the shape `shape`. A statement
+ *  whose function runs in place (`emitFunctionInPlace`) runs its body as a
+ *  block of its own, as it runs a `do` block's. */
 const statementOf = (
   block: object,
   objects: ParsedObject[],
@@ -503,6 +520,7 @@ const statementOf = (
   firstLine: number,
   shape: StatementShape,
   record: StatementRecord,
+  inPlace = false,
 ): StatementSource => {
   const lineAt = record.lineAt!;
   const text = record.text!;
@@ -513,10 +531,10 @@ const statementOf = (
   // before the loop's body, but stands above it.
   const ordered = [...shape.bodies].sort((a, b) => a.headEnd - b.headEnd);
   for (const body of ordered) {
-    const statements = body.statements.map((nested) =>
+    const statements = bodyStatements(body).map((nested) =>
       nestedStatement(nested, record),
     );
-    const source = bodyOf(body, statements, lineAt, above, text);
+    const source = bodyOf(body, statements, lineAt, above, text, inPlace);
     bodies.push(source);
     above = source.firstLine + source.span;
     cuts.push({ from: lineAt(body.headEnd) + 1, to: lineAt(body.nextStart) });
@@ -558,7 +576,15 @@ const nestedStatement = (
   );
   const range = objects[0]?.ownDebugMetadata ?? null;
   if (shape.bodies.length > 0) {
-    return statementOf(shape, objects, range, firstLine, shape, record);
+    return statementOf(
+      shape,
+      objects,
+      range,
+      firstLine,
+      shape,
+      record,
+      objects.some((obj) => obj instanceof FlowBase),
+    );
   }
   let source: string | undefined;
   const sourceOf = () => (source ??= record.text!(shape.from, shape.to));
@@ -580,13 +606,15 @@ const nestedStatement = (
  *  statement written on the heading part's line, or on the next part's,
  *  widens it to hold the statement. `above` is the line after the owner's
  *  previous body, or the owner's first line. A function's body carries the
- *  function, and the function's own source as `text` reads it. */
+ *  function, and the function's own source as `text` reads it, unless the
+ *  function runs in place (`inPlace`). */
 const bodyOf = (
   shape: BodyShape,
   statements: StatementSource[],
   lineAt: (offset: number) => number,
   above: number,
   text?: (from: number, to: number) => string,
+  inPlace = false,
 ): BodySource => {
   let first = lineAt(shape.headEnd) + 1;
   let end = lineAt(shape.nextStart);
@@ -599,7 +627,7 @@ const bodyOf = (
     end = Math.max(end, last.firstLine + 1);
   }
   end = Math.max(end, first);
-  const fn = functionOfBody.get(shape);
+  const fn = inPlace ? undefined : functionOfBody.get(shape);
   const part = fn ? functionShapeOf.get(fn) : undefined;
   return {
     shape,
@@ -654,6 +682,42 @@ export const readsKey = (reads: StatementReads): string =>
     reads.other,
     reads.context,
   ]);
+
+/** The statements of a body that run where the body stands: every statement
+ *  its lowering recorded but one that writes a function the story took out
+ *  of the block as a flow of its own. The story takes the flows out of its
+ *  own content, which a `do` block written at the top level lowers into
+ *  (`FlowBase.SplitWeaveAndSubFlowContent`); such a function's definition is
+ *  a statement of its flow, and the block's body holds nothing of it. */
+export const bodyStatements = (body: BodyShape): StatementShape[] =>
+  body.statements.filter(
+    (statement) =>
+      statement.objects.length === 0 || !statement.objects.every(isStoryFlow),
+  );
+
+// A flow the story holds among its own.
+const isStoryFlow = (obj: ParsedObject): boolean =>
+  obj instanceof FlowBase && obj.parent !== null && obj.parent === obj.story;
+
+/** The statement that writes the function `flow`, among the statements of
+ *  `shape`'s bodies at any depth. */
+const writerOf = (
+  shape: StatementShape,
+  flow: ParsedObject,
+): StatementShape | undefined => {
+  for (const body of shape.bodies) {
+    for (const statement of body.statements) {
+      if (statement.bodies.some((b) => functionOfBody.get(b) === flow)) {
+        return statement;
+      }
+      const writer = writerOf(statement, flow);
+      if (writer) {
+        return writer;
+      }
+    }
+  }
+  return undefined;
+};
 
 const isDeclaration = (obj: ParsedObject): boolean =>
   (obj instanceof VariableAssignment && obj.isGlobalDeclaration) ||

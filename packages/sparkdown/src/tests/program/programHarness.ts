@@ -10,6 +10,7 @@ import { ObjectValue } from "../../inkjs/engine/Value";
 import { BinaryProgramReader } from "../../program/BinaryProgramReader";
 import { describeInstruction } from "../../program/BinaryProgramWriter";
 import type { ProgramRoot, SequenceRow } from "../../program/ProgramRoot";
+import { isAnonymousSymbol } from "../../program/ProgramSymbols";
 import {
   B_BREAK,
   B_HEAD_LINES,
@@ -24,6 +25,8 @@ import {
   blockCount,
   blockField,
   chunkId,
+  exportCount,
+  exportSymbol,
   lineTableStart,
   referenceTableStart,
 } from "../../program/StatementChunk";
@@ -154,10 +157,29 @@ const sequenceChunks = (root: ProgramRoot, sequence: SequenceRow): Int32Array[] 
  *  and layout hash; and each body's first line and span, the same way inside
  *  it. The declaration sequences follow, script by script, with the order
  *  the declarations run in. Chunk ids and sequence ids are left out, since
- *  they count every chunk and body a store has made. */
+ *  they count every chunk and body a store has made, and so are the ids of
+ *  anonymous symbols: a function a statement writes is read as the
+ *  fingerprint of the chunk that defines it and its row in that chunk's
+ *  export table. */
 export function describeRoot(root: ProgramRoot): string[] {
   const reader = new BinaryProgramReader(root);
   const out: string[] = [];
+  const symbolName = (symbol: number): string => {
+    if (!isAnonymousSymbol(root.table, symbol)) {
+      return JSON.stringify(root.table.symbols[symbol]);
+    }
+    const at = root.definition(symbol);
+    const chunk = at ? root.sequence(at.sequence)?.arrays.chunks[at.entry] : undefined;
+    if (!chunk) {
+      return "function";
+    }
+    for (let row = 0; row < exportCount(chunk); row += 1) {
+      if (exportSymbol(chunk, row) === symbol) {
+        return `function@${[...chunk.subarray(H_FINGERPRINT, H_FINGERPRINT + 2)].join(",")}#${row}`;
+      }
+    }
+    return "function";
+  };
   const describeSequence = (sequence: SequenceRow, indent: string) => {
     sequence.arrays.chunks.forEach((chunk, entry) => {
       const rows: number[][] = [];
@@ -173,13 +195,15 @@ export function describeRoot(root: ProgramRoot): string[] {
       const refs = referenceTableStart(chunk);
       for (let r = 0; r < chunk[H_REFERENCE_ROWS]!; r += 1) {
         const at = refs + r * REFERENCE_ROW_WORDS;
-        references.push(`${JSON.stringify(root.table.symbols[chunk[at]!])}:${chunk[at + 1]}`);
+        references.push(`${symbolName(chunk[at]!)}:${chunk[at + 1]}`);
       }
       out.push(
         `${indent}${sequence.arrays.lineStarts[entry]} ${[...chunk.subarray(H_FINGERPRINT, H_LAYOUT_HASH + 2)].join(",")} rows ${JSON.stringify(rows)} blocks ${JSON.stringify(blocks)} refs [${references.join(" ")}]`,
       );
       for (const { offset } of reader.instructions(chunk)) {
-        out.push(`${indent}  ${offset}: ${describeInstruction(chunk, offset, root.table)}`);
+        out.push(
+          `${indent}  ${offset}: ${describeInstruction(chunk, offset, root.table, symbolName)}`,
+        );
       }
       for (let k = 0; k < blockCount(chunk); k += 1) {
         const body = root.body(chunk, k);

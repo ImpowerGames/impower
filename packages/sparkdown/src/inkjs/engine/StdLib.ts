@@ -2364,9 +2364,21 @@ function resolveParentType(
   }
   if (rootMeta && !rootMeta.has("__index")) {
     rootMeta.set("__index", flat);
+    writtenIn(story)(displaced.metatable);
   }
   return displaced;
 }
+
+// A table a builtin changes in place, or whose metatable, frozen flag or
+// length hints it changes, marked through the write barrier of the story it
+// runs on (`VariablesState.WriteBarrier`, docs/engine/binary-program.md,
+// section 7).
+type Written = (table: ObjectValue | null | undefined) => void;
+const writtenIn =
+  (story: any): Written =>
+  (table) => {
+    if (table) story?.state?.variablesState?.WriteBarrier?.(table);
+  };
 
 // Walk a type/instance's `__index` chain (self first, then ancestors).
 function defineChain(start: ObjectValue): ObjectValue[] {
@@ -2388,7 +2400,11 @@ function defineChain(start: ObjectValue): ObjectValue[] {
 // ancestors', and `target`'s own keys are never overwritten. Store props
 // become instance-owned (enumerable + serialized); non-store props stay on
 // the type and inherit lazily through `__index`.
-function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
+function copyStoreDefaults(
+  chain: ObjectValue[],
+  target: ObjectValue,
+  written: Written = () => {},
+): void {
   const storeKeys = new Set<string>();
   for (const level of chain) {
     const storeList = (level.value as Map<string, AbstractValue>)?.get(
@@ -2408,6 +2424,7 @@ function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
       const def = (level.value as Map<string, AbstractValue>)?.get(propName);
       if (def != null) {
         target.value!.set(propName, def);
+        written(target);
         break;
       }
     }
@@ -2453,9 +2470,11 @@ function chainReaches(start: ObjectValue, target: ObjectValue): boolean {
 function linkStructuralParent(
   child: ObjectValue,
   parent: ObjectValue,
+  written: Written = () => {},
 ): boolean {
   if (chainReaches(parent, child)) return false;
   metatableMap(child)?.set("__index", parent);
+  written(child.metatable);
   const children = structuralChildren.get(parent) ?? [];
   children.push(child);
   structuralChildren.set(parent, children);
@@ -2466,17 +2485,22 @@ function linkStructuralParent(
 // `__def` does for a define, replacing the copies an earlier chain gave it,
 // then do the same for the blocks linked to it. A block's own `store` values
 // are never replaced. Links are acyclic, so the descent ends.
-function copyStructuralStoreDefaults(block: ObjectValue): void {
+function copyStructuralStoreDefaults(
+  block: ObjectValue,
+  written: Written = () => {},
+): void {
   const map = block.value!;
-  for (const key of structuralStoreCopies.get(block) ?? []) map.delete(key);
+  const copies = structuralStoreCopies.get(block) ?? [];
+  for (const key of copies) map.delete(key);
+  if (copies.length > 0) written(block);
   const own = new Set(map.keys());
-  copyStoreDefaults(defineChain(block).slice(1), block);
+  copyStoreDefaults(defineChain(block).slice(1), block, written);
   structuralStoreCopies.set(
     block,
     [...map.keys()].filter((key) => !own.has(key)),
   );
   for (const child of structuralChildren.get(block) ?? []) {
-    copyStructuralStoreDefaults(child);
+    copyStructuralStoreDefaults(child, written);
   }
 }
 
@@ -2486,14 +2510,15 @@ function linkWaitingStructuralChildren(
   typeTable: ObjectValue,
   name: string,
   parent: ObjectValue,
+  written: Written = () => {},
 ): void {
   const waiting = pendingStructuralParents.get(typeTable);
   const children = waiting?.get(name);
   if (!children) return;
   waiting!.delete(name);
   for (const child of children) {
-    if (linkStructuralParent(child, parent)) {
-      copyStructuralStoreDefaults(child);
+    if (linkStructuralParent(child, parent, written)) {
+      copyStructuralStoreDefaults(child, written);
     }
   }
 }
@@ -3175,6 +3200,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         } else {
           story.Warning(NOT_JOINED);
           (payload as ObjectValue).value?.delete("continues");
+          writtenIn(story)(payload as ObjectValue);
         }
       }
       // The line's author tags go to the stream first, as a tag written on
@@ -3294,6 +3320,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("setmetatable: second argument must be a table or nil");
         return;
       }
+      writtenIn(story)(t);
       return t;
     },
   },
@@ -3702,6 +3729,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return t;
       }
       t.value.set(key, v as AbstractValue);
+      writtenIn(story)(t);
       return t;
     },
   },
@@ -4682,6 +4710,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return undefined;
       }
       map.set(String(pos), value);
+      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -4716,6 +4745,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         pos = p;
       }
       if (pos < 1 || pos > len) return null;
+      writtenIn(story)(t);
       const removed = map.get(String(pos)) ?? null;
       for (let k = pos; k < len; k++) {
         const next = map.get(String(k + 1));
@@ -4837,6 +4867,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       for (let k = 1; k <= len; k++) {
         map.set(String(k), arr[k - 1]!);
       }
+      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -4861,6 +4892,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       map.clear();
       (map as any).__luauCapacity = Math.max(prevCap, len);
       (map as any).__luauBoundary = 0;
+      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -5024,6 +5056,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         } else {
           for (let i = n - 1; i >= 0; i--) copy(i);
         }
+        writtenIn(story)(a2);
       }
       return a2;
     },
@@ -5055,6 +5088,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
       }
       t.Freeze();
+      writtenIn(story)(t);
       return t;
     },
   },
@@ -5254,19 +5288,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
         mt.set("__index", parent);
       }
       table.metatable = new ObjectValue(mt);
+      const written = writtenIn(story);
+      written(table);
 
       if (parent) {
         const chain = defineChain(parent);
-        copyStoreDefaults(chain, table);
+        copyStoreDefaults(chain, table, written);
         // Register into the parent and every ancestor.
         for (const level of chain) {
           level.value!.set(name, table);
+          written(level);
         }
         // A structural block declared earlier may be waiting for this define
         // as its `as` parent (`morph child as base` before `define base as
         // morph`); link it now, as a later structural parent would.
         for (const level of chain) {
-          linkWaitingStructuralChildren(level, name, table);
+          linkWaitingStructuralChildren(level, name, table, written);
         }
       }
       return table;
@@ -5310,11 +5347,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
       mt.set(DEFINE_PARENT_MARKER, new StringValue(typeName));
       mt.set("__index", typeTable);
       table.metatable = new ObjectValue(mt);
+      const written = writtenIn(story);
+      written(table);
 
       if (parentName) {
         const member = typeTable.value!.get(parentName) ?? null;
         if (isDefineTable(member) && member !== table) {
-          linkStructuralParent(table, member);
+          linkStructuralParent(table, member, written);
         } else {
           let waiting = pendingStructuralParents.get(typeTable);
           if (!waiting) {
@@ -5326,14 +5365,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
           waiting.set(parentName, children);
         }
       }
-      copyStructuralStoreDefaults(table);
+      copyStructuralStoreDefaults(table, written);
 
       // Register into the type and every ancestor type.
       for (const level of defineChain(typeTable)) {
         level.value!.set(name, table);
+        written(level);
       }
       // Link the children that were waiting for this block as their parent.
-      linkWaitingStructuralChildren(typeTable, name, table);
+      linkWaitingStructuralChildren(typeTable, name, table, written);
       return table;
     },
   },

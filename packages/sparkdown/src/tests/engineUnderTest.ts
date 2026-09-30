@@ -32,18 +32,19 @@ const EXTERNAL = /^external[ \t]+([A-Za-z_]\w*)[ \t]*\(([^)]*)\)[ \t]*$/gm;
 
 /**
  * A script for the program engine: each `external NAME(PARAMS)` line is left
- * blank, and a function of the same name and parameters, written after the
- * script's end, hands its arguments to the function the test binds under that
- * name (`BindExternalFunction`), as the current engine's external call hands
- * them, and returns what that function returns. Every other line keeps its
+ * blank, and a function of the same name, written after the script's end,
+ * hands its arguments to the function the test binds under that name
+ * (`BindExternalFunction`) and returns what that function returns. It takes
+ * `...`, so that it gets the values a call passes as they are, as an
+ * external does, where a function with fixed parameters would spread a last
+ * argument that is a multiple value over them. Every other line keeps its
  * number.
  */
 export const withTestExternals = (text: string): string => {
   const functions: string[] = [];
-  const rewritten = text.replace(EXTERNAL, (_line, name: string, params: string) => {
-    const args = params.trim() ? `, ${params.trim()}` : "";
+  const rewritten = text.replace(EXTERNAL, (_line, name: string) => {
     functions.push(
-      `function ${name}(${params.trim()})\n  return ${TEST_EXTERNAL}("${name}"${args})\nend\n`,
+      `function ${name}(...)\n  return ${TEST_EXTERNAL}("${name}", ...)\nend\n`,
     );
     return "";
   });

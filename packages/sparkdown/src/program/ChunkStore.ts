@@ -210,6 +210,9 @@ interface ChunkInfo {
   globals?: string;
   parts: readonly FunctionPart[];
   anonymousReferences: readonly number[];
+  /** The locals each function the statement writes declares at its entry
+   *  (`hoistedOf`). */
+  hoisted: string;
   generation: number;
 }
 
@@ -928,6 +931,7 @@ export class ChunkStore {
           : [],
       ),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
+      hoisted: hoistedOf(statement),
       generation: this.table.generation,
     });
     return chunk;
@@ -1187,7 +1191,8 @@ export class ChunkStore {
     if (
       !info ||
       info.generation !== this.table.generation ||
-      info.globals !== assignedNames(statement)
+      info.globals !== assignedNames(statement) ||
+      info.hoisted !== hoistedOf(statement)
     ) {
       return false;
     }
@@ -1199,7 +1204,10 @@ export class ChunkStore {
     ) {
       return false;
     }
-    const resolutions = resolutionsOf(statement.objects, exclude);
+    const resolutions = resolutionsOf(
+      [...statement.objects, ...hoistedLocals(statement)],
+      exclude,
+    );
     if (
       resolutions.length !== info.resolutions.length ||
       resolutions.some((value, i) => value !== info.resolutions[i])
@@ -1316,6 +1324,31 @@ const paramKinds = (fn: ParsedObject | undefined): string =>
   ((fn as FlowBase | undefined)?.args ?? [])
     .map((p) => (p.isByReference ? "ref" : p.isVararg ? "..." : "value"))
     .join(",");
+
+/** The locals each function a statement writes declares at its entry, which
+ *  the lowering hoists there from inside the function's body (a function it
+ *  declares without `local`), function by function: the entry code is the
+ *  statement's, while the lines that hoist them are the body's. */
+const hoistedOf = (statement: StatementSource): string =>
+  (statement.bodies ?? [])
+    .filter((body) => body.fn)
+    .map((body) =>
+      (functionShapeOf.get(body.fn!)?.hoisted ?? [])
+        .map((local) =>
+          local instanceof VariableAssignment
+            ? (local.variableName ?? "")
+            : local.typeName,
+        )
+        .join(","),
+    )
+    .join(";");
+
+/** The declarations of the locals `hoistedOf` names, which the functions'
+ *  entry code emits among the statement's own code. */
+const hoistedLocals = (statement: StatementSource): ParsedObject[] =>
+  (statement.bodies ?? []).flatMap((body) =>
+    body.fn ? (functionShapeOf.get(body.fn)?.hoisted ?? []) : [],
+  );
 
 /** What the writer needs of a function whose body is a block. */
 const functionInput = (fn: ParsedObject, symbol: number): FunctionInput => {
@@ -1489,7 +1522,7 @@ export const resolutionsOf = (
     ) {
       return;
     }
-    if (obj instanceof VariableReference) {
+    if (obj instanceof VariableReference || obj instanceof VariableAssignment) {
       out.push(obj.resolutionKey);
     }
     if (obj instanceof FunctionCall && obj.isUserCall) {
