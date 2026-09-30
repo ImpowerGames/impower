@@ -542,6 +542,8 @@ function isSkippableName(name: string): boolean {
     name === "LuauDocLineComment" ||
     name === "LuauBlockComment" ||
     name === "LuauTypeTrailingBlockComment" ||
+    name === "LuauUncallableValueTrailingBlockComment" ||
+    name === "LuauCallableValueTrailingBlockComment" ||
     name === "LuauTypeTrailingBlockCommentClose" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace" ||

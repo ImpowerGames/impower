@@ -2696,7 +2696,6 @@ local baz = foo[bar]
     name: "table_simple_call",
     fixture: "BuiltinsFixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
-    unparsed: { defect: 880 }, // a -- comment after an arithmetic expression
     source: `
         local a = setmetatable({ x = 2 }, {
             __call = function(self)

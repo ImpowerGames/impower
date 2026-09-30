@@ -3,9 +3,12 @@ name: Hook Tests
 # The `hook-tests` job at the end is the required status check. It always
 # runs, so it always reports; the workflow has no trigger path filter, because
 # a filtered-out workflow reports nothing and leaves the pull request blocked.
-# The `changes` job decides whether the standalone checks need to run, and
-# the gate passes when both platform legs passed or were skipped as
-# irrelevant, and fails when any failed or when detection itself failed.
+# Two `changes` jobs decide which tier of standalone checks needs to run: the
+# skills tier (skill prose, hooks and GitHub scripts, about a minute) on any
+# agent-tooling change, and the drivers tier (worktree, browser, bench and
+# reviewer-process checks, ten minutes or more) only when the code those
+# checks drive changes. The gate passes when every leg passed or was skipped
+# as irrelevant, and fails when any failed or when detection itself failed.
 
 on:
   pull_request:
@@ -40,7 +43,31 @@ jobs:
         .github/workflows/hook-tests.yml
         .github/workflows/changed-paths.yml
 
-  standalone-checks:
+  # The drivers tier reads these paths: the driver skills' own scripts and
+  # SKILL.md files, everything under scripts/, the reviewer prompt template
+  # the prompt builder tests, the generated reviewer definitions, and the
+  # package manifests and ignore file the link and test-suite checks read.
+  driver-changes:
+    uses: ./.github/workflows/changed-paths.yml
+    with:
+      patterns: |
+        .agents/skills/clean-worktrees/**
+        .agents/skills/drive-vscode-web/**
+        .agents/skills/drive-web-editor/**
+        .agents/skills/review-pr/**
+        .claude/agents/**
+        .claude/reviewer-defaults.json
+        .claude/reviewer-models.json
+        .codex/**
+        scripts/**
+        .gitignore
+        package.json
+        vscode-sparkdown/package.json
+        .github/workflows/test-suite.yml
+        .github/workflows/hook-tests.yml
+        .github/workflows/changed-paths.yml
+
+  skills-checks:
     needs: changes
     if: needs.changes.outputs.relevant == 'true'
     strategy:
@@ -75,8 +102,45 @@ jobs:
         run: node scripts/link-agent-skills.mjs
       - name: Check generated reviewer definitions
         run: node scripts/generate-reviewer-agents.mjs --check
-      - name: Run standalone agent tooling checks
-        run: node scripts/check-agent-tooling.mjs
+      - name: Run the skills tier of the standalone agent tooling checks
+        run: node scripts/check-agent-tooling.mjs --tier skills
+
+  driver-checks:
+    needs: driver-changes
+    if: needs.driver-changes.outputs.relevant == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The same sparse checkout as the skills tier: the runner's
+          # discovery and expected count cover the whole inventory in
+          # either tier, so every check file must be present.
+          sparse-checkout: |
+            /.agents/
+            /.claude/
+            /.codex/
+            /scripts/
+            /.github/scripts/
+            /.github/workflows/test-suite.yml
+            /.github/PULL_REQUEST_TEMPLATE.md
+            /AGENTS.md
+            /CLAUDE.md
+            /.gitignore
+            /package.json
+            /vscode-sparkdown/package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install skills links
+        run: node scripts/link-agent-skills.mjs
+      - name: Run the drivers tier of the standalone agent tooling checks
+        run: node scripts/check-agent-tooling.mjs --tier drivers
       - name: Verify Linux fixture regression control
         if: matrix.os == 'ubuntu-latest'
         shell: node {0}
@@ -104,7 +168,7 @@ jobs:
   # The required status check. `always()` keeps it reporting when the checks
   # were skipped or when detection failed; the step then decides.
   hook-tests:
-    needs: [changes, standalone-checks]
+    needs: [changes, driver-changes, skills-checks, driver-checks]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -112,11 +176,21 @@ jobs:
       - name: Gate on detection and check results
         env:
           CHANGES: ${{ needs.changes.result }}
-          CHECKS: ${{ needs.standalone-checks.result }}
+          DRIVER_CHANGES: ${{ needs.driver-changes.result }}
+          SKILLS: ${{ needs.skills-checks.result }}
+          DRIVERS: ${{ needs.driver-checks.result }}
         run: |
           test "$CHANGES" = "success" || { echo "Change detection did not succeed: $CHANGES"; exit 1; }
-          case "$CHECKS" in
-            success) echo "Standalone checks passed on both platforms";;
-            skipped) echo "Standalone checks skipped: the change touches nothing they cover";;
-            *) echo "Standalone checks did not pass: $CHECKS"; exit 1;;
+          test "$DRIVER_CHANGES" = "success" || { echo "Driver change detection did not succeed: $DRIVER_CHANGES"; exit 1; }
+          status=0
+          case "$SKILLS" in
+            success) echo "Skills tier passed on both platforms";;
+            skipped) echo "Skills tier skipped: the change touches nothing it covers";;
+            *) echo "Skills tier did not pass: $SKILLS"; status=1;;
           esac
+          case "$DRIVERS" in
+            success) echo "Drivers tier passed on both platforms";;
+            skipped) echo "Drivers tier skipped: the change touches nothing it covers";;
+            *) echo "Drivers tier did not pass: $DRIVERS"; status=1;;
+          esac
+          exit "$status"
