@@ -28,6 +28,7 @@ import {
   reportExtraTypeQualifiers,
   markLineContinuationUsed,
   splitOnCommas,
+  typeUnionLineValue,
   takeLineContinuation,
 } from "../utils/lineContinuation";
 import {
@@ -78,11 +79,10 @@ export function lowerVariableDefinition(
   const trailingRhsGroups: SyntaxNode[][] = [];
   let sawAssignmentOp = false;
   let currentRhsGroup: SyntaxNode[] = [];
-  // When the grammar accepts multiple statements on one line (e.g.
-  // `& local x = 5 return`), the definition's content captures siblings
-  // BEYOND the variable assignment — they're adjacent statements, not
-  // trailing multi-RHS values. Collect them into `trailingStatements`
-  // and lower them after the VA below.
+  // Statement nodes in the content (read after a comma, see
+  // `TRAILING_STATEMENT_NAMES`) are adjacent statements, not RHS values.
+  // Collect them into `trailingStatements` and lower them after the VA
+  // below.
   const trailingStatements: SyntaxNode[] = [];
   // A comma no target or value has followed yet, so a comma with nothing
   // after it, or with a statement after it, can be reported.
@@ -184,11 +184,11 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
-      // Statement-like node — sparkdown's grammar lets these share a
-      // single source line with the variable definition (e.g.
-      // `local x = 5 return x end`). The VA captures everything up
-      // to (but not including) the statement; the statement itself
-      // is a sibling that needs its own lowering pass.
+      // Statement-like node. The grammar ends the definition at the
+      // whitespace before a statement that follows it on the line, so a
+      // statement node is here only when the definition's `LuauExpression`
+      // read a declaration after a comma; it gets its own lowering pass
+      // after the variable assignment.
       if (TRAILING_STATEMENT_NAMES.has(child.name)) {
         // Flush any partial RHS group first — `local a, b = 1 return x`
         // shouldn't be possible in valid Luau, but if it appears we
@@ -225,9 +225,18 @@ export function lowerVariableDefinition(
   // found in place of the value or name. The same holds for a comma that
   // ends the last line continuing the declaration (`n` then `+ 4,`).
   const lastContinued = continuation.findLast((n) => !isSkippableName(n.name));
+  // A value comma that ends the content, with lines carried after it: the
+  // declaration ended at the start of an unindented line after the comma,
+  // and the continuation holds the values that follow it, as Luau reads
+  // them (`local a, g = 1,` then `2`).
+  const valuesAfterComma =
+    unresolvedComma != null &&
+    unresolvedAfterAssignment &&
+    trailingStatements.length === 0 &&
+    lastContinued != null;
   if (lastContinued?.name === "LuauCommaSeparator") {
     validateListComma(lastContinued, true, ctx);
-  } else if (unresolvedComma) {
+  } else if (unresolvedComma && !valuesAfterComma) {
     validateListComma(unresolvedComma, unresolvedAfterAssignment, ctx);
   }
 
@@ -270,10 +279,14 @@ export function lowerVariableDefinition(
   let firstRhsOp: SyntaxNode | undefined =
     ownAssignmentOperation(lastTarget.assignNode) ?? undefined;
   // The continuation's first comma group continues the last value; its
-  // later groups are further values. When statements share the line after
+  // later groups are further values. After a comma that ends the content,
+  // every group is a further value. When statements share the line after
   // the declaration, the continuation continues the last of them instead.
-  const [continued = [], ...continuedRhsGroups] =
+  const continuationGroups =
     trailingStatements.length > 0 ? [] : splitOnCommas(continuation);
+  const [continued = [], ...continuedRhsGroups] = valuesAfterComma
+    ? [[], ...continuationGroups]
+    : continuationGroups;
   let firstRhsContinuation: SyntaxNode[] = [];
   if (!firstRhsOp && continued.length > 0) {
     // `local x: types` then `.Button`, or `.Button = 1`: the
@@ -306,6 +319,11 @@ export function lowerVariableDefinition(
     firstRhsContinuation = continued;
   }
   trailingRhsGroups.push(...continuedRhsGroups);
+  // A union that goes on past a comment line gives the value on its last
+  // member line (`local v: number` then `-- note` then `| string = 1`).
+  if (!firstRhsOp && !sawAssignmentOp) {
+    firstRhsOp = typeUnionLineValue(nodeRef.node) ?? undefined;
+  }
   if (firstRhsOp) validateAssignmentValue(firstRhsOp, ctx);
   const firstRhs = firstRhsOp
     ? lowerExpressionFromContainerAndContinuation(
@@ -423,14 +441,9 @@ export function lowerVariableDefinition(
 }
 
 // Lower each trailing-statement node via the main `lower()` dispatcher
-// and append the resulting ParsedObjects to the head list. Used when
-// the grammar's permissive content rules let a `LuauVariableDefinition`
-// share a source line with following statements (e.g.
-// `local x = 5 return x end` — the `return x` is a sibling, not part
-// of the RHS).
-//
-// The last of them is offered the declaration's continuation lines, which
-// continue the line's last statement (`local x = 1 local y = t` then `.a`).
+// and append the resulting ParsedObjects to the head list. The last of
+// them is offered the declaration's continuation lines, which continue the
+// line's last statement.
 function withTrailingStatements(
   head: ParsedObject[],
   trailingStatements: SyntaxNode[],

@@ -14,14 +14,12 @@ import { runConformanceSource } from "./conformanceTestHarness";
 //      `CallValueExpression` statement (popping the unused return),
 //      mirroring the expression-context fold in `collectTokens`.
 //
-//   2. Grammar: in a ONE-LINE function body (`function f() ... end`
-//      with no newline), `LuauFunctionBody` never opens (its begin
-//      requires `\n`), so statements parse directly inside
-//      `LuauFunctionDefinition_content` — where the
-//      `LuauFunctionParameters` rule is still live and matched the
-//      IIFE's `(` as a bogus second parameter list. Fixed by
-//      anchoring `LuauFunctionParameters.begin` with a header-position
-//      lookbehind (identifier / `function` keyword / generics `>`).
+//   2. Grammar: `LuauFunctionParameters` is live in
+//      `LuauFunctionDefinition_content`, and would match an IIFE's `(`
+//      as a second parameter list. Its begin is anchored with a
+//      header-position lookbehind (identifier / `function` keyword /
+//      generics `>`), and `LuauFunctionBody` opens right after the
+//      header, so the body's statements are outside that content.
 //
 // Unlocks basic.luau line 50.
 
