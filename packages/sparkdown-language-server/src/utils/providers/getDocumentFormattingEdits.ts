@@ -1337,7 +1337,11 @@ export const getFormatting = (
         let cc = contentNode.firstChild;
         while (cc) {
           if (SIGNATURE_NAMES.has(cc.name)) {
-            signatureEnd = cc.to;
+            // A return type takes in the line breaks after it (it may go on
+            // as a union on the next line), so the signature ends where
+            // its text does.
+            signatureEnd =
+              cc.from + document.read(cc.from, cc.to).trimEnd().length;
           } else if (cc.name === "LuauFunctionBody") {
             // After the LuauFunctionBody wrapper landed, body
             // statements live one level deeper (inside

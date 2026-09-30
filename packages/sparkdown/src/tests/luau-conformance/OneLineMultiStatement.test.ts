@@ -5,20 +5,11 @@ import { runConformanceSource } from "./conformanceTestHarness";
 // `function f() local x = 5 return x end` declares a function whose
 // body has two statements (the `local` declaration and the `return`).
 //
-// Sparkdown's grammar already accepts this syntactically — the parse
-// tree captures both statements as siblings inside the
-// `LuauVariableDefinition_content`. But the lowerer treated all
-// non-VA, non-comma siblings as "trailing multi-RHS expression"
-// values, silently dropping return / function-def / etc. as garbage
-// expression operands.
+// The grammar ends a `LuauVariableDefinition` at the whitespace before a
+// following statement, so each statement on the line is a sibling in the
+// function body and is lowered on its own.
 //
-// Fix: `lowerVariableDefinition` recognizes statement-like sibling
-// names (LuauReturnStatement, LuauFunctionDefinition, LuauBreakStatement,
-// etc.) — collects them into `trailingStatements` and lowers each via
-// the main `lower()` dispatcher after the variable assignment. The
-// resulting ParsedObjects are appended to the returned weave.
-//
-// Unlocks the common Luau IIFE-as-test idiom from upstream conformance
+// Covers the common Luau IIFE-as-test idiom from upstream conformance
 // fixtures: `assert((function() local x = 5 return x end)() == 5)`.
 
 describe("one-line multi-statement function bodies", () => {
