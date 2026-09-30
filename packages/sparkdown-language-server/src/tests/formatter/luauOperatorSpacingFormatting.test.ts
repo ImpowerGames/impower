@@ -30,9 +30,9 @@ Hello.
   );
 });
 
-test("formatting leaves nested and table generic types tight", () => {
+test("formatting leaves the angle brackets of nested and table generic types tight", () => {
   const source = `local n: Array<Array<number>> = {}
-local t: Map<string, {number}> = {}
+local t: Map<string, { number }> = {}
 local f: Array<(number) -> string> = {}
 Hello.
 `;
@@ -184,9 +184,9 @@ Hello.
 
 // #1108
 test("formatting keeps one space before the `=` of a bracketed table key", () => {
-  const source = `local t = {["k"] = "v"}
-local u = {[k] = v, [1] = 2}
-local w = {k = v}
+  const source = `local t = { ["k"] = "v" }
+local u = { [k] = v, [1] = 2 }
+local w = { k = v }
 Hello.
 `;
   expectFormatsTo(source, source);
@@ -195,8 +195,8 @@ Hello.
 local u = {[k]=v}
 Hello.
 `,
-    `local t = {["k"] = "v"}
-local u = {[k] = v}
+    `local t = { ["k"] = "v" }
+local u = { [k] = v }
 Hello.
 `,
   );
@@ -206,7 +206,7 @@ Hello.
 test("formatting keeps the spaces around an if expression's keywords", () => {
   const source = `local y = if c then 1 else 2
 local z = if c then 1 elseif d then 2 else 3
-local w = if a and b then f(x) else {1, 2}
+local w = if a and b then f(x) else { 1, 2 }
 Hello.
 `;
   expectFormatsTo(source, source);
@@ -225,17 +225,17 @@ Hello.
 // #1110
 test("formatting keeps one space between a keyword and a table or long string", () => {
   const source = `function f()
-  return {1}
+  return { 1 }
 end
 
 function g()
   return [[s]]
 end
-for k in {1, 2} do
+for k in { 1, 2 } do
 end
-local w = if c then {1} else {2}
+local w = if c then { 1 } else { 2 }
 local v = if c then [[a]] else (b)
-local t = f{1}
+local t = f{ 1 }
 local u = a[1]
 Hello.
 `;
@@ -245,17 +245,17 @@ Hello.
 test("formatting keeps one space between a logical operator or `until` and a table", () => {
   const source = `local t = x or {}
 local u = not {}
-local v = a and {1}
+local v = a and { 1 }
 repeat
   x = 1
-until {1}
+until { 1 }
 Hello.
 `;
   expectFormatsTo(source, source);
 });
 
 test("formatting settles the space after `with` in one pass", () => {
-  const source = `define Foo as list with {1, 2} end
+  const source = `define Foo as list with { 1, 2 } end
 
 define Bar as list with (x) end
 Hello.
@@ -265,7 +265,7 @@ Hello.
     `define Foo as list with  {1, 2} end
 Hello.
 `,
-    `define Foo as list with {1, 2} end
+    `define Foo as list with { 1, 2 } end
 Hello.
 `,
   );
@@ -307,7 +307,7 @@ Hello.
 `,
     `local y = if (c) then 1 else (2)
 local z = if c then (1) else 2
-local w = if c then (1) elseif (d) then {2} else [[x]]
+local w = if c then (1) elseif (d) then { 2 } else [[x]]
 Hello.
 `,
   );

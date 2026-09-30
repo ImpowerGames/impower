@@ -129,7 +129,7 @@ scene PassTime()
   & advance_time()
 end
 
-function format(enum: {[string]: number}, value: number)
+function format(enum: { [string]: number }, value: number)
   for k, v in enum do
     if v == value then return k end
   end
