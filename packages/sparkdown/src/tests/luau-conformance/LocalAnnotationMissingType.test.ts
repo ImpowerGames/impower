@@ -22,10 +22,11 @@ describe("a type annotation with no type before `=` or `,`", () => {
   });
 
   // Sparkdown does not continue a statement onto a line that starts with `=`,
-  // and reports that separately; the annotation is still reported first.
+  // and reports that separately; the annotation is still reported first, over
+  // Luau's range, which runs to the `=` (#1174).
   test("a missing type before an `=` on the next line", () => {
     expect(checkLuau("local x: -- missing type\n= 1\n").syntaxDiagnostics.map(describeDiagnostic)[0]).toContain(
-      "0:7-0:9 SyntaxError: Expected type, got '='",
+      "0:8-1:1 SyntaxError: Expected type, got '='",
     );
   });
 

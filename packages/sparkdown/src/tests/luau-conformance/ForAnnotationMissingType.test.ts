@@ -8,12 +8,13 @@ import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
 
 describe("a for loop variable's annotation with no type", () => {
   test.each([
-    ["for i: = 1, 3 do end", "0:5-0:7 SyntaxError: Expected type, got '='"],
-    ["for i:= 1, 3 do end", "0:5-0:6 SyntaxError: Expected type, got '='"],
-    ["for i : = 1, 3 do end", "0:5-0:8 SyntaxError: Expected type, got '='"],
-    ["for i: --[[c]] = 1, 3 do end", "0:5-0:7 SyntaxError: Expected type, got '='"],
-    ["for k: , v in pairs({}) do end", "0:5-0:7 SyntaxError: Expected type, got ','"],
-    ["for k, v: , w in pairs({}) do end", "0:8-0:10 SyntaxError: Expected type, got ','"],
+    // Luau's range, from the end of the `:` to the end of the token it found (#1174).
+    ["for i: = 1, 3 do end", "0:6-0:8 SyntaxError: Expected type, got '='"],
+    ["for i:= 1, 3 do end", "0:6-0:7 SyntaxError: Expected type, got '='"],
+    ["for i : = 1, 3 do end", "0:7-0:9 SyntaxError: Expected type, got '='"],
+    ["for i: --[[c]] = 1, 3 do end", "0:6-0:16 SyntaxError: Expected type, got '='"],
+    ["for k: , v in pairs({}) do end", "0:6-0:8 SyntaxError: Expected type, got ','"],
+    ["for k, v: , w in pairs({}) do end", "0:9-0:11 SyntaxError: Expected type, got ','"],
   ])("%j reports only the missing type", (statement, message) => {
     expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([message]);
   });
