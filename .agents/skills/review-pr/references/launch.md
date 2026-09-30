@@ -61,7 +61,7 @@ Lenses; diversity matters far more than count, because redundant reviewers find 
 
 Assign relevant lenses (including concurrency, serialization, or the asset pipeline when warranted) within the selected reviewer count. Skip those that cannot apply. Test honesty and repo traps above apply to every reviewer rather than consuming additional reviewer slots.
 
-A reviewer launch can die with a session rate-limit error before it has posted anything. When one does, check the tree and the PR comments for whatever it did manage, then relaunch that reviewer after the reset time the error names; the other reviewers are unaffected.
+A reviewer launch can die with a session rate-limit error before it has posted anything. When one does, check the tree and the PR comments for whatever it did manage, then relaunch that reviewer after the reset time the error names; the other reviewers are unaffected. When the reset is too far off to wait for, that blocked journal is what permits the same-vendor reviewer described in [handoff execution](../HANDOFF.md#machine-wide-reviewer-reservations); nothing else does.
 
 When the fan-out returns, check the tree before anything else:
 
