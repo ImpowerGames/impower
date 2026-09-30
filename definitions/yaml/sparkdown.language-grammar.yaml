@@ -6380,7 +6380,13 @@ repository:
         # following `=` / `+=` / `-=` operator, producing `x= 1`.
         patterns:
           - { include: "#OptionalWhitespace" }
+    # The begin takes in the whitespace before a comment that follows the
+    # target, and the comment stands between the target and its annotation,
+    # `=` or comma (`local x --[[c]] = 1`, #1212). The end cannot match before
+    # the comment, so without `LuauComment` here the rule is left unfinished.
     patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTargetTypeCastAfterComment" }
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauFunctionDefinition" }
@@ -6798,15 +6804,24 @@ repository:
     # `then` keyword closes it. Critically, `then` is excluded from
     # `LuauKeyword` so the inner `LuauExpression` can't snatch it
     # before this rule's end pattern fires.
+    # A later line continues the condition only when it begins with its
+    # `then`, continues the expression (`LuauLineContinuation`), or is blank
+    # or holds only a comment, which Luau reads past. Any other line ends it,
+    # so a condition written without `then` ends with its own line rather than
+    # reading the branch's first line into the expression;
+    # `ValidationAnnotator` reports the missing `then`. A condition that
+    # begins on the line after `if` (`if` alone on its line) reads its first
+    # line through `LuauConditionLeadingBreak`.
     begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
+      - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}})
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
         emit: true
@@ -6899,16 +6914,18 @@ repository:
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
 
   LuauElseifBlockCondition:
-    # See `LuauIfBlockCondition` for the multi-line trick.
+    # See `LuauIfBlockCondition` for the multi-line trick and the line that
+    # ends a condition written without `then`.
     begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}}|then\b)
     patterns:
+      - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}})
+    end: ({{WS}}*)((?:then)\b)|(?={{BEAT}}|{{END}}|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{WS}}*$|{{WS}}*{{LUAU_COMMENT_START}}))
     endCaptures:
       1:
         emit: true
@@ -6917,6 +6934,19 @@ repository:
       2:
         patterns:
           - { include: "#LuauThenKeyword" }
+
+  # The line breaks, blank lines, comments and indentation between an `if` or
+  # `elseif` that ends its line (or has only a comment after it) and the
+  # condition's first token on a later line. Taking them here means the
+  # condition's line-start end is first tested on the line after the one the
+  # condition begins on, not on that line itself.
+  LuauConditionLeadingBreak:
+    begin: (?<=\b(?:else)?if\b{{WS}}*)(?={{WS}}*(?:$|{{LUAU_COMMENT_START}}))
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#ExtraWhitespace" }
+      - { include: "#Newline" }
+    end: (?=\S)(?!{{LUAU_COMMENT_START}})
 
   # ----------------------------------------------------------------------------
   # Else Block
@@ -8988,6 +9018,25 @@ repository:
     # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
     # there ("invalid pattern in look-behind").
     begin: (?<=\b(?:{{LUAU_SCOPE_MODIFIERS}}){{WS}}+[^=\n\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauTargetTypeCastOperator" }
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+
+  # The same `::`, right after a block comment that follows the target
+  # (`local x --[[c]] :: number`), which `LuauTargetTypeCast`'s lookbehind
+  # cannot see past. It is read inside `LuauVariableAssignment`, where the
+  # comment was read and the whitespace after it taken in, so a `]` right
+  # before the `::` is that comment's close (#1212).
+  LuauTargetTypeCastAfterComment:
+    begin: (?<=\]{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
     beginCaptures:
       1:
         patterns:

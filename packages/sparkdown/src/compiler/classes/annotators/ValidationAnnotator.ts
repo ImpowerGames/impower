@@ -197,6 +197,23 @@ const IF_EXPRESSION_WITHOUT_THEN =
   "Expected 'then' when parsing if then else expression";
 const IF_EXPRESSION_WITHOUT_ELSE =
   "Expected 'else' when parsing if then else expression";
+// Luau's parser reports an if statement's condition that no `then` follows
+// in these words (`parseIf`, for an `elseif` too), naming the token it found.
+const IF_STATEMENT_WITHOUT_THEN = "Expected 'then' when parsing if statement";
+const LUAU_IF_STATEMENT_CONDITION = nodeNameSet([
+  "LuauIfBlockCondition",
+  "LuauElseifBlockCondition",
+]);
+// The parts of an if statement's condition that are not its expression.
+const IF_CONDITION_TRIVIA = nodeNameSet([
+  "LuauConditionLeadingBreak",
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+  "ExtraWhitespace",
+  "Newline",
+]);
 const LUAU_IF_KEYWORD = nodeNameSet(["LuauIfKeyword"]);
 const LUAU_THEN_KEYWORD = nodeNameSet(["LuauThenKeyword"]);
 const LUAU_ELSE_KEYWORD = nodeNameSet(["LuauElseKeyword"]);
@@ -410,6 +427,21 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       return false;
     };
     return search(commandNode);
+  }
+
+  /**
+   * Where an if statement's condition expression ends: after the last part
+   * of the condition that is not a space or line break, before any part the
+   * grammar could not read into the expression (`flag` in `if flag print(1)`).
+   */
+  protected conditionExpressionEnd(condition: any): number {
+    const content = childNamed(condition, `${condition.name}_content`);
+    let end = content?.from ?? condition.from;
+    for (let c = content?.firstChild; c; c = c.nextSibling) {
+      if (c.name === "ERROR_INCOMPLETE") break;
+      if (!IF_CONDITION_TRIVIA.has(c.name)) end = c.to;
+    }
+    return end;
   }
 
   protected error(
@@ -867,6 +899,26 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           missing.message,
           missing.at?.from ?? nodeRef.from,
           missing.at?.to ?? nodeRef.to,
+        );
+      }
+    }
+    // An if statement's condition that its line ends without a `then`: the
+    // grammar ends the condition there, so the branch's first line stays in
+    // its body. Luau names the token after the condition's expression, which
+    // is the first one the grammar could not read into it.
+    if (LUAU_IF_STATEMENT_CONDITION.has(nodeRef.name)) {
+      const end = childNamed(nodeRef.node, `${nodeRef.name}_end`);
+      if (!end || !firstDescendant(end, LUAU_THEN_KEYWORD)) {
+        const got = nextSignificantToken(
+          this.conditionExpressionEnd(nodeRef.node),
+          (from, to) => this.read(from, to),
+        );
+        const eof = this.tree?.length ?? nodeRef.to;
+        this.error(
+          annotations,
+          `${IF_STATEMENT_WITHOUT_THEN}, got ${got == null ? "<eof>" : `'${got.text}'`}`,
+          got?.from ?? eof,
+          got == null ? eof : got.from + got.text.length,
         );
       }
     }
