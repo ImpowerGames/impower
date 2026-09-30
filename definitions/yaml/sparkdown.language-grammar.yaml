@@ -239,12 +239,15 @@ variables:
   # function declaration (a `function` literal is a value).
   LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
   # Just before the line break of an if expression's line when the next line
-  # begins a reassignment at column 0 (`x = 6`, `a.b += 1`), the shape
-  # `LuauReassignment` begins at. A `LuauReassignment` has nothing at a line
-  # start that ends it, so an unfinished if expression stops before that line
-  # break instead of taking it, and the reassignment it is the value of ends
-  # at the end of its own line.
-  BEFORE_LUAU_REASSIGNMENT_LINE: (?={{NL}}{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+  # begins at column 0 with anything an if expression does not read on to:
+  # not a clause keyword (`then`, `else`, `elseif`), a continuation, a
+  # comment, or a closing bracket or separator. Such a line ends the
+  # expression anyway, so the expression stops before the line break instead
+  # of taking it, and a statement it is part of, such as a `LuauReassignment`
+  # (which has nothing at a line start that ends it), ends at the end of its
+  # own line rather than reading the next line (`x = 6`, `print(x)`,
+  # `local y = 1`) into itself.
+  BEFORE_LUAU_COLUMN_0_LINE: (?={{NL}}(?!\s|(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}|{{LUAU_COMMENT_START}}|[)}\],;]))
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -6674,7 +6677,7 @@ repository:
       - { include: "#LuauCommaSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b|{{BEFORE_LUAU_REASSIGNMENT_LINE}}
+    end: ({{WS}}+)(?=then\b)|(?=^then\b)|(?={{BEAT}}|[)}\],;]|^(?!{{WS}}*then\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|{{AFTER_LUAU_GLUEABLE_OPERAND}}(then)\b|{{BEFORE_LUAU_COLUMN_0_LINE}}
     endCaptures:
       1:
         emit: true
@@ -7023,7 +7026,7 @@ repository:
     # clause is still to come, and a line that begins anything else ends
     # the arm (see `LuauTernaryExpression`'s `end`). After a `then` that
     # ends its line, a next line that begins a statement also ends the arm.
-    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_REASSIGNMENT_LINE}}
+    end: (?={{BEAT}}|{{WS}}*(?:else\b|elseif\b|[)}\],;])|^(?!{{WS}}*(?:then|else|elseif)\b|{{LUAU_EXPRESSION_LINE_CONTINUATION}}))|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
 
   LuauThenOperator:
     begin: ((?:then)\b)({{WS}}*)
@@ -7045,7 +7048,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_REASSIGNMENT_LINE}}
+    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
 
   LuauElseExpression:
     begin: (?=(?:else)\b)
@@ -7083,7 +7086,7 @@ repository:
     patterns:
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_REASSIGNMENT_LINE}}
+    end: (?={{BEAT}})|(?!$|{{WS}})|{{BEFORE_LUAU_COLUMN_0_LINE}}
 
   # ----------------------------------------------------------------------------
   # Alternator Blocks

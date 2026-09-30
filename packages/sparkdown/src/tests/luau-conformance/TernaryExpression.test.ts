@@ -673,6 +673,38 @@ describe("if expression without an else", () => {
     expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
   });
 
+  // Each clause that can end the line of an unfinished if expression. An
+  // empty then or else arm stops the call when it runs, with or without the
+  // next line, so those two are checked by their diagnostics alone.
+  test.each([
+    ["no then yet", "  x = if true\n", `4:7-4:9 ${MISSING_THEN}`, "Value 6.\n"],
+    ["then ending the line", "  x = if true then\n", `4:15-4:19 ${MISSING_CONDITION}`, null],
+    ["else ending the line", "  x = if false then 1 else\n", `4:23-4:27 ${MISSING_CONDITION}`, null],
+    ["no then after elseif", "  x = if false then 1\n    elseif true\n", `5:5-5:11 ${MISSING_THEN}`, "Value 6.\n"],
+  ])("in a reassignment with %s, followed by a reassignment at column 0", (_name, partial, diagnostic, value) => {
+    const source = `Value {f()}.\nfunction f()\n  local x = 0\n${partial}x = 6\n  return x\nend\n`;
+    expect(ifDiagnostics(source)).toEqual([diagnostic]);
+    if (value !== null) {
+      const ctx = makeRuntimeStoryFromSource(source);
+      expect(ctx.story.ContinueMaximally()).toBe(value);
+    }
+  });
+
+  test.each([
+    ["a return", "return 6"],
+    ["a local declaration", "local y = 6\nx = y"],
+    ["a call", "set(6)"],
+    ["an if statement", "if true then x = 6 end"],
+    ["a do block", "do x = 6 end"],
+    ["a while loop", "while x ~= 6 do x = 6 end"],
+    ["a for loop", "for i = 6, 6 do x = i end"],
+  ])("in a reassignment, followed by %s at column 0", (_name, next) => {
+    const source = `Value {f()}.\nlocal x = 0\nfunction set(v)\n  x = v\nend\nfunction f()\n  x = if true\n    then 1\n${next}\n  return x\nend\n`;
+    expect(ifDiagnostics(source)).toEqual([`7:7-7:9 ${MISSING_ELSE}`]);
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 6.\n");
+  });
+
   test("in a Sparkle prop binding", () => {
     const ctx = makeRuntimeStoryFromSource(
       `layout main with\n  text "x" #opacity={if true then 1}\nend\n`,
