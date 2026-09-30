@@ -4,7 +4,7 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 4. Adjudicate, on the PR
 
-Reviewer output is a hypothesis, not a verdict; reviewer sessions confidently report defects that do not exist. If every reviewer of a round failed with a rate-limit error, the round did not run: relaunch the same set after the reset the errors name, and never adjudicate a partial round. If the coordinator exits, recover from the recorded launch IDs and start times before replacing any attempt; a missing comment is not evidence that a process exited.
+Reviewer output is a hypothesis, not a verdict; reviewer sessions confidently report defects that do not exist. A reviewer that failed with a rate-limit error did not run: relaunch it after the reset the error names, as the same round and reviewer, before launching the next. Adjudicate each usable report when its reviewer exits, before the round's next planned reviewer launches; the round is complete only when every planned reviewer has reported. If the coordinator exits, recover from the recorded launch IDs and start times before replacing any attempt; a missing comment is not evidence that a process exited.
 
 For every finding, confirm it yourself in the code before acting. A claimed `file:line` that does not say what the reviewer claims is a dead finding, full stop. When two reviewers disagree about the same lines, break the tie by experiment rather than by the more convincing prose: for a claim that a test does not cover a branch, disable that branch and re-run; a suite that stays green proves the claim. Record the mutation and its result in the adjudication.
 
@@ -27,6 +27,8 @@ When a finding's fix depends on a defect older than the branch, fix the older de
 
 Do not silently drop findings; an unanswered review comment on the PR reads as an open defect.
 
+Before the next reviewer launches, or the round closes, look past the findings you were given. For each accepted finding, search the rest of the change for the same class of defect and fix every instance, not only the cited line. Then list whatever you yourself suspect may be wrong, including anything you expect the next reviewer to raise, and settle each item now: confirm it by reading the code or by experiment and fix it, or dismiss it with the evidence. Never hold a suspicion back to see whether a reviewer raises it: a reviewer spent rediscovering what the writer already doubted is wasted, and a doubt no reviewer happens to raise ships unexamined. This is a check, not licence to change code on speculation; a suspicion changes code only once it is established. Record what you checked and what it showed in the adjudication comment.
+
 ---
 
 ## 5. Re-verify, then mark ready
@@ -37,12 +39,12 @@ When the check imports a name the base revision does not export, `redgreen`'s re
 
 Marking the PR ready means this diff is finished and ready to be reviewed by a human. Make that claim only when every one of these is true:
 
-- Every reviewer you spawned has exited, and every required reviewer has supplied a usable report for the recorded frozen head.
+- Every reviewer you spawned has exited, and every planned reviewer has supplied a usable report for the head recorded for it.
 - Every report is on the PR, including the ones you posted on a reviewer's behalf (see [launch procedure](launch.md)).
 - Every finding is adjudicated in your adjudication comment, accepted, rejected, already covered, or deferred to a filed Task under the conditions above, with nothing left unanswered.
 - Every fix you made in response is committed, pushed, and re-verified as above, and the last push is on the PR.
 - No required lens is missing or outstanding from an aborted or retried attempt (see [independence](../SKILL.md)).
-- Behavior-changing fix commits have themselves been independently reviewed under [later-round rules](later-rounds.md). Only verified non-behavioral corrections qualify for its disclosed exception.
+- Behavior-changing fix commits have themselves been independently reviewed under [later-round rules](later-rounds.md). A correction made between a round's reviewers counts as reviewed when a later reviewer of that round whose lens covers the changed code reviewed a head containing it; the undirected reviewer covers the whole change. Only verified non-behavioral corrections qualify for its disclosed exception.
 - CI has started on the final pushed head and no check on that head has failed (`gh pr checks`), and no blocking finding or material verification gap remains. Readiness does not wait for pending checks: the maintainer merges only after CI finishes. Read `gh pr checks` once before marking ready, and record each check as passed, failed or still pending in the PR body's Testing and verification section and in the handoff. A failed check on the final head, including one that fails after the PR is ready, is the writer's correction to make.
 - No external draft blocker remains. Under Notes for reviewers, name any prerequisite outside review (such as another PR holding required files), what must happen first, and the remaining work in the order a follow-up session should perform it. Keep the PR draft until that prerequisite and the remaining gates are satisfied.
 
