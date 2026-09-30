@@ -130,6 +130,34 @@ end
   expectFormatsTo(source, source);
 });
 
+// Joining an interpolation or binding brace to a table inside it would write
+// `{{`, which reads as the `{{fn(args)}}` call shorthand instead of a table,
+// so the space between the two braces stays.
+test("formatting keeps a table inside interpolation and binding braces apart from them", () => {
+  expectFormatsTo(
+    `local s = \`v={ {a=1} }\`
+Value: { {a=1} }
+Empty: {  {}  }
+Call: {f{1}}
+
+layout hud with
+  text #value={ {a=1} }
+  text #items={ {1, 2}}
+end
+`,
+    `local s = \`v={ { a = 1 } }\`
+Value: { { a = 1 } }
+Empty: { {} }
+Call: {f{ 1 }}
+
+layout hud with
+  text #value={ { a = 1 } }
+  text #items={ { 1, 2 } }
+end
+`,
+  );
+});
+
 test("formatting leaves a multi-line table's lines as they are", () => {
   const source = `local a = {
   x = 1,
