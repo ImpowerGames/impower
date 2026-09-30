@@ -55,8 +55,9 @@ export function validateCodexAuthHome(permission,worktree) {
   return sourceHome;
 }
 
-// The shared hook entry point of the checkout running this launcher, not the
-// reviewed head: a pull request under review cannot relax its own reviewer's policy.
+// The shared hook entry point of the checkout running this launcher. Run from
+// the reviewed worktree, that is the reviewed head's policy, which is no less
+// trusted than the launcher code the same checkout already supplies.
 export const reviewerHookEntry=path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))),'.agents','hooks','pre-tool-use.mjs');
 
 // Codex loads $CODEX_HOME/hooks.json even with --ignore-user-config, and the
