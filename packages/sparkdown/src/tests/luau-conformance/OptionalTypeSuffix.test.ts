@@ -91,21 +91,23 @@ describe("a type ending in `?` ends at the `?`", () => {
   });
 
   // Luau rejects each of these: a `?` only ends the type before it. The `?` is
-  // reported in Luau's wording, and nothing else is, so the rest reads as Luau.
+  // reported in Luau's wording and range, from the end of the token before it
+  // to the end of the `?` (#1174), and nothing else is, so the rest reads as
+  // Luau.
   test.each([
-    ["after a leading bar", "type Bar = |?\n", 12],
-    ["alone", "type Baz = ?\n", 11],
-    ["before its type", "local v: ?number\n", 9],
-    ["after a function arrow", "type F = () -> ?\n", 15],
-    ["after an unspaced function arrow", "type F = () ->?\n", 14],
-    ["after a function arrow and a block comment", "type F = () -> --[[c]] ?\n", 23],
-    ["after a function arrow and two block comments", "type F = () -> --[[a]] --[=[b]=]?\n", 32],
-    ["after an annotation's `:` and a block comment", "local v: --[[c]]?\n", 16],
-    ["after a type alias's `=` and a block comment", "type T = --[[c]] ?\n", 17],
-    ["after an exported type alias's `=` and a block comment", "export type T = --[[c]] ?\n", 24],
-  ])("a `?` with no type before it, %s, is reported", (_name, snippet, column) => {
+    ["after a leading bar", "type Bar = |?\n", 12, 13],
+    ["alone", "type Baz = ?\n", 10, 12],
+    ["before its type", "local v: ?number\n", 8, 10],
+    ["after a function arrow", "type F = () -> ?\n", 14, 16],
+    ["after an unspaced function arrow", "type F = () ->?\n", 14, 15],
+    ["after a function arrow and a block comment", "type F = () -> --[[c]] ?\n", 14, 24],
+    ["after a function arrow and two block comments", "type F = () -> --[[a]] --[=[b]=]?\n", 14, 33],
+    ["after an annotation's `:` and a block comment", "local v: --[[c]]?\n", 8, 17],
+    ["after a type alias's `=` and a block comment", "type T = --[[c]] ?\n", 8, 18],
+    ["after an exported type alias's `=` and a block comment", "export type T = --[[c]] ?\n", 15, 25],
+  ])("a `?` with no type before it, %s, is reported", (_name, snippet, from, to) => {
     expect(checkLuau(`\n${snippet}`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
-      `1:${column}-1:${column + 1} SyntaxError: Expected type, got '?'`,
+      `1:${from}-1:${to} SyntaxError: Expected type, got '?'`,
     ]);
   });
 

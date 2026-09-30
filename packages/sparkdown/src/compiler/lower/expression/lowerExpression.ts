@@ -1649,7 +1649,7 @@ export function collectImmediateBodyDeclarations(
 // `for i=10,1,z do` classified `z` as locally bound, skipped the
 // capture, and the loop's step read nil at runtime (basic.luau
 // lines 196-197).
-function collectForLoopTargetNames(
+export function collectForLoopTargetNames(
   condNode: SyntaxNode,
   ctx: LowerContext,
 ): string[] {

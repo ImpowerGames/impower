@@ -8,6 +8,7 @@ import { Function } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Flow/Fu
 import { Identifier } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Identifier";
 import { ReturnType } from "../../../inkjs/compiler/Parser/ParsedHierarchy/ReturnType";
 import {
+  collectForLoopTargetNames,
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
@@ -1181,11 +1182,10 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
   if (condContent) {
     const inKw = firstDescendant(condContent, nodeNameSet(["LuauInKeyword"]));
     if (inKw) {
-      bindings = ctx
-        .read(condContent.from, inKw.from)
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
+      // Each variable is a path of its own before `in`; a type annotation
+      // after one is not, so a comma inside its type is not a separator
+      // (`for k: {a: number, b: string}, v in scores`).
+      bindings = collectForLoopTargetNames(condContent, ctx);
       const iterableNodes: SyntaxNode[] = [];
       let c = condContent.firstChild;
       while (c) {
@@ -1236,7 +1236,7 @@ function buildForNode(forBlock: SyntaxNode, ctx: LowerContext): ForNode {
 }
 
 /** Parse a numeric `for` header (`i = from, to[, step]`, no `in`) from its
- *  `LuauForCondition_content`. The loop var is the text before the `= from`
+ *  `LuauForCondition_content`. The loop var is the name before the `= from`
  *  assignment; `from` is the assignment's value; `to`/`step` are the
  *  comma-separated expressions after it. Returns null if it doesn't look
  *  numeric (no assignment / no `to`). */
@@ -1251,7 +1251,7 @@ function parseNumericForHeader(
   if (!asn) {
     return null;
   }
-  const loopVar = ctx.read(condContent.from, asn.from).trim();
+  const loopVar = collectForLoopTargetNames(condContent, ctx)[0];
   if (!loopVar) {
     return null;
   }

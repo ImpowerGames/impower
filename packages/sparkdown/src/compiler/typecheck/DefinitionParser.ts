@@ -135,6 +135,25 @@ export function parseDefinitionSource(source: string): ParseResult {
   return parseLuau(source, { allowDeclarationSyntax: true });
 }
 
+/**
+ * Luau's description of the last token before `position` in `source`, past
+ * comments (`'x'`, `'local'`, `')'`), or `undefined` when no token comes
+ * before it. Not part of Luau: Sparkdown's type checker reads with it what an
+ * error's token follows, since a comment, a string or a line comment can
+ * hold text that looks like a comment's delimiters.
+ */
+export function describeTokenBefore(source: string, position: Position): string | undefined {
+  const buffer = utf8Encoder.encode(source);
+  const lexer = new Lexer(buffer, buffer.length, new AstNameTable());
+  let previous: string | undefined;
+  for (let lexeme = lexer.next(true); lexeme.type !== LexemeType.Eof; lexeme = lexer.next(true)) {
+    const begin = lexeme.location.begin;
+    if (begin.line > position.line || (begin.line === position.line && begin.column >= position.column)) break;
+    previous = lexeme.toString();
+  }
+  return previous;
+}
+
 // Luau's `FInt::LuauRecursionLimit`, `FInt::LuauTypeLengthLimit` and `FInt::LuauParseErrorLimit`.
 const LuauRecursionLimit: number = 1000;
 const LuauTypeLengthLimit: number = 1000;

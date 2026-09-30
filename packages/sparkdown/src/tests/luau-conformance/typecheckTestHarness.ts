@@ -39,6 +39,7 @@ import {
 } from "../../compiler/typecheck/Type";
 import type { SparkdownDocument } from "../../compiler/classes/SparkdownDocument";
 import type { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
+import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
 import type { SparkdownNodeName } from "../../compiler/types/SparkdownNodeName";
 import { nodeNameSet } from "../../compiler/utils/nodeNameSet";
 import { diagnosticMessage } from "./diagnosticTestHarness";
@@ -117,8 +118,9 @@ export interface CheckedType {
 export interface LuauCheckResult {
   /**
    * What Sparkdown found wrong with the snippet's syntax: its validator's
-   * diagnostics, and each place its parser read the snippet as something
-   * other than Luau.
+   * diagnostics, the syntax errors its type checker reports (a type Luau's
+   * parser cannot read), and each place its parser read the snippet as
+   * something other than Luau.
    */
   syntaxDiagnostics: LuauDiagnostic[];
   /** Whether a type checker ran. */
@@ -199,7 +201,8 @@ export function checkLuau(source: string, options: CheckLuauOptions = {}): LuauC
 
   const documents = compiler.documents;
   const wrapped = wrappedSnippet(documents, source);
-  const syntaxDiagnostics = syntaxDiagnosticsOf(wrapped, documents);
+  // The compiler checks the snippet's types under the file's own URI, in its own lines.
+  const syntaxDiagnostics = syntaxDiagnosticsOf(wrapped, documents, program.diagnostics?.[SNIPPET_URI] ?? []);
 
   const compilerMessages = [...logged];
   for (const d of program.diagnostics?.[wrapped.uri] ?? []) compilerMessages.push(diagnosticMessage(d));
@@ -452,7 +455,11 @@ const SPARKDOWN_STRING_EXPRESSIONS = new Map<string, string>(
   } satisfies Partial<Record<SparkdownNodeName, string>>),
 );
 
-function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocumentRegistry): LuauDiagnostic[] {
+function syntaxDiagnosticsOf(
+  wrapped: WrappedSnippet,
+  documents: SparkdownDocumentRegistry,
+  compilerDiagnostics: readonly SparkDiagnostic[],
+): LuauDiagnostic[] {
   const found: LuauDiagnostic[] = [];
   const text = wrapped.document.getText();
   const snippetEnd = wrapped.offset + wrapped.length;
@@ -470,6 +477,11 @@ function syntaxDiagnosticsOf(wrapped: WrappedSnippet, documents: SparkdownDocume
   documents.annotations(wrapped.uri).validations.between(wrapped.offset, snippetEnd, (from, to, value) => {
     if (value.type.message) report(from, to, value.type.message);
   });
+  for (const d of compilerDiagnostics) {
+    if (d.code !== "SyntaxError" || !d.range) continue;
+    const { start, end } = d.range;
+    found.push({ line: start.line, column: start.character, endLine: end.line, endColumn: end.character, message: diagnosticMessage(d), code: "SyntaxError" });
+  }
 
   const top: SyntaxNode[] = [];
   for (let node = wrapped.tree.topNode.firstChild; node; node = node.nextSibling) top.push(node);
