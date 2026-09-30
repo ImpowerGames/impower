@@ -439,6 +439,13 @@ export class VariablePointerValue extends Value<string> {
     return this._isClosed;
   }
 
+  // Binds the cell to a live frame again. Used when a taken choice's thread,
+  // which still binds the variable, replaces the thread that closed the cell.
+  public Reopen() {
+    this._closedValue = null;
+    this._isClosed = false;
+  }
+
   constructor(variableName: string, contextIndex: number = -1) {
     super(variableName);
 
