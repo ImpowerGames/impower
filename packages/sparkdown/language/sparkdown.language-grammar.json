@@ -309,7 +309,7 @@
     "STRUCT_BLOCK_LINE_START": "(?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|[}]))",
     "STRUCT_BLOCK_BAIL": "(?:{{BEAT}}|^{{END}})",
     "STRUCT_BLOCK_TRAILING_COMMA": "(?:[,]{{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))",
-    "STRUCT_BLOCK_COMMA_BEFORE_ENTRY": "(?:[,]{{WS}}*{{STYLE_PROPERTY_NAME}}{{WS}}*[={])",
+    "STRUCT_BLOCK_COMMA_BEFORE_ENTRY": "(?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))",
     "STRUCT_BLOCK_VALUE_END": "(?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}})|{{WS}}+{{LUAU_COMMENT_START}})",
     "STRUCT_BLOCK_VALUE": "(?:(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}\"\\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))",
     "STRUCT_BLOCK_ITEM_END": "(?:{{WS}}*(?:$|[;{},])|{{WS}}+{{LUAU_COMMENT_START}})",
@@ -8093,13 +8093,13 @@
           "include": "#LuauStructBlockEntryComma"
         },
         {
+          "include": "#LuauStructBlockProperty"
+        },
+        {
           "include": "#LuauStructBlock"
         },
         {
           "include": "#LuauStructListBlock"
-        },
-        {
-          "include": "#LuauStructBlockProperty"
         },
         {
           "include": "#LuauStructBlockIndentedHeader"
@@ -8237,7 +8237,7 @@
       "match": "([}])"
     },
     "LuauStructBlockProperty": {
-      "match": "(\\[[^\\]\\n]*\\]|[$]?(?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))((?:(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*))((?:(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[^;{}\"\\n])+?(?=(?:(?:[^\\S\\n\\r])*(?:$|[;{}]|(?:[,](?:[^\\S\\n\\r])*(?:$|[;}]|(?:[-][-])))|(?:[,](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_-]*)(?:[^\\S\\n\\r])*[={]))|(?:[^\\S\\n\\r])+(?:[-][-]))))?)",
+      "match": "(\\[[^\\]\\n]*\\]|[$]?(?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))((?:(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*))(?!(?:[^\\S\\n\\r])*[{])((?:(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[^;{}\"\\n])+?(?=(?:(?:[^\\S\\n\\r])*(?:$|[;{}]|(?:[,](?:[^\\S\\n\\r])*(?:$|[;}]|(?:[-][-])))|(?:[,](?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_-]*)(?:[^\\S\\n\\r])*[=]|(?:[^\\s{};\"=,][^{};\"\\n]*?)(?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?)[{])))|(?:[^\\S\\n\\r])+(?:[-][-]))))?)",
       "captures": {
         "1": {
           "patterns": [

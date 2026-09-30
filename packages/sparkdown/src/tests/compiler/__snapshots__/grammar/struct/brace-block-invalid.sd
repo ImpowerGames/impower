@@ -1,6 +1,7 @@
 theme t with
   colors { primary = red, secondary = blue }
   names { a, b }
+  card { opacity = 0.5, > text { color = red }, @hovered, @pressed = { color = blue } }
   old {
     accents:
       - red

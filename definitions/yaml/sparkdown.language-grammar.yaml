@@ -326,8 +326,10 @@ variables:
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
   # comment. It is ignored.
   STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))
-  # A comma followed by another entry on the same line (`, b = 2`, `, b {`).
-  STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*{{STYLE_PROPERTY_NAME}}{{WS}}*[={])
+  # A comma followed by another entry on the same line: a property (`, b = 2`)
+  # or a block (`, b {`, `, > text {`). A value cannot hold an unquoted `{`,
+  # so text after a comma that runs to a `{` is the next block's header.
+  STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
   # An unquoted property value ends at the end of its line, a `;`, a brace, a
   # comma that ends the entry or precedes another one, or a `--` comment after
   # whitespace. Any other comma stays part of the value.
@@ -5472,9 +5474,11 @@ repository:
       - { include: "#LuauStructBlockSeparator" }
       - { include: "#LuauStructBlockTrailingComma" }
       - { include: "#LuauStructBlockEntryComma" }
+      # A property is tried before a block, so a block header never starts at
+      # a property (`a = 1, b { … }` is a property, a comma and a block).
+      - { include: "#LuauStructBlockProperty" }
       - { include: "#LuauStructBlock" }
       - { include: "#LuauStructListBlock" }
-      - { include: "#LuauStructBlockProperty" }
       - { include: "#LuauStructBlockIndentedHeader" }
       - { include: "#LuauStructBlockItemMark" }
       - { include: "#LuauStructListValue" }
@@ -5561,9 +5565,11 @@ repository:
 
   # `name = value` inside a block. The key and value are read by the same rules
   # as an indented `name = value` line; the value ends at the line's end, a
-  # `;` or the block's `}` (`STRUCT_BLOCK_VALUE`).
+  # `;` or the block's `}` (`STRUCT_BLOCK_VALUE`). A value that would start
+  # with `{` is the block form `name = { … }`, so the rule leaves it to
+  # `LuauStructBlock`.
   LuauStructBlockProperty:
-    match: (\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})({{STRUCT_BLOCK_VALUE}}?)
+    match: (\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)
     captures:
       1:
         patterns:

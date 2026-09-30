@@ -406,6 +406,33 @@ end
     ]);
   });
 
+  test("a comma between a property and a nested block is one error that names `;`, and the block keeps its own header", () => {
+    const style = `style banner with
+  &.card { opacity = 0.5, > text { text-color = red } }
+end
+`;
+    const styleErrors = errorsOf(style);
+    expect(styleErrors).toHaveLength(1);
+    expect(styleErrors[0]).toMatchObject({ line: 1, text: "," });
+    expect(styleErrors[0]!.message).toContain("`;`");
+    expect(structOf(style, "style", "banner")["&.card"]).toEqual({
+      opacity: "0.5",
+      "> text": { "text-color": "red" },
+    });
+
+    const animation = `animation a with
+  timing { duration = 1, nested { delay = 2 } }
+end
+`;
+    const animationErrors = errorsOf(animation);
+    expect(animationErrors).toHaveLength(1);
+    expect(animationErrors[0]).toMatchObject({ line: 1, text: "," });
+    expect(structOf(animation, "animation", "a").timing).toEqual({
+      duration: 1,
+      nested: { delay: 2 },
+    });
+  });
+
   test("a comma inside a property's value stays part of the value", () => {
     const text = `style s with
   &.a {
