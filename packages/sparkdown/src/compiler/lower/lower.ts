@@ -559,6 +559,25 @@ function reportExpressionStatement(
   return last;
 }
 
+// Reports the statement at `child` in a body whose lowerer reads only the
+// statements it knows (a define body reads properties and methods) when it
+// is an expression Luau cannot read as a statement (`Hello`, `Hi, Bob`,
+// `1 + 2`), as `lowerStatementAt` does. Returns the last node of its line,
+// or null when `child` begins no such expression.
+export function reportUnreadExpressionStatement(
+  child: SyntaxNode,
+  ctx: LowerContext,
+): SyntaxNode | null {
+  if (
+    child.name === "LuauAccessPath" ||
+    EXPRESSION_STATEMENT_STARTS.has(child.name) ||
+    (child.name === "LuauFunctionDefinition" && isAnonymousFunction(child))
+  ) {
+    return reportExpressionStatement(child, child, ctx);
+  }
+  return null;
+}
+
 // Whether the statement before `start`, across blank and comment lines, ends
 // with a word or an operator that a value must follow (`then`, `else`, `=`,
 // `,`, `+`, `and`, an opening bracket). Luau reads the line at `start` as
@@ -576,8 +595,10 @@ function followsMissingValue(start: SyntaxNode, ctx: LowerContext): boolean {
   return VALUE_EXPECTED_AT_END.test(text);
 }
 
+// A whole token, not the end of a longer one: `..` is not the end of `...`,
+// nor `>` the end of an explicit instantiation's `>>`.
 const VALUE_EXPECTED_AT_END =
-  /(?:(?<![A-Za-z0-9_])(?:then|else|elseif|and|or|not|in)|[=,(\[{+\-*\/%^<>#]|\.\.)$/;
+  /(?:(?<![A-Za-z0-9_])(?:then|else|elseif|and|or|not|in)|[=,(\[{+\-*\/%^#]|(?<![<>])[<>]|(?<![.])\.\.)$/;
 
 // Whether the statement before `start`, across blank and comment lines, ends
 // with a `.` that no name follows on its line: a dangling access

@@ -27,7 +27,7 @@ import {
   processLuauEscapes,
   scanFreeVariables,
 } from "../expression/lowerExpression";
-import { lowerStatements } from "../lower";
+import { lowerStatements, reportUnreadExpressionStatement } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -297,7 +297,11 @@ export function lowerLuauDefine(
   // Reported through the chunk's diagnostics buffer, as the other lowerers do,
   // so a define nested inside another block still reports: `lowerStatements`
   // keeps only the content of the blocks it lowers.
-  ctx.diagnostics?.push(...validateDefineStructure(nodeRef.node, ctx));
+  const structureErrors = validateDefineStructure(nodeRef.node, ctx);
+  ctx.diagnostics?.push(...structureErrors);
+  // A body whose header or end is broken is reported as such; its lines are
+  // not read as statements (a `with` alone on the line below the header).
+  const reportsLines = structureErrors.length === 0;
   const nameNode = getDescendent("LuauDefineName", nodeRef.node);
   if (!nameNode) return {};
   const nameIdentifier = identifierAt(nameNode, ctx);
@@ -333,7 +337,13 @@ export function lowerLuauDefine(
             name: ctx.read(fnNameNode.from, fnNameNode.to),
             node: child,
           });
+        } else {
+          child = (reportsLines && reportUnreadExpressionStatement(child, ctx)) || child;
         }
+      } else {
+        // A line in the body that Luau cannot read as a statement (`Hello`,
+        // `Hi, Bob`, `1 + 2`), which the grammar leaves an expression.
+        child = (reportsLines && reportUnreadExpressionStatement(child, ctx)) || child;
       }
       child = child.nextSibling;
     }

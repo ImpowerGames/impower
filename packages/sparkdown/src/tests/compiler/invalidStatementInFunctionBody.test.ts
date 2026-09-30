@@ -287,6 +287,53 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual([`${played}\n`]);
   });
 
+  it("calls the result of a call with the argument on the next line", () => {
+    const source = [
+      "function maker(a)",
+      "  return function(b)",
+      "    return a .. b",
+      "  end",
+      "end",
+      "",
+      "function f()",
+      '  local x = maker "A"',
+      '    "B"',
+      "  return x",
+      "end",
+      "",
+      "{f()}",
+      "",
+    ].join("\n");
+    expect(errorsOf(source)).toEqual([]);
+    expect(playedLines(source)).toEqual(["AB\n"]);
+  });
+
+  it("reports a line after a complete `...` value", () => {
+    const source = "function f(...)\n  local x = ...\n  Hello\nend\n";
+    expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+  });
+
+  it("reports a `.` that no name follows once when the next line is a comma list", () => {
+    const source = "function g()\n  U.S.\n  Hi, Bob\nend\nAfter it.\n";
+    expect(errorsOf(source)).toEqual([
+      expect.objectContaining({
+        message: expect.stringMatching(/^Expected identifier after '\.' on the same line/),
+        start: { line: 1, character: 5 },
+      }),
+    ]);
+    expect(playedLines(source)).toEqual(["After it.\n"]);
+  });
+
+  it("reports the expressions of a define body that are not statements", () => {
+    const source = 'define foo as object with\n  name = "Orion"\n  Hello\n  Hi, Bob\n  1 + 2\nend\n';
+    // `Hi, Bob` gets Luau's range at the next token, the `1` below it.
+    expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character, d.message])).toEqual([
+      [2, 2, "Incomplete statement: expected assignment or a function call"],
+      [4, 2, "Expected '=' when parsing assignment, got '1'"],
+      [4, 2, luauFirstError("function f()\n  1 + 2\nend\n").message],
+    ]);
+  });
+
   it("reports Luau's range past a long comment before the next token", () => {
     const source = `function greet()\n  Hi, Bob\n  --[[${"x".repeat(5000)}]]\nend\n`;
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);

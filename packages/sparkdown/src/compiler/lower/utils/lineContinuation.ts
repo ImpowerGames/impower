@@ -266,7 +266,16 @@ const CALL_ARGUMENT_NODES = nodeNameSet([
 // or a call argument, whose call can be called again (`f "a"` then `"b"`).
 function endsInCallee(node: SyntaxNode): boolean {
   const leaf = lastSignificantLeaf(node);
-  return leaf != null && CALLEE_END.test(leaf.name);
+  if (!leaf) return false;
+  if (CALLEE_END.test(leaf.name)) return true;
+  // The end of a string or a table that is a call's argument (`maker "A"`):
+  // what the call returns can be called in turn.
+  for (let n: SyntaxNode | null = leaf; n && n !== node; n = n.parent) {
+    if (CALL_ARGUMENT_NODES.has(n.name)) {
+      return n.parent?.name === "LuauFunctionCall_content";
+    }
+  }
+  return false;
 }
 
 const CALLEE_END =
