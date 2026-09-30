@@ -15,6 +15,8 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
+import { RESERVED } from "../../lint/luauNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 
@@ -116,7 +118,16 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
-const MISSING_TYPE = "Expected type, got ';'";
+const MISSING_TYPE = "Expected type";
+const LUAU_COMMENT = nodeNameSet([
+  "LuauBlockComment",
+  "LuauDocLineComment",
+  "LuauLineComment",
+]);
+// Luau reads a name on a later line after a `.`, but a Sparkdown access path
+// ends with its line.
+const NAME_ON_LATER_LINE =
+  "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -474,6 +485,31 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /**
+   * The first character at or after `pos` that is not whitespace, a line
+   * break or inside a Luau comment the grammar read, or `""` at the end.
+   */
+  protected tokenAfterTrivia(pos: number): string {
+    for (;;) {
+      const char = this.read(pos, pos + 1);
+      if (!char) {
+        return "";
+      }
+      if (/\s/.test(char)) {
+        pos += 1;
+        continue;
+      }
+      let node = this.tree?.resolveInner(pos, 1) ?? null;
+      while (node && !LUAU_COMMENT.has(node.name)) {
+        node = node.parent;
+      }
+      if (!node || node.to <= pos) {
+        return char;
+      }
+      pos = node.to;
+    }
+  }
+
   /** The end of the text before the block comments (and the whitespace around
    *  them) that end at `pos`, or null when no block comment ends there. */
   protected startBeforeBlockComments(pos: number): number | null {
@@ -514,9 +550,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
       return annotations;
     }
-    // Likewise a type annotation `:` with no type before the `;`.
+    // Likewise a type annotation `:` with no type before the `;`, `,` or `=`
+    // after it; Luau names the token it found instead.
     if (nodeRef.name === "LuauTypeAnnotationMissingType") {
-      this.error(annotations, MISSING_TYPE, nodeRef.from, nodeRef.to);
+      const token = this.tokenAfterTrivia(nodeRef.to);
+      this.error(
+        annotations,
+        token ? `${MISSING_TYPE}, got '${token}'` : MISSING_TYPE,
+        nodeRef.from,
+        nodeRef.to,
+      );
       return annotations;
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
@@ -532,6 +575,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.error(annotations, STRAY_OPTIONAL, operator.from, operator.to);
         return annotations;
       }
+    }
+    // A member access whose last `.` has no name after it on its line
+    // (`t.a.`). The grammar reads that `.`, after any whitespace before it, as
+    // its own token, so the `.` is the node's last character. The wording is
+    // Luau's parser's, naming the token it meets instead of the name.
+    if (nodeRef.name === "LuauDanglingAccessor") {
+      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+        this.read(from, to),
+      );
+      const nameOnLaterLine =
+        got != null &&
+        /^[A-Za-z_]/.test(got.text) &&
+        !RESERVED.has(got.text) &&
+        this.read(nodeRef.to, got.from).includes("\n");
+      const message = nameOnLaterLine
+        ? NAME_ON_LATER_LINE
+        : `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`;
+      this.error(annotations, message, nodeRef.to - 1, nodeRef.to);
+      return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
     // reads at most `module.Type`, so the segments after it are a syntax

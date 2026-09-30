@@ -175,7 +175,7 @@ const IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*/;
 const IDENTIFIERS = /\b[A-Za-z_][A-Za-z0-9_]*\b/g;
 
 // Luau's reserved words, which are never a name.
-const RESERVED = new Set([
+export const RESERVED = new Set([
   "and",
   "break",
   "do",
@@ -215,8 +215,10 @@ function declaredNames(definition: SyntaxNode): SyntaxNode[] {
     const token = nameBegin?.firstChild?.firstChild;
     if (token?.name === "LuauVariableName") names.push(token);
     // The names end at the `=`; in `local a = b, c` the grammar also wraps
-    // the value `c` as an assignment.
-    if (childNamed(assignment, "LuauVariableAssignment_content")) break;
+    // the value `c` as an assignment. A type annotation (`a: number, b`)
+    // is content too, but does not end them.
+    const content = childNamed(assignment, "LuauVariableAssignment_content");
+    if (content && childNamed(content, "LuauAssignmentOperation")) break;
   }
   return names;
 }

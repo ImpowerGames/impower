@@ -317,8 +317,13 @@ variables:
   # comments, which Luau reads as trivia. A block comment ends at the first
   # closing bracket of its own level, as `LuauBlockComment` does, so its level
   # is captured and matched by `\4`: every rule using this must put exactly
-  # three capture groups before it.
-  _LUAU_SEMICOLON_AHEAD_: (?:(?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*)*[;])
+  # three capture groups before it. A line comment must run to its line end,
+  # so the token is never a character inside it (`local x: -- a, b`).
+  _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
+  _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
+  # The same, ending at the `;`, `,` or `=` (not `==`) that can follow a type
+  # annotation, with the same capture-group rule.
+  _LUAU_TYPE_ANNOTATION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,]|=(?!=)))
   LUAU_BINARY_OPERATORS: (?:{{LUAU_TYPE_OPTIONAL_OPERATOR}}|{{LUAU_TYPE_BINARY_OPERATORS}}|{{LUAU_VALUE_BINARY_OPERATORS}}|{{LUAU_ALTERNATOR_OPERATOR}})
   # Used as the lookahead set in `_LUAU_BINARY_OPERATOR_AHEAD_`. Deliberately
   # excludes the bare `|` token — `|` is overloaded as both a type-union
@@ -7678,6 +7683,7 @@ repository:
     emit: true
     patterns:
       - { include: "#LuauFunctionAccessor" }
+      - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
       - { include: "#LuauFunctionDeclarationName" }
@@ -7927,6 +7933,37 @@ repository:
         patterns:
           - { include: "#LuauStdLibMethods" }
           - { include: "#LuauPropertyName" }
+
+  # A member access whose last `.` has no name after it on its line (`t.`,
+  # `t.a.`), which Luau rejects. That `.` is read as its own token, so the
+  # access path, its statement and the enclosing block end where they would
+  # with the name in place, and the validator reports it.
+  #
+  # The lookbehind takes the `.` as a dangling accessor only after a path
+  # that follows a value-position token: `=`, a comma, an opening bracket, a
+  # binary or unary operator, `return`, a condition keyword, `in` or a
+  # logical operator. A line that starts with a path is left to the rules
+  # that end a function body at a line they cannot read, so a line of words
+  # in a function body (`Hello there.`) keeps that parse. Story lines are not
+  # allowed in a function body, and a line of words with a value-position
+  # token before its last word (`Well, friend.`) is reported here. A name
+  # directly after the `.` is the member, even a keyword (`cfg.repeat`). After
+  # whitespace or block comments on the same line, a reserved word is not a
+  # name (`if t.a. then`) and any other name is (`t.a.--[[note]]b`); and `..`
+  # is the concatenation operator. A block comment ends at its first
+  # closing bracket and at the end of its line, so the lookahead never skips
+  # code between two comments (`t.a.--[[a]] + --[[b]]c`) or reads a name on a
+  # later line as the member. It is tried before `LuauPropertyAccessor`,
+  # which would take `. then` as a member.
+  LuauDanglingAccessor:
+    match: (?<=(?:[=,(\[{<>+\-*/%^#]|\.\.|\b(?:return|if|elseif|while|until|and|or|not|in)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*)({{WS}}*)([.])(?![.]|{{LUAU_IDENTIFIER}}|{{WS}}*(?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        tag: invalid
+        name: invalid.illegal.luau
 
   LuauPropertyIndexer:
     brackets: true
@@ -8695,13 +8732,14 @@ repository:
     name: invalid.illegal.luau
     match: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if)(?!\w))({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
 
-  # A type annotation `:` with no type before the `;` that ends its statement
-  # (`local x: ;`), read as one token as `LuauOperatorMissingOperand` reads
-  # an operator. Luau words this one differently, so it has its own rule.
+  # A type annotation `:` with no type before the `;`, `,` or `=` after it
+  # (`local x: ;`, `local x: = 1`, `local a: , b`), read as one token as
+  # `LuauOperatorMissingOperand` reads an operator. Luau words this one
+  # differently, so it has its own rule.
   LuauTypeAnnotationMissingType:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
+    match: ({{WS}}*)({{LUAU_TYPE_ANNOTATION_OPERATOR}})({{WS}}*)(?={{_LUAU_TYPE_ANNOTATION_END_AHEAD_}})
 
   LuauArithmeticOperation:
     begin: ({{WS}}*)(?={{LUAU_ARITHMETIC_OPERATORS}})
