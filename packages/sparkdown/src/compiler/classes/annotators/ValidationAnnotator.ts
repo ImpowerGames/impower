@@ -122,6 +122,27 @@ const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
 const MISSING_TYPE = "Expected type";
 const MISSING_METHOD_NAME = "Expected identifier when parsing method name";
 const TARGET_TYPECAST = "Expected identifier when parsing expression, got '::'";
+const MISSING_VARIABLE_NAME = "Expected identifier when parsing variable name";
+// A declaration's content: its targets, the commas between them and, from
+// the first `=` on, its values.
+const DECLARATION_CONTENT = nodeNameSet([
+  "LuauVariableDefinition_content",
+  "LuauSparkdownVariableDefinition_content",
+]);
+const DECLARATION_COMMA = nodeNameSet([
+  "LuauCommaSeparator",
+  "LuauCommaLineBreak",
+]);
+const DECLARATION_ASSIGNMENT = nodeNameSet(["LuauAssignmentOperation"]);
+const LUAU_TRIVIA = nodeNameSet([
+  "LuauComment",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+  "ExtraWhitespace",
+  "OptionalWhitespace",
+  "Newline",
+]);
 const LUAU_COMMENT = nodeNameSet([
   "LuauBlockComment",
   "LuauDocLineComment",
@@ -544,6 +565,39 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return false;
   }
 
+  /**
+   * The part of a declaration's content before `node`, past comments and
+   * whitespace: `null` when `node` comes first, and `undefined` when an `=`
+   * comes before it, since `node` is then among the values, not the targets.
+   */
+  protected declarationTargetBefore(
+    node: SyntaxNode,
+  ): SyntaxNode | null | undefined {
+    let before: SyntaxNode | null = null;
+    for (let sibling = node.prevSibling; sibling; sibling = sibling.prevSibling) {
+      if (
+        DECLARATION_ASSIGNMENT.has(sibling.name) ||
+        (sibling.name === "LuauVariableAssignment" &&
+          sibling.getChild("LuauVariableAssignment_content")?.getChild("LuauAssignmentOperation"))
+      ) {
+        return undefined;
+      }
+      if (!before && !LUAU_TRIVIA.has(sibling.name)) {
+        before = sibling;
+      }
+    }
+    return before;
+  }
+
+  /** Whether an access path is one name (`b`), with no member or call. */
+  protected isSingleName(node: SyntaxNode): boolean {
+    if (node.name !== "LuauAccessPath") {
+      return false;
+    }
+    const parts = node.getChild("LuauAccessPath_content")?.getChildren("LuauAccessPart") ?? [];
+    return parts.length === 1 && parts[0]!.firstChild?.name === "LuauVariable" && parts[0]!.firstChild.nextSibling === null;
+  }
+
   /** The end of the text before the block comments (and the whitespace around
    *  them) that end at `pos`, or null when no block comment ends there. */
   protected startBeforeBlockComments(pos: number): number | null {
@@ -608,6 +662,59 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "LuauTargetTypeCastOperator") {
       this.error(annotations, TARGET_TYPECAST, nodeRef.from, nodeRef.to);
       return annotations;
+    }
+    // A `:` or `::` among a declaration's targets that has no name before it
+    // (`local :: number`, `local a, : number`), or a `::` after a target on a
+    // line continued from a trailing comma, which `LuauTargetTypeCast` cannot
+    // see (`local a,` then `b :: number`). The grammar reads each as an
+    // annotation or cast in the declaration's own content.
+    if (
+      (nodeRef.name === "LuauTypeCastOperation" ||
+        nodeRef.name === "LuauTypeAnnotationOperation") &&
+      DECLARATION_CONTENT.has(nodeRef.node.parent?.name ?? "")
+    ) {
+      const operator = nodeRef.name === "LuauTypeCastOperation" ? "::" : ":";
+      const from = nodeRef.from + this.read(nodeRef.from, nodeRef.to).indexOf(operator);
+      const before = this.declarationTargetBefore(nodeRef.node);
+      if (before === null || (before && DECLARATION_COMMA.has(before.name))) {
+        this.error(
+          annotations,
+          `${MISSING_VARIABLE_NAME}, got '${operator}'`,
+          from,
+          from + operator.length,
+        );
+        return annotations;
+      }
+      const comma = before && this.declarationTargetBefore(before);
+      if (
+        operator === "::" &&
+        before &&
+        this.isSingleName(before) &&
+        comma &&
+        DECLARATION_COMMA.has(comma.name)
+      ) {
+        this.error(annotations, TARGET_TYPECAST, from, from + operator.length);
+        return annotations;
+      }
+    }
+    // A second annotation `:` where the type should be (`local c: : number`).
+    // Luau's range runs from the end of the first `:` to the end of the second.
+    if (nodeRef.name === "LuauTypeAnnotationOperator") {
+      let previous = nodeRef.node.prevSibling;
+      while (previous && LUAU_TRIVIA.has(previous.name)) {
+        previous = previous.prevSibling;
+      }
+      if (previous?.name === "LuauTypeAnnotationOperator") {
+        const colonEnd = (node: SyntaxNode) =>
+          node.from + this.read(node.from, node.to).indexOf(":") + 1;
+        this.error(
+          annotations,
+          `${MISSING_TYPE}, got ':'`,
+          colonEnd(previous),
+          colonEnd(nodeRef.node),
+        );
+        return annotations;
+      }
     }
     // The grammar reads a `?` after a block comment as a suffix, because a
     // lookbehind cannot see whether a type stands before the comment
