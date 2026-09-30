@@ -98,8 +98,8 @@ describe("a statement after a same-line block comment after a value runs", () =>
     );
   });
 
-  // A `(` after the comment is read as it is with no comment there: the next
-  // statement after any value but a name.
+  // A `(` after the comment begins the next statement after a value Luau
+  // cannot call: a literal.
   test.each([
     "5",
     "0x5",
@@ -117,12 +117,27 @@ describe("a statement after a same-line block comment after a value runs", () =>
     "@/x/",
     "@/x/i",
     "function() end",
-    "t[1]",
-    "g()",
-    "(g)",
   ])("a parenthesized statement after `%s` runs", (value) => {
     const body = `  local w = 5\n  local t = {1}\n  local g = function() end\n  local r = ${value} --[[c]] (function() print(1) end)()`;
     expect(run(body)).toBe("Value 15.\n");
+  });
+
+  // After a prefix expression, the `(` calls what it holds, as in Luau.
+  test.each([
+    ["a call's result", "  local w = g() --[[c]] (2)"],
+    ["a parenthesized value", "  local w = (h) --[[c]] (2)"],
+    ["an index", "  local w = t[1] --[[c]] (2)"],
+    ["a call's result, spanning lines", "  local w = g() --[[a\n  ]] (2)"],
+  ])("a comment before a call of %s", (_name, body) => {
+    const callees =
+      "  local h = function(v) return v * 3 end\n  local g = function() return h end\n  local t = {h}\n";
+    expect(run(callees + body)).toBe("Value 6.\n");
+  });
+
+  test("a call statement of a call's result with a comment before its arguments", () => {
+    const body =
+      "  local w = 0\n  local h = function(v) w = v end\n  local g = function() return h end\n  g() --[[c]] (2)";
+    expect(run(body)).toBe("Value 2.\n");
   });
 
   test("a parenthesized statement after the comment calls a name, as without it", () => {

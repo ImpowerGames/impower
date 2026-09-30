@@ -4,6 +4,7 @@
 // follows its close directly on a later line.
 
 import { describe, expect, test } from "vitest";
+import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
 import { diagnoseInFunction } from "./diagnosticTestHarness";
 
 const UNFINISHED =
@@ -20,6 +21,19 @@ describe("an unfinished block comment after a value is reported", () => {
   ])("after %s", (_name, source) => {
     expect(diagnoseInFunction(source)).toContain(UNFINISHED);
   });
+});
+
+// The union after a level-four comment is read as part of the type: the
+// runtime value alone would be the same if the `| string` were dropped.
+test("a level-four comment keeps a type union in the type", () => {
+  const source = "function f()\n  local w: number --[====[a]]b]====] | string = 5\n  return w\nend\n";
+  const tree = stripAnsi(dumpTree(source));
+  // `number`, the comment, then `| string` as a union in the same literal.
+  expect(tree).toContain("LuauTypeTrailingBlockComment [31..50]");
+  expect(tree).toContain("LuauTypeBinaryOperator [50..52]");
+  expect(tree).toContain("LuauPrimitiveType [52..59]");
+  expect(tree).not.toContain("ERROR");
+  expect(diagnoseInFunction("local w: number --[====[a]]b]====] | string = 5")).toEqual([]);
 });
 
 describe("a finished block comment after a value reports nothing", () => {

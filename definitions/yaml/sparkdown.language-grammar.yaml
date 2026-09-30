@@ -411,13 +411,19 @@ variables:
   # not a keyword operator (`a and --[[c]] b` keeps its operand) or a scope
   # modifier (`local --[[c]] w = 5`).
   AFTER_LUAU_VALUE: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/){{WS}}*)(?<!(?:^|[^\w.])(?:and|or|not|local|store|const){{WS}}*))
-  # Just after a value that cannot be called, which a statement beginning
-  # with `(` can follow (`5 --[[c]] (function() end)()`), as the grammar
-  # reads `(` with no comment there: a closing bracket, a quote, `...`, a
-  # regex literal, or a word that is a number of any spelling (`0x5`, `5e0`,
-  # `1_000`, `.5`), `true`, `false`, `nil` or a function's `end`. After a
-  # name (`g`, `t.x`), the `(` is a call of it, as in Luau (`g (2)`).
-  AFTER_LUAU_UNCALLABLE_VALUE: (?<=(?:[)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/[dgimsuvy]*|(?:^|[^\w.])(?:\.?\d[\w.]*|true|false|nil|end)){{WS}}*)
+  # Just after a value that Luau cannot call, which a statement beginning
+  # with `(` can follow (`5 --[[c]] (function() end)()`): a literal, which is
+  # not a prefix expression. That is a word that is a number of any spelling
+  # (`0x5`, `5e0`, `1_000`, `.5`), `true`, `false`, `nil` or a function's
+  # `end`; `...`; a regex literal; or a closing quote, `}` or long bracket
+  # (`]]`, `]=]`), read as a string or table literal. After a prefix
+  # expression, `(` is a call of it, as in Luau: after a name (`g (2)`), a
+  # call (`g() --[[c]] (2)`), a parenthesized value or an index (`t[1]`), whose
+  # closing `)` or single `]` is not in this set. A call written with a string
+  # or table argument (`f"x"`, `f{1}`) or an index holding an index
+  # (`t[a[1]]`) ends like a literal, so a `(` statement after one of those and
+  # a comment is read as a new statement.
+  AFTER_LUAU_UNCALLABLE_VALUE: (?<=(?:[}"'`]|\]=*\]|\.\.\.|@/{{LUAU_REGEX_BODY}}/[dgimsuvy]*|(?:^|[^\w.])(?:\.?\d[\w.]*|true|false|nil|end)){{WS}}*)
   # A block comment after a value, with a statement after it on the same
   # line (`w = 5 --[[c]] print(1)`, `local w = 5--[[c]] print(1)`). The
   # comment takes the whitespace after it, so a rule that ends at whitespace
