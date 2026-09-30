@@ -4,10 +4,13 @@
 // has been edited before (the parser then has split points inside it), so
 // the later name lies outside the reparsed range. The annotations must still
 // equal a cold parse's: `SparkdownCombinedAnnotator.update` runs its window
-// to the end of the declaration.
+// past the list's last bare name, and no further.
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
-import { describe, expect, it } from "vitest";
-import type { SparkdownAnnotators } from "../../compiler/classes/SparkdownCombinedAnnotator";
+import { describe, expect, it, vi } from "vitest";
+import {
+  SparkdownCombinedAnnotator,
+  type SparkdownAnnotators,
+} from "../../compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
 
 const URI = "inmemory:///value-list.sd";
@@ -94,5 +97,49 @@ describe("a continued local list after an incremental edit to its `=`", () => {
     expect(reparsedTo(incremental)).not.toBeNull();
     expect(reparsedTo(incremental)!).toBeLessThan(name);
     expect(snapshot(incremental)).toEqual(snapshot(cold));
+  });
+});
+
+// The window the annotators re-run over after each edit.
+function annotatedWindows(run: () => void): (number | undefined)[] {
+  const spy = vi.spyOn(SparkdownCombinedAnnotator.prototype as any, "reannotate");
+  try {
+    run();
+    // Only the edit's own window maps the carried annotations through it.
+    return spy.mock.calls.filter((args) => args[6] != null).map((args) => args[2] as number | undefined);
+  } finally {
+    spy.mockRestore();
+  }
+}
+
+describe("the re-annotation window after an edit inside a declaration", () => {
+  it("runs past a continued list's later-line name", () => {
+    let text = script("local aa, bb == 1,\n  helper");
+    const registry = open(text);
+    text = edit(registry, text, "pre_10 = 10 + 1", "pre_10 = 10 +  1");
+    const windows = annotatedWindows(() => {
+      text = edit(registry, text, "bb ==", "bb =");
+    });
+    const name = text.indexOf("helper", text.indexOf("bb ="));
+    expect(windows).toHaveLength(1);
+    expect(windows[0]!).toBeGreaterThanOrEqual(name + "helper".length);
+    expect(windows[0]!).toBeLessThan(text.indexOf("helper()", name));
+  });
+
+  it.each([
+    ["a table", "local t = {", "}"],
+    ["a closure", "local g = function()", "end"],
+  ])("stops at the reparsed range inside %s value", (_, first, last) => {
+    const comma = last === "}" ? "," : "";
+    const rows = Array.from({ length: 200 }, (_, i) => `  row_${i} = ${i} + 1${comma}`);
+    let text = script([first, ...rows, last].join("\n"));
+    const registry = open(text);
+    text = edit(registry, text, "row_10 = 10 + 1", "row_10 = 10 +  1");
+    const windows = annotatedWindows(() => {
+      text = edit(registry, text, "row_100 = 100 + 1", "row_100 = 100 +  1");
+    });
+    expect(windows).toEqual([reparsedTo(registry)]);
+    expect(windows[0]!).toBeLessThan(text.indexOf("row_101"));
+    expect(snapshot(registry)).toEqual(snapshot(open(text)));
   });
 });

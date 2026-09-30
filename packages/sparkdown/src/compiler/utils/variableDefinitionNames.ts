@@ -53,12 +53,13 @@ export function nameOnlyAssignmentName(node: SyntaxNode): SyntaxNode | null {
 // in `local a, b = 1, x` the `x` is one too. It is a value when it holds
 // only its name and an earlier assignment in the same declaration took the
 // list's `=`. The annotators and the closure scan ask here. The lowerer's
-// list walk and the lints' `declaredNames` walk the list in order instead,
-// switching to values (or stopping) at the first `ownAssignmentOperation`,
-// which is the same rule.
+// list walk, the lints' `declaredNames`, `DeclarationAnnotator`'s bare
+// targets and `lineContinuation`'s declaration checks walk the list
+// themselves, taking the `=` from `ownAssignmentOperation`, which is the same
+// rule.
 //
 // The answer depends on earlier siblings, so an incremental re-annotation
-// that ends inside a declaration runs to its end
+// that ends inside a declaration runs past its list's last bare name
 // (`SparkdownCombinedAnnotator.update`).
 export function valueListAssignmentName(node: SyntaxNode): SyntaxNode | null {
   if (!node.parent || !VARIABLE_DEFINITION_CONTENT_NAMES.has(node.parent.name)) {

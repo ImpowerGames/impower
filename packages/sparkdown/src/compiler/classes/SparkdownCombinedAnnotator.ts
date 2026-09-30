@@ -8,7 +8,10 @@ import {
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { type SyntaxNode, Tree } from "@lezer/common";
-import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
+import {
+  nameOnlyAssignmentName,
+  VARIABLE_DEFINITION_CONTENT_NAMES,
+} from "../utils/variableDefinitionNames";
 import { DefineTypeNameIndex } from "./DefineTypeNameIndex";
 import { CharacterAnnotator } from "./annotators/CharacterAnnotator";
 import { ColorAnnotator } from "./annotators/ColorAnnotator";
@@ -57,11 +60,15 @@ function annotationValueKey(value: SparkdownAnnotation<any>): string {
 }
 
 /**
- * `to`, moved to the end of the outermost `local`/`store`/`const` declaration
- * it falls strictly inside, if any. `undefined` (the end of the document) is
- * kept.
+ * `to`, moved past the last bare name in the list of each
+ * `local`/`store`/`const` declaration it falls strictly inside: a name-only
+ * assignment or a bare access path in the declaration's content. Only those
+ * turn between target and value when an earlier name's `=` changes
+ * (`valueListAssignmentName`, `DeclarationAnnotator`'s bare targets), so a
+ * declaration whose value is a large table or closure does not widen the
+ * window. `undefined` (the end of the document) is kept.
  */
-function extendToDeclarationEnd(
+function extendToValueListEnd(
   tree: Tree,
   to: number | undefined,
 ): number | undefined {
@@ -72,12 +79,18 @@ function extendToDeclarationEnd(
     node;
     node = node.parent
   ) {
-    if (
-      VARIABLE_DEFINITION_NAMES.has(node.name) &&
-      node.from < to &&
-      node.to > end
+    if (!VARIABLE_DEFINITION_CONTENT_NAMES.has(node.name) || node.from >= to) {
+      continue;
+    }
+    for (
+      let child = node.lastChild;
+      child && child.to > end;
+      child = child.prevSibling
     ) {
-      end = node.to;
+      if (child.name === "LuauAccessPath" || nameOnlyAssignmentName(child)) {
+        end = child.to;
+        break;
+      }
     }
   }
   return end;
@@ -422,8 +435,10 @@ export class SparkdownCombinedAnnotator {
         editStart = fromB;
       }
     });
-    // Carry the define-type-name set through the edit over the same window the
-    // annotators are about to re-run over. It has to be complete before
+    // Carry the define-type-name set through the edit over the parser's
+    // window. The annotators' window below can run further, past the last
+    // name of a `local`/`store`/`const` list, which holds no define type. It
+    // has to be complete before
     // `annotate` starts, because the first chunk `CompilationAnnotator` lowers
     // already reads it.
     if (runsCompilations) {
@@ -459,15 +474,17 @@ export class SparkdownCombinedAnnotator {
     // context rebuild it in `begin()` instead; see `SemanticAnnotator`.
     // Without `reparsedTo` the window runs to the end of the document.
     //
-    // The one widening kept is to the end of a `local`/`store`/`const`
-    // declaration the window stops inside: whether a later name in its list
-    // is a target or a value depends on an earlier name
-    // (`valueListAssignmentName`), so an edit to the list's `=` changes names
-    // past the reparsed range. A declaration is a few lines at most.
+    // The one widening kept is past the last bare name in the list of a
+    // `local`/`store`/`const` declaration the window stops inside: whether a
+    // later name in its list is a target or a value depends on an earlier
+    // name (`valueListAssignmentName`), so an edit to the list's `=` changes
+    // names past the reparsed range. It stops at the list's last bare name,
+    // not the declaration's end, so a large table or closure value costs
+    // nothing extra.
     this.reannotate(
       tree,
       editStart,
-      extendToDeclarationEnd(tree, reparsedTo ?? undefined),
+      extendToValueListEnd(tree, reparsedTo ?? undefined),
       iteratingFrom,
       iteratingTo,
       annotate,
