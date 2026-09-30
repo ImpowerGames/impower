@@ -133,6 +133,16 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     "a, f()",
     "a, b[1]",
     "Hi -- the end of it",
+    "Well, friend.",
+    "1 + 2",
+    "42",
+    '"hi"',
+    "{}",
+    "true",
+    "nil",
+    "#t",
+    "(t)",
+    "a and b",
   ])("reports %j once, with Luau's first error and range", (line) => {
     const source = inBody(line);
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);
@@ -151,19 +161,6 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     const errors = errorsOf(source);
     expect(errors.map((d) => d.start!.line)).toEqual([1, 2]);
     expect(errors[0]).toEqual(luauFirstError(inBody("Hello there.")));
-  });
-
-  it("reports a comma list ending with a `.` at the `.`, as a Sparkdown access path", () => {
-    // Luau reports the `end` after the `.`; Sparkdown's dangling-access
-    // check reports the `.` itself (`LuauDanglingAccessor`).
-    expect(errorsOf(inBody("Well, friend."))).toEqual([
-      {
-        message: "Expected identifier, got 'end'",
-        severity: 1,
-        start: { line: 1, character: 14 },
-        end: { line: 1, character: 15 },
-      },
-    ]);
   });
 
   it("reports a `.` with no name after it, before a line of names, as a Sparkdown access path", () => {
@@ -222,6 +219,22 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     ]);
   });
 
+  it.each([
+    ["a for loop", "for i = 1, 2 do\n    Hello there.\n  end"],
+    ["a while loop", "while false do\n    Hello there.\n  end"],
+    ["a repeat loop", "repeat\n    Hello there.\n  until true"],
+    ["a do block", "do\n    Hello there.\n  end"],
+    ["an else branch", "if false then\n  else\n    Hello there.\n  end"],
+  ])("reports such a line in %s", (_, block) => {
+    const source = `function greet()\n  ${block}\nend\n`;
+    expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+  });
+
+  it("reports Luau's range past a long comment before the next token", () => {
+    const source = `function greet()\n  Hi, Bob\n  --[[${"x".repeat(5000)}]]\nend\n`;
+    expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+  });
+
   it("reports such a line among the properties of a define block", () => {
     const source = `define foo as object with\n  name = "Orion"\n  Hello there.\nend\n`;
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
@@ -234,6 +247,16 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(errorsOf(source).map((d) => [d.start!.line, d.message])).toEqual([
       [2, "Incomplete statement: expected assignment or a function call"],
     ]);
+  });
+
+  it("leaves story lines that begin like a value alone outside Luau code", () => {
+    const lines = ["(aside) hi", '"Quoted."', "42 bottles.", "true story.", "{1}", "#1 fan"];
+    const body = lines.map((line) => `  ${line}`).join("\n");
+    const nested = lines.map((line) => `    ${line}`).join("\n");
+    const source = `-> A\n\nscene A\n${body}\n  if true then\n${nested}\n  end\nend\n\n${lines.join("\n")}\n`;
+    expect(
+      diagnostics(compile(source)).filter((d) => /^Incomplete statement|^Expected/.test(d.message)),
+    ).toEqual([]);
   });
 
   it("reports nothing for a body of Luau statements", () => {
@@ -261,6 +284,8 @@ function describe(t)
   t.b = a
   t:method()
   greet "x"
+  greet "x" greet "y"
+  pcall(function() print(a) end)
   return a
 end
 
@@ -290,6 +315,14 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual(["5\n"]);
   });
+
+  it.each(["a and b", "a or b", "not a", "a, not b"])(
+    "gives a declaration the value %j on the next line",
+    (value) => {
+      const source = `function f(a, b)\n  local x, y =\n    ${value}\n  return x\nend\n`;
+      expect(errorsOf(source)).toEqual([]);
+    },
+  );
 
   it("gives a reassignment the values on the next line", () => {
     const source = [

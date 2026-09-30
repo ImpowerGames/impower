@@ -13,5 +13,9 @@ function greet(n)
   end
   Hello
   a, b = b, a
+  local x =
+    a and b
+  pcall(function() print(a) end)
+  1 + 2
 end
 After it.

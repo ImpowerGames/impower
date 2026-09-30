@@ -133,14 +133,33 @@ export function validateSecondAssignment(
 // newlines, and Luau comments (`-- line` and `--[[ block ]]`), returning the
 // next identifier/keyword run or the next single (punctuation) character with
 // its document offset, or `null` (rendered as `<eof>`) when nothing but
-// skippable text follows.
+// skippable text follows. The text read doubles until the token is whole or
+// the document ends, so no comment is too long to see past.
 export function nextSignificantToken(
   pos: number,
   read: (from: number, to: number) => string,
 ): { text: string; from: number } | null {
-  const window = read(pos, pos + LOOKAHEAD);
+  for (let size = LOOKAHEAD; ; size *= 2) {
+    const window = read(pos, pos + size);
+    const token = tokenIn(window, window.length < size);
+    if (token !== undefined) {
+      return token ? { text: token.text, from: pos + token.at } : null;
+    }
+  }
+}
+
+// The first significant token in `window`, or `null` when there is none.
+// Unless the window runs to the end of the document (`complete`), a comment
+// or token that reaches near its end gives `undefined`: a longer window is
+// needed to read it whole.
+function tokenIn(
+  window: string,
+  complete: boolean,
+): { text: string; at: number } | null | undefined {
+  // A token, or a comment's opening, is never this long.
+  const reach = complete ? window.length : window.length - 64;
   let i = 0;
-  while (i < window.length) {
+  while (i < reach) {
     const c = window[i]!;
     if (/\s/.test(c)) {
       i++;
@@ -152,32 +171,23 @@ export function nextSignificantToken(
       if (block) {
         const close = "]" + block[1] + "]";
         const end = window.indexOf(close, i + block[0]!.length);
-        if (end < 0) return null; // unterminated within the window
+        if (end < 0) return complete ? null : undefined;
         i = end + close.length;
         continue;
       }
       // Line comment `-- …` runs to end of line.
       const nl = window.indexOf("\n", i);
-      if (nl < 0) return null; // runs to (at least) the window end
+      if (nl < 0) return complete ? null : undefined;
       i = nl + 1;
       continue;
     }
-    break;
-  }
-  if (i >= window.length) return null;
-  const rest = window.slice(i);
-  const word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(rest);
-  if (word) {
-    // If the identifier match reached the window's edge it may be truncated;
-    // re-read a fresh slice from its start to capture it whole.
-    if (i + word[0].length >= window.length) {
-      const tail = read(pos + i, pos + i + 512);
-      const full = /^[A-Za-z_][A-Za-z0-9_]*/.exec(tail);
-      if (full) return { text: full[0], from: pos + i };
+    const word = /^[A-Za-z_][A-Za-z0-9_]*/.exec(window.slice(i));
+    if (word && !complete && i + word[0].length >= window.length) {
+      return undefined;
     }
-    return { text: word[0], from: pos + i };
+    return { text: word ? word[0] : c, at: i };
   }
-  return { text: rest[0]!, from: pos + i };
+  return complete ? null : undefined;
 }
 
 // The `=`/`+=`/`..=` token's own range, with the surrounding same-line

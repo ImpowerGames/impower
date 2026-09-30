@@ -571,6 +571,24 @@ function followsDanglingDot(start: SyntaxNode, ctx: LowerContext): boolean {
   return false;
 }
 
+// The nodes a statement can start with that begin a value which is never a
+// call or an assignment target.
+const EXPRESSION_STATEMENT_STARTS: ReadonlySet<string> = new Set([
+  "LuauNumericDecimal",
+  "LuauNumericHex",
+  "LuauNumericBinary",
+  "LuauDoubleQuotedString",
+  "LuauSingleQuotedString",
+  "LuauMultilineString",
+  "LuauInterpolatedString",
+  "LuauBoolean",
+  "LuauNil",
+  "LuauTable",
+  "LuauLengthOperation",
+  "LuauLogicalOperation",
+  "LuauParenthetical",
+]);
+
 const TRIVIA_BEFORE_STATEMENT: ReadonlySet<string> = new Set([
   "Newline",
   "ExtraWhitespace",
@@ -627,9 +645,8 @@ function lowerStatementAt(
     // discard prefix is optional. Reuse the same lowering path
     // as `& foo()` — produce a FunctionCall and flag
     // `shouldPopReturnedValue` so the unused return is popped.
-    // Non-call paths (e.g. a bare `x` or `1 + 2`) lower to non-
-    // FunctionCall expressions and have no statement-level side
-    // effects, so they're silently dropped (matching Luau).
+    // A non-call path (a bare `x`, `a and b`) is no statement Luau can
+    // read, and is reported below.
     //
     // Method-call shape (`table.insert(t, 40)` etc.): the access
     // path and the call args parse as ADJACENT siblings. Pair the
@@ -756,6 +773,11 @@ function lowerStatementAt(
         return lastNode;
       }
     }
+  }
+  // A value that is not a call (`1 + 2`, `"hi"`, `{}`, `not a`, `(t)`) is
+  // no statement Luau can read either.
+  if (EXPRESSION_STATEMENT_STARTS.has(child.name)) {
+    return reportExpressionStatement(child, child, ctx);
   }
   const { lowered, last } = lowerContinued(child, ctx, () =>
     lower(child as unknown as SparkdownSyntaxNodeRef, ctx),

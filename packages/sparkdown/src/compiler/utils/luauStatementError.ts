@@ -1,6 +1,5 @@
 import { parseLuau } from "../typecheck/DefinitionParser";
 import { utf16Column } from "../typecheck/LuauDocumentChecker";
-import { nextSignificantToken } from "../lower/utils/validateAssignmentValue";
 
 /** A syntax error's message and document range. */
 export interface LuauStatementError {
@@ -12,21 +11,40 @@ export interface LuauStatementError {
 /**
  * Luau's first syntax error for the statement that starts at `from`, as
  * Luau's parser reports it, with its range. The statement's line is read
- * with the text after it up to the end of the line holding the next token,
- * which is as far as Luau reads before it reports a statement it cannot
- * finish (`Hi, Bob` then `end` reports `got 'end'` at the `end`). Null
- * when Luau reads that text without an error.
+ * first; while Luau's error is at the end of the text read, the text is
+ * read on, whole lines at a time, to the next token, which is as far as
+ * Luau reads before it reports a statement it cannot finish (`Hi, Bob` then
+ * `end` reports `got 'end'` at the `end`). Null when Luau reads the line
+ * without an error.
  */
 export function luauStatementError(
   from: number,
   read: (from: number, to: number) => string,
 ): LuauStatementError | null {
-  const lineEnd = endOfLine(from, read);
-  const next = nextSignificantToken(lineEnd, read);
-  const to = next ? endOfLine(next.from + next.text.length, read) : lineEnd;
-  const text = read(from, to);
-  const error = parseLuau(text).errors[0];
-  if (!error) return null;
+  let to = endOfLine(from, read);
+  for (let lines = 1; ; lines *= 2) {
+    const text = read(from, to);
+    const error = parseLuau(text).errors[0];
+    if (!error) return null;
+    const found = locate(error, text, from);
+    let next = to;
+    for (let i = 0; i < lines; i++) {
+      if (read(next, next + 1) === "") break;
+      next = endOfLine(next + 1, read);
+    }
+    if (found.from < from + text.trimEnd().length || next === to) {
+      return found;
+    }
+    to = next;
+  }
+}
+
+/** The document range of a Luau error in `text`, which starts at `from`. */
+function locate(
+  error: NonNullable<ReturnType<typeof parseLuau>["errors"][number]>,
+  text: string,
+  from: number,
+): LuauStatementError {
   const lines = text.split("\n");
   const lineStarts: number[] = [];
   let offset = 0;
