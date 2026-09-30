@@ -30,6 +30,6 @@ Inspect the actual failing assertion and full saved logs; a nonzero exit or unre
 
 ## 3. Broaden verification
 
-Read [suite, typecheck and standalone gates](references/suites.md) when the fix is ready. Run the tests you touched, typecheck the projects you touched with a filter (the typecheck workflow runs the whole gate on the pushed head), and run `node scripts/check-agent-tooling.mjs` for tooling. Stage new checks first and confirm discovered inventory, expected count, CI triggers and sparse inputs.
+Read [suite, typecheck and standalone gates](references/suites.md) when the fix is ready. Run the tests you touched, typecheck the projects you touched with a filter (the typecheck workflow runs the whole gate on the pushed head), and run `node scripts/check-agent-tooling.mjs` for tooling (`--tier skills` for prose and hook edits). Stage new checks first and confirm discovered inventory, expected count, CI triggers and sparse inputs.
 
 Keep the red and green assertions, the files you ran locally, platform skips and any incomplete attempts for the PR; the package suite result comes from the Test Suite workflow on the pushed head. A failure there that you believe pre-exists must be confirmed on `origin/main`, not inferred.
