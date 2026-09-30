@@ -64,6 +64,33 @@ describe("formatting a declaration list continued after a trailing comma", () =>
     expect(formatSource(source)).toBe(source);
   });
 
+  test("indents an unindented if expression after the comma one level past the declaration", () => {
+    const source = [
+      "function f(c)",
+      "  local a, g = 1,",
+      "if c",
+      "then 2",
+      "else 3",
+      "  g = g + 1",
+      "  return g",
+      "end",
+      "",
+    ].join("\n");
+    expect(formatSource(source)).toBe(
+      [
+        "function f(c)",
+        "  local a, g = 1,",
+        "    if c",
+        "    then 2",
+        "    else 3",
+        "  g = g + 1",
+        "  return g",
+        "end",
+        "",
+      ].join("\n"),
+    );
+  });
+
   test("leaves the line after a complete declaration at the declaration's level", () => {
     const source = ["function f()", "  local a = 1", "  a = 2", "end", ""].join("\n");
     expect(formatSource(source)).toBe(source);
