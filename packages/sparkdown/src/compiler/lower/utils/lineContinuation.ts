@@ -107,11 +107,19 @@ function collectLineContinuationFrom(
       nodes.length === 0
         ? node != null && endsOnValueComma(node)
         : lastSignificant(nodes)?.name === "LuauCommaSeparator";
+    const before = nodes.length > 0 ? lastSignificant(nodes) : node;
     const carried =
-      !startsStatement(scan) &&
-      scan.name !== "LuauInvalidStatement" &&
-      ((node?.name === "LuauVariableDefinition" && afterComma) ||
-        (nodes.length === 0 && node != null && endsOnEmptyAssignment(node)));
+      (!startsStatement(scan) &&
+        scan.name !== "LuauInvalidStatement" &&
+        ((node?.name === "LuauVariableDefinition" && afterComma) ||
+          (nodes.length === 0 && node != null && endsOnEmptyAssignment(node)))) ||
+      // A string or a table after a value that can be called is its
+      // argument, as Luau reads it (`f` then `"x"`, `t.f` then `{ 1 }`): no
+      // statement begins with one.
+      (CALL_ARGUMENT_NODES.has(scan.name) &&
+        before != null &&
+        endsInCallee(before) &&
+        inLuauBody(scan));
     if (!carried && !isLineContinuation(scan)) return nodes;
     while (scan && scan.name !== "Newline") {
       nodes.push(scan);
@@ -244,6 +252,25 @@ const LUAU_BODY_OWNERS = nodeNameSet([
   "LuauDoBlock",
 ]);
 const NARRATIVE_OWNERS = nodeNameSet(["Scene", "Branch", "LuauExplicitStatement"]);
+
+// The values that are a call's argument after a callee (`f "x"`, `f { 1 }`).
+const CALL_ARGUMENT_NODES = nodeNameSet([
+  "LuauDoubleQuotedString",
+  "LuauSingleQuotedString",
+  "LuauMultilineString",
+  "LuauInterpolatedString",
+  "LuauTable",
+]);
+
+// Whether `node` ends in a value Luau can call: a name, a closing bracket,
+// or a call argument, whose call can be called again (`f "a"` then `"b"`).
+function endsInCallee(node: SyntaxNode): boolean {
+  const leaf = lastSignificantLeaf(node);
+  return leaf != null && CALLEE_END.test(leaf.name);
+}
+
+const CALLEE_END =
+  /(?:VariableName|FunctionName|PropertyName|StdLibFunctions|StdLibConstants|StdLibGlobals|StdLibMethods|SelfKeyword|PunctuationParenClose|PunctuationBracketClose)$/;
 
 // Whether `node` is in Luau code rather than a narrative body.
 function inLuauBody(node: SyntaxNode): boolean {

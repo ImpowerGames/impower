@@ -24,9 +24,7 @@ import { syntheticId } from "./utils/documentTag";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromContainerAndContinuation,
-  lowerCallArgsNode,
   lowerExpressionFromNodes,
-  lowerNamedCall,
 } from "./expression/lowerExpression";
 import { findOwnDeclarationName } from "./utils/findOwnDeclarationName";
 import { wrapInWeave } from "./utils/wrapInWeave";
@@ -605,26 +603,6 @@ function followsDanglingDot(start: SyntaxNode, ctx: LowerContext): boolean {
   return false;
 }
 
-// The strings and tables after `node`, across blank and comment lines, up to
-// the first other node.
-function callArgsOnLaterLines(node: SyntaxNode): SyntaxNode[] {
-  const args: SyntaxNode[] = [];
-  for (let next = node.nextSibling; next; next = next.nextSibling) {
-    if (TRIVIA_BEFORE_STATEMENT.has(next.name)) continue;
-    if (!CALL_ARGS_ON_LATER_LINES.has(next.name)) break;
-    args.push(next);
-  }
-  return args;
-}
-
-const CALL_ARGS_ON_LATER_LINES: ReadonlySet<string> = new Set([
-  "LuauDoubleQuotedString",
-  "LuauSingleQuotedString",
-  "LuauMultilineString",
-  "LuauInterpolatedString",
-  "LuauTable",
-]);
-
 // Whether a function definition has no name: not `function f()`, nor a
 // property target such as `function t.f()`, which is written as an access
 // path.
@@ -635,12 +613,6 @@ function isAnonymousFunction(node: SyntaxNode): boolean {
     if (part.name === "LuauAccessPath") return false;
   }
   return true;
-}
-
-// The name an access path is, when it is a single name (`print`).
-function plainName(path: SyntaxNode, ctx: LowerContext): string | null {
-  const text = ctx.read(path.from, path.to).trim();
-  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(text) ? text : null;
 }
 
 // The nodes a statement can start with that begin a value which is never a
@@ -737,36 +709,14 @@ function lowerStatementAt(
       callNodes.push(parenScan);
       consumedParen = parenScan;
     }
-    // The lines that continue the call (`obj` then `:method()`).
+    // The lines that continue the call (`obj` then `:method()`), and the
+    // strings and tables after it that are its arguments (`print` then
+    // `"hello"`, `table.sort{}`).
     const continuation = collectLineContinuation(consumedParen ?? child);
-    let lastNode =
+    const lastNode =
       continuation[continuation.length - 1] ?? consumedParen ?? child;
     callNodes.push(...continuation);
-    // The strings and tables on the lines after it are call arguments
-    // (`print` then `"hello"`), as Luau reads them: no statement begins with
-    // one. A name they follow is called as `print "hello"` calls it.
-    const laterArgs = callArgsOnLaterLines(lastNode);
-    let callExpr: Expression | null;
-    if (laterArgs.length > 0 && callNodes.length === 1) {
-      // The first is the callee's own argument, as on one line: a name is
-      // the function it names, and a path lowers with it as its call
-      // (`table.sort{}`).
-      const first = laterArgs[0]!;
-      const name = plainName(child, ctx);
-      callExpr = name
-        ? lowerNamedCall(name, lowerCallArgsNode(first, ctx), child, ctx)
-        : lowerExpressionFromNodes([child, first], ctx);
-      lastNode = first;
-      laterArgs.shift();
-    } else {
-      callExpr = lowerExpressionFromNodes(callNodes, ctx);
-    }
-    for (const arg of laterArgs) {
-      if (callExpr) {
-        callExpr = new CallValueExpression(callExpr, lowerCallArgsNode(arg, ctx));
-      }
-      lastNode = arg;
-    }
+    const callExpr = lowerExpressionFromNodes(callNodes, ctx);
     // Compute the statement's source range — spans the access path
     // plus the trailing parenthetical (if any) and the lines that continue
     // it. Used by `wrapInWeave` to attach per-statement debug metadata so
@@ -847,15 +797,12 @@ function lowerStatementAt(
       lastNode = scan;
       scan = scan.nextSibling;
     }
-    // The lines that continue the call (`(t)` then `:bump()`).
+    // The lines that continue the call (`(t)` then `:bump()`), and the
+    // strings and tables after it that are its arguments (`(note)` then
+    // `"x"`).
     const continuation = collectLineContinuation(lastNode);
     callNodes.push(...continuation);
     lastNode = continuation[continuation.length - 1] ?? lastNode;
-    // The strings and tables on the lines after it are call arguments, as
-    // after a name (`(note)` then `"x"`).
-    const laterArgs = callArgsOnLaterLines(lastNode);
-    callNodes.push(...laterArgs);
-    lastNode = laterArgs[laterArgs.length - 1] ?? lastNode;
     if (callNodes.length > 1) {
       const callExpr = lowerExpressionFromNodes(callNodes, ctx);
       if (

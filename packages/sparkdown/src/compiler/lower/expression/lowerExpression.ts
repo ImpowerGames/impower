@@ -355,10 +355,25 @@ export function lowerExpressionFromNodes(
       }
     }
     const bareName = nameOnlyAssignmentName(node);
+    const calledName =
+      extraParts.length === 0 ? nameCalledOnLaterLine(nodes, i, ctx) : null;
     if (extraParts.length > 0) {
       const expr = lowerAccessPath(node, ctx, extraParts);
       if (expr) tokens.push({ kind: "operand", expr });
       i = afterPath - 1;
+    } else if (calledName) {
+      // A name whose string or table argument a later line holds (`print`
+      // then `"x"`): called as `print "x"` on one line is.
+      tokens.push({
+        kind: "operand",
+        expr: lowerNamedCall(
+          calledName.name,
+          lowerCallArgsNode(nodes[calledName.argAt]!, ctx),
+          node,
+          ctx,
+        ),
+      });
+      i = calledName.argAt;
     } else if (bareName) {
       // A name that is a later value in a declaration's list, which the
       // grammar reads as a target-shaped assignment when a comma or the end
@@ -508,7 +523,7 @@ const CALL_ARG_NODE_NAMES = nodeNameSet([
 
 // Lower a call's argument node — a parenthetical's comma-split list,
 // or the single-literal sugar forms above.
-export function lowerCallArgsNode(
+function lowerCallArgsNode(
   node: SyntaxNode,
   ctx: LowerContext,
 ): Expression[] {
@@ -2522,9 +2537,28 @@ export function lowerSimpleAccessPath(
   return null;
 }
 
+// The name `nodes[i]` is, when it is a single name that a string or a table
+// argument on a later line follows (`print` then `"x"`), with that
+// argument's index. The line continuation carries such an argument
+// (`collectLineContinuation`); on one line the grammar reads the call itself.
+function nameCalledOnLaterLine(
+  nodes: SyntaxNode[],
+  i: number,
+  ctx: LowerContext,
+): { name: string; argAt: number } | null {
+  const node = nodes[i]!;
+  if (node.name !== "LuauAccessPath") return null;
+  let argAt = i + 1;
+  while (argAt < nodes.length && isSkippableName(nodes[argAt]!.name)) argAt++;
+  const arg = nodes[argAt];
+  if (!arg || !isCallSugarArg(arg)) return null;
+  const name = ctx.read(node.from, node.to).trim();
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? { name, argAt } : null;
+}
+
 // A call of the function the name `nameStr` binds, with `args`. `callNode` is
 // the call's syntax, for the stdlib deprecation hint.
-export function lowerNamedCall(
+function lowerNamedCall(
   nameStr: string,
   args: Expression[],
   callNode: SyntaxNode,

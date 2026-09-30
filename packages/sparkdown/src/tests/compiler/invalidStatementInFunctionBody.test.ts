@@ -274,6 +274,19 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual(["a2bcd\n"]);
   });
 
+  it.each([
+    ["a declaration", "  local x = size\n    { 1, 2 }\n  return x", "2"],
+    ["a declaration of a string's call", '  local x = id\n    "a"\n  return x', "a"],
+    ["a reassignment", "  local x = 0\n  x = size\n    { 1, 2, 3 }\n  return x", "3"],
+    ["a return", '  return id\n    "b"', "b"],
+    ["a value after a line-ending `=`", "  local x =\n    size\n    { 1 }\n  return x", "1"],
+    ["a table field", "  local t = { f = size }\n  local x = t.f\n    { 1, 2, 3, 4 }\n  return x", "4"],
+  ])("calls the value of %s with a string or table on the next line", (_, body, played) => {
+    const source = `function size(t)\n  return #t\nend\n\nfunction id(s)\n  return s\nend\n\nfunction f()\n${body}\nend\n\n{f()}\n`;
+    expect(errorsOf(source)).toEqual([]);
+    expect(playedLines(source)).toEqual([`${played}\n`]);
+  });
+
   it("reports Luau's range past a long comment before the next token", () => {
     const source = `function greet()\n  Hi, Bob\n  --[[${"x".repeat(5000)}]]\nend\n`;
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);
