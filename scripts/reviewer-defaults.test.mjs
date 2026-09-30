@@ -220,7 +220,22 @@ assert.equal(result.launching, undefined);
 result = await launch(plan({ writer: "claude-fixture-writer[1m]", writerEffort: "medium", reviewer: "claude-fixture-reviewer", usageLimitJournal: limited }, sameVendorStep));
 assert.match(result.error.message, /posted comment IDs/, "an explicit same-vendor reviewer launches with usage-limit evidence");
 result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", usageLimitJournal: limited }));
-assert.match(result.error.message, /usageLimitJournal applies only to a reviewer of the writer's vendor/);
+assert.match(result.error.message, /apply only to a reviewer of the writer's vendor/);
+// The user's explicit request, carried verbatim, stands in for the journal.
+const userRequest = "Use the same-vendor reviewer for this PR.";
+result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewerFallback: true, sameVendorAuthorization: userRequest }));
+assert.match(result.error.message, /posted comment IDs/, "a user-authorized same-vendor reviewer launches without a journal");
+assert.deepEqual(result.launching.sameVendor, { sameVendorAuthorization: userRequest });
+for (const [fields, pattern] of [
+  [{ writer: "claude-fixture-writer", reviewerFallback: true, sameVendorAuthorization: "  " }, /must carry the user's request/],
+  [{ writer: "claude-fixture-writer", reviewerFallback: true, sameVendorAuthorization: true }, /must carry the user's request/],
+  [{ writer: "claude-fixture-writer", reviewerFallback: true, sameVendorAuthorization: userRequest, usageLimitJournal: limited }, /not both/],
+  [{ writer: "gpt-fixture-writer", sameVendorAuthorization: userRequest }, /apply only to a reviewer of the writer's vendor/],
+]) {
+  result = await launch(plan({ writerEffort: "medium", ...fields }));
+  assert.match(result.error.message, pattern);
+  assert.equal(result.launching, undefined, `refused before launch: ${pattern}`);
+}
 for (const reason of ["You've hit your weekly limit - resets Sep 28", "Role review failed; route unavailable: HTTP 429 from the API; inspect process.log", "429 Too Many Requests", "rate limit reached", "quota exceeded"]) {
   assert.ok(checkCrossVendor({ writer: "claude-w", reviewer: "claude-r", usageLimitJournal: blockedJournal("blocked-wording", reason) }, scratch), `a usage limit is recognised: ${reason}`);
 }

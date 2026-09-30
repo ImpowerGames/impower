@@ -169,11 +169,19 @@ export const usageLimitWindowMs = 6 * 60 * 60 * 1000;
 export function checkCrossVendor(config, root, now = Date.now()) {
   const vendor = routeVendor(config.writer);
   const evidence = config.usageLimitJournal;
+  const authorization = config.sameVendorAuthorization;
   if (vendor === null || vendor !== routeVendor(config.reviewer)) {
-    if (evidence !== undefined) throw new Error("usageLimitJournal applies only to a reviewer of the writer's vendor");
+    if (evidence !== undefined || authorization !== undefined) throw new Error("usageLimitJournal and sameVendorAuthorization apply only to a reviewer of the writer's vendor");
     return undefined;
   }
-  const refuse = (why) => new Error(`Reviewer ${config.reviewer} shares the writer's vendor, which is allowed only after the cross-vendor default was blocked by a usage limit: ${why}`);
+  // The user may ask for a same-vendor reviewer outright; the plan then
+  // carries their request verbatim in place of the journal.
+  if (authorization !== undefined) {
+    if (typeof authorization !== "string" || !authorization.trim()) throw new Error("sameVendorAuthorization must carry the user's request for a same-vendor reviewer verbatim");
+    if (evidence !== undefined) throw new Error("Supply usageLimitJournal or sameVendorAuthorization, not both");
+    return { sameVendorAuthorization: authorization };
+  }
+  const refuse = (why) => new Error(`Reviewer ${config.reviewer} shares the writer's vendor, which is allowed only after the cross-vendor default was blocked by a usage limit, or on the user's explicit request carried in sameVendorAuthorization: ${why}`);
   if (typeof evidence !== "string" || !path.isAbsolute(evidence)) throw refuse("launch the cross-vendor default first and, if its journal ends blocked by a usage limit, supply that journal's absolute path as usageLimitJournal");
   assertInsideJobRoot([["usageLimitJournal", evidence]], root, "the blocked cross-vendor plan's journal");
   let rows;
