@@ -138,8 +138,13 @@ export function lowerVariableDefinition(
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
         }
-        unresolvedComma = child;
-        unresolvedAfterAssignment = sawAssignmentOp;
+        const value = commaLineBreakValue(child);
+        if (value) {
+          currentRhsGroup.push(value);
+        } else {
+          unresolvedComma = child;
+          unresolvedAfterAssignment = sawAssignmentOp;
+        }
         child = child.nextSibling;
         continue;
       }
@@ -509,6 +514,15 @@ function bareVariableNameFromAccessPath(
 // line break and any comment before the next value.
 function isCommaName(name: string | undefined): boolean {
   return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
+}
+
+// The if expression a `LuauCommaLineBreak` holds after its line break, when
+// the next line starts with one unindented (`local a, g = 1,` then `if c`):
+// the declaration cannot read it there, so the comma does.
+function commaLineBreakValue(comma: SyntaxNode): SyntaxNode | null {
+  if (comma.name !== "LuauCommaLineBreak") return null;
+  const content = comma.getChild("LuauCommaLineBreak_content");
+  return content?.getChild("LuauTernaryExpression") ?? null;
 }
 
 function isSkippableName(name: string): boolean {

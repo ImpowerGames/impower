@@ -6168,7 +6168,9 @@ repository:
     # trailing comma, an indented value is read here, since
     # `LuauCommaLineBreak` then ends past the line start; an unindented one
     # ends the declaration, and the lowerer carries that line in as the
-    # value (`collectLineContinuation`).
+    # value (`collectLineContinuation`). An unindented if expression, which
+    # would otherwise be read as an if statement, is read inside
+    # `LuauCommaLineBreak` instead.
     end: (?={{BEAT}})|(?=^|$|[;)\]}])|(?={{WS}}+(?!{{WS}}|{{LUAU_COMMENT_START}}|[,=]))|(?={{LUAU_DECLARATION_STOP}})|(?<={{LUAU_TYPE_END}}{{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
 
   # The declaration in a narrative body (the root, a scene, or a sparkdown
@@ -9122,14 +9124,22 @@ repository:
         patterns:
           - { include: "#OptionalWhitespace" }
 
-  # A comma followed by the end of its line or by a comment. The scope
-  # consumes the comment and, when the comma ends its line, the line break,
-  # any blank or comment-only lines and the next line's indent, so the list
-  # continues on the next line (GRAMMAR.md §11.5); it ends before the next
-  # token, which after a block comment can be on the comma's own line
-  # (`1, --[[c]] 2`). Only `LuauVariableDefinition` includes it: a rule that
-  # includes it elsewhere must teach its consumers this second comma name
-  # beside `LuauCommaSeparator`.
+  # A comma followed by the end of its line or by a comment. Its
+  # `LuauCommaLineBreakGap` consumes the comment and, when the comma ends its
+  # line, the line break, any blank or comment-only lines and the next
+  # line's indent, so the list continues on the next line (GRAMMAR.md
+  # §11.5); the scope ends before the next token, which after a block
+  # comment can be on the comma's own line (`1, --[[c]] 2`). Only
+  # `LuauVariableDefinition` includes it: a rule that includes it elsewhere
+  # must teach its consumers this second comma name beside
+  # `LuauCommaSeparator`.
+  #
+  # An `if` that starts an unindented line after the comma is an if
+  # expression, the list's next value, as in Luau. The declaration cannot
+  # read it: it ends at the start of a line, where a line break taken in by
+  # a type leaves it (`local v: number` then an `if` statement). So this
+  # scope reads it, and ends after it. The gap is a scope of its own so
+  # that this one meets the end of a line only after that value.
   LuauCommaLineBreak:
     begin: ({{WS}}*)([,])({{WS}}*)(?=$|{{LUAU_COMMENT_START}})
     beginCaptures:
@@ -9143,6 +9153,15 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauCommaLineBreakGap" }
+      - { include: "#LuauTernaryExpression" }
+    end: (?={{BEAT}})|(?<!,{{WS}}*)(?!^if\b)
+
+  # The comments, line breaks and whitespace after a `LuauCommaLineBreak`'s
+  # comma, up to the next token.
+  LuauCommaLineBreakGap:
+    begin: (?=$|{{LUAU_COMMENT_START}})
     patterns:
       - { include: "#LuauComment" }
       - { include: "#ExtraWhitespace" }

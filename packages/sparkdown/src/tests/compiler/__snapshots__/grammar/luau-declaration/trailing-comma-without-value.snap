@@ -113,8 +113,12 @@ sparkdown [0..276]
  │   │       │   │   │   │   │       │       └─ LuauCommaLineBreak_begin_c3 47
  │   │       │   │   │   │   │       │           └─ OptionalWhitespace 47
  │   │       │   │   │   │   │       ├─ LuauCommaLineBreak_content [47..50]
- │   │       │   │   │   │   │       │   ├─ Newline [47..48]: "\n"
- │   │       │   │   │   │   │       │   └─ ExtraWhitespace [48..50]: "  "
+ │   │       │   │   │   │   │       │   └─ LuauCommaLineBreakGap [47..50]
+ │   │       │   │   │   │   │       │       ├─ LuauCommaLineBreakGap_begin 47
+ │   │       │   │   │   │   │       │       ├─ LuauCommaLineBreakGap_content [47..50]
+ │   │       │   │   │   │   │       │       │   ├─ Newline [47..48]: "\n"
+ │   │       │   │   │   │   │       │       │   └─ ExtraWhitespace [48..50]: "  "
+ │   │       │   │   │   │   │       │       └─ LuauCommaLineBreakGap_end 50
  │   │       │   │   │   │   │       └─ LuauCommaLineBreak_end 50
  │   │       │   │   │   │   └─ LuauVariableDefinition_end 50
  │   │       │   │   │   ├─ LuauElseifBlock [50..91]
@@ -217,8 +221,12 @@ sparkdown [0..276]
  │   │       │   │   │   │   │       │       │       └─ LuauCommaLineBreak_begin_c3 88
  │   │       │   │   │   │   │       │       │           └─ OptionalWhitespace 88
  │   │       │   │   │   │   │       │       ├─ LuauCommaLineBreak_content [88..91]
- │   │       │   │   │   │   │       │       │   ├─ Newline [88..89]: "\n"
- │   │       │   │   │   │   │       │       │   └─ ExtraWhitespace [89..91]: "  "
+ │   │       │   │   │   │   │       │       │   └─ LuauCommaLineBreakGap [88..91]
+ │   │       │   │   │   │   │       │       │       ├─ LuauCommaLineBreakGap_begin 88
+ │   │       │   │   │   │   │       │       │       ├─ LuauCommaLineBreakGap_content [88..91]
+ │   │       │   │   │   │   │       │       │       │   ├─ Newline [88..89]: "\n"
+ │   │       │   │   │   │   │       │       │       │   └─ ExtraWhitespace [89..91]: "  "
+ │   │       │   │   │   │   │       │       │       └─ LuauCommaLineBreakGap_end 91
  │   │       │   │   │   │   │       │       └─ LuauCommaLineBreak_end 91
  │   │       │   │   │   │   │       └─ LuauVariableDefinition_end 91
  │   │       │   │   │   │   └─ LuauElseifBlock_end 91
@@ -290,8 +298,12 @@ sparkdown [0..276]
  │   │       │   │   │       │   │   │       │       └─ LuauCommaLineBreak_begin_c3 115
  │   │       │   │   │       │   │   │       │           └─ OptionalWhitespace 115
  │   │       │   │   │       │   │   │       ├─ LuauCommaLineBreak_content [115..120]
- │   │       │   │   │       │   │   │       │   ├─ Newline [115..116]: "\n"
- │   │       │   │   │       │   │   │       │   └─ ExtraWhitespace [116..120]: "    "
+ │   │       │   │   │       │   │   │       │   └─ LuauCommaLineBreakGap [115..120]
+ │   │       │   │   │       │   │   │       │       ├─ LuauCommaLineBreakGap_begin 115
+ │   │       │   │   │       │   │   │       │       ├─ LuauCommaLineBreakGap_content [115..120]
+ │   │       │   │   │       │   │   │       │       │   ├─ Newline [115..116]: "\n"
+ │   │       │   │   │       │   │   │       │       │   └─ ExtraWhitespace [116..120]: "    "
+ │   │       │   │   │       │   │   │       │       └─ LuauCommaLineBreakGap_end 120
  │   │       │   │   │       │   │   │       └─ LuauCommaLineBreak_end 120
  │   │       │   │   │       │   │   └─ LuauVariableDefinition_end 120
  │   │       │   │   │       │   ├─ LuauReturnStatement [120..128]
@@ -385,8 +397,12 @@ sparkdown [0..276]
  │   │       │   │   │       │       │       └─ LuauCommaLineBreak_begin_c3 163
  │   │       │   │   │       │       │           └─ OptionalWhitespace 163
  │   │       │   │   │       │       ├─ LuauCommaLineBreak_content [163..166]
- │   │       │   │   │       │       │   ├─ Newline [163..164]: "\n"
- │   │       │   │   │       │       │   └─ ExtraWhitespace [164..166]: "  "
+ │   │       │   │   │       │       │   └─ LuauCommaLineBreakGap [163..166]
+ │   │       │   │   │       │       │       ├─ LuauCommaLineBreakGap_begin 163
+ │   │       │   │   │       │       │       ├─ LuauCommaLineBreakGap_content [163..166]
+ │   │       │   │   │       │       │       │   ├─ Newline [163..164]: "\n"
+ │   │       │   │   │       │       │       │   └─ ExtraWhitespace [164..166]: "  "
+ │   │       │   │   │       │       │       └─ LuauCommaLineBreakGap_end 166
  │   │       │   │   │       │       └─ LuauCommaLineBreak_end 166
  │   │       │   │   │       └─ LuauVariableDefinition_end 166
  │   │       │   │   └─ LuauRepeatLoop_end 166
@@ -462,7 +478,11 @@ sparkdown [0..276]
  │   │       │       │       │       └─ LuauCommaLineBreak_begin_c3 194
  │   │       │       │       │           └─ OptionalWhitespace 194
  │   │       │       │       ├─ LuauCommaLineBreak_content [194..195]
- │   │       │       │       │   └─ Newline [194..195]: "\n"
+ │   │       │       │       │   └─ LuauCommaLineBreakGap [194..195]
+ │   │       │       │       │       ├─ LuauCommaLineBreakGap_begin 194
+ │   │       │       │       │       ├─ LuauCommaLineBreakGap_content [194..195]
+ │   │       │       │       │       │   └─ Newline [194..195]: "\n"
+ │   │       │       │       │       └─ LuauCommaLineBreakGap_end 195
  │   │       │       │       └─ LuauCommaLineBreak_end 195
  │   │       │       └─ LuauVariableDefinition_end 195
  │   │       └─ LuauFunctionBody_end 195
