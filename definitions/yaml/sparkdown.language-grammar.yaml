@@ -6330,7 +6330,13 @@ repository:
         # following `=` / `+=` / `-=` operator, producing `x= 1`.
         patterns:
           - { include: "#OptionalWhitespace" }
+    # The begin takes in the whitespace before a comment that follows the
+    # target, and the comment stands between the target and its annotation,
+    # `=` or comma (`local x --[[c]] = 1`, #1212). The end cannot match before
+    # the comment, so without `LuauComment` here the rule is left unfinished.
     patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTargetTypeCastAfterComment" }
       - { include: "#LuauTypeAnnotationOperation" }
       - { include: "#LuauAssignmentOperation" }
       - { include: "#LuauFunctionDefinition" }
@@ -8960,6 +8966,25 @@ repository:
     # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
     # there ("invalid pattern in look-behind").
     begin: (?<=\b(?:{{LUAU_SCOPE_MODIFIERS}}){{WS}}+[^=\n\r]*{{LUAU_IDENTIFIER}}{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauTargetTypeCastOperator" }
+      2:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauTypeLiteral" }
+    end: (?={{BEAT}})|(?={{LUAU_TYPE_LINE_BREAK}}|$|{{LUAU_TYPE_WHITESPACE_END}}|[,;)\]}>=])
+
+  # The same `::`, right after a block comment that follows the target
+  # (`local x --[[c]] :: number`), which `LuauTargetTypeCast`'s lookbehind
+  # cannot see past. It is read inside `LuauVariableAssignment`, where the
+  # comment was read and the whitespace after it taken in, so a `]` right
+  # before the `::` is that comment's close (#1212).
+  LuauTargetTypeCastAfterComment:
+    begin: (?<=\]{{WS}}*)({{LUAU_TYPECAST_OPERATOR}})({{WS}}*)
     beginCaptures:
       1:
         patterns:
