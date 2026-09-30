@@ -1,8 +1,10 @@
 // Incremental annotation stability.
 //
 // `SparkdownCombinedAnnotator.update` re-annotates only the window
-// `[editStart, reparsedTo]` and drops the superseded annotations with the
-// complementary predicate (`to < editStart || from > reparsedTo` is KEPT).
+// `[editStart, windowTo]` and drops the superseded annotations with the
+// complementary predicate (`to < editStart || from > windowTo` is KEPT).
+// `windowTo` is the parser's `reparsedTo`, moved past the last name of a
+// `local`/`store`/`const` list it stops inside.
 // Nothing is double-counted as long as every annotation an annotator emits
 // overlaps the window it was produced in — which is what carrying the entered
 // node's own `[from, to]` guarantees, since Lezer only enters a node that

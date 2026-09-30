@@ -137,6 +137,8 @@ describe("a type in Luau code goes on past comments", () => {
     ["a block comment line between union members", `Value {f()}.\nfunction f()\n  local _v: number?\n  --[[note]]\n  | string\n  return 5\nend\n`],
     ["a comment line and a blank line between union members", `Value {f()}.\nfunction f()\n  local _v: number\n\n  -- note\n    | string\n    | boolean\n  return 5\nend\n`],
     ["a comment line before a union member with a value", `Value {f()}.\nfunction f()\n  local v: number\n  -- note\n  | string = 5\n  return v\nend\n`],
+    // The `=` inside the table type is the type's, not the declaration's.
+    ["a comment line before a union member with a value, after a table type", `Value {f()}.\nfunction f()\n  local v: typeof({ k = 1 })\n  -- note\n  | string = { k = 5 }\n  return v.k\nend\n`],
     ["a comment line in a type alias", `Value {f()}.\nfunction f()\n  type T = number\n  -- note\n  | string\n  return 5\nend\n`],
     ["a comment line in a return type", `Value {f()}.\nfunction f(): number\n  -- note\n  | string\n  return 5\nend\n`],
     ["a comment line in a parameter's type", `Value {f(1)}.\nfunction f(x: number\n  -- note\n  | string)\n  return 5\nend\n`],

@@ -20,7 +20,10 @@ import { luauReportsMissingValue, nextSignificantToken } from "../../lower/utils
 import { RESERVED } from "../../lint/luauNames";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { isCheckedLuau } from "../../typecheck/LuauUnitNodes";
-import { VARIABLE_DEFINITION_CONTENT_NAMES } from "../../utils/variableDefinitionNames";
+import {
+  ownAssignmentOperation,
+  VARIABLE_DEFINITION_CONTENT_NAMES,
+} from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
@@ -766,8 +769,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     for (let sibling = node.prevSibling; sibling; sibling = sibling.prevSibling) {
       if (
         DECLARATION_ASSIGNMENT.has(sibling.name) ||
-        (sibling.name === "LuauVariableAssignment" &&
-          sibling.getChild("LuauVariableAssignment_content")?.getChild("LuauAssignmentOperation"))
+        (sibling.name === "LuauVariableAssignment" && ownAssignmentOperation(sibling))
       ) {
         return undefined;
       }

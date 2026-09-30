@@ -2,8 +2,10 @@
 // equal the annotations a cold parse of the same text produces.
 //
 // `SparkdownCombinedAnnotator.update` re-annotates only `[editStart,
-// reparsedTo]` and deletes whatever that window overlaps. That reconciles only
-// if re-running the annotators over the window reproduces what a cold parse
+// reparsedTo]` (moved to the last name of a `local`/`store`/`const` list the
+// window stops inside) and deletes whatever that window overlaps. That
+// reconciles only if re-running the annotators over the window reproduces
+// what a cold parse
 // would put there — and several annotators do not, unaided, because `begin()`
 // resets state a cold parse accumulates from earlier in the document.
 // `SemanticAnnotator` is the sharpest case: with `scopeStack` reset to the
