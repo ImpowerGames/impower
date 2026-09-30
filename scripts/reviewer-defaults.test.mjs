@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { runHandoff } from "./agent-handoff.mjs";
+import { runHandoff, checkCrossVendor, usageLimitWindowMs } from "./agent-handoff.mjs";
 import { readReviewerDefaults, resolveReviewer, applyResolvedReviewer, validateReviewerDefaults } from "./reviewer-defaults.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -158,7 +158,7 @@ fs.writeFileSync(path.join(worktree, ".claude", "agents", "reviewer-fixture.md")
 git("init");
 commitConfig();
 const child = path.join(scratch, "child.mjs");
-fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; if(p.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);} const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:null,commentIds:[],summary:"complete"}));`);
+fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; if(p.startsWith('Reviewer route probe')){if(process.argv.includes('limited')){console.error("You've hit your usage limit. Try again at 3:15 PM.");process.exit(1);}if(process.argv.includes('unauthorized')){console.error('401 Unauthorized: Incorrect API key provided');process.exit(1);}console.log('OK');process.exit(0);} const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:null,commentIds:[],summary:"complete"}));`);
 const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
 const file = path.join(scratch, "plan.json");
@@ -180,13 +180,70 @@ assert.equal(result.launching.reviewerEffort, "high");
 assert.deepEqual(result.launching.reviewerResolved, { writerEffort: "medium", rowWriterEffort: "medium", matchedOn: "writerEffort", ticketEffort: "medium", fallback: false, index: 0 });
 assert.deepEqual(result.launching.args, [child, "--agent", "reviewer-fixture", "--effort", "high"]);
 
-// Claude writer, fallback column: the same-vendor reviewer is selected.
-result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewerFallback: true }));
+// Claude writer, fallback column: the same-vendor reviewer is refused until a
+// journal shows the cross-vendor reviewer blocked by a usage limit.
+const blockedJournal = (name, reason, { model = "gpt-fixture-reviewer", time = new Date().toISOString() } = {}) => {
+  const evidence = path.join(scratch, `${name}.jsonl`);
+  fs.writeFileSync(evidence, [{ event: "launching", role: "review", model }, { event: "blocked", reason, time }].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  return evidence;
+};
+const limitReason = "Reviewer route gpt-fixture-reviewer unavailable before slot reservation: You've hit your usage limit; wait for the limit to reset";
+const fallbackPlan = (usageLimitJournal) => plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewerFallback: true, usageLimitJournal });
+const refusedFallback = async (usageLimitJournal, pattern, message) => {
+  const config = fallbackPlan(usageLimitJournal);
+  const refused = await launch(config);
+  assert.match(refused.error.message, pattern, message);
+  assert.equal(fs.existsSync(config.journal), false, `refused before the journal opens: ${message}`);
+};
+await refusedFallback(undefined, /shares the writer's vendor.*launch the cross-vendor default first/, "a fallback without evidence is refused");
+await refusedFallback(blockedJournal("blocked-credential", "Reviewer route gpt-fixture-reviewer unavailable before slot reservation: 401 Unauthorized: Incorrect API key provided"), /does not end blocked by a usage limit \(.*401 Unauthorized/, "a rejected credential is not a usage limit");
+await refusedFallback(blockedJournal("blocked-stale", limitReason, { time: new Date(Date.now() - usageLimitWindowMs - 60000).toISOString() }), /more than 6 hours ago; launch the cross-vendor default again/, "a stale usage limit is retried, not assumed");
+await refusedFallback(blockedJournal("blocked-same-vendor", limitReason, { model: "claude-fixture-reviewer" }), /records no cross-vendor reviewer launch/, "a same-vendor reviewer's limit is not evidence");
+await refusedFallback(path.join(scratch, "absent.jsonl"), /is unreadable/, "a missing journal is refused");
+await refusedFallback(path.join(os.tmpdir(), "outside.jsonl"), /Review job paths must lie under/, "evidence outside the job root is refused");
+const limited = blockedJournal("blocked-limit", limitReason);
+result = await launch(fallbackPlan(limited));
 assert.match(result.error.message, /posted comment IDs/);
 assert.equal(result.launching.model, "claude-fixture-reviewer");
 assert.equal(result.launching.reviewerEffort, "xhigh");
 assert.equal(result.launching.reviewerResolved.fallback, true);
+assert.equal(result.launching.sameVendor.usageLimitJournal, limited);
+assert.equal(result.launching.sameVendor.usageLimitRoute, "gpt-fixture-reviewer");
+assert.match(result.launching.sameVendor.usageLimitReason, /usage limit/);
 assert.deepEqual(result.launching.args, [child, "--agent", "reviewer-fixture", "--effort", "xhigh"]);
+// An explicit reviewer of the writer's vendor meets the same requirement, and
+// a cross-vendor plan carries no evidence.
+const sameVendorStep = { model: "claude-fixture-reviewer", args: [child, "--model", "claude-fixture-reviewer"] };
+result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewer: "claude-fixture-reviewer" }, sameVendorStep));
+assert.match(result.error.message, /shares the writer's vendor/, "an explicit same-vendor reviewer is refused without evidence");
+assert.equal(result.launching, undefined);
+result = await launch(plan({ writer: "claude-fixture-writer[1m]", writerEffort: "medium", reviewer: "claude-fixture-reviewer", usageLimitJournal: limited }, sameVendorStep));
+assert.match(result.error.message, /posted comment IDs/, "an explicit same-vendor reviewer launches with usage-limit evidence");
+result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", usageLimitJournal: limited }));
+assert.match(result.error.message, /usageLimitJournal applies only to a reviewer of the writer's vendor/);
+for (const reason of ["You've hit your weekly limit - resets Sep 28", "Role review failed; route unavailable: HTTP 429 from the API; inspect process.log", "429 Too Many Requests", "rate limit reached", "quota exceeded"]) {
+  assert.ok(checkCrossVendor({ writer: "claude-w", reviewer: "claude-r", usageLimitJournal: blockedJournal("blocked-wording", reason) }, scratch), `a usage limit is recognised: ${reason}`);
+}
+assert.equal(checkCrossVendor({ writer: "writer-test", reviewer: "reviewer-test" }, scratch), undefined, "routes of neither known vendor are not judged");
+// The launcher's own journals: a probe blocked by a usage limit permits the
+// same-vendor reviewer, and a probe blocked by a rejected credential does not.
+const probeBlocked = async (mode) => {
+  const config = plan({ writer: "gpt-fixture-writer", writerEffort: "medium" }, { args: [child, mode] });
+  const blocked = await launch(config);
+  assert.match(blocked.error.message, /Reviewer route claude-fixture-reviewer unavailable before slot reservation/);
+  return [config.journal, blocked.error.message];
+};
+const codexSameVendor = (usageLimitJournal) => launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", reviewer: "gpt-fixture-reviewer", usageLimitJournal }, { model: "gpt-fixture-reviewer", args: [child, "--model", "gpt-fixture-reviewer"] }));
+const [limitJournal, limitMessage] = await probeBlocked("limited");
+assert.match(limitMessage, /hit your usage limit.*name this plan's journal as usageLimitJournal/);
+result = await codexSameVendor(limitJournal);
+assert.match(result.error.message, /posted comment IDs/, "the launcher's usage-limit journal permits the same-vendor reviewer");
+assert.equal(result.launching.sameVendor.usageLimitRoute, "claude-fixture-reviewer");
+const [credentialJournal, credentialMessage] = await probeBlocked("unauthorized");
+assert.match(credentialMessage, /401 Unauthorized.*does not permit a same-vendor reviewer/);
+result = await codexSameVendor(credentialJournal);
+assert.match(result.error.message, /does not end blocked by a usage limit/, "the launcher's credential refusal does not permit the same-vendor reviewer");
+assert.equal(result.launching, undefined);
 
 // An explicit reviewer is used unchanged, even when the table has a default.
 result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", reviewer: "explicit-reviewer" }, { model: "explicit-reviewer", args: [child, "--model", "explicit-reviewer"] }));
@@ -223,4 +280,4 @@ result = await launch(selfReview);
 assert.match(result.error.message, /names the writer as its own reviewer/);
 assert.equal(fs.existsSync(selfReview.journal), false, "self-review is refused before the journal opens");
 
-console.log("PASS: reviewer defaults resolve from writer route and effort; explicit reviewers, fallback selection and self-review refusal verified");
+console.log("PASS: reviewer defaults resolve from writer route and effort; explicit reviewers, usage-limit-gated same-vendor selection and self-review refusal verified");

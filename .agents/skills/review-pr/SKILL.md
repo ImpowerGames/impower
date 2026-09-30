@@ -13,7 +13,9 @@ Use one undirected reviewer for minimal low-risk changes, two for standard produ
 
 ## 2. Require independence
 
-The caller supplies the concrete writer identity and effort, read from the runner as described in the runner notes, and a supported launch method. A missing reviewer route is resolved by the launcher from the repository's reviewer defaults, including the same-vendor fallback when the caller selects it; an explicit reviewer route overrides the default, and the caller may choose a stronger reviewer when the change is riskier than its ticket label. A missing writer identity or effort blocks review; never guess or invent either.
+The caller supplies the concrete writer identity and effort, read from the runner as described in the runner notes, and a supported launch method. A missing reviewer route is resolved by the launcher from the repository's reviewer defaults; an explicit reviewer route overrides the default, and the caller may choose a stronger reviewer when the change is riskier than its ticket label. A missing writer identity or effort blocks review; never guess or invent either.
+
+Review is cross-vendor: the reviewer comes from a different vendor than the writer. Always launch the cross-vendor default first. A reviewer of the writer's own vendor, from the defaults' fallback or named explicitly, is allowed only after that launch's journal ends blocked by the cross-vendor route's usage limit; the launcher refuses one without that journal, as [handoff execution](HANDOFF.md) describes. Convenience, speed, a busy slot, a rejected credential, an outdated CLI or any other failure is not a reason: fix it, wait, or report the review blocked and keep the PR draft. Name the same-vendor substitution and the limit message in the round state.
 
 Use the configured writer and reviewer models to check independence. The launch arguments must select the configured reviewer model.
 
