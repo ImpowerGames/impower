@@ -66,6 +66,12 @@ function readDiags(program: {
 
 const MISSING_END = "missing its closing `end`";
 
+// Each diagnostic's line and the first word of its message, in line order.
+const lineStarts = (diags: Diag[]) =>
+  diags
+    .map((d) => [d.startLine, d.message.split(" ")[0]!] as [number, string])
+    .sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
+
 const proseWarnings = (diags: Diag[]) =>
   diags.filter(
     (d) =>
@@ -493,22 +499,27 @@ describe("Luau block without `end`", () => {
     },
   );
 
-  test("a function that takes its scene's `end` is reported with the scene", () => {
-    const errs = missingEndErrors(
-      compile(
-        [
-          "scene main",
-          "  function g()",
-          "    local a = 1",
-          "  Hi there.",
-          "end",
-          "",
-        ].join("\n"),
-      ).diags,
-    );
-    expect(errs).toHaveLength(1);
-    expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
-    expect(errs[0]!.message).toContain("This function or the scene around it");
+  test("a function that takes its scene's `end` leaves the scene without one", () => {
+    // `Hi there.` is a line of the function's body, as any Luau line is
+    // (#1158), so the `end` closes the function and the scene is left open.
+    // Luau reports the line as it reads it: `Hi` is not a statement, and the
+    // `.` after `there` has no name before the `end` (#1175).
+    const errs = compile(
+      [
+        "scene main",
+        "  function g()",
+        "    local a = 1",
+        "  Hi there.",
+        "end",
+        "",
+      ].join("\n"),
+    ).diags.filter((d) => d.severity === 1);
+    expect(lineStarts(errs)).toEqual([
+      [0, "Scene"],
+      [3, "Incomplete"],
+      [4, "Expected"],
+    ]);
+    expect(errs.find((d) => d.startLine === 0)!.message).toContain("missing its closing `end`");
   });
 
   test("a `repeat` with no `until` around one that has its own is an error", () => {
@@ -566,10 +577,15 @@ describe("Luau block without `end`", () => {
       ],
     ],
   ])(
-    "a `repeat` with a story line in its body %s is closed by its `until`",
+    "a `repeat` holding a line that is not a Luau statement %s is closed by its `until`",
     (_label, lines) => {
+      // The line is reported on its own as Luau reads it (#1158, #1175): `Hello`
+      // is not a statement, and the `.` has no name before the `until`.
       const { diags } = compile([...lines, ""].join("\n"));
-      expect(diags.filter((d) => d.severity === 1)).toEqual([]);
+      expect(lineStarts(diags.filter((d) => d.severity === 1))).toEqual([
+        [lines.findIndex((l) => l.includes("Hello")), "Incomplete"],
+        [lines.findIndex((l) => l.includes("until")), "Expected"],
+      ]);
     },
   );
 
@@ -679,59 +695,62 @@ describe("Luau block without `end`", () => {
     expect(warnings[0]!.message).toContain("`of story.`");
   });
 
-  test("a function that takes a branch's `end` inside a scene is reported", () => {
-    const errs = missingEndErrors(
-      compile(
-        [
-          "-> main.one",
-          "",
-          "scene main",
-          "  Hi.",
-          "",
-          "branch one",
-          "  function f()",
-          "    local a = 1",
-          "  Text here.",
-          "  done",
-          "end",
-          "end",
-          "",
-        ].join("\n"),
-      ).diags,
-    );
-    expect(errs).toHaveLength(1);
-    expect(errs[0]).toMatchObject({ startLine: 6, endLine: 6 });
+  test("a function that takes a branch's `end` inside a scene leaves the scene without one", () => {
+    // `Text here.` is a line of the function's body, as any Luau line is
+    // (#1158), so the function and the branch take the two `end`s. `Text` is
+    // not a statement, and the `.` is left for `done` on the next line.
+    const errs = compile(
+      [
+        "-> main.one",
+        "",
+        "scene main",
+        "  Hi.",
+        "",
+        "branch one",
+        "  function f()",
+        "    local a = 1",
+        "  Text here.",
+        "  done",
+        "end",
+        "end",
+        "",
+      ].join("\n"),
+    ).diags.filter((d) => d.severity === 1);
+    expect(lineStarts(errs)).toEqual([
+      [2, "Scene"],
+      [8, "Expected"],
+      [8, "Incomplete"],
+    ]);
   });
 
-  test.each([
-    [
-      "a top-level `repeat`",
-      ["repeat", "  if true then", "    Hi.", "until true"],
-      1,
-    ],
-    [
-      "a `repeat` in a function",
-      [
-        "function f()",
-        "  repeat",
-        "    if true then",
-        "      Hi.",
-        "  until true",
-        "end",
-      ],
-      2,
-    ],
-  ])(
-    "an unclosed block inside %s closed by its `until` is the only error",
-    (_label, lines, ifLine) => {
-      const errs = compile(
-        [...lines, "", "Closing line.", "done", ""].join("\n"),
-      ).diags.filter((d) => d.severity === 1);
-      expect(errs).toHaveLength(1);
-      expect(errs[0]!.message).toContain("This `if` block is missing");
-      expect(errs[0]).toMatchObject({ startLine: ifLine, endLine: ifLine });
-    },
-  );
+  test("an unclosed block inside a top-level `repeat` closed by its `until` is the only error", () => {
+    const errs = compile(
+      ["repeat", "  if true then", "    Hi.", "until true", "", "Closing line.", "done", ""].join("\n"),
+    ).diags.filter((d) => d.severity === 1);
+    expect(errs).toHaveLength(1);
+    expect(errs[0]!.message).toContain("This `if` block is missing");
+    expect(errs[0]).toMatchObject({ startLine: 1, endLine: 1 });
+  });
+
+  test("an unclosed `if` inside a `repeat` in a function reports its blocks as it does with any Luau line", () => {
+    // `Hi.` is a line of the `if`'s body, as `local y = 1` would be (#1158),
+    // so the blocks left open are the ones the Luau line leaves open, and the
+    // line itself is reported on its own.
+    const source = (line: string) =>
+      ["function f()", "  repeat", "    if true then", `      ${line}`, "  until true", "end", "", "Closing line.", "done", ""].join("\n");
+    const errors = (text: string) =>
+      compile(text)
+        .diags.filter((d) => d.severity === 1)
+        .map((d) => [d.startLine, d.message] as [number, string])
+        .sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1]));
+    const plain = errors(source("local y = 1"));
+    expect(plain.some(([, message]) => message.startsWith("This "))).toBe(true);
+    // The same errors, and Luau's for `Hi.`, which it reports at the token it
+    // met instead of the name: the `until` on the next line.
+    expect(errors(source("Hi."))).toEqual(
+      [...plain, [4, "Expected identifier, got 'until'"] as [number, string]].sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1])),
+    );
+  });
 
   test("a line of text beginning with `end` closes the function with a warning", () => {
     const { diags } = compile(

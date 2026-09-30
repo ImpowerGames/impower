@@ -372,6 +372,33 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
       lines.write(at, room >= 4 ? `${anyName}()` : room >= 2 ? anyName : "");
     };
     blankWithin(node);
+    // A function Sparkdown declares with no parameter list (`function greet`
+    // with its body on the lines after) is Luau's `function greet()`: the
+    // list is written past the end of the header's line, so every column
+    // stays where it is, or in place of a comment that ends the line
+    // (`function greet -- note`), which the check does not need.
+    const addParameterLists = (n: SyntaxNode) => {
+      if (n.name === "LuauFunctionDefinition") {
+        const content = n.getChild("LuauFunctionDefinition_content");
+        const body = content?.getChild("LuauFunctionBody");
+        if (content && body && !content.getChild("LuauFunctionParameters")) {
+          const line = index.lineAt(body.from);
+          const lineStart = index.starts[line]!;
+          if (index.lineEnd(line) === body.from && documentText.slice(lineStart, body.from).trim()) {
+            let comment = body.prevSibling;
+            while (comment && NEUTRAL.test(comment.name)) comment = comment.prevSibling;
+            if (comment && COMMENT.test(comment.name) && index.lineAt(comment.from) === line) {
+              lines.mark(comment.from, comment.to, false);
+              lines.write(comment.from, "()");
+            } else {
+              lines.write(body.from, "()", true);
+            }
+          }
+        }
+      }
+      for (let child = n.firstChild; child; child = child.nextSibling) addParameterLists(child);
+    };
+    addParameterLists(node);
   };
 
   // A header's parameter list. The grammar can end a list early, as a `...`

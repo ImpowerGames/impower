@@ -6799,11 +6799,22 @@ export class SparkdownCompiler {
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
         if (d.severity === DiagnosticSeverity.Error) errors.push(d.range);
       }
-      for (const d of this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode)) {
+      const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
+      // A syntax error's range ends with the token Luau found.
+      const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });
+      // The errors only Sparkdown reports, at no token Luau reports one at.
+      const ownErrors = errors.filter((range) => !checked.some((d) => d.syntax && rangeContains(range, tokenOf(d))));
+      for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
-        // A syntax error's range ends with the token Luau found.
-        const token = { line: d.end.line, character: Math.max(d.end.character - 1, 0) };
-        if (d.syntax && errors.some((range) => rangeContains(range, token))) continue;
+        if (d.syntax && errors.some((range) => rangeContains(range, tokenOf(d)))) continue;
+        // An expression error that begins right after an error only
+        // Sparkdown reports, later on its line or on the next, is that
+        // mistake as Luau reads the lines where Sparkdown reads them
+        // differently (an `else` that ends its line before a statement at
+        // column 0).
+        const followsError = (range: Range) =>
+          range.end.line === d.start.line - 1 || (range.end.line === d.start.line && range.end.character <= d.start.character);
+        if (d.expression && ownErrors.some(followsError)) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
     }

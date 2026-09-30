@@ -38,7 +38,6 @@ import {
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
 import { statementSource } from "../utils/statementSource";
-import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import {
   forwardBlockDiagnostics,
   unwrapBlockContent,
@@ -174,16 +173,14 @@ export function lowerVariableDefinition(
           continue;
         }
       }
-      // An anonymous function directly after a comma is a value in the
-      // list (`local a, g = 1, function() ... end`), not a statement:
-      // treating it as one drops the slot and shifts every later value
-      // one target left. A named one stays a trailing statement in a
-      // `local`; in a `store` it is a value, which expression lowering
-      // reports as a named function expression.
+      // A function directly after a comma is a value in the list
+      // (`local a, g = 1, function() ... end`), not a statement: treating
+      // it as one drops the slot and shifts every later value one target
+      // left. A named one is a value too, as Luau reads it; expression
+      // lowering reports it as a named function expression (#1148).
       if (
         child.name === "LuauFunctionDefinition" &&
         sawAssignmentOp &&
-        (scope === "store" || !findOwnDeclarationName(child)) &&
         isCommaName(previousContentSibling(child)?.name)
       ) {
         currentRhsGroup.push(child);
@@ -205,8 +202,8 @@ export function lowerVariableDefinition(
           currentRhsGroup = [];
         }
         // A statement where the comma needs a value (`store a = 1, return`)
-        // is Luau's missing-value error. A named function there stays a
-        // lenient trailing statement (`AnonymousFunctionValueList.test.ts`).
+        // is Luau's missing-value error. A function after the `=` is a
+        // value (above), so one here stands before any `=`.
         if (pendingComma && child.name !== "LuauFunctionDefinition") {
           validateListComma(pendingComma, unresolvedAfterAssignment, ctx);
         }
