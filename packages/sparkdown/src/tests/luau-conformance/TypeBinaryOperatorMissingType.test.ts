@@ -14,6 +14,10 @@ describe("a type binary operator with no type after it", () => {
     ["local a: number | , b = 1, 2", "Expected type, got ','"],
     ["local m: number | --[[c]] = 1", "Expected type, got '='"],
     ["function f(a: number & , b) end", "Expected type, got ','"],
+    ["local m: number |;", "Expected type, got ';'"],
+    ["local n: number & ;", "Expected type, got ';'"],
+    ["local f: (number) ->;", "Expected type, got ';'"],
+    ["local t: { a: number |, b: string } = nil", "Expected type, got ','"],
   ])("%j reports the missing type", (statement, message) => {
     expect(checkLuau(`${statement}\n`).syntaxDiagnostics.map(describeDiagnostic)).toEqual([
       expect.stringContaining(message),
