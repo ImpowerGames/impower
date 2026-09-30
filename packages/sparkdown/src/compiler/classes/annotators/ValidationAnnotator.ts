@@ -166,8 +166,25 @@ const LUAU_NON_TYPE_KEYWORDS = new Set<string>(
 );
 // The `end` line a `run` file's wrapper closes its function with.
 const RUN_WRAPPER_END = RUN_WRAPPER_SUFFIX.slice("\n".length);
-const LUAU_COMMENT = nodeNameSet([
+const STRAY_CLOSING_BRACKET =
+  "Expected identifier when parsing expression, got ']'";
+// A block comment after a type that closes on a later line is its own rule
+// (`LuauTypeTrailingBlockComment`), which differs in what it leaves after
+// its close: the whitespace before code, or, before code right after the
+// close, the closing brackets, which the body reads as
+// `LuauTypeTrailingBlockCommentClose`.
+const LUAU_BLOCK_COMMENT_OPENINGS: SparkdownNodeName[] = [
   "LuauBlockComment",
+  "LuauTypeTrailingBlockComment",
+];
+const LUAU_BLOCK_COMMENT_NAMES: SparkdownNodeName[] = [
+  ...LUAU_BLOCK_COMMENT_OPENINGS,
+  "LuauTypeTrailingBlockCommentClose",
+];
+const LUAU_BLOCK_COMMENT_OPENING = nodeNameSet(LUAU_BLOCK_COMMENT_OPENINGS);
+const LUAU_BLOCK_COMMENT = nodeNameSet(LUAU_BLOCK_COMMENT_NAMES);
+const LUAU_COMMENT = nodeNameSet([
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauDocLineComment",
   "LuauLineComment",
 ]);
@@ -196,7 +213,7 @@ const IF_CLAUSE_TRIVIA = new Set([
   "LuauComment",
   "LuauLineComment",
   "LuauDocLineComment",
-  "LuauBlockComment",
+  ...LUAU_BLOCK_COMMENT_NAMES,
   "LuauCommaSeparator",
   "ExtraWhitespace",
   "OptionalWhitespace",
@@ -522,9 +539,20 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       return false;
     }
-    if (name === "LuauBlockComment") {
-      if (!childNamed(nodeRef.node, "LuauBlockComment_end")) {
+    if (LUAU_BLOCK_COMMENT_OPENING.has(name)) {
+      if (!childNamed(nodeRef.node, `${name}_end`)) {
         this.error(annotations, UNFINISHED_COMMENT, nodeRef.from, nodeRef.to);
+        return true;
+      }
+      return false;
+    }
+    // The grammar reads closing brackets before code as a trailing type
+    // comment's close wherever a statement or parameter can begin, since no
+    // pattern can see the comment's opening on an earlier line. Brackets that
+    // no such comment ends right before are Luau's first unexpected token.
+    if (name === "LuauTypeTrailingBlockCommentClose") {
+      if (!this.endsTrailingTypeComment(nodeRef.from)) {
+        this.error(annotations, STRAY_CLOSING_BRACKET, nodeRef.from, nodeRef.from + 1);
         return true;
       }
       return false;
@@ -618,6 +646,16 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     return end;
   }
 
+  /** Whether a `LuauTypeTrailingBlockComment` ends at `pos`, leaving its
+   *  closing brackets to the body there. */
+  protected endsTrailingTypeComment(pos: number): boolean {
+    let node = this.tree?.resolveInner(pos, -1) ?? null;
+    while (node && node.name !== "LuauTypeTrailingBlockComment") {
+      node = node.parent;
+    }
+    return node?.to === pos;
+  }
+
   /**
    * The part of a declaration's content before `node` (its targets, the
    * commas between them and, from the first `=` on, its values), past
@@ -653,7 +691,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         pos -= 1;
       }
       let node = this.tree?.resolveInner(pos, -1) ?? null;
-      while (node && node.name !== "LuauBlockComment") {
+      while (node && !LUAU_BLOCK_COMMENT.has(node.name)) {
         node = node.parent;
       }
       if (!node || node.from >= pos) {

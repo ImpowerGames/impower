@@ -1,0 +1,82 @@
+{
+  "source": "-> main\nscene main\n  & local x = \"outer\"\n  & local get = function() return x end\n  First.\n  do\n    local x = \"inner\"\n    Read {get()}.\n  end\n  After {get()}.\n  fin\nend\n",
+  "writtenBy": "508613c42ae2653402010cdb6c93f3f6721be7cd",
+  "firstLine": "First.\n",
+  "restThere": "Read inner.\nAfter inner.\n",
+  "save": {
+    "flows": {
+      "DEFAULT_FLOW": {
+        "callstack": {
+          "threads": [
+            {
+              "callstack": [
+                {
+                  "path": "main.44",
+                  "exp": true,
+                  "type": 0,
+                  "temps": [
+                    {
+                      "x": "^outer",
+                      "get": {
+                        "objid": 1,
+                        "obj": {
+                          "__closure_fn": {
+                            "^->": "__synth_0"
+                          },
+                          "__closure_upvals": {
+                            "objid": 2,
+                            "obj": {
+                              "0": {
+                                "^var": "x",
+                                "ci": 1,
+                                "cell": 1
+                              }
+                            }
+                          },
+                          "__closure_user_arity": 0
+                        }
+                      }
+                    }
+                  ],
+                  "upvalues": [
+                    {
+                      "^var": "x",
+                      "ci": 1,
+                      "cell": 1
+                    }
+                  ]
+                }
+              ],
+              "threadIndex": 0,
+              "previousContentObject": "main.43"
+            }
+          ],
+          "threadCounter": 0
+        },
+        "outputStream": [
+          {
+            "objid": 3,
+            "obj": {
+              "target": "^action",
+              "text": "^First."
+            }
+          },
+          "\n"
+        ],
+        "currentChoices": []
+      }
+    },
+    "currentFlowName": "DEFAULT_FLOW",
+    "variablesState": {},
+    "evalStack": [
+      "void"
+    ],
+    "visitCounts": {},
+    "turnIndices": {},
+    "turnIdx": -1,
+    "storySeed": 47,
+    "previousRandom": 0,
+    "inkSaveVersion": 11,
+    "inkFormatVersion": 22
+  }
+}
