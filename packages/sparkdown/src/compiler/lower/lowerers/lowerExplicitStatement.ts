@@ -21,6 +21,7 @@ import {
 } from "../utils/lineContinuation";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { lowerPropertyTargetAssignment } from "../utils/lowerPropertyTargetAssignment";
+import { validateReassignmentList } from "../utils/validateAssignmentValue";
 import { validateExplicitStatement } from "../utils/validateExplicitStatement";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { lowerVariableDefinition } from "./lowerVariableDefinition";
@@ -108,6 +109,11 @@ function lowerExplicitStatementContent(
   // The lines that continue the statement's last value (`& x = t` then
   // `.a`, or `& obj` then `:method()`).
   const continuation = takeLineContinuation(ctx);
+
+  // A comma that ends the statement's value list: the statement ends at its
+  // line, so the comma is left without a value (`& a, b = 1,`).
+  const content = findChildByName(nodeRef.node, "LuauExplicitStatement_content");
+  if (content) validateReassignmentList(content, continuation, ctx);
 
   const multiTargetResult = tryLowerMultiTargetReassignment(
     nodeRef.node,

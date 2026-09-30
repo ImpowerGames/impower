@@ -38,7 +38,10 @@ import {
   splitOnCommas,
   takeLineContinuation,
 } from "./utils/lineContinuation";
-import { validateAssignmentValue } from "./utils/validateAssignmentValue";
+import {
+  validateAssignmentValue,
+  validateReassignmentList,
+} from "./utils/validateAssignmentValue";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -254,8 +257,11 @@ function lowerInner(
       return lowerExplicitStatement(nodeRef, ctx);
     case "Glue":
       return lowerGlue(nodeRef, ctx);
-    case "LuauReassignment": {
-      // The grammar wraps `x = 5` (bare) inside this node. Two shapes:
+    case "LuauReassignment":
+    case "LuauSparkdownReassignment": {
+      // The grammar wraps `x = 5` (bare) inside this node:
+      // `LuauReassignment` in Luau code, `LuauSparkdownReassignment` in a
+      // narrative body. Two shapes:
       //
       // Single-target (`x = 5` / `obj.field = v`):
       //   LuauAccessPath
@@ -265,11 +271,17 @@ function lowerInner(
       //   LuauAccessPath, LuauCommaSeparator, LuauAccessPath, …,
       //   LuauAssignmentOperation, [LuauCommaSeparator, <expr>, …]
       //
+      // In Luau code a comma after the `=` that ends its line is a
+      // `LuauCommaLineBreak`, and the list continues on the next line.
+      //
       // Try multi-target first; fall back to the single-target helper
       // for everything else.
       const content =
-        findChildByName(nodeRef.node, "LuauReassignment_content") ??
+        findChildByName(nodeRef.node, `${nodeRef.node.name}_content`) ??
         nodeRef.node;
+      // The statement's continuation lines are still `ctx.lineContinuation`
+      // here; its lowerer takes them below.
+      validateReassignmentList(content, ctx.lineContinuation ?? [], ctx);
       let firstAccessPath: SyntaxNode | null = null;
       let scan = content.firstChild;
       while (scan) {
@@ -784,7 +796,11 @@ function scanMultiTargetReassignment(
           post = post.nextSibling;
           continue;
         }
-        if (post.name === "LuauCommaSeparator") {
+        // A second `=` after a comma that ends its line (`a, g = 1,` then
+        // `x = 99`): Luau reads the name before it as the last value, and
+        // `validateReassignmentList` reports the `=`.
+        if (post.name === "LuauAssignmentOperation") break;
+        if (isListCommaName(post.name)) {
           if (current.length > 0) {
             trailingExprGroups.push(current);
             current = [];
@@ -803,6 +819,13 @@ function scanMultiTargetReassignment(
     return null;
   }
   return null;
+}
+
+// A comma between values: a comma that ends its line in Luau code is
+// `LuauCommaLineBreak`, which also holds the line break and any comment
+// before the next value.
+function isListCommaName(name: string | undefined): boolean {
+  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
 }
 
 function skipBridges(n: SyntaxNode | null): SyntaxNode | null {

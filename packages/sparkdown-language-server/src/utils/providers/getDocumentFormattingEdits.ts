@@ -294,12 +294,14 @@ function isContinuationLine(
   return isCommaContinuationLine(stack);
 }
 
-// A declaration list continued after a comma that ends its line
-// (`LuauCommaLineBreak`) indents its later lines one level past the
-// declaration, as stylua does:
+// A declaration or reassignment list continued after a comma that ends its
+// line (`LuauCommaLineBreak`) indents its later lines one level past the
+// statement, as stylua does:
 //
 //   local a, b = 1,
 //     2
+//   a, b = 3,
+//     4
 //
 // The comment-only lines between sit inside the line break. Everything the
 // declaration holds after a line break is on a continued line, so it takes
@@ -310,6 +312,10 @@ function isContinuationLine(
 //     {
 //       k = 5,
 //     }
+const COMMA_CONTINUED_CONTENT = new Set<string>([
+  "LuauVariableDefinition_content",
+  "LuauReassignment_content",
+]);
 function isCommaContinuationLine(
   stack: GrammarSyntaxNode<SparkdownNodeName>[],
 ): boolean {
@@ -317,7 +323,7 @@ function isCommaContinuationLine(
     const node = stack[i];
     if (!node) continue;
     if (node.name === "LuauCommaLineBreak") return true;
-    if (stack[i + 1]?.name !== "LuauVariableDefinition_content") continue;
+    if (!COMMA_CONTINUED_CONTENT.has(stack[i + 1]?.name ?? "")) continue;
     for (let prev = node.prevSibling; prev; prev = prev.prevSibling) {
       if (prev.name === "LuauCommaLineBreak" && spansLineBreak(prev)) {
         return true;

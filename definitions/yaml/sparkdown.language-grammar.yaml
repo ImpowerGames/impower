@@ -238,6 +238,14 @@ variables:
   # keywords `LuauReturnStatement` stops at, a `;`, and a named
   # function declaration (a `function` literal is a value).
   LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
+  # What begins a statement or ends a block rather than continuing a value
+  # list when it begins the line after a comma that ends its line: the
+  # above, the keywords that close an `if` arm, `continue`, and a
+  # declaration that starts with a contextual keyword (`store x`,
+  # `type T`, `export type`, `define cfg`). An `if` expression is a value.
+  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_STATEMENT_LINE_START}}|(?:else|elseif|then|continue)\b|(?:store|const|type|export|define)\b{{WS}}+{{LUAU_IDENTIFIER}})
+  # Where a reassignment ends on its own line (see `LuauReassignment`).
+  LUAU_REASSIGNMENT_END: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
 
   LUAU_TERMINATOR_KEYWORDS: (?:{{LUAU_END_KEYWORDS}}|{{LUAU_FLOW_BLOCK_KEYWORDS}}|{{LUAU_IF_BLOCK_KEYWORDS}}|{{LUAU_LOOP_BLOCK_KEYWORDS}}|{{LUAU_ITERATOR_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|{{LUAU_JUMP_KEYWORDS}}|{{LUAU_RETURN_KEYWORDS}}|{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_GLOBAL_DECLARATION_KEYWORDS}}|{{LUAU_LOCAL_DECLARATION_KEYWORDS}}|{{LUAU_MODULE_KEYWORDS}})
   LUAU_COMMENT_START: (?:[-][-])
@@ -3277,14 +3285,7 @@ repository:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
-    patterns:
-      - { include: "#LuauComment" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauAccessPath" }
-      - { include: "#LuauAssignmentOperation" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-    # End at: next BEAT (scene/branch), end of line, an upcoming
+    # End (`LUAU_REASSIGNMENT_END`) at: next BEAT (scene/branch), end of line, an upcoming
     # statement-boundary keyword (`if`, `while`, `for`, `repeat`, `do`,
     # `function`, `end`, `return`, `local`, `break`, `continue`,
     # `elseif`, `else`, `then`, `until`), an upcoming bare
@@ -3323,7 +3324,46 @@ repository:
     # `end`/newline, never `}`; a table-literal VALUE consumes its own
     # braces before this end is checked, and reassignment statements never
     # appear inside a table).
-    end: (?={{BEAT}})|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    #
+    # This is the reassignment in Luau code (function bodies and Luau
+    # blocks). As in Luau, a comma that ends its line continues the value
+    # list on the next line: `LuauCommaLineBreak` carries the reassignment
+    # across the line break, as it does `LuauVariableDefinition`. That line
+    # then belongs to the enclosing block when it starts with a statement
+    # (`LUAU_LIST_LINE_START_STATEMENT`, checked only at the start of a
+    # line, which a reassignment reaches only through that line break), and
+    # the comma before it is left without a value (the lowerer reports it,
+    # as Luau does). A narrative body reassigns with
+    # `LuauSparkdownReassignment`, which ends at its line.
+    patterns:
+      - { include: "#LuauCommaLineBreak" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: "{{LUAU_REASSIGNMENT_END}}|(?<=^{{WS}}*)(?={{LUAU_LIST_LINE_START_STATEMENT}})"
+
+  # The reassignment in a narrative body (a scene, or a sparkdown `if`, loop
+  # or `choose` around dialogue and actions). It ends at its line: the next
+  # line is prose, never a continued value, so a comma that ends the line is
+  # left without a value and the lowerer reports it. Its begin, content and
+  # end are otherwise `LuauReassignment`'s.
+  LuauSparkdownReassignment:
+    begin: ({{WS}}*)(?={{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: "{{LUAU_REASSIGNMENT_END}}"
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -6233,7 +6273,7 @@ repository:
       - { include: "#LuauSparkdownElseifBlock" }
       - { include: "#LuauSparkdownElseBlock" }
       - { include: "#LuauSparkdownAlternatorBlocks" }
-      - { include: "#LuauReassignment" }
+      - { include: "#LuauSparkdownReassignment" }
 
   LuauControlBlock:
     patterns:
@@ -9033,9 +9073,9 @@ repository:
   # any blank or comment-only lines and the next line's indent, so the list
   # continues on the next line (GRAMMAR.md §11.5); it ends before the next
   # token, which after a block comment can be on the comma's own line
-  # (`1, --[[c]] 2`). Only `LuauVariableDefinition` includes it: a rule that
-  # includes it elsewhere must teach its consumers this second comma name
-  # beside `LuauCommaSeparator`.
+  # (`1, --[[c]] 2`). Only `LuauVariableDefinition` and `LuauReassignment`
+  # include it: a rule that includes it elsewhere must teach its consumers
+  # this second comma name beside `LuauCommaSeparator`.
   LuauCommaLineBreak:
     begin: ({{WS}}*)([,])({{WS}}*)(?=$|{{LUAU_COMMENT_START}})
     beginCaptures:

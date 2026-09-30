@@ -53,10 +53,16 @@ const SKIPPABLE: ReadonlySet<string> = new Set([
 // lines between them, as Luau reads them. Empty when the next line of code
 // does not continue it.
 //
-// In a Luau declaration a continued line that ends with a comma carries the
-// list onto the next line of code, as the declaration's own line-ending
-// comma does (`n` then `+ 4,` then `5`), unless that line starts a statement;
-// the comma is then left without a value, and the declaration reports it.
+// In a Luau declaration or reassignment a continued line that ends with a
+// comma carries the list onto the next line of code, as the statement's own
+// line-ending comma does (`n` then `+ 4,` then `5`), unless that line starts
+// a statement; the comma is then left without a value, and the statement
+// reports it.
+const COMMA_CARRYING_STATEMENTS = nodeNameSet([
+  "LuauVariableDefinition",
+  "LuauReassignment",
+]);
+
 export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
   const nodes: SyntaxNode[] = [];
   let scan = node.nextSibling;
@@ -64,7 +70,7 @@ export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
     while (scan && CONTINUATION_BRIDGE.has(scan.name)) scan = scan.nextSibling;
     if (!scan) return nodes;
     const carried =
-      node.name === "LuauVariableDefinition" &&
+      COMMA_CARRYING_STATEMENTS.has(node.name) &&
       lastSignificant(nodes)?.name === "LuauCommaSeparator" &&
       !startsStatement(scan);
     if (!carried && !isLineContinuation(scan)) return nodes;

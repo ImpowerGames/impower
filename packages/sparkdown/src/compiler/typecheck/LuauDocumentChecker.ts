@@ -26,6 +26,7 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import { Location, Position } from "./Location";
 import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
+import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
@@ -121,7 +122,7 @@ const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
-  "LuauReassignment",
+  ...REASSIGNMENT_NAMES,
   "LuauReturnStatement",
   "LuauBreakStatement",
   "LuauContinueStatement",

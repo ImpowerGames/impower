@@ -124,6 +124,43 @@ export function validateSecondAssignment(
   });
 }
 
+// Luau's parse errors in a reassignment's value list (`a, g = 1, 2`, bare or
+// after `&`): a comma after the `=` with no value after it, where the list
+// ended (at a statement on the next line in Luau code, at the line's end in
+// a narrative body, or at a statement after the lines `continuation` holds,
+// which continue the last value), and a second `=` after a comma that ends
+// its line (`a, g = 1,` then `x = 99`). `content` is the statement's content
+// node, whose children are its targets, commas, operation and values.
+export function validateReassignmentList(
+  content: SyntaxNode,
+  continuation: readonly SyntaxNode[],
+  ctx: LowerContext,
+): void {
+  let sawAssignment = false;
+  let last: SyntaxNode | null = null;
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (isInsignificant(child.name)) continue;
+    if (child.name === "LuauAssignmentOperation") {
+      if (sawAssignment) {
+        validateSecondAssignment(child, ctx);
+        return;
+      }
+      sawAssignment = true;
+    }
+    last = child;
+  }
+  if (!sawAssignment) return;
+  const lastContinued = continuation.findLast((n) => !isInsignificant(n.name));
+  if (lastContinued?.name === "LuauCommaSeparator") {
+    validateListComma(lastContinued, true, ctx);
+  } else if (
+    !lastContinued &&
+    (last?.name === "LuauCommaSeparator" || last?.name === "LuauCommaLineBreak")
+  ) {
+    validateListComma(last, true, ctx);
+  }
+}
+
 // The token Luau would report after `pos`. Scans forward over whitespace,
 // newlines, and Luau comments (`-- line` and `--[[ block ]]`), returning the
 // next identifier/keyword run or the next single (punctuation) character with
