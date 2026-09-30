@@ -32,7 +32,6 @@ import {
   reportExtraTypeQualifiers,
   isLineContinuation,
   isLineContinuationUsed,
-  isListCommaName,
   isTypeQualifierContinuation,
   hasTypeUnionLineOwner,
   leadingReturnTypeQualifier,
@@ -42,6 +41,7 @@ import {
   splitOnCommas,
   takeLineContinuation,
 } from "./utils/lineContinuation";
+import { isListCommaName } from "../utils/listCommaNames";
 import {
   validateAssignmentValue,
   validateReassignmentList,

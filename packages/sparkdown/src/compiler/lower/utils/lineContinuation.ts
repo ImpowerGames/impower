@@ -2,6 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { isListCommaName } from "../../utils/listCommaNames";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import { findOwnDeclarationName } from "./findOwnDeclarationName";
 
@@ -54,14 +55,6 @@ const COMMA_CARRYING_STATEMENTS = nodeNameSet([
   "LuauVariableDefinition",
   "LuauReassignment",
 ]);
-
-// A comma between two items of a list: `LuauCommaSeparator`, or, in Luau
-// code, `LuauCommaLineBreak`, a comma that ends its line and also holds the
-// line break and any comment before the next item. Every consumer of a list
-// that includes `LuauCommaLineBreak` asks this rather than naming the nodes.
-export function isListCommaName(name: string | undefined): boolean {
-  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
-}
 
 // The lines that continue the statement `node`: each continuation line after
 // it, with the rest of its line (`.a = 1`), across any blank or comment

@@ -73,6 +73,8 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     ],
     ["a negative value on the next line", "  a, g = 1,\n    -2", "return g", "Value -2.\n"],
     ["a `not` value on the next line", "  a, g = 1,\n    not a", "return tostring(g)", "Value false.\n"],
+    ["a length value on the next line", "  a, g = 1,\n    #t", "return g", "Value 0.\n"],
+    ["a number with a leading point on the next line", "  a, g = 1,\n    .5", "return g", "Value 0.5.\n"],
     ["a value on an unindented line", "  a, g = 1,\n2", "return g", "Value 2.\n"],
   ])("%s", (_name, body, ret, expected) => {
     const { errors, text } = run(fn(body, ret));
@@ -99,6 +101,21 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
     ["to a field target", `${bump}  t.g = 1,\n    bump()`, "return t.g * 10 + calls"],
   ])("an extra value for a single target is still evaluated (%s)", (_name, body, ret) => {
     const { errors, text } = run(fn(body, ret));
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 11.\n");
+  });
+
+  test.each([
+    [
+      "in a narrative body",
+      "store g = 0\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\n& g = 1, bump()\nValue {g * 10 + calls}.\n",
+    ],
+    [
+      "in a function body",
+      `Value {f()}.\nfunction f()\n${bump}  local g = 0\n  & g = 1, bump()\n  return g * 10 + calls\nend\n`,
+    ],
+  ])("an extra value for a single target after `&` is still evaluated (%s)", (_name, source) => {
+    const { errors, text } = run(source);
     expect(errors).toEqual([]);
     expect(text).toBe("Value 11.\n");
   });
@@ -185,6 +202,10 @@ describe("Luau code: an operator that cannot begin a value after a comma", () =>
     ["after a comment-only line", "  a, g = 1,\n    -- c\n\n+    2", "+"],
     ["on the same line", "  a, g = 1, * 2", "*"],
     ["`and` on the next line", "  a, g = 1,\n    and a", "and"],
+    ["a method call on the next line", "  a, g = 1,\n    :method()", ":"],
+    ["a method call on the same line", "  a, g = 1, :method()", ":"],
+    ["a field on the next line", "  a, g = 1,\n    .x", "."],
+    ["an indexer on the next line", "  a, g = 1,\n    [1]", "["],
   ])("%s: the error", (_name, body, got) => {
     const { errorMessages } = collectDiagnostics(fn(body, "return g"));
     expect(errorMessages).toEqual([missingValue(got)]);

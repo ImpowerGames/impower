@@ -3,7 +3,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
-import { isListCommaName } from "./lineContinuation";
+import { isListCommaName } from "../../utils/listCommaNames";
 
 // How far past the `=` to scan for the token Luau reports as "got '<token>'".
 // Generous enough to skip whitespace, blank lines, and a trailing comment to
@@ -153,7 +153,7 @@ export function validateReassignmentList(
       sawAssignment &&
       last &&
       isListCommaName(last.name) &&
-      startsWithBinaryOperator(child, ctx)
+      cannotBeginValue(child, ctx)
     ) {
       validateListComma(last, true, ctx);
       return;
@@ -169,22 +169,21 @@ export function validateReassignmentList(
   }
 }
 
-// The operators that can begin a value: unary minus, `not` and the length
-// `#`. The grammar reads every other operator after a comma as an operation
-// with no left operand.
-const UNARY_OPERATORS: ReadonlySet<string> = new Set(["-", "not", "#"]);
+// A token that cannot begin a Luau value: a binary operator (`+`, `*`, `/`,
+// `%`, `^`, `..`, a comparison, `and`, `or`), an accessor with no base
+// (`:method()`, `.field`, `::`), or an indexer with no base (`[1]`, but not a
+// `[[` or `[=[` long string). A value can begin with the unary `-`, `not` or
+// `#`, with `...`, or with a number such as `.5`. The grammar reads each of
+// these tokens after a comma as the rest of an expression with no start
+// (an operation, a chained call, an indexer), in a node whose name varies, so
+// the source text is what tells them apart.
+const CANNOT_BEGIN_VALUE =
+  /^(?:[+*/%^<>=~:]|\.(?![.\d])|\.\.(?!\.)|\[(?!=*\[)|(?:and|or)(?![A-Za-z0-9_]))/;
 
-// Whether `node` is an operation that starts with an operator that cannot
-// begin a value (`+ 2`, `.. "s"`, `and x`).
-function startsWithBinaryOperator(node: SyntaxNode, ctx: LowerContext): boolean {
-  if (!node.name.endsWith("Operation")) return false;
-  let first: SyntaxNode | null = null;
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === `${node.name}_content`) first = child.firstChild;
-  }
-  while (first && isInsignificant(first.name)) first = first.nextSibling;
-  if (!first?.name.endsWith("Operator")) return false;
-  return !UNARY_OPERATORS.has(ctx.read(first.from, first.to).trim());
+// Whether the value node `node`, after a list comma, starts with a token that
+// cannot begin a value (`+ 2`, `:method()`, `and x`).
+function cannotBeginValue(node: SyntaxNode, ctx: LowerContext): boolean {
+  return CANNOT_BEGIN_VALUE.test(ctx.read(node.from, node.to).trimStart());
 }
 
 // The token Luau would report after `pos`. Scans forward over whitespace,

@@ -226,9 +226,10 @@ function lowerExplicitStatementContent(
 // Walk the explicit statement's content children. If there's at least
 // one comma BEFORE a `LuauAssignmentOperation`, treat the leading
 // access paths as multi-target reassignments and route through
-// `MultiVariableAssignment`. Returns `null` (and lets the caller take
-// the single-target path) for any other shape: single target, bare
-// call, function-call with parenthetical sibling, etc.
+// `MultiVariableAssignment`, as it does one bare-name target with more
+// than one value (`& g = 1, bump()`). Returns `null` (and lets the caller
+// take the single-target path) for any other shape: single target with
+// one value, bare call, function-call with parenthetical sibling, etc.
 function tryLowerMultiTargetReassignment(
   stmtNode: SyntaxNode,
   continuation: SyntaxNode[],
@@ -265,7 +266,23 @@ function tryLowerMultiTargetReassignment(
     }
     child = child.nextSibling;
   }
-  if (!opNode || !sawCommaBeforeOp || targets.length < 2) return null;
+  if (!opNode || targets.length === 0) return null;
+  if (!sawCommaBeforeOp || targets.length < 2) {
+    // One target takes this path only when a plain `=` gives it extra
+    // values (`& g = 1, bump()`), which Luau still evaluates. Its target is
+    // a bare name here; a field target keeps the single-target path.
+    const opText = getDescendent("LuauAssignmentOperator", opNode);
+    const target = targets[0]!;
+    if (
+      targets.length !== 1 ||
+      !opText ||
+      ctx.read(opText.from, opText.to).trim() !== "=" ||
+      !/^[A-Za-z_][A-Za-z0-9_]*$/.test(ctx.read(target.from, target.to).trim()) ||
+      !hasValueAfterComma(opNode)
+    ) {
+      return null;
+    }
+  }
 
   // Resolve each target's identifier. Only simple-name targets are
   // supported in V1 (no `obj.field` multi-targets) — that pattern
@@ -335,6 +352,17 @@ function isSkippableName(name: string): boolean {
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace"
   );
+}
+
+// Whether a value follows a comma after the assignment operation `opNode`.
+function hasValueAfterComma(opNode: SyntaxNode): boolean {
+  let afterComma = false;
+  for (let n = opNode.nextSibling; n; n = n.nextSibling) {
+    if (isSkippableName(n.name)) continue;
+    if (n.name === "LuauCommaSeparator") afterComma = true;
+    else if (afterComma) return true;
+  }
+  return false;
 }
 
 function findChildByName(parent: SyntaxNode, name: string): SyntaxNode | null {

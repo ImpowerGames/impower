@@ -18,6 +18,7 @@
 
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { readScriptNames, type ScriptNames } from "./luauNames";
+import { isListCommaName } from "../utils/listCommaNames";
 import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 import {
@@ -353,8 +354,7 @@ function groupContents(tokens: SyntaxNode[]): SyntaxNode[] | null {
 // Tokens that end one expression of a list and begin the next.
 function isSeparator(token: SyntaxNode) {
   return (
-    token.name === "LuauCommaSeparator" ||
-    token.name === "LuauCommaLineBreak" ||
+    isListCommaName(token.name) ||
     token.name === "LuauAssignmentOperator" ||
     token.name === "LuauThenOperator" ||
     token.name === "LuauElseOperator" ||

@@ -23,7 +23,6 @@ import {
 import {
   continuationParts,
   endsInTypeName,
-  isListCommaName,
   isTypeQualifierContinuation,
   reportExtraTypeQualifiers,
   markLineContinuationUsed,
@@ -31,6 +30,7 @@ import {
   typeUnionLineValue,
   takeLineContinuation,
 } from "../utils/lineContinuation";
+import { isListCommaName } from "../../utils/listCommaNames";
 import {
   validateAssignmentValue,
   validateListComma,
