@@ -4710,7 +4710,8 @@ export class SparkdownCompiler {
       const uri = md?.filePath ?? "";
       const start0 = md ? md.startLineNumber - 1 : -1;
       starts.push({ name, uri, start0 });
-      if (uri && start0 >= 0) {
+      // A function's start ends no flow, as in `buildFlowSpanIndex`.
+      if (uri && start0 >= 0 && !this._functionFlowNames?.has(name)) {
         const list = byUri.get(uri);
         if (list) {
           list.push(start0);

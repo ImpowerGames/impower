@@ -17,6 +17,7 @@ import {
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
 import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
+import { luauStatementError } from "../../utils/luauStatementError";
 import { RESERVED } from "../../lint/luauNames";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { VARIABLE_DEFINITION_CONTENT_NAMES } from "../../utils/variableDefinitionNames";
@@ -180,11 +181,6 @@ const LUAU_COMMENT = nodeNameSet([
 // ends with its line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
-const INCOMPLETE_STATEMENT =
-  "Incomplete statement: expected assignment or a function call";
-const NAME = /[A-Za-z_][A-Za-z0-9_]*/y;
-const INLINE_SPACE = /[^\S\r\n]*/y;
-
 /** The text Luau's parser names a token by in "got '…'", `<eof>` for none. */
 const gotToken = (token: { text: string } | null) =>
   token == null ? "<eof>" : `'${token.text}'`;
@@ -214,83 +210,28 @@ function danglingDotError(
 }
 
 /**
- * Luau's first error for a line in a Luau body that is not a Luau statement
- * (`LuauInvalidStatement`), the line's text starting at `from`. Luau reads the line's first name or
- * dotted path as an expression. Followed by a comma, it is the first target
- * of an assignment, whose next target must be a name and whose targets must
- * be followed by `=`. Followed by anything else, a statement that is only an
- * expression is incomplete, which Luau reports at the expression. A `.` with
- * no name after it on the line is reported as `danglingDotError` says.
+ * The error for a line in a Luau body that is not a Luau statement
+ * (`LuauInvalidStatement`), which runs from `from` to `to`: Luau's parser's
+ * first error for it (`luauStatementError`). The exception is a line that
+ * ends with a `.` whose name Luau reads from the next line, so that its
+ * first error runs past the line (`Hello.` then `How are you?`): a
+ * Sparkdown access path ends with its line, so the `.` is reported as
+ * `danglingDotError` reports it.
  */
 function invalidStatementError(
-  line: string,
   from: number,
+  to: number,
   read: (from: number, to: number) => string,
-): { message: string; from: number; to: number } {
-  const skipSpace = (i: number) => {
-    INLINE_SPACE.lastIndex = i;
-    INLINE_SPACE.exec(line);
-    return INLINE_SPACE.lastIndex;
-  };
-  const nameEnd = (i: number) => {
-    NAME.lastIndex = i;
-    return NAME.exec(line) ? NAME.lastIndex : -1;
-  };
-  // A name and its `.name` members, where a space may stand on either side
-  // of a `.`; `dot` is set when a `.` has no name after it on the line.
-  const readPath = (start: number) => {
-    let end = nameEnd(start);
-    for (;;) {
-      const at = skipSpace(end);
-      if (line[at] !== "." || line[at + 1] === ".") return { start, end };
-      const member = nameEnd(skipSpace(at + 1));
-      if (member < 0) return { start, end: at + 1, dot: at };
-      end = member;
-    }
-  };
-  // The token at `i` on the line, or the next one after the line.
-  const tokenAt = (i: number) => {
-    if (i < line.length) {
-      const end = nameEnd(i);
-      return { text: line.slice(i, end < 0 ? i + 1 : end), from: from + i };
-    }
-    return nextSignificantToken(from + line.length, read);
-  };
-  let path = readPath(0);
-  if (path.dot != null) return danglingDotError(from + path.dot, read);
-  let next = skipSpace(path.end);
-  if (line[next] !== ",") {
-    return {
-      message: INCOMPLETE_STATEMENT,
-      from: from + path.start,
-      to: from + path.end,
-    };
+): { message: string; from: number; to: number } | null {
+  const error = luauStatementError(from, read);
+  const line = read(from, to).trimEnd();
+  if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
+    const dangling = danglingDotError(from + line.length - 1, read);
+    if (dangling.message === NAME_ON_LATER_LINE) return dangling;
   }
-  while (line[next] === ",") {
-    const start = skipSpace(next + 1);
-    if (nameEnd(start) < 0) {
-      const got = tokenAt(start);
-      const at = got && got.from < from + line.length ? got : null;
-      return {
-        message: `Expected identifier when parsing expression, got ${gotToken(got)}`,
-        from: at?.from ?? from + next,
-        to: at ? at.from + at.text.length : from + next + 1,
-      };
-    }
-    path = readPath(start);
-    if (path.dot != null) return danglingDotError(from + path.dot, read);
-    next = skipSpace(path.end);
-  }
-  // Luau names the token after the targets, which may be on a later line;
-  // the error stays on this line, at that token or at the last target.
-  const got = tokenAt(next);
-  const onLine = got != null && got.from < from + line.length;
-  return {
-    message: `Expected '=' when parsing assignment, got ${gotToken(got)}`,
-    from: onLine ? got.from : from + path.start,
-    to: onLine ? got.from + got.text.length : from + path.end,
-  };
+  return error;
 }
+
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -971,13 +912,12 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // rest of the line are not.
     if (nodeRef.name === "LuauInvalidStatement") {
       const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
-      const lineFrom = line?.from ?? nodeRef.from;
-      const { message, from, to } = invalidStatementError(
-        this.read(lineFrom, line?.to ?? nodeRef.to),
-        lineFrom,
+      const error = invalidStatementError(
+        line?.from ?? nodeRef.from,
+        line?.to ?? nodeRef.to,
         (from, to) => this.read(from, to),
       );
-      this.error(annotations, message, from, to);
+      if (error) this.error(annotations, error.message, error.from, error.to);
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau

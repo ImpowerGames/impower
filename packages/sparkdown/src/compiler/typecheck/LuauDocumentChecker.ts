@@ -76,7 +76,7 @@ export function documentPosition(unit: LuauUnit, position: Position): { line: nu
 }
 
 /** The UTF-16 column of the character a UTF-8 byte column points at. */
-function utf16Column(text: string, byteColumn: number): number {
+export function utf16Column(text: string, byteColumn: number): number {
   let bytes = 0;
   let column = 0;
   while (column < text.length && bytes < byteColumn) {

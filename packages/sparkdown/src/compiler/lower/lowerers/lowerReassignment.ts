@@ -39,7 +39,7 @@ export function lowerReassignment(
 
   // `x =` / `count +=` with an empty RHS → Luau-style parse error. Covers both
   // the property-target and simple-identifier branches below.
-  validateAssignmentValue(opNode, ctx);
+  validateAssignmentValue(opNode, ctx, continuation.length > 0);
 
   // Multi-segment LHS → property-target via StorePropertyAssignment.
   const propertyAssignment = lowerPropertyTargetAssignment(

@@ -1,4 +1,6 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
+import { luauStatementError } from "../utils/luauStatementError";
+import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { CallValueExpression } from "../../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
@@ -507,6 +509,45 @@ function lowerContinued<T>(
   return { lowered, last: continuation[continuation.length - 1] ?? end };
 }
 
+// Reports the statement at `start`, which Luau cannot read as a statement
+// (`Hello`, `Hi, Bob`), with Luau's first error for it, and returns the last
+// node of its line, which the statement takes. `lastNode` is the last node
+// the statement's own lowering read. A line with a dangling `.` is left to
+// the validator, which reports the `.` (`LuauDanglingAccessor`), and so is a
+// line after one: its first name is the member Luau would read for that `.`.
+function reportExpressionStatement(
+  start: SyntaxNode,
+  lastNode: SyntaxNode,
+  ctx: LowerContext,
+): SyntaxNode {
+  let last = lastNode;
+  let dangling = false;
+  for (let n: SyntaxNode | null = start; n && n.name !== "Newline"; n = n.nextSibling) {
+    if (n.name === "LuauDanglingAccessor" || getDescendent("LuauDanglingAccessor", n)) {
+      dangling = true;
+    }
+    if (n.from >= lastNode.from) last = n;
+  }
+  const before = ctx.read(Math.max(0, start.from - 512), start.from).trimEnd();
+  if (dangling || (before.endsWith(".") && !before.endsWith(".."))) return last;
+  const error = luauStatementError(start.from, (from, to) => ctx.read(from, to));
+  if (error) {
+    ctx.diagnostics?.push({
+      message: error.message,
+      severity: ErrorType.Error,
+      source: {
+        fileName: null,
+        filePath: ctx.filePath ?? null,
+        startLineNumber: ctx.lineNumber(error.from) + 1,
+        endLineNumber: ctx.lineNumber(error.to) + 1,
+        startCharacterNumber: ctx.characterNumber(error.from) + 1,
+        endCharacterNumber: ctx.characterNumber(error.to) + 1,
+      },
+    });
+  }
+  return last;
+}
+
 // Lowers the statement that starts at `child` into `result`, and returns the
 // last sibling node the statement consumed, the lines that continue it
 // included.
@@ -600,6 +641,10 @@ function lowerStatementAt(
       appendBlockContent(result, wrapInWeave([callExpr], stmtRange, ctx), ctx);
       return lastNode;
     }
+    // A statement that is neither a call nor an assignment (a lone name, a
+    // comma list with no `=`) is one Luau cannot read, so it is reported as
+    // Luau reports it, and the rest of its line is left with it.
+    return reportExpressionStatement(child, lastNode, ctx);
   }
   // IIFE statement: `(function () ... end)(args)` — a parenthesized
   // value immediately followed by call parens, both parsing as
@@ -847,14 +892,13 @@ function lowerMultiTargetReassignment(
   // property and variable targets is common in Luau (`a.x, b = …`,
   // `a[f()], b, a[f()+3] = f(), a, 'x'`) — this fixture shape is
   // attrib.luau lines 13, 15.
-  validateAssignmentValue(multi.op, ctx);
   const allSimple = multi.targets.every((t) => isSimpleVariableTarget(t));
   // The lines that continue the last value; their commas separate further
   // values.
   const trailingExprGroups = multi.trailingExprGroups.map((g) => [...g]);
-  const [continued = [], ...continuedGroups] = splitOnCommas(
-    takeLineContinuation(ctx),
-  );
+  const continuation = takeLineContinuation(ctx);
+  validateAssignmentValue(multi.op, ctx, continuation.length > 0);
+  const [continued = [], ...continuedGroups] = splitOnCommas(continuation);
   const lastGroup = trailingExprGroups[trailingExprGroups.length - 1];
   if (lastGroup) lastGroup.push(...continued);
   trailingExprGroups.push(...continuedGroups);

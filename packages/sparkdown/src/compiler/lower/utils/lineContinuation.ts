@@ -105,9 +105,10 @@ function collectLineContinuationFrom(
         ? node != null && endsOnValueComma(node)
         : lastSignificant(nodes)?.name === "LuauCommaSeparator";
     const carried =
-      node?.name === "LuauVariableDefinition" &&
-      afterComma &&
-      !startsStatement(scan);
+      !startsStatement(scan) &&
+      scan.name !== "LuauInvalidStatement" &&
+      ((node?.name === "LuauVariableDefinition" && afterComma) ||
+        (nodes.length === 0 && node != null && endsOnEmptyAssignment(node)));
     if (!carried && !isLineContinuation(scan)) return nodes;
     while (scan && scan.name !== "Newline") {
       nodes.push(scan);
@@ -223,6 +224,77 @@ function endsOnValueComma(node: SyntaxNode): boolean {
     }
   }
   return false;
+}
+
+// The blocks whose bodies are Luau code, and the constructs whose bodies are
+// narrative, where a statement ends at its line.
+const LUAU_BODY_OWNERS = nodeNameSet([
+  "LuauFunctionDefinition",
+  "LuauMethodDefinition",
+  "LuauFunctionTypeDeclaration",
+  "LuauIfBlock",
+  "LuauElseifBlock",
+  "LuauElseBlock",
+  "LuauForLoop",
+  "LuauWhileLoop",
+  "LuauRepeatLoop",
+  "LuauDoBlock",
+]);
+const NARRATIVE_OWNERS = nodeNameSet(["Scene", "Branch", "LuauExplicitStatement"]);
+
+// Whether `node` is in Luau code rather than a narrative body.
+function inLuauBody(node: SyntaxNode): boolean {
+  for (let n = node.parent; n; n = n.parent) {
+    if (LUAU_BODY_OWNERS.has(n.name)) return true;
+    if (NARRATIVE_OWNERS.has(n.name) || n.name.startsWith("LuauSparkdown")) return false;
+  }
+  return false;
+}
+
+// Whether the assignment operation `op` has no value after its operator on
+// its line.
+function isEmptyAssignment(op: SyntaxNode): boolean {
+  const operator = findDescendant(op, "LuauAssignmentOperator");
+  if (!operator) return false;
+  for (let sib = operator.nextSibling; sib; sib = sib.nextSibling) {
+    if (!SKIPPABLE.has(sib.name)) return false;
+  }
+  return true;
+}
+
+// Whether the statement `node` in Luau code ends with an `=` that has no
+// value on its line (`local x =`, `a, b =`), so the value is on the next
+// line, as Luau reads it. A declaration is always Luau code; a reassignment
+// can be in a narrative body, where it ends at its line.
+function endsOnEmptyAssignment(node: SyntaxNode): boolean {
+  if (node.name === "LuauAssignmentOperation") {
+    return isEmptyAssignment(node) && inLuauBody(node);
+  }
+  if (node.name !== "LuauVariableDefinition" && node.name !== "LuauReassignment") {
+    return false;
+  }
+  let content: SyntaxNode | null = null;
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === `${node.name}_content`) content = child;
+  }
+  let last: SyntaxNode | null = content?.lastChild ?? null;
+  while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
+  if (!last) return false;
+  if (node.name === "LuauReassignment") {
+    return last.name === "LuauAssignmentOperation" && isEmptyAssignment(last) && inLuauBody(node);
+  }
+  const op =
+    last.name === "LuauVariableAssignment" ? findDescendant(last, "LuauAssignmentOperation") : null;
+  return op != null && isEmptyAssignment(op);
+}
+
+function findDescendant(node: SyntaxNode, name: string): SyntaxNode | null {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (child.name === name) return child;
+    const found = findDescendant(child, name);
+    if (found) return found;
+  }
+  return null;
 }
 
 function lastSignificant(nodes: SyntaxNode[]): SyntaxNode | undefined {

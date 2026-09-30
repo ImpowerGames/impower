@@ -332,7 +332,9 @@ export function lowerVariableDefinition(
   if (!firstRhsOp && !sawAssignmentOp) {
     firstRhsOp = typeUnionLineValue(nodeRef.node) ?? undefined;
   }
-  if (firstRhsOp) validateAssignmentValue(firstRhsOp, ctx);
+  if (firstRhsOp) {
+    validateAssignmentValue(firstRhsOp, ctx, firstRhsContinuation.length > 0);
+  }
   const firstRhs = firstRhsOp
     ? lowerExpressionFromContainerAndContinuation(
         firstRhsOp,

@@ -57,8 +57,11 @@ function isInsignificant(name: string): boolean {
 export function validateAssignmentValue(
   opNode: SyntaxNode,
   ctx: LowerContext,
+  // Whether the value is on the next line, after an `=` that ends its line
+  // (`local x =` then `y`), which Luau reads as the value.
+  valueOnNextLine = false,
 ): void {
-  if (!ctx.diagnostics) return;
+  if (!ctx.diagnostics || valueOnNextLine) return;
   const operator = getDescendent("LuauAssignmentOperator", opNode);
   if (!operator) return;
   // The value node (string/number/table/access-path/…) is a SIBLING of the

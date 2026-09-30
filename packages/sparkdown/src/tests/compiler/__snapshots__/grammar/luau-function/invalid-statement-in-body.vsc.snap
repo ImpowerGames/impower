@@ -1,4 +1,4 @@
-text.source.sparkdown [0..229]
+text.source.sparkdown [0..279]
  ├─ meta.function.luau [0..17]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -66,80 +66,100 @@ text.source.sparkdown [0..229]
  │       ├─ punctuation.whitespace.extra.sd [110..112]: "  "
  │       ├─ variable.other.readwrite.luau [112..116]: "Well"
  │       ├─ keyword.operator.comma.luau [116..117]: ","
- │       ├─ punctuation.whitespace.extra.sd [117..118]: " "
+ │       ├─ punctuation.whitespace.optional.sd [117..118]: " "
  │       ├─ variable.other.readwrite.luau [118..124]: "friend"
- │       └─ meta.template.expression.accessor.sd [124..125]: "."
+ │       └─ invalid.illegal.luau [124..125]: "."
  ├─ Newline [125..126]: "\n"
- ├─ meta.function.luau [126..153]
- │   └─ meta.function.body.luau [126..153]
+ ├─ meta.function.luau [126..145]
+ │   └─ meta.function.body.luau [126..145]
  │       ├─ punctuation.whitespace.extra.sd [126..128]: "  "
- │       ├─ variable.other.readwrite.luau [128..130]: "He"
- │       ├─ punctuation.whitespace.extra.sd [130..131]: " "
- │       ├─ variable.other.readwrite.luau [131..135]: "said"
- │       ├─ punctuation.whitespace.extra.sd [135..136]: " "
- │       ├─ string.quoted.luau [136..140]: "\"hi\""
- │       ├─ punctuation.whitespace.extra.sd [140..141]: " "
- │       ├─ variable.other.readwrite.luau [141..143]: "to"
- │       ├─ punctuation.whitespace.extra.sd [143..144]: " "
- │       ├─ constant.numeric.decimal.luau [144..145]: "3"
- │       ├─ punctuation.whitespace.extra.sd [145..146]: " "
- │       ├─ variable.other.readwrite.luau [146..152]: "people"
- │       └─ invalid.illegal.luau [152..153]: "?"
- ├─ Newline [153..154]: "\n"
- ├─ meta.function.luau [154..169]
- │   └─ meta.function.body.luau [154..169]
- │       ├─ punctuation.whitespace.optional.sd [154..156]: "  "
- │       ├─ keyword.control.if.luau [156..158]: "if"
- │       ├─ punctuation.whitespace.optional.sd [158..159]: " "
- │       ├─ variable.other.readwrite.luau [159..160]: "n"
- │       ├─ punctuation.whitespace.optional.sd [160..161]: " "
- │       ├─ keyword.operator.comparison.luau [161..162]: ">"
- │       ├─ punctuation.whitespace.optional.sd [162..163]: " "
- │       ├─ constant.numeric.decimal.luau [163..164]: "1"
- │       ├─ punctuation.whitespace.optional.sd [164..165]: " "
- │       └─ keyword.control.then.luau [165..169]: "then"
- ├─ Newline [169..170]: "\n"
- ├─ meta.function.luau [170..186]
- │   └─ meta.function.body.luau [170..186]
- │       ├─ punctuation.whitespace.extra.sd [170..174]: "    "
- │       ├─ variable.other.readwrite.luau [174..177]: "How"
- │       ├─ punctuation.whitespace.extra.sd [177..178]: " "
- │       ├─ variable.other.readwrite.luau [178..181]: "are"
- │       ├─ punctuation.whitespace.extra.sd [181..182]: " "
- │       ├─ variable.other.readwrite.luau [182..185]: "you"
- │       └─ invalid.illegal.luau [185..186]: "?"
- ├─ Newline [186..187]: "\n"
- ├─ meta.function.luau [187..192]
- │   └─ meta.function.body.luau [187..192]
- │       ├─ punctuation.whitespace.optional.sd [187..189]: "  "
- │       └─ keyword.control.end.luau [189..192]: "end"
- ├─ Newline [192..193]: "\n"
- ├─ meta.function.luau [193..200]
- │   └─ meta.function.body.luau [193..200]
- │       ├─ punctuation.whitespace.extra.sd [193..195]: "  "
- │       └─ variable.other.readwrite.luau [195..200]: "Hello"
- ├─ Newline [200..201]: "\n"
- ├─ meta.function.luau [201..214]
- │   └─ meta.function.body.luau [201..214]
- │       ├─ punctuation.whitespace.optional.sd [201..203]: "  "
- │       ├─ variable.other.readwrite.luau [203..204]: "a"
- │       ├─ keyword.operator.comma.luau [204..205]: ","
- │       ├─ punctuation.whitespace.optional.sd [205..206]: " "
- │       ├─ variable.other.readwrite.luau [206..207]: "b"
- │       ├─ punctuation.whitespace.optional.sd [207..208]: " "
- │       ├─ keyword.operator.assignment.luau [208..209]: "="
- │       ├─ punctuation.whitespace.optional.sd [209..210]: " "
- │       ├─ variable.other.readwrite.luau [210..211]: "b"
- │       ├─ keyword.operator.comma.luau [211..212]: ","
+ │       ├─ variable.other.readwrite.luau [128..133]: "Hello"
+ │       ├─ keyword.operator.comma.luau [133..134]: ","
+ │       ├─ punctuation.whitespace.extra.sd [134..135]: " "
+ │       ├─ variable.other.readwrite.luau [135..136]: "I"
+ │       ├─ punctuation.whitespace.extra.sd [136..137]: " "
+ │       ├─ variable.other.readwrite.luau [137..139]: "am"
+ │       ├─ punctuation.whitespace.extra.sd [139..140]: " "
+ │       ├─ variable.other.readwrite.luau [140..144]: "here"
+ │       └─ meta.template.expression.accessor.sd [144..145]: "."
+ ├─ Newline [145..146]: "\n"
+ ├─ meta.function.luau [146..172]
+ │   └─ meta.function.body.luau [146..172]
+ │       ├─ punctuation.whitespace.extra.sd [146..148]: "  "
+ │       ├─ variable.other.readwrite.luau [148..150]: "He"
+ │       ├─ punctuation.whitespace.extra.sd [150..151]: " "
+ │       ├─ variable.other.readwrite.luau [151..155]: "said"
+ │       ├─ punctuation.whitespace.extra.sd [155..156]: " "
+ │       ├─ string.quoted.luau [156..165]: "\"the end\""
+ │       ├─ punctuation.whitespace.extra.sd [165..166]: " "
+ │       ├─ variable.other.readwrite.luau [166..171]: "today"
+ │       └─ meta.template.expression.accessor.sd [171..172]: "."
+ ├─ Newline [172..173]: "\n"
+ ├─ meta.function.luau [173..203]
+ │   └─ meta.function.body.luau [173..203]
+ │       ├─ punctuation.whitespace.extra.sd [173..175]: "  "
+ │       ├─ variable.other.readwrite.luau [175..180]: "Hello"
+ │       ├─ punctuation.whitespace.extra.sd [180..181]: " "
+ │       ├─ variable.other.readwrite.luau [181..186]: "there"
+ │       └─ comment.line.double-dash.luau [186..203]
+ │           ├─ punctuation.whitespace.sd [186..187]: " "
+ │           ├─ comment.luau [187..189]: "--"
+ │           └─ punctuation.definition.comment.content.sd [189..203]: " the end of it"
+ ├─ Newline [203..204]: "\n"
+ ├─ meta.function.luau [204..219]
+ │   └─ meta.function.body.luau [204..219]
+ │       ├─ punctuation.whitespace.optional.sd [204..206]: "  "
+ │       ├─ keyword.control.if.luau [206..208]: "if"
+ │       ├─ punctuation.whitespace.optional.sd [208..209]: " "
+ │       ├─ variable.other.readwrite.luau [209..210]: "n"
+ │       ├─ punctuation.whitespace.optional.sd [210..211]: " "
+ │       ├─ keyword.operator.comparison.luau [211..212]: ">"
  │       ├─ punctuation.whitespace.optional.sd [212..213]: " "
- │       └─ variable.other.readwrite.luau [213..214]: "a"
- ├─ Newline [214..215]: "\n"
- ├─ meta.function.luau [215..218]
- │   └─ keyword.control.end.luau [215..218]: "end"
- ├─ Newline [218..219]: "\n"
- ├─ string.display.text.chunk.sd [219..228]
- │   ├─ markup.raw.text.sd [219..224]: "After"
- │   ├─ markup.raw.space.sd [224..225]: " "
- │   ├─ markup.raw.text.sd [225..227]: "it"
- │   └─ markup.raw.punctuation.sd [227..228]: "."
- └─ Newline [228..229]: "\n"
+ │       ├─ constant.numeric.decimal.luau [213..214]: "1"
+ │       ├─ punctuation.whitespace.optional.sd [214..215]: " "
+ │       └─ keyword.control.then.luau [215..219]: "then"
+ ├─ Newline [219..220]: "\n"
+ ├─ meta.function.luau [220..236]
+ │   └─ meta.function.body.luau [220..236]
+ │       ├─ punctuation.whitespace.extra.sd [220..224]: "    "
+ │       ├─ variable.other.readwrite.luau [224..227]: "How"
+ │       ├─ punctuation.whitespace.extra.sd [227..228]: " "
+ │       ├─ variable.other.readwrite.luau [228..231]: "are"
+ │       ├─ punctuation.whitespace.extra.sd [231..232]: " "
+ │       ├─ variable.other.readwrite.luau [232..235]: "you"
+ │       └─ invalid.illegal.luau [235..236]: "?"
+ ├─ Newline [236..237]: "\n"
+ ├─ meta.function.luau [237..242]
+ │   └─ meta.function.body.luau [237..242]
+ │       ├─ punctuation.whitespace.optional.sd [237..239]: "  "
+ │       └─ keyword.control.end.luau [239..242]: "end"
+ ├─ Newline [242..243]: "\n"
+ ├─ meta.function.luau [243..250]
+ │   └─ meta.function.body.luau [243..250]
+ │       ├─ punctuation.whitespace.extra.sd [243..245]: "  "
+ │       └─ variable.other.readwrite.luau [245..250]: "Hello"
+ ├─ Newline [250..251]: "\n"
+ ├─ meta.function.luau [251..264]
+ │   └─ meta.function.body.luau [251..264]
+ │       ├─ punctuation.whitespace.optional.sd [251..253]: "  "
+ │       ├─ variable.other.readwrite.luau [253..254]: "a"
+ │       ├─ keyword.operator.comma.luau [254..255]: ","
+ │       ├─ punctuation.whitespace.optional.sd [255..256]: " "
+ │       ├─ variable.other.readwrite.luau [256..257]: "b"
+ │       ├─ punctuation.whitespace.optional.sd [257..258]: " "
+ │       ├─ keyword.operator.assignment.luau [258..259]: "="
+ │       ├─ punctuation.whitespace.optional.sd [259..260]: " "
+ │       ├─ variable.other.readwrite.luau [260..261]: "b"
+ │       ├─ keyword.operator.comma.luau [261..262]: ","
+ │       ├─ punctuation.whitespace.optional.sd [262..263]: " "
+ │       └─ variable.other.readwrite.luau [263..264]: "a"
+ ├─ Newline [264..265]: "\n"
+ ├─ meta.function.luau [265..268]
+ │   └─ keyword.control.end.luau [265..268]: "end"
+ ├─ Newline [268..269]: "\n"
+ ├─ string.display.text.chunk.sd [269..278]
+ │   ├─ markup.raw.text.sd [269..274]: "After"
+ │   ├─ markup.raw.space.sd [274..275]: " "
+ │   ├─ markup.raw.text.sd [275..277]: "it"
+ │   └─ markup.raw.punctuation.sd [277..278]: "."
+ └─ Newline [278..279]: "\n"

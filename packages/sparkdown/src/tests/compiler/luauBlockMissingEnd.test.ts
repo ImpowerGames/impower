@@ -582,7 +582,7 @@ describe("Luau block without `end`", () => {
     },
   );
 
-  test("a `repeat` cut off by a story line and never closed is an error", () => {
+  test("a `repeat` holding a line that is not a Luau statement and no `until` is an error", () => {
     const errs = compile(
       [
         "function f()",
@@ -740,26 +740,20 @@ describe("Luau block without `end`", () => {
         "done",
         "",
       ].join("\n");
-    // Every block left without its `end` or `until`.
-    const blockErrors = (text: string) =>
+    const errors = (text: string) =>
       compile(text)
-        .diags.filter(
-          (d) =>
-            d.severity === 1 &&
-            d.message.startsWith("This ") &&
-            d.message.includes("missing its closing"),
-        )
-        .map((d) => [d.startLine, d.message])
-        .sort();
-    const expected = blockErrors(source("local y = 1"));
-    expect(expected.length).toBeGreaterThan(0);
-    expect(blockErrors(source("Hi."))).toEqual(expected);
-    const lineErrors = compile(source("Hi.")).diags.filter(
-      (d) => d.severity === 1 && d.startLine === 3,
+        .diags.filter((d) => d.severity === 1)
+        .map((d) => [d.startLine, d.message] as [number, string])
+        .sort((a, b) => a[0] - b[0]);
+    const plain = errors(source("local y = 1"));
+    expect(plain.some(([, message]) => message.startsWith("This "))).toBe(true);
+    // The same errors, and Luau's for `Hi.`, which it reports at the token it
+    // met instead of the name: the `until` on the next line.
+    expect(errors(source("Hi."))).toEqual(
+      [...plain, [4, "Expected identifier, got 'until'"] as [number, string]].sort(
+        (a, b) => a[0] - b[0],
+      ),
     );
-    expect(lineErrors.map((d) => d.message)).toEqual([
-      "Expected identifier, got 'until'",
-    ]);
   });
 
   test("a line of text beginning with `end` closes the function with a warning", () => {

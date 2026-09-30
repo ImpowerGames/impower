@@ -9631,7 +9631,7 @@
       ]
     },
     "LuauInvalidStatement": {
-      "match": "^((?:[^\\S\\n\\r])*)((?!(?:\\b(?:scene|branch)\\b|\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b|(?:\\b(?:end)\\b|\\b(?:do|if|for|while|repeat)\\b|\\b(?:then|elseif|else)\\b|\\b(?:break|continue)\\b|\\b(?:in)\\b|\\b(?:until)\\b|\\b(?:goto)\\b|\\b(?:return)\\b|\\b(?:and|or|not)\\b|\\b(?:define)\\b|\\b(?:local|const|function)\\b|\\b(?:require|export)\\b)|\\b(?:store|local|const)\\b|\\b(?:read|write)\\b|\\b(?:match|plural)\\b|\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b|type)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.](?![.])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*(?:(?:[^\\S\\n\\r])+(?!(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)[A-Za-z0-9_]|(?:[^\\S\\n\\r])*[!?]|(?:[^\\S\\n\\r])*,(?![^\\r\\n]*=)|(?:[^\\S\\n\\r])*[.](?![.])(?!(?:[^\\S\\n\\r])*[A-Za-z_]))(?:(?!(?:[^\\S\\n\\r])+(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)[^\\r\\n])*?)(?=(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])+(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)",
+      "match": "^((?:[^\\S\\n\\r])*)((?!(?:\\b(?:scene|branch)\\b|\\b(?:and|break|continue|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while)\\b|(?:\\b(?:end)\\b|\\b(?:do|if|for|while|repeat)\\b|\\b(?:then|elseif|else)\\b|\\b(?:break|continue)\\b|\\b(?:in)\\b|\\b(?:until)\\b|\\b(?:goto)\\b|\\b(?:return)\\b|\\b(?:and|or|not)\\b|\\b(?:define)\\b|\\b(?:local|const|function)\\b|\\b(?:require|export)\\b)|\\b(?:store|local|const)\\b|\\b(?:read|write)\\b|\\b(?:match|plural)\\b|\\b(?:queue|cycle|chain)\\b|\\b(?:shuffle)\\b|type)\\b)(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.](?![.])(?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*(?:(?:[^\\S\\n\\r])+(?!(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)[A-Za-z0-9_]|(?:[^\\S\\n\\r])*[!?]|(?:[^\\S\\n\\r])*[.](?![.])(?!(?:[^\\S\\n\\r])*[A-Za-z_])|(?:[^\\S\\n\\r])*,(?![^\\r\\n]*=)(?=(?:\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"?|'(?:[^'\\\\\\r\\n]|\\\\.)*'?|`(?:[^`\\\\\\r\\n]|\\\\.)*`?|[^\\r\\n\"'`-]|-(?!-))*?(?:(?<=[A-Za-z0-9_)\\]}\"'`])(?<!\\b(?:and|or|not|in|then|do|return))(?:[^\\S\\n\\r])+(?!(?:and|or|not|then|do|in|end|else|elseif|until)\\b)[A-Za-z0-9_]|[!?])))(?:\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"?|'(?:[^'\\\\\\r\\n]|\\\\.)*'?|`(?:[^`\\\\\\r\\n]|\\\\.)*`?|--[^\\r\\n]*|(?!(?:[^\\S\\n\\r])+(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)[^\\r\\n\"'`-]|-(?!-))*?)(?=(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])+(?:\\b(?:end|elseif|else)\\b|\\b(?:until)\\b)\\b)",
       "captures": {
         "1": {
           "patterns": [
@@ -9654,6 +9654,9 @@
     },
     "LuauInvalidStatementToken": {
       "patterns": [
+        {
+          "include": "#LuauComment"
+        },
         {
           "include": "#LuauInvalidStatementLogicalKeyword"
         },
@@ -9706,7 +9709,7 @@
     "LuauInvalidStatementString": {
       "tag": "string",
       "name": "string.quoted.luau",
-      "match": "\"[^\"\\r\\n]*\"?|'[^'\\r\\n]*'?|`[^`\\r\\n]*`?"
+      "match": "\"(?:[^\"\\\\\\r\\n]|\\\\.)*\"?|'(?:[^'\\\\\\r\\n]|\\\\.)*'?|`(?:[^`\\\\\\r\\n]|\\\\.)*`?"
     },
     "LuauInvalidStatementAccessor": {
       "tag": "separator",

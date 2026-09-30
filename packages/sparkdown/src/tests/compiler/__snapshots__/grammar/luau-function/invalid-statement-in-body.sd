@@ -5,7 +5,9 @@ function greet(n)
   Hello!
   U.S. is big.
   Well, friend.
-  He said "hi" to 3 people?
+  Hello, I am here.
+  He said "the end" today.
+  Hello there -- the end of it
   if n > 1 then
     How are you?
   end
