@@ -9,7 +9,11 @@
 // a silent omission would read as "covered".
 
 import { describe, expect, test } from "vitest";
-import { diagnose, diagnoseInFunction } from "./diagnosticTestHarness";
+import {
+  diagnose,
+  diagnoseDetailed,
+  diagnoseInFunction,
+} from "./diagnosticTestHarness";
 
 // Luau: recovery_error_limit_1
 // `parse("local a = ")` reports exactly one error.
@@ -24,11 +28,38 @@ describe("an assignment with no value", () => {
 
 // Luau: error_const_not_initialized
 // "Missing initializer in const declaration"
-// Diverges: `const c` is accepted silently, and the multi-name forms report
-// sparkdown's own rule, "A `const` takes one name and one value", instead.
-describe.skip("const without an initializer (diverges: see above)", () => {
+describe("const without an initializer", () => {
+  test("const c", () => {
+    expect(diagnoseInFunction("const c")).toEqual([
+      "Missing initializer in const declaration",
+    ]);
+  });
+
+  test("const c at the top level, on the declaration", () => {
+    expect(diagnoseDetailed("const c").map((d) => [d.message, d.range])).toEqual(
+      [
+        [
+          "Missing initializer in const declaration",
+          { start: { line: 0, character: 0 }, end: { line: 0, character: 7 } },
+        ],
+      ],
+    );
+  });
+
+  // An `=` with a malformed value has an initializer; only the expression
+  // error applies, as for `local a = `.
+  test("const c = ", () => {
+    expect(diagnose("const c = ")).toEqual([
+      "Expected identifier when parsing expression, got <eof>",
+    ]);
+  });
+});
+
+// Luau: error_const_not_initialized (multi-name cases)
+// Diverges: the multi-name forms report sparkdown's own rule, "A `const`
+// takes one name and one value", instead.
+describe.skip("const with several names (diverges: see above)", () => {
   test.each([
-    ["const c", "const c"],
     ["const a, b = nil", "const a, b = nil"],
     ["const a, b, c = f(), 42", "const a, b, c = f(), 42"],
     ["const a, b, c = ..., 42", "const a, b, c = ..., 42"],
