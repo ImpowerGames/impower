@@ -499,6 +499,11 @@ export class ProgramStoryState {
    *  root holds its chunk or, past the last statement, its sequence. */
   toJson(): string {
     const writer = new SimpleJson.Writer();
+    JsonSerialisation.SetWriterAnchors(
+      writer,
+      this.variablesState.InitTableAnchors(),
+      this.variablesState.InitCellAnchors(),
+    );
     writer.WriteObjectStart();
     writer.WriteProperty("engine", "program");
     writer.WritePropertyStart("position");
@@ -575,6 +580,12 @@ export class ProgramStoryState {
     // opens one: a table reference resolves against the tables this load
     // reads, never a previous load's.
     JsonSerialisation.ResetObjectLoadSession();
+    JsonSerialisation.SetLoadSessionAnchorResolver((anchor) =>
+      this.variablesState.InitTableAtAnchor(anchor),
+    );
+    JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
+      this.variablesState.InitCellAtAnchor(anchor),
+    );
     const position = obj["position"] as number[] | null;
     if (position) {
       const [id, entry, offset, sequenceId] = position as [
