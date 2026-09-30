@@ -105,6 +105,8 @@ describe("a statement after a same-line block comment after a value runs", () =>
     "0x5",
     "5e0",
     "1_000",
+    ".5",
+    "5.",
     "true",
     "nil",
     '"s"',

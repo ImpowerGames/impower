@@ -409,9 +409,9 @@ variables:
   # as the grammar reads it with no comment there: the next statement after
   # any value but a name. The value ends in a closing bracket, a quote, `...`,
   # a regex literal, or a word that is a number of any spelling (`0x5`, `5e0`,
-  # `1_000`), `true`, `false`, `nil` or a function's `end`. After a name
+  # `1_000`, `.5`), `true`, `false`, `nil` or a function's `end`. After a name
   # (`g`, `t.x`), the `(` is a call of it, as in Luau (`g (2)`).
-  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/){{WS}}*)(?<![^\w.](?:and|or|not){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|(?<=(?:[)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/[dgimsuvy]*|(?:^|[^\w.])(?:\d[\w.]*|true|false|nil|end)){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(]))
+  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:(?<=(?:[\w)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/){{WS}}*)(?<![^\w.](?:and|or|not){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|(?<=(?:[)}\]"'`]|\.\.\.|@/{{LUAU_REGEX_BODY}}/[dgimsuvy]*|(?:^|[^\w.])(?:\.?\d[\w.]*|true|false|nil|end)){{WS}}*)(?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(]))
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
