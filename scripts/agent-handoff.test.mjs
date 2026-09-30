@@ -8,6 +8,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
 import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound } from "./agent-handoff.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
+import { installReviewerHooks } from "./reviewer-security.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
@@ -117,6 +118,53 @@ assert.throws(() => validateCodexReviewer({ args: ["exec", "--model", "gpt-test"
   assert.doesNotMatch(error.message, /supply:/, "a complete array passes the argument preflight");
   return true;
 }, "the scratch job directory is not a verified sandbox store, so a later check still refuses");
+
+// The full-access grammar is accepted exactly, and a partial one is refused
+// once with every problem named, before any slot is reserved.
+const codexHome = path.join(scratch, "codex-home");
+fs.mkdirSync(codexHome);
+fs.writeFileSync(path.join(codexHome, "auth.json"), "{}");
+const fullAccessArgs = ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', "-c", 'approval_policy="never"', "--sandbox", "danger-full-access", "-c", 'model_provider="openai"', "--cd", codexDir, "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "--strict-config", "--json", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--dangerously-bypass-hook-trust", "--output-last-message", codexReport, "-"];
+const fullAccessPermissions = { sandbox: "danger-full-access", approvalPolicy: "never", networkAccess: true, artifactWrites: "handoff-directory", cwd: codexDir, codexHome };
+assert.doesNotThrow(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: fullAccessPermissions }, codexPlan), "the documented full-access grammar is accepted");
+assert.throws(() => validateCodexReviewer({ args: [...fullAccessArgs.filter((arg) => arg !== "--dangerously-bypass-hook-trust").slice(0, -1), "-c", 'windows.sandbox="elevated"', "-"], effort: "high", permissions: { ...fullAccessPermissions, codexHome: undefined, sandboxStateHome: codexHome } }, codexPlan), (error) => {
+  for (const problem of ["--dangerously-bypass-hook-trust", "no -c windows.sandbox", "no step permissions.sandboxStateHome", "step permissions.codexHome"]) assert.ok(error.message.includes(problem), `partial full-access refusal must name ${problem}: ${error.message}`);
+  return true;
+});
+assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: { ...fullAccessPermissions, sandbox: "workspace-write" } }, codexPlan), /step permissions.sandbox "danger-full-access"/, "declared permissions must match the full-access argument");
+assert.throws(() => validateCodexReviewer({ args: ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', ...fullCodexArgs.slice(1, -1), "--dangerously-bypass-hook-trust", "-"], effort: "high", permissions: codexPermissions }, codexPlan), /no --dangerously-bypass-hook-trust/, "the sandboxed grammar stays exact");
+assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: { ...fullAccessPermissions, codexHome: codexDir } }, codexPlan), /credentials must be separate/, "the copied authentication home is separate from the reviewer directory");
+
+// The hooks the launcher installs apply the shared policy from a working
+// directory outside any checkout, and a broken hook fails closed.
+{
+  const home = fs.mkdtempSync(path.join(scratch, "hook-home-"));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "impower-hook-cwd-"));
+  console.log(`Reviewer hook working directory: ${outside}`);
+  const hooks = JSON.parse(fs.readFileSync(installReviewerHooks(home), "utf8")).hooks.PreToolUse;
+  assert.equal(hooks.length, 1);
+  assert.equal(new RegExp(hooks[0].matcher).test("Bash") && new RegExp(hooks[0].matcher).test("apply_patch"), true);
+  const runHook = (hook, command) => {
+    const payload = JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", cwd: outside, tool_input: { command } });
+    const [shell, args] = process.platform === "win32" ? ["powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", hook.commandWindows]] : ["sh", ["-c", hook.command]];
+    try { return { status: 0, stdout: execFileSync(shell, args, { cwd: outside, input: payload, encoding: "utf8", windowsHide: true, stdio: ["pipe", "pipe", "pipe"] }) }; }
+    catch (error) { return { status: error.status, stdout: error.stdout ?? "" }; }
+  };
+  for (const command of ["npx vitest run", "git stash push -m probe", "gh issue create --title probe --body probe"]) {
+    const result = runHook(hooks[0].hooks[0], command);
+    assert.equal(result.status, 0, command);
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny", `the reviewer hook refuses ${command}`);
+  }
+  assert.equal(runHook(hooks[0].hooks[0], "git status").stdout.trim(), "", "an ordinary command passes the reviewer hook");
+  const brokenHome = fs.mkdtempSync(path.join(scratch, "hook-broken-"));
+  const broken = path.join(scratch, "broken-hook.mjs");
+  fs.writeFileSync(broken, "process.exit(1);");
+  const brokenHook = JSON.parse(fs.readFileSync(installReviewerHooks(brokenHome, { entry: broken }), "utf8")).hooks.PreToolUse[0].hooks[0];
+  assert.equal(runHook(brokenHook, "git status").status, 2, "a failing hook exits 2, which blocks the tool call");
+  assert.throws(() => installReviewerHooks(fs.mkdtempSync(path.join(scratch, "hook-missing-")), { entry: path.join(scratch, "absent.mjs") }), /entry point missing/);
+  fs.rmSync(outside, { recursive: true });
+  console.log("PASS: the full-access Codex grammar is exact, and its installed hooks refuse raw vitest, git stash and untyped issues outside a checkout and fail closed");
+}
 
 write(); await runHandoff(file);
 const rows = fs.readFileSync(config.journal, "utf8").trim().split("\n").map(JSON.parse);
