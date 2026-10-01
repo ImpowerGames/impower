@@ -69,6 +69,12 @@ layout values with
   card([==[a]=]) { text "comment" } ]==])
   button @click=f(-- ) { text "comment" }
   card(-- ) { text "comment" }
+  card([========[a]=========]) { text "string" } b]========])
+  button @click={ print([========[a]=========]}b]========]) }
+  button @click={ print(`a\}b`) }
+  card(`a) \{ text \} b`)
+  row { button @click={ print(`x}`) } "Go"; text "after" }
+  button @click={ print(`a {f(`}`)} b`) }
   text = Hello {who}
   text = [[a{b}]]
   items:

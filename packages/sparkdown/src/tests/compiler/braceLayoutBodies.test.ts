@@ -1030,7 +1030,7 @@ layout hud with
   button @click={ print([==[a]]}b]==]) }
   button @click={ print([==[a]=]}b]==]) }
   card([==[a]=]) { text "comment" } ]==])
-  row { button @click={ print([=========[a}b]=========]) } "Go"; text "after" }
+  row { button @click={ print([=======[a}b]=======]) } "Go"; text "after" }
 end
 `;
     const [closing, otherLevel, call, row] = lowered(text, "layout", "hud").tree.children;
@@ -1039,10 +1039,93 @@ end
     expect([closing, otherLevel, call].map((e: any) => e.children)).toEqual([[], [], []]);
     expect(call.params).toHaveLength(1);
     expect(row.children[0].events[0].handler.binding.source).toBe(
-      "{ print([=========[a}b]=========]) }",
+      "{ print([=======[a}b]=======]) }",
     );
     expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
     expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a long string with eight or more `=` is never read as structure", () => {
+    const text = `${declarations}
+layout hud with
+  card([========[a]=========]) { text "string" } b]========])
+  button @click={ print([========[a]=========]}b]========]) }
+  text "after"
+end
+`;
+    const [call, button, after] = lowered(text, "layout", "hud").tree.children;
+    expect(call.params).toHaveLength(1);
+    expect(call.children).toEqual([]);
+    expect(button.events[0].handler.binding.source).toBe(
+      "{ print([========[a]=========]}b]========]) }",
+    );
+    expect(button.children).toEqual([]);
+    expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
+    expect(errorsOf(text)).toEqual([]);
+    // Such a string runs to the end of its line, so in a one-line block the
+    // rest of the line is reported rather than read as more entries.
+    const inBlock = `layout hud with
+  row { button @click={ print([========[a}b]========]) } "Go"; text "after" }
+end
+`;
+    expect(errorsOf(inBlock).some((e) => e.line === 1)).toBe(true);
+    expect(lowered(inBlock, "layout", "hud").tree.children[0].children).toHaveLength(1);
+  });
+
+  test("a backtick string's braces and parens are text", () => {
+    const tick = "`";
+    const text = `${declarations}
+layout hud with
+  button @click={ print(${tick}a\\}b${tick}) }
+  card(${tick}a) \\{ text \\} b${tick})
+  row { button @click={ print(${tick}x}${tick}) } "Go"; text "after" }
+  button @click={ print(${tick}a {f(${tick}}${tick})} b${tick}) }
+end
+`;
+    const [button, call, row, nested] = lowered(text, "layout", "hud").tree.children;
+    // A backtick string inside an interpolation keeps its `}`.
+    expect(nested.events[0].handler.binding.source).toBe(
+      `{ print(${tick}a {f(${tick}}${tick})} b${tick}) }`,
+    );
+    expect(nested.children).toEqual([]);
+    expect(button.events[0].handler.binding.source).toBe(`{ print(${tick}a\\}b${tick}) }`);
+    expect(button.children).toEqual([]);
+    expect(call.params).toHaveLength(1);
+    expect(call.children).toEqual([]);
+    expect(row.children[0].events[0].handler.binding.source).toBe(
+      `{ print(${tick}x}${tick}) }`,
+    );
+    expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
+    expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("the line scan stays linear on long nested lines", () => {
+    // A paren or brace nested past the limits is read by the scan as one more
+    // opener, not by a lookahead over the rest of the line, which took seconds
+    // on these lines. The bound is generous so slow CI stays deterministic.
+    const grammar = JSON.parse(
+      readFileSync(join(__dirname, "../../../language/sparkdown.language-grammar.json"), "utf8"),
+    );
+    const scan = new RegExp(grammar.repository.LuauSparkleBlockLine.begin, "muy");
+    const warm = "  row { text }";
+    scan.lastIndex = 0;
+    scan.exec(warm);
+    scan.lastIndex = 0;
+    scan.exec(warm);
+    const n = 50000;
+    const lines = [
+      "  text #x=f(" + "(".repeat(n) + "x" + ")".repeat(n) + ") { text }",
+      "  card(" + "(".repeat(n) + "x" + ")".repeat(n) + ") { text }",
+      "  row #x={" + "{".repeat(n) + "x" + "}".repeat(n) + "} { text }",
+      "  card(" + "(".repeat(n) + "x",
+    ];
+    for (const line of lines) {
+      scan.lastIndex = 0;
+      const t0 = performance.now();
+      scan.exec(line);
+      const ms = performance.now() - t0;
+      expect(ms, `the scan took ${ms.toFixed(1)}ms on ${line.slice(0, 16)}…`).toBeLessThan(250);
+    }
   });
 
   test("a Luau comment in a call's or a handler's list takes the rest of the line", () => {
