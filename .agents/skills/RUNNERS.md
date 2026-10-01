@@ -1,6 +1,6 @@
 # Runner notes
 
-Use this map only when a runner capability is unclear. Repository instruction and skill loading follow AGENTS.md; unchanged material already available need not be read again.
+Use this map only when a runner capability is unclear.
 
 | Capability              | Claude Code                                                            | Codex                                                                               |
 | ----------------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
@@ -18,6 +18,10 @@ Use this map only when a runner capability is unclear. Repository instruction an
 ## Review execution
 
 Before launching a local CLI reviewer, read [reviewer mappings](references/runner-review.md) and [handoff execution](review-pr/HANDOFF.md). Supply the writer route and effort, plus any caller-selected reviewer route, and use the shared reservation launcher. To read the writer's model and effort, or when the plan leaves the reviewer to the defaults, read [default reviewer routes](references/runner-reviewer-defaults.md). Native or remote tasks do not satisfy its enforced capacity contract.
+
+## Delegated filing
+
+Before the resolve-issue outstanding-work sweep files a ticket, read [filing routes](references/runner-filing.md) for the launch.
 
 ## Migration and recovery
 
