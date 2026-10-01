@@ -420,11 +420,12 @@ variables:
   SPARKLE_LONE_SQUOTE: (?:'(?!(?:\\.|[^'\\\n])*'))
   SPARKLE_LONE_SQUOTE_RUN: (?:'(?!(?:\\.|[^'\\\n])*')[^\n]*$)
   # A Luau backtick string, closed on its line or running to its end. Its
-  # `{…}` interpolations are read as code one level deep: a backtick string
-  # in one (`` `a {f(`}`)} b` ``) and one level of braces stay inside it. A
-  # `{` that opens no complete interpolation is text, so the string still
-  # ends at its closing backtick.
-  SPARKLE_BACKTICK_INTERPOLATION: (?:[{](?:[^{}`\n]|`(?:\\.|[^`\\\n])*`|[{][^{}\n]*[}])*[}])
+  # `{…}` interpolations are read as code one level deep: quoted,
+  # single-quoted and backtick strings (`` `a {f(`}`)} b` ``, `` `{"`"}` ``),
+  # `[[…]]` long strings and comments, and one level of braces, stay inside
+  # it. A `{` that opens no complete interpolation is text, so the string
+  # still ends at its closing backtick.
+  SPARKLE_BACKTICK_INTERPOLATION: (?:[{](?:[^{}`"'\n\[-]|[-](?![-])|[\[](?![=]*[\[])|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\\n])*`|(?:[-][-])?[\[][\[](?:[^\]\n]|[\]](?![\]]))*[\]][\]]|[{][^{}\n]*[}])*[}])
   SPARKLE_BACKTICKED: (?:`(?:\\.|[^`\\{\n]|{{SPARKLE_BACKTICK_INTERPOLATION}}|(?!{{SPARKLE_BACKTICK_INTERPOLATION}})[{])*(?:`|$))
   # A Luau long bracket: a long string, or after `--` a long comment. Each
   # level, `[[…]]` and `[=[…]=]` up to seven `=`, ends at its own closer, as

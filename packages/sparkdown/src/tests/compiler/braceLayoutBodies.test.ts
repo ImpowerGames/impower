@@ -1099,6 +1099,32 @@ end
     expect(errorsOf(text)).toEqual([]);
   });
 
+  test("a string or a long comment inside a backtick string's interpolation keeps its backtick", () => {
+    const tick = "`";
+    const braced = `layout hud with
+  row { button @click={ print(${tick}{"${tick}"}${tick}) }; text "after" }
+  row { button @click={ print(${tick}{ --[[ ${tick} ]] 1 }${tick}) }; text "after" }
+  row { button @click={ print(${tick}{'${tick}'}${tick}) }; text "after" }
+end
+`;
+    const indented = `layout hud with
+  row:
+    button @click={ print(${tick}{"${tick}"}${tick}) }
+    text "after"
+  row:
+    button @click={ print(${tick}{ --[[ ${tick} ]] 1 }${tick}) }
+    text "after"
+  row:
+    button @click={ print(${tick}{'${tick}'}${tick}) }
+    text "after"
+end
+`;
+    expect(everything(braced)).toEqual(everything(indented));
+    const rows = lowered(braced, "layout", "hud").tree.children;
+    expect(rows.map((r: any) => r.children.length)).toEqual([2, 2, 2]);
+    expect(errorsOf(braced)).toEqual([]);
+  });
+
   test("the line scan stays linear on long nested lines", () => {
     // A paren or brace nested past the limits is read by the scan as one more
     // opener, not by a lookahead over the rest of the line, which took seconds

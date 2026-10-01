@@ -96,12 +96,47 @@ function posAt(text: string, offset: number) {
 // (reported as missing its `end`), and the `end` of the `for` then ends the
 // layout, so no `}` is left inside the layout to be stray.
 const EDITS = [
-  { name: "after a one-line block", after: "choice.0 { text }", stray: [{ line: 25, character: 2 }] },
-  { name: "inside a block in a `for` branch", after: "        image #src={item.icon}", stray: [] },
-  { name: "after a block with two entries", after: "title { stroke; text }", stray: [{ line: 25, character: 2 }] },
-  { name: "inside a component body", after: "    slot", stray: [{ line: 8, character: 2 }] },
-  { name: "after the outermost block", after: "\n  }\nend\n\nscene after", stray: null },
-];
+  { name: "after a one-line block", after: "choice.0 { text }", stray: [{ line: 25, character: 2 }], missing: [] },
+  {
+    name: "inside a block in a `for` branch",
+    after: "        image #src={item.icon}",
+    stray: [],
+    missing: [15],
+    // The row closes after its image, the button joins the `for`, and the
+    // row's own `}` ends the `for` and then closes the panel.
+    tree: ["column[text[],choice[text[]],for[row[image[]],button[]|else:]]"],
+  },
+  { name: "after a block with two entries", after: "title { stroke; text }", stray: [{ line: 25, character: 2 }], missing: [] },
+  { name: "inside a component body", after: "    slot", stray: [{ line: 8, character: 2 }], missing: [] },
+  { name: "after the outermost block", after: "\n  }\nend\n\nscene after", stray: null, missing: [] },
+] as {
+  name: string;
+  after: string;
+  stray: { line: number; character: number }[] | null;
+  missing: number[];
+  tree?: string[];
+}[];
+
+/** The lines of a compiled program's missing-`}` and missing-`end` errors. */
+function missingClosers(program: ReturnType<typeof pick>) {
+  return ((program.diagnostics as any)?.[URI] ?? [])
+    .filter((d: any) =>
+      (typeof d.message === "string" ? d.message : d.message.value).includes("is missing its closing"),
+    )
+    .map((d: any) => d.range.start.line);
+}
+
+/** The shape of a layout tree: each element's tag and children, and each
+ *  `for`'s children and `else` children. */
+function shape(nodes: any[]): string[] {
+  return (nodes ?? []).map((n: any) =>
+    n.kind === "element"
+      ? `${n.tag}[${shape(n.children).join(",")}]`
+      : n.kind === "for"
+        ? `for[${shape(n.children).join(",")}|else:${shape(n.else).join(",")}]`
+        : n.kind,
+  );
+}
 
 /** The `Invalid syntax` errors of a compiled program, by start position. */
 function invalidSyntax(program: ReturnType<typeof pick>) {
@@ -111,7 +146,7 @@ function invalidSyntax(program: ReturnType<typeof pick>) {
 }
 
 describe("typing and deleting a `}` in a layout or component brace body", () => {
-  it.each(EDITS)("$name", ({ after, stray }) => {
+  it.each(EDITS)("$name", ({ after, stray, missing, tree }) => {
     const c = new SparkdownCompiler();
     c.configure({ files: [file(SOURCE, 1)] } as any);
     c.compile({ textDocument: { uri: URI } });
@@ -136,6 +171,12 @@ describe("typing and deleting a `}` in a layout or component brace body", () => 
     // The stray `}` is reported where it stands, and nowhere else.
     expect(invalidSyntax(coldTyped)).toEqual(stray ?? [at]);
     expect(invalidSyntax(coldCompile(SOURCE))).toEqual([]);
+    // A block or control block the `}` leaves open is reported where it opens.
+    expect(missingClosers(coldTyped)).toEqual(missing);
+    expect(missingClosers(coldCompile(SOURCE))).toEqual([]);
+    if (tree) {
+      expect(shape((coldTyped.sparkle as any)?.layouts?.["inventory"]?.children)).toEqual(tree);
+    }
 
     // Delete it again.
     const end = { line: at.line, character: at.character + 1 };

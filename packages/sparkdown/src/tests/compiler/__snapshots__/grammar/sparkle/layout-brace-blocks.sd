@@ -75,6 +75,8 @@ layout values with
   card(`a) \{ text \} b`)
   row { button @click={ print(`x}`) } "Go"; text "after" }
   button @click={ print(`a {f(`}`)} b`) }
+  row { button @click={ print(`{"`"}`) }; text "after" }
+  row { button @click={ print(`{ --[[ ` ]] 1 }`) }; text "after" }
   text = Hello {who}
   text = [[a{b}]]
   items:
