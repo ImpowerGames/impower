@@ -115,8 +115,9 @@ end
   test("style: name, property, interdependent layer ids", () => {
     const refs = collectReferences(`style my_button with
   background-color = blue
-  hovered:
+  hovered {
     color = red
+  }
 end
 `);
     const name = find(refs, "my_button", "define_variable_name");
@@ -135,9 +136,11 @@ end
 
   test("screen: layer names emit layer ids + interdependent style ids", () => {
     const refs = collectReferences(`layout title_screen with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image = "bg"
+    }
+  }
 end
 `);
     const screenName = find(refs, "title_screen", "define_variable_name");
@@ -155,8 +158,9 @@ end
     // The screen layer `backdrop` (interdependent style.backdrop) and the
     // `style backdrop` block name (style.backdrop) share a resolvable id.
     const refs = collectReferences(`layout s with
-  backdrop:
+  backdrop {
     image = "bg"
+  }
 end
 style backdrop with
   background-color = black
