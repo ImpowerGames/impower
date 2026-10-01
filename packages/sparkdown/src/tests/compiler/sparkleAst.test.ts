@@ -47,14 +47,18 @@ end
 
   test("screen body lowers to a typed element tree (read from grammar tokens)", () => {
     const ast = screenAst(`layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image = "black"
-    portrait:
-      mask shadow_1
+    }
+    portrait {
+      mask.shadow_1
       image
-    choice 0:
+    }
+    choice.0 {
       text
+    }
+  }
 end
 `);
     expect(ast).toEqual({
@@ -171,9 +175,10 @@ end
 
   test("adjacency content `tag \"...\"` lowers to an element with content", () => {
     const ast = screenAst(`layout main with
-  stage:
+  stage {
     image "black"
     text "HP: {hp}"
+  }
 end
 `);
     const stage = ast.main.children[0];
@@ -197,9 +202,10 @@ end
 
   test("`@event=handler` lowers to EventBindings (ref + call)", () => {
     const ast = screenAst(`layout hud with
-  row:
+  row {
     button "Use" @click=use_item
     button "Hit" @click=take_damage(10)
+  }
 end
 `);
     const [useBtn, hitBtn] = ast.hud.children[0].children;
@@ -258,9 +264,10 @@ end
 
   test("`#prop=value` lowers to literal + binding PropValues (header/marker/adjacency)", () => {
     const ast = screenAst(`layout panel with
-  column #gap=16:
+  column #gap=16 {
     image #src="icon.png"
     text "hi" #opacity=0.5 #color={team_color}
+  }
 end
 `);
     const column = ast.panel.children[0];
@@ -318,9 +325,10 @@ end
 
   test("class + adjacency content + trailing attribute coexist on one line", () => {
     const ast = screenAst(`layout main with
-  stage:
-    button primary "Use" @click=use_item
-    label big "HP: {hp}" #color={team_color}
+  stage {
+    button.primary "Use" @click=use_item
+    label.big "HP: {hp}" #color={team_color}
+  }
 end
 `);
     const [btn, lbl] = ast.main.children[0].children;
@@ -345,7 +353,7 @@ end
 
   test("if/elseif/else lowers to an IfNode (branches + else, grammar children)", () => {
     const ast = screenAst(`layout hud with
-  stage:
+  stage {
     if player.dead then
       text "GAME OVER"
     elseif player.hp < 10 then
@@ -353,6 +361,7 @@ end
     else
       text "OK"
     end
+  }
 end
 `);
     const stage = ast.hud.children[0];
@@ -467,9 +476,10 @@ end
 
   test("slot lowers to SlotNode (default + named)", () => {
     const ast = componentAst(`component card with
-  box:
+  box {
     slot
     slot footer
+  }
 end
 `);
     const box = ast.card.children[0];
@@ -480,8 +490,9 @@ end
 
   test("fill lowers to FillNode with a name + children", () => {
     const ast = screenAst(`layout s with
-  fill footer:
+  fill footer {
     button "Sort"
+  }
 end
 `);
     const fill = ast.s.children[0];
@@ -495,9 +506,10 @@ end
   // used to lower as that element carrying a stray "slot"/"fill" class.
   test("slot/fill still lower when the NAME collides with a builtin tag", () => {
     const ast = componentAst(`component card with
-  box:
+  box {
     slot text
     slot button
+  }
 end
 `);
     const box = ast.card.children[0];
@@ -507,8 +519,9 @@ end
 
   test("fill still lowers when the NAME collides with a builtin tag", () => {
     const ast = screenAst(`layout s with
-  fill header:
+  fill header {
     button "Sort"
+  }
 end
 `);
     const fill = ast.s.children[0];
@@ -560,8 +573,9 @@ end
 
   test("component header params lower to ComponentNode.params", () => {
     const ast = componentAst(`component stat_row(label, value) with
-  row:
+  row {
     text "{value}"
+  }
 end
 `);
     expect(ast.stat_row.params).toEqual(["label", "value"]);
@@ -581,10 +595,12 @@ end
 
   test("component call site lowers to an element with positional arg Bindings", () => {
     const ast = screenAst(`layout sheet with
-  card("Inventory"):
+  card("Inventory") {
     text "10 / 20 slots"
-    fill footer:
+    fill footer {
       button "Sort"
+    }
+  }
   stat_row(hero.name, hero.hp)
 end
 `);

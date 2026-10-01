@@ -371,9 +371,10 @@ end
         {
           "a.sd": GREET,
           "b.sd": `layout hud with
-  row:
+  row {
     button "Go" @click=greet
     button "Hi" @click=greet("you")
+  }
 end
 `,
         },

@@ -17,13 +17,17 @@ describe("keyframes written as position keys", () => {
   test("`from` / percentage / `to` keys lower to the same struct as the offset list", () => {
     const keyed = structOf(
       `animation fade with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    40%:
+    }
+    40% {
       opacity = "1"
-    to:
+    }
+    to {
       opacity = "0"
+    }
+  }
 end
 `,
       "animation",
@@ -31,16 +35,20 @@ end
     );
     const listed = structOf(
       `animation fade with
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0
       opacity = "0"
-    -
+    }
+    {
       offset = 0.4
       opacity = "1"
-    -
+    }
+    {
       offset = 1
       opacity = "0"
+    }
+  }
 end
 `,
       "animation",
@@ -57,13 +65,17 @@ end
   test("positions written out of order are sorted by offset", () => {
     const struct = structOf(
       `animation swap with
-  keyframes:
-    to:
+  keyframes {
+    to {
       opacity = "1"
-    0%:
+    }
+    0% {
       opacity = "0"
-    50%:
+    }
+    50% {
       opacity = "0.5"
+    }
+  }
 end
 `,
       "animation",
@@ -79,9 +91,11 @@ end
   test("a fractional percentage keeps its precision", () => {
     const struct = structOf(
       `animation precise with
-  keyframes:
-    12.5%:
+  keyframes {
+    12.5% {
       opacity = "0"
+    }
+  }
 end
 `,
       "animation",
@@ -93,13 +107,16 @@ end
   test("the list form with explicit offsets is unchanged", () => {
     const struct = structOf(
       `animation ping with
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0.75
       opacity = "0"
-    -
+    }
+    {
       offset = 1
       opacity = "1"
+    }
+  }
 end
 `,
       "animation",
@@ -114,9 +131,10 @@ end
   test("a container that is not `keyframes` keeps its keys verbatim", () => {
     const struct = structOf(
       `animation timed with
-  timing:
+  timing {
     duration = 1
     easing = "ease"
+  }
 end
 `,
       "animation",
@@ -128,13 +146,17 @@ end
   test("a percentage written with a leading dot is a position", () => {
     const struct = structOf(
       `animation dotted with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    .5%:
+    }
+    .5% {
       opacity = "0.5"
-    to:
+    }
+    to {
       opacity = "1"
+    }
+  }
 end
 `,
       "animation",
@@ -151,11 +173,14 @@ end
     expect(
       messagesOf(
         `animation a with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    0%:
+    }
+    0% {
       opacity = "1"
+    }
+  }
 end
 `,
       ).join("\n"),
@@ -163,28 +188,34 @@ end
     expect(
       messagesOf(
         `animation b with
-  keyframes:
-    100%:
+  keyframes {
+    100% {
       opacity = "0"
-    to:
+    }
+    to {
       opacity = "1"
+    }
+  }
 end
 `,
       ).join("\n"),
     ).toMatch(/duplicate/i);
   });
 
-  test("a `keyframes:` block written only as `-` items reports nothing", () => {
+  test("a `keyframes` block written only as `{ … }` items reports nothing", () => {
     expect(
       messagesOf(
         `animation listed with
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0
       opacity = "0"
-    -
+    }
+    {
       offset = 1
       opacity = "1"
+    }
+  }
 end
 `,
       ),
@@ -194,10 +225,12 @@ end
   test("the position key wins over an `offset` written inside the keyframe", () => {
     const struct = structOf(
       `animation conflicting with
-  keyframes:
-    25%:
+  keyframes {
+    25% {
       offset = 0.9
       opacity = "1"
+    }
+  }
 end
 `,
       "animation",
@@ -206,14 +239,17 @@ end
     expect(struct.keyframes).toEqual([{ offset: 0.25, opacity: "1" }]);
   });
 
-  test("mixing position keys with `-` items is an error", () => {
+  test("mixing position keys with `{ … }` items is an error", () => {
     const source = `animation mixed with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    -
+    }
+    {
       offset = 1
       opacity = "1"
+    }
+  }
 end
 `;
     expect(messagesOf(source).join("\n")).toMatch(/mix/i);
@@ -221,11 +257,14 @@ end
 
   test("a duplicate position is an error", () => {
     const source = `animation dupe with
-  keyframes:
-    50%:
+  keyframes {
+    50% {
       opacity = "0"
-    50%:
+    }
+    50% {
       opacity = "1"
+    }
+  }
 end
 `;
     expect(messagesOf(source).join("\n")).toMatch(/duplicate/i);
@@ -233,11 +272,14 @@ end
 
   test("a position outside 0% to 100% is an error", () => {
     const source = `animation wild with
-  keyframes:
-    0%:
+  keyframes {
+    0% {
       opacity = "0"
-    150%:
+    }
+    150% {
       opacity = "1"
+    }
+  }
 end
 `;
     expect(messagesOf(source).join("\n")).toMatch(/between 0% and 100%/i);
@@ -245,11 +287,14 @@ end
 
   test("a valid keyed block reports no errors", () => {
     const source = `animation clean with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = "0"
-    to:
+    }
+    to {
       opacity = "1"
+    }
+  }
 end
 `;
     expect(messagesOf(source)).toEqual([]);
