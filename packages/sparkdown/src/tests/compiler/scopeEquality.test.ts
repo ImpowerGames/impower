@@ -93,7 +93,7 @@ const TARGETED: Record<string, string> = {
   // A brace block whose selector holds a quoted attribute value, and lines
   // whose value starts with `--` or `//` before a stray `}`.
   "struct-brace-quoted-selector":
-    'style panel with\n  &[data-label="a b;{"] { color = red }\n  &[data-label="x" i], &.on { color = blue }\nend\n',
+    "style panel with\n  &[data-label=\"a b;{\"] { color = red }\n  &[data-label=\"x\" i], &.on { color = blue }\n  &[data-label='a;b'] { opacity = 0.5 }\n  &[data-label='space ; { --'], &[data-kind=\"x\"] = { opacity = 0.25 }\nend\n",
   "struct-brace-value-starts-with-comment-mark":
     "theme t with\n  k = --gap }\n  j = // x }\n  g {\n    k = --gap\n    j = // note\n  }\nend\n",
 

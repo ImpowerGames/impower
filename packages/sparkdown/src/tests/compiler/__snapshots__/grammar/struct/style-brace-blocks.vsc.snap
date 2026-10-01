@@ -1,4 +1,4 @@
-text.source.sparkdown [0..312]
+text.source.sparkdown [0..352]
  ├─ meta.style.luau [0..17]
  │   ├─ keyword.control.style.luau [0..5]: "style"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -141,7 +141,7 @@ text.source.sparkdown [0..312]
  ├─ meta.style.luau [281..282]: "l"
  ├─ meta.style.luau [282..283]: "="
  ├─ meta.style.luau [283..290]
- │   └─ string.quoted.double.struct-block-key.sd [283..290]: "\"a b;{\""
+ │   └─ string.quoted.struct-block-key.sd [283..290]: "\"a b;{\""
  ├─ meta.style.luau [290..291]: "]"
  ├─ meta.style.luau [291..307]
  │   ├─ punctuation.whitespace.sd [291..292]: " "
@@ -156,5 +156,36 @@ text.source.sparkdown [0..312]
  │   └─ punctuation.definition.template-expression.end.sd [306..307]: "}"
  ├─ Newline [307..308]: "\n"
  ├─ meta.style.luau [308..311]
- │   └─ keyword.control.end.luau [308..311]: "end"
- └─ Newline [311..312]: "\n"
+ │   ├─ punctuation.whitespace.sd [308..310]: "  "
+ │   └─ keyword.other.selector.operator.sd [310..311]: "&"
+ ├─ meta.style.luau [311..312]: "["
+ ├─ meta.style.luau [312..313]: "d"
+ ├─ meta.style.luau [313..314]: "a"
+ ├─ meta.style.luau [314..315]: "t"
+ ├─ meta.style.luau [315..316]: "a"
+ ├─ meta.style.luau [316..317]: "-"
+ ├─ meta.style.luau [317..318]: "l"
+ ├─ meta.style.luau [318..319]: "a"
+ ├─ meta.style.luau [319..320]: "b"
+ ├─ meta.style.luau [320..321]: "e"
+ ├─ meta.style.luau [321..322]: "l"
+ ├─ meta.style.luau [322..323]: "="
+ ├─ meta.style.luau [323..328]
+ │   └─ string.quoted.struct-block-key.sd [323..328]: "'a;b'"
+ ├─ meta.style.luau [328..329]: "]"
+ ├─ meta.style.luau [329..347]
+ │   ├─ punctuation.whitespace.sd [329..330]: " "
+ │   ├─ punctuation.definition.template-expression.begin.sd [330..331]: "{"
+ │   ├─ punctuation.whitespace.sd [331..332]: " "
+ │   ├─ variable.other.property.define.sd [332..339]: "opacity"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [339..340]: " "
+ │   ├─ keyword.operator.assignment.sd [340..341]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [341..342]: " "
+ │   ├─ constant.numeric.sd [342..345]
+ │   │   └─ constant.numeric.sd [342..345]: "0.5"
+ │   ├─ punctuation.whitespace.sd [345..346]: " "
+ │   └─ punctuation.definition.template-expression.end.sd [346..347]: "}"
+ ├─ Newline [347..348]: "\n"
+ ├─ meta.style.luau [348..351]
+ │   └─ keyword.control.end.luau [348..351]: "end"
+ └─ Newline [351..352]: "\n"

@@ -323,11 +323,22 @@ variables:
   STRUCT_BLOCK_COMMENT_AFTER_WS: (?:{{LUAU_COMMENT_START}}|[/][/](?={{WS}}|$))
   # Whitespace that is not followed by a comment.
   STRUCT_BLOCK_WS_IN_TEXT: (?:{{WS}}(?!{{WS}}*{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+  # A single-quoted run, closed on its line. Outside an attribute selector a
+  # `'` is an apostrophe, so only `STRUCT_BLOCK_BRACKET` reads one.
+  STRUCT_BLOCK_SQUOTED: (?:'(?:\\.|[^'\\\n])*')
+  # An attribute selector (`[data-label='a;b']`, `[data-label="x" i]`), read
+  # whole: its quoted runs may hold braces, `;` and `--`. Outside them it
+  # holds no brace, `'`, `"` or comment, so a `[` that does not start one is
+  # an ordinary character (`STRUCT_BLOCK_LONE_BRACKET`).
+  STRUCT_BLOCK_BRACKET_BODY: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_SQUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^\]\s"'{}])*
+  STRUCT_BLOCK_BRACKET: (?:[\[]{{STRUCT_BLOCK_BRACKET_BODY}}[\]])
+  STRUCT_BLOCK_LONE_BRACKET: (?:[\[](?!{{STRUCT_BLOCK_BRACKET_BODY}}[\]]))
   # A block header: a key, a selector or a keyframe position. It holds no
   # unquoted brace or `;` and no comment, and does not start with a quote, `=`
-  # or `,`, so a brace in a comment never opens a block. A quoted run inside
-  # it is read whole (`&[data-label="x"]`).
-  STRUCT_BLOCK_HEADER: (?:[^\s{};"=,](?:[^\s{};"]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?)
+  # or `,`, so a brace in a comment never opens a block. A quoted run and an
+  # attribute selector inside it are read whole (`&[data-label="x"]`,
+  # `&[data-label='a;b']`).
+  STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?)
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
   # A whole number, boolean or quoted value, spelled as the typed reader's
@@ -344,8 +355,9 @@ variables:
   # An indented-form property or `-` item whose value is a literal followed by
   # a `--` or `//` comment: the rest of its line is the comment.
   STRUCT_BLOCK_LITERAL_COMMENT_LINE: (?:(?:{{STRUCT_BLOCK_PROPERTY_HEAD}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})
-  # The text of a line up to an unquoted brace that no comment holds.
-  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^"\s{}])*?[{}])
+  # The text of a line up to a brace that no quoted run, attribute selector
+  # or comment holds.
+  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^"\s{}\[])*?[{}])
   # A body line that holds an unquoted `{` or `}` outside a comment is read as
   # block entries: a `{` opens a block or a list entry wherever it stands on
   # the line (`timing = 1; keyframes {`), and a `}` outside every block is
@@ -370,7 +382,8 @@ variables:
   STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
   # An unquoted property value ends at the end of its line, a `;`, a brace, or
   # a comma that ends the entry or precedes another one. Any other comma stays
-  # part of the value. A value that reaches a comment takes the comment, to the
+  # part of the value, and a quoted run or an attribute selector
+  # (`STRUCT_BLOCK_BRACKET`) is read whole. A value that reaches a comment takes the comment, to the
   # end of the line, into its text, as an indented value does, so the value
   # readers read the same text in both forms and strip the comment alike, and
   # nothing in the comment is structure. A literal followed by `//` is the
@@ -380,10 +393,10 @@ variables:
   # differently in the two engines.
   STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))
   STRUCT_BLOCK_COMMENT_IN_VALUE: (?:{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
-  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
+  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{}"\n\[])+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
   # A bare list value also ends at any comma.
   STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},]))
-  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
+  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{},"\n\[])+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
@@ -5574,19 +5587,19 @@ repository:
   # match. The indented key's bracket rule is a scoped rule, which a capture
   # cannot hold in the tree engine, so the two engines would read it apart.
   LuauStructBlockKeyBracket:
-    match: ([\[](?:{{STRUCT_BLOCK_QUOTED}}|[^\]"])*[\]])
+    match: ({{STRUCT_BLOCK_BRACKET}})
     captures:
       1:
         patterns:
           - { include: "#LuauStructBlockKeyString" }
           - { include: "#LuauStructBlockKeyChar" }
 
-  # A quoted run in a header (`&[data-label="x"]`) is plain text: a selector's
-  # attribute value is not an interpolated string.
+  # A quoted run in a header (`&[data-label="x"]`, `&[data-label='x']`) is
+  # plain text: a selector's attribute value is not an interpolated string.
   LuauStructBlockKeyString:
     tag: string
-    name: string.quoted.double.struct-block-key.sd
-    match: ({{STRUCT_BLOCK_QUOTED}})
+    name: string.quoted.struct-block-key.sd
+    match: ({{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_SQUOTED}})
 
   # The braces of a `header { … }` block and their entries. Without its `}` the
   # block ends where the declaration's `end` starts a line, or at the next

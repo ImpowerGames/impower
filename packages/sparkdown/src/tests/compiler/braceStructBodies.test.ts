@@ -262,6 +262,30 @@ end
       color: "red",
     });
     expect(errorsOf(quoted)).toEqual([]);
+    // So is a single-quoted one, and the rules after it are kept.
+    const single = `style t with
+  &[data-label='a;b'] { opacity = 0.5 }
+  &[data-label='space ; { --'], &[data-kind="x"] = { opacity = 0.25 }
+  > text { text-color = white; text-size = 24px }
+end
+`;
+    const singleIndented = `style t with
+  &[data-label='a;b']:
+    opacity = 0.5
+  &[data-label='space ; { --'], &[data-kind="x"]:
+    opacity = 0.25
+  > text:
+    text-color = white
+    text-size = 24px
+end
+`;
+    expect(structOf(single, "style", "t")).toEqual(
+      structOf(singleIndented, "style", "t"),
+    );
+    expect(Object.keys(structOf(single, "style", "t"))).toEqual(
+      expect.arrayContaining(["&[data-label='a;b']", "> text"]),
+    );
+    expect(errorsOf(single)).toEqual([]);
   });
 
   test("a block may open after a `;` on a body line", () => {
@@ -822,6 +846,21 @@ end
       b: "--gap",
       c: "//x",
     });
+    // An apostrophe is not a quote, and an attribute selector in a value is
+    // read whole, so neither hides the `}`.
+    const quotes = `theme t with
+  content = don't }
+  pick = a[x='}'] }
+end
+`;
+    expect(errorsOf(quotes).map((d) => [d.message, d.line, d.character])).toEqual([
+      ["Invalid syntax", 1, 18],
+      ["Invalid syntax", 2, 18],
+    ]);
+    expect(structOf(quotes, "theme", "t")).toMatchObject({
+      content: "don't",
+      pick: "a[x='}']",
+    });
   });
 
   test("a stray `}` is invalid syntax", () => {
@@ -931,6 +970,8 @@ end
   group:
     k = 4-- } note
     j = false// { note
+    pick = a[x='}']
+    label = &[data-label="}"]
 end
 `;
     expect(errorsOf(text)).toEqual([]);
@@ -938,7 +979,7 @@ end
     expect(struct).toMatchObject({
       values: [2, 3],
       names: ["a"],
-      group: { k: 4, j: false },
+      group: { k: 4, j: false, pick: "a[x='}']", label: '&[data-label="}"]' },
     });
     // Two items. The indented form's own reading of `true//` (a `//` with no
     // whitespace after a literal) is the pre-existing truncation described in

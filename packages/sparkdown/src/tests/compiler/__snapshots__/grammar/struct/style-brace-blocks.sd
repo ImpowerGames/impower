@@ -10,4 +10,5 @@ style button with
     > text { font-size = 12px }
   }
   &[data-label="a b;{"] { color = red }
+  &[data-label='a;b'] { opacity = 0.5 }
 end
