@@ -54,6 +54,9 @@ export interface RewriteResult {
   /** Declarations with a struct body (converted, refused or unchanged). */
   declarations: number;
   refusals: Refusal[];
+  /** The 0-based header and `end` lines of each declaration whose body was
+   *  converted or refused. */
+  touched: { header: number; end: number }[];
 }
 
 // The declarations with a struct body, as the grammar names them; `layout`
@@ -198,6 +201,7 @@ export function rewriteStructBodies(source: string): RewriteResult {
 
   const out: string[] = [];
   const refusals: Refusal[] = [];
+  const touched: { header: number; end: number }[] = [];
   let converted = 0;
   let declarations = 0;
   let next = 0;
@@ -217,6 +221,7 @@ export function rewriteStructBodies(source: string): RewriteResult {
         declaration: header + 1,
         reason: "the grammar ends this declaration before an `end` line; fix it by hand",
       });
+      touched.push({ header, end });
       continue;
     }
     out.push(...raw.slice(next, header + 1));
@@ -225,6 +230,7 @@ export function rewriteStructBodies(source: string): RewriteResult {
       const rewritten = rewriteBody(body, kind, eol);
       if (rewritten) {
         converted++;
+        touched.push({ header, end });
         out.push(...rewritten);
       } else {
         out.push(...raw.slice(header + 1, end));
@@ -232,12 +238,13 @@ export function rewriteStructBodies(source: string): RewriteResult {
     } catch (error) {
       if (!(error instanceof Refused)) throw error;
       refusals.push({ line: error.line, declaration: header + 1, reason: error.reason });
+      touched.push({ header, end });
       out.push(...raw.slice(header + 1, end));
     }
     next = end;
   }
   out.push(...raw.slice(next));
-  return { text: out.join("\n"), converted, declarations, refusals };
+  return { text: out.join("\n"), converted, declarations, refusals, touched };
 }
 
 const isBlank = (line: Line) => line.text === "" && !line.comment;

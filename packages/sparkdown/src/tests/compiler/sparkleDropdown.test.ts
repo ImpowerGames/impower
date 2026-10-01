@@ -38,10 +38,11 @@ describe("dropdown dynamic option lists", () => {
   test("`for` inside a dropdown compiles without a dynamic-options warning", () => {
     const src = `list opts = "a", "b"
 layout form with
-  dropdown:
+  dropdown {
     for o in opts do
       option "{o}"
     end
+  }
 end
 `;
     expect(
@@ -52,11 +53,12 @@ end
   test("`if` inside a dropdown compiles without a dynamic-options warning", () => {
     const src = `store unlocked = true
 layout form with
-  dropdown:
+  dropdown {
     option "Easy" #value="easy"
     if unlocked then
       option "Hard" #value="hard"
     end
+  }
 end
 `;
     expect(

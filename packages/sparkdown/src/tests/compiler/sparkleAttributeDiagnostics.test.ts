@@ -83,9 +83,9 @@ describe("Sparkle @event name validation", () => {
     "@theme(dark)", "@has(button)",
   ];
   for (const sel of selectors) {
-    test(`the style selector \`${sel}:\` does not warn`, () => {
+    test(`the style selector \`${sel} { … }\` does not warn`, () => {
       const ds = diagnose(
-        `style card with\n  ${sel}:\n    color = blue\nend\n`,
+        `style card with\n  ${sel} {\n    color = blue\n  }\nend\n`,
       );
       expect(has(ds, "Unrecognized event")).toBe(false);
     });
@@ -97,16 +97,16 @@ describe("Sparkle #prop name validation", () => {
     has(diagnose(src), "Unrecognized prop");
 
   test("a misspelled prop warns", () => {
-    expect(propWarns(`layout main with\n  row #colr=red:\n    text "x"\nend\n`)).toBe(true);
+    expect(propWarns(`layout main with\n  row #colr=red {\n    text "x"\n  }\nend\n`)).toBe(true);
   });
 
   test("a valid sparkle vocab prop does not warn", () => {
-    expect(propWarns(`layout main with\n  row #gap=12:\n    text "x"\nend\n`)).toBe(false);
+    expect(propWarns(`layout main with\n  row #gap=12 {\n    text "x"\n  }\nend\n`)).toBe(false);
   });
 
   test("a valid raw CSS prop (pass-through) does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #object-fit=cover:\n    text "x"\nend\n`),
+      propWarns(`layout main with\n  row #object-fit=cover {\n    text "x"\n  }\nend\n`),
     ).toBe(false);
   });
 
@@ -118,14 +118,14 @@ describe("Sparkle #prop name validation", () => {
   // actually reaches the element; keep both.
   test("a --custom property does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #--my-var=4:\n    text "x"\nend\n`),
+      propWarns(`layout main with\n  row #--my-var=4 {\n    text "x"\n  }\nend\n`),
     ).toBe(false);
   });
 
 
   test("a camelCase prop that normalizes to a CSS property does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #maxWidth=10:\n    text "x"\nend\n`),
+      propWarns(`layout main with\n  row #maxWidth=10 {\n    text "x"\n  }\nend\n`),
     ).toBe(false);
   });
 
@@ -137,7 +137,7 @@ describe("Sparkle #prop name validation", () => {
 
   test("a data-* attribute does not warn", () => {
     expect(
-      propWarns(`layout main with\n  row #data-id=5:\n    text "x"\nend\n`),
+      propWarns(`layout main with\n  row #data-id=5 {\n    text "x"\n  }\nend\n`),
     ).toBe(false);
   });
 });

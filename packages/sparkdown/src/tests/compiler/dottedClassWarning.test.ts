@@ -41,7 +41,7 @@ const warnsDotted = (diags: string[]) =>
 describe("dotted-class warning", () => {
   test("a dotted class on a container element does not warn", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12:\n    text "x"\nend\n`,
+      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
     );
     expect(diags).toEqual([]);
   });
@@ -60,7 +60,7 @@ describe("dotted-class warning", () => {
 
   test("space-separated classes produce no dotted-class warning", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row hud #gap=12:\n    text "x"\nend\n`,
+      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
     );
     expect(warnsDotted(diags)).toBe(false);
   });
@@ -77,11 +77,11 @@ describe("a CSS-nesting selector is not a dotted class", () => {
     "> .child",
     "* .thing",
   ]) {
-    test(`\`${selector}:\` does not warn`, () => {
+    test(`\`${selector} { … }\` does not warn`, () => {
       expect(
         warnsDotted(
           diagnosticsFor(
-            `style card with\n  ${selector}:\n    color = blue\nend\n`,
+            `style card with\n  ${selector} {\n    color = blue\n  }\nend\n`,
           ),
         ),
       ).toBe(false);

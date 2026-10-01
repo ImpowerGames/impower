@@ -53,13 +53,16 @@ function compileUI(source: string): {
 describe("screen · named-element tree", () => {
   test("nested elements + scalars + bare markers", () => {
     const r = compileUI(`layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image = "black"
-    portrait:
-      mask shadow_1
-      mask shadow_2
+    }
+    portrait {
+      mask.shadow_1
+      mask.shadow_2
       image
+    }
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -90,10 +93,11 @@ describe("screen · classed element with content", () => {
     // the whole-line-key shape made the engine hide (and wipe) the authored
     // `column` merely for holding a styled static text.
     const r = compileUI(`layout main with
-  column:
-    text h1 "Sparkle x Pico"
+  column {
+    text.h1 "Sparkle x Pico"
     text "plain"
     image
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -113,9 +117,10 @@ end
 
   test("inline attributes are still excised from a classed content line", () => {
     const r = compileUI(`layout main with
-  column:
-    text h1 #padding=8 "Titled"
-    button primary "Go" @click=noop
+  column {
+    text.h1 #padding=8 "Titled"
+    button.primary "Go" @click=noop
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -148,9 +153,11 @@ end
 describe("screen · adjacency content", () => {
   test("`tag \"content\"` produces the same context struct as `tag = \"content\"`", () => {
     const r = compileUI(`layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image "black"
+    }
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -168,9 +175,10 @@ end
 function take_damage(n)
 end
 layout hud with
-  row:
+  row {
     button "Use" @click=use_item
     button "Hit" @click=take_damage(10)
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -186,9 +194,10 @@ describe("screen · inline props", () => {
   test("`#prop` is dropped from the static struct; container header keeps its `:`", () => {
     const r = compileUI(`store team_color = "red"
 layout panel with
-  column #gap=16:
+  column #gap=16 {
     image #src="icon.png"
     text "hi" #color={team_color}
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -205,9 +214,10 @@ end
 describe("screen · classes", () => {
   test("classes stay in the static struct key; content is the value", () => {
     const r = compileUI(`layout main with
-  stage:
-    mask shadow_1
-    text title "Inventory"
+  stage {
+    mask.shadow_1
+    text.title "Inventory"
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -322,9 +332,11 @@ end
 describe("component", () => {
   test("component produces $type component", () => {
     const r = compileUI(`component card with
-  body:
-    title:
+  body {
+    title {
       text
+    }
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -336,8 +348,9 @@ end
 
   test("component inheritance records $extends", () => {
     const r = compileUI(`component my_button as button with
-  label:
+  label {
     text
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -351,9 +364,11 @@ describe("screen · coexistence", () => {
   font_size = lg
 end
 layout s with
-  textbox:
-    title:
+  textbox {
+    title {
       text
+    }
+  }
 end
 -> main
 scene main
