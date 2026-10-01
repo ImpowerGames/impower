@@ -1,7 +1,12 @@
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { type Tree } from "@lezer/common";
+import {
+  BRACE_BODY_NAMES,
+  braceBodyCloseFrom,
+  braceBodyOwner,
+} from "@impower/sparkdown/src/compiler/utils/braceBlocks";
+import { type SyntaxNode, type Tree } from "@lezer/common";
 import { Range, type FoldingRange } from "vscode-languageserver";
 import {
   getDeclarationHeadings,
@@ -9,6 +14,64 @@ import {
 } from "../annotations/getDeclarationHeadings";
 
 const INDENT_REGEX = /^([ \t]+)/;
+
+// The declarations whose bodies may hold brace blocks (#1222).
+const BRACE_BODY_DECLARATIONS = new Set([
+  "LuauStyle",
+  "LuauAnimation",
+  "LuauTheme",
+  "LuauMorph",
+  "LuauLayout",
+  "LuauComponent",
+  "LuauScreen",
+]);
+
+/**
+ * A fold for each brace block that spans lines, from its header's line (the
+ * line of its key or element, or of a list entry's `{`) to the line of its
+ * `}`, whatever the indentation. A block left open folds to its last line
+ * that holds text. Where blocks start on the same line, the outermost one
+ * folds there.
+ */
+const getBraceFoldingRanges = (
+  document: SparkdownDocument,
+  tree: Tree,
+): FoldingRange[] => {
+  const byStart = new Map<number, number>();
+  const visit = (node: SyntaxNode) => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      if (BRACE_BODY_NAMES.has(child.name)) {
+        const startLine = document.positionAt(braceBodyOwner(child).from).line;
+        const closeFrom = braceBodyCloseFrom(child);
+        const lastFrom =
+          closeFrom < child.to
+            ? closeFrom
+            : child.from +
+              Math.max(
+                0,
+                document.read(child.from, child.to).trimEnd().length - 1,
+              );
+        const endLine = document.positionAt(lastFrom).line;
+        if (endLine > startLine && endLine > (byStart.get(startLine) ?? -1)) {
+          byStart.set(startLine, endLine);
+        }
+      }
+      visit(child);
+    }
+  };
+  for (
+    let declaration = tree.topNode.firstChild;
+    declaration;
+    declaration = declaration.nextSibling
+  ) {
+    if (BRACE_BODY_DECLARATIONS.has(declaration.name)) visit(declaration);
+  }
+  return [...byStart].map(([startLine, endLine]) => ({
+    startLine,
+    endLine,
+    kind: "region",
+  }));
+};
 
 export const getFoldingRanges = (
   document: SparkdownDocument | undefined,
@@ -70,6 +133,16 @@ export const getFoldingRanges = (
       });
     }
   });
+  // A brace block's fold replaces the indentation fold on its header line.
+  const braceFolding = tree ? getBraceFoldingRanges(document, tree) : [];
+  if (braceFolding.length > 0) {
+    const braceStarts = new Set(braceFolding.map((r) => r.startLine));
+    const kept = indentFolding.filter((r) => !braceStarts.has(r.startLine));
+    indentFolding.length = 0;
+    indentFolding.push(
+      ...[...kept, ...braceFolding].sort((a, b) => a.startLine - b.startLine),
+    );
+  }
   if (!program) {
     return indentFolding;
   }

@@ -126,6 +126,16 @@ export function onEnterRulesCommand(view: EditorView) {
       if (!range.empty) {
         deleteFrom = range.from;
         deleteTo = range.to;
+      } else if (onEnterRule.action.indent === "indentOutdent") {
+        // Splitting a pair (`{ | }`, `then | end`): the whitespace around the
+        // cursor would trail the opener's line and push the closer off its
+        // indentation, so it goes.
+        if (lineTextBeforeCursor.trim()) {
+          deleteFrom =
+            pos - (lineTextBeforeCursor.length - lineTextBeforeCursor.trimEnd().length);
+        }
+        deleteTo =
+          pos + (lineTextAfterCursor.length - lineTextAfterCursor.trimStart().length);
       } else if (
         onEnterRule.action.deleteText &&
         lineTextBeforeCursor.endsWith(onEnterRule.action.deleteText)

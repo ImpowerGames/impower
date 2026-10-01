@@ -1,5 +1,16 @@
+import { type SyntaxNode } from "@lezer/common";
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { ancestorMatching } from "../../utils/ancestorMatching";
+import {
+  BRACE_BODY_NAMES,
+  STRUCT_KEY_TOKEN_NAMES,
+  braceBodyKey,
+  sparkleElementKeyParts,
+  sparklePartWords,
+  structBlockKeyNode,
+  structKeyToken,
+} from "../../utils/braceBlocks";
+import { findChildByName } from "../../utils/findChildByName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import {
   VARIABLE_DEFINITION_NAMES,
@@ -97,19 +108,42 @@ const EVENT_HANDLER_NAME = nodeNameSet([
 // the body content relative to that line's start.
 const STRUCT_BODY_LINE = nodeNameSet(["LuauStructBodyLine"]);
 
-// The identifier tokens that carry a struct property/header KEY in the Luau-port
-// grammar (LuauStructScalarProperty / LuauStructObjectHeader capture-2). The old
-// per-flavor `*DeclarationScalarPropertyName` / `*ObjectPropertyName` nodes are
-// gone; these are the generic replacements.
-const STRUCT_KEY_TOKENS = nodeNameSet([
-  "BuiltinComponentName",
-  "StylingDeclarationScalarPropertyName",
-  "DeclarationScalarPropertyKey",
-  "CustomComponentName",
-  "ComponentName",
-  "PropertyName",
-  "SelectorPropertyNamePart",
+// The entries of a brace list that number its `-` items: a list entry's
+// braces and a bare list value.
+const LIST_ENTRY_NAMES = nodeNameSet([
+  "LuauStructListBlock",
+  "LuauStructListValue",
 ]);
+
+// The identifier tokens that carry a struct property/header KEY, shared with
+// the brace readers so both forms read keys alike.
+const STRUCT_KEY_TOKENS = STRUCT_KEY_TOKEN_NAMES;
+
+/**
+ * The words and `.name` classes of an indented layout line's header or leaf
+ * (`column panel:`, `row.wide:`, `text big "b"`) after its first name, which
+ * name layers as a brace element's words and classes do. Content strings and
+ * attributes are not words.
+ */
+function indentedClassWords(node: SyntaxNode, first: SyntaxNode | null): SyntaxNode[] {
+  const words: SyntaxNode[] = [];
+  const walk = (parent: SyntaxNode) => {
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (child.name === "LuauSparkleClassName") {
+        words.push(child);
+      } else if (STRUCT_KEY_TOKENS.has(child.name)) {
+        if (!first || child.from !== first.from) words.push(child);
+      } else if (
+        child.name !== "LuauElementContentStringPlain" &&
+        !child.name.endsWith("Attribute")
+      ) {
+        walk(child);
+      }
+    }
+  };
+  walk(node);
+  return words;
+}
 
 // Top-level structural-define keyword nodes → the engine type they declare.
 // Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
@@ -185,6 +219,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   structPathStack: { indent: number; key: string | number; arrayLength?: number }[] =
     [];
 
+  // The indented keys a line of brace blocks sits under, which start the path
+  // of every key inside it.
+  blockLinePrefix: string[] = [];
+
   divertPathParts: string[] = [];
 
   override begin() {
@@ -194,6 +232,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     this.oopHasParent = false;
     this.pendingOOPName = null;
     this.structPathStack = [];
+    this.blockLinePrefix = [];
     this.divertPathParts = [];
   }
 
@@ -204,6 +243,88 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     this.oopHasParent = false;
     this.pendingOOPName = null;
     this.structPathStack = [];
+    this.blockLinePrefix = [];
+  }
+
+  /**
+   * The path of the blocks around `node` in its line of brace blocks,
+   * outermost first, after the indented keys the line sits under: each
+   * block's key, an element's key, and a list entry's index among the
+   * entries before it, as the indented form numbers its `-` items.
+   */
+  private braceBlockPath(node: SyntaxNode): string[] {
+    const keys: string[] = [];
+    for (let n = node.parent; n; n = n.parent) {
+      if (n.name === "LuauStructBlockLine" || n.name === "LuauSparkleBlockLine") {
+        break;
+      }
+      if (!BRACE_BODY_NAMES.has(n.name)) continue;
+      if (n.name === "LuauStructListBlock") {
+        let index = 0;
+        for (let prev = n.prevSibling; prev; prev = prev.prevSibling) {
+          if (LIST_ENTRY_NAMES.has(prev.name)) index += 1;
+        }
+        keys.unshift(String(index));
+        continue;
+      }
+      const key = braceBodyKey(n, (from, to) => this.read(from, to));
+      if (key != null) keys.unshift(key);
+    }
+    return [...this.blockLinePrefix, ...keys];
+  }
+
+  /**
+   * In a layout or component, each word or class of an element reads the
+   * layer and the style of its name, in either form, so go to definition
+   * reaches the style and a rename keeps every class use and its style
+   * together.
+   */
+  private pushClassWordReferences(
+    annotations: Range<SparkdownAnnotation<Reference>>[],
+    words: SyntaxNode[],
+  ) {
+    if (this.defineType !== "layout" && this.defineType !== "component") {
+      return;
+    }
+    for (const word of words) {
+      const wordText = this.read(word.from, word.to).trim();
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: [`layer.${wordText}`, `style.${wordText}`],
+          kind: "read",
+        }).range(word.from, word.to),
+      );
+    }
+  }
+
+  /**
+   * A struct key's declaration at `path`. In a layout a key's words name
+   * layers and link to the styles of those names; in a style they link to
+   * the layers.
+   */
+  private structKeyReference(
+    path: (string | number)[],
+    key: string,
+    from: number,
+    to: number,
+  ) {
+    const classWords = key.split(" ").filter(Boolean);
+    return SparkdownAnnotation.mark<Reference>({
+      declaration: "property",
+      symbolIds: [
+        `${this.defineType}.${this.defineName}.${path.join(".")}`,
+        ...(this.defineType === "layout"
+          ? classWords.map((w) => `layer.${w}`)
+          : []),
+      ],
+      interdependentIds:
+        this.defineType === "style"
+          ? classWords.map((w) => `layer.${w}`)
+          : this.defineType === "layout"
+            ? classWords.map((w) => `style.${w}`)
+            : [],
+      kind: "write",
+    }).range(from, to);
   }
 
   // The `{types:[type], name:"$default", …}` selector a define-type reference
@@ -372,6 +493,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           SparkdownAnnotation.mark<Reference>({
             declaration: "define_variable_name",
             symbolIds: [`${this.defineType}.${name}`],
+            // A style styles the layers of its name, which link back to it.
+            ...(this.defineType === "style"
+              ? { interdependentIds: [`layer.${name}`] }
+              : {}),
             kind: "write",
             linkable: true,
           }).range(nodeRef.from, nodeRef.to),
@@ -475,6 +600,93 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       return annotations;
     }
 
+    // ----- Brace blocks (#1222) ------------------------------------------------
+    //
+    // A line of brace blocks sits in the body's indentation at its first
+    // entry's column, so it pops the indented frames it is not inside of and
+    // starts its paths with the ones left. Inside it, a key's path is read from
+    // the blocks around it, not from indentation.
+    if (
+      this.inStructural &&
+      (nodeRef.name === "LuauStructBlockLine" ||
+        nodeRef.name === "LuauSparkleBlockLine")
+    ) {
+      const text = this.read(nodeRef.from, nodeRef.to);
+      const indent = /^[ \t]*/.exec(text)![0].length;
+      while (
+        this.structPathStack.length > 0 &&
+        this.structPathStack[this.structPathStack.length - 1]!.indent >= indent
+      ) {
+        this.structPathStack.pop();
+      }
+      this.blockLinePrefix = this.structPathStack
+        .filter((p) => p.key != null)
+        .map((p) => String(p.key));
+      return annotations;
+    }
+    if (
+      this.inStructural &&
+      (nodeRef.name === "LuauStructBlock" ||
+        nodeRef.name === "LuauStructBlockProperty")
+    ) {
+      const keyNode =
+        nodeRef.name === "LuauStructBlock"
+          ? structBlockKeyNode(nodeRef.node)
+          : firstDescendant(nodeRef.node, STRUCT_KEY_TOKENS);
+      if (!keyNode) return annotations;
+      const token =
+        nodeRef.name === "LuauStructBlock" ? structKeyToken(keyNode) : keyNode;
+      const key = this.read(token.from, token.to).trim();
+      annotations.push(
+        this.structKeyReference(
+          [...this.braceBlockPath(nodeRef.node), key],
+          key,
+          token.from,
+          token.to,
+        ),
+      );
+      return annotations;
+    }
+    if (this.inStructural && nodeRef.name === "LuauSparkleElement") {
+      // An element's name and each of its words and `.name` classes name a
+      // layer, linked to the style of the same name. The name also declares
+      // the element's key at its path, as the static struct keys it. A
+      // component call has no key, but its classes still name layers.
+      const { name, words, call } = sparkleElementKeyParts(nodeRef.node);
+      if (name && !call) {
+        const nameText = this.read(name.from, name.to).trim();
+        const key = [name, ...words]
+          .map((n) => this.read(n.from, n.to).trim())
+          .join(" ");
+        const path = [...this.braceBlockPath(nodeRef.node), key].join(".");
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            declaration: "property",
+            symbolIds: [
+              `${this.defineType}.${this.defineName}.${path}`,
+              `layer.${nameText}`,
+            ],
+            interdependentIds: [`style.${nameText}`],
+            kind: "write",
+          }).range(name.from, name.to),
+        );
+      }
+      this.pushClassWordReferences(annotations, words);
+      return annotations;
+    }
+    if (this.inStructural && nodeRef.name === "LuauSparkleElementContinuation") {
+      // An element's parts continued on a later line: its words and classes
+      // link as the element's own do.
+      const content = findChildByName(
+        nodeRef.node,
+        "LuauSparkleElementContinuation_content",
+      );
+      if (content) {
+        this.pushClassWordReferences(annotations, sparklePartWords(content));
+      }
+      return annotations;
+    }
+
     // ----- Structural struct-body property lines -------------------------------
     if (
       nodeRef.name === "LuauStructScalarProperty" ||
@@ -518,30 +730,28 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const pathKeys = this.structPathStack
         .filter((p) => p.key != null)
         .map((p) => p.key);
-      const propertyPath = [...pathKeys, key].join(".");
-      const classWords = key.split(" ").filter(Boolean);
-      const symbolIds = [
-        `${this.defineType}.${this.defineName}.${propertyPath}`,
-        ...(this.defineType === "layout"
-          ? classWords.map((w) => `layer.${w}`)
-          : []),
-      ];
-      const interdependentIds =
-        this.defineType === "style"
-          ? classWords.map((w) => `layer.${w}`)
-          : this.defineType === "layout"
-            ? classWords.map((w) => `style.${w}`)
-            : [];
       annotations.push(
-        SparkdownAnnotation.mark<Reference>({
-          declaration: "property",
-          symbolIds,
-          interdependentIds,
-          kind: "write",
-        }).range(from, to),
+        this.structKeyReference([...pathKeys, key], key, from, to),
       );
+      if (nodeRef.name === "LuauStructObjectHeader") {
+        this.pushClassWordReferences(
+          annotations,
+          indentedClassWords(nodeRef.node, keyNode),
+        );
+      }
       // Push this line as a potential parent for deeper lines.
       this.structPathStack.push({ indent, key });
+      return annotations;
+    }
+    if (this.inStructural && nodeRef.name === "LuauStructBareMarker") {
+      // An indented leaf (`text big "b"`): its words after the name.
+      this.pushClassWordReferences(
+        annotations,
+        indentedClassWords(
+          nodeRef.node,
+          firstDescendant(nodeRef.node, STRUCT_KEY_TOKENS),
+        ),
+      );
       return annotations;
     }
 
