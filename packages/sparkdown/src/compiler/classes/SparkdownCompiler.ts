@@ -6793,22 +6793,28 @@ export class SparkdownCompiler {
       // and so is a token Sparkdown already reports an error at.
       const unresolved: { name: string; range: Range }[] = [];
       const errors: Range[] = [];
+      // Sparkdown's own errors that an expression or a name is missing.
+      const missingErrors: Range[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
         const message = typeof d.message === "string" ? d.message : d.message.value;
         const path = /Cannot find (?:variable|item or path) named `([^`]+)`/.exec(message)?.[1];
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
-        if (d.severity === DiagnosticSeverity.Error) errors.push(d.range);
+        if (d.severity === DiagnosticSeverity.Error) {
+          errors.push(d.range);
+          if (message.startsWith("Expected identifier")) missingErrors.push(d.range);
+        }
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
       // A syntax error's range ends with the token Luau found.
       const tokenOf = (d: { end: { line: number; character: number } }) => ({ line: d.end.line, character: Math.max(d.end.character - 1, 0) });
-      // The errors only Sparkdown reports, at no token Luau reports one at.
-      const ownErrors = errors.filter((range) => !checked.some((d) => d.syntax && rangeContains(range, tokenOf(d))));
+      // The missing expressions or names only Sparkdown reports, at no token
+      // Luau reports one at.
+      const ownErrors = missingErrors.filter((range) => !checked.some((d) => d.syntax && rangeContains(range, tokenOf(d))));
       for (const d of checked) {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
         if (d.syntax && errors.some((range) => rangeContains(range, tokenOf(d)))) continue;
-        // An expression error that begins right after an error only
-        // Sparkdown reports, later on its line or on the next, with no `;`
+        // An expression error that begins right after a missing expression
+        // or name only Sparkdown reports, later on its line or on the next, with no `;`
         // ending that statement between them, is that mistake as Luau reads
         // the lines where Sparkdown reads them differently (an `else` that
         // ends its line before a statement at column 0).

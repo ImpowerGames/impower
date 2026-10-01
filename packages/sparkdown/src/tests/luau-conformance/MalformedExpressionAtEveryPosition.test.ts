@@ -218,6 +218,9 @@ describe("the reported layouts", () => {
     ["function f(c)\n  local a = if c then 1 elseif then 2 else 3\n  return a\nend", ["1:31-1:35 Expected identifier when parsing expression, got 'then'"]],
     // The checker's statement after a narrative line is never named.
     ["-> s\nscene s\n  local x = t:m\n  Hello.\nend", []],
+    // Round 1's undirected review: an error on the line before that leaves
+    // nothing open hides no later mistake.
+    ["function f()\n  local x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
   ])("%j reports %j", (source, messages) => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);

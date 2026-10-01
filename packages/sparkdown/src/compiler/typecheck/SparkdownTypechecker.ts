@@ -76,6 +76,8 @@ const EXPRESSION_ERROR =
 // An unfinished block comment is its own error wherever it stands, which the
 // validator reports.
 const UNFINISHED_COMMENT = /got unfinished comment$/;
+// Luau's error for a bracket or block it read no close for.
+const LEFT_OPEN = /\(to close /;
 // A function value with a name (`function named() end` where a value stands).
 const FUNCTION_VALUE_NAME = /^Expected '\(' when parsing function, got /;
 // Sparkdown's own syntax where an expression stands, which a `.luau` file's
@@ -110,30 +112,31 @@ const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
  * (`x + 1` is `Incomplete statement` at `x`, then an error at `+` and at `1`),
  * so an expression error that begins on or before the line the error before it
  * ended on is one of those, and only the first is reported. After an error
- * the checker does not report (`Expected '}' (to close '{' at line 2)`), the
- * parser's recovery reaches the next line too. A `;` from where the error
- * before it begins ends the statement that error is in, so an error after
- * the `;` is a mistake of its own (`local a = 1 +; local b = 2 +;`).
+ * that leaves a construct open (`Expected '}' (to close '{' at line 2)`), the
+ * parser's recovery reaches the next line too; after any other, such as a
+ * malformed number, the next line is a statement of its own. A `;` from where
+ * the error before it begins ends the statement that error is in, so an error
+ * after the `;` is a mistake of its own (`local a = 1 +; local b = 2 +;`).
  */
 function reportedExpressionErrors(parseErrors: readonly LuauTypeError[], text: string): Set<LuauTypeError> {
   const reported = new Set<LuauTypeError>();
   const lines = text.split("\n");
   let lastErrorLine = -1;
   let lastBegin: Position | undefined;
-  // Whether the last error that did not follow another is one the checker reports.
-  let lastFirstReported = true;
+  // Whether the last error that did not follow another left a construct open.
+  let lastLeftOpen = false;
   for (const error of parseErrors) {
     if (error.data.kind !== "SyntaxError") continue;
     const message = error.data.message;
     const begin = error.location.begin.line;
     const separated = lastBegin !== undefined && textBetween(lines, lastBegin, error.location.begin).includes(";");
     lastBegin = error.location.begin;
-    const follows = !separated && (begin <= lastErrorLine || (!lastFirstReported && begin === lastErrorLine + 1));
+    const follows = !separated && (begin <= lastErrorLine || (lastLeftOpen && begin === lastErrorLine + 1));
     lastErrorLine = Math.max(lastErrorLine, error.location.end.line);
     if (follows) continue;
+    lastLeftOpen = LEFT_OPEN.test(message);
     const isExpressionError = EXPRESSION_ERROR.test(message) && !UNFINISHED_COMMENT.test(message);
     const atSparkdownSyntax = SPARKDOWN_EXPRESSION_TOKEN.test(message);
-    lastFirstReported = isExpressionError || atSparkdownSyntax || REPORTED_SYNTAX_ERROR.test(message);
     if (isExpressionError && !atSparkdownSyntax) reported.add(error);
   }
   return reported;
