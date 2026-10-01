@@ -54,7 +54,7 @@ Opening the PR starts the Test Suite workflow on every pull request. Its package
 
 Check CI for the current head. For cancelled/timed-out runs, read [CI evidence](references/ci-evidence.md) and diagnose before rerunning or changing bounds; an unexplained cancellation is not a verified gate.
 
-Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the repository's reviewer defaults; an explicit cross-vendor route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default autonomous review cap is three rounds; only an explicit user request may authorize the launcher to use a higher bounded limit.
+Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the repository's reviewer defaults; an explicit cross-vendor route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default review cap is three rounds; only an explicit user request (a named bounded limit or a delegated choice) may extend it.
 
 ## The completion gate
 
