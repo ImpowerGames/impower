@@ -122,6 +122,9 @@ describe("morph completion: where a brace entry starts", () => {
     { name: "an `=` and part of a value", body: `timing { easing = li| }`, offers: ["linear"], edit: { label: "linear", body: `timing { easing = linear }` } },
     { name: "`;`-separated entries", body: `timing { duration = 1; delay = 2; it| }`, offers: ["iterations"], edit: { label: "iterations", body: `timing { duration = 1; delay = 2; iterations =  }` } },
     { name: "an apostrophe (`don't`)", body: `timing { easing = don't; dur| }`, offers: ["duration"] },
+    { name: "inside a call's arguments", body: `timing { easing = steps(1|) }`, none: true },
+    { name: "after a call's comma", body: `timing { easing = cubic-bezier(0.2, |) }`, none: true },
+    { name: "inside a call's decimal argument", body: `timing { easing = cubic-bezier(0.2|) }`, none: true },
   ];
   test.each(rows.map((r) => [r.name, r] as const))("brace: %s", (_n, row) =>
     run(brace, morphProgram, row),
@@ -133,6 +136,7 @@ describe("morph completion: where a brace entry starts", () => {
     { name: "an unclosed double quote", body: `  timing:\n    easing = "ea|`, none: true },
     { name: "an unclosed single quote", body: `  timing:\n    easing = 'ea|`, none: true },
     { name: "an `=` and part of a value", body: `  timing:\n    easing = li|`, offers: ["linear"], edit: { label: "linear", body: `  timing:\n    easing = linear` } },
+    { name: "inside a call's arguments", body: `  timing:\n    easing = steps(1|)`, none: true },
   ];
   test.each(indentedRows.map((r) => [r.name, r] as const))("indented: %s", (_n, row) =>
     run(indented, morphProgram, row),
@@ -156,6 +160,10 @@ describe.each(["layout", "component"])("%s element completion: where a brace ent
     { name: "a `;` after content holding a bracket", body: `row { text 'a[b'; te| }`, offers: ["text"] },
     { name: "a `;` after a closed single-quoted attribute", body: `row { text #label='a'; te| }`, offers: ["text"] },
     { name: "`;`-separated entries", body: `row { text "a"; row; te| }`, offers: ["text"] },
+    { name: "inside a handler closure on a later line", body: `row { text @click={\n    te|\n  } }`, omits: ["text", "row"] },
+    { name: "inside a handler closure on its own line", body: `row { text @click={ te| } }`, omits: ["text", "row"] },
+    { name: "inside an unclosed handler closure on a later line", body: `row { button "Go" @click={\n    te|`, omits: ["text", "row"] },
+    { name: "after a handler closure closes", body: `row {\n    text @click={ go() }\n    te|\n  }`, offers: ["text"] },
   ];
   test.each(rows.map((r) => [r.name, r] as const))("brace: %s", (_n, row) =>
     run(brace, elementProgram, row),

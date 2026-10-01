@@ -255,6 +255,10 @@ export function getMorphCompletions(
   }
   if (scalar) {
     const [, key, typed] = scalar as unknown as [string, string, string];
+    // Value choices replace the value typed so far, so they are offered only
+    // while it is a plain word (`li`, `eyes.cl`); inside a call such as
+    // `steps(1` they would replace the call itself.
+    if (!/^[\w.-]*$/.test(typed)) return [];
     if (key === "state" && container) {
       const dot = typed.lastIndexOf(".");
       const group = dot >= 0 ? typed.slice(0, dot) : container;

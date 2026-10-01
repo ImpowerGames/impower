@@ -307,6 +307,32 @@ export function braceEntryAt(
   return read(start, offset);
 }
 
+/** An element's attribute or handler value, whose text is Luau or a value,
+ *  never an entry of the block around it. */
+const ELEMENT_VALUE_NAMES = nodeNameSet([
+  "LuauSparklePropAttribute",
+  "LuauSparkleEventAttribute",
+  "LuauSparkleEventClosureAttribute",
+  "LuauSparkleHandlerClosure",
+]);
+
+/**
+ * Whether `offset` lies inside an element's attribute or handler value, as
+ * the parse tree reads it, on whatever line the value started (a handler
+ * closure `@click={` runs over later lines).
+ */
+export function insideElementValue(tree: Tree, offset: number): boolean {
+  for (
+    let node: SyntaxNode | null = tree.resolveInner(offset, -1);
+    node;
+    node = node.parent
+  ) {
+    if (BRACE_BODY_NAMES.has(node.name)) return false;
+    if (ELEMENT_VALUE_NAMES.has(node.name) && offset > node.from) return true;
+  }
+  return false;
+}
+
 /**
  * Whether the entry being written stands inside a value or a quoted string,
  * where neither a key nor an element name is being written: it holds an `=`

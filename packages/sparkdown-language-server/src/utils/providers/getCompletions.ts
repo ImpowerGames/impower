@@ -11,6 +11,7 @@ import {
   braceBlockPathAt,
   braceEntryAt,
   entryInsideValue,
+  insideElementValue,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
@@ -1915,8 +1916,11 @@ export const getCompletions = (
     );
     // In a layout or component block an element is being named: offer what
     // the indented form offers on an element line, its top-level fields.
-    // Inside a value or a quoted string neither runs.
-    const keying = !entryInsideValue(entryBefore);
+    // Inside a value or a quoted string neither runs, nor inside an element's
+    // attribute or handler value that began on an earlier line.
+    const keying =
+      !entryInsideValue(entryBefore) &&
+      !insideElementValue(tree, documentCursorOffset);
     if (
       keying &&
       !braceStructPath &&
