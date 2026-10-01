@@ -18,7 +18,6 @@ import {
   MORPH_TIMING_FIELDS,
 } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
-import { braceEntryBefore } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import {
   CompletionItemKind,
   InsertTextFormat,
@@ -118,6 +117,9 @@ export interface MorphBraceContext {
   /** The line the outermost of those blocks starts on, which sits under the
    *  body's indented keys. */
   blockLine: number | null;
+  /** The brace entry being written up to the cursor (`braceEntryAt`), or
+   *  null when the cursor is inside a quoted string. */
+  entry: string | null;
   /** Whether the body has a line written with blocks, so a container
    *  completed at its root opens a block too. */
   usesBlocks: boolean;
@@ -155,9 +157,7 @@ export function getMorphCompletions(
   const inBlock = braces?.path != null;
   // In a block an entry starts after the `{`, `;` or `}` before it; inside a
   // quoted value nothing is being keyed, so no pattern below matches.
-  const before = inBlock
-    ? (braceEntryBefore(lineBefore) ?? '"')
-    : lineBefore;
+  const before = inBlock ? (braces!.entry ?? '"') : lineBefore;
   const indent = /^[ \t]*/.exec(before)![0].length;
   // A line of blocks sits under the indented keys above it.
   const blockIndex =
@@ -234,7 +234,9 @@ export function getMorphCompletions(
       block,
       program,
       { line: position.line, character: position.character + 1 },
-      braces,
+      braces && braces.entry != null
+        ? { ...braces, entry: `${braces.entry} ` }
+        : braces,
     );
     return (spaced ?? []).map((item) =>
       item.textEdit && "range" in item.textEdit

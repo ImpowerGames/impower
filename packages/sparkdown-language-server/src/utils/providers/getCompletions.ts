@@ -9,7 +9,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import {
   bodyUsesBraceBlocks,
   braceBlockPathAt,
-  braceEntryBefore,
+  braceEntryAt,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
@@ -1338,6 +1338,12 @@ export const getCompletions = (
         blockLine: braceBlock
           ? document.positionAt(braceBlock.outerFrom).line
           : null,
+        entry: braceEntryAt(
+          tree,
+          documentCursorOffset,
+          document.getLineText(position.line).slice(0, position.character),
+          read,
+        ),
         usesBlocks: bodyUsesBraceBlocks(morphNode),
         stateContainers: blockStateContainers(morphNode, tree, read),
       },
@@ -1900,8 +1906,11 @@ export const getCompletions = (
       : null;
   if (braceDefine && braceBlock) {
     const lineText = document.getLineText(position.line);
-    const entryBefore = braceEntryBefore(
+    const entryBefore = braceEntryAt(
+      tree,
+      documentCursorOffset,
       lineText.slice(0, position.character),
+      read,
     );
     // In a layout or component block an element is being named: offer what
     // the indented form offers on an element line, its top-level fields.

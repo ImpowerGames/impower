@@ -129,15 +129,18 @@ end
     }
   });
 
-  test("an apostrophe in a value is text, so the entry after its `;` completes", () => {
-    const labels = completeAt(
-      `animation fade with
-  timing { easing = don't; dur| }
+  test("a single quote in a value is text, so the entry after its `;` completes", () => {
+    // Outside `[…]` the struct grammar reads `'` as text.
+    for (const value of ["don't", "'tis", "ease-'"]) {
+      const labels = completeAt(
+        `animation fade with
+  timing { easing = ${value}; dur| }
 end
 `,
-      program,
-    ).map((i) => String(i.label));
-    expect(labels).toContain("duration");
+        program,
+      ).map((i) => String(i.label));
+      expect(labels, value).toContain("duration");
+    }
   });
 
   test("an indented body keeps inserting the indented forms", () => {
@@ -181,6 +184,9 @@ describe("provider · element completion in layout and component brace blocks", 
     for (const source of [
       `layout hud with\n  row { text "a; te|" }\nend\n`,
       `layout hud with\n  row { text 'a; te|' }\nend\n`,
+      // Content glued to the name or a word is still content.
+      `layout hud with\n  row { text'a; te|' }\nend\n`,
+      `layout hud with\n  row { text 1'a; te|' }\nend\n`,
     ]) {
       expect(labelsIn(source), source).not.toContain("text");
     }

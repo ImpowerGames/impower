@@ -339,6 +339,30 @@ end
     ).not.toContain("duration");
   });
 
+  test("a single quote in a value is text, so the entry after its `;` completes", () => {
+    for (const value of ["don't", "'tis", "ease-'"]) {
+      expect(
+        labelsAt(`morph blink with
+  timing { easing = ${value}; dur| }
+end
+`),
+        value,
+      ).toContain("duration");
+    }
+  });
+
+  test("a `=` typed without a space after a `;` still gets one", () => {
+    const [item] = completeAt(
+      `morph blink with
+  layers { eyelash-left { blend = morph; method =| } }
+end
+`,
+      program,
+      "=",
+    );
+    expect((item!.textEdit as any).newText).toBe(" match");
+  });
+
   test("a state written in a block drives its group's candidates", () => {
     // Only raffles has `mouth`: the `state` in `mouth { … }` narrows the
     // candidates, so bunny's labels are not offered under `layers`.
