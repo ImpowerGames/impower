@@ -956,7 +956,7 @@ To avoid having to keep the body-content pattern list in sync across all 7 paire
 Three `Switch` rules cover the different statement shapes a body might need to accept:
 
 - **`LuauDeclarations`** — declaration-shaped statements: `function`, `local`, `const`, `return`, `break`, `continue`, `goto`, label declarations, type declarations. Does _not_ include reassignments or function calls.
-- **`LuauReassignment`** — the bare reassignment form: `x = expr`, `obj.field = expr`, `obj.a[k].b += expr`. Does _not_ cover declarations.
+- **`LuauReassignment`** — the bare reassignment form: `x = expr`, `obj.field = expr`, `obj.a[k].b += expr`. Does _not_ cover declarations. As in Luau, its target and value lists continue past a comma that ends the line (`LuauCommaLineBreak`, as in `LuauVariableDefinition`). It also begins at a target list that ends its line with a comma (`LUAU_REASSIGNMENT_TARGETS_CONTINUED`, `a,` then `g = 1, 2`), since nothing else in Luau code starts with a name and a comma. It ends where the line after the comma starts a statement: its `end:` checks `LUAU_LIST_LINE_START_STATEMENT` only at the start of a line (`(?<=^{{WS}}*)`), which the reassignment reaches only through that line break. A narrative body (`LuauSparkdownControlBlock`) includes `LuauSparkdownReassignment` instead, which has no line-break pattern and so always ends at its line; a comma it ends with is reported by the lowerer.
 - **`LuauExplicitStatement`** — the `& …` discard-call / explicit-statement form.
 
 When wiring up a parent block's `patterns:`, you typically want all three included. The `LuauControlBlock` Switch rule pulls in `LuauDeclarations` and `LuauExplicitStatement` for you; `LuauReassignment` is a separate include because of grammar-precedence concerns.

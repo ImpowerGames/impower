@@ -286,11 +286,39 @@ variables:
   # keywords `LuauReturnStatement` stops at, a `;`, and a named
   # function declaration (a `function` literal is a value).
   LUAU_STATEMENT_LINE_START: (?:(?:end|until|local|return|break|do|while|repeat|for)\b|;|function{{WS}}+{{LUAU_IDENTIFIER}})
+  # What begins a statement or ends a block rather than continuing a
+  # reassignment's value list when it begins the line after a comma that
+  # ends its line: what ends a declaration there (`LUAU_DECLARATION_STOP`),
+  # what begins a statement line (`LUAU_STATEMENT_LINE_START`), `then`, a
+  # label, and the named blocks `LuauDeclarations` reaches (`define cfg`,
+  # `style s` and the like). An `if` expression and a `function` literal are
+  # values. Unlike a declaration, whose value rule leaves statements out,
+  # the reassignment reads its values with `LuauExpression`, so a statement
+  # this list misses would be read as a value.
+  LUAU_LIST_LINE_START_STATEMENT: (?:{{LUAU_DECLARATION_STOP}}|{{LUAU_STATEMENT_LINE_START}}|then\b|[:][:]|(?:define|style|layout|screen|component|animation|theme|morph)\b{{WS}}+{{LUAU_IDENTIFIER}})
+  # Where a reassignment ends on its own line (see `LuauReassignment`).
+  LUAU_REASSIGNMENT_END: (?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\]=*\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
   # The start of a reassignment statement: its targets (a name with `.field`,
   # `[index]` or `(call)` suffixes, or several names separated by commas) and
   # an assignment operator. `LuauReassignment` begins here, and the rules that
-  # end before a following reassignment look ahead for it.
-  LUAU_REASSIGNMENT_START: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}'
+  # end before a following reassignment look ahead for it. An index may hold
+  # one level of brackets (`t[k[1]].x`).
+  LUAU_REASSIGNMENT_START: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_REASSIGNMENT_INDEX}}|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}'
+  # A target's `[index]`, holding at most one level of nested brackets. A
+  # string inside it is read whole, in any of Luau's three quotes, so a
+  # bracket or another quote in a key (`t["["]`, `t["]"]`, ``t[`don't`]``)
+  # is text, not structure.
+  LUAU_REASSIGNMENT_INDEX: \[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}}|\[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}})*\])*\]
+  # One piece of an index's text: a character that is no bracket, quote or
+  # line break, or a whole string on one line in double quotes, single
+  # quotes or backticks.
+  LUAU_REASSIGNMENT_INDEX_TEXT: (?:[^\[\]\n"'`]|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\\n]|\\.)*`)
+  # The start of a reassignment in Luau code whose target list ends its line
+  # with a comma (`a,` then `g = 1, 2`): targets, then a comma before the end
+  # of the line or a comment. No other statement in Luau code starts with a
+  # name followed by a comma, so `LuauReassignment` begins here too, and its
+  # `LuauCommaLineBreak` carries the target list onto the next line.
+  LUAU_REASSIGNMENT_TARGETS_CONTINUED: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_REASSIGNMENT_INDEX}}|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*,{{WS}}*(?:$|{{LUAU_COMMENT_START}})'
   # Just before the line break of an if expression's line when the next line
   # begins at column 0 with anything an if expression does not read on to:
   # not a clause keyword (`then`, `else`, `elseif`), a continuation, a
@@ -3529,27 +3557,22 @@ repository:
   # ----------------------------------------------------------------------------
 
   LuauReassignment:
-    # The lookahead approximates Lua's "suffixed expression then `=`"
-    # rule. An access path may include dot-accessors (`a.b`), bracket
-    # indexers (`a[k]`), OR a multi-target comma list (`a, b`). The
-    # `,{{WS}}*{{LUAU_IDENTIFIER}}` alternative captures the multi-
-    # target case so `a, b = 10, 20` parses as a single reassignment.
-    # `LuauCommaSeparator` is added to the inner patterns so commas
-    # between targets AND between RHS expressions can be consumed.
-    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}})
+    # The lookahead (`LUAU_REASSIGNMENT_START`) approximates Lua's
+    # "suffixed expression then `=`" rule. An access path may include
+    # dot-accessors (`a.b`), bracket indexers (`a[k]`), OR a multi-target
+    # comma list (`a, b`). The `,{{WS}}*{{LUAU_IDENTIFIER}}` alternative
+    # captures the multi-target case so `a, b = 10, 20` parses as a single
+    # reassignment. `LuauCommaSeparator` is added to the inner patterns so
+    # commas between targets AND between RHS expressions can be consumed.
+    # In Luau code a target list may also end its line with a comma
+    # (`LUAU_REASSIGNMENT_TARGETS_CONTINUED`, `a,` then `g = 1, 2`); the
+    # narrative rule does not begin there, since `a,` is prose in a scene.
+    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}}|{{LUAU_REASSIGNMENT_TARGETS_CONTINUED}})
     beginCaptures:
       1:
         patterns:
           - { include: "#OptionalWhitespace" }
-    patterns:
-      - { include: "#LuauValueTrailingBlockComment" }
-      - { include: "#LuauComment" }
-      - { include: "#LuauCommaSeparator" }
-      - { include: "#LuauAccessPath" }
-      - { include: "#LuauAssignmentOperation" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-    # End at: next BEAT (scene/branch), end of line, an upcoming
+    # End (`LUAU_REASSIGNMENT_END`) at: next BEAT (scene/branch), end of line, an upcoming
     # statement-boundary keyword (`if`, `while`, `for`, `repeat`, `do`,
     # `function`, `end`, `return`, `local`, `break`, `continue`,
     # `elseif`, `else`, `then`, `until`), an upcoming bare
@@ -3594,7 +3617,49 @@ repository:
     # ends the reassignment before that comment instead. It also ends before
     # the closing brackets that a `LuauValueTrailingBlockComment` spanning
     # lines leaves when a statement follows them directly (`]]print(1)`).
-    end: (?={{BEAT}})|{{LUAU_VALUE_COMMENT_BEFORE_STATEMENT}}|(?=\]=*\](?:{{LUAU_STATEMENT_CODE_AHEAD}}|[(]))|(?={{WS}}*;)|(?={{WS}}*[}])|(?={{WS}}+\b(?:if|while|for|repeat|do|function|end|return|local|break|continue|elseif|else|then|until)\b)|(?={{WS}}+{{LUAU_REASSIGNMENT_START}})|(?={{WS}}+(?!(?:and|or|not)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.:]{{WS}}*{{LUAU_IDENTIFIER}}|\[[^\]\n]*\]))*{{WS}}*[(])|$
+    #
+    # This is the reassignment in Luau code (function bodies and Luau
+    # blocks). As in Luau, a comma that ends its line continues the value
+    # list on the next line: `LuauCommaLineBreak` carries the reassignment
+    # across the line break, as it does `LuauVariableDefinition`. That line
+    # then belongs to the enclosing block when it starts with a statement
+    # (`LUAU_LIST_LINE_START_STATEMENT`, checked only at the start of a
+    # line, which a reassignment reaches only through that line break), and
+    # the comma before it is left without a value (the lowerer reports it,
+    # as Luau does). A narrative body reassigns with
+    # `LuauSparkdownReassignment`, which ends at its line.
+    patterns:
+      - { include: "#LuauCommaLineBreak" }
+      - { include: "#LuauValueTrailingBlockComment" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: "{{LUAU_REASSIGNMENT_END}}|(?<=^{{WS}}*)(?={{LUAU_LIST_LINE_START_STATEMENT}})"
+
+  # The reassignment in a narrative body (a scene, or a sparkdown `if`, loop
+  # or `choose` around dialogue and actions). It ends at its line: the next
+  # line is prose, never a continued value, so a comma that ends the line is
+  # left without a value and the lowerer reports it. Its begin, content and
+  # end are otherwise `LuauReassignment`'s; `reassignmentRules.test.ts`
+  # holds the two rules together.
+  LuauSparkdownReassignment:
+    begin: ({{WS}}*)(?={{LUAU_REASSIGNMENT_START}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauValueTrailingBlockComment" }
+      - { include: "#LuauComment" }
+      - { include: "#LuauCommaSeparator" }
+      - { include: "#LuauAccessPath" }
+      - { include: "#LuauAssignmentOperation" }
+      - { include: "#LuauExpression" }
+      - { include: "#ExtraWhitespace" }
+    end: "{{LUAU_REASSIGNMENT_END}}"
   # ----------------------------------------------------------------------------
   # Define (Syntactic Sugar for OOP Classes)
   # ----------------------------------------------------------------------------
@@ -6824,7 +6889,7 @@ repository:
       - { include: "#LuauSparkdownElseifBlock" }
       - { include: "#LuauSparkdownElseBlock" }
       - { include: "#LuauSparkdownAlternatorBlocks" }
-      - { include: "#LuauReassignment" }
+      - { include: "#LuauSparkdownReassignment" }
 
   LuauControlBlock:
     patterns:
@@ -9744,9 +9809,10 @@ repository:
   # line's indent, so the list continues on the next line (GRAMMAR.md
   # §11.5); the scope ends before the next token, which after a block
   # comment can be on the comma's own line (`1, --[[c]] 2`). Only
-  # `LuauVariableDefinition` includes it: a rule that includes it elsewhere
-  # must teach its consumers this second comma name beside
-  # `LuauCommaSeparator`.
+  # `LuauVariableDefinition` and `LuauReassignment` include it: a rule that
+  # includes it elsewhere must teach its consumers this second comma name
+  # beside `LuauCommaSeparator` (`isListCommaName`), and the value it can
+  # hold (`commaLineBreakValue`).
   #
   # An `if` that starts an unindented line after the comma is an if
   # expression, the list's next value, as in Luau. The declaration cannot

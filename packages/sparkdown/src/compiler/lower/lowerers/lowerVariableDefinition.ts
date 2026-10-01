@@ -31,7 +31,9 @@ import {
   typeUnionLineValue,
   takeLineContinuation,
 } from "../utils/lineContinuation";
+import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import {
+  cannotBeginValue,
   validateAssignmentValue,
   validateListComma,
   validateSecondAssignment,
@@ -133,7 +135,7 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
-      if (isCommaName(child.name)) {
+      if (isListCommaName(child.name)) {
         if (currentRhsGroup.length > 0) {
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
@@ -182,7 +184,7 @@ export function lowerVariableDefinition(
       if (
         child.name === "LuauFunctionDefinition" &&
         sawAssignmentOp &&
-        isCommaName(previousContentSibling(child)?.name)
+        isListCommaName(previousContentSibling(child)?.name)
       ) {
         currentRhsGroup.push(child);
         child = child.nextSibling;
@@ -211,6 +213,12 @@ export function lowerVariableDefinition(
         trailingStatements.push(child);
         child = child.nextSibling;
         continue;
+      }
+      // A value after the comma that starts with a token no value can
+      // begin with (`local a, g = 1,` then `+ 2` or `:method()`) is
+      // Luau's missing-value error at the comma, as in a reassignment.
+      if (pendingComma && unresolvedAfterAssignment && cannotBeginValue(child, ctx)) {
+        validateListComma(pendingComma, true, ctx);
       }
       // Any other node at the def-content level is a trailing
       // RHS expression (LuauNumericDecimal, LuauAccessPath,
@@ -512,21 +520,6 @@ function bareVariableNameFromAccessPath(
   if (inner?.name !== "LuauVariable") return null;
   const nameNode = getDescendent("LuauVariableName", inner);
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
-}
-
-// A comma that ends its line is `LuauCommaLineBreak`, which also holds the
-// line break and any comment before the next value.
-function isCommaName(name: string | undefined): boolean {
-  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
-}
-
-// The if expression a `LuauCommaLineBreak` holds after its line break, when
-// the next line starts with one unindented (`local a, g = 1,` then `if c`):
-// the declaration cannot read it there, so the comma does.
-function commaLineBreakValue(comma: SyntaxNode): SyntaxNode | null {
-  if (comma.name !== "LuauCommaLineBreak") return null;
-  const content = comma.getChild("LuauCommaLineBreak_content");
-  return content?.getChild("LuauTernaryExpression") ?? null;
 }
 
 function isSkippableName(name: string): boolean {

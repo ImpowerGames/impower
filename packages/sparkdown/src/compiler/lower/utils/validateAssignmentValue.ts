@@ -3,6 +3,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
+import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import { RESERVED } from "../../lint/luauNames";
 import { isCheckedLuau, isCheckedLuauAt } from "../../typecheck/LuauUnitNodes";
 
@@ -134,6 +135,119 @@ export function validateSecondAssignment(
   });
 }
 
+// Luau's parse errors in a reassignment's value list (`a, g = 1, 2`, bare or
+// after `&`): a comma after the `=` with no value after it, where the list
+// ended (at a statement on the next line in Luau code, at the line's end in
+// a narrative body, or at a statement after the lines `continuation` holds,
+// which continue the last value), a comma followed by an operator that
+// cannot begin a value (`a, g = 1,` then `+ 2`), and a second `=` after a
+// comma that ends its line (`a, g = 1,` then `x = 99`). Each is reported
+// once, at the first. `content` is the statement's content node, whose
+// children are its targets, commas, operation and values.
+//
+// A compound operator (`+=`) takes one target and one value: after a target
+// list Luau expects `=` there (`a, g += 1`), and a comma after its value
+// starts a statement Luau cannot read (`g += 1, 2`). A target list that ends
+// its line with a comma (`a,` then `g = 1`) can also end with no `=` at all:
+// with a comma last Luau is missing the next target (`a,` then `end`), and
+// otherwise the `=` (`a,` then `g` then `end`).
+export function validateReassignmentList(
+  content: SyntaxNode,
+  continuation: readonly SyntaxNode[],
+  ctx: LowerContext,
+): void {
+  let sawAssignment = false;
+  let compound = false;
+  // Whether everything before the operation is targets and commas, and
+  // whether one of those is a comma.
+  let onlyTargets = true;
+  let sawTargetComma = false;
+  let last: SyntaxNode | null = null;
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (isInsignificant(child.name)) continue;
+    if (!sawAssignment && child.name !== "LuauAssignmentOperation") {
+      if (isListCommaName(child.name)) sawTargetComma = true;
+      else if (child.name !== "LuauAccessPath") onlyTargets = false;
+    }
+    if (child.name === "LuauAssignmentOperation") {
+      if (sawAssignment) {
+        validateSecondAssignment(child, ctx);
+        return;
+      }
+      sawAssignment = true;
+      const operator = getDescendent("LuauAssignmentOperator", child);
+      const range = operator && operatorTokenRange(operator, ctx);
+      const opText = range ? ctx.read(range.from, range.to) : "=";
+      compound = opText !== "=";
+      if (compound && sawTargetComma && range) {
+        reportParseError(`Expected '=' when parsing assignment, got '${opText}'`, range, ctx);
+        return;
+      }
+    } else if (compound && isListCommaName(child.name)) {
+      const at = child.from + ctx.read(child.from, child.to).indexOf(",");
+      // Luau's parser reports this comma too, and the type checker reports
+      // its error where it reads the statement (#1175).
+      if (typeCheckerReportsMissingValue(child, at, ctx)) return;
+      reportParseError(
+        "Expected identifier when parsing expression, got ','",
+        { from: at, to: at + 1 },
+        ctx,
+      );
+      return;
+    } else if (
+      sawAssignment &&
+      last &&
+      isListCommaName(last.name) &&
+      cannotBeginValue(child, ctx)
+    ) {
+      validateListComma(last, true, ctx);
+      return;
+    }
+    // A comma that holds its value (an unindented if expression after the
+    // line break) is followed by that value, not left without one.
+    last = commaLineBreakValue(child) ?? child;
+  }
+  if (!sawAssignment) {
+    if (!onlyTargets || !sawTargetComma || !last) return;
+    if (isListCommaName(last.name)) {
+      validateListComma(last, true, ctx);
+      return;
+    }
+    const got = nextSignificantToken(last.to, (from, to) => ctx.read(from, to));
+    const at = got?.from ?? last.to;
+    const gotDisplay = got == null ? "<eof>" : `'${got.text}'`;
+    reportParseError(
+      `Expected '=' when parsing assignment, got ${gotDisplay}`,
+      { from: at, to: at + (got?.text.length ?? 0) },
+      ctx,
+    );
+    return;
+  }
+  const lastContinued = continuation.findLast((n) => !isInsignificant(n.name));
+  if (lastContinued?.name === "LuauCommaSeparator") {
+    validateListComma(lastContinued, true, ctx);
+  } else if (!lastContinued && isListCommaName(last?.name)) {
+    validateListComma(last!, true, ctx);
+  }
+}
+
+// A token that cannot begin a Luau value: a binary operator (`+`, `*`, `/`,
+// `%`, `^`, `..`, a comparison, `and`, `or`), an accessor with no base
+// (`:method()`, `.field`, `::`), or an indexer with no base (`[1]`, but not a
+// `[[` or `[=[` long string). A value can begin with the unary `-`, `not` or
+// `#`, with `...`, or with a number such as `.5`. The grammar reads each of
+// these tokens after a comma as the rest of an expression with no start
+// (an operation, a chained call, an indexer), in a node whose name varies, so
+// the source text is what tells them apart.
+const CANNOT_BEGIN_VALUE =
+  /^(?:[+*/%^<>=~:]|\.(?![.\d])|\.\.(?!\.)|\[(?!=*\[)|(?:and|or)(?![A-Za-z0-9_]))/;
+
+// Whether the value node `node`, after a list comma, starts with a token that
+// cannot begin a value (`+ 2`, `:method()`, `and x`).
+export function cannotBeginValue(node: SyntaxNode, ctx: LowerContext): boolean {
+  return CANNOT_BEGIN_VALUE.test(ctx.read(node.from, node.to).trimStart());
+}
+
 // The keywords that begin an expression; every other one ends it.
 const EXPRESSION_KEYWORDS: ReadonlySet<string> = new Set([
   "nil",
@@ -259,6 +373,19 @@ function operatorTokenRange(
   // Guard against an all-whitespace read (shouldn't happen — the operator is
   // always present) collapsing to a zero/negative span.
   return to > from ? { from, to } : { from: operator.from, to: operator.to };
+}
+
+// Reports a Luau parse error worded `message` on the source `range`.
+function reportParseError(
+  message: string,
+  range: { from: number; to: number },
+  ctx: LowerContext,
+): void {
+  ctx.diagnostics?.push({
+    message,
+    severity: ErrorType.Error,
+    source: makeSource(range, ctx),
+  });
 }
 
 function makeSource(

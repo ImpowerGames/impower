@@ -41,7 +41,11 @@ import {
   splitOnCommas,
   takeLineContinuation,
 } from "./utils/lineContinuation";
-import { validateAssignmentValue } from "./utils/validateAssignmentValue";
+import { commaLineBreakValue, isListCommaName } from "../utils/listCommaNames";
+import {
+  validateAssignmentValue,
+  validateReassignmentList,
+} from "./utils/validateAssignmentValue";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -257,8 +261,11 @@ function lowerInner(
       return lowerExplicitStatement(nodeRef, ctx);
     case "Glue":
       return lowerGlue(nodeRef, ctx);
-    case "LuauReassignment": {
-      // The grammar wraps `x = 5` (bare) inside this node. Two shapes:
+    case "LuauReassignment":
+    case "LuauSparkdownReassignment": {
+      // The grammar wraps `x = 5` (bare) inside this node:
+      // `LuauReassignment` in Luau code, `LuauSparkdownReassignment` in a
+      // narrative body. Two shapes:
       //
       // Single-target (`x = 5` / `obj.field = v`):
       //   LuauAccessPath
@@ -268,11 +275,17 @@ function lowerInner(
       //   LuauAccessPath, LuauCommaSeparator, LuauAccessPath, …,
       //   LuauAssignmentOperation, [LuauCommaSeparator, <expr>, …]
       //
+      // In Luau code a comma after the `=` that ends its line is a
+      // `LuauCommaLineBreak`, and the list continues on the next line.
+      //
       // Try multi-target first; fall back to the single-target helper
       // for everything else.
       const content =
-        findChildByName(nodeRef.node, "LuauReassignment_content") ??
+        findChildByName(nodeRef.node, `${nodeRef.node.name}_content`) ??
         nodeRef.node;
+      // The statement's continuation lines are still `ctx.lineContinuation`
+      // here; its lowerer takes them below.
+      validateReassignmentList(content, ctx.lineContinuation ?? [], ctx);
       let firstAccessPath: SyntaxNode | null = null;
       let scan = content.firstChild;
       while (scan) {
@@ -283,8 +296,17 @@ function lowerInner(
         scan = scan.nextSibling;
       }
       if (firstAccessPath) {
-        const multi = scanMultiTargetReassignment(firstAccessPath);
-        if (multi) return lowerMultiTargetReassignment(multi, ctx);
+        // A single target with extra values (`g = 1, bump()`, or `g = 1,`
+        // then `bump()`) goes the multi-target way too, which evaluates
+        // every value and assigns the first, as Luau does. A compound
+        // operator (`g += 1, 2`) takes no list and stays single-target.
+        const multi = scanMultiTargetReassignment(firstAccessPath, true);
+        if (
+          multi &&
+          (multi.targets.length > 1 || isPlainAssignment(multi.op, ctx))
+        ) {
+          return lowerMultiTargetReassignment(multi, ctx);
+        }
       }
 
       // Single-target fallback. The lowerer helper takes the
@@ -776,12 +798,16 @@ interface MultiTargetReassignment {
 //   AccessPath  [Comma AccessPath]+  AssignmentOperation  [Comma Expr]*
 //
 // Returns the collected pieces if at least 2 targets sit before the
-// assignment op; returns `null` otherwise so the caller can fall back to
-// single-target lowering. Anything unexpected between the multi-target
-// pieces (e.g. a stray identifier) also returns `null` rather than risk a
-// silent mis-parse.
+// assignment op, or, with `withExtraValues`, one target followed by more
+// than one value (`g = 1, bump()`, whose extra values Luau still evaluates);
+// returns `null` otherwise so the caller can fall back to single-target
+// lowering. Only a caller whose siblings end with the statement (a
+// reassignment node's content) passes `withExtraValues`. Anything
+// unexpected between the multi-target pieces (e.g. a stray identifier) also
+// returns `null` rather than risk a silent mis-parse.
 function scanMultiTargetReassignment(
   firstTarget: SyntaxNode,
+  withExtraValues = false,
 ): MultiTargetReassignment | null {
   const targets: SyntaxNode[] = [firstTarget];
   let cursor: SyntaxNode | null = firstTarget.nextSibling;
@@ -790,7 +816,9 @@ function scanMultiTargetReassignment(
       cursor = cursor.nextSibling;
       continue;
     }
-    if (cursor.name === "LuauCommaSeparator") {
+    // A comma between targets may end its line in Luau code (`a,` then
+    // `g = 1, 2`), which makes it a `LuauCommaLineBreak`.
+    if (isListCommaName(cursor.name)) {
       const afterComma = skipBridges(cursor.nextSibling);
       if (afterComma?.name === "LuauAccessPath") {
         targets.push(afterComma);
@@ -801,7 +829,7 @@ function scanMultiTargetReassignment(
       return null;
     }
     if (cursor.name === "LuauAssignmentOperation") {
-      if (targets.length < 2) return null;
+      if (targets.length < 2 && !withExtraValues) return null;
       const op = cursor;
       const trailingExprGroups: SyntaxNode[][] = [];
       let current: SyntaxNode[] = [];
@@ -812,11 +840,19 @@ function scanMultiTargetReassignment(
           post = post.nextSibling;
           continue;
         }
-        if (post.name === "LuauCommaSeparator") {
+        // A second `=` after a comma that ends its line (`a, g = 1,` then
+        // `x = 99`): Luau reads the name before it as the last value, and
+        // `validateReassignmentList` reports the `=`.
+        if (post.name === "LuauAssignmentOperation") break;
+        if (isListCommaName(post.name)) {
           if (current.length > 0) {
             trailingExprGroups.push(current);
             current = [];
           }
+          // An unindented if expression after the line break is the comma's
+          // own child (`a, g = 1,` then `if c`), and the next value.
+          const held = commaLineBreakValue(post);
+          if (held) current.push(held);
           last = post;
           post = post.nextSibling;
           continue;
@@ -826,11 +862,46 @@ function scanMultiTargetReassignment(
         post = post.nextSibling;
       }
       if (current.length > 0) trailingExprGroups.push(current);
+      if (targets.length < 2 && trailingExprGroups.length === 0) return null;
       return { targets, op, trailingExprGroups, lastNode: last };
     }
     return null;
   }
   return null;
+}
+
+// Lowers the content of an `&` statement that assigns one target, a name or a
+// field, more than one value (`& g = 1, bump()`, `& t.g = 1, bump()`) the way
+// a bare reassignment does: every value is evaluated and the first assigned,
+// as in Luau. `continuation` holds the lines that continue the last value.
+// Returns null for any other shape.
+export function lowerSingleTargetWithExtraValues(
+  content: SyntaxNode,
+  continuation: SyntaxNode[],
+  ctx: LowerContext,
+): CompiledBlock | null {
+  let first = content.firstChild;
+  while (first && ASSIGNMENT_PAIR_BRIDGE.has(first.name)) {
+    first = first.nextSibling;
+  }
+  if (first?.name !== "LuauAccessPath") return null;
+  const multi = scanMultiTargetReassignment(first, true);
+  if (
+    !multi ||
+    multi.targets.length !== 1 ||
+    !isPlainAssignment(multi.op, ctx)
+  ) {
+    return null;
+  }
+  // The multi-target lowerer takes the continuation from the context.
+  ctx.lineContinuation = continuation;
+  return lowerMultiTargetReassignment(multi, ctx);
+}
+
+// Whether the `LuauAssignmentOperation` `op` is a plain `=`.
+function isPlainAssignment(op: SyntaxNode, ctx: LowerContext): boolean {
+  const operator = getDescendent("LuauAssignmentOperator", op);
+  return !!operator && ctx.read(operator.from, operator.to).trim() === "=";
 }
 
 function skipBridges(n: SyntaxNode | null): SyntaxNode | null {
@@ -904,7 +975,10 @@ function lowerMultiTargetReassignment(
   // (the OLD a), not `b[43]`; `a[1], a = 43, -1` must store 43 into
   // the table `a` referenced BEFORE `a` is overwritten with -1. So
   // property targets stash their base + key into temps up front
-  // (`preStores`), and the store phase references only temps.
+  // (`preStores`), and the store phase references only temps. As in Luau,
+  // whose compiler evaluates complex targets before the values, the bases
+  // and keys are taken first, so a call in a target (`t[key()]`) runs before
+  // a call among the values (`bump()`).
   const preStores: ParsedObject[] = [];
   const writes: ParsedObject[] = [];
   for (let i = 0; i < multi.targets.length; i++) {
@@ -938,7 +1012,7 @@ function lowerMultiTargetReassignment(
     const write = buildTargetWrite(target, tempRef, ctx);
     if (write) writes.push(write);
   }
-  return wrapInWeave([tempDecl, ...preStores, ...writes]);
+  return wrapInWeave([...preStores, tempDecl, ...writes]);
 }
 
 // True when the LuauAccessPath consists of a single LuauVariable

@@ -1,0 +1,14 @@
+function f(ok)
+  local a, g = 0, 0
+  if ok then
+    a, g = 1,
+  else
+    a, g = 2,
+  end
+  a, g = 3,
+  return a
+end
+scene one
+  a, b = 1,
+  The hero waits.
+end
