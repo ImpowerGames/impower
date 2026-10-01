@@ -2,9 +2,9 @@
 // (`LuauSparkdownReassignment`) must recognise the same statements and read
 // the same values, or a reassignment would mean one thing in a function body
 // and another in a scene. They differ only where #1147 made them differ: the
-// Luau rule continues its value list past a comma that ends its line
-// (`LuauCommaLineBreak`), and so also ends where the next line starts a
-// statement. The runtime cases in `TrailingCommaReassignment.test.ts` check
+// Luau rule continues its target and value lists past a comma that ends its
+// line (`LuauCommaLineBreak`), so it also begins at a target list that ends
+// its line with a comma, and ends where the next line starts a statement. The runtime cases in `TrailingCommaReassignment.test.ts` check
 // the values themselves.
 
 import { describe, expect, test } from "vitest";
@@ -20,8 +20,11 @@ describe("the two reassignment rules", () => {
   const luau = repository["LuauReassignment"]!;
   const narrative = repository["LuauSparkdownReassignment"]!;
 
-  test("share their begin and captures", () => {
-    expect(narrative.begin).toBe(luau.begin);
+  test("share their begin and captures, except the Luau rule's target list that ends its line", () => {
+    // `({{WS}}*)(?=START)` and `({{WS}}*)(?=START|TARGETS_CONTINUED)`.
+    const narrativeStart = narrative.begin!.slice(0, -1);
+    expect(luau.begin!.startsWith(`${narrativeStart}|`)).toBe(true);
+    expect(luau.begin!.endsWith(")")).toBe(true);
     expect(narrative.beginCaptures).toEqual(luau.beginCaptures);
   });
 

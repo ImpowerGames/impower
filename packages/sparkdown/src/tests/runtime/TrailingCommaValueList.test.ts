@@ -351,3 +351,25 @@ describe("narrative body: the declaration ends at its line", () => {
     expect(errorMessages).toEqual([missingValue("The")]);
   });
 });
+
+// As for a reassignment (#1147): a value after the comma that starts with a
+// token no value can begin with is Luau's missing-value error at the comma.
+describe("Luau code: a declaration comma before a token that cannot begin a value", () => {
+  test.each([
+    ["an operator on the next line", "  local a, g = 1,\n    + 2", "+"],
+    ["a method call on the next line", "  local a, g = 1,\n    :method()", ":"],
+    ["an operator on the same line", "  local a, g = 1, * 2", "*"],
+  ])("%s: the error", (_name, declaration, got) => {
+    const { errorMessages } = collectDiagnostics(local(declaration, "return g"));
+    expect(errorMessages).toEqual([missingValue(got)]);
+  });
+
+  test.each([
+    ["a negative value", "  local a, g = 1,\n    -2", "Value -2.\n"],
+    ["a length", "  local t = { 1, 2 }\n  local a, g = 1,\n    #t", "Value 2.\n"],
+  ])("%s still begins a value", (_name, declaration, expected) => {
+    const { errors, text } = run(local(declaration, "return g"));
+    expect(errors).toEqual([]);
+    expect(text).toBe(expected);
+  });
+});

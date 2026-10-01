@@ -85,6 +85,8 @@ const REASSIGNMENT_CASES: [string, (src: string) => Edit][] = [
   ["add a comma before `until`", (s) => replaceEdit(s, "g = 6", "a, g = 6,")],
   ["add a comma before prose", (s) => replaceEdit(s, "hp, mp = 90, 40", "hp, mp = 90,")],
   ["type a value after a new comma", (s) => replaceEdit(s, "    g = 6\n", "    a, g = 6,\n      7\n")],
+  ["break the target list after its comma", (s) => replaceEdit(s, "  a, g = 1, -- note\n", "  a,\n    g = 1, -- note\n")],
+  ["type a comma that ends a target", (s) => replaceEdit(s, "    a = 5\n", "    a,\n      g = 5, 6\n")],
 ];
 
 describe("incremental reparse of a reassignment continued after a trailing comma", () => {

@@ -268,3 +268,101 @@ describe("narrative body: the reassignment ends at its line", () => {
     expect(warningMessages.filter((w) => w.includes("Unknown global"))).toEqual([]);
   });
 });
+
+// A target list that ends its line with a comma continues on the next line
+// in Luau code, as in Luau (`a,` then `g = 1, 2`). Nothing else in Luau code
+// starts with a name followed by a comma, so calls, tables, `return` lists
+// and `for` headers that break after a comma read as before.
+describe("Luau code: a target list continues after a trailing comma", () => {
+  test.each([
+    ["next line", "  a,\n    g = 1, 2", "return a * 10 + g", "Value 12.\n"],
+    ["three lines", "  local b = 0\n  a,\n    g,\n    b = 1, 2, 3", "return a * 100 + g * 10 + b", "Value 123.\n"],
+    ["a field target", "  t.a,\n    g = 1, 2", "return t.a * 10 + g", "Value 12.\n"],
+    ["after a comment", "  a, -- note\n    g = 1, 2", "return a * 10 + g", "Value 12.\n"],
+    ["in an if body", "  if true then\n    a,\n      g = 1, 2\n  end", "return a * 10 + g", "Value 12.\n"],
+    ["values continued too", "  a,\n    g = 1,\n    2", "return a * 10 + g", "Value 12.\n"],
+  ])("%s", (_name, body, ret, expected) => {
+    const { errors, text } = run(fn(body, ret));
+    expect(errors).toEqual([]);
+    expect(text).toBe(expected);
+  });
+
+  test.each([
+    ["a call", "  local r = {}\n  table.insert(r,\n    5)", "return r[1]", "Value 5.\n"],
+    ["a table", "  local r = { a,\n    g }", "return #r", "Value 2.\n"],
+    ["a for header", "  for i,\n    v in ipairs({ 5 }) do\n    g = v\n  end", "return g", "Value 5.\n"],
+  ])("%s that breaks after a comma reads as before", (_name, body, ret, expected) => {
+    const { errors, text } = run(fn(body, ret));
+    expect(errors).toEqual([]);
+    expect(text).toBe(expected);
+  });
+
+  test("a return list that breaks after a comma reads as before", () => {
+    const { errors, text } = run(
+      "Value {f()}.\nfunction f()\n  local a, g = 1, 2\n  return a,\n    g\nend\n",
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 1.\n");
+  });
+
+  test("before `end`: the missing target is the error, and `end` stays with the function", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  local a, g = 0, 0\n  a,\nend\nValue {f()}.\n",
+    );
+    expect(errorMessages).toEqual([missingValue("end")]);
+  });
+
+  test("a target list with no `=` is the error at the token after it", () => {
+    const { errorMessages } = collectDiagnostics(
+      "function f()\n  local a, g = 0, 0\n  a,\n    g\nend\nValue {f()}.\n",
+    );
+    expect(errorMessages).toEqual(["Expected '=' when parsing assignment, got 'end'"]);
+  });
+
+  test("in a narrative body a line that ends with a comma is still story", () => {
+    const { errors, text } = run("-> one\nscene one\n  a,\n  Hi.\nend\n");
+    expect(errors).toEqual([]);
+    expect(text).toBe("a,\n");
+  });
+});
+
+describe("Luau code: targets the reassignment's start reads", () => {
+  test("a target whose index holds brackets continues its list too", () => {
+    const { errors, text } = run(
+      fn("  local k = { 1 }\n  t[k[1]], g = 1,\n    2", "return t[1] * 10 + g"),
+    );
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 12.\n");
+  });
+});
+
+// A compound assignment (`+=`) takes one target and one value, as in Luau.
+describe("Luau code: a compound assignment with a list", () => {
+  test.each([
+    ["an extra value on the same line", "  g += 1, 2"],
+    ["an extra value on the next line", "  g += 1,\n    2"],
+    ["a comma that ends the line", "  g += 1,"],
+  ])("%s: the comma is the error", (_name, body) => {
+    const { errorMessages } = collectDiagnostics(fn(body, "return g"));
+    expect(errorMessages).toEqual([missingValue(",")]);
+  });
+
+  test("after a target list, the operator is the error", () => {
+    const { errorMessages } = collectDiagnostics(fn("  a, g += 1", "return g"));
+    expect(errorMessages).toEqual(["Expected '=' when parsing assignment, got '+='"]);
+  });
+});
+
+describe("Sparkle handler closures", () => {
+  const layout = (handler: string) =>
+    `store a, g = 0, 0\nlayout form with\n  button "Go" @click={ ${handler} }\nend\nValue {g}.\n`;
+
+  test.each([
+    ["a complete list", "a, g = 1, 2", []],
+    ["a comma before the closing brace", "a, g = 1,", [missingValue("}")]],
+    ["a compound operator after a target list", "a, g += 1", ["Expected '=' when parsing assignment, got '+='"]],
+  ])("%s", (_name, handler, expected) => {
+    const { errorMessages } = collectDiagnostics(layout(handler));
+    expect(errorMessages).toEqual(expected);
+  });
+});

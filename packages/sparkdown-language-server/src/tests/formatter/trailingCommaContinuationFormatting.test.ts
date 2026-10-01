@@ -143,6 +143,13 @@ describe("formatting a reassignment list continued after a trailing comma", () =
     expect(formatSource(source)).toBe(source);
   });
 
+  test("indents a target list continued after a trailing comma one level past the reassignment", () => {
+    const source = ["function f()", "  local a, g = 0, 0", "  a,", "g = 1, 2", "  return g", "end", ""].join("\n");
+    expect(formatSource(source)).toBe(
+      ["function f()", "  local a, g = 0, 0", "  a,", "    g = 1, 2", "  return g", "end", ""].join("\n"),
+    );
+  });
+
   test.each([
     ["a reassignment", "  a, g = 1,"],
     ["a declaration", "  local b, c = 1,"],

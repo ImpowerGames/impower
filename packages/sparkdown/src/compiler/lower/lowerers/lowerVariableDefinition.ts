@@ -33,6 +33,7 @@ import {
 } from "../utils/lineContinuation";
 import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import {
+  cannotBeginValue,
   validateAssignmentValue,
   validateListComma,
   validateSecondAssignment,
@@ -215,6 +216,12 @@ export function lowerVariableDefinition(
         trailingStatements.push(child);
         child = child.nextSibling;
         continue;
+      }
+      // A value after the comma that starts with a token no value can
+      // begin with (`local a, g = 1,` then `+ 2` or `:method()`) is
+      // Luau's missing-value error at the comma, as in a reassignment.
+      if (pendingComma && unresolvedAfterAssignment && cannotBeginValue(child, ctx)) {
+        validateListComma(pendingComma, true, ctx);
       }
       // Any other node at the def-content level is a trailing
       // RHS expression (LuauNumericDecimal, LuauAccessPath,

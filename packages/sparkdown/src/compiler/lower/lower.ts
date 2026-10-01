@@ -816,7 +816,9 @@ function scanMultiTargetReassignment(
       cursor = cursor.nextSibling;
       continue;
     }
-    if (cursor.name === "LuauCommaSeparator") {
+    // A comma between targets may end its line in Luau code (`a,` then
+    // `g = 1, 2`), which makes it a `LuauCommaLineBreak`.
+    if (isListCommaName(cursor.name)) {
       const afterComma = skipBridges(cursor.nextSibling);
       if (afterComma?.name === "LuauAccessPath") {
         targets.push(afterComma);
