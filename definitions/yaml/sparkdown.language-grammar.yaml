@@ -511,6 +511,30 @@ variables:
   SPARKLE_BRACED_3: (?:[{](?:{{SPARKLE_BRACED_4}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
   SPARKLE_BRACED_2: (?:[{](?:{{SPARKLE_BRACED_3}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
   SPARKLE_BRACED: (?:[{](?:{{SPARKLE_BRACED_2}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
+  # A braced value whose braces its line leaves open (#1225). An event's
+  # handler written so is a closure that goes on at the next line
+  # (`LuauSparkleEventClosureAttribute`), so an attribute token never takes
+  # it (`SPARKLE_ATTR`) and a line that holds one is a brace line
+  # (`SPARKLE_BLOCK_LINE_START`). Only its braces may be left open: it reads
+  # the Luau tokens `SPARKLE_CODE_TOKEN` reads, but only those its line
+  # closes (quoted strings, long strings and long comments up to seven `=`,
+  # backtick strings with their interpolations), and it nests at most eight
+  # deep, so the code is read here as Luau reads it. A `--` line comment may
+  # end the line. A value that runs to the end of its line any other way (an
+  # unfinished string, a long string with eight or more `=`, braces nested
+  # deeper) is read as before, as one value that takes the rest of the line
+  # (`SPARKLE_BRACED`). Nothing in it but a `}` ends a level, so a value its
+  # line closes never matches.
+  SPARKLE_CLOSED_LONG_BRACKET: (?:[\[][\[](?:[^\]\n]|[\]](?![\]]))*[\]][\]]|[\[][=]{1}[\[](?:[^\]\n]|[\]](?![=]{1}[\]]))*[\]][=]{1}[\]]|[\[][=]{2}[\[](?:[^\]\n]|[\]](?![=]{2}[\]]))*[\]][=]{2}[\]]|[\[][=]{3}[\[](?:[^\]\n]|[\]](?![=]{3}[\]]))*[\]][=]{3}[\]]|[\[][=]{4}[\[](?:[^\]\n]|[\]](?![=]{4}[\]]))*[\]][=]{4}[\]]|[\[][=]{5}[\[](?:[^\]\n]|[\]](?![=]{5}[\]]))*[\]][=]{5}[\]]|[\[][=]{6}[\[](?:[^\]\n]|[\]](?![=]{6}[\]]))*[\]][=]{6}[\]]|[\[][=]{7}[\[](?:[^\]\n]|[\]](?![=]{7}[\]]))*[\]][=]{7}[\]])
+  SPARKLE_OPEN_CODE_TOKEN: (?:"(?:\\.|[^"\\\n])*"|{{SPARKLE_SQUOTED}}|`(?:\\.|[^`\\{\n]|{{SPARKLE_BACKTICK_INTERPOLATION}})*`|(?:[-][-])?{{SPARKLE_CLOSED_LONG_BRACKET}}|[-][-](?![\[][=]*[\[])[^\n]*$|[^{}"'`\n\[-]|[-](?![-])|[\[](?![=]*[\[]))
+  SPARKLE_OPEN_BRACED_8: (?:[{](?:{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED_7: (?:[{](?:{{SPARKLE_OPEN_BRACED_8}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED_6: (?:[{](?:{{SPARKLE_OPEN_BRACED_7}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED_5: (?:[{](?:{{SPARKLE_OPEN_BRACED_6}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED_4: (?:[{](?:{{SPARKLE_OPEN_BRACED_5}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED_3: (?:[{](?:{{SPARKLE_OPEN_BRACED_4}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED_2: (?:[{](?:{{SPARKLE_OPEN_BRACED_3}}|{{SPARKLE_OPEN_CODE_TOKEN}})*(?:[}]|$))
+  SPARKLE_OPEN_BRACED: (?:[{](?:{{SPARKLE_OPEN_BRACED_2}}|{{SPARKLE_OPEN_CODE_TOKEN}})*$)
   # A parenthesized list (`card("x")`, `use(item, max(1, min(2, x)))`), nested
   # up to six deep. One left open runs to the end of its line, and so does a
   # paren nested deeper than six. A component call's arguments and an
@@ -545,7 +569,8 @@ variables:
   # brace in it. A prop's value is text, so its `--` is text
   # (`#class=card--large`); an event's handler is Luau, so a `--` in it
   # starts a comment, which takes the rest of the line (`@click=f--note`) or
-  # ends at its long bracket's closer.
+  # ends at its long bracket's closer. An event's closure whose braces its
+  # line leaves open is no attribute token (`SPARKLE_OPEN_BRACED`).
   SPARKLE_PROP_NAME: (?:[#][^\s=;{}"'(),]*(?![^\s=;{}"'(),]))
   SPARKLE_EVENT_NAME: (?:[@][^\s=;{}"'(),]*(?![^\s=;{}"'(),]))
   SPARKLE_ATTR_NO_VALUE: (?:(?={{WS}}*(?:$|[;}]|[,](?:[\s;}]|$))))
@@ -554,7 +579,10 @@ variables:
   SPARKLE_EVENT_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|(?:[-][-])?{{SPARKLE_LONG_BRACKET}}|[-][-](?![\[][=]*[\[])[^\n]*$|[^\s;{}"(,`\[-]|[-](?![-])|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_PARENS}}|{{SPARKLE_BRACED}})+{{SPARKLE_VALUE_END}})
   SPARKLE_ATTR_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_UNQUOTED_VALUE}})
   SPARKLE_EVENT_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_EVENT_UNQUOTED_VALUE}})
-  SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
+  SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*(?!{{SPARKLE_OPEN_BRACED}}){{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
+  # The line scan's attribute token, which takes an open closure as one
+  # value; the scan stops before one first (`SPARKLE_BLOCK_LINE_START`).
+  SPARKLE_SCAN_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
   # A comment: a Luau comment, or `//` before whitespace or the end of the
   # line. It starts a token, so the `--` inside a word (`a--b`) is part of
   # the word. A long comment ends at its `]]`, as `LuauBlockComment` does.
@@ -578,11 +606,21 @@ variables:
   # on its line counts; any other comment ends the scan. An `=` counts only
   # before a `{` (`row = {`), so the indented form's `text = Hello {who}`
   # keeps its value, and a list item (`- Hello {who}`) is never a brace line.
-  SPARKLE_SCAN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|[-][-]{{SPARKLE_LONG_BRACKET}}|{{SPARKLE_WORD}}|[;,]|[=](?={{WS}}*[{])|{{WS}}+(?!{{WS}}|[-][-](?![\[][=]*[\[])|[/][/](?:{{WS}}|$)))
+  SPARKLE_SCAN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_SCAN_ATTR}}|{{SPARKLE_PARENS}}|[)]|[-][-]{{SPARKLE_LONG_BRACKET}}|{{SPARKLE_WORD}}|[;,]|[=](?={{WS}}*[{])|{{WS}}+(?!{{WS}}|[-][-](?![\[][=]*[\[])|[/][/](?:{{WS}}|$)))
   # The brace after the tokens is a lookahead: V8 takes over ten times as
   # long to compile a multiline pattern whose token loop is followed by a
-  # character it must consume.
-  SPARKLE_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?![-](?:{{WS}}|$))(?:{{SPARKLE_SCAN_TOKEN}})*?(?=[{}]))
+  # character it must consume. An event closure its line leaves open counts
+  # as a brace, since the closure goes on at the next line. The token loop
+  # is lazy, so this stop is tried at each token before the token is: the
+  # scan stops at an open closure before its attribute token could take it,
+  # and its attribute token (`SPARKLE_SCAN_ATTR`) needs no copy of the check.
+  SPARKLE_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?![-](?:{{WS}}|$))(?:{{SPARKLE_SCAN_TOKEN}})*?(?=[{}]|{{SPARKLE_EVENT_NAME}}{{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}}))
+  # A line that continues the element above it: one that starts with a
+  # class's `.`, an attribute's `#` or `@`, or a quote
+  # (`LuauSparkleElementContinuation`), but not a property with a quoted key
+  # (`"color" = white`), which a block reads as a property
+  # (`LuauStructBlockProperty`) and which ends the element before it.
+  SPARKLE_CONTINUATION_START: (?:{{WS}}*(?!{{STRUCT_BLOCK_PROPERTY_HEAD}}(?!{{WS}}*[{]))[.#@"'])
   # An unclosed block ends where a line starts with `end`, `else`, `elseif`
   # or `case`, which close the declaration or a control block around it, or
   # at the next `scene` or `branch`.
@@ -5579,10 +5617,15 @@ repository:
   # `LuauEventAttribute` so the leading `{` isn't taken as a table; only
   # reachable from there, so tables elsewhere are unaffected.
   #
-  # SINGLE-LINE only: `LuauEventAttribute.end` (`(?=$|…)`) is line-oriented, so
-  # the closing `}` must be on the `=` line. A body split across lines would be
-  # truncated at the newline; `lowerHandlerClosure` detects a missing `}` and
-  # raises a diagnostic rather than silently dropping the rest.
+  # In a layout or component body, a closure its line leaves open is read by
+  # `LuauSparkleEventClosureAttribute`, so its statements go on over the
+  # lines after it (#1225). One left without its `}` ends where a line starts
+  # with `end`, `else`, `elseif` or `case`, or at the next `scene` or `branch`
+  # (`SPARKLE_BLOCK_BAIL`); a statement in it that opens its own block takes
+  # its own `else` and `end`. Inside an indented element line's capture the
+  # closure cannot pass its line, and one left open there is closed at the
+  # line's end. Either way `lowerHandlerClosure` reports the missing `}` on
+  # the `{`.
   LuauSparkleHandlerClosure:
     brackets: true
     begin: ([{])
@@ -5592,7 +5635,7 @@ repository:
           - { include: "#PunctuationBraceOpen" }
     patterns:
       - { include: "#LuauBlockBody" }
-    end: ([}])
+    end: ([}])|(?={{SPARKLE_BLOCK_BAIL}})
     endCaptures:
       1:
         patterns:
@@ -6023,9 +6066,16 @@ repository:
   # at the end of the line its last block closes on. A line that starts with
   # `end`, `else`, `elseif` or `case` is never one: it is where a block left
   # open ends.
+  #
+  # An element's parts may go on over later lines (#1225). A line that starts
+  # with `.`, `#`, `@` or a quote is a block line too, whose first entry is a
+  # `LuauSparkleElementContinuation`; a line that starts with `{` holds a
+  # block with no element before it; and an event closure its line leaves
+  # open spans lines (`LuauSparkleEventClosureAttribute`). The lowerers join
+  # each to the element before it (GRAMMAR.md §11.8).
   # ----------------------------------------------------------------------------
   LuauSparkleBlockLine:
-    begin: ^(?!{{SPARKLE_BLOCK_BAIL}})(?={{SPARKLE_BLOCK_LINE_START}})
+    begin: ^(?!{{SPARKLE_BLOCK_BAIL}})(?={{SPARKLE_CONTINUATION_START}}|{{SPARKLE_BLOCK_LINE_START}})
     patterns:
       - { include: "#LuauStructStrayBlockClose" }
       - { include: "#LuauSparkleBlockEntries" }
@@ -6038,6 +6088,8 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStructBlockSlashComment" }
+      # Before `Whitespace`, so a continuation line's begin takes its indent.
+      - { include: "#LuauSparkleElementContinuation" }
       - { include: "#Whitespace" }
       - { include: "#Newline" }
       - { include: "#LuauStructBlockSeparator" }
@@ -6060,12 +6112,18 @@ repository:
       - { include: "#LuauSparkleBlockUnknown" }
 
   # An element: its name, a component call's arguments, the rest of its line
-  # (`SPARKLE_HEAD`: classes, attributes, content and comments) and an optional
-  # block. The head is read from a capture, so a quote or brace left open in it
-  # never runs past its line. The element ends after its block, or where its
-  # head ends when it has none.
+  # (its head: classes, attributes, content and comments) and an optional
+  # block. The head is the first `LuauSparkleElementParts`, read from a
+  # capture, so a quote or brace left open in it never runs past its line; it
+  # is not part of the begin, so the one large pattern that reads it is
+  # compiled once for elements and continuation lines alike. An event
+  # closure the line leaves open ends the head; it and the parts after its
+  # `}` are read by the element's patterns. The element ends after its block,
+  # or at the end of the line its parts end on when it has none. A line after
+  # it that starts with one of its parts is a `LuauSparkleElementContinuation`,
+  # which the lowerers join to it.
   LuauSparkleElement:
-    begin: ({{SPARKLE_ELEMENT_NAME}})({{WS}}*{{SPARKLE_PARENS}})?({{SPARKLE_HEAD}})
+    begin: ({{SPARKLE_ELEMENT_NAME}})({{WS}}*{{SPARKLE_PARENS}})?
     beginCaptures:
       1:
         patterns:
@@ -6078,13 +6136,85 @@ repository:
           - { include: "#LuauSparkleCallArguments" }
           - { include: "#ExtraWhitespace" }
           - { include: "#LuauSparkleElementInvalid" }
-      3:
-        patterns:
-          - { include: "#LuauSparkleElementPart" }
     patterns:
+      - { include: "#LuauSparkleEventClosureAttribute" }
+      - { include: "#LuauSparkleElementParts" }
       - { include: "#LuauSparkleElementAssign" }
       - { include: "#LuauSparkleElementBlock" }
     end: (?<=[}])(?!{{WS}}*(?:[=]{{WS}}*)?[{])|(?={{WS}}*(?:[;},]|$))|(?={{SPARKLE_BLOCK_BAIL}})
+
+  # A line that continues the element above it (#1225): it starts with a
+  # class's `.`, an attribute's `#` or `@`, or a quote, and reads the parts
+  # an element's head reads, an event closure that goes on at the next line,
+  # and an optional block, as the element's own line does. The grammar cannot
+  # see the element above it from here, so it is a node of its own, which the
+  # lowerers join to the element before it (GRAMMAR.md §11.8). A line that
+  # starts with `{` is the element's block, read as a block with no element
+  # before it and joined the same way.
+  LuauSparkleElementContinuation:
+    begin: ^(?={{SPARKLE_CONTINUATION_START}})({{WS}}*)
+    beginCaptures:
+      1:
+        emit: true
+        patterns:
+          - { include: "#OptionalWhitespace" }
+    patterns:
+      - { include: "#LuauSparkleEventClosureAttribute" }
+      - { include: "#LuauSparkleElementParts" }
+      - { include: "#LuauSparkleElementAssign" }
+      - { include: "#LuauSparkleElementBlock" }
+    end: (?<=[}])(?!{{WS}}*(?:[=]{{WS}}*)?[{])|(?={{WS}}*(?:[;},]|$))|(?={{SPARKLE_BLOCK_BAIL}})
+
+  # A run of an element's parts (`SPARKLE_HEAD`): its head after its name, a
+  # continuation line's parts, and the parts after an event closure's `}`.
+  # The run is read from a capture, so nothing left open in it passes its
+  # line. It ends before a `{` (with whitespace and an optional `=` before
+  # it), a `;`, a `}`, a comma that ends the entry, an event closure its line
+  # leaves open, or the end of the line.
+  LuauSparkleElementParts:
+    match: ((?:{{SPARKLE_HEAD_TOKEN}})+)
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauSparkleElementPart" }
+
+  # `@event={` with a closure its line leaves open (`SPARKLE_OPEN_BRACED`):
+  # the closure's statements go on over the lines after it, up to its `}`.
+  # A closure left without its `}` ends where a line starts with `end`,
+  # `else`, `elseif` or `case`, or at the next `scene` or `branch`
+  # (`SPARKLE_BLOCK_BAIL`, through `LuauSparkleHandlerClosure`), and the
+  # lowerer reports it on its `{`. The parts after the `}` on its line, glued
+  # to it or after whitespace (`}"Hi"`, `} .b`), are read here as a run of
+  # parts, so the element around the attribute never ends at the closure's
+  # `}` as it ends at its block's. The attribute ends where a run of parts
+  # would: before a `{` (with whitespace and an optional `=` before it), a
+  # `;`, a `}`, a comma, the end of the line, or another closure its line
+  # leaves open; never at its own begin, which ends in `=` or whitespace.
+  # The name is any name an attribute token takes (`SPARKLE_EVENT_NAME`), so
+  # the line is tiled whatever it is; the validator reports one that names
+  # no event.
+  LuauSparkleEventClosureAttribute:
+    begin: ([@])([^\s=;{}"'(),]*)({{WS}}*)([=])({{WS}}*)(?={{SPARKLE_OPEN_BRACED}})
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#EventAttributeOperator" }
+      2:
+        patterns:
+          - { include: "#EventAttributeName" }
+      3:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      4:
+        patterns:
+          - { include: "#EqualOperator" }
+      5:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+    patterns:
+      - { include: "#LuauSparkleHandlerClosure" }
+      - { include: "#LuauSparkleElementParts" }
+    end: (?<![=\s])(?={{WS}}*(?:[;{},]|$|[=]{{WS}}*[{]))|(?={{SPARKLE_EVENT_NAME}}{{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}})|(?={{SPARKLE_BLOCK_BAIL}})
 
   # A name that is not a builtin element: a component, or a plain container
   # that carries its name as a class.

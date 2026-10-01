@@ -8,7 +8,12 @@ import {
   sparkleBlockEntries,
   sparkleControlBranches,
   sparkleElementParts,
+  sparklePartNodes,
 } from "./sparkleBlockEntries";
+import {
+  joinSparkleContinuations,
+  type SparkleJoins,
+} from "./sparkleContinuations";
 
 // The entries of a struct body (`style`, `animation`, `theme`, `morph`, and
 // the static struct of `layout`, `screen` and `component`), as a tree both
@@ -70,6 +75,12 @@ export interface StructEntry {
    * name, classes and content rather than from a line's text.
    */
   element?: boolean;
+  /**
+   * For an element in a layout or component body, the nodes that hold the
+   * parts of the continuation lines it takes (`sparklePartNodes`), in source
+   * order, whose text its key reads after its own (#1225).
+   */
+  continuations?: SyntaxNode[];
 }
 
 /**
@@ -115,15 +126,18 @@ export function readStructBodyEntries(
 ): StructEntry[] {
   if (!contentNode) return [];
   const positioned: PositionedEntry[] = [];
+  // In a layout or component body, the continuation lines and own-line
+  // blocks each element takes (#1225).
+  const joins = joinSparkleContinuations(contentNode);
   const walk = (node: SyntaxNode) => {
     let child = node.firstChild;
     while (child) {
       if (child.name === "LuauStructBodyContent") {
-        pushIndentedLine(positioned, child, ctx, classify);
+        pushIndentedLine(positioned, child, ctx, classify, joins);
       } else if (child.name === "LuauStructBlockLine") {
         pushBlockLine(positioned, child, ctx);
       } else if (child.name === "LuauSparkleBlockLine") {
-        pushSparkleBlockLine(positioned, child, ctx);
+        pushSparkleBlockLine(positioned, child, ctx, joins);
       } else {
         walk(child);
       }
@@ -139,14 +153,45 @@ function pushIndentedLine(
   content: SyntaxNode,
   ctx: LowerContext,
   classify: ClassifyIndentedLine,
+  joins: SparkleJoins,
 ): void {
   const classified = classify(content);
+  const indent = ctx.characterNumber(content.from);
+  // An element's block on a later line holds its children, as a `:` header's
+  // indented lines do; its entries go one level below the element. Like a
+  // brace element, it then takes children only from its block (`group`), so
+  // the indented lines after the block are not its children.
+  const later = joins.blocks.get(content.from);
+  if (classified) {
+    const continuations = continuationParts(content.from, joins);
+    positioned.push({
+      indent,
+      entry: {
+        ...classified,
+        ...(later ? { kind: "header" as const } : {}),
+        ...(continuations ? { continuations } : {}),
+        line: content,
+        children: null,
+        braced: false,
+      },
+      closed: false,
+      ...(later ? { group: later.from } : {}),
+    });
+  }
+  if (later) {
+    const blockContent = sparkleBlockContent(later);
+    if (blockContent) {
+      placeSparkleEntries(
+        positioned,
+        sparkleBlockEntries(blockContent),
+        indent,
+        1,
+        later.from,
+        joins,
+      );
+    }
+  }
   if (!classified) return;
-  positioned.push({
-    indent: ctx.characterNumber(content.from),
-    entry: { ...classified, line: content, children: null, braced: false },
-    closed: false,
-  });
   // A collapsed list item (`- eyes:` / `- offset = 0.4`) carries its first
   // entry on the dash line. Follow the item with that entry as a line of its
   // own, at the column the entry starts in: the shape the expanded form
@@ -194,18 +239,59 @@ function pushSparkleBlockLine(
   positioned: PositionedEntry[],
   line: SyntaxNode,
   ctx: LowerContext,
+  joins: SparkleJoins,
 ): void {
   const entries = sparkleBlockEntries(line);
-  const first = entries[0];
+  // The line sits at the column of its first entry of its own: continuation
+  // lines, and a block the element before it takes, are no entries.
+  const first = entries.find((entry) => !isJoinedEntry(entry, joins));
   if (!first) return;
   const base = ctx.characterNumber(first.from);
-  const group = line.from;
+  placeSparkleEntries(positioned, entries, base, 0, line.from, joins);
+}
+
+/** A continuation line, or a block on a line of its own that the element
+ *  before it takes. Neither is an entry of its own. */
+function isJoinedEntry(entry: SyntaxNode, joins: SparkleJoins): boolean {
+  return (
+    entry.name === "LuauSparkleElementContinuation" ||
+    joins.joined.has(entry.from)
+  );
+}
+
+/** The part nodes of the continuation lines the element keyed `key` takes,
+ *  or `undefined` when it takes none. */
+function continuationParts(
+  key: number,
+  joins: SparkleJoins,
+): SyntaxNode[] | undefined {
+  const lines = joins.continuations.get(key);
+  return lines ? lines.flatMap((line) => sparklePartNodes(line)) : undefined;
+}
+
+/**
+ * Place the entries of a layout or component block line, or of a block, at
+ * `depth` levels below `base`, as `pushSparkleBlockLine` describes. Every
+ * entry placed takes children only from its own `group`.
+ */
+function placeSparkleEntries(
+  positioned: PositionedEntry[],
+  nodes: SyntaxNode[],
+  base: number,
+  depth: number,
+  group: number,
+  joins: SparkleJoins,
+): void {
   const place = (nodes: SyntaxNode[], depth: number) => {
     const indent = base + depth * SPARKLE_BLOCK_LEVEL;
     for (const node of nodes) {
+      if (isJoinedEntry(node, joins)) continue;
       if (node.name === "LuauSparkleElement") {
-        const { args, block } = sparkleElementParts(node);
-        if (!args) {
+        const parts = sparkleElementParts(node);
+        // A block on a later line is the element's block when it has none.
+        const block = parts.block ?? joins.blocks.get(node.from) ?? null;
+        if (!parts.args) {
+          const continuations = continuationParts(node.from, joins);
           positioned.push({
             indent,
             closed: false,
@@ -217,6 +303,7 @@ function pushSparkleBlockLine(
               children: null,
               braced: true,
               element: true,
+              ...(continuations ? { continuations } : {}),
             },
           });
         }
@@ -242,7 +329,7 @@ function pushSparkleBlockLine(
       }
     }
   };
-  place(entries, 0);
+  place(nodes, depth);
 }
 
 /**

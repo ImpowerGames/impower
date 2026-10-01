@@ -89,6 +89,8 @@ const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
 const SPARKLE_EVENT_HANDLER = nodeNameSet([
   "LuauEventAttribute",
   "LuauSparkleEventAttribute",
+  // An event closure that goes on at the next line (#1225).
+  "LuauSparkleEventClosureAttribute",
 ]);
 
 // Luau string literals. Every form parses as `<name>_begin`, `<name>_content`
