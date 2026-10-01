@@ -333,12 +333,17 @@ variables:
   # comment, so it needs no whitespace before it, as the indented form's typed
   # reader already reads it.
   STRUCT_BLOCK_LITERAL: (?:[-+]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
-  STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{LUAU_COMMENT_START}})
-  # The text of a line up to an unquoted brace that no comment holds. A value
-  # starts after `=` or whitespace; one that is a literal directly followed by
-  # `--` ends the scan, since the rest of the line is a comment, and so does
-  # whitespace before a comment.
-  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}(?!{{LUAU_COMMENT_START}})|[=](?!{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})|{{WS}}(?!{{WS}}*(?:{{STRUCT_BLOCK_COMMENT_AFTER_WS}}|{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}}))|[^"\s{}=])*?[{}])
+  # What begins a comment right after a whole literal: `--`, or `//` after any
+  # whitespace, as the indented form's literal value rules read it
+  # (`NumericFieldValue` and its neighbours end at `//`).
+  STRUCT_BLOCK_LITERAL_COMMENT_START: (?:{{LUAU_COMMENT_START}}|{{WS}}*[/][/])
+  STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_LITERAL_COMMENT_START}})
+  # The text of a line up to an unquoted brace that no comment holds. Whitespace
+  # before a comment ends the scan. So does a value that is a whole literal
+  # directly followed by `--`, where a value starts: after `=` or after an
+  # indented-form `-` item mark (`x = 1-- }`, `- 2-- }`). Elsewhere `--` is
+  # text (`Arial 1--display }`), as the value readers read it.
+  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|[=](?!{{WS}}*{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})|[-](?={{WS}})(?!{{WS}}+{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})|{{STRUCT_BLOCK_WS_IN_TEXT}}|[-](?!{{WS}})|[^"\s{}=-])*?[{}])
   # A body line that holds an unquoted `{` or `}` outside a comment is read as
   # block entries: a `{` opens a block or a list entry wherever it stands on
   # the line (`timing = 1; keyframes {`), and a `}` outside every block is
@@ -359,10 +364,10 @@ variables:
   # comma that ends the entry or precedes another one, or a comment. Any other
   # comma stays part of the value.
   STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}})|{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
-  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{LUAU_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))
+  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{STRUCT_BLOCK_LITERAL_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))
   # A bare list value also ends at any comma.
   STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},])|{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
-  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{LUAU_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?={{STRUCT_BLOCK_ITEM_END}}))
+  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{STRUCT_BLOCK_LITERAL_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?={{STRUCT_BLOCK_ITEM_END}}))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
@@ -5597,7 +5602,7 @@ repository:
   # with `{` is the block form `name = { … }`, so the rule leaves it to
   # `LuauStructBlock`.
   LuauStructBlockProperty:
-    match: (\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)
+    match: (\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)({{WS}}*[/][/][^\n]*)?
     captures:
       1:
         patterns:
@@ -5614,10 +5619,15 @@ repository:
           - { include: "#StringFieldValue" }
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }
+      # A `//` comment the value ended at: after a literal any `//`, after
+      # other text one with whitespace on both sides.
+      4:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
 
   # A bare value entry: one scalar of the enclosing list.
   LuauStructListValue:
-    match: ({{STRUCT_BLOCK_ITEM}})
+    match: ({{STRUCT_BLOCK_ITEM}})({{WS}}*[/][/][^\n]*)?
     captures:
       1:
         patterns:
@@ -5627,6 +5637,23 @@ repository:
           - { include: "#StringFieldValue" }
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }
+      2:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
+
+  # The `//` comment that ends a property or list value.
+  LuauStructBlockValueComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ({{WS}}*)([/]{2})([^\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
 
   LuauStructBlockSeparator:
     tag: punctuation
@@ -5638,7 +5665,7 @@ repository:
   LuauStructBlockTrailingComma:
     tag: punctuation
     name: punctuation.separator.comma.sd
-    match: ([,])(?={{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))
+    match: (?={{STRUCT_BLOCK_TRAILING_COMMA}})([,])
 
   # A comma between two entries on one line. Entries are separated by `;`.
   LuauStructBlockEntryComma:

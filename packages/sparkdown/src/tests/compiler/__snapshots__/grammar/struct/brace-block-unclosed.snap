@@ -70,11 +70,12 @@ sparkdown [0..142]
  │   │       │       │       │   │   │       │   │   │       └─ AssignEqualOperator_c3 [56..57]
  │   │       │       │       │   │   │       │   │   │           └─ AssignEqualOperator_c3 [56..57]
  │   │       │       │       │   │   │       │   │   │               └─ OptionalSeparator [56..57]: " "
- │   │       │       │       │   │   │       │   │   └─ LuauStructBlockProperty_c3 [57..58]
- │   │       │       │       │   │   │       │   │       └─ NumericFieldValue [57..58]
- │   │       │       │       │   │   │       │   │           ├─ NumericFieldValue_c1 [57..58]
- │   │       │       │       │   │   │       │   │           │   └─ NumberLiteral [57..58]: "0"
- │   │       │       │       │   │   │       │   │           └─ NumericFieldValue_c2 58
+ │   │       │       │       │   │   │       │   │   ├─ LuauStructBlockProperty_c3 [57..58]
+ │   │       │       │       │   │   │       │   │   │   └─ NumericFieldValue [57..58]
+ │   │       │       │       │   │   │       │   │   │       ├─ NumericFieldValue_c1 [57..58]
+ │   │       │       │       │   │   │       │   │   │       │   └─ NumberLiteral [57..58]: "0"
+ │   │       │       │       │   │   │       │   │   │       └─ NumericFieldValue_c2 58
+ │   │       │       │       │   │   │       │   │   └─ LuauStructBlockProperty_c4 58
  │   │       │       │       │   │   │       │   └─ Whitespace [58..59]: " "
  │   │       │       │       │   │   │       └─ LuauStructBlockBody_end [59..60]
  │   │       │       │       │   │   │           └─ LuauStructBlockBody_end_c1 [59..60]
@@ -112,11 +113,12 @@ sparkdown [0..142]
  │   │       │       │       │   │   │       │   │   │       └─ AssignEqualOperator_c3 [79..80]
  │   │       │       │       │   │   │       │   │   │           └─ AssignEqualOperator_c3 [79..80]
  │   │       │       │       │   │   │       │   │   │               └─ OptionalSeparator [79..80]: " "
- │   │       │       │       │   │   │       │   │   └─ LuauStructBlockProperty_c3 [80..81]
- │   │       │       │       │   │   │       │   │       └─ NumericFieldValue [80..81]
- │   │       │       │       │   │   │       │   │           ├─ NumericFieldValue_c1 [80..81]
- │   │       │       │       │   │   │       │   │           │   └─ NumberLiteral [80..81]: "1"
- │   │       │       │       │   │   │       │   │           └─ NumericFieldValue_c2 81
+ │   │       │       │       │   │   │       │   │   ├─ LuauStructBlockProperty_c3 [80..81]
+ │   │       │       │       │   │   │       │   │   │   └─ NumericFieldValue [80..81]
+ │   │       │       │       │   │   │       │   │   │       ├─ NumericFieldValue_c1 [80..81]
+ │   │       │       │       │   │   │       │   │   │       │   └─ NumberLiteral [80..81]: "1"
+ │   │       │       │       │   │   │       │   │   │       └─ NumericFieldValue_c2 81
+ │   │       │       │       │   │   │       │   │   └─ LuauStructBlockProperty_c4 81
  │   │       │       │       │   │   │       │   ├─ Newline [81..82]: "\n"
  │   │       │       │       │   │   │       │   └─ Whitespace [82..84]: "  "
  │   │       │       │       │   │   │       └─ LuauStructBlockBody_end [84..85]
@@ -191,11 +193,12 @@ sparkdown [0..142]
  │   │   │   │       │       │   │   │       └─ AssignEqualOperator_c3 [133..134]
  │   │   │   │       │       │   │   │           └─ AssignEqualOperator_c3 [133..134]
  │   │   │   │       │       │   │   │               └─ OptionalSeparator [133..134]: " "
- │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c3 [134..135]
- │   │   │   │       │       │   │       └─ NumericFieldValue [134..135]
- │   │   │   │       │       │   │           ├─ NumericFieldValue_c1 [134..135]
- │   │   │   │       │       │   │           │   └─ NumberLiteral [134..135]: "2"
- │   │   │   │       │       │   │           └─ NumericFieldValue_c2 135
+ │   │   │   │       │       │   │   ├─ LuauStructBlockProperty_c3 [134..135]
+ │   │   │   │       │       │   │   │   └─ NumericFieldValue [134..135]
+ │   │   │   │       │       │   │   │       ├─ NumericFieldValue_c1 [134..135]
+ │   │   │   │       │       │   │   │       │   └─ NumberLiteral [134..135]: "2"
+ │   │   │   │       │       │   │   │       └─ NumericFieldValue_c2 135
+ │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 135
  │   │   │   │       │       │   └─ Whitespace [135..136]: " "
  │   │   │   │       │       └─ LuauStructBlockBody_end [136..137]
  │   │   │   │       │           └─ LuauStructBlockBody_end_c1 [136..137]

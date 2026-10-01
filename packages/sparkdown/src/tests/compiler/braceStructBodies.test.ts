@@ -455,6 +455,43 @@ end
       list: ["red"],
     });
     expect(errorsOf(slashBraced)).toEqual([]);
+    // After a whole literal and whitespace, `//` begins a comment even with no
+    // whitespace after it, as the indented form's literal value rules read it.
+    const literalBraced = `theme t with
+  colors {
+    a = 1 //c }
+    b = "q" //c }
+    c = true //c }
+  }
+end
+`;
+    const literalIndented = `theme t with
+  colors:
+    a = 1 //c }
+    b = "q" //c }
+    c = true //c }
+end
+`;
+    expect(structOf(literalBraced, "theme", "t")).toEqual(
+      structOf(literalIndented, "theme", "t"),
+    );
+    expect(structOf(literalBraced, "theme", "t").colors).toEqual({
+      a: 1,
+      b: "q",
+      c: true,
+    });
+    expect(errorsOf(literalBraced)).toEqual([]);
+    expect(errorsOf(literalIndented)).toEqual([]);
+    // With no whitespace before it, the brace form still ends the literal
+    // there. (The indented form reads `1//c` as `1/` and `true//c` as false.)
+    const adjacent = `theme t with
+  colors { a = 1//c }
+    b = true//c }
+  }
+end
+`;
+    expect(structOf(adjacent, "theme", "t").colors).toEqual({ a: 1, b: true });
+    expect(errorsOf(adjacent)).toEqual([]);
     expect(struct.list).toEqual([2]);
     expect(struct).toEqual(structOf(indented, "theme", "t"));
     expect(errorsOf(braced)).toEqual([]);
@@ -478,6 +515,25 @@ end
       { opacity: 1, offset: 1 },
     ]);
     expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a comma before a comment is a trailing comma", () => {
+    const text = `theme t with
+  colors {
+    value = 1, // trailing } {
+    other = 2, -- trailing } {
+    list { red, // } note
+      blue, -- } note
+    }
+  }
+end
+`;
+    expect(errorsOf(text)).toEqual([]);
+    expect(structOf(text, "theme", "t").colors).toEqual({
+      value: 1,
+      other: 2,
+      list: ["red", "blue"],
+    });
   });
 
   test("a comma between two properties on one line is one error that names `;`", () => {
@@ -662,6 +718,15 @@ end
       b: "foo1--bar",
       c: "labelN--suffix",
     });
+    // Only a whole literal value is ended by a `--` right after it.
+    const midValue = `theme t with
+  font = Arial 1--display }
+end
+`;
+    expect(errorsOf(midValue)).toMatchObject([
+      { message: "Invalid syntax", line: 1, character: 26, text: "}" },
+    ]);
+    expect(structOf(midValue, "theme", "t").font).toBe("Arial 1--display");
   });
 
   test("a stray `}` is invalid syntax", () => {

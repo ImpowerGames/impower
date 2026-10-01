@@ -18,6 +18,12 @@ theme t with
     // a whole-line note }
     next = 2
   }
+  literals {
+    a = 1//c }
+    b = "q" //c }
+    c = 2, // trailing } {
+    font = Arial 1--display
+  }
   values:
     - 2 -- } note
 end
