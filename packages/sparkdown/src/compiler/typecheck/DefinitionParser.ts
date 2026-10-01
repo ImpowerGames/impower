@@ -114,17 +114,21 @@ export interface ParseError {
    * the parser's recovery, rather than being a mistake of its own, which
    * Sparkdown's type checker reads to report each mistake once. It does: at
    * the start of a statement the parser began on the line where the
-   * statement before it met an error, with no `;` between (`x + 1` is an
-   * error at `x`, then at `+` and at `1`, which follow), or where the
-   * statement holding its block met one after the last token the parser
-   * expected and found (`function f(): ?number end`, not `if 1 + then x
-   * end`), counting an error Luau keeps no second report of at the same
-   * location; reported after one of its statement's errors from the
-   * same token or an earlier one (`Incomplete statement` from `t` after the
-   * missing name at `return` in `t.a.return 1`); and anywhere between a
-   * bracket the parser gave up on and the closer it then finds where a
-   * statement must begin (`print(1 + local y = 2)`, where the parser reads
-   * `local y = 2` as a statement and then meets the `)`).
+   * statement before it ended in the parser's recovery, with no `;` between
+   * (it never began, read a statement's keyword as a missing name, or read
+   * nothing after its last error: `x + 1` is an error at `x`, then at `+` and
+   * at `1`, which follow, but `print(1, ) 1 +` reads its `)` and the error
+   * at `1` is the author's), or where the statement holding its block met
+   * one after the last token the parser expected and found
+   * (`function f(): ?number end`, not `if 1 + then x end`), counting an
+   * error Luau keeps no second report of at the same location; later in a
+   * statement whose first error is at its first token, which the parser
+   * reads on as a call (`{1 +}`); reported after one of its statement's
+   * errors from the same token or an earlier one (`Incomplete statement`
+   * from `t` after the missing name at `return` in `t.a.return 1`); and
+   * anywhere between a bracket the parser gave up on and the closer it then
+   * finds where a statement must begin (`print(1 + local y = 2)`, where the
+   * parser reads `local y = 2` as a statement and then meets the `)`).
    */
   follows?: true;
 }
@@ -135,7 +139,17 @@ interface RecoveryStatement {
   previous: RecoveryStatement | undefined;
   lastErrorBegin: Position | undefined;
   lastErrorLine: number;
+  // Where the parser stood after the statement's last error, and where that
+  // error ends.
+  afterError: Location | undefined;
+  lastErrorEnd: Position | undefined;
+  // Whether the statement's first token was an error.
+  failedAtStart: boolean;
+  // Whether the parser read a keyword that begins a statement as a missing
+  // name in it (`t.a.return 1`).
+  keywordAsName: boolean;
   hasSemicolon: boolean;
+  endedInRecovery: boolean;
 }
 
 /** What parsing a source gives (Luau's `ParseResult`). */
@@ -1634,7 +1648,22 @@ function isStatLast(stat: AstStat): boolean {
   return stat instanceof AstStatBreak || stat instanceof AstStatContinue || stat instanceof AstStatReturn;
 }
 
+/** Not part of Luau: the keywords that end or divide a block (see `ParseError.follows`). */
+const BLOCK_DELIMITERS: ReadonlySet<number> = new Set([
+  LexemeType.ReservedEnd,
+  LexemeType.ReservedElse,
+  LexemeType.ReservedElseif,
+  LexemeType.ReservedUntil,
+  LexemeType.ReservedThen,
+  LexemeType.ReservedDo,
+]);
+
 /** Not part of Luau: whether a lexeme type closes a bracket (see `ParseError.follows`). */
+/** Not part of Luau: whether one position comes after another (see `ParseError.follows`). */
+function isAfter(a: Position, b: Position): boolean {
+  return a.line > b.line || (a.line === b.line && a.column > b.column);
+}
+
 function isBracketCloser(type: number): boolean {
   return type === Ch.RightParen || type === Ch.RightBrace || type === Ch.RightBracket;
 }
@@ -1961,7 +1990,7 @@ class Parser {
       const error = holder.lastErrorBegin;
       const expected = this.lastExpected;
       const unresolved = error && (!expected || error.line > expected.line || (error.line === expected.line && error.column > expected.column));
-      this.lastStatement = unresolved ? holder : undefined;
+      this.lastStatement = unresolved ? { ...holder, previous: undefined, hasSemicolon: false, endedInRecovery: true } : undefined;
     }
 
     while (!this.blockFollow(this.lexer.current())) {
@@ -1975,7 +2004,12 @@ class Parser {
         previous: this.lastStatement,
         lastErrorBegin: undefined,
         lastErrorLine: -1,
+        afterError: undefined,
+        lastErrorEnd: undefined,
+        failedAtStart: false,
+        keywordAsName: false,
         hasSemicolon: false,
+        endedInRecovery: false,
       };
       this.recoveryStatement = statement;
 
@@ -1983,6 +2017,21 @@ class Parser {
 
       this.recoveryStatement = enclosing;
       this.lastStatement = statement;
+      // The statement ended in the parser's recovery when it never began
+      // (`x` in `x + 1`), read a statement's keyword as a missing name
+      // (`t.a.return 1`), or read nothing after its last error
+      // (`local a = 1 +` before a `local`); one that went on to read what it
+      // expected (`print(1, )`) ended as written.
+      // Reading the token the error is at, unless the parser expected it
+      // there (`print(1, )` reads its `)`), is still the recovery
+      // (`local x: ?number` reads the `?`).
+      const end = this.lexer.previousLocation();
+      const atError = statement.lastErrorEnd !== undefined && !isAfter(end.end, statement.lastErrorEnd) && !this.lastExpected?.equals(end.begin);
+      statement.endedInRecovery =
+        statement.failedAtStart ||
+        statement.keywordAsName ||
+        (statement.afterError !== undefined && end.equals(statement.afterError)) ||
+        atError;
 
       this.recursionCounter = oldRecursionCount;
 
@@ -2095,7 +2144,17 @@ class Parser {
     }
 
     // skip unexpected symbol if lexer couldn't advance at all (statements are parsed in a loop)
-    if (start.equals(this.lexer.current().location)) this.nextLexeme();
+    if (start.equals(this.lexer.current().location)) {
+      // Not part of Luau (see `ParseError.follows`): a `;` skipped here still
+      // ends the statement before it, and a bracket skipped here is one the
+      // parser gives up on (`{1 +}`).
+      const skipped = this.lexer.current().type;
+      this.nextLexeme();
+      const statement = this.recoveryStatement;
+      if (statement && skipped === Ch.Semicolon) statement.hasSemicolon = true;
+      const closer = skipped === Ch.LeftBrace ? Ch.RightBrace : skipped === Ch.LeftBracket ? Ch.RightBracket : skipped === Ch.LeftParen ? Ch.RightParen : undefined;
+      if (closer !== undefined) this.abandonedClosers.push({ type: closer, errorCount: this.parseErrors.length });
+    }
 
     return this.reportStatError(expr.location, [expr], [], "Incomplete statement: expected assignment or a function call");
   }
@@ -4071,6 +4130,8 @@ class Parser {
 
         end = this.lexer.previousLocation().end;
       } else {
+        // Not part of Luau (see `ParseError.follows`).
+        this.lastExpected = this.lexer.current().location.begin;
         this.nextLexeme();
       }
 
@@ -4457,8 +4518,17 @@ class Parser {
       this.lexer.current().location.begin.line === previous.line
     ) {
       const result: Name = { name: this.lexer.current().name!, location: this.lexer.current().location };
+      const keyword = this.lexer.current().type;
 
       this.nextLexeme();
+
+      // Not part of Luau (see `ParseError.follows`): reading a keyword that
+      // begins a statement is the recovery from the error at it, so what
+      // follows on its line is that statement's (`t.a.return 1`); after a
+      // keyword that ends a block, the author's next statement begins
+      // (`do y = t.a. end 1 +`).
+      if (this.recoveryStatement && !BLOCK_DELIMITERS.has(keyword)) this.recoveryStatement.keywordAsName = true;
+      else this.lastExpected = result.location.begin;
 
       return result;
     }
@@ -5022,11 +5092,17 @@ class Parser {
     // `return`, then `Incomplete statement` from `t`).
     const earlier = statement.lastErrorBegin;
     const { line, column } = location.begin;
-    if (error && earlier && (line < earlier.line || (line === earlier.line && column <= earlier.column))) error.follows = true;
+    const consequence = earlier !== undefined && (line < earlier.line || (line === earlier.line && column <= earlier.column));
+    if (error && consequence) error.follows = true;
+    // A statement whose first error is at its first token never began, and
+    // what the parser reads after it there is its recovery (`{1 +}` reads
+    // `{1 +}` as a call's table argument after the error at `{`).
+    if (error && statement.failedAtStart) error.follows = true;
     statement.lastErrorBegin = location.begin;
     if (location.begin.equals(statement.begin)) {
+      if (earlier === undefined) statement.failedAtStart = true;
       const previous = statement.previous;
-      if (error && previous && previous.lastErrorLine >= location.begin.line && !previous.hasSemicolon) error.follows = true;
+      if (error && previous && previous.endedInRecovery && previous.lastErrorLine >= location.begin.line && !previous.hasSemicolon) error.follows = true;
       // A closer where a statement must begin closes the last bracket of its
       // kind the parser gave up on, and everything since follows. The parser
       // gives up on nested brackets from the innermost out, so the others it
@@ -5044,6 +5120,13 @@ class Parser {
       }
     }
     statement.lastErrorLine = Math.max(statement.lastErrorLine, location.end.line);
+    // A consequence reported after the parser read on (`Incomplete statement`
+    // after `t.a.` takes `end` as the name) does not move where the error
+    // left the parser.
+    if (!consequence) {
+      statement.afterError = this.lexer.previousLocation();
+      statement.lastErrorEnd = location.end;
+    }
   }
 
   private reportNameError(context: string | undefined): void {

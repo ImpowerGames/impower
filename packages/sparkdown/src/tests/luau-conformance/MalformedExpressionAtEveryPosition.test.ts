@@ -312,6 +312,32 @@ describe("the reported layouts", () => {
       "1:12-1:14 Expected identifier when parsing expression, got 'do'",
       "1:15-1:16 Incomplete statement: expected assignment or a function call",
     ]],
+    // Round 6, found by checking pairs of independent mistakes against
+    // Luau's parser: a statement that read on as written after its error
+    // (`print(1, )`, `()`) is followed by one of the author's own, and so is
+    // one after a block a keyword read as a name closed (`do ... t.a. end`);
+    // a statement that never began (`{1 +}`, `'a' ..`) is read as a call
+    // there; a skipped `;` still ends a statement; and a keyword read as a
+    // missing name takes the rest of its line (`t.a. if 1 then end`).
+    ["function f(t)\n  print(1, ) 1 +\nend", [
+      "1:11-1:12 Expected expression after ',' but got ')' instead",
+      "1:13-1:14 Expected identifier when parsing expression, got '1'",
+    ]],
+    ["function f(t)\n  local y = () 1 +\nend", [
+      "1:13-1:14 Expected identifier when parsing expression, got ')'",
+      "1:15-1:16 Expected identifier when parsing expression, got '1'",
+    ]],
+    ["function f(t)\n  do y = t.a. end 1 +\nend", [
+      "1:14-1:17 Expected identifier, got 'end'",
+      "1:18-1:19 Expected identifier when parsing expression, got '1'",
+    ]],
+    ["function f(t)\n  {1 +}\nend", ["1:2-1:3 Expected identifier when parsing expression, got '{'"]],
+    ["function f(t)\n  x = 1 'a' ..\nend", ["1:8-1:11 Expected identifier when parsing expression, got \"a\""]],
+    ["function f(t)\n  ; 1 +\nend", [
+      "1:2-1:3 Expected identifier when parsing expression, got ';'",
+      "1:4-1:5 Expected identifier when parsing expression, got '1'",
+    ]],
+    ["function f(t)\n  local y = t.a. if 1 then end\nend", ["1:17-1:19 Expected identifier, got 'if'"]],
     ["function f(t)\n  print((1 + local y = 2)) local z = 3 +;\nend", [
       "1:13-1:18 Expected identifier when parsing expression, got 'local'",
       "1:40-1:41 Expected identifier when parsing expression, got ';'",
@@ -377,6 +403,13 @@ describe("the reported layouts", () => {
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
     // Round 3: a line break inside a comment ends the line too.
     ["function f(t)\n  store x = 0xZ --[[\n  ]] 2\nend", ["1:12-1:15 Malformed number", "2:5-2:6 Expected identifier when parsing expression, got '2'"]],
+    // Round 6: what follows a keyword read as a missing name on its line is
+    // that statement's recovery, past a value it reads on (Luau's function
+    // ends at the `end` the `then end` there gives it).
+    ["function f(t)\n  local a, b = 1, t.a. if {1 +} then end\nend", [
+      "1:23-1:25 Expected identifier, got 'if'",
+      "1:30-1:31 Expected identifier when parsing expression, got '}'",
+    ]],
     // A keyword on the line after a `.` with no name begins a statement.
     ["function f(t)\n  store x = t.a.\n  return 1 +;\nend", [
       "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
