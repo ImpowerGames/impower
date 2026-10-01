@@ -65,6 +65,41 @@ end
     expect(formatSource(source)).toBe(source);
   });
 
+  test("a handler that spans lines is formatted as the Luau code it is", () => {
+    // #1225, round 1 (comment 5940793507, finding 3): the statements of a
+    // closure that spans lines are Luau, so they take Luau's spacing, as a
+    // one-line closure's do; before #1225 they were struct body lines. The
+    // continuation lines around them keep their place.
+    const source = `layout popup with
+  button
+    .fancy
+    @click={
+      score=score+1
+      combo=combo*2
+    }
+  column {
+    button "Go" @click={
+      score=0
+    } "Done"
+  }
+end
+`;
+    expect(formatSource(source)).toBe(`layout popup with
+  button
+    .fancy
+    @click={
+      score = score + 1
+      combo = combo * 2
+    }
+  column {
+    button "Go" @click={
+      score = 0
+    } "Done"
+  }
+end
+`);
+  });
+
   test("lines inside a block keep their indentation, and the lines after it keep their level", () => {
     const source = `layout hud with
       column.panel {

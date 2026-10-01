@@ -617,8 +617,10 @@ variables:
   SPARKLE_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?![-](?:{{WS}}|$))(?:{{SPARKLE_SCAN_TOKEN}})*?(?=[{}]|{{SPARKLE_EVENT_NAME}}{{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}}))
   # A line that continues the element above it: one that starts with a
   # class's `.`, an attribute's `#` or `@`, or a quote
-  # (`LuauSparkleElementContinuation`).
-  SPARKLE_CONTINUATION_START: (?:{{WS}}*[.#@"'])
+  # (`LuauSparkleElementContinuation`), but not a property with a quoted key
+  # (`"color" = white`), which a block reads as a property
+  # (`LuauStructBlockProperty`) and which ends the element before it.
+  SPARKLE_CONTINUATION_START: (?:{{WS}}*(?!{{STRUCT_BLOCK_PROPERTY_HEAD}}(?!{{WS}}*[{]))[.#@"'])
   # An unclosed block ends where a line starts with `end`, `else`, `elseif`
   # or `case`, which close the declaration or a control block around it, or
   # at the next `scene` or `branch`.
@@ -6150,7 +6152,7 @@ repository:
   # starts with `{` is the element's block, read as a block with no element
   # before it and joined the same way.
   LuauSparkleElementContinuation:
-    begin: ^({{WS}}*)(?=[.#@"'])
+    begin: ^(?={{SPARKLE_CONTINUATION_START}})({{WS}}*)
     beginCaptures:
       1:
         emit: true

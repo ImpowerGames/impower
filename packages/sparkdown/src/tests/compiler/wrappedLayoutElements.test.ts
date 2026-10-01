@@ -262,6 +262,49 @@ end
     ]);
   });
 
+  test("a property with a quoted key is a property, and ends the element before it", () => {
+    // Round 1 (comment 5940793507, finding 1).
+    const text = `layout hud with
+  column {
+    button
+    "color" = white
+    .after
+  }
+end
+`;
+    const { tree, struct } = lowered(text, "layout", "hud");
+    const [column] = tree.children;
+    expect(column.children).toHaveLength(1);
+    expect(column.children[0]).toMatchObject({ tag: "button", classes: [] });
+    expect(column.children[0].content).toBeUndefined();
+    // A quoted key sets no layout prop, as on origin/main.
+    expect(column.props).toEqual({});
+    expect(struct.column.button).toEqual({});
+    expect(errorsOf(text).map((e) => [e.line, e.text, e.message.split(".")[0]])).toEqual([
+      [4, ".after", "There is no element for this line to continue"],
+    ]);
+  });
+
+  test("a `}` that closes no block ends the element before it", () => {
+    // Round 1 (comment 5940793507, finding 2).
+    const text = `layout hud with
+  text
+  }
+  .after
+end
+`;
+    const [element] = lowered(text, "layout", "hud").tree.children;
+    expect(element.classes).toEqual([]);
+    expect(
+      errorsOf(text)
+        .map((e) => [e.line, e.text, e.message.split(".")[0]])
+        .sort((a, b) => (a[0] as number) - (b[0] as number)),
+    ).toEqual([
+      [2, "}", "Invalid syntax"],
+      [3, ".after", "There is no element for this line to continue"],
+    ]);
+  });
+
   test("a control block, a block, a stray `-` or header, and the declaration's `end` end it", () => {
     const text = `store busy = false
 layout hud with

@@ -25,9 +25,10 @@ import {
 // own, as a node of its own, since no pattern can see the element above it.
 // This joins each to the element it continues: the last element before it,
 // with only comments, blank lines and other continuations between, that has
-// no block yet. A property, a control block, an indented `name:` header or
-// `- item`, text that starts no entry, or an element's block ends the
-// element, and indentation plays no part. Both lowerers read an element's joined parts as if written on its
+// no block yet. A property (a quoted key included), a control block, an
+// indented `name:` header or `- item`, a `}` that closes no block, text that
+// starts no entry, or an element's block ends the element, and indentation
+// plays no part. Both lowerers read an element's joined parts as if written on its
 // line, and the validator reports a continuation or block that follows no
 // element.
 
@@ -100,12 +101,14 @@ function firstNamed(node: SyntaxNode, names: Set<string>): SyntaxNode | null {
 }
 
 // Text in a block that starts no entry: an indented form's `name:` header or
-// `- ` mark, or anything else no entry reads. It is reported, and it ends the
-// element before it, as any entry other than a continuation does.
+// `- ` mark, a `}` that closes no block, or anything else no entry reads. It
+// is reported, and it ends the element before it, as any entry other than a
+// continuation does.
 const INVALID_ENTRY_NAMES = nodeNameSet([
   "LuauStructBlockIndentedHeader",
   "LuauStructBlockItemMark",
   "LuauSparkleBlockUnknown",
+  "LuauStructStrayBlockClose",
 ]);
 
 /** A block's entries, and the invalid text between them, in source order. */
