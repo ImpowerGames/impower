@@ -47,6 +47,41 @@ export const UPSTREAM_PATCHES: Record<string, UpstreamPatch[]> = {
         "empty {} is a malformed interpolation in a sparkdown double-quoted string; single quotes are the literal form and denote the same string",
     },
   ],
+  // The same patch class for errors.luau, which the conformance run skips
+  // (it needs a runtime compiler) but the syntax-agreement test
+  // (`src/tests/compiler/luauSyntaxAgreement.test.ts`) reads: its source
+  // chunks are double-quoted strings holding table constructors, which a
+  // sparkdown double-quoted string reads as interpolations. Single quotes, or a
+  // long string where the text holds single quotes, are the literal forms and
+  // denote the same strings.
+  "errors.luau": [
+    ...[
+      `assert(doit("unpack({}, 1, n=2^30)"))`,
+      `checkmessage("a={}; do local a=1 end a:bbbb(3)", "method 'bbbb'")`,
+      `checkmessage("local a={}; a.bbbb(3)", "field 'bbbb'")`,
+      `assert(not string.find(doit("a={13}; local bbbb=1; a[bbbb](3)"), "'bbbb'"))`,
+      `checkmessage("a={13}; local bbbb=1; a[bbbb](3)", "number")`,
+      `checkmessage("local aaa={bbb=1}; aaa.bbb:ddd(9)", "field 'bbb'")`,
+      `checkmessage("local aaa={bbb={}}; aaa.bbb:ddd(9)", "method 'ddd'")`,
+      `assert(not doit("local aaa={bbb={ddd=next}}; aaa.bbb:ddd(nil)"))`,
+      `checkmessage("aaa={}; x=3/aaa", "global 'aaa'")`,
+      `checkmessage("aaa={}; x=-aaa", "global 'aaa'")`,
+      `assert(not string.find(doit("aaa={}; x=(aaa or aaa)+(aaa and aaa)"), "'aaa'"))`,
+      `assert(not string.find(doit("aaa={}; (aaa or aaa)()"), "'aaa'"))`,
+      `testrep("a=", "{")`,
+    ].map((find) => ({
+      find,
+      replace: find.replace(/"([^"']*[{}][^"']*)"/g, "'$1'"),
+      reason:
+        "a brace in a sparkdown double-quoted string begins an interpolation; single quotes are the literal form and denote the same string",
+    })),
+    {
+      find: `"'}' expected (to close '{' at line 1)"`,
+      replace: `[['}' expected (to close '{' at line 1)]]`,
+      reason:
+        "a brace in a sparkdown double-quoted string begins an interpolation; the text holds single quotes, so a long string is its literal form",
+    },
+  ],
   "basic.luau": [
     {
       find: `assert((function() local a = {} for k,v in pairs({1, 2, 3, a=5, b=6, c=7}) do a[#a+1] = v end return table.concat(a, ',') end)() == "1,2,3,5,7,6")`,
