@@ -1,6 +1,8 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Expression } from "./Expression";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 // Call an arbitrary expression value (closure, DivertTargetValue, or
 // `__call`-equipped table) with a list of pre-evaluated args. The
@@ -58,6 +60,19 @@ export class CallValueExpression extends Expression {
       container.AddContent(RuntimeControlCommand.PopEvaluatedValue());
     }
   };
+
+  // The arguments, the callable, then `CallValue` with the number of
+  // arguments, and `Pop` where the value is discarded.
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    for (const arg of this.args) {
+      emitter.emitObject(arg);
+    }
+    emitter.emitObject(this.targetExpression);
+    emitter.emit(Op.CallValue, 0, this.args.length);
+    if (this.shouldPopReturnedValue) {
+      emitter.emit(Op.Pop);
+    }
+  }
 
   public override readonly toString = (): string =>
     `${this.targetExpression}(${this.args.map((a) => a.toString()).join(", ")})`;

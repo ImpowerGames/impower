@@ -23,6 +23,7 @@ import { DebugMetadata } from "../../../../engine/DebugMetadata";
 import { ControlCommand as RuntimeControlCommand } from "../../../../engine/ControlCommand";
 import { Wrap } from "../Wrap";
 import { Conditional } from "../Conditional/Conditional";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
 
 // Where the enclosing code creates the value of `flow`, a function the
 // lowering names itself (an anonymous function, a `local function`, a
@@ -272,6 +273,17 @@ export abstract class FlowBase extends ParsedObject implements INamedContent {
 
   get name(): string | null {
     return this.identifier?.name || null;
+  }
+
+  /** A function a statement's objects hold is one the story left in the
+   *  block it is written in, whose container runs there as the block's
+   *  content (a function the story takes out is a flow of the program, and
+   *  one a statement creates as a value is not among its objects). */
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (!this.isFunction) {
+      emitter.unsupported(this.typeName);
+    }
+    emitter.emitFunctionInPlace(this);
   }
 
   public args: Argument[] | null = null;

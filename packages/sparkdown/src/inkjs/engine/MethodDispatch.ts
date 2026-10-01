@@ -38,6 +38,7 @@ import {
   StringValue,
 } from "./Value";
 import { StoryException } from "./StoryException";
+import { oneValue, spreadCallArgs } from "./CallArgs";
 // LuaPatterns is a pure leaf module (zero imports), so a static
 // import is cycle-safe — the lazy `require("./LuaPatterns")` this
 // replaces failed under vitest's ESM transform ("Cannot find module")
@@ -784,12 +785,13 @@ export function callBuiltinMethod(
   // Single-value adjustment of the RECEIVER slot: a multi-return in
   // receiver position truncates to its first value —
   // `select(2, pcall(...)):match(...)` calls :match on select's
-  // (single-element) multi-return (math.luau line 258).
-  if (params.length > 0 && params[0] instanceof MultiValue) {
-    params = [
-      (params[0] as MultiValue).values[0] ?? new NullValue(),
-      ...params.slice(1),
-    ];
+  // (single-element) multi-return (math.luau line 258) — and a call that
+  // returned none gives nil. The arguments after it are a call's: each
+  // but the last one value and the last spread (`("x"):rep(two())`).
+  if (params.length > 0) {
+    const args = params.slice(1);
+    spreadCallArgs(args);
+    params = [oneValue(params[0]!), ...args];
   }
   return impl(params);
 }

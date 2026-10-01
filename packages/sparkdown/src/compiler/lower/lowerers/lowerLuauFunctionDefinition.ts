@@ -26,13 +26,19 @@ import {
   buildClosureExpression,
   collectImmediateBodyDeclarations,
   countUserParameters,
+  recordCaptureRead,
   scanFreeVariables,
+  shadowSiblingSubFlow,
 } from "../expression/lowerExpression";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { syntheticId } from "../utils/documentTag";
+import {
+  closeFunctionBody,
+  openFunctionBody,
+} from "../utils/statementShape";
 
 // `function name(args) BODY end` → Knot(name, [], args, isFunction=true) with
 // the body content placed in the Knot's _rootWeave. parseIncrementally
@@ -119,14 +125,12 @@ export function lowerLuauFunctionDefinition(
       : "";
     const isLocal = scopeText === "local";
     // Variadic functions (`function f(a, ...) ... end`) keep the
-    // legacy subFlow-knot form rather than converting to a local
-    // closure. Static-dispatch is the only path that handles the
-    // call-site `PackTuple` for the `...` slot today; routing
-    // through `CallValueAsFunction` would need extra runtime work to
-    // pack surplus args without the lowerer knowing the target's
-    // arity. Trade-off: no upvalue capture for variadic functions
-    // — acceptable for V1 since varargs use rarely overlaps with
-    // closure capture in practice.
+    // subFlow-knot form rather than converting to a local closure: a
+    // call reaches them by path, passing the upvalues they capture
+    // before its own arguments (`lowerNestedAsSubFlow`), and packs
+    // their `...` when it runs, as every call arranges its arguments
+    // (`arrangeArgsFor`). A `local` of the name hides the subflow for
+    // the rest of its block (`shadowSiblingSubFlow`).
     const argsPreview = lowerArguments(nodeRef.node, ctx);
     const isVariadic =
       argsPreview.length > 0 && !!argsPreview[argsPreview.length - 1]!.isVararg;
@@ -177,13 +181,15 @@ export function lowerLuauFunctionDefinition(
   // `LowerContext`).
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
-  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, nodeRef.node);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
   const knot = new Knot(identifier, [], args, true);
+  closeFunctionBody(ctx, shape, knot, nodeRef.node, hoistedDecls);
   // A definition closes at its `end` or just before a following `scene` or
   // `branch`, and records either as its end. One whose body holds story
   // lines closes incomplete at the first of them, and the rest of its body,
@@ -254,6 +260,7 @@ function lowerNestedNamedFunction(
   if (isSelfReferential && !upvals.includes(selfName)) {
     upvals.push(selfName);
   }
+  recordCaptureRead(ctx, upvals);
 
   const fn = buildAnonymousFunction(node, synthName, ctx, upvals);
   if (!fn) {
@@ -336,7 +343,9 @@ function lowerNestedNamedFunction(
     return wrapInWeave([assignClosure]);
   }
 
-  // Local (or no enclosing hoist buffer — top-level chunk).
+  // Local (or no enclosing hoist buffer — top-level chunk). The local
+  // hides a variadic function of its name for the rest of its block.
+  shadowSiblingSubFlow(selfName, ctx);
   if (isSelfReferential) {
     const declareNil = new VariableAssignment({
       variableIdentifier: new Identifier(selfName),
@@ -359,9 +368,9 @@ function lowerNestedNamedFunction(
   return wrapInWeave([declaration]);
 }
 
-// Variadic nested fns keep the legacy "subFlow `Function` attached to
-// the enclosing flow" shape so their call sites can reach the static-
-// dispatch path that handles `PackTuple` for the `...` slot.
+// Variadic nested fns keep the "subFlow `Function` attached to the
+// enclosing flow" shape, which their call sites reach by path; the call
+// packs the `...` slot when it runs (`arrangeArgsFor`).
 // Upvalue capture works by prepending the body's free variables as
 // PARAMETERS (the same shape closures use): every call site prepends
 // matching `VariablePointerExpression`s (see the sibling-subflow
@@ -419,6 +428,7 @@ function lowerNestedAsSubFlow(
   // the scan binds the fn's params/locals internally and consults the
   // ENCLOSING declared-locals stack for what needs capturing.
   const upvals = scanFreeVariables(node, ctx);
+  recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
   );
@@ -437,7 +447,8 @@ function lowerNestedAsSubFlow(
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
-  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, node);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
@@ -447,6 +458,7 @@ function lowerNestedAsSubFlow(
     [...innerHoisted, ...body, ...nested],
     [...upvalArgs, ...args],
   );
+  closeFunctionBody(ctx, shape, fn, node, innerHoisted);
   fn._outsideBlocks = isWrittenInFunctionBody(node);
   enclosingScope.push(fn);
   return {};
@@ -559,6 +571,7 @@ function lowerPropertyTargetFunctionDefinition(
   const upvals = scanFreeVariables(node, ctx).filter(
     (n) => !(isColonForm && n === "self"),
   );
+  recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
   );
@@ -581,7 +594,8 @@ function lowerPropertyTargetFunctionDefinition(
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
-  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, node);
+  const body = lowerStatements(content, ctx, FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
@@ -592,6 +606,7 @@ function lowerPropertyTargetFunctionDefinition(
     [...innerHoisted, ...body, ...nested],
     finalArgs,
   );
+  closeFunctionBody(ctx, shape, fn, node, innerHoisted);
 
   const stack = ctx.functionScopeStack;
   const enclosingScope =

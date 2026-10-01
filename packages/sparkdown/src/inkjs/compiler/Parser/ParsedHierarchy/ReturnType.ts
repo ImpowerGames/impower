@@ -4,6 +4,8 @@ import { Container as RuntimeContainer } from "../../../engine/Container";
 import { ControlCommand as RuntimeControlCommand } from "../../../engine/ControlCommand";
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Void } from "../../../engine/Void";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
+import { ConstValue, Op } from "../../../../program/ProgramInstructions";
 
 export class ReturnType extends ParsedObject {
   public returnedExpression: Expression | null = null;
@@ -20,6 +22,16 @@ export class ReturnType extends ParsedObject {
 
   override get typeName(): string {
     return "ReturnType";
+  }
+
+  // The returned value, or void, then `Return`.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    if (this.returnedExpression) {
+      emitter.emitObject(this.returnedExpression);
+    } else {
+      emitter.emit(Op.Const, 0, ConstValue.Void);
+    }
+    emitter.emit(Op.Return);
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

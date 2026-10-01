@@ -5,11 +5,10 @@
 // syntax and should fire at runtime.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileAndRun(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -51,7 +50,7 @@ end
 `;
     const { result, errs } = compileAndRun(src);
     expect(errs).toEqual([]);
-    const story = new RuntimeStory(
+    const story = testStory(
       result.program.compiled as Record<string, any>,
     );
     const recorded: unknown[] = [];
@@ -75,7 +74,7 @@ end
 `;
     const { result, errs } = compileAndRun(src);
     expect(errs).toEqual([]);
-    const story = new RuntimeStory(
+    const story = testStory(
       result.program.compiled as Record<string, any>,
     );
     const recorded: unknown[] = [];
@@ -111,7 +110,7 @@ end
 `;
     const { result, errs } = compileAndRun(src);
     expect(errs).toEqual([]);
-    const story = new RuntimeStory(
+    const story = testStory(
       result.program.compiled as Record<string, any>,
     );
     const recorded: unknown[] = [];

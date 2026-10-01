@@ -16,6 +16,12 @@ import {
   lowerExpressionFromNodes,
 } from "../expression/lowerExpression";
 import {
+  chainedLinksAfter,
+  chainedStoreOperation,
+  lowerChainedTargetStore,
+  nextNonBridge,
+} from "../lower";
+import {
   splitOnCommas,
   takeLineContinuation,
 } from "../utils/lineContinuation";
@@ -129,6 +135,9 @@ function lowerExplicitStatementContent(
   );
   if (multiTargetResult) return multiTargetResult;
 
+  const chained = lowerChainedStatement(nodeRef.node, continuation, ctx);
+  if (chained) return chained;
+
   const lhsPath = getDescendent("LuauAccessPath", nodeRef.node);
   if (!lhsPath) return {};
   // Look for the assignment operator as a SIBLING of `lhsPath`, not a
@@ -228,6 +237,57 @@ function lowerExplicitStatementContent(
     assignedExpression: expr ?? undefined,
   });
   return wrapInWeave([va]);
+}
+
+// A statement that starts with a call or a parenthesized value followed by
+// links stores or calls through them, as an implicit statement does
+// (`lowerStatementAt`): a store through the last link (`& o.get().a.x += 2`,
+// `& (t)[k] = v`), or a call of every link (`& o:me():bump()`,
+// `& (o):bump()`). The access path ends at the call's name, so the paths
+// below would read `o.get` as the target and drop the links. Null for a
+// statement with no such links, and for links that end in neither a store
+// nor a call's arguments.
+function lowerChainedStatement(
+  stmtNode: SyntaxNode,
+  continuation: SyntaxNode[],
+  ctx: LowerContext,
+): CompiledBlock | null {
+  const content = findChildByName(stmtNode, "LuauExplicitStatement_content");
+  let head = content?.firstChild ?? null;
+  while (head && isSkippableName(head.name)) head = head.nextSibling;
+  if (!head) return null;
+  // The parenthetical the links follow: the parenthesized value, or the
+  // arguments of the call the access path names (`o:me` then `()`).
+  const args = head.name === "LuauAccessPath" ? nextNonBridge(head) : null;
+  const call =
+    head.name === "LuauParenthetical"
+      ? head
+      : args?.name === "LuauParenthetical"
+        ? args
+        : null;
+  if (!call) return null;
+  const links = chainedLinksAfter(call);
+  if (links.length === 0) return null;
+  const baseNodes = call === head ? [head] : [head, call];
+  const opNode = chainedStoreOperation(links);
+  if (opNode) {
+    return (
+      lowerChainedTargetStore(baseNodes, links, opNode, ctx, continuation) ?? {}
+    );
+  }
+  if (links[links.length - 1]!.name !== "LuauParenthetical") return null;
+  const callExpr = lowerExpressionFromNodes(
+    [...baseNodes, ...links, ...continuation],
+    ctx,
+  );
+  if (
+    callExpr instanceof FunctionCall ||
+    callExpr instanceof CallValueExpression
+  ) {
+    callExpr.shouldPopReturnedValue = true;
+    return wrapInWeave([callExpr]);
+  }
+  return {};
 }
 
 // Walk the explicit statement's content children. If there's at least

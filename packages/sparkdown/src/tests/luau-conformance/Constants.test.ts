@@ -1,9 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileAndCapture(source: string): { errors: string[]; recorded: unknown[] } {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       { uri: "inmemory:///main.sd", type: "script", name: "main", ext: "sd",
@@ -13,7 +12,7 @@ function compileAndCapture(source: string): { errors: string[]; recorded: unknow
   const result = compiler.compile({ textDocument: { uri: "inmemory:///main.sd" } });
   const errors: string[] = [];
   if (!result.program.compiled) return { errors: ["NO_COMPILED"], recorded: [] };
-  const story = new RuntimeStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.compiled as Record<string, any>);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => { recorded.push(v); return v; });
   story.onError = (m: string) => errors.push(m);

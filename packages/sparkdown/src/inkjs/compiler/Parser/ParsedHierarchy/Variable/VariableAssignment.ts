@@ -173,6 +173,7 @@ export class VariableAssignment extends ParsedObject {
       // A statement the parser reported, whose value is missing.
       emitter.unsupported("an assignment without a value");
     }
+    emitter.recordResolution(this.resolutionKey);
     emitter.emitObject(this.expression);
     emitter.emit(
       Op.SetVar,
@@ -180,6 +181,20 @@ export class VariableAssignment extends ParsedObject {
       0,
       this.isNewTemporaryDeclaration ? SET_DECLARE : 0,
     );
+  }
+
+  /** How the assignment assigns its name, as a chunk records it: it declares
+   *  a local, or assigns a variable already there. A statement's own text
+   *  does not always say which: a function a function declares without
+   *  `local` is assigned to the local its lowering hoisted to the top of the
+   *  function around it, and declared where no function is around it. A name
+   *  the compiler generates, which it numbers by document order, is recorded
+   *  without its number. */
+  get resolutionKey(): string {
+    const name = /^__synth_\d+$/.test(this.variableName)
+      ? "__synth"
+      : this.variableName;
+    return `set:${name}:${this.isNewTemporaryDeclaration ? "local" : "assign"}`;
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject | null => {

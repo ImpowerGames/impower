@@ -44,7 +44,7 @@ A story's bytecode is a tree of `Container`s. Each container has an array of chi
 | `{"VAR?": "name"}` | Variable reference — push the variable's value onto the eval stack |
 | `{"VAR=": "name"}` | Variable assign — pop value, assign to variable |
 | `{"temp=": "name"}` | Temp-var bind — pop value, bind as function parameter |
-| `{"f()": "target"}` | Function call (or knot divert that returns) |
+| `{"f()": "target", "argc": 2}` | Function call (or knot divert that returns); `argc` is how many arguments the call pushed, which the call adjusts to the function's parameters as Luau passes them (surplus dropped, missing nil, a variadic function's extras packed) |
 | `{"->": "target"}` | Divert (unconditional flow transfer) |
 | `{"->": "target", "c": true}` | Conditional divert (only if top-of-stack is truthy) |
 | `"pop"` | Pop and discard top of eval stack (used for discard calls) |
@@ -189,7 +189,7 @@ When the lowerer emits `wrapInScope([...])` around an if-body, those translate t
 Two related runtime objects:
 
 - **`FunctionCall`** (parsed-hierarchy) — emits a `Divert` to the target with `pushesToStack = true, stackPushType = PushPopType.Function`. The runtime treats this as a function call: pushes a stack element, jumps to the target, returns when the target returns.
-- **`{"f()": "name"}`** in bytecode — the serialized form.
+- **`{"f()": "name", "argc": n}`** in bytecode — the serialized form. `argc` is the number of arguments the call site pushes: the call arranges them for the function it enters as Luau passes a call's arguments (a last multi-return spreads and a call that returned nothing gives nothing, the surplus is dropped and missing parameters are nil, a variadic function's extras are packed for its `...`), whether the function is called by name, through a variable (`"var": true`) or as a value (`CallValueAsFunction`). A story written without `argc` spreads a last multi-return only.
 
 Built-in operators (`+`, `*`, `==`, `and`, `or`, `not`, `..`, `#`, etc.) are *also* function calls — they target `NativeFunctionCall`s registered at story creation. `NativeFunctionCall.Call(params)` handles operator dispatch by value type:
 

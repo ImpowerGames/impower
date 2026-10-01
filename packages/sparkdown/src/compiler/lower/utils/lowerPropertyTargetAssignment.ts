@@ -99,6 +99,22 @@ export function lowerPropertyTargetAssignment(
   );
   if (!valueExpr) return null;
 
+  return propertyStore(baseExpr, keyExpr, valueExpr, opText, lhsPath.from, ctx);
+}
+
+// The store `base[key] = value`, or for a compound operator (`+=`, `..=`,
+// …) its read-modify-write, the base and the key stashed in temporaries
+// named from the target's offset `from`, so each runs once. Shared by a
+// path's store and a store through what a call returns
+// (`o.get().a.x += 2`).
+export function propertyStore(
+  baseExpr: Expression,
+  keyExpr: Expression,
+  valueExpr: Expression,
+  opText: string | null,
+  from: number,
+  ctx: LowerContext,
+): ParsedObject[] {
   // Plain `=`: just one StorePropertyAssignment — no LHS reuse needed.
   if (!opText || opText === "=") {
     return [new StorePropertyAssignment(baseExpr, keyExpr, valueExpr)];
@@ -111,7 +127,7 @@ export function lowerPropertyTargetAssignment(
   // from incremental reparse — produces the same temp name, which is
   // a no-op on the second declaration.)
   const binOp = opText.slice(0, -1);
-  const id = syntheticId(lhsPath.from, ctx);
+  const id = syntheticId(from, ctx);
   const baseTempName = `__pa_base_${id}`;
   const keyTempName = `__pa_key_${id}`;
 

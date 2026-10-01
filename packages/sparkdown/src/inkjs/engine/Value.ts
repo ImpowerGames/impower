@@ -397,6 +397,72 @@ export class DivertTargetValue extends Value<Path> {
   }
 }
 
+/**
+ * The symbol a binary program's function value names
+ * (docs/engine/binary-program.md, section 10): the symbol's id, the table
+ * generation the id belongs to, and the symbol's qualified name, or nothing
+ * for a function written inside a statement, whose symbol is anonymous. Two
+ * refer to one function when they name it, or when they hold its anonymous
+ * symbol of one generation. `label` is how it prints, as the current engine
+ * prints a function's path.
+ */
+export class SymbolRef {
+  constructor(
+    public readonly symbol: number,
+    public readonly generation: number,
+    public readonly name: string | null,
+    public readonly label: string,
+  ) {}
+
+  public Equals(other: unknown): boolean {
+    if (!(other instanceof SymbolRef)) {
+      return false;
+    }
+    if (this.name !== null || other.name !== null) {
+      return this.name === other.name;
+    }
+    return (
+      this.symbol === other.symbol && this.generation === other.generation
+    );
+  }
+
+  public toString(): string {
+    return this.label;
+  }
+}
+
+/** A function or flow of a binary program held as a value: what the program
+ *  engine holds where the current engine holds a `DivertTargetValue`, with a
+ *  symbol in place of a path. It compares and prints as a divert target
+ *  does. */
+export class SymbolValue extends Value<SymbolRef> {
+  constructor(ref: SymbolRef) {
+    super(ref);
+  }
+  public get valueType() {
+    return ValueType.DivertTarget;
+  }
+  public get ref(): SymbolRef {
+    if (this.value === null) return throwNullException("Value.value");
+    return this.value;
+  }
+  public get isTruthy(): never {
+    throw new Error("Shouldn't be checking the truthiness of a divert target");
+  }
+
+  public Cast(newType: ValueType): Value<any> {
+    if (newType == this.valueType) return this;
+
+    throw this.BadCastException(newType);
+  }
+  public override toString() {
+    return "DivertTargetValue(" + this.ref.label + ")";
+  }
+  public override Copy() {
+    return new SymbolValue(this.ref);
+  }
+}
+
 export class VariablePointerValue extends Value<string> {
   public _contextIndex: number;
 

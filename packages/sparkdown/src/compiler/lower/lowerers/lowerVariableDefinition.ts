@@ -20,6 +20,7 @@ import { lower } from "../lower";
 import {
   lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
+  shadowSiblingSubFlow,
 } from "../expression/lowerExpression";
 import {
   continuationParts,
@@ -406,6 +407,11 @@ export function lowerVariableDefinition(
         expressions.length === 0 && !sawAssignmentOp
           ? [new NullExpression()]
           : expressions;
+      // Each local hides a variadic function of its name for the rest of
+      // its block, the statements after it on its line included.
+      for (const target of targetIdents) {
+        if (target.name) shadowSiblingSubFlow(target.name, ctx);
+      }
       return wrapInWeave(
         withTrailingStatements(
           [new MultiVariableAssignment(targetIdents, multiExprs, true)],
@@ -454,6 +460,11 @@ export function lowerVariableDefinition(
     isGlobalDeclaration: isGlobal,
     isTemporaryNewDeclaration: isTemp,
   });
+  // A local hides a variadic function of its name for the rest of its
+  // block, the statements after it on its line included.
+  if (isTemp && identifier.name) {
+    shadowSiblingSubFlow(identifier.name, ctx);
+  }
 
   return wrapInWeave(withTrailingStatements([va], trailingStatements, continuation, ctx));
 }

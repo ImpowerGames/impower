@@ -806,14 +806,17 @@ export class SparkdownCompiler {
   // barred from reuse and rebuilt so the diagnostic re-emits).
   protected _flowsWithGenDiagnostics = new WeakSet<object>();
   // Signature (arity + per-parameter flags) of every named flow last compile.
-  // A CALL SITE's bytecode depends on its CALLEE's parameter list — a trailing
-  // `...` makes the caller emit a `PackTuple` to fill the callee's varargs
-  // slot (see `Divert.GenerateRuntimeObject`) — and that is baked in at the
-  // CALLER's generation time. So editing a callee's signature must invalidate
-  // reuse of every flow that might call it, even though the caller's own
-  // chunks are untouched; otherwise the caller keeps argument-push bytecode
-  // for the old signature and the callee pops a different number of values,
-  // silently and with no diagnostic.
+  // A CALL SITE's bytecode depends on its CALLEE's parameter list — a
+  // by-reference parameter makes the caller push a pointer, and a divert to a
+  // flow whose parameters end with `...` packs the flow's varargs at the
+  // caller (see `Divert.GenerateRuntimeObject`; a function call leaves its
+  // arguments to be arranged when it runs) — and so do the call's argument
+  // diagnostics, all baked in at the CALLER's generation time. So editing a
+  // callee's signature must invalidate reuse of every flow that might call
+  // it, even though the caller's own chunks are untouched; otherwise the
+  // caller keeps argument-push bytecode and diagnostics for the old
+  // signature, and a divert's callee pops a different number of values,
+  // silently.
   protected _prevFlowSignatures?: Map<string, string>;
   // Per-file ordered ROOT-REGION STRUCTURE descriptors — `include`/`run`
   // targets and `EXTERNAL` name+arity. A change to this sequence disables all
@@ -901,9 +904,9 @@ export class SparkdownCompiler {
   //     disappears leaves stale inlined bytecode behind; and
   //   - `Divert.ResolveTargetContent` runs during GENERATION and consults
   //     `story.variableDeclarations`, so a global whose name matches a flow
-  //     shadows it and flips every call site from knot-call codegen (which
-  //     emits `PackTuple`/padding derived from the callee's parameters) to
-  //     variable-target codegen, which emits none of that.
+  //     shadows it and flips every call site from knot-call codegen (a
+  //     static divert, whose arguments follow the callee's parameters) to
+  //     variable-target codegen, a divert through the variable.
   //
   // Neither is visible to the per-chunk scan: a DELETED declaration appears
   // in no chunk at all. Names only — values may change freely, so editing a
@@ -3223,6 +3226,9 @@ export class SparkdownCompiler {
               bindingEvaluators.set(name, k);
             }
             topLevelFlowBaseObjs.push(k);
+            if (this._config.programChunks) {
+              this._placedBy.set(k, compiledBlock);
+            }
           }
         }
       }
@@ -4526,7 +4532,6 @@ export class SparkdownCompiler {
       {
         flows: flows.flows,
         declarations: flows.declarations,
-        functionBlocks: flows.functionBlocks,
         lineCount,
       },
       !this._previewing && !flows.fallback,

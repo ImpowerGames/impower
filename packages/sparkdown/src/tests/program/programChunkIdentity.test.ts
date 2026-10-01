@@ -20,12 +20,19 @@ import {
   type SymbolKindValue,
 } from "../../program/ProgramSymbols";
 import { ProgramStory } from "../../program/ProgramStory";
+import { cumulativeEdits } from "./cumulativeEdits";
+import { FUNCTION_INSERTS, functionScreenplay } from "./functionScreenplay";
 import {
   describeRoot,
   programCompiler,
   rootChunks,
   storyBeats,
 } from "./programHarness";
+import {
+  programStatements,
+  uniqueKeys,
+  untouchedChunks,
+} from "./programStatements";
 
 const MAIN = "inmemory:///main.sd";
 const CHARACTERS = "inmemory:///scripts/characters.sd";
@@ -51,10 +58,15 @@ function session(texts: Record<string, string>) {
   });
   let text = texts[MAIN]!;
   let version = 1;
-  let root = c.compile().program.chunks!;
+  let program = c.compile().program;
+  let root = program.chunks!;
   return {
     get root() {
       return root;
+    },
+    /** The program of the last compile. */
+    get program() {
+      return program;
     },
     get store() {
       return c.compiler.chunkStore!;
@@ -78,7 +90,7 @@ function session(texts: Record<string, string>) {
         ],
       });
       text = text.slice(0, offset) + replace + text.slice(offset + find.length);
-      const program = c.compile().program;
+      program = c.compile().program;
       expect(program.fallback).toBeUndefined();
       root = program.chunks!;
       return root;
@@ -170,6 +182,56 @@ describe("a recorded lowering input", () => {
       expect.arrayContaining([["target", "dialogue"], ["character", "RIVAL"]]),
     );
   });
+});
+
+// A `done` raises a hint over the statements after it in its scope, which its
+// lowering finds outside its own syntax and records. An edit far enough below
+// it that the reparse leaves it carried, but that changes those statements,
+// lowers it again although its own text is the same. The hint is not its
+// code, so the store keeps its chunk and emits only the statement added.
+describe("the statements a `done` leaves unreachable", () => {
+  const filler = Array.from({ length: 6 }, (_, i) => `Filler line ${i}.`);
+  const text = [
+    ...filler,
+    "scene intro",
+    "  Hello.",
+    "  done",
+    "  Never.",
+    "  Line 2.",
+    "  Line 3.",
+    "  Also never.",
+    "end",
+    ...filler,
+    "",
+  ].join("\n");
+  const hints = (program: { diagnostics?: Record<string, unknown[]> }) =>
+    ((program.diagnostics?.[MAIN] ?? []) as any[])
+      .filter((d) => String(d.message?.value ?? d.message).startsWith("Unreachable"))
+      .map(
+        (d) =>
+          `${d.range.start.line}:${d.range.start.character}-${d.range.end.line}:${d.range.end.character}`,
+      );
+
+  const edits: [string, string, string][] = [
+    ["one added after them", "  Also never.\n", "  Also never.\n  Still never.\n"],
+    ["one added among them", "  Line 3.\n", "  Line 3.\n  Line 3b.\n"],
+  ];
+  for (const [edit, find, replace] of edits) {
+    it(`are hinted as a cold compile hints them after an edit below the \`done\`: ${edit}`, () => {
+      const s = session({ [MAIN]: text });
+      s.edit("Filler line 0.", "Filler line 0!");
+      expect(hints(s.program)).toEqual(["9:0-12:13"]);
+      const after = s.edit(find, replace);
+      expect(s.store.emittedLastBuild).toBe(1);
+      const edited = text.replace("Filler line 0.", "Filler line 0!").replace(find, replace);
+      const cold = programCompiler(
+        { [MAIN]: edited },
+        { programChunks: true, seedBuiltinsIntoStory: true },
+      ).compile().program;
+      expect(hints(s.program)).toEqual(hints(cold));
+      expect(describeRoot(after)).toEqual(describeRoot(cold.chunks!));
+    });
+  }
 });
 
 // Tags written right after the inline text of a line are a statement of their
@@ -619,5 +681,360 @@ describe("a name a chunk reads", () => {
     const cold = programCompiler({ [MAIN]: text + added }, { programChunks: true }).compile().program;
     expect(cold.fallback?.construct).toBe("read count");
     expect(program.fallback).toEqual(cold.fallback);
+  });
+});
+
+// The root of a cold compile of `source`, and what the program engine shows
+// running a root.
+const coldRoot = (source: string) =>
+  programCompiler(
+    { [MAIN]: source },
+    { programChunks: true, seedBuiltinsIntoStory: true },
+  ).compile().program.chunks!;
+const shows = (root: ProgramRoot) =>
+  storyBeats(new ProgramStory(root)).beats.map((beat) => beat.text.trim());
+
+// A function a statement writes captures the names its body reads: the
+// statement's code passes them and binds them at the function's entry, as a
+// call of a variadic function passes them. The body's lines are not the
+// statement's syntax, so its lowering records them, and the store emits the
+// statement again when an edit to the body changes them, and only then.
+describe("a statement that writes a function", () => {
+  const demo = (fn: string[]) =>
+    [
+      "function demo()",
+      "  local a = 1",
+      "  local b = 2",
+      ...fn.map((l) => `  ${l}`),
+      "  return f()",
+      "end",
+      "Got {tostring(demo())}.",
+      "",
+    ].join("\n");
+  it.each([
+    ["a closure", ["local f = function()", "  return a", "end"], "return b", "Got 2."],
+    ["a local function", ["local function f()", "  return a", "end"], "return b", "Got 2."],
+    ["a function declared with `...`, and the call to it", ["function f(...)", "  return a", "end"], "return b", "Got 2."],
+    ["a closure whose body reads one more name", ["local f = function()", "  return a", "end"], "return a + b", "Got 3."],
+  ])("is emitted again when an edit to the body of %s changes the names it captures", (_name, fn, replace, line) => {
+    const text = demo(fn);
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 1."]);
+    const edited = s.edit("return a", replace);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("return a", replace))),
+    );
+    expect(shows(edited)).toEqual([line]);
+  });
+
+  // A method's `self` is its first parameter, not a capture: the method
+  // captures the other names its body reads.
+  const method = [
+    "function run()",
+    "  local a = 1",
+    "  local b = 5",
+    "  local t = { x = 2 }",
+    "  function t:m()",
+    "    return self.x + a",
+    "  end",
+    "  return t:m()",
+    "end",
+    "Got {run()}.",
+    "",
+  ].join("\n");
+  const methodChunk = (s: ReturnType<typeof session>) =>
+    programStatements(s.compiler).find(
+      (statement) => statement.from === method.indexOf("  function t:m()"),
+    )!.chunk;
+
+  it("is emitted again when an edit to a method's body changes the names it captures", () => {
+    const s = session({ [MAIN]: method });
+    expect(shows(s.root)).toEqual(["Got 3."]);
+    const owner = methodChunk(s);
+    const edited = s.edit("self.x + a", "self.x + b");
+    expect(methodChunk(s)).not.toBe(owner);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(method.replace("self.x + a", "self.x + b"))),
+    );
+    expect(shows(edited)).toEqual(["Got 7."]);
+  });
+
+  // An edit that moves the body's read of `self` before a captured local
+  // changes none of the statement's code.
+  it("keeps its chunk when an edit to a method's body changes no name it captures", () => {
+    const s = session({ [MAIN]: method });
+    expect(shows(s.root)).toEqual(["Got 3."]);
+    const before = s.root;
+    const owner = methodChunk(s);
+    const edited = s.edit("self.x + a", "a + self.x");
+    expect(methodChunk(s)).toBe(owner);
+    // Only the body's `return` is emitted again.
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(method.replace("self.x + a", "a + self.x"))),
+    );
+    expect(shows(edited)).toEqual(["Got 3."]);
+  });
+
+  // A closure calls a function declared with `...` in the same function by
+  // name and does not capture it, so an edit that swaps its calls of two
+  // such functions changes none of the statement's code.
+  it("keeps its chunk when an edit to a closure's body swaps its calls of two functions it does not capture", () => {
+    const text = [
+      "function run()",
+      "  function foo(...) return 1 end",
+      "  function bar(...) return 2 end",
+      "  local f = function()",
+      "    return foo() * 10 + bar()",
+      "  end",
+      "  return f()",
+      "end",
+      "Got {run()}.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 12."]);
+    const closure = () =>
+      programStatements(s.compiler).find(
+        (statement) => statement.from === text.indexOf("  local f = function()"),
+      )!.chunk;
+    const before = s.root;
+    const owner = closure();
+    const edited = s.edit("foo() * 10 + bar()", "bar() * 10 + foo()");
+    expect(closure()).toBe(owner);
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(
+        coldRoot(text.replace("foo() * 10 + bar()", "bar() * 10 + foo()")),
+      ),
+    );
+    expect(shows(edited)).toEqual(["Got 21."]);
+  });
+
+  // A function defined in an `if` block runs in place, where it stands: its
+  // statement's code binds the parameters and declares the hoisted locals,
+  // and the functions its body declares, with the closures they create, are
+  // other chunks' code. Its chunk refers to none of those closures, so it
+  // holds while they keep their symbols (the cumulative fuzz of the function
+  // screenplay, seed 2029, after an edit broke a scene's `end`).
+  it("keeps its chunk across an edit elsewhere when it runs in place and a function in its body creates a closure", () => {
+    const text = [
+      "if true then",
+      "  function outer()",
+      "    function inner()",
+      "      local by = function(a, b) return a > b end",
+      "      return by(2, 1)",
+      "    end",
+      "    result = inner()",
+      "  end",
+      "end",
+      "Got {result}.",
+      "More text.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got true.", "More text."]);
+    const outer = () =>
+      programStatements(s.compiler).find(
+        (statement) => statement.from === text.indexOf("  function outer()"),
+      )!.chunk;
+    const before = s.root;
+    const owner = outer();
+    const edited = s.edit("More text.", "More words.");
+    expect(outer()).toBe(owner);
+    // Only the edited line is emitted again.
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("More text.", "More words."))),
+    );
+    expect(shows(edited)).toEqual(["Got true.", "More words."]);
+  });
+
+  // The same function's entry declares the locals its body's functions,
+  // declared without `local`, hoist there, in their order, so an edit that
+  // swaps two of them emits it again, though its own syntax is unchanged.
+  it("is emitted again when it runs in place and an edit swaps two functions its body declares", () => {
+    const text = [
+      "if true then",
+      "  function outer()",
+      "    function a() return 1 end",
+      "    function b() return 2 end",
+      "    result = a() + b() * 10",
+      "  end",
+      "end",
+      "Got {result}.",
+      "",
+    ].join("\n");
+    const swapped = text.replace(
+      "    function a() return 1 end\n    function b() return 2 end",
+      "    function b() return 2 end\n    function a() return 1 end",
+    );
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 21."]);
+    const edited = s.edit(
+      "    function a() return 1 end\n    function b() return 2 end",
+      "    function b() return 2 end\n    function a() return 1 end",
+    );
+    expect(describeRoot(edited)).toEqual(describeRoot(coldRoot(swapped)));
+    expect(shows(edited)).toEqual(["Got 21."]);
+  });
+
+  // A `define` written in a `do` block is a global declaration placed with
+  // the block: the declaration's chunk builds the table and writes its
+  // methods, and the `define`'s own statement emits nothing where it is
+  // written. Its chunk refers to none of the methods' symbols, which the
+  // declaration gives them (the cumulative fuzz of the function screenplay,
+  // seed 2027, after an edit broke a `do` block's `end` above a `define`).
+  it("keeps the chunk of a `define` written in a `do` block across an edit elsewhere", () => {
+    const text = [
+      "do",
+      "  define Point with",
+      "    x = 2",
+      "    function get()",
+      "      return self.x",
+      "    end",
+      "  end",
+      "end",
+      "Got {new Point():get()}.",
+      "More text.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 2.", "More text."]);
+    const define = () =>
+      programStatements(s.compiler).find(
+        (statement) => statement.from === text.indexOf("  define Point with"),
+      )!.chunk;
+    const before = s.root;
+    const owner = define();
+    const edited = s.edit("More text.", "More words.");
+    expect(define()).toBe(owner);
+    // Only the edited line is emitted again.
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("More text.", "More words."))),
+    );
+    expect(shows(edited)).toEqual(["Got 2.", "More words."]);
+  });
+
+  // A function definition whose header the parser cannot read takes the
+  // parameters of the first parameter list in its body, which its syntax
+  // leaves out, so an edit to that list changes what the definition's entry
+  // binds without changing the statement's syntax (the cumulative fuzz of
+  // the capture screenplay, seed 3002).
+  it("is emitted again when an edit inside its body changes the parameters its header could not give it", () => {
+    const text = [
+      "function f + g(n)",
+      "  local h = function(",
+      "    a",
+      "  )",
+      "    return 1",
+      "  end",
+      "  return 2",
+      "end",
+      "Got it.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    const edited = s.edit("    a\n", "    a, b\n");
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("    a\n", "    a, b\n"))),
+    );
+    expect(shows(edited)).toEqual(["Got it."]);
+  });
+});
+
+// A `local` hides a variadic function of its name for the rest of its block,
+// and a closure written after it in the block captures the local where it
+// called the function before (`shadowSiblingSubFlow`). The closure's own
+// statement is unchanged by an edit that names the local after the function,
+// so its lowering records what it found the name to be, and the store emits
+// it again when that changes.
+describe("a statement whose meaning a block's local changes", () => {
+  const text = [
+    "function run()",
+    "  function foo(...) return 10 end",
+    "  do",
+    "    local zoo = function() return 5 end",
+    "    local bar = function()",
+    "      return foo()",
+    "    end",
+    "    return bar()",
+    "  end",
+    "end",
+    "Got {run()}.",
+    "",
+  ].join("\n");
+  const cold = coldRoot;
+
+  it("is emitted again when an edit names the local after the function, and when it names it back", () => {
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 10."]);
+    const shadowed = s.edit("local zoo", "local foo");
+    expect(describeRoot(shadowed)).toEqual(
+      describeRoot(cold(text.replace("local zoo", "local foo"))),
+    );
+    expect(shows(shadowed)).toEqual(["Got 5."]);
+    const restored = s.edit("local foo", "local zoo");
+    expect(describeRoot(restored)).toEqual(describeRoot(cold(text)));
+    expect(shows(restored)).toEqual(["Got 10."]);
+  });
+});
+
+describe("a statement an edit moves past the statements that keep their chunks", () => {
+  // The cumulative fuzz of the function screenplay (programDifferential)
+  // replayed through the edits after which its seeds 12345 and 99991 found
+  // untouched statements emitted again (#1221): a scene header broken by a
+  // function inserted into it, which moves the scene's statements into the
+  // flow above past statements that keep their chunks; a function defined
+  // twice; a function in a `do` block; an `end` inserted above a closure's
+  // statement; and a scene's `if` block, a line and `done` after an edit to
+  // the scene.
+  it.each([
+    [12345, 104],
+    [99991, 77],
+  ])("keeps its chunk through the cumulative fuzz's edits with seed %i", (seed, count) => {
+    const { warn, error } = console;
+    console.warn = console.error = () => {};
+    try {
+      let text = functionScreenplay(3);
+      const c = programCompiler({ [MAIN]: text }, { programChunks: true });
+      c.compile();
+      let keysBefore = uniqueKeys(programStatements(c.compiler));
+      const edits = cumulativeEdits(seed, FUNCTION_INSERTS);
+      const emittedAgain: string[] = [];
+      // Whether the compile before the edit built chunks, so that its root is
+      // the one the edit's untouched statements keep their chunks from.
+      let previousChunked = true;
+      for (let n = 0; n < count; n++) {
+        const { offset, end, insert } = edits.next(text);
+        const before = new Set(rootChunks(c.compiler.chunkStore!.current!));
+        c.compiler.updateDocument({
+          textDocument: { uri: MAIN, version: n + 2 },
+          contentChanges: [
+            { range: { start: posAt(text, offset), end: posAt(text, end) }, text: insert },
+          ],
+        });
+        text = text.slice(0, offset) + insert + text.slice(end);
+        const { program } = c.compile();
+        const untouched = program.chunks
+          ? untouchedChunks(c.compiler, offset, offset + insert.length, keysBefore)
+          : [];
+        keysBefore = uniqueKeys(programStatements(c.compiler));
+        if (program.chunks && previousChunked) {
+          const held = new Set(rootChunks(program.chunks));
+          const again = untouched.filter((chunk) => held.has(chunk) && !before.has(chunk));
+          if (again.length) {
+            emittedAgain.push(`#${n}: ${again.length}`);
+          }
+        }
+        previousChunked = !!program.chunks;
+        edits.built(!!program.chunks);
+      }
+      expect(emittedAgain).toEqual([]);
+    } finally {
+      console.warn = warn;
+      console.error = error;
+    }
   });
 });

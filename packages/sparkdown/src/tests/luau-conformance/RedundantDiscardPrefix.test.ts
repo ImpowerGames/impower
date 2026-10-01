@@ -4,7 +4,7 @@
 // same `&` is required and should produce NO diagnostic.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
+import { testCompiler } from "../engineUnderTest";
 
 interface CapturedDiagnostic {
   message: string;
@@ -14,7 +14,7 @@ interface CapturedDiagnostic {
 }
 
 function compileAndCollectDiagnostics(source: string): CapturedDiagnostic[] {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
