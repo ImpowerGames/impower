@@ -3,6 +3,7 @@ HERO: {a > b} and [[cg > x]].
 HERO: It goes -> knot
 HERO (cheerful) >: Hi.
 style list with
-  > list > item:
+  > list > item {
     display = flex
+  }
 end

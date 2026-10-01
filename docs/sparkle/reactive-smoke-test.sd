@@ -43,7 +43,7 @@ function set_loud(event)
 end
 
 layout main with
-  column:
+  column {
     text "Welcome, {hero}!"
     text "HP: {hp}"
     if alive then
@@ -55,15 +55,18 @@ layout main with
     for it in items do
       text "- {it.name}"
     end
-    row:
+    row {
       button "Hurt" @click=hurt
       button "Heal" @click=heal
       button "Shuffle" @click=shuffle
+    }
     text "Rename hero (type to see {hero} update live):"
     input #value={hero} @input=rename
-    row:
+    row {
       checkbox #checked={loud} @change=set_loud
       text "Loud mode is {loud}"
+    }
+  }
 end
 
 -> start
