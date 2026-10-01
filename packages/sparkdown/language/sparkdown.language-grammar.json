@@ -306,8 +306,8 @@
     "STRUCT_BLOCK_QUOTED": "(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))",
     "STRUCT_BLOCK_HEADER": "(?:(?:[-](?![-])|[/](?![/])|[^\\s{};\"=,/-])(?:[-](?![-])|[/](?![/])|[^{};\"\\n/-])*?)",
     "STRUCT_BLOCK_ASSIGN": "(?:{{WS}}*(?:[=]{{WS}}*)?)",
-    "STRUCT_BLOCK_CLOSE_SCAN": "(?:(?:{{STRUCT_BLOCK_QUOTED}}(?![-][-])|[^\"\\s-]|[-](?![-])|(?<![\\s\\d\"eyN])[-][-]|{{WS}}(?![-][-]|[/][/](?:{{WS}}|$)))*?[}])",
-    "STRUCT_BLOCK_LINE_START": "(?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|{{STRUCT_BLOCK_CLOSE_SCAN}}))",
+    "STRUCT_BLOCK_BRACE_SCAN": "(?:(?:{{STRUCT_BLOCK_QUOTED}}(?![-][-])|[^\"\\s{}-]|[-](?![-])|(?<![\\s\\d\"eyN])[-][-]|{{WS}}(?![-][-]|[/][/](?:{{WS}}|$)))*?[{}])",
+    "STRUCT_BLOCK_LINE_START": "(?:{{WS}}*{{STRUCT_BLOCK_BRACE_SCAN}})",
     "STRUCT_BLOCK_BAIL": "(?:{{BEAT}}|^{{END}})",
     "STRUCT_BLOCK_TRAILING_COMMA": "(?:[,]{{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))",
     "STRUCT_BLOCK_COMMA_BEFORE_ENTRY": "(?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))",
@@ -8063,7 +8063,7 @@
       "match": "(.+)$"
     },
     "LuauStructBlockLine": {
-      "begin": "^(?=(?:(?:[^\\S\\n\\r])*(?:(?:(?:(?:[-](?![-])|[/](?![/])|[^\\s{};\"=,/-])(?:[-](?![-])|[/](?![/])|[^{};\"\\n/-])*?)(?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?))?[{]|(?:(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))(?![-][-])|[^\"\\s-]|[-](?![-])|(?<![\\s\\d\"eyN])[-][-]|(?:[^\\S\\n\\r])(?![-][-]|[/][/](?:(?:[^\\S\\n\\r])|$)))*?[}]))))",
+      "begin": "^(?=(?:(?:[^\\S\\n\\r])*(?:(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))(?![-][-])|[^\"\\s{}-]|[-](?![-])|(?<![\\s\\d\"eyN])[-][-]|(?:[^\\S\\n\\r])(?![-][-]|[/][/](?:(?:[^\\S\\n\\r])|$)))*?[{}])))",
       "patterns": [
         {
           "include": "#LuauStructStrayBlockClose"

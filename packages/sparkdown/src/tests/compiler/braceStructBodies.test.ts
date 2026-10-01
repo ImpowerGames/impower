@@ -201,6 +201,25 @@ describe("a brace body lowers to the struct of its indented form", () => {
     expect(structOf(THEME_BRACED, "theme", "dusk")).toEqual(indented);
   });
 
+  test("a block may open after a `;` on a body line", () => {
+    const braced = `animation a with
+  target = layer.self; timing {
+    duration = 1
+  }
+end
+`;
+    const indented = `animation a with
+  target = layer.self
+  timing:
+    duration = 1
+end
+`;
+    expect(structOf(braced, "animation", "a")).toEqual(
+      structOf(indented, "animation", "a"),
+    );
+    expect(errorsOf(braced)).toEqual([]);
+  });
+
   test("an indented header may hold brace lines", () => {
     const mixed = `animation fade with
   keyframes:
