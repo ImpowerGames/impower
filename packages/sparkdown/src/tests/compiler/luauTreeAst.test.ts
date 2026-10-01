@@ -40,9 +40,10 @@ import {
 import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
 import { documentPosition, sparkdownUnits, type LuauUnit } from "../../compiler/typecheck/LuauDocumentChecker";
 import { printAst } from "../../compiler/typecheck/printAst";
-import { readLuauExpression, readLuauUnits, statementAt, type LuauAstUnit } from "../../compiler/typecheck/readLuauAst";
+import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type LuauAstUnit } from "../../compiler/typecheck/readLuauAst";
+import { runWrapperText } from "../../compiler/utils/runWrapper";
 import { parseSource } from "./grammarSnapshot";
-import { checkerView } from "./luauCheckerView";
+import { checkerView, NoCheckerView } from "./luauCheckerView";
 import { KNOWN_DISAGREEMENTS, luauInputs, type LuauInput } from "./luauFixtures";
 import { expressionDocument, generatedExpressions } from "./luauGeneratedExpressions";
 
@@ -101,7 +102,13 @@ function compareUnit(label: string, luauRoot: AstNode, luauErrors: number, unit:
     return [];
   }
   const a = printAst(luauRoot);
-  const b = printAst(tree, view);
+  let b: string;
+  try {
+    b = printAst(tree, view);
+  } catch (error) {
+    if (error instanceof NoCheckerView) return [`${label}: the checker's text has no reading of ${error.message}`];
+    throw error;
+  }
   return a === b ? [] : [`${label}: ${firstDifference(a, b)}`];
 }
 
@@ -480,6 +487,38 @@ describe("Sparkdown's own constructs", () => {
       ['& d = "Val: {{fmt(1)}} {x}"'],
       ["store a, b: number = 1, 2"],
     ]);
+  });
+});
+
+describe("The other entry points", () => {
+  test("a run file is read from its wrapper document as Luau reads the file, with its hot comments", () => {
+    const file = ["--!strict", "local t = { 1, 2 }", "local function sum(xs: { number }): number", "  local total = 0", "  for _, x in ipairs(xs) do total += x end", "  return total", "end", "print(sum(t) .. \"!\")", ""].join("\n");
+    const text = runWrapperText("W", file);
+    const unit = readLuauRunFile(parseSource(text), text);
+    expect(unit).toBeDefined();
+    const parsed = parseLuau(file);
+    expect(parsed.errors).toEqual([]);
+    expect(unit!.errors).toEqual([]);
+    expect(printAst(unit!.root)).toBe(printAst(parsed.root));
+    expect(unit!.hotcomments.map((c) => [c.header, c.content])).toEqual([[true, "strict"]]);
+    // The file's lines are the wrapper document's, two lines down.
+    expect(unit!.root.body[0]!.location.begin.line).toBe(parsed.root.body[0]!.location.begin.line + 2);
+  });
+
+  test("a narrative interpolation's expression is read with Luau's precedence, its names as globals", () => {
+    const narrative = ": Total {a + b * -c ^ 2 .. f(x):m().y}\n";
+    const cursor = parseSource(narrative).cursor();
+    const printed: string[] = [];
+    do {
+      if (cursor.name === "LuauInterpolatedStringExpression") {
+        const inner = [];
+        for (let child = cursor.node.firstChild; child; child = child.nextSibling) inner.push(child);
+        const { expr, errors } = readLuauExpression(inner.slice(1, -1), narrative);
+        expect(errors).toEqual([]);
+        printed.push(printAst(expr));
+      }
+    } while (cursor.next());
+    expect(printed).toEqual([printAst(parseLuau("return a + b * -c ^ 2 .. f(x):m().y").root.body[0]!).replace(/^StatReturn\n/, "").replace(/^  /gm, "")]);
   });
 });
 

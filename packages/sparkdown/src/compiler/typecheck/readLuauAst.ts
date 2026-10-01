@@ -26,8 +26,7 @@
 // the body of a function whose parameters are the flow's; and a `run` file,
 // read from the document the compiler wraps it in. `readLuauExpression` reads
 // the one expression a Sparkdown context holds (an interpolation, a choice's
-// condition, a struct's value), and `readLuauStatements` the statements of
-// some nodes, for the lowerers. The port of Luau's parser in
+// condition, a struct's value), for the lowerers. The port of Luau's parser in
 // `DefinitionParser.ts` is not used here: it reads definition files, and the
 // tests use it to check that this module reads every Luau fixture as Luau
 // reads it.
@@ -2756,16 +2755,3 @@ export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], do
   const expr = parser.parseLoneExpression();
   return { expr, errors: parser.errors };
 }
-
-/** Reads the Luau statements some nodes hold, in order, as one block. */
-export function readLuauStatements(nodes: readonly SyntaxNode[], documentText: string): LuauAstUnit {
-  const index = lineIndex(documentText);
-  const tokenizer = new Tokenizer(documentText, index);
-  nodes.forEach((node, i) => {
-    tokenizer.source = i;
-    tokenizer.read(node);
-  });
-  const start = nodes[0] ? new Position(index.lineAt(nodes[0].from), 0) : new Position(0, 0);
-  return readUnit("prelude", tokenizer, nodes.map(ref), 1, start);
-}
-
