@@ -12,6 +12,7 @@ import {
   type StructEntryKind,
 } from "../utils/structBodyEntries";
 import {
+  sparkleClosureAttributeEnd,
   sparkleElementParts,
   sparklePartNodes,
 } from "../utils/sparkleBlockEntries";
@@ -339,16 +340,21 @@ function joinSegments(
 // or an indented line's shape; then the parts of the continuation lines it
 // takes (#1225). Joined (`joinSegments`) they read as the one-line element.
 function elementSegments(entry: StructEntry): ElementSegment[] {
-  const part = (node: SyntaxNode): ElementSegment => ({
-    node,
-    to: node.to,
-    edits: [
-      ...attributeRanges(node),
-      ...nodesOutsideAttributes(node, COMMENT_NAMES),
-      ...classDots(node),
-    ],
-    value: node,
-  });
+  const part = (node: SyntaxNode): ElementSegment =>
+    node.name === CLOSURE_ATTRIBUTE
+      ? // The closure alone: the run of parts after its `}` follows it as a
+        // segment of its own.
+        { node, to: sparkleClosureAttributeEnd(node), edits: [], value: null }
+      : {
+          node,
+          to: node.to,
+          edits: [
+            ...attributeRanges(node),
+            ...nodesOutsideAttributes(node, COMMENT_NAMES),
+            ...classDots(node),
+          ],
+          value: node,
+        };
   const segments: ElementSegment[] = [];
   if (entry.element) {
     const element = entry.shape;

@@ -1074,7 +1074,10 @@ function buildBlock(
     // `slot text`) stays a slot instead of lowering as that element with a
     // stray "slot" class. This used to need its own `first` field to bypass a
     // builtin-preferring tag rule; that rule is gone.
-    const slotName = classes[0];
+    // The name may also stand on a continuation line (`slot` then `.footer`).
+    const key = lines[i]!.node.from;
+    const slotName =
+      classes[0] ?? partClasses(continuationPartNodes(key, ctx), ctx)[0];
     if (parsedTag === "slot") {
       const slot: SlotNode = {
         kind: "slot",
@@ -1090,16 +1093,19 @@ function buildBlock(
         ...(slotName ? { name: slotName } : {}),
         children: [],
       };
-      const key = lines[i]!.node.from;
-      if (childIndent != null) {
+      // A later block holds the fill's children, and the indented lines
+      // after it are orphans, as for an element (`attachJoined`).
+      const joined = joinedBlock(key, ctx);
+      if (joined) {
+        fill.children = joined.children;
+        i += 1;
+      } else if (childIndent != null) {
         const sub = buildBlock(lines, i + 1, childIndent, ctx);
         fill.children = sub.children;
         i = sub.next;
       } else {
         i += 1;
       }
-      const joined = joinedBlock(key, ctx);
-      if (joined) fill.children = [...joined.children, ...fill.children];
       children.push(fill);
       continue;
     }
@@ -1138,14 +1144,9 @@ interface ElementParts {
  *  source order: its classes, its first content, its `#prop`s (a later one
  *  wins) and its `@event`s. An event closure holds no part but its event. */
 function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
-  const out: ElementParts = { classes: [], props: {}, events: [] };
+  const out: ElementParts = { classes: partClasses(parts, ctx), props: {}, events: [] };
   for (const part of parts) {
     if (part.name !== "LuauSparkleEventClosureAttribute") {
-      out.classes.push(
-        ...descendants(part, HEAD_CLASS_NAMES)
-          .map((t) => ctx.read(t.from, t.to).trim())
-          .filter(Boolean),
-      );
       if (!out.content) {
         const contentNode = firstContentDescendant(part, FIELD_VALUE_NAMES);
         if (contentNode) out.content = readContentParts(contentNode, ctx);
@@ -1157,6 +1158,27 @@ function readParts(parts: SyntaxNode[], ctx: LowerContext): ElementParts {
   return out;
 }
 
+/** The classes the part nodes hold (`sparklePartNodes`), in source order:
+ *  each `.name`, and each bare word after an element's name. An event
+ *  closure holds none. */
+function partClasses(parts: SyntaxNode[], ctx: LowerContext): string[] {
+  return parts.flatMap((part) =>
+    part.name === "LuauSparkleEventClosureAttribute"
+      ? []
+      : descendants(part, HEAD_CLASS_NAMES)
+          .map((t) => ctx.read(t.from, t.to).trim())
+          .filter(Boolean),
+  );
+}
+
+/** The part nodes of the continuation lines the element keyed `key` (its
+ *  node's `from`) takes, in source order. */
+function continuationPartNodes(key: number, ctx: LowerContext): SyntaxNode[] {
+  return (ctx.sparkleJoins?.continuations.get(key) ?? []).flatMap((line) =>
+    sparklePartNodes(line),
+  );
+}
+
 /** Add the parts of the continuation lines an element takes (keyed by its
  *  node's `from`) to it, as if written after its own parts on its line. */
 function joinContinuations(
@@ -1164,29 +1186,33 @@ function joinContinuations(
   key: number,
   ctx: LowerContext,
 ): void {
-  for (const continuation of ctx.sparkleJoins?.continuations.get(key) ?? []) {
-    const parts = readParts(sparklePartNodes(continuation), ctx);
-    element.classes.push(...parts.classes);
-    if (!element.content && parts.content) element.content = parts.content;
-    element.props = { ...element.props, ...parts.props };
-    element.events.push(...parts.events);
-  }
+  const parts = readParts(continuationPartNodes(key, ctx), ctx);
+  element.classes.push(...parts.classes);
+  if (!element.content && parts.content) element.content = parts.content;
+  element.props = { ...element.props, ...parts.props };
+  element.events.push(...parts.events);
 }
 
 /** The entries of the block an element takes from a later line (keyed by its
- *  node's `from`): its children, ahead of any it takes by indentation, which
- *  stand after the block, and the style props its `key = value` lines set. */
+ *  node's `from`): its children, and the style props its `key = value` lines
+ *  set. */
 function joinedBlock(
   key: number,
   ctx: LowerContext,
 ): { children: BodyNode[]; props: Record<string, PropValue> } | null {
   const block = ctx.sparkleJoins?.blocks.get(key);
-  const content = block ? sparkleBlockContent(block) : null;
-  return content ? buildBracedEntries(content, ctx) : null;
+  if (!block) return null;
+  // An empty block (`{}`) has no content, and still holds the children.
+  const content = sparkleBlockContent(block);
+  return content
+    ? buildBracedEntries(content, ctx)
+    : { children: [], props: {} };
 }
 
 /** {@link attachBlock}, with the continuation lines and the later block the
- *  element on line i takes. */
+ *  element on line i takes. An element with a block holds only its block's
+ *  entries, so one that takes a later block takes no indented lines: they
+ *  are orphans, as after the same element with its block on its own line. */
 function attachJoined(
   element: ElementNode,
   lines: NodeLine[],
@@ -1196,15 +1222,13 @@ function attachJoined(
 ): number {
   const key = lines[i]!.node.from;
   joinContinuations(element, key, ctx);
-  const next = attachBlock(element, lines, i, childIndent, ctx);
   const sub = joinedBlock(key, ctx);
-  if (sub) {
-    element.children = [...sub.children, ...element.children];
-    if (Object.keys(sub.props).length > 0) {
-      element.props = { ...element.props, ...sub.props };
-    }
+  if (!sub) return attachBlock(element, lines, i, childIndent, ctx);
+  element.children = sub.children;
+  if (Object.keys(sub.props).length > 0) {
+    element.props = { ...element.props, ...sub.props };
   }
-  return next;
+  return i + 1;
 }
 
 /** The classes in an element's head: each `.name`, and each bare word after
@@ -1269,18 +1293,10 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
   const tag = name ? ctx.read(name.from, name.to).trim() : "";
   // The element's parts, on its line and after a closure that goes on at
   // the next line, then those of the continuation lines it takes.
-  const parts = sparklePartNodes(node);
-  for (const continuation of ctx.sparkleJoins?.continuations.get(node.from) ??
-    []) {
-    parts.push(...sparklePartNodes(continuation));
-  }
-  const classes = parts.flatMap((part) =>
-    part.name === "LuauSparkleEventClosureAttribute"
-      ? []
-      : descendants(part, HEAD_CLASS_NAMES)
-          .map((t) => ctx.read(t.from, t.to).trim())
-          .filter(Boolean),
-  );
+  const parts = [
+    ...sparklePartNodes(node),
+    ...continuationPartNodes(node.from, ctx),
+  ];
   // The block's entries are built after the element's own parts, in the order
   // the indented form builds them. A block on a later line is the element's
   // block when it has none of its own.
@@ -1296,15 +1312,15 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
       : { children: [] as BodyNode[], props: {} as Record<string, PropValue> };
   // `slot name` and `fill name { … }` keep a bare name, which reads as the
   // first class. A slot is a placeholder and holds nothing.
-  if (tag === "slot") {
-    return { kind: "slot", ...(classes[0] ? { name: classes[0] } : {}) };
-  }
-  if (tag === "fill") {
-    return {
-      kind: "fill",
-      ...(classes[0] ? { name: classes[0] } : {}),
-      children: buildBlockEntries().children,
-    };
+  if (tag === "slot" || tag === "fill") {
+    const name = partClasses(parts, ctx)[0];
+    return tag === "slot"
+      ? { kind: "slot", ...(name ? { name } : {}) }
+      : {
+          kind: "fill",
+          ...(name ? { name } : {}),
+          children: buildBlockEntries().children,
+        };
   }
   // Content on an element with a block is read as a leaf's is, so `{expr}` in
   // it binds.
@@ -1312,7 +1328,7 @@ function buildBracedElement(node: SyntaxNode, ctx: LowerContext): BodyNode {
   const element: ElementNode = {
     kind: "element",
     tag,
-    classes,
+    classes: read.classes,
     ...(read.content ? { content: read.content } : {}),
     props: read.props,
     events: read.events,

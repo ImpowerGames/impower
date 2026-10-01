@@ -158,7 +158,9 @@ function pushIndentedLine(
   const classified = classify(content);
   const indent = ctx.characterNumber(content.from);
   // An element's block on a later line holds its children, as a `:` header's
-  // indented lines do; its entries go one level below the element.
+  // indented lines do; its entries go one level below the element. Like a
+  // brace element, it then takes children only from its block (`group`), so
+  // the indented lines after the block are not its children.
   const later = joins.blocks.get(content.from);
   if (classified) {
     const continuations = continuationParts(content.from, joins);
@@ -173,6 +175,7 @@ function pushIndentedLine(
         braced: false,
       },
       closed: false,
+      ...(later ? { group: later.from } : {}),
     });
   }
   if (later) {

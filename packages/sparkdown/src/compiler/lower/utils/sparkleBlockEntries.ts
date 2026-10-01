@@ -147,8 +147,9 @@ const LATER_PART_NAMES = nodeNameSet([
 
 /** The nodes that hold the parts of an element (`LuauSparkleElement`) or a
  *  continuation line (`LuauSparkleElementContinuation`), in source order:
- *  its runs of parts (an element's head first) and its event closures, but
- *  not its block. */
+ *  its runs of parts (an element's head first) and its event closures, each
+ *  closure followed by the run of parts after its `}` on that line, but not
+ *  its block. */
 export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
   const out: SyntaxNode[] = [];
   const content =
@@ -156,9 +157,32 @@ export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
       ? findChildByName(node, "LuauSparkleElement_content")
       : findChildByName(node, "LuauSparkleElementContinuation_content");
   for (let child = content?.firstChild; child; child = child.nextSibling) {
-    if (LATER_PART_NAMES.has(child.name)) out.push(child);
+    if (!LATER_PART_NAMES.has(child.name)) continue;
+    out.push(child);
+    if (child.name === "LuauSparkleEventClosureAttribute") {
+      const inner = findChildByName(
+        child,
+        "LuauSparkleEventClosureAttribute_content",
+      );
+      for (let part = inner?.firstChild; part; part = part.nextSibling) {
+        if (part.name === "LuauSparkleElementParts") out.push(part);
+      }
+    }
   }
   return out;
+}
+
+/** Where an event closure attribute's own text ends: after its closure,
+ *  before the run of parts it reads after the closure's `}`. */
+export function sparkleClosureAttributeEnd(attribute: SyntaxNode): number {
+  const inner = findChildByName(
+    attribute,
+    "LuauSparkleEventClosureAttribute_content",
+  );
+  const closure = inner
+    ? findChildByName(inner, "LuauSparkleHandlerClosure")
+    : null;
+  return closure?.to ?? attribute.to;
 }
 
 /** The block a continuation line ends with (`"Okay" {`), if any. */

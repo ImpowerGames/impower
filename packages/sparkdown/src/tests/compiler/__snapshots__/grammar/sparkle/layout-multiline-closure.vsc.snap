@@ -183,7 +183,7 @@ text.source.sparkdown [0..1181]
  ├─ meta.layout.luau [350..367]
  │   ├─ punctuation.whitespace.extra.sd [350..354]: "    "
  │   ├─ punctuation.definition.template-expression.end.sd [354..355]: "}"
- │   ├─ punctuation.whitespace.extra.sd [355..356]: " "
+ │   ├─ punctuation.whitespace.required.sd [355..356]: " "
  │   ├─ punctuation.definition.class.sd [356..357]: "."
  │   ├─ entity.name.type.class.view.sd [357..362]: "after"
  │   ├─ punctuation.whitespace.required.sd [362..363]: " "
@@ -218,7 +218,7 @@ text.source.sparkdown [0..1181]
  ├─ meta.layout.luau [415..431]
  │   ├─ punctuation.whitespace.extra.sd [415..419]: "    "
  │   ├─ punctuation.definition.template-expression.end.sd [419..420]: "}"
- │   ├─ punctuation.whitespace.extra.sd [420..421]: " "
+ │   ├─ punctuation.whitespace.required.sd [420..421]: " "
  │   ├─ string.quoted.double.sd [421..429]
  │   │   ├─ punctuation.definition.string.begin.sd [421..422]: "\""
  │   │   ├─ markup.raw.whitespace.sd [422..423]: "I"

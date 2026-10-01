@@ -6181,11 +6181,16 @@ repository:
   # A closure left without its `}` ends where a line starts with `end`,
   # `else`, `elseif` or `case`, or at the next `scene` or `branch`
   # (`SPARKLE_BLOCK_BAIL`, through `LuauSparkleHandlerClosure`), and the
-  # lowerer reports it on its `{`. The whitespace after the `}` is taken in,
-  # so the parts after it are read on, and only a block's `}` ends the
-  # element before them. The name is any name an attribute token takes
-  # (`SPARKLE_EVENT_NAME`), so the line is tiled whatever it is; the
-  # validator reports one that names no event.
+  # lowerer reports it on its `{`. The parts after the `}` on its line, glued
+  # to it or after whitespace (`}"Hi"`, `} .b`), are read here as a run of
+  # parts, so the element around the attribute never ends at the closure's
+  # `}` as it ends at its block's. The attribute ends where a run of parts
+  # would: before a `{` (with whitespace and an optional `=` before it), a
+  # `;`, a `}`, a comma, the end of the line, or another closure its line
+  # leaves open; never at its own begin, which ends in `=` or whitespace.
+  # The name is any name an attribute token takes (`SPARKLE_EVENT_NAME`), so
+  # the line is tiled whatever it is; the validator reports one that names
+  # no event.
   LuauSparkleEventClosureAttribute:
     begin: ([@])([^\s=;{}"'(),]*)({{WS}}*)([=])({{WS}}*)(?={{SPARKLE_OPEN_BRACED}})
     beginCaptures:
@@ -6206,11 +6211,8 @@ repository:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauSparkleHandlerClosure" }
-    end: (?<=[}])({{WS}}*)|(?={{SPARKLE_BLOCK_BAIL}})
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
+      - { include: "#LuauSparkleElementParts" }
+    end: (?<![=\s])(?={{WS}}*(?:[;{},]|$|[=]{{WS}}*[{]))|(?={{SPARKLE_EVENT_NAME}}{{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}})|(?={{SPARKLE_BLOCK_BAIL}})
 
   # A name that is not a builtin element: a component, or a plain container
   # that carries its name as a class.

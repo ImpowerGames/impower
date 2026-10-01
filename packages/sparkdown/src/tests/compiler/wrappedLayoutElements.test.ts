@@ -327,6 +327,86 @@ end
     expect(errorsOf(wrapped)).toEqual([]);
   });
 
+  test("a block on a line of its own ends the element, so a deeper indented line after it is no child", () => {
+    // Round 1 (comment 5940170624, finding 1).
+    const wrapped = `layout hud with
+  column
+  { text "a" }
+    text "b"
+  fill
+  { text "c" }
+    text "d"
+end
+`;
+    const oneLine = `layout hud with
+  column { text "a" }
+    text "b"
+  fill { text "c" }
+    text "d"
+end
+`;
+    expect(everything(wrapped)).toEqual(everything(oneLine));
+    const [column, fill] = lowered(wrapped, "layout", "hud").tree.children;
+    expect(column.children.map((c: any) => c.content[0].text)).toEqual(["a"]);
+    expect(fill.children.map((c: any) => c.content[0].text)).toEqual(["c"]);
+    // An empty block holds nothing, and still ends the element.
+    const empty = lowered(`layout hud with\n  row\n  {}\n    text "b"\nend\n`, "layout", "hud");
+    expect(empty.tree.children[0].children).toEqual([]);
+    expect(empty.struct.row).toEqual({});
+  });
+
+  test("a slot's or a fill's name may stand on a continuation line", () => {
+    // Round 1 (comment 5940170624, finding 3).
+    const wrapped = `component card(title) with
+  column {
+    slot
+      .footer
+  }
+  slot
+    .header
+end
+
+layout hud with
+  card("x") {
+    fill
+      .footer
+    { text "Hi" }
+  }
+  card("y")
+  {
+    fill
+      .footer
+    {
+      text "There"
+    }
+  }
+end
+`;
+    const oneLine = `component card(title) with
+  column {
+    slot.footer
+  }
+  slot.header
+end
+
+layout hud with
+  card("x") {
+    fill.footer { text "Hi" }
+  }
+  card("y") {
+    fill.footer { text "There" }
+  }
+end
+`;
+    expect(everything(wrapped)).toEqual(everything(oneLine));
+    const card = lowered(wrapped, "component", "card").tree;
+    expect(card.children[0].children[0]).toEqual({ kind: "slot", name: "footer" });
+    expect(card.children[1]).toEqual({ kind: "slot", name: "header" });
+    const [x, y] = lowered(wrapped, "layout", "hud").tree.children;
+    expect(x.children[0].name).toBe("footer");
+    expect(y.children[0].name).toBe("footer");
+  });
+
   test("a line that continues an element takes no place in the indentation", () => {
     // The `.b` line is deeper than `row`, but it is no child of `row`: the
     // indented `text` below is, as it is below the one-line element.
@@ -423,6 +503,52 @@ end
       `{ message = ${tick}{message} and {[[x]]}${tick}\n    message = message .. "?"\n  }`,
       '{ --[==[ a note ]==] message = "a"\n    message = message .. "b"\n  }',
     ]);
+  });
+
+  test("parts glued to a closure's closing `}` are read as on one line", () => {
+    // Round 1 (comment 5940170624, finding 2): the element ended at the
+    // closure's `}` as it ends at its block's, and `"Hi"` was invalid.
+    // (On one line a `.class` glued to a closed closure is read into the
+    // handler's value, as #1224 reads an unquoted value; after a closure that
+    // spans lines it is a class. The comparison below spaces it.)
+    const wrapped = `${STATE}
+layout hud with
+  column {
+    button @click={
+      score = 1
+    }"Hi"
+    button @click={
+      score = 2
+    } .wide #x=1 "There" {
+      text "child"
+    }
+    button @click={
+      score = 3
+    }.glued
+    text "after"
+  }
+end
+`;
+    const oneLine = `${STATE}
+layout hud with
+  column {
+    button @click={ score = 1 }"Hi"
+    button @click={ score = 2 } .wide #x=1 "There" {
+      text "child"
+    }
+    button @click={ score = 3 } .glued
+    text "after"
+  }
+end
+`;
+    expect(errorsOf(wrapped)).toEqual([]);
+    const strip = (v: any) => JSON.parse(JSON.stringify(v, (k, x) => (k === "source" ? undefined : x)));
+    expect(strip(everything(wrapped))).toEqual(strip(everything(oneLine)));
+    const [hi, there, glued] = lowered(wrapped, "layout", "hud").tree.children[0].children;
+    expect(hi.content).toEqual([{ kind: "literal", text: "Hi" }]);
+    expect(there.classes).toEqual(["wide"]);
+    expect(there.children.map((c: any) => c.content[0].text)).toEqual(["child"]);
+    expect(glued.classes).toEqual(["glued"]);
   });
 
   test("a closure the line closes is read as before", () => {
