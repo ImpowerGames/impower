@@ -397,6 +397,34 @@ end
     expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
   });
 
+  test("a long string, a long comment or a backtick interpolation on the closure's first line keeps it open", () => {
+    // Round 1 (comment 5939804102): only `[[…]]` and interpolation-free
+    // backtick strings were read on the first line, so these handlers were
+    // cut at their first line and reported as missing their `}`.
+    const tick = "`";
+    const text = `store message = ""
+layout hud with
+  button "Set" @click={ message = [=[ready]=]
+    message = message .. "!"
+  }
+  button "Tick" @click={ message = ${tick}{message} and {[[x]]}${tick}
+    message = message .. "?"
+  }
+  button "Note" @click={ --[==[ a note ]==] message = "a"
+    message = message .. "b"
+  }
+end
+`;
+    expect(errorsOf(text)).toEqual([]);
+    const { tree } = lowered(text, "layout", "hud");
+    const sources = tree.children.map((c: any) => c.events[0].handler.binding.source);
+    expect(sources).toEqual([
+      '{ message = [=[ready]=]\n    message = message .. "!"\n  }',
+      `{ message = ${tick}{message} and {[[x]]}${tick}\n    message = message .. "?"\n  }`,
+      '{ --[==[ a note ]==] message = "a"\n    message = message .. "b"\n  }',
+    ]);
+  });
+
   test("a closure the line closes is read as before", () => {
     const text = `${STATE}
 layout hud with

@@ -36,6 +36,22 @@ layout handlers with
   button @click={ print([========[a}b]========]) }
   button @click={ print('a}b)
   text "sibling"
+  button "Set" @click = { message = [=[ready]=]
+    message = message .. "!"
+  }
+  button "Tick" @click={ message = `{message} and {[[x]]}`
+    message = message .. "?"
+  }
+  row {
+    match mode do
+      case 1
+        button
+          .one
+          @click={
+            mode = 2
+          }
+    end
+  }
 end
 
 layout unclosed with
