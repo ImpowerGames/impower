@@ -651,7 +651,63 @@ end
       expect(errorsOf(braced)).toEqual([]);
     });
 
-    test("a value nested deeper than that runs to the end of its line, and is reported", () => {
+    test("inside a block, a value nested deeper than that runs to the end of its line, and is reported", () => {
+      const text = `component card(t) with
+  slot
+end
+
+function f(x)
+  return x
+end
+
+layout a with
+  column {
+    button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Go"; text "after"
+  }
+end
+
+layout b with
+  column {
+    card(f(f(f(f(f(f(1))))))) { text "body" }
+  }
+end
+
+layout c with
+  column {
+    button @click=f(f(f(f(f(f(f(1))))))) { text "body" }
+  }
+end
+
+layout d with
+  column {
+    text #x=f(f(f(f(f(f(f(1))))))) { text "body" }
+  }
+end
+
+layout e with
+  column {
+    text #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} } { text "body" }
+  }
+end
+`;
+      const errors = errorsOf(text);
+      // Every overflowing line is reported on its own line, and what follows
+      // the value is never read as more of the element.
+      for (const line of [10, 16, 22, 28, 34]) {
+        expect(errors.some((e) => e.line === line)).toBe(true);
+      }
+      for (const name of ["a", "b", "c", "d", "e"]) {
+        const [column] = lowered(text, "layout", name).tree.children;
+        expect(column.children).toHaveLength(1);
+        expect(column.children[0].children).toEqual([]);
+      }
+    });
+
+    test("outside a block, a line with a value nested deeper than that is the indented form's line", () => {
+      // The scan cannot count past the limits, so it never decides such a
+      // line holds a block: it reads as it does on origin/main, children
+      // included.
+      const deep = "{ {a={a={a={a={a={a={a={a=1}}}}}}}} }";
       const text = `component card(t) with
   slot
 end
@@ -661,28 +717,27 @@ function f(x)
 end
 
 layout hud with
-  row { button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Go"; text "after" }
-end
-
-layout calls with
-  card(f(f(f(f(f(f(1))))))) { text "body" }
-  button @click=f(f(f(f(f(f(f(1))))))) { text "body" }
-  text #x=f(f(f(f(f(f(f(1))))))) { text "body" }
-  row #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} } { text "body" }
-  text "last"
+  row #x=${deep}:
+    text "child"
+  button @click=${deep}:
+    text "child"
+  card(f(f(f(f(f(f(1))))))):
+    text "child"
+  card(f(f(f(f(f(f(1)))))), {x = 1}):
+    text "child"
+  text "after"
 end
 `;
-      const errors = errorsOf(text);
-      // Every overflowing line is reported on its own line, whether or not
-      // a block around it is open.
-      for (const line of [9, 13, 14, 15, 16]) {
-        expect(errors.some((e) => e.line === line)).toBe(true);
-      }
-      // None of them takes the lines after it.
-      const calls = lowered(text, "layout", "calls").tree.children;
-      expect(calls).toHaveLength(5);
-      expect(calls[4].content).toEqual([{ kind: "literal", text: "last" }]);
-      expect(calls.slice(0, 4).every((c: any) => c.children.length === 0)).toBe(true);
+      const { tree, struct } = lowered(text, "layout", "hud");
+      expect(tree.children.map((c: any) => c.children.map((d: any) => d.content?.[0]?.text))).toEqual([
+        ["child"],
+        ["child"],
+        ["child"],
+        ["child"],
+        [],
+      ]);
+      expect(struct.row).toEqual({ text: "child" });
+      expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
     });
 
     test("a value nested deeper than that, with no block after it, reads as before", () => {
@@ -1101,27 +1156,30 @@ end
 
   test("a string or a long comment inside a backtick string's interpolation keeps its backtick", () => {
     const tick = "`";
-    const braced = `layout hud with
-  row { button @click={ print(${tick}{"${tick}"}${tick}) }; text "after" }
-  row { button @click={ print(${tick}{ --[[ ${tick} ]] 1 }${tick}) }; text "after" }
-  row { button @click={ print(${tick}{'${tick}'}${tick}) }; text "after" }
+    const handlers = [
+      `{ print(${tick}{"${tick}"}${tick}) }`,
+      `{ print(${tick}{ --[[ ${tick} ]] 1 }${tick}) }`,
+      `{ print(${tick}{'${tick}'}${tick}) }`,
+      // Inside a table in an interpolation.
+      `{ print(${tick}{f({x = "}${tick}"})}${tick}) }`,
+      `{ print(${tick}{f({x = [[}${tick}]]})}${tick}) }`,
+      `{ print(${tick}{f({x = ${tick}}${tick}})}${tick}) }`,
+      `{ print(${tick}{f({x = 1 --[[ }${tick} ]]})}${tick}) }`,
+    ];
+    const braced = `${declarations}
+layout hud with
+${handlers.map((h) => `  row { button @click=${h}; text "after" }`).join("\n")}
 end
 `;
-    const indented = `layout hud with
-  row:
-    button @click={ print(${tick}{"${tick}"}${tick}) }
-    text "after"
-  row:
-    button @click={ print(${tick}{ --[[ ${tick} ]] 1 }${tick}) }
-    text "after"
-  row:
-    button @click={ print(${tick}{'${tick}'}${tick}) }
-    text "after"
+    const indented = `${declarations}
+layout hud with
+${handlers.map((h) => `  row:\n    button @click=${h}\n    text "after"`).join("\n")}
 end
 `;
     expect(everything(braced)).toEqual(everything(indented));
     const rows = lowered(braced, "layout", "hud").tree.children;
-    expect(rows.map((r: any) => r.children.length)).toEqual([2, 2, 2]);
+    expect(rows.map((r: any) => r.children.length)).toEqual(handlers.map(() => 2));
+    expect(rows.map((r: any) => r.children[0].events[0].handler.binding.source)).toEqual(handlers);
     expect(errorsOf(braced)).toEqual([]);
   });
 

@@ -77,6 +77,8 @@ layout values with
   button @click={ print(`a {f(`}`)} b`) }
   row { button @click={ print(`{"`"}`) }; text "after" }
   row { button @click={ print(`{ --[[ ` ]] 1 }`) }; text "after" }
+  row { button @click={ print(`{f({x = "}`"})}`) }; text "after" }
+  row { button @click={ print(`{f({x = 1 --[[ }` ]]})}`) }; text "after" }
   text = Hello {who}
   text = [[a{b}]]
   items:

@@ -419,14 +419,16 @@ variables:
   SPARKLE_SQUOTED: (?:'(?:\\.|[^'\\\n])*')
   SPARKLE_LONE_SQUOTE: (?:'(?!(?:\\.|[^'\\\n])*'))
   SPARKLE_LONE_SQUOTE_RUN: (?:'(?!(?:\\.|[^'\\\n])*')[^\n]*$)
-  # A Luau backtick string, closed on its line or running to its end. Its
-  # `{…}` interpolations are read as code one level deep: quoted,
-  # single-quoted and backtick strings (`` `a {f(`}`)} b` ``, `` `{"`"}` ``),
-  # `[[…]]` long strings and comments, and one level of braces, stay inside
-  # it. A `{` that opens no complete interpolation is text, so the string
-  # still ends at its closing backtick.
-  SPARKLE_BACKTICK_INTERPOLATION: (?:[{](?:[^{}`"'\n\[-]|[-](?![-])|[\[](?![=]*[\[])|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\\n])*`|(?:[-][-])?[\[][\[](?:[^\]\n]|[\]](?![\]]))*[\]][\]]|[{][^{}\n]*[}])*[}])
-  SPARKLE_BACKTICKED: (?:`(?:\\.|[^`\\{\n]|{{SPARKLE_BACKTICK_INTERPOLATION}}|(?!{{SPARKLE_BACKTICK_INTERPOLATION}})[{])*(?:`|$))
+  # A Luau backtick string, closed on its line or running to its end. A `{`
+  # in one always opens an interpolation (a literal brace is written `\{`),
+  # read here as Luau code: quoted, single-quoted and backtick strings,
+  # `[[…]]` long strings and long comments, and one level of braces that
+  # reads the same tokens (`` `{f({x = "}`"})}` ``). An interpolation this
+  # cannot read (one nested deeper, or one left open) ends the token there,
+  # so the line scan stops and the line is never a brace line on its account.
+  SPARKLE_BACKTICK_CODE: (?:[^{}`"'\n\[-]|[-](?![-])|[\[](?![=]*[\[])|"(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\\n])*`|(?:[-][-])?[\[][\[](?:[^\]\n]|[\]](?![\]]))*[\]][\]])
+  SPARKLE_BACKTICK_INTERPOLATION: (?:[{](?:{{SPARKLE_BACKTICK_CODE}}|[{](?:{{SPARKLE_BACKTICK_CODE}})*[}])*[}])
+  SPARKLE_BACKTICKED: (?:`(?:\\.|[^`\\{\n]|{{SPARKLE_BACKTICK_INTERPOLATION}})*(?:`|$))
   # A Luau long bracket: a long string, or after `--` a long comment. Each
   # level, `[[…]]` and `[=[…]=]` up to seven `=`, ends at its own closer, as
   # Luau ends it, so a closer of another level inside it is text
@@ -480,38 +482,6 @@ variables:
   SPARKLE_PROP_PARENS_3: (?:[(](?:{{SPARKLE_PROP_PARENS_4}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
   SPARKLE_PROP_PARENS_2: (?:[(](?:{{SPARKLE_PROP_PARENS_3}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
   SPARKLE_PROP_PARENS: (?:[(](?:{{SPARKLE_PROP_PARENS_2}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
-  # The line scan's parenthesized lists. A paren nested deeper than six is
-  # read as one more `(` rather than running to the end of its line, so a
-  # brace after the list still makes the line a brace line; the element's
-  # own list (`SPARKLE_PARENS`) then runs to the end of the line, where what
-  # follows the list is reported. Without a brace after it the line has no
-  # brace to find and stays an indented line. Reading it as one `(` keeps the
-  # scan linear in the line's length.
-  SPARKLE_SCAN_PARENS_7: (?:[(])
-  SPARKLE_SCAN_PARENS_6: (?:[(](?:{{SPARKLE_SCAN_PARENS_7}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PARENS_5: (?:[(](?:{{SPARKLE_SCAN_PARENS_6}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PARENS_4: (?:[(](?:{{SPARKLE_SCAN_PARENS_5}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PARENS_3: (?:[(](?:{{SPARKLE_SCAN_PARENS_4}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PARENS_2: (?:[(](?:{{SPARKLE_SCAN_PARENS_3}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PARENS: (?:[(](?:{{SPARKLE_SCAN_PARENS_2}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PROP_PARENS_7: (?:[(])
-  SPARKLE_SCAN_PROP_PARENS_6: (?:[(](?:{{SPARKLE_SCAN_PROP_PARENS_7}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PROP_PARENS_5: (?:[(](?:{{SPARKLE_SCAN_PROP_PARENS_6}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PROP_PARENS_4: (?:[(](?:{{SPARKLE_SCAN_PROP_PARENS_5}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PROP_PARENS_3: (?:[(](?:{{SPARKLE_SCAN_PROP_PARENS_4}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PROP_PARENS_2: (?:[(](?:{{SPARKLE_SCAN_PROP_PARENS_3}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
-  SPARKLE_SCAN_PROP_PARENS: (?:[(](?:{{SPARKLE_SCAN_PROP_PARENS_2}}|{{SPARKLE_PROP_PARENS_PART}})*(?:[)]|$))
-  # The line scan's braced value, read the same way: a brace nested deeper
-  # than eight is read as one more `{`.
-  SPARKLE_SCAN_BRACED_9: (?:[{])
-  SPARKLE_SCAN_BRACED_8: (?:[{](?:{{SPARKLE_SCAN_BRACED_9}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  SPARKLE_SCAN_BRACED_7: (?:[{](?:{{SPARKLE_SCAN_BRACED_8}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  SPARKLE_SCAN_BRACED_6: (?:[{](?:{{SPARKLE_SCAN_BRACED_7}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  SPARKLE_SCAN_BRACED_5: (?:[{](?:{{SPARKLE_SCAN_BRACED_6}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  SPARKLE_SCAN_BRACED_4: (?:[{](?:{{SPARKLE_SCAN_BRACED_5}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  SPARKLE_SCAN_BRACED_3: (?:[{](?:{{SPARKLE_SCAN_BRACED_4}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  SPARKLE_SCAN_BRACED_2: (?:[{](?:{{SPARKLE_SCAN_BRACED_3}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  SPARKLE_SCAN_BRACED: (?:[{](?:{{SPARKLE_SCAN_BRACED_2}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
   # An attribute: `#name` or `@name`, then, when an `=` follows, its value.
   # The value is double- or single-quoted, or unquoted. An unquoted value is
   # one run of text, braced values (`{x}`, `f{x}`), parenthesized lists and
@@ -534,10 +504,6 @@ variables:
   SPARKLE_ATTR_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_UNQUOTED_VALUE}})
   SPARKLE_EVENT_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_EVENT_UNQUOTED_VALUE}})
   SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
-  # The line scan's attribute, whose lists are the scan's.
-  SPARKLE_SCAN_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|{{SPARKLE_LONG_BRACKET}}|[^\s;{}"(,`\[]|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_SCAN_PROP_PARENS}}|{{SPARKLE_SCAN_BRACED}})+{{SPARKLE_VALUE_END}})
-  SPARKLE_SCAN_EVENT_UNQUOTED_VALUE: (?:(?!{{SPARKLE_SQUOTED}})(?:{{SPARKLE_BACKTICKED}}|(?:[-][-])?{{SPARKLE_LONG_BRACKET}}|[-][-](?![\[][=]*[\[])[^\n]*$|[^\s;{}"(,`\[-]|[-](?![-])|[\[](?![=]*[\[])|[,](?![\s;}]|$)|{{SPARKLE_SCAN_PARENS}}|{{SPARKLE_SCAN_BRACED}})+{{SPARKLE_VALUE_END}})
-  SPARKLE_SCAN_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*(?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_SCAN_UNQUOTED_VALUE}})|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*(?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_SCAN_EVENT_UNQUOTED_VALUE}})|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
   # A comment: a Luau comment, or `//` before whitespace or the end of the
   # line. It starts a token, so the `--` inside a word (`a--b`) is part of
   # the word. A long comment ends at its `]]`, as `LuauBlockComment` does.
@@ -561,7 +527,7 @@ variables:
   # on its line counts; any other comment ends the scan. An `=` counts only
   # before a `{` (`row = {`), so the indented form's `text = Hello {who}`
   # keeps its value, and a list item (`- Hello {who}`) is never a brace line.
-  SPARKLE_SCAN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_SCAN_ATTR}}|{{SPARKLE_SCAN_PARENS}}|[)]|[-][-]{{SPARKLE_LONG_BRACKET}}|{{SPARKLE_WORD}}|[;,]|[=](?={{WS}}*[{])|{{WS}}+(?!{{WS}}|[-][-](?![\[][=]*[\[])|[/][/](?:{{WS}}|$)))
+  SPARKLE_SCAN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|[-][-]{{SPARKLE_LONG_BRACKET}}|{{SPARKLE_WORD}}|[;,]|[=](?={{WS}}*[{])|{{WS}}+(?!{{WS}}|[-][-](?![\[][=]*[\[])|[/][/](?:{{WS}}|$)))
   # The brace after the tokens is a lookahead: V8 takes over ten times as
   # long to compile a multiline pattern whose token loop is followed by a
   # character it must consume.
