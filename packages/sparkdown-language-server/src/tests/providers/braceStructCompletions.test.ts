@@ -1,0 +1,124 @@
+import { describe, expect, test } from "vitest";
+import {
+  accept,
+  bracesBalanced,
+  completeAt,
+  insertedText,
+  insideBraces,
+} from "./braceCompletionHarness";
+
+// Struct property completion in an animation written with brace blocks
+// (#1228): a container property opens a balanced block with the cursor
+// inside, a scalar property is followed by ` = `, and inside a block the
+// properties offered are the block's own.
+
+// The fields of the engine's `default_animation`.
+const program = {
+  context: {
+    animation: {
+      $default: {
+        $type: "animation",
+        $name: "$default",
+        target: { $type: "layer", $name: "self" },
+        keyframes: [],
+        timing: {
+          delay: 0,
+          duration: 0,
+          easing: "ease",
+          iterations: 1,
+          fill: "both",
+          direction: "normal",
+        },
+      },
+    },
+  },
+} as any;
+
+const itemAt = (source: string, label: string) => {
+  const items = completeAt(source, program);
+  const item = items.find((i) => i.label === label);
+  expect(item, `${label} in ${items.map((i) => i.label)}`).toBeDefined();
+  return item!;
+};
+
+describe("provider · animation property completion in brace bodies", () => {
+  const ROOT = `animation fade with
+  target = layer.self
+  keyframes { from { opacity = 0 } }
+  tim|
+end
+`;
+
+  test("a container property inserts a balanced block with the cursor inside", () => {
+    for (const label of ["timing", "keyframes"]) {
+      const item = itemAt(ROOT, label);
+      expect(insertedText(item)).toBe(`${label} {  }`);
+      const { text, cursor } = accept(ROOT, item);
+      expect(bracesBalanced(text), text).toBe(true);
+      expect(insideBraces(text, cursor), text).toBe(true);
+      expect(text).toContain(`\n  ${label} {  }\nend`);
+    }
+  });
+
+  test("a scalar property inserts ` = `", () => {
+    const item = itemAt(ROOT, "target");
+    expect(insertedText(item)).toBe("target = ");
+    const { text } = accept(ROOT, item);
+    expect(bracesBalanced(text)).toBe(true);
+    expect(text).toContain("\n  target = \nend");
+  });
+
+  test("inside a block, the block's own properties complete", () => {
+    for (const source of [
+      `animation fade with
+  timing {
+    dur|
+  }
+end
+`,
+      `animation fade with
+  timing { delay = 1; dur| }
+end
+`,
+    ]) {
+      const labels = completeAt(source, program).map((i) => String(i.label));
+      expect(labels).toEqual(
+        expect.arrayContaining(["duration", "delay", "easing", "iterations"]),
+      );
+      expect(labels).not.toContain("keyframes");
+      const item = itemAt(source, "duration");
+      expect(insertedText(item)).toBe("duration = ");
+      const { text } = accept(source, item);
+      expect(bracesBalanced(text), text).toBe(true);
+    }
+  });
+
+  test("a value inside a block completes from the schema at the block's path", () => {
+    const schemaProgram = {
+      context: {
+        animation: {
+          ...program.context.animation,
+          $schema: { timing: { easing: ["ease", "linear"] } },
+        },
+      },
+    };
+    const labels = completeAt(
+      `animation fade with
+  timing { easing = | }
+end
+`,
+      schemaProgram,
+    ).map((i) => String(i.label));
+    // Outside a style a string option is offered as a quoted string.
+    expect(labels).toEqual(expect.arrayContaining(['"ease"', '"linear"']));
+  });
+
+  test("an indented body keeps inserting the indented forms", () => {
+    const source = `animation fade with
+  tim|
+end
+`;
+    expect(insertedText(itemAt(source, "timing"))).toBe("timing:\n    ");
+    expect(insertedText(itemAt(source, "keyframes"))).toBe("keyframes:\n    - ");
+  });
+});

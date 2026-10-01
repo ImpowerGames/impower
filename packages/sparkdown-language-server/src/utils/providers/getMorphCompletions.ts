@@ -91,16 +91,34 @@ function pathAt(lines: Line[], lineIndex: number, indent: number): string[] {
   return path;
 }
 
+/** What the caller read from the brace blocks of a morph's body (#1222). */
+export interface MorphBraceContext {
+  /** The keys of the blocks that hold the cursor, outermost first (`-` for a
+   *  list entry's braces), or null when no block holds it. */
+  path: string[] | null;
+  /** Whether the body has a line written with blocks, so a container
+   *  completed at its root opens a block too. */
+  usesBlocks: boolean;
+  /** The innermost key around each `state` property written in a block. */
+  stateContainers: string[];
+}
+
 /**
  * Completion inside a `morph` block body. Returns null when the cursor is not
  * somewhere this handler owns, so the caller can fall back to its generic
  * struct completion.
+ *
+ * In a brace block the cursor's path comes from the blocks around it, and a
+ * container (a field, a layer label, a keyframe position or container)
+ * inserts a balanced `name { }` block with the cursor inside; elsewhere the
+ * path comes from indentation and a container inserts `name:`.
  */
 export function getMorphCompletions(
   getLineText: (line: number) => string,
   block: { startLine: number; endLine: number; name: string },
   program: SparkProgram | undefined,
   position: Position,
+  braces?: MorphBraceContext,
 ): CompletionItem[] | null {
   if (position.line <= block.startLine || position.line >= block.endLine) {
     return null;
@@ -111,9 +129,22 @@ export function getMorphCompletions(
     lines.push({ indent: /^[ \t]*/.exec(text)![0].length, text });
   }
   const index = position.line - block.startLine - 1;
-  const before = getLineText(position.line).slice(0, position.character);
+  const lineBefore = getLineText(position.line).slice(0, position.character);
+  const inBlock = braces?.path != null;
+  // In a block an entry starts after the `{`, `;` or `}` before it.
+  const before = inBlock
+    ? lineBefore.slice(
+        Math.max(
+          lineBefore.lastIndexOf("{"),
+          lineBefore.lastIndexOf(";"),
+          lineBefore.lastIndexOf("}"),
+        ) + 1,
+      )
+    : lineBefore;
   const indent = /^[ \t]*/.exec(before)![0].length;
-  const path = pathAt(lines, index, indent);
+  const path = inBlock ? braces!.path! : pathAt(lines, index, indent);
+  const braced = inBlock || (path.length === 0 && !!braces?.usesBlocks);
+  const containerSuffix = braced ? " { $0 }" : ":";
 
   const context = program?.context ?? {};
   const images = morphImages(context);
@@ -126,6 +157,9 @@ export function getMorphCompletions(
       if (container && container !== "-") driven.add(container);
     }
   });
+  for (const container of braces?.stateContainers ?? []) {
+    if (container !== "-") driven.add(container);
+  }
   const inKeyframe = path[0] === "keyframes" && path.length >= 3;
   const container = inKeyframe ? path[path.length - 1]! : undefined;
   if (container) driven.add(container);
@@ -171,6 +205,7 @@ export function getMorphCompletions(
       block,
       program,
       { line: position.line, character: position.character + 1 },
+      braces,
     );
     return (spaced ?? []).map((item) =>
       item.textEdit && "range" in item.textEdit
@@ -248,6 +283,10 @@ export function getMorphCompletions(
   const dashed = Boolean(keyMatch[1]);
   const typed = keyMatch[2]!;
   const labels = new Set(labelImages.flatMap((image) => [...morphImageLabels(image.vocabulary)]));
+  // A block's `{ $0 }` is a snippet in both editors: the cursor lands
+  // between the braces.
+  const snippet = (suffix: string) =>
+    suffix.includes("$0") ? { insertTextFormat: InsertTextFormat.Snippet } : {};
   const addField = (name: string) => {
     const container = CONTAINER_KEYS.has(name);
     add({
@@ -256,8 +295,9 @@ export function getMorphCompletions(
       documentation: docs(name),
       textEdit: {
         range: replaceRange(typed.length),
-        newText: container ? `${name}:` : `${name} = `,
+        newText: container ? `${name}${containerSuffix}` : `${name} = `,
       },
+      ...(container ? snippet(containerSuffix) : {}),
       command: container
         ? undefined
         : { title: "Suggest", command: "editor.action.triggerSuggest" },
@@ -269,6 +309,7 @@ export function getMorphCompletions(
       kind: CompletionItemKind.EnumMember,
       detail,
       textEdit: { range: replaceRange(typed.length), newText: `${label}${suffix}` },
+      ...snippet(suffix),
     });
 
   const [first, second, third, fourth] = path;
@@ -277,7 +318,7 @@ export function getMorphCompletions(
   } else if (first === "timing" && path.length === 1) {
     MORPH_TIMING_FIELDS.forEach(addField);
   } else if (first === "layers" && path.length === 1) {
-    for (const label of labels) addLabel(label, ":", "layer label");
+    for (const label of labels) addLabel(label, containerSuffix, "layer label");
   } else if (first === "layers" && path.length === 2) {
     MORPH_POLICY_FIELDS.forEach(addField);
   } else if (first === "keyframes" && path.length === 1 && !dashed) {
@@ -286,7 +327,11 @@ export function getMorphCompletions(
         label: position,
         kind: CompletionItemKind.Keyword,
         detail: "keyframe position",
-        textEdit: { range: replaceRange(typed.length), newText: `${position}:` },
+        textEdit: {
+          range: replaceRange(typed.length),
+          newText: `${position}${containerSuffix}`,
+        },
+        ...snippet(containerSuffix),
       });
     }
   } else if (
@@ -299,8 +344,8 @@ export function getMorphCompletions(
         Object.keys(image.vocabulary.groups),
       ),
     );
-    for (const group of groups) addLabel(group, ":", "attribute group");
-    for (const label of labels) addLabel(label, ":", "layer label");
+    for (const group of groups) addLabel(group, containerSuffix, "attribute group");
+    for (const label of labels) addLabel(label, containerSuffix, "layer label");
   } else if (first === "keyframes" && path.length === 3) {
     MORPH_CONTAINER_FIELDS.forEach(addField);
   } else if (first === "clips" && (path.length === 1 || (path.length === 2 && second === "-"))) {
