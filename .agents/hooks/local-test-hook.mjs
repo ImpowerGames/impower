@@ -13,11 +13,15 @@
 // through `npm run typecheck` in a directory whose script is unfiltered (the
 // repository root) or through `scripts/typecheck.mjs` directly; and
 // `node scripts/test-suite.mjs start`, which runs a whole package suite and
-// has no override. Allowed: a Vitest call naming existing test files, the
-// suite runner's `run` (which requires named test files), `status` and
-// `resume` (which only continues an existing run), a package's own
-// `npm run typecheck`, which its script filters to that package, and the
-// typecheck with a filter or `--list`.
+// has no override. A Vitest call or a suite runner `run` naming more than
+// MAX_FILES test files is refused too: a long list of existing files is a
+// package run spelled out, and the runner refuses it at the same bound so a
+// wrapper the hook cannot read gets the same answer. Allowed: a Vitest call
+// naming up to MAX_FILES existing test files, the suite runner's `run` (which
+// requires named test files, up to the same bound), `status` and `resume`
+// (which only continues an existing run), a package's own `npm run
+// typecheck`, which its script filters to that package, and the typecheck
+// with a filter or `--list`.
 //
 // The command is read with the typed-issue hook's tokenizer, so a mention in
 // a quoted string, a comment or a here-doc body does not count, and a call
@@ -52,6 +56,14 @@ export const TEST_REASON =
 
 export const START_REASON =
   "`node scripts/test-suite.mjs start` runs a whole package suite locally, which is refused with no override. " + TEST_REASON;
+
+// The most test files one local run may name; scripts/test-suite.mjs's
+// MAX_RUN_FILES is the same bound, enforced by the runner itself.
+export const MAX_FILES = 8;
+
+export const wideReason = (count) =>
+  `This run names ${count} test files, more than the ${MAX_FILES} a local run may take: a long list of existing files is a ` +
+  "package run spelled out, and the suite runner refuses it at the same bound with no override. " + TEST_REASON;
 
 export const TYPECHECK_REASON =
   "The unfiltered typecheck checks all 41 projects for about four minutes, and the typecheck workflow runs it on every pull " +
@@ -198,6 +210,7 @@ function vitestReason(args, dir) {
     files.push(t);
   }
   if (files.length === 0) return TEST_REASON;
+  if (files.length > MAX_FILES) return wideReason(files.length);
   for (const f of files) {
     if (GLOB.test(f) || !TEST_FILE.test(f)) return TEST_REASON;
     if (isDynamic(f)) continue;
@@ -206,6 +219,22 @@ function vitestReason(args, dir) {
     if (!known.some((r) => isFile(isAbsolute(f) ? f : resolve(r, f)))) return TEST_REASON;
   }
   return null;
+}
+
+/**
+ * Checks the arguments after `run <package>` of the suite runner: the
+ * positional test files, with `--wait` and its value set aside. Returns
+ * wideReason past MAX_FILES; a shorter list, or one the runner itself
+ * will refuse as empty, is left to the runner.
+ */
+function suiteRunReason(texts) {
+  let files = 0;
+  for (let i = 0; i < texts.length; i++) {
+    const t = texts[i];
+    if (t === "--wait") { i++; continue; }
+    files++;
+  }
+  return files > MAX_FILES ? wideReason(files) : null;
 }
 
 /**
@@ -353,8 +382,9 @@ export function decide(command, shell, cwd = process.cwd(), depth = 0) {
         if (/typecheck\.mjs$/i.test(target) && unfilteredTypecheck(scriptArgs.map((a) => a.text))) reason = TYPECHECK_REASON;
         else if (/vitest(?:\.mjs)?$/i.test(target)) reason = vitestReason(scriptArgs, dir);
         // The suite runner's first argument is its command; only `start`
-        // runs a whole package.
+        // runs a whole package, and `run` is bounded by how many files it names.
         else if (/test-suite\.mjs$/i.test(target) && /^start$/i.test(scriptArgs[0]?.text ?? "")) reason = START_REASON;
+        else if (/test-suite\.mjs$/i.test(target) && /^run$/i.test(scriptArgs[0]?.text ?? "")) reason = suiteRunReason(scriptArgs.slice(2).map((a) => a.text));
       }
       if (reason) return reason;
     }

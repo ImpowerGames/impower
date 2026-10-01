@@ -1,0 +1,10 @@
+animation broken with
+  keyframes {
+    from { opacity = 0 }
+    to { opacity = 1
+  }
+end
+
+animation after with
+  timing { duration = 2 }
+end

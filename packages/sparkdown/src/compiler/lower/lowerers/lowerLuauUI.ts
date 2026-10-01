@@ -80,7 +80,7 @@ export function lowerLuauUI(
     nodeRef.node,
     `Luau${uiType === "layout" ? "Layout" : "Component"}_content`,
   );
-  const body = parseStructBody(collectStructBodyLines(contentNode, ctx));
+  const body = parseStructBody(collectStructBodyLines(contentNode, ctx), ctx);
 
   const struct: Record<string, unknown> = {
     $type: uiType,

@@ -26,7 +26,7 @@ export function lowerLuauStyle(
     : "";
 
   const contentNode = findChildByName(nodeRef.node, "LuauStyle_content");
-  const body = parseStructBody(collectStructBodyLines(contentNode, ctx));
+  const body = parseStructBody(collectStructBodyLines(contentNode, ctx), ctx);
 
   const struct: Record<string, unknown> = {
     $type: "style",

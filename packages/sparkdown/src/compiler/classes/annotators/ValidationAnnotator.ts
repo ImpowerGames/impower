@@ -27,6 +27,10 @@ import {
 } from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
+import {
+  blockIsClosed,
+  blockOpenBrace,
+} from "../../lower/utils/structBodyEntries";
 import { RUN_WRAPPER_SUFFIX, runWrapperName } from "../../utils/runWrapper";
 
 const IMAGE_CONTROL_KEYWORDS =
@@ -127,6 +131,18 @@ const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
 const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
+// Worded like the missing-`end` message of a define (validateDefineStructure).
+const UNCLOSED_STRUCT_BLOCK =
+  "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
+const STRUCT_ENTRY_COMMA =
+  "Separate entries on one line with `;`, not `,`.";
+// Tokens a brace block cannot hold: a `}` that closes no block, and an
+// indented-form `key:` header or `-` item inside a block.
+const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
+  "LuauStructStrayBlockClose",
+  "LuauStructBlockIndentedHeader",
+  "LuauStructBlockItemMark",
+]);
 const MISSING_TYPE = "Expected type";
 // The grammar's tokens for a type that is missing or malformed, and for a
 // declaration target's `::`.
@@ -533,6 +549,46 @@ export class ValidationAnnotator extends SparkdownAnnotator<
   }
 
   /**
+   * Brace blocks in `style`, `animation`, `theme` and `morph` bodies. A `{`
+   * with no `}` is reported on that brace: the grammar ends the block where
+   * the declaration's `end` starts a line, so everything up to it is read into
+   * the block. A `}` that closes no block, and an indented-form `key:` header
+   * or `-` item inside a block, are invalid tokens. A comma between two
+   * entries on one line would otherwise be read into the first entry's value,
+   * so it is reported with the separator entries take.
+   */
+  protected validateStructBlock(
+    annotations: Range<SparkdownAnnotation<Diagnostic>>[],
+    nodeRef: SparkdownSyntaxNodeRef,
+  ): boolean {
+    if (
+      nodeRef.name === "LuauStructBlockBody" ||
+      nodeRef.name === "LuauStructListBlock"
+    ) {
+      if (!blockIsClosed(nodeRef.node)) {
+        const open = blockOpenBrace(nodeRef.node);
+        this.error(
+          annotations,
+          UNCLOSED_STRUCT_BLOCK,
+          open?.from ?? nodeRef.from,
+          open?.to ?? nodeRef.from + 1,
+        );
+      }
+      // The entries inside are checked on their own.
+      return false;
+    }
+    if (INVALID_STRUCT_BLOCK_TOKENS.has(nodeRef.name)) {
+      this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
+      return true;
+    }
+    if (nodeRef.name === "LuauStructBlockEntryComma") {
+      this.error(annotations, STRUCT_ENTRY_COMMA, nodeRef.from, nodeRef.to);
+      return true;
+    }
+    return false;
+  }
+
+  /**
    * Malformed Luau literals: an unfinished string or block comment, a bad
    * escape sequence, or a number that runs into letters. The grammar
    * recovers from each of these silently (an unfinished `"` swallows the
@@ -856,6 +912,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Diagnostic>>[] {
     if (this.validateLuauLiteral(annotations, nodeRef)) {
+      return annotations;
+    }
+    if (this.validateStructBlock(annotations, nodeRef)) {
       return annotations;
     }
     // A type that is missing or malformed in Luau the type checker reads is

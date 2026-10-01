@@ -309,6 +309,101 @@ variables:
   # Operators consumed by the restored struct-body per-line wrapper rules.
   ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
   ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
+  # Brace blocks in struct bodies (`LuauStructBlockLine`). A quoted run holds
+  # no `"` of its own, so it can only close at its first unescaped quote or run
+  # to the end of the line, and the value patterns below cannot backtrack into
+  # it to end a value at a `;` or `}` it contains.
+  STRUCT_BLOCK_QUOTED: (?:"(?:\\.|[^"\\\n])*(?:"|$))
+  # A comment inside a block starts where the indented form's value readers
+  # start one (`stripTrailingLineComment` and the typed reader's
+  # `*_WITH_COMMENT_RE`): `--` after whitespace, `//` after whitespace and
+  # before whitespace or the end of the line, and `--` after a value that is a
+  # whole number, boolean or quoted string (`opacity = 1-- note`). Any other
+  # `--` or `//` is text (`var(--gap)`, `&.card--large`, `http://example.com`).
+  STRUCT_BLOCK_COMMENT_AFTER_WS: (?:{{LUAU_COMMENT_START}}|[/][/](?={{WS}}|$))
+  # Whitespace that is not followed by a comment.
+  STRUCT_BLOCK_WS_IN_TEXT: (?:{{WS}}(?!{{WS}}*{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+  # A single-quoted run, closed on its line. Outside an attribute selector a
+  # `'` is an apostrophe, so only `STRUCT_BLOCK_BRACKET` reads one.
+  STRUCT_BLOCK_SQUOTED: (?:'(?:\\.|[^'\\\n])*')
+  # An attribute selector (`[data-label='a;b']`, `[data-label="x" i]`), read
+  # whole: its quoted runs may hold braces, `;` and `--`. Outside them it
+  # holds no brace, `'`, `"` or comment, so a `[` that does not start one is
+  # an ordinary character (`STRUCT_BLOCK_LONE_BRACKET`).
+  STRUCT_BLOCK_BRACKET_BODY: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_SQUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^\]\s"'{}])*
+  STRUCT_BLOCK_BRACKET: (?:[\[]{{STRUCT_BLOCK_BRACKET_BODY}}[\]])
+  STRUCT_BLOCK_LONE_BRACKET: (?:[\[](?!{{STRUCT_BLOCK_BRACKET_BODY}}[\]]))
+  # A block header: a key, a selector or a keyframe position. It holds no
+  # unquoted brace or `;` and no comment, and does not start with `=` or `,`,
+  # so a brace in a comment never opens a block. A quoted run and an
+  # attribute selector are read whole (`"quoted key"`, `&[data-label="x"]`,
+  # `&[data-label='a;b']`). It does not end in a comma, so in
+  # `{ "a", { v = 1 } }` the comma separates two entries (and is reported)
+  # rather than ending a header; a selector list (`&.a, &.b {`) ends in a name.
+  STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?(?<![\s,]))
+  # Between a header and its `{`: whitespace and the optional `=`.
+  STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
+  # A whole number, boolean or quoted value, spelled as the typed reader's
+  # `NUMERIC_WITH_COMMENT_RE`, `BOOLEAN_WITH_COMMENT_RE` and
+  # `QUOTED_WITH_COMMENT_RE` spell it. After one, `--` begins a comment with
+  # no whitespace before it (those regexes), and so does `//` (the literal
+  # value rules, `NumericFieldValue` and its neighbours, end at `//`).
+  STRUCT_BLOCK_LITERAL: (?:[-]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
+  STRUCT_BLOCK_AFTER_LITERAL_COMMENT: (?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))
+  STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})
+  # A property's key, and the key with its `=` and the whitespace around it.
+  # It is spelled without `IDENTIFIER`'s closing `\b`, which the two engines
+  # read differently after a non-ASCII letter (`名 = 2`); an `=` always
+  # follows it, and `(?<![-])` keeps the one thing the boundary did for an
+  # ASCII key, that it does not end in `-`.
+  STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
+  STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
+  # An indented-form property or `-` item whose value is a literal followed by
+  # a `--` or `//` comment: the rest of its line is the comment.
+  STRUCT_BLOCK_LITERAL_COMMENT_LINE: (?:(?:{{STRUCT_BLOCK_PROPERTY_HEAD}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})
+  # The text of a line up to a brace that no quoted run, attribute selector
+  # or comment holds.
+  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^"\s{}\[])*?[{}])
+  # A body line that holds an unquoted `{` or `}` outside a comment is read as
+  # block entries: a `{` opens a block or a list entry wherever it stands on
+  # the line (`timing = 1; keyframes {`), and a `}` outside every block is
+  # stray, which reading the line as entries reports (`delay = 2 }` after the
+  # block it meant to close has closed). A brace inside a quoted string or a
+  # comment leaves the line in the indented form, and so does a line that
+  # `STRUCT_BLOCK_LITERAL_COMMENT_LINE` describes. The indentation is read
+  # whole before that check, so it cannot give back a space and start the
+  # check at whitespace, where it would pass (`  - 2-- } note`). A property's
+  # value is scanned from its first character, since the value readers trim it
+  # before they look for a comment: in `k = --gap }` the `--` is text and the
+  # `}` is stray.
+  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?!{{STRUCT_BLOCK_LITERAL_COMMENT_LINE}}){{STRUCT_BLOCK_PROPERTY_HEAD}}?{{STRUCT_BLOCK_BRACE_SCAN}})
+  # An unclosed block ends where the declaration's `end` starts a line.
+  STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
+  # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
+  # comment. It is ignored.
+  STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+  # A comma followed by another entry on the same line: a property, with any
+  # key a property may have (`, b = 2`, `, "b" = 2`, `, $b = 2`), or a block
+  # (`, b {`, `, > text {`). A value cannot hold an unquoted `{`, so text
+  # after a comma that runs to a `{` is the next block's header.
+  STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_PROPERTY_HEAD}}|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
+  # An unquoted property value ends at the end of its line, a `;`, a brace, or
+  # a comma that ends the entry or precedes another one. Any other comma stays
+  # part of the value, and a quoted run or an attribute selector
+  # (`STRUCT_BLOCK_BRACKET`) is read whole. A value that reaches a comment
+  # takes the comment, to the end of the line, into its text, as an indented
+  # value does, so the value readers read the same text in both forms and
+  # strip the comment alike, and nothing in the comment is structure. A literal followed by `//` is the
+  # exception: it ends before the comment, which the property or list value
+  # reads as a `LuauStructBlockValueComment`, because the literal value rules
+  # (`NumericFieldValue` and its neighbours) tokenize a `//` comment
+  # differently in the two engines.
+  STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))
+  STRUCT_BLOCK_COMMENT_IN_VALUE: (?:{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
+  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{}"\n\[])+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
+  # A bare list value also ends at any comma.
+  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},]))
+  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{},"\n\[])+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
@@ -3658,7 +3753,9 @@ repository:
       # blocks, `> selector:` rules, `@breakpoint:` directives, bare
       # markers). Captured opaquely line-by-line — the lowerer reads the
       # raw text and parses the indentation structure itself. (See
-      # lowerLuauStyle / lowerLuauUI.)
+      # lowerLuauStyle / lowerLuauUI.) A line that opens a brace block is
+      # read as a `LuauStructBlockLine` instead.
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3698,6 +3795,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3733,6 +3831,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -3770,6 +3869,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
+      - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -5405,6 +5505,264 @@ repository:
     tag: content
     name: meta.struct.body.fallback.luau
     match: (.+)$
+
+  # ----------------------------------------------------------------------------
+  # Brace blocks in `style`, `animation`, `theme` and `morph` bodies (#1222).
+  #
+  # A block is `header { … }`, with an optional `=` before the `{`. A list is a
+  # block whose entries are bare: `{ … }` for an object, a value for a scalar.
+  # Entries end at a newline, a `;` or the block's `}`, so indentation means
+  # nothing inside a block. The indented forms (`key:` headers, `-` items) are
+  # still read line by line outside blocks (`LuauStructBodyLine`) and are
+  # invalid inside one.
+  #
+  # A body line that holds an unquoted `{` or `}` outside a comment
+  # (`STRUCT_BLOCK_LINE_START`) is a `LuauStructBlockLine`, read as block
+  # entries from its first character. It ends at the end of the line its last
+  # block closes on, so entries after a block on that line are its entries too.
+  # Every other line stays an indented-form line.
+  # ----------------------------------------------------------------------------
+  LuauStructBlockLine:
+    begin: ^(?={{STRUCT_BLOCK_LINE_START}})
+    patterns:
+      - { include: "#LuauStructStrayBlockClose" }
+      - { include: "#LuauStructBlockEntries" }
+    end: $|(?={{STRUCT_BLOCK_BAIL}})
+
+  # Everything an entry position inside a block (or after one on a block line)
+  # can hold. Every character is tiled: a bare list value takes anything the
+  # rules before it leave (GRAMMAR.md §17).
+  LuauStructBlockEntries:
+    patterns:
+      - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockSlashComment" }
+      - { include: "#Whitespace" }
+      - { include: "#Newline" }
+      - { include: "#LuauStructBlockSeparator" }
+      - { include: "#LuauStructBlockTrailingComma" }
+      - { include: "#LuauStructBlockEntryComma" }
+      # The indented forms' marks are tried before a block, so `- { … }` and
+      # `key: { … }` report the mark rather than opening a block keyed by it.
+      - { include: "#LuauStructBlockItemMark" }
+      # A property is tried before a block, so a block header never starts at
+      # a property (`a = 1, b { … }` is a property, a comma and a block).
+      - { include: "#LuauStructBlockProperty" }
+      - { include: "#LuauStructBlockIndentedHeader" }
+      - { include: "#LuauStructBlock" }
+      - { include: "#LuauStructListBlock" }
+      - { include: "#LuauStructListValue" }
+
+  # `header { … }` / `header = { … }`. The `{ … }` is its own bracket rule, so
+  # bracket matching pairs the braces alone.
+  LuauStructBlock:
+    begin: ({{STRUCT_BLOCK_HEADER}})({{STRUCT_BLOCK_ASSIGN}})(?=[{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockKey" }
+      2:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+          - { include: "#Whitespace" }
+    patterns:
+      - { include: "#LuauStructBlockBody" }
+    end: (?<=[}])|(?={{STRUCT_BLOCK_BAIL}})
+
+  # A block's header: its key, selector or keyframe position. The parts are
+  # highlighted by the rules an indented `key:` header uses, so a keyframe
+  # position (`from`, `40%`) is a `LuauKeyframeSelector` here too. A character
+  # none of them reads is a `LuauStructBlockKeyChar`, so the key always spans
+  # the whole header and both engines read every part of it (GRAMMAR.md §17).
+  LuauStructBlockKey:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockKeyBracket" }
+          - { include: "#LuauStructBlockKeyString" }
+          - { include: "#LuauElementAttribute" }
+          - { include: "#LuauKeyframeSelector" }
+          - { include: "#SelectorPropertyNamePart" }
+          - { include: "#ComponentName" }
+          - { include: "#PropertyName" }
+          - { include: "#LuauStructBlockKeyChar" }
+
+  LuauStructBlockKeyChar:
+    match: (.)
+
+  # An attribute selector in a header (`&[data-label="x"]`), read as one
+  # match. The indented key's bracket rule is a scoped rule, which a capture
+  # cannot hold in the tree engine, so the two engines would read it apart.
+  LuauStructBlockKeyBracket:
+    match: ({{STRUCT_BLOCK_BRACKET}})
+    captures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockKeyString" }
+          - { include: "#LuauStructBlockKeyChar" }
+
+  # A quoted run in a header (`&[data-label="x"]`, `&[data-label='x']`) is
+  # plain text: a selector's attribute value is not an interpolated string.
+  LuauStructBlockKeyString:
+    tag: string
+    name: string.quoted.struct-block-key.sd
+    match: ({{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_SQUOTED}})
+
+  # The braces of a `header { … }` block and their entries. Without its `}` the
+  # block ends where the declaration's `end` starts a line, or at the next
+  # `scene` / `branch`.
+  LuauStructBlockBody:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauStructBlockEntries" }
+    end: ([}])|(?={{STRUCT_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
+
+  # A bare `{ … }` entry: one object of the enclosing list.
+  LuauStructListBlock:
+    brackets: true
+    begin: ([{])
+    beginCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockOpen" }
+    patterns:
+      - { include: "#LuauStructBlockEntries" }
+    end: ([}])|(?={{STRUCT_BLOCK_BAIL}})
+    endCaptures:
+      1:
+        patterns:
+          - { include: "#LuauStructBlockClose" }
+
+  LuauStructBlockOpen:
+    tag: keyword
+    name: punctuation.definition.template-expression.begin.sd
+    match: ([{])
+
+  LuauStructBlockClose:
+    tag: keyword
+    name: punctuation.definition.template-expression.end.sd
+    match: ([}])
+
+  # `name = value` inside a block. The key and value are read by the same rules
+  # as an indented `name = value` line; the value ends at the line's end, a
+  # `;` or the block's `}` (`STRUCT_BLOCK_VALUE`). A value that would start
+  # with `{` is the block form `name = { … }`, so the rule leaves it to
+  # `LuauStructBlock`.
+  LuauStructBlockProperty:
+    match: ({{STRUCT_BLOCK_PROPERTY_KEY}})({{ASSIGN_EQUAL_OPERATOR}})(?!{{WS}}*[{])({{STRUCT_BLOCK_VALUE}}?)({{WS}}*[/][/][^\n]*)?
+    captures:
+      1:
+        patterns:
+          - { include: "#BuiltinComponentName" }
+          - { include: "#StylingDeclarationScalarPropertyName" }
+      2:
+        patterns:
+          - { include: "#AssignEqualOperator" }
+      3:
+        patterns:
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
+          - { include: "#StylingValue" }
+          - { include: "#UnquotedStringFieldValue" }
+      # The `//` comment after a literal value.
+      4:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
+
+  # A bare value entry: one scalar of the enclosing list.
+  LuauStructListValue:
+    match: ({{STRUCT_BLOCK_ITEM}})({{WS}}*[/][/][^\n]*)?
+    captures:
+      1:
+        patterns:
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValueInterpolated" }
+          - { include: "#StringFieldValue" }
+          - { include: "#StylingValue" }
+          - { include: "#UnquotedStringFieldValue" }
+      2:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
+
+  # The `//` comment after a literal property or list value.
+  LuauStructBlockValueComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ({{WS}}*)([/]{2})([^\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
+
+  LuauStructBlockSeparator:
+    tag: punctuation
+    name: punctuation.separator.semicolon.sd
+    match: ([;])
+
+  # A comma that ends an entry is ignored, so a block written like a multi-line
+  # `define` table reads.
+  LuauStructBlockTrailingComma:
+    tag: punctuation
+    name: punctuation.separator.comma.sd
+    match: (?={{STRUCT_BLOCK_TRAILING_COMMA}})([,])
+
+  # A comma between two entries on one line. Entries are separated by `;`.
+  LuauStructBlockEntryComma:
+    tag: invalid
+    name: invalid.illegal.struct-entry-comma.sd
+    match: ([,])
+
+  # A `//` comment inside a block: after whitespace (or at the start of an
+  # entry) and before whitespace or the end of the line, as the indented
+  # form's value readers strip one (`stripTrailingLineComment`).
+  LuauStructBlockSlashComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ({{WS}}*)([/]{2})(?={{WS}}|$)([^\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
+
+  # An indented-form `key:` header inside a block, before the end of the
+  # line, a `;`, a brace, a comma or a comment. Its quoted runs and attribute
+  # selectors are read whole, as a block header's are.
+  LuauStructBlockIndentedHeader:
+    tag: invalid
+    name: invalid.illegal.struct-block-header.sd
+    match: ((?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*[:])(?={{WS}}*(?:$|[;{},]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+
+  # An indented-form `-` item mark inside a block.
+  LuauStructBlockItemMark:
+    tag: invalid
+    name: invalid.illegal.struct-block-item.sd
+    match: ([-])(?={{WS}}|$)
+
+  # A `}` that closes no block.
+  LuauStructStrayBlockClose:
+    tag: invalid
+    name: invalid.illegal.struct-block-close.sd
+    match: ([}])
 
   # ----------------------------------------------------------------------------
   # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a
