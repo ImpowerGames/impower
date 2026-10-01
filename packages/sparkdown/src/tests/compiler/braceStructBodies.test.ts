@@ -641,6 +641,18 @@ end
       duration: 1,
       delay: 2,
     });
+    // Any key a property may have starts the next entry.
+    for (const key of ['"b"', "$b", '["b"]', "2"]) {
+      const keyed = `theme t with
+  g { a = 1, ${key} = 2 }
+end
+`;
+      const keyedErrors = errorsOf(keyed);
+      expect(keyedErrors, key).toHaveLength(1);
+      expect(keyedErrors[0], key).toMatchObject({ line: 1, text: "," });
+      expect(keyedErrors[0]!.message, key).toContain("`;`");
+      expect(structOf(keyed, "theme", "t").g.a, key).toBe(1);
+    }
   });
 
   test("a comma between two list values on one line is one error that names `;`", () => {
@@ -1000,6 +1012,23 @@ end
     expect(errors).toMatchObject([
       { message: "Invalid syntax", line: 2, text: "accents:" },
       { message: "Invalid syntax", line: 3, text: "-" },
+    ]);
+    // A header with quoted runs or an attribute selector is one too, with or
+    // without a `{` after its colon.
+    const quoted = `style t with
+  outer {
+    &[data-label="x"]:
+      color = red
+    &[data-label='a;b']:
+      color = blue
+    &[data-label='a{b']: { color = green }
+  }
+end
+`;
+    expect(errorsOf(quoted).map((d) => [d.message, d.line, d.text])).toEqual([
+      ["Invalid syntax", 2, '&[data-label="x"]:'],
+      ["Invalid syntax", 4, "&[data-label='a;b']:"],
+      ["Invalid syntax", 6, "&[data-label='a{b']:"],
     ]);
   });
 });

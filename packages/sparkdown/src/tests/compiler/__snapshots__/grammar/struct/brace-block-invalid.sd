@@ -24,6 +24,11 @@ theme t with
     c = 2, // trailing } {
     font = Arial 1--display
   }
+  quoted {
+    &[data-label='a;b']:
+      color = red
+    a = 1, "b" = 2
+  }
   values:
     - 2 -- } note
 end

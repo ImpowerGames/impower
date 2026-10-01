@@ -1,4 +1,4 @@
-text.source.sparkdown [0..596]
+text.source.sparkdown [0..673]
  ├─ meta.theme.luau [0..12]
  │   ├─ keyword.control.theme.luau [0..5]: "theme"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -331,23 +331,62 @@ text.source.sparkdown [0..596]
  │   ├─ punctuation.whitespace.sd [560..562]: "  "
  │   └─ punctuation.definition.template-expression.end.sd [562..563]: "}"
  ├─ Newline [563..564]: "\n"
- ├─ meta.theme.luau [564..573]
- │   ├─ punctuation.whitespace.optional.sd [564..566]: "  "
- │   └─ meta.struct.body.luau [566..573]
- │       ├─ entity.name.type.class.view.sd [566..572]: "values"
- │       └─ meta.template.expression.operator.colon.sd [572..573]: ":"
- ├─ Newline [573..574]: "\n"
- ├─ meta.theme.luau [574..591]
- │   ├─ punctuation.whitespace.optional.sd [574..578]: "    "
- │   └─ meta.struct.body.luau [578..591]
- │       ├─ keyword.operator.expression.array.sd [578..579]: "-"
- │       ├─ markup.raw.whitespace.separator.sd [579..580]: " "
- │       ├─ constant.numeric.sd [580..581]: "2"
- │       └─ comment.line.double-dash.luau [581..591]
- │           ├─ punctuation.whitespace.sd [581..582]: " "
- │           ├─ comment.luau [582..584]: "--"
- │           └─ punctuation.definition.comment.content.sd [584..591]: " } note"
- ├─ Newline [591..592]: "\n"
- ├─ meta.theme.luau [592..595]
- │   └─ keyword.control.end.luau [592..595]: "end"
- └─ Newline [595..596]: "\n"
+ ├─ meta.theme.luau [564..574]
+ │   ├─ punctuation.whitespace.sd [564..566]: "  "
+ │   ├─ entity.name.type.class.view.sd [566..572]: "quoted"
+ │   ├─ punctuation.whitespace.sd [572..573]: " "
+ │   └─ punctuation.definition.template-expression.begin.sd [573..574]: "{"
+ ├─ Newline [574..575]: "\n"
+ ├─ meta.theme.luau [575..599]
+ │   ├─ punctuation.whitespace.sd [575..579]: "    "
+ │   └─ invalid.illegal.struct-block-header.sd [579..599]: "&[data-label='a;b']:"
+ ├─ Newline [599..600]: "\n"
+ ├─ meta.theme.luau [600..617]
+ │   ├─ punctuation.whitespace.sd [600..606]: "      "
+ │   ├─ variable.other.property.define.sd [606..611]: "color"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [611..612]: " "
+ │   ├─ keyword.operator.assignment.sd [612..613]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [613..614]: " "
+ │   └─ string.unquoted.identifier.sd [614..617]: "red"
+ ├─ Newline [617..618]: "\n"
+ ├─ meta.theme.luau [618..636]
+ │   ├─ punctuation.whitespace.sd [618..622]: "    "
+ │   ├─ variable.other.property.define.sd [622..623]: "a"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [623..624]: " "
+ │   ├─ keyword.operator.assignment.sd [624..625]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [625..626]: " "
+ │   ├─ constant.numeric.sd [626..627]
+ │   │   └─ constant.numeric.sd [626..627]: "1"
+ │   ├─ invalid.illegal.struct-entry-comma.sd [627..628]: ","
+ │   ├─ punctuation.whitespace.sd [628..629]: " "
+ │   ├─ string.quoted.key.sd [629..632]: "\"b\""
+ │   ├─ markup.raw.whitespace.separator.optional.sd [632..633]: " "
+ │   ├─ keyword.operator.assignment.sd [633..634]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [634..635]: " "
+ │   └─ constant.numeric.sd [635..636]
+ │       └─ constant.numeric.sd [635..636]: "2"
+ ├─ Newline [636..637]: "\n"
+ ├─ meta.theme.luau [637..640]
+ │   ├─ punctuation.whitespace.sd [637..639]: "  "
+ │   └─ punctuation.definition.template-expression.end.sd [639..640]: "}"
+ ├─ Newline [640..641]: "\n"
+ ├─ meta.theme.luau [641..650]
+ │   ├─ punctuation.whitespace.optional.sd [641..643]: "  "
+ │   └─ meta.struct.body.luau [643..650]
+ │       ├─ entity.name.type.class.view.sd [643..649]: "values"
+ │       └─ meta.template.expression.operator.colon.sd [649..650]: ":"
+ ├─ Newline [650..651]: "\n"
+ ├─ meta.theme.luau [651..668]
+ │   ├─ punctuation.whitespace.optional.sd [651..655]: "    "
+ │   └─ meta.struct.body.luau [655..668]
+ │       ├─ keyword.operator.expression.array.sd [655..656]: "-"
+ │       ├─ markup.raw.whitespace.separator.sd [656..657]: " "
+ │       ├─ constant.numeric.sd [657..658]: "2"
+ │       └─ comment.line.double-dash.luau [658..668]
+ │           ├─ punctuation.whitespace.sd [658..659]: " "
+ │           ├─ comment.luau [659..661]: "--"
+ │           └─ punctuation.definition.comment.content.sd [661..668]: " } note"
+ ├─ Newline [668..669]: "\n"
+ ├─ meta.theme.luau [669..672]
+ │   └─ keyword.control.end.luau [669..672]: "end"
+ └─ Newline [672..673]: "\n"

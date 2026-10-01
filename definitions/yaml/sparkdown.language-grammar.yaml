@@ -376,17 +376,18 @@ variables:
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
   # comment. It is ignored.
   STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
-  # A comma followed by another entry on the same line: a property (`, b = 2`)
-  # or a block (`, b {`, `, > text {`). A value cannot hold an unquoted `{`,
-  # so text after a comma that runs to a `{` is the next block's header.
-  STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
+  # A comma followed by another entry on the same line: a property, with any
+  # key a property may have (`, b = 2`, `, "b" = 2`, `, $b = 2`), or a block
+  # (`, b {`, `, > text {`). A value cannot hold an unquoted `{`, so text
+  # after a comma that runs to a `{` is the next block's header.
+  STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_PROPERTY_HEAD}}|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
   # An unquoted property value ends at the end of its line, a `;`, a brace, or
   # a comma that ends the entry or precedes another one. Any other comma stays
   # part of the value, and a quoted run or an attribute selector
-  # (`STRUCT_BLOCK_BRACKET`) is read whole. A value that reaches a comment takes the comment, to the
-  # end of the line, into its text, as an indented value does, so the value
-  # readers read the same text in both forms and strip the comment alike, and
-  # nothing in the comment is structure. A literal followed by `//` is the
+  # (`STRUCT_BLOCK_BRACKET`) is read whole. A value that reaches a comment
+  # takes the comment, to the end of the line, into its text, as an indented
+  # value does, so the value readers read the same text in both forms and
+  # strip the comment alike, and nothing in the comment is structure. A literal followed by `//` is the
   # exception: it ends before the comment, which the property or list value
   # reads as a `LuauStructBlockValueComment`, because the literal value rules
   # (`NumericFieldValue` and its neighbours) tokenize a `//` comment
@@ -5721,7 +5722,6 @@ repository:
     name: invalid.illegal.struct-entry-comma.sd
     match: ([,])
 
-  # An indented-form `key:` header inside a block.
   # A `//` comment inside a block: after whitespace (or at the start of an
   # entry) and before whitespace or the end of the line, as the indented
   # form's value readers strip one (`stripTrailingLineComment`).
@@ -5738,10 +5738,12 @@ repository:
       3:
         name: comment.line.double-slash.content.sd
 
+  # An indented-form `key:` header inside a block. Its quoted runs and
+  # attribute selectors are read whole, as a block header's are.
   LuauStructBlockIndentedHeader:
     tag: invalid
     name: invalid.illegal.struct-block-header.sd
-    match: ((?:[^\s{};"]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*[:])(?={{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+    match: ((?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*[:])(?={{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
 
   # An indented-form `-` item mark inside a block.
   LuauStructBlockItemMark:
