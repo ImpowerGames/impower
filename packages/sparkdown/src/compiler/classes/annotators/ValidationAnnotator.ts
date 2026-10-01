@@ -21,11 +21,11 @@ import {
   followsMissingValue,
   TRIVIA_BEFORE_STATEMENT,
 } from "../../lower/utils/statementBefore";
-import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
+import { luauReportsMissingValue, nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
 import { luauStatementError } from "../../utils/luauStatementError";
 import { RESERVED } from "../../lint/luauNames";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { isCheckedLuau } from "../../typecheck/LuauUnitNodes";
+import { isCheckedLuau, isCheckedLuauAt, isLuauFile } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -135,7 +135,7 @@ const MALFORMED_NUMBER = "Malformed number";
 const UNFINISHED_COMMENT =
   "Expected identifier when parsing expression, got unfinished comment";
 const STRAY_OPTIONAL = "Expected type, got '?'";
-const MISSING_OPERAND = "Expected identifier when parsing expression, got ';'";
+const MISSING_EXPRESSION = "Expected identifier when parsing expression";
 // Worded like the missing-`end` message of a define (validateDefineStructure).
 const UNCLOSED_STRUCT_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the declaration's `end`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
@@ -282,26 +282,25 @@ function invalidStatementError(
 }
 
 /**
- * Whether the error of `node`, a line in a Luau body that is not a Luau
- * statement and begins with a character no name begins with (`?Who`), is
- * reported by the statement before it, which Luau reads that character
- * into: an `=` or operator that ends its line names it as the missing value
- * (`local y =`), a `.` that ends its line names it as the missing member
- * (`local v = t.`), and a line that is not a statement either reports
- * Luau's error at it (`U.S.`).
+ * Whether `node`, a line in a Luau body that is not a Luau statement, is one
+ * that Luau reads into the statement before it, whose report stands for it:
+ * an `=` or operator that ends its line takes its first token as the missing
+ * value (`local y =`), and a `.` that ends its line takes it as the missing
+ * member (`local v = t.`, `U.S.`). The `.` is reported as a Sparkdown access
+ * path when that token is a name, and the type checker then reports the
+ * statement as Luau reads it; otherwise the report names the token.
  */
 function reportedBefore(
   node: SyntaxNode,
   read: (from: number, to: number) => string,
 ): boolean {
-  if (/^\s*[A-Za-z_]/.test(read(node.from, node.to))) return false;
   if (followsMissingValue(node, read)) return true;
   let prev = node.prevSibling;
   while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
   if (prev?.name === "LuauInvalidStatement") {
     const line = childNamed(prev, "LuauInvalidStatement_c2");
     const error = invalidStatementError(line?.from ?? prev.from, line?.to ?? prev.to, read);
-    return error != null && error.from >= node.from;
+    return error != null && (error.message === NAME_ON_LATER_LINE || error.from >= node.from);
   }
   return followsDanglingDot(node, read);
 }
@@ -310,7 +309,8 @@ function reportedBefore(
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
 // token it found instead, which lies outside the expression, so these leave
-// it out.
+// it out. Where the type checker reads the Luau and Luau finds a value
+// missing too, the checker reports that one with Luau's token and range.
 const IF_EXPRESSION_WITHOUT_VALUE =
   "Expected identifier when parsing expression";
 const IF_EXPRESSION_WITHOUT_THEN =
@@ -777,6 +777,19 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
+  /**
+   * Whether the type checker reports an error that a node's construct is
+   * missing something, at the token Luau finds instead (from `tokenFrom`, or
+   * the end of the Luau when there is none): it reads the construct and that
+   * token as Luau (#1175).
+   */
+  protected checkerReportsAt(node: SyntaxNode, tokenFrom: number | undefined): boolean {
+    // A Luau file is Luau throughout, however this document's tree reads it.
+    if (this.uri && isLuauFile(this.uri)) return true;
+    const read = (from: number, to: number) => this.read(from, to);
+    return isCheckedLuau(node, read) && (tokenFrom === undefined || isCheckedLuauAt(node, tokenFrom, read));
+  }
+
   /** Whether `pos` is the `end` a `run` file's wrapper closes it with
    *  (`runFileUnit`), which is not in the file. */
   protected isRunWrapperEnd(pos: number): boolean {
@@ -979,12 +992,23 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     // An operator or `if` with only whitespace, line breaks or comments before
     // the `;` that ends its statement has no right operand; the grammar reads
-    // it as its own token. A cast's `::` has no type after it, which the
-    // type checker reports where it reads the Luau.
+    // it as its own token. Where the type checker reads the Luau, it reports
+    // the missing operand (and a cast's missing type) with Luau's range, the
+    // `;`, as it reports every missing expression (#1175).
     if (nodeRef.name === "LuauOperatorMissingOperand") {
-      const isCast = this.read(nodeRef.from, nodeRef.to).trim() === "::";
-      if (!isCast || !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))) {
-        this.error(annotations, MISSING_OPERAND, nodeRef.from, nodeRef.to);
+      // An operator right after an annotation's `:` stands where the type
+      // must begin, and is the token the type's own error names
+      // (`scene s(a: ..)`).
+      const lineStart = this.text?.lineAt(nodeRef.from).from ?? nodeRef.from;
+      const afterAnnotationColon = /(?:^|[^:]):\s*$/.test(this.read(lineStart, nodeRef.from));
+      const got = this.luauTokenAt(nodeRef.to);
+      if (!afterAnnotationColon && !this.checkerReportsAt(nodeRef.node, got?.from)) {
+        this.error(
+          annotations,
+          `${MISSING_EXPRESSION}, got ${got ? `'${got.text}'` : "<eof>"}`,
+          got?.from ?? nodeRef.from,
+          got ? got.from + got.text.length : nodeRef.to,
+        );
       }
       return annotations;
     }
@@ -994,7 +1018,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     // starts a method call, which is missing its name.
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const isMethodColon = this.isMethodColon(nodeRef.node);
-      if (!isMethodColon && checkerReportsType) {
+      // The checker reports a missing method name too, as it reports every
+      // missing name after a member access (#1175), where it reads the token
+      // found instead.
+      if (checkerReportsType && (!isMethodColon || this.checkerReportsAt(nodeRef.node, this.luauTokenAt(nodeRef.to)?.from))) {
         return annotations;
       }
       if (!isMethodColon) {
@@ -1012,13 +1039,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         );
         return annotations;
       }
+      // Luau's range is the token it found instead of the name.
       const token = this.tokenAfterTrivia(nodeRef.to);
-      const expected = MISSING_METHOD_NAME;
+      const got = token ? this.luauTokenAt(nodeRef.to) : null;
       this.error(
         annotations,
-        `${expected}, got ${token ? `'${token}'` : "<eof>"}`,
-        nodeRef.from,
-        nodeRef.to,
+        `${MISSING_METHOD_NAME}, got ${token ? `'${token}'` : "<eof>"}`,
+        got?.from ?? nodeRef.from,
+        got ? got.from + got.text.length : nodeRef.to,
       );
       return annotations;
     }
@@ -1168,14 +1196,30 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     // A member access whose last `.` has no name after it on its line
     // (`t.a.`). The grammar reads that `.`, after any whitespace before it, as
-    // its own token, so the `.` is the node's last character. The wording is
-    // Luau's parser's, naming the token it meets instead of the name.
+    // its own token, so the `.` is the node's last character. Luau reads a
+    // name on a later line as the member, but a Sparkdown access path ends
+    // with its line, which only Sparkdown reports. Otherwise Luau's parser
+    // names the token it meets instead of the name, at that token; the type
+    // checker reports that where it reads the Luau (#1175).
     if (nodeRef.name === "LuauDanglingAccessor") {
-      const { message, from, to } = danglingDotError(
-        nodeRef.to - 1,
-        (from, to) => this.read(from, to),
+      const got = nextSignificantToken(nodeRef.to, (from, to) =>
+        this.read(from, to),
       );
-      this.error(annotations, message, from, to);
+      const nameOnLaterLine =
+        got != null &&
+        /^[A-Za-z_]/.test(got.text) &&
+        !RESERVED.has(got.text) &&
+        this.read(nodeRef.to, got.from).includes("\n");
+      if (nameOnLaterLine) {
+        this.error(annotations, NAME_ON_LATER_LINE, nodeRef.to - 1, nodeRef.to);
+      } else if (!this.checkerReportsAt(nodeRef.node, got?.from)) {
+        this.error(
+          annotations,
+          `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`,
+          got?.from ?? nodeRef.to - 1,
+          got ? got.from + got.text.length : nodeRef.to,
+        );
+      }
       return annotations;
     }
     // A line in a Luau body that is not a statement (`Hello there.`). Luau's
@@ -1221,7 +1265,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const missing = missingIfExpressionPart(nodeRef.node, (from, to) =>
         this.read(from, to),
       );
-      if (missing) {
+      // A missing condition or arm value is a missing expression, which the
+      // type checker reports with Luau's range where it reads the Luau and
+      // Luau finds it missing too.
+      const read = (from: number, to: number) => this.read(from, to);
+      const checkerReportsValue =
+        missing?.message === IF_EXPRESSION_WITHOUT_VALUE &&
+        luauReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read);
+      if (missing && !checkerReportsValue) {
         this.error(
           annotations,
           missing.message,
