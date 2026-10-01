@@ -287,6 +287,22 @@ end
     }
   });
 
+  test("a class on a line that continues an element links to its style", () => {
+    const wrapped = `layout hud with
+  column {
+    button
+      .panel
+      "Use"
+  }
+end
+style panel with
+  background-color = black
+end
+`;
+    expect(referencesAt(wrapped, "panel", 1, true)).toEqual(["3:7", "7:6"]);
+    expect(referencesAt(wrapped, "panel", 2, true)).toEqual(["3:7", "7:6"]);
+  });
+
   test("go to definition on a dotted class reaches the style", () => {
     // The options the server's definition handler passes.
     const { documents, workspace } = makeWorkspace(source);

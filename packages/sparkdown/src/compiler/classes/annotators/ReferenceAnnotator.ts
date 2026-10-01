@@ -6,9 +6,11 @@ import {
   STRUCT_KEY_TOKEN_NAMES,
   braceBodyKey,
   sparkleElementKeyParts,
+  sparklePartWords,
   structBlockKeyNode,
   structKeyToken,
 } from "../../utils/braceBlocks";
+import { findChildByName } from "../../utils/findChildByName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import {
   VARIABLE_DEFINITION_NAMES,
@@ -670,6 +672,18 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
         );
       }
       this.pushClassWordReferences(annotations, words);
+      return annotations;
+    }
+    if (this.inStructural && nodeRef.name === "LuauSparkleElementContinuation") {
+      // An element's parts continued on a later line: its words and classes
+      // link as the element's own do.
+      const content = findChildByName(
+        nodeRef.node,
+        "LuauSparkleElementContinuation_content",
+      );
+      if (content) {
+        this.pushClassWordReferences(annotations, sparklePartWords(content));
+      }
       return annotations;
     }
 

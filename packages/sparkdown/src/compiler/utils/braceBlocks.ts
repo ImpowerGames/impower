@@ -120,13 +120,17 @@ export function structKeyToken(key: SyntaxNode): SyntaxNode {
 }
 
 /** The name, bare words and `.name` classes of a brace element's head, in
- *  source order. A component call (`card(1)`) has none of these in its key. */
+ *  source order: its name (and a call's arguments) in its begin, then the
+ *  runs of parts (`LuauSparkleElementParts`) its content holds before its
+ *  block, including those after an event closure's `}`. A component call
+ *  (`card(1)`) has none of these in its key. */
 export function sparkleElementKeyParts(element: SyntaxNode): {
   name: SyntaxNode | null;
   words: SyntaxNode[];
   call: boolean;
 } {
   const begin = findChildByName(element, "LuauSparkleElement_begin");
+  const content = findChildByName(element, "LuauSparkleElement_content");
   const words: SyntaxNode[] = [];
   let name: SyntaxNode | null = null;
   let call = false;
@@ -137,16 +141,8 @@ export function sparkleElementKeyParts(element: SyntaxNode): {
         case "BuiltinComponentName":
           name ??= child;
           break;
-        case "LuauSparkleElementWord":
-        case "LuauSparkleClassName":
-          words.push(child);
-          break;
         case "LuauSparkleCallArguments":
           call = true;
-          break;
-        case "LuauSparklePropAttribute":
-        case "LuauSparkleEventAttribute":
-        case "LuauElementContentStringPlain":
           break;
         default:
           walk(child);
@@ -154,7 +150,51 @@ export function sparkleElementKeyParts(element: SyntaxNode): {
     }
   };
   if (begin) walk(begin);
+  if (content) words.push(...sparklePartWords(content));
   return { name, words, call };
+}
+
+/**
+ * The bare words and `.name` classes in the runs of parts directly inside an
+ * element's or a continuation line's content (`LuauSparkleElement_content`,
+ * `LuauSparkleElementContinuation_content`), in source order, never inside
+ * its block, an attribute or content.
+ */
+export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
+  const words: SyntaxNode[] = [];
+  const walk = (node: SyntaxNode) => {
+    for (let child = node.firstChild; child; child = child.nextSibling) {
+      switch (child.name) {
+        case "LuauSparkleElementWord":
+        case "LuauSparkleClassName":
+          words.push(child);
+          break;
+        case "LuauSparklePropAttribute":
+        case "LuauSparkleEventAttribute":
+        case "LuauSparkleEventClosureAttribute":
+        case "LuauElementContentStringPlain":
+        case "LuauSparkleElementBlock":
+          break;
+        default:
+          walk(child);
+      }
+    }
+  };
+  for (let child = content.firstChild; child; child = child.nextSibling) {
+    if (child.name === "LuauSparkleElementParts") {
+      walk(child);
+    } else if (child.name === "LuauSparkleEventClosureAttribute") {
+      // The parts after the closure's `}` on its line.
+      const inner = findChildByName(
+        child,
+        "LuauSparkleEventClosureAttribute_content",
+      );
+      for (let part = inner?.firstChild; part; part = part.nextSibling) {
+        if (part.name === "LuauSparkleElementParts") walk(part);
+      }
+    }
+  }
+  return words;
 }
 
 /**
