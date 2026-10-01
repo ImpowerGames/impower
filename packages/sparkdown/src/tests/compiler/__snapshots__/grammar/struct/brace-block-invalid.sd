@@ -1,0 +1,34 @@
+theme t with
+  colors { primary = red, secondary = blue }
+  names { a, b }
+  card { opacity = 0.5, > text { color = red }, @hovered, @pressed = { color = blue } }
+  old {
+    accents:
+      - red
+  }
+  marks { - { a = 1 }; accents: { value = red } }
+  }
+  x { y = 1 } z = 2
+  width = var(--gap) }
+  link = http://example.com }
+  a = blue--gap }
+  &.card--large { opacity = 0.5 }
+  slashes {
+    value = 1 // } note
+    // a whole-line note }
+    next = 2
+  }
+  literals {
+    a = 1//c }
+    b = "q" //c }
+    c = 2, // trailing } {
+    font = Arial 1--display
+  }
+  quoted {
+    &[data-label='a;b']:
+      color = red
+    a = 1, "b" = 2
+  }
+  values:
+    - 2 -- } note
+end

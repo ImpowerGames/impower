@@ -1,5 +1,4 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
 import { statementSource } from "../utils/statementSource";
@@ -7,13 +6,18 @@ import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
+import {
+  readStructBodyEntries,
+  type StructEntry,
+  type StructEntryKind,
+} from "../utils/structBodyEntries";
 import { unescapeString } from "../utils/unescapeString";
 import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 import { ErrorType } from "../../../inkjs/engine/Error";
 import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotator";
 
-// Typed struct-body parser for `animation`/`theme`/`morph` blocks. Same colon/indent
-// struct grammar as `style`, but values are READ FROM THE GRAMMAR'S VALUE NODES
+// Typed struct-body parser for `animation`/`theme`/`morph` blocks. Same struct
+// grammar as `style`, but values are READ FROM THE GRAMMAR'S VALUE NODES
 // (per feedback_ast_lowerer_reads_grammar_tokens) so numbers stay numbers and
 // quoted strings stay strings — matching what the `define X as animation` form
 // produced (lowerExpression gave real Luau numbers). The style path keeps the
@@ -21,27 +25,18 @@ import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotato
 // theme need the number/string distinction (offset/duration/iterations are
 // numbers; keyframe CSS props are strings), so they use this typed reader.
 //
-//   target = layer.self     → scalar: { $type:"layer", $name:"self" } (ref)
-//   timing:                 → container (`:` = children): { delay = 0, … }
-//     delay = 0             → number 0
-//   keyframes:              → container whose children are `-` items → array
-//     -                       (bare `-` + indented props = one keyframe object)
-//       opacity = "1"       → string "1"
+//   target = layer.self      → scalar: { $type:"layer", $name:"self" } (ref)
+//   timing {                 → container: { delay = 0, … }
+//     delay = 0              → number 0
+//   }
+//   keyframes {              → container whose entries are bare → array
+//     { opacity = "1" }        (a bare `{ … }` = one keyframe object)
+//   }
 //
-// A list item may also carry its first entry on the dash line, with the item's
-// remaining entries at the column that entry opens — the same item with the
-// dash overlapping the first entry's indent:
-//
-//   keyframes:                keyframes:
-//     - eyes:          ==       -
-//         option = closed         eyes:
-//       offset = 0.4               option = closed
-//                                offset = 0.4
-
-interface NodeLine {
-  indent: number;
-  node: SyntaxNode; // LuauStructBodyContent
-}
+// The body is read as the entry tree of `readStructBodyEntries`, which gives
+// the indented form (`timing:` with indented lines, `-` items, including a
+// collapsed `- eyes:` item) and the braced form the same entries, so both
+// lower to the same struct.
 
 /** A source range, as absolute document offsets. */
 export interface SourceSpan {
@@ -51,11 +46,12 @@ export interface SourceSpan {
 
 /**
  * Where each part of a parsed container was written. `keys` holds the key of
- * every `key = value` / `key:` entry, `values` the value of every scalar entry,
- * and `lines` the whole line of every entry. An array records its `-` item
- * lines in `items` and the values of scalar items in `itemValues`. `line` is
- * the line that opened the container: its header, its `-` item, or, for a
- * keyframe written as a position key, that key's line.
+ * every `key = value` entry and header, `values` the value of every scalar
+ * entry, and `lines` where every entry was written (an indented entry's line,
+ * a block's header and `{`). An array records where its items were written in
+ * `items` and the values of scalar items in `itemValues`. `line` is where the
+ * container was opened: its header, its list item, or, for a keyframe written
+ * as a position, that position's header.
  */
 export interface StructSource {
   line?: SourceSpan;
@@ -224,109 +220,78 @@ function readLiteralValue(
 const PLAIN_STRING_CONTENT = nodeNameSet(["PlainStringContent"]);
 
 /**
- * The text of a `key:` object-header key (everything before the colon). Takes
- * the `LuauStructObjectHeader` node, which excludes any trailing comment.
+ * The text of a header's key. An indented header's is everything before its
+ * colon, read from the `LuauStructObjectHeader` node, which excludes any
+ * trailing comment; a block's is its `LuauStructBlockKey`.
  */
-function headerKey(header: SyntaxNode, ctx: LowerContext): string {
+function headerKey(entry: StructEntry, ctx: LowerContext): string {
+  if (entry.key) return ctx.read(entry.key.from, entry.key.to).trim();
+  const header = entry.shape;
   return ctx.read(header.from, header.to).trim().replace(/:\s*$/, "").trim();
 }
 
 const OBJECT_KEY = nodeNameSet(["LuauStructObjectKey"]);
 
-/** An object header's key node, without its colon. */
-function headerKeySpan(header: SyntaxNode): SourceSpan {
-  return firstDescendant(header, OBJECT_KEY) ?? header;
+/** A header's key node, without an indented header's colon. */
+function headerKeyNode(entry: StructEntry): SyntaxNode {
+  return entry.key ?? firstDescendant(entry.shape, OBJECT_KEY) ?? entry.shape;
 }
 
-/** Collect each body line's `LuauStructBodyContent` node + indent column. */
-function collectNodeLines(
-  contentNode: SyntaxNode | null,
-  ctx: LowerContext,
-): NodeLine[] {
-  const lines: NodeLine[] = [];
-  if (!contentNode) return lines;
-  const walk = (node: SyntaxNode | null) => {
-    let child = node?.firstChild ?? null;
-    while (child) {
-      if (child.name === "LuauStructBodyContent") {
-        const text = ctx.read(child.from, child.to).trim();
-        if (text && !text.startsWith("--")) {
-          lines.push({ indent: ctx.characterNumber(child.from), node: child });
-          pushInlineEntryLine(lines, child, ctx);
-        }
-      } else {
-        walk(child);
-      }
-      child = child.nextSibling;
-    }
-  };
-  walk(contentNode);
-  return lines;
-}
-
-/**
- * A collapsed list item (`- eyes:` / `- offset = 0.4`) carries its first entry
- * on the dash line. Follow the item's line with that entry as a line of its
- * own, at the column the entry starts in — the shape the expanded form
- * already has — so the block parser below needs no case for it and the two
- * spellings cannot drift apart.
- */
-function pushInlineEntryLine(
-  lines: NodeLine[],
+/** How each indented line reads: the grammar's shape for it, or none. */
+function classifyLine(
   content: SyntaxNode,
   ctx: LowerContext,
-): void {
-  const kind = firstDescendant(content, LINE_KIND_NAMES);
-  if (kind?.name !== "LuauStructArrayItem") return;
-  const entry = structArrayItemInlineEntry(kind);
-  if (!entry) return;
-  lines.push({ indent: ctx.characterNumber(entry.from), node: entry });
+): { kind: StructEntryKind; shape: SyntaxNode } | null {
+  const text = ctx.read(content.from, content.to).trim();
+  if (!text || text.startsWith("--")) return null;
+  const shape = firstDescendant(content, LINE_KIND_NAMES);
+  switch (shape?.name) {
+    case "LuauStructArrayItem":
+      return { kind: "item", shape };
+    case "LuauStructObjectHeader":
+      return { kind: "header", shape };
+    case "LuauStructScalarProperty":
+      return { kind: "property", shape };
+    default:
+      return { kind: "other", shape: shape ?? content };
+  }
 }
 
-function nextChildIndent(
-  lines: NodeLine[],
-  i: number,
-  indent: number,
+const KEYFRAME_SELECTOR = nodeNameSet(["LuauKeyframeSelector"]);
+
+/**
+ * The 0-to-1 offset a header names when its key is a keyframe position: `from`,
+ * `to`, or a percentage, the way a CSS `@keyframes` selector names one. The
+ * grammar marks a key that is entirely a position as a `LuauKeyframeSelector`,
+ * in an indented `from:` header and a `from { … }` block alike. Any percentage
+ * is a position, including one outside 0-100, so an out-of-range position is
+ * reported rather than silently read as an ordinary property name.
+ */
+function keyframeOffset(
+  keyNode: SyntaxNode,
+  key: string,
+  ctx: LowerContext,
 ): number | null {
-  const next = lines[i + 1];
-  if (next && next.indent > indent) return next.indent;
-  return null;
-}
-
-// A `keyframes:` child header that names a position on the animation's
-// timeline, the way a CSS `@keyframes` selector does: `from`, `to`, or a
-// percentage. Any percentage is matched here, including one outside 0-100, so
-// an out-of-range position is reported rather than silently read as an
-// ordinary property name.
-//
-// The percentage alternatives accept a leading dot (`.5%`) as well as a
-// leading digit, matching the grammar's `LuauKeyframeSelector` exactly. A key
-// the grammar highlights as a position but this pattern rejected would take
-// its whole `keyframes:` block back to the ordinary-property reading, with no
-// diagnostic, so the two patterns have to agree on every spelling.
-const KEYFRAME_POSITION_RE =
-  /^(?:from|to|([+-]?(?:\d+(?:\.\d+)?|\.\d+))%)$/;
-
-/** The 0-to-1 offset a position key names, or null if it names no position. */
-function keyframeOffset(key: string): number | null {
-  const m = KEYFRAME_POSITION_RE.exec(key);
-  if (!m) return null;
+  const selector = firstDescendant(keyNode, KEYFRAME_SELECTOR);
+  if (!selector || ctx.read(selector.from, selector.to) !== key) return null;
   if (key === "from") return 0;
   if (key === "to") return 1;
-  return Number(m[1]) / 100;
+  // The selector is a number followed by `%`; read the number.
+  return Number(key.slice(0, -1)) / 100;
 }
 
 interface HeaderEntry {
   key: string;
-  node: SyntaxNode; // the header's LuauStructBodyContent line
-  keyNode: SourceSpan; // the header's key, without its colon
+  node: SourceSpan; // where the header was written
+  keyNode: SourceSpan; // the header's key, without an indented header's colon
+  offset: number | null; // the keyframe position the key names, if any
   value: unknown;
 }
 
 function diagnose(
   sink: InkDiagnostic[] | undefined,
   ctx: LowerContext,
-  node: SyntaxNode,
+  node: SourceSpan,
   message: string,
 ): void {
   if (!sink) return;
@@ -338,21 +303,19 @@ function diagnose(
 }
 
 /**
- * Rewrite a `keyframes:` container written with position keys into the array
- * of keyframe objects the engine reads, each carrying the `offset` its key
- * named. The two forms mean the same thing, so this runs before any consumer
- * sees the value and nothing downstream needs to know which form was written.
+ * Rewrite a `keyframes { … }` container written with position headers into
+ * the array of keyframe objects the engine reads, each carrying the `offset`
+ * its position named. The two forms mean the same thing, so this runs before
+ * any consumer sees the value and nothing downstream needs to know which form
+ * was written.
  *
- *   keyframes:            keyframes:
- *     from:                 -
- *       opacity = "0"         offset = 0
- *     40%:          ===>      opacity = "0"
- *       opacity = "1"       -
- *                             offset = 0.4
- *                             opacity = "1"
+ *   keyframes {                keyframes {
+ *     from { opacity = "0" }     { offset = 0; opacity = "0" }
+ *     40% { opacity = "1" }  →   { offset = 0.4; opacity = "1" }
+ *   }                          }
  *
- * Returns null when the container is not in the keyed form, in which case the
- * caller keeps the value parseBlock already built.
+ * Returns null when the container is not in the position form, in which case
+ * the caller keeps the value it already built.
  */
 function keyframesFromPositionKeys(
   headers: HeaderEntry[],
@@ -362,17 +325,16 @@ function keyframesFromPositionKeys(
   sources?: WeakMap<object, StructSource>,
 ): unknown[] | null {
   if (headers.length === 0) return null;
-  const positions = headers.map((h) => keyframeOffset(h.key));
   // Every header must name a position. A container holding ordinary property
   // headers is left exactly as it was written.
-  if (positions.some((p) => p == null)) return null;
+  if (headers.some((h) => h.offset == null)) return null;
 
   if (hasArrayItems) {
     diagnose(
       sink,
       ctx,
       headers[0]!.node,
-      "Keyframe positions and `-` list items cannot be mixed in one `keyframes:` block. Write every keyframe as a position (`from:`, `40%:`, `to:`) or every keyframe as a `-` item with an `offset`.",
+      "Keyframe positions and list entries cannot be mixed in one `keyframes { … }` block. Write every keyframe as a position (`from { … }`, `40% { … }`, `to { … }`) or every keyframe as a `{ … }` entry with an `offset`.",
     );
     return null;
   }
@@ -383,8 +345,8 @@ function keyframesFromPositionKeys(
     frame: Record<string, unknown>;
     header: HeaderEntry;
   }[] = [];
-  headers.forEach((h, idx) => {
-    const offset = positions[idx]!;
+  for (const h of headers) {
+    const offset = h.offset!;
     if (offset < 0 || offset > 1) {
       diagnose(
         sink,
@@ -398,7 +360,7 @@ function keyframesFromPositionKeys(
         sink,
         ctx,
         h.node,
-        `Duplicate keyframe position \`${h.key}\`. Each position may appear once in a \`keyframes:\` block (\`from\` is 0% and \`to\` is 100%).`,
+        `Duplicate keyframe position \`${h.key}\`. Each position may appear once in a \`keyframes { … }\` block (\`from\` is 0% and \`to\` is 100%).`,
       );
     }
     seen.add(offset);
@@ -407,10 +369,10 @@ function keyframesFromPositionKeys(
       body && typeof body === "object" && !Array.isArray(body)
         ? (body as Record<string, unknown>)
         : {};
-    // The position key is what the keyframe's place is sorted by, so it also
-    // wins over an `offset` property written inside the keyframe body.
+    // The position is what the keyframe's place is sorted by, so it also wins
+    // over an `offset` property written inside the keyframe body.
     frames.push({ offset, frame: { ...props, offset }, header: h });
-  });
+  }
 
   // Sort by position so the written order does not matter. `sort` is stable in
   // every engine this runs on, so keyframes sharing a position keep their
@@ -418,7 +380,7 @@ function keyframesFromPositionKeys(
   frames.sort((a, b) => a.offset - b.offset);
   const result = frames.map((f) => f.frame);
   if (sources) {
-    // Each keyframe was written as its position key's line, and that key is
+    // Each keyframe was written as its position's header, and that key is
     // where its `offset` came from.
     const list = newSource();
     for (const f of frames) {
@@ -442,18 +404,16 @@ function keyframesFromPositionKeys(
   return result;
 }
 
-function parseBlock(
-  lines: NodeLine[],
-  start: number,
-  indent: number,
+/** Evaluate a container's entries into its value. */
+function evaluate(
+  entries: StructEntry[],
   ctx: LowerContext,
   sink?: InkDiagnostic[],
   options: TypedStructBodyOptions = {},
   containerKey = "",
-  containerLine?: SyntaxNode,
+  containerLine?: SourceSpan,
 ): {
   value: Record<string, unknown> | unknown[];
-  next: number;
   headers: HeaderEntry[];
   hasArrayItems: boolean;
 } {
@@ -462,70 +422,44 @@ function parseBlock(
   const source = newSource(containerLine);
   const literalItems = options.literalListKeys?.has(containerKey) ?? false;
   let arr: unknown[] | null = null;
-  let i = start;
-  while (i < lines.length && lines[i]!.indent >= indent) {
-    if (lines[i]!.indent > indent) {
-      i += 1; // defensive: over-indented orphan
-      continue;
-    }
-    const content = lines[i]!.node;
-    const kind = firstDescendant(content, LINE_KIND_NAMES);
-    const childIndent = nextChildIndent(lines, i, indent);
+  for (const entry of entries) {
+    const shape = entry.shape;
+    const line = entry.line;
 
-    if (kind?.name === "LuauStructArrayItem") {
-      // `-` item. Entries indented beneath (or carried on the dash line, which
-      // `collectNodeLines` has already followed with an entry line) → object;
-      // `- scalar` → scalar.
+    if (entry.kind === "item") {
+      // A list item. Entries beneath it (indented, carried on the dash line,
+      // or inside a bare `{ … }`) → object; a value → scalar.
       arr = arr ?? [];
-      if (childIndent != null) {
-        warnValueItemWithEntries(kind, ctx, sink);
-        const sub = parseBlock(
-          lines,
-          i + 1,
-          childIndent,
-          ctx,
-          sink,
-          options,
-          "",
-          content,
-        );
+      if (entry.children) {
+        if (!entry.braced) warnValueItemWithEntries(shape, ctx, sink);
+        const sub = evaluate(entry.children, ctx, sink, options, "", line);
         arr.push(sub.value);
-        source.items.push(content);
+        source.items.push(line);
         source.itemValues.push(null);
-        i = sub.next;
       } else {
-        const value = firstDescendant(kind, FIELD_VALUE_NAMES);
+        const value = firstDescendant(shape, FIELD_VALUE_NAMES);
         if (value) {
           arr.push(
             literalItems
               ? readLiteralValue(value, ctx)
               : readTypedValue(value, ctx),
           );
-          source.items.push(content);
+          source.items.push(line);
           source.itemValues.push(value);
         }
-        i += 1;
       }
       continue;
     }
 
-    if (kind?.name === "LuauStructObjectHeader") {
-      // `key:` → container (children = the value).
-      const key = headerKey(kind, ctx);
-      const keyNode = headerKeySpan(kind);
-      if (childIndent != null) {
-        const sub = parseBlock(
-          lines,
-          i + 1,
-          childIndent,
-          ctx,
-          sink,
-          options,
-          key,
-          content,
-        );
-        // A `keyframes:` container may be written with position keys instead
-        // of `-` items; normalize it to the array form the engine consumes.
+    if (entry.kind === "header") {
+      // `key:` / `key { … }` → container (its entries = the value).
+      const key = headerKey(entry, ctx);
+      const keyNode = headerKeyNode(entry);
+      if (entry.children) {
+        const sub = evaluate(entry.children, ctx, sink, options, key, line);
+        // A `keyframes` container may be written with position headers
+        // instead of list items; normalize it to the array form the engine
+        // consumes.
         const keyed =
           key === "keyframes"
             ? keyframesFromPositionKeys(
@@ -537,53 +471,50 @@ function parseBlock(
               )
             : null;
         obj[key] = keyed ?? sub.value;
-        i = sub.next;
       } else {
         obj[key] = {};
-        options.sources?.set(obj[key] as object, newSource(content));
-        i += 1;
+        options.sources?.set(obj[key] as object, newSource(line));
       }
-      headers.push({ key, node: content, keyNode, value: obj[key] });
+      headers.push({
+        key,
+        node: line,
+        keyNode,
+        offset: keyframeOffset(keyNode, key, ctx),
+        value: obj[key],
+      });
       source.keys.set(key, keyNode);
-      source.lines.set(key, content);
+      source.lines.set(key, line);
       continue;
     }
 
-    if (kind?.name === "LuauStructScalarProperty") {
+    if (entry.kind === "property") {
       // `key = value` → typed scalar.
-      const keyNode = firstDescendant(kind, KEY_TOKEN_NAMES);
+      const keyNode = firstDescendant(shape, KEY_TOKEN_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
       if (key) {
-        const value = firstDescendant(kind, FIELD_VALUE_NAMES);
+        const value = firstDescendant(shape, FIELD_VALUE_NAMES);
         obj[key] = options.literalKeys?.has(key)
           ? readLiteralValue(value, ctx)
           : readTypedValue(value, ctx);
         source.keys.set(key, keyNode!);
-        source.lines.set(key, content);
+        source.lines.set(key, line);
         if (value) source.values.set(key, value);
       }
-      i += 1;
       continue;
     }
 
     // Bare marker / fallback → empty-object leaf keyed by the line text.
-    const text = ctx.read(content.from, content.to).trim();
+    const text = ctx.read(line.from, line.to).trim();
     if (text) {
       obj[text] = {};
-      options.sources?.set(obj[text] as object, newSource(content));
-      source.keys.set(text, content);
-      source.lines.set(text, content);
+      options.sources?.set(obj[text] as object, newSource(line));
+      source.keys.set(text, line);
+      source.lines.set(text, line);
     }
-    i += 1;
   }
   const value = arr ?? obj;
   options.sources?.set(value, source);
-  return {
-    value,
-    next: i,
-    headers,
-    hasArrayItems: arr != null,
-  };
+  return { value, headers, hasArrayItems: arr != null };
 }
 
 /** Build the typed nested struct for an `animation`/`theme`/`morph` body. */
@@ -593,13 +524,15 @@ export function parseStructBodyTyped(
   sink?: InkDiagnostic[],
   options: TypedStructBodyOptions = {},
 ): Record<string, unknown> {
-  const lines = collectNodeLines(contentNode, ctx);
-  if (lines.length === 0) {
+  const entries = readStructBodyEntries(contentNode, ctx, (content) =>
+    classifyLine(content, ctx),
+  );
+  if (entries.length === 0) {
     const empty = {};
     options.sources?.set(empty, newSource());
     return empty;
   }
-  const result = parseBlock(lines, 0, lines[0]!.indent, ctx, sink, options);
+  const result = evaluate(entries, ctx, sink, options);
   if (!Array.isArray(result.value)) {
     return result.value as Record<string, unknown>;
   }

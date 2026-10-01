@@ -563,6 +563,22 @@ export const getFormatting = (
             )
           : undefined;
       if (sparkleContentNode) {
+        // A line inside a brace block (`timing {` … `}`) nests by its braces,
+        // not its column, so its indentation carries no meaning and is left
+        // as written. It stays out of the level stack too: the stack tracks
+        // the indented lines around the block, and a brace line's column
+        // would otherwise re-indent the next of them into a child of the
+        // block, where the readers drop it.
+        if (
+          stack.some(
+            (n) =>
+              n &&
+              (n.name === "LuauStructBlockBody" ||
+                n.name === "LuauStructListBlock"),
+          )
+        ) {
+          return;
+        }
         // Reset the level stack when we cross into a different body.
         if (sparkleContentFrom !== sparkleContentNode.from) {
           sparkleContentFrom = sparkleContentNode.from;
