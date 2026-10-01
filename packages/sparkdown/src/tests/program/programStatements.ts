@@ -20,10 +20,14 @@ export interface ProgramStatement {
   syntax: string;
   /** The syntax, with everything the statement's chunk depends on outside
    *  it: the kinds of the block statements it stands in, what its lowering
-   *  read, and how the names it reads resolved. A statement an edit left
-   *  with the same key is one the edit did not touch. A function definition
-   *  an edit moves out of an `if` block, or into one, keeps its text but not
-   *  its chunk: the story defines one where it runs the other in place. */
+   *  read, how the names it reads resolved, and the function declared at the
+   *  top level it defines. A statement an edit left with the same key is one
+   *  the edit did not touch. A function definition an edit moves out of an
+   *  `if` block, or into one, keeps its text but not its chunk: the story
+   *  defines one where it runs the other in place. Of the functions of one
+   *  name, the story defines one under the name, so an edit to another of
+   *  them can give the name to this one or take it away, and its chunk
+   *  exports the name's symbol or an anonymous one. */
   key: string;
   from: number;
   to: number;
@@ -121,6 +125,7 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
             flowChunk ? shape.objects : initializers(shape.objects),
             bodies,
           ),
+          `defines:${store?.definesOf(chunk) ?? ""}`,
         ].join("\u0000"),
         from,
         to,

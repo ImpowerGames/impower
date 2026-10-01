@@ -810,6 +810,109 @@ describe("a statement that writes a function", () => {
     );
     expect(shows(edited)).toEqual(["Got 21."]);
   });
+
+  // A function defined in an `if` block runs in place, where it stands: its
+  // statement's code binds the parameters and declares the hoisted locals,
+  // and the functions its body declares, with the closures they create, are
+  // other chunks' code. Its chunk refers to none of those closures, so it
+  // holds while they keep their symbols (the cumulative fuzz of the function
+  // screenplay, seed 2029, after an edit broke a scene's `end`).
+  it("keeps its chunk across an edit elsewhere when it runs in place and a function in its body creates a closure", () => {
+    const text = [
+      "if true then",
+      "  function outer()",
+      "    function inner()",
+      "      local by = function(a, b) return a > b end",
+      "      return by(2, 1)",
+      "    end",
+      "    result = inner()",
+      "  end",
+      "end",
+      "Got {result}.",
+      "More text.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got true.", "More text."]);
+    const outer = () =>
+      programStatements(s.compiler).find(
+        (statement) => statement.from === text.indexOf("  function outer()"),
+      )!.chunk;
+    const before = s.root;
+    const owner = outer();
+    const edited = s.edit("More text.", "More words.");
+    expect(outer()).toBe(owner);
+    // Only the edited line is emitted again.
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("More text.", "More words."))),
+    );
+    expect(shows(edited)).toEqual(["Got true.", "More words."]);
+  });
+
+  // A `define` written in a `do` block is a global declaration placed with
+  // the block: the declaration's chunk builds the table and writes its
+  // methods, and the `define`'s own statement emits nothing where it is
+  // written. Its chunk refers to none of the methods' symbols, which the
+  // declaration gives them (the cumulative fuzz of the function screenplay,
+  // seed 2027, after an edit broke a `do` block's `end` above a `define`).
+  it("keeps the chunk of a `define` written in a `do` block across an edit elsewhere", () => {
+    const text = [
+      "do",
+      "  define Point with",
+      "    x = 2",
+      "    function get()",
+      "      return self.x",
+      "    end",
+      "  end",
+      "end",
+      "Got {new Point():get()}.",
+      "More text.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 2.", "More text."]);
+    const define = () =>
+      programStatements(s.compiler).find(
+        (statement) => statement.from === text.indexOf("  define Point with"),
+      )!.chunk;
+    const before = s.root;
+    const owner = define();
+    const edited = s.edit("More text.", "More words.");
+    expect(define()).toBe(owner);
+    // Only the edited line is emitted again.
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("More text.", "More words."))),
+    );
+    expect(shows(edited)).toEqual(["Got 2.", "More words."]);
+  });
+
+  // A function definition whose header the parser cannot read takes the
+  // parameters of the first parameter list in its body, which its syntax
+  // leaves out, so an edit to that list changes what the definition's entry
+  // binds without changing the statement's syntax (the cumulative fuzz of
+  // the capture screenplay, seed 3002).
+  it("is emitted again when an edit inside its body changes the parameters its header could not give it", () => {
+    const text = [
+      "function f + g(n)",
+      "  local h = function(",
+      "    a",
+      "  )",
+      "    return 1",
+      "  end",
+      "  return 2",
+      "end",
+      "Got it.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    const edited = s.edit("    a\n", "    a, b\n");
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(text.replace("    a\n", "    a, b\n"))),
+    );
+    expect(shows(edited)).toEqual(["Got it."]);
+  });
 });
 
 // A `local` hides a variadic function of its name for the rest of its block,

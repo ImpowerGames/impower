@@ -1,3 +1,4 @@
+import { oneValue } from "./CallArgs";
 import { ControlCommand } from "./ControlCommand";
 import { getPluralCategory } from "./PluralRules";
 import { StepLimitExceeded, StoryException } from "./StoryException";
@@ -1411,9 +1412,10 @@ function gsubTableLookup(
       base = idx; // table form — continue the chain
       continue;
     }
-    // Function form (closure ObjectValue / divert target / marker).
+    // Function form (closure ObjectValue / divert target / marker), whose
+    // first value is the index's.
     const results = story.CallLuauFunction(idx, [base, new StringValue(key)]);
-    return (results?.[0] as AbstractValue) ?? null;
+    return oneValue((results?.[0] as AbstractValue) ?? null);
   }
   return null;
 }
@@ -2977,7 +2979,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         );
         if (handler != null && !(handler instanceof NullValue)) {
           const results = story.CallLuauFunction(handler, [v]);
-          const first = results[0];
+          const first = oneValue(results[0] ?? null);
           if (first instanceof StringValue) return first.value ?? "";
           if (first != null && "value" in (first as any)) {
             const raw = (first as any).value;
@@ -4569,7 +4571,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           ((ha as any).value != null && (ha as any).value === (hb as any).value);
         if (!same) return false;
         const results = story.CallLuauFunction(ha, [a, b]);
-        const top = results?.[0];
+        const top = oneValue(results?.[0] ?? null);
         return (
           top != null &&
           !(top instanceof NullValue) &&
@@ -4618,7 +4620,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // value (sparkdown's "no return value" sentinel) — treat it
         // as nil. NullValue and false-valued returns... actually
         // false DOES break in Lua (it's non-nil). But Void doesn't.
-        const top = results[0];
+        // The callback's first value decides.
+        const top = oneValue(results[0] ?? null);
         if (
           top != null &&
           !(top instanceof NullValue) &&
@@ -4653,7 +4656,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // value (sparkdown's "no return value" sentinel) — treat it
         // as nil. NullValue and false-valued returns... actually
         // false DOES break in Lua (it's non-nil). But Void doesn't.
-        const top = results[0];
+        // The callback's first value decides.
+        const top = oneValue(results[0] ?? null);
         if (
           top != null &&
           !(top instanceof NullValue) &&
@@ -4833,7 +4837,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           const results = story.CallLuauFunction(ltFn, [a, b]) as
             | AbstractValue[]
             | null;
-          const top = results?.[0];
+          const top = oneValue(results?.[0] ?? null);
           return top != null && isTruthy(top);
         }
         story.Error(
@@ -4846,7 +4850,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (comp == null) return defaultLess(a, b);
         try {
           const results = story.CallLuauFunction(comp, [a, b]);
-          const top = results[0];
+          // The comparator's first value decides.
+          const top = oneValue(results[0] ?? null);
           if (top == null) return false;
           return isTruthy(top);
         } catch (e) {

@@ -26,6 +26,7 @@ import {
   isFunctionReference,
   lookupMetamethod,
   normalizeLuauCallArgs,
+  oneValue,
   openVariablePointer,
   packTuple,
   popLuauCondition,
@@ -51,7 +52,6 @@ import {
   DivertTargetValue,
   FloatValue,
   IntValue,
-  MultiValue,
   NullValue,
   ObjectValue,
   StringValue,
@@ -1199,10 +1199,11 @@ export class ProgramStory {
         break;
       case Op.SetVar: {
         let value = state.PopEvaluationStack();
-        // A variable holds one value: a multiple value keeps its first,
-        // except in a variadic function's `...` local, which keeps it whole.
-        if (value instanceof MultiValue && !(flags & SET_VARARGS)) {
-          value = value.values[0] ?? new NullValue();
+        // A variable holds one value: a multiple value keeps its first, and
+        // a call that returned none gives nil (`oneValue`), except in a
+        // variadic function's `...` local, which keeps it whole.
+        if (!(flags & SET_VARARGS)) {
+          value = oneValue(value);
         }
         state.variablesState.Assign(this.assignment(arg, flags), value);
         break;

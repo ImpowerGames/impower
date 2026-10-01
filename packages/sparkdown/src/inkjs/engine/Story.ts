@@ -25,6 +25,7 @@ import {
 } from "./Value";
 import { Path } from "./Path";
 import { Void } from "./Void";
+import { oneValue, spreadCallArgs } from "./CallArgs";
 import { Tag } from "./Tag";
 import { VariableAssignment } from "./VariableAssignment";
 import { VariableReference } from "./VariableReference";
@@ -282,17 +283,18 @@ function indexThroughMetatable(
         base,
         new StringValue(keyStr),
       ]);
-      return (results[0] as AbstractValue) ?? null;
+      return oneValue((results[0] as AbstractValue) ?? null);
     }
     return indexThroughMetatable(story, indexFn, keyStr, depth + 1);
   }
-  // DivertTargetValue / bare-knot — function form.
+  // DivertTargetValue / bare-knot — function form. An index is one value:
+  // the handler's first, or nil when it returns none.
   if (isFunctionReference(indexFn)) {
     const results = story.CallLuauFunction(indexFn, [
       base,
       new StringValue(keyStr),
     ]);
-    return (results[0] as AbstractValue) ?? null;
+    return oneValue((results[0] as AbstractValue) ?? null);
   }
   return null;
 }
@@ -541,7 +543,8 @@ function tryBinaryMetamethod(
   const results = story.CallLuauFunction(handler, [callLhs, callRhs]) as
     | AbstractValue[]
     | null;
-  const first = (results && results[0]) || new NullValue();
+  // An operator's result is one value: the handler's first, or nil.
+  const first = oneValue((results && results[0]) || new NullValue());
   // Comparison metamethods return any value; Lua then coerces it to
   // a boolean. Apply the inversion for `!=` after coercion.
   if (metaName === "__eq" || metaName === "__lt" || metaName === "__le") {
@@ -569,7 +572,7 @@ function tryUnaryMetamethod(
   const results = story.CallLuauFunction(handler, [operand]) as
     | AbstractValue[]
     | null;
-  return (results && results[0]) || new NullValue();
+  return oneValue((results && results[0]) || new NullValue());
 }
 
 // A function container's content starts with its parameter bindings, one
@@ -835,37 +838,10 @@ export function spreadLastMultiIfNonVariadic(
   for (const v of top.values) story.state.PushEvaluationStack(v);
 }
 
-// Lua-style call-arg spread of a builtin's arguments, or a `__call`
-// handler's, in place: the syntactically LAST arg (rightmost) spreads its
-// MultiValue into multiple args; earlier args truncate any MultiValue to its
-// first inner value. `print(math.modf(3.7))` → `print(3, 0.7)`;
-// `f(math.modf(x), 1)` → `f(3, 1)` (modf truncated since it's not the last
-// arg). Pure stdlib fns called directly (registered with NativeFunctionCall)
-// don't pass through here and continue to auto-unwrap via MultiValue's
-// transparent valueObject.
-//
-// Void (from `(function() end)()`) is conceptually an empty MultiValue. As
-// the last arg, it spreads to 0 values — `select('#', (function() end)())`
-// returns 0, matching Luau's empty-return semantics. As a non-last arg, it's
-// clamped to nil (same as MultiValue truncation).
-export function spreadCallArgs(args: unknown[]): void {
-  for (let k = 0; k < args.length; k++) {
-    const a = args[k];
-    if (a instanceof MultiValue) {
-      if (k === args.length - 1) {
-        args.splice(k, 1, ...a.values);
-      } else {
-        args[k] = a.values[0] ?? new NullValue();
-      }
-    } else if (a instanceof Void) {
-      if (k === args.length - 1) {
-        args.splice(k, 1);
-      } else {
-        args[k] = new NullValue();
-      }
-    }
-  }
-}
+// `spreadCallArgs` and `oneValue` (`CallArgs.ts`): a builtin's or a
+// handler's arguments as a call passes them, and a value where Luau takes
+// one, exported here for both engines.
+export { oneValue, spreadCallArgs };
 
 // Pushes what a builtin or a function a call ran returned. A JS array is a
 // multiple return (`math.modf`, `string.byte`, `table.unpack`), pushed as one
@@ -1174,8 +1150,9 @@ export function callValueAsFunction(
   // user args. The synthetic knot's signature was lowered
   // with upvals prepended to user params, so parameter
   // binding reads them in the right order. See
-  // `lowerAnonymousFunction` in `lowerExpression.ts`.
-  const callTarget = story.state.PopEvaluationStack();
+  // `lowerAnonymousFunction` in `lowerExpression.ts`. A call's multiple
+  // value as the callee (`mk()()`) calls its first.
+  const callTarget = oneValue(story.state.PopEvaluationStack());
   const arranged = arrangeClosureArgs(story, callTarget, callSiteArgCount);
   // Built-in stdlib iterator (`pairs(t)` / `ipairs(t)`)
   // returns an ObjectValue marked with `__builtin_iter`. The
@@ -1475,7 +1452,10 @@ export function indexValue(
   // `__index` (table-form chains lookup; function-form calls
   // `__index(t, key)` via story.CallLuauFunction). Lua's
   // `__index` only fires on miss — a present key returns
-  // directly without metamethod consultation.
+  // directly without metamethod consultation. A call's multiple value as
+  // the table or the key (`mk().x`, `t[f()]`) gives its first.
+  indexBase = oneValue(indexBase);
+  indexKey = oneValue(indexKey);
   let resolved: InkObject | null = null;
   const keyStr = luauMapKeyString(indexKey);
   // `_G` globals-table proxy: route the read to global
@@ -1541,8 +1521,12 @@ export function storeIndex(
   // Mutates container[key] = value in place. No result is pushed — this is a
   // statement-level effect. The container must be an ObjectValue
   // looked up from a variable; mutating its internal Map propagates
-  // through the variable reference (Maps are passed by reference).
-  //
+  // through the variable reference (Maps are passed by reference). A
+  // call's multiple value as the table, the key or the value
+  // (`mk().x = v`, `t.x = f()`) gives its first, or nil for none.
+  storeBase = oneValue(storeBase);
+  storeKey = oneValue(storeKey);
+  storeValue = oneValue(storeValue);
   // `_G` globals-table proxy: `_G.foo = v` / `_G['foo'] = v`
   // writes the global directly, as an ordinary global assignment.
   if (
@@ -1875,12 +1859,19 @@ export function callNativeFunction(
   // metamethod handles the op via `story.CallLuauFunction`. Returns
   // `null` for the common case where no metamethod fires — fall
   // through to the regular type-coerced dispatch below.
+  // An operand is one value, so a call that returns a table and more
+  // reaches the table's metamethod.
   const fname = func.name;
   let mmResult: AbstractValue | null = null;
   if (funcParams.length === 2) {
-    mmResult = tryBinaryMetamethod(story, fname, funcParams[0], funcParams[1]);
+    mmResult = tryBinaryMetamethod(
+      story,
+      fname,
+      oneValue(funcParams[0]!),
+      oneValue(funcParams[1]!),
+    );
   } else if (funcParams.length === 1) {
-    mmResult = tryUnaryMetamethod(story, fname, funcParams[0]);
+    mmResult = tryUnaryMetamethod(story, fname, oneValue(funcParams[0]!));
   }
   if (mmResult !== null) {
     return mmResult;
@@ -3980,16 +3971,16 @@ export class Story extends InkObject {
       let assignedVal = this.state.PopEvaluationStack();
 
       // Lua/Luau `local x = f()` where `f` returns multiple values
-      // assigns only the FIRST value to `x` and discards the rest.
-      // Multi-target assignment uses an `UnpackTuple` ControlCommand
-      // upstream, so each `VariableAssignment` in that lowering
-      // already receives an unwrapped value — this guard is for the
-      // single-target case. The synthetic `__varargs__` slot bound at
-      // a variadic function's entry is an exception: it must keep the
-      // MultiValue intact so `...` in the body reads back the full
-      // tuple of extra args.
-      if (assignedVal instanceof MultiValue && !varAss.isVarargsSlot) {
-        assignedVal = assignedVal.values[0] ?? new NullValue();
+      // assigns only the FIRST value to `x` and discards the rest, and
+      // nil when `f` returns none (`oneValue`). Multi-target assignment
+      // uses an `UnpackTuple` ControlCommand upstream, so each
+      // `VariableAssignment` in that lowering already receives an
+      // unwrapped value — this guard is for the single-target case. The
+      // synthetic `__varargs__` slot bound at a variadic function's entry
+      // is an exception: it must keep the MultiValue intact so `...` in
+      // the body reads back the full tuple of extra args.
+      if (!varAss.isVarargsSlot) {
+        assignedVal = oneValue(assignedVal);
       }
 
       this.state.variablesState.Assign(varAss, assignedVal);

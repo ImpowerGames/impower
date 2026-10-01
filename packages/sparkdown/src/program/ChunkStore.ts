@@ -215,6 +215,9 @@ interface ChunkInfo {
   /** The locals each function the statement writes declares at its entry
    *  (`hoistedOf`). */
   hoisted: string;
+  /** The parameters the entry of each function the statement writes or runs
+   *  in place binds (`paramsOf`). */
+  params: string;
   generation: number;
 }
 
@@ -820,7 +823,11 @@ export class ChunkStore {
   }
 
   /** Whether the functions of other statements that `chunk`'s code calls by
-   *  an anonymous symbol still have those symbols in the build. */
+   *  an anonymous symbol still have those symbols in the build. The objects
+   *  are read as the writer emits them and `resolutionsOf` reads them: a
+   *  declaration a flow's statement holds emits nothing where it is written,
+   *  since its initializer is the declaration sequence's code, whose
+   *  functions the declaration's own statement plans. */
   protected anonymousReferencesHold(
     chunk: StatementChunk,
     statement: StatementSource,
@@ -830,7 +837,18 @@ export class ChunkStore {
     const now = new Set<number>();
     const exclude = bodyObjects(statement);
     const visit = (obj: ParsedObject) => {
-      if (exclude?.has(obj)) {
+      if (
+        exclude?.has(obj) ||
+        obj instanceof ConstantDeclaration ||
+        (obj instanceof VariableAssignment && obj.isGlobalDeclaration)
+      ) {
+        return;
+      }
+      // Of a function the statement runs in place, the chunk's code declares
+      // the locals its lowering hoisted (`emitFunctionInPlace`): its body,
+      // and the functions declared in it, are other chunks' code.
+      if (obj instanceof FlowBase) {
+        (functionShapeOf.get(obj)?.hoisted ?? []).forEach(visit);
         return;
       }
       const target =
@@ -939,6 +957,7 @@ export class ChunkStore {
       ),
       anonymousReferences: [...referenced].filter((s) => !own.has(s)),
       hoisted: hoistedOf(statement),
+      params: paramsOf(statement),
       generation: this.table.generation,
     });
     return chunk;
@@ -1227,7 +1246,8 @@ export class ChunkStore {
       info.generation !== this.table.generation ||
       info.globals !== assignedNames(statement) ||
       info.defines !== statement.defines ||
-      info.hoisted !== hoistedOf(statement)
+      info.hoisted !== hoistedOf(statement) ||
+      info.params !== paramsOf(statement)
     ) {
       return false;
     }
@@ -1314,6 +1334,14 @@ export class ChunkStore {
   declarationChunkOf(block: object): StatementChunk | undefined {
     return this._byDeclaration.get(block);
   }
+
+  /** The function declared at the top level that the statement a chunk was
+   *  emitted or reused for defines, for a test that keys statements by what
+   *  their chunks depend on: which of the functions of one name the story
+   *  defines under it depends on the others. */
+  definesOf(chunk: StatementChunk): string | undefined {
+    return this._info.get(chunk)?.defines;
+  }
 }
 
 type AddBody = (
@@ -1368,6 +1396,23 @@ const hoistedOf = (statement: StatementSource): string =>
             ? (local.variableName ?? "")
             : local.typeName,
         )
+        .join(","),
+    )
+    .join(";");
+
+/** The parameters each function a statement writes binds at its entry, and
+ *  each function it runs in place (`functionInput`, `emitFunctionInPlace`).
+ *  The lowering takes them from the function's parameter list, which a
+ *  header the parser could not read whole can find on a later line, inside
+ *  the body the statement's syntax leaves out. */
+const paramsOf = (statement: StatementSource): string =>
+  [
+    ...(statement.bodies ?? []).flatMap((body) => (body.fn ? [body.fn] : [])),
+    ...statement.objects.filter((obj) => obj instanceof FlowBase),
+  ]
+    .map((fn) =>
+      ((fn as FlowBase).args ?? [])
+        .map((arg) => `${arg.identifier?.name ?? ""}${arg.isVararg ? "..." : ""}`)
         .join(","),
     )
     .join(";");

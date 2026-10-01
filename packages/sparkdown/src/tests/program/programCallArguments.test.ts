@@ -6,12 +6,19 @@
 // does so, on both engines and on the current engine running the story's
 // JSON: a function the compile found, a function value in a local, a global
 // or a table field, a closure, a method, a table's `__call` handler, a
-// `__namecall` handler, a builtin iterator (#1216), a variadic closure called by name (#1217), a
-// builtin through a value, the functions `pcall` and a metamethod call, and a
-// function the host evaluates. Each case notes the line Luau shows, but a
-// builtin through a value that raises is compared with the direct call of its
-// builtin. A story compiled before calls recorded their argument count still
-// shows what it showed then.
+// `__namecall` handler, a builtin iterator (#1216), a variadic closure called
+// by name (#1217), a builtin through a value or as a string's method, the
+// functions `pcall` and a metamethod call, and a function the host
+// evaluates. Where one value is taken from a call, it takes the call's first
+// value, or nil when it returned none: a call, an index or a method chained
+// on the call (`o:get()()`, `mk().x`, also as a statement, and after
+// `new`), a store through it or of it (`o:get().x = 6`, `t.x = f()`), a
+// variable it sets, an if expression's arm and a backtick string's
+// interpolation; and what a metamethod or a builtin's callback returns is
+// one value. Each case notes the line
+// Luau shows, but a builtin through a value that raises is compared with the
+// direct call of its builtin. A story compiled before calls recorded their
+// argument count still shows what it showed then.
 import "../../inkjs/engine/Container";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -363,6 +370,98 @@ describe("a builtin called through a value", () => {
     for (const lines of Object.values(raised)) {
       expect(lines.slice(1)).toEqual([expect.stringContaining(error)]);
     }
+  });
+});
+
+describe("a call, an index or a method chained on a call", () => {
+  // `o` holds a function that returns a function, a method that does, a
+  // method that returns the table itself, and one that bumps `hit`.
+  const O = [
+    "local hit = 0",
+    "local o = { v = 4, get = function() return function(x) return tostring(x) end end }",
+    "function o:make() return function(x) return self.v + (x or 0) end end",
+    "function o:me() return self end",
+    "function o:bump() hit = hit + 1 end",
+  ];
+  it.each([
+    ["calls what a field call returns", inRun(O, "o.get()(5)"), "Got 5."],
+    ["calls what a method call returns", inRun(O, "o:make()(2)"), "Got 6."],
+    ["calls what a method call with arguments returns", inRun(["local o = {}", "function o:adder(a) return function(b) return a + b end end"], "o:adder(1)(2)"), "Got 3."],
+    ["calls what a nested field call returns", inRun(["local o = { p = { get = function() return function(x) return x end end } }"], "o.p.get()(8)"), "Got 8."],
+    ["indexes what a method call returns", inRun(O, "o:me().v"), "Got 4."],
+    ["as a statement, calls what a method call returns", inRun([...O, "o:me():bump()", "o.get()()", "o:make()()"], "hit"), "Got 1."],
+    ["as a statement, calls what a bracket call returns", inRun(["local hit = 0", "local o = { function() return function() hit = hit + 1 end end }", "o[1]()()"], "hit"), "Got 1."],
+    ["as a statement, calls a field of what a method call returns", inRun(["local hit = 0", "local o = {}", "function o:mk() return { bump = function() hit = hit + 1 end } end", "o:mk().bump()"], "hit"), "Got 1."],
+    ["stores through a field of what a method call returns", inRun(["local t = { x = 0 }", "local o = {}", "function o:get() return t end", "o:get().x = 6"], "t.x"), "Got 6."],
+    ["stores through an index of what a method call returns", inRun(["local t = { 0 }", "local o = {}", "function o:get() return t end", "o:get()[1] = 6"], "t[1]"), "Got 6."],
+  ])("%s", (_name, text, line) => {
+    expectShows(text, line);
+  });
+
+  // `new` builds the instance its links then apply to (#1263).
+  const POINT = [
+    "define Point with",
+    "  init(a, b)",
+    "    self.s = tostring(a) .. \"/\" .. tostring(b)",
+    "  end",
+    "  function get()",
+    "    return self.s",
+    "  end",
+    "end",
+  ];
+  it.each([
+    ["indexes the instance `new` builds", [...POINT, "Got {new Point(1, 2).s}.", ""].join("\n"), "Got 1/2."],
+    ["calls a method of the instance `new` builds", [...POINT, "Got {new Point(3, 4):get()}.", ""].join("\n"), "Got 3/4."],
+    ["indexes the instance `new` builds from a call that returns two", [...FUNCTIONS, ...POINT, "Got {new Point(g2()).s}.", ""].join("\n"), "Got 1/2."],
+  ])("%s", (_name, text, line) => {
+    expectShows(text, line);
+  });
+});
+
+describe("a call whose one value is taken", () => {
+  // `mk` returns a table and 9; `mf` a function and 9.
+  const MK = [
+    "local t = { x = 7, 7 }",
+    "local function mk() return t, 9 end",
+    "local function mf() return function(a, b) return tostring(a) .. \"/\" .. tostring(b) end, 9 end",
+  ];
+  it.each([
+    ["is indexed by its first value", inRun(MK, "mk().x"), "Got 7."],
+    ["is indexed by bracket on its first value", inRun(MK, "mk()[1]"), "Got 7."],
+    ["calls its first value", inRun(MK, "mf()(g2())"), "Got 1/2."],
+    ["stores through its first value", inRun([...MK, "mk().x = 5"], "t.x"), "Got 5."],
+    ["gives a field its first value", inRun(["local u = {}", "u.x = g2()"], "tostring(u.x) .. \"/\" .. select(\"#\", u.x)"), "Got 1/1."],
+    ["gives a field nil when it returns none", inRun(["local u = { x = 1 }", "u.x = g0()"], "tostring(u.x)"), "Got nil."],
+    ["gives a local nil when it returns none", inRun(["local a = g0()"], "tostring(a) .. \"/\" .. select(\"#\", a)"), "Got nil/1."],
+    ["gives a reassigned local nil when it returns none", inRun(["local a = 1", "a = g0()"], "select(\"#\", a)"), "Got 1."],
+    ["gives a global nil when it returns none", inRun(["gn = 1", "gn = g0()"], "select(\"#\", gn)"), "Got 1."],
+    ["gives an upvalue nil when it returns none", inRun(["local a = 1", "local function set() a = g0() end", "set()"], "select(\"#\", a)"), "Got 1."],
+    ["is one value as an if expression's arm", inRun(["local function f() return if true then g2() else 0 end"], "select(\"#\", f())"), "Got 1."],
+    ["gives a string's method its values as a call's", inRun([], "(\"x\"):rep(g2()) .. (\"abcdef\"):sub(g2()) .. (\"abcdef\"):sub(g2(), g2())"), "Got xaba."],
+    // A story line shows nothing for a call that returns none, which an
+    // author writes for its effect; a Luau string writes nil, as Luau does.
+    ["is written as its first value by a backtick string", inRun([], "`[{g2()}]`"), "Got [1]."],
+    ["is written as nil by a backtick string when it returns none", inRun(["local t = {}", "function t:m() end"], "`[{g0()}|{t:m()}]`"), "Got [nil|nil]."],
+  ])("%s", (_name, text, line) => {
+    expectShows(text, line);
+  });
+});
+
+describe("what a metamethod or a builtin's callback returns", () => {
+  // The engines call these functions themselves, and Luau takes one value
+  // from each: an index, an operator's result, a string, a comparison.
+  it.each([
+    ["is one value as an `__index` function's", inRun(["local t = setmetatable({}, { __index = function(t, k) return k, 9 end })"], "select(\"#\", t.x) .. \"/\" .. t.x .. \"/\" .. select(\"#\", t[\"y\"])"), "Got 1/x/1."],
+    ["is nil for an `__index` function that returns none", inRun(["local t = setmetatable({}, { __index = function() end })"], "tostring(t.x) .. \"/\" .. select(\"#\", t.x)"), "Got nil/1."],
+    ["is one value as an `__index` function's reached through an `__index` table", inRun(["local inner = setmetatable({}, { __index = function() return 7, 8 end })", "local t = setmetatable({}, { __index = inner })"], "select(\"#\", t.z) .. \"/\" .. t.z"), "Got 1/7."],
+    ["is one value as an arithmetic or concatenation metamethod's", inRun(["local t = setmetatable({}, { __add = function() return 1, 2 end, __unm = function() return 1, 2 end, __concat = function() return \"a\", \"b\" end })"], "select(\"#\", t + 1) .. select(\"#\", -t) .. select(\"#\", t .. \"x\")"), "Got 111."],
+    ["is one value as a length metamethod's, or nil", inRun(["local a = setmetatable({}, { __len = function() return 7, 8 end })", "local b = setmetatable({}, { __len = function() end })"], "tostring(#a) .. \"/\" .. tostring(#b)"), "Got 7/nil."],
+    ["reaches `__eq` from an operand's first value", inRun(["local mt = { __eq = function() return true end }", "local a, b = setmetatable({}, mt), setmetatable({}, mt)", "local c = {}", "local function mk() return a, 9 end", "local function mc() return c, 9 end"], "tostring(mk() == b) .. \"/\" .. tostring(mc() == c)"), "Got true/true."],
+    ["is a `__tostring` handler's first value", inRun(["local t = setmetatable({}, { __tostring = function() return \"T\", \"U\" end })"], "tostring(t)"), "Got T."],
+    ["is a sort comparator's first value, and an `__lt` handler's", inRun(["local t = { 3, 1, 2 }", "table.sort(t, function(a, b) return a < b, false end)", "local mt = { __lt = function(a, b) return a.v < b.v, false end }", "local u = { setmetatable({ v = 3 }, mt), setmetatable({ v = 1 }, mt) }", "table.sort(u)"], "table.concat(t, \",\") .. \"/\" .. u[1].v"), "Got 1,2,3/1."],
+    ["is the first value a `table.foreach` callback returns", inRun(["local n = 0", "local r = table.foreach({ 1, 2, 3 }, function(k, v) n = n + 1 return nil, 5 end)"], "n .. \"/\" .. tostring(r)"), "Got 3/nil."],
+  ])("%s", (_name, text, line) => {
+    expectShows(text, line);
   });
 });
 
