@@ -366,3 +366,41 @@ describe("Sparkle handler closures", () => {
     expect(errorMessages).toEqual(expected);
   });
 });
+
+// A bracket inside a quoted key is text, not structure (review round 4).
+describe("Luau code: a target whose key is a string holding a bracket", () => {
+  test.each([
+    ["on one line", '  t["["], g = 1, 2', 'return t["["] * 10 + g'],
+    ["continued after a trailing comma", '  t["["], g = 1,\n    2', 'return t["["] * 10 + g'],
+    ["a closing bracket", '  t["]"], g = 1, 2', 'return t["]"] * 10 + g'],
+    ["single quotes", "  t['['], g = 1, 2", "return t['['] * 10 + g"],
+  ])("%s", (_name, body, ret) => {
+    const { errors, text } = run(fn(body, ret));
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 12.\n");
+  });
+
+  test("ends the reassignment before it on the same line", () => {
+    const { errors, text } = run(fn('  a = 5 t["["] = 7', 'return a * 10 + t["["]'));
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 57.\n");
+  });
+});
+
+// As in Luau, whose compiler evaluates complex targets before the values, a
+// call in a target runs before a call among the values (review round 4).
+describe("evaluation order of targets and values", () => {
+  const order =
+    "  local calls = 0\n  local function key() calls = calls * 10 + 1 return \"g\" end\n  local function bump() calls = calls * 10 + 2 return 9 end\n";
+  test.each([
+    ["one value", "  t[key()] = bump()"],
+    ["an extra value", "  t[key()] = 1, bump()"],
+    ["an extra value after `&`", "  & t[key()] = 1, bump()"],
+    ["several targets", "  t[key()], g = bump(), 2"],
+    ["an extra value on the next line", "  t[key()] = 1,\n    bump()"],
+  ])("%s: the target's key first", (_name, assignment) => {
+    const { errors, text } = run(fn(`${order}${assignment}`, "return calls"));
+    expect(errors).toEqual([]);
+    expect(text).toBe("Value 12.\n");
+  });
+});

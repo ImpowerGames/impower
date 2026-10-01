@@ -975,7 +975,10 @@ function lowerMultiTargetReassignment(
   // (the OLD a), not `b[43]`; `a[1], a = 43, -1` must store 43 into
   // the table `a` referenced BEFORE `a` is overwritten with -1. So
   // property targets stash their base + key into temps up front
-  // (`preStores`), and the store phase references only temps.
+  // (`preStores`), and the store phase references only temps. As in Luau,
+  // whose compiler evaluates complex targets before the values, the bases
+  // and keys are taken first, so a call in a target (`t[key()]`) runs before
+  // a call among the values (`bump()`).
   const preStores: ParsedObject[] = [];
   const writes: ParsedObject[] = [];
   for (let i = 0; i < multi.targets.length; i++) {
@@ -1009,7 +1012,7 @@ function lowerMultiTargetReassignment(
     const write = buildTargetWrite(target, tempRef, ctx);
     if (write) writes.push(write);
   }
-  return wrapInWeave([tempDecl, ...preStores, ...writes]);
+  return wrapInWeave([...preStores, tempDecl, ...writes]);
 }
 
 // True when the LuauAccessPath consists of a single LuauVariable
