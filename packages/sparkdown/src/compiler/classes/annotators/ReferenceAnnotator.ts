@@ -1,7 +1,10 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
+import {
+  VARIABLE_DEFINITION_NAMES,
+  isValueListName,
+} from "../../utils/variableDefinitionNames";
 import { Range } from "@codemirror/state";
 import { getContextNames } from "@impower/textmate-grammar-tree/src/tree/utils/getContextNames";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -558,10 +561,12 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       // Declaration site: the LHS of a `store`/`local`/`const` definition
       // (nested in LuauVariableAssignment_begin AND a LuauVariableDefinition;
       // a bare reassignment has the former but not the latter). const vs var
-      // comes from the definition's LuauScopeModifier.
+      // comes from the definition's LuauScopeModifier. A value in the list
+      // (`x` in `local a, b = 1, x`) has the same shape but is a read.
       if (
         ancestorMatching(nodeRef.node, VARIABLE_DECL_SITE, 6) &&
-        ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES)
+        ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES) &&
+        !isValueListName(nodeRef.node)
       ) {
         const definition = ancestorMatching(nodeRef.node, VARIABLE_DEFINITION_NAMES);
         const scopeNode = getDescendent("LuauScopeModifier", definition);

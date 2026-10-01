@@ -14,7 +14,10 @@
 
 import { type SyntaxNode } from "@lezer/common";
 import { REASSIGNMENT_CONTENT_NAMES } from "../utils/reassignmentNames";
-import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
+import {
+  VARIABLE_DEFINITION_NAMES,
+  ownAssignmentOperation,
+} from "../utils/variableDefinitionNames";
 import {
   childNamed,
   childrenOf,
@@ -218,8 +221,7 @@ function declaredNames(definition: SyntaxNode): SyntaxNode[] {
     // The names end at the `=`; in `local a = b, c` the grammar also wraps
     // the value `c` as an assignment. A type annotation (`a: number, b`)
     // is content too, but does not end them.
-    const content = childNamed(assignment, "LuauVariableAssignment_content");
-    if (content && childNamed(content, "LuauAssignmentOperation")) break;
+    if (ownAssignmentOperation(assignment)) break;
   }
   return names;
 }

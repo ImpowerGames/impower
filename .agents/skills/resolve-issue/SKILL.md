@@ -11,7 +11,7 @@ Run the steps below in order in a dedicated worktree. Commands are relative to t
 
 Run `node .agents/skills/drive-web-editor/driver.mjs preflight`. All checks must pass. Tooling/docs-only work with an intentionally absent install uses `preflight --tooling-only`.
 
-Then always remove merged tickets' worktrees with [clean-worktrees](../clean-worktrees/SKILL.md) from the main checkout: dry run, inspect every proposed removal, then apply with the absolute main root. This runs before the task's worktree exists; the script keeps every worktree with uncommitted, unpushed or unmerged work. A failed removal is a recovery task to record before step 2, never grounds for recursive deletion. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
+Then always remove merged tickets' worktrees with [clean-worktrees](../clean-worktrees/SKILL.md) from the main checkout: dry run, inspect every proposed removal, then apply with the absolute main root. The script keeps every worktree with uncommitted, unpushed or unmerged work. A failed removal is a recovery task to record before step 2, never grounds for recursive deletion. Before creating or repairing a worktree, read [worktree setup](references/worktree.md).
 
 ## 1. Read the ticket
 
@@ -19,7 +19,7 @@ Read the full body, current labels and type with `gh issue view N --json number,
 
 ## 2. Create the worktree
 
-Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. The session title is derived from the branch (`fix/302-filterimage-layers` becomes `FIX #302: filterimage layers`); after the worktree is created, a repository hook names the exact title and rename call, and refuses shell commands until the session is renamed. Resolve paths from the main checkout and existing layout. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
+Follow [worktree setup](references/worktree.md): never work on main or reuse another issue's worktree. The session title is derived from the branch (`fix/302-filterimage-layers` becomes `FIX #302: filterimage layers`); after the worktree is created, a repository hook names the exact title and rename call, and refuses shell commands until the session is renamed. Install dependencies only when required, with `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1`, then repeat preflight. All later work runs in the new worktree.
 
 ## 3. Reproduce before you fix
 
@@ -32,7 +32,7 @@ Establish the reported failure before editing and retain before-evidence.
 
 ## 4. Fix it
 
-Make the scoped change. Follow repository-wide artifact, generated-source and concurrency rules. For new standalone checks, stage them and confirm discovery by `node scripts/check-agent-tooling.mjs`; review its expected count, CI triggers and sparse-checkout inputs together.
+Make the scoped change. Follow repository-wide artifact, generated-source and concurrency rules. Note out-of-scope findings in one line with a `file:line`; reproducing, investigating or filing them waits for the sweep after review. For new standalone checks, stage them and confirm discovery by `node scripts/check-agent-tooling.mjs`; review its expected count, CI triggers and sparse-checkout inputs together.
 
 ## 5. Regression test
 
@@ -48,23 +48,25 @@ For `vscode-sparkdown/` changes and the shared language server, invoke `/drive-v
 
 Read [commit and publishing](references/publishing.md) before publishing. Stage deliberately by path, remove only your scratch files, read the commit back, push and create a draft using the template. Include `Closes #N`, actual test evidence, limitations and any known performance cost. Read the PR back.
 
-Opening the PR starts the Test Suite workflow on every pull request. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and are otherwise skipped; its `test-suite` gate job is the required check and passes in both cases. Do not wait for it, before step 8 or before readiness. Read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran or were skipped in Testing and verification, and fix any failure it reports as your own correction, including one that arrives after the PR is ready; for a cancelled or timed-out run read [CI evidence](references/ci-evidence.md). Every later push starts a new run.
+Opening the PR starts the Test Suite workflow on every pull request. Its package jobs run when the change touches `packages/`, `impower-dev/`, `definitions/` or the root package files, and are otherwise skipped; its `test-suite` gate job is the required check and passes in both cases. Do not wait for it. Read its state for the current head with `gh pr checks`, cite each check as passed, failed or pending and whether the package jobs ran or were skipped in Testing and verification, and fix any failure it reports as your own correction, including one that arrives after the PR is ready. Every later push starts a new run.
 
 ## 8. Adversarial review
 
 Check CI for the current head. For cancelled/timed-out runs, read [CI evidence](references/ci-evidence.md) and diagnose before rerunning or changing bounds; an unexplained cancellation is not a verified gate.
 
-Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the repository's reviewer defaults; an explicit route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds, recovery, and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default autonomous review cap is three rounds; only an explicit user request may authorize the launcher to use a higher bounded limit.
+Invoke `/review-pr` now (skill name `review-pr`), supplying the writer identity and effort read from the runner. The launcher resolves a missing reviewer route from the repository's reviewer defaults; an explicit cross-vendor route from the user or caller overrides it. It owns reviewer counts, risk selection, correction rounds and readiness. Do not mark ready before its gates pass; invoking it again does not reset the cycle count. The default autonomous review cap is three rounds; only an explicit user request may authorize the launcher to use a higher bounded limit.
 
 ## The completion gate
 
-Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR contains `Closes #N` and verification; and review has satisfied its gates and marked it ready. The maintainer merges; GitHub closes the linked ticket on merge.
+Implementation is complete and ready for human review only when a behavior test is red on the base and green on the fix (or the relevant tooling check proves the change); live or measured evidence is inspected and limitations disclosed; the PR contains `Closes #N` and verification; and review has satisfied its gates and marked it ready.
 
 Report the last independently reviewed commit, rounds used, outstanding findings or verification gaps (or None), changes after that commit, and whether each CI check on the final head had passed, failed or was still pending. Where the runner wakes the session on check failures, fix a later failure as a correction under the later-round rules; otherwise the pending state in the handoff is the notice. If a gate remains unfinished, keep the PR draft and describe an incomplete draft handoff with the remaining work and next action. Disclosure of blockers does not make the implementation complete or the ticket resolved.
 
-Before a completion or incomplete draft handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar. This is not a gate: most sessions have none and post nothing.
+After review's last correction is adjudicated, just before marking the PR ready or asking the user to authorize more rounds, read [outstanding work](references/follow-ups.md) once: fix what this PR can carry and ticket only the rest.
 
-At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat. If the notifier is unavailable, skip it silently.
+Before a completion or incomplete draft handoff, read [feedback reporting](../references/feedback-reporting.md) and post to the inbox any friction from this session that meets its bar. Most sessions have none and post nothing.
+
+At completion, or when yielding for input or help, provide the normal chat handoff and invoke [notify-user](../notify-user/SKILL.md) for an optional companion alert identifying the work and next action. Use `done` when no action is needed, `user_input_needed` for a question or review/merge request, or `blocked` when progress requires help. Preserve this workflow's gates and include evidence, links and missing information in chat.
 
 ## Troubleshooting
 

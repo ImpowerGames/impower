@@ -302,7 +302,6 @@ portUpstreamFile("TypeInfer.unknownnever.test.cpp", [
     name: "math_operators_and_never",
     fixture: "Fixture",
     ignoreMissingAnnotations: true,
-    unparsed: { defect: 880 }, // a -- comment after an arithmetic expression
     source: `
         local function mul(x: nil, y)
             return x ~= nil and x * y -- infers boolean | never, which is normalized into boolean

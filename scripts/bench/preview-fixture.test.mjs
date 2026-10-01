@@ -267,17 +267,27 @@ if (!esbuildInstalled) {
   });
 
   await check("the coverage report counts the fixture's statements and names what its program falls back for", () => {
-    const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "coverage"], { encoding: "utf8", timeout: 600_000, windowsHide: true });
-    assert.equal(run.status, 0, run.stdout + run.stderr);
-    const summary = run.stdout.match(/coverage: (\d+) statements in the program's flows, of which the writer emits (\d+) \(/);
-    assert.ok(summary, run.stdout);
-    const [statements, emitted] = summary.slice(1).map(Number);
-    assert.ok(statements > 100 && emitted < statements, `${emitted} of ${statements}`);
-    // The fixture's scene holds a choose, one statement over the last 1,000
-    // lines, which the writer has no emit path for yet, so the program falls
-    // back and the table counts it.
-    assert.match(run.stdout, /the program falls back for \S+ at file:\/\/\/local\/main\.sd line \d+/);
-    assert.match(run.stdout, /\n {2}choose +\d+\n/);
+    // The report is read from the JSON the bench writes, not from its printed
+    // sentence, so rewording the summary cannot fail this check.
+    const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-preview-coverage-"));
+    try {
+      const json = path.join(scratch, "report");
+      const run = spawnSync(process.execPath, [path.join(HERE, "preview-bench.mjs"), "--fixture", "--mode", "coverage", "--json", json], { encoding: "utf8", timeout: 600_000, windowsHide: true });
+      assert.equal(run.status, 0, run.stdout + run.stderr);
+      const report = JSON.parse(fs.readFileSync(`${json}.coverage.json`, "utf8"));
+      assert.ok(report.statements > 100 && report.emitted < report.statements, `${report.emitted} of ${report.statements}`);
+      // The fixture's scene holds a choose, one statement over the last 1,000
+      // lines, which the writer has no emit path for yet, so the program falls
+      // back and the unsupported table counts it.
+      assert.ok(report.fallback, "the program falls back for the choose");
+      assert.equal(report.fallback.construct, "choose");
+      assert.equal(report.fallback.uri, "file:///local/main.sd");
+      assert.ok(Number.isInteger(report.fallback.line) && report.fallback.line >= 0, String(report.fallback.line));
+      assert.equal(report.unsupported.choose, 1);
+      assert.equal(report.unsupportedStatements, report.statements - report.emitted);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
   });
 }
 

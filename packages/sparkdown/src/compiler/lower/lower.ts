@@ -436,11 +436,16 @@ function lowerInner(
 // Names whose nodes only affect layout / annotation and shouldn't break up
 // the sibling-pair detection for implicit assignments. When we see
 // `LuauAccessPath` followed by these and then `LuauAssignmentOperation`, the
-// access path + operation still form one assignment statement.
+// access path + operation still form one assignment statement. A block
+// comment is trivia to Luau, so a callee and the arguments after one
+// (`g --[[c]] (2)`) still form one call.
 const ASSIGNMENT_PAIR_BRIDGE: ReadonlySet<string> = nodeNameSet([
   "Newline",
   "ExtraWhitespace",
   "LuauComment",
+  "LuauBlockComment",
+  "LuauUncallableValueTrailingBlockComment",
+  "LuauCallableValueTrailingBlockComment",
 ]);
 
 export function lowerStatements(

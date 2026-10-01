@@ -19,7 +19,8 @@
 //
 // None of those upstream tests runs Luau's type checker either, so no helper
 // here reports its warnings; the ports of Luau's type-checker tests in
-// `typecheck/` cover them.
+// `typecheck/` cover them. The syntax errors the checker reports, for a type
+// Luau's parser cannot read, are kept: they are parse errors.
 
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
@@ -44,7 +45,7 @@ export interface DetailedDiagnostic {
   };
 }
 
-/** Every diagnostic of the compile but the type checker's, lint warnings included. */
+/** Every diagnostic of the compile but the type checker's warnings, lint warnings included. */
 export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
   return diagnoseFilesDetailed({ "main.sd": source });
 }
@@ -70,7 +71,7 @@ export function diagnoseFilesDetailed(
   const out: (DetailedDiagnostic & { file: string })[] = [];
   for (const [uri, ds] of Object.entries(result.program.diagnostics ?? {})) {
     for (const d of ds) {
-      if (TYPE_ERROR_KINDS.has(String(d.code))) continue;
+      if (d.code !== "SyntaxError" && TYPE_ERROR_KINDS.has(String(d.code))) continue;
       out.push({
         file: uri.replace("inmemory:///", ""),
         message: diagnosticMessage(d),

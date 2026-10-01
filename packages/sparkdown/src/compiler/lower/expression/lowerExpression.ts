@@ -1,6 +1,10 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
+import {
+  VARIABLE_DEFINITION_NAMES,
+  nameOnlyAssignmentName,
+  valueListAssignmentName,
+} from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
@@ -350,7 +354,7 @@ export function lowerExpressionFromNodes(
         continue;
       }
     }
-    const bareName = bareAssignmentName(node);
+    const bareName = nameOnlyAssignmentName(node);
     if (extraParts.length > 0) {
       const expr = lowerAccessPath(node, ctx, extraParts);
       if (expr) tokens.push({ kind: "operand", expr });
@@ -1649,7 +1653,7 @@ export function collectImmediateBodyDeclarations(
 // `for i=10,1,z do` classified `z` as locally bound, skipped the
 // capture, and the loop's step read nil at runtime (basic.luau
 // lines 196-197).
-function collectForLoopTargetNames(
+export function collectForLoopTargetNames(
   condNode: SyntaxNode,
   ctx: LowerContext,
 ): string[] {
@@ -1858,6 +1862,13 @@ export function scanFreeVariables(
       maybeCaptureFree(ctx.read(nameNode.from, nameNode.to));
       return;
     }
+    // A name in a declaration's value list (`x` in `local a, b = 1, x`) is
+    // shaped like a target, so it has no `LuauVariable`, but it reads `x`.
+    const valueName = valueListAssignmentName(n);
+    if (valueName) {
+      maybeCaptureFree(ctx.read(valueName.from, valueName.to));
+      return;
+    }
     // Reference to a stdlib-named identifier in expression value
     // position (e.g. `local m = count` where `count` is a locally-
     // declared shadow of the `count.*` namespace). The grammar tags
@@ -1953,7 +1964,8 @@ function collectVarDefIdentifiers(
   const out: string[] = [];
   let child = content.firstChild;
   while (child) {
-    if (child.name === "LuauVariableAssignment") {
+    // A value in the list (`x` in `local a, b = 1, x`) declares nothing.
+    if (child.name === "LuauVariableAssignment" && !valueListAssignmentName(child)) {
       const nameNode = getDescendent("LuauVariableName", child);
       if (nameNode) out.push(ctx.read(nameNode.from, nameNode.to));
     }
@@ -2542,16 +2554,6 @@ export function lowerSimpleAccessPath(
     );
   }
   return null;
-}
-
-// The name of a `LuauVariableAssignment` that holds nothing but its name
-// (no type annotation, no `=`), or null for any other node.
-function bareAssignmentName(node: SyntaxNode): SyntaxNode | null {
-  if (node.name !== "LuauVariableAssignment") return null;
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (child.name === "LuauVariableAssignment_content") return null;
-  }
-  return getDescendent("LuauVariableName", node) ?? null;
 }
 
 // A dotted identifier chain (`a`, `a.b.c`) as a value, resolved as a

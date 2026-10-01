@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { decide } from "./local-test-hook.mjs";
+import { MAX_FILES } from "../../.agents/hooks/local-test-hook.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 // The directory name avoids the settings prefilter's words, so a wired case
@@ -29,6 +30,11 @@ put("scripts/typecheck.mjs", "");
 put("packages/sparkdown/package.json", JSON.stringify({ scripts: { test: "vitest", "test:run": "vitest run", typecheck: "node ../../scripts/typecheck.mjs packages/sparkdown/" } }));
 put("packages/sparkdown/src/tests/compiler/constDeclarationValidity.test.ts", "");
 put("packages/sparkdown/src/tests/compiler/FilterImageLayers.test.ts", "");
+// Enough existing files to spell out a run wider than the hook's bound.
+const MANY = Array.from({ length: MAX_FILES + 1 }, (_, i) => `src/tests/compiler/Many${i}.test.ts`);
+for (const file of MANY) put(`packages/sparkdown/${file}`, "");
+const AT_BOUND = MANY.slice(1).join(" ");
+const PAST_BOUND = MANY.join(" ");
 // A package whose test script runs Node's own runner, as
 // scripts/agent-notification-alerts does, and one whose test script hands
 // off to another script.
@@ -146,6 +152,12 @@ const denies = [
   ["the typecheck script as a glued --import preload", "node --import=./scripts/typecheck.mjs -e 0"],
   ["cmd cd /d to the root before the typecheck", 'cd packages/sparkdown && cmd /c "cd /d ../.. && npm run typecheck"'],
   ["a test script that hands off to another script", "cd packages/relay && npm test"],
+  // A package run spelled out as a list of existing files.
+  ["vitest on more existing files than the bound", `cd packages/sparkdown && npx vitest run ${PAST_BOUND}`],
+  ["the suite runner run on more files than the bound", `node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND} --wait 600`],
+  ["the suite runner run past the bound with --wait first", `node scripts/test-suite.mjs run packages/sparkdown --wait 600 ${PAST_BOUND}`],
+  ["the suite runner run past the bound through cmd /c", `cmd /c "node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}"`],
+  ["the suite runner run past the bound inside bash -c", `bash -c 'node scripts/test-suite.mjs run packages/sparkdown ${PAST_BOUND}'`],
 ];
 
 const allows = [
@@ -173,6 +185,9 @@ const allows = [
   ["node with a --require value before the suite runner's run", `node --require node:path scripts/test-suite.mjs run packages/sparkdown ${FILE} --wait 600`],
   ["the suite runner run on a file", `node scripts/test-suite.mjs run packages/sparkdown ${FILE} --wait 600`],
   ["the suite runner run through cmd /c", `cmd /c "node scripts/test-suite.mjs run packages/sparkdown ${FILE}"`],
+  ["vitest on exactly the bound of existing files", `cd packages/sparkdown && npx vitest run ${AT_BOUND}`],
+  ["the suite runner run on exactly the bound of files", `node scripts/test-suite.mjs run packages/sparkdown ${AT_BOUND} --wait 600`],
+  ["the suite runner run at the bound with --wait first", `node scripts/test-suite.mjs run packages/sparkdown --wait 600 ${AT_BOUND}`],
   ["the suite runner resume", "node scripts/test-suite.mjs resume .git/test-suites/run-1 --wait 600"],
   ["the suite runner resume with a retry", "node scripts/test-suite.mjs resume .git/test-suites/run-1 --retry src/tests/a.test.ts"],
   ["the suite runner status by absolute path", "node C:/repo/scripts/test-suite.mjs status .git/test-suites/run-1"],

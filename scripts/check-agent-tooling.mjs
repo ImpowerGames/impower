@@ -24,8 +24,32 @@ const EXPECTED_CHECKS = 53;
 const checks = files.filter((f) => /^(?:\.agents\/|\.claude\/hooks\/|\.github\/scripts\/|scripts\/)/.test(f) && /\.test\./.test(f) && f !== "scripts/check-node-names.test.mjs");
 const runnable = checks.filter((f) => /\.test\.(?:mjs|sh)$/.test(f));
 const fixtures = checks.filter((f) => /\.(?:json|snap|md|txt)$/.test(f));
-const candidates = checks.filter((f) => !fixtures.includes(f));
+const discovered = checks.filter((f) => !fixtures.includes(f));
 if (runnable.length !== EXPECTED_CHECKS || !checks.some((f) => f.startsWith(".agents/")) || !checks.some((f) => f.startsWith(".claude/hooks/")) || !checks.includes("scripts/link-agent-skills.test.mjs")) throw new Error(`Incomplete tooling check discovery: ${runnable.length} runnable, exactly ${EXPECTED_CHECKS} expected; stage checks and verify the checkout`);
+// Two tiers split the inventory by what a check exercises, so a change to
+// skill prose or a hook can run the seconds-long checks alone. The `drivers`
+// tier holds the checks that drive real git worktrees, browsers, benches and
+// reviewer processes; everything else (skill prose, hooks, GitHub scripts) is
+// the `skills` tier. Discovery and the expected count always cover the whole
+// inventory; the tier and `--only` filters select what runs afterwards.
+const DRIVER_PREFIXES = [".agents/skills/clean-worktrees/", ".agents/skills/drive-vscode-web/", ".agents/skills/drive-web-editor/", "scripts/"];
+const tierOf = (file) => (DRIVER_PREFIXES.some((prefix) => file.startsWith(prefix)) ? "drivers" : "skills");
+const args = process.argv.slice(2);
+let tier = "all";
+const only = [];
+for (let i = 0; i < args.length; i++) {
+  const arg = args[i];
+  const value = () => { if (i + 1 >= args.length) throw new Error(`${arg} needs a value`); return args[++i]; };
+  if (arg === "--tier") tier = value();
+  else if (arg.startsWith("--tier=")) tier = arg.slice("--tier=".length);
+  else if (arg === "--only") only.push(value());
+  else if (arg.startsWith("--only=")) only.push(arg.slice("--only=".length));
+  else throw new Error(`Unknown argument ${arg}; use --tier skills|drivers|all and --only <path substring> (repeatable)`);
+}
+if (!["skills", "drivers", "all"].includes(tier)) throw new Error(`--tier must be skills, drivers or all, not ${tier}`);
+const candidates = discovered.filter((f) => (tier === "all" || tierOf(f) === tier) && (!only.length || only.some((needle) => f.includes(needle))));
+if (!candidates.length) throw new Error(`No check selected by --tier ${tier}${only.length ? ` --only ${only.join(" ")}` : ""}; ${discovered.length} discovered`);
+const selection = `${tier === "all" ? "every tier" : `the ${tier} tier`}${only.length ? `, paths containing ${only.map((n) => JSON.stringify(n)).join(", ")}` : ""}`;
 const bash = process.env.AGENT_TOOLING_BASH || (process.platform === "win32" ? testShell() : "bash");
 if (bash === true) throw new Error("Git for Windows bash is required for shell checks");
 const probe = execFileSync(bash, ["-c", 'test -n "$BASH_VERSION" && printf agent-tooling-bash'], { encoding: "utf8", timeout: 10000, windowsHide: true });
@@ -42,7 +66,8 @@ let failed = 0, ran = 0, timedOut = 0, exitUnconfirmed = 0;
 const skipped = [];
 const missingFixtures = [];
 const attemptedFiles = new Set();
-console.log(`Discovered ${candidates.length} tracked check files and ${fixtures.length} data fixtures`);
+console.log(`Discovered ${discovered.length} tracked check files and ${fixtures.length} data fixtures`);
+console.log(`Selected ${candidates.length} of ${discovered.length} checks: ${selection}`);
 console.log(`Verified Bash: ${bash}; per-check timeout: ${timeoutMs} ms`);
 for (const file of fixtures) {
   if (!fs.existsSync(path.join(root, file))) { console.error(`FAILED: missing data fixture ${file}`); missingFixtures.push(file); failed++; }
@@ -104,11 +129,11 @@ for (const file of candidates) {
   }
 }
 for (const file of candidates) if (!attemptedFiles.has(file)) console.log(`NOT RUN: ${file}: no invocation attempted`);
-const summary = `Tooling checks: ${ran} run, ${failed} failed, ${candidates.length - ran} not run; ${timedOut} timed out, ${exitUnconfirmed} exit unconfirmed; ${fixtures.length} data fixtures`;
+const summary = `Tooling checks (${selection}): ${ran} run, ${failed} failed, ${candidates.length - ran} not run; ${timedOut} timed out, ${exitUnconfirmed} exit unconfirmed; ${fixtures.length} data fixtures`;
 console.log(summary);
 console.log(`Skipped cases: ${skipped.length}`);
 for (const line of skipped) console.log(line);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${candidates.length} tracked check files and ${fixtures.length} data fixtures.\n\n### Missing data fixtures\n\n${missingFixtures.length ? missingFixtures.map((file) => "- " + file).join("\n") : "None."}\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nPortable extension fixtures, shell classification, directory-link access and launcher-tree shutdown run in both matrix legs. Zip fixtures require fflate from a workspace install; directory-link capability skips report their filesystem error. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
+  fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Agent tooling checks\n\n${summary}. Discovered ${discovered.length} tracked check files, ${candidates.length} selected, and ${fixtures.length} data fixtures.\n\n### Missing data fixtures\n\n${missingFixtures.length ? missingFixtures.map((file) => "- " + file).join("\n") : "None."}\n\n### Skipped cases\n\n${skipped.length ? skipped.map((line) => "- " + line).join("\n") : "None."}\n\nPortable extension fixtures, shell classification, directory-link access and launcher-tree shutdown run in both matrix legs. Zip fixtures require fflate from a workspace install; directory-link capability skips report their filesystem error. Windows-only held-tree and long-path cases are exercised by the Windows matrix leg. Skips do not establish compatibility.\n`);
 }
 process.exitCode = failed ? 1 : 0;

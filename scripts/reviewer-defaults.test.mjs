@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { runHandoff } from "./agent-handoff.mjs";
+import { runHandoff, checkCrossVendor, usageLimitWindowMs } from "./agent-handoff.mjs";
 import { readReviewerDefaults, resolveReviewer, applyResolvedReviewer, validateReviewerDefaults } from "./reviewer-defaults.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,57 +15,60 @@ const { defaults } = readReviewerDefaults(root);
 assert.ok(!defaults.rows.some((row) => [...row.primary, ...row.fallback].some(({ route }) => route.includes("fable"))), "the limited-allowance model never reviews");
 const pick = (plan) => { const { reviewer, reviewerEffort } = resolveReviewer(plan, root); return `${reviewer}/${reviewerEffort}`; };
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "low" }), "gpt-5.6-terra/high");
-assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium" }), "gpt-5.6-sol/high");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium" }), "gpt-6.1-sol/high");
 assert.equal(pick({ writer: "claude-opus-5-5[1m]", writerEffort: "medium", reviewerFallback: true }), "claude-sonnet-5-5/high", "a context-window suffix does not change the writer route");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "low", reviewerFallback: true }), "claude-sonnet-5-5/high");
 assert.equal(pick({ writer: "gpt-5.6-terra", writerEffort: "medium" }), "claude-sonnet-5-5/high");
 assert.equal(pick({ writer: "gpt-5.6-terra", writerEffort: "xhigh" }), "claude-sonnet-5-5/xhigh", "a terra writer at xhigh or above gets an xhigh reviewer");
 assert.equal(pick({ writer: "gpt-5.6-sol", writerEffort: "medium" }), "claude-opus-5-5/high");
 assert.equal(pick({ writer: "gpt-5.6-sol", writerEffort: "medium", reviewerFallback: true }), "gpt-6-astra/medium");
-assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "high", reviewerFallback: true }), "gpt-5.6-sol/xhigh");
+assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "high", reviewerFallback: true }), "gpt-6.1-sol/xhigh");
 assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "medium", reviewerFallback: true }), "claude-opus-5-5/xhigh");
 assert.throws(() => pick({ writer: "claude-opus-5-5", writerEffort: "xhigh" }), /supply ticketEffort \(high or correctness-critical\)/, "a writer effort shared by two ticket tiers needs the tier");
-assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-5.6-sol/xhigh");
-assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerIndex: 1 }), "gpt-5.6-sol/high", "the second serial reviewer is selected by index");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-6.1-sol/xhigh");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerIndex: 1 }), "gpt-6.1-sol/high", "the second serial reviewer is selected by index");
 assert.throws(() => pick({ writer: "claude-opus-5-5", writerEffort: "medium", reviewerIndex: 1 }), /reviewerIndex must be from 0 through 0/);
 assert.throws(() => pick({ writer: "claude-opus-5-5", writerEffort: "medium", reviewerIndex: null }), /reviewerIndex must be from 0 through 0/, "a null index is refused rather than read as the first reviewer");
 assert.throws(() => pick({ writer: "claude-opus-5-5" }), /writerEffort/, "the writer's effort remains a required input");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium", reviewerFallback: true }), "claude-sonnet-5-5/high", "Opus 5.5 falls back to Sonnet 5.5");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-4-8/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "low" }), "gpt-5.6-terra/high");
-assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium" }), "gpt-5.6-sol/high");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "medium" }), "gpt-6.1-sol/high");
 assert.equal(pick({ writer: "claude-opus-5-5[1m]", writerEffort: "medium", reviewerFallback: true }), "claude-sonnet-5-5/high");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "high", reviewerFallback: true }), "claude-sonnet-5-5/xhigh");
-assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-5.6-sol/xhigh");
+assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "high" }), "gpt-6.1-sol/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "xhigh", ticketEffort: "correctness-critical", reviewerFallback: true, reviewerIndex: 1 }), "claude-opus-4-8/xhigh");
 assert.equal(pick({ writer: "claude-opus-5-5", writerEffort: "max", reviewerFallback: true }), "claude-sonnet-5-5/xhigh");
 // Codex writers and the Fable fallback are reviewed by Opus 5.5.
+assert.equal(pick({ writer: "gpt-6.1-sol", writerEffort: "low" }), "claude-opus-5-5/high", "the current Codex default model resolves a reviewer");
+assert.equal(pick({ writer: "gpt-6.1-sol", writerEffort: "ultra", reviewerFallback: true }), "gpt-6-astra/medium");
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "high" }), "claude-opus-5-5/xhigh");
 assert.equal(pick({ writer: "gpt-6-astra", writerEffort: "max", reviewerIndex: 1 }), "claude-sonnet-5-5/xhigh");
 assert.equal(pick({ writer: "claude-fable-5-1", writerEffort: "max", reviewerFallback: true, reviewerIndex: 1 }), "claude-sonnet-5-5/xhigh");
 // Every row whose writer or reviewers are Opus routes, pinned exactly: each
 // reviewer at each index, so one row left on an older model fails here.
 const routes = (list) => list.map(({ route, effort }) => `${route}/${effort}`).join(" ");
-const opusRows = defaults.rows.filter((row) => ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "gpt-5.6-sol", "gpt-6-astra"].includes(row.writer));
+const opusRows = defaults.rows.filter((row) => ["claude-opus-5-5", "claude-sonnet-5-5", "claude-fable-5-1", "gpt-5.6-sol", "gpt-6.1-sol", "gpt-6-astra"].includes(row.writer));
 const expectedOpusRows = [
   ["claude-opus-5-5", "low", "low", "gpt-5.6-terra/high", "claude-sonnet-5-5/high"],
-  ["claude-opus-5-5", "medium", "medium", "gpt-5.6-sol/high", "claude-sonnet-5-5/high"],
-  ["claude-opus-5-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-sonnet-5-5/xhigh"],
-  ["claude-opus-5-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-sonnet-5-5/xhigh"],
-  ["claude-opus-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-sonnet-5-5/xhigh claude-opus-4-8/xhigh"],
-  ["claude-opus-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-sonnet-5-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-opus-5-5", "medium", "medium", "gpt-6.1-sol/high", "claude-sonnet-5-5/high"],
+  ["claude-opus-5-5", "high", "high", "gpt-6.1-sol/xhigh", "claude-sonnet-5-5/xhigh"],
+  ["claude-opus-5-5", "xhigh", "high", "gpt-6.1-sol/xhigh", "claude-sonnet-5-5/xhigh"],
+  ["claude-opus-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-6.1-sol/high", "claude-sonnet-5-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-opus-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-6.1-sol/high", "claude-sonnet-5-5/xhigh claude-opus-4-8/xhigh"],
   ["claude-sonnet-5-5", "low", "low", "gpt-5.6-terra/high", "claude-opus-5-5/high"],
-  ["claude-sonnet-5-5", "medium", "medium", "gpt-5.6-sol/high", "claude-opus-5-5/high"],
-  ["claude-sonnet-5-5", "high", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
-  ["claude-sonnet-5-5", "xhigh", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
-  ["claude-sonnet-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/xhigh"],
-  ["claude-sonnet-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/xhigh"],
-  ["claude-fable-5-1", "low", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
-  ["claude-fable-5-1", "medium", "high", "gpt-5.6-sol/xhigh", "claude-opus-5-5/xhigh"],
-  ...["high", "xhigh", "max"].map((effort) => ["claude-fable-5-1", effort, "correctness-critical", "gpt-6-astra/xhigh gpt-5.6-sol/high", "claude-opus-5-5/xhigh claude-sonnet-5-5/xhigh"]),
+  ["claude-sonnet-5-5", "medium", "medium", "gpt-6.1-sol/high", "claude-opus-5-5/high"],
+  ["claude-sonnet-5-5", "high", "high", "gpt-6.1-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-sonnet-5-5", "xhigh", "high", "gpt-6.1-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-sonnet-5-5", "xhigh", "correctness-critical", "gpt-6-astra/xhigh gpt-6.1-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-sonnet-5-5", "max", "correctness-critical", "gpt-6-astra/xhigh gpt-6.1-sol/high", "claude-opus-5-5/xhigh claude-opus-4-8/xhigh"],
+  ["claude-fable-5-1", "low", "high", "gpt-6.1-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ["claude-fable-5-1", "medium", "high", "gpt-6.1-sol/xhigh", "claude-opus-5-5/xhigh"],
+  ...["high", "xhigh", "max"].map((effort) => ["claude-fable-5-1", effort, "correctness-critical", "gpt-6-astra/xhigh gpt-6.1-sol/high", "claude-opus-5-5/xhigh claude-sonnet-5-5/xhigh"]),
   ...["low", "medium", "high", "xhigh", "max", "ultra"].map((effort) => ["gpt-5.6-sol", effort, "medium", "claude-opus-5-5/high", "gpt-6-astra/medium"]),
-  ...["low", "medium", "high", "xhigh"].map((effort) => ["gpt-6-astra", effort, "high", "claude-opus-5-5/xhigh", "gpt-5.6-sol/xhigh"]),
-  ...["max", "ultra"].map((effort) => ["gpt-6-astra", effort, "correctness-critical", "claude-opus-5-5/xhigh claude-sonnet-5-5/xhigh", "gpt-5.6-sol/xhigh gpt-5.6-terra/high"]),
+  ...["low", "medium", "high", "xhigh", "max", "ultra"].map((effort) => ["gpt-6.1-sol", effort, "medium", "claude-opus-5-5/high", "gpt-6-astra/medium"]),
+  ...["low", "medium", "high", "xhigh"].map((effort) => ["gpt-6-astra", effort, "high", "claude-opus-5-5/xhigh", "gpt-6.1-sol/xhigh"]),
+  ...["max", "ultra"].map((effort) => ["gpt-6-astra", effort, "correctness-critical", "claude-opus-5-5/xhigh claude-sonnet-5-5/xhigh", "gpt-6.1-sol/xhigh gpt-5.6-terra/high"]),
 ];
 assert.deepEqual(opusRows.map((row) => [row.writer, row.writerEffort, row.ticketEffort, routes(row.primary), routes(row.fallback)]), expectedOpusRows);
 // Every writer in the table resolves at every effort its runner accepts.
@@ -82,7 +85,7 @@ for (const writerEffort of ["low", "medium", "high", "xhigh", "max"]) assert.ok(
 // A ticket tier with no row at the writer's effort falls back to that tier's
 // row at the nearest writer effort, and the selection says so.
 const tierMatch = resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "low", ticketEffort: "medium" }, root);
-assert.deepEqual([tierMatch.reviewer, tierMatch.rowWriterEffort, tierMatch.matchedOn], ["gpt-5.6-sol", "medium", "ticketEffort"]);
+assert.deepEqual([tierMatch.reviewer, tierMatch.rowWriterEffort, tierMatch.matchedOn], ["gpt-6.1-sol", "medium", "ticketEffort"]);
 assert.equal(resolveReviewer({ writer: "claude-opus-5-5", writerEffort: "medium" }, root).matchedOn, "writerEffort");
 // Two rows of the tier equally near the session effort: the higher one wins.
 const tieRoot = fs.mkdtempSync(path.join(os.tmpdir(), "impower-reviewer-tie-"));
@@ -158,7 +161,7 @@ fs.writeFileSync(path.join(worktree, ".claude", "agents", "reviewer-fixture.md")
 git("init");
 commitConfig();
 const child = path.join(scratch, "child.mjs");
-fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; if(p.startsWith('Reviewer route probe')){console.log('OK');process.exit(0);} const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:null,commentIds:[],summary:"complete"}));`);
+fs.writeFileSync(child, `import fs from "node:fs"; let p=""; for await (const chunk of process.stdin) p+=chunk; if(p.startsWith('Reviewer route probe')){if(process.argv.includes('limited')){console.error("You've hit your usage limit. Try again at 3:15 PM.");process.exit(1);}if(process.argv.includes('unauthorized')){console.error('401 Unauthorized: Incorrect API key provided');process.exit(1);}console.log('OK');process.exit(0);} const file=/Write (.*?) with the editor tool/.exec(p)[1]; const head=/reviewed head=([a-f0-9]+)/.exec(p)[1]; fs.writeFileSync(file, JSON.stringify({head,next:null,commentIds:[],summary:"complete"}));`);
 const prompt = path.join(scratch, "prompt.txt");
 fs.writeFileSync(prompt, "test fixture");
 const file = path.join(scratch, "plan.json");
@@ -180,13 +183,85 @@ assert.equal(result.launching.reviewerEffort, "high");
 assert.deepEqual(result.launching.reviewerResolved, { writerEffort: "medium", rowWriterEffort: "medium", matchedOn: "writerEffort", ticketEffort: "medium", fallback: false, index: 0 });
 assert.deepEqual(result.launching.args, [child, "--agent", "reviewer-fixture", "--effort", "high"]);
 
-// Claude writer, fallback column: the same-vendor reviewer is selected.
-result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewerFallback: true }));
+// Claude writer, fallback column: the same-vendor reviewer is refused until a
+// journal shows the cross-vendor reviewer blocked by a usage limit.
+const blockedJournal = (name, reason, { model = "gpt-fixture-reviewer", time = new Date().toISOString() } = {}) => {
+  const evidence = path.join(scratch, `${name}.jsonl`);
+  fs.writeFileSync(evidence, [{ event: "launching", role: "review", model }, { event: "blocked", reason, time }].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+  return evidence;
+};
+const limitReason = "Reviewer route gpt-fixture-reviewer unavailable before slot reservation: You've hit your usage limit; wait for the limit to reset";
+const fallbackPlan = (usageLimitJournal) => plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewerFallback: true, usageLimitJournal });
+const refusedFallback = async (usageLimitJournal, pattern, message) => {
+  const config = fallbackPlan(usageLimitJournal);
+  const refused = await launch(config);
+  assert.match(refused.error.message, pattern, message);
+  assert.equal(fs.existsSync(config.journal), false, `refused before the journal opens: ${message}`);
+};
+await refusedFallback(undefined, /shares the writer's vendor.*launch the cross-vendor default first/, "a fallback without evidence is refused");
+await refusedFallback(blockedJournal("blocked-credential", "Reviewer route gpt-fixture-reviewer unavailable before slot reservation: 401 Unauthorized: Incorrect API key provided"), /does not end blocked by a usage limit \(.*401 Unauthorized/, "a rejected credential is not a usage limit");
+await refusedFallback(blockedJournal("blocked-stale", limitReason, { time: new Date(Date.now() - usageLimitWindowMs - 60000).toISOString() }), /more than 6 hours ago; launch the cross-vendor default again/, "a stale usage limit is retried, not assumed");
+await refusedFallback(blockedJournal("blocked-same-vendor", limitReason, { model: "claude-fixture-reviewer" }), /records no cross-vendor reviewer launch/, "a same-vendor reviewer's limit is not evidence");
+await refusedFallback(path.join(scratch, "absent.jsonl"), /is unreadable/, "a missing journal is refused");
+await refusedFallback(path.join(os.tmpdir(), "outside.jsonl"), /Review job paths must lie under/, "evidence outside the job root is refused");
+const limited = blockedJournal("blocked-limit", limitReason);
+result = await launch(fallbackPlan(limited));
 assert.match(result.error.message, /posted comment IDs/);
 assert.equal(result.launching.model, "claude-fixture-reviewer");
 assert.equal(result.launching.reviewerEffort, "xhigh");
 assert.equal(result.launching.reviewerResolved.fallback, true);
+assert.equal(result.launching.sameVendor.usageLimitJournal, limited);
+assert.equal(result.launching.sameVendor.usageLimitRoute, "gpt-fixture-reviewer");
+assert.match(result.launching.sameVendor.usageLimitReason, /usage limit/);
 assert.deepEqual(result.launching.args, [child, "--agent", "reviewer-fixture", "--effort", "xhigh"]);
+// An explicit reviewer of the writer's vendor meets the same requirement, and
+// a cross-vendor plan carries no evidence.
+const sameVendorStep = { model: "claude-fixture-reviewer", args: [child, "--model", "claude-fixture-reviewer"] };
+result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewer: "claude-fixture-reviewer" }, sameVendorStep));
+assert.match(result.error.message, /shares the writer's vendor/, "an explicit same-vendor reviewer is refused without evidence");
+assert.equal(result.launching, undefined);
+result = await launch(plan({ writer: "claude-fixture-writer[1m]", writerEffort: "medium", reviewer: "claude-fixture-reviewer", usageLimitJournal: limited }, sameVendorStep));
+assert.match(result.error.message, /posted comment IDs/, "an explicit same-vendor reviewer launches with usage-limit evidence");
+result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", usageLimitJournal: limited }));
+assert.match(result.error.message, /apply only to a reviewer of the writer's vendor/);
+// The user's explicit request, carried verbatim, stands in for the journal.
+const userRequest = "Use the same-vendor reviewer for this PR.";
+result = await launch(plan({ writer: "claude-fixture-writer", writerEffort: "medium", reviewerFallback: true, sameVendorAuthorization: userRequest }));
+assert.match(result.error.message, /posted comment IDs/, "a user-authorized same-vendor reviewer launches without a journal");
+assert.deepEqual(result.launching.sameVendor, { sameVendorAuthorization: userRequest });
+for (const [fields, pattern] of [
+  [{ writer: "claude-fixture-writer", reviewerFallback: true, sameVendorAuthorization: "  " }, /must carry the user's request/],
+  [{ writer: "claude-fixture-writer", reviewerFallback: true, sameVendorAuthorization: true }, /must carry the user's request/],
+  [{ writer: "claude-fixture-writer", reviewerFallback: true, sameVendorAuthorization: userRequest, usageLimitJournal: limited }, /not both/],
+  [{ writer: "gpt-fixture-writer", sameVendorAuthorization: userRequest }, /apply only to a reviewer of the writer's vendor/],
+]) {
+  result = await launch(plan({ writerEffort: "medium", ...fields }));
+  assert.match(result.error.message, pattern);
+  assert.equal(result.launching, undefined, `refused before launch: ${pattern}`);
+}
+for (const reason of ["You've hit your weekly limit - resets Sep 28", "Role review failed; route unavailable: HTTP 429 from the API; inspect process.log", "429 Too Many Requests", "rate limit reached", "quota exceeded"]) {
+  assert.ok(checkCrossVendor({ writer: "claude-w", reviewer: "claude-r", usageLimitJournal: blockedJournal("blocked-wording", reason) }, scratch), `a usage limit is recognised: ${reason}`);
+}
+assert.equal(checkCrossVendor({ writer: "writer-test", reviewer: "reviewer-test" }, scratch), undefined, "routes of neither known vendor are not judged");
+// The launcher's own journals: a probe blocked by a usage limit permits the
+// same-vendor reviewer, and a probe blocked by a rejected credential does not.
+const probeBlocked = async (mode) => {
+  const config = plan({ writer: "gpt-fixture-writer", writerEffort: "medium" }, { args: [child, mode] });
+  const blocked = await launch(config);
+  assert.match(blocked.error.message, /Reviewer route claude-fixture-reviewer unavailable before slot reservation/);
+  return [config.journal, blocked.error.message];
+};
+const codexSameVendor = (usageLimitJournal) => launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", reviewer: "gpt-fixture-reviewer", usageLimitJournal }, { model: "gpt-fixture-reviewer", args: [child, "--model", "gpt-fixture-reviewer"] }));
+const [limitJournal, limitMessage] = await probeBlocked("limited");
+assert.match(limitMessage, /hit your usage limit.*name this plan's journal as usageLimitJournal/);
+result = await codexSameVendor(limitJournal);
+assert.match(result.error.message, /posted comment IDs/, "the launcher's usage-limit journal permits the same-vendor reviewer");
+assert.equal(result.launching.sameVendor.usageLimitRoute, "claude-fixture-reviewer");
+const [credentialJournal, credentialMessage] = await probeBlocked("unauthorized");
+assert.match(credentialMessage, /401 Unauthorized.*does not permit a same-vendor reviewer/);
+result = await codexSameVendor(credentialJournal);
+assert.match(result.error.message, /does not end blocked by a usage limit/, "the launcher's credential refusal does not permit the same-vendor reviewer");
+assert.equal(result.launching, undefined);
 
 // An explicit reviewer is used unchanged, even when the table has a default.
 result = await launch(plan({ writer: "gpt-fixture-writer", writerEffort: "medium", reviewer: "explicit-reviewer" }, { model: "explicit-reviewer", args: [child, "--model", "explicit-reviewer"] }));
@@ -223,4 +298,4 @@ result = await launch(selfReview);
 assert.match(result.error.message, /names the writer as its own reviewer/);
 assert.equal(fs.existsSync(selfReview.journal), false, "self-review is refused before the journal opens");
 
-console.log("PASS: reviewer defaults resolve from writer route and effort; explicit reviewers, fallback selection and self-review refusal verified");
+console.log("PASS: reviewer defaults resolve from writer route and effort; explicit reviewers, usage-limit-gated same-vendor selection and self-review refusal verified");

@@ -2,6 +2,7 @@ import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import {
   VARIABLE_DEFINITION_BEGIN_NAMES,
   VARIABLE_DEFINITION_END_NAMES,
+  ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
 import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -99,7 +100,7 @@ export function lowerVariableDefinition(
       const pendingComma = unresolvedComma;
       unresolvedComma = null;
       if (child.name === "LuauVariableAssignment") {
-        const opNode = getDescendent("LuauAssignmentOperation", child);
+        const opNode = ownAssignmentOperation(child);
         if (sawAssignmentOp) {
           if (opNode) {
             // A second `=` (`local a = 1, x = 99`): Luau ends the list at
@@ -283,10 +284,8 @@ export function lowerVariableDefinition(
   // The LAST target's `LuauAssignmentOperation` carries the first
   // RHS value. Subsequent RHS values are at the def-content level.
   const lastTarget = targets[targets.length - 1]!;
-  let firstRhsOp: SyntaxNode | undefined = getDescendent(
-    "LuauAssignmentOperation",
-    lastTarget.assignNode,
-  );
+  let firstRhsOp: SyntaxNode | undefined =
+    ownAssignmentOperation(lastTarget.assignNode) ?? undefined;
   // The continuation's first comma group continues the last value; its
   // later groups are further values. After a comma that ends the content,
   // every group is a further value. When statements share the line after
@@ -529,6 +528,8 @@ function isSkippableName(name: string): boolean {
     name === "LuauDocLineComment" ||
     name === "LuauBlockComment" ||
     name === "LuauTypeTrailingBlockComment" ||
+    name === "LuauUncallableValueTrailingBlockComment" ||
+    name === "LuauCallableValueTrailingBlockComment" ||
     name === "LuauTypeTrailingBlockCommentClose" ||
     name === "OptionalWhitespace" ||
     name === "RequiredWhitespace" ||

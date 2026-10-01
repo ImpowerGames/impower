@@ -1,6 +1,12 @@
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { CALL_LIKE_OPENERS } from "../../utils/callLikeOpeners";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import {
+  ALL_INLINE_ALTERNATOR_NAMES,
+  isInsideOneLineAlternator,
+  PRESERVE_WHITESPACE_ALTERNATOR_NAMES,
+} from "../../utils/inlineAlternators";
+import { oneLineTableBraces, tableOuterGaps } from "../../utils/oneLineTableBraces";
 import { Range } from "@codemirror/state";
 import { getContextStack } from "@impower/textmate-grammar-tree/src/tree/utils/getContextStack";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
@@ -78,42 +84,22 @@ const SPACED_PUNCTUATION_OPERATORS: Partial<
   LuauAssignmentOperator: { spelling: "..=", forceAfter: false },
 };
 
-// Alternator forms whose ARM CONTENT is *display text* (not a Luau
-// expression). These carry typing-pacing significance: whitespace
-// between/around the `|` separators is part of the rendered output,
-// so the formatter must leave it alone.
-const PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST: SparkdownNodeName[] = [
-  "LuauSparkdownInlineGluedSequentialAlternatorBlock",
-  "LuauSparkdownInlineGluedConditionalAlternatorBlock",
-  "LuauSparkdownSingleLineSequentialAlternatorBlock",
-  "LuauSparkdownSingleLineConditionalAlternatorBlock",
-];
-const PRESERVE_WHITESPACE_ALTERNATOR_NAMES = nodeNameSet(
-  PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST,
-);
-
-// Any inline alternator form — these all live on a single line and
-// should be tight (no `keyword (paren)` separation). Includes both
-// the display-text variants above AND the Luau-expression variants
-// (`{plural(n)|one="is"|other="are"}`).
-const ALL_INLINE_ALTERNATOR_NAMES = nodeNameSet([
-  ...PRESERVE_WHITESPACE_ALTERNATOR_NAME_LIST,
-  "LuauSequentialAlternatorBlock",
-  "LuauConditionalAlternatorBlock",
-]);
-
 function isInsideInlineAlternator(
   node: SparkdownSyntaxNodeRef,
   read: (from: number, to: number) => string,
 ): boolean {
-  return isInsideAlternatorSet(node, read, PRESERVE_WHITESPACE_ALTERNATOR_NAMES);
+  return isInsideOneLineAlternator(
+    node.node,
+    read,
+    PRESERVE_WHITESPACE_ALTERNATOR_NAMES,
+  );
 }
 
 function isInsideAnyInlineAlternator(
   node: SparkdownSyntaxNodeRef,
   read: (from: number, to: number) => string,
 ): boolean {
-  return isInsideAlternatorSet(node, read, ALL_INLINE_ALTERNATOR_NAMES);
+  return isInsideOneLineAlternator(node.node, read, ALL_INLINE_ALTERNATOR_NAMES);
 }
 
 // Detects whether a whitespace node sits immediately after a
@@ -218,23 +204,6 @@ function isInsideUIAttribute(node: SparkdownSyntaxNodeRef): boolean {
     if (ancestor.name === "LuauUIAttribute") {
       return true;
     }
-  }
-  return false;
-}
-
-function isInsideAlternatorSet(
-  node: SparkdownSyntaxNodeRef,
-  read: (from: number, to: number) => string,
-  names: Set<string>,
-): boolean {
-  for (const ancestor of getContextStack(node.node)) {
-    if (!names.has(ancestor.name)) continue;
-    // The shared rule names cover BOTH the single-line inline form
-    // and the multi-line block form (e.g. `return ( chain | ... end )`).
-    // Only the single-line form is "inline" for formatter purposes.
-    const span = read(ancestor.from, ancestor.to);
-    if (span.includes("\n")) continue;
-    return true;
   }
   return false;
 }
@@ -600,6 +569,37 @@ export class FormattingAnnotator extends SparkdownAnnotator<
           ),
         );
       }
+    }
+    // A one-line table constructor or table type is spaced inside its
+    // braces (`{ a = 1 }`, `{ number }`). The separator rule tightens after
+    // every `{` and before every `}`, as interpolation braces need, so the
+    // table forces one space at each brace and the whitespace edits there
+    // merge into it. A table also keeps one space from an interpolation or
+    // binding brace around it, since `{{` would read as the call shorthand.
+    const read = (from: number, to: number) => this.read(from, to);
+    const tableGaps = tableOuterGaps(nodeRef.node, read);
+    for (const gap of [tableGaps.before, tableGaps.after]) {
+      if (gap != null) {
+        annotations.push(
+          SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+            gap,
+            gap,
+          ),
+        );
+      }
+    }
+    const tableBraces = oneLineTableBraces(nodeRef.node, read);
+    if (tableBraces) {
+      annotations.push(
+        SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+          tableBraces.open + 1,
+          tableBraces.open + 1,
+        ),
+        SparkdownAnnotation.mark<FormatType>("keyword_separator").range(
+          tableBraces.close,
+          tableBraces.close,
+        ),
+      );
     }
     if (nodeRef.name === "ChoiceMark") {
       annotations.push(

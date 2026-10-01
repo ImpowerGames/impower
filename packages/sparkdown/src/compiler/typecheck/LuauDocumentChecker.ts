@@ -26,8 +26,7 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import { Location, Position } from "./Location";
 import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
-import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
-import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
+import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
 import { RUN_QUERY, RUN_WRAPPER_SUFFIX, runWrapperName, runWrapperPrefix } from "../utils/runWrapper";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
@@ -113,77 +112,6 @@ export function runFileUnit(uri: string, documentText: string): LuauUnit | undef
   const firstLine = prefix.split("\n").length - 1;
   return { kind: "file", text, lines: text.split("\n").map((_, i) => firstLine + i) };
 }
-
-// The statements of a `.sd` file that are Luau, wherever they sit.
-const LUAU_STATEMENTS = new Set([
-  ...VARIABLE_DEFINITION_NAMES,
-  "LuauFunctionDefinition",
-  "LuauExplicitStatement",
-  ...REASSIGNMENT_NAMES,
-  "LuauReturnStatement",
-  "LuauBreakStatement",
-  "LuauContinueStatement",
-  "LuauDataTypeDeclaration",
-  "LuauFunctionTypeDeclaration",
-  "LuauIfBlock",
-  "LuauWhileLoop",
-  "LuauForLoop",
-  "LuauRepeatLoop",
-  "LuauDoBlock",
-  "LuauSparkdownIfBlock",
-  "LuauSparkdownWhileLoop",
-  "LuauSparkdownForLoop",
-  "LuauSparkdownRepeatLoop",
-  "LuauSparkdownDoBlock",
-  "LuauSparkdownReturnStatement",
-  "LuauSparkdownChooseBlock",
-]);
-
-// The headers that begin a flow.
-const FLOW_HEADERS = new Set(["Scene", "Branch"]);
-
-// Nodes inside Luau statements that are Sparkdown's own: the `&` that marks
-// a statement, the `choose`, `then` and `end` of a `choose` block, and the
-// constructs Luau has no syntax for. A `choose` block opens no scope (a
-// choice's statements run in its flow's), so the statements inside it are
-// kept where they stand.
-const SPARKDOWN_ONLY = new Set([
-  "LuauExplicitStatementMark",
-  "LuauSparkdownChooseBlock_begin",
-  "LuauSparkdownChooseThenClause_begin",
-  "LuauSparkdownChooseBlock_end",
-  "LuauDefine",
-  "LuauStyle",
-  "LuauLayout",
-  "LuauScreen",
-  "LuauAnimation",
-  "LuauTheme",
-  "LuauComponent",
-  "LuauMorph",
-  "LuauUIElement",
-  "LuauSparkdownAlternatorBlocks",
-  "LuauSparkdownConditionalAlternatorBlock",
-  "LuauSparkdownSequentialAlternatorBlock",
-  "LuauSparkdownSingleLineConditionalAlternatorBlock",
-  "LuauSparkdownSingleLineSequentialAlternatorBlock",
-  "LuauSparkdownInlineGluedConditionalAlternatorBlock",
-  "LuauSparkdownInlineGluedSequentialAlternatorBlock",
-]);
-
-// Sparkdown's own expressions, which Luau has no syntax for: alternators,
-// divert targets and regular expressions. Each is checked as a call of the
-// checker's `any` value, `_G` unless the document writes that name itself
-// (see `ANY_NAMES`), or as the value alone where the expression is too short
-// for the call, so the rest of its statement is checked as written.
-const SPARKDOWN_EXPRESSIONS = new Set([
-  "LuauConditionalAlternatorBlock",
-  "LuauSequentialAlternatorBlock",
-  "LuauDivertTargetLiteral",
-  "LuauRegexLiteral",
-]);
-
-// Nodes that may sit anywhere in Luau: trivia and punctuation.
-const NEUTRAL = /^(Newline|OptionalWhitespace|RequiredWhitespace|ExtraWhitespace|Whitespace|Punctuation\w+)$/;
 
 // Nodes whose text is Luau as it stands: strings and comments. A backtick
 // string's interpolations are the exception (see `keepInterpolations`).
@@ -375,6 +303,8 @@ interface Flow {
   varargs: Vararg[];
   /** Whether the flow's own parameters end with `...`, which is then the first of `varargs`. */
   variadic: boolean;
+  /** The `end` that closes the flow, if one does. */
+  end?: SyntaxNode;
 }
 
 /** Removes `[from, to)` from sorted, disjoint spans. */
@@ -406,7 +336,7 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
     if (SPARKDOWN_ONLY.has(name)) return true;
     if (name === "LuauScopeModifier") {
       const text = documentText.slice(node.from, node.to).trim();
-      return text !== "local" && text !== "const";
+      return !LUAU_SCOPE_MODIFIERS.has(text);
     }
     return !name.startsWith("Luau") && !NEUTRAL.test(name);
   };
@@ -525,7 +455,9 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
         open.push(flow);
       }
     } else if (node.name === "LuauEndKeyword") {
-      open.pop();
+      // A branch's `end` closes the branch, not the flow it is checked in.
+      const closed = open.pop();
+      if (closed && !open.includes(closed)) closed.end = node;
     } else if (node.name === "LuauFunctionDefinition") {
       keepLuau(prelude, node);
     } else if (LUAU_STATEMENTS.has(node.name)) {
@@ -580,8 +512,18 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
       text.push(...built.text);
       lines.push(...built.lines);
     }
-    text.push(...bodyLines.text, "end");
-    lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);
+    // The function ends at the flow's own `end`, at its column, so an error
+    // Luau reports at the `end` (a type missing before it) is placed there.
+    if (flow.end) {
+      const endText = documentText.slice(flow.end.from, flow.end.to);
+      const at = flow.end.from + endText.length - endText.trimStart().length;
+      const endLine = index.lineAt(at);
+      text.push(...bodyLines.text, `${" ".repeat(at - index.starts[endLine]!)}end`);
+      lines.push(...bodyLines.lines, endLine);
+    } else {
+      text.push(...bodyLines.text, "end");
+      lines.push(...bodyLines.lines, bodyLines.lines[bodyLines.lines.length - 1] ?? headerLine);
+    }
     units.flows.push({ kind: "flow", text: text.join("\n"), lines });
   }
   return units;

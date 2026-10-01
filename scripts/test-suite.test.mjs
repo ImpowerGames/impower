@@ -356,6 +356,11 @@ assert.ok(Date.now() - cliCensusStart < 8000, "the census wait also stops at its
 assert.equal(fs.existsSync(path.join(lockRoot, "reservation.json")), false, "a timed-out start releases the reservation");
 await assert.rejects(main(["run", scratch, "--wait", "soon"], seam), /--wait takes a number of seconds/);
 await assert.rejects(main(["run", scratch, "--wait", "5"], seam), /Name the test files under work/, "run refuses a whole-package call");
+const { MAX_RUN_FILES } = await import("./test-suite.mjs");
+const manyFiles = Array.from({ length: MAX_RUN_FILES + 1 }, (_, i) => `f${i}.test.ts`);
+await assert.rejects(main(["run", scratch, ...manyFiles, "--wait", "5"], seam), new RegExp(`at most ${MAX_RUN_FILES} test files \\(${MAX_RUN_FILES + 1} named\\)`), "run refuses a list wider than the bound");
+assert.equal(await main(["run", scratch, ...manyFiles.slice(1), "--wait", "5"], seam), 3, "run accepts a list at the bound");
+assert.deepEqual(read(fakeRecord).argv, vitestArguments(manyFiles.slice(1)), "every named file at the bound reaches Vitest");
 await assert.rejects(main(["bogus", scratch], seam), /Usage/);
 console.log("PASS: the command line parses --wait for run, start and resume and refuses at its bound");
 

@@ -8,6 +8,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { pathToFileURL } from "node:url";
 import { runHandoff as handoff, checkReviewRound, verifyReviewComment, reserveWithinBound } from "./agent-handoff.mjs";
 import { validateCodexReviewer } from "./native-reviewer.mjs";
+import { installReviewerHooks } from "./reviewer-security.mjs";
 import { reserveReviewerSlot, releaseReviewerSlot, recoverReviewerSlot, processIdentity, reviewerSlotStatus } from "./reviewer-slots.mjs";
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), "impower-handoff-"));
@@ -118,6 +119,70 @@ assert.throws(() => validateCodexReviewer({ args: ["exec", "--model", "gpt-test"
   return true;
 }, "the scratch job directory is not a verified sandbox store, so a later check still refuses");
 
+// The full-access grammar is accepted exactly, and a partial one is refused
+// once with every problem named, before any slot is reserved.
+const codexHome = path.join(scratch, "codex-home");
+fs.mkdirSync(codexHome);
+fs.writeFileSync(path.join(codexHome, "auth.json"), "{}");
+const fullAccessArgs = ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', "-c", 'approval_policy="never"', "--sandbox", "danger-full-access", "-c", 'model_provider="openai"', "--cd", codexDir, "--skip-git-repo-check", "--ignore-user-config", "--ignore-rules", "--strict-config", "--json", "--disable", "multi_agent", "--disable", "multi_agent_v2", "--dangerously-bypass-hook-trust", "--output-last-message", codexReport, "-"];
+const fullAccessPermissions = { sandbox: "danger-full-access", approvalPolicy: "never", networkAccess: true, artifactWrites: "handoff-directory", cwd: codexDir, codexHome };
+assert.doesNotThrow(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: fullAccessPermissions }, codexPlan), "the documented full-access grammar is accepted");
+assert.throws(() => validateCodexReviewer({ args: [...fullAccessArgs.filter((arg) => arg !== "--dangerously-bypass-hook-trust").slice(0, -1), "-c", 'windows.sandbox="elevated"', "-"], effort: "high", permissions: { ...fullAccessPermissions, codexHome: undefined, sandboxStateHome: codexHome } }, codexPlan), (error) => {
+  for (const problem of ["--dangerously-bypass-hook-trust", "no -c windows.sandbox", "no step permissions.sandboxStateHome", "step permissions.codexHome"]) assert.ok(error.message.includes(problem), `partial full-access refusal must name ${problem}: ${error.message}`);
+  return true;
+});
+assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: { ...fullAccessPermissions, sandbox: "workspace-write" } }, codexPlan), /step permissions.sandbox "danger-full-access"/, "declared permissions must match the full-access argument");
+assert.throws(() => validateCodexReviewer({ args: ["exec", "--model", "gpt-test", "-c", 'model_reasoning_effort="high"', ...fullCodexArgs.slice(1, -1), "--dangerously-bypass-hook-trust", "-"], effort: "high", permissions: codexPermissions }, codexPlan), /no --dangerously-bypass-hook-trust/, "the sandboxed grammar stays exact");
+assert.throws(() => validateCodexReviewer({ args: fullAccessArgs, effort: "high", permissions: { ...fullAccessPermissions, codexHome: codexDir } }, codexPlan), /credentials must be separate/, "the copied authentication home is separate from the reviewer directory");
+
+// The hooks the launcher installs apply the shared policy from a working
+// directory outside any checkout, and a broken hook fails closed.
+{
+  const home = fs.mkdtempSync(path.join(scratch, "hook-home-"));
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "impower-hook-cwd-"));
+  console.log(`Reviewer hook working directory: ${outside}`);
+  const hooks = JSON.parse(fs.readFileSync(installReviewerHooks(home), "utf8")).hooks.PreToolUse;
+  assert.equal(hooks.length, 1);
+  assert.equal(new RegExp(hooks[0].matcher).test("Bash") && new RegExp(hooks[0].matcher).test("apply_patch"), true);
+  // A real Codex event carries the session id; the shared entry point's
+  // session-title gate refuses an event without one.
+  const sessionId = `reviewer-hook-test-${process.pid}-${Date.now()}`;
+  const runHook = (hook, command) => {
+    const payload = JSON.stringify({ session_id: sessionId, hook_event_name: "PreToolUse", tool_name: "Bash", cwd: outside, tool_input: { command } });
+    const [shell, args] = process.platform === "win32" ? ["powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", hook.commandWindows]] : ["sh", ["-c", hook.command]];
+    try { return { status: 0, stdout: execFileSync(shell, args, { cwd: outside, input: payload, encoding: "utf8", windowsHide: true, stdio: ["pipe", "pipe", "pipe"] }), stderr: "" }; }
+    catch (error) { return { status: error.status, stdout: error.stdout ?? "", stderr: error.stderr ?? "" }; }
+  };
+  for (const command of ["npx vitest run", "git stash push -m probe", "gh issue create --title probe --body probe"]) {
+    const result = runHook(hooks[0].hooks[0], command);
+    assert.equal(result.status, 0, `${command}: ${result.stderr}`);
+    assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, "deny", `the reviewer hook refuses ${command}`);
+  }
+  const ordinary = runHook(hooks[0].hooks[0], "git status");
+  assert.equal(ordinary.status, 0, `an ordinary command passes the reviewer hook: ${ordinary.stderr}`);
+  assert.equal(ordinary.stdout.trim(), "", "an ordinary command draws no decision");
+  // A policy path holding shell expansion syntax and quotes runs that exact
+  // file; a decoy at the path an expansion would name exits 0 and says nothing.
+  const literalDir = fs.mkdtempSync(path.join(scratch, "hook-literal-"));
+  const literalEntry = path.join(literalDir, "$HOME o'k ’q", "policy.mjs");
+  fs.mkdirSync(path.dirname(literalEntry));
+  fs.writeFileSync(literalEntry, `process.stdout.write(JSON.stringify({ hookSpecificOutput: { permissionDecision: "deny", permissionDecisionReason: "literal policy" } }));`);
+  const decoyDir = path.join(literalDir, `${os.homedir()} o'k ’q`);
+  if (!fs.existsSync(decoyDir)) try { fs.mkdirSync(decoyDir, { recursive: true }); fs.writeFileSync(path.join(decoyDir, "policy.mjs"), ""); } catch {}
+  const literalHook = JSON.parse(fs.readFileSync(installReviewerHooks(fs.mkdtempSync(path.join(scratch, "hook-literal-home-")), { entry: literalEntry }), "utf8")).hooks.PreToolUse[0].hooks[0];
+  const literal = runHook(literalHook, "git status");
+  assert.equal(literal.status, 0, `the literal policy path runs: ${literal.stderr}`);
+  assert.equal(JSON.parse(literal.stdout).hookSpecificOutput.permissionDecisionReason, "literal policy", "the hook runs the policy at its literal path, not an expanded one");
+  const brokenHome = fs.mkdtempSync(path.join(scratch, "hook-broken-"));
+  const broken = path.join(scratch, "broken-hook.mjs");
+  fs.writeFileSync(broken, "process.exit(1);");
+  const brokenHook = JSON.parse(fs.readFileSync(installReviewerHooks(brokenHome, { entry: broken }), "utf8")).hooks.PreToolUse[0].hooks[0];
+  assert.equal(runHook(brokenHook, "git status").status, 2, "a failing hook exits 2, which blocks the tool call");
+  assert.throws(() => installReviewerHooks(fs.mkdtempSync(path.join(scratch, "hook-missing-")), { entry: path.join(scratch, "absent.mjs") }), /entry point missing/);
+  fs.rmSync(outside, { recursive: true });
+  console.log("PASS: the full-access Codex grammar is exact, and its installed hooks refuse raw vitest, git stash and untyped issues outside a checkout and fail closed");
+}
+
 write(); await runHandoff(file);
 const rows = fs.readFileSync(config.journal, "utf8").trim().split("\n").map(JSON.parse);
 assert.equal(rows.at(-1).event, "finished");
@@ -184,6 +249,31 @@ config.journal = path.join(scratch, "changed-third-round-head.jsonl");
 git("commit", "--allow-empty", "-m", "correction after review");
 write(); await assert.rejects(runHandoff(file), /same round requires the recorded reviewed head/);
 assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+// A reviewer the round still plans launches on the corrected head, at the round
+// limit too; once the planned count is spent the correction needs a new round.
+config.completedRoundReviews = 1;
+config.steps.first.reviewers = 2;
+for (const finalCorrections of [false, true]) {
+  config.finalCorrections = finalCorrections;
+  config.journal = path.join(scratch, `planned-reviewer-after-correction-${finalCorrections}.jsonl`);
+  write(); await assert.rejects(runHandoff(file), /posted comment IDs/, "a planned reviewer must launch on the corrected head before its fixture's empty report is rejected");
+  assert.ok(fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+}
+config.completedRoundReviews = 2;
+config.journal = path.join(scratch, "spent-reviewers-final-corrections.jsonl");
+write(); await assert.rejects(runHandoff(file), /no automatic review/);
+config.finalCorrections = false;
+config.journal = path.join(scratch, "spent-reviewers-changed-head.jsonl");
+write(); await assert.rejects(runHandoff(file), /same round requires the recorded reviewed head/);
+assert.ok(!fs.readFileSync(config.journal, "utf8").includes('"event":"launching"'));
+config.steps.first.reviewers = 4;
+config.journal = path.join(scratch, "oversized-reviewer-count.jsonl");
+write(); await assert.rejects(runHandoff(file), /planned reviewer count/);
+delete config.steps.first.reviewers;
+config.completedRoundReviews = 0;
+write(); await assert.rejects(runHandoff(file), /completedRoundReviews/);
+assert.equal(fs.existsSync(config.journal), false);
+delete config.completedRoundReviews;
 config.journal = path.join(scratch, "missing-recovery-state.jsonl");
 delete config.finalCorrections;
 write(); await assert.rejects(runHandoff(file), /finalCorrections/);
@@ -319,6 +409,23 @@ try {
   const raisedCorrected=fs.readFileSync(raisedCap.journal,"utf8").trim().split("\n").map(JSON.parse);
   assert.equal(raisedCorrected.find(row=>row.event==="completed").finalCorrections,true);
   assert.equal(raisedCorrected.filter(row=>row.event==="launching").length,1,"actual corrections after round six still block another lens");
+
+  // Two planned reviewers with a correction between them share round 1; the
+  // same chain with one planned reviewer stops before the second launches.
+  const betweenReviewers = (reviewers, journal) => ({ ...lifecycle, first:"first", maxSteps:3, completedReviewRound:0, reviewedHead:null, finalCorrections:false, journal:path.join(scratch,journal), steps:{
+    first:{...lifecycle.steps.review,round:1,reviewers,args:[lifecycleChild,"first-review","--model","reviewer-test"],next:["next-review"]},
+    "next-review":{...extendedLifecycle.steps.implement},
+    review:{...lifecycle.steps.review,round:1,reviewers},
+  }});
+  const corrected2 = betweenReviewers(2,"correction-between-reviewers.jsonl");
+  fs.writeFileSync(file,JSON.stringify(corrected2)); await runHandoff(file);
+  const betweenCompleted=fs.readFileSync(corrected2.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="completed");
+  assert.deepEqual(betweenCompleted.map(row=>row.completedRoundReviews),[1,1,2],"each validated reviewer of the round is counted");
+  assert.ok(betweenCompleted.every(row=>row.completedRound===1),"a correction between planned reviewers stays in its round");
+  assert.notEqual(betweenCompleted[2].reviewedHead,betweenCompleted[0].reviewedHead,"the second reviewer records the corrected head");
+  const unplanned = betweenReviewers(1,"correction-after-last-reviewer.jsonl");
+  fs.writeFileSync(file,JSON.stringify(unplanned)); await assert.rejects(runHandoff(file),/same round requires the recorded reviewed head/);
+  assert.equal(fs.readFileSync(unplanned.journal,"utf8").trim().split("\n").map(JSON.parse).filter(row=>row.event==="launching").length,2,"a correction after the last planned reviewer cannot launch another in its round");
 
 } finally { childProcess.execFileSync=originalExec; syncBuiltinESMExports(); }
 config.completedReviewRound = 0;

@@ -3,7 +3,11 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { type SyntaxNode, Tree } from "@lezer/common";
 import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
-import { VARIABLE_DEFINITION_NAMES } from "../../utils/variableDefinitionNames";
+import {
+  VARIABLE_DEFINITION_NAMES,
+  isValueListName,
+  valueListAssignmentName,
+} from "../../utils/variableDefinitionNames";
 import { SparkdownAnnotation } from "../SparkdownAnnotation";
 import { SparkdownAnnotator } from "../SparkdownAnnotator";
 import {
@@ -123,7 +127,9 @@ function semanticInfo(binding: Binding, declaration: boolean): SemanticInfo {
 function isAtDeclarationSite(node: any): boolean {
   let cur = node?.parent;
   for (let depth = 0; depth < 6 && cur; depth++) {
-    if (cur.name === "LuauVariableAssignment_begin") return true;
+    // A value in a declaration's list (`x` in `local a, b = 1, x`) has the
+    // target shape but reads `x`.
+    if (cur.name === "LuauVariableAssignment_begin") return !isValueListName(node);
     if (cur.name === "LuauFunctionDeclarationName") return true;
     if (cur.name === "LuauAccessPart") return false; // value-reference shape
     if (cur.name === "LuauFunctionCall_begin") return false; // call-site shape
@@ -524,7 +530,11 @@ export class SemanticAnnotator extends SparkdownAnnotator<
       this.pendingDeclKind =
         scopeText === "const" ? "const-variable" : "variable";
     }
-    if (nodeRef.name === "LuauVariableAssignment" && this.pendingDeclKind) {
+    if (
+      nodeRef.name === "LuauVariableAssignment" &&
+      this.pendingDeclKind &&
+      !valueListAssignmentName(nodeRef.node)
+    ) {
       // Pull the declared name from the `LuauVariableName` descendant
       // rather than parsing the leading text — the grammar wraps the
       // name inside `LuauVariableAssignment_begin > _c1 >

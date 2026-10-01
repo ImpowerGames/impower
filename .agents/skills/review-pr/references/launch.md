@@ -4,7 +4,11 @@ All commands run from the worktree root unless stated otherwise.
 
 ## 3. Fan out; each reviewer comments on the PR
 
-Fetch the current base and record its SHA before capturing the diff. If the branch must incorporate base changes, finish that integration before review, within the caller's Git constraints; never merge or rebase merely because the review skill was invoked. Freeze the reviewed head, base and working files for the entire round. A changed head invalidates the round.
+Fetch the current base and record its SHA before capturing the diff. If the branch must incorporate base changes, finish that integration before review, within the caller's Git constraints; never merge or rebase merely because the review skill was invoked. Freeze the reviewed head, base and working files while a reviewer runs. A head that changes under a running reviewer invalidates that reviewer's attempt.
+
+A round is the set of reviewers sized before its first launch, run one at a time. Record that set, its serial order and each lens in the round state before the first launch; nothing adds a reviewer to a round afterwards. Order specialist lenses first and the undirected reviewer last, so its whole-change review covers every correction the earlier reports produced. After each reviewer exits and its report has landed, [adjudicate that report](adjudication.md), correct, re-verify, commit and push before launching the next reviewer on the new head. Two reviewers given one head report the same defects twice; the later reviewer's attention is worth more on a change the earlier report has already improved. When a report needs no correction, the next reviewer runs on the same head.
+
+Before the first launch, settle your own doubts about the change the way [adjudication](adjudication.md) describes for the gap between reviewers: a reviewer spent confirming what the writer already suspected is a reviewer wasted.
 
 Every artifact of a review round lives in its job directory, `$JOB`: `<main checkout>.review-jobs/pr-<P>/round-<R>` beside the main checkout, one directory per PR and round. That root is outside every worktree, the [handoff launcher](../HANDOFF.md) refuses a plan whose plan file, journal, prompts or Codex reviewer directories lie outside it, the prompt builder below refuses a diff or reviewer directory outside it, and the clean-worktrees skill removes a PR's job directory once the PR is closed and no process its journals record is running. Resolve it from any worktree:
 
@@ -13,10 +17,10 @@ JOB="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)").revie
 mkdir -p "$JOB"
 ```
 
-Capture the diff once, so every reviewer sees the same artifact:
+Capture the diff once per reviewed head, so reviewers of one head see the same artifact and a reviewer launched after corrections sees the corrected change:
 
 ```bash
-git diff origin/main...HEAD > "$JOB/review-diff.patch"
+git diff origin/main...HEAD > "$JOB/review-diff-$(git rev-parse --short HEAD).patch"
 ```
 
 (`...` is deliberate: changes on your branch since it diverged from `main`, not `main`'s subsequent commits.)
@@ -24,7 +28,7 @@ git diff origin/main...HEAD > "$JOB/review-diff.patch"
 If the change regenerates a large snapshot or other generated file, exclude it from the patch by path and tell the reviewers the command to inspect it separately; a multi-megabyte patch file wastes a reviewer's context before it reads a line of the actual change (one session's patch came out at 2.6 MB for this reason):
 
 ```bash
-git diff origin/main...HEAD -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap' > "$JOB/review-diff.patch"
+git diff origin/main...HEAD -- . ':(exclude)packages/sparkdown/src/tests/__snapshots__/big.snap' > "$JOB/review-diff-$(git rev-parse --short HEAD).patch"
 ```
 
 Never write it into the checkout. A patch file inside the repo is one `git add -A` away from being committed, and it leaves the tree dirty for as long as the review runs, long enough to trip any hook or check that expects a clean tree. Give reviewers the absolute path.
@@ -33,11 +37,11 @@ Give each reviewer a subdirectory of `$JOB` that is its own and starts empty. Tw
 
 Start every local CLI reviewer through the [handoff launcher](../HANDOFF.md); its atomic shared reservation enforces a machine-wide limit of eight participating reviewer processes until confirmed process exit. The launcher runs one reviewer at a time per worktree under its coordinator lock, including a three-reviewer round. The shared ceiling coordinates reviewers in other worktrees. Record the serial reviewer order and assigned lenses in the round state. A posted comment or completion file does not release a slot. Native or remote agent tasks are unsupported for this enforced workflow because the launcher cannot reserve and verify their process lifetime. An unaccountable native or remote review launch blocks the machine-wide capacity guarantee; do not substitute manual counts or claim it is covered by the reservation. Do not launch a local CLI reviewer directly to bypass an occupied or inaccessible slot store.
 
-Run reviewers using the caller-supplied method. Without subagents, run each reviewer as a separate fresh serial session with the same frozen diff and the complete [reviewer prompt](reviewer-prompt.md). Wait for each process to exit, then verify its report landed before starting the next reviewer. One reviewer may cover several assigned lenses; reusing that session under another lens does not count as a second independent reviewer. Never edit while a reviewer is running.
+Run reviewers using the caller-supplied method. Without subagents, run each reviewer as a separate fresh serial session with the diff for its reviewed head and the complete [reviewer prompt](reviewer-prompt.md). Wait for each process to exit, then verify its report landed before starting the next reviewer. One reviewer may cover several assigned lenses; reusing that session under another lens does not count as a second independent reviewer. Never edit while a reviewer is running.
 
-Preserve independent first passes even though reviewers run serially: do not include current-round reports in another reviewer's prompt. Each reviewer records its own full findings before reading other current-round reports. Earlier rounds remain available for correction review. After the independent passes, challenge disputed claims with evidence during adjudication.
+Preserve independent first passes even though reviewers run serially: do not include current-round reports in another reviewer's prompt. A later reviewer of the round is given the corrected head and its diff, not the earlier reports or their adjudications; PREVIOUS carries prior rounds only. Each reviewer records its own full findings before reading other current-round reports. Earlier rounds remain available for correction review. After the independent passes, challenge disputed claims with evidence during adjudication.
 
-Before launch, post a round state comment naming PR, round, base SHA, reviewed head SHA, scope, lenses, writer identity, configured reviewer route, invocation method and each unique artifact directory. Record every launch's task/session ID or process ID, start time and output path. Await completion in the coordinator; do not end the turn expecting a comment to wake it automatically. On recovery, inspect those launch records and process/task status, including start time to distinguish PID reuse. Missing comments alone do not authorize a duplicate launch. A confirmed stopped attempt with no usable report may be retried in a fresh directory with an incremented attempt.
+Before the round's first launch, post a round state comment naming PR, round, base SHA, the first reviewer's reviewed head SHA, scope, the planned reviewers in serial order with their lenses, writer identity, configured reviewer route, invocation method and each unique artifact directory. When a later reviewer launches on a corrected head, post a short comment naming that reviewer and its reviewed head SHA. Record every launch's task/session ID or process ID, start time and output path. Await completion in the coordinator; do not end the turn expecting a comment to wake it automatically. On recovery, inspect those launch records and process/task status, including start time to distinguish PID reuse. Missing comments alone do not authorize a duplicate launch. A confirmed stopped attempt with no usable report may be retried in a fresh directory with an incremented attempt.
 
 For autonomous implement/review exchanges, use the handoff runner described in [handoff execution](../HANDOFF.md). It waits for each child to exit and validates that child's completion artifact before launching the next configured role. The caller supplies both routes and prompts; the implementation prompt loads resolve-issue and the review prompt is built from the reviewer template. The shared journal and PR state carry the head, round, active role, result paths, review comment IDs and adjudication IDs. A stopped coordinator is recovered from the journal, never by assuming a child stopped. No concurrent writers are allowed.
 
@@ -57,7 +61,7 @@ Lenses; diversity matters far more than count, because redundant reviewers find 
 
 Assign relevant lenses (including concurrency, serialization, or the asset pipeline when warranted) within the selected reviewer count. Skip those that cannot apply. Test honesty and repo traps above apply to every reviewer rather than consuming additional reviewer slots.
 
-A reviewer launch can die with a session rate-limit error before it has posted anything. When one does, check the tree and the PR comments for whatever it did manage, then relaunch that reviewer after the reset time the error names; the other reviewers are unaffected.
+A reviewer launch can die with a session rate-limit error before it has posted anything. When one does, check the tree and the PR comments for whatever it did manage, then relaunch that reviewer after the reset time the error names; the other reviewers are unaffected. When the reset is too far off to wait for, that blocked journal is what permits the same-vendor reviewer described in [handoff execution](../HANDOFF.md#machine-wide-reviewer-reservations); nothing else does.
 
 When the fan-out returns, check the tree before anything else:
 
