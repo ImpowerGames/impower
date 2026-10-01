@@ -26,8 +26,8 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import { Location, Position } from "./Location";
 import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
-import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
-import { RUN_QUERY, RUN_WRAPPER_SUFFIX, runWrapperName, runWrapperPrefix } from "../utils/runWrapper";
+import { FLOW_HEADERS, isLuauFile, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
+import { RUN_WRAPPER_SUFFIX, runWrapperName, runWrapperPrefix } from "../utils/runWrapper";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
 export type TypecheckModeName = "strict" | "nonstrict" | "nocheck";
@@ -87,11 +87,7 @@ function utf16Column(text: string, byteColumn: number): number {
   return column + Math.max(0, byteColumn - bytes);
 }
 
-/** Whether a document is a Luau file, which is Luau from its first line to its last. */
-export function isLuauFile(uri: string): boolean {
-  const path = uri.split(/[?#]/, 1)[0]!;
-  return path.endsWith(".luau") && !uri.includes(RUN_QUERY);
-}
+export { isLuauFile };
 
 /** A Luau file's text, as one unit. */
 export function luauFileUnit(documentText: string): LuauUnit {
@@ -372,6 +368,35 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
       lines.write(at, room >= 4 ? `${anyName}()` : room >= 2 ? anyName : "");
     };
     blankWithin(node);
+    // A function Sparkdown declares with no parameter list (`function greet`
+    // with its body on the lines after) is Luau's `function greet()`: the
+    // list is written past the end of the header's line, so every column
+    // stays where it is, or in place of a comment that ends the line
+    // (`function greet -- note`), which the check does not need.
+    const addParameterLists = (n: SyntaxNode) => {
+      if (n.name === "LuauFunctionDefinition") {
+        const content = n.getChild("LuauFunctionDefinition_content");
+        const body = content?.getChild("LuauFunctionBody");
+        if (content && body && !content.getChild("LuauFunctionParameters")) {
+          // The last part of the header: its name, or a comment after it.
+          let last = body.prevSibling;
+          while (last && NEUTRAL.test(last.name)) last = last.prevSibling;
+          if (last) {
+            const line = index.lineAt(Math.max(last.from, last.to - 1));
+            if (COMMENT.test(last.name)) {
+              if (index.lineAt(last.from) === line) {
+                lines.mark(last.from, last.to, false);
+                lines.write(last.from, "()");
+              }
+            } else if (!documentText.slice(last.to, index.lineEnd(line)).trim()) {
+              lines.write(last.to, "()", true);
+            }
+          }
+        }
+      }
+      for (let child = n.firstChild; child; child = child.nextSibling) addParameterLists(child);
+    };
+    addParameterLists(node);
   };
 
   // A header's parameter list. The grammar can end a list early, as a `...`
@@ -574,7 +599,7 @@ export function checkLuauUnit(frontend: Frontend, name: string, unit: LuauUnit, 
     root: parsed.root ?? new AstStatBlock(new Location(new Position(0, 0), new Position(0, 0)), []),
     mode: parseMode(hotcomments),
     hotcomments,
-    parseErrors: parsed.errors.map((e) => new LuauTypeError(e.location, { kind: "SyntaxError", message: e.message }, name)),
+    parseErrors: parsed.errors.map((e) => new LuauTypeError(e.location, { kind: "SyntaxError", message: e.message, ...(e.follows && { follows: e.follows }) }, name)),
   };
   const result = frontend.checkSourceModule(sourceModule, defaultMode, environmentScope);
   const mode = sourceModule.mode ?? defaultMode;

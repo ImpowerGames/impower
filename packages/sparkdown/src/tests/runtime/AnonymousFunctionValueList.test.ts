@@ -53,11 +53,13 @@ describe("anonymous function in a declaration value list", () => {
     expect(text).toBe("Value 8.\n");
   });
 
-  test("a named function directly after a comma stays a trailing statement", () => {
+  // Luau rejects a function value with a name, and still reads it as the
+  // slot's value (#1148).
+  test("a named function directly after a comma is the slot's value, and an error", () => {
     const { errors, text } = run(
-      local("local a, g = 1, function named() return 7 end", "return named()"),
+      local("local a, g = 1, function named() return 7 end", "return g()"),
     );
-    expect(errors).toEqual([]);
+    expect(errors).toEqual(["Expected '(' when parsing function, got 'named'"]);
     expect(text).toBe("Value 7.\n");
   });
 

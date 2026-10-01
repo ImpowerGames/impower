@@ -3,6 +3,8 @@ import { type SyntaxNode } from "@lezer/common";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
+import { RESERVED } from "../../lint/luauNames";
+import { isCheckedLuau, isCheckedLuauAt } from "../../typecheck/LuauUnitNodes";
 
 // How far past the `=` to scan for the token Luau reports as "got '<token>'".
 // Generous enough to skip whitespace, blank lines, and a trailing comment to
@@ -73,6 +75,7 @@ export function validateAssignmentValue(
   const got = nextSignificantToken(operator.to, (from, to) =>
     ctx.read(from, to),
   );
+  if (typeCheckerReportsMissingValue(opNode, operator.to, ctx)) return;
   const gotDisplay = got == null ? "<eof>" : `'${got.text}'`;
   ctx.diagnostics.push({
     message: `Expected identifier when parsing expression, got ${gotDisplay}`,
@@ -97,6 +100,9 @@ export function validateListComma(
   if (!ctx.diagnostics) return;
   const at = comma.from + ctx.read(comma.from, comma.to).indexOf(",");
   const got = nextSignificantToken(at + 1, (from, to) => ctx.read(from, to));
+  if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, ctx)) {
+    return;
+  }
   const gotDisplay = got == null ? "<eof>" : `'${got.text}'`;
   const parsing = afterAssignment ? "expression" : "binding name";
   ctx.diagnostics.push({
@@ -126,6 +132,64 @@ export function validateSecondAssignment(
     severity: ErrorType.Error,
     source: makeSource(range, ctx),
   });
+}
+
+// The keywords that begin an expression; every other one ends it.
+const EXPRESSION_KEYWORDS: ReadonlySet<string> = new Set([
+  "nil",
+  "true",
+  "false",
+  "not",
+  "function",
+  "if",
+]);
+
+// Whether Luau's parser can read an expression that begins with `token`, as
+// `nextSignificantToken` gives it: a name, a keyword that begins an
+// expression, a number, a string, a table, a parenthesized value, a unary
+// operator, `...` (or a number such as `.5`), a long string or a Sparkdown
+// regex literal (`@/x/`).
+export function startsLuauExpression(token: string): boolean {
+  if (/^[A-Za-z_]/.test(token)) {
+    return !RESERVED.has(token) || EXPRESSION_KEYWORDS.has(token);
+  }
+  return /^[\d"'`{(\-#.[@]/.test(token);
+}
+
+// The unary operators, which an operand must follow.
+const UNARY_OPERATORS: ReadonlySet<string> = new Set(["-", "not", "#"]);
+
+// Whether Luau's parser reports a value missing where the grammar found none
+// after `pos`: the next token, past any unary operators, cannot begin a
+// value, so Luau does not read one there either. Where it can (a value on
+// a narrative body's next line, or on a line at column 0), the grammar and
+// Luau read the lines differently, and only Sparkdown reports the value
+// missing. A cast's `::` is Sparkdown's to report too (see
+// `SparkdownTypechecker`).
+// The type checker reports it only where it reads both the statement
+// (`node`) and the token Luau finds instead: in a narrative body a `;` or a
+// word the grammar reads as story is not in the checked Luau.
+export function luauReportsMissingValue(
+  node: SyntaxNode,
+  pos: number,
+  read: (from: number, to: number) => string,
+): boolean {
+  let got = nextSignificantToken(pos, read);
+  while (got && UNARY_OPERATORS.has(got.text)) {
+    got = nextSignificantToken(got.from + got.text.length, read);
+  }
+  if (got && (got.text === ":" || startsLuauExpression(got.text))) return false;
+  return isCheckedLuau(node, read) && (got == null || isCheckedLuauAt(node, got.from, read));
+}
+
+// Whether the type checker reports a value missing after `node`, at `pos`,
+// as Luau's parser does, with Luau's range, the token found instead (#1175).
+function typeCheckerReportsMissingValue(
+  node: SyntaxNode,
+  pos: number,
+  ctx: LowerContext,
+): boolean {
+  return luauReportsMissingValue(node, pos, (from, to) => ctx.read(from, to));
 }
 
 // The token Luau would report after `pos`. Scans forward over whitespace,

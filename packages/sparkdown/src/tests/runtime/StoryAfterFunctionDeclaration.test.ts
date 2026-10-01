@@ -64,16 +64,37 @@ describe("story lines after a function declaration", () => {
     }
   });
 
-  test("the story lines of a function whose body holds them stay in the function", () => {
-    // A story line in a function's body closes the definition early, and the
-    // rest of the body follows it as chunks of its own; they are still the
-    // function's.
-    const named = namedContainers(
+  test("lines of a function's body that are not Luau statements are reported as errors", () => {
+    // A function body is Luau, so a line such as `Hello there.` is not a
+    // story line there but a statement Luau cannot read (#1158): `Hello` is
+    // not a statement, and Luau reads `How` on the next line as the name
+    // after `there.`, where a Sparkdown access path ends with its line.
+    const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect(holds(named["greet"], "How are you?")).toBe(true);
-    expect(holds(named["A"], "Line one.")).toBe(true);
-    expect(holds(named["greet"], "Line one.")).toBe(false);
+    expect([...ctx.errorMessages].sort()).toEqual([
+      "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+      "Incomplete statement: expected assignment or a function call",
+    ]);
+  });
+
+  test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
+    // The line does not close the definition early, so its `end` closes it
+    // and the line after the function is in the root flow (#1093).
+    const ctx = makeRuntimeStoryFromSource(`function greet()\n  local x = 1\n  Hello there.\nend\nAfter it.\n`);
+    expect([...ctx.errorMessages].sort()).toEqual([
+      "Expected identifier, got 'end'",
+      "Incomplete statement: expected assignment or a function call",
+    ]);
+    const lines: string[] = [];
+    while (ctx.story.canContinue) {
+      const text = ctx.story.Continue();
+      if (text) lines.push(text);
+    }
+    expect(lines).toEqual(["After it.\n"]);
+    const root = (ctx.compiledJson as { root: unknown[] }).root;
+    const named = (root.at(-1) ?? {}) as Record<string, unknown>;
+    expect(holds(named["greet"], "After it.")).toBe(false);
   });
 
   test("lines after a function declared inside a scene stay in the scene", () => {

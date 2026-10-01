@@ -100,12 +100,21 @@ describe("every statement of a function runs", () => {
     ["a call in parentheses right after an anonymous header", `local f = function()(function() print(1) end)() return 5 end\nValue {f()}.\n`, "Value 15.\n"],
     ["statements right after the header", `Value {f()}.\nfunction f()local x = 5 return x end\n`, "Value 5.\n"],
     ["a block comment between the header and a statement", `Value {f()}.\nfunction f() --[[c]] print(1) return 5 end\n`, "Value 15.\n"],
-    ["a `;` right after a return type", `Value {f()}.\nfunction f(): number; print(1) return 5 end\n`, "Value 15.\n"],
-    ["a `;` right after the parameters", `Value {f()}.\nfunction f(); print(1) return 5 end\n`, "Value 15.\n"],
   ])("with %s", (_name, source, output) => {
     const ctx = makeRuntimeStoryFromSource(source);
     expect(ctx.errorMessages).toEqual([]);
     expect(ctx.story.ContinueMaximally()).toBe(output);
+  });
+
+  // A `;` ends a statement, so Luau rejects one with no statement before it
+  // (#1175); the statements after it still run.
+  test.each([
+    ["a `;` right after a return type", `Value {f()}.\nfunction f(): number; print(1) return 5 end\n`],
+    ["a `;` right after the parameters", `Value {f()}.\nfunction f(); print(1) return 5 end\n`],
+  ])("with %s, which Luau rejects", (_name, source) => {
+    const ctx = makeRuntimeStoryFromSource(source);
+    expect(ctx.errorMessages).toEqual(["Expected identifier when parsing expression, got ';'"]);
+    expect(ctx.story.ContinueMaximally()).toBe("Value 15.\n");
   });
 
   // A header ending in a colon has an empty return type, which Luau rejects

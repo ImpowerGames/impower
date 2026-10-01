@@ -812,6 +812,7 @@ foo(1 :: any)
     // TypeInfer.provisional.test.cpp:1252 TEST_CASE_FIXTURE(BuiltinsFixture, "update_phonemes_minimized")
     name: "update_phonemes_minimized",
     fixture: "BuiltinsFixture",
+    malformed: "an anonymous `function(response)` is not a statement",
     source: `
         local video
         function(response)
