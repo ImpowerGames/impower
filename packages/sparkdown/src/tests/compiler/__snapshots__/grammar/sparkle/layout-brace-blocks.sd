@@ -65,6 +65,10 @@ layout values with
   text #label=a{b} { stroke }
   button @click={ print('a}b) } "Go"
   card('a)b{c) { text "body" }
+  button @click={ print([==[a]=]}b]==]) }
+  card([==[a]=]) { text "comment" } ]==])
+  button @click=f(-- ) { text "comment" }
+  card(-- ) { text "comment" }
   text = Hello {who}
   text = [[a{b}]]
   items:

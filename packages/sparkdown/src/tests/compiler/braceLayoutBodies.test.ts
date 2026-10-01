@@ -1024,19 +1024,39 @@ end
     expect(errorsOf(text)).toEqual([]);
   });
 
-  test("a long string with `=` holds `]]` and a brace, at any level", () => {
-    const text = `layout hud with
+  test("a long string ends only at its own level's closer, at any level", () => {
+    const text = `${declarations}
+layout hud with
   button @click={ print([==[a]]}b]==]) }
+  button @click={ print([==[a]=]}b]==]) }
+  card([==[a]=]) { text "comment" } ]==])
   row { button @click={ print([=========[a}b]=========]) } "Go"; text "after" }
 end
 `;
-    const [button, row] = lowered(text, "layout", "hud").tree.children;
-    expect(button.events[0].handler.binding.source).toBe("{ print([==[a]]}b]==]) }");
-    expect(button.children).toEqual([]);
+    const [closing, otherLevel, call, row] = lowered(text, "layout", "hud").tree.children;
+    expect(closing.events[0].handler.binding.source).toBe("{ print([==[a]]}b]==]) }");
+    expect(otherLevel.events[0].handler.binding.source).toBe("{ print([==[a]=]}b]==]) }");
+    expect([closing, otherLevel, call].map((e: any) => e.children)).toEqual([[], [], []]);
+    expect(call.params).toHaveLength(1);
     expect(row.children[0].events[0].handler.binding.source).toBe(
       "{ print([=========[a}b]=========]) }",
     );
     expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
     expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a Luau comment in a call's or a handler's list takes the rest of the line", () => {
+    const text = `${declarations}
+layout hud with
+  button @click=f(-- ) { text "comment" }
+  card(-- ) { text "comment" }
+  text "after"
+end
+`;
+    const [button, call, after] = lowered(text, "layout", "hud").tree.children;
+    expect(button.children).toEqual([]);
+    expect(call.children).toEqual([]);
+    expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
+    expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
   });
 });

@@ -1,4 +1,4 @@
-text.source.sparkdown [0..2076]
+text.source.sparkdown [0..2233]
  ├─ meta.component.luau [0..26]
  │   ├─ keyword.control.component.luau [0..9]: "component"
  │   ├─ punctuation.whitespace.optional.sd [9..10]: " "
@@ -1189,61 +1189,145 @@ text.source.sparkdown [0..2076]
  │           ├─ markup.raw.space.sd [1993..1994]: " "
  │           └─ markup.raw.punctuation.sd [1994..1995]: "}"
  ├─ Newline [1995..1996]: "\n"
- ├─ meta.layout.luau [1996..2016]
+ ├─ meta.layout.luau [1996..2037]
  │   ├─ punctuation.whitespace.optional.sd [1996..1998]: "  "
- │   └─ meta.struct.body.luau [1998..2016]
- │       ├─ keyword.other.component.builtin.name.sd [1998..2002]: "text"
- │       ├─ markup.raw.whitespace.separator.optional.sd [2002..2003]: " "
- │       ├─ keyword.operator.assignment.sd [2003..2004]: "="
- │       ├─ markup.raw.whitespace.separator.optional.sd [2004..2005]: " "
- │       ├─ string.unquoted.identifier.sd [2005..2010]: "Hello"
- │       ├─ markup.raw.whitespace.separator.sd [2010..2011]: " "
- │       ├─ string.unquoted.char.sd [2011..2012]: "{"
- │       ├─ string.unquoted.identifier.sd [2012..2015]: "who"
- │       └─ string.unquoted.char.sd [2015..2016]: "}"
- ├─ Newline [2016..2017]: "\n"
- ├─ meta.layout.luau [2017..2034]
- │   ├─ punctuation.whitespace.optional.sd [2017..2019]: "  "
- │   └─ meta.struct.body.luau [2019..2034]
- │       ├─ keyword.other.component.builtin.name.sd [2019..2023]: "text"
- │       ├─ markup.raw.whitespace.separator.optional.sd [2023..2024]: " "
- │       ├─ keyword.operator.assignment.sd [2024..2025]: "="
- │       ├─ markup.raw.whitespace.separator.optional.sd [2025..2026]: " "
- │       ├─ string.unquoted.char.sd [2026..2027]: "["
- │       ├─ string.unquoted.char.sd [2027..2028]: "["
- │       ├─ string.unquoted.identifier.sd [2028..2029]: "a"
- │       ├─ string.unquoted.char.sd [2029..2030]: "{"
- │       ├─ string.unquoted.identifier.sd [2030..2031]: "b"
- │       ├─ string.unquoted.char.sd [2031..2032]: "}"
- │       ├─ string.unquoted.char.sd [2032..2033]: "]"
- │       └─ string.unquoted.char.sd [2033..2034]: "]"
- ├─ Newline [2034..2035]: "\n"
- ├─ meta.layout.luau [2035..2043]
- │   ├─ punctuation.whitespace.optional.sd [2035..2037]: "  "
- │   └─ meta.struct.body.luau [2037..2043]
- │       ├─ entity.name.type.class.view.sd [2037..2042]: "items"
- │       └─ meta.template.expression.operator.colon.sd [2042..2043]: ":"
- ├─ Newline [2043..2044]: "\n"
- ├─ meta.layout.luau [2044..2061]
- │   ├─ punctuation.whitespace.optional.sd [2044..2048]: "    "
- │   └─ meta.struct.body.luau [2048..2061]
- │       ├─ keyword.operator.expression.array.sd [2048..2049]: "-"
- │       ├─ markup.raw.whitespace.separator.sd [2049..2050]: " "
- │       ├─ string.unquoted.identifier.sd [2050..2055]: "Hello"
- │       ├─ markup.raw.whitespace.separator.sd [2055..2056]: " "
- │       ├─ string.unquoted.char.sd [2056..2057]: "{"
- │       ├─ string.unquoted.identifier.sd [2057..2060]: "who"
- │       └─ string.unquoted.char.sd [2060..2061]: "}"
- ├─ Newline [2061..2062]: "\n"
- ├─ meta.layout.luau [2062..2071]
- │   ├─ punctuation.whitespace.optional.sd [2062..2066]: "    "
- │   └─ meta.struct.body.luau [2066..2071]
- │       ├─ keyword.operator.expression.array.sd [2066..2067]: "-"
- │       ├─ markup.raw.whitespace.separator.sd [2067..2068]: " "
- │       ├─ string.unquoted.char.sd [2068..2069]: "{"
- │       ├─ string.unquoted.identifier.sd [2069..2070]: "a"
- │       └─ string.unquoted.char.sd [2070..2071]: "}"
- ├─ Newline [2071..2072]: "\n"
- ├─ meta.layout.luau [2072..2075]
- │   └─ keyword.control.end.luau [2072..2075]: "end"
- └─ Newline [2075..2076]: "\n"
+ │   └─ meta.struct.body.luau [1998..2037]
+ │       ├─ keyword.other.component.builtin.name.sd [1998..2004]: "button"
+ │       ├─ punctuation.whitespace.optional.sd [2004..2005]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [2005..2006]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [2006..2011]: "click"
+ │       ├─ keyword.operator.assignment.sd [2011..2012]: "="
+ │       ├─ punctuation.definition.template-expression.begin.sd [2012..2013]: "{"
+ │       ├─ punctuation.whitespace.extra.sd [2013..2014]: " "
+ │       ├─ support.function.luau [2014..2019]: "print"
+ │       ├─ meta.parameter.luau [2019..2035]
+ │       │   ├─ punctuation.definition.template-expression.begin.sd [2019..2020]: "("
+ │       │   ├─ string.other.multiline.luau [2020..2034]
+ │       │   │   ├─ punctuation.definition.string.bracket.begin.sd [2020..2021]: "["
+ │       │   │   ├─ punctuation.definition.string.equal.begin.sd [2021..2023]: "=="
+ │       │   │   ├─ punctuation.definition.string.bracket.begin.sd [2023..2024]: "["
+ │       │   │   ├─ markup.raw.text.sd [2024..2025]: "a"
+ │       │   │   ├─ markup.raw.punctuation.sd [2025..2026]: "]"
+ │       │   │   ├─ markup.raw.punctuation.sd [2026..2027]: "="
+ │       │   │   ├─ markup.raw.punctuation.sd [2027..2028]: "]"
+ │       │   │   ├─ markup.raw.punctuation.sd [2028..2029]: "}"
+ │       │   │   ├─ markup.raw.text.sd [2029..2030]: "b"
+ │       │   │   ├─ punctuation.definition.string.bracket.end.sd [2030..2031]: "]"
+ │       │   │   ├─ punctuation.definition.string.equal.end.sd [2031..2033]: "=="
+ │       │   │   └─ punctuation.definition.string.bracket.end.sd [2033..2034]: "]"
+ │       │   └─ punctuation.definition.template-expression.end.sd [2034..2035]: ")"
+ │       ├─ punctuation.whitespace.extra.sd [2035..2036]: " "
+ │       └─ punctuation.definition.template-expression.end.sd [2036..2037]: "}"
+ ├─ Newline [2037..2038]: "\n"
+ ├─ meta.layout.luau [2038..2079]
+ │   ├─ punctuation.whitespace.optional.sd [2038..2040]: "  "
+ │   └─ meta.struct.body.luau [2040..2079]
+ │       ├─ entity.name.type.class.view.sd [2040..2044]: "card"
+ │       ├─ punctuation.definition.template-expression.begin.sd [2044..2045]: "("
+ │       ├─ string.other.multiline.luau [2045..2078]
+ │       │   ├─ punctuation.definition.string.bracket.begin.sd [2045..2046]: "["
+ │       │   ├─ punctuation.definition.string.equal.begin.sd [2046..2048]: "=="
+ │       │   ├─ punctuation.definition.string.bracket.begin.sd [2048..2049]: "["
+ │       │   ├─ markup.raw.text.sd [2049..2050]: "a"
+ │       │   ├─ markup.raw.punctuation.sd [2050..2051]: "]"
+ │       │   ├─ markup.raw.punctuation.sd [2051..2052]: "="
+ │       │   ├─ markup.raw.punctuation.sd [2052..2053]: "]"
+ │       │   ├─ markup.raw.punctuation.sd [2053..2054]: ")"
+ │       │   ├─ markup.raw.space.sd [2054..2055]: " "
+ │       │   ├─ markup.raw.punctuation.sd [2055..2056]: "{"
+ │       │   ├─ markup.raw.space.sd [2056..2057]: " "
+ │       │   ├─ markup.raw.text.sd [2057..2061]: "text"
+ │       │   ├─ markup.raw.space.sd [2061..2062]: " "
+ │       │   ├─ markup.raw.punctuation.sd [2062..2063]: "\""
+ │       │   ├─ markup.raw.text.sd [2063..2070]: "comment"
+ │       │   ├─ markup.raw.punctuation.sd [2070..2071]: "\""
+ │       │   ├─ markup.raw.space.sd [2071..2072]: " "
+ │       │   ├─ markup.raw.punctuation.sd [2072..2073]: "}"
+ │       │   ├─ markup.raw.space.sd [2073..2074]: " "
+ │       │   ├─ punctuation.definition.string.bracket.end.sd [2074..2075]: "]"
+ │       │   ├─ punctuation.definition.string.equal.end.sd [2075..2077]: "=="
+ │       │   └─ punctuation.definition.string.bracket.end.sd [2077..2078]: "]"
+ │       └─ punctuation.definition.template-expression.end.sd [2078..2079]: ")"
+ ├─ Newline [2079..2080]: "\n"
+ ├─ meta.layout.luau [2080..2121]
+ │   ├─ punctuation.whitespace.optional.sd [2080..2082]: "  "
+ │   └─ meta.struct.body.luau [2082..2121]
+ │       ├─ keyword.other.component.builtin.name.sd [2082..2088]: "button"
+ │       ├─ punctuation.whitespace.optional.sd [2088..2089]: " "
+ │       ├─ entity.name.function.attribute.name.view.sd [2089..2090]: "@"
+ │       ├─ entity.name.function.attribute.name.view.sd [2090..2095]: "click"
+ │       ├─ keyword.operator.assignment.sd [2095..2096]: "="
+ │       ├─ entity.name.function.luau [2096..2097]: "f"
+ │       └─ meta.parameter.luau [2097..2121]
+ │           ├─ punctuation.definition.template-expression.begin.sd [2097..2098]: "("
+ │           └─ comment.line.double-dash.luau [2098..2121]
+ │               ├─ comment.luau [2098..2100]: "--"
+ │               └─ punctuation.definition.comment.content.sd [2100..2121]: " ) { text \"comment\" }"
+ ├─ Newline [2121..2122]: "\n"
+ ├─ meta.layout.luau [2122..2152]
+ │   ├─ punctuation.whitespace.optional.sd [2122..2124]: "  "
+ │   └─ meta.struct.body.luau [2124..2152]
+ │       ├─ entity.name.type.class.view.sd [2124..2128]: "card"
+ │       ├─ punctuation.definition.template-expression.begin.sd [2128..2129]: "("
+ │       └─ comment.line.double-dash.luau [2129..2152]
+ │           ├─ comment.luau [2129..2131]: "--"
+ │           └─ punctuation.definition.comment.content.sd [2131..2152]: " ) { text \"comment\" }"
+ ├─ Newline [2152..2153]: "\n"
+ ├─ meta.layout.luau [2153..2173]
+ │   ├─ punctuation.whitespace.optional.sd [2153..2155]: "  "
+ │   └─ meta.struct.body.luau [2155..2173]
+ │       ├─ keyword.other.component.builtin.name.sd [2155..2159]: "text"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [2159..2160]: " "
+ │       ├─ keyword.operator.assignment.sd [2160..2161]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [2161..2162]: " "
+ │       ├─ string.unquoted.identifier.sd [2162..2167]: "Hello"
+ │       ├─ markup.raw.whitespace.separator.sd [2167..2168]: " "
+ │       ├─ string.unquoted.char.sd [2168..2169]: "{"
+ │       ├─ string.unquoted.identifier.sd [2169..2172]: "who"
+ │       └─ string.unquoted.char.sd [2172..2173]: "}"
+ ├─ Newline [2173..2174]: "\n"
+ ├─ meta.layout.luau [2174..2191]
+ │   ├─ punctuation.whitespace.optional.sd [2174..2176]: "  "
+ │   └─ meta.struct.body.luau [2176..2191]
+ │       ├─ keyword.other.component.builtin.name.sd [2176..2180]: "text"
+ │       ├─ markup.raw.whitespace.separator.optional.sd [2180..2181]: " "
+ │       ├─ keyword.operator.assignment.sd [2181..2182]: "="
+ │       ├─ markup.raw.whitespace.separator.optional.sd [2182..2183]: " "
+ │       ├─ string.unquoted.char.sd [2183..2184]: "["
+ │       ├─ string.unquoted.char.sd [2184..2185]: "["
+ │       ├─ string.unquoted.identifier.sd [2185..2186]: "a"
+ │       ├─ string.unquoted.char.sd [2186..2187]: "{"
+ │       ├─ string.unquoted.identifier.sd [2187..2188]: "b"
+ │       ├─ string.unquoted.char.sd [2188..2189]: "}"
+ │       ├─ string.unquoted.char.sd [2189..2190]: "]"
+ │       └─ string.unquoted.char.sd [2190..2191]: "]"
+ ├─ Newline [2191..2192]: "\n"
+ ├─ meta.layout.luau [2192..2200]
+ │   ├─ punctuation.whitespace.optional.sd [2192..2194]: "  "
+ │   └─ meta.struct.body.luau [2194..2200]
+ │       ├─ entity.name.type.class.view.sd [2194..2199]: "items"
+ │       └─ meta.template.expression.operator.colon.sd [2199..2200]: ":"
+ ├─ Newline [2200..2201]: "\n"
+ ├─ meta.layout.luau [2201..2218]
+ │   ├─ punctuation.whitespace.optional.sd [2201..2205]: "    "
+ │   └─ meta.struct.body.luau [2205..2218]
+ │       ├─ keyword.operator.expression.array.sd [2205..2206]: "-"
+ │       ├─ markup.raw.whitespace.separator.sd [2206..2207]: " "
+ │       ├─ string.unquoted.identifier.sd [2207..2212]: "Hello"
+ │       ├─ markup.raw.whitespace.separator.sd [2212..2213]: " "
+ │       ├─ string.unquoted.char.sd [2213..2214]: "{"
+ │       ├─ string.unquoted.identifier.sd [2214..2217]: "who"
+ │       └─ string.unquoted.char.sd [2217..2218]: "}"
+ ├─ Newline [2218..2219]: "\n"
+ ├─ meta.layout.luau [2219..2228]
+ │   ├─ punctuation.whitespace.optional.sd [2219..2223]: "    "
+ │   └─ meta.struct.body.luau [2223..2228]
+ │       ├─ keyword.operator.expression.array.sd [2223..2224]: "-"
+ │       ├─ markup.raw.whitespace.separator.sd [2224..2225]: " "
+ │       ├─ string.unquoted.char.sd [2225..2226]: "{"
+ │       ├─ string.unquoted.identifier.sd [2226..2227]: "a"
+ │       └─ string.unquoted.char.sd [2227..2228]: "}"
+ ├─ Newline [2228..2229]: "\n"
+ ├─ meta.layout.luau [2229..2232]
+ │   └─ keyword.control.end.luau [2229..2232]: "end"
+ └─ Newline [2232..2233]: "\n"
