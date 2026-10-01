@@ -280,20 +280,8 @@ describe("the reported layouts", () => {
     ["function f(t)\n  local a = t[1 + local y = 2]\nend", ["1:18-1:23 Expected identifier when parsing expression, got 'local'"]],
     // A table's `;` separates its fields.
     ["function f(t)\n  local a = {1; local y}\nend", ["1:16-1:21 Expected identifier when parsing expression, got 'local'"]],
-    // A keyword the parser read as a missing name stays read, past the
-    // recovery's other errors.
-    ["function f(t)\n  t.a.return 1\nend", ["1:6-1:12 Expected identifier, got 'return'"]],
-    ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],
     // Only a keyword is read as the name; a `;` still ends the statement.
     ["function f(t)\n  t.a.; x = 1 +;\nend", ["1:6-1:7 Expected identifier, got ';'", "1:15-1:16 Expected identifier when parsing expression, got ';'"]],
-    // Round 4: a statement that begins where the parser resumed after a
-    // recovery's error is the author's own, and so are its errors.
-    ["function f(t)\n  t.a.return x = 2 +;\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:21 Expected identifier when parsing expression, got ';'"]],
-    ["function f(t)\n  t.a.return if 1 + then end\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:24 Expected identifier when parsing expression, got 'then'"]],
-    ["function f(t)\n  x + function() end\nend", [
-      "1:2-1:3 Incomplete statement: expected assignment or a function call",
-      "1:14-1:15 Expected identifier when parsing function name, got '('",
-    ]],
     // Every bracket the first error stands in, nested or not, is read up to
     // the outermost one's closer.
     ["function f(t)\n  print((1 + local y = 2)\n  )\nend", ["1:13-1:18 Expected identifier when parsing expression, got 'local'"]],
@@ -327,25 +315,11 @@ describe("the reported layouts", () => {
       "1:13-1:14 Expected identifier when parsing expression, got ')'",
       "1:15-1:16 Expected identifier when parsing expression, got '1'",
     ]],
-    ["function f(t)\n  do y = t.a. end 1 +\nend", [
-      "1:14-1:17 Expected identifier, got 'end'",
-      "1:18-1:19 Expected identifier when parsing expression, got '1'",
-    ]],
     ["function f(t)\n  {1 +}\nend", ["1:2-1:3 Expected identifier when parsing expression, got '{'"]],
     ["function f(t)\n  x = 1 'a' ..\nend", ["1:8-1:11 Expected identifier when parsing expression, got \"a\""]],
     ["function f(t)\n  ; 1 +\nend", [
       "1:2-1:3 Expected identifier when parsing expression, got ';'",
       "1:4-1:5 Expected identifier when parsing expression, got '1'",
-    ]],
-    ["function f(t)\n  local y = t.a. if 1 then end\nend", ["1:17-1:19 Expected identifier, got 'if'"]],
-    // Round 6's review: `until` and `elseif` read as a missing name are
-    // followed by their condition, still the recovery; the next statement
-    // after it is the author's.
-    ["function f(t)\n  repeat local y = t.a. until true\nend", ["1:24-1:29 Expected identifier, got 'until'"]],
-    ["function f(t, c)\n  if c then local y = t.a. elseif c then end\nend", ["1:27-1:33 Expected identifier, got 'elseif'"]],
-    ["function f(t)\n  repeat local y = t.a. until true local z = 2 +;\nend", [
-      "1:24-1:29 Expected identifier, got 'until'",
-      "1:48-1:49 Expected identifier when parsing expression, got ';'",
     ]],
     // An expression's error before a cast.
     ["function f(t)\n  local y = t.a. :: number\nend", ["1:17-1:19 Expected identifier, got '::'"]],
@@ -366,6 +340,45 @@ describe("the reported layouts", () => {
       expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
       expectLuauReports(source, messages);
     }
+  });
+
+  // Interim (#1283, #1286): the errors after the first in these follow
+  // from how Luau's parser recovers, most from its reading a keyword after a
+  // `.` with no name as that name (`t.a.return 1`), or `x + function() end`
+  // as a nameless declaration. Each first error is the specification's, as
+  // the layouts above are; how many follow it is the reparse's, and a checker
+  // that reads Luau from the syntax tree may report one error for each
+  // malformed construct here instead, with these expectations changed and
+  // the reason given.
+  test.each([
+    ["function f(t)\n  t.a.return 1\nend", ["1:6-1:12 Expected identifier, got 'return'"]],
+    ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],
+    ["function f(t)\n  t.a.return x = 2 +;\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:21 Expected identifier when parsing expression, got ';'"]],
+    ["function f(t)\n  t.a.return if 1 + then end\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:24 Expected identifier when parsing expression, got 'then'"]],
+    ["function f(t)\n  x + function() end\nend", [
+      "1:2-1:3 Incomplete statement: expected assignment or a function call",
+      "1:14-1:15 Expected identifier when parsing function name, got '('",
+    ]],
+    ["function f(t)\n  do y = t.a. end 1 +\nend", [
+      "1:14-1:17 Expected identifier, got 'end'",
+      "1:18-1:19 Expected identifier when parsing expression, got '1'",
+    ]],
+    ["function f(t)\n  local y = t.a. if 1 then end\nend", ["1:17-1:19 Expected identifier, got 'if'"]],
+    ["function f(t)\n  repeat local y = t.a. until true\nend", ["1:24-1:29 Expected identifier, got 'until'"]],
+    ["function f(t, c)\n  if c then local y = t.a. elseif c then end\nend", ["1:27-1:33 Expected identifier, got 'elseif'"]],
+    ["function f(t)\n  repeat local y = t.a. until true local z = 2 +;\nend", [
+      "1:24-1:29 Expected identifier, got 'until'",
+      "1:48-1:49 Expected identifier when parsing expression, got ';'",
+    ]],
+    ["function f(t)\n  local a, b = 1, t.a. if {1 +} then end\nend", [
+      "1:23-1:25 Expected identifier, got 'if'",
+      "1:30-1:31 Expected identifier when parsing expression, got '}'",
+    ], false],
+  ] as [string, string[], boolean?][])("interim: %j reports %j", (source, messages, keepsEnd = true) => {
+    const { errors, functions } = compileDocument(`${source}\n`);
+    expect(errors).toEqual(messages);
+    if (keepsEnd) expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
+    expectLuauReports(source, messages);
   });
 
   // In a Luau file: a bracket the parser gives up on inside a block is closed
@@ -420,13 +433,6 @@ describe("the reported layouts", () => {
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
     // Round 3: a line break inside a comment ends the line too.
     ["function f(t)\n  store x = 0xZ --[[\n  ]] 2\nend", ["1:12-1:15 Malformed number", "2:5-2:6 Expected identifier when parsing expression, got '2'"]],
-    // Round 6: what follows a keyword read as a missing name on its line is
-    // that statement's recovery, past a value it reads on (Luau's function
-    // ends at the `end` the `then end` there gives it).
-    ["function f(t)\n  local a, b = 1, t.a. if {1 +} then end\nend", [
-      "1:23-1:25 Expected identifier, got 'if'",
-      "1:30-1:31 Expected identifier when parsing expression, got '}'",
-    ]],
     // A keyword on the line after a `.` with no name begins a statement.
     ["function f(t)\n  store x = t.a.\n  return 1 +;\nend", [
       "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
