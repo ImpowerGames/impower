@@ -602,13 +602,24 @@ export function reportUnreadExpressionStatement(
 function followsMissingValue(start: SyntaxNode, ctx: LowerContext): boolean {
   let prev = start.prevSibling;
   while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
-  if (!prev) return false;
+  // Only a statement that takes a value; a block's header (`if x then`)
+  // is followed by the block's statements.
+  if (!prev || !VALUE_TAKING_STATEMENTS.has(prev.name)) return false;
   // Up to its last token, which leaves out the comments after it and never
   // mistakes a comment-like run inside a string for one (`[[--]]`).
   const last = lastSignificantLeaf(prev);
   if (!last) return false;
   return VALUE_EXPECTED_AT_END.test(ctx.read(prev.from, last.to).trimEnd());
 }
+
+const VALUE_TAKING_STATEMENTS: ReadonlySet<string> = new Set([
+  "LuauVariableDefinition",
+  "LuauSparkdownVariableDefinition",
+  "LuauReassignment",
+  "LuauAssignmentOperation",
+  "LuauReturnStatement",
+  "LuauPropertyDefinition",
+]);
 
 // A whole token, not the end of a longer one: `..` is not the end of `...`,
 // nor `>` the end of an explicit instantiation's `>>`.

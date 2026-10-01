@@ -221,6 +221,19 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
   });
 
   it.each([
+    ["an if", "if x then", "end"],
+    ["a do", "do", "end"],
+    ["a for loop", "for i = 1, 2 do", "end"],
+    ["a while loop", "while x do", "end"],
+    ["a repeat loop", "repeat", "until x"],
+  ])("reports a value that opens %s body, which no header's `then` or `do` takes", (_, open, close) => {
+    for (const line of ['"str"', "{ 1 }", "Hello", "1 + 2"]) {
+      const source = `function greet(x)\n  ${open}\n    ${line}\n  ${close}\nend\n`;
+      expect(errorsOf(source), line).toEqual([luauFirstError(source)]);
+    }
+  });
+
+  it.each([
     ["a for loop", "for i = 1, 2 do\n    Hello there.\n  end"],
     ["a while loop", "while false do\n    Hello there.\n  end"],
     ["a repeat loop", "repeat\n    Hello there.\n  until true"],
@@ -261,7 +274,9 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "",
       "    'b'",
       "  t.add",
-      '    "c"',
+      // The `;` keeps the `(` line from being read as a call of `t.add "c"`,
+      // which Luau reports as ambiguous.
+      '    "c";',
       "  (note)",
       '    "d"',
       "  return got",
@@ -270,6 +285,8 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       "{f()}",
       "",
     ].join("\n");
+    // Luau reads the functions without an error too.
+    expect(parseLuau(source.slice(source.indexOf("function note")).replace("{f()}", "")).errors).toEqual([]);
     expect(errorsOf(source)).toEqual([]);
     expect(playedLines(source)).toEqual(["a2bcd\n"]);
   });
