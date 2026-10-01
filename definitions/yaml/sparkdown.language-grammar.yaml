@@ -6525,7 +6525,8 @@ repository:
   # its last non-blank character, or to an `end`, `else`, `elseif` or
   # `until` on it outside a
   # string or a comment, which closes a block wherever Luau meets it and is
-  # left to that block's rule (`doThing end`, `The end of the scene.`). It
+  # left to that block's rule (`doThing end`, `The end of the scene.`,
+  # `Hello there;end`). It
   # also ends before a string or a block comment that runs past the line (a
   # long string or comment that does not close on it, or a quoted string
   # whose last character is an escaping `\`): that token's own rule takes it
@@ -6545,7 +6546,7 @@ repository:
   # begins a statement or a block, a scene or a branch is left to its own
   # rule.
   LuauInvalidStatement:
-    match: ^({{WS}}*)((?!(?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*[.](?![.]){{WS}}*{{LUAU_IDENTIFIER}})*(?:{{WS}}+(?!(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)\b)[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.](?![.])(?!{{WS}}*[A-Za-z_])|(?![^\r\n]*=)(?=(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|[^\r\n"'`(){}\[\]-]|-(?!-))*?(?:(?<=[A-Za-z0-9_])(?<!\b(?:and|or|not|in|then|do|return)){{WS}}+(?!(?:and|or|not|then|do|in|end|else|elseif|until)\b)[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.](?![.])(?={{WS}}*(?:$|--)))))(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|(?:--)?(?:\[\[[^\r\n]*?\]\]|\[=\[[^\r\n]*?\]=\]|\[==\[[^\r\n]*?\]==\])|--(?!\[=*\[)[^\r\n]*|(?!{{WS}}+(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b)[^\r\n"'`\[-]|\[(?!=*\[)|-(?!-))*?)(?={{WS}}*$|{{WS}}+(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b|{{WS}}*(?:--)?(?:\[\[(?![^\r\n]*\]\])|\[=\[(?![^\r\n]*\]=\])|\[==\[(?![^\r\n]*\]==\])|\[===+\[)|{{WS}}*(?:"(?:[^"\\\r\n]|\\.)*|'(?:[^'\\\r\n]|\\.)*|`(?:[^`\\\r\n]|\\.)*)\\(?:z{{WS}}*)?$)
+    match: ^({{WS}}*)((?!(?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*[.](?![.]){{WS}}*{{LUAU_IDENTIFIER}})*(?:{{WS}}+(?!(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)\b)[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.](?![.])(?!{{WS}}*[A-Za-z_])|(?![^\r\n]*=)(?=(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|[^\r\n"'`(){}\[\]-]|-(?!-))*?(?:(?<=[A-Za-z0-9_])(?<!\b(?:and|or|not|in|then|do|return)){{WS}}+(?!(?:and|or|not|then|do|in|end|else|elseif|until)\b)[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.](?![.])(?={{WS}}*(?:$|--)))))(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|(?:--)?(?:\[\[[^\r\n]*?\]\]|\[=\[[^\r\n]*?\]=\]|\[==\[[^\r\n]*?\]==\])|--(?!\[=*\[)[^\r\n]*|(?!{{WS}}*(?<![A-Za-z0-9_])(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b)[^\r\n"'`\[-]|\[(?!=*\[)|-(?!-))*?)(?={{WS}}*$|{{WS}}*(?<![A-Za-z0-9_])(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b|{{WS}}*(?:--)?(?:\[\[(?![^\r\n]*\]\])|\[=\[(?![^\r\n]*\]=\])|\[==\[(?![^\r\n]*\]==\])|\[===+\[)|{{WS}}*(?:"(?:[^"\\\r\n]|\\.)*|'(?:[^'\\\r\n]|\\.)*|`(?:[^`\\\r\n]|\\.)*)\\(?:z{{WS}}*)?$)
     captures:
       1:
         patterns:

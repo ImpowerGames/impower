@@ -366,6 +366,35 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual(["After it.\n"]);
   });
 
+  it.each([
+    ["after a semicolon", '  note\n    "a"; note("b")'],
+    ["with nothing between", '  note\n    "a" note("b")'],
+    ["after a declaration's value", '  local x = note\n    "a"; note("b")'],
+  ])("runs the statement on the line of a next-line argument %s", (_, body) => {
+    const source = `store got = ""\n\nfunction note(s)\n  got = got .. s\n  return s\nend\n\nfunction f()\n${body}\n  return got\nend\n\n{f()}\n`;
+    expect(errorsOf(source)).toEqual([]);
+    expect(playedLines(source)).toEqual(["ab\n"]);
+  });
+
+  it("closes a block at an `end` that follows a token with no space", () => {
+    const source = [
+      "function f()",
+      "  Hello there;end",
+      "function g()",
+      "  Hello there --[[note]]end",
+      "function h()",
+      '  Hello there"hi"end',
+      "After it.",
+      "",
+    ].join("\n");
+    expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character])).toEqual([
+      [1, 2],
+      [3, 2],
+      [5, 2],
+    ]);
+    expect(playedLines(source)).toEqual(["After it.\n"]);
+  });
+
   it("ends a line that is not a statement before a quoted string that runs on", () => {
     // The `\` escapes the line break, so `end inside` is the string's.
     const source =
@@ -614,4 +643,30 @@ describe("an edit after a line whose error names the next token (#1158)", () => 
       expect(validations(registry), JSON.stringify(inserted)).toEqual(validations(cold));
     }
   });
+
+  it.each([
+    ["a `.` no name follows", ["  U.S. -- note", "  Hi, Bob", "  Another"]],
+    ["a comma list", ["  Well, friend. -- note", "  a, b", "  Another"]],
+  ])(
+    "keeps a report several lines below the line it belongs to after %s",
+    (_, lines) => {
+      // The first line takes the lines below it, so its report stands at
+      // `Another`; an edit below that must not remove it.
+      const scenes = Array.from({ length: 6 }, (_, s) => `scene s${s}\n  Line ${s} here.\nend\n`);
+      let text = `${scenes.join("\n")}\nfunction f()\n  local a = 1\n${lines.join("\n")}\n  local b = 2\nend\n`;
+      const registry = open(text);
+      let version = 2;
+      for (const anchor of ["local a = 1", "local b = 2"]) {
+        const offset = text.indexOf(anchor) + anchor.length;
+        registry.update({
+          textDocument: { uri: URI, version: version++ },
+          contentChanges: [{ range: { start: position(text, offset), end: position(text, offset) }, text: "1" }],
+        } as never);
+        text = text.slice(0, offset) + "1" + text.slice(offset);
+        const cold = open(text);
+        expect(validations(registry), anchor).toEqual(validations(cold));
+        expect(validations(cold).length, anchor).toBeGreaterThan(0);
+      }
+    },
+  );
 });

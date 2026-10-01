@@ -108,23 +108,32 @@ function collectLineContinuationFrom(
         ? node != null && endsOnValueComma(node)
         : lastSignificant(nodes)?.name === "LuauCommaSeparator";
     const before = nodes.length > 0 ? lastSignificant(nodes) : node;
+    // A string or a table after a value that can be called is its argument,
+    // as Luau reads it (`f` then `"x"`, `t.f` then `{ 1 }`): no statement
+    // begins with one. It is taken alone: what follows it on its line
+    // (`; note("b")`) is a statement of its own unless it is another
+    // argument.
+    const callArgument =
+      CALL_ARGUMENT_NODES.has(scan.name) &&
+      before != null &&
+      // An argument this collector carried is a call too (`maker` then
+      // `"A"` then `"B"`).
+      ((nodes.length > 0 && CALL_ARGUMENT_NODES.has(before.name)) ||
+        endsInCallee(before)) &&
+      inLuauBody(scan);
+    if (callArgument) {
+      nodes.push(scan);
+      scan = scan.nextSibling;
+      continue;
+    }
     const carried =
-      (!startsStatement(scan) &&
-        scan.name !== "LuauInvalidStatement" &&
-        ((node?.name === "LuauVariableDefinition" && afterComma) ||
-          (nodes.length === 0 && node != null && endsOnEmptyAssignment(node)))) ||
-      // A string or a table after a value that can be called is its
-      // argument, as Luau reads it (`f` then `"x"`, `t.f` then `{ 1 }`): no
-      // statement begins with one.
-      (CALL_ARGUMENT_NODES.has(scan.name) &&
-        before != null &&
-        // An argument this collector carried is a call too (`maker` then
-        // `"A"` then `"B"`).
-        ((nodes.length > 0 && CALL_ARGUMENT_NODES.has(before.name)) ||
-          endsInCallee(before)) &&
-        inLuauBody(scan));
+      !startsStatement(scan) &&
+      scan.name !== "LuauInvalidStatement" &&
+      ((node?.name === "LuauVariableDefinition" && afterComma) ||
+        (nodes.length === 0 && node != null && endsOnEmptyAssignment(node)));
     if (!carried && !isLineContinuation(scan)) return nodes;
-    while (scan && scan.name !== "Newline") {
+    // The rest of the line, up to a `;` that ends the statement.
+    while (scan && scan.name !== "Newline" && scan.name !== "LuauSemicolonSeparator") {
       nodes.push(scan);
       scan = scan.nextSibling;
     }
