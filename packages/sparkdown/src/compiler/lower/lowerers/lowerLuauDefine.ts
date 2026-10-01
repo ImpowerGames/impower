@@ -25,6 +25,7 @@ import {
   buildClosureExpression,
   lowerExpressionFromContainer,
   processLuauEscapes,
+  recordCaptureRead,
   scanFreeVariables,
 } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
@@ -555,6 +556,7 @@ function lowerDefineMethod(
   const synthName = `__define_fn_${syntheticId(node.from, ctx)}`;
   const userArgs = lowerArguments(node, ctx);
   const upvals = scanFreeVariables(node, ctx).filter((n) => n !== "self");
+  recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
   );

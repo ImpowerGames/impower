@@ -698,7 +698,7 @@ const shows = (root: ProgramRoot) =>
 // statement's code passes them and binds them at the function's entry, as a
 // call of a variadic function passes them. The body's lines are not the
 // statement's syntax, so its lowering records them, and the store emits the
-// statement again when an edit to the body changes them.
+// statement again when an edit to the body changes them, and only then.
 describe("a statement that writes a function", () => {
   const demo = (fn: string[]) =>
     [
@@ -725,6 +725,90 @@ describe("a statement that writes a function", () => {
       describeRoot(coldRoot(text.replace("return a", replace))),
     );
     expect(shows(edited)).toEqual([line]);
+  });
+
+  // A method's `self` is its first parameter, not a capture: the method
+  // captures the other names its body reads.
+  const method = [
+    "function run()",
+    "  local a = 1",
+    "  local b = 5",
+    "  local t = { x = 2 }",
+    "  function t:m()",
+    "    return self.x + a",
+    "  end",
+    "  return t:m()",
+    "end",
+    "Got {run()}.",
+    "",
+  ].join("\n");
+  const methodChunk = (s: ReturnType<typeof session>) =>
+    programStatements(s.compiler).find(
+      (statement) => statement.from === method.indexOf("  function t:m()"),
+    )!.chunk;
+
+  it("is emitted again when an edit to a method's body changes the names it captures", () => {
+    const s = session({ [MAIN]: method });
+    expect(shows(s.root)).toEqual(["Got 3."]);
+    const owner = methodChunk(s);
+    const edited = s.edit("self.x + a", "self.x + b");
+    expect(methodChunk(s)).not.toBe(owner);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(method.replace("self.x + a", "self.x + b"))),
+    );
+    expect(shows(edited)).toEqual(["Got 7."]);
+  });
+
+  // An edit that moves the body's read of `self` before a captured local
+  // changes none of the statement's code.
+  it("keeps its chunk when an edit to a method's body changes no name it captures", () => {
+    const s = session({ [MAIN]: method });
+    expect(shows(s.root)).toEqual(["Got 3."]);
+    const before = s.root;
+    const owner = methodChunk(s);
+    const edited = s.edit("self.x + a", "a + self.x");
+    expect(methodChunk(s)).toBe(owner);
+    // Only the body's `return` is emitted again.
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(coldRoot(method.replace("self.x + a", "a + self.x"))),
+    );
+    expect(shows(edited)).toEqual(["Got 3."]);
+  });
+
+  // A closure calls a function declared with `...` in the same function by
+  // name and does not capture it, so an edit that swaps its calls of two
+  // such functions changes none of the statement's code.
+  it("keeps its chunk when an edit to a closure's body swaps its calls of two functions it does not capture", () => {
+    const text = [
+      "function run()",
+      "  function foo(...) return 1 end",
+      "  function bar(...) return 2 end",
+      "  local f = function()",
+      "    return foo() * 10 + bar()",
+      "  end",
+      "  return f()",
+      "end",
+      "Got {run()}.",
+      "",
+    ].join("\n");
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 12."]);
+    const closure = () =>
+      programStatements(s.compiler).find(
+        (statement) => statement.from === text.indexOf("  local f = function()"),
+      )!.chunk;
+    const before = s.root;
+    const owner = closure();
+    const edited = s.edit("foo() * 10 + bar()", "bar() * 10 + foo()");
+    expect(closure()).toBe(owner);
+    expect(newChunks(before, edited)).toHaveLength(1);
+    expect(describeRoot(edited)).toEqual(
+      describeRoot(
+        coldRoot(text.replace("foo() * 10 + bar()", "bar() * 10 + foo()")),
+      ),
+    );
+    expect(shows(edited)).toEqual(["Got 21."]);
   });
 });
 

@@ -29,8 +29,10 @@ export interface ProgramStatement {
   to: number;
   chunk: Int32Array;
   /** Whether nothing its lowering or emission recorded ties its chunk to
-   *  another statement: no lowering read of another line, and no text the
-   *  compiler names by document order. */
+   *  another statement: no lowering read of another line (a `routing` read),
+   *  and no text the compiler names by document order. What the lowering
+   *  found a name to be among a function's variadic functions, and what the
+   *  functions it writes capture, are in its key. */
   untouchable: boolean;
 }
 
@@ -124,7 +126,7 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
         to,
         chunk,
         untouchable:
-          shape.reads.other.length === 0 &&
+          !shape.reads.other.some((read) => read.startsWith("routing:")) &&
           compilerNamedTexts(shape.objects).length === 0,
       });
     }

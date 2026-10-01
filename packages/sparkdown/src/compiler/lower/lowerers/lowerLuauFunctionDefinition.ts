@@ -259,9 +259,8 @@ function lowerNestedNamedFunction(
     !!selfName && bodyReferencesNameAsCall(node, ctx, selfName);
   if (isSelfReferential && !upvals.includes(selfName)) {
     upvals.push(selfName);
-    // The body's call to itself decides this capture as well.
-    recordCaptureRead(ctx, [selfName]);
   }
+  recordCaptureRead(ctx, upvals);
 
   const fn = buildAnonymousFunction(node, synthName, ctx, upvals);
   if (!fn) {
@@ -429,6 +428,7 @@ function lowerNestedAsSubFlow(
   // the scan binds the fn's params/locals internally and consults the
   // ENCLOSING declared-locals stack for what needs capturing.
   const upvals = scanFreeVariables(node, ctx);
+  recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
   );
@@ -571,6 +571,7 @@ function lowerPropertyTargetFunctionDefinition(
   const upvals = scanFreeVariables(node, ctx).filter(
     (n) => !(isColonForm && n === "self"),
   );
+  recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
   );

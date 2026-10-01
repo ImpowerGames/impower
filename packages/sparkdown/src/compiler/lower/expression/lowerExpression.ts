@@ -1498,6 +1498,7 @@ function lowerAnonymousFunction(
   // known stdlib name). These are the closure's upvals. Captured by
   // value at the closure-definition site.
   const upvals = scanFreeVariables(node, ctx);
+  recordCaptureRead(ctx, upvals);
 
   // Dedupe: if an anonymous function from the SAME source position has
   // already been registered in the target buffer, skip re-pushing.
@@ -1780,26 +1781,18 @@ export function scanFreeVariables(
   // NAME is no variable. Instead, references fall through to
   // FunctionCall dispatch at the call site, which resolves NAME via
   // ink's relative-path walk to the enclosing-scope subFlow. The
-  // answer decides what the closure captures, so the statement
-  // records it (`recordSiblingRead`).
+  // answer decides what the closure captures, which the lowering that
+  // builds the closure records (`recordCaptureRead`).
   const isSiblingSubFlow = (name: string) => {
     const stack = ctx.siblingSubFlowNamesStack;
     if (!stack) return false;
-    let named = false;
     for (let i = stack.length - 1; i >= 0; i--) {
       const entry = stack[i]!.get(name);
-      named ||= entry !== undefined;
       // Rebound entries (`f = <expr>` over a global/former subflow)
       // are dispatch metadata only — they must NOT suppress upval
       // capture decisions; the name resolves like any other
       // global/local reference here.
-      if (entry !== undefined && !entry.rebound) {
-        recordSiblingRead(ctx, `capture:${name}=subflow`);
-        return true;
-      }
-    }
-    if (named) {
-      recordSiblingRead(ctx, `capture:${name}=value`);
+      if (entry !== undefined && !entry.rebound) return true;
     }
     return false;
   };
@@ -1898,7 +1891,6 @@ export function scanFreeVariables(
       if (isShadowedLocal(name)) maybeCaptureFree(name);
     }
   });
-  recordCaptureRead(ctx, free);
   return free;
 }
 
@@ -2813,11 +2805,12 @@ function resolveCallableBinding(
 /**
  * Records in the running statement's reads what its lowering found a name
  * to be among the sibling subflows: whether a call reaches the subflow or a
- * value (`resolveCallableBinding`), and whether a closure captures the name
- * (`scanFreeVariables`). A `local` of the name that an edit adds or removes
- * changes the answer (`shadowSiblingSubFlow`) and the statement's code, not
- * its syntax, and the binary program's chunk store emits a statement again
- * when its reads change.
+ * value (`resolveCallableBinding`), and the pointers a call to a subflow or
+ * a reference to one as a value passes. A `local` of the name that an edit
+ * adds or removes changes the answer (`shadowSiblingSubFlow`) and the
+ * statement's code, not its syntax, and the binary program's chunk store
+ * emits a statement again when its reads change. Whether a closure captures
+ * the name is in the list of names it captures (`recordCaptureRead`).
  */
 function recordSiblingRead(ctx: LowerContext, read: string): void {
   const reads = currentStatement(ctx)?.reads.other;
@@ -2828,13 +2821,16 @@ function recordSiblingRead(ctx: LowerContext, read: string): void {
 
 /**
  * Records in the running statement's reads the names a function it writes
- * captures, in order (`scanFreeVariables`): the statement's code passes them
- * to the function and the function's entry binds them, and the function's
- * body, whose lines are not the statement's syntax, decides them, so the
- * binary program's chunk store emits the statement again when an edit inside
- * the body changes them (`ChunkStore.take`). Each scan is recorded in the
- * order the lowering makes it, since two functions of one statement can
- * capture the same names.
+ * captures, in order: the statement's code passes them to the function and
+ * the function's entry binds them, and the function's body, whose lines are
+ * not the statement's syntax, decides them, so the binary program's chunk
+ * store emits the statement again when an edit inside the body changes them
+ * (`ChunkStore.take`). Each lowering that builds a function records the list
+ * it builds the function from, not the scan's (`scanFreeVariables`): a
+ * method's without its implicit `self`, and a `local function`'s that calls
+ * itself with its own name added. Each function is recorded in the order the
+ * lowering builds it, since two functions of one statement can capture the
+ * same names.
  */
 export function recordCaptureRead(
   ctx: LowerContext,
