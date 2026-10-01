@@ -129,6 +129,17 @@ end
     }
   });
 
+  test("an apostrophe in a value is text, so the entry after its `;` completes", () => {
+    const labels = completeAt(
+      `animation fade with
+  timing { easing = don't; dur| }
+end
+`,
+      program,
+    ).map((i) => String(i.label));
+    expect(labels).toContain("duration");
+  });
+
   test("an indented body keeps inserting the indented forms", () => {
     const source = `animation fade with
   tim|
@@ -165,4 +176,13 @@ describe("provider · element completion in layout and component brace blocks", 
       );
     },
   );
+
+  test("a `;` inside quoted element content starts no new element", () => {
+    for (const source of [
+      `layout hud with\n  row { text "a; te|" }\nend\n`,
+      `layout hud with\n  row { text 'a; te|' }\nend\n`,
+    ]) {
+      expect(labelsIn(source), source).not.toContain("text");
+    }
+  });
 });

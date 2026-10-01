@@ -202,7 +202,9 @@ export interface BraceBlockPath {
  * The text of the brace entry being written, given the line up to the
  * cursor: what follows the last `{`, `}` or `;` that stands outside a quoted
  * string. Null when the cursor is inside a quoted string, where no key is
- * being written.
+ * being written. A `'` opens a string only where a token starts (element
+ * content `text 'a'`, an attribute value `='a;b'`); after a letter or digit
+ * it is an apostrophe (`don't`).
  */
 export function braceEntryBefore(lineBefore: string): string | null {
   let start = 0;
@@ -212,7 +214,11 @@ export function braceEntryBefore(lineBefore: string): string | null {
     if (quote) {
       if (ch === "\\") i += 1;
       else if (ch === quote) quote = "";
-    } else if (ch === '"' || ch === "`") {
+    } else if (
+      ch === '"' ||
+      ch === "`" ||
+      (ch === "'" && !/[\p{L}\p{N}_]/u.test(lineBefore[i - 1] ?? ""))
+    ) {
       quote = ch;
     } else if (ch === "{" || ch === "}" || ch === ";") {
       start = i + 1;
