@@ -409,8 +409,12 @@ export class SparkdownTypechecker {
           // line), when the unit could not write it in.
           if (FUNCTION_VALUE_NAME.test(message) && describeTokenBefore(unit.text, error.location.begin) !== "'function'") continue;
           const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"));
-          // Every other reported error's range is the `::` alone.
-          if (message.endsWith("got '::'") && !MISSING_TYPE.test(message) && !MISSING_NAME.test(message) && !isAnnotationColon(unit, error.location.begin)) continue;
+          // Every other reported error's range is the `::` alone. An
+          // expression's own error before a cast stays (`t.a. :: number`,
+          // `1 + :: number`): where Sparkdown's validator reports the same
+          // mistake (an if expression's arm), the compiler keeps its report.
+          const castError = !MISSING_TYPE.test(message) && !MISSING_NAME.test(message) && !expressionErrors.includes(error);
+          if (message.endsWith("got '::'") && castError && !isAnnotationColon(unit, error.location.begin)) continue;
           // The error's range ends with the token Luau found.
           const token = `${end.line}:${end.character}`;
           if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;

@@ -1648,12 +1648,14 @@ function isStatLast(stat: AstStat): boolean {
   return stat instanceof AstStatBreak || stat instanceof AstStatContinue || stat instanceof AstStatReturn;
 }
 
-/** Not part of Luau: the keywords that end or divide a block (see `ParseError.follows`). */
+/**
+ * Not part of Luau: the keywords that end or divide a block and are followed
+ * by a block's statements, not a condition (see `ParseError.follows`): `until`
+ * and `elseif` read a condition next, which is still the recovery.
+ */
 const BLOCK_DELIMITERS: ReadonlySet<number> = new Set([
   LexemeType.ReservedEnd,
   LexemeType.ReservedElse,
-  LexemeType.ReservedElseif,
-  LexemeType.ReservedUntil,
   LexemeType.ReservedThen,
   LexemeType.ReservedDo,
 ]);

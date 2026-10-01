@@ -338,6 +338,23 @@ describe("the reported layouts", () => {
       "1:4-1:5 Expected identifier when parsing expression, got '1'",
     ]],
     ["function f(t)\n  local y = t.a. if 1 then end\nend", ["1:17-1:19 Expected identifier, got 'if'"]],
+    // Round 6's review: `until` and `elseif` read as a missing name are
+    // followed by their condition, still the recovery; the next statement
+    // after it is the author's.
+    ["function f(t)\n  repeat local y = t.a. until true\nend", ["1:24-1:29 Expected identifier, got 'until'"]],
+    ["function f(t, c)\n  if c then local y = t.a. elseif c then end\nend", ["1:27-1:33 Expected identifier, got 'elseif'"]],
+    ["function f(t)\n  repeat local y = t.a. until true local z = 2 +;\nend", [
+      "1:24-1:29 Expected identifier, got 'until'",
+      "1:48-1:49 Expected identifier when parsing expression, got ';'",
+    ]],
+    // An expression's error before a cast.
+    ["function f(t)\n  local y = t.a. :: number\nend", ["1:17-1:19 Expected identifier, got '::'"]],
+    ["function f(t)\n  local y = 1 + :: number\nend", ["1:16-1:18 Expected identifier when parsing expression, got '::'"]],
+    // A closing bracket where a statement must begin is Luau's error, and
+    // the function keeps its own `end`, across a block the recovery reads.
+    ["function f()\n  print(1)\n  )\n  return 5\nend", ["2:2-2:3 Expected identifier when parsing expression, got ')'"]],
+    ["function f()\n  print((1 + local y = 2)\n  do end\n  )\n  return 5\nend", ["1:13-1:18 Expected identifier when parsing expression, got 'local'"]],
+    ["function f()\n  print(1;)\n  return 5\nend", []],
     ["function f(t)\n  print((1 + local y = 2)) local z = 3 +;\nend", [
       "1:13-1:18 Expected identifier when parsing expression, got 'local'",
       "1:40-1:41 Expected identifier when parsing expression, got ';'",

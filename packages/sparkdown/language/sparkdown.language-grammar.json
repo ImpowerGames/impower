@@ -9580,6 +9580,9 @@
       "patterns": [
         {
           "include": "#LuauBlockBody"
+        },
+        {
+          "include": "#LuauStrayBraceCloser"
         }
       ],
       "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|(?:[^\\S\\n\\r])*\\bend\\b)"
@@ -10052,12 +10055,47 @@
           "include": "#LuauSemicolonSeparator"
         },
         {
+          "include": "#LuauStrayCloser"
+        },
+        {
           "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
         }
       ]
+    },
+    "LuauStrayCloser": {
+      "match": "((?:[^\\S\\n\\r])*)([)\\]])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "invalid",
+          "name": "invalid.illegal.luau"
+        }
+      }
+    },
+    "LuauStrayBraceCloser": {
+      "match": "((?:[^\\S\\n\\r])*)([}])",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#ExtraWhitespace"
+            }
+          ]
+        },
+        "2": {
+          "tag": "invalid",
+          "name": "invalid.illegal.luau"
+        }
+      }
     },
     "LuauSparkdownForLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",
