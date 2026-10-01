@@ -863,6 +863,34 @@ function scanMultiTargetReassignment(
   return null;
 }
 
+// Lowers the content of an `&` statement that assigns one target, a name or a
+// field, more than one value (`& g = 1, bump()`, `& t.g = 1, bump()`) the way
+// a bare reassignment does: every value is evaluated and the first assigned,
+// as in Luau. `continuation` holds the lines that continue the last value.
+// Returns null for any other shape.
+export function lowerSingleTargetWithExtraValues(
+  content: SyntaxNode,
+  continuation: SyntaxNode[],
+  ctx: LowerContext,
+): CompiledBlock | null {
+  let first = content.firstChild;
+  while (first && ASSIGNMENT_PAIR_BRIDGE.has(first.name)) {
+    first = first.nextSibling;
+  }
+  if (first?.name !== "LuauAccessPath") return null;
+  const multi = scanMultiTargetReassignment(first, true);
+  if (
+    !multi ||
+    multi.targets.length !== 1 ||
+    !isPlainAssignment(multi.op, ctx)
+  ) {
+    return null;
+  }
+  // The multi-target lowerer takes the continuation from the context.
+  ctx.lineContinuation = continuation;
+  return lowerMultiTargetReassignment(multi, ctx);
+}
+
 // Whether the `LuauAssignmentOperation` `op` is a plain `=`.
 function isPlainAssignment(op: SyntaxNode, ctx: LowerContext): boolean {
   const operator = getDescendent("LuauAssignmentOperator", op);

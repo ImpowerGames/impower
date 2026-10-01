@@ -120,6 +120,14 @@ describe("Luau code: a reassignment list continues after a trailing comma", () =
       "in a function body",
       `Value {f()}.\nfunction f()\n${bump}  local g = 0\n  & g = 1, bump()\n  return g * 10 + calls\nend\n`,
     ],
+    [
+      "to a field target in a narrative body",
+      "store t = { g = 0 }\nstore calls = 0\nfunction bump()\n  calls += 1\n  return 9\nend\n& t.g = 1, bump()\nValue {t.g * 10 + calls}.\n",
+    ],
+    [
+      "to a field target in a function body",
+      `Value {f()}.\nfunction f()\n${bump}  local t = { g = 0 }\n  & t.g = 1, bump()\n  return t.g * 10 + calls\nend\n`,
+    ],
   ])("an extra value for a single target after `&` is still evaluated (%s)", (_name, source) => {
     const { errors, text } = run(source);
     expect(errors).toEqual([]);
