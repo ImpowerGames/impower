@@ -3,6 +3,12 @@ import { type SyntaxNode } from "@lezer/common";
 import { findChildByName } from "../../utils/findChildByName";
 import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import type { LowerContext } from "../context";
+import {
+  sparkleBlockContent,
+  sparkleBlockEntries,
+  sparkleControlBranches,
+  sparkleElementParts,
+} from "./sparkleBlockEntries";
 
 // The entries of a struct body (`style`, `animation`, `theme`, `morph`, and
 // the static struct of `layout`, `screen` and `component`), as a tree both
@@ -58,6 +64,12 @@ export interface StructEntry {
   children: StructEntry[] | null;
   /** True when the entry was written in the braced form. */
   braced: boolean;
+  /**
+   * True for an element in a layout or component brace block
+   * (`LuauSparkleElement`, the entry's shape), whose key is read from its
+   * name, classes and content rather than from a line's text.
+   */
+  element?: boolean;
 }
 
 /**
@@ -74,7 +86,19 @@ interface PositionedEntry {
   entry: StructEntry;
   /** A braced entry, whose contents are already its children. */
   closed: boolean;
+  /**
+   * For an entry of a layout or component block line, the line it came from:
+   * such an entry takes as children only the entries of its own line.
+   */
+  group?: number;
 }
+
+// The indentation one level of a layout or component block adds. A block
+// line's entries are placed as the indented form of the same body would
+// place them, one level deeper per block and per control block, but in steps
+// smaller than a column, so the lines around the block line keep their place
+// beside it (see `pushSparkleBlockLine`).
+const SPARKLE_BLOCK_LEVEL = 1 / 4096;
 
 const BRACED_ENTRY_NAMES: ReadonlySet<string> = new Set([
   "LuauStructBlock",
@@ -98,6 +122,8 @@ export function readStructBodyEntries(
         pushIndentedLine(positioned, child, ctx, classify);
       } else if (child.name === "LuauStructBlockLine") {
         pushBlockLine(positioned, child, ctx);
+      } else if (child.name === "LuauSparkleBlockLine") {
+        pushSparkleBlockLine(positioned, child, ctx);
       } else {
         walk(child);
       }
@@ -152,6 +178,74 @@ function pushBlockLine(
 }
 
 /**
+ * A line of a layout or component body that holds brace blocks. Its entries
+ * are placed where the indented form of the same body places its lines: an
+ * element with a block is a header, the block's entries one level deeper, and
+ * the lines of an `if` or `for` branch one level deeper than the control
+ * block, which itself is no entry, and those of a `match` arm two levels
+ * deeper, below its `case` line. So a brace body lowers to the struct its
+ * indented form lowers to, including where the indented form flattens a
+ * control block's lines into the header before it. A component call is no
+ * entry either, as its indented line is not; its block's entries stay in
+ * place. The line sits in the indentation of the body around it at the
+ * column its first entry starts in.
+ */
+function pushSparkleBlockLine(
+  positioned: PositionedEntry[],
+  line: SyntaxNode,
+  ctx: LowerContext,
+): void {
+  const entries = sparkleBlockEntries(line);
+  const first = entries[0];
+  if (!first) return;
+  const base = ctx.characterNumber(first.from);
+  const group = line.from;
+  const place = (nodes: SyntaxNode[], depth: number) => {
+    const indent = base + depth * SPARKLE_BLOCK_LEVEL;
+    for (const node of nodes) {
+      if (node.name === "LuauSparkleElement") {
+        const { args, block } = sparkleElementParts(node);
+        if (!args) {
+          positioned.push({
+            indent,
+            closed: false,
+            group,
+            entry: {
+              kind: block ? "header" : "other",
+              shape: node,
+              line: node,
+              children: null,
+              braced: true,
+              element: true,
+            },
+          });
+        }
+        const content = block ? sparkleBlockContent(block) : null;
+        if (content) place(sparkleBlockEntries(content), depth + 1);
+      } else if (node.name === "LuauStructBlockProperty") {
+        positioned.push({
+          indent,
+          closed: false,
+          group,
+          entry: {
+            kind: "property",
+            shape: node,
+            line: node,
+            children: null,
+            braced: true,
+          },
+        });
+      } else if (node.name !== "LuauSparkleElementBlock") {
+        for (const branch of sparkleControlBranches(node)) {
+          place(sparkleBlockEntries(branch.content), depth + branch.depth);
+        }
+      }
+    }
+  };
+  place(entries, 0);
+}
+
+/**
  * Nest positioned entries by indentation: an indented header or item takes
  * the deeper-indented entries after it as its children, and an entry indented
  * deeper than its level with no header above it is skipped.
@@ -173,7 +267,12 @@ function nest(
       !current.closed &&
       (current.entry.kind === "item" || current.entry.kind === "header");
     const next = positioned[i + 1];
-    if (opens && next && next.indent > indent) {
+    if (
+      opens &&
+      next &&
+      next.indent > indent &&
+      (current.group === undefined || next.group === current.group)
+    ) {
       const sub = nest(positioned, i + 1, next.indent);
       entries.push({ ...current.entry, children: sub.entries });
       i = sub.next;
@@ -241,10 +340,17 @@ function blockBody(block: SyntaxNode): SyntaxNode | null {
   return content ? findChildByName(content, "LuauStructBlockBody") : null;
 }
 
-// The parts of a block's braces (a `LuauStructBlockBody` or a
-// `LuauStructListBlock`), each named literally so the grammar node-name check
-// sees every name.
+// The parts of a block's braces (a `LuauStructBlockBody`, a
+// `LuauStructListBlock`, or a layout or component `LuauSparkleElementBlock`),
+// each named literally so the grammar node-name check sees every name.
 function braceParts(body: SyntaxNode) {
+  if (body.name === "LuauSparkleElementBlock") {
+    return {
+      begin: findChildByName(body, "LuauSparkleElementBlock_begin"),
+      content: findChildByName(body, "LuauSparkleElementBlock_content"),
+      end: findChildByName(body, "LuauSparkleElementBlock_end"),
+    };
+  }
   const list = body.name === "LuauStructListBlock";
   return {
     begin: list

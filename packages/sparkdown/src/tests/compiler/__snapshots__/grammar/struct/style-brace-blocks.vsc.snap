@@ -15,11 +15,10 @@ text.source.sparkdown [0..352]
  │       ├─ markup.raw.whitespace.separator.optional.sd [28..29]: " "
  │       └─ string.unquoted.identifier.sd [29..36]: "pointer"
  ├─ Newline [36..37]: "\n"
- ├─ meta.style.luau [37..40]
+ ├─ meta.style.luau [37..82]
  │   ├─ punctuation.whitespace.sd [37..39]: "  "
- │   └─ keyword.other.selector.operator.sd [39..40]: "&"
- ├─ meta.style.luau [40..41]: "."
- ├─ meta.style.luau [41..82]
+ │   ├─ keyword.other.selector.operator.sd [39..40]: "&"
+ │   ├─ punctuation.definition.class.sd [40..41]: "."
  │   ├─ entity.name.type.class.view.sd [41..50]: "secondary"
  │   ├─ punctuation.whitespace.sd [50..51]: " "
  │   ├─ punctuation.definition.template-expression.begin.sd [51..52]: "{"
@@ -32,14 +31,13 @@ text.source.sparkdown [0..352]
  │   ├─ punctuation.whitespace.sd [80..81]: " "
  │   └─ punctuation.definition.template-expression.end.sd [81..82]: "}"
  ├─ Newline [82..83]: "\n"
- ├─ meta.style.luau [83..91]
+ ├─ meta.style.luau [83..136]
  │   ├─ punctuation.whitespace.sd [83..85]: "  "
  │   ├─ keyword.other.selector.operator.sd [85..86]: ">"
  │   ├─ punctuation.whitespace.required.sd [86..87]: " "
- │   └─ keyword.other.component.builtin.name.sd [87..91]: "text"
- ├─ meta.style.luau [91..92]: "."
- ├─ meta.style.luau [92..136]
- │   ├─ keyword.other.component.builtin.name.sd [92..97]: "label"
+ │   ├─ keyword.other.component.builtin.name.sd [87..91]: "text"
+ │   ├─ punctuation.definition.class.sd [91..92]: "."
+ │   ├─ entity.name.type.class.view.sd [92..97]: "label"
  │   ├─ markup.raw.whitespace.separator.optional.sd [97..98]: " "
  │   ├─ keyword.operator.assignment.sd [98..99]: "="
  │   ├─ markup.raw.whitespace.separator.optional.sd [99..100]: " "

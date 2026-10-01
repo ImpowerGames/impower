@@ -631,8 +631,11 @@ sparkdown [0..673]
  │   │   │   │       │   │   └─ LuauStructBlockKey [347..360]
  │   │   │   │       │   │       └─ LuauStructBlockKey_c1 [347..360]
  │   │   │   │       │   │           ├─ SelectorOperator [347..348]: "&"
- │   │   │   │       │   │           ├─ LuauStructBlockKeyChar [348..349]: "."
- │   │   │   │       │   │           └─ CustomComponentName [349..360]: "card--large"
+ │   │   │   │       │   │           └─ LuauSparkleElementClass [348..360]
+ │   │   │   │       │   │               ├─ LuauSparkleElementClass_c1 [348..349]
+ │   │   │   │       │   │               │   └─ LuauSparkleClassDot [348..349]: "."
+ │   │   │   │       │   │               └─ LuauSparkleElementClass_c2 [349..360]
+ │   │   │   │       │   │                   └─ LuauSparkleClassName [349..360]: "card--large"
  │   │   │   │       │   └─ LuauStructBlock_begin_c2 [360..361]
  │   │   │   │       │       └─ Whitespace [360..361]: " "
  │   │   │   │       ├─ LuauStructBlock_content [361..378]

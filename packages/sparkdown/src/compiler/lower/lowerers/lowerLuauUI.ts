@@ -6,6 +6,7 @@ import type { LowerContext } from "../context";
 import { findChildByName } from "../utils/alternatorArms";
 import { collectStructBodyLines, parseStructBody } from "./lowerStructBody";
 import { buildSparkleBody } from "./lowerSparkleBody";
+import { validateSparkleBlocks } from "../utils/validateSparkleBlocks";
 import {
   type ComponentNode,
   type LayoutNode,
@@ -80,7 +81,9 @@ export function lowerLuauUI(
     nodeRef.node,
     `Luau${uiType === "layout" ? "Layout" : "Component"}_content`,
   );
-  const body = parseStructBody(collectStructBodyLines(contentNode, ctx), ctx);
+  const body = parseStructBody(collectStructBodyLines(contentNode, ctx), ctx, {
+    elementKeys: true,
+  });
 
   const struct: Record<string, unknown> = {
     $type: uiType,
@@ -128,10 +131,14 @@ export function lowerLuauUI(
           },
         };
 
+  // Brace blocks left open, and control blocks in them left without `end`.
+  const structure = validateSparkleBlocks(contentNode, ctx);
+
   return {
     content: [],
     context: { [uiType]: { [name]: struct } },
     sparkle,
+    ...(structure.length > 0 ? { diagnostics: structure } : {}),
   };
 }
 
