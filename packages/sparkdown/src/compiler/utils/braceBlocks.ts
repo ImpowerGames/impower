@@ -206,15 +206,28 @@ const ENTRY_SEPARATOR_NAMES = nodeNameSet([
   "LuauStructBlockSeparator",
 ]);
 
+/** Element-head tokens that begin with the quote an author has opened but not
+ *  yet closed: a quote the head cannot read (`text 'a`), or an attribute
+ *  value the grammar takes as unquoted text because its closing quote is
+ *  missing (`#label='a`). */
+const UNCLOSED_QUOTE_TOKEN_NAMES = nodeNameSet([
+  "LuauSparkleElementInvalid",
+  "InlinePropLiteralValue",
+]);
+
+const QUOTES = ['"', "'", "`"];
+
 /**
  * The text of the brace entry being written at `offset` on the line starting
  * at `lineFrom`: what follows the last `{`, `}` or `;` the grammar reads as an
  * entry separator before the cursor. Whether a `;` or a brace is structure is
- * the parser's decision, never this function's: one inside a string (`"a;b"`,
- * element content `'a; b'`), an attribute value (`#label='a; b'`) or a
- * bracket run (`[data-label='a;b']`) is part of that token, while a quote or
- * bracket the grammar reads as text (`'tis`, `ease[`) changes nothing. Inside
- * such a token the entry holds the token's text, so it is never read as a key.
+ * the parser's decision: one inside a string (`"a;b"`, element content
+ * `'a; b'`), an attribute value (`#label='a; b'`) or a bracket run
+ * (`[data-label='a;b']`) is part of that token, while a quote or bracket the
+ * grammar reads as text (`'tis`, `ease[`) changes nothing. While an element's
+ * quote is still open (`text 'a; te`), the grammar ends the element at the
+ * `;`, so the entry instead starts before the open quote. Inside a string the
+ * entry therefore holds its opening quote; see `entryInsideQuote`.
  */
 export function braceEntryAt(
   tree: Tree,
@@ -222,17 +235,52 @@ export function braceEntryAt(
   lineFrom: number,
   read: (from: number, to: number) => string,
 ): string {
-  let start = lineFrom;
+  const separators: number[] = [];
+  let openQuote = -1;
   tree.iterate({
     from: lineFrom,
     to: offset,
     enter: (node) => {
+      if (node.to > offset && node.from >= offset) return false;
       if (ENTRY_SEPARATOR_NAMES.has(node.name) && node.to <= offset) {
-        start = Math.max(start, node.to);
+        separators.push(node.to);
+      } else if (UNCLOSED_QUOTE_TOKEN_NAMES.has(node.name)) {
+        // Still open when the quote occurs an odd number of times from the
+        // opener to the cursor.
+        const quote = read(node.from, node.from + 1);
+        if (
+          QUOTES.includes(quote) &&
+          read(node.from, offset).split(quote).length % 2 === 0
+        ) {
+          openQuote = Math.max(openQuote, node.from);
+        }
       }
+      return undefined;
     },
   });
+  const before = (limit: number) =>
+    separators.reduce(
+      (start, to) => (to <= limit ? Math.max(start, to) : start),
+      lineFrom,
+    );
+  const start = openQuote >= 0 ? before(openQuote) : before(offset);
   return read(start, offset);
+}
+
+/**
+ * Whether the entry being written stands inside a value or a quoted string,
+ * where neither a key nor an element name is being written: it holds an `=`
+ * or a quote the author opened (`"`, a backtick, or a `'` that starts a token,
+ * while `'` after a letter or digit is an apostrophe, as in `don't`).
+ */
+export function entryInsideValue(entry: string): boolean {
+  return entry.includes("=") || entryInsideQuote(entry);
+}
+
+/** Whether the entry holds a quote the author opened (see
+ *  `entryInsideValue`). */
+export function entryInsideQuote(entry: string): boolean {
+  return /["`]|(?:^|[^\p{L}\p{N}_])'/u.test(entry);
 }
 
 /** The brace blocks that hold `offset`, or null when no block does. */

@@ -10,6 +10,7 @@ import {
   bodyUsesBraceBlocks,
   braceBlockPathAt,
   braceEntryAt,
+  entryInsideValue,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
@@ -1914,9 +1915,11 @@ export const getCompletions = (
     );
     // In a layout or component block an element is being named: offer what
     // the indented form offers on an element line, its top-level fields.
+    // Inside a value or a quoted string neither runs.
+    const keying = !entryInsideValue(entryBefore);
     if (
+      keying &&
       !braceStructPath &&
-      entryBefore != null &&
       /^\s*[A-Za-z_][\w-]*$/.test(entryBefore)
     ) {
       addStructPropertyNameCompletions(
@@ -1937,8 +1940,8 @@ export const getCompletions = (
       return buildCompletions();
     }
     if (
+      keying &&
       braceStructPath &&
-      entryBefore != null &&
       /^\s*[A-Za-z_$@&>.-]?[\w.%-]*$/.test(entryBefore)
     ) {
       if (braceStructPath.at(-1) === "keyframes") {

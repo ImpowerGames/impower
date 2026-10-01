@@ -91,6 +91,8 @@ export function accept(source: string, item: CompletionItem) {
   return {
     text: text.slice(0, from) + inserted + text.slice(to),
     cursor: from + (stop >= 0 ? stop : inserted.length),
+    /** The document text the item replaces. */
+    replaced: text.slice(from, to),
   };
 }
 

@@ -18,6 +18,7 @@ import {
   MORPH_TIMING_FIELDS,
 } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { entryInsideQuote } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import {
   CompletionItemKind,
   InsertTextFormat,
@@ -155,9 +156,11 @@ export function getMorphCompletions(
   const index = position.line - block.startLine - 1;
   const lineBefore = getLineText(position.line).slice(0, position.character);
   const inBlock = braces?.path != null;
-  // In a block an entry starts after the `{`, `;` or `}` before it; inside a
-  // quoted value nothing is being keyed, so no pattern below matches.
+  // In a block the entry starts after the separator before it
+  // (`braceEntryAt`). Inside a quoted value, in either form, nothing is
+  // offered: a key or value edit there would replace the opening quote.
   const before = inBlock ? (braces!.entry ?? '"') : lineBefore;
+  if (entryInsideQuote(before)) return [];
   const indent = /^[ \t]*/.exec(before)![0].length;
   // A line of blocks sits under the indented keys above it.
   const blockIndex =
