@@ -401,6 +401,20 @@ describe("dotted classes", () => {
     expect(tree.children[0].classes).toEqual(["0"]);
   });
 
+  test("a class written after a space is keyed as a glued one", () => {
+    const glued = `layout hud with\n  choice.0 { text }\n  mask.shadow_1\n  row.a.b:\n    text\nend\n`;
+    const spaced = `layout hud with\n  choice .0 { text }\n  mask .shadow_1\n  row .a .b:\n    text\nend\n`;
+    expect(everything(spaced)).toEqual(everything(glued));
+    expect(Object.keys(lowered(spaced, "layout", "hud").struct)).toEqual(
+      expect.arrayContaining(["choice 0", "mask shadow_1", "row a b"]),
+    );
+    // An attribute or a comment between the name and a class leaves one space.
+    const after = `layout hud with\n  column {\n    image @click=go .b\n    text #w=1 --[[ c ]] .h1 "Hi"\n  }\nend\n`;
+    const before = `layout hud with\n  column {\n    image.b @click=go\n    text.h1 #w=1 "Hi"\n  }\nend\n`;
+    expect(lowered(after, "layout", "hud").struct).toEqual(lowered(before, "layout", "hud").struct);
+    expect(lowered(after, "layout", "hud").struct.column).toEqual({ "image b": {}, "text h1": "Hi" });
+  });
+
   test("an indented `mask.shadow_1` lowers as `mask shadow_1`", () => {
     const dotted = lowered(
       `layout hud with\n  stage:\n    mask.shadow_1\n    choice.0:\n      text\nend\n`,
@@ -796,6 +810,24 @@ end
     expect(foldout.children[0].tag).toBe("text");
   });
 
+  test("`text \"a\" \"b\"` in a block is keyed `text`, as on an indented line", () => {
+    // The indented form reads `name "content" …` as adjacency content, keyed
+    // by the name alone whatever follows the first string.
+    const braced = `layout hud with
+  row { text "a" "b"; text "c" #x=1 "d"; label "e" @click=go }
+end
+`;
+    const indented = `layout hud with
+  row:
+    text "a" "b"
+    text "c" #x=1 "d"
+    label "e" @click=go
+end
+`;
+    expect(everything(braced)).toEqual(everything(indented));
+    expect(lowered(braced, "layout", "hud").struct.row).toEqual({ text: "c", label: "e" });
+  });
+
   test("`name = value` lines inside a block keep their meaning", () => {
     const { tree, struct } = lowered(
       `layout hud with\n  row {\n    image = "black"\n    color = white\n  }\nend\n`,
@@ -1184,9 +1216,10 @@ end
   });
 
   test("the line scan stays linear on long nested lines", () => {
-    // A paren or brace nested past the limits is read by the scan as one more
-    // opener, not by a lookahead over the rest of the line, which took seconds
-    // on these lines. The bound is generous so slow CI stays deterministic.
+    // A paren or brace nested past the limits runs to the end of its line in
+    // one anchored step, rather than through a lookahead over the rest of the
+    // line at every opener, which took seconds on these lines. The bound is
+    // generous so slow CI stays deterministic.
     const grammar = JSON.parse(
       readFileSync(join(__dirname, "../../../language/sparkdown.language-grammar.json"), "utf8"),
     );

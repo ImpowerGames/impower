@@ -193,11 +193,13 @@ function nodesOutsideAttributes(
 // The `.` of each `.name` class in an element's key, outside its attributes.
 // In a layout or component body the static struct keys an element by its tag
 // and classes separated by spaces (`mask.shadow_1` is keyed `mask shadow_1`,
-// as `mask shadow_1` is), because the engine splits struct paths on `.`.
+// as `mask shadow_1` is), because the engine splits struct paths on `.`. A
+// `.` the key already has whitespace before (`choice .0`) is dropped, so
+// the key is `choice 0` either way.
 function classDots(node: SyntaxNode): TextEdit[] {
   return nodesOutsideAttributes(node, CLASS_DOT_NAMES).map((r) => ({
     ...r,
-    text: " ",
+    separator: true,
   }));
 }
 
@@ -224,6 +226,8 @@ interface TextEdit {
   to: number;
   /** What the span reads as; removed when empty. */
   text?: string;
+  /** The span reads as one space, or as nothing after whitespace. */
+  separator?: boolean;
 }
 
 // A node's source text with the given spans replaced (sorted defensively,
@@ -238,9 +242,11 @@ function textExcluding(
   const sorted = [...ranges].sort((a, b) => a.from - b.from);
   let result = "";
   let pos = node.from;
-  for (const { from, to: end, text } of sorted) {
+  for (const { from, to: end, text, separator } of sorted) {
     if (from > pos) result += ctx.read(pos, from);
-    if (from >= pos && text) result += text;
+    if (from >= pos && separator) {
+      if (result && !/\s$/.test(result)) result += " ";
+    } else if (from >= pos && text) result += text;
     pos = Math.max(pos, end);
   }
   if (to > pos) result += ctx.read(pos, to);
@@ -264,6 +270,10 @@ export function parseStructBody(
   // A bare body (top-level array) is unusual for UI; coerce to object.
   return Array.isArray(result) ? { ...result } : result;
 }
+
+// The name `LuauStructAdjacencyContent` reads before its content string
+// (`STYLE_PROPERTY_NAME` in the grammar).
+const STYLE_PROPERTY_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
 
 // Comments in an element's head, which are no part of its key.
 const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
@@ -297,7 +307,7 @@ function evaluateElement(
       ]
     : [];
   if (entry.kind === "header") {
-    const key = textExcluding(element, ctx, edits, end).trim();
+    const key = oneSpace(textExcluding(element, ctx, edits, end));
     obj[key] = entry.children ? evaluate(entry.children, ctx, elementKeys) : {};
     return;
   }
@@ -306,8 +316,25 @@ function evaluateElement(
   // (`loading_fill #transform="scaleX({p})"` is keyed `loading_fill` with
   // that string).
   const valueNode = head ? firstDescendant(head, FIELD_VALUE_NAMES) : null;
+  // An indented `name "content" …` line is adjacency content
+  // (`LuauStructAdjacencyContent`): keyed by its name alone and valued by
+  // that first string, whatever follows it (`text "a" "b"` is `text: "a"`).
+  // The same element in a block is keyed alike.
+  const { name, args } = sparkleElementParts(element);
+  if (name && head && valueNode && !args) {
+    const tag = ctx.read(name.from, name.to);
+    const between = ctx.read(name.to, valueNode.from);
+    if (
+      STYLE_PROPERTY_NAME_RE.test(tag) &&
+      /^[^\S\n\r]+$/.test(between) &&
+      ctx.read(valueNode.from, valueNode.from + 1) === '"'
+    ) {
+      obj[tag] = parseScalar(readValue(valueNode, ctx));
+      return;
+    }
+  }
   if (valueNode) edits.push({ from: valueNode.from, to: valueNode.to });
-  const key = textExcluding(element, ctx, edits, end).trim();
+  const key = oneSpace(textExcluding(element, ctx, edits, end));
   if (!key) return;
   obj[key] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
 }
@@ -390,8 +417,9 @@ function evaluate(
             ])
           : textWithoutAttributes(shape, ctx, elementKeys)
       ).trim();
-      if (marker) {
-        obj[marker] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
+      const key = elementKeys ? oneSpace(marker) : marker;
+      if (key) {
+        obj[key] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
       }
     }
   }
@@ -406,10 +434,38 @@ function headerKey(
   ctx: LowerContext,
   elementKeys: boolean,
 ): string {
-  return textWithoutAttributes(shape, ctx, elementKeys)
+  const key = textWithoutAttributes(shape, ctx, elementKeys)
     .trim()
     .replace(/:\s*$/, "")
     .trim();
+  return elementKeys ? oneSpace(key) : key;
+}
+
+// An element's key in a layout or component body with each run of spaces and
+// tabs outside a quoted run read as one space, and trimmed, so removing an
+// attribute, a comment or a class's `.` never leaves two spaces between its
+// parts (`image @click=go .b` and `choice .0` are keyed `image b` and
+// `choice 0`, as `image.b @click=go` and `choice.0` are). The engine splits
+// element keys on single spaces.
+function oneSpace(key: string): string {
+  let out = "";
+  let quote = "";
+  for (let i = 0; i < key.length; i++) {
+    const c = key[i]!;
+    if (quote) {
+      out += c;
+      if (c === "\\" && i + 1 < key.length) out += key[++i];
+      else if (c === quote) quote = "";
+    } else if (c === '"' || c === "'") {
+      quote = c;
+      out += c;
+    } else if (c === " " || c === "\t") {
+      if (!out.endsWith(" ")) out += " ";
+    } else {
+      out += c;
+    }
+  }
+  return out.trim();
 }
 
 // Read a value node's text. Interpolation-aware content strings and plain
