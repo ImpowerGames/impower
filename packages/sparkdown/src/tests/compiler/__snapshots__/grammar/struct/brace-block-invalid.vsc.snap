@@ -211,11 +211,10 @@ text.source.sparkdown [0..673]
  │   ├─ punctuation.whitespace.sd [342..343]: " "
  │   └─ invalid.illegal.struct-block-close.sd [343..344]: "}"
  ├─ Newline [344..345]: "\n"
- ├─ meta.theme.luau [345..348]
+ ├─ meta.theme.luau [345..378]
  │   ├─ punctuation.whitespace.sd [345..347]: "  "
- │   └─ keyword.other.selector.operator.sd [347..348]: "&"
- ├─ meta.theme.luau [348..349]: "."
- ├─ meta.theme.luau [349..378]
+ │   ├─ keyword.other.selector.operator.sd [347..348]: "&"
+ │   ├─ punctuation.definition.class.sd [348..349]: "."
  │   ├─ entity.name.type.class.view.sd [349..360]: "card--large"
  │   ├─ punctuation.whitespace.sd [360..361]: " "
  │   ├─ punctuation.definition.template-expression.begin.sd [361..362]: "{"

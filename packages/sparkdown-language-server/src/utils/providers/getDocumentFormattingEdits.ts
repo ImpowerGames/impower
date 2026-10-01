@@ -582,7 +582,8 @@ export const getFormatting = (
             (n) =>
               n &&
               (n.name === "LuauStructBlockBody" ||
-                n.name === "LuauStructListBlock"),
+                n.name === "LuauStructListBlock" ||
+                n.name === "LuauSparkleElementBlock"),
           )
         ) {
           return;

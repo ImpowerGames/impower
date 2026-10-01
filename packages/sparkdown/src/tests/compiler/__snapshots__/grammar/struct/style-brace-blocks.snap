@@ -63,8 +63,11 @@ sparkdown [0..352]
  │   │   │   │       │   │   └─ LuauStructBlockKey [39..50]
  │   │   │   │       │   │       └─ LuauStructBlockKey_c1 [39..50]
  │   │   │   │       │   │           ├─ SelectorOperator [39..40]: "&"
- │   │   │   │       │   │           ├─ LuauStructBlockKeyChar [40..41]: "."
- │   │   │   │       │   │           └─ CustomComponentName [41..50]: "secondary"
+ │   │   │   │       │   │           └─ LuauSparkleElementClass [40..50]
+ │   │   │   │       │   │               ├─ LuauSparkleElementClass_c1 [40..41]
+ │   │   │   │       │   │               │   └─ LuauSparkleClassDot [40..41]: "."
+ │   │   │   │       │   │               └─ LuauSparkleElementClass_c2 [41..50]
+ │   │   │   │       │   │                   └─ LuauSparkleClassName [41..50]: "secondary"
  │   │   │   │       │   └─ LuauStructBlock_begin_c2 [50..51]
  │   │   │   │       │       └─ Whitespace [50..51]: " "
  │   │   │   │       ├─ LuauStructBlock_content [51..82]
@@ -114,8 +117,11 @@ sparkdown [0..352]
  │   │   │   │       │   │           ├─ SelectorOperator [85..86]: ">"
  │   │   │   │       │   │           ├─ RequiredWhitespace [86..87]: " "
  │   │   │   │       │   │           ├─ BuiltinComponentName [87..91]: "text"
- │   │   │   │       │   │           ├─ LuauStructBlockKeyChar [91..92]: "."
- │   │   │   │       │   │           └─ BuiltinComponentName [92..97]: "label"
+ │   │   │   │       │   │           └─ LuauSparkleElementClass [91..97]
+ │   │   │   │       │   │               ├─ LuauSparkleElementClass_c1 [91..92]
+ │   │   │   │       │   │               │   └─ LuauSparkleClassDot [91..92]: "."
+ │   │   │   │       │   │               └─ LuauSparkleElementClass_c2 [92..97]
+ │   │   │   │       │   │                   └─ LuauSparkleClassName [92..97]: "label"
  │   │   │   │       │   └─ LuauStructBlock_begin_c2 [97..100]
  │   │   │   │       │       └─ AssignEqualOperator [97..100]
  │   │   │   │       │           ├─ AssignEqualOperator_c1 [97..98]
