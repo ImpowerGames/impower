@@ -8,12 +8,12 @@
 //
 // It also runs randomized incremental edits on the statement chunks, as
 // `incrementalEquivalence` and `incrementalCumulativeEquivalence` run them on
-// the current compile, over three screenplays made of the constructs the
-// writer emits, one of display lines, one of logic and one of functions: after
-// each edit, the chunks
-// compared by content, the flows and the diagnostics equal a cold compile's,
-// and every chunk of a statement the edit did not touch is the chunk it was
-// before.
+// the current compile, over four screenplays made of the constructs the
+// writer emits, one of display lines, one of logic, one of functions and one
+// of functions that capture the locals around them: after each edit, the
+// chunks compared by content, the flows and the diagnostics equal a cold
+// compile's, and every chunk of a statement the edit did not touch is the
+// chunk it was before.
 //
 // It is kept out of the ordinary suite (`vitest.config.ts`) and runs alone:
 //   SPARKDOWN_DIFFERENTIAL=1 node scripts/test-suite.mjs run packages/sparkdown src/tests/differential/programDifferential.test.ts --wait 900
@@ -31,6 +31,8 @@ import { Op } from "../../program/ProgramInstructions";
 import { ProgramStory } from "../../program/ProgramStory";
 import { cumulativeEdits } from "../program/cumulativeEdits";
 import {
+  CAPTURE_INSERTS,
+  captureScreenplay,
   FUNCTION_INSERTS,
   functionScreenplay,
 } from "../program/functionScreenplay";
@@ -223,6 +225,7 @@ const SCREENPLAYS = [
   { name: "the display screenplay", text: displayScreenplay, inserts: INSERTS },
   { name: "the logic screenplay", text: () => logicScreenplay(3), inserts: LOGIC_INSERTS },
   { name: "the function screenplay", text: () => functionScreenplay(3), inserts: FUNCTION_INSERTS },
+  { name: "the capture screenplay", text: () => captureScreenplay(3), inserts: CAPTURE_INSERTS },
 ];
 
 describe("the differential run", () => {
@@ -252,7 +255,7 @@ describe("the differential run", () => {
   it("shows the beats fixture and the screenplays as the current engine does", () => {
     const { files } = buildBeatsFixture({ lines: 300 });
     const beats = files.get("main.sd")!.replace("include scripts/characters\n", "");
-    for (const text of [beats, displayScreenplay(), logicScreenplay(3), functionScreenplay(3)]) {
+    for (const text of [beats, displayScreenplay(), logicScreenplay(3), functionScreenplay(3), captureScreenplay(3)]) {
       const quiet = silence();
       try {
         const scenes = [...text.matchAll(/^scene (\w+)/gm)].map((m) => m[1]!);

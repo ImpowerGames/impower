@@ -10,12 +10,18 @@
 // builtin through a value, the functions `pcall` and a metamethod call, and a
 // function the host evaluates. Each case notes the line Luau shows, but a
 // builtin through a value that raises is compared with the direct call of its
-// builtin.
+// builtin. A story compiled before calls recorded their argument count still
+// shows what it showed then.
 import "../../inkjs/engine/Container";
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { Story } from "../../inkjs/engine/Story";
 import { ProgramStory } from "../../program/ProgramStory";
 import { compileScript, storyBeats } from "./programHarness";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // Functions the cases call: of one parameter, of two, a `__call` handler,
 // variadic (`vf` counts the values of the first value its `...` holds), with
@@ -388,5 +394,24 @@ describe("a function a host evaluates (`EvaluateFunction`)", () => {
         result,
       ]);
     }
+  });
+});
+
+describe("a story compiled before calls recorded their argument count", () => {
+  it("shows what it showed then", () => {
+    // Compiled at `writtenBy` from `source`, and run by the engine there to
+    // show `shows`. Its calls record no argument count: a call to a variadic
+    // function packs the values past its parameters where it calls it, and a
+    // call whose last argument returns several values spreads them.
+    const fixture = JSON.parse(
+      readFileSync(join(__dirname, "fixtures", "story-before-argc.json"), "utf8"),
+    );
+    const json = JSON.stringify(fixture.story);
+    expect(json).not.toContain("\"argc\"");
+    expect(json).toContain("1,2,3,\"pack:2\",{\"f()\":\"v1\"}");
+    expect(json).toContain("{\"f()\":\"g2\"},{\"f()\":\"f2\"}");
+    const { beats, errors } = storyBeats(new Story(fixture.story));
+    expect(beats.map((beat) => beat.text.trim())).toEqual(fixture.shows);
+    expect(errors).toEqual([]);
   });
 });

@@ -85,3 +85,58 @@ export const FUNCTION_INSERTS = [
   "\ndo\n  function inner()\n    return 2\n  end\nend\n",
   "-- c",
 ];
+
+// A screenplay of functions whose bodies read the locals of the function that
+// writes them, each body on lines of its own, so an edit inside a body can
+// change what the function captures without touching the statement that
+// writes it: a closure, a local function that calls itself, and a function
+// declared with `...` called by name. Each scene ends with `done`.
+export function captureScreenplay(scenes = 3): string {
+  const L: string[] = [];
+  for (let s = 0; s < scenes; s++) {
+    L.push(`scene CAPTURE_${s}`);
+    L.push(`  The room ${s} is quiet.`);
+    L.push(`  Captured {capture(${s})}.`);
+    L.push("  done");
+    L.push("end");
+    L.push("");
+  }
+  L.push(
+    "function capture(n)",
+    "  local base = n",
+    "  local step = 2",
+    "  local add = function(x)",
+    "    return x + base",
+    "  end",
+    "  local function scale(k)",
+    "    if k > 1 then",
+    "      return scale(k - 1) * step",
+    "    end",
+    "    return step",
+    "  end",
+    "  function total(...)",
+    "    return base + select(\"#\", ...)",
+    "  end",
+    "  return add(1) + scale(2) + total(1, 2)",
+    "end",
+    "",
+  );
+  return L.join("\n");
+}
+
+// Edits the capture fuzz inserts: names a body reads, locals that hide them,
+// and fragments that change a name or the lines around it.
+export const CAPTURE_INSERTS = [
+  "x",
+  "1",
+  " + step",
+  " + base",
+  "\n    local base = 0\n",
+  "\n    local step = 3\n",
+  "\n",
+  " ",
+  "return ",
+  "end\n",
+  "local ",
+  "-- c",
+];
