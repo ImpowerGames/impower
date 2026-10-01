@@ -2,22 +2,26 @@
 // errors (#1284, the first check of #1283).
 //
 // For every Luau fixture, the document is compiled with `SparkdownCompiler`
-// and its syntax errors are collected; its Luau is extracted into units as
-// the type checker extracts it (`sparkdownUnits`), and each unit's text is
-// parsed with the TypeScript port of Luau's parser (`parseLuau`). Where
-// Sparkdown reports no syntax error the parser must report none, and where
-// Sparkdown reports one the parser must report at least one.
+// and its syntax errors are collected, and the fixture's Luau is parsed with
+// the TypeScript port of Luau's parser (`parseLuau`). Where Sparkdown reports
+// no syntax error the parser must report none, and where Sparkdown reports one
+// the parser must report at least one.
 //
 // The inputs are found, not listed, so a fixture added under either directory
 // is checked without editing this file:
 // - the `.sd` grammar fixtures under `__snapshots__/grammar/luau-*/`, compiled
-//   as they are;
+//   as they are. They mix Luau with Sparkdown's own syntax, so their Luau is
+//   what the type checker extracts from the compiled tree (`sparkdownUnits`),
+//   and the parser reads each unit's text;
 // - the upstream conformance files under
 //   `../luau-conformance/upstream/conformance/`, read and wrapped as the
 //   conformance harness reads and wraps them (`applyUpstreamPatches`, then
 //   `wrapConformanceSource`). The patches stand in for Sparkdown's documented
 //   divergences from Luau, such as `"..."` interpolating (DIVERGENCES.md), and
-//   for code that needs a runtime compiler.
+//   for code that needs a runtime compiler. These files are Luau as written,
+//   so the parser reads the patched file itself in the function the harness
+//   wraps it in, not text taken from Sparkdown's tree: a token the tree loses
+//   would otherwise vanish from both readings and hide the disagreement.
 //
 // `KNOWN_DISAGREEMENTS` names the inputs on which the two disagree, each with
 // the open issue that explains it. An input on the list must still disagree,
@@ -72,6 +76,16 @@ const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
     reason: "Sparkdown only: `local newproxy, ... =` with its values on the next line",
   },
   {
+    fixture: "conformance/integers.luau",
+    issue: 1309,
+    reason: "Sparkdown only: each integer literal (`123i`) is a malformed number",
+  },
+  {
+    fixture: "conformance/integers_regspill.luau",
+    issue: 1309,
+    reason: "Sparkdown only: each integer literal (`1i`) is a malformed number",
+  },
+  {
     fixture: "conformance/native_integer_spills.luau",
     issue: 1306,
     reason: "Sparkdown only: `local x0, ..., x7 =` with its values on the next line",
@@ -100,7 +114,18 @@ const NOT_SYNTAX: RegExp[] = [
 
 interface Input {
   name: string;
+  /** The document Sparkdown compiles. */
   text: string;
+  /** The Luau the document holds, when it is Luau as written; otherwise the parser reads the units extracted from the tree. */
+  luau?: string;
+}
+
+// A conformance file's Luau as the harness runs it: the body of `run`, which
+// takes no parameters, so a `...` in the file is Luau's error there as it is
+// Sparkdown's. Line N of the file is line N of this text (0-based), after the
+// `function run()` line.
+function conformanceLuau(source: string): string {
+  return `function run()\n${source}\nend\n`;
 }
 
 function inputs(): Input[] {
@@ -113,7 +138,7 @@ function inputs(): Input[] {
   if (existsSync(CONFORMANCE_ROOT)) {
     for (const file of readdirSync(CONFORMANCE_ROOT).filter((f) => f.endsWith(".luau")).sort()) {
       const source = applyUpstreamPatches(file, readFileSync(join(CONFORMANCE_ROOT, file), "utf8"));
-      found.push({ name: `conformance/${file}`, text: wrapConformanceSource(source) });
+      found.push({ name: `conformance/${file}`, text: wrapConformanceSource(source), luau: conformanceLuau(source) });
     }
   }
   return found;
@@ -123,8 +148,13 @@ function messageOf(d: SparkDiagnostic): string {
   return typeof d.message === "string" ? d.message : d.message.value;
 }
 
-/** Sparkdown's syntax errors and the parser's errors over the input's units, each as `line:character message` (0-based document lines). */
-function readings(text: string): { sparkdown: string[]; luau: string[] } {
+/**
+ * Sparkdown's syntax errors, as `line:character message` in 0-based document
+ * lines, and the parser's errors over the input's Luau, as `fixture line N`
+ * for a conformance file or `line (unit) message` in document lines for a
+ * unit.
+ */
+function readings({ text, luau: source }: Input): { sparkdown: string[]; luau: string[] } {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
@@ -133,6 +163,10 @@ function readings(text: string): { sparkdown: string[]; luau: string[] } {
   const sparkdown = (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === DiagnosticSeverity.Error && !NOT_SYNTAX.some((pattern) => pattern.test(messageOf(d))))
     .map((d) => `${d.range.start.line}:${d.range.start.character} ${messageOf(d)}`);
+  if (source !== undefined) {
+    const luau = parseLuau(source).errors.map((error) => `fixture line ${error.location.begin.line}:${error.location.begin.column} ${error.message}`);
+    return { sparkdown, luau };
+  }
   const tree = compiler.documents.tree(URI);
   if (!tree) throw new Error("The compiler kept no syntax tree for the document");
   const units = sparkdownUnits(tree, text);
@@ -160,7 +194,7 @@ describe("Sparkdown and Luau's parser agree on which Luau inputs have syntax err
 
   for (const input of ALL_INPUTS) {
     test(input.name, () => {
-      const { sparkdown, luau } = readings(input.text);
+      const { sparkdown, luau } = readings(input);
       const report = [
         `Sparkdown's syntax errors: ${sparkdown.length ? `\n  ${sparkdown.join("\n  ")}` : "none"}`,
         `Luau's parse errors: ${luau.length ? `\n  ${luau.join("\n  ")}` : "none"}`,
