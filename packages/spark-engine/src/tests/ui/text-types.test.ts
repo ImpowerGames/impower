@@ -11,14 +11,18 @@ import { describe, expect, test } from "vitest";
 import { createHarness, flushMicrotasks } from "./harness/uiTestHarness";
 
 const SCREEN = `layout main with
-  title:
+  title {
     text
-  heading:
+  }
+  heading {
     text
-  transitional:
+  }
+  transitional {
     text
-  action:
+  }
+  action {
     text
+  }
 end
 `;
 

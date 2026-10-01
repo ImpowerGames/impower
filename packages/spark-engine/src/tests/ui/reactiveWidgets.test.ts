@@ -36,10 +36,11 @@ end
     const h = createHarness(
       `store difficulty = "normal"
 layout form with
-  dropdown #value={difficulty} @change={ difficulty = event.value }:
+  dropdown #value={difficulty} @change={ difficulty = event.value } {
     option "Easy" #value="easy"
     option "Normal" #value="normal"
     option "Hard" #value="hard"
+  }
 end
 `,
       0,
@@ -54,9 +55,10 @@ end
     const h = createHarness(
       `store difficulty = "hard"
 layout form with
-  dropdown #value={difficulty}:
+  dropdown #value={difficulty} {
     option "Easy" #value="easy"
     option "Hard" #value="hard"
+  }
 end
 `,
       0,
@@ -77,9 +79,10 @@ end
     const h = createHarness(
       `store difficulty = "normal"
 layout form with
-  dropdown #value={difficulty} @change={ difficulty = event.value }:
+  dropdown #value={difficulty} @change={ difficulty = event.value } {
     option "Easy" #value="easy"
     option "Hard" #value="hard"
+  }
 end
 `,
       0,
@@ -96,9 +99,10 @@ end
     const h = createHarness(
       `store choice = "Banana"
 layout form with
-  dropdown #value={choice}:
+  dropdown #value={choice} {
     option "Apple"
     option "Banana"
+  }
 end
 `,
       0,
@@ -115,9 +119,10 @@ end
       `store label = "Apple"
 store choice = "Apple"
 layout form with
-  dropdown #value={choice}:
+  dropdown #value={choice} {
     option "{label}"
     option "Banana"
+  }
 end
 `,
       0,

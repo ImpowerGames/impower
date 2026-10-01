@@ -39,7 +39,7 @@ describe("preview a UI-only reactive layout emits no ink flow error", () => {
   test("text interpolation in a nested column", async () => {
     await previewClean(
       "text",
-      `store hp = 5\nlayout main with\n  column #child-gap=8:\n    text "HP: {hp}"\n    button "Go"\nend\n`,
+      `store hp = 5\nlayout main with\n  column #child-gap=8 {\n    text "HP: {hp}"\n    button "Go"\n  }\nend\n`,
     );
   });
 });

@@ -20,14 +20,19 @@ const SCREEN = `define HERO as character with
 end
 
 layout main with
-  textbox:
-    character_info:
-      character_name:
+  textbox {
+    character_info {
+      character_name {
         text
-      character_parenthetical:
+      }
+      character_parenthetical {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       text
+    }
+  }
 end
 `;
 

@@ -22,9 +22,11 @@ describe("navigate never closes `main`", () => {
   // mid-session. `saveLayoutState.recordOpen` already spared `main`; the
   // runtime path had forgotten the same invariant.
   const SOURCE = `layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 layout menu with
   text "Menu"
@@ -65,9 +67,11 @@ describe("close and open of the SAME layout in one beat", () => {
   // passes either way. That is exactly why this is a live-only defect — every
   // fast path hides it.
   const SOURCE = `layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 layout hud with
   text "HUD"
@@ -105,9 +109,11 @@ describe("navigate is a barrier across DIFFERENT layout names", () => {
   // group's await chain had progressed (#370). Navigate now runs as a
   // barrier, so the outcome is deterministic in authored order.
   const SOURCE = `layout main with
-  textbox:
-    dialogue:
+  textbox {
+    dialogue {
       text
+    }
+  }
 end
 layout hud with
   text "HUD"

@@ -39,19 +39,27 @@ define b as image with
 end
 
 layout main with
-  stage:
-    portrait:
+  stage {
+    portrait {
       image
-  textbox:
-    character_info:
-      character_name:
+    }
+  }
+  textbox {
+    character_info {
+      character_name {
         text
-      character_parenthetical:
+      }
+      character_parenthetical {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       text
-    action:
+    }
+    action {
       text
+    }
+  }
 end
 `;
 

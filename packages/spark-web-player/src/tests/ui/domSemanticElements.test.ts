@@ -36,11 +36,13 @@ end
 
   test("lists render as real ul/ol/li", async () => {
     const h = await render(`layout main with
-  list:
+  list {
     item "Alpha"
     item "Beta"
-  ordered_list:
+  }
+  ordered_list {
     item "First"
+  }
 end
 `);
     const ul = h.overlay.querySelector("ul");
@@ -56,25 +58,26 @@ end
 
   test("quote/citation are tags; inline styling is CLASSES, not tags", async () => {
     const h = await render(`layout main with
-  quote:
+  quote {
     text "Quoted."
     citation "- Someone"
+  }
   strong "important"
   emphasis "stressed"
-  text bold "bold"
-  text italic "italic"
-  text underline "u"
-  text strikethrough "s"
-  text code "x = 1"
-  text kbd "Ctrl"
+  text.bold "bold"
+  text.italic "italic"
+  text.underline "u"
+  text.strikethrough "s"
+  text.code "x = 1"
+  text.kbd "Ctrl"
   kbd "Esc"
   h2 "Heading"
   small "fine print"
   paragraph "Prose."
-  text highlight "highlit"
-  text deleted "gone"
-  text inserted "added"
-  text abbreviation "HTML"
+  text.highlight "highlit"
+  text.deleted "gone"
+  text.inserted "added"
+  text.abbreviation "HTML"
 end
 `);
     // Structural text elements keep real tags.
@@ -148,18 +151,23 @@ end
 
   test("structure builtins render as their tags", async () => {
     const h = await render(`layout main with
-  article:
+  article {
     header "Title"
     text "Body"
     footer "Foot"
-  section:
+  }
+  section {
     text "In a section"
-  form:
-    fieldset:
+  }
+  form {
+    fieldset {
       legend "Choose"
       input #value="x"
-  foldout "More":
+    }
+  }
+  foldout "More" {
     text "Hidden detail"
+  }
 end
 `);
     for (const tag of [
@@ -181,18 +189,24 @@ end
 
   test("tables render as a real table with direct-child rows and cells", async () => {
     const h = await render(`layout main with
-  table:
-    table_header:
-      table_row:
+  table {
+    table_header {
+      table_row {
         head "Name"
         head "Qty"
-    table_body:
-      table_row:
+      }
+    }
+    table_body {
+      table_row {
         cell "Sword"
         cell "1"
-      table_row:
+      }
+      table_row {
         cell "Potion"
         cell "3"
+      }
+    }
+  }
 end
 `);
     const table = h.overlay.querySelector("table");
@@ -208,9 +222,10 @@ end
 
   test("style-class names are NOT promoted to tags (no bogus warning path)", async () => {
     const h = await render(`layout main with
-  text small "Small print"
-  row nav #child-gap=8:
+  text.small "Small print"
+  row.nav #child-gap=8 {
     link "Home"
+  }
 end
 `);
     // `small` stayed a class on a text div, not a <small> element.
@@ -225,11 +240,13 @@ end
 
   test("the new semantic builtins ship default styles", async () => {
     const h = await render(`layout main with
-  list:
+  list {
     item "x"
-  quote:
+  }
+  quote {
     text "q"
-  text code "c"
+  }
+  text.code "c"
 end
 `);
     const css = [...h.overlay.querySelectorAll("style")]

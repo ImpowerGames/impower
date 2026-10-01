@@ -25,10 +25,11 @@ describe("preview of a UI-only layout reveals it in the player DOM", () => {
     // authored container outright and wiped its text children.
     const src = `store hp = 5
 layout main with
-  column #child-gap=8 #padding=24:
-    text h1 "Sparkle x Pico"
+  column #child-gap=8 #padding=24 {
+    text.h1 "Sparkle x Pico"
     text "HP: {hp}"
     button "Go"
+  }
 end
 `;
     const h = createDOMHarness(src, 0, { autoOpenAll: true });

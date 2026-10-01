@@ -26,9 +26,10 @@ function hit()
 end
 
 layout main with
-  column:
+  column {
     text "HP: {hp}"
     button "Hit" @click=hit
+  }
 end
 
 -> start

@@ -58,13 +58,15 @@ end
   test("default slot projects the caller's children", async () => {
     const h = createHarness(
       `component card(title) with
-  box:
+  box {
     text "{title}"
     slot
+  }
 end
 layout main with
-  card("Inventory"):
+  card("Inventory") {
     text "body content"
+  }
 end
 `,
       0,
@@ -80,15 +82,18 @@ end
   test("named slot projects a matching `fill`", async () => {
     const h = createHarness(
       `component panel with
-  box:
+  box {
     slot
     slot footer
+  }
 end
 layout main with
-  panel:
+  panel {
     text "main body"
-    fill footer:
+    fill footer {
       text "footer body"
+    }
+  }
 end
 `,
       0,

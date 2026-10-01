@@ -22,8 +22,9 @@ describe("single-quoted element content", () => {
     const h = await render(
       [
         "layout main with",
-        "  column:",
+        "  column {",
         `    text '"Maecenas vehicula metus tellus."'`,
+        "  }",
         "end",
       ].join("\n"),
     );
@@ -39,7 +40,7 @@ describe("single-quoted element content", () => {
   // visible, and so it flips to green if display parsing moves to compile time.
   test.skip("is literal — braces survive (runtime display parse still eats them)", async () => {
     const h = await render(
-      ["layout main with", "  column:", `    text '{x {y} z}'`, "end"].join(
+      ["layout main with", "  column {", `    text '{x {y} z}'`, "  }", "end"].join(
         "\n",
       ),
     );
@@ -51,8 +52,9 @@ describe("single-quoted element content", () => {
       [
         "store who = \"world\"",
         "layout main with",
-        "  column:",
+        "  column {",
         '    text "hello {who}"',
+        "  }",
         "end",
       ].join("\n"),
     );
