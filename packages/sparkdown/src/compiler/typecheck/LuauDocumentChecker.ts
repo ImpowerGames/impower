@@ -599,7 +599,7 @@ export function checkLuauUnit(frontend: Frontend, name: string, unit: LuauUnit, 
     root: parsed.root ?? new AstStatBlock(new Location(new Position(0, 0), new Position(0, 0)), []),
     mode: parseMode(hotcomments),
     hotcomments,
-    parseErrors: parsed.errors.map((e) => new LuauTypeError(e.location, { kind: "SyntaxError", message: e.message }, name)),
+    parseErrors: parsed.errors.map((e) => new LuauTypeError(e.location, { kind: "SyntaxError", message: e.message, ...(e.follows && { follows: e.follows }) }, name)),
   };
   const result = frontend.checkSourceModule(sourceModule, defaultMode, environmentScope);
   const mode = sourceModule.mode ?? defaultMode;

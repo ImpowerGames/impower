@@ -21,6 +21,25 @@ function luauFirstError(source: string): string[] {
   return [`${begin.line}:${begin.column}-${end.line}:${end.column} ${error.message}`];
 }
 
+// Sparkdown's own messages, which Luau does not have: a hint after its
+// message, and a `store` value's rule.
+const SPARKDOWN_ONLY = /\n> |^A variable must be initialized/;
+
+/**
+ * Asserts that each of a function's expected errors in Luau's words is one
+ * Luau's parser reports on the same text, at the same range (a `store` read
+ * as the `local` of the same length), so a hand-written expectation is never
+ * an error Luau does not have.
+ */
+function expectLuauReports(source: string, messages: readonly string[]) {
+  const luau = parseLuau(source.replace(/\bstore /g, "local ")).errors.map(
+    ({ location: { begin, end }, message }) => `${begin.line}:${begin.column}-${end.line}:${end.column} ${message}`,
+  );
+  for (const message of messages) {
+    if (!SPARKDOWN_ONLY.test(message.slice(message.indexOf(" ") + 1))) expect(luau).toContain(message);
+  }
+}
+
 const URI = "inmemory:///main.sd";
 
 /** A `.sd` document's errors, as `line:character-line:character message`, and its functions' spans. */
@@ -267,11 +286,28 @@ describe("the reported layouts", () => {
     ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],
     // Only a keyword is read as the name; a `;` still ends the statement.
     ["function f(t)\n  t.a.; x = 1 +;\nend", ["1:6-1:7 Expected identifier, got ';'", "1:15-1:16 Expected identifier when parsing expression, got ';'"]],
+    // Round 4: a statement that begins where the parser resumed after a
+    // recovery's error is the author's own, and so are its errors.
+    ["function f(t)\n  t.a.return x = 2 +;\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:21 Expected identifier when parsing expression, got ';'"]],
+    ["function f(t)\n  t.a.return if 1 + then end\nend", ["1:6-1:12 Expected identifier, got 'return'", "1:20-1:24 Expected identifier when parsing expression, got 'then'"]],
+    ["function f(t)\n  x + function() end\nend", [
+      "1:2-1:3 Incomplete statement: expected assignment or a function call",
+      "1:14-1:15 Expected identifier when parsing function name, got '('",
+    ]],
+    // Every bracket the first error stands in, nested or not, is read up to
+    // the outermost one's closer.
+    ["function f(t)\n  print((1 + local y = 2)\n  )\nend", ["1:13-1:18 Expected identifier when parsing expression, got 'local'"]],
+    ["function f(t)\n  print({1 + local y = 2}\n  )\nend", ["1:13-1:18 Expected identifier when parsing expression, got 'local'"]],
+    ["function f(t)\n  print((1 + local y = 2)) local z = 3 +;\nend", [
+      "1:13-1:18 Expected identifier when parsing expression, got 'local'",
+      "1:40-1:41 Expected identifier when parsing expression, got ';'",
+    ]],
   ])("%j reports %j", (source, messages) => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
     if (source.startsWith("function")) {
       expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
+      expectLuauReports(source, messages);
     }
   });
 
@@ -306,8 +342,6 @@ describe("the reported layouts", () => {
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
     // Round 3: a line break inside a comment ends the line too.
     ["function f(t)\n  store x = 0xZ --[[\n  ]] 2\nend", ["1:12-1:15 Malformed number", "2:5-2:6 Expected identifier when parsing expression, got '2'"]],
-    // The validator's error at a statement keyword begins the next
-    // statement, whose own error is reported too.
     // A keyword on the line after a `.` with no name begins a statement.
     ["function f(t)\n  store x = t.a.\n  return 1 +;\nend", [
       "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
@@ -319,6 +353,8 @@ describe("the reported layouts", () => {
       "2:10-2:16 Expected identifier, got 'return'",
       "2:20-2:21 Expected identifier when parsing expression, got ';'",
     ]],
+    // The validator's error at a statement keyword begins the next
+    // statement, whose own error is reported too.
     ["function f(t)\n  store x = 1 +\n  local y = 2 +;\nend", [
       "2:2-2:7 Expected identifier when parsing expression, got 'local'",
       "2:15-2:16 Expected identifier when parsing expression, got ';'",
@@ -326,6 +362,7 @@ describe("the reported layouts", () => {
     ["-> s\nscene s\n  if then\n    Hi.\n  end\nend", ["2:5-2:9 Expected identifier when parsing expression, got 'then'"]],
   ])("in a Sparkdown document, %j reports %j", (source, messages) => {
     expect(compileDocument(`${source}\n`).errors).toEqual(messages);
+    if (source.startsWith("function")) expectLuauReports(source, messages);
   });
 
   // #1144 and #1148 at runtime: the story reports the error and a named
