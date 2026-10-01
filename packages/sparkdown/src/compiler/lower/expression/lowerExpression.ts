@@ -60,6 +60,7 @@ import { syntheticId } from "../utils/documentTag";
 import {
   endsInTypeName,
   expandLineContinuations,
+  isCallArgumentNode,
   isLineContinuation,
   reportExtraTypeQualifiers,
   reportUntakenLineContinuation,
@@ -2905,14 +2906,7 @@ function readFunctionCallName(
 
 
 function isCallSugarArg(node: SyntaxNode): boolean {
-  const k = node.name;
-  return (
-    k === "LuauTable" ||
-    k === "LuauDoubleQuotedString" ||
-    k === "LuauSingleQuotedString" ||
-    k === "LuauMultilineString" ||
-    k === "LuauInterpolatedString"
-  );
+  return isCallArgumentNode(node);
 }
 
 function isSkippableName(name: string): boolean {

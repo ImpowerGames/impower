@@ -422,9 +422,26 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual(["The story resumes here.\n"]);
   });
 
-  it("reports a string after a declaration with no value", () => {
-    const source = 'function note()\n  local x\n  "This is not a statement"\n  return 1\nend\n';
-    expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+  it.each(["local x", "local x: typeof({ k = 1 })"])(
+    "reports a string after a declaration with no value (%s)",
+    (declaration) => {
+      const source = `function note()\n  ${declaration}\n  "This is not a statement"\n  return 1\nend\n`;
+      expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+    },
+  );
+
+  it("reports the lines of a type function's body that are not statements", () => {
+    const source =
+      'type function example(t)\n  Hello\n  1 + 2\n  "This is not a statement"\n  return t\nend\nAfter the function.\n';
+    expect(errorsOf(source)[0]).toEqual(luauFirstError(source.replace("After the function.\n", "")));
+    expect(errorsOf(source).map((d) => d.start!.line)).toEqual([1, 2, 3]);
+    expect(playedLines(source)).toEqual(["After the function.\n"]);
+  });
+
+  it("reports nothing for a type function body of Luau statements", () => {
+    const source =
+      'type function example(t)\n  local x = t\n  local y =\n    x\n  print\n    "a"\n  return y\nend\n';
+    expect(errorsOf(source)).toEqual([]);
   });
 
   it("gives a define property the value on the line after its `=`, as on one line", () => {
@@ -449,6 +466,11 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
       }),
     ]);
     expect(playedLines(source)).toEqual(["After it.\n"]);
+  });
+
+  it("reports nothing for a call or assignment Luau reads in a define body before its `end`", () => {
+    const source = 'define foo as object with\n  name = "Orion"\n  print("x")\n  t.a = 1\nend\n';
+    expect(errorsOf(source).filter((d) => /^Expected|^Incomplete/.test(d.message))).toEqual([]);
   });
 
   it("reports the expressions of a define body that are not statements", () => {

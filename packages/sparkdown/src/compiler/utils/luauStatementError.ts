@@ -35,6 +35,27 @@ export function luauStatementError(
     const error = result.errors[0];
     if (!error) return null;
     const found = locate(error, text, from);
+    // The text read is cut from a block, so the block's own `end`, `else`,
+    // `elseif` or `until` is one Luau's parser expects no more of
+    // (`print(1)` then `else`): the statements before it are whole.
+    if (BLOCK_KEYWORD_PAST_END.test(error.message)) {
+      return null;
+    }
+    // An error in a statement that starts after the one reported, which the
+    // text read takes the start of and cuts short (`print(1); print(2)` then
+    // `t`, whose `:m(1)` is on the line after), is that statement's.
+    // An `Expected …, got '…'` error stands at the token the statement
+    // before it could not take, which may begin the next statement
+    // (`a.b.` then `local`); an incomplete statement's stands on it.
+    const owner = statementHolding(
+      result.root.body,
+      error.location.begin,
+      error.message.startsWith("Incomplete statement"),
+    );
+    if (owner) {
+      const start = locate({ message: "", location: owner.location }, text, from).from;
+      if (start > from && start >= nodeEnd) return null;
+    }
     if (!next || found.from <= next.from) return found;
     // The error is past the next token. When the statement ended before
     // that token, the error is the next statement's, which the text read
@@ -48,6 +69,27 @@ export function luauStatementError(
     if (found.from < from + text.trimEnd().length || to === lineEnd) return found;
     lineEnd = to;
   }
+}
+
+const BLOCK_KEYWORD_PAST_END = /^Expected <eof>, got '(?:end|else|elseif|until)'$/;
+
+/** The last of `statements` that starts before `at`, or at it when `atStart`. */
+function statementHolding<T extends { location: { begin: { line: number; column: number } } }>(
+  statements: T[],
+  at: { line: number; column: number },
+  atStart: boolean,
+): T | null {
+  let holding: T | null = null;
+  for (const statement of statements) {
+    const begin = statement.location.begin;
+    if (
+      begin.line < at.line ||
+      (begin.line === at.line && (begin.column < at.column || (atStart && begin.column === at.column)))
+    ) {
+      holding = statement;
+    }
+  }
+  return holding;
 }
 
 /** The document range of a Luau error in `text`, which starts at `from`. */

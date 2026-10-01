@@ -275,14 +275,41 @@ const CALL_ARGUMENT_NODES = nodeNameSet([
   "LuauTable",
 ]);
 
+// Whether `node` is a value that is a call's argument after a callee
+// (`f "x"`, `f { 1 }`), the one list the expression lowerer reads too.
+export function isCallArgumentNode(node: SyntaxNode): boolean {
+  return CALL_ARGUMENT_NODES.has(node.name);
+}
+
+// The `=` of one of the targets a declaration or define property `node`
+// assigns, not one inside a target's type (`typeof({ k = 1 })`).
+function ownAssignmentIn(node: SyntaxNode): SyntaxNode | null {
+  const cursor = node.cursor();
+  if (!cursor.firstChild()) return null;
+  do {
+    if (cursor.name === "LuauVariableAssignment") {
+      const op = ownAssignmentOperation(cursor.node);
+      if (op) return op;
+      continue;
+    }
+    // Look inside the declaration's content and captures, not inside a
+    // target's own type annotation.
+    if (cursor.name.startsWith(node.name) || cursor.name.endsWith("_content")) {
+      const inner = ownAssignmentIn(cursor.node);
+      if (inner) return inner;
+    }
+  } while (cursor.nextSibling());
+  return null;
+}
+
 // Whether `node` ends in a value Luau can call: a name, a closing bracket,
 // or a call argument, whose call can be called again (`f "a"` then `"b"`).
 function endsInCallee(node: SyntaxNode): boolean {
-  // A declaration with no `=` ends in a name it declares, not a value
-  // (`local x`).
+  // A declaration with no `=` of its own ends in a name or a type it
+  // declares, not a value (`local x`, `local x: typeof({ k = 1 })`).
   if (
     (node.name === "LuauVariableDefinition" || node.name === "LuauSparkdownVariableDefinition") &&
-    !findDescendant(node, "LuauAssignmentOperation")
+    !ownAssignmentIn(node)
   ) {
     return false;
   }
@@ -332,7 +359,7 @@ function endsOnEmptyAssignment(node: SyntaxNode): boolean {
   }
   if (node.name === "LuauPropertyDefinition") {
     // A define property (`value =` then `12`).
-    const op = findDescendant(node, "LuauAssignmentOperation");
+    const op = ownAssignmentIn(node);
     return op != null && isEmptyAssignment(op);
   }
   if (node.name !== "LuauVariableDefinition" && node.name !== "LuauReassignment") {

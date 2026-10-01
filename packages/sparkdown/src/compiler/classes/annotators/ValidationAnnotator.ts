@@ -267,7 +267,7 @@ function invalidStatementError(
   to: number,
   read: (from: number, to: number) => string,
 ): { message: string; from: number; to: number } | null {
-  const error = luauStatementError(from, read);
+  const error = luauStatementError(from, read, to);
   const line = read(from, to).trimEnd();
   if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
     const dangling = danglingDotError(from + line.length - 1, read);

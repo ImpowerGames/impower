@@ -358,6 +358,9 @@ function lowerInner(
           ctx,
         );
       }
+      if (nodeRef.name === "LuauFunctionTypeDeclaration") {
+        reportUnreadBodyLines(nodeRef.node, ctx);
+      }
       return {};
     }
     // A loop or `do` block in a function body parses as the `Luau…` rule; one
@@ -572,6 +575,25 @@ function continuesInvalidLine(start: SyntaxNode): boolean {
   let prev = start.prevSibling;
   while (prev && prev.name.endsWith("Whitespace")) prev = prev.prevSibling;
   return prev?.name === "LuauInvalidStatement";
+}
+
+// Reports the lines Luau cannot read as statements in the Luau bodies of
+// `node`, which reaches no runtime code (a type function), as a lowered
+// body reports them. The lines a statement's continuation takes are its
+// own (`f` then `"a"`).
+function reportUnreadBodyLines(node: SyntaxNode, ctx: LowerContext): void {
+  const cursor = node.cursor();
+  do {
+    if (!cursor.name.endsWith("_content")) continue;
+    const owner = cursor.node.parent?.name ?? "";
+    if (!/^Luau(?:FunctionBody|(?!Sparkdown)\w*(?:Block|Loop))$/.test(owner)) continue;
+    for (let child = cursor.node.firstChild; child; child = child.nextSibling) {
+      if (TRIVIA_BEFORE_STATEMENT.has(child.name)) continue;
+      const last = reportUnreadExpressionStatement(child, ctx) ?? child;
+      const continuation = collectLineContinuation(last);
+      child = continuation[continuation.length - 1] ?? last;
+    }
+  } while (cursor.next() && cursor.from < node.to);
 }
 
 // Reports the statement at `child` in a body whose lowerer reads only the

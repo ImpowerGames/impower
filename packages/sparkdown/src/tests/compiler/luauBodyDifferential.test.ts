@@ -6,11 +6,12 @@
 //  - a body Luau rejects gets Sparkdown's first error at Luau's first error,
 //    with Luau's wording;
 //  - after edits inside the body, an incremental compile reports what a cold
-//    compile of the same text reports.
+//    compile of the same text reports, errors and warnings with their ranges.
 //
 // The bodies mix ordinary Luau statements (values on later lines, calls with
 // later-line arguments, long strings and comments that run on) with lines
-// Luau cannot read as statements, inside every kind of Luau block. Shapes
+// Luau cannot read as statements, inside every kind of Luau block, in
+// functions and type functions. Shapes
 // whose divergence is filed separately are left out: a `(` line after a
 // callable line, which Luau calls ambiguous (#1288); `repeat` blocks (#1195,
 // #1209); and `...` in a function that takes none (#1289).
@@ -57,6 +58,19 @@ function errors(program: any): Found[] {
     }
   }
   return found.sort((a, b) => a.line - b.line || a.character - b.character || a.message.localeCompare(b.message));
+}
+
+// Every diagnostic, errors and warnings, with its whole range.
+function diagnostics(program: any): string[] {
+  const found: string[] = [];
+  for (const list of Object.values(program.diagnostics ?? {}) as any[]) {
+    for (const d of list) {
+      const { start, end } = d.range;
+      const message = typeof d.message === "string" ? d.message : d.message?.value;
+      found.push(`${d.severity} ${start.line}:${start.character}-${end.line}:${end.character} ${message}`);
+    }
+  }
+  return found.sort();
 }
 
 function played(program: any): string[] {
@@ -109,6 +123,8 @@ const LUAU: string[][] = [
   ["t", "  :m(1)"],
   ["x = x", "  + 1"],
   ["local d = x; local d2 = 2"],
+  ["local w: typeof({ k = 1 })"],
+  ["local w2: number", "w2 = 1"],
 ];
 
 const NOT_STATEMENTS: string[][] = [
@@ -154,6 +170,7 @@ const BLOCKS: [string[], string[], string][] = [
   [["  while false do"], ["  end"], "    "],
   [["  for i = 1, 2 do"], ["  end"], "    "],
   [["  for i = 1, 2 do", "    if x then"], ["    end", "  end"], "      "],
+  [["  for k, v in pairs(t) do"], ["  end"], "    "],
 ];
 
 function rng(seed: number) {
@@ -175,8 +192,10 @@ function generate(seed: number) {
   }
   const [header, closing, indent] = BLOCKS[Math.floor(random() * BLOCKS.length)]!;
   const lines = statements.map((s) => s.map((l) => (l ? indent + l : l)).join("\n"));
+  // A type function's body is Luau too, though it reaches no runtime code.
+  const outer = random() < 0.2 ? "type function g(...)" : "function f(...)";
   const luau = [
-    "function f(...)",
+    outer,
     "  local x, t, f, maker = 1, {}, print, print",
     ...header,
     ...lines,
@@ -237,7 +256,7 @@ describe("a function body read as Luau reads it (#1158)", () => {
           contentChanges: [{ range: { start: position(offset), end: position(offset + removed) }, text: inserted }],
         } as never);
         text = text.slice(0, offset) + inserted + text.slice(offset + removed);
-        expect(errors(compile(c)), text).toEqual(errors(compile(compiler(text))));
+        expect(diagnostics(compile(c)), text).toEqual(diagnostics(compile(compiler(text))));
       }
     },
   );
