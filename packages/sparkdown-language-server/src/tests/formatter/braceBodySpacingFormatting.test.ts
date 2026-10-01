@@ -157,6 +157,49 @@ end
     );
   });
 
+  test("every comment of a run before a continuation lines up with it, and the next run is decided on its own", () => {
+    expectFormat(
+      `layout a with
+  button
+-- one
+     // two
+
+  -- three
+        .fancy
+  column {
+      -- four
+  // five
+    row
+    text
+ -- six
+
+      -- seven
+          "x"
+  }
+end
+`,
+      `layout a with
+  button
+    -- one
+    // two
+
+    -- three
+    .fancy
+  column {
+    -- four
+    // five
+    row
+    text
+      -- six
+
+      -- seven
+      "x"
+  }
+end
+`,
+    );
+  });
+
   test("a multi-line closure's statements indent by their Luau blocks, and a comment in it stays with them", () => {
     expectFormat(
       `layout a with

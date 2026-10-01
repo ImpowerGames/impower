@@ -475,14 +475,16 @@ function braceDepth(
   return depth;
 }
 
-// Whether the next line after `line` that is neither blank nor a comment
-// continues an element (#1225): a comment between an element and its
-// continuation lines lines up with them.
-function precedesContinuation(
+// The next line after `line` that is neither blank nor a comment (`end`, or
+// the line count when there is none), and whether it continues an element
+// (#1225): a comment between an element and its continuation lines lines up
+// with them. Every comment line before `end` shares the answer, so the
+// caller reads it once per run of comments.
+function continuationAfterComments(
   document: SparkdownDocument,
   tree: Tree,
   line: number,
-): boolean {
+): { end: number; continues: boolean } {
   for (let l = line + 1; l < document.lineCount; l++) {
     const text = document.getLineText(l);
     const first = text.search(/\S/);
@@ -493,12 +495,13 @@ function precedesContinuation(
     const pos = lineStart + first;
     // The continuation must begin on that line, not merely hold it (a
     // closure's statements sit inside the continuation that opened it).
-    return getStack<SparkdownNodeName>(tree, pos, 1).some(
+    const continues = getStack<SparkdownNodeName>(tree, pos, 1).some(
       (n) =>
         n?.name === "LuauSparkleElementContinuation" && n.from >= lineStart,
     );
+    return { end: l, continues };
   }
-  return false;
+  return { end: document.lineCount, continues: false };
 }
 
 const isInRange = (
@@ -570,6 +573,10 @@ export const getFormatting = (
   // The level of the last element line at the top of the body, which a
   // continuation line or a `{` on its own line there is placed against.
   let lastElementLevel: number | undefined = undefined;
+  // The run of comment and blank lines last looked past for a continuation:
+  // a comment line after `start` and before `end` shares its answer.
+  let commentRun: { start: number; end: number; continues: boolean } | null =
+    null;
 
   let tempIndentLevel: number | undefined = undefined;
   let matchNextIndentLevel: { from: number; to: number } | undefined =
@@ -707,9 +714,17 @@ export const getFormatting = (
           trimmedLine.startsWith("--") || trimmedLine.startsWith("//");
         // A comment between an element and the lines that continue it lines
         // up with those lines.
-        const commentsContinuation =
-          isCommentLine &&
-          precedesContinuation(document, tree, range.start.line);
+        let commentsContinuation = false;
+        if (isCommentLine) {
+          const line = range.start.line;
+          if (!commentRun || line < commentRun.start || line >= commentRun.end) {
+            commentRun = {
+              start: line,
+              ...continuationAfterComments(document, tree, line),
+            };
+          }
+          commentsContinuation = commentRun.continues;
+        }
         const braceLineIndex = findBraceLine(stack);
         const braceLine =
           braceLineIndex >= 0 ? stack[braceLineIndex] : undefined;

@@ -1,5 +1,6 @@
 import type { SyntaxNode } from "@lezer/common";
 import { nodeNameSet } from "./nodeNameSet";
+import { closingBrace } from "./oneLineTableBraces";
 
 // The spacing rules of the brace bodies of #1222 (#1227), for the formatter.
 // Indentation by block depth is the formatter's (`getDocumentFormattingEdits`);
@@ -62,16 +63,6 @@ function blankRunEnd(pos: number, read: Read): number {
 function startsLine(pos: number, read: Read): boolean {
   const from = blankRunStart(pos, read);
   return from === 0 || isLineBreak(read(from - 1, from));
-}
-
-// The `}` that closes a braced node, or `null` when it has none.
-function closingBrace(node: SyntaxNode, read: Read): number | null {
-  for (let child = node.lastChild; child; child = child.prevSibling) {
-    if (child.name === `${node.name}_end`) {
-      return read(child.from, child.from + 1) === "}" ? child.from : null;
-    }
-  }
-  return null;
 }
 
 function isInsideBraceLine(node: SyntaxNode): boolean {
@@ -215,12 +206,14 @@ export function isSpacedBraceEdge(node: SyntaxNode, read: Read): boolean {
     if (read(p.from, p.from + 1) !== "{") return false;
     const close = closingBrace(p, read);
     if (close == null) return false;
-    const inside = read(p.from + 1, close);
-    if (/[\r\n]/.test(inside) || !inside.trim()) return false;
-    return (
+    // Most whitespace in a body separates its parts: answer that from the
+    // whitespace's own run before reading the body.
+    const atEdge =
       blankRunStart(node.from, read) === p.from + 1 ||
-      blankRunEnd(node.to, read) === close
-    );
+      blankRunEnd(node.to, read) === close;
+    if (!atEdge) return false;
+    const inside = read(p.from + 1, close);
+    return !/[\r\n]/.test(inside) && inside.trim() !== "";
   }
   return false;
 }
