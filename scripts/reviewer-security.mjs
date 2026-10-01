@@ -74,7 +74,11 @@ const secretHomePrefix='impower-codex-home-';
 export function removeSecretCodexHome(home) {
   const resolved=typeof home==='string'?path.resolve(home):'';
   const name=path.basename(resolved);
-  if(!resolved||path.dirname(resolved)!==fs.realpathSync.native(os.tmpdir())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
+  // Canonicalize both sides: Windows reports the temporary directory by its
+  // 8.3 short name, which only matches its long name after realpath.
+  let parent='';
+  try {parent=resolved?fs.realpathSync.native(path.dirname(resolved)):'';} catch {parent='';}
+  if(!resolved||!parent||parent!==fs.realpathSync.native(os.tmpdir())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
   fs.rmSync(resolved,{recursive:true,force:true});
 }
 export function discardCodexAuthCopy(step,env) {
