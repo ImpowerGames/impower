@@ -6808,12 +6808,13 @@ export class SparkdownCompiler {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
         if (d.syntax && errors.some((range) => rangeContains(range, tokenOf(d)))) continue;
         // An expression error that begins right after an error only
-        // Sparkdown reports, later on its line or on the next, is that
-        // mistake as Luau reads the lines where Sparkdown reads them
-        // differently (an `else` that ends its line before a statement at
-        // column 0).
+        // Sparkdown reports, later on its line or on the next, with no `;`
+        // ending that statement between them, is that mistake as Luau reads
+        // the lines where Sparkdown reads them differently (an `else` that
+        // ends its line before a statement at column 0).
         const followsError = (range: Range) =>
-          range.end.line === d.start.line - 1 || (range.end.line === d.start.line && range.end.character <= d.start.character);
+          (range.end.line === d.start.line - 1 || (range.end.line === d.start.line && range.end.character <= d.start.character)) &&
+          !doc.read(doc.offsetAt(range.end), doc.offsetAt(d.start)).includes(";");
         if (d.expression && ownErrors.some(followsError)) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }

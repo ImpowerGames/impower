@@ -4,7 +4,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
 import { RESERVED } from "../../lint/luauNames";
-import { isCheckedLuau } from "../../typecheck/LuauUnitNodes";
+import { isCheckedLuau, isCheckedLuauAt } from "../../typecheck/LuauUnitNodes";
 
 // How far past the `=` to scan for the token Luau reports as "got '<token>'".
 // Generous enough to skip whitespace, blank lines, and a trailing comment to
@@ -166,7 +166,11 @@ const UNARY_OPERATORS: ReadonlySet<string> = new Set(["-", "not", "#"]);
 // Luau read the lines differently, and only Sparkdown reports the value
 // missing. A cast's `::` is Sparkdown's to report too (see
 // `SparkdownTypechecker`).
+// The type checker reports it only where it reads both the statement
+// (`node`) and the token Luau finds instead: in a narrative body a `;` or a
+// word the grammar reads as story is not in the checked Luau.
 export function luauReportsMissingValue(
+  node: SyntaxNode,
   pos: number,
   read: (from: number, to: number) => string,
 ): boolean {
@@ -174,19 +178,18 @@ export function luauReportsMissingValue(
   while (got && UNARY_OPERATORS.has(got.text)) {
     got = nextSignificantToken(got.from + got.text.length, read);
   }
-  return got == null || (got.text !== ":" && !startsLuauExpression(got.text));
+  if (got && (got.text === ":" || startsLuauExpression(got.text))) return false;
+  return isCheckedLuau(node, read) && (got == null || isCheckedLuauAt(node, got.from, read));
 }
 
 // Whether the type checker reports a value missing after `node`, at `pos`,
-// as Luau's parser does, with Luau's range, the token found instead (#1175):
-// in the Luau it reads, where Luau reports it too.
+// as Luau's parser does, with Luau's range, the token found instead (#1175).
 function typeCheckerReportsMissingValue(
   node: SyntaxNode,
   pos: number,
   ctx: LowerContext,
 ): boolean {
-  const read = (from: number, to: number) => ctx.read(from, to);
-  return luauReportsMissingValue(pos, read) && isCheckedLuau(node, read);
+  return luauReportsMissingValue(node, pos, (from, to) => ctx.read(from, to));
 }
 
 // The token Luau would report after `pos`. Scans forward over whitespace,

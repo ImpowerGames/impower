@@ -193,6 +193,39 @@ describe("the reported layouts", () => {
     expect(compileDocument(text).errors).toEqual([]);
   });
 
+  // Round 1's boundaries review: layouts where one mistake hid another, the
+  // token Luau finds is not in the checked Luau, or the checker's own
+  // reading added a token the author never wrote.
+  test.each([
+    // A `;` the grammar reads as story in a narrative body: Sparkdown reports it.
+    ["-> s\nscene s\n  local a = ;\n  Hello.\nend", ["2:12-2:13 Expected identifier when parsing expression, got ';'"]],
+    ["-> s\nscene s\n  local a = 1 +;\n  Hello.\nend", ["2:15-2:16 Expected identifier when parsing expression, got ';'"]],
+    ["-> s\nscene s\n  local a, b = 1, ;\n  Hello.\nend", ["2:16-2:17 Expected identifier when parsing expression, got ';'"]],
+    ["-> s\nscene s\n  local a = ;\nend", ["2:12-2:13 Expected identifier when parsing expression, got ';'"]],
+    // Whitespace after a header with no parameter list.
+    ["function f   \n  local a = ;\nend", ["1:12-1:13 Expected identifier when parsing expression, got ';'"]],
+    // Two mistakes on one line, a `;` apart.
+    ["function f()\n  local a = 1 +; local b = 2 +;\nend", [
+      "1:15-1:16 Expected identifier when parsing expression, got ';'",
+      "1:30-1:31 Expected identifier when parsing expression, got ';'",
+    ]],
+    ["function f(t)\n  local a = t.\n  b; local z = 1 +;\nend", [
+      "1:13-1:14 Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+      "2:18-2:19 Expected identifier when parsing expression, got ';'",
+    ]],
+    // An if expression with no condition, in a value.
+    ["function f()\n  local a = if then 1 else 2\nend", ["1:15-1:19 Expected identifier when parsing expression, got 'then'"]],
+    ["function f(c)\n  local a = if c then 1 elseif then 2 else 3\n  return a\nend", ["1:31-1:35 Expected identifier when parsing expression, got 'then'"]],
+    // The checker's statement after a narrative line is never named.
+    ["-> s\nscene s\n  local x = t:m\n  Hello.\nend", []],
+  ])("%j reports %j", (source, messages) => {
+    const { errors, functions } = compileDocument(`${source}\n`);
+    expect(errors).toEqual(messages);
+    if (source.startsWith("function")) {
+      expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
+    }
+  });
+
   // A function Sparkdown declares with no parameter list is read as Luau's
   // `function f()`, so its header is no error and its body's first line is
   // read as Luau reads it.

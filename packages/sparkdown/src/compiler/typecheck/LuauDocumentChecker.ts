@@ -26,8 +26,8 @@ import { accumulateErrors, parseMode, type Frontend } from "./Frontend";
 import { Location, Position } from "./Location";
 import { Mode, type Module, type SourceModule } from "./Module";
 import type { Scope } from "./Scope";
-import { FLOW_HEADERS, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
-import { RUN_QUERY, RUN_WRAPPER_SUFFIX, runWrapperName, runWrapperPrefix } from "../utils/runWrapper";
+import { FLOW_HEADERS, isLuauFile, LUAU_SCOPE_MODIFIERS, LUAU_STATEMENTS, NEUTRAL, SPARKDOWN_EXPRESSIONS, SPARKDOWN_ONLY } from "./LuauUnitNodes";
+import { RUN_WRAPPER_SUFFIX, runWrapperName, runWrapperPrefix } from "../utils/runWrapper";
 
 /** A mode's name, as a `.sd` file's `typecheck:` field and `config.typecheck.mode` write it. */
 export type TypecheckModeName = "strict" | "nonstrict" | "nocheck";
@@ -87,11 +87,7 @@ function utf16Column(text: string, byteColumn: number): number {
   return column + Math.max(0, byteColumn - bytes);
 }
 
-/** Whether a document is a Luau file, which is Luau from its first line to its last. */
-export function isLuauFile(uri: string): boolean {
-  const path = uri.split(/[?#]/, 1)[0]!;
-  return path.endsWith(".luau") && !uri.includes(RUN_QUERY);
-}
+export { isLuauFile };
 
 /** A Luau file's text, as one unit. */
 export function luauFileUnit(documentText: string): LuauUnit {
@@ -382,16 +378,18 @@ export function sparkdownUnits(tree: Tree, documentText: string): SparkdownUnits
         const content = n.getChild("LuauFunctionDefinition_content");
         const body = content?.getChild("LuauFunctionBody");
         if (content && body && !content.getChild("LuauFunctionParameters")) {
-          const line = index.lineAt(body.from);
-          const lineStart = index.starts[line]!;
-          if (index.lineEnd(line) === body.from && documentText.slice(lineStart, body.from).trim()) {
-            let comment = body.prevSibling;
-            while (comment && NEUTRAL.test(comment.name)) comment = comment.prevSibling;
-            if (comment && COMMENT.test(comment.name) && index.lineAt(comment.from) === line) {
-              lines.mark(comment.from, comment.to, false);
-              lines.write(comment.from, "()");
-            } else {
-              lines.write(body.from, "()", true);
+          // The last part of the header: its name, or a comment after it.
+          let last = body.prevSibling;
+          while (last && NEUTRAL.test(last.name)) last = last.prevSibling;
+          if (last) {
+            const line = index.lineAt(Math.max(last.from, last.to - 1));
+            if (COMMENT.test(last.name)) {
+              if (index.lineAt(last.from) === line) {
+                lines.mark(last.from, last.to, false);
+                lines.write(last.from, "()");
+              }
+            } else if (!documentText.slice(last.to, index.lineEnd(line)).trim()) {
+              lines.write(last.to, "()", true);
             }
           }
         }

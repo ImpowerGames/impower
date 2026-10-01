@@ -6900,8 +6900,10 @@ repository:
   # `then` or continues the condition (`LuauLineContinuation`). Any other
   # line ends it, so a condition whose `then` is not yet written ends with
   # its own line rather than reading the lines below into the expression.
+  # A `then` right after `if` leaves the condition empty (`if then 1 else 2`),
+  # which Luau rejects; the expression reads the `then` arm (#1175).
   LuauTernaryExpressionCondition:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}}|then\b)
     beginCaptures:
       1:
         emit: true
@@ -7257,7 +7259,9 @@ repository:
     # before its own `then`, and a `then` glued to its end, so whitespace
     # followed by `then` or `do` at this level only follows a completed arm,
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
-    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
+    # Right after `elseif`, a `then` is that clause's own, with its condition
+    # missing (`elseif then 2`).
+    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|(?<!\belseif){{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -9043,11 +9047,13 @@ repository:
   # `local foo = - --[[c]] ;`); they stay outside the token, so the statement
   # still ends at the line end and the comment is still read as one. An
   # operator whose operand starts the next line still continues onto it.
-  # A divert's `->` is neither a `-` nor a `>` (`{a | -> end}`).
+  # A divert's `->` is neither a `-` nor a `>` (`{a | -> end}`). An `if`
+  # right before `then` begins an if expression with no condition, which
+  # `LuauTernaryExpression` reads (`local a = if then 1 else 2`).
   LuauOperatorMissingOperand:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)(?<![-])(?![-][>])({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if)(?!\w))({{WS}}*)(?={{_LUAU_EXPRESSION_END_AHEAD_}})
+    match: ({{WS}}*)(?<![-])(?![-][>])({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if(?!{{WS}}*then\b))(?!\w))({{WS}}*)(?={{_LUAU_EXPRESSION_END_AHEAD_}})
 
   # A type annotation `:` with no type before the `;`, `,` or `=` after it
   # (`local x: ;`, `local x: = 1`, `local a: , b`), read as one token as

@@ -19,7 +19,7 @@ import {
 import { luauReportsMissingValue, nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
 import { RESERVED } from "../../lint/luauNames";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
-import { isCheckedLuau } from "../../typecheck/LuauUnitNodes";
+import { isCheckedLuau, isCheckedLuauAt, isLuauFile } from "../../typecheck/LuauUnitNodes";
 import {
   ownAssignmentOperation,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -640,6 +640,19 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
   }
 
+  /**
+   * Whether the type checker reports an error that a node's construct is
+   * missing something, at the token Luau finds instead (from `tokenFrom`, or
+   * the end of the Luau when there is none): it reads the construct and that
+   * token as Luau (#1175).
+   */
+  protected checkerReportsAt(node: SyntaxNode, tokenFrom: number | undefined): boolean {
+    // A Luau file is Luau throughout, however this document's tree reads it.
+    if (this.uri && isLuauFile(this.uri)) return true;
+    const read = (from: number, to: number) => this.read(from, to);
+    return isCheckedLuau(node, read) && (tokenFrom === undefined || isCheckedLuauAt(node, tokenFrom, read));
+  }
+
   /** Whether `pos` is the `end` a `run` file's wrapper closes it with
    *  (`runFileUnit`), which is not in the file. */
   protected isRunWrapperEnd(pos: number): boolean {
@@ -848,8 +861,8 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       // (`scene s(a: ..)`).
       const lineStart = this.text?.lineAt(nodeRef.from).from ?? nodeRef.from;
       const afterAnnotationColon = /(?:^|[^:]):\s*$/.test(this.read(lineStart, nodeRef.from));
-      if (!afterAnnotationColon && !isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))) {
-        const got = this.luauTokenAt(nodeRef.to);
+      const got = this.luauTokenAt(nodeRef.to);
+      if (!afterAnnotationColon && !this.checkerReportsAt(nodeRef.node, got?.from)) {
         this.error(
           annotations,
           `${MISSING_EXPRESSION}, got ${got ? `'${got.text}'` : "<eof>"}`,
@@ -866,8 +879,9 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (MISSING_TYPE_NODES.has(nodeRef.name)) {
       const isMethodColon = this.isMethodColon(nodeRef.node);
       // The checker reports a missing method name too, as it reports every
-      // missing name after a member access (#1175).
-      if (checkerReportsType) {
+      // missing name after a member access (#1175), where it reads the token
+      // found instead.
+      if (checkerReportsType && (!isMethodColon || this.checkerReportsAt(nodeRef.node, this.luauTokenAt(nodeRef.to)?.from))) {
         return annotations;
       }
       if (!isMethodColon) {
@@ -1058,7 +1072,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         this.read(nodeRef.to, got.from).includes("\n");
       if (nameOnLaterLine) {
         this.error(annotations, NAME_ON_LATER_LINE, nodeRef.to - 1, nodeRef.to);
-      } else if (!isCheckedLuau(nodeRef.node, (from, to) => this.read(from, to))) {
+      } else if (!this.checkerReportsAt(nodeRef.node, got?.from)) {
         this.error(
           annotations,
           `Expected identifier, got ${got == null ? "<eof>" : `'${got.text}'`}`,
@@ -1099,8 +1113,7 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       const read = (from: number, to: number) => this.read(from, to);
       const checkerReportsValue =
         missing?.message === IF_EXPRESSION_WITHOUT_VALUE &&
-        luauReportsMissingValue(missing.at?.to ?? nodeRef.to, read) &&
-        isCheckedLuau(nodeRef.node, read);
+        luauReportsMissingValue(nodeRef.node, missing.at?.to ?? nodeRef.to, read);
       if (missing && !checkerReportsValue) {
         this.error(
           annotations,
