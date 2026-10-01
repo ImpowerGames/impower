@@ -1,9 +1,11 @@
 // Luau's syntax tree, as `Ast/include/Luau/Ast.h` defines it; Luau is
 // MIT-licensed (see `LICENSE-luau.txt`). The type checker's passes are ported
-// from Luau and read this tree, which `readLuauAst.ts` builds from
-// Sparkdown's syntax tree. Names are resolved when the tree is built: a name
-// that refers to a local is an `AstExprLocal` pointing at its `AstLocal`, and
-// any other name is an `AstExprGlobal`.
+// from Luau and read this tree. `DefinitionParser.ts` builds it from Luau
+// text (definition files, and today a document's units), and
+// `readLuauAst.ts` builds it from Sparkdown's syntax tree, which the checker
+// and the lowerers are to read instead (#1283). Names are resolved when the
+// tree is built: a name that refers to a local is an `AstExprLocal` pointing
+// at its `AstLocal`, and any other name is an `AstExprGlobal`.
 
 import type { Location, Position } from "./Location";
 
@@ -912,6 +914,179 @@ export class AstTypePackGeneric extends AstTypePack {
 }
 
 // ---------------------------------------------------------------------------
+// Sparkdown's own constructs
+// ---------------------------------------------------------------------------
+//
+// Not part of Luau: the constructs Sparkdown writes inside its Luau, which
+// `readLuauAst.ts` reads from the syntax tree. Each extends `AstExpr` or
+// `AstStat`, so a pass that does not know them can treat an expression as a
+// value of type `any` and walk a statement's children through `visitAst`.
+// A construct whose meaning is Sparkdown's own (a divert target, a regular
+// expression, an alternator) keeps the syntax node it was read from, which
+// the lowerers read it through.
+
+/** Whether a node is one of Sparkdown's own constructs rather than Luau's. */
+export function isSparkdownNode(node: AstNode): boolean {
+  return node.kind.startsWith("Sparkdown");
+}
+
+/** The syntax node a Sparkdown construct was read from: its name, its document offsets, and the node itself. */
+export interface SparkdownSource {
+  name: string;
+  from: number;
+  to: number;
+  /** The node, a `@lezer/common` `SyntaxNode`, kept untyped so the checker does not depend on the tree. */
+  node: unknown;
+}
+
+/** A divert target as a value (`-> scene.branch`). */
+export class AstExprSparkdownDivertTarget extends AstExpr {
+  readonly kind = "SparkdownDivertTarget";
+  /** @param path the target as written after `->`, without whitespace */
+  constructor(
+    location: Location,
+    public path: string,
+    public source: SparkdownSource,
+  ) {
+    super(location);
+  }
+}
+
+/** A regular expression literal (`@/pattern/flags`). */
+export class AstExprSparkdownRegex extends AstExpr {
+  readonly kind = "SparkdownRegex";
+  constructor(
+    location: Location,
+    public pattern: string,
+    public flags: string,
+    public source: SparkdownSource,
+  ) {
+    super(location);
+  }
+}
+
+/** A conditional alternator used as a value. */
+export class AstExprSparkdownConditionalAlternator extends AstExpr {
+  readonly kind = "SparkdownConditionalAlternator";
+  constructor(
+    location: Location,
+    public source: SparkdownSource,
+  ) {
+    super(location);
+  }
+}
+
+/** A sequential alternator used as a value. */
+export class AstExprSparkdownSequentialAlternator extends AstExpr {
+  readonly kind = "SparkdownSequentialAlternator";
+  constructor(
+    location: Location,
+    public source: SparkdownSource,
+  ) {
+    super(location);
+  }
+}
+
+/**
+ * An instance of a `define`d class (`new ClassName(args)`). `hasArgs` says
+ * whether the argument list is written; `new ClassName` alone passes none.
+ */
+export class AstExprSparkdownNew extends AstExpr {
+  readonly kind = "SparkdownNew";
+  constructor(
+    location: Location,
+    public className: string,
+    public classNameLocation: Location,
+    public args: AstExpr[],
+    public hasArgs: boolean,
+  ) {
+    super(location);
+  }
+}
+
+/**
+ * The `{{f}}` shorthand inside an interpolated string, which writes the text
+ * `f()` returns; `expr` is the expression between the braces as written.
+ */
+export class AstExprSparkdownCallShorthand extends AstExpr {
+  readonly kind = "SparkdownCallShorthand";
+  constructor(
+    location: Location,
+    public expr: AstExpr,
+  ) {
+    super(location);
+  }
+}
+
+/**
+ * A double-quoted string that interpolates, as Sparkdown reads `"..."` (see
+ * `docs/runtime/DIVERGENCES.md`), with its parts as Luau's
+ * `AstExprInterpString` holds them. Luau reads the same text as a plain
+ * string, whose value is `luauValue`.
+ */
+export class AstExprSparkdownInterpString extends AstExpr {
+  readonly kind = "SparkdownInterpString";
+  constructor(
+    location: Location,
+    public strings: string[],
+    public expressions: AstExpr[],
+    public luauValue: string,
+  ) {
+    super(location);
+  }
+}
+
+/**
+ * The value a branch's caller passes for one of its parameters. A branch
+ * runs in its scene's function, so its parameters are locals of that
+ * function, bound when the branch is entered; the value has no type.
+ */
+export class AstExprSparkdownFlowArgument extends AstExpr {
+  readonly kind = "SparkdownFlowArgument";
+}
+
+/** A statement marked with `&`, which writes Luau where narrative would stand. */
+export class AstStatSparkdownExplicit extends AstStat {
+  readonly kind = "SparkdownExplicit";
+  constructor(
+    location: Location,
+    public statement: AstStat,
+    public markLocation: Location,
+  ) {
+    super(location);
+  }
+}
+
+/** A `store` declaration: globals the story saves, each with its annotation, if written, and the values assigned. */
+export class AstStatSparkdownStore extends AstStat {
+  readonly kind = "SparkdownStore";
+  constructor(
+    location: Location,
+    public vars: AstExprGlobal[],
+    public annotations: (AstType | undefined)[],
+    public values: AstExpr[],
+    public equalsSignLocation: Location | undefined,
+  ) {
+    super(location);
+  }
+}
+
+/**
+ * A `choose` block's Luau: the statements among its choices, and those of
+ * its `then` clause. The block opens no scope; its locals are its flow's.
+ */
+export class AstStatSparkdownChoose extends AstStat {
+  readonly kind = "SparkdownChoose";
+  constructor(
+    location: Location,
+    public body: AstStatBlock,
+    public gather: AstStatBlock | undefined,
+  ) {
+    super(location);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Visiting
 // ---------------------------------------------------------------------------
 
@@ -921,6 +1096,37 @@ export class AstTypePackGeneric extends AstTypePack {
  */
 export interface AstVisitor {
   visit(node: AstNode): boolean;
+  // Not part of Luau: a method for each of Sparkdown's own constructs, which
+  // `visitAst` calls in place of `visit` when the visitor has it. A visitor
+  // without them sees the constructs through `visit`.
+  visitSparkdownDivertTarget?(node: AstExprSparkdownDivertTarget): boolean;
+  visitSparkdownRegex?(node: AstExprSparkdownRegex): boolean;
+  visitSparkdownConditionalAlternator?(node: AstExprSparkdownConditionalAlternator): boolean;
+  visitSparkdownSequentialAlternator?(node: AstExprSparkdownSequentialAlternator): boolean;
+  visitSparkdownNew?(node: AstExprSparkdownNew): boolean;
+  visitSparkdownCallShorthand?(node: AstExprSparkdownCallShorthand): boolean;
+  visitSparkdownInterpString?(node: AstExprSparkdownInterpString): boolean;
+  visitSparkdownFlowArgument?(node: AstExprSparkdownFlowArgument): boolean;
+  visitSparkdownExplicit?(node: AstStatSparkdownExplicit): boolean;
+  visitSparkdownStore?(node: AstStatSparkdownStore): boolean;
+  visitSparkdownChoose?(node: AstStatSparkdownChoose): boolean;
+}
+
+/** Calls the visitor's method for a node: its Sparkdown construct's own, if it has one, otherwise `visit`. */
+function dispatchVisit(node: AstNode, v: AstVisitor): boolean {
+  if (!isSparkdownNode(node)) return v.visit(node);
+  if (node instanceof AstExprSparkdownDivertTarget && v.visitSparkdownDivertTarget) return v.visitSparkdownDivertTarget(node);
+  if (node instanceof AstExprSparkdownRegex && v.visitSparkdownRegex) return v.visitSparkdownRegex(node);
+  if (node instanceof AstExprSparkdownConditionalAlternator && v.visitSparkdownConditionalAlternator) return v.visitSparkdownConditionalAlternator(node);
+  if (node instanceof AstExprSparkdownSequentialAlternator && v.visitSparkdownSequentialAlternator) return v.visitSparkdownSequentialAlternator(node);
+  if (node instanceof AstExprSparkdownNew && v.visitSparkdownNew) return v.visitSparkdownNew(node);
+  if (node instanceof AstExprSparkdownCallShorthand && v.visitSparkdownCallShorthand) return v.visitSparkdownCallShorthand(node);
+  if (node instanceof AstExprSparkdownInterpString && v.visitSparkdownInterpString) return v.visitSparkdownInterpString(node);
+  if (node instanceof AstExprSparkdownFlowArgument && v.visitSparkdownFlowArgument) return v.visitSparkdownFlowArgument(node);
+  if (node instanceof AstStatSparkdownExplicit && v.visitSparkdownExplicit) return v.visitSparkdownExplicit(node);
+  if (node instanceof AstStatSparkdownStore && v.visitSparkdownStore) return v.visitSparkdownStore(node);
+  if (node instanceof AstStatSparkdownChoose && v.visitSparkdownChoose) return v.visitSparkdownChoose(node);
+  return v.visit(node);
 }
 
 function visitTypeOrPack(v: AstVisitor, items: AstTypeOrPack[]): void {
@@ -936,7 +1142,7 @@ function visitTypeList(v: AstVisitor, list: AstTypeList): void {
 }
 
 export function visitAst(node: AstNode, v: AstVisitor): void {
-  if (!v.visit(node)) return;
+  if (!dispatchVisit(node, v)) return;
   if (node instanceof AstExprGroup) visitAst(node.expr, v);
   else if (node instanceof AstExprCall) {
     visitAst(node.func, v);
@@ -1044,6 +1250,20 @@ export function visitAst(node: AstNode, v: AstVisitor): void {
   } else if (node instanceof AstTypeGroup) visitAst(node.type, v);
   else if (node instanceof AstTypePackExplicit) visitTypeList(v, node.typeList);
   else if (node instanceof AstTypePackVariadic) visitAst(node.variadicType, v);
+  else if (node instanceof AstExprSparkdownNew) {
+    for (const a of node.args) visitAst(a, v);
+  } else if (node instanceof AstExprSparkdownCallShorthand) visitAst(node.expr, v);
+  else if (node instanceof AstExprSparkdownInterpString) {
+    for (const e of node.expressions) visitAst(e, v);
+  } else if (node instanceof AstStatSparkdownExplicit) visitAst(node.statement, v);
+  else if (node instanceof AstStatSparkdownStore) {
+    for (const e of node.vars) visitAst(e, v);
+    for (const t of node.annotations) if (t) visitAst(t, v);
+    for (const e of node.values) visitAst(e, v);
+  } else if (node instanceof AstStatSparkdownChoose) {
+    visitAst(node.body, v);
+    if (node.gather) visitAst(node.gather, v);
+  }
 }
 
 /** The function a call expression names, written as a dotted path, as Luau's `getFunctionNameAsString`. */
