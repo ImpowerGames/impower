@@ -1,0 +1,14 @@
+style button with
+  cursor = pointer
+  &.secondary { background-color = slate_50 }
+  > text.label = { text-weight = 600; color = white }
+  @hovered, @pressed {
+    background-color = sky_50
+  }
+  @screen-size(sm) {
+    width = 100%
+    > text { font-size = 12px }
+  }
+  &[data-label="a b;{"] { color = red }
+  &[data-label='a;b'] { opacity = 0.5 }
+end

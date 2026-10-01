@@ -1,11 +1,15 @@
 import { nodeNameSet } from "../../utils/nodeNameSet";
-import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
 import {
   UNQUOTED_VALUE_NODES,
   stripTrailingLineComment,
 } from "../utils/stripTrailingLineComment";
+import {
+  readStructBodyEntries,
+  type StructEntry,
+  type StructEntryKind,
+} from "../utils/structBodyEntries";
 import { unescapeString } from "../utils/unescapeString";
 import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 
@@ -33,15 +37,11 @@ import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 //   mask shadow_1                - LuauStructBareMarker       → `{}` leaf (image / text / mask …)
 //                                - LuauStructArrayItem        → array element
 //
-// A list item may carry its first entry on the dash line, with the item's
-// remaining entries at the column that entry opens — the same item with the
-// dash overlapping the first entry's indent:
-//
-//   items:                     items:
-//     - label:          ==       -
-//         text = "a"               label:
-//       weight = bold                text = "a"
-//                                  weight = bold
+// A `style` body may also be written with brace blocks (`&.secondary { … }`,
+// `@hovered, @pressed { … }`). The body is read as the entry tree of
+// `readStructBodyEntries`, which gives the indented lines (including a
+// collapsed `- label:` list item) and the braced entries the same entries, so
+// both forms lower to the same struct.
 //
 // REACTIVE ATTRIBUTES: an element line may carry inline `@event=handler` /
 // `#prop=value` bindings (`button "Use" @click=x`, `column #gap=16:`). Those are
@@ -50,15 +50,6 @@ import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 // EXCISES their source spans from any text it reads, so `button "Use" @click=x`
 // → `button "Use"` and `column #gap=16:` → `column` (the static `context.layout`
 // channel stays free of reactive bindings).
-
-interface BodyLine {
-  indent: number;
-  // The classified shape node (LuauStructScalarProperty / ObjectHeader /
-  // ArrayItem / AdjacencyContent / BareMarker / BodyFallback) the grammar
-  // captured for this body line.
-  shape: SyntaxNode;
-  ctx: LowerContext;
-}
 
 // The grammar classifies a body line's content into exactly one of these. The
 // per-line wrapper is `LuauStructBodyContent`; the shape node is a descendant.
@@ -100,62 +91,45 @@ const TAG_TOKEN_NAMES: ReadonlySet<string> = nodeNameSet([
   "CustomComponentName",
 ]);
 
+/** The entries of a struct body, in the indented and the braced form alike. */
 export function collectStructBodyLines(
   contentNode: SyntaxNode | null,
   ctx: LowerContext,
-): BodyLine[] {
-  const lines: BodyLine[] = [];
-  if (!contentNode) return lines;
-  const walk = (node: SyntaxNode | null) => {
-    let child = node?.firstChild ?? null;
-    while (child) {
-      if (child.name === "LuauStructBodyContent") {
-        const shape = firstDescendant(child, SHAPE_NAMES);
-        if (shape) {
-          // Skip whole-line `--` Luau comments. `style`/`screen`/`component`
-          // bodies are Luau contexts (where `//` is floor division, NOT a
-          // comment — so `//` is intentionally not treated as a comment here);
-          // `--` is the comment marker. A commented-out line classifies as a
-          // `LuauStructBareMarker`/fallback (the array-item rule rejects `--`),
-          // so it would otherwise leak as a bogus `"-- background_color"` leaf
-          // in the generated struct. Only WHOLE-LINE comments are skipped — a
-          // mid-line `--` can be part of a value (`var(--theme-…)`), which lives
-          // inside a scalar's value node and is left intact.
-          const isWholeLineComment = ctx
-            .read(shape.from, shape.to)
-            .trimStart()
-            .startsWith("--");
-          if (!isWholeLineComment) {
-            lines.push({ indent: ctx.characterNumber(child.from), shape, ctx });
-            pushInlineEntryLine(lines, shape, ctx);
-          }
-        }
-      } else {
-        walk(child);
-      }
-      child = child.nextSibling;
-    }
-  };
-  walk(contentNode);
-  return lines;
+): StructEntry[] {
+  return readStructBodyEntries(contentNode, ctx, (content) =>
+    classifyLine(content, ctx),
+  );
 }
 
-/**
- * A collapsed list item (`- label:` / `- weight = bold`) carries its first
- * entry on the dash line. Follow the item's line with that entry as a line of
- * its own, at the column the entry starts in — the shape the expanded form
- * already has — so the block parser below needs no case for it and the two
- * spellings cannot drift apart.
- */
-function pushInlineEntryLine(
-  lines: BodyLine[],
-  shape: SyntaxNode,
+// How an indented line reads: the grammar's shape for it, or none.
+function classifyLine(
+  content: SyntaxNode,
   ctx: LowerContext,
-): void {
-  if (shape.name !== "LuauStructArrayItem") return;
-  const entry = structArrayItemInlineEntry(shape);
-  if (!entry) return;
-  lines.push({ indent: ctx.characterNumber(entry.from), shape: entry, ctx });
+): { kind: StructEntryKind; shape: SyntaxNode } | null {
+  const shape = firstDescendant(content, SHAPE_NAMES);
+  if (!shape) return null;
+  // Skip whole-line `--` Luau comments. `style`/`screen`/`component` bodies
+  // are Luau contexts (where `//` is floor division, NOT a comment — so `//`
+  // is intentionally not treated as a comment here); `--` is the comment
+  // marker. A commented-out line classifies as a
+  // `LuauStructBareMarker`/fallback (the array-item rule rejects `--`), so it
+  // would otherwise leak as a bogus `"-- background_color"` leaf in the
+  // generated struct. Only WHOLE-LINE comments are skipped — a mid-line `--`
+  // can be part of a value (`var(--theme-…)`), which lives inside a scalar's
+  // value node and is left intact.
+  if (ctx.read(shape.from, shape.to).trimStart().startsWith("--")) {
+    return null;
+  }
+  switch (shape.name) {
+    case "LuauStructArrayItem":
+      return { kind: "item", shape };
+    case "LuauStructObjectHeader":
+      return { kind: "header", shape };
+    case "LuauStructScalarProperty":
+      return { kind: "property", shape };
+    default:
+      return { kind: "other", shape };
+  }
 }
 
 // DFS in-order: the first descendant (or self) whose name is in `names`.
@@ -219,69 +193,51 @@ function textExcluding(
   return result;
 }
 
-export function parseStructBody(lines: BodyLine[]): Record<string, unknown> {
-  const result = parseBlock(lines, 0, lines[0]?.indent ?? 0);
+export function parseStructBody(
+  entries: StructEntry[],
+  ctx: LowerContext,
+): Record<string, unknown> {
+  const result = evaluate(entries, ctx);
   // A bare body (top-level array) is unusual for UI; coerce to object.
-  return Array.isArray(result.value)
-    ? { ...result.value }
-    : (result.value as Record<string, unknown>);
+  return Array.isArray(result) ? { ...result } : result;
 }
 
-function parseBlock(
-  lines: BodyLine[],
-  start: number,
-  indent: number,
-): { value: Record<string, unknown> | unknown[]; next: number } {
+function evaluate(
+  entries: StructEntry[],
+  ctx: LowerContext,
+): Record<string, unknown> | unknown[] {
   const obj: Record<string, unknown> = {};
   let arr: unknown[] | null = null;
-  let i = start;
-  while (i < lines.length && lines[i]!.indent >= indent) {
-    if (lines[i]!.indent > indent) {
-      i += 1; // defensive: skip over-indented orphan
-      continue;
-    }
-    const line = lines[i]!;
-    const shape = line.shape;
-    const ctx = line.ctx;
+  for (const entry of entries) {
+    const shape = entry.shape;
 
-    if (shape.name === "LuauStructArrayItem") {
-      // Entries indented beneath (or carried on the dash line, which
-      // `collectStructBodyLines` has already followed with an entry line) →
-      // object; `- scalar` → scalar.
+    if (entry.kind === "item") {
+      // Entries beneath the item (indented, carried on the dash line, or
+      // inside a bare `{ … }`) → object; a value → scalar.
       arr = arr ?? [];
-      const childIndent = nextChildIndent(lines, i, indent);
-      if (childIndent != null) {
-        warnValueItemWithEntries(shape, ctx);
-        const sub = parseBlock(lines, i + 1, childIndent);
-        arr.push(sub.value);
-        i = sub.next;
+      if (entry.children) {
+        if (!entry.braced) warnValueItemWithEntries(shape, ctx);
+        arr.push(evaluate(entry.children, ctx));
       } else {
         const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
         if (valueNode) arr.push(parseScalar(readValue(valueNode, ctx)));
-        i += 1;
       }
-    } else if (shape.name === "LuauStructObjectHeader") {
-      // Nested block — covers `key:`, `> selector:`, `@breakpoint:`, and an
-      // element header with inline attributes (`column #gap=16:`). The key is
-      // the header text before the `:`, with any `@event`/`#prop` attributes
-      // excised so the static struct keys on the structural part only.
-      const key = headerKey(shape, ctx);
-      const childIndent = nextChildIndent(lines, i, indent);
-      if (childIndent != null) {
-        const sub = parseBlock(lines, i + 1, childIndent);
-        obj[key] = sub.value;
-        i = sub.next;
-      } else {
-        obj[key] = {};
-        i += 1;
-      }
-    } else if (shape.name === "LuauStructScalarProperty") {
+    } else if (entry.kind === "header") {
+      // Nested block — covers `key:`, `> selector:`, `@breakpoint:`, an element
+      // header with inline attributes (`column #gap=16:`), and their `{ … }`
+      // forms. The key is the header text before the `:` or `{`, with any
+      // `@event`/`#prop` attributes excised so the static struct keys on the
+      // structural part only.
+      const key = entry.key
+        ? textWithoutAttributes(entry.key, ctx).trim()
+        : headerKey(shape, ctx);
+      obj[key] = entry.children ? evaluate(entry.children, ctx) : {};
+    } else if (entry.kind === "property") {
       // `key = value` → scalar. Key + value read from the grammar tokens.
       const keyNode = firstDescendant(shape, KEY_TOKEN_NAMES);
       const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
       const key = keyNode ? ctx.read(keyNode.from, keyNode.to).trim() : "";
       if (key) obj[key] = parseScalar(valueNode ? readValue(valueNode, ctx) : "");
-      i += 1;
     } else if (shape.name === "LuauStructAdjacencyContent") {
       // Adjacency content `tag "content"` (spec §4.2) → { tag: content },
       // identical to the `tag = "content"` scalar form. Tag + content read from
@@ -291,7 +247,6 @@ function parseBlock(
       const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
       const tag = tagNode ? ctx.read(tagNode.from, tagNode.to).trim() : "";
       if (tag) obj[tag] = parseScalar(valueNode ? readValue(valueNode, ctx) : "");
-      i += 1;
     } else {
       // LuauStructBareMarker / LuauStructBodyFallback. Two shapes land here:
       //
@@ -322,10 +277,9 @@ function parseBlock(
       if (marker) {
         obj[marker] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
       }
-      i += 1;
     }
   }
-  return { value: arr ?? obj, next: i };
+  return arr ?? obj;
 }
 
 // The text of a `key:` object-header key (everything before the colon, with
@@ -349,18 +303,6 @@ function readValue(value: SyntaxNode, ctx: LowerContext): string {
   return UNQUOTED_VALUE_NODES.has(value.name)
     ? stripTrailingLineComment(text)
     : text;
-}
-
-// Indent of the first child line below line `i`, or null if line `i` is a
-// leaf (no deeper-indented line follows before a dedent).
-function nextChildIndent(
-  lines: BodyLine[],
-  i: number,
-  indent: number,
-): number | null {
-  const next = lines[i + 1];
-  if (next && next.indent > indent) return next.indent;
-  return null;
 }
 
 // A two-part struct reference: `<type>.<name>` where BOTH parts are bare

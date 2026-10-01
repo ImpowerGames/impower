@@ -318,6 +318,16 @@ export function status(directory, { identify = processIdentity, fingerprint = fi
   return { run: run.directory, ...summary, identityChecked: !live && !unknown && !!run.identity, attempts: run.attempts };
 }
 
+// The most test files one local `run` may name. A change under work touches
+// a handful of test files; a longer list is a package run spelled out, which
+// the Test Suite workflow already runs for the pushed head while this machine
+// is shared with other sessions. There is no override; a wrapper script or a
+// `--test` string handed to the redgreen driver reaches this check even when
+// the local-test hook, which reads only literal command text, does not see
+// it. The hook's copy of this bound (.agents/hooks/local-test-hook.mjs) must
+// match so direct Vitest calls are refused at the same width.
+export const MAX_RUN_FILES = 8;
+
 // The command line. `dependencies` is the test seam for the reservation store,
 // census and child programs; the entry point below passes none.
 export async function main(argv, dependencies = {}) {
@@ -329,6 +339,7 @@ export async function main(argv, dependencies = {}) {
     // package result. `start` remains for resumable runs, but the local-test
     // hook refuses it.
     if (!args.length) throw new Error("Name the test files under work; the package result comes from the Test Suite workflow on the pushed head");
+    if (args.length > MAX_RUN_FILES) throw new Error(`run takes at most ${MAX_RUN_FILES} test files (${args.length} named): a longer list is a package run, which the Test Suite workflow runs for the pushed head; run only the test files under work locally`);
     const { exit, signal, launchError } = await runVitest({ ...dependencies, packageRoot: target, files: args, waitMs });
     if (launchError) throw new Error(launchError);
     if (signal) console.error(`Vitest ended by signal ${signal}`);

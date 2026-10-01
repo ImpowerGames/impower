@@ -17,6 +17,7 @@ import type { LowerContext } from "../context";
 import { lowerPrimary } from "../expression/lowerExpression";
 import { lower } from "../lower";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
+import { findChildByName } from "../../utils/findChildByName";
 
 // Build a statement-form `Divert` ParsedObject from a
 // `LuauDivertTargetLiteral` syntax node. Mirrors what
@@ -212,17 +213,8 @@ function armLineAsDisplayCall(
   return out;
 }
 
-export function findChildByName(
-  parent: SyntaxNode,
-  name: string,
-): SyntaxNode | null {
-  let child = parent.firstChild;
-  while (child) {
-    if (child.name === name) return child;
-    child = child.nextSibling;
-  }
-  return null;
-}
+// Kept exported here for the lowerers that import it from this module.
+export { findChildByName };
 
 // Walks the children of a `LuauSparkdown*AlternatorArm_content` node
 // and emits the arm body into `out`. Splits the arm's content into
