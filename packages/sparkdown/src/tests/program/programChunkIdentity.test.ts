@@ -850,6 +850,35 @@ describe("a statement that writes a function", () => {
     expect(shows(edited)).toEqual(["Got true.", "More words."]);
   });
 
+  // The same function's entry declares the locals its body's functions,
+  // declared without `local`, hoist there, in their order, so an edit that
+  // swaps two of them emits it again, though its own syntax is unchanged.
+  it("is emitted again when it runs in place and an edit swaps two functions its body declares", () => {
+    const text = [
+      "if true then",
+      "  function outer()",
+      "    function a() return 1 end",
+      "    function b() return 2 end",
+      "    result = a() + b() * 10",
+      "  end",
+      "end",
+      "Got {result}.",
+      "",
+    ].join("\n");
+    const swapped = text.replace(
+      "    function a() return 1 end\n    function b() return 2 end",
+      "    function b() return 2 end\n    function a() return 1 end",
+    );
+    const s = session({ [MAIN]: text });
+    expect(shows(s.root)).toEqual(["Got 21."]);
+    const edited = s.edit(
+      "    function a() return 1 end\n    function b() return 2 end",
+      "    function b() return 2 end\n    function a() return 1 end",
+    );
+    expect(describeRoot(edited)).toEqual(describeRoot(coldRoot(swapped)));
+    expect(shows(edited)).toEqual(["Got 21."]);
+  });
+
   // A `define` written in a `do` block is a global declaration placed with
   // the block: the declaration's chunk builds the table and writes its
   // methods, and the `define`'s own statement emits nothing where it is

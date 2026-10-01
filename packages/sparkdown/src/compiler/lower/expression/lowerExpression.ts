@@ -806,39 +806,59 @@ function foldContinuedPart(
 }
 
 // Fold one `LuauChainedPropertyAccess` link (`.name` or `[expr]`
-// trailing a method call — `a:m(x).y`) into an IndexExpression on the
-// running chain value.
+// trailing a call — `a:m(x).y`) into IndexExpressions on the running chain
+// value, one per part: the grammar writes every accessor and indexer that
+// follow each other as one link (`.a.x`, `.a[2]`).
 function lowerChainedPropertyLink(
   linkNode: SyntaxNode,
   receiver: Expression,
   ctx: LowerContext,
 ): Expression | null {
+  const parts = chainedLinkParts(linkNode);
+  if (parts.length === 0) return null;
+  let expr = receiver;
+  for (const part of parts) {
+    const key = chainedPartKey(part, ctx);
+    if (!key) return null;
+    expr = new IndexExpression(expr, key);
+  }
+  return expr;
+}
+
+// The accessors and indexers a `LuauChainedPropertyAccess` link holds, in
+// order: its direct parts only, since an indexer's key can hold accessors of
+// its own (`[k.v]`).
+export function chainedLinkParts(linkNode: SyntaxNode): SyntaxNode[] {
   const content =
     findChildByName(linkNode, "LuauChainedPropertyAccess_content") ?? linkNode;
-  const accessor = getDescendent("LuauPropertyAccessor", content);
-  if (accessor) {
+  const parts: SyntaxNode[] = [];
+  for (let part = content.firstChild; part; part = part.nextSibling) {
+    if (
+      part.name === "LuauPropertyAccessor" ||
+      part.name === "LuauPropertyIndexer"
+    ) {
+      parts.push(part);
+    }
+  }
+  return parts;
+}
+
+// The key one part of a chained link reads: an accessor's name, or an
+// indexer's expression.
+export function chainedPartKey(
+  part: SyntaxNode,
+  ctx: LowerContext,
+): Expression | null {
+  if (part.name === "LuauPropertyAccessor") {
     const nameNode =
-      getDescendent("LuauPropertyName", accessor) ??
-      getDescendent("LuauStdLibMethods", accessor);
-    if (!nameNode) return null;
-    return new IndexExpression(
-      receiver,
-      new StringExpression([new Text(ctx.read(nameNode.from, nameNode.to))]),
-    );
-  }
-  const indexer = getDescendent("LuauPropertyIndexer", content);
-  if (indexer) {
-    const indexerContent = findChildByName(
-      indexer,
-      "LuauPropertyIndexer_content",
-    );
-    const key = indexerContent
-      ? lowerExpressionFromContainer(indexerContent, ctx)
+      getDescendent("LuauPropertyName", part) ??
+      getDescendent("LuauStdLibMethods", part);
+    return nameNode
+      ? new StringExpression([new Text(ctx.read(nameNode.from, nameNode.to))])
       : null;
-    if (!key) return null;
-    return new IndexExpression(receiver, key);
   }
-  return null;
+  const indexerContent = findChildByName(part, "LuauPropertyIndexer_content");
+  return indexerContent ? lowerExpressionFromContainer(indexerContent, ctx) : null;
 }
 
 // The path's own access parts, then `extraParts`.

@@ -396,6 +396,14 @@ describe("a call, an index or a method chained on a call", () => {
     ["as a statement, calls a field of what a method call returns", inRun(["local hit = 0", "local o = {}", "function o:mk() return { bump = function() hit = hit + 1 end } end", "o:mk().bump()"], "hit"), "Got 1."],
     ["stores through a field of what a method call returns", inRun(["local t = { x = 0 }", "local o = {}", "function o:get() return t end", "o:get().x = 6"], "t.x"), "Got 6."],
     ["stores through an index of what a method call returns", inRun(["local t = { 0 }", "local o = {}", "function o:get() return t end", "o:get()[1] = 6"], "t[1]"), "Got 6."],
+    // One link can hold several parts (`.a.x`, `.b[2]`), and an index's key
+    // can hold a path of its own (`[k.v]`).
+    ["indexes every part of a link after a method call", inRun(["local t = { a = { x = 1, b = { 2, 3 } } }", "local o = { get = function(self) return t end }", "local x = o:get().a.x", "local y = o:get().a.b[2]"], "x .. y"), "Got 13."],
+    ["indexes by a key that holds a path, after a method call", inRun(["local u = { x = 5 }", "local k = { v = \"x\" }", "local o = { get = function(self) return u end }"], "o:get()[k.v]"), "Got 5."],
+    ["stores through every part of a link after a method call", inRun(["local t = { a = { x = 1 } }", "local o = { get = function(self) return t end }", "o:get().a.x = 6"], "t.a.x .. type(t.a)"), "Got 6table."],
+    ["stores through every part of a link after a field call", inRun(["local t = { a = { x = 1 } }", "local o = { get = function() return t end }", "o.get().a.x = 3"], "t.a.x"), "Got 3."],
+    ["as a statement, calls through every part of a link after a method call", inRun(["local hit = 0", "local t = { a = { bump = function() hit = hit + 1 end } }", "local o = { get = function(self) return t end }", "o:get().a.bump()"], "hit"), "Got 1."],
+    ["stores the value the lines after it continue, through a method call or a field call", inRun(["local t = { x = 0, y = 0 }", "local source = { y = 6 }", "local o = { get = function() return t end }", "o:get().x = source", "  .y", "o.get().y = source", "  .y"], "t.x .. \"/\" .. t.y"), "Got 6/6."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
   });

@@ -1382,15 +1382,23 @@ const paramKinds = (fn: ParsedObject | undefined): string =>
     .map((p) => (p.isByReference ? "ref" : p.isVararg ? "..." : "value"))
     .join(",");
 
-/** The locals each function a statement writes declares at its entry, which
- *  the lowering hoists there from inside the function's body (a function it
- *  declares without `local`), function by function: the entry code is the
- *  statement's, while the lines that hoist them are the body's. */
+/** The functions whose entry a statement's code holds: each function it
+ *  writes (`functionInput`) and each it runs in place
+ *  (`emitFunctionInPlace`), in order. */
+const entryFunctions = (statement: StatementSource): ParsedObject[] => [
+  ...(statement.bodies ?? []).flatMap((body) => (body.fn ? [body.fn] : [])),
+  ...statement.objects.filter((obj) => obj instanceof FlowBase),
+];
+
+/** The locals each function whose entry a statement's code holds declares
+ *  there, in order, which the lowering hoists from inside the function's
+ *  body (a function it declares without `local`), function by function: the
+ *  entry code is the statement's, while the lines that hoist them are the
+ *  body's. */
 const hoistedOf = (statement: StatementSource): string =>
-  (statement.bodies ?? [])
-    .filter((body) => body.fn)
-    .map((body) =>
-      (functionShapeOf.get(body.fn!)?.hoisted ?? [])
+  entryFunctions(statement)
+    .map((fn) =>
+      (functionShapeOf.get(fn)?.hoisted ?? [])
         .map((local) =>
           local instanceof VariableAssignment
             ? (local.variableName ?? "")
@@ -1400,16 +1408,12 @@ const hoistedOf = (statement: StatementSource): string =>
     )
     .join(";");
 
-/** The parameters each function a statement writes binds at its entry, and
- *  each function it runs in place (`functionInput`, `emitFunctionInPlace`).
- *  The lowering takes them from the function's parameter list, which a
- *  header the parser could not read whole can find on a later line, inside
+/** The parameters each function whose entry a statement's code holds binds
+ *  there. The lowering takes them from the function's parameter list, which
+ *  a header the parser could not read whole can find on a later line, inside
  *  the body the statement's syntax leaves out. */
 const paramsOf = (statement: StatementSource): string =>
-  [
-    ...(statement.bodies ?? []).flatMap((body) => (body.fn ? [body.fn] : [])),
-    ...statement.objects.filter((obj) => obj instanceof FlowBase),
-  ]
+  entryFunctions(statement)
     .map((fn) =>
       ((fn as FlowBase).args ?? [])
         .map((arg) => `${arg.identifier?.name ?? ""}${arg.isVararg ? "..." : ""}`)
