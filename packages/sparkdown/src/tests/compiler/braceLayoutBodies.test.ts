@@ -528,6 +528,71 @@ end
     expect(errorsOf(text)).toEqual([]);
   });
 
+  describe("a brace in an attribute's value, a string or a comment is never a block", () => {
+    const closure = (button: any) => button.events[0].handler.binding.source;
+
+    test("a closure with tables nested five deep, on an indented line and in a block", () => {
+      const text = `layout hud with
+  button "Go" @click={ local t = {a={b={c={}}}} }
+  row { button "Go" @click={ local t = {a={b={c={}}}} }; text "after" }
+end
+`;
+      const [button, row] = lowered(text, "layout", "hud").tree.children;
+      expect(closure(button)).toBe("{ local t = {a={b={c={}}}} }");
+      expect(button.children).toEqual([]);
+      expect(closure(row.children[0])).toBe("{ local t = {a={b={c={}}}} }");
+      expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
+      expect(errorsOf(text)).toEqual([]);
+    });
+
+    test("a single-quoted attribute value", () => {
+      const text = `layout hud with
+  text #--label='a{b}c'
+  row { text #--label='a{b}c' "q" }
+end
+`;
+      const [label, row] = lowered(text, "layout", "hud").tree.children;
+      expect(label.props["--label"]).toEqual({ kind: "literal", value: "'a{b}c'" });
+      expect(label.children).toEqual([]);
+      expect(row.children[0].props["--label"]).toEqual({
+        kind: "literal",
+        value: "'a{b}c'",
+      });
+      expect(row.children[0].content).toEqual([{ kind: "literal", text: "q" }]);
+      expect(errorsOf(text)).toEqual([]);
+    });
+
+    test("Luau long strings and long comments in a closure or a call", () => {
+      const text = `component card(t) with
+  text "{t}"
+end
+
+layout hud with
+  button @click={ print([[a}b]]) }
+  button @click={ hp = 1 --[[ } ]] ; hp = 2 }
+  card([[a)b{c]])
+  row { button @click={ print([==[a}b]==]) } "B"; text "after" }
+end
+`;
+      const [print, comment, call, row] = lowered(text, "layout", "hud").tree.children;
+      expect(closure(print)).toBe("{ print([[a}b]]) }");
+      expect(closure(comment)).toBe("{ hp = 1 --[[ } ]] ; hp = 2 }");
+      expect(call.params).toHaveLength(1);
+      expect(call.children).toEqual([]);
+      expect(closure(row.children[0])).toBe("{ print([==[a}b]==]) }");
+      expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
+      expect(errorsOf(text)).toEqual([]);
+    });
+
+    test("an inline long comment ends at its `]]`", () => {
+      const text = `layout hud with\n  row { text "a" --[[ comment ]] ; text "b" }\nend\n`;
+      const row = lowered(text, "layout", "hud").tree.children[0];
+      expect(row.children.map((c: any) => c.content[0].text)).toEqual(["a", "b"]);
+      expect(row.children[0].classes).toEqual([]);
+      expect(errorsOf(text)).toEqual([]);
+    });
+  });
+
   test("a second block after an element's block is invalid", () => {
     const text = `layout hud with\n  row { text "a" } { text "b" }\nend\n`;
     const row = lowered(text, "layout", "hud").tree.children[0];

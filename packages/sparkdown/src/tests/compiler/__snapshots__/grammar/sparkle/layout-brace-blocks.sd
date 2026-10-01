@@ -34,6 +34,9 @@ layout inventory with
     名前 { text "unicode" }
     button "Go" @click=use(item, max(1, min(2, x))) .wide
     text #x={ {a = {b = {c = 1}}} } "after" #font=a,b
+    button @click={ local t = {a={b={c={}}}} } #--label='a{b}c'
+    button @click={ print([[a}b]]) } "B" --[[ note ]] .wide
+    card([[a)b{c]]) { text "c" }
     row,
   }
   stage:
@@ -41,6 +44,8 @@ layout inventory with
       image
     }
     mask.shadow_1
+    button "Go" @click={ local t = {a={b={c={}}}} }
+    text #--label='a{b}c'
     choice.1:
       text
 end
