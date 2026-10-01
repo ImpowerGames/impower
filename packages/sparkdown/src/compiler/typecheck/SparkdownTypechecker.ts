@@ -123,37 +123,44 @@ const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
  * with `local b = 2 +;` on the next line, where the first error is at the
  * second `local`). A keyword on the line of a `.` or `:` with no name after it
  * is read as that name (`t.a.return 1` is an error at `return`, then at `1`),
- * so it begins no statement.
+ * so it begins no statement. Nor does a keyword inside a bracket the first
+ * error of a recovery stands in (`print(1 + local y = 2)`): the parser reads
+ * the statements up to the bracket's closer, which it then finds where no
+ * statement can begin, in place of what the author wrote in the brackets.
  */
 function reportedExpressionErrors(parseErrors: readonly LuauTypeError[], text: string): Set<LuauTypeError> {
   const reported = new Set<LuauTypeError>();
   const tokens = describeTokens(text);
-  let lastBegin: Position | undefined;
-  // The previous error's token, where the parser read it as a name.
-  let readAsName: Position | undefined;
-  // The last line of the parser's current recovery.
+  // The index of the first token at or after a position.
+  const indexAt = (position: Position) => {
+    const index = tokens.findIndex((token) => !isBefore(token.begin, position));
+    return index < 0 ? tokens.length : index;
+  };
+  // The tokens the parser read as a missing name after a `.` or `:`.
+  const readAsName = new Set<number>();
+  let lastIndex: number | undefined;
+  // The last line of the parser's current recovery, and the closer of the
+  // bracket its first error stands in.
   let recoveryLine = -1;
+  let enclosedUntil = -1;
   for (const error of parseErrors) {
     if (error.data.kind !== "SyntaxError") continue;
     const message = error.data.message;
     const begin = error.location.begin;
-    const separated =
-      lastBegin !== undefined &&
-      tokens.some(
-        (token) =>
-          !isBefore(token.begin, lastBegin!) &&
-          isBefore(token.begin, begin) &&
-          !(readAsName && !isBefore(token.begin, readAsName) && !isBefore(readAsName, token.begin)) &&
-          STATEMENT_TOKENS.has(token.description),
-      );
-    lastBegin = begin;
-    const before = tokens.filter((token) => isBefore(token.begin, begin)).at(-1);
-    readAsName = INDEX_NAME_ERROR.test(message) && before?.begin.line === begin.line ? begin : undefined;
+    const index = indexAt(begin);
+    if (INDEX_NAME_ERROR.test(message) && index > 0 && tokens[index - 1]!.begin.line === begin.line) readAsName.add(index);
+    let separated = false;
+    for (let i = lastIndex ?? index; i < index && !separated; i++) {
+      separated = i > enclosedUntil && !readAsName.has(i) && STATEMENT_TOKENS.has(tokens[i]!.description);
+    }
+    lastIndex = index;
     if (!separated && begin.line <= recoveryLine) {
       recoveryLine = Math.max(recoveryLine, error.location.end.line);
       continue;
     }
     recoveryLine = recoveryEnd(error, tokens);
+    enclosedUntil = enclosingCloser(tokens, index);
+    if (enclosedUntil >= 0) recoveryLine = Math.max(recoveryLine, tokens[enclosedUntil]!.begin.line);
     const isExpressionError = EXPRESSION_ERROR.test(message) && !UNFINISHED_COMMENT.test(message);
     const atSparkdownSyntax = SPARKDOWN_EXPRESSION_TOKEN.test(message);
     if (isExpressionError && !atSparkdownSyntax) reported.add(error);
@@ -169,12 +176,51 @@ const STATEMENT_TOKENS = new Set(["';'", "'local'", "'return'", "'break'", "'do'
 // which reads a keyword on the same line as the missing name.
 const INDEX_NAME_ERROR = /^Expected identifier(?: when parsing (?:method|field) name)?, got '/;
 
-/** Whether Luau code holds a token that ends a statement or begins one (`STATEMENT_TOKENS`). */
-export function endsStatement(code: string): boolean {
-  return describeTokens(code).some((token) => STATEMENT_TOKENS.has(token.description));
+/**
+ * Whether Luau code holds a token that ends a statement or begins one
+ * (`STATEMENT_TOKENS`). Code that begins at the token of an error that a
+ * `.` or `:` has no name after begins with the name the parser read there.
+ */
+export function endsStatement(code: string, atMissingName = false): boolean {
+  return describeTokens(code).some((token, i) => (i > 0 || !atMissingName) && STATEMENT_TOKENS.has(token.description));
+}
+
+/** Whether a Sparkdown or Luau error is one for a `.` or `:` with no name after it. */
+export function isMissingNameError(message: string): boolean {
+  return INDEX_NAME_ERROR.test(message);
 }
 
 const BRACKETS: Record<string, string> = { "(": ")", "{": "}", "[": "]" };
+const CLOSERS = new Set(["')'", "'}'", "']'"]);
+
+/**
+ * The index of the token that closes the innermost bracket the token at
+ * `index` stands in, within the statement it began in, or -1. A `;` there can
+ * separate a table's fields (`{1; 2}`), so only a keyword that begins a
+ * statement ends the search.
+ */
+function enclosingCloser(tokens: readonly { description: string }[], index: number): number {
+  let open = false;
+  for (let i = index - 1, depth = 0; i >= 0; i--) {
+    const description = tokens[i]!.description;
+    if (CLOSERS.has(description)) depth++;
+    else if (description.length === 3 && BRACKETS[description[1]!]) {
+      if (depth === 0) {
+        open = true;
+        break;
+      }
+      depth--;
+    } else if (depth === 0 && description !== "';'" && STATEMENT_TOKENS.has(description)) break;
+  }
+  if (!open) return -1;
+  let depth = 0;
+  for (let i = index; i < tokens.length; i++) {
+    const description = tokens[i]!.description;
+    if (description.length === 3 && BRACKETS[description[1]!]) depth++;
+    else if (CLOSERS.has(description) && depth-- === 0) return i;
+  }
+  return -1;
+}
 
 /**
  * The last line of the parser's recovery from an error (see
@@ -392,13 +438,17 @@ export class SparkdownTypechecker {
     // Whether the text before an error's token, where its expression is
     // missing, stands in Luau that Sparkdown's validator reports errors in
     // itself (`isCheckedLuau`), such as a `store` declaration, whose value
-    // the checker reads too. An error on a later line than a token that ends
-    // a value (`store x = 0xZ`, then `2`) is a statement of its own's.
+    // the checker reads too. An error on a later line than the token before
+    // it, past comments, where that token ends a value (`store x = 0xZ`,
+    // then `2`), is a statement of its own's.
     const read = (from: number, to: number) => text.slice(from, to);
-    const followsUncheckedLuau = (position: { line: number; character: number }, tokenBefore: string | undefined) => {
-      let offset = offsetOf(position);
+    const followsUncheckedLuau = (unit: LuauUnit, position: Position) => {
+      const before = describeTokens(unit.text)
+        .filter((token) => token.begin.line < position.line || (token.begin.line === position.line && token.begin.column < position.column))
+        .at(-1);
+      if (before && before.end.line < position.line && endsValue(before.description)) return false;
+      let offset = offsetOf(documentPosition(unit, position));
       while (offset > 0 && /\s/.test(text[offset - 1]!)) offset--;
-      if (text.slice(offset, offsetOf(position)).includes("\n") && endsValue(tokenBefore)) return false;
       return !isCheckedLuau(tree.resolveInner(offset, -1), read);
     };
     // The lines of a unit that a story line follows before its next line.
@@ -439,7 +489,7 @@ export class SparkdownTypechecker {
           if (message === DIVERT_TARGET_TYPE) continue;
           const start = documentPosition(unit, error.location.begin);
           // A Luau file is Luau throughout.
-          if (unit.kind !== "file" && expressionErrors.includes(error) && followsUncheckedLuau(start, describeTokenBefore(unit.text, error.location.begin))) continue;
+          if (unit.kind !== "file" && expressionErrors.includes(error) && followsUncheckedLuau(unit, error.location.begin)) continue;
           // A function value's name comes right after `function`; after any
           // other token the `(` is missing from a declaration's header, which
           // Sparkdown allows (`function greet` with its body on the next

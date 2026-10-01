@@ -156,16 +156,16 @@ export function describeTokenBefore(source: string, position: Position): string 
 
 /**
  * The tokens in `source`, past comments, each with Luau's description of it
- * (`'x'`, `'local'`, `';'`) and where it begins. Not part of Luau:
+ * (`'x'`, `'local'`, `';'`) and where it begins and ends. Not part of Luau:
  * Sparkdown's type checker reads with it where Luau's parser recovers from an
  * error.
  */
-export function describeTokens(source: string): { description: string; begin: Position }[] {
+export function describeTokens(source: string): { description: string; begin: Position; end: Position }[] {
   const buffer = utf8Encoder.encode(source);
   const lexer = new Lexer(buffer, buffer.length, new AstNameTable());
-  const tokens: { description: string; begin: Position }[] = [];
+  const tokens: { description: string; begin: Position; end: Position }[] = [];
   for (let lexeme = lexer.next(true); lexeme.type !== LexemeType.Eof; lexeme = lexer.next(true)) {
-    tokens.push({ description: lexeme.toString(), begin: lexeme.location.begin });
+    tokens.push({ description: lexeme.toString(), begin: lexeme.location.begin, end: lexeme.location.end });
   }
   return tokens;
 }

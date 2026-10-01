@@ -253,6 +253,18 @@ describe("the reported layouts", () => {
       "1:13-1:14 Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
       "2:11-2:12 Expected identifier when parsing expression, got ';'",
     ]],
+    // Round 3: a statement keyword inside the bracket the first error stands
+    // in is the parser's recovery up to the bracket's closer.
+    ["function f(t)\n  print(1 + local y = 2)\nend", ["1:12-1:17 Expected identifier when parsing expression, got 'local'"]],
+    ["function f(t)\n  local a = (1 + local y = 2)\nend", ["1:17-1:22 Expected identifier when parsing expression, got 'local'"]],
+    ["function f(t)\n  local a = {1 + local y = 2}\nend", ["1:17-1:22 Expected identifier when parsing expression, got 'local'"]],
+    ["function f(t)\n  local a = t[1 + local y = 2]\nend", ["1:18-1:23 Expected identifier when parsing expression, got 'local'"]],
+    // A table's `;` separates its fields.
+    ["function f(t)\n  local a = {1; local y}\nend", ["1:16-1:21 Expected identifier when parsing expression, got 'local'"]],
+    // A keyword the parser read as a missing name stays read, past the
+    // recovery's other errors.
+    ["function f(t)\n  t.a.return 1\nend", ["1:6-1:12 Expected identifier, got 'return'"]],
+    ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],
   ])("%j reports %j", (source, messages) => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
@@ -290,6 +302,14 @@ describe("the reported layouts", () => {
     ["store x = 1 +\nlocal z = 2", ["1:0-1:5 Expected identifier when parsing expression, got 'local'"]],
     // Round 2: a `store` declaration's complete value ends its statement.
     ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
+    // Round 3: a line break inside a comment ends the line too.
+    ["function f(t)\n  store x = 0xZ --[[\n  ]] 2\nend", ["1:12-1:15 Malformed number", "2:5-2:6 Expected identifier when parsing expression, got '2'"]],
+    // The validator's error at a statement keyword begins the next
+    // statement, whose own error is reported too.
+    ["function f(t)\n  store x = 1 +\n  local y = 2 +;\nend", [
+      "2:2-2:7 Expected identifier when parsing expression, got 'local'",
+      "2:15-2:16 Expected identifier when parsing expression, got ';'",
+    ]],
     ["-> s\nscene s\n  if then\n    Hi.\n  end\nend", ["2:5-2:9 Expected identifier when parsing expression, got 'then'"]],
   ])("in a Sparkdown document, %j reports %j", (source, messages) => {
     expect(compileDocument(`${source}\n`).errors).toEqual(messages);
