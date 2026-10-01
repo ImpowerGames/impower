@@ -70,10 +70,12 @@ export function readCodexAuthSecret(permission,source=process.env) {
 // reviewer's exit is confirmed (or its launch is refused), so neither the
 // authentication copy nor the session state Codex wrote beside it outlives the
 // reviewer in the container. Only a home this launcher created is removed.
-const secretHomePrefix=path.join(fs.realpathSync.native(os.tmpdir()),'impower-codex-home-');
+const secretHomePrefix='impower-codex-home-';
 export function removeSecretCodexHome(home) {
-  if(typeof home!=='string'||!home.startsWith(secretHomePrefix)||home.length===secretHomePrefix.length)throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
-  fs.rmSync(home,{recursive:true,force:true});
+  const resolved=typeof home==='string'?path.resolve(home):'';
+  const name=path.basename(resolved);
+  if(!resolved||path.dirname(resolved)!==fs.realpathSync.native(os.tmpdir())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
+  fs.rmSync(resolved,{recursive:true,force:true});
 }
 export function discardCodexAuthCopy(step,env) {
   if(step?.permissions?.codexAuthEnv===undefined||!env?.CODEX_HOME)return;
@@ -166,7 +168,11 @@ function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,r
   // Codex review environments receive report access in memory; never copy its
   // configuration or token to disk.
   let token;
-  try{token=execFileSync('gh',['auth','token','--hostname','github.com'],{env:source,encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:16384,stdio:['ignore','pipe','pipe']}).trim();}
+  // The helper reads the user's GitHub login from the source environment, but
+  // never the Codex secret the source carries for the authentication file.
+  const helperSource={...source};
+  if(step.permissions?.codexAuthEnv!==undefined)delete helperSource[step.permissions.codexAuthEnv];
+  try{token=execFileSync('gh',['auth','token','--hostname','github.com'],{env:helperSource,encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:16384,stdio:['ignore','pipe','pipe']}).trim();}
   catch{throw new Error('Existing GitHub authentication unavailable; reviewer not launched (a cloud container without a gh login sets the plan\'s reportPosting to "coordinator")');}
   if(!token||/[\r\n]/.test(token))throw new Error('Existing GitHub authentication invalid; reviewer not launched');
   env.GH_HOST='github.com';env.GH_TOKEN=token;

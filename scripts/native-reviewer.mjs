@@ -117,7 +117,8 @@ export function validateCodexReviewer(review,plan) {
   const root=fs.realpathSync.native(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
   const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
   if(contains(root,worktree)||contains(worktree,root)||contains(root,job)||contains(job,root)||contains(root,common)||contains(common,root))throw new Error('Codex reviewer writes must exclude repository and supervisor state');
-  if(fullAccess&&permission.codexAuthEnv!==undefined)readCodexAuthSecret(permission);
+  // The launcher withholds the secret from its environment and supplies it here.
+  if(fullAccess&&permission.codexAuthEnv!==undefined)readCodexAuthSecret(permission,plan.secretSource??process.env);
   else if(fullAccess)validateCodexAuthHome(permission,worktree);
   else validateCodexSandboxStorage(permission,job,worktree);
   const report=values.get('--output-last-message');

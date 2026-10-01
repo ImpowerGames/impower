@@ -29,7 +29,10 @@ const ghCredential=`fixture-github-credential-${randomUUID()}`;
 const ambient={[secretName]:JSON.stringify({auth_mode:'chatgpt',tokens:{access_token:credential}}),GH_TOKEN:ghCredential,GITHUB_TOKEN:ghCredential};
 const previous=Object.fromEntries(Object.keys(ambient).map(key=>[key,process.env[key]]));
 const secretHomes=()=>new Set(fs.readdirSync(os.tmpdir()).filter(name=>name.startsWith('impower-codex-home-')));
-const homesBefore=secretHomes();
+// The homes this check itself created, by name; the launcher removes each one
+// and the final cleanup covers only an assertion failure in between, never a
+// home another launcher created meanwhile.
+const createdHomes=new Set();
 try {
   Object.assign(process.env,ambient);
   const repo=path.join(scratch,'repo');fs.mkdirSync(repo);
@@ -114,9 +117,22 @@ try {
       assert.throws(()=>nativeReviewerEnvironment({args:fullArgs,permissions,nativeResult:'codex-jsonl'},directory,process.env,{worktree:repo}),/GitHub authentication unavailable.*reportPosting/);
     } finally {restore();}
     assert.equal(written.length,1,'the secret route writes one private home outside the job directory before the refusal');
+    createdHomes.add(path.join(os.tmpdir(),written[0]));
     assert.equal(fs.existsSync(path.join(os.tmpdir(),written[0])),false,'a refused launch removes the private home with its authentication copy');
     assert.deepEqual([...secretHomes()].filter(name=>!before.has(name)),[]);
     assert.throws(()=>removeSecretCodexHome(path.join(os.tmpdir(),'other-home')),/not a secret route Codex home/,'only a home this launcher created is removed');
+    // The guard takes a canonical direct child of the temporary directory, so
+    // a traversal through a real home, or a home elsewhere, is refused.
+    const realHome=fs.mkdtempSync(path.join(os.tmpdir(),'impower-codex-home-')),sibling=fs.mkdtempSync(path.join(os.tmpdir(),'impower-sibling-'));
+    createdHomes.add(realHome);
+    try {
+      assert.throws(()=>removeSecretCodexHome(path.join(realHome,'..',path.basename(sibling))),/not a secret route Codex home/,'a traversal through a home is refused');
+      assert.throws(()=>removeSecretCodexHome(path.join(realHome,'..')),/not a secret route Codex home/);
+      assert.throws(()=>removeSecretCodexHome(path.join(scratch,'impower-codex-home-elsewhere')),/not a secret route Codex home/,'a home outside the temporary directory is refused');
+      assert.ok(fs.existsSync(sibling),'the sibling survives every refusal');
+      removeSecretCodexHome(realHome);
+      assert.equal(fs.existsSync(realHome),false,'a real home is removed');
+    } finally {fs.rmSync(sibling,{recursive:true,force:true});}
     console.log('PASS: a launch refused after the secret was copied removes the private home');
   }
 
@@ -126,10 +142,11 @@ try {
     childProcess.execFileSync=(exe,args,options)=>{if(exe==='/fixture/codex'&&args[0]==='--version'){probeEnv=options.env;return `codex-cli ${minimumFullAccessCodexVersion}\n`;}return originalExec(exe,args,options);};
     syncBuiltinESMExports();
     try {
-      const sanitized={...process.env};delete sanitized[secretName];
+      // Windows spells PATH as Path, so the kept variable is a marker of our own.
+      const sanitized={...process.env,IMPOWER_TEST_PROBE_MARKER:'kept'};delete sanitized[secretName];
       verifyReviewerExecutable({transport:'native-codex-jsonl',executable:'/fixture/codex',args:fullArgs},{platform:'linux',env:sanitized});
       assert.equal(Object.hasOwn(probeEnv,secretName),false,'the version probe does not inherit the secret');
-      assert.equal(probeEnv.PATH,process.env.PATH,'the probe keeps the rest of the environment');
+      assert.equal(probeEnv.IMPOWER_TEST_PROBE_MARKER,'kept','the probe keeps the rest of the environment');
     } finally {restore();}
     console.log('PASS: the version probe runs without the authentication secret');
   }
@@ -186,10 +203,22 @@ try {
     assert.throws(()=>validate({codexAuthEnv:undefined,codexHome:scratch}),/codexAuthProxied only as true/);
     const directory=fs.mkdtempSync(path.join(job,'proxied-'));
     const env=nativeReviewerEnvironment({args:fullArgs,permissions:proxied,nativeResult:'codex-jsonl'},directory,{...process.env,[secretName]:JSON.stringify({...template,last_refresh:'2020-01-01T00:00:00Z'})},{worktree:repo,reportPosting:'coordinator'});
+    createdHomes.add(env.CODEX_HOME);
     const written=JSON.parse(fs.readFileSync(path.join(env.CODEX_HOME,'auth.json'),'utf8'));
     assert.deepEqual(written.tokens,template.tokens,'the private home holds the template');
     assert.ok(Date.parse(written.last_refresh)>Date.parse('2024-01-01'),'the launcher renews the refresh time so Codex does not refresh the placeholders');
     removeSecretCodexHome(env.CODEX_HOME);
+    let ghEnv;
+    childProcess.execFileSync=(exe,args,options)=>{if(exe==='gh'&&args[0]==='auth'){ghEnv=options.env;return `${ghCredential}\n`;}return originalExec(exe,args,options);};
+    syncBuiltinESMExports();
+    try {
+      const posting=nativeReviewerEnvironment({args:fullArgs,permissions:proxied,nativeResult:'codex-jsonl'},fs.mkdtempSync(path.join(job,'posting-')),{...process.env,[secretName]:text},{worktree:repo});
+      createdHomes.add(posting.CODEX_HOME);
+      assert.equal(Object.hasOwn(ghEnv,secretName),false,'the gh helper does not inherit the secret');
+      assert.equal(ghEnv.PATH??ghEnv.Path,process.env.PATH??process.env.Path,'the gh helper keeps the user\'s environment');
+      assert.equal(posting.GH_TOKEN,ghCredential,'the reviewer-posted route still delegates the GitHub token');
+      removeSecretCodexHome(posting.CODEX_HOME);
+    } finally {restore();}
     process.env[secretName]=ambient[secretName];
     console.log('PASS: the proxied route takes a template holding no usable token, refuses a real login without echoing it, and renews its refresh time');
   }
@@ -219,15 +248,17 @@ console.error('diagnostic after terminal result');
     await assert.rejects(runHandoff(partialFile,{jobRoot:scratch,slotRoot:slots}),/--strict-config/);
     assert.equal(fs.existsSync(slots),false,'a refused plan reserves no slot');assert.equal(fs.existsSync(path.join(handoff,'partial.jsonl')),false);
     fs.writeFileSync(planFile,JSON.stringify(plan));
-    let ghCalls=0;
+    let ghCalls=0,versionProbeSawSecret;
     childProcess.execFileSync=(exe,args,options)=>{
       if(exe==='gh'){ghCalls++;throw new Error('fixture: no gh login in the container');}
-      if(exe===process.execPath&&args[0]==='--version')return `codex-cli ${minimumFullAccessCodexVersion}`;
+      if(exe===process.execPath&&args[0]==='--version'){versionProbeSawSecret=Object.hasOwn(options?.env??process.env,secretName);return `codex-cli ${minimumFullAccessCodexVersion}`;}
       return originalExec(exe,args,options);
     };
     childProcess.spawn=(exe,args,options)=>{
       if(exe!==process.execPath||args[0]!=='exec')return originalSpawn(exe,args,options);
       assert.equal(JSON.stringify(args).includes(credential),false,'the secret is not in argv');
+      assert.equal(Object.hasOwn(options.env,secretName),false,'neither the route probe nor the reviewer inherits the secret');
+      assert.equal(Object.hasOwn(process.env,secretName),false,'the launcher withholds the secret from its own environment while it runs');
       return originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots}});
     };
     syncBuiltinESMExports();
@@ -237,6 +268,9 @@ console.error('diagnostic after terminal result');
     const rows=fs.readFileSync(journal,'utf8').trim().split('\n').map(line=>JSON.parse(line)),observed=JSON.parse(fs.readFileSync(capture,'utf8'));
     const at=event=>rows.findIndex(row=>row.event===event);
     assert.equal(ghCalls,0,'a coordinator-posted report needs no gh login');
+    assert.equal(versionProbeSawSecret,false,'the version probe the launcher runs does not inherit the secret');
+    assert.equal(process.env[secretName],ambient[secretName],'the launcher restores its environment after the run');
+    createdHomes.add(observed.home);
     assert.deepEqual(observed.github,[],'the reviewer receives no GitHub credential');
     assert.equal(observed.secretVisible,false,'the reviewer environment does not carry the secret variable');
     assert.deepEqual(observed.homeFiles,['auth.json','hooks.json'],'the private home holds the authentication copy and the repository hooks');
@@ -335,5 +369,5 @@ console.error('diagnostic after terminal result');
   for(const [key,value] of Object.entries(previous)){if(value===undefined)delete process.env[key];else process.env[key]=value;}
   removeScratch(scratch);
   // The private homes this check created outside the scratch folder.
-  for(const name of secretHomes())if(!homesBefore.has(name))removeScratch(path.join(os.tmpdir(),name));
+  for(const home of createdHomes)if(fs.existsSync(home))removeScratch(home);
 }

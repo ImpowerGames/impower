@@ -291,8 +291,25 @@ export async function probeReviewerRoute(step, args, { cwd, env, timeoutMs = 120
 
 // Configuration is a local, caller-authored artifact. Comments and child output
 // can select a declared transition but can never supply executable commands.
-export async function runHandoff(configFile, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs } = {}) {
+// Every step's Codex authentication secret leaves the launcher's environment
+// for the run, so no child it or its helpers start (git, gh, the version
+// probe, the route probe, the reviewer) inherits it; the reviewer's own
+// environment is built from a source holding only its step's secret.
+export function withholdCodexAuthSecrets(config, env = process.env) {
+  const names = [...new Set(Object.values(config.steps ?? {}).map((step) => step?.permissions?.codexAuthEnv).filter((name) => typeof name === "string"))];
+  const values = Object.fromEntries(names.filter((name) => Object.hasOwn(env, name)).map((name) => [name, env[name]]));
+  for (const name of names) delete env[name];
+  return { names, values, restore: () => { for (const [name, value] of Object.entries(values)) env[name] = value; } };
+}
+
+export async function runHandoff(configFile, options = {}) {
   const config = read(configFile);
+  const withheld = withholdCodexAuthSecrets(config);
+  try { return await runHandoffWithheld(configFile, config, options, withheld); }
+  finally { withheld.restore(); }
+}
+
+async function runHandoffWithheld(configFile, config, { slotRoot, identifyProcess = processIdentity, automaticJob, jobRoot, listComments = listPrComments, probeTimeoutMs } = {}, withheld) {
   if (config.continuation) throw new Error('Automatic continuation requires review-supervisor capability preflight');
   validatePlanShape(config);
   const cwd = fs.realpathSync.native(config.worktree);
@@ -316,16 +333,20 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
   validateSlotWait(config.slotWaitSeconds);
   const slotWaitSeconds = config.slotWaitSeconds ?? 0;
   if (fs.existsSync(journal)) throw new Error("Journal exists; inspect recorded process and completion before authoring a recovery plan");
-  // A Codex authentication secret reaches only the reviewer's private home; no
-  // child, the version probe included, inherits the variable.
-  const authSecrets = Object.values(config.steps).map((step) => step.permissions?.codexAuthEnv).filter((name) => typeof name === "string");
+  // The secrets are withheld from process.env above; the probe's environment
+  // is a copy of what remains, and a step's source holds its own secret only.
+  const authSecrets = withheld.names;
   const probeEnv = { ...process.env };
   for (const name of authSecrets) delete probeEnv[name];
+  const secretSourceFor = (step) => {
+    const name = step.permissions?.codexAuthEnv;
+    return name !== undefined && Object.hasOwn(withheld.values, name) ? { ...process.env, [name]: withheld.values[name] } : { ...process.env };
+  };
   for (const step of Object.values(config.steps)) {
     if (step.execution) executionCommands(step.execution, cwd);
     if(step.nativeResult!==undefined&&!['claude-json','codex-jsonl'].includes(step.nativeResult))throw new Error('Unsupported native reviewer result transport');
     if(step.nativeResult==='codex-jsonl') {
-      validateCodexReviewer(step,{reviewer:config.reviewer,worktree:cwd,jobDir:path.dirname(journal)});
+      validateCodexReviewer(step,{reviewer:config.reviewer,worktree:cwd,jobDir:path.dirname(journal),secretSource:secretSourceFor(step)});
       verifyReviewerExecutable({...step,transport:'native-codex-jsonl'},{env:probeEnv});
     }
     if (step.role === "review" && (!Number.isInteger(step.round) || step.round < 1 || step.round > reviewRoundLimit)) throw new Error(`Review round must be 1..${reviewRoundLimit} on every review step before launch`);
@@ -401,7 +422,9 @@ export async function runHandoff(configFile, { slotRoot, identifyProcess = proce
       let slot,env;
       const discardAuth=()=>discardCodexAuthCopy(step,env);
       try {
-        env=step.role==='review'?nativeReviewerEnvironment(step,artifacts,process.env,{worktree:cwd,reportPosting:config.reportPosting}):{...process.env};
+        // The source holds this step's secret only; the helper children the
+        // builder starts (gh) receive the source without it.
+        env=step.role==='review'?nativeReviewerEnvironment(step,artifacts,secretSourceFor(step),{worktree:cwd,reportPosting:config.reportPosting}):{...process.env};
         for (const name of authSecrets) delete env[name];
         // Never inherit a service grant from a parent review or unrelated task.
         for (const key of Object.keys(env)) if (/^IMPOWER_REVIEW_EXECUTION_/i.test(key)) delete env[key];
