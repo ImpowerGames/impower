@@ -34,6 +34,9 @@
 //
 // This script is deleted with the indented forms by the last slice of #1222.
 
+import { TextmateGrammarParser } from "@impower/textmate-grammar-tree/src/tree/classes/TextmateGrammarParser";
+import GRAMMAR_DEFINITION from "../language/sparkdown.language-grammar.json";
+
 export type BodyKind = "layout" | "struct";
 
 export interface Refusal {
@@ -53,9 +56,63 @@ export interface RewriteResult {
   refusals: Refusal[];
 }
 
-const DECLARATION =
-  /^(layout|component|style|animation|theme|morph|screen)\b.*\bwith[ \t]*(?:(?:--|\/\/).*)?$/;
+// The declarations with a struct body, as the grammar names them; `layout`
+// and `component` bodies hold elements.
+const DECLARATION_NODES: Record<string, BodyKind> = {
+  LuauLayout: "layout",
+  LuauComponent: "layout",
+  LuauStyle: "struct",
+  LuauAnimation: "struct",
+  LuauTheme: "struct",
+  LuauMorph: "struct",
+  LuauScreen: "struct",
+};
+// A header line that ends the line with `with`, so the body starts on the
+// next line.
+const DECLARATION_HEADER = /\bwith[ \t]*(?:(?:--|\/\/).*)?$/;
 const DECLARATION_END = /^end\b/;
+
+let parser: TextmateGrammarParser | undefined;
+
+interface Declaration {
+  kind: BodyKind;
+  /** 0-based lines of the header and of its `end`. */
+  header: number;
+  end: number;
+}
+
+/**
+ * The struct-body declarations of `source` and the lines inside a
+ * multi-line `--[[ … ]]` comment, read from the grammar's parse tree, so a
+ * declaration is found wherever the grammar finds one (indented too) and
+ * never in prose, and a comment's lines are never read as entries.
+ */
+function readDeclarations(
+  source: string,
+  lineOf: (pos: number) => number,
+  lineStart: (line: number) => number,
+) {
+  parser ??= new TextmateGrammarParser(GRAMMAR_DEFINITION as any);
+  const tree = parser.parse(source);
+  const declarations: Declaration[] = [];
+  const commentLines = new Map<number, number>();
+  const cursor = tree.cursor();
+  do {
+    const kind = DECLARATION_NODES[cursor.name];
+    if (kind) {
+      declarations.push({ kind, header: lineOf(cursor.from), end: lineOf(Math.max(cursor.from, cursor.to - 1)) });
+    } else if (cursor.name === "LuauBlockComment") {
+      const first = lineOf(cursor.from);
+      const last = lineOf(Math.max(cursor.from, cursor.to - 1));
+      // The lines after the comment's first line, each mapped to the column
+      // the comment ends at on it (the last line's), or -1.
+      for (let l = first + 1; l <= last; l++) {
+        commentLines.set(l, l === last ? cursor.to - lineStart(last) : -1);
+      }
+    }
+  } while (cursor.next());
+  return { declarations, commentLines };
+}
 
 // The shapes the grammar gives an indented body line, tried in its order
 // (`LuauStructBodyContent`): a comment, a property, a list item, a component
@@ -77,6 +134,10 @@ interface Line {
   /** Text after the leading whitespace, without a trailing `\r`. */
   text: string;
   cr: string;
+  /** Inside a multi-line `--[[ … ]]` comment, after its first line. */
+  comment?: boolean;
+  /** The comment's last line, with an entry after its end. */
+  afterComment?: boolean;
 }
 
 interface OutLine {
@@ -109,58 +170,78 @@ export function rewriteStructBodies(source: string): RewriteResult {
     const ws = /^[ \t]*/.exec(body)![0];
     return { index, ws, text: body.slice(ws.length), cr };
   });
+  const starts: number[] = [];
+  let offset = 0;
+  for (const full of raw) {
+    starts.push(offset);
+    offset += full.length + 1;
+  }
+  const lineOf = (pos: number) => {
+    let lo = 0;
+    let hi = starts.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi + 1) >> 1;
+      if (starts[mid]! <= pos) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  };
+  const { declarations: found, commentLines } = readDeclarations(source, lineOf, (l) => starts[l]!);
+  for (const [index, endColumn] of commentLines) {
+    lines[index]!.comment = true;
+    // Text after a multi-line comment's end on its last line is an entry
+    // that shares the comment's line.
+    if (endColumn >= 0 && raw[index]!.slice(endColumn).trim() !== "") {
+      lines[index]!.afterComment = true;
+    }
+  }
+
   const out: string[] = [];
   const refusals: Refusal[] = [];
   let converted = 0;
   let declarations = 0;
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i]!;
-    const match = line.ws === "" ? DECLARATION.exec(line.text) : null;
-    if (!match) {
-      out.push(raw[i]!);
-      i++;
-      continue;
-    }
-    let end = i + 1;
-    while (
-      end < lines.length &&
-      !(lines[end]!.ws === "" && DECLARATION_END.test(lines[end]!.text))
-    ) {
-      end++;
-    }
-    if (end >= lines.length) {
-      // No `end`: leave the rest of the file alone.
-      out.push(raw[i]!);
-      i++;
-      continue;
-    }
+  let next = 0;
+  for (const declaration of found) {
+    const { header, end, kind } = declaration;
+    if (header < next || end <= header) continue;
+    const headerLine = lines[header]!;
+    const endLine = lines[end]!;
+    // A one-line declaration has no body to rewrite.
+    if (!DECLARATION_HEADER.test(headerLine.text)) continue;
     declarations++;
-    const kind: BodyKind =
-      match[1] === "layout" || match[1] === "component" ? "layout" : "struct";
-    const body = lines.slice(i + 1, end);
-    out.push(raw[i]!);
+    if (!DECLARATION_END.test(endLine.text)) {
+      // The grammar ends the declaration somewhere other than an `end` line:
+      // it has none, or a comment or string left open runs past it.
+      refusals.push({
+        line: end + 1,
+        declaration: header + 1,
+        reason: "the grammar ends this declaration before an `end` line; fix it by hand",
+      });
+      continue;
+    }
+    out.push(...raw.slice(next, header + 1));
+    const body = lines.slice(header + 1, end);
     try {
       const rewritten = rewriteBody(body, kind, eol);
       if (rewritten) {
         converted++;
         out.push(...rewritten);
       } else {
-        out.push(...raw.slice(i + 1, end));
+        out.push(...raw.slice(header + 1, end));
       }
     } catch (error) {
       if (!(error instanceof Refused)) throw error;
-      refusals.push({ line: error.line, declaration: i + 1, reason: error.reason });
-      out.push(...raw.slice(i + 1, end));
+      refusals.push({ line: error.line, declaration: header + 1, reason: error.reason });
+      out.push(...raw.slice(header + 1, end));
     }
-    out.push(raw[end]!);
-    i = end + 1;
+    next = end;
   }
+  out.push(...raw.slice(next));
   return { text: out.join("\n"), converted, declarations, refusals };
 }
 
-const isBlank = (line: Line) => line.text === "";
-const isComment = (line: Line) => COMMENT.test(line.text);
+const isBlank = (line: Line) => line.text === "" && !line.comment;
+const isComment = (line: Line) => line.comment === true || COMMENT.test(line.text);
 
 /** The column a line's text starts in: one per character, tabs included,
  *  as the compiler counts it. */
@@ -173,6 +254,10 @@ const columnOf = (line: Line) => line.ws.length;
 function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null {
   const significant = body.filter((l) => !isBlank(l) && !isComment(l));
   if (significant.length === 0) return null;
+  const shared = body.find((l) => l.afterComment);
+  if (shared) {
+    throw new Refused(shared.index + 1, "an entry after a multi-line comment's end on the same line");
+  }
 
   const indentChars = new Set<string>();
   for (const line of significant) {
@@ -183,7 +268,10 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
   }
 
   const oldForms = significant.filter(
-    (l) => ITEM.test(l.text) || (!PROPERTY.test(l.text) && HEADER.test(l.text)),
+    (l) =>
+      ITEM.test(l.text) ||
+      (!PROPERTY.test(l.text) && HEADER.test(l.text)) ||
+      (kind === "layout" && hasBareWordClass(l.text)),
   );
   const braced = significant.find((l) => hasStructuralBrace(l.text));
   if (braced) {
@@ -232,7 +320,10 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
       continue;
     }
     if (isComment(line)) {
-      out.push({ text: line.ws + line.text + line.cr, kind: "comment", column: columnOf(line) });
+      // A multi-line comment's later lines go wherever its first line goes,
+      // so a `}` never lands inside it.
+      const column = line.comment ? Number.POSITIVE_INFINITY : columnOf(line);
+      out.push({ text: line.ws + line.text + line.cr, kind: "comment", column });
       continue;
     }
     const column = columnOf(line);
@@ -291,7 +382,10 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
     const entry = rewriteEntry(line.text, kind, line);
     if (entry.text !== line.text || entry.header) changed = true;
     if (deeper) {
-      if (!entry.header && entry.element) {
+      // A component call is not an entry of the static struct, and the
+      // layout tree fills its default slot with the lines beneath it, as a
+      // block does.
+      if (!entry.header && entry.element && !entry.call) {
         // The layout tree nests these lines under it (`buildBlock` in
         // `lowerSparkleBody.ts`), while the static struct gives the line an
         // empty entry and drops them, so neither brace spelling keeps both.
@@ -300,7 +394,7 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
           "deeper-indented lines under an element line with no colon, which the layout tree nests and the static struct drops",
         );
       }
-      if (!entry.header) {
+      if (!entry.header && !entry.call) {
         throw new Refused(
           line.index + 2,
           entry.property
@@ -334,23 +428,26 @@ interface Entry {
   property: boolean;
   /** A layout or component element line. */
   element: boolean;
+  /** A component call (`card("x")`). */
+  call: boolean;
 }
 
 /** Reads one indented entry (a line's text, or a list item's inline part). */
 function rewriteEntry(text: string, kind: BodyKind, line: Line): Entry {
   if (PROPERTY.test(text)) {
-    return { text, comment: "", header: false, property: true, element: false };
+    return { text, comment: "", header: false, property: true, element: false, call: false };
   }
   const header = HEADER.exec(text);
   const head = header ? header[1]! : text;
   const comment = header && header[4] ? `${header[3] ? header[3] : " "}${header[4]}` : "";
   const element = kind === "layout" ? dotClasses(head, line) : null;
   return {
-    text: element ?? head,
+    text: element?.text ?? head,
     comment,
     header: Boolean(header),
     property: false,
     element: element !== null,
+    call: element?.call ?? false,
   };
 }
 
@@ -360,16 +457,27 @@ const WORD = /^(?!--)\.?[\w-]+(?:\.[\w-]+)*(?=[ \t]|$)/;
 /**
  * An element line with every bare-word class after its name written with a
  * dot (`mask shadow_1` → `mask.shadow_1`), or `null` when the line is no
- * element. `slot` and `fill` keep their bare name, and nothing after a
- * component call's arguments changes.
+ * element. `slot` and `fill` keep their bare name. A component call stays as
+ * it is, and is refused when parts follow its arguments, which the indented
+ * form misreads (#1224).
  */
-function dotClasses(head: string, line: Line): string | null {
+function dotClasses(head: string, line: Line): { text: string; call: boolean } | null {
   const name = NAME.exec(head);
   if (!name) return null;
   let rest = head.slice(name[0].length);
-  if (/^[ \t]*\(/.test(rest)) return head;
+  if (/^[ \t]*\(/.test(rest)) {
+    const close = closingParen(rest, rest.indexOf("("));
+    const after = close < 0 ? "" : rest.slice(close + 1).trim();
+    if (after !== "" && !/^(?:--|\/\/)/.test(after)) {
+      throw new Refused(
+        line.index + 1,
+        "a component call followed by more parts, which the brace form reads differently",
+      );
+    }
+    return { text: head, call: true };
+  }
   if (rest !== "" && !/^[ \t]/.test(rest)) return null;
-  if (name[0] === "slot" || name[0] === "fill") return head;
+  if (name[0] === "slot" || name[0] === "fill") return { text: head, call: false };
   let classes = "";
   for (;;) {
     const ws = /^[ \t]+/.exec(rest);
@@ -380,7 +488,98 @@ function dotClasses(head: string, line: Line): string | null {
     rest = rest.slice(ws[0].length + word[0].length);
   }
   checkTail(rest, line);
-  return name[0] + classes + rest;
+  return { text: name[0] + classes + rest, call: false };
+}
+
+/** The index of the `)` that closes the `(` at `open`, skipping quoted
+ *  text, or -1. */
+function closingParen(text: string, open: number): number {
+  let depth = 0;
+  for (let k = open; k < text.length; k++) {
+    const c = text[k]!;
+    if (c === '"' || c === "'") {
+      k++;
+      while (k < text.length && text[k] !== c) k += text[k] === "\\" ? 2 : 1;
+    } else if (c === "(") depth++;
+    else if (c === ")" && --depth === 0) return k;
+  }
+  return -1;
+}
+
+const BARE_CLASS =
+  /^(?!(?:if|elseif|else|end|for|match|case|slot|fill)\b)[A-Za-z_][\w-]*(?:\.[\w-]+)*[ \t]+(?!--)\.?[\w-]+(?=[ \t]|$)/;
+
+/**
+ * True when a layout line holds an element with a bare-word class: in any
+ * of its entries, the parts between braces and `;` outside quoted text,
+ * attribute values and comments.
+ */
+export function hasBareWordClass(text: string): boolean {
+  return segments(text).some((s) => !PROPERTY.test(s) && BARE_CLASS.test(s));
+}
+
+/** `text` split at its `{`, `}` and `;` outside quoted text, attribute
+ *  values and comments, each part trimmed. */
+function segments(text: string): string[] {
+  const parts: string[] = [];
+  let part = "";
+  let k = 0;
+  const n = text.length;
+  while (k < n) {
+    const c = text[k]!;
+    if (c === '"' || c === "'") {
+      const start = k;
+      k++;
+      while (k < n && text[k] !== c) k += text[k] === "\\" ? 2 : 1;
+      k++;
+      part += text.slice(start, k);
+    } else if (startsComment(text, k)) {
+      break;
+    } else if ((c === "#" || c === "@") && /^[#@][\w-]+[ \t]*=/.test(text.slice(k))) {
+      const start = k;
+      k = skipAttribute(text, k);
+      part += text.slice(start, k);
+    } else if (c === "{" || c === "}" || c === ";") {
+      parts.push(part.trim());
+      part = "";
+      k++;
+    } else {
+      part += c;
+      k++;
+    }
+  }
+  parts.push(part.trim());
+  return parts.filter((p) => p !== "");
+}
+
+/** A `--` or `//` comment starts at `k`: at the line's start or after
+ *  whitespace, as the struct readers start one (`var(--gap)` is text). */
+function startsComment(text: string, k: number): boolean {
+  if (k > 0 && text[k - 1] !== " " && text[k - 1] !== "\t") return false;
+  return text.startsWith("--", k) || /^\/\/(?:$|[ \t])/.test(text.slice(k));
+}
+
+/** The end of the attribute (`#name = value`) at `k`: its value is quoted
+ *  text or a run with balanced braces and parentheses. */
+function skipAttribute(text: string, k: number): number {
+  const n = text.length;
+  k = text.indexOf("=", k) + 1;
+  while (text[k] === " " || text[k] === "\t") k++;
+  let depth = 0;
+  while (k < n) {
+    const v = text[k]!;
+    if (v === '"' || v === "'") {
+      k++;
+      while (k < n && text[k] !== v) k += text[k] === "\\" ? 2 : 1;
+      k++;
+      continue;
+    }
+    if (v === "{" || v === "(") depth++;
+    else if (v === "}" || v === ")") depth--;
+    else if ((v === " " || v === "\t") && depth <= 0) break;
+    k++;
+  }
+  return k;
 }
 
 /**
@@ -432,8 +631,13 @@ function checkTail(rest: string, line: Line): void {
       const attr = /^[#@][\w-]+/.exec(rest.slice(k));
       if (!attr) refuse("with an unreadable attribute");
       k += attr![0].length;
-      if (rest[k] === "=") {
-        k++;
+      // `#name=value`, `#name = value`: the grammar allows whitespace on
+      // both sides of the `=`.
+      let j = k;
+      while (rest[j] === " " || rest[j] === "\t") j++;
+      if (rest[j] === "=") {
+        k = j + 1;
+        while (rest[k] === " " || rest[k] === "\t") k++;
         skipValue();
       }
     } else if (c === ".") {
@@ -459,26 +663,11 @@ export function hasStructuralBrace(text: string): boolean {
       k++;
       while (k < n && text[k] !== c) k += text[k] === "\\" ? 2 : 1;
       k++;
-    } else if (text.startsWith("--", k) || (text.startsWith("//", k) && /^\/\/(?:$|[ \t])/.test(text.slice(k)))) {
+    } else if (startsComment(text, k)) {
       return false;
     } else if ((c === "#" || c === "@") && /^[#@][\w-]+[ \t]*=/.test(text.slice(k))) {
       // An attribute's value, braces and all.
-      k = text.indexOf("=", k) + 1;
-      while (text[k] === " " || text[k] === "\t") k++;
-      let depth = 0;
-      while (k < n) {
-        const v = text[k]!;
-        if (v === '"' || v === "'") {
-          k++;
-          while (k < n && text[k] !== v) k += text[k] === "\\" ? 2 : 1;
-          k++;
-          continue;
-        }
-        if (v === "{" || v === "(") depth++;
-        else if (v === "}" || v === ")") depth--;
-        else if ((v === " " || v === "\t") && depth <= 0) break;
-        k++;
-      }
+      k = skipAttribute(text, k);
     } else if (c === "{" || c === "}") {
       return true;
     } else {

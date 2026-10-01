@@ -487,6 +487,168 @@ describe("mixes, control blocks, comments and blank lines", () => {
   });
 });
 
+describe("declarations and lines found as the grammar finds them (round 1, comment 5939438817)", () => {
+  test("an indented declaration converts, and prose ending in `with` is left alone", () => {
+    expect(
+      converted(
+        lines(
+          "  style s with",
+          "    > a:",
+          "      color = red",
+          "  end",
+          "",
+          "scene start",
+          "  ALICE:",
+          "    animation plays with",
+          "    me:",
+          "end",
+        ),
+      ),
+    ).toBe(
+      lines(
+        "  style s with",
+        "    > a {",
+        "      color = red",
+        "    }",
+        "  end",
+        "",
+        "scene start",
+        "  ALICE:",
+        "    animation plays with",
+        "    me:",
+        "end",
+      ),
+    );
+  });
+
+  test("a multi-line comment's lines stay byte for byte, and no `}` lands inside it", () => {
+    expect(
+      converted(
+        lines(
+          "layout main with",
+          "  row:",
+          "    text \"a\"",
+          "    --[[",
+          "text muted \"comment\"",
+          "  row:",
+          "    ]]",
+          "  text muted \"b\"",
+          "end",
+        ),
+      ),
+    ).toBe(
+      lines(
+        "layout main with",
+        "  row {",
+        "    text \"a\"",
+        "    --[[",
+        "text muted \"comment\"",
+        "  row:",
+        "    ]]",
+        "  }",
+        "  text.muted \"b\"",
+        "end",
+      ),
+    );
+  });
+
+  test("an entry after a multi-line comment's end on the same line is refused", () => {
+    // In a layout the grammar ends the declaration at that comment.
+    const layout = lines("layout main with", "  row:", "    --[[ a", "    b ]] text muted \"c\"", "end");
+    expect(rewriteStructBodies(layout)).toMatchObject({
+      text: layout,
+      refusals: [
+        {
+          line: 4,
+          declaration: 1,
+          reason: "the grammar ends this declaration before an `end` line; fix it by hand",
+        },
+      ],
+    });
+    // In a style body the declaration goes on, and the line is refused.
+    const style = lines("style s with", "  > a:", "    --[[ a", "    b ]] color = red", "end");
+    const result = rewriteStructBodies(style);
+    expect(result.text).toBe(style);
+    expect(result.refusals.map((r) => r.line)).toEqual([4]);
+  });
+
+  test("a declaration left without its `end` is reported", () => {
+    const source = lines("style s with", "  > a:", "    color = red", "");
+    expect(rewriteStructBodies(source)).toMatchObject({ text: source, declarations: 1, converted: 0 });
+    expect(rewriteStructBodies(source).refusals).toHaveLength(1);
+  });
+
+  test("whitespace around an attribute's `=` is read as the grammar reads it", () => {
+    expect(
+      converted(lines("layout main with", "  row:", "    text muted #width = 5 \"A\"", "end")),
+    ).toBe(lines("layout main with", "  row {", "    text.muted #width = 5 \"A\"", "  }", "end"));
+  });
+
+  test("a component call with deeper lines and no colon becomes a block", () => {
+    expect(
+      converted(
+        lines("component card with", "  slot", "end", "", "layout main with", "  card()", "    text \"A\"", "end"),
+      ),
+    ).toBe(
+      lines("component card with", "  slot", "end", "", "layout main with", "  card() {", "    text \"A\"", "  }", "end"),
+    );
+    const followed = lines("layout main with", "  row:", "    card(1) other", "end");
+    expect(rewriteStructBodies(followed).refusals).toHaveLength(1);
+  });
+
+  test("a brace body that still holds a bare-word class is refused, not skipped", () => {
+    for (const body of [["  row {}", "  text muted \"A\""], ["  row {", "    text muted \"A\"", "  }"], ["  title { stroke wide; text }"]]) {
+      const source = lines("layout main with", ...body, "end");
+      const result = rewriteStructBodies(source);
+      expect(result.refusals.map((r) => r.reason), body.join(" / ")).toEqual([
+        "the body already holds brace blocks beside indented forms; convert it by hand",
+      ]);
+      expect(result.text).toBe(source);
+    }
+    // A brace body with dotted classes only is already converted.
+    const done = lines("layout main with", "  row {", "    text.muted \"A\" #width=5", "  }", "end");
+    expect(rewriteStructBodies(done)).toMatchObject({ text: done, refusals: [], converted: 0 });
+  });
+});
+
+describe("the self-check compares authored data exactly (round 1, comment 5939438817)", () => {
+  const compare = (before: string, after: string) =>
+    comparePrograms(
+      [{ label: "main.sd", text: before }],
+      [{ label: "main.sd", text: after }],
+      "main.sd",
+      true,
+    ).differences;
+
+  test("an authored key named `span` is compared", () => {
+    expect(compare(lines("style custom with", "  span = 1", "end"), lines("style custom with", "  span = 2", "end"))).not.toEqual([]);
+    expect(
+      compare(
+        lines("style custom with", "  span:", "    -", "    - 1", "end"),
+        lines("style custom with", "  span {", "    {}", "    1", "  }", "end"),
+      ),
+    ).not.toEqual([]);
+  });
+
+  test("authored text that looks like a generated name is not renamed", () => {
+    expect(
+      compare(
+        lines("layout main with", "  text \"__binding_file_3aabc_123\"", "end"),
+        lines("layout main with", "  text \"__binding_file_3aabc_456\"", "end"),
+      ),
+    ).not.toEqual([]);
+  });
+
+  test("generated names still compare equal when only their offsets move", () => {
+    expect(
+      compare(
+        lines("store n = 1", "layout main with", "  row:", "    text \"{n}\" #width={n}", "    button @click={ n = n + 1 }", "end"),
+        lines("store n = 1", "", "", "layout main with", "  row {", "    text \"{n}\" #width={n}", "    button @click={ n = n + 1 }", "  }", "end"),
+      ),
+    ).toEqual([]);
+  });
+});
+
 describe("a declaration whose old meaning cannot be carried over is refused and left as it was", () => {
   test("a deeper-indented line under a property in a style, animation, theme or morph body", () => {
     for (const kind of ["style", "animation", "theme", "morph"]) {
@@ -592,6 +754,20 @@ describe("the self-check", () => {
       );
       expect(out).toContain("programs identical (--check: nothing written)");
       expect(readFileSync(join(dir, "main.sd"), "utf8")).toBe(source);
+    });
+
+    test("a project file `main.sd` does not reach is compared on its own, and its difference writes nothing (round 1, comment 5939438817)", () => {
+      dir = mkdtempSync(join(tmpdir(), "struct-body-converter-"));
+      const main = lines("style s with", "  > a:", "    color = red", "end");
+      const unused = lines("animation a with", "  keyframes:", "    -", "    - offset = 0", "end");
+      writeFileSync(join(dir, "main.sd"), main);
+      writeFileSync(join(dir, "unused.sd"), unused);
+      const { code, out } = run(["--project", "."]);
+      expect(code).toBe(1);
+      expect(out).toContain("compared from unused.sd:");
+      expect(out).toContain("nothing written");
+      expect(readFileSync(join(dir, "main.sd"), "utf8")).toBe(main);
+      expect(readFileSync(join(dir, "unused.sd"), "utf8")).toBe(unused);
     });
 
     test("a project directory compiles as one program from its `main.sd`", () => {

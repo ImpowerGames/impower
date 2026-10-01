@@ -26,6 +26,8 @@ export interface ProgramComparison {
   differences: string[];
   /** The fields compared, each with its size, for the report. */
   compared: string[];
+  /** The sources the program compiled from the entry holds. */
+  reached: string[];
 }
 
 /** Runs `fn` with the console silenced: the compiler logs what it hides
@@ -118,42 +120,78 @@ const IGNORED = new Set([
   "contextRevision",
 ]);
 
-// A name the compiler derives from a source offset ends in `_<offset>`:
-// `__binding_<uri>__layout_main_2310`.
-const OFFSET_NAME = /(__[a-z]+_file_3a\w*?)_(\d+)(?!\w)/g;
+/** A layout tree node's source position: `{ line, from, to }`. */
+const isSpan = (value: unknown): boolean =>
+  !!value &&
+  typeof value === "object" &&
+  !Array.isArray(value) &&
+  typeof (value as any).from === "number" &&
+  typeof (value as any).to === "number";
+
+/**
+ * The layout tree (`program.sparkle`) without its nodes' source positions,
+ * and the generated names it holds. A binding, condition or loop is compiled
+ * into a function named after its source offset
+ * (`__binding_<uri>__layout_main_2310`), which the tree names in `exprId`
+ * and the compiled story and scene assets hold as a key.
+ */
+function readLayoutTree(value: unknown, names: Map<string, string>): unknown {
+  if (Array.isArray(value)) return value.map((v) => readLayoutTree(v, names));
+  if (!value || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+    if (key === "span" && isSpan(v)) continue;
+    if (key === "exprId" && typeof v === "string" && !names.has(v)) {
+      names.set(v, `__generated_name_${names.size}`);
+    }
+    out[key] = readLayoutTree(v, names);
+  }
+  return out;
+}
+
+/** `value` with every key or string that is exactly a generated name, or
+ *  such a name followed by a `.path`, replaced by its number. */
+function renameGenerated(value: unknown, names: Map<string, string>): unknown {
+  const rename = (s: string) => {
+    const exact = names.get(s);
+    if (exact) return exact;
+    const dot = s.indexOf(".");
+    const prefix = dot > 0 ? names.get(s.slice(0, dot)) : undefined;
+    return prefix ? prefix + s.slice(dot) : s;
+  };
+  if (typeof value === "string") return rename(value);
+  if (Array.isArray(value)) return value.map((v) => renameGenerated(v, names));
+  if (!value || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
+    out[rename(key)] = renameGenerated(v, names);
+  }
+  return out;
+}
 
 /**
  * A program without source positions or the names derived from them, as
- * plain data: spans and location tables dropped, offset-derived names
- * numbered in the order they first appear (the layout tree first), and each
- * diagnostic as its severity, code and message.
+ * plain data: location tables dropped, the layout tree's spans dropped, the
+ * generated names its `exprId`s hold numbered in the order the tree holds
+ * them and renamed wherever they appear exactly (authored text is never
+ * renamed), and each diagnostic as its severity, code and message.
  */
 export function normalizeProgram(program: any) {
+  const names = new Map<string, string>();
   const out: Record<string, unknown> = {};
-  const keys = Object.keys(program).sort((a, b) =>
-    a === "sparkle" ? -1 : b === "sparkle" ? 1 : 0,
-  );
-  for (const key of keys) {
-    if (IGNORED.has(key) || key === "diagnostics") continue;
+  out["sparkle"] = readLayoutTree(program.sparkle, names);
+  for (const key of Object.keys(program)) {
+    if (IGNORED.has(key) || key === "diagnostics" || key === "sparkle") continue;
     out[key] = program[key];
   }
-  const names = new Map<string, string>();
-  const json = JSON.stringify(out, (key, value) => (key === "span" ? undefined : value)).replace(
-    OFFSET_NAME,
-    (whole) => {
-      let name = names.get(whole);
-      if (!name) {
-        name = `__offset_name_${names.size}`;
-        names.set(whole, name);
-      }
-      return name;
-    },
-  );
-  const normalized = JSON.parse(json);
+  const normalized = renameGenerated(JSON.parse(JSON.stringify(out)), names) as Record<
+    string,
+    unknown
+  >;
   // A diagnostic's range is a source position, and the text it underlines
   // can be the converted syntax itself (`- targets:` becomes `{`), so a
   // diagnostic is compared by its severity, code and message.
-  normalized.diagnostics = Object.fromEntries(
+  normalized["diagnostics"] = Object.fromEntries(
     Object.entries(program.diagnostics ?? {}).map(([uri, list]) => [
       uri,
       (list as any[])
@@ -174,7 +212,8 @@ export function comparePrograms(
   entry: string,
   prelude: boolean,
 ): ProgramComparison {
-  const a = normalizeProgram(compile(before, entry, prelude));
+  const programBefore = compile(before, entry, prelude);
+  const a = normalizeProgram(programBefore);
   const b = normalizeProgram(compile(after, entry, prelude));
   const size = (v: unknown) =>
     v && typeof v === "object" ? Object.keys(v).length : v === undefined ? 0 : 1;
@@ -182,10 +221,12 @@ export function comparePrograms(
     .sort()
     .map((key) =>
       key === "diagnostics"
-        ? `diagnostics (${Object.values(a.diagnostics as Record<string, unknown[]>).flat().length})`
+        ? `diagnostics (${Object.values(a["diagnostics"] as Record<string, unknown[]>).flat().length})`
         : `${key} (${size(a[key])})`,
     );
-  return { differences: differences(a, b, 20), compared };
+  const uris = new Set(Object.keys(programBefore.scripts ?? {}));
+  const reached = before.map((s) => s.label).filter((label) => uris.has(uriOf(label)));
+  return { differences: differences(a, b, 20), compared, reached };
 }
 
 /** Rewrites each source, without compiling. */
@@ -277,15 +318,25 @@ export function main(cwd: string, args: string[]): number {
       report({ ...c, label: slash(join(project, c.label)) });
     }
     if (conversions.every((c) => c.after === c.before)) return failed ? 1 : 0;
-    const comparison = comparePrograms(
-      sources,
-      conversions.map((c) => ({ label: c.label, text: c.after })),
-      "main.sd",
-      true,
-    );
-    console.log(`compared from main.sd: ${comparison.compared.join(", ")}`);
-    if (comparison.differences.length) {
-      console.log(`programs differ; nothing written:\n  ${comparison.differences.join("\n  ")}`);
+    const after = conversions.map((c) => ({ label: c.label, text: c.after }));
+    // The project compiles from `main.sd`, and then, as `lintCorpus.mjs`
+    // compiles a project, from each changed script that program does not
+    // hold, so every file written is in a program that was compared.
+    const reached = new Set<string>();
+    let differ = false;
+    for (const c of [{ label: "main.sd" }, ...conversions.filter((c) => c.after !== c.before)]) {
+      if (c.label !== "main.sd" && reached.has(c.label)) continue;
+      const comparison = comparePrograms(sources, after, c.label, true);
+      comparison.reached.forEach((label) => reached.add(label));
+      reached.add(c.label);
+      console.log(`compared from ${c.label}: ${comparison.compared.join(", ")}`);
+      if (comparison.differences.length) {
+        differ = true;
+        console.log(`programs differ:\n  ${comparison.differences.join("\n  ")}`);
+      }
+    }
+    if (differ) {
+      console.log("nothing written");
       return 1;
     }
     console.log(`programs identical${check ? " (--check: nothing written)" : ""}`);
