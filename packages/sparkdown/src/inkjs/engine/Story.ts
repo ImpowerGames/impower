@@ -1267,6 +1267,9 @@ export function callValueAsFunction(
           ? lookupMetamethod(nmReceiver, "__namecall")
           : null;
       if (nmHandler != null && !(nmHandler instanceof NullValue)) {
+        // The handler takes the call's arguments as a call passes them, as
+        // a `__call` handler does (`callThroughHandler`).
+        spreadCallArgs(nmArgs);
         pushCallResults(
           story,
           story.CallLuauFunction(nmHandler, nmArgs) as AbstractValue[] | null,

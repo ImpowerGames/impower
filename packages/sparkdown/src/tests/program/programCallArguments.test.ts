@@ -6,7 +6,7 @@
 // does so, on both engines and on the current engine running the story's
 // JSON: a function the compile found, a function value in a local, a global
 // or a table field, a closure, a method, a table's `__call` handler, a
-// builtin iterator (#1216), a variadic closure called by name (#1217), a
+// `__namecall` handler, a builtin iterator (#1216), a variadic closure called by name (#1217), a
 // builtin through a value, the functions `pcall` and a metamethod call, and a
 // function the host evaluates. Each case notes the line Luau shows, but a
 // builtin through a value that raises is compared with the direct call of its
@@ -178,6 +178,29 @@ describe("a call through a closure, a method or a table's `__call` handler", () 
     ["as a `__call` handler drops an argument past the parameters", inRun(["local c = setmetatable({}, { __call = function(self, a) return 4 end })", "local t = { 1, c(2, 3) }"]), "Got 1,4,nil."],
     ["as a `__call` handler that names a function passes nil for a parameter past the arguments", inRun(["local c = setmetatable({}, { __call = h2 })", "local t = { 1, c() }"]), "Got 1,table/nil,nil."],
     ["as a `__call` handler that names a function drops an argument past the parameters", inRun(["local c = setmetatable({}, { __call = h2 })", "local t = { 1, c(5, 6) }"]), "Got 1,table/5,nil."],
+  ])("%s", (_name, text, line) => {
+    expectShows(text, line);
+  });
+});
+
+// A method call on a receiver that has no such method, which its
+// metatable's `__namecall` handler takes with the receiver first.
+describe("a method call that a `__namecall` handler takes", () => {
+  const namecall = (handler: string, call: string) =>
+    inRun(
+      ["local obj = newproxy(true)", `getmetatable(obj).__namecall = ${handler}`],
+      `obj:Missing(${call})`,
+    );
+  const PAIR = "function(self, a, b) return tostring(a) .. \"/\" .. tostring(b) end";
+  const COUNT = "function(self, ...) return select(\"#\", ...) end";
+  it.each([
+    ["spreads a last argument that returns two", namecall(PAIR, "g2()"), "Got 1/2."],
+    ["gives the first value of an earlier argument that returns two", namecall(PAIR, "g2(), 9"), "Got 1/9."],
+    ["gives nil for an earlier argument that returns none", namecall(PAIR, "g0(), 9"), "Got nil/9."],
+    ["gives nothing for a last argument that returns none", namecall(PAIR, "g0()"), "Got nil/nil."],
+    ["that is variadic counts both values of a last argument that returns two", namecall(COUNT, "g2()"), "Got 2."],
+    ["that is variadic counts none for a last argument that returns none", namecall(COUNT, "g0()"), "Got 0."],
+    ["that is variadic counts nil for an earlier argument that returns none", namecall(COUNT, "g0(), 9"), "Got 2."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
   });
