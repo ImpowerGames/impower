@@ -876,6 +876,35 @@ end
     });
   });
 
+  test("a brace in a comment right after a literal leaves an indented line in the indented form", () => {
+    const text = `theme t with
+  values:
+    - 2-- } note
+    - 3
+  flags:
+    - true// } note
+    - false
+  names:
+    - "a"-- { note
+  group:
+    k = 4-- } note
+    j = false// { note
+end
+`;
+    expect(errorsOf(text)).toEqual([]);
+    const struct = structOf(text, "theme", "t");
+    expect(struct).toMatchObject({
+      values: [2, 3],
+      names: ["a"],
+      group: { k: 4, j: false },
+    });
+    // Two items. The indented form's own reading of `true//` (a `//` with no
+    // whitespace after a literal) is the pre-existing truncation described in
+    // "a `--` right after a number, boolean or quoted value begins a comment",
+    // so its value is not pinned here.
+    expect(struct.flags).toHaveLength(2);
+  });
+
   test("an indented-form `key:` header or `-` item inside a block is invalid syntax", () => {
     const text = `theme t with
   colors {

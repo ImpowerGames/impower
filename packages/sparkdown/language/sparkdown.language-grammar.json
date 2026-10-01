@@ -313,7 +313,7 @@
     "STRUCT_BLOCK_LITERAL_THEN_COMMENT": "(?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})",
     "STRUCT_BLOCK_LITERAL_COMMENT_LINE": "(?:(?:(?:\\[[^\\]\\n]*\\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}}){{ASSIGN_EQUAL_OPERATOR}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})",
     "STRUCT_BLOCK_BRACE_SCAN": "(?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^\"\\s{}])*?[{}])",
-    "STRUCT_BLOCK_LINE_START": "(?:{{WS}}*(?!{{STRUCT_BLOCK_LITERAL_COMMENT_LINE}}){{STRUCT_BLOCK_BRACE_SCAN}})",
+    "STRUCT_BLOCK_LINE_START": "(?:{{WS}}*(?!{{WS}})(?!{{STRUCT_BLOCK_LITERAL_COMMENT_LINE}}){{STRUCT_BLOCK_BRACE_SCAN}})",
     "STRUCT_BLOCK_BAIL": "(?:{{BEAT}}|^{{END}})",
     "STRUCT_BLOCK_TRAILING_COMMA": "(?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))",
     "STRUCT_BLOCK_COMMA_BEFORE_ENTRY": "(?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))",
@@ -8069,7 +8069,7 @@
       "match": "(.+)$"
     },
     "LuauStructBlockLine": {
-      "begin": "^(?=(?:(?:[^\\S\\n\\r])*(?!(?:(?:(?:\\[[^\\]\\n]*\\]|[$]?(?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))(?:(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*)|[-](?:[^\\S\\n\\r])+)(?:(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?:(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/])))))(?:(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))|[^\"\\s{}])*?[{}])))",
+      "begin": "^(?=(?:(?:[^\\S\\n\\r])*(?!(?:[^\\S\\n\\r]))(?!(?:(?:(?:\\[[^\\]\\n]*\\]|[$]?(?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))(?:(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*)|[-](?:[^\\S\\n\\r])+)(?:(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?:(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/])))))(?:(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|(?:(?:[^\\S\\n\\r])(?!(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))))|[^\"\\s{}])*?[{}])))",
       "patterns": [
         {
           "include": "#LuauStructStrayBlockClose"

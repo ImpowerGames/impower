@@ -338,7 +338,7 @@ variables:
   STRUCT_BLOCK_AFTER_LITERAL_COMMENT: (?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))
   STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})
   # An indented-form property or `-` item whose value is a literal followed by
-  # a `--` comment: the rest of its line is the comment.
+  # a `--` or `//` comment: the rest of its line is the comment.
   STRUCT_BLOCK_LITERAL_COMMENT_LINE: (?:(?:(?:\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}}){{ASSIGN_EQUAL_OPERATOR}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})
   # The text of a line up to an unquoted brace that no comment holds.
   STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^"\s{}])*?[{}])
@@ -347,8 +347,11 @@ variables:
   # the line (`timing = 1; keyframes {`), and a `}` outside every block is
   # stray, which reading the line as entries reports (`delay = 2 }` after the
   # block it meant to close has closed). A brace inside a quoted string or a
-  # comment leaves the line in the indented form.
-  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?!{{STRUCT_BLOCK_LITERAL_COMMENT_LINE}}){{STRUCT_BLOCK_BRACE_SCAN}})
+  # comment leaves the line in the indented form, and so does a line that
+  # `STRUCT_BLOCK_LITERAL_COMMENT_LINE` describes. The indentation is read
+  # whole before that check, so it cannot give back a space and start the
+  # check at whitespace, where it would pass (`  - 2-- } note`).
+  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?!{{STRUCT_BLOCK_LITERAL_COMMENT_LINE}}){{STRUCT_BLOCK_BRACE_SCAN}})
   # An unclosed block ends where the declaration's `end` starts a line.
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
