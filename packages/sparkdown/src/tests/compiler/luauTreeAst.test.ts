@@ -505,6 +505,30 @@ describe("Unfinished and boundary input", () => {
     };
   }
 
+  test("nesting past Luau's recursion limit is Luau's error, not an exception", () => {
+    for (const [operators, limited] of [
+      [100, false],
+      [1200, true],
+      [10000, true],
+    ] as const) {
+      const { tree, luau } = preludeErrors(`local x = ${"1 ^ ".repeat(operators)}1\n`);
+      const expected = limited ? ["Exceeded allowed recursion depth; simplify your expression to make the code compile"] : [];
+      expect(luau.map((e) => e.replace(/^\S+ /, ""))).toEqual(expected);
+      expect(tree.map((e) => e.replace(/^\S+ /, ""))).toEqual(expected);
+    }
+  });
+
+  test("a statement marked with & that ends a block ends it, as the statement it marks does", () => {
+    for (const text of ["function f()\n  & return 1\n  & x = 2\nend\n", "function f()\n  while true do\n    & break\n    & x = 2\n  end\nend\n"]) {
+      const { tree, luau } = preludeErrors(text);
+      expect(luau.length).toBeGreaterThan(0);
+      // The checker's text blanks the `&`, so Luau's error names the token after it, on the same line.
+      const shape = (errors: string[]) => errors.map((e) => `${e.split(":")[0]} ${e.replace(/^\S+ /, "").replace(/, got .*$/, "")}`);
+      expect(shape(tree)).toEqual(shape(luau));
+    }
+    expect(preludeErrors("function f()\n  & x = 2\n  & return 1\nend\n")).toEqual({ tree: [], luau: [] });
+  });
+
   test("an interpolation missing its closing brace is an error where Luau reports it", () => {
     const { tree, luau } = preludeErrors("local x = `a{x`\n");
     expect(luau).toEqual(["0:14 Malformed interpolated string; did you forget to add a '}'?"]);
@@ -542,6 +566,39 @@ describe("The other entry points", () => {
     expect(unit!.hotcomments.map((c) => [c.header, c.content])).toEqual([[true, "strict"]]);
     // The file's lines are the wrapper document's, two lines down.
     expect(unit!.root.body[0]!.location.begin.line).toBe(parsed.root.body[0]!.location.begin.line + 2);
+  });
+
+  test("a run file's statements each name the tree node they were read from", () => {
+    const text = runWrapperText("W", "local a = 1\nlocal b = 2\na = b\n");
+    const tree = parseSource(text);
+    const unit = readLuauRunFile(tree, text)!;
+    expect(unit.statements.map((s) => [s.statement.kind, s.nodes.map((n) => text.slice(n.from, n.to).trim())])).toEqual([
+      ["StatLocal", ["local a = 1"]],
+      ["StatLocal", ["local b = 2"]],
+      ["StatAssign", ["a = b"]],
+    ]);
+    for (const source of unit.statements) expect(statementAt(unit, source.nodes[0]!)).toBe(source.statement);
+  });
+
+  test("type functions and the attributes the grammar reads are read as Luau reads them", () => {
+    const file = [
+      "type function id(t) return t end",
+      "export type function id2(t) return t end",
+      "@native function f() return 1 end",
+      "@checked local function g(x: number) return x end",
+      "local h = @native function() end",
+      "@native @checked function k() end",
+      "",
+    ].join("\n");
+    const text = runWrapperText("W", file);
+    const unit = readLuauRunFile(parseSource(text), text)!;
+    const parsed = parseLuau(file);
+    expect(parsed.errors).toEqual([]);
+    expect(unit.errors).toEqual([]);
+    expect(printAst(unit.root)).toBe(printAst(parsed.root));
+    const bad = "local x = 1\ntype function t() return x end\n@nope function f() end\n";
+    const badText = runWrapperText("W", bad);
+    expect(readLuauRunFile(parseSource(badText), badText)!.errors.map((e) => e.message)).toEqual(parseLuau(bad).errors.map((e) => e.message));
   });
 
   test("a narrative interpolation's expression is read with Luau's precedence, its names as globals", () => {

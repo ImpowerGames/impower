@@ -33,6 +33,8 @@
 
 import type { SyntaxNode, Tree } from "@lezer/common";
 import {
+  AstAttr,
+  AstAttrType,
   AstExpr,
   AstExprBinary,
   AstExprCall,
@@ -85,6 +87,7 @@ import {
   AstStatSparkdownExplicit,
   AstStatSparkdownStore,
   AstStatTypeAlias,
+  AstStatTypeFunction,
   AstStatWhile,
   AstType,
   AstTypeError,
@@ -819,6 +822,63 @@ interface ReadContext {
 /** The name Luau's parser gives a name it expected and did not find. */
 const ERROR_NAME = "%error-id%";
 
+// Luau's `FInt::LuauRecursionLimit`, `FInt::LuauTypeLengthLimit` and `FInt::LuauParseErrorLimit`.
+const RECURSION_LIMIT = 1000;
+const TYPE_LENGTH_LIMIT = 1000;
+const ERROR_LIMIT = 100;
+
+/** An error that ends the reading, as Luau's `ParseErrors` exception ends a parse: a limit reached. */
+class FatalReadError extends Error {
+  constructor(
+    readonly location: Location,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
+// The attributes Luau knows (`kAttributeEntries`), by name.
+const ATTRIBUTES: Record<string, AstAttrType> = {
+  checked: AstAttrType.Checked,
+  native: AstAttrType.Native,
+  deprecated: AstAttrType.Deprecated,
+};
+
+function isConstantLiteral(expr: AstExpr): boolean {
+  return expr instanceof AstExprConstantNil || expr instanceof AstExprConstantBool || expr instanceof AstExprConstantNumber || expr instanceof AstExprConstantString;
+}
+
+function isLiteralTable(expr: AstExpr): boolean {
+  if (!(expr instanceof AstExprTable)) return false;
+  for (const item of expr.items) {
+    if (item.kind === TableItemKind.General) return false;
+    if (!isConstantLiteral(item.value) && !isLiteralTable(item.value)) return false;
+  }
+  return true;
+}
+
+/** The errors in the arguments of `@deprecated`, as Luau's `deprecatedArgsValidator` finds them. */
+function deprecatedArgsErrors(attrLoc: Location, args: AstExpr[]): [Location, string][] {
+  if (args.length === 0) return [];
+  if (args.length > 1) return [[attrLoc, "@deprecated can be parametrized only by 1 argument"]];
+  const arg = args[0]!;
+  if (!(arg instanceof AstExprTable)) return [[arg.location, "Unknown argument type for @deprecated"]];
+  const errors: [Location, string][] = [];
+  for (const item of arg.items) {
+    if (item.kind === TableItemKind.Record) {
+      const key = (item.key as AstExprConstantString).value;
+      if (key !== "use" && key !== "reason") {
+        errors.push([item.key!.location, `Unknown argument '${key}' for @deprecated. Only string constants for 'use' and 'reason' are allowed`]);
+      } else if (!(item.value instanceof AstExprConstantString)) {
+        errors.push([item.value.location, `Only constant string allowed as value for '${key}'`]);
+      }
+    } else {
+      errors.push([item.value.location, "Only constants keys 'use' and 'reason' are allowed for @deprecated attribute"]);
+    }
+  }
+  return errors;
+}
+
 /**
  * Luau's recursive descent over the tree's tokens. A Luau construct is read
  * as `Parser.cpp` reads it, with its node's location spanning the same
@@ -833,6 +893,12 @@ class Parser {
   private readonly localStack: AstLocal[] = [];
   private eof: Token;
   private blockDepth = 0;
+  private recursionCounter = 0;
+  private recursionContext = "block";
+  /** The function depth of the type function being read, which may not reference the locals outside it. */
+  private typeFunctionDepth = 0;
+  private readonly declaredExportBindings = new Map<string, Location>();
+  private hasModuleReturn = false;
 
   /** The block depth whose statements are recorded in `statements`, with the tokens each was read from. */
   recordDepth = -1;
@@ -906,6 +972,28 @@ class Parser {
     const last = this.errors[this.errors.length - 1];
     if (last && last.location.equals(location)) return;
     this.errors.push({ location, message });
+    if (this.errors.length >= ERROR_LIMIT) throw new FatalReadError(location, `Reached error limit (${ERROR_LIMIT})`);
+  }
+
+  /** Counts one more level of nesting, as Luau's `incrementRecursionCounter` does, ending the reading past its limit. */
+  private incrementRecursionCounter(context: string): void {
+    this.recursionCounter++;
+    this.recursionContext = context;
+    if (this.recursionCounter > RECURSION_LIMIT) {
+      throw new FatalReadError(this.current().location, `Exceeded allowed recursion depth; simplify your ${context} to make the code compile`);
+    }
+  }
+
+  /**
+   * The error that ends a reading which threw: a limit Luau reaches, or a
+   * JavaScript stack that runs out below the recursion limit, which ends the
+   * reading as the limit would. Anything else is rethrown.
+   */
+  fatalError(caught: unknown): LuauSyntaxError {
+    if (caught instanceof FatalReadError) return { location: caught.location, message: caught.message };
+    const stackExhausted = caught instanceof RangeError || (caught instanceof Error && caught.name === "InternalError"); // not a node name
+    if (!stackExhausted) throw caught;
+    return { location: this.current().location, message: `Exceeded allowed recursion depth; simplify your ${this.recursionContext} to make the code compile` };
   }
 
   private reportExprError(location: Location, expressions: AstExpr[], message: string): AstExprError {
@@ -1068,9 +1156,12 @@ class Parser {
     this.blockDepth++;
     const record = this.blockDepth === this.recordDepth;
     while (!this.blockFollow(this.current())) {
+      const oldRecursionCount = this.recursionCounter;
+      this.incrementRecursionCounter("block");
       const first = this.pos;
       const start = this.current();
       const stat = this.parseStat();
+      this.recursionCounter = oldRecursionCount;
       if (this.is(";")) {
         this.next();
         stat.hasSemicolon = true;
@@ -1080,7 +1171,9 @@ class Parser {
       if (this.current() === start && this.pos === first) this.next();
       body.push(stat);
       if (record) this.statements.push({ statement: stat, first, end: this.pos });
-      if (stat instanceof AstStatBreak || stat instanceof AstStatContinue || stat instanceof AstStatReturn) break;
+      // A statement marked with `&` ends the block as the statement it marks does.
+      const last = stat instanceof AstStatSparkdownExplicit ? stat.statement : stat;
+      if (last instanceof AstStatBreak || last instanceof AstStatContinue || last instanceof AstStatReturn) break;
     }
     this.blockDepth--;
     return new AstStatBlock(new Location(prevPosition, this.current().location.begin), body);
@@ -1101,14 +1194,16 @@ class Parser {
         case "repeat":
           return this.parseRepeat();
         case "function":
-          return this.parseFunctionStat();
+          return this.parseFunctionStat([]);
         case "local":
-          return this.parseLocal(token.location, false);
+          return this.parseLocal(token.location, [], false);
         case "return":
           return this.parseReturn();
         case "break":
           return this.parseBreak();
       }
+    } else if (this.isAttribute()) {
+      return this.parseAttributeStat();
     } else if (token.kind === "mark") {
       return this.parseExplicit();
     } else if (token.kind === "store") {
@@ -1129,12 +1224,16 @@ class Parser {
 
     const ident = expr instanceof AstExprGlobal ? expr.name : expr instanceof AstExprLocal ? expr.local.name : undefined;
     if (ident === "type") return this.parseTypeAlias(expr.location, false);
-    if (ident === "export" && this.isName() && this.current().text === "type") {
-      this.next();
-      return this.parseTypeAlias(expr.location, true);
+    if (ident === "export") {
+      const current = this.current();
+      if (this.is("local") || this.is("function") || (this.isName() && current.text === "const")) return this.parseExportValue(expr.location, []);
+      if (this.isName() && current.text === "type") {
+        this.next();
+        return this.parseTypeAlias(expr.location, true);
+      }
     }
     if (ident === "continue") return this.parseContinue(expr.location);
-    if (ident === "const") return this.parseLocal(expr.location, true);
+    if (ident === "const") return this.parseLocal(expr.location, [], true);
 
     if (start.equals(this.current().location)) this.next();
     return this.reportStatError(expr.location, [expr], [], "Incomplete statement: expected assignment or a function call");
@@ -1187,6 +1286,164 @@ class Parser {
     return new AstStatSparkdownChoose(Location.span(begin.location, end), body, gather);
   }
 
+  /** Whether the reading stands at an attribute: `@name`, or `@[` opening a list of them. */
+  private isAttribute(): boolean {
+    const at = this.current();
+    if (at.kind !== "symbol" || at.text !== "@") return false;
+    const next = this.lookahead();
+    return next.from === at.to && (next.kind === "name" || next.kind === "keyword" || (next.kind === "symbol" && next.text === "["));
+  }
+
+  private validateAttribute(loc: Location, name: string, attributes: AstAttr[], args: AstExpr[]): AstAttrType | undefined {
+    const type = ATTRIBUTES[name];
+    if (type === undefined) {
+      this.report(loc, name.length === 0 ? "Attribute name is missing" : `Invalid attribute '@${name}'`);
+      return undefined;
+    }
+    for (const attr of attributes) if (attr.type === type) this.report(loc, `Cannot duplicate attribute '@${name}'`);
+    if (type === AstAttrType.Deprecated) for (const [errorLoc, message] of deprecatedArgsErrors(loc, args)) this.report(errorLoc, message);
+    return type;
+  }
+
+  /** `@name`, or `@[` attribute {`,` attribute} `]` with arguments, any number of times. */
+  private parseAttributes(): AstAttr[] {
+    const attributes: AstAttr[] = [];
+    while (this.isAttribute()) {
+      const at = this.current();
+      this.next();
+      if (!this.is("[")) {
+        const name = this.current();
+        this.next();
+        const loc = Location.span(at.location, name.location);
+        attributes.push(new AstAttr(loc, this.validateAttribute(loc, name.text, attributes, []) ?? AstAttrType.Unknown, [], name.text));
+        continue;
+      }
+      const open = this.current();
+      this.next();
+      if (this.is("]")) {
+        const loc = Location.span(at.location, this.current().location);
+        this.report(loc, "Attribute list cannot be empty");
+        attributes.push(new AstAttr(loc, AstAttrType.Unknown, [], ERROR_NAME));
+      } else {
+        for (;;) {
+          const name = this.parseName("attribute name");
+          if (this.is("(") || this.is("{") || this.current().kind === "string" || this.current().kind === "rawstring") {
+            const [args, argsLocation] = this.parseCallList();
+            for (const arg of args) {
+              if (!isConstantLiteral(arg) && !isLiteralTable(arg)) this.report(argsLocation, "Only literals can be passed as arguments for attributes");
+            }
+            const type = this.validateAttribute(name.location, name.name, attributes, args);
+            attributes.push(new AstAttr(Location.span(name.location, argsLocation), type ?? AstAttrType.Unknown, args, name.name));
+          } else {
+            attributes.push(new AstAttr(name.location, this.validateAttribute(name.location, name.name, attributes, []) ?? AstAttrType.Unknown, [], name.name));
+          }
+          if (!this.is(",")) break;
+          this.next();
+        }
+      }
+      this.expectMatchAndConsume("]", open);
+    }
+    return attributes;
+  }
+
+  /** An attribute list's arguments: a parenthesized list, a table or a string. */
+  private parseCallList(): [AstExpr[], Location] {
+    if (this.is("(")) {
+      const matchParen = this.current();
+      const argStart = matchParen.location.end;
+      this.next();
+      const args: AstExpr[] = [];
+      if (!this.is(")")) this.parseExprList(args);
+      const argEnd = this.current().location.end;
+      this.expectMatchAndConsume(")", matchParen);
+      return [args, new Location(argStart, argEnd)];
+    }
+    if (this.is("{")) {
+      const argStart = this.current().location.end;
+      const expr = this.parseTableConstructor();
+      return [[expr], new Location(argStart, this.previousLocation().end)];
+    }
+    const argLocation = this.current().location;
+    return [[this.parseString()], argLocation];
+  }
+
+  /** attributes `function`, `local function`, `const function` or `export function`. */
+  private parseAttributeStat(): AstStat {
+    const startLocation = this.current().location;
+    const attributes = this.parseAttributes();
+    const start = attributes[0]?.location ?? startLocation;
+    if (this.is("function")) return this.parseFunctionStat(attributes);
+    if (this.is("local")) return this.parseLocal(start, attributes, false);
+    if (this.isName() && this.current().text === "export") {
+      this.next();
+      return this.parseExportValue(start, attributes);
+    }
+    if (this.isName() && this.current().text === "const") {
+      this.next();
+      return this.parseLocal(start, attributes, true);
+    }
+    return this.reportStatError(
+      this.current().location,
+      [],
+      [],
+      `Expected 'function', 'local function', 'const function', 'declare function' or a function type declaration after attribute, but got ${describe(this.current())} instead`,
+    );
+  }
+
+  /** `export` `local`, `function` or `const`, at the top of a chunk. */
+  private parseExportValue(start: Location, attributes: AstAttr[]): AstStat {
+    if (this.functionStack.length !== 1 || this.recursionCounter !== 1) this.report(start, "'export' may only be applied to top-level statements");
+    if (this.hasModuleReturn) this.report(start, "Exporting values is not compatible with top-level return (export/return conflict)");
+    const checkDuplicateExport = (name: string, location: Location): boolean => {
+      if (this.declaredExportBindings.has(name)) return false;
+      this.declaredExportBindings.set(name, location);
+      return true;
+    };
+    const exportLocalStat = (stat: AstStat, keywordLocation: Location): AstStat => {
+      if (stat instanceof AstStatLocal) {
+        stat.isExported = true;
+        for (const local of stat.vars) {
+          if (!checkDuplicateExport(local.name, local.location)) {
+            this.report(local.location, `Duplicate exported identifier '${local.name}'`);
+            continue;
+          }
+          local.isExported = true;
+        }
+        stat.keywordLocation = keywordLocation;
+      }
+      return stat;
+    };
+    if (attributes.length !== 0 && !this.is("function")) {
+      this.report(this.current().location, `Expected 'function' after export declaration with attribute, but got ${describe(this.current())} instead`);
+    }
+    if (this.is("local")) {
+      const keywordLocation = this.current().location;
+      if (this.is("function", this.lookahead())) {
+        this.report(start, "'export' must be followed by an identifier or 'function'; try removing 'local'");
+        return this.parseLocal(start, [], true);
+      }
+      return exportLocalStat(this.parseLocal(start, [], false), keywordLocation);
+    }
+    if (this.is("function")) {
+      const funcStat = this.parseLocal(start, attributes, true);
+      if (!(funcStat instanceof AstStatLocalFunction)) return funcStat;
+      if (!checkDuplicateExport(funcStat.name.name, funcStat.name.location)) this.report(funcStat.name.location, `Duplicate exported identifier '${funcStat.name.name}'`);
+      funcStat.name.isExported = true;
+      funcStat.name.isConst = true;
+      return funcStat;
+    }
+    if (this.isName() && this.current().text === "const") {
+      const keywordLocation = this.current().location;
+      this.next();
+      if (this.is("function")) {
+        this.report(start, "'export' must be followed by an identifier or 'function'");
+        return this.parseLocal(start, [], true);
+      }
+      return exportLocalStat(this.parseLocal(start, [], true), keywordLocation);
+    }
+    return this.reportStatError(start, [], [], "'export' must be followed by an identifier or 'function'");
+  }
+
   private parseIf(): AstStat {
     const start = this.current().location;
     this.next(); // if / elseif
@@ -1201,9 +1458,12 @@ class Parser {
     let elseLocation: Location | undefined;
     if (this.is("elseif")) {
       thenbody.hasEnd = true;
+      const oldRecursionCount = this.recursionCounter;
+      this.incrementRecursionCounter("elseif");
       elseLocation = this.current().location;
       elsebody = this.parseIf();
       end = elsebody.location;
+      this.recursionCounter = oldRecursionCount;
     } else {
       let matchThenElse = matchThen;
       if (this.is("else")) {
@@ -1327,13 +1587,16 @@ class Parser {
   private parseFunctionName(out: { hasself: boolean; debugname: string }): AstExpr {
     if (this.isName()) out.debugname = this.current().text;
     let expr = this.parseNameExpr("function name");
+    const oldRecursionCount = this.recursionCounter;
     while (this.is(".")) {
       const opPosition = this.current().location.begin;
       this.next();
       const name = this.parseName("field name");
       out.debugname = name.name;
       expr = new AstExprIndexName(Location.span(expr.location, name.location), expr, name.name, name.location, opPosition, ".");
+      this.incrementRecursionCounter("function name");
     }
+    this.recursionCounter = oldRecursionCount;
     if (this.is(":")) {
       const opPosition = this.current().location.begin;
       this.next();
@@ -1355,18 +1618,18 @@ class Parser {
     return this.reportExprError(expr.location, [expr], "Assigned expression must be a variable or a field");
   }
 
-  private parseFunctionStat(): AstStat {
-    const start = this.current().location;
+  private parseFunctionStat(attributes: AstAttr[]): AstStat {
+    const start = attributes[0]?.location ?? this.current().location;
     const matchFunction = this.current();
     this.next();
     const name = { hasself: false, debugname: "" };
     let expr = this.parseFunctionName(name);
     if (!this.isExprLValue(expr)) expr = this.reportLValueError(expr);
-    const body = this.parseFunctionBody(name.hasself, matchFunction, name.debugname, undefined)[0];
+    const body = this.parseFunctionBody(name.hasself, matchFunction, name.debugname, undefined, attributes)[0];
     return new AstStatFunction(Location.span(start, body.location), expr, body);
   }
 
-  private parseLocal(start: Location, isConst: boolean): AstStat {
+  private parseLocal(start: Location, attributes: AstAttr[], isConst: boolean): AstStat {
     if (!isConst) this.next(); // local
     if (this.is("function")) {
       let matchFunction = this.current();
@@ -1376,8 +1639,11 @@ class Parser {
         matchFunction = { ...matchFunction, location: new Location(new Position(matchFunction.location.begin.line, start.begin.column), matchFunction.location.end) };
       }
       const name = this.parseName("variable name");
-      const [body, variable] = this.parseFunctionBody(false, matchFunction, name.name, name, isConst);
+      const [body, variable] = this.parseFunctionBody(false, matchFunction, name.name, name, attributes, isConst);
       return new AstStatLocalFunction(new Location(start.begin, body.location.end), variable!, body, isConst);
+    }
+    if (attributes.length !== 0) {
+      return this.reportStatError(this.current().location, [], [], `Expected 'function' after local declaration with attribute, but got ${describe(this.current())} instead`);
     }
     const names: Binding[] = [];
     this.parseBindingList(names, false, isConst);
@@ -1401,16 +1667,37 @@ class Parser {
     const list: AstExpr[] = [];
     if (!this.blockFollow(this.current()) && !this.is(";")) this.parseExprList(list);
     const end = list.length === 0 ? start : list[list.length - 1]!.location;
-    return new AstStatReturn(Location.span(start, end), list);
+    const node = new AstStatReturn(Location.span(start, end), list);
+    if (this.functionStack.length === 1) {
+      if (this.declaredExportBindings.size !== 0) this.report(node.location, "Exporting values is not compatible with top-level return (export/return conflict)");
+      this.hasModuleReturn = true;
+    }
+    return node;
   }
 
   private parseTypeAlias(start: Location, exported: boolean): AstStat {
+    if (this.is("function")) return this.parseTypeFunction(start, exported);
     let name = this.parseNameOpt("type name");
     if (!name) name = { name: ERROR_NAME, location: this.current().location };
     const [generics, genericPacks] = this.parseGenericTypeList(true);
     this.expectAndConsume("=", "type alias");
     const type = this.parseType();
     return new AstStatTypeAlias(Location.span(start, type.location), name.name, name.location, generics, genericPacks, type, exported);
+  }
+
+  /** `type function` Name funcbody: a function run on types, which may not reference the locals around it. */
+  private parseTypeFunction(start: Location, exported: boolean): AstStat {
+    const matchFn = this.current();
+    this.next();
+    const errorsAtStart = this.errors.length;
+    let fnName = this.parseNameOpt("type function name");
+    if (!fnName) fnName = { name: ERROR_NAME, location: this.current().location };
+    const oldTypeFunctionDepth = this.typeFunctionDepth;
+    this.typeFunctionDepth = this.functionStack.length;
+    const body = this.parseFunctionBody(false, matchFn, fnName.name, undefined, [])[0];
+    this.typeFunctionDepth = oldTypeFunctionDepth;
+    const hasErrors = this.errors.length > errorsAtStart;
+    return new AstStatTypeFunction(Location.span(start, body.location), fnName.name, fnName.location, body, exported, hasErrors);
   }
 
   private parseAssignment(initial: AstExpr): AstStat {
@@ -1437,8 +1724,15 @@ class Parser {
 
   // -- Functions -----------------------------------------------------------
 
-  private parseFunctionBody(hasself: boolean, matchFunction: Token, debugname: string, localName: Name | undefined, isConst = false): [AstExprFunction, AstLocal | undefined] {
-    const start = matchFunction.location;
+  private parseFunctionBody(
+    hasself: boolean,
+    matchFunction: Token,
+    debugname: string,
+    localName: Name | undefined,
+    attributes: AstAttr[],
+    isConst = false,
+  ): [AstExprFunction, AstLocal | undefined] {
+    const start = attributes[0]?.location ?? matchFunction.location;
     const [generics, genericPacks] = this.parseGenericTypeList(false);
     const matchParen = this.current();
     this.expectAndConsume("(", "function");
@@ -1469,7 +1763,7 @@ class Parser {
 
     const node = new AstExprFunction(
       Location.span(start, end),
-      [],
+      attributes,
       generics,
       genericPacks,
       self,
@@ -1564,15 +1858,18 @@ class Parser {
     if (!this.is(":") && !this.is("->")) return undefined;
     if (this.is("->")) this.report(this.current().location, "Function return type annotations are written after ':' instead of '->'");
     this.next();
+    const oldRecursionCount = this.recursionCounter;
     const result = this.parseReturnType();
     if (this.is(",")) {
       this.report(this.current().location, "Expected a statement, got ','; did you forget to wrap the list of return types in parentheses?");
       this.next();
     }
+    this.recursionCounter = oldRecursionCount;
     return result;
   }
 
   private parseReturnType(): AstTypePack {
+    this.incrementRecursionCounter("type annotation");
     const begin = this.current();
     if (!this.is("(")) {
       if (this.shouldParseTypePack()) return this.parseTypePack();
@@ -1617,6 +1914,7 @@ class Parser {
   }
 
   private parseTableType(): AstType {
+    this.incrementRecursionCounter("type annotation");
     const props: AstTableProp[] = [];
     let indexer: AstTableIndexer | undefined;
     const start = this.current().location;
@@ -1682,6 +1980,7 @@ class Parser {
   }
 
   private parseFunctionType(allowPack: boolean): AstTypeOrPack {
+    this.incrementRecursionCounter("type annotation");
     let forceFunctionType = this.is("<");
     const begin = this.current();
     const [generics, genericPacks] = this.parseGenericTypeList(false);
@@ -1713,6 +2012,7 @@ class Parser {
     paramNames: (AstArgumentName | undefined)[],
     varargAnnotation: AstTypePack | undefined,
   ): AstType {
+    this.incrementRecursionCounter("type annotation");
     if (this.is(":")) {
       this.report(this.current().location, "Return types in function type annotations are written after '->' instead of ':'");
       this.next();
@@ -1729,26 +2029,36 @@ class Parser {
   private parseTypeSuffix(type: AstType | undefined, begin: Location): AstType {
     const parts: AstType[] = [];
     if (type !== undefined) parts.push(type);
+    this.incrementRecursionCounter("type annotation");
     let isUnion = false;
     let isIntersection = false;
+    let optionalCount = 0;
     for (;;) {
       if (this.is("|")) {
         this.next();
+        const oldRecursionCount = this.recursionCounter;
         parts.push(this.parseSimpleType(false).type!);
+        this.recursionCounter = oldRecursionCount;
         isUnion = true;
       } else if (this.is("?")) {
         const loc = this.current().location;
         this.next();
         parts.push(new AstTypeOptional(loc));
+        optionalCount++;
         isUnion = true;
       } else if (this.is("&")) {
         this.next();
+        const oldRecursionCount = this.recursionCounter;
         parts.push(this.parseSimpleType(false).type!);
+        this.recursionCounter = oldRecursionCount;
         isIntersection = true;
       } else if (this.is("...")) {
         this.report(this.current().location, "Unexpected '...' after type annotation");
         this.next();
       } else break;
+      if (parts.length > TYPE_LENGTH_LIMIT + optionalCount) {
+        throw new FatalReadError(parts[parts.length - 1]!.location, "Exceeded allowed type length; simplify your type annotation to make the code compile");
+      }
     }
     if (parts.length === 1 && !isUnion && !isIntersection) return parts[0]!;
     if (parts.length === 0) return this.reportTypeError(begin, [], `Expected type, got ${describe(this.current())}`);
@@ -1764,20 +2074,29 @@ class Parser {
   }
 
   private parseSimpleTypeOrPack(): AstTypeOrPack {
+    const oldRecursionCount = this.recursionCounter;
     const begin = this.current().location;
     const { type, typePack } = this.parseSimpleType(true);
     if (typePack) return { typePack };
+    this.recursionCounter = oldRecursionCount;
     return { type: this.parseTypeSuffix(type, begin) };
   }
 
   parseType(): AstType {
+    const oldRecursionCount = this.recursionCounter;
     const begin = this.current().location;
     let type: AstType | undefined;
-    if (!this.is("|") && !this.is("&")) type = this.parseSimpleType(false).type;
-    return this.parseTypeSuffix(type, begin);
+    if (!this.is("|") && !this.is("&")) {
+      type = this.parseSimpleType(false).type;
+      this.recursionCounter = oldRecursionCount;
+    }
+    const typeWithSuffix = this.parseTypeSuffix(type, begin);
+    this.recursionCounter = oldRecursionCount;
+    return typeWithSuffix;
   }
 
   private parseSimpleType(allowPack: boolean): AstTypeOrPack {
+    this.incrementRecursionCounter("type annotation");
     const start = this.current().location;
     const token = this.current();
     if (this.is("nil")) {
@@ -1986,6 +2305,8 @@ class Parser {
   }
 
   parseExpr(limit = 0): AstExpr {
+    const oldRecursionCount = this.recursionCounter;
+    this.incrementRecursionCounter("expression");
     const start = this.current().location;
     let expr: AstExpr;
     const uop = this.unaryOp();
@@ -2002,7 +2323,10 @@ class Parser {
       const next = this.parseExpr(BINARY_PRIORITY[op]!.right);
       expr = new AstExprBinary(Location.span(start, next.location), op, expr, next);
       op = this.binaryOp(limit);
+      // The loop is not recursive, but the tree it builds is as deep.
+      this.incrementRecursionCounter("expression");
     }
+    this.recursionCounter = oldRecursionCount;
     return expr;
   }
 
@@ -2010,7 +2334,10 @@ class Parser {
     const name = this.parseNameOpt(context);
     if (!name) return new AstExprError(this.current().location, [], this.errors.length - 1);
     const local = this.localMap.get(name.name);
-    if (local) return new AstExprLocal(name.location, local, local.functionDepth !== this.functionStack.length - 1);
+    if (local) {
+      if (local.functionDepth < this.typeFunctionDepth) return this.reportExprError(this.current().location, [], `Type function cannot reference outer local '${local.name}'`);
+      return new AstExprLocal(name.location, local, local.functionDepth !== this.functionStack.length - 1);
+    }
     return new AstExprGlobal(name.location, name.name);
   }
 
@@ -2037,6 +2364,7 @@ class Parser {
   private parsePrimaryExpr(asStatement: boolean): AstExpr {
     const start = this.current().location.begin;
     let expr = this.parsePrefixExpr();
+    const oldRecursionCount = this.recursionCounter;
     for (;;) {
       if (this.is(".")) {
         const opPosition = this.current().location.begin;
@@ -2075,7 +2403,9 @@ class Parser {
       } else {
         break;
       }
+      this.incrementRecursionCounter("expression");
     }
+    this.recursionCounter = oldRecursionCount;
     return expr;
   }
 
@@ -2102,6 +2432,15 @@ class Parser {
 
   private parseSimpleExpr(): AstExpr {
     const start = this.current().location;
+    if (this.isAttribute()) {
+      const attributes = this.parseAttributes();
+      if (!this.is("function")) {
+        return this.reportExprError(start, [], `Expected 'function' declaration after attribute, but got ${describe(this.current())} instead`);
+      }
+      const matchFunction = this.current();
+      this.next();
+      return this.parseFunctionBody(false, matchFunction, "", undefined, attributes)[0];
+    }
     const token = this.current();
     if (this.is("nil")) {
       this.next();
@@ -2113,7 +2452,7 @@ class Parser {
     }
     if (this.is("function")) {
       this.next();
-      return this.parseFunctionBody(false, token, "", undefined)[0];
+      return this.parseFunctionBody(false, token, "", undefined, [])[0];
     }
     if (token.kind === "number") return this.parseNumber();
     if (token.kind === "string" || token.kind === "rawstring") return this.parseString();
@@ -2241,8 +2580,11 @@ class Parser {
     let falseExpr: AstExpr;
     let hasElse: boolean;
     if (this.is("elseif")) {
+      const oldRecursionCount = this.recursionCounter;
+      this.incrementRecursionCounter("expression");
       hasElse = true;
       falseExpr = this.parseIfElseExpr();
+      this.recursionCounter = oldRecursionCount;
     } else {
       hasElse = this.expectAndConsume("else", "if then else expression");
       falseExpr = this.parseExpr();
@@ -2486,7 +2828,15 @@ function readUnit(
   const ctx: ReadContext = { text: tokenizer.text, index: tokenizer.index };
   const parser = new Parser(tokenizer.tokens, ctx, new Location(start, start));
   parser.recordDepth = recordDepth;
-  const root = parser.parseChunk();
+  let root: AstStatBlock;
+  try {
+    root = parser.parseChunk();
+  } catch (caught) {
+    // A limit ends the reading with no tree, as Luau's frontend substitutes an empty block for one.
+    parser.errors.push(parser.fatalError(caught));
+    parser.statements.length = 0;
+    root = new AstStatBlock(new Location(start, start), []);
+  }
   const tokens = tokenizer.tokens;
   const statements: LuauStatementSource[] = parser.statements.map(({ statement, first, end }) => {
     const seen = new Set<number>();
@@ -2545,7 +2895,12 @@ export function readLuauUnits(tree: Tree, documentText: string): LuauAstUnits {
     const tokenizer = new Tokenizer(documentText, index);
     tokenizer.read(node);
     const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location());
-    return parser.readsAsParameterList();
+    try {
+      return parser.readsAsParameterList();
+    } catch (caught) {
+      parser.fatalError(caught);
+      return false;
+    }
   };
 
   const varargOf = (parameters: SyntaxNode): Vararg | undefined => {
@@ -2766,18 +3121,29 @@ export function readLuauRunFile(tree: Tree, documentText: string): LuauAstUnit |
   if (!wrapper || !body) return undefined;
   const tokenizer = new Tokenizer(documentText, index);
   const nodes: TreeNodeRef[] = [];
-  let at = body.from;
-  for (let child = body.firstChild; child; child = child.nextSibling) {
-    if (child.from > at) tokenizer.lex(at, child.from);
-    tokenizer.source = nodes.length;
-    nodes.push(ref(child));
-    tokenizer.read(child);
-    tokenizer.source = -1;
-    at = Math.max(at, child.to);
-  }
-  if (body.to > at) tokenizer.lex(at, body.to);
+  // The body's statements are its children, under the wrapper nodes the grammar puts around a rule's parts.
+  const readStatements = (parent: SyntaxNode) => {
+    let at = parent.from;
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (child.from > at) tokenizer.lex(at, child.from);
+      if (WRAPPER.test(child.name)) {
+        readStatements(child);
+      } else {
+        tokenizer.source = nodes.length;
+        nodes.push(ref(child));
+        tokenizer.read(child);
+        tokenizer.source = -1;
+      }
+      at = Math.max(at, child.to);
+    }
+    if (parent.to > at) tokenizer.lex(at, parent.to);
+  };
+  readStatements(body);
   return readUnit("file", tokenizer, nodes, 1, new Position(index.lineAt(body.from) + 1, 0));
 }
+
+// The nodes the grammar puts around a rule's begin, content and end, and their captures.
+const WRAPPER = /_(begin|content|end)(_c\d+)*$/;
 
 /**
  * Reads the one Luau expression some nodes hold (an interpolation's,
@@ -2790,6 +3156,13 @@ export function readLuauExpression(nodes: SyntaxNode | readonly SyntaxNode[], do
   const first = tokenizer.tokens[0];
   const start = first ? first.location : new Location();
   const parser = new Parser(tokenizer.tokens, { text: documentText, index }, new Location(start.begin, start.begin));
-  const expr = parser.parseLoneExpression();
+  let expr: AstExpr;
+  try {
+    expr = parser.parseLoneExpression();
+  } catch (caught) {
+    const error = parser.fatalError(caught);
+    parser.errors.push(error);
+    expr = new AstExprError(error.location, [], parser.errors.length - 1);
+  }
   return { expr, errors: parser.errors };
 }
