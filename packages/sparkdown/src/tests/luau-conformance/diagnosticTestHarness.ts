@@ -22,13 +22,13 @@
 // `typecheck/` cover them. The syntax errors the checker reports, for a type
 // Luau's parser cannot read, are kept: they are parse errors.
 
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import {
   LUAU_LINT_CODES,
   type LuauLintCode,
 } from "../../compiler/lint/collectLuauLints";
 import { TYPE_ERROR_KINDS } from "../../compiler/typecheck/Error";
 import type { SparkDiagnostic } from "../../compiler/types/SparkDiagnostic";
+import { testCompiler } from "../engineUnderTest";
 
 /** A diagnostic's message as text, whether the compiler gave it as text or as markup. */
 export function diagnosticMessage(d: SparkDiagnostic): string {
@@ -56,7 +56,7 @@ export function diagnoseDetailed(source: string): DetailedDiagnostic[] {
 export function diagnoseFilesDetailed(
   sources: Record<string, string>,
 ): (DetailedDiagnostic & { file: string })[] {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   const files = Object.entries(sources).map(([path, text]) => ({
     uri: `inmemory:///${path}`,
     type: "script" as const,

@@ -7,18 +7,17 @@
 // enclosing `then` or `do` once its else arm is complete, including when
 // that arm is glued to the `then` or `do` with no whitespace.
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { dumpTree, stripAnsi } from "../compiler/grammarSnapshot";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { makeRuntimeStoryFromSource } from "../runtime/runtimeTestHarness";
 import { runConformanceSource } from "./conformanceTestHarness";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileAndCapture(source: string): {
   errors: string[];
   recorded: unknown[];
   text: string;
 } {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -38,7 +37,7 @@ function compileAndCapture(source: string): {
   if (!result.program.compiled) {
     return { errors: ["NO_COMPILED"], recorded: [], text: "" };
   }
-  const story = new RuntimeStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.compiled as Record<string, any>);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);
@@ -53,7 +52,7 @@ function compileAndCapture(source: string): {
 // The if-expression syntax errors of a source, as `line:col-line:col message`
 // with one-based positions.
 function ifDiagnostics(source: string): string[] {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -628,19 +627,23 @@ describe("if expression without an else", () => {
 
   test.each([
     ["no then before elseif", "  local y = if true elseif false then 1 else 2\n", MISSING_THEN, "2:13-2:15"],
-    ["an empty then arm", "  local y = if true then\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["an empty else arm", "  local y = if true then 1 else\n", MISSING_CONDITION, "2:28-2:32"],
-    ["a then arm with only a comment", "  local y = if true then -- no value\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm with only a continuation line", "  local y = if true then\n    + 1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm with only a minus", "  local y = if true then\n    -\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["a then arm with only a chain of unary operators", "  local y = if true then\n    not not\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
+    // A missing value that Luau finds missing too is Luau's error, at the
+    // token Luau finds instead (#1175).
+    ["an empty then arm", "  local y = if true then\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "3:3-3:7"],
+    ["an empty else arm", "  local y = if true then 1 else\n", `${MISSING_CONDITION}, got 'return'`, "3:3-3:9"],
+    ["a then arm with only a comment", "  local y = if true then -- no value\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "3:3-3:7"],
+    ["a then arm with only a continuation line", "  local y = if true then\n    + 1\n  else 2\n", `${MISSING_CONDITION}, got '+'`, "3:5-3:6"],
+    ["a then arm with only a minus", "  local y = if true then\n    -\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
+    ["a then arm with only not", "  local y = if true then\n    not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
+    ["a then arm with only a length operator", "  local y = if true then\n    #\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
+    ["a then arm with only a chain of unary operators", "  local y = if true then\n    not not\n  else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:3-4:7"],
+    // A cast's `::` is Sparkdown's to report, and a value at column 0 is
+    // one Luau reads as the arm's, where Sparkdown ends the statement.
     ["a then arm with only a cast","  local y = if true then\n    :: number\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
     ["a then arm at column 0 on the line after then", "  local y = if true then\n1\n  else 2\n", MISSING_CONDITION, "2:21-2:25"],
-    ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", MISSING_CONDITION, "3:17-3:21"],
+    ["an empty elseif arm", "  local y = if false then 1\n    elseif true then\n    else 2\n", `${MISSING_CONDITION}, got 'else'`, "4:5-4:9"],
     ["no then after elseif", "  local y = if false then 1\n    elseif true\n", MISSING_THEN, "3:5-3:11"],
-  ])("%s: reports it on the keyword that is short and keeps what follows", (_name, partial, message, at) => {
+  ])("%s: reports it where it is missing and keeps what follows", (_name, partial, message, at) => {
     const source = `function f()\n${partial}  return y\nend\nfunction g()\n  return 6\nend\nSum {g()}.\nYou walk through it.\n`;
     expect(ifDiagnostics(source)).toEqual([`${at} ${message}`]);
     const ctx = makeRuntimeStoryFromSource(source);
@@ -651,7 +654,7 @@ describe("if expression without an else", () => {
   // The function's own `end` at column 0 comes straight after the unfinished
   // expression, so nothing indented separates the two.
   test.each([
-    ["a then arm with only a comment", "  local y = if true\n    then -- still writing\n", MISSING_CONDITION, "3:5-3:9"],
+    ["a then arm with only a comment", "  local y = if true\n    then -- still writing\n", `${MISSING_CONDITION}, got 'end'`, "4:1-4:4"],
     ["no else yet", "  local y = if true\n    then 1\n", MISSING_ELSE, "2:13-2:15"],
     ["no then yet", "  local y = if true\n", MISSING_THEN, "2:13-2:15"],
     ["a reassignment with no else yet", "  x = if true\n    then 1\n", MISSING_ELSE, "2:7-2:9"],

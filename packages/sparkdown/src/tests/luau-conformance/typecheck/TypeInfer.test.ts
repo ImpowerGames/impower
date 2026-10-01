@@ -411,11 +411,10 @@ end
   },
   {
     // TypeInfer.test.cpp:621 TEST_CASE_FIXTURE(Fixture, "tc_after_error_recovery")
-    // Upstream checks that `a` is the primitive type `number`. Luau rejects the
-    // snippet (`local x =` has no value); Sparkdown reads it without complaint,
-    // so the error is left to the checker.
+    // Upstream checks that `a` is the primitive type `number`.
     name: "tc_after_error_recovery",
     fixture: "Fixture",
+    malformed: "`local x =` has no value",
     source: `
         local x =
         local a = 7
@@ -540,11 +539,10 @@ end`,
   },
   {
     // TypeInfer.test.cpp:752 TEST_CASE_FIXTURE(Fixture, "dont_report_type_errors_within_an_AstStatError")
-    // Luau rejects the snippet (a bare `foo` is not a statement); Sparkdown
-    // reads it without complaint, so the error is left to the checker.
     name: "dont_report_type_errors_within_an_AstStatError",
     fixture: "Fixture",
     skip: { newSolver: NEW_SOLVER_GUARD_REASON },
+    malformed: "a bare `foo` is not a statement",
     source: `
         foo
     `,

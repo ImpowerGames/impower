@@ -19,7 +19,6 @@ import {
   ConstValue,
   Op,
 } from "../../../../program/ProgramInstructions";
-import { PROGRAM_BUILTINS } from "../../../../program/ProgramBuiltins";
 import { displayLeavesLineOpen } from "../../../../program/displayCallFlags";
 
 export class FunctionCall extends Expression {
@@ -88,6 +87,19 @@ export class FunctionCall extends Expression {
   // instead of treating it as a user-defined knot reference.
   get isStateAwareStdLib(): boolean {
     return lookupStateAwareStdLib(this.name) !== null;
+  }
+
+  /** Whether the call calls a function of the story, or what a variable of
+   *  that name holds, rather than a builtin. */
+  get isUserCall(): boolean {
+    return (
+      !this.isTurnsSince &&
+      !this.isReadCount &&
+      !this.isListRange &&
+      !this.isListRandom &&
+      !this.isStateAwareStdLib &&
+      !NativeFunctionCall.CallExistsWithName(this.name)
+    );
   }
 
   public shouldPopReturnedValue: boolean = false;
@@ -307,9 +319,9 @@ export class FunctionCall extends Expression {
   // `CallStd`, whose discard flag stands for the pop after a statement's
   // call. A `display` table that writes no newline sets the open flag. A
   // native function or operator is its arguments, padded with void or cut to
-  // its arity as the runtime objects are, then `Native`. A read count, a
-  // builtin the engine does not present yet and a call of a function name
-  // themselves.
+  // its arity as the runtime objects are, then `Native`. A call of a function
+  // is its divert's code (`Divert.EmitCall`), then `Pop` where the value is
+  // discarded. A read count names itself.
   public override EmitExpression(emitter: ProgramEmitter): void {
     if (this.isTurnsSince || this.isReadCount) {
       emitter.unsupported(this.name);
@@ -318,9 +330,6 @@ export class FunctionCall extends Expression {
       emitter.unsupported("list");
     }
     if (this.isStateAwareStdLib) {
-      if (!PROGRAM_BUILTINS.has(this.name)) {
-        emitter.unsupported(this.name);
-      }
       for (const arg of this.args) {
         emitter.emitObject(arg);
       }
@@ -355,7 +364,10 @@ export class FunctionCall extends Expression {
       }
       return;
     }
-    emitter.unsupported(this.typeName);
+    this._proxyDivert.EmitCall(emitter);
+    if (this.shouldPopReturnedValue) {
+      emitter.emit(Op.Pop);
+    }
   }
 
   public override ResolveReferences(context: Story): void {

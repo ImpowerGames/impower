@@ -355,11 +355,11 @@ sparkdown [0..269]
  │   │       │       └─ LuauAssignmentOperation_end 111
  │   │       └─ LuauVariableAssignment_end 111
  │   └─ LuauSparkdownVariableDefinition_end 111
- ├─ LuauReassignment [111..117]
- │   ├─ LuauReassignment_begin [111..112]
- │   │   └─ LuauReassignment_begin_c1 [111..112]
+ ├─ LuauSparkdownReassignment [111..117]
+ │   ├─ LuauSparkdownReassignment_begin [111..112]
+ │   │   └─ LuauSparkdownReassignment_begin_c1 [111..112]
  │   │       └─ OptionalWhitespace [111..112]: " "
- │   ├─ LuauReassignment_content [112..117]
+ │   ├─ LuauSparkdownReassignment_content [112..117]
  │   │   ├─ LuauAccessPath [112..114]
  │   │   │   ├─ LuauAccessPath_begin 112
  │   │   │   ├─ LuauAccessPath_content [112..113]
@@ -389,7 +389,7 @@ sparkdown [0..269]
  │   │       │       ├─ LuauNumericDecimal_c1 [116..117]: "2"
  │   │       │       └─ LuauNumericDecimal_c2 117
  │   │       └─ LuauAssignmentOperation_end 117
- │   └─ LuauReassignment_end 117
+ │   └─ LuauSparkdownReassignment_end 117
  ├─ Newline [117..118]: "\n"
  ├─ LuauSparkdownVariableDefinition [118..136]
  │   ├─ LuauSparkdownVariableDefinition_begin [118..124]

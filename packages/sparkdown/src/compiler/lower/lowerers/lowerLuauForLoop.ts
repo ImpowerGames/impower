@@ -19,6 +19,7 @@ import type { LowerContext } from "../context";
 import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
+  shadowSiblingSubFlow,
 } from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
@@ -179,12 +180,18 @@ export function lowerLuauForLoop(
     bodyContent?.from ?? doBlock.from,
     bodyContent?.to ?? doBlock.to,
   );
+  // The loop's variable is a local of its body: it hides a variadic
+  // function of its name there (`shadowSiblingSubFlow`), from a block of
+  // its own that ends with the body.
+  ctx.blockEndStack?.push([]);
+  shadowSiblingSubFlow(loopVarName, ctx);
   const bodyStatements = lowerStatements(
     bodyContent,
     ctx,
     FOR_BODY_SKIP,
     body,
   );
+  ctx.blockEndStack?.pop()?.forEach((end) => end());
   ctx.loopStack?.pop();
   ctx.scopeDepth--;
 

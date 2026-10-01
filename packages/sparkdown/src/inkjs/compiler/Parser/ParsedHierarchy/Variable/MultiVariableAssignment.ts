@@ -67,7 +67,8 @@ export class MultiVariableAssignment extends ParsedObject {
   }
 
   // The values, packed when there are several, unpacked to one per target,
-  // and each target assigned in order.
+  // and each target assigned in order, as its own assignment records it
+  // (`VariableAssignment.resolutionKey`).
   public override EmitProgram(emitter: ProgramEmitter): void {
     for (const expr of this.expressions) {
       emitter.emitObject(expr);
@@ -80,6 +81,7 @@ export class MultiVariableAssignment extends ParsedObject {
       if (target.isGlobalDeclaration) {
         emitter.unsupported("global multiple assignment");
       }
+      emitter.recordResolution(target.resolutionKey);
       emitter.emit(
         Op.SetVar,
         emitter.variable(target.variableName),

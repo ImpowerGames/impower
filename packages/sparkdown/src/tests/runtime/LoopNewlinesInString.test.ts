@@ -87,7 +87,10 @@ BOB:
 `);
       expect(ctx.errorMessages).toEqual([]);
       ctx.story.collapseWhitespace = false;
-      const flow = (ctx.story.state as any)._currentFlow;
+      // The current engine keeps the stream on its flow, the program engine
+      // on its state.
+      const flow =
+        (ctx.story.state as any)._currentFlow ?? (ctx.story.state as any);
       let count = 0;
       flow.outputStream = new Proxy(flow.outputStream, {
         get(target, key, receiver) {

@@ -1,0 +1,16 @@
+function f()
+  local a, g, t = 0, 0, { k = { 1 } }
+  a,
+    g = 1, 2
+  a, -- note
+    t.k[t.k[1]],
+    g = 3, 4, 5
+  a,
+  g += 1, 2
+  a, g += 1
+  return g
+end
+scene one
+  a,
+  The hero waits.
+end

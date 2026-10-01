@@ -14,9 +14,15 @@ import type { CompilationConfig } from "../classes/annotators/CompilationAnnotat
  * `>` break take (`lexicalRouting` in `lowerDisplay.ts`). The node that read
  * it is named with the read, since a continuation can stand inside a block
  * statement below the chunk's top-level node, and the question is its own.
+ *
+ * `unreachable` is the range of the statements a `done` or `fin` leaves
+ * unreachable, which its hint covers (`unreachableRead` in
+ * `lowerDoneOrFin.ts`): the statements after it in its scope, which an edit
+ * below it changes. It decides the hint and not the statement's code, so the
+ * chunk store does not compare it.
  */
 export interface LoweringRead {
-  kind: "routing";
+  kind: "routing" | "unreachable";
   value: string;
   /** The name of the node that read it. */
   node: string;
@@ -258,8 +264,7 @@ export interface LowerContext {
    * which resolves to nil since NAME is a SubFlow not a variable.
    * Instead the inner-closure body's references fall through to
    * `FunctionCall` dispatch, which resolves NAME via ink's relative-
-   * path walk and routes through the static `PackTuple` setup that
-   * variadic dispatch requires.
+   * path walk; the call packs the subflow's `...` when it runs.
    *
    * The upvalue-name list is the subflow's free variables: the
    * subflow prepends them as parameters and every call site prepends
@@ -272,6 +277,15 @@ export interface LowerContext {
    * pops on exit.
    */
   siblingSubFlowNamesStack?: Map<string, SiblingSubFlowInfo>[];
+  /**
+   * The blocks being lowered, the innermost last: each `lowerStatements`
+   * call pushes one, with what to undo when the block ends. A `local`
+   * declared in a block hides a sibling subflow of its name in the same
+   * function for the rest of the block, as Luau scopes a local, and the
+   * subflow is visible again after it (`shadowSiblingSubFlow`). Absent for
+   * callers that lower no function bodies.
+   */
+  blockEndStack?: (() => void)[][];
   /**
    * The statements whose lowering is running, the innermost last, with the
    * top-level statement at the bottom (see `StatementShape`). Given by the

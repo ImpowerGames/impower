@@ -1,6 +1,9 @@
-// The statements of a compiler's main script that have chunks, top-level and
-// inside the bodies of block statements, for the tests that check which
-// statements an edit left with their chunks.
+// The statements of a compiler's main script that have chunks in the chunk
+// store's current root, top-level and inside the bodies of block statements,
+// for the tests that check which statements an edit left with their chunks.
+// A statement the store emitted a chunk for in an earlier root, which the
+// current program no longer runs (a function a broken `define` above it
+// swallows), has none.
 import "../../inkjs/engine/Container";
 import type { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import type { CompiledBlock } from "../../compiler/classes/annotators/CompilationAnnotator";
@@ -10,22 +13,30 @@ import { ConstantDeclaration } from "../../inkjs/compiler/Parser/ParsedHierarchy
 import { VariableAssignment } from "../../inkjs/compiler/Parser/ParsedHierarchy/Variable/VariableAssignment";
 import { compilerNamedTexts, resolutionsOf } from "../../program/ChunkStore";
 import { readsKey } from "../../program/programFlows";
-import { MAIN_URI } from "./programHarness";
+import { MAIN_URI, rootChunks } from "./programHarness";
 
 export interface ProgramStatement {
   /** The statement's node name, the column it starts at and its text. */
   syntax: string;
   /** The syntax, with everything the statement's chunk depends on outside
-   *  it: what its lowering read, and how the names it reads resolved. A
-   *  statement an edit left with the same key is one the edit did not
-   *  touch. */
+   *  it: the kinds of the block statements it stands in, what its lowering
+   *  read, how the names it reads resolved, and the function declared at the
+   *  top level it defines. A statement an edit left with the same key is one
+   *  the edit did not touch. A function definition an edit moves out of an
+   *  `if` block, or into one, keeps its text but not its chunk: the story
+   *  defines one where it runs the other in place. Of the functions of one
+   *  name, the story defines one under the name, so an edit to another of
+   *  them can give the name to this one or take it away, and its chunk
+   *  exports the name's symbol or an anonymous one. */
   key: string;
   from: number;
   to: number;
   chunk: Int32Array;
   /** Whether nothing its lowering or emission recorded ties its chunk to
-   *  another statement: no lowering read of another line, and no text the
-   *  compiler names by document order. */
+   *  another statement: no lowering read of another line (a `routing` read),
+   *  and no text the compiler names by document order. What the lowering
+   *  found a name to be among a function's variadic functions, and what the
+   *  functions it writes capture, are in its key. */
   untouchable: boolean;
 }
 
@@ -84,15 +95,21 @@ export function untouchedChunks(
 
 export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
   const store = c.chunkStore;
+  const held = new Set(store?.current ? rootChunks(store.current) : []);
   const document = c.documents.get(MAIN_URI)!;
   const text = document.getText();
   const out: ProgramStatement[] = [];
-  const visit = (shape: StatementShape, base: number, key: object) => {
+  const visit = (
+    shape: StatementShape,
+    base: number,
+    key: object,
+    owners: string,
+  ) => {
     const from = base + shape.from;
     const to = base + shape.to;
     const flowChunk = store?.chunkOf(key);
     const chunk = flowChunk ?? store?.declarationChunkOf(key);
-    if (chunk) {
+    if (chunk && held.has(chunk)) {
       const syntax = `${shape.node} ${document.positionAt(from).character} ${text.slice(from, to)}`;
       const bodies = new Set(
         shape.bodies.flatMap((body) => body.statements.flatMap((s) => s.objects)),
@@ -101,24 +118,26 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
         syntax,
         key: [
           flowChunk ? "statement" : "declaration",
+          owners,
           syntax,
           readsKey(shape.reads),
           ...resolutionsOf(
             flowChunk ? shape.objects : initializers(shape.objects),
             bodies,
           ),
+          `defines:${store?.definesOf(chunk) ?? ""}`,
         ].join("\u0000"),
         from,
         to,
         chunk,
         untouchable:
-          shape.reads.other.length === 0 &&
+          !shape.reads.other.some((read) => read.startsWith("routing:")) &&
           compilerNamedTexts(shape.objects).length === 0,
       });
     }
     for (const body of shape.bodies) {
       for (const nested of body.statements) {
-        visit(nested, base, nested);
+        visit(nested, base, nested, `${owners}/${shape.node}`);
       }
     }
   };
@@ -134,6 +153,7 @@ export function programStatements(c: SparkdownCompiler): ProgramStatement[] {
         },
         cur.from,
         block,
+        "",
       );
     }
     cur.next();

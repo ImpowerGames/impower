@@ -1,6 +1,8 @@
 import { Container as RuntimeContainer } from "../../../../engine/Container";
 import { VariablePointerValue } from "../../../../engine/Value";
 import { Expression } from "./Expression";
+import type { ProgramEmitter } from "../../../../../program/ProgramEmitter";
+import { Op } from "../../../../../program/ProgramInstructions";
 
 // A parsed expression that, when emitted into a runtime container,
 // produces a `VariablePointerValue` for the named variable. At
@@ -35,6 +37,10 @@ export class VariablePointerExpression extends Expression {
   ): void => {
     container.AddContent(new VariablePointerValue(this.variableName));
   };
+
+  public override EmitExpression(emitter: ProgramEmitter): void {
+    emitter.emit(Op.VarPtr, emitter.variable(this.variableName));
+  }
 
   public override readonly toString = (): string => `&${this.variableName}`;
 }

@@ -18,14 +18,13 @@
 //      balanced — a leaked frame made a later same-named `local`
 //      close a still-open upvalue against the wrong binding.
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileAndCapture(source: string): {
   errors: string[];
   recorded: unknown[];
 } {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -46,7 +45,7 @@ function compileAndCapture(source: string): {
   if (!result.program.compiled) {
     return { errors: ["NO_COMPILED"], recorded: [] };
   }
-  const story = new RuntimeStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.compiled as Record<string, any>);
   const recorded: unknown[] = [];
   story.BindExternalFunction("host_record", (v: unknown) => {
     recorded.push(v);

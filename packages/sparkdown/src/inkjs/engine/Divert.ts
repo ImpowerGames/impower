@@ -81,6 +81,11 @@ export class Divert extends InkObject {
   public isExternal: boolean = false;
   public externalArgs: number = 0;
 
+  /** How many arguments a function call's site pushes, which the call
+   *  adjusts to the parameters of the function it enters; -1 when the
+   *  divert is no function call or the story was written without it. */
+  public callArgCount: number = -1;
+
   public isConditional: boolean = false;
 
   constructor(stackPushType?: PushPopType) {

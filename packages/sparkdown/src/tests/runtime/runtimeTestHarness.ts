@@ -13,6 +13,7 @@ import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FIXTURE_ROOT = join(__dirname, "fixtures");
@@ -81,7 +82,7 @@ export function makeRuntimeStoryFromDirectory(
   const baseUri = `inmemory://${feature}/${name}/`;
   const mainUri = `${baseUri}main.sd`;
 
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: files.map((f) => ({
       uri: `${baseUri}${f.relativePath}`,
@@ -132,7 +133,7 @@ export function makeRuntimeStoryFromSource(
   uri: string = "inmemory:///main.sd",
   options: RuntimeTestOptions = {},
 ): RuntimeTestContext {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   // `configure` initializes the internal document registry. Passing the
   // fixture as the initial file means the compiler is ready to compile
   // immediately, without further `addFile` / `updateDocument` plumbing.
@@ -229,7 +230,7 @@ function runCompiledStory(
   // marker convention (whole-number floats serialized as `"3.0f"` strings)
   // only kicks in when the writer is driving the output; here the marker is
   // already encoded in the object form, so re-stringifying would mangle it.
-  const story = new RuntimeStory(program.compiled as Record<string, any>);
+  const story = testStory(program.compiled as Record<string, any>);
   return {
     story,
     errorMessages,
@@ -247,7 +248,7 @@ export function collectDiagnostics(
 ): { errorMessages: string[]; warningMessages: string[] } {
   const errorMessages: string[] = [];
   const warningMessages: string[] = [];
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {

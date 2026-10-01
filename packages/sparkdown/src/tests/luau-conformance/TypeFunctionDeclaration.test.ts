@@ -4,10 +4,9 @@
 // types are checked, so the compiled story contains nothing for it.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocumentRegistry";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
 import { checkLuau, describeDiagnostic } from "./typecheckTestHarness";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 // The editor's annotations of each occurrence of the whole word `word` in
 // `text`, by annotation set.
@@ -33,7 +32,7 @@ function annotationsOf(text: string, word: string) {
 }
 
 function run(files: Array<{ uri: string; text: string }>) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: files.map((f) => ({
       uri: f.uri,
@@ -56,7 +55,7 @@ function run(files: Array<{ uri: string; text: string }>) {
       else if ((d as any).severity === 2) warnings.push(message);
     }
   }
-  const story = new RuntimeStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.compiled as Record<string, any>);
   const recorded: unknown[] = [];
   story.BindExternalFunction("harness_record", (v: unknown) => {
     recorded.push(v);
@@ -258,7 +257,7 @@ done
 // Every diagnostic a compile of one `.sd` script gives, with its range.
 function scriptDiagnostics(text: string): string[] {
   const uri = "inmemory:///main.sd";
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({ files: [{ uri, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }] });
   const program = compiler.compile({ textDocument: { uri } }).program;
   return (program.diagnostics?.[uri] ?? []).map((d) => {

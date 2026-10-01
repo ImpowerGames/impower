@@ -20,6 +20,7 @@ import { lower } from "../lower";
 import {
   lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
+  shadowSiblingSubFlow,
 } from "../expression/lowerExpression";
 import {
   continuationParts,
@@ -31,7 +32,9 @@ import {
   typeUnionLineValue,
   takeLineContinuation,
 } from "../utils/lineContinuation";
+import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import {
+  cannotBeginValue,
   validateAssignmentValue,
   validateListComma,
   validateSecondAssignment,
@@ -39,7 +42,6 @@ import {
 import { validateDefineTypeShadow } from "../utils/validateDefineTypeShadow";
 import { identifierAt } from "../utils/debugMetadata";
 import { statementSource } from "../utils/statementSource";
-import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
 import {
   forwardBlockDiagnostics,
   unwrapBlockContent,
@@ -134,7 +136,7 @@ export function lowerVariableDefinition(
         child = child.nextSibling;
         continue;
       }
-      if (isCommaName(child.name)) {
+      if (isListCommaName(child.name)) {
         if (currentRhsGroup.length > 0) {
           trailingRhsGroups.push(currentRhsGroup);
           currentRhsGroup = [];
@@ -175,17 +177,15 @@ export function lowerVariableDefinition(
           continue;
         }
       }
-      // An anonymous function directly after a comma is a value in the
-      // list (`local a, g = 1, function() ... end`), not a statement:
-      // treating it as one drops the slot and shifts every later value
-      // one target left. A named one stays a trailing statement in a
-      // `local`; in a `store` it is a value, which expression lowering
-      // reports as a named function expression.
+      // A function directly after a comma is a value in the list
+      // (`local a, g = 1, function() ... end`), not a statement: treating
+      // it as one drops the slot and shifts every later value one target
+      // left. A named one is a value too, as Luau reads it; expression
+      // lowering reports it as a named function expression (#1148).
       if (
         child.name === "LuauFunctionDefinition" &&
         sawAssignmentOp &&
-        (scope === "store" || !findOwnDeclarationName(child)) &&
-        isCommaName(previousContentSibling(child)?.name)
+        isListCommaName(previousContentSibling(child)?.name)
       ) {
         currentRhsGroup.push(child);
         child = child.nextSibling;
@@ -206,14 +206,20 @@ export function lowerVariableDefinition(
           currentRhsGroup = [];
         }
         // A statement where the comma needs a value (`store a = 1, return`)
-        // is Luau's missing-value error. A named function there stays a
-        // lenient trailing statement (`AnonymousFunctionValueList.test.ts`).
+        // is Luau's missing-value error. A function after the `=` is a
+        // value (above), so one here stands before any `=`.
         if (pendingComma && child.name !== "LuauFunctionDefinition") {
           validateListComma(pendingComma, unresolvedAfterAssignment, ctx);
         }
         trailingStatements.push(child);
         child = child.nextSibling;
         continue;
+      }
+      // A value after the comma that starts with a token no value can
+      // begin with (`local a, g = 1,` then `+ 2` or `:method()`) is
+      // Luau's missing-value error at the comma, as in a reassignment.
+      if (pendingComma && unresolvedAfterAssignment && cannotBeginValue(child, ctx)) {
+        validateListComma(pendingComma, true, ctx);
       }
       // Any other node at the def-content level is a trailing
       // RHS expression (LuauNumericDecimal, LuauAccessPath,
@@ -401,6 +407,11 @@ export function lowerVariableDefinition(
         expressions.length === 0 && !sawAssignmentOp
           ? [new NullExpression()]
           : expressions;
+      // Each local hides a variadic function of its name for the rest of
+      // its block, the statements after it on its line included.
+      for (const target of targetIdents) {
+        if (target.name) shadowSiblingSubFlow(target.name, ctx);
+      }
       return wrapInWeave(
         withTrailingStatements(
           [new MultiVariableAssignment(targetIdents, multiExprs, true)],
@@ -449,6 +460,11 @@ export function lowerVariableDefinition(
     isGlobalDeclaration: isGlobal,
     isTemporaryNewDeclaration: isTemp,
   });
+  // A local hides a variadic function of its name for the rest of its
+  // block, the statements after it on its line included.
+  if (isTemp && identifier.name) {
+    shadowSiblingSubFlow(identifier.name, ctx);
+  }
 
   return wrapInWeave(withTrailingStatements([va], trailingStatements, continuation, ctx));
 }
@@ -515,21 +531,6 @@ function bareVariableNameFromAccessPath(
   if (inner?.name !== "LuauVariable") return null;
   const nameNode = getDescendent("LuauVariableName", inner);
   return nameNode ? ctx.read(nameNode.from, nameNode.to) : null;
-}
-
-// A comma that ends its line is `LuauCommaLineBreak`, which also holds the
-// line break and any comment before the next value.
-function isCommaName(name: string | undefined): boolean {
-  return name === "LuauCommaSeparator" || name === "LuauCommaLineBreak";
-}
-
-// The if expression a `LuauCommaLineBreak` holds after its line break, when
-// the next line starts with one unindented (`local a, g = 1,` then `if c`):
-// the declaration cannot read it there, so the comma does.
-function commaLineBreakValue(comma: SyntaxNode): SyntaxNode | null {
-  if (comma.name !== "LuauCommaLineBreak") return null;
-  const content = comma.getChild("LuauCommaLineBreak_content");
-  return content?.getChild("LuauTernaryExpression") ?? null;
 }
 
 function isSkippableName(name: string): boolean {

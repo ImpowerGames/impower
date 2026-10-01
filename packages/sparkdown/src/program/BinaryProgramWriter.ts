@@ -4,6 +4,7 @@ import "../inkjs/engine/Container";
 import type { ProgramTable } from "../binary/ProgramBinaryWriter";
 import {
   bodyOfBlock,
+  functionShapeOf,
   loopOf,
   type LoopShape,
 } from "../compiler/lower/utils/statementShape";
@@ -13,6 +14,7 @@ import { Conditional } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditiona
 import type { ConditionalSingleBranch } from "../inkjs/compiler/Parser/ParsedHierarchy/Conditional/ConditionalSingleBranch";
 import { Divert } from "../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
 import { CallValueExpression } from "../inkjs/compiler/Parser/ParsedHierarchy/Expression/CallValueExpression";
+import type { FlowBase } from "../inkjs/compiler/Parser/ParsedHierarchy/Flow/FlowBase";
 import { FunctionCall } from "../inkjs/compiler/Parser/ParsedHierarchy/FunctionCall";
 import { Gather } from "../inkjs/compiler/Parser/ParsedHierarchy/Gather/Gather";
 import type { ParsedObject } from "../inkjs/compiler/Parser/ParsedHierarchy/Object";
@@ -21,6 +23,7 @@ import type { VariableAssignment } from "../inkjs/compiler/Parser/ParsedHierarch
 import { Wrap } from "../inkjs/compiler/Parser/ParsedHierarchy/Wrap";
 import { displayTableFlag } from "./displayCallFlags";
 import { hash64 } from "./hash64";
+import { heldObjectsOf } from "./programFlows";
 import type {
   EmittedObject,
   ProgramEmitter,
@@ -36,19 +39,26 @@ import {
   OP_NAMES,
   SET_DECLARE,
   SET_GLOBAL,
+  SET_VARARGS,
   auxOf,
   encodeWord0,
   flagsOf,
   opOf,
 } from "./ProgramInstructions";
-import { internNumber, internString } from "./ProgramSymbols";
+import {
+  internNumber,
+  internString,
+  isAnonymousSymbol,
+} from "./ProgramSymbols";
 import {
   ADDRESS_OFFSETS,
   ANCHOR_STATEMENT,
+  BLOCK_FUNCTION,
   BLOCK_LOOP,
   BLOCK_PASS_SCOPE,
   BLOCK_ROW_WORDS,
   BLOCK_SCOPE_SHIFT,
+  EXPORT_ROW_WORDS,
   HEADER_WORDS,
   H_BLOCK_ROWS,
   H_CHUNK_ID,
@@ -60,6 +70,8 @@ import {
   H_REFERENCE_ROWS,
   LINE_ROW_WORDS,
   REFERENCE_ROW_WORDS,
+  exportCount,
+  exportSymbol,
   type StatementChunk,
 } from "./StatementChunk";
 
@@ -76,6 +88,25 @@ export interface BlockInput {
   firstLine: number;
   /** The lines the body spans. */
   span: number;
+  /** For a function's body, the function: the chunk exports its symbol at
+   *  entry code that binds its parameters, declares the locals the lowering
+   *  hoisted to the top of its body and enters the body. */
+  fn?: FunctionInput;
+}
+
+/** A function whose body is a block of the statement being written. */
+export interface FunctionInput {
+  /** The function's symbol: its qualified name's for a function declared at
+   *  the top level, and an anonymous one the statement owns otherwise. */
+  symbol: number;
+  /** Its parameters, first to last, the captured variables a closure's
+   *  lowering prepends to them included. */
+  params: readonly { name: string; vararg: boolean }[];
+  /** The `local NAME = nil` declarations the lowering hoisted to the top of
+   *  its body. */
+  hoisted: readonly ParsedObject[];
+  /** Its own source range, which covers its entry code. */
+  range: DebugMetadata | null;
 }
 
 /** What the writer needs to emit one statement's chunk. */
@@ -98,6 +129,10 @@ export interface StatementInput {
   /** The column at which a line of the statement's script ends, for a row
    *  that ends where a body begins. */
   lineEnd?: (line: number) => number;
+  /** Set for the definition of a function declared at the top level, whose
+   *  chunk is only entered through the function's symbol: it has no code of
+   *  its own before the function's entry. */
+  definesOnly?: boolean;
 }
 
 /** What the writer needs to emit a declaration statement's chunk. */
@@ -165,18 +200,25 @@ export class BinaryProgramWriter implements ProgramEmitter {
   protected _generated = 0;
   protected _scopes = 0;
   protected _ranges: (DebugMetadata | null)[] = [];
+  protected _exports: number[] = [];
+  protected _definesOnly = false;
 
   /** `facts` gives, for a symbol, what the code that refers to it depends on
    *  (its kind and whether the program defines it); the chunk store reads the
-   *  same function when it decides whether a chunk can be reused. */
+   *  same function when it decides whether a chunk can be reused.
+   *  `symbolOf` gives the symbol of a function (a `FlowBase`) of the program
+   *  being built, or nothing for one it does not define. */
   constructor(
     public readonly table: ProgramTable,
     public facts: (symbol: number) => string = () => "",
+    public symbolOf: (fn: object) => number | undefined = () => undefined,
   ) {}
 
   write(input: StatementInput): EmittedStatement {
     this.begin(input);
-    this.emitObjects(input.objects);
+    if (!input.definesOnly) {
+      this.emitObjects(input.objects);
+    }
     return this.finish(input);
   }
 
@@ -211,10 +253,13 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._generated = 0;
     this._scopes = 0;
     this._ranges = [input.range];
+    this._exports = [];
+    this._definesOnly = input.definesOnly ?? false;
     this.row(input.range);
   }
 
   protected finish(input: StatementInput): EmittedStatement {
+    this.emitFunctionEntries();
     if (this._code.length >= ADDRESS_OFFSETS) {
       this.unsupported("a statement longer than an address holds");
     }
@@ -361,6 +406,85 @@ export class BinaryProgramWriter implements ProgramEmitter {
     this._blockStates[block]!.break = label;
   }
 
+  functionSymbol(fn: object): number {
+    const symbol = this.symbolOf(fn);
+    if (symbol === undefined) {
+      this.unsupported("a function the program does not define");
+    }
+    return symbol;
+  }
+
+  emitFunctionInPlace(fn: object): void {
+    const flow = fn as FlowBase;
+    const shape = functionShapeOf.get(flow);
+    if (!shape) {
+      this.unsupported(flow.typeName);
+    }
+    this.emitParameters(
+      (flow.args ?? []).map((arg) => ({
+        name: arg.identifier?.name ?? "",
+        vararg: !!arg.isVararg,
+      })),
+      shape.hoisted,
+    );
+    this.enterBlock(shape.body);
+  }
+
+  /** Binds a function's parameters from the evaluation stack, last first as
+   *  the arguments were pushed, and declares the locals the lowering hoisted
+   *  to the top of its body. */
+  protected emitParameters(
+    params: FunctionInput["params"],
+    hoisted: readonly ParsedObject[],
+  ): void {
+    for (let p = params.length - 1; p >= 0; p -= 1) {
+      const param = params[p]!;
+      this.emit(
+        Op.SetVar,
+        this.variable(param.name),
+        0,
+        SET_DECLARE | (param.vararg ? SET_VARARGS : 0),
+      );
+    }
+    for (const local of hoisted) {
+      this.emitObject(local as ParsedObject);
+    }
+  }
+
+  /** The entry code of each function the statement writes, after the
+   *  statement's own code, which jumps past it: the chunk exports the
+   *  function's symbol where its entry binds the parameters, last first as
+   *  the arguments were pushed, declares the locals the lowering hoisted to
+   *  the top of the body, and enters the body. The body's end resumes the
+   *  entry at a return of nothing, as a function that runs off its end
+   *  returns. A top-level function's definition has no code before its
+   *  entry. */
+  protected emitFunctionEntries(): void {
+    const entries = this._blocks
+      .map((block, k) => (block.fn && !this._blockStates[k]?.entered ? k : -1))
+      .filter((k) => k >= 0);
+    if (entries.length === 0) {
+      return;
+    }
+    const end = this._definesOnly ? null : this.jump(Op.Jump);
+    for (const k of entries) {
+      const block = this._blocks[k]!;
+      const fn = block.fn!;
+      this._ranges.push(fn.range);
+      this.row(fn.range);
+      this._scopes = 0;
+      this._exports.push(fn.symbol, this._code.length);
+      this.emitParameters(fn.params, fn.hoisted);
+      this.enterBlock(block.body, BLOCK_FUNCTION);
+      this.emit(Op.Const, 0, ConstValue.Void);
+      this.emit(Op.Return);
+      this._ranges.pop();
+    }
+    if (end) {
+      this.bind(end);
+    }
+  }
+
   unsupported(construct: string): never {
     throw new UnsupportedConstruct(construct);
   }
@@ -386,7 +510,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       const body = bodyOfBlock.get(obj);
       if (body) {
         // A `do` block: its scope, its body, and the scope's end.
-        const objectsOfBody = body.statements.flatMap((s) => s.objects);
+        const objectsOfBody = heldObjectsOf(body);
         this.requireHeld(objectsOfBody, objects);
         this.expect(
           objectsOfBody.every((part, k) => objects[i + 1 + k] === part),
@@ -420,7 +544,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
       this.emitObjects(content);
       return;
     }
-    const objectsOfBody = body.statements.flatMap((s) => s.objects);
+    const objectsOfBody = heldObjectsOf(body);
     this.requireHeld(objectsOfBody, content);
     let start = objectsOfBody.length
       ? content.indexOf(objectsOfBody[0]!)
@@ -459,7 +583,7 @@ export class BinaryProgramWriter implements ProgramEmitter {
     body: ParsedObject[];
     test: readonly ParsedObject[];
   } {
-    const body = loop.body.statements.flatMap((s) => s.objects);
+    const body = heldObjectsOf(loop.body);
     const test = branchContent(loop.test);
     this.requireHeld(body, [
       ...test,
@@ -721,12 +845,20 @@ export class BinaryProgramWriter implements ProgramEmitter {
     });
     // A row covers the statement's own parts: a range that runs into a body
     // below its start (a loop's objects span the whole loop) ends with the
-    // line before the body, so that an edit inside the body changes no row.
+    // line before the body, and one that runs on through a body starting on
+    // its first line (a closure written after the start of its statement,
+    // whose body goes on below) ends with that line, so that an edit inside
+    // the body changes no row.
     let end = range.endLineNumber - 1;
     let endColumn = Math.max(0, range.endCharacterNumber - 1);
     for (const block of this._blocks) {
-      if (block.firstLine > start && block.firstLine <= end) {
-        end = Math.max(start, block.firstLine - 1);
+      const below = block.firstLine > start && block.firstLine <= end;
+      const fromFirstLine =
+        block.firstLine === start &&
+        block.firstLine + block.span - 1 > start &&
+        end > start;
+      if (below || fromFirstLine) {
+        end = below ? block.firstLine - 1 : start;
         endColumn = this._lineEnd?.(end) ?? 0;
         break;
       }
@@ -757,12 +889,31 @@ export class BinaryProgramWriter implements ProgramEmitter {
       case Op.Native:
       case Op.GetVar:
       case Op.SetVar:
+      case Op.VarPtr:
+      case Op.CallVar:
         return JSON.stringify(this.table.strings[arg]);
       case Op.Num:
-        return String(this.table.numbers[arg]);
+        return numberText(this.table.numbers[arg]!);
+      case Op.Sym:
+      case Op.Call:
+        return this.describeSymbol(arg);
       default:
         return String(arg);
     }
+  }
+
+  /** A symbol as the layout hash reads it: its qualified name, or for an
+   *  anonymous symbol of one of this statement's functions, the ordinal of
+   *  that function among the statement's (section 1). An anonymous symbol of
+   *  another statement's function reads as such. */
+  protected describeSymbol(symbol: number): string {
+    if (!isAnonymousSymbol(this.table, symbol)) {
+      return JSON.stringify(this.table.symbols[symbol]);
+    }
+    const part = this._blocks
+      .filter((block) => block.fn)
+      .findIndex((block) => block.fn!.symbol === symbol);
+    return part >= 0 ? `function#${part}` : "function";
   }
 
   protected assemble(input: StatementInput): StatementChunk {
@@ -788,28 +939,47 @@ export class BinaryProgramWriter implements ProgramEmitter {
       );
     });
     const references = this._references;
+    const exports = this._exports;
     const chunk = new Int32Array(
-      HEADER_WORDS + code.length + rows.length + blocks.length + references.length,
+      HEADER_WORDS +
+        code.length +
+        rows.length +
+        exports.length +
+        blocks.length +
+        references.length,
     );
     chunk[H_CODE_WORDS] = code.length;
     chunk[H_LINE_ROWS] = rows.length / LINE_ROW_WORDS;
-    chunk[H_EXPORT_ROWS] = 0;
+    chunk[H_EXPORT_ROWS] = exports.length / EXPORT_ROW_WORDS;
     chunk[H_BLOCK_ROWS] = blocks.length / BLOCK_ROW_WORDS;
     chunk[H_REFERENCE_ROWS] = references.length / REFERENCE_ROW_WORDS;
     chunk[H_CHUNK_ID] = input.chunkId;
     const fingerprint = hash64(normalizeSource(input.source));
     chunk[H_FINGERPRINT] = fingerprint[0];
     chunk[H_FINGERPRINT + 1] = fingerprint[1];
-    const layout = hash64(this._layout.join("\n"));
+    // The export table is read as its symbols name, like the code.
+    const layout = hash64(
+      [
+        ...this._layout,
+        ...exports.flatMap((word, i) =>
+          i % EXPORT_ROW_WORDS === 0
+            ? [`export:${this.describeSymbol(word)}:${exports[i + 1]}`]
+            : [],
+        ),
+      ].join("\n"),
+    );
     chunk[H_LAYOUT_HASH] = layout[0];
     chunk[H_LAYOUT_HASH + 1] = layout[1];
-    chunk.set(code, HEADER_WORDS);
-    chunk.set(rows, HEADER_WORDS + code.length);
-    chunk.set(blocks, HEADER_WORDS + code.length + rows.length);
-    chunk.set(
-      references,
-      HEADER_WORDS + code.length + rows.length + blocks.length,
-    );
+    let at = HEADER_WORDS;
+    chunk.set(code, at);
+    at += code.length;
+    chunk.set(rows, at);
+    at += rows.length;
+    chunk.set(exports, at);
+    at += exports.length;
+    chunk.set(blocks, at);
+    at += blocks.length;
+    chunk.set(references, at);
     return chunk;
   }
 }
@@ -822,7 +992,8 @@ export const branchContent = (
     ._innerWeave?.content ?? [];
 
 /** A multiple assignment's targets: its values unpacked to as many as it
- *  has targets, and each target assigned in order, the first first. */
+ *  has targets, and each target assigned in order, the first first, as its
+ *  own assignment records it. */
 export const emitTargets = (
   emitter: ProgramEmitter,
   assignment: MultiVariableAssignment,
@@ -830,6 +1001,7 @@ export const emitTargets = (
   const targets = assignment.targetAssignments;
   emitter.emit(Op.Unpack, targets.length);
   for (const target of targets) {
+    emitter.recordResolution(target.resolutionKey);
     emitter.emit(
       Op.SetVar,
       emitter.variable(target.variableName),
@@ -866,6 +1038,11 @@ const isConditionalOf = (
 /** The hash a reference table row keeps of the facts about its symbol. */
 export const factHash = (facts: string): number => hash64(facts)[1];
 
+/** A number of the table as text, negative zero as `-0`, which `String`
+ *  writes as `0`. */
+const numberText = (value: number): string =>
+  Object.is(value, -0) ? "-0" : String(value);
+
 /** The source a fingerprint hashes: each line trimmed, and blank lines left
  *  out, so that re-indenting a statement keeps its fingerprint. */
 export const normalizeSource = (source: string): string =>
@@ -875,11 +1052,15 @@ export const normalizeSource = (source: string): string =>
     .filter((line) => line.length > 0)
     .join("\n");
 
-/** One instruction of `chunk`'s code as text, for a listing or a test. */
+/** One instruction of `chunk`'s code as text, for a listing or a test. A
+ *  symbol reads as its qualified name; an anonymous one that the chunk
+ *  exports as `function#<k>`, its export row, and another as `symbolName`
+ *  describes it, or as `function`. */
 export const describeInstruction = (
   chunk: StatementChunk,
   offset: number,
   table: ProgramTable,
+  symbolName?: (symbol: number) => string,
 ): string => {
   const w0 = chunk[HEADER_WORDS + offset]!;
   const arg = chunk[HEADER_WORDS + offset + 1]!;
@@ -888,6 +1069,17 @@ export const describeInstruction = (
   const aux = auxOf(w0);
   const name = OP_NAMES[op] ?? `op${op}`;
   const flagText = flags ? ` flags ${flags}` : "";
+  const symbol = (id: number): string => {
+    if (!isAnonymousSymbol(table, id)) {
+      return JSON.stringify(table.symbols[id]);
+    }
+    for (let row = 0; row < exportCount(chunk); row += 1) {
+      if (exportSymbol(chunk, row) === id) {
+        return `function#${row}`;
+      }
+    }
+    return symbolName?.(id) ?? "function";
+  };
   switch (op) {
     case Op.Text:
     case Op.Str:
@@ -897,9 +1089,16 @@ export const describeInstruction = (
       return `${name} ${table.strings[arg]}/${aux}${flagText}`;
     case Op.GetVar:
     case Op.SetVar:
+    case Op.VarPtr:
       return `${name} ${table.strings[arg]}${flagText}`;
+    case Op.CallVar:
+      return `${name} ${table.strings[arg]}/${aux}${flagText}`;
+    case Op.Sym:
+      return `${name} ${symbol(arg)}`;
+    case Op.Call:
+      return `${name} ${symbol(arg)}/${aux}${flagText}`;
     case Op.Num:
-      return `${name} ${table.numbers[arg]}${flags ? " float" : ""}`;
+      return `${name} ${numberText(table.numbers[arg]!)}${flags ? " float" : ""}`;
     case Op.Int:
     case Op.MakeTable:
     case Op.Pack:

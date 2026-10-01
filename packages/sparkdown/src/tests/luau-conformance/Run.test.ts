@@ -3,11 +3,10 @@
 // modes (missing file, cycle detection).
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileWithFiles(files: Array<{ uri: string; text: string }>) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: files.map((f) => ({
       uri: f.uri,
@@ -55,7 +54,7 @@ done
     expect(errs).toEqual([]);
     expect(result.program.compiled).toBeTruthy();
 
-    const story = new RuntimeStory(
+    const story = testStory(
       result.program.compiled as Record<string, any>,
     );
     const recorded: unknown[] = [];

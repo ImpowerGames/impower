@@ -12,6 +12,8 @@ import {
   NullValue,
   ObjectValue,
   AbstractValue,
+  SymbolRef,
+  SymbolValue,
 } from "./Value";
 import { ControlCommand } from "./ControlCommand";
 import { PushPopType } from "./PushPop";
@@ -430,6 +432,10 @@ export class JsonSerialisation {
         writer.WriteIntProperty("exArgs", divert.externalArgs);
       }
 
+      if (divTypeKey === "f()" && divert.callArgCount >= 0) {
+        writer.WriteIntProperty("argc", divert.callArgCount);
+      }
+
       writer.WriteObjectEnd();
       return;
     }
@@ -612,6 +618,24 @@ export class JsonSerialisation {
       writer.WriteProperty("^->", divTargetVal.value.componentsString);
       writer.WriteObjectEnd();
 
+      return;
+    }
+
+    // A binary program's function value, which holds its symbol within a
+    // session: its id, the table generation of the id, its name (empty for
+    // an anonymous symbol) and how it prints.
+    if (obj instanceof SymbolValue) {
+      const ref = obj.ref;
+      writer.WriteObjectStart();
+      writer.WritePropertyStart("^sym");
+      writer.WriteArrayStart();
+      writer.WriteInt(ref.symbol);
+      writer.WriteInt(ref.generation);
+      writer.Write(ref.name ?? "");
+      writer.Write(ref.label);
+      writer.WriteArrayEnd();
+      writer.WritePropertyEnd();
+      writer.WriteObjectEnd();
       return;
     }
 
@@ -1074,6 +1098,19 @@ export class JsonSerialisation {
         return new DivertTargetValue(new Path(propValue.toString()));
       }
 
+      // A binary program's function value.
+      if (Array.isArray(obj["^sym"])) {
+        const [symbol, generation, name, label] = obj["^sym"];
+        return new SymbolValue(
+          new SymbolRef(
+            Number(symbol),
+            Number(generation),
+            name ? String(name) : null,
+            String(label ?? ""),
+          ),
+        );
+      }
+
       // VariablePointerValue
       if (obj["^var"]) {
         propValue = obj["^var"];
@@ -1162,6 +1199,10 @@ export class JsonSerialisation {
         if (external) {
           if ((propValue = obj["exArgs"]))
             divert.externalArgs = parseInt(propValue);
+        }
+
+        if ("argc" in obj) {
+          divert.callArgCount = parseInt(obj["argc"]);
         }
 
         return divert;

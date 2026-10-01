@@ -3,6 +3,8 @@ import { ControlCommand as RuntimeControlCommand } from "../../../engine/Control
 import { InkObject as RuntimeObject } from "../../../engine/Object";
 import { Expression } from "./Expression/Expression";
 import { ParsedObject } from "./Object";
+import type { ProgramEmitter } from "../../../../program/ProgramEmitter";
+import { Op } from "../../../../program/ProgramInstructions";
 
 // Lua/Luau multi-return: `return a, b, c`.
 //
@@ -29,6 +31,15 @@ export class MultiReturnType extends ParsedObject {
 
   override get typeName(): string {
     return "MultiReturnType";
+  }
+
+  // The values, packed into one multiple value, then `Return`.
+  public override EmitProgram(emitter: ProgramEmitter): void {
+    for (const expr of this.expressions) {
+      emitter.emitObject(expr);
+    }
+    emitter.emit(Op.Pack, this.expressions.length);
+    emitter.emit(Op.Return);
   }
 
   public readonly GenerateRuntimeObject = (): RuntimeObject => {

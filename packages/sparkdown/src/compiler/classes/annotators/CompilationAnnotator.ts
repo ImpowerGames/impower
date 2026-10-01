@@ -20,6 +20,7 @@ import type {
 } from "../../lower/context";
 import { lower } from "../../lower/lower";
 import { continuationRoutingRead } from "../../lower/lowerers/lowerDisplay";
+import { unreachableRead } from "../../lower/lowerers/lowerDoneOrFin";
 import {
   topLevelShape,
   type StatementShape,
@@ -253,8 +254,9 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       this._checkedDefineTypeNames,
       typeNames,
     );
-    // Any edit can change the line a continuation continues, so a document
-    // whose chunks hold a `routing` read checks those reads on every update.
+    // Any edit can change the line a continuation continues, or the
+    // statements a `done` leaves unreachable, so a document whose chunks hold
+    // a read checks those reads on every update.
     if (!callableNamesChanged && !typeNamesChanged && !this._hasReads) {
       return [];
     }
@@ -298,7 +300,14 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     };
     return reads.some((read) => {
       const node = nodeStartingAt(tree, from + read.at, read.node);
-      return !node || continuationRoutingRead(node, ctx) !== read.value;
+      if (!node) {
+        return true;
+      }
+      const answer =
+        read.kind === "unreachable"
+          ? unreachableRead(node, ctx)
+          : continuationRoutingRead(node, ctx);
+      return answer !== read.value;
     });
   }
 
@@ -434,9 +443,12 @@ export class CompilationAnnotator extends SparkdownAnnotator<
       // Per-chunk stack of "sibling subflow" names — nested function
       // declarations that route through `lowerNestedAsSubFlow` (variadic
       // fns) rather than emitting a local-binding closure. References to
-      // these names from inner closures must skip upval capture so the
-      // call site resolves via FunctionCall + static `PackTuple`.
+      // these names from inner closures skip upval capture, as the names
+      // are no variables: the call site reaches the subflow by path.
       const siblingSubFlowNamesStack: Map<string, SiblingSubFlowInfo>[] = [];
+      // Per-chunk stack of the blocks being lowered, each with what its end
+      // undoes (`LowerContext.blockEndStack`).
+      const blockEndStack: (() => void)[][] = [];
       const callableNames = this.computeGlobalCallableNames();
       const globalCallableReads = new Map<string, boolean>();
       const typeNames = this.computeDefineTypeNames();
@@ -461,7 +473,11 @@ export class CompilationAnnotator extends SparkdownAnnotator<
                 node: read.node,
                 at: read.from - nodeRef.from,
               });
-              innermost()?.reads.other.push(`${read.kind}:${read.value}`);
+              // An `unreachable` read sizes a hint, not the statement's code,
+              // so its statement keeps its chunk whatever it answers.
+              if (read.kind !== "unreachable") {
+                innermost()?.reads.other.push(`${read.kind}:${read.value}`);
+              }
             }
           : undefined,
         statementStack,
@@ -503,6 +519,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         declaredLocalsStack,
         hoistedNestedFnDeclsStack,
         siblingSubFlowNamesStack,
+        blockEndStack,
       };
       let lowered = lower(nodeRef, ctx);
       // The Luau blocks this chunk's own nodes show to be left open. A chunk

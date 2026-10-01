@@ -20,6 +20,8 @@ import type { LowerContext } from "./context";
 import { findChildByName } from "./utils/alternatorArms";
 import { syntheticId } from "./utils/documentTag";
 import {
+  chainedLinkParts,
+  chainedPartKey,
   lowerExpressionFromContainer,
   lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
@@ -41,7 +43,11 @@ import {
   splitOnCommas,
   takeLineContinuation,
 } from "./utils/lineContinuation";
-import { validateAssignmentValue } from "./utils/validateAssignmentValue";
+import { commaLineBreakValue, isListCommaName } from "../utils/listCommaNames";
+import {
+  validateAssignmentValue,
+  validateReassignmentList,
+} from "./utils/validateAssignmentValue";
 import {
   lowerAudioLine,
   lowerImageAndAudioLine,
@@ -74,6 +80,7 @@ import { lowerExplicitStatement } from "./lowerers/lowerExplicitStatement";
 import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
 import { lowerReassignment } from "./lowerers/lowerReassignment";
+import { propertyStore } from "./utils/lowerPropertyTargetAssignment";
 import { lowerInclude } from "./lowerers/lowerInclude";
 import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
@@ -257,8 +264,11 @@ function lowerInner(
       return lowerExplicitStatement(nodeRef, ctx);
     case "Glue":
       return lowerGlue(nodeRef, ctx);
-    case "LuauReassignment": {
-      // The grammar wraps `x = 5` (bare) inside this node. Two shapes:
+    case "LuauReassignment":
+    case "LuauSparkdownReassignment": {
+      // The grammar wraps `x = 5` (bare) inside this node:
+      // `LuauReassignment` in Luau code, `LuauSparkdownReassignment` in a
+      // narrative body. Two shapes:
       //
       // Single-target (`x = 5` / `obj.field = v`):
       //   LuauAccessPath
@@ -268,11 +278,17 @@ function lowerInner(
       //   LuauAccessPath, LuauCommaSeparator, LuauAccessPath, …,
       //   LuauAssignmentOperation, [LuauCommaSeparator, <expr>, …]
       //
+      // In Luau code a comma after the `=` that ends its line is a
+      // `LuauCommaLineBreak`, and the list continues on the next line.
+      //
       // Try multi-target first; fall back to the single-target helper
       // for everything else.
       const content =
-        findChildByName(nodeRef.node, "LuauReassignment_content") ??
+        findChildByName(nodeRef.node, `${nodeRef.node.name}_content`) ??
         nodeRef.node;
+      // The statement's continuation lines are still `ctx.lineContinuation`
+      // here; its lowerer takes them below.
+      validateReassignmentList(content, ctx.lineContinuation ?? [], ctx);
       let firstAccessPath: SyntaxNode | null = null;
       let scan = content.firstChild;
       while (scan) {
@@ -283,8 +299,17 @@ function lowerInner(
         scan = scan.nextSibling;
       }
       if (firstAccessPath) {
-        const multi = scanMultiTargetReassignment(firstAccessPath);
-        if (multi) return lowerMultiTargetReassignment(multi, ctx);
+        // A single target with extra values (`g = 1, bump()`, or `g = 1,`
+        // then `bump()`) goes the multi-target way too, which evaluates
+        // every value and assigns the first, as Luau does. A compound
+        // operator (`g += 1, 2`) takes no list and stays single-target.
+        const multi = scanMultiTargetReassignment(firstAccessPath, true);
+        if (
+          multi &&
+          (multi.targets.length > 1 || isPlainAssignment(multi.op, ctx))
+        ) {
+          return lowerMultiTargetReassignment(multi, ctx);
+        }
       }
 
       // Single-target fallback. The lowerer helper takes the
@@ -300,6 +325,14 @@ function lowerInner(
         inner = inner.nextSibling;
       }
       if (!pathChild || !opChild) return {};
+      // A store through what a call written after the path returns
+      // (`o.get().a.x = v`): the grammar wraps the call's arguments and its
+      // links with the assignment, and the path alone is not the target.
+      const links = chainedLinksAfter(pathChild);
+      const storeOp = chainedStoreOperation(links);
+      if (storeOp && storeOp.from === opChild.from) {
+        return lowerChainedTargetStore([pathChild], links, storeOp, ctx) ?? {};
+      }
       return lowerReassignment(pathChild, opChild, ctx);
     }
     case "LuauSparkdownChooseBlock":
@@ -433,6 +466,10 @@ export function lowerStatements(
   body?: BodyShape,
 ): ParsedObject[] {
   if (!parent) return [];
+  // The block is on the context's block stack while its statements lower:
+  // what its `local`s hide is undone when it ends (`blockEndStack`). No
+  // frame is added for it, since a block nests this function once per level.
+  ctx.blockEndStack?.push([]);
   const result: ParsedObject[] = [];
   // Each statement of a block's body is recorded with the objects it
   // lowered to (see `StatementShape`), when the context keeps shapes.
@@ -487,6 +524,7 @@ export function lowerStatements(
   }
   ctx.lineContinuation = enclosingContinuation;
   ctx.usedLineContinuations = enclosingUsed;
+  ctx.blockEndStack?.pop()?.forEach((end) => end());
   return result;
 }
 
@@ -576,6 +614,22 @@ function lowerStatementAt(
     if (parenScan && parenScan.name === "LuauParenthetical") {
       callNodes.push(parenScan);
       consumedParen = parenScan;
+      // The links chained after the call apply to its result
+      // (`o:get()()`, `o:me():bump()`, `o:mk().bump()`), and a property
+      // link before an assignment stores through it (`o:get().x = 6`).
+      const links = chainedLinksAfter(parenScan);
+      const opNode = chainedStoreOperation(links);
+      if (opNode) {
+        const { lowered, last } = lowerContinued(opNode, ctx, () =>
+          lowerChainedTargetStore([child, parenScan], links, opNode, ctx),
+        );
+        if (lowered) {
+          appendBlockContent(result, lowered, ctx);
+        }
+        return last;
+      }
+      callNodes.push(...links);
+      consumedParen = links[links.length - 1] ?? parenScan;
     }
     // The lines that continue the call (`obj` then `:method()`).
     const continuation = collectLineContinuation(consumedParen ?? child);
@@ -619,46 +673,24 @@ function lowerStatementAt(
   // parenthetical (`(fn)(a)(b)` chains) and lower the run as one
   // value-call expression, popping the unused return value.
   if (child.name === "LuauParenthetical") {
+    const links = chainedLinksAfter(child);
     // Parenthesized-base index store: `(expr)['k'] = v` — incl.
     // ternary bases like `(if c then t else u).x = v`
-    // (tables.luau's aliasing block). Shape: LuauParenthetical +
-    // LuauChainedPropertyAccess+ + LuauAssignmentOperation.
-    {
-      const links: SyntaxNode[] = [];
-      let scanStore: SyntaxNode | null = child.nextSibling;
-      while (scanStore) {
-        while (scanStore && ASSIGNMENT_PAIR_BRIDGE.has(scanStore.name)) {
-          scanStore = scanStore.nextSibling;
-        }
-        if (
-          !scanStore ||
-          scanStore.name !== "LuauChainedPropertyAccess"
-        ) {
-          break;
-        }
-        links.push(scanStore);
-        scanStore = scanStore.nextSibling;
+    // (tables.luau's aliasing block), and `(t):get().x = v`. Shape:
+    // LuauParenthetical + links ending in LuauChainedPropertyAccess +
+    // LuauAssignmentOperation.
+    const opNode = chainedStoreOperation(links);
+    if (opNode) {
+      const { lowered, last } = lowerContinued(opNode, ctx, () =>
+        lowerChainedTargetStore([child], links, opNode, ctx),
+      );
+      if (lowered) {
+        appendBlockContent(result, lowered, ctx);
       }
-      if (links.length > 0 && scanStore?.name === "LuauAssignmentOperation") {
-        const block = lowerParenTargetStore(child, links, scanStore, ctx);
-        if (block) {
-          appendBlockContent(result, block, ctx);
-          return scanStore;
-        }
-      }
+      return last;
     }
-    const callNodes: SyntaxNode[] = [child];
-    let lastNode: SyntaxNode = child;
-    let scan: SyntaxNode | null = child.nextSibling;
-    while (scan) {
-      while (scan && ASSIGNMENT_PAIR_BRIDGE.has(scan.name)) {
-        scan = scan.nextSibling;
-      }
-      if (!scan || scan.name !== "LuauParenthetical") break;
-      callNodes.push(scan);
-      lastNode = scan;
-      scan = scan.nextSibling;
-    }
+    const callNodes: SyntaxNode[] = [child, ...links];
+    let lastNode: SyntaxNode = links[links.length - 1] ?? child;
     // The lines that continue the call (`(t)` then `:bump()`).
     const continuation = collectLineContinuation(lastNode);
     callNodes.push(...continuation);
@@ -692,63 +724,85 @@ function lowerStatementAt(
   return last;
 }
 
-// Lower `(base)[k1][k2]... = value`. The base is the parenthetical
-// (plus all property links except the last, folded as reads); the
-// LAST link supplies the store key. Only plain `=` is supported —
-// compound ops on paren targets return null and fall through.
-function lowerParenTargetStore(
-  paren: SyntaxNode,
+// The links chained after `node` at statement level, bridges skipped: a
+// call's arguments, a `:method` call and a property or index link.
+export function chainedLinksAfter(node: SyntaxNode): SyntaxNode[] {
+  const links: SyntaxNode[] = [];
+  for (let scan = nextNonBridge(node); scan && CHAIN_LINK_NAMES.has(scan.name); scan = nextNonBridge(scan)) {
+    links.push(scan);
+  }
+  return links;
+}
+
+const CHAIN_LINK_NAMES = nodeNameSet([
+  "LuauParenthetical",
+  "LuauChainedFunctionCall",
+  "LuauChainedPropertyAccess",
+]);
+
+export function nextNonBridge(node: SyntaxNode): SyntaxNode | null {
+  let next = node.nextSibling;
+  while (next && ASSIGNMENT_PAIR_BRIDGE.has(next.name)) next = next.nextSibling;
+  return next;
+}
+
+// The assignment through `links`, `=` or a compound operator, when they end
+// in a property or index link (`o:m(x).k = value`, `(t)[k] += value`); null
+// for any other shape.
+export function chainedStoreOperation(links: SyntaxNode[]): SyntaxNode | null {
+  const lastLink = links[links.length - 1];
+  if (
+    !lastLink ||
+    lastLink.name !== "LuauChainedPropertyAccess" ||
+    chainedLinkParts(lastLink).length === 0
+  ) {
+    return null;
+  }
+  const opNode = nextNonBridge(lastLink);
+  return opNode?.name === "LuauAssignmentOperation" ? opNode : null;
+}
+
+// Lower `(base)[k1][k2]... = value` and `o:m(x).a.k += value`. The base is
+// `baseNodes` (a parenthetical, or an access path and its call's
+// arguments) plus every link and every part of the last link but its last
+// part, folded as reads; that last part supplies the store key. A compound
+// operator reads and writes through the base and key once each
+// (`propertyStore`). The value takes the lines that continue it
+// (`= source` then `.y`), as a reassignment's does: `continuation`, when the
+// caller has taken them (an explicit statement), or else the lines the
+// statement's lowering offers.
+export function lowerChainedTargetStore(
+  baseNodes: SyntaxNode[],
   links: SyntaxNode[],
   opNode: SyntaxNode,
   ctx: LowerContext,
+  continuation: SyntaxNode[] = takeLineContinuation(ctx),
 ): CompiledBlock | null {
+  validateAssignmentValue(opNode, ctx);
   const opMarker = getDescendent("LuauAssignmentOperator", opNode);
-  const opText = opMarker
-    ? ctx.read(opMarker.from, opMarker.to).trim()
-    : "=";
-  if (opText !== "=") return null;
-  const baseExpr = lowerExpressionFromNodes(
-    [paren, ...links.slice(0, -1)],
+  const opText = opMarker ? ctx.read(opMarker.from, opMarker.to).trim() : "=";
+  let baseExpr = lowerExpressionFromNodes(
+    [...baseNodes, ...links.slice(0, -1)],
     ctx,
   );
   if (!baseExpr) return null;
-  const lastLink = links[links.length - 1]!;
-  const content =
-    findChildByName(lastLink, "LuauChainedPropertyAccess_content") ?? lastLink;
-  // Key extraction — direct children only (an indexer's CONTENT can
-  // itself contain accessors, e.g. `(t)[a.b] = 1`).
-  let keyExpr: Expression | null = null;
-  let inner = content.firstChild;
-  while (inner) {
-    if (inner.name === "LuauPropertyAccessor") {
-      const nameNode =
-        getDescendent("LuauPropertyName", inner) ??
-        getDescendent("LuauStdLibMethods", inner);
-      if (nameNode) {
-        keyExpr = new StringExpression([
-          new Text(ctx.read(nameNode.from, nameNode.to)),
-        ]);
-      }
-      break;
-    }
-    if (inner.name === "LuauPropertyIndexer") {
-      const indexerContent = findChildByName(
-        inner,
-        "LuauPropertyIndexer_content",
-      );
-      keyExpr = indexerContent
-        ? lowerExpressionFromContainer(indexerContent, ctx)
-        : null;
-      break;
-    }
-    inner = inner.nextSibling;
+  const parts = chainedLinkParts(links[links.length - 1]!);
+  for (const part of parts.slice(0, -1)) {
+    const key = chainedPartKey(part, ctx);
+    if (!key) return null;
+    baseExpr = new IndexExpression(baseExpr, key);
   }
+  const keyExpr = chainedPartKey(parts[parts.length - 1]!, ctx);
   if (!keyExpr) return null;
-  const valueExpr = lowerExpressionFromContainer(opNode, ctx);
+  const valueExpr = lowerExpressionFromContainerAndContinuation(
+    opNode,
+    continuation,
+    ctx,
+  );
   if (!valueExpr) return null;
   return wrapInWeave(
-    [new StorePropertyAssignment(baseExpr, keyExpr, valueExpr)],
-    { from: paren.from, to: opNode.to },
+    propertyStore(baseExpr, keyExpr, valueExpr, opText, baseNodes[0]!.from, ctx),
+    { from: baseNodes[0]!.from, to: (continuation[continuation.length - 1] ?? opNode).to },
     ctx,
   );
 }
@@ -776,12 +830,16 @@ interface MultiTargetReassignment {
 //   AccessPath  [Comma AccessPath]+  AssignmentOperation  [Comma Expr]*
 //
 // Returns the collected pieces if at least 2 targets sit before the
-// assignment op; returns `null` otherwise so the caller can fall back to
-// single-target lowering. Anything unexpected between the multi-target
-// pieces (e.g. a stray identifier) also returns `null` rather than risk a
-// silent mis-parse.
+// assignment op, or, with `withExtraValues`, one target followed by more
+// than one value (`g = 1, bump()`, whose extra values Luau still evaluates);
+// returns `null` otherwise so the caller can fall back to single-target
+// lowering. Only a caller whose siblings end with the statement (a
+// reassignment node's content) passes `withExtraValues`. Anything
+// unexpected between the multi-target pieces (e.g. a stray identifier) also
+// returns `null` rather than risk a silent mis-parse.
 function scanMultiTargetReassignment(
   firstTarget: SyntaxNode,
+  withExtraValues = false,
 ): MultiTargetReassignment | null {
   const targets: SyntaxNode[] = [firstTarget];
   let cursor: SyntaxNode | null = firstTarget.nextSibling;
@@ -790,7 +848,9 @@ function scanMultiTargetReassignment(
       cursor = cursor.nextSibling;
       continue;
     }
-    if (cursor.name === "LuauCommaSeparator") {
+    // A comma between targets may end its line in Luau code (`a,` then
+    // `g = 1, 2`), which makes it a `LuauCommaLineBreak`.
+    if (isListCommaName(cursor.name)) {
       const afterComma = skipBridges(cursor.nextSibling);
       if (afterComma?.name === "LuauAccessPath") {
         targets.push(afterComma);
@@ -801,7 +861,7 @@ function scanMultiTargetReassignment(
       return null;
     }
     if (cursor.name === "LuauAssignmentOperation") {
-      if (targets.length < 2) return null;
+      if (targets.length < 2 && !withExtraValues) return null;
       const op = cursor;
       const trailingExprGroups: SyntaxNode[][] = [];
       let current: SyntaxNode[] = [];
@@ -812,11 +872,19 @@ function scanMultiTargetReassignment(
           post = post.nextSibling;
           continue;
         }
-        if (post.name === "LuauCommaSeparator") {
+        // A second `=` after a comma that ends its line (`a, g = 1,` then
+        // `x = 99`): Luau reads the name before it as the last value, and
+        // `validateReassignmentList` reports the `=`.
+        if (post.name === "LuauAssignmentOperation") break;
+        if (isListCommaName(post.name)) {
           if (current.length > 0) {
             trailingExprGroups.push(current);
             current = [];
           }
+          // An unindented if expression after the line break is the comma's
+          // own child (`a, g = 1,` then `if c`), and the next value.
+          const held = commaLineBreakValue(post);
+          if (held) current.push(held);
           last = post;
           post = post.nextSibling;
           continue;
@@ -826,11 +894,46 @@ function scanMultiTargetReassignment(
         post = post.nextSibling;
       }
       if (current.length > 0) trailingExprGroups.push(current);
+      if (targets.length < 2 && trailingExprGroups.length === 0) return null;
       return { targets, op, trailingExprGroups, lastNode: last };
     }
     return null;
   }
   return null;
+}
+
+// Lowers the content of an `&` statement that assigns one target, a name or a
+// field, more than one value (`& g = 1, bump()`, `& t.g = 1, bump()`) the way
+// a bare reassignment does: every value is evaluated and the first assigned,
+// as in Luau. `continuation` holds the lines that continue the last value.
+// Returns null for any other shape.
+export function lowerSingleTargetWithExtraValues(
+  content: SyntaxNode,
+  continuation: SyntaxNode[],
+  ctx: LowerContext,
+): CompiledBlock | null {
+  let first = content.firstChild;
+  while (first && ASSIGNMENT_PAIR_BRIDGE.has(first.name)) {
+    first = first.nextSibling;
+  }
+  if (first?.name !== "LuauAccessPath") return null;
+  const multi = scanMultiTargetReassignment(first, true);
+  if (
+    !multi ||
+    multi.targets.length !== 1 ||
+    !isPlainAssignment(multi.op, ctx)
+  ) {
+    return null;
+  }
+  // The multi-target lowerer takes the continuation from the context.
+  ctx.lineContinuation = continuation;
+  return lowerMultiTargetReassignment(multi, ctx);
+}
+
+// Whether the `LuauAssignmentOperation` `op` is a plain `=`.
+function isPlainAssignment(op: SyntaxNode, ctx: LowerContext): boolean {
+  const operator = getDescendent("LuauAssignmentOperator", op);
+  return !!operator && ctx.read(operator.from, operator.to).trim() === "=";
 }
 
 function skipBridges(n: SyntaxNode | null): SyntaxNode | null {
@@ -904,7 +1007,10 @@ function lowerMultiTargetReassignment(
   // (the OLD a), not `b[43]`; `a[1], a = 43, -1` must store 43 into
   // the table `a` referenced BEFORE `a` is overwritten with -1. So
   // property targets stash their base + key into temps up front
-  // (`preStores`), and the store phase references only temps.
+  // (`preStores`), and the store phase references only temps. As in Luau,
+  // whose compiler evaluates complex targets before the values, the bases
+  // and keys are taken first, so a call in a target (`t[key()]`) runs before
+  // a call among the values (`bump()`).
   const preStores: ParsedObject[] = [];
   const writes: ParsedObject[] = [];
   for (let i = 0; i < multi.targets.length; i++) {
@@ -938,7 +1044,7 @@ function lowerMultiTargetReassignment(
     const write = buildTargetWrite(target, tempRef, ctx);
     if (write) writes.push(write);
   }
-  return wrapInWeave([tempDecl, ...preStores, ...writes]);
+  return wrapInWeave([...preStores, tempDecl, ...writes]);
 }
 
 // True when the LuauAccessPath consists of a single LuauVariable

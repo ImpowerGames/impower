@@ -4,6 +4,8 @@
 // question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
+import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
+import { RUN_QUERY } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
 // The statements of a `.sd` file that are Luau, wherever they sit.
@@ -11,7 +13,7 @@ export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
-  "LuauReassignment",
+  ...REASSIGNMENT_NAMES,
   "LuauReturnStatement",
   "LuauBreakStatement",
   "LuauContinueStatement",
@@ -100,6 +102,24 @@ export function isCheckedLuau(node: SyntaxNode, read: (from: number, to: number)
     if (n.parent && !n.parent.parent) return LUAU_STATEMENTS.has(n.name);
   }
   return false;
+}
+
+/** Whether a document is a Luau file, which is Luau from its first line to its last. */
+export function isLuauFile(uri: string): boolean {
+  const path = uri.split(/[?#]/, 1)[0]!;
+  return path.endsWith(".luau") && !uri.includes(RUN_QUERY);
+}
+
+/**
+ * Whether the type checker reads the token at a document position as Luau,
+ * asked from any node of the same tree. Where it does not (a `;` or a word
+ * the grammar reads as story in a narrative body, a scene's `end`), the
+ * checker cannot report an error at that token, so Sparkdown reports it.
+ */
+export function isCheckedLuauAt(anyNode: SyntaxNode, position: number, read: (from: number, to: number) => string): boolean {
+  let root = anyNode;
+  while (root.parent) root = root.parent;
+  return isCheckedLuau(root.resolveInner(position, 1), read);
 }
 
 /** The first node of a name among a node and its later siblings, and under them, depth first. */
