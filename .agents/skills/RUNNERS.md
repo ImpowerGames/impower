@@ -17,7 +17,7 @@ Use this map only when a runner capability is unclear.
 
 ## Review execution
 
-Before launching a local CLI reviewer, read [reviewer mappings](references/runner-review.md) and [handoff execution](review-pr/HANDOFF.md). Supply the writer route and effort, plus any caller-selected reviewer route, and use the shared reservation launcher. To read the writer's model and effort, or when the plan leaves the reviewer to the defaults, read [default reviewer routes](references/runner-reviewer-defaults.md). Native or remote tasks do not satisfy its enforced capacity contract.
+Before launching a local CLI reviewer, read [reviewer mappings](references/runner-review.md) (cloud containers: [Codex route](references/runner-review.md#codex-reviewer-in-a-linux-cloud-container)) and [handoff execution](review-pr/HANDOFF.md). Supply the writer route and effort, any caller-selected reviewer route, and use the shared reservation launcher. For the writer's model and effort, or a reviewer left to the defaults, read [default reviewer routes](references/runner-reviewer-defaults.md). Native or remote tasks do not satisfy its enforced capacity contract.
 
 ## Delegated filing
 

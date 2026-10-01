@@ -40,6 +40,7 @@ export function validateReviewPlan(input,{validateArgs=validateNativeReviewArgs,
   if(!plan.destination||!plan.destination.threadId||!plan.destination.turnId||!plan.destination.cwd)throw new Error('Originating destination identity required');
   if(!plan.writerEffort||!plan.permissions||!Array.isArray(plan.reviews)||plan.reviews.length<1||plan.reviews.length>4)throw new Error('Exact routing, permissions and bounded coverage required');
   checkWriterEffort(plan.writer,plan.writerEffort);
+  if(plan.reportPosting!==undefined)throw new Error('A coordinator-posted report uses the awaited launcher; the supervised route verifies reports its reviewers post');
   const limit=plan.reviewRoundLimit??3;
   validateReviewRecovery(plan);
   validateSlotWait(plan.slotWaitSeconds);
