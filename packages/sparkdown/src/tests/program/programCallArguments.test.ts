@@ -11,8 +11,9 @@
 // functions `pcall` and a metamethod call, and a function the host
 // evaluates. Where one value is taken from a call, it takes the call's first
 // value, or nil when it returned none: a call, an index or a method chained
-// on the call (`o:get()()`, `mk().x`, also as a statement, and after
-// `new`), a store through it or of it (`o:get().x = 6`, `t.x = f()`), a
+// on the call (`o:get()()`, `mk().x`, also as a statement, written with `&`
+// or without it, and after `new`), a store through it or of it
+// (`o:get().x = 6`, `& o.get().a.x += 2`, `t.x = f()`), a
 // variable it sets, an if expression's arm, a backtick string's
 // interpolation, the left side an `and` keeps, and a table's keyed field and
 // computed key; and what a metamethod or a builtin's callback returns is one
@@ -409,6 +410,12 @@ describe("a call, an index or a method chained on a call", () => {
     // store through `o.get`) and 1.
     ["compounds a store through what a call returns, evaluating its base and key once", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "o.get().a.x += 2", "o:me().a.x *= 10", "o.get().a[key()] -= 1", "o:me().s ..= \"b\"", "local function mk() return function() return t end end", "mk()().y //= 2"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/2/2/1."],
     ["compounds a store through a parenthesized table and an index of a method call", inRun(["local t = { x = 1, 10 }", "local keys = 0", "local function key() keys = keys + 1 return \"x\" end", "local o = {}", "function o:get() return t end", "(t).x += 1", "(t)[key()] += 1", "o:get()[1] += 5"], "t.x .. \"/\" .. t[1] .. \"/\" .. keys"), "Got 3/15/1."],
+    // An explicit statement (`&`), which a scene's top level needs for a
+    // call, stores and calls through the links after a call as an implicit
+    // one does: the call counts are 3 and 2.
+    ["stores and compounds through what a call returns in an explicit statement", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5, 10 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "& o.get().a.x += 2", "& o:me().a.x *= 10", "& o.get().a[key()] -= 1", "& o:me().s ..= \"b\"", "& o.get().y = 7", "& (t)[key()] = 4", "& o:me()[1] += 5"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. t.x .. \"/\" .. t[1] .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/7/4/15/3/2."],
+    ["calls through the links after a call in an explicit statement", inRun(["local n = 0", "local o = {}", "function o:bump() n = n + 1 return self end", "function o:me() return self end", "local box = { o = o }", "& o:me():bump()", "& o:bump():bump():bump()", "& (o):bump()", "& box.o:me():bump()"], "n"), "Got 6."],
+    ["stores and calls through what a call returns in an explicit statement at the top level", topLevel(["store t = { a = { x = 1 }, n = 0, y = 5, k = 10, s = \"a\" }", "function mko()", "  local o = {}", "  function o.get() return t end", "  function o:me() return t end", "  function o:bump() t.n = t.n + 1 return self end", "  return o", "end", "local o = mko()", "& o.get().a.x += 2", "& o:me().a.x *= 10", "& o:bump():bump()", "& (t).y //= 2", "& o:me()[\"k\"] += 5", "& o.get().s = \"b\""], "t.a.x .. \"/\" .. t.n .. \"/\" .. t.y .. \"/\" .. t.k .. \"/\" .. t.s"), "Got 30/2/2/15/b."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
   });

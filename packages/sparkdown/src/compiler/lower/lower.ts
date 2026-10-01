@@ -704,7 +704,7 @@ function lowerStatementAt(
 
 // The links chained after `node` at statement level, bridges skipped: a
 // call's arguments, a `:method` call and a property or index link.
-function chainedLinksAfter(node: SyntaxNode): SyntaxNode[] {
+export function chainedLinksAfter(node: SyntaxNode): SyntaxNode[] {
   const links: SyntaxNode[] = [];
   for (let scan = nextNonBridge(node); scan && CHAIN_LINK_NAMES.has(scan.name); scan = nextNonBridge(scan)) {
     links.push(scan);
@@ -718,7 +718,7 @@ const CHAIN_LINK_NAMES = nodeNameSet([
   "LuauChainedPropertyAccess",
 ]);
 
-function nextNonBridge(node: SyntaxNode): SyntaxNode | null {
+export function nextNonBridge(node: SyntaxNode): SyntaxNode | null {
   let next = node.nextSibling;
   while (next && ASSIGNMENT_PAIR_BRIDGE.has(next.name)) next = next.nextSibling;
   return next;
@@ -727,7 +727,7 @@ function nextNonBridge(node: SyntaxNode): SyntaxNode | null {
 // The assignment through `links`, `=` or a compound operator, when they end
 // in a property or index link (`o:m(x).k = value`, `(t)[k] += value`); null
 // for any other shape.
-function chainedStoreOperation(links: SyntaxNode[]): SyntaxNode | null {
+export function chainedStoreOperation(links: SyntaxNode[]): SyntaxNode | null {
   const lastLink = links[links.length - 1];
   if (
     !lastLink ||
@@ -746,14 +746,16 @@ function chainedStoreOperation(links: SyntaxNode[]): SyntaxNode | null {
 // part, folded as reads; that last part supplies the store key. A compound
 // operator reads and writes through the base and key once each
 // (`propertyStore`). The value takes the lines that continue it
-// (`= source` then `.y`), as a reassignment's does.
-function lowerChainedTargetStore(
+// (`= source` then `.y`), as a reassignment's does: `continuation`, when the
+// caller has taken them (an explicit statement), or else the lines the
+// statement's lowering offers.
+export function lowerChainedTargetStore(
   baseNodes: SyntaxNode[],
   links: SyntaxNode[],
   opNode: SyntaxNode,
   ctx: LowerContext,
+  continuation: SyntaxNode[] = takeLineContinuation(ctx),
 ): CompiledBlock | null {
-  const continuation = takeLineContinuation(ctx);
   validateAssignmentValue(opNode, ctx);
   const opMarker = getDescendent("LuauAssignmentOperator", opNode);
   const opText = opMarker ? ctx.read(opMarker.from, opMarker.to).trim() : "=";
