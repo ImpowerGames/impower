@@ -2,13 +2,18 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {git} from './review-job-store.mjs';
-import {validateCodexSandboxStorage,validateCodexAuthHome,codexReviewMode,isSupportedCodexVersion,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
+import {validateCodexSandboxStorage,validateCodexAuthHome,readCodexAuthSecret,codexReviewMode,isSupportedCodexVersion,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
 
-export function verifyReviewerExecutable(review) {
+// The sandboxed grammar needs the elevated Windows sandbox. The full-access
+// grammar runs as the user under the repository hooks, which a Linux cloud
+// container provides as well.
+export function verifyReviewerExecutable(review,{platform=process.platform}={}) {
   if(review.transport!=='native-codex-jsonl')return;
-  if(process.platform!=='win32')throw new Error('Automatic native Codex reviewer is verified on Windows only; use awaited mode');
+  const fullAccess=codexReviewMode(review)==='full-access';
+  if(platform==='linux'&&!fullAccess)throw new Error('The sandboxed native Codex reviewer is verified on Windows only, since it needs the elevated Windows sandbox; on Linux use the full-access grammar');
+  if(!['win32','linux'].includes(platform))throw new Error('Automatic native Codex reviewer is verified on Windows and Linux only; use awaited mode');
   const version=execFileSync(review.executable,['--version'],{encoding:'utf8',windowsHide:true,timeout:10000}).trim();
-  const minimum=codexReviewMode(review)==='full-access'?minimumFullAccessCodexVersion:minimumCodexVersion;
+  const minimum=fullAccess?minimumFullAccessCodexVersion:minimumCodexVersion;
   if(!isSupportedCodexVersion(/^codex-cli (\S+)$/.exec(version)?.[1],minimum))throw new Error(`Native Codex reviewer version is unverified (this route needs ${minimum} or later); use awaited mode`);
 }
 
@@ -73,9 +78,13 @@ export function validateCodexReviewer(review,plan) {
     need(values.get('--dangerously-bypass-hook-trust'),'--dangerously-bypass-hook-trust (the launcher installs the repository hooks in the reviewer home)');
     for(const key of sandboxKeys)need(!config.has(key),`no -c ${key} (sandbox settings do not apply to danger-full-access)`);
     for(const field of ['windowsSandbox','sandboxStateHome'])need(permission[field]===undefined,`no step permissions.${field} (sandbox settings do not apply to danger-full-access)`);
-    need(path.isAbsolute(permission.codexHome??''),'step permissions.codexHome as the absolute existing Codex home holding auth.json');
+    // The authentication comes from a Codex home on disk or, in a container,
+    // from an environment secret holding the contents of auth.json.
+    if(permission.codexAuthEnv===undefined)need(path.isAbsolute(permission.codexHome??''),'step permissions.codexHome as the absolute existing Codex home holding auth.json, or step permissions.codexAuthEnv naming the environment secret that holds its contents');
+    else need(permission.codexHome===undefined,'step permissions.codexHome or step permissions.codexAuthEnv, not both');
   } else {
     need(!values.has('--dangerously-bypass-hook-trust'),'no --dangerously-bypass-hook-trust (the sandboxed route installs no hooks)');
+    need(permission.codexAuthEnv===undefined,'no step permissions.codexAuthEnv (the sandboxed route copies its declared setup home)');
     need(config.get('windows.sandbox')==='elevated','-c windows.sandbox="elevated"');
     need(JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))==='[]','-c sandbox_workspace_write.writable_roots=[]');
     need(config.get('sandbox_workspace_write.exclude_tmpdir_env_var')===true,'-c sandbox_workspace_write.exclude_tmpdir_env_var=true');
@@ -100,7 +109,8 @@ export function validateCodexReviewer(review,plan) {
   const root=fs.realpathSync.native(permission.cwd),worktree=fs.realpathSync.native(plan.worktree),job=path.join(fs.realpathSync.native(path.dirname(plan.jobDir)),path.basename(plan.jobDir));
   const common=fs.realpathSync.native(git(worktree,['rev-parse','--path-format=absolute','--git-common-dir']));
   if(contains(root,worktree)||contains(worktree,root)||contains(root,job)||contains(job,root)||contains(root,common)||contains(common,root))throw new Error('Codex reviewer writes must exclude repository and supervisor state');
-  if(fullAccess)validateCodexAuthHome(permission,worktree);
+  if(fullAccess&&permission.codexAuthEnv!==undefined)readCodexAuthSecret(permission);
+  else if(fullAccess)validateCodexAuthHome(permission,worktree);
   else validateCodexSandboxStorage(permission,job,worktree);
   const report=values.get('--output-last-message');
   if(!path.isAbsolute(report??'')||fs.existsSync(report)||fs.realpathSync.native(path.dirname(report))!==root)throw new Error('A fresh final report inside the private reviewer directory is required');
