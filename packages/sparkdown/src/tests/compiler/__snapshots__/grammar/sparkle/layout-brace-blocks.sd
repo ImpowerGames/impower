@@ -1,0 +1,44 @@
+component card(title) with
+  column.card {
+    text.title "{title}"
+    slot
+    slot footer
+  }
+end
+
+layout inventory with
+  column.panel #child-gap=8 {
+    text.title "Inventory" -- the heading
+    row.item.wide #gap={gap} @click=pick(item) {
+      image #src={item.icon} #alt="An {item.name}"
+      text "{item.name}"
+      button "Use" @click={ used = true; count = count + 1 }
+    }
+    choice.0 { text }
+    title { stroke; text }
+    row = { text "a" #width=5; text "b" }
+    column #gap=4{ text "c" }
+    foldout "Level {n}" #open=true {
+      text 'single {quoted}'
+      text "a ; b } c"
+      link "Docs" #href="http://example.com/a{b}"
+    }
+    card("Inventory", hero.hp) {
+      text "body"
+      fill footer { button.secondary "Ok" @click=close_menu }
+    }
+    input #value = {x} #--custom-gap=4 @input=set_x
+    // a slash comment with a brace {
+    image = "black"
+    color = white
+    名前 { text "unicode" }
+    row,
+  }
+  stage:
+    portrait {
+      image
+    }
+    mask.shadow_1
+    choice.1:
+      text
+end

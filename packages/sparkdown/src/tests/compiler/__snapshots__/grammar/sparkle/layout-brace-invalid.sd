@@ -1,0 +1,30 @@
+layout mistakes with
+  column {
+    row:
+    - text
+    { text "no element" }
+    .orphan "content"
+    text "a", text "b"
+    text "x" : #y=1
+    if busy then
+      row {
+        text "busy"
+    else
+      text "idle"
+    end
+    for item in bag do
+      text "{item}"
+  }
+  }
+end
+
+layout unclosed with
+  column {
+    text "a"
+    text "b {
+    text #x={a
+end
+
+layout after with
+  text "after"
+end

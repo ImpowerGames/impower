@@ -86,7 +86,10 @@ const VALID_STYLE_PROPS = new Set<string>(VALID_STYLE_PROPS_DATA.props);
 // also emitted for STYLE SELECTORS (`@hovered:`, `@theme(dark)`), whose
 // vocabulary is unrelated — so the EventMap check must find this wrapper above
 // it before it says anything.
-const SPARKLE_EVENT_HANDLER = nodeNameSet(["LuauEventAttribute"]);
+const SPARKLE_EVENT_HANDLER = nodeNameSet([
+  "LuauEventAttribute",
+  "LuauSparkleEventAttribute",
+]);
 
 // Luau string literals. Every form parses as `<name>_begin`, `<name>_content`
 // and `<name>_end`; an unfinished literal has no `_end` child.
@@ -141,6 +144,12 @@ const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
   "LuauStructBlockIndentedHeader",
   "LuauStructBlockItemMark",
+]);
+// In a layout or component block: text that starts no entry, and a character
+// no part of an element reads.
+const INVALID_SPARKLE_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
+  "LuauSparkleBlockUnknown",
+  "LuauSparkleElementInvalid",
 ]);
 const MISSING_TYPE = "Expected type";
 // The grammar's tokens for a type that is missing or malformed, and for a
@@ -274,6 +283,7 @@ const IF_CLAUSE_TRIVIA = new Set([
 // expression (`tryLowerInlineConditional`).
 const LUAU_BINDING_INTERPOLATION_HOSTS = nodeNameSet([
   "LuauPropAttribute",
+  "LuauSparklePropAttribute",
   "StringFieldValueInterpolated",
   "LuauElementContentStringInterpolated",
 ]);
@@ -524,6 +534,14 @@ export class ValidationAnnotator extends SparkdownAnnotator<
       }
       // The entries inside are checked on their own.
       return false;
+    }
+    // In a layout or component body, a block left open, a block with no
+    // element before it, and a control block left without its `end` are
+    // reported where the body is lowered (`validateSparkleBlocks`), since the
+    // edit that makes or fixes one can stand after the place it is reported.
+    if (INVALID_SPARKLE_BLOCK_TOKENS.has(nodeRef.name)) {
+      this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
+      return true;
     }
     if (INVALID_STRUCT_BLOCK_TOKENS.has(nodeRef.name)) {
       this.error(annotations, "Invalid syntax", nodeRef.from, nodeRef.to);
@@ -1210,52 +1228,6 @@ export class ValidationAnnotator extends SparkdownAnnotator<
         }
       }
     }
-    // Dot-prefixed classes on a Sparkle element line (`row.hud`, `text.title`).
-    // Classes are SPACE-separated bare words after the tag (`row hud`), so a `.`
-    // breaks the header parse into `<tag>` + an `ERROR_UNRECOGNIZED` remainder
-    // starting with `.`. Surface a friendly warning pointing at the fix rather
-    // than leaving the class silently dropped. Gated on the Sparkle element
-    // context (a struct body line) + the leading dot so other unrecognized
-    // spans aren't mislabeled.
-    if (nodeRef.name === "ERROR_UNRECOGNIZED") {
-      // A dotted class breaks the header at the `.`, which becomes a lone
-      // ERROR_UNRECOGNIZED node (text `"."`). Warn only for that dot inside a
-      // Sparkle element line so unrelated unrecognized spans aren't mislabeled.
-      const text = this.read(nodeRef.from, nodeRef.to).trim();
-      const context = getContextNames(nodeRef.node);
-      // A CSS-nesting SELECTOR is not a dotted class. `&.secondary:` compiles
-      // to a real, populated compound rule — `builtins.sd` uses the idiom 13
-      // times — and taking the suggested fix turns it into a descendant TYPE
-      // selector matching nothing, with no further warning. So the advice was
-      // not merely noise: following it silently broke working styles.
-      //
-      // Detected on the text preceding the dot on this line: a selector
-      // combinator (`&`, `>`, `*`) means we are in selector position, where
-      // dots are the correct syntax.
-      const lineStart = this.read(
-        Math.max(0, nodeRef.from - 200),
-        nodeRef.from,
-      );
-      const beforeDot = lineStart.slice(lineStart.lastIndexOf("\n") + 1);
-      const inSelectorPosition = /[&>*]/.test(beforeDot);
-      if (
-        text.startsWith(".") &&
-        context.includes("LuauStructBodyLine") &&
-        !inSelectorPosition &&
-        // Only element-line headers — not a stray `.` inside a `key = value`
-        // style property, where the fix isn't "use a space".
-        !context.includes("LuauStructScalarProperty")
-      ) {
-        const message = `Classes are space-separated, not dot-prefixed — replace the \`.\` with a space\n> e.g. \`row hud\`, not \`row.hud\``;
-        annotations.push(
-          SparkdownAnnotation.mark<Diagnostic>({
-            message,
-            severity: "warning",
-          }).range(nodeRef.from, nodeRef.to),
-        );
-        return annotations;
-      }
-    }
     // Unrecognized `@event` name on a Sparkle element line (`@clik=save`). The
     // event set is closed (EventMap) and an unknown name silently never fires,
     // so surface a typo instead of leaving a dead handler. `EventAttributeName`
@@ -1342,9 +1314,10 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     if (nodeRef.name === "SparkleRichTextTagUnknown") {
       const raw = this.read(nodeRef.from, nodeRef.to).trim();
       const name = raw.replace(/^<\/?/, "").replace(/[=>].*$/s, "");
-      const inPropValue = getContextNames(nodeRef.node).includes(
-        "LuauPropAttribute",
-      );
+      const context = getContextNames(nodeRef.node);
+      const inPropValue =
+        context.includes("LuauPropAttribute") ||
+        context.includes("LuauSparklePropAttribute");
       if (name && !inPropValue) {
         const message = `Unrecognized rich text tag \`<${name}>\` — not a known inline tag, so it renders literally instead of styling anything\n> Styling tags are \`<b>\`, \`<i>\`, \`<u>\`, \`<s>\`, \`<sub>\`, \`<sup>\`, \`<mark=…>\`, \`<color=…>\`, \`<size=…>\`; wrap text in \`<noparse>…</noparse>\` to keep angle brackets literal`;
         annotations.push(

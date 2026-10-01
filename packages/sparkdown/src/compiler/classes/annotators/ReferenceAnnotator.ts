@@ -77,7 +77,12 @@ const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 // the target must be a runtime-callable function/knot; an inline closure
 // (`@e={ … }`) or a member/method target (`@click=hero:jump()`) carries no bare
 // function name to resolve.
-const EVENT_ATTR_CONTENT = nodeNameSet(["LuauEventAttribute_content"]);
+const EVENT_ATTR_CONTENT = nodeNameSet([
+  "LuauEventAttribute_content",
+  // In a brace block, the handler is its own node, whose capture holds the
+  // handler's expression nodes as an attribute's `_content` does.
+  "LuauSparkleEventHandler_c1",
+]);
 const EVENT_HANDLER_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
 // A bare-ref handler (`@e=go_back`) is its own grammar node (highlighted like a
 // divert path); a direct call (`@e=use_item(a)`) keeps the callee as a
@@ -219,7 +224,10 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     annotations: Range<SparkdownAnnotation<Reference>>[],
     nodeRef: SparkdownSyntaxNodeRef,
   ): Range<SparkdownAnnotation<Reference>>[] {
-    if (nodeRef.name === "LuauEventAttribute") {
+    if (
+      nodeRef.name === "LuauEventAttribute" ||
+      nodeRef.name === "LuauSparkleEventAttribute"
+    ) {
       // Emit a `handler` reference at the callee name of a bare-ref / direct-call
       // `@event` handler so validateReferences can warn when it names no defined
       // function. Skip inline closures and dotted/method targets (no bare name).

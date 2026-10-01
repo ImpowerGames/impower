@@ -10,6 +10,7 @@ import {
   type StructEntry,
   type StructEntryKind,
 } from "../utils/structBodyEntries";
+import { sparkleElementParts } from "../utils/sparkleBlockEntries";
 import { unescapeString } from "../utils/unescapeString";
 import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 
@@ -41,7 +42,10 @@ import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 // `@hovered, @pressed { … }`). The body is read as the entry tree of
 // `readStructBodyEntries`, which gives the indented lines (including a
 // collapsed `- label:` list item) and the braced entries the same entries, so
-// both forms lower to the same struct.
+// both forms lower to the same struct. A `layout` or `component` body's brace
+// blocks (`row.item { … }`) are placed where the indented form of the same
+// body places its lines, and an element in one is keyed as the same element
+// on an indented line is (`evaluateElement`).
 //
 // REACTIVE ATTRIBUTES: an element line may carry inline `@event=handler` /
 // `#prop=value` bindings (`button "Use" @click=x`, `column #gap=16:`). Those are
@@ -147,16 +151,35 @@ function firstDescendant(
   return null;
 }
 
+const ATTRIBUTE_NAMES: ReadonlySet<string> = nodeNameSet([
+  "LuauEventAttribute",
+  "LuauPropAttribute",
+  "LuauSparkleEventAttribute",
+  "LuauSparklePropAttribute",
+]);
+
 // Spans of inline element attributes (`@event=…`, `#prop=…`) within a node, in
 // source order. Used to excise reactive attributes from the static struct text
 // (they are not part of the engine-consumed struct).
-function attributeRanges(node: SyntaxNode): { from: number; to: number }[] {
-  const ranges: { from: number; to: number }[] = [];
+function attributeRanges(node: SyntaxNode): TextEdit[] {
+  return nodesOutsideAttributes(node, ATTRIBUTE_NAMES, true);
+}
+
+// The nodes named in `names` within `node`, outside its inline attributes (or,
+// with `attributes` set, the attributes themselves), as spans to remove.
+function nodesOutsideAttributes(
+  node: SyntaxNode,
+  names: ReadonlySet<string>,
+  attributes = false,
+): TextEdit[] {
+  const ranges: TextEdit[] = [];
   const walk = (n: SyntaxNode) => {
     let c = n.firstChild;
     while (c) {
-      if (c.name === "LuauEventAttribute" || c.name === "LuauPropAttribute") {
-        ranges.push({ from: c.from, to: c.to });
+      if (ATTRIBUTE_NAMES.has(c.name)) {
+        if (attributes) ranges.push({ from: c.from, to: c.to, text: "" });
+      } else if (!attributes && names.has(c.name)) {
+        ranges.push({ from: c.from, to: c.to, text: "" });
       } else {
         walk(c);
       }
@@ -167,57 +190,147 @@ function attributeRanges(node: SyntaxNode): { from: number; to: number }[] {
   return ranges;
 }
 
-// A node's source text with all inline-attribute spans removed, so the static
-// struct sees only the structural part (`column #gap=16` → `column `,
-// `button "Use" @click=x` → `button "Use" `).
-function textWithoutAttributes(node: SyntaxNode, ctx: LowerContext): string {
-  return textExcluding(node, ctx, attributeRanges(node));
+// The `.` of each `.name` class in an element's key, outside its attributes.
+// In a layout or component body the static struct keys an element by its tag
+// and classes separated by spaces (`mask.shadow_1` is keyed `mask shadow_1`,
+// as `mask shadow_1` is), because the engine splits struct paths on `.`.
+function classDots(node: SyntaxNode): TextEdit[] {
+  return nodesOutsideAttributes(node, CLASS_DOT_NAMES).map((r) => ({
+    ...r,
+    text: " ",
+  }));
 }
 
-// A node's source text with the given spans removed (sorted defensively, since
-// callers may concatenate ranges from more than one source).
+const CLASS_DOT_NAMES: ReadonlySet<string> = nodeNameSet(["LuauSparkleClassDot"]);
+
+// A node's source text with all inline-attribute spans removed, so the static
+// struct sees only the structural part (`column #gap=16` → `column `,
+// `button "Use" @click=x` → `button "Use" `). In a layout or component body
+// (`elementKeys`) a class's `.` reads as a space.
+function textWithoutAttributes(
+  node: SyntaxNode,
+  ctx: LowerContext,
+  elementKeys = false,
+): string {
+  return textExcluding(node, ctx, [
+    ...attributeRanges(node),
+    ...(elementKeys ? classDots(node) : []),
+  ]);
+}
+
+/** A span of source text to replace. */
+interface TextEdit {
+  from: number;
+  to: number;
+  /** What the span reads as; removed when empty. */
+  text?: string;
+}
+
+// A node's source text with the given spans replaced (sorted defensively,
+// since callers may concatenate ranges from more than one source).
 function textExcluding(
   node: SyntaxNode,
   ctx: LowerContext,
-  ranges: { from: number; to: number }[],
+  ranges: TextEdit[],
+  to: number = node.to,
 ): string {
-  if (ranges.length === 0) return ctx.read(node.from, node.to);
+  if (ranges.length === 0) return ctx.read(node.from, to);
   const sorted = [...ranges].sort((a, b) => a.from - b.from);
   let result = "";
   let pos = node.from;
-  for (const { from, to } of sorted) {
+  for (const { from, to: end, text } of sorted) {
     if (from > pos) result += ctx.read(pos, from);
-    pos = Math.max(pos, to);
+    if (from >= pos && text) result += text;
+    pos = Math.max(pos, end);
   }
-  if (node.to > pos) result += ctx.read(pos, node.to);
+  if (to > pos) result += ctx.read(pos, to);
   return result;
+}
+
+export interface StructBodyOptions {
+  /**
+   * The body is a `layout` or `component` body, whose elements are keyed by
+   * their tag and classes separated by spaces.
+   */
+  elementKeys?: boolean;
 }
 
 export function parseStructBody(
   entries: StructEntry[],
   ctx: LowerContext,
+  options: StructBodyOptions = {},
 ): Record<string, unknown> {
-  const result = evaluate(entries, ctx);
+  const result = evaluate(entries, ctx, !!options.elementKeys);
   // A bare body (top-level array) is unusual for UI; coerce to object.
   return Array.isArray(result) ? { ...result } : result;
+}
+
+// Comments in an element's head, which are no part of its key.
+const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
+  "LuauLineComment",
+  "LuauBlockComment",
+  "LuauDocLineComment",
+  "LuauStructBlockSlashComment",
+]);
+
+// An element in a layout or component brace block, keyed as the same element
+// on an indented line is: the line's text up to its block with its attributes
+// and comments removed and each class's `.` read as a space. An element with a
+// block keys its children by that text, content included
+// (`foldout "More" { … }` is keyed `foldout "More"`, as `foldout "More":` is).
+// One without a block is keyed by that text without its content, and its
+// content is its value (`text.title "Hi"` is `"text title": "Hi"`).
+function evaluateElement(
+  entry: StructEntry,
+  obj: Record<string, unknown>,
+  ctx: LowerContext,
+  elementKeys: boolean,
+): void {
+  const element = entry.shape;
+  const { head } = sparkleElementParts(element);
+  const end = head?.to ?? element.to;
+  const edits: TextEdit[] = head
+    ? [
+        ...attributeRanges(head),
+        ...nodesOutsideAttributes(head, COMMENT_NAMES),
+        ...classDots(head),
+      ]
+    : [];
+  if (entry.kind === "header") {
+    const key = textExcluding(element, ctx, edits, end).trim();
+    obj[key] = entry.children ? evaluate(entry.children, ctx, elementKeys) : {};
+    return;
+  }
+  // The value is found as on an indented line, attributes included, so a
+  // quoted `#prop` value before any content is the value there too
+  // (`loading_fill #transform="scaleX({p})"` is keyed `loading_fill` with
+  // that string).
+  const valueNode = head ? firstDescendant(head, FIELD_VALUE_NAMES) : null;
+  if (valueNode) edits.push({ from: valueNode.from, to: valueNode.to });
+  const key = textExcluding(element, ctx, edits, end).trim();
+  if (!key) return;
+  obj[key] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
 }
 
 function evaluate(
   entries: StructEntry[],
   ctx: LowerContext,
+  elementKeys: boolean,
 ): Record<string, unknown> | unknown[] {
   const obj: Record<string, unknown> = {};
   let arr: unknown[] | null = null;
   for (const entry of entries) {
     const shape = entry.shape;
 
-    if (entry.kind === "item") {
+    if (entry.element) {
+      evaluateElement(entry, obj, ctx, elementKeys);
+    } else if (entry.kind === "item") {
       // Entries beneath the item (indented, carried on the dash line, or
       // inside a bare `{ … }`) → object; a value → scalar.
       arr = arr ?? [];
       if (entry.children) {
         if (!entry.braced) warnValueItemWithEntries(shape, ctx);
-        arr.push(evaluate(entry.children, ctx));
+        arr.push(evaluate(entry.children, ctx, elementKeys));
       } else {
         const valueNode = firstDescendant(shape, FIELD_VALUE_NAMES);
         if (valueNode) arr.push(parseScalar(readValue(valueNode, ctx)));
@@ -230,8 +343,10 @@ function evaluate(
       // structural part only.
       const key = entry.key
         ? textWithoutAttributes(entry.key, ctx).trim()
-        : headerKey(shape, ctx);
-      obj[key] = entry.children ? evaluate(entry.children, ctx) : {};
+        : headerKey(shape, ctx, elementKeys);
+      obj[key] = entry.children
+        ? evaluate(entry.children, ctx, elementKeys)
+        : {};
     } else if (entry.kind === "property") {
       // `key = value` → scalar. Key + value read from the grammar tokens.
       const keyNode = firstDescendant(shape, KEY_TOKEN_NAMES);
@@ -270,9 +385,10 @@ function evaluate(
         valueNode
           ? textExcluding(shape, ctx, [
               ...attributeRanges(shape),
+              ...(elementKeys ? classDots(shape) : []),
               { from: valueNode.from, to: valueNode.to },
             ])
-          : textWithoutAttributes(shape, ctx)
+          : textWithoutAttributes(shape, ctx, elementKeys)
       ).trim();
       if (marker) {
         obj[marker] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
@@ -285,8 +401,12 @@ function evaluate(
 // The text of a `key:` object-header key (everything before the colon, with
 // inline `@event`/`#prop` attributes excised). The colon lives in its own
 // `LuauStructObjectColon` node, so strip a trailing one defensively too.
-function headerKey(shape: SyntaxNode, ctx: LowerContext): string {
-  return textWithoutAttributes(shape, ctx)
+function headerKey(
+  shape: SyntaxNode,
+  ctx: LowerContext,
+  elementKeys: boolean,
+): string {
+  return textWithoutAttributes(shape, ctx, elementKeys)
     .trim()
     .replace(/:\s*$/, "")
     .trim();

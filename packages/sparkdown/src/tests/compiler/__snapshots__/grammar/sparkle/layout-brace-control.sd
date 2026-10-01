@@ -1,0 +1,32 @@
+layout inventory with
+  column.panel {
+    if busy then
+      text "busy"
+    elseif done then
+      row.done { text "done" }
+    else
+      text "idle"
+    end
+    for item in player.bag do
+      row.item {
+        image #src={item.icon}
+        button "Use" @click=use_item(item)
+      }
+    else
+      text.empty "Your bag is empty."
+    end
+    match mode do
+      case 1
+        row.one {
+          text "one"
+        }
+      else
+        text "other"
+    end
+  }
+  if visible then
+    row.indented {
+      text "inside an indented if"
+    }
+  end
+end
