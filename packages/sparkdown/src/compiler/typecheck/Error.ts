@@ -90,7 +90,8 @@ export type TypeErrorData =
   | { kind: "UnknownRequire"; modulePath: string }
   | { kind: "IllegalRequire"; moduleName: string; reason: string }
   | { kind: "IncorrectGenericParameterCount"; name: string; typeFun: TypeFun; actualParameters: number; actualPackParameters: number }
-  | { kind: "SyntaxError"; message: string }
+  // `follows` is not part of Luau: the parser's `ParseError.follows`.
+  | { kind: "SyntaxError"; message: string; follows?: true }
   | { kind: "CodeTooComplex" }
   | { kind: "UnificationTooComplex" }
   | { kind: "UnknownPropButFoundLikeProp"; table: TypeId; key: string; candidates: string[] }

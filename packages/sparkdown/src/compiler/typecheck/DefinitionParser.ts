@@ -109,6 +109,49 @@ export interface ParseOptions {
 export interface ParseError {
   location: Location;
   message: string;
+  /**
+   * Not part of Luau: whether the error follows from an earlier one through
+   * the parser's recovery, rather than being a mistake of its own, which
+   * Sparkdown's type checker reads to report each mistake once. Interim: it
+   * goes when the checker stops reparsing document text (#1283, #1286), and
+   * the port then mirrors Luau's again. It does: at
+   * the start of a statement the parser began on the line where the
+   * statement before it ended in the parser's recovery, with no `;` between
+   * (it never began, read a statement's keyword as a missing name, or read
+   * nothing after its last error: `x + 1` is an error at `x`, then at `+` and
+   * at `1`, which follow, but `print(1, ) 1 +` reads its `)` and the error
+   * at `1` is the author's), or where the statement holding its block met
+   * one after the last token the parser expected and found
+   * (`function f(): ?number end`, not `if 1 + then x end`), counting an
+   * error Luau keeps no second report of at the same location; later in a
+   * statement whose first error is at its first token, which the parser
+   * reads on as a call (`{1 +}`); reported after one of its statement's
+   * errors from the same token or an earlier one (`Incomplete statement`
+   * from `t` after the missing name at `return` in `t.a.return 1`); and
+   * anywhere between a bracket the parser gave up on and the closer it then
+   * finds where a statement must begin (`print(1 + local y = 2)`, where the
+   * parser reads `local y = 2` as a statement and then meets the `)`).
+   */
+  follows?: true;
+}
+
+/** Not part of Luau: a statement's errors, as `ParseError.follows` reads them. */
+interface RecoveryStatement {
+  begin: Position;
+  previous: RecoveryStatement | undefined;
+  lastErrorBegin: Position | undefined;
+  lastErrorLine: number;
+  // Where the parser stood after the statement's last error, and where that
+  // error ends.
+  afterError: Location | undefined;
+  lastErrorEnd: Position | undefined;
+  // Whether the statement's first token was an error.
+  failedAtStart: boolean;
+  // Whether the parser read a keyword that begins a statement as a missing
+  // name in it (`t.a.return 1`).
+  keywordAsName: boolean;
+  hasSemicolon: boolean;
+  endedInRecovery: boolean;
 }
 
 /** What parsing a source gives (Luau's `ParseResult`). */
@@ -152,6 +195,22 @@ export function describeTokenBefore(source: string, position: Position): string 
     previous = lexeme.toString();
   }
   return previous;
+}
+
+/**
+ * The tokens in `source`, past comments, each with Luau's description of it
+ * (`'x'`, `'local'`, `';'`) and where it begins and ends. Not part of Luau:
+ * Sparkdown's type checker reads with it where Luau's parser recovers from an
+ * error.
+ */
+export function describeTokens(source: string): { description: string; begin: Position; end: Position }[] {
+  const buffer = utf8Encoder.encode(source);
+  const lexer = new Lexer(buffer, buffer.length, new AstNameTable());
+  const tokens: { description: string; begin: Position; end: Position }[] = [];
+  for (let lexeme = lexer.next(true); lexeme.type !== LexemeType.Eof; lexeme = lexer.next(true)) {
+    tokens.push({ description: lexeme.toString(), begin: lexeme.location.begin, end: lexeme.location.end });
+  }
+  return tokens;
 }
 
 // Luau's `FInt::LuauRecursionLimit`, `FInt::LuauTypeLengthLimit` and `FInt::LuauParseErrorLimit`.
@@ -1591,6 +1650,28 @@ function isStatLast(stat: AstStat): boolean {
   return stat instanceof AstStatBreak || stat instanceof AstStatContinue || stat instanceof AstStatReturn;
 }
 
+/**
+ * Not part of Luau: the keywords that end or divide a block and are followed
+ * by a block's statements, not a condition (see `ParseError.follows`): `until`
+ * and `elseif` read a condition next, which is still the recovery.
+ */
+const BLOCK_DELIMITERS: ReadonlySet<number> = new Set([
+  LexemeType.ReservedEnd,
+  LexemeType.ReservedElse,
+  LexemeType.ReservedThen,
+  LexemeType.ReservedDo,
+]);
+
+/** Not part of Luau: whether a lexeme type closes a bracket (see `ParseError.follows`). */
+/** Not part of Luau: whether one position comes after another (see `ParseError.follows`). */
+function isAfter(a: Position, b: Position): boolean {
+  return a.line > b.line || (a.line === b.line && a.column > b.column);
+}
+
+function isBracketCloser(type: number): boolean {
+  return type === Ch.RightParen || type === Ch.RightBrace || type === Ch.RightBracket;
+}
+
 function isEnoughValues(values: AstExpr[], expected: number): boolean {
   if (values.length > 0) {
     const last = values[values.length - 1]!;
@@ -1779,6 +1860,16 @@ class Parser {
 
   private readonly parseErrors: ParseError[] = [];
 
+  // Not part of Luau (see `ParseError.follows`): the statement being parsed,
+  // the last one finished, and the closing brackets the parser gave up
+  // expecting, each with the number of errors before it gave up.
+  private recoveryStatement: RecoveryStatement | undefined;
+  private lastStatement: RecoveryStatement | undefined;
+  private readonly abandonedClosers: { type: number; errorCount: number }[] = [];
+  // Not part of Luau (see `ParseError.follows`): where the last token the
+  // parser expected and found begins.
+  private lastExpected: Position | undefined;
+
   private readonly matchRecoveryStopOnToken: number[];
 
   private readonly declaredExportBindings = new Map<string, Location>();
@@ -1890,12 +1981,61 @@ class Parser {
 
     const prevPosition = this.lexer.previousLocation().end;
 
+    // Not part of Luau (see `ParseError.follows`): a bracket given up on in
+    // this block is closed in it or not at all, and the block's first
+    // statement follows the statement that holds the block, so far
+    // (`function f(): ?number end`, whose return type is an error).
+    const inheritedClosers = new Set(this.abandonedClosers);
+    const holder = this.recoveryStatement;
+    if (holder) {
+      // Only while the holder's error is the last thing the parser met: once
+      // it finds a token it expected after the error (`then`, or the `(` and
+      // `)` after a function's name), the body is read as written.
+      const error = holder.lastErrorBegin;
+      const expected = this.lastExpected;
+      const unresolved = error && (!expected || error.line > expected.line || (error.line === expected.line && error.column > expected.column));
+      this.lastStatement = unresolved ? { ...holder, previous: undefined, hasSemicolon: false, endedInRecovery: true } : undefined;
+    }
+
     while (!this.blockFollow(this.lexer.current())) {
       const oldRecursionCount = this.recursionCounter;
 
       this.incrementRecursionCounter("block");
 
+      const enclosing = this.recoveryStatement;
+      const statement: RecoveryStatement = {
+        begin: this.lexer.current().location.begin,
+        previous: this.lastStatement,
+        lastErrorBegin: undefined,
+        lastErrorLine: -1,
+        afterError: undefined,
+        lastErrorEnd: undefined,
+        failedAtStart: false,
+        keywordAsName: false,
+        hasSemicolon: false,
+        endedInRecovery: false,
+      };
+      this.recoveryStatement = statement;
+
       const stat = this.parseStat();
+
+      this.recoveryStatement = enclosing;
+      this.lastStatement = statement;
+      // The statement ended in the parser's recovery when it never began
+      // (`x` in `x + 1`), read a statement's keyword as a missing name
+      // (`t.a.return 1`), or read nothing after its last error
+      // (`local a = 1 +` before a `local`); one that went on to read what it
+      // expected (`print(1, )`) ended as written.
+      // Reading the token the error is at, unless the parser expected it
+      // there (`print(1, )` reads its `)`), is still the recovery
+      // (`local x: ?number` reads the `?`).
+      const end = this.lexer.previousLocation();
+      const atError = statement.lastErrorEnd !== undefined && !isAfter(end.end, statement.lastErrorEnd) && !this.lastExpected?.equals(end.begin);
+      statement.endedInRecovery =
+        statement.failedAtStart ||
+        statement.keywordAsName ||
+        (statement.afterError !== undefined && end.equals(statement.afterError)) ||
+        atError;
 
       this.recursionCounter = oldRecursionCount;
 
@@ -1903,11 +2043,16 @@ class Parser {
         this.nextLexeme();
         stat.hasSemicolon = true;
         stat.location = new Location(stat.location.begin, this.lexer.previousLocation().end);
+        statement.hasSemicolon = true;
       }
 
       body.push(stat);
 
       if (isStatLast(stat)) break;
+    }
+
+    for (let i = this.abandonedClosers.length - 1; i >= 0; i--) {
+      if (!inheritedClosers.has(this.abandonedClosers[i]!)) this.abandonedClosers.splice(i, 1);
     }
 
     const location = new Location(prevPosition, this.lexer.current().location.begin);
@@ -2003,7 +2148,17 @@ class Parser {
     }
 
     // skip unexpected symbol if lexer couldn't advance at all (statements are parsed in a loop)
-    if (start.equals(this.lexer.current().location)) this.nextLexeme();
+    if (start.equals(this.lexer.current().location)) {
+      // Not part of Luau (see `ParseError.follows`): a `;` skipped here still
+      // ends the statement before it, and a bracket skipped here is one the
+      // parser gives up on (`{1 +}`).
+      const skipped = this.lexer.current().type;
+      this.nextLexeme();
+      const statement = this.recoveryStatement;
+      if (statement && skipped === Ch.Semicolon) statement.hasSemicolon = true;
+      const closer = skipped === Ch.LeftBrace ? Ch.RightBrace : skipped === Ch.LeftBracket ? Ch.RightBracket : skipped === Ch.LeftParen ? Ch.RightParen : undefined;
+      if (closer !== undefined) this.abandonedClosers.push({ type: closer, errorCount: this.parseErrors.length });
+    }
 
     return this.reportStatError(expr.location, [expr], [], "Incomplete statement: expected assignment or a function call");
   }
@@ -3979,6 +4134,8 @@ class Parser {
 
         end = this.lexer.previousLocation().end;
       } else {
+        // Not part of Luau (see `ParseError.follows`).
+        this.lastExpected = this.lexer.current().location.begin;
         this.nextLexeme();
       }
 
@@ -4365,8 +4522,17 @@ class Parser {
       this.lexer.current().location.begin.line === previous.line
     ) {
       const result: Name = { name: this.lexer.current().name!, location: this.lexer.current().location };
+      const keyword = this.lexer.current().type;
 
       this.nextLexeme();
+
+      // Not part of Luau (see `ParseError.follows`): reading a keyword that
+      // begins a statement is the recovery from the error at it, so what
+      // follows on its line is that statement's (`t.a.return 1`); after a
+      // keyword that ends a block, the author's next statement begins
+      // (`do y = t.a. end 1 +`).
+      if (this.recoveryStatement && !BLOCK_DELIMITERS.has(keyword)) this.recoveryStatement.keywordAsName = true;
+      else this.lastExpected = result.location.begin;
 
       return result;
     }
@@ -4748,6 +4914,7 @@ class Parser {
   private expectAndConsume(type: number, context?: string): boolean {
     if (this.lexer.current().type !== type) return this.expectAndConsumeFailWithLookahead(type, context);
 
+    this.lastExpected = this.lexer.current().location.begin;
     this.nextLexeme();
     return true;
   }
@@ -4757,6 +4924,7 @@ class Parser {
 
     // check if this is an extra token and the expected token is next
     if (this.lexer.lookahead().type === type) {
+      this.lastExpected = this.lexer.lookahead().location.begin;
       // skip invalid and consume expected
       this.nextLexeme();
       this.nextLexeme();
@@ -4779,8 +4947,15 @@ class Parser {
     if (this.lexer.current().type !== type) {
       this.expectMatchAndConsumeFail(type, begin);
 
-      return this.expectMatchAndConsumeRecover(value, begin, searchForMissing);
+      const recovered = this.expectMatchAndConsumeRecover(value, begin, searchForMissing);
+      // Not part of Luau (see `ParseError.follows`): the bracket was closed after all.
+      if (recovered) {
+        if (isBracketCloser(type)) this.abandonedClosers.pop();
+        this.lastExpected = this.lexer.previousLocation().begin;
+      }
+      return recovered;
     } else {
+      this.lastExpected = this.lexer.current().location.begin;
       this.nextLexeme();
 
       return true;
@@ -4832,6 +5007,10 @@ class Parser {
     if (location.begin.line === begin.position.line)
       this.report(location, `Expected ${typeString} (to close ${matchString} at column ${begin.position.column + 1}), got ${got}`);
     else this.report(location, `Expected ${typeString} (to close ${matchString} at line ${begin.position.line + 1}), got ${got}`);
+
+    // Not part of Luau (see `ParseError.follows`): the parser gives up on the
+    // bracket, whether or not the report above is kept.
+    if (isBracketCloser(type)) this.abandonedClosers.push({ type, errorCount: this.parseErrors.length });
   }
 
   private expectMatchEndAndConsume(type: number, begin: MatchLexeme): boolean {
@@ -4847,6 +5026,7 @@ class Parser {
       this.endMismatchSuspect = begin;
     }
 
+    this.lastExpected = this.lexer.current().location.begin;
     this.nextLexeme();
 
     return true;
@@ -4887,15 +5067,70 @@ class Parser {
     // To reduce number of errors reported to user for incomplete statements, we skip multiple errors at the same location
     // For example, consider 'local a = (((b + ' where multiple tokens haven't been written yet
     const last = this.parseErrors[this.parseErrors.length - 1];
-    if (last && location.equals(last.location)) return;
+    if (last && location.equals(last.location)) {
+      // Not part of Luau: the statement still met an error there.
+      this.markRecovery(location, undefined);
+      return;
+    }
 
     // when limited to a single error, behave as if the error recovery is disabled
     if (LuauParseErrorLimit === 1) throw new FatalParseError(location, message);
 
-    this.parseErrors.push({ location, message });
+    const error: ParseError = { location, message };
+    this.parseErrors.push(error);
+    this.markRecovery(location, error);
 
     // The parser keeps Luau's error limit (its `noErrorLimit` option is off).
     if (this.parseErrors.length >= LuauParseErrorLimit) FatalParseError.raise(location, `Reached error limit (${LuauParseErrorLimit})`);
+  }
+
+  /**
+   * Not part of Luau: marks an error the parser met (see `ParseError.follows`),
+   * which is `undefined` where Luau keeps no second report at a location.
+   */
+  private markRecovery(location: Location, error: ParseError | undefined): void {
+    const statement = this.recoveryStatement;
+    if (!statement) return;
+    // An error the statement's own earlier error leads to, reported after it
+    // from the same token or an earlier one (`t.a.return 1` is an error at
+    // `return`, then `Incomplete statement` from `t`).
+    const earlier = statement.lastErrorBegin;
+    const { line, column } = location.begin;
+    const consequence = earlier !== undefined && (line < earlier.line || (line === earlier.line && column <= earlier.column));
+    if (error && consequence) error.follows = true;
+    // A statement whose first error is at its first token never began, and
+    // what the parser reads after it there is its recovery (`{1 +}` reads
+    // `{1 +}` as a call's table argument after the error at `{`).
+    if (error && statement.failedAtStart) error.follows = true;
+    statement.lastErrorBegin = location.begin;
+    if (location.begin.equals(statement.begin)) {
+      if (earlier === undefined) statement.failedAtStart = true;
+      const previous = statement.previous;
+      if (error && previous && previous.endedInRecovery && previous.lastErrorLine >= location.begin.line && !previous.hasSemicolon) error.follows = true;
+      // A closer where a statement must begin closes the last bracket of its
+      // kind the parser gave up on, and everything since follows. The parser
+      // gives up on nested brackets from the innermost out, so the others it
+      // gave up on then are still open (`print({1 + local y = 2}` before a
+      // line `)`).
+      const current = this.lexer.current();
+      if (current.location.begin.equals(location.begin)) {
+        for (let i = this.abandonedClosers.length - 1; i >= 0; i--) {
+          const abandoned = this.abandonedClosers[i]!;
+          if (abandoned.type !== current.type) continue;
+          for (let e = abandoned.errorCount; e < this.parseErrors.length; e++) this.parseErrors[e]!.follows = true;
+          this.abandonedClosers.splice(i, 1);
+          break;
+        }
+      }
+    }
+    statement.lastErrorLine = Math.max(statement.lastErrorLine, location.end.line);
+    // A consequence reported after the parser read on (`Incomplete statement`
+    // after `t.a.` takes `end` as the name) does not move where the error
+    // left the parser.
+    if (!consequence) {
+      statement.afterError = this.lexer.previousLocation();
+      statement.lastErrorEnd = location.end;
+    }
   }
 
   private reportNameError(context: string | undefined): void {

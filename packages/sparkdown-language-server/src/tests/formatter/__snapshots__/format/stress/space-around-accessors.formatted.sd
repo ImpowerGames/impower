@@ -2,4 +2,4 @@ a = obj.method(arg)
 b = obj.prop.inner
 c = arr[0].key
 d = foo().bar()
-e = obj.method(a). b . c (d)
+e = obj.method(a).b.c(d)

@@ -97,6 +97,29 @@ variables:
       "until",
       "while",
     ]
+  # The reserved words that cannot start an expression: all but `nil`,
+  # `true`, `false`, `not`, `function` and `if`, and `continue`, which Luau
+  # reads as a name in an expression. An operand is missing before one, so
+  # an operator at the end of its line leaves the next statement's keyword
+  # or its block's `end` alone.
+  LUAU_NON_EXPRESSION_KEYWORDS:
+    [
+      "and",
+      "break",
+      "do",
+      "else",
+      "elseif",
+      "end",
+      "for",
+      "in",
+      "local",
+      "or",
+      "repeat",
+      "return",
+      "then",
+      "until",
+      "while",
+    ]
   LUAU_GLOBAL_DECLARATION_KEYWORDS: ["define"]
   # `type` is intentionally NOT included here. It IS a declaration
   # keyword for `type X = ...` type aliases (handled by the
@@ -462,9 +485,17 @@ variables:
   # outside a table a `[` line indexes the value before it
   # (`LuauIndexerLineContinuation`).
   LUAU_LINE_CONTINUATION_OPERATOR: (?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*[:][:])|(?:and|or)\b)
-  LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+  # A `.` with no name after it on its line continues the line before it as
+  # well, as a dangling accessor (`t` then a line holding only `.`), which
+  # Luau reads as the member access it begins (#1175); `..`, `...` and a
+  # number such as `.5` are not one.
+  LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|[.](?![.\d])|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   # A `-` that is neither a `--` comment nor a `->` divert.
   LUAU_MINUS_LINE_START: -(?![->])
+  # A `.` that is not concatenation, which a continuation line keeps reading
+  # after its access parts, as a member access or a dangling accessor
+  # (`LuauDanglingAccessor`), so the line does not end before it.
+  LUAU_DANGLING_ACCESSOR_START: "[.](?![.])"
   # A `[` that begins an indexer, not a `[[` or `[=[` long string.
   LUAU_INDEXER_LINE_CONTINUATION: (?:{{WS}}*\[(?!=*\[))
   # A line that continues a value inside an expression that spans lines (an
@@ -564,6 +595,12 @@ variables:
   # so the token is never a character inside it (`local x: -- a, b`).
   _LUAU_TRIVIA_AHEAD_: (?:{{WS}}|[\r\n]|--\[(=*)\[(?:[^\]]|\](?!\4\]))*\]\4\]|--(?!\[=*\[)[^\r\n]*(?![^\r\n]))*
   _LUAU_SEMICOLON_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}[;])
+  # The same, ending at a token that cannot start an expression: a `;`, `,`
+  # or `=` (not `==`, nor the end of an operator such as `<=` or `+=`, which
+  # the operator before it keeps whole), a closing bracket, or a keyword that
+  # cannot start an expression, which is where the next statement or the
+  # block's `end` begins. Same capture-group rule.
+  _LUAU_EXPRESSION_END_AHEAD_: (?:{{_LUAU_TRIVIA_AHEAD_}}(?:[;,)\]}]|(?<![-+*/%^.<>~=])=(?!=)|{{LUAU_NON_EXPRESSION_KEYWORDS}}))
   # The same, ending at a token that cannot start the type that must follow
   # a type annotation's `:` or a type's `|`, `&` or `->`: a `;`, `,` or `=`
   # (not `==`), a closing bracket or `>`, or a keyword that cannot start a
@@ -7245,8 +7282,11 @@ repository:
     # reading the branch's first line into the expression;
     # `ValidationAnnotator` reports the missing `then`. A condition that
     # begins on the line after `if` (`if` alone on its line) reads its first
-    # line through `LuauConditionLeadingBreak`.
-    begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}}|then\b)
+    # line through `LuauConditionLeadingBreak`. A `then` right after `if`
+    # leaves the condition empty (`if then end`), which Luau rejects; the
+    # condition still takes the `then`, so the block's body and `end` stay in
+    # the block (#1175).
+    begin: (?<=\bif\b{{WS}}*)(?!{{BEAT}})
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
@@ -7283,8 +7323,10 @@ repository:
   # `then` or continues the condition (`LuauLineContinuation`). Any other
   # line ends it, so a condition whose `then` is not yet written ends with
   # its own line rather than reading the lines below into the expression.
+  # A `then` right after `if` leaves the condition empty (`if then 1 else 2`),
+  # which Luau rejects; the expression reads the `then` arm (#1175).
   LuauTernaryExpressionCondition:
-    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}})
+    begin: (?<=\b(?:else)?if\b{{WS}}*)({{WS}}*)(?!{{BEAT}}|$|{{WS}}|then\b)
     beginCaptures:
       1:
         emit: true
@@ -7349,8 +7391,8 @@ repository:
 
   LuauElseifBlockCondition:
     # See `LuauIfBlockCondition` for the multi-line trick and the line that
-    # ends a condition written without `then`.
-    begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}}|then\b)
+    # ends a condition written without `then`, and for an empty one.
+    begin: (?<=\belseif\b{{WS}}*)(?!{{BEAT}})
     patterns:
       - { include: "#LuauConditionLeadingBreak" }
       - { include: "#LuauLineContinuation" }
@@ -7640,7 +7682,9 @@ repository:
     # before its own `then`, and a `then` glued to its end, so whitespace
     # followed by `then` or `do` at this level only follows a completed arm,
     # and so does a glued `then` or `do`: `if if c then 1 else (2)then`.
-    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|{{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
+    # Right after `elseif`, a `then` is that clause's own, with its condition
+    # missing (`elseif then 2`).
+    end: (?={{BEAT}}|$|^(?!{{WS}}*(?:then|else|elseif)\b)|[)}\],;]|(?<!\belseif){{WS}}+(?:then|do)\b|{{AFTER_LUAU_GLUEABLE_OPERAND}}(?:then|do)\b)|(?<=^{{WS}}*)(?={{LUAU_STATEMENT_LINE_START}})
 
   # The second `begin` alternative opens the then arm after a glued `then`
   # that its condition took (see `LuauTernaryExpressionCondition`); this
@@ -8435,17 +8479,20 @@ repository:
   # lookahead would steal `[key]` entries inside table literals
   # (`{ ["k"] = v }` etc.). The patterns consume any mix of dot /
   # indexer chain links; the end fires once no more follow.
+  # A `.` with no name after it (`(t).a.`) is a dangling accessor, as after
+  # a path; `..` is the concatenation operator.
   LuauChainedPropertyAccess:
-    begin: (?<=\))({{WS}}*)(?=[.]{{LUAU_IDENTIFIER}}|\[)
+    begin: (?<=\))({{WS}}*)(?=[.](?![.])|\[)
     beginCaptures:
       1:
         patterns:
           - { include: "#ExtraWhitespace" }
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
-    end: (?!{{WS}}*(?:[.]{{LUAU_IDENTIFIER}}|\[))
+    end: (?!{{WS}}*(?:[.](?![.])|\[))
 
   # A line of Luau code that begins with `.name`, `:name`, a binary operator
   # or a cast's `::` continues the expression on the line before it: its
@@ -8476,7 +8523,7 @@ repository:
       - { include: "#LuauCompareOperation" }
       - { include: "#LuauConcatOperation" }
       - { include: "#LuauTypeCastOperation" }
-    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_DANGLING_ACCESSOR_START}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
   # A line of Luau code in a statement body that begins with `-` continues the
   # expression on the line before it, since no statement begins with `-`
@@ -8500,7 +8547,7 @@ repository:
       - { include: "#LuauConcatOperation" }
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
-    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_MINUS_LINE_START}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_DANGLING_ACCESSOR_START}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_MINUS_LINE_START}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
   # A line of Luau code that begins with `[` indexes the value on the line
   # before it (`local y = t` then `[1]` reads as `t[1]`), since outside a table
@@ -8547,7 +8594,7 @@ repository:
       - { include: "#LuauConcatOperation" }
       - { include: "#LuauLogicalOperation" }
       - { include: "#LuauTypeCastOperation" }
-    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+    end: (?={{BEAT}})|(?!{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_DANGLING_ACCESSOR_START}}|{{LUAU_FUNCTION_CALL_START}}|\[|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
 
   LuauFunctionCall:
     begin: ({{LUAU_IDENTIFIER}})({{WS}}*)(?={{LUAU_FUNCTION_CALL_START}})
@@ -8629,26 +8676,25 @@ repository:
   # A member access whose last `.` has no name after it on its line (`t.`,
   # `t.a.`), which Luau rejects. That `.` is read as its own token, so the
   # access path, its statement and the enclosing block end where they would
-  # with the name in place, and the validator reports it.
+  # with the name in place, and the type checker or the validator reports it.
   #
-  # The lookbehind takes the `.` as a dangling accessor only after a path
-  # that follows a value-position token: `=`, a comma, an opening bracket, a
-  # binary or unary operator, `return`, a condition keyword, `in` or a
-  # logical operator. A line that starts with a path is left to the rules
-  # that end a function body at a line they cannot read, so a line of words
-  # in a function body (`Hello there.`) keeps that parse. Story lines are not
-  # allowed in a function body, and a line of words with a value-position
-  # token before its last word (`Well, friend.`) is reported here. A name
-  # directly after the `.` is the member, even a keyword (`cfg.repeat`). After
-  # whitespace or block comments on the same line, a reserved word is not a
-  # name (`if t.a. then`) and any other name is (`t.a.--[[note]]b`); and `..`
-  # is the concatenation operator. A block comment ends at its first
-  # closing bracket and at the end of its line, so the lookahead never skips
-  # code between two comments (`t.a.--[[a]] + --[[b]]c`) or reads a name on a
-  # later line as the member. It is tried before `LuauPropertyAccessor`,
-  # which would take `. then` as a member.
+  # It stands after any receiver an access part follows: a path, a call, an
+  # indexer, a parenthesized value (`LuauChainedPropertyAccess`), a path after
+  # a comment, a line that continues the one before it, and a path at the
+  # start of a statement (`t.a. = 1`), so the enclosing function still ends
+  # at its own `end` (#1156). Story lines are not allowed in a function body,
+  # so a line of words there (`Hello there.`) is read the same way, as Luau
+  # reads it. A name directly after the `.` is the member, even a keyword
+  # (`cfg.repeat`). After whitespace or block comments on the same line, a
+  # reserved word is not a name (`if t.a. then`) and any other name is
+  # (`t.a.--[[note]]b`); and `..` is the concatenation operator. A block
+  # comment ends at its first closing bracket and at the end of its line, so
+  # the lookahead never skips code between two comments
+  # (`t.a.--[[a]] + --[[b]]c`) or reads a name on a later line as the member.
+  # It is tried before `LuauPropertyAccessor`, which would take `. then` as a
+  # member.
   LuauDanglingAccessor:
-    match: (?<=(?:[=,(\[{<>+\-*/%^#]|\.\.|\b(?:return|if|elseif|while|until|and|or|not|in)\b){{WS}}*{{LUAU_IDENTIFIER}}(?:{{WS}}*{{LUAU_ACCESSOR_OPERATOR}}{{WS}}*{{LUAU_IDENTIFIER}})*)({{WS}}*)([.])(?![.]|{{LUAU_IDENTIFIER}}|{{WS}}*(?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
+    match: ({{WS}}*)([.])(?![.]|{{LUAU_IDENTIFIER}}|{{WS}}*(?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
     captures:
       1:
         patterns:
@@ -9413,18 +9459,24 @@ repository:
     end: (?={{BEAT}})|(?=$|{{WS}}|[,;)\]}])|(?!{{WS}})
 
   # An operator, or the `if` that starts an expression, with no operand
-  # before the `;` that ends its statement (`local foo = -;`, `local x = ;`,
-  # `local x = a and;`, `local x = if;`), which Luau rejects. The value rules
-  # end before `;`, so the operator is read as one token here and the
-  # validator reports it. `LuauAssignmentOperation` tries it before its own
-  # operator, so an empty value is caught too. Line breaks and comments may
-  # stand between it and the `;` (`local foo = -` then `;` on the next line,
+  # before a token that cannot start one (`local foo = -;`, `local x = ;`,
+  # `local x = a and)`, `local x = if;`, `local y = 1 +` before `local` or
+  # `end` on the next line), which Luau rejects. The value rules end before
+  # it, so the operator is read as one token here, and the type checker or
+  # the validator reports the token Luau finds instead (#1131, #1171).
+  # `LuauAssignmentOperation` tries it before its own operator, so an empty
+  # value is caught too. Line breaks and comments may stand between it and
+  # that token (`local foo = -` then `;` on the next line,
   # `local foo = - --[[c]] ;`); they stay outside the token, so the statement
-  # still ends at the line end and the comment is still read as one.
+  # still ends at the line end and the comment is still read as one. An
+  # operator whose operand starts the next line still continues onto it.
+  # A divert's `->` is neither a `-` nor a `>` (`{a | -> end}`). An `if`
+  # right before `then` begins an if expression with no condition, which
+  # `LuauTernaryExpression` reads (`local a = if then 1 else 2`).
   LuauOperatorMissingOperand:
     tag: invalid
     name: invalid.illegal.luau
-    match: ({{WS}}*)({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if)(?!\w))({{WS}}*)(?={{_LUAU_SEMICOLON_AHEAD_}})
+    match: ({{WS}}*)(?<![-])(?![-][>])({{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}}|{{LUAU_LENGTH_OPERATOR}}|(?<![\w.])(?:and|or|not|if(?!{{WS}}*then\b))(?!\w))({{WS}}*)(?={{_LUAU_EXPRESSION_END_AHEAD_}})
 
   # A type annotation `:` with no type before the `;`, `,` or `=` after it
   # (`local x: ;`, `local x: = 1`, `local a: , b`), read as one token as
