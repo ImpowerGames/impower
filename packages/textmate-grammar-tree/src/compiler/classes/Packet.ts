@@ -26,11 +26,17 @@ export class Packet {
   scopes?: ParserAction;
 
   /**
-   * A pending in-scope split request from the tokenizer: the next token at
-   * or past `at` should start a new inheriting split-point chunk carrying
-   * `resume` (see {@link add}).
+   * Pending in-scope split requests from the tokenizer, in position order:
+   * the next token at or past a request's `at` should start a new
+   * inheriting split-point chunk carrying its `resume` (see {@link add}).
+   * Requests queue rather than replace each other: the tokenizer holds one
+   * token back, so a blank line's split can still be waiting for its
+   * newline token when the next line's split arrives. A parse restarting
+   * at that blank line must mint its chunk there; otherwise the held-back
+   * token joins the last kept chunk, which was already compiled, and its
+   * record is lost while the open scopes still count it.
    */
-  protected pendingSplit?: { at: number; resume: TokenizerResume };
+  protected pendingSplits: { at: number; resume: TokenizerResume }[] = [];
 
   /** @param chunks - The chunks to populate the packet with. */
   constructor(chunks?: Chunk[]) {
@@ -50,12 +56,12 @@ export class Packet {
    * arrives in the same batch; comparing `from >= at` sorts them out.)
    */
   scheduleSplit(at: number, resume: TokenizerResume) {
-    this.pendingSplit = { at, resume };
+    this.pendingSplits.push({ at, resume });
   }
 
   /** Clears any scheduled split (a new parse run starts fresh). */
   clearScheduledSplit() {
-    this.pendingSplit = undefined;
+    this.pendingSplits.length = 0;
   }
 
   /** The first chunk in the packet. */
@@ -108,9 +114,16 @@ export class Packet {
 
     let newChunk = false;
 
-    if (this.pendingSplit && from >= this.pendingSplit.at) {
-      const { at, resume } = this.pendingSplit;
-      this.pendingSplit = undefined;
+    // A request this token passes is superseded by a later one it also
+    // passes (minting both would leave an empty chunk between them).
+    while (
+      this.pendingSplits.length > 1 &&
+      from >= this.pendingSplits[1]!.at
+    ) {
+      this.pendingSplits.shift();
+    }
+    if (this.pendingSplits.length > 0 && from >= this.pendingSplits[0]!.at) {
+      const { at, resume } = this.pendingSplits.shift()!;
       // Mint an inheriting split-point chunk at the line boundary — but
       // only mid-scope: at a pure boundary the ordinary split machinery
       // below already provides a (cheaper, snapshot-free) restart point.
