@@ -38,6 +38,68 @@ end
     expect(formatSource(source)).toBe(source);
   });
 
+  test("an element whose parts go on over later lines round-trips unchanged", () => {
+    // #1225. Indenting continuation lines is the formatter slice's (#1227).
+    const source = `layout popup with
+  button
+    .fancy
+    #bg-color=green
+    "Okay"
+    @click={
+      score = 0
+      combo = 0
+    }
+  {
+    text "Confirm"
+  }
+  column {
+    text
+      .title
+      "Inventory"
+    button "Go" @click={
+      score = score + 1
+    }
+  }
+end
+`;
+    expect(formatSource(source)).toBe(source);
+  });
+
+  test("a handler that spans lines is formatted as the Luau code it is", () => {
+    // #1225, round 1 (comment 5940793507, finding 3): the statements of a
+    // closure that spans lines are Luau, so they take Luau's spacing, as a
+    // one-line closure's do; before #1225 they were struct body lines. The
+    // continuation lines around them keep their place.
+    const source = `layout popup with
+  button
+    .fancy
+    @click={
+      score=score+1
+      combo=combo*2
+    }
+  column {
+    button "Go" @click={
+      score=0
+    } "Done"
+  }
+end
+`;
+    expect(formatSource(source)).toBe(`layout popup with
+  button
+    .fancy
+    @click={
+      score = score + 1
+      combo = combo * 2
+    }
+  column {
+    button "Go" @click={
+      score = 0
+    } "Done"
+  }
+end
+`);
+  });
+
   test("lines inside a block keep their indentation, and the lines after it keep their level", () => {
     const source = `layout hud with
       column.panel {
