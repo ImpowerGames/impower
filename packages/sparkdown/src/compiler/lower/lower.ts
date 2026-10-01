@@ -535,7 +535,12 @@ function reportExpressionStatement(
     }
     if (n.from >= lastNode.from) last = n;
   }
-  if (dangling || followsDanglingDot(start, ctx) || followsMissingValue(start, ctx)) {
+  if (
+    dangling ||
+    followsDanglingDot(start, ctx) ||
+    followsMissingValue(start, ctx) ||
+    continuesInvalidLine(start)
+  ) {
     return last;
   }
   const error = luauStatementError(
@@ -558,6 +563,15 @@ function reportExpressionStatement(
     });
   }
   return last;
+}
+
+// Whether `start` is on the line of a `LuauInvalidStatement` that ended
+// before it (before a long string or block comment that runs past the line,
+// `Hello there [[`): that line has its one report already.
+function continuesInvalidLine(start: SyntaxNode): boolean {
+  let prev = start.prevSibling;
+  while (prev && prev.name.endsWith("Whitespace")) prev = prev.prevSibling;
+  return prev?.name === "LuauInvalidStatement";
 }
 
 // Reports the statement at `child` in a body whose lowerer reads only the

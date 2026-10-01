@@ -24,6 +24,7 @@ import type { LowerContext,SiblingSubFlowInfo } from "../context";
 import {
   buildClosureExpression,
   lowerExpressionFromContainer,
+  lowerExpressionFromNodes,
   processLuauEscapes,
   scanFreeVariables,
 } from "../expression/lowerExpression";
@@ -31,6 +32,7 @@ import { lowerStatements, reportUnreadExpressionStatement } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { identifierAt, stampDebugMetadata } from "../utils/debugMetadata";
 import { findOwnDeclarationName } from "../utils/findOwnDeclarationName";
+import { collectLineContinuation } from "../utils/lineContinuation";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
@@ -316,8 +318,11 @@ export function lowerLuauDefine(
     let child = content.firstChild;
     while (child) {
       if (child.name === "LuauPropertyDefinition") {
-        const prop = readPropertyDefinition(child, ctx);
+        // The lines that continue the value (`f` then `"x"`, `t` then `.a`).
+        const continuation = collectLineContinuation(child);
+        const prop = readPropertyDefinition(child, ctx, continuation);
         if (prop) properties.push(prop);
+        child = continuation[continuation.length - 1] ?? child;
       } else if (child.name === "LuauMethodDefinition") {
         const methodNameNode = getDescendent("LuauFunctionName", child);
         if (methodNameNode) {
@@ -627,6 +632,13 @@ const ASSIGNMENT_RHS_SKIP: ReadonlySet<string> = nodeNameSet([
   "LuauComment",
 ]);
 
+// `node` and the siblings after it.
+function siblingsFrom(node: SyntaxNode): SyntaxNode[] {
+  const nodes: SyntaxNode[] = [];
+  for (let n: SyntaxNode | null = node; n; n = n.nextSibling) nodes.push(n);
+  return nodes;
+}
+
 function findAssignmentValueNode(
   opNode: SyntaxNode | null,
 ): SyntaxNode | null {
@@ -647,6 +659,7 @@ function findAssignmentValueNode(
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
+  continuation: SyntaxNode[] = [],
 ): DefineProperty | null {
   // The key is either a bracket-key (`["selector"] = …`, `["$link"] = …`) or a
   // plain identifier (`name = …`).
@@ -688,7 +701,13 @@ function readPropertyDefinition(
 
   const opNode = getDescendent("LuauAssignmentOperation", propNode);
   if (opNode) validateAssignmentValue(opNode, ctx);
-  const expr = opNode ? lowerExpressionFromContainer(opNode, ctx) : null;
+  const valueNode = findAssignmentValueNode(opNode ?? null);
+  const valueEnd = continuation[continuation.length - 1]?.to ?? opNode?.to;
+  const expr = !opNode
+    ? null
+    : continuation.length > 0 && valueNode
+      ? lowerExpressionFromNodes([...siblingsFrom(valueNode), ...continuation], ctx)
+      : lowerExpressionFromContainer(opNode, ctx);
   if (!expr) return null;
 
   // Raw value source (everything after the assignment operator), for the
@@ -697,8 +716,7 @@ function readPropertyDefinition(
   // significant child following the `LuauAssignmentOperator` marker. Read
   // from that node's start to the operation's end (covers multi-node
   // expressions) instead of re-deriving the RHS by string-scanning for `=`.
-  const valueNode = findAssignmentValueNode(opNode ?? null);
-  const rawValue = valueNode ? ctx.read(valueNode.from, opNode!.to) : "";
+  const rawValue = valueNode ? ctx.read(valueNode.from, valueEnd!) : "";
 
   // Anchor the property's value expression to its source range. Diagnostics
   // raised from inside it (notably `Cannot find variable named \`x\`` from
@@ -708,7 +726,7 @@ function readPropertyDefinition(
   // the compiler's diagnostic callback falls back to the ENTRY document at
   // 0:0, piling every such warning invisibly at the top of the wrong file.
   if (valueNode && opNode) {
-    stampDebugMetadata([expr], valueNode.from, opNode.to, ctx);
+    stampDebugMetadata([expr], valueNode.from, valueEnd!, ctx);
   }
 
   // Modifiers live in the property's begin captures, OUTSIDE the

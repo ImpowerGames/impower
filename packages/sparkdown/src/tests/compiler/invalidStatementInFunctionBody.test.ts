@@ -349,6 +349,23 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual(["After it.\n"]);
   });
 
+  it("gives a define property's value its argument on the next line, as on one line", () => {
+    const head = "function id(s)\n  return s\nend\n\ndefine foo as object with\n";
+    const message = (source: string) => errorsOf(source).map((d) => d.message);
+    expect(message(`${head}  name = id\n    "x"\nend\n`)).toEqual(
+      message(`${head}  name = id "x"\nend\n`),
+    );
+  });
+
+  it("reports a line that is not a statement once when a long string runs on from it", () => {
+    // Luau reads `there [[…]]` as a call; its one error is at `Hello`.
+    const source = "function f()\n  Hello there [[\nend\n]]\nend\nAfter it.\n";
+    expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character, d.message])).toEqual([
+      [1, 2, "Incomplete statement: expected assignment or a function call"],
+    ]);
+    expect(playedLines(source)).toEqual(["After it.\n"]);
+  });
+
   it("reports a line after a complete `...` value", () => {
     const source = "function f(...)\n  local x = ...\n  Hello\nend\n";
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);

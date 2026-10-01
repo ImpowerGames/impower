@@ -253,6 +253,7 @@ const LUAU_BODY_OWNERS = nodeNameSet([
   "LuauWhileLoop",
   "LuauRepeatLoop",
   "LuauDoBlock",
+  "LuauDefine",
 ]);
 const NARRATIVE_OWNERS = nodeNameSet(["Scene", "Branch", "LuauExplicitStatement"]);
 
