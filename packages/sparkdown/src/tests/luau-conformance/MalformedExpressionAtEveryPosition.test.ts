@@ -298,6 +298,20 @@ describe("the reported layouts", () => {
     // the outermost one's closer.
     ["function f(t)\n  print((1 + local y = 2)\n  )\nend", ["1:13-1:18 Expected identifier when parsing expression, got 'local'"]],
     ["function f(t)\n  print({1 + local y = 2}\n  )\nend", ["1:13-1:18 Expected identifier when parsing expression, got 'local'"]],
+    // Round 5: a body the parser reads after finding what its header expects
+    // (`then`, `do`, a function's `(` and `)`) is the author's own.
+    ["function f(t)\n  local g = function named() 2 end\nend", [
+      "1:21-1:26 Expected '(' when parsing function, got 'named'",
+      "1:29-1:30 Expected identifier when parsing expression, got '2'",
+    ]],
+    ["function f(t)\n  if 1 + then x + 1 end\nend", [
+      "1:9-1:13 Expected identifier when parsing expression, got 'then'",
+      "1:14-1:15 Incomplete statement: expected assignment or a function call",
+    ]],
+    ["function f(t)\n  while 1 + do x + 1 end\nend", [
+      "1:12-1:14 Expected identifier when parsing expression, got 'do'",
+      "1:15-1:16 Incomplete statement: expected assignment or a function call",
+    ]],
     ["function f(t)\n  print((1 + local y = 2)) local z = 3 +;\nend", [
       "1:13-1:18 Expected identifier when parsing expression, got 'local'",
       "1:40-1:41 Expected identifier when parsing expression, got ';'",
@@ -309,6 +323,27 @@ describe("the reported layouts", () => {
       expect(functions).toEqual([{ path: "f", lines: [0, 0, source.split("\n").length - 1] }]);
       expectLuauReports(source, messages);
     }
+  });
+
+  // In a Luau file: a bracket the parser gives up on inside a block is closed
+  // in that block or not at all, so a later closer outside it hides nothing
+  // (round 5).
+  test.each([
+    ["function f(t)\n  print(1 + local a = 2\n  do\n    )\n    print(1 + local b = 3\n  end\n  2\n  )\nend\n", [
+      "1:12-1:17 SyntaxError: Expected identifier when parsing expression, got 'local'",
+      "4:14-4:19 SyntaxError: Expected identifier when parsing expression, got 'local'",
+      "6:2-6:3 SyntaxError: Expected identifier when parsing expression, got '2'",
+      "7:2-7:3 SyntaxError: Expected identifier when parsing expression, got ')'",
+    ]],
+  ])("in a Luau file, %j reports %j", (source, messages) => {
+    // The harness also flags where Sparkdown's grammar misreads this layout
+    // (`Sparkdown could not finish reading ...`); only Luau's errors are
+    // compared here.
+    const luauErrors = checkLuau(source, { mode: "nonstrict" })
+      .syntaxDiagnostics.map(describeDiagnostic)
+      .filter((d) => !d.includes("SyntaxError: Sparkdown "));
+    expect(luauErrors).toEqual(messages);
+    expectLuauReports(source, messages.map((m) => m.replace(" SyntaxError:", "")));
   });
 
   // A function Sparkdown declares with no parameter list is read as Luau's
