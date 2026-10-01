@@ -159,7 +159,12 @@ export interface LuauAstUnit {
    */
   root: AstStatBlock;
   errors: LuauSyntaxError[];
-  /** The `--!` comments, with `header` set on those before the unit's first token. */
+  /**
+   * The `--!` comments among the unit's Luau, with `header` set on those
+   * before its first token. They select a `run` file's mode; a `.sd` file's
+   * comments between its statements belong to no unit, and the type checker
+   * reads no mode from a `.sd` file's units.
+   */
   hotcomments: HotComment[];
   /** The statements of the unit's own block (a flow's function body), each with the tree nodes it was read from. */
   statements: LuauStatementSource[];
@@ -826,7 +831,7 @@ class Parser {
   private readonly functionStack: FunctionState[] = [{ vararg: true, loopDepth: 0 }];
   private readonly localMap = new Map<string, AstLocal | undefined>();
   private readonly localStack: AstLocal[] = [];
-  private readonly eof: Token;
+  private eof: Token;
   private blockDepth = 0;
 
   /** The block depth whose statements are recorded in `statements`, with the tokens each was read from. */
@@ -873,17 +878,24 @@ class Parser {
     return token.kind === "name";
   }
 
-  /** Reads tokens of their own (a string's interpolation) as part of this parse, with the same locals and functions in scope. */
-  private withTokens<T>(tokens: Token[], read: () => T): T {
-    const saved = { tokens: this.tokens, pos: this.pos, previous: this.previous };
+  /**
+   * Reads tokens of their own (a string's interpolation) as part of this
+   * parse, with the same locals and functions in scope. They end at `end`,
+   * where the reading meets its own end of input, so an error at the end of
+   * the tokens is placed there rather than after the rest of the unit.
+   */
+  private withTokens<T>(tokens: Token[], end: Location, read: () => T): T {
+    const saved = { tokens: this.tokens, pos: this.pos, previous: this.previous, eof: this.eof };
     this.tokens = tokens;
     this.pos = 0;
+    this.eof = { kind: "eof", text: "", from: 0, to: 0, location: end, source: -1 };
     try {
       return read();
     } finally {
       this.tokens = saved.tokens;
       this.pos = saved.pos;
       this.previous = saved.previous;
+      this.eof = saved.eof;
     }
   }
 
@@ -1799,7 +1811,7 @@ class Parser {
       } else if (this.is("...")) {
         this.report(this.current().location, "Unexpected '...' after type name; type pack is not allowed in this context");
         this.next();
-      } else if (name.name === "typeof") {
+      } else if (name.name === "typeof") { // not a node name
         const typeofBegin = this.current();
         this.expectAndConsume("(", "typeof type");
         const expr = this.parseExpr();
@@ -2298,8 +2310,12 @@ class Parser {
     return new AstExprConstantString(token.location, value, style);
   }
 
-  /** The parts of a string node: the text between its interpolations, and the interpolations. */
-  private stringParts(token: Token, interpolation: string): { strings: string[]; expressions: AstExpr[] } | undefined {
+  /**
+   * The parts of a string node: the text between its interpolations, and the
+   * interpolations; `unclosed` when an interpolation is missing its closing
+   * brace, after which the string's own end is not where the tree ends it.
+   */
+  private stringParts(token: Token, interpolation: string): { strings: string[]; expressions: AstExpr[]; unclosed: boolean } | undefined {
     const node = token.node!;
     const strings: string[] = [];
     const expressions: AstExpr[] = [];
@@ -2311,33 +2327,48 @@ class Parser {
       const value = quotedValue(text.slice(at, child.from));
       if (value === undefined) return undefined;
       strings.push(value);
-      expressions.push(this.interpolation(child, isShorthand));
+      const part = this.interpolation(child, isShorthand);
+      expressions.push(part.expr);
+      if (!part.closed) {
+        strings.push("");
+        return { strings, expressions, unclosed: true };
+      }
       at = child.to;
     }
     const value = quotedValue(text.slice(at, Math.max(at, close)));
     if (value === undefined) return undefined;
     strings.push(value);
-    return { strings, expressions };
+    return { strings, expressions, unclosed: false };
   }
 
-  /** The expression of an interpolation (`{x}`), or of a `{{f}}` shorthand. */
-  private interpolation(node: SyntaxNode, shorthand: boolean): AstExpr {
+  /**
+   * The expression of an interpolation (`{x}`), or of a `{{f}}` shorthand,
+   * and whether its closing braces are written.
+   */
+  private interpolation(node: SyntaxNode, shorthand: boolean): { expr: AstExpr; closed: boolean } {
     const tokenizer = new Tokenizer(this.ctx.text, this.ctx.index);
     tokenizer.readChildren(node);
     const inner = tokenizer.tokens;
     // The braces around the expression: one on each side, or two for the shorthand.
     const braces = shorthand ? 2 : 1;
-    const open = inner.slice(0, braces);
-    const body = inner.slice(braces, Math.max(braces, inner.length - braces));
+    const isBrace = (token: Token | undefined, brace: string) => token?.kind === "symbol" && token.text === brace;
+    const opened = inner.slice(0, braces).every((t) => isBrace(t, "{"));
+    const closers = inner.length - braces >= braces ? inner.slice(inner.length - braces) : [];
+    const closed = closers.length === braces && closers.every((t) => isBrace(t, "}"));
+    const body = inner.slice(opened ? braces : 0, closed ? inner.length - braces : inner.length);
     const location = new Location(this.ctx.index.position(node.from), this.ctx.index.position(node.to));
-    const expr = this.withTokens(body, () => {
+    // The reading of the expression ends at its closing braces, or where the interpolation ends.
+    const end = closed ? Location.span(closers[0]!.location, closers[closers.length - 1]!.location) : new Location(location.end, location.end);
+    const expr = this.withTokens(body, end, () => {
       if (body.length === 0) return this.reportExprError(location, [], "Malformed interpolated string, expected expression inside '{}'");
       const e = this.parseExpr();
-      if (this.current().kind !== "eof") this.report(this.current().location, `Malformed interpolated string, got ${describe(this.current())}`);
+      // Without its closing brace, the interpolation ends where its expression does, as Luau reports it.
+      if (!closed) this.report(this.current().location, "Malformed interpolated string; did you forget to add a '}'?");
+      else if (this.current().kind !== "eof") this.report(this.current().location, `Malformed interpolated string, got ${describe(this.current())}`);
       return e;
     });
-    if (open.length < braces) return this.reportExprError(location, [expr], "Malformed interpolated string");
-    return shorthand ? new AstExprSparkdownCallShorthand(location, expr) : expr;
+    if (!opened) return { expr: this.reportExprError(location, [expr], "Malformed interpolated string"), closed };
+    return { expr: shorthand ? new AstExprSparkdownCallShorthand(location, expr) : expr, closed };
   }
 
   /** A double-quoted string with interpolations, as Sparkdown reads it. */
@@ -2345,17 +2376,21 @@ class Parser {
     const luauValue = quotedValue(token.text.slice(1, token.text.length - 1));
     const parts = this.stringParts(token, DOUBLE_QUOTED_INTERPOLATION);
     if (!parts || luauValue === undefined) return this.reportExprError(token.location, [], "String literal contains malformed escape sequence");
+    if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
     return new AstExprSparkdownInterpString(token.location, parts.strings, parts.expressions, luauValue);
   }
 
   private parseInterpString(): AstExpr {
     const token = this.current();
     this.next();
-    if (!token.text.endsWith("`") || token.text.length < 2) {
-      return this.reportExprError(token.location, [], "Malformed interpolated string; did you forget to add a '`'?");
-    }
     const parts = this.stringParts(token, BACKTICK_INTERPOLATION);
     if (!parts) return this.reportExprError(token.location, [], "Interpolated string literal contains malformed escape sequence");
+    if (parts.unclosed) return new AstExprError(token.location, parts.expressions, this.errors.length - 1);
+    // The closing backtick is the string node's own end, not a backtick inside it.
+    const end = token.node?.getChild("LuauInterpolatedString_end");
+    if (!end || !/`/.test(this.ctx.text.slice(end.from, end.to))) {
+      return this.reportExprError(token.location, parts.expressions, "Malformed interpolated string; did you forget to add a '`'?");
+    }
     // A string with no interpolation is a plain string to Luau.
     if (parts.expressions.length === 0) return new AstExprConstantString(token.location, parts.strings[0]!, QuoteStyle.QuotedSimple);
     return new AstExprInterpString(token.location, parts.strings, parts.expressions);
@@ -2656,7 +2691,10 @@ function readFlow(flow: Flow, documentText: string, index: LineIndex): LuauAstUn
     } else {
       tokenizer.source = nodes.length;
       nodes.push(ref(part.branch));
+      const before = tokenizer.tokens.length;
       declareBranchParameters(tokenizer, part.branch, part.parameters, documentText);
+      // A branch's parameters are Luau the flow declares, even in a flow with no other Luau.
+      if (tokenizer.tokens.length > before) statements++;
       tokenizer.source = -1;
     }
   }

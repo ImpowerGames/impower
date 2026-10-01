@@ -490,6 +490,45 @@ describe("Sparkdown's own constructs", () => {
   });
 });
 
+describe("Unfinished and boundary input", () => {
+  /** The prelude's errors as `line:character message`, from the tree, and from Luau's parser mapped to the document. */
+  function preludeErrors(text: string): { tree: string[]; luau: string[] } {
+    const tree = parseSource(text);
+    const unit = sparkdownUnits(tree, text).prelude;
+    const ours = readLuauUnits(tree, text).prelude;
+    return {
+      tree: ours.errors.map((e) => `${e.location.begin.line}:${e.location.begin.column} ${e.message}`),
+      luau: parseLuau(unit.text).errors.map((e) => {
+        const at = documentPosition(unit, e.location.begin);
+        return `${at.line}:${at.character} ${e.message}`;
+      }),
+    };
+  }
+
+  test("an interpolation missing its closing brace is an error where Luau reports it", () => {
+    const { tree, luau } = preludeErrors("local x = `a{x`\n");
+    expect(luau).toEqual(["0:14 Malformed interpolated string; did you forget to add a '}'?"]);
+    expect(tree).toEqual(luau);
+  });
+
+  test("an error at the end of an interpolation's expression stays in the interpolation", () => {
+    const { tree, luau } = preludeErrors("local x = `a{x +}`\nlocal y = 1\n");
+    expect(luau.map((e) => e.split(" ")[0])).toEqual(["0:16"]);
+    expect(tree.map((e) => e.split(" ")[0])).toEqual(["0:16"]);
+  });
+
+  test("a flow whose only Luau is a branch's parameters keeps them, as the checker's unit does", () => {
+    const text = "scene s(x)\n  branch b(y: Missing)\n  Hello.\n  end\nend\n";
+    const tree = parseSource(text);
+    const extracted = sparkdownUnits(tree, text);
+    const units = readLuauUnits(tree, text);
+    expect(extracted.flows).toHaveLength(1);
+    expect(units.flows).toHaveLength(1);
+    expect(units.flows[0]!.statements.map((s) => [s.statement.kind, s.nodes.map((n) => n.name)])).toEqual([["StatLocal", ["Branch"]]]);
+    expect(printAst(units.flows[0]!.root, checkerView(text, extracted.anyName))).toBe(printAst(parseLuau(extracted.flows[0]!.text).root));
+  });
+});
+
 describe("The other entry points", () => {
   test("a run file is read from its wrapper document as Luau reads the file, with its hot comments", () => {
     const file = ["--!strict", "local t = { 1, 2 }", "local function sum(xs: { number }): number", "  local total = 0", "  for _, x in ipairs(xs) do total += x end", "  return total", "end", "print(sum(t) .. \"!\")", ""].join("\n");
