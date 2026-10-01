@@ -126,9 +126,9 @@ const OFFSET_NAME = /(__[a-z]+_file_3a\w*?)_(\d+)(?!\w)/g;
  * A program without source positions or the names derived from them, as
  * plain data: spans and location tables dropped, offset-derived names
  * numbered in the order they first appear (the layout tree first), and each
- * diagnostic as its severity, code, message and the text it underlines.
+ * diagnostic as its severity, code and message.
  */
-export function normalizeProgram(program: any, sources: Source[]) {
+export function normalizeProgram(program: any) {
   const out: Record<string, unknown> = {};
   const keys = Object.keys(program).sort((a, b) =>
     a === "sparkle" ? -1 : b === "sparkle" ? 1 : 0,
@@ -150,22 +150,19 @@ export function normalizeProgram(program: any, sources: Source[]) {
     },
   );
   const normalized = JSON.parse(json);
-  const texts = new Map(sources.map((s) => [uriOf(s.label), s.text]));
+  // A diagnostic's range is a source position, and the text it underlines
+  // can be the converted syntax itself (`- targets:` becomes `{`), so a
+  // diagnostic is compared by its severity, code and message.
   normalized.diagnostics = Object.fromEntries(
-    Object.entries(program.diagnostics ?? {}).map(([uri, list]) => {
-      const lines = (texts.get(uri) ?? "").split("\n");
-      const found = (list as any[]).map((d) => {
-        const { start, end } = d.range;
-        const line = lines[start.line] ?? "";
-        const text =
-          start.line === end.line
-            ? line.slice(start.character, end.character)
-            : line.slice(start.character);
-        const message = typeof d.message === "string" ? d.message : d.message?.value;
-        return `${d.severity} ${d.code ?? ""} ${message} @ ${JSON.stringify(text.trim())}`;
-      });
-      return [uri, found.sort()];
-    }),
+    Object.entries(program.diagnostics ?? {}).map(([uri, list]) => [
+      uri,
+      (list as any[])
+        .map((d) => {
+          const message = typeof d.message === "string" ? d.message : d.message?.value;
+          return `${d.severity} ${d.code ?? ""} ${message}`;
+        })
+        .sort(),
+    ]),
   );
   return normalized;
 }
@@ -177,8 +174,8 @@ export function comparePrograms(
   entry: string,
   prelude: boolean,
 ): ProgramComparison {
-  const a = normalizeProgram(compile(before, entry, prelude), before);
-  const b = normalizeProgram(compile(after, entry, prelude), after);
+  const a = normalizeProgram(compile(before, entry, prelude));
+  const b = normalizeProgram(compile(after, entry, prelude));
   const size = (v: unknown) =>
     v && typeof v === "object" ? Object.keys(v).length : v === undefined ? 0 : 1;
   const compared = Object.keys(a)

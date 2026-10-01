@@ -6,7 +6,9 @@
 //
 //   old form                                  becomes
 //   `header:` with deeper lines               `header {` … `}` (the `}` at the header's indentation)
-//   `header:` with nothing beneath it         `header`
+//   `header:` with nothing beneath it         `header` in a layout or component,
+//                                               `header {}` elsewhere (in braces
+//                                               a bare word is a list value)
 //   a bare `-` item with indented entries     a bare `{ … }` entry
 //   `- key = value` / `- key:` and further
 //     entries                                 one `{ … }` entry holding all of them
@@ -262,8 +264,11 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
       }
       const restColumn = column + item[0].length;
       const restDeeper = nextColumn(pos) > restColumn;
+      // An inline header with nothing beneath it is an empty block: inside
+      // the item's braces a bare word would be a list value.
+      const inline = inner.header && !restDeeper ? `${inner.text} {}` : inner.text;
       if (!deeper) {
-        emit(`{ ${inner.text} }${inner.comment}`);
+        emit(`{ ${inline} }${inner.comment}`);
         continue;
       }
       // `- key = value` or `- key:` with further entries: one `{ … }` entry,
@@ -278,7 +283,7 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
       } else if (!inner.header && restDeeper) {
         throw new Refused(line.index + 2, "a deeper-indented line under a property");
       } else {
-        emit(`{ ${inner.text}${inner.comment}`);
+        emit(`{ ${inline}${inner.comment}`);
       }
       continue;
     }
@@ -306,6 +311,11 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
       changed = true;
       emit(`${entry.text} {${entry.comment}`);
       open.push({ column, ws: line.ws });
+    } else if (entry.header && kind === "struct") {
+      // An empty header in a struct body is an empty block. Inside braces a
+      // bare word would be a list value, so the block is written out at
+      // every depth.
+      emit(`${entry.text} {}${entry.comment}`);
     } else {
       emit(entry.text + entry.comment);
     }

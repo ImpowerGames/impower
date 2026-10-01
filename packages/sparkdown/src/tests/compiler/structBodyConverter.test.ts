@@ -50,6 +50,50 @@ describe("each old form becomes its brace form", () => {
     ).toBe(lines("layout hud with", "  row {", "    text", "    stroke", "  }", "end"));
   });
 
+  test("in a struct body, a header with nothing beneath it becomes an empty block at every depth", () => {
+    // Inside braces a bare word is a list value, so `key` would not do. The
+    // morph's diagnostics stand on converted lines, and still compare equal.
+    expect(
+      converted(
+        lines(
+          "style s with",
+          "  > a:",
+          "  > b:",
+          "    > c:",
+          "    color = red",
+          "end",
+          "",
+          "morph m with",
+          "  clips:",
+          "    - between: -- no layers yet",
+          "    - targets:",
+          "        - a",
+          "end",
+        ),
+      ),
+    ).toBe(
+      lines(
+        "style s with",
+        "  > a {}",
+        "  > b {",
+        "    > c {}",
+        "    color = red",
+        "  }",
+        "end",
+        "",
+        "morph m with",
+        "  clips {",
+        "    { between {} } -- no layers yet",
+        "    { targets {",
+        "        a",
+        "      }",
+        "    }",
+        "  }",
+        "end",
+      ),
+    );
+  });
+
   test("a layout or component line with deeper lines and no colon is refused: its two readers disagree", () => {
     // The layout tree nests the deeper lines under the element, as a block
     // does, but the static struct gives the element an empty entry and drops
