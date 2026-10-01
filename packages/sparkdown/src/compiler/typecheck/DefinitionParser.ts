@@ -154,6 +154,22 @@ export function describeTokenBefore(source: string, position: Position): string 
   return previous;
 }
 
+/**
+ * The tokens in `source`, past comments, each with Luau's description of it
+ * (`'x'`, `'local'`, `';'`) and where it begins. Not part of Luau:
+ * Sparkdown's type checker reads with it where Luau's parser recovers from an
+ * error.
+ */
+export function describeTokens(source: string): { description: string; begin: Position }[] {
+  const buffer = utf8Encoder.encode(source);
+  const lexer = new Lexer(buffer, buffer.length, new AstNameTable());
+  const tokens: { description: string; begin: Position }[] = [];
+  for (let lexeme = lexer.next(true); lexeme.type !== LexemeType.Eof; lexeme = lexer.next(true)) {
+    tokens.push({ description: lexeme.toString(), begin: lexeme.location.begin });
+  }
+  return tokens;
+}
+
 // Luau's `FInt::LuauRecursionLimit`, `FInt::LuauTypeLengthLimit` and `FInt::LuauParseErrorLimit`.
 const LuauRecursionLimit: number = 1000;
 const LuauTypeLengthLimit: number = 1000;

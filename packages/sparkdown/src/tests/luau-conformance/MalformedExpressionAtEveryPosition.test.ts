@@ -221,6 +221,38 @@ describe("the reported layouts", () => {
     // Round 1's undirected review: an error on the line before that leaves
     // nothing open hides no later mistake.
     ["function f()\n  local x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
+    // Round 2: a statement keyword where a value was missing begins a statement of
+    // its own, on the next line or the same one.
+    ["function f()\n  local x = 1 +\n  local y = 1 +;\nend", [
+      "2:2-2:7 Expected identifier when parsing expression, got 'local'",
+      "2:15-2:16 Expected identifier when parsing expression, got ';'",
+    ]],
+    ["function f()\n  local a = 1 + local b = 2 +;\nend", [
+      "1:16-1:21 Expected identifier when parsing expression, got 'local'",
+      "1:29-1:30 Expected identifier when parsing expression, got ';'",
+    ]],
+    ["function f()\n  while 1 + do\n    x = 2 +;\n  end\nend", [
+      "1:12-1:14 Expected identifier when parsing expression, got 'do'",
+      "2:11-2:12 Expected identifier when parsing expression, got ';'",
+    ]],
+    ["function f()\n  x + 1\n  local y = 2 +;\nend", [
+      "1:2-1:3 Incomplete statement: expected assignment or a function call",
+      "2:15-2:16 Expected identifier when parsing expression, got ';'",
+    ]],
+    // A bracket left open is read as statements up to the one that closes
+    // it, and no further.
+    ["function f()\n  local x: {\n    bar\n    baz\n  } = {}\n  2\nend", ["5:2-5:3 Expected identifier when parsing expression, got '2'"]],
+    ["function f()\n  local x: {\n    bar\n    baz\n    qux\n  } = {}\n  2\nend", ["6:2-6:3 Expected identifier when parsing expression, got '2'"]],
+    // Sparkdown's rule that a name after `.` stands on its line is not the
+    // next line's mistake.
+    ["function f(t)\n  local a = t.\n  b local z = 1 +;\nend", [
+      "1:13-1:14 Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+      "2:17-2:18 Expected identifier when parsing expression, got ';'",
+    ]],
+    ["function f(t)\n  local a = t.\n  b z = 1 +;\nend", [
+      "1:13-1:14 Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
+      "2:11-2:12 Expected identifier when parsing expression, got ';'",
+    ]],
   ])("%j reports %j", (source, messages) => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
@@ -256,6 +288,8 @@ describe("the reported layouts", () => {
     ["store a, b = 1,\n  2", ["0:14-0:15 Expected identifier when parsing expression, got '2'"]],
     ["store x = 1 +;", ["0:13-0:14 Expected identifier when parsing expression, got ';'"]],
     ["store x = 1 +\nlocal z = 2", ["1:0-1:5 Expected identifier when parsing expression, got 'local'"]],
+    // Round 2: a `store` declaration's complete value ends its statement.
+    ["function f(t)\n  store x = 0xZ\n  2\nend", ["1:12-1:15 Malformed number", "2:2-2:3 Expected identifier when parsing expression, got '2'"]],
     ["-> s\nscene s\n  if then\n    Hi.\n  end\nend", ["2:5-2:9 Expected identifier when parsing expression, got 'then'"]],
   ])("in a Sparkdown document, %j reports %j", (source, messages) => {
     expect(compileDocument(`${source}\n`).errors).toEqual(messages);

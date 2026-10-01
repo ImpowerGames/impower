@@ -18,7 +18,7 @@ import type { SyntaxNode, Tree } from "@lezer/common";
 import { RESERVED } from "../lint/luauNames";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
-import { describeTokenBefore, parseLuau } from "./DefinitionParser";
+import { describeTokenBefore, describeTokens, parseLuau } from "./DefinitionParser";
 import { errorToString, LuauTypeError, UnknownSymbolContext } from "./Error";
 import { Frontend } from "./Frontend";
 import { lintComments } from "./Linter";
@@ -110,31 +110,50 @@ const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
  * parser reports them, that do not follow from an earlier error. Luau's parser
  * recovers from an error by reading each token after it as a new statement
  * (`x + 1` is `Incomplete statement` at `x`, then an error at `+` and at `1`),
- * so an expression error that begins on or before the line the error before it
- * ended on is one of those, and only the first is reported. After an error
- * that leaves a construct open (`Expected '}' (to close '{' at line 2)`), the
- * parser's recovery reaches the next line too; after any other, such as a
- * malformed number, the next line is a statement of its own. A `;` from where
- * the error before it begins ends the statement that error is in, so an error
- * after the `;` is a mistake of its own (`local a = 1 +; local b = 2 +;`).
+ * so an expression error that begins on or before the last line of that
+ * recovery's errors is one of those, and only the first is reported. An error
+ * that leaves a bracket open (`Expected '}' (to close '{' at line 2)`) reaches
+ * the line of the bracket that closes it, which the parser reads as statements
+ * too, and one that leaves a block open the next line; after any other, such
+ * as a malformed number, the next line is a statement of its own. A statement
+ * ends between two errors at a `;` or at a token that begins a statement and
+ * nothing else (`STATEMENT_TOKENS`), which Luau's parser reads as the next
+ * statement even where it was looking for an expression, so an error after one
+ * is a mistake of its own (`local a = 1 +; local b = 2 +;`, or `local a = 1 +`
+ * with `local b = 2 +;` on the next line, where the first error is at the
+ * second `local`). A keyword on the line of a `.` or `:` with no name after it
+ * is read as that name (`t.a.return 1` is an error at `return`, then at `1`),
+ * so it begins no statement.
  */
 function reportedExpressionErrors(parseErrors: readonly LuauTypeError[], text: string): Set<LuauTypeError> {
   const reported = new Set<LuauTypeError>();
-  const lines = text.split("\n");
-  let lastErrorLine = -1;
+  const tokens = describeTokens(text);
   let lastBegin: Position | undefined;
-  // Whether the last error that did not follow another left a construct open.
-  let lastLeftOpen = false;
+  // The previous error's token, where the parser read it as a name.
+  let readAsName: Position | undefined;
+  // The last line of the parser's current recovery.
+  let recoveryLine = -1;
   for (const error of parseErrors) {
     if (error.data.kind !== "SyntaxError") continue;
     const message = error.data.message;
-    const begin = error.location.begin.line;
-    const separated = lastBegin !== undefined && textBetween(lines, lastBegin, error.location.begin).includes(";");
-    lastBegin = error.location.begin;
-    const follows = !separated && (begin <= lastErrorLine || (lastLeftOpen && begin === lastErrorLine + 1));
-    lastErrorLine = Math.max(lastErrorLine, error.location.end.line);
-    if (follows) continue;
-    lastLeftOpen = LEFT_OPEN.test(message);
+    const begin = error.location.begin;
+    const separated =
+      lastBegin !== undefined &&
+      tokens.some(
+        (token) =>
+          !isBefore(token.begin, lastBegin!) &&
+          isBefore(token.begin, begin) &&
+          !(readAsName && !isBefore(token.begin, readAsName) && !isBefore(readAsName, token.begin)) &&
+          STATEMENT_TOKENS.has(token.description),
+      );
+    lastBegin = begin;
+    const before = tokens.filter((token) => isBefore(token.begin, begin)).at(-1);
+    readAsName = INDEX_NAME_ERROR.test(message) && before?.begin.line === begin.line ? begin : undefined;
+    if (!separated && begin.line <= recoveryLine) {
+      recoveryLine = Math.max(recoveryLine, error.location.end.line);
+      continue;
+    }
+    recoveryLine = recoveryEnd(error, tokens);
     const isExpressionError = EXPRESSION_ERROR.test(message) && !UNFINISHED_COMMENT.test(message);
     const atSparkdownSyntax = SPARKDOWN_EXPRESSION_TOKEN.test(message);
     if (isExpressionError && !atSparkdownSyntax) reported.add(error);
@@ -142,20 +161,62 @@ function reportedExpressionErrors(parseErrors: readonly LuauTypeError[], text: s
   return reported;
 }
 
-/** A unit's text from one position to another, which Luau gives in UTF-8 columns. */
-function textBetween(lines: readonly string[], from: Position, to: Position): string {
-  const index = (position: Position) =>
-    utf8Decoder.decode(utf8Encoder.encode(lines[position.line] ?? "").slice(0, position.column)).length;
-  if (to.line < from.line || (to.line === from.line && to.column <= from.column)) return "";
-  if (from.line === to.line) return (lines[from.line] ?? "").slice(index(from), index(to));
-  return [(lines[from.line] ?? "").slice(index(from)), ...lines.slice(from.line + 1, to.line), (lines[to.line] ?? "").slice(0, index(to))].join("\n");
+// The tokens that end a statement before them or begin one, and nothing else:
+// Luau's parser reads a statement from each of these keywords wherever it
+// stands, even where it was looking for an expression (`got 'local'`).
+const STATEMENT_TOKENS = new Set(["';'", "'local'", "'return'", "'break'", "'do'", "'while'", "'for'", "'repeat'", "'until'"]);
+// Luau's error for a `.` or `:` with no name after it (`parseIndexName`),
+// which reads a keyword on the same line as the missing name.
+const INDEX_NAME_ERROR = /^Expected identifier(?: when parsing (?:method|field) name)?, got '/;
+
+/** Whether Luau code holds a token that ends a statement or begins one (`STATEMENT_TOKENS`). */
+export function endsStatement(code: string): boolean {
+  return describeTokens(code).some((token) => STATEMENT_TOKENS.has(token.description));
+}
+
+const BRACKETS: Record<string, string> = { "(": ")", "{": "}", "[": "]" };
+
+/**
+ * The last line of the parser's recovery from an error (see
+ * `reportedExpressionErrors`): the line of the bracket that closes one the
+ * error leaves open, counted from the error's token, or the line after the
+ * error for a block it leaves open or a bracket nothing closes.
+ */
+function recoveryEnd(error: LuauTypeError, tokens: readonly { description: string; begin: Position }[]): number {
+  const message = error.data.kind === "SyntaxError" ? error.data.message : "";
+  if (!LEFT_OPEN.test(message)) return error.location.end.line;
+  const opener = /\(to close '([({[])'/.exec(message)?.[1];
+  if (opener) {
+    let depth = 1;
+    for (const token of tokens) {
+      if (isBefore(token.begin, error.location.begin)) continue;
+      if (token.description === `'${opener}'`) depth++;
+      else if (token.description === `'${BRACKETS[opener]}'` && --depth === 0) return Math.max(token.begin.line, error.location.end.line);
+    }
+  }
+  return error.location.end.line + 1;
+}
+
+function isBefore(a: Position, b: Position): boolean {
+  return a.line < b.line || (a.line === b.line && a.column < b.column);
+}
+
+// The keywords a value can end with.
+const VALUE_KEYWORDS = new Set(["'end'", "'nil'", "'true'", "'false'"]);
+const NAME_OR_NUMBER = /^'(?:[A-Za-z_]\w*|\.?\d.*)'$/;
+
+/** Whether a token, in Luau's description (`describeTokenBefore`), can end a value. */
+function endsValue(token: string | undefined): boolean {
+  if (token === undefined) return false;
+  if (VALUE_KEYWORDS.has(token)) return true;
+  if (RESERVED.has(token.slice(1, -1))) return false;
+  return NAME_OR_NUMBER.test(token) || /^'[)\]}]'$|^'\.\.\.'$/.test(token) || token.startsWith('"') || token.endsWith("`");
 }
 
 // A statement Luau reads wherever one can stand, which the checker writes at
 // the end of a unit's line that a story line follows (see `expressionErrors`).
 const STORY_LINE_BARRIER = " do end";
 const utf8Encoder = new TextEncoder();
-const utf8Decoder = new TextDecoder();
 
 interface CachedUnit {
   check: LuauUnitCheck;
@@ -331,11 +392,13 @@ export class SparkdownTypechecker {
     // Whether the text before an error's token, where its expression is
     // missing, stands in Luau that Sparkdown's validator reports errors in
     // itself (`isCheckedLuau`), such as a `store` declaration, whose value
-    // the checker reads too.
+    // the checker reads too. An error on a later line than a token that ends
+    // a value (`store x = 0xZ`, then `2`) is a statement of its own's.
     const read = (from: number, to: number) => text.slice(from, to);
-    const followsUncheckedLuau = (position: { line: number; character: number }) => {
+    const followsUncheckedLuau = (position: { line: number; character: number }, tokenBefore: string | undefined) => {
       let offset = offsetOf(position);
       while (offset > 0 && /\s/.test(text[offset - 1]!)) offset--;
+      if (text.slice(offset, offsetOf(position)).includes("\n") && endsValue(tokenBefore)) return false;
       return !isCheckedLuau(tree.resolveInner(offset, -1), read);
     };
     // The lines of a unit that a story line follows before its next line.
@@ -376,7 +439,7 @@ export class SparkdownTypechecker {
           if (message === DIVERT_TARGET_TYPE) continue;
           const start = documentPosition(unit, error.location.begin);
           // A Luau file is Luau throughout.
-          if (unit.kind !== "file" && expressionErrors.includes(error) && followsUncheckedLuau(start)) continue;
+          if (unit.kind !== "file" && expressionErrors.includes(error) && followsUncheckedLuau(start, describeTokenBefore(unit.text, error.location.begin))) continue;
           // A function value's name comes right after `function`; after any
           // other token the `(` is missing from a declaration's header, which
           // Sparkdown allows (`function greet` with its body on the next

@@ -19,7 +19,7 @@ import {
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
 import { Mode } from "../typecheck/Module";
-import { SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
+import { endsStatement, SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../inkjs/engine/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
@@ -6793,7 +6793,9 @@ export class SparkdownCompiler {
       // and so is a token Sparkdown already reports an error at.
       const unresolved: { name: string; range: Range }[] = [];
       const errors: Range[] = [];
-      // Sparkdown's own errors that an expression or a name is missing.
+      // Sparkdown's own errors that an expression or a name is missing, but
+      // not its rule that a name after `.` stands on the `.`'s line, which
+      // Luau does not have.
       const missingErrors: Range[] = [];
       for (const d of program.diagnostics?.[scriptUri] ?? []) {
         const message = typeof d.message === "string" ? d.message : d.message.value;
@@ -6801,7 +6803,7 @@ export class SparkdownCompiler {
         if (path) unresolved.push({ name: path.split(".")[0]!, range: d.range });
         if (d.severity === DiagnosticSeverity.Error) {
           errors.push(d.range);
-          if (message.startsWith("Expected identifier")) missingErrors.push(d.range);
+          if (message.startsWith("Expected identifier") && !message.startsWith("Expected identifier after '.' on the same line")) missingErrors.push(d.range);
         }
       }
       const checked = this._typechecker.checkDocument(scriptUri, doc.read(0, doc.length), tree, mode);
@@ -6814,13 +6816,13 @@ export class SparkdownCompiler {
         if (d.unknownGlobal !== undefined && unresolved.some((u) => u.name === d.unknownGlobal && rangeContains(u.range, d.start))) continue;
         if (d.syntax && errors.some((range) => rangeContains(range, tokenOf(d)))) continue;
         // An expression error that begins right after a missing expression
-        // or name only Sparkdown reports, later on its line or on the next, with no `;`
-        // ending that statement between them, is that mistake as Luau reads
-        // the lines where Sparkdown reads them differently (an `else` that
-        // ends its line before a statement at column 0).
+        // or name only Sparkdown reports, later on its line or on the next, with no
+        // statement ending between them (`endsStatement`), is that mistake as
+        // Luau reads the lines where Sparkdown reads them differently (an
+        // `else` that ends its line before a statement at column 0).
         const followsError = (range: Range) =>
           (range.end.line === d.start.line - 1 || (range.end.line === d.start.line && range.end.character <= d.start.character)) &&
-          !doc.read(doc.offsetAt(range.end), doc.offsetAt(d.start)).includes(";");
+          !endsStatement(doc.read(doc.offsetAt(range.end), doc.offsetAt(d.start)));
         if (d.expression && ownErrors.some(followsError)) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
