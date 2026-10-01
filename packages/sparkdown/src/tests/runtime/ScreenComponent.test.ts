@@ -83,7 +83,7 @@ end
 });
 
 describe("screen · classed element with content", () => {
-  test("`text h1 \"…\"` splits into key = tag + classes, value = content", () => {
+  test("`text.h1 \"…\"` splits into key = tag + classes, value = content", () => {
     // The adjacency rule (`tag "content"`) only matches ONE tag token before the
     // string, so an element carrying style classes AND content falls through to
     // the bare-marker fallback. It must still lower like the class-less form
@@ -194,10 +194,9 @@ describe("screen · inline props", () => {
   test("`#prop` is dropped from the static struct; container header keeps its `:`", () => {
     const r = compileUI(`store team_color = "red"
 layout panel with
-  column #gap=16 {
+  column #gap=16:
     image #src="icon.png"
     text "hi" #color={team_color}
-  }
 end
 `);
     expect(r.errors).toEqual([]);

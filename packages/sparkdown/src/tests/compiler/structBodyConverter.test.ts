@@ -794,6 +794,8 @@ describe("the self-check", () => {
 // literals and leaves the TypeScript around it as it was.
 describe("the Sparkdown in a TypeScript source's literals", () => {
   const BT = "`";
+  const SPLICED =
+    "a struct body that holds a `${…}` fragment, which the converter can neither rewrite nor check; convert or confirm it by hand";
   /** The rewrite of `source`, after asserting that nothing was refused and
    *  that a second run changes nothing. */
   const convertedTs = (source: string) => {
@@ -898,7 +900,7 @@ describe("the Sparkdown in a TypeScript source's literals", () => {
     );
     const result = rewriteTypeScriptLiterals(source, "x.test.ts", verifyLiteral);
     expect(result.refusals).toEqual([
-      { line: 6, reason: "a struct body that holds a `${…}` fragment; convert it by hand" },
+      { line: 6, reason: SPLICED },
     ]);
     expect(result.text).toBe(
       lines(
@@ -949,6 +951,75 @@ describe("the Sparkdown in a TypeScript source's literals", () => {
     expect(result.refusals).toEqual([
       { line: 2, reason: "refused the declaration at line 2: a deeper-indented line under a property" },
     ]);
+  });
+
+  // Round 1, comment 5940949807.
+  test("a literal inside a template's fragment is rewritten together with the template", () => {
+    const result = convertedTs(
+      lines(
+        `const s = ${BT}\${"style a with\\n  > a:\\n    color = red\\nend\\n"}`,
+        "style b with",
+        "  > b:",
+        "    color = blue",
+        "end",
+        `${BT};`,
+      ),
+    );
+    expect(result.text).toBe(
+      lines(
+        `const s = ${BT}\${"style a with\\n  > a {\\n    color = red\\n  }\\nend\\n"}`,
+        "style b with",
+        "  > b {",
+        "    color = blue",
+        "  }",
+        "end",
+        `${BT};`,
+      ),
+    );
+  });
+
+  test("a tagged template is read as spelled, so an escape no string allows does not stop the file", () => {
+    const source = lines(
+      `const raw = String.raw${BT}\\u{NO}${BT};`,
+      `const s = ${BT}style s with`,
+      "  > a:",
+      "    color = red",
+      "end",
+      `${BT};`,
+    );
+    const result = rewriteTypeScriptLiterals(source, "x.test.ts", verifyLiteral);
+    expect(result.refusals).toEqual([]);
+    expect(result.text).toBe(source.replace("  > a:\n    color = red\n", "  > a {\n    color = red\n  }\n"));
+  });
+
+  test("a body written by a fragment alone is reported, though nothing in the literal changes", () => {
+    const source = lines(`const s = ${BT}style s with`, "  ${body}", "end", `${BT};`);
+    const result = rewriteTypeScriptLiterals(source, "x.test.ts", verifyLiteral);
+    expect(result.text).toBe(source);
+    expect(result.refusals).toEqual([{ line: 1, reason: SPLICED }]);
+  });
+
+  test("authored text that looks like a fragment marker is not one", () => {
+    const result = convertedTs(`const s = "style s with\\n  > __splice0__:\\n    color = red\\nend\\n";\n`);
+    expect(result.text).toBe(`const s = "style s with\\n  > __splice0__ {\\n    color = red\\n  }\\nend\\n";\n`);
+  });
+
+  test("a kept line keeps its own spelling when a rewritten line reads the same", () => {
+    const result = convertedTs(
+      lines(`const s = ${BT}layout main with`, "  text foo", "  text.\\u0066oo", "end", `${BT};`),
+    );
+    expect(result.text).toBe(
+      lines(`const s = ${BT}layout main with`, "  text.foo", "  text.\\u0066oo", "end", `${BT};`),
+    );
+  });
+
+  test("an array of lines keeps the comments between its elements", () => {
+    const result = convertedTs(
+      `const text = ["style s with", "  > a:", /* property explanation */ "    color = red", /* end explanation */ "end"].join("\\n");\n`,
+    );
+    expect(result.text).toBe(
+      `const text = ["style s with", "  > a {", /* property explanation */ "    color = red", "  }", /* end explanation */ "end"].join("\\n");\n`,
+    );
   });
 
   test("the script converts a TypeScript source it is given", () => {

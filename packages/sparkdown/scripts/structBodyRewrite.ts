@@ -54,9 +54,13 @@ export interface RewriteResult {
   /** Declarations with a struct body (converted, refused or unchanged). */
   declarations: number;
   refusals: Refusal[];
-  /** The 0-based header and `end` lines of each declaration whose body was
-   *  converted or refused. */
-  touched: { header: number; end: number }[];
+  /** The 0-based header and `end` lines of each declaration with a struct
+   *  body, whether converted, refused or unchanged. */
+  bodies: { header: number; end: number }[];
+  /** For each line of `text`, the 0-based line of the source it was written
+   *  from, kept or rewritten, or `null` for a line the rewrite added (a
+   *  closing `}`). The rewrite never removes or reorders a line. */
+  origins: (number | null)[];
 }
 
 // The declarations with a struct body, as the grammar names them; `layout`
@@ -147,6 +151,8 @@ interface OutLine {
   text: string;
   kind: "sig" | "comment" | "blank";
   column: number;
+  /** The source line it was written from, or `null` for an added `}`. */
+  origin: number | null;
 }
 
 interface Open {
@@ -200,8 +206,15 @@ export function rewriteStructBodies(source: string): RewriteResult {
   }
 
   const out: string[] = [];
+  const origins: (number | null)[] = [];
+  const keep = (from: number, to: number) => {
+    for (let l = from; l < to; l++) {
+      out.push(raw[l]!);
+      origins.push(l);
+    }
+  };
   const refusals: Refusal[] = [];
-  const touched: { header: number; end: number }[] = [];
+  const bodies: { header: number; end: number }[] = [];
   let converted = 0;
   let declarations = 0;
   let next = 0;
@@ -213,6 +226,7 @@ export function rewriteStructBodies(source: string): RewriteResult {
     // A one-line declaration has no body to rewrite.
     if (!DECLARATION_HEADER.test(headerLine.text)) continue;
     declarations++;
+    bodies.push({ header, end });
     if (!DECLARATION_END.test(endLine.text)) {
       // The grammar ends the declaration somewhere other than an `end` line:
       // it has none, or a comment or string left open runs past it.
@@ -221,30 +235,30 @@ export function rewriteStructBodies(source: string): RewriteResult {
         declaration: header + 1,
         reason: "the grammar ends this declaration before an `end` line; fix it by hand",
       });
-      touched.push({ header, end });
       continue;
     }
-    out.push(...raw.slice(next, header + 1));
+    keep(next, header + 1);
     const body = lines.slice(header + 1, end);
     try {
       const rewritten = rewriteBody(body, kind, eol);
       if (rewritten) {
         converted++;
-        touched.push({ header, end });
-        out.push(...rewritten);
+        for (const l of rewritten) {
+          out.push(l.text);
+          origins.push(l.origin);
+        }
       } else {
-        out.push(...raw.slice(header + 1, end));
+        keep(header + 1, end);
       }
     } catch (error) {
       if (!(error instanceof Refused)) throw error;
       refusals.push({ line: error.line, declaration: header + 1, reason: error.reason });
-      touched.push({ header, end });
-      out.push(...raw.slice(header + 1, end));
+      keep(header + 1, end);
     }
     next = end;
   }
-  out.push(...raw.slice(next));
-  return { text: out.join("\n"), converted, declarations, refusals, touched };
+  keep(next, raw.length);
+  return { text: out.join("\n"), converted, declarations, refusals, bodies, origins };
 }
 
 const isBlank = (line: Line) => line.text === "" && !line.comment;
@@ -258,7 +272,7 @@ const columnOf = (line: Line) => line.ws.length;
  * The rewritten lines of a body, `null` when it holds no indented form, or
  * throws `Refused`.
  */
-function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null {
+function rewriteBody(body: Line[], kind: BodyKind, eol: string): OutLine[] | null {
   const significant = body.filter((l) => !isBlank(l) && !isComment(l));
   if (significant.length === 0) return null;
   const shared = body.find((l) => l.afterComment);
@@ -306,7 +320,7 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
       ) {
         at++;
       }
-      out.splice(at, 0, { text: `${block.ws}}${cr}`, kind: "sig", column: block.column });
+      out.splice(at, 0, { text: `${block.ws}}${cr}`, kind: "sig", column: block.column, origin: null });
       changed = true;
     }
   };
@@ -323,21 +337,21 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
   for (let pos = 0; pos < body.length; pos++) {
     const line = body[pos]!;
     if (isBlank(line)) {
-      out.push({ text: line.ws + line.cr, kind: "blank", column: columnOf(line) });
+      out.push({ text: line.ws + line.cr, kind: "blank", column: columnOf(line), origin: line.index });
       continue;
     }
     if (isComment(line)) {
       // A multi-line comment's later lines go wherever its first line goes,
       // so a `}` never lands inside it.
       const column = line.comment ? Number.POSITIVE_INFINITY : columnOf(line);
-      out.push({ text: line.ws + line.text + line.cr, kind: "comment", column });
+      out.push({ text: line.ws + line.text + line.cr, kind: "comment", column, origin: line.index });
       continue;
     }
     const column = columnOf(line);
     close(column);
     const deeper = nextColumn(pos) > column;
     const emit = (text: string) =>
-      out.push({ text: line.ws + text + line.cr, kind: "sig", column });
+      out.push({ text: line.ws + text + line.cr, kind: "sig", column, origin: line.index });
 
     if (kind === "layout" && CONTROL.test(line.text)) {
       emit(line.text);
@@ -423,7 +437,7 @@ function rewriteBody(body: Line[], kind: BodyKind, eol: string): string[] | null
   }
   close(-1);
   if (!changed) return null;
-  return out.map((l) => l.text);
+  return out;
 }
 
 interface Entry {

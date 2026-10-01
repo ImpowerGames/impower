@@ -53,8 +53,9 @@ describe("layer reference validity", () => {
     const program = compile(
       [
         "layout main with",
-        "  stage:",
-        "    weather_overlay:",
+        "  stage {",
+        "    weather_overlay",
+        "  }",
         "end",
         "",
         scene("  [[show weather_overlay BG]]"),
@@ -69,16 +70,18 @@ describe("layer reference validity", () => {
   });
 
   it("accepts either token of a classed element", () => {
-    // `mask shadow_1` mounts as one element named "mask shadow_1", and the
+    // `mask.shadow_1` mounts as one element named "mask shadow_1", and the
     // engine keeps a child when every token of the target is among the child's
     // tokens — so both halves reach it, and a command target can only ever BE
     // one token, since the grammar captures it as a single run of non-spaces.
     const program = compile(
       [
         "layout main with",
-        "  stage:",
-        "    portrait:",
-        "      mask shadow_1",
+        "  stage {",
+        "    portrait {",
+        "      mask.shadow_1",
+        "    }",
+        "  }",
         "end",
         "",
         scene("  [[hide shadow_1]]\n  [[hide mask]]"),
@@ -93,9 +96,10 @@ describe("layer reference validity", () => {
     const program = compile(
       [
         "layout main with",
-        "  column:",
-        '    text h1 "Sparkle x Pico"',
+        "  column {",
+        '    text.h1 "Sparkle x Pico"',
         '    label "plain"',
+        "  }",
         "end",
         "",
         scene("  [[animate text with shake]]\n  [[animate label with shake]]"),

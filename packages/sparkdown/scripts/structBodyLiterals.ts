@@ -10,15 +10,20 @@
 //     (`["style s with", "  > a:", "end"].join("\n")`).
 //
 // Each literal is decoded to the text it holds, rewritten, and encoded back
-// in its own quoting: a line the rewrite keeps keeps its source spelling,
+// in its own quoting. The rewrite says which source line each line of its
+// result was written from, so a line it keeps keeps its source spelling,
 // escapes included, and only the lines it changes or adds are spelled anew.
+// In an array, each element keeps the text between it and the element before
+// it, comments included.
 //
-// A template literal spliced together from `${…}` fragments is rewritten
-// only when no rewritten body holds a fragment: each fragment stands in the
-// text as a placeholder name, and a body that holds one is reported and
-// left for a hand edit, because what the fragment holds decides the body's
-// shape. A tagged template, whose text the tag reads, is reported the same
-// way.
+// A template literal spliced together from `${…}` fragments stands in the
+// text with a marker for each fragment. A declaration whose body holds one
+// is reported and the literal left for a hand edit, whether or not the rest
+// of the body needs a rewrite, because what the fragment holds decides the
+// body's shape and cannot be checked here. A literal inside a fragment is
+// rewritten first, and its rewrite is kept in the fragment's spelling. A
+// tagged template, whose text the tag reads, is reported the same way when
+// it holds an old form.
 //
 // This script is deleted with the indented forms by the last slice of #1222.
 
@@ -58,7 +63,9 @@ export type Verify = (before: string, after: string) => string[];
 // A line that ends a declaration header (`… with`), which a literal holding
 // Sparkdown with a struct body must have.
 const HEADER_LINE = /\bwith[ \t]*(?:(?:--|\/\/)[^\n]*)?\r?\n/;
-const PLACEHOLDER = /__splice(\d+)__/g;
+
+const SPLICED =
+  "a struct body that holds a `${…}` fragment, which the converter can neither rewrite nor check; convert or confirm it by hand";
 
 /** One character or escape of a literal: its source spelling, the text it
  *  holds, and where its spelling starts in the TypeScript source. */
@@ -66,6 +73,8 @@ interface Piece {
   raw: string;
   cooked: string;
   pos: number;
+  /** The index of the `${…}` fragment this piece stands for. */
+  splice?: number;
 }
 
 interface Line {
@@ -74,8 +83,31 @@ interface Line {
   eol?: Piece;
 }
 
-/** Decodes the spelling of a string or template literal part. */
+class Unreadable extends Error {}
+
+const SIMPLE_ESCAPES: Record<string, string> = {
+  n: "\n",
+  r: "\r",
+  t: "\t",
+  b: "\b",
+  f: "\f",
+  v: "\v",
+  "0": "\0",
+  "\n": "",
+  "\r": "",
+  " ": "",
+  " ": "",
+};
+
+/** Decodes the spelling of a string or template literal part, or throws
+ *  `Unreadable` for an escape it cannot read. */
 function decode(raw: string, pos: number, template: boolean, out: Piece[]) {
+  const hex = (s: string) => {
+    if (!/^[0-9A-Fa-f]+$/.test(s)) throw new Unreadable(`an escape \`${s}\` it cannot read`);
+    const n = parseInt(s, 16);
+    if (n > 0x10ffff) throw new Unreadable(`an escape \`${s}\` it cannot read`);
+    return String.fromCodePoint(n);
+  };
   let k = 0;
   while (k < raw.length) {
     const c = raw[k]!;
@@ -86,32 +118,20 @@ function decode(raw: string, pos: number, template: boolean, out: Piece[]) {
       let cooked: string;
       if (n === "x") {
         len = 4;
-        cooked = String.fromCharCode(parseInt(raw.slice(k + 2, k + 4), 16));
+        cooked = hex(raw.slice(k + 2, k + 4));
       } else if (n === "u" && raw[k + 2] === "{") {
         const close = raw.indexOf("}", k);
+        if (close < 0) throw new Unreadable("an unclosed `\\u{` escape");
         len = close - k + 1;
-        cooked = String.fromCodePoint(parseInt(raw.slice(k + 3, close), 16));
+        cooked = hex(raw.slice(k + 3, close));
       } else if (n === "u") {
         len = 6;
-        cooked = String.fromCharCode(parseInt(raw.slice(k + 2, k + 6), 16));
+        cooked = hex(raw.slice(k + 2, k + 6));
       } else if (n === "\r" && raw[k + 2] === "\n") {
         len = 3;
         cooked = "";
       } else {
-        const simple: Record<string, string> = {
-          n: "\n",
-          r: "\r",
-          t: "\t",
-          b: "\b",
-          f: "\f",
-          v: "\v",
-          "0": "\0",
-          "\n": "",
-          "\r": "",
-          " ": "",
-          " ": "",
-        };
-        cooked = simple[n] ?? n;
+        cooked = SIMPLE_ESCAPES[n] ?? n;
       }
       out.push({ raw: raw.slice(k, k + len), cooked, pos: at });
       k += len;
@@ -130,7 +150,7 @@ function decode(raw: string, pos: number, template: boolean, out: Piece[]) {
 function splitLines(pieces: Piece[]): Line[] {
   const lines: Line[] = [{ pieces: [] }];
   for (const piece of pieces) {
-    if (piece.cooked === "\n") {
+    if (piece.splice === undefined && piece.cooked === "\n") {
       lines[lines.length - 1]!.eol = piece;
       lines.push({ pieces: [] });
     } else {
@@ -143,51 +163,31 @@ function splitLines(pieces: Piece[]): Line[] {
 const cookedOf = (line: Line) => line.pieces.map((p) => p.cooked).join("");
 const rawOf = (line: Line) => line.pieces.map((p) => p.raw).join("");
 
-/** Pairs of indices of equal lines, the longest common subsequence. */
-function commonLines(a: string[], b: string[]): Map<number, number> {
-  const n = a.length;
-  const m = b.length;
-  const table: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      table[i]![j] = a[i] === b[j] ? table[i + 1]![j + 1]! + 1 : Math.max(table[i + 1]![j]!, table[i]![j + 1]!);
-    }
+/**
+ * Gives each fragment piece a marker that occurs nowhere else in the
+ * literal's text, so authored text never reads as a fragment.
+ */
+function markSplices(pieces: Piece[]): void {
+  const text = pieces.filter((p) => p.splice === undefined).map((p) => p.cooked).join("");
+  let nonce = 0;
+  while (text.includes(`__splice${nonce}_`)) nonce++;
+  for (const piece of pieces) {
+    if (piece.splice !== undefined) piece.cooked = `__splice${nonce}_${piece.splice}__`;
   }
-  const pairs = new Map<number, number>();
-  let i = 0;
-  let j = 0;
-  while (i < n && j < m) {
-    if (a[i] === b[j]) {
-      pairs.set(j, i);
-      i++;
-      j++;
-    } else if (table[i + 1]![j]! >= table[i]![j + 1]!) i++;
-    else j++;
-  }
-  return pairs;
 }
 
-/** Spells one line of text for a literal quoted with `quote`. */
-function encode(text: string, quote: string, splices: string[]): string {
+/** Spells one new line of text for a literal quoted with `quote`. */
+function encode(text: string, quote: string): string {
   let out = "";
-  let last = 0;
-  const spell = (s: string) => {
-    for (let k = 0; k < s.length; k++) {
-      const c = s[k]!;
-      if (c === "\\") out += "\\\\";
-      else if (c === quote) out += `\\${c}`;
-      else if (c === "\r") out += "\\r";
-      else if (c === "\t" && quote !== "`") out += "\\t";
-      else if (quote === "`" && c === "$" && s[k + 1] === "{") out += "\\$";
-      else out += c;
-    }
-  };
-  for (const match of text.matchAll(PLACEHOLDER)) {
-    spell(text.slice(last, match.index));
-    out += splices[Number(match[1])]!;
-    last = match.index! + match[0].length;
+  for (let k = 0; k < text.length; k++) {
+    const c = text[k]!;
+    if (c === "\\") out += "\\\\";
+    else if (c === quote) out += `\\${c}`;
+    else if (c === "\r") out += "\\r";
+    else if (c === "\t" && quote !== "`") out += "\\t";
+    else if (quote === "`" && c === "$" && text[k + 1] === "{") out += "\\$";
+    else out += c;
   }
-  spell(text.slice(last));
   return out;
 }
 
@@ -195,6 +195,14 @@ interface Edit {
   start: number;
   end: number;
   text: string;
+}
+
+interface Rewritten {
+  /** The new lines of text. */
+  lines: string[];
+  /** For each new line, the literal's line it was written from, or `null`
+   *  for an added line. */
+  origins: (number | null)[];
 }
 
 /**
@@ -213,12 +221,20 @@ export function rewriteTypeScriptLiterals(
   const refusals: LiteralRefusal[] = [];
   const edits: Edit[] = [];
 
+  /** `source` between `from` and `to`, with the edits queued inside it. */
+  const edited = (from: number, to: number) => {
+    let text = source.slice(from, to);
+    const inside = edits.filter((e) => e.start >= from && e.end <= to).sort((a, b) => b.start - a.start);
+    for (const e of inside) text = text.slice(0, e.start - from) + e.text + text.slice(e.end - from);
+    return text;
+  };
+
   /**
    * Rewrites the text of one literal, given as lines of pieces. Returns the
-   * new lines of text, or null when nothing changes or the literal is
-   * refused, after reporting it.
+   * new lines, or null when nothing changes or the literal is refused, after
+   * reporting it.
    */
-  const rewriteLines = (lines: Line[], shape: LiteralShape, start: number): string[] | null => {
+  const rewriteLines = (lines: Line[], shape: LiteralShape, start: number): Rewritten | null => {
     const before = lines.map(cookedOf);
     const text = before.join("\n");
     if (!HEADER_LINE.test(text)) return null;
@@ -239,18 +255,17 @@ export function rewriteTypeScriptLiterals(
     for (const r of result.refusals) {
       refusals.push({ line: lineOf(r.line - 1), reason: `refused the declaration at line ${lineOf(r.declaration - 1)}: ${r.reason}` });
     }
-    if (result.text === text) return null;
-    for (const { header, end } of result.touched) {
-      const spliced = before.slice(header + 1, end + 1).some((l) => /__splice\d+__/.test(l));
+    // A fragment in a body decides the body's shape, so such a body is
+    // reported even when the rest of it needs no rewrite.
+    for (const { header, end } of result.bodies) {
+      const spliced = lines.slice(header + 1, end + 1).some((l) => l.pieces.some((p) => p.splice !== undefined));
       if (spliced) {
-        refusals.push({
-          line: lineOf(header),
-          reason: "a struct body that holds a `${…}` fragment; convert it by hand",
-        });
+        refusals.push({ line: lineOf(header), reason: SPLICED });
         report.converted = 0;
         return null;
       }
     }
+    if (result.text === text) return null;
     const differences = verify?.(text, result.text) ?? [];
     if (differences.length > 0) {
       refusals.push({
@@ -260,19 +275,19 @@ export function rewriteTypeScriptLiterals(
       report.converted = 0;
       return null;
     }
-    return result.text.split("\n");
+    return { lines: result.text.split("\n"), origins: result.origins };
   };
 
   /** Spells new lines of text, keeping the spelling of every kept line. */
-  const respell = (lines: Line[], after: string[], quote: string, splices: string[], eol: string) => {
-    const pairs = commonLines(lines.map(cookedOf), after);
+  const respell = (lines: Line[], after: Rewritten, quote: string, eol: string) => {
     let out = "";
-    after.forEach((text, j) => {
-      const i = pairs.get(j);
-      out += i === undefined ? encode(text, quote, splices) : rawOf(lines[i]!);
-      if (j < after.length - 1) {
-        const kept = i === undefined ? undefined : lines[i]!.eol;
-        out += kept ? kept.raw : eol;
+    after.lines.forEach((text, j) => {
+      const origin = after.origins[j];
+      const kept = origin !== null && origin !== undefined && cookedOf(lines[origin]!) === text;
+      out += kept ? rawOf(lines[origin]!) : encode(text, quote);
+      if (j < after.lines.length - 1) {
+        const own = origin === null || origin === undefined ? undefined : lines[origin]!.eol;
+        out += own ? own.raw : eol;
       }
     });
     return out;
@@ -280,57 +295,81 @@ export function rewriteTypeScriptLiterals(
 
   const visitTemplate = (node: ts.TemplateLiteral) => {
     const startAt = node.getStart(file);
+    const tagged = ts.isTaggedTemplateExpression(node.parent);
     const pieces: Piece[] = [];
-    const splices: string[] = [];
+    // The parts of the template's spelling, with the fragments between them.
+    const parts: { from: number; to: number }[] = [];
+    const splices: { from: number; to: number }[] = [];
     if (ts.isNoSubstitutionTemplateLiteral(node)) {
-      decode(source.slice(startAt + 1, node.end - 1), startAt + 1, true, pieces);
+      parts.push({ from: startAt + 1, to: node.end - 1 });
     } else {
-      decode(source.slice(startAt + 1, node.head.end - 2), startAt + 1, true, pieces);
+      parts.push({ from: startAt + 1, to: node.head.end - 2 });
       let from = node.head.end - 2;
       for (const span of node.templateSpans) {
         const literalStart = span.literal.getStart(file);
-        const placeholder = `__splice${splices.length}__`;
-        splices.push(source.slice(from, literalStart + 1));
-        pieces.push({ raw: splices[splices.length - 1]!, cooked: placeholder, pos: from });
-        const tail = ts.isTemplateTail(span.literal);
-        const partEnd = span.literal.end - (tail ? 1 : 2);
-        decode(source.slice(literalStart + 1, partEnd), literalStart + 1, true, pieces);
+        splices.push({ from, to: literalStart + 1 });
+        const partEnd = span.literal.end - (ts.isTemplateTail(span.literal) ? 1 : 2);
+        parts.push({ from: literalStart + 1, to: partEnd });
         from = partEnd;
       }
     }
-    const lines = splitLines(pieces);
-    if (ts.isTaggedTemplateExpression(node.parent)) {
-      const text = lines.map(cookedOf).join("\n");
-      if (HEADER_LINE.test(text) && rewriteStructBodies(text).text !== text) {
-        refusals.push({ line: lineAt(startAt), reason: "a tagged template, whose text the tag reads; convert it by hand" });
+    if (tagged) {
+      // A tag reads the template's spelling, which need not be a readable
+      // string, so it is checked as spelled and never rewritten.
+      const text = parts.map((p) => source.slice(p.from, p.to)).join("__splice__");
+      if (HEADER_LINE.test(text)) {
+        const result = rewriteStructBodies(text);
+        if (result.text !== text || result.refusals.length > 0) {
+          refusals.push({ line: lineAt(startAt), reason: "a tagged template, whose text the tag reads; convert it by hand" });
+        }
       }
       return;
     }
+    try {
+      parts.forEach((part, i) => {
+        decode(source.slice(part.from, part.to), part.from, true, pieces);
+        const splice = splices[i];
+        if (splice) pieces.push({ raw: edited(splice.from, splice.to), cooked: "", pos: splice.from, splice: i });
+      });
+    } catch (error) {
+      if (!(error instanceof Unreadable)) throw error;
+      refusals.push({ line: lineAt(startAt), reason: `a template literal with ${error.message}; convert it by hand` });
+      return;
+    }
+    markSplices(pieces);
+    const lines = splitLines(pieces);
     const after = rewriteLines(lines, "template", startAt);
     if (!after) return;
     const breaks = lines.flatMap((l) => (l.eol ? [l.eol.raw] : []));
     const eol = breaks.find((b) => b === "\n" || b === "\r\n") ?? breaks[0] ?? "\n";
-    edits.push({
-      start: startAt + 1,
-      end: node.end - 1,
-      text: respell(lines, after, "`", splices, eol),
-    });
+    // The literals inside the fragments are rewritten in the fragments'
+    // spelling, so their own edits are dropped for this one.
+    for (let k = edits.length - 1; k >= 0; k--) {
+      if (edits[k]!.start >= startAt && edits[k]!.end <= node.end) edits.splice(k, 1);
+    }
+    edits.push({ start: startAt + 1, end: node.end - 1, text: respell(lines, after, "`", eol) });
   };
 
   const visitString = (node: ts.StringLiteral) => {
     const startAt = node.getStart(file);
     const quote = source[startAt]!;
     const pieces: Piece[] = [];
-    decode(source.slice(startAt + 1, node.end - 1), startAt + 1, false, pieces);
+    try {
+      decode(source.slice(startAt + 1, node.end - 1), startAt + 1, false, pieces);
+    } catch (error) {
+      if (!(error instanceof Unreadable)) throw error;
+      refusals.push({ line: lineAt(startAt), reason: `a string with ${error.message}; convert it by hand` });
+      return;
+    }
     const lines = splitLines(pieces);
     const after = rewriteLines(lines, "string", startAt);
     if (!after) return;
     const eol = lines.find((l) => l.eol)?.eol?.raw ?? "\\n";
-    edits.push({ start: startAt + 1, end: node.end - 1, text: respell(lines, after, quote, [], eol) });
+    edits.push({ start: startAt + 1, end: node.end - 1, text: respell(lines, after, quote, eol) });
   };
 
-  /** `["…", "…"].join("\n")`: the array, when every element is a quoted
-   *  line, or undefined. */
+  /** `["…", "…"].join("\n")`: the array's separator, when every element is
+   *  a quoted line, or undefined. */
   const joinedLines = (node: ts.ArrayLiteralExpression) => {
     const access = node.parent;
     if (!ts.isPropertyAccessExpression(access) || access.name.text !== "join") return undefined;
@@ -347,37 +386,61 @@ export function rewriteTypeScriptLiterals(
     const elements = node.elements as ts.NodeArray<ts.StringLiteral | ts.NoSubstitutionTemplateLiteral>;
     const startAt = elements[0]!.getStart(file);
     const lines: Line[] = [];
-    for (const element of elements) {
-      const at = element.getStart(file);
-      const pieces: Piece[] = [];
-      decode(source.slice(at + 1, element.end - 1), at + 1, ts.isNoSubstitutionTemplateLiteral(element), pieces);
-      lines.push({ pieces: pieces.map((p) => ({ ...p })) });
+    try {
+      for (const element of elements) {
+        const at = element.getStart(file);
+        const pieces: Piece[] = [];
+        decode(source.slice(at + 1, element.end - 1), at + 1, ts.isNoSubstitutionTemplateLiteral(element), pieces);
+        lines.push({ pieces });
+      }
+    } catch (error) {
+      if (!(error instanceof Unreadable)) throw error;
+      refusals.push({ line: lineAt(startAt), reason: `an array of lines with ${error.message}; convert it by hand` });
+      return;
     }
-    if (lines.some((l) => l.pieces.some((p) => p.cooked.includes("\n")))) {
-      if (HEADER_LINE.test(lines.map(cookedOf).join(separator))) {
+    const cooked = lines.map(cookedOf);
+    if (cooked.some((l) => l.includes("\n"))) {
+      if (HEADER_LINE.test(cooked.join(separator))) {
         refusals.push({ line: lineAt(startAt), reason: "an array of lines with a line break inside an element; convert it by hand" });
       }
       return;
     }
     // A `\r\n` join leaves a `\r` at the end of every line but the last.
-    const cooked = lines.map(cookedOf);
     const crlf = separator === "\r\n";
-    const joined = lines.map((l, i) => ({
+    const joined: Line[] = lines.map((l, i) => ({
       pieces: crlf && i < lines.length - 1 ? [...l.pieces, { raw: "", cooked: "\r", pos: l.pieces[0]?.pos ?? startAt }] : l.pieces,
       eol: i < lines.length - 1 ? { raw: "", cooked: "\n", pos: startAt } : undefined,
     }));
     const after = rewriteLines(joined, "lines", startAt);
     if (!after) return;
     const quote = source[startAt]!;
-    const gap = elements.length > 1 ? source.slice(elements[0]!.end, elements[1]!.getStart(file)) : ", ";
-    const pairs = commonLines(cooked, after.map((l) => (crlf ? l.replace(/\r$/, "") : l)));
-    const spelled = after.map((text, j) => {
-      const i = pairs.get(j);
-      return i === undefined
-        ? `${quote}${encode(crlf ? text.replace(/\r$/, "") : text, quote, [])}${quote}`
-        : source.slice(elements[i]!.getStart(file), elements[i]!.end);
+    const gapAfter = (i: number) => source.slice(elements[i]!.end, elements[i + 1]!.getStart(file));
+    // An added element is separated by the first gap that holds no comment.
+    let plainGap = ", ";
+    for (let i = 0; i + 1 < elements.length; i++) {
+      if (!/\/[/*]/.test(gapAfter(i))) {
+        plainGap = gapAfter(i);
+        break;
+      }
+    }
+    let out = "";
+    let lastOrigin = -1;
+    after.lines.forEach((text, j) => {
+      const origin = after.origins[j];
+      const line = crlf ? text.replace(/\r$/, "") : text;
+      if (j > 0) {
+        // An element keeps the text before it, comments included, and an
+        // added element takes a plain gap.
+        out += origin !== null && origin !== undefined && origin === lastOrigin + 1 && origin > 0 ? gapAfter(origin - 1) : plainGap;
+      }
+      if (origin !== null && origin !== undefined) {
+        out += cooked[origin] === line ? source.slice(elements[origin]!.getStart(file), elements[origin]!.end) : `${quote}${encode(line, quote)}${quote}`;
+        lastOrigin = origin;
+      } else {
+        out += `${quote}${encode(line, quote)}${quote}`;
+      }
     });
-    edits.push({ start: startAt, end: elements[elements.length - 1]!.end, text: spelled.join(gap) });
+    edits.push({ start: startAt, end: elements[elements.length - 1]!.end, text: out });
   };
 
   const visit = (node: ts.Node) => {
@@ -388,7 +451,14 @@ export function rewriteTypeScriptLiterals(
         return;
       }
     }
-    if (ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node)) {
+    if (ts.isTemplateExpression(node)) {
+      // The literals inside its fragments first, so its own rewrite can
+      // carry theirs.
+      ts.forEachChild(node, visit);
+      visitTemplate(node);
+      return;
+    }
+    if (ts.isNoSubstitutionTemplateLiteral(node)) {
       visitTemplate(node);
     } else if (ts.isStringLiteral(node)) {
       visitString(node);

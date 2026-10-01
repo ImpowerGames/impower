@@ -202,7 +202,7 @@ end
     ).toMatch(/duplicate/i);
   });
 
-  test("a `keyframes:` block written only as `-` items reports nothing", () => {
+  test("a `keyframes` block written only as `{ … }` items reports nothing", () => {
     expect(
       messagesOf(
         `animation listed with
@@ -239,7 +239,7 @@ end
     expect(struct.keyframes).toEqual([{ offset: 0.25, opacity: "1" }]);
   });
 
-  test("mixing position keys with `-` items is an error", () => {
+  test("mixing position keys with `{ … }` items is an error", () => {
     const source = `animation mixed with
   keyframes {
     from {

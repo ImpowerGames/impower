@@ -60,7 +60,7 @@ describe("dotted-class warning", () => {
 
   test("space-separated classes produce no dotted-class warning", () => {
     const diags = diagnosticsFor(
-      `layout main with\n  row.hud #gap=12 {\n    text "x"\n  }\nend\n`,
+      `layout main with\n  row hud #gap=12:\n    text "x"\nend\n`,
     );
     expect(warnsDotted(diags)).toBe(false);
   });

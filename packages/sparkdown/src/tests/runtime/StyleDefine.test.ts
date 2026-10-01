@@ -152,7 +152,7 @@ end
     });
   });
 
-  test("attribute selectors (`> #image^=raffles_:`) survive", () => {
+  test("attribute selectors (`> #image^=raffles_ { … }`) survive", () => {
     const r = compileStyle(`style shadow with
   > #image^=raffles_ {
     background_color = #E5323E
