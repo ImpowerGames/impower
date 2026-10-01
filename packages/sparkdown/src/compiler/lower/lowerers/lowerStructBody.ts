@@ -11,7 +11,10 @@ import {
   type StructEntry,
   type StructEntryKind,
 } from "../utils/structBodyEntries";
-import { sparkleElementParts } from "../utils/sparkleBlockEntries";
+import {
+  sparkleElementParts,
+  sparklePartNodes,
+} from "../utils/sparkleBlockEntries";
 import { unescapeString } from "../utils/unescapeString";
 import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 
@@ -159,6 +162,7 @@ const ATTRIBUTE_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauPropAttribute",
   "LuauSparkleEventAttribute",
   "LuauSparklePropAttribute",
+  "LuauSparkleEventClosureAttribute",
 ]);
 
 // Spans of inline element attributes (`@event=…`, `#prop=…`) within a node, in
@@ -291,51 +295,145 @@ const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
   "LuauStructBlockSlashComment",
 ]);
 
+// A piece of an element's text: the source from `node.from` to `to`, read
+// with `edits` applied.
+interface ElementSegment {
+  node: SyntaxNode;
+  to: number;
+  edits: TextEdit[];
+  /** The node the value is looked for in, if any. */
+  value: SyntaxNode | null;
+}
+
+// An event closure that goes on at the next line, which a segment's text
+// never holds: it is an attribute, and it spans lines.
+const CLOSURE_ATTRIBUTE = "LuauSparkleEventClosureAttribute";
+
+// Segments read as one line. Segments that follow one another directly are
+// one run, read as one range with all their edits, so an element written on
+// one line reads exactly as its own text did; runs are joined with a space.
+function joinSegments(
+  segments: ElementSegment[],
+  read: (from: SyntaxNode, edits: TextEdit[], to: number) => string,
+): string {
+  const runs: ElementSegment[][] = [];
+  for (const segment of segments) {
+    const run = runs[runs.length - 1];
+    const last = run?.[run.length - 1];
+    if (run && last && segment.node.from === last.to) run.push(segment);
+    else runs.push([segment]);
+  }
+  return runs
+    .map((run) =>
+      read(
+        run[0]!.node,
+        run.flatMap((s) => s.edits),
+        run[run.length - 1]!.to,
+      ),
+    )
+    .join(" ");
+}
+
+// The segments of an element's text, in source order: a brace element's name
+// and arguments, its head and the runs of parts and event closures after it,
+// or an indented line's shape; then the parts of the continuation lines it
+// takes (#1225). Joined (`joinSegments`) they read as the one-line element.
+function elementSegments(entry: StructEntry): ElementSegment[] {
+  const part = (node: SyntaxNode): ElementSegment => ({
+    node,
+    to: node.to,
+    edits: [
+      ...attributeRanges(node),
+      ...nodesOutsideAttributes(node, COMMENT_NAMES),
+      ...classDots(node),
+    ],
+    value: node,
+  });
+  const segments: ElementSegment[] = [];
+  if (entry.element) {
+    const element = entry.shape;
+    // Its name and a call's arguments, read as written.
+    const { beginTo } = sparkleElementParts(element);
+    segments.push({ node: element, to: beginTo, edits: [], value: null });
+    for (const node of sparklePartNodes(element)) segments.push(part(node));
+  } else {
+    // An indented line, read as the indented form reads it: its comments stay.
+    const shape = entry.shape;
+    segments.push({
+      node: shape,
+      to: shape.to,
+      edits: [...attributeRanges(shape), ...classDots(shape)],
+      value: shape,
+    });
+  }
+  for (const node of entry.continuations ?? []) segments.push(part(node));
+  return segments;
+}
+
 // An element in a layout or component brace block, keyed as the same element
 // on an indented line is: the line's text up to its block with its attributes
 // and comments removed and each class's `.` read as a space. An element with a
 // block keys its children by that text, content included
 // (`foldout "More" { … }` is keyed `foldout "More"`, as `foldout "More":` is).
 // One without a block is keyed by that text without its content, and its
-// content is its value (`text.title "Hi"` is `"text title": "Hi"`).
+// content is its value (`text.title "Hi"` is `"text title": "Hi"`). An
+// element whose parts go on over later lines (#1225) is keyed as the same
+// element written on one line.
 function evaluateElement(
   entry: StructEntry,
   obj: Record<string, unknown>,
   ctx: LowerContext,
   elementKeys: boolean,
 ): void {
-  const element = entry.shape;
-  const { head } = sparkleElementParts(element);
-  const end = head?.to ?? element.to;
-  const edits: TextEdit[] = head
-    ? [
-        ...attributeRanges(head),
-        ...nodesOutsideAttributes(head, COMMENT_NAMES),
-        ...classDots(head),
-      ]
-    : [];
+  const segments = elementSegments(entry);
+  const keyOf = (value: SyntaxNode | null) =>
+    oneSpace(
+      joinSegments(
+        segments.filter((s) => s.node.name !== CLOSURE_ATTRIBUTE),
+        (node, edits, to) =>
+          textExcluding(
+            node,
+            ctx,
+            value && value.from >= node.from && value.to <= to
+              ? [...edits, { from: value.from, to: value.to }]
+              : edits,
+            to,
+          ),
+      ),
+    );
   if (entry.kind === "header") {
-    const key = oneSpace(textExcluding(element, ctx, edits, end));
-    obj[key] = entry.children ? evaluate(entry.children, ctx, elementKeys) : {};
+    obj[keyOf(null)] = entry.children
+      ? evaluate(entry.children, ctx, elementKeys)
+      : {};
     return;
   }
   // The value is found as on an indented line, attributes included, so a
   // quoted `#prop` value before any content is the value there too
   // (`loading_fill #transform="scaleX({p})"` is keyed `loading_fill` with
   // that string).
-  const valueNode = head ? firstDescendant(head, FIELD_VALUE_NAMES) : null;
+  let valueNode: SyntaxNode | null = null;
+  for (const segment of segments) {
+    if (valueNode) break;
+    if (segment.value && segment.node.name !== CLOSURE_ATTRIBUTE) {
+      valueNode = firstDescendant(segment.value, FIELD_VALUE_NAMES);
+    }
+  }
   // An indented `name "content" …` line is adjacency content
   // (`LuauStructAdjacencyContent`): keyed by its name alone and valued by
   // that first string, whatever follows it (`text "a" "b"` is `text: "a"`).
   // The same element in a block is keyed alike, decided by the grammar's own
-  // pattern for that line.
-  const adjacency = ADJACENCY_CONTENT.exec(ctx.read(element.from, end));
+  // pattern for that line. An element written over several lines is tried as
+  // the one line its segments make.
+  const adjacency = ADJACENCY_CONTENT.exec(
+    joinSegments(segments, (node, _edits, to) =>
+      ctx.read(node.from, to).replace(/[\r\n]/g, " "),
+    ),
+  );
   if (adjacency) {
     obj[adjacency[2]!] = parseScalar(adjacency[4]!);
     return;
   }
-  if (valueNode) edits.push({ from: valueNode.from, to: valueNode.to });
-  const key = oneSpace(textExcluding(element, ctx, edits, end));
+  const key = keyOf(valueNode);
   if (!key) return;
   obj[key] = valueNode ? parseScalar(readValue(valueNode, ctx)) : {};
 }
@@ -350,7 +448,7 @@ function evaluate(
   for (const entry of entries) {
     const shape = entry.shape;
 
-    if (entry.element) {
+    if (entry.element || entry.continuations) {
       evaluateElement(entry, obj, ctx, elementKeys);
     } else if (entry.kind === "item") {
       // Entries beneath the item (indented, carried on the dash line, or

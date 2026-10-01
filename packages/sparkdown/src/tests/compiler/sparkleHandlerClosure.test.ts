@@ -1,8 +1,8 @@
-// Inline event-handler closures (`@input={ name = event.value }`) are
-// single-line: the event attribute is line-oriented, so the closing `}` must be
-// on the `=` line. A body split across lines is force-closed at the newline;
-// the lowerer detects the missing `}` and raises a diagnostic instead of
-// silently dropping the statements past line 1.
+// Inline event-handler closures (`@input={ name = event.value }`) may span
+// lines (#1225): a closure its line leaves open goes on to its `}`. One left
+// without its `}` ends where a line starts with `end`, `else`, `elseif` or
+// `case`, and the lowerer reports the missing `}` instead of silently
+// dropping the statements.
 
 import { describe, expect, test } from "vitest";
 import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
@@ -47,12 +47,19 @@ end
     expect(unterminated(src)).toHaveLength(0);
   });
 
-  test("a closure whose `}` is missing on the line is flagged", () => {
-    // The `}` is on the next line, so the line-oriented attribute force-closes
-    // the closure at the newline — `combo = 0` and the `}` are dropped.
+  test("a closure whose `}` is on a later line compiles cleanly", () => {
     const src = `layout form with
   button "x" @click={ score = 0
     combo = 0 }
+end
+`;
+    expect(unterminated(src)).toHaveLength(0);
+  });
+
+  test("a closure with no `}` is flagged", () => {
+    const src = `layout form with
+  button "x" @click={ score = 0
+    combo = 0
 end
 `;
     expect(unterminated(src)).toHaveLength(1);

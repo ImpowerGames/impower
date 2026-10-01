@@ -977,10 +977,13 @@ end
   });
 
   test("a stray `}`, an indented header, a `-` item and a block with no element are invalid", () => {
+    // A block on a line of its own is the block of the element before it
+    // (#1225); the invalid `row:` ends the `text` element, so the block after
+    // it has none.
     const text = `layout hud with
   column {
-    row:
     - text
+    row:
     { text "x" }
   }
   }
@@ -991,8 +994,8 @@ end
         .map((e) => [e.message, e.line, e.text])
         .sort((a, b) => (a[1] as number) - (b[1] as number)),
     ).toEqual([
-      ["Invalid syntax", 2, "row:"],
-      ["Invalid syntax", 3, "-"],
+      ["Invalid syntax", 2, "-"],
+      ["Invalid syntax", 3, "row:"],
       ["Invalid syntax", 4, "{"],
       ["Invalid syntax", 6, "}"],
     ]);

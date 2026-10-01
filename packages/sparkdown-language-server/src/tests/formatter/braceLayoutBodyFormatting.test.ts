@@ -38,6 +38,33 @@ end
     expect(formatSource(source)).toBe(source);
   });
 
+  test("an element whose parts go on over later lines round-trips unchanged", () => {
+    // #1225. Indenting continuation lines is the formatter slice's (#1227).
+    const source = `layout popup with
+  button
+    .fancy
+    #bg-color=green
+    "Okay"
+    @click={
+      score = 0
+      combo = 0
+    }
+  {
+    text "Confirm"
+  }
+  column {
+    text
+      .title
+      "Inventory"
+    button "Go" @click={
+      score = score + 1
+    }
+  }
+end
+`;
+    expect(formatSource(source)).toBe(source);
+  });
+
   test("lines inside a block keep their indentation, and the lines after it keep their level", () => {
     const source = `layout hud with
       column.panel {

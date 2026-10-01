@@ -1,0 +1,63 @@
+layout wrapped with
+  button
+    .fancy
+    .large
+    #bg-color=green
+    "Okay"
+    @click=confirm
+    'single'
+  {
+    text "Confirm"
+  }
+  column.panel {
+    text
+      .title
+      -- a comment between parts
+      // and another
+      "Inventory"
+
+      #width=5
+    row
+    { text "own line" }
+    text "a" .b; .c
+    image
+      #src={icon} {
+        stroke
+      }
+    text = "a property"
+    .after_property
+    if busy then
+      text
+        "busy"
+    else
+      spinner
+      .x
+    end
+    .after_end
+    card("Title")
+      .wide
+    {
+      text "body"
+    }
+    text "x"
+      .y }
+  stage:
+    mask.shadow_1
+  text
+    "next" {
+      stroke
+    } .after_block
+  "after the block"
+  title
+    = { text }
+end
+
+component tile(label) with
+  for item in items do
+    text
+      .item
+      "{item}"
+  end
+  text "{label}"
+  .last
+end

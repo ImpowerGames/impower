@@ -24,6 +24,8 @@ const ENTRY_NAMES = nodeNameSet([
   "LuauSparkleBlockMatch",
   // A block with no element before it.
   "LuauSparkleElementBlock",
+  // A line that continues the element above it (#1225).
+  "LuauSparkleElementContinuation",
 ]);
 
 /** The branches after a control block's first one, which their control
@@ -35,13 +37,16 @@ const CLAUSE_NAMES = nodeNameSet([
 ]);
 
 /** The entries directly inside `container` (a block line, a block's or a
- *  branch's content), in source order. */
-export function sparkleBlockEntries(container: SyntaxNode): SyntaxNode[] {
+ *  branch's content), in source order, with any node named in `also`. */
+export function sparkleBlockEntries(
+  container: SyntaxNode,
+  also?: ReadonlySet<string>,
+): SyntaxNode[] {
   const entries: SyntaxNode[] = [];
   const walk = (node: SyntaxNode) => {
     let child = node.firstChild;
     while (child) {
-      if (ENTRY_NAMES.has(child.name)) {
+      if (ENTRY_NAMES.has(child.name) || also?.has(child.name)) {
         entries.push(child);
       } else if (!CLAUSE_NAMES.has(child.name)) {
         walk(child);
@@ -58,11 +63,14 @@ export interface SparkleElementParts {
   name: SyntaxNode | null;
   /** A component call's `LuauSparkleCallArguments`. */
   args: SyntaxNode | null;
-  /** The rest of the element's line: its classes, attributes, content and
-   *  comments. */
+  /** The rest of the element's line after its name and arguments, up to an
+   *  event closure its line leaves open: its classes, attributes, content and
+   *  comments (a `LuauSparkleElementParts`). */
   head: SyntaxNode | null;
   /** The element's `{ … }` (`LuauSparkleElementBlock`). */
   block: SyntaxNode | null;
+  /** Where the element's begin (its name and arguments) ends. */
+  beginTo: number;
 }
 
 const ELEMENT_NAMES = nodeNameSet([
@@ -70,25 +78,27 @@ const ELEMENT_NAMES = nodeNameSet([
   "LuauSparkleElementName",
 ]);
 
-/** The parts of a `LuauSparkleElement`. Its begin holds three captures in
- *  order: the name, a call's arguments and the head. */
+/** The parts of a `LuauSparkleElement`. Its begin holds two captures in
+ *  order, the name and a call's arguments; its head is the run of parts its
+ *  content starts with. */
 export function sparkleElementParts(element: SyntaxNode): SparkleElementParts {
   const begin = findChildByName(element, "LuauSparkleElement_begin");
   const nameCapture = begin?.firstChild ?? null;
   const name = nameCapture?.firstChild ?? null;
   const args = begin ? firstNamed(begin, CALL_ARGUMENTS) : null;
-  // The head is the last capture, which starts where the name and the
-  // arguments end; a begin with no such capture has no head.
-  const last = begin?.lastChild ?? null;
-  const headFrom = args?.to ?? nameCapture?.to ?? 0;
-  const head =
-    last && last !== nameCapture && last.from >= headFrom ? last : null;
+  const beginTo = begin?.to ?? element.from;
   const content = findChildByName(element, "LuauSparkleElement_content");
+  const first = content?.firstChild ?? null;
+  const head =
+    first?.name === "LuauSparkleElementParts" && first.from === beginTo
+      ? first
+      : null;
   return {
     name: name && ELEMENT_NAMES.has(name.name) ? name : null,
     args,
     head,
     block: content ? findChildByName(content, "LuauSparkleElementBlock") : null,
+    beginTo,
   };
 }
 
@@ -109,15 +119,57 @@ export function sparkleBlockContent(block: SyntaxNode): SyntaxNode | null {
   return findChildByName(block, "LuauSparkleElementBlock_content");
 }
 
-/** Whether a block is its element's block: the first block directly inside an
- *  element. A block on its own has no element to hold its entries, and a
- *  second block after an element's block (`row { a } { b }`) is not read. */
+/** Whether a block is the first block directly inside an element or a
+ *  continuation line. A block on its own has an element only when it follows
+ *  one (`joinSparkleContinuations`), and a second block after an element's
+ *  block (`row { a } { b }`) is not read. */
 export function sparkleBlockHasElement(block: SyntaxNode): boolean {
-  if (block.parent?.name !== "LuauSparkleElement_content") return false;
+  const parent = block.parent?.name;
+  if (
+    parent !== "LuauSparkleElement_content" &&
+    parent !== "LuauSparkleElementContinuation_content"
+  ) {
+    return false;
+  }
   for (let prev = block.prevSibling; prev; prev = prev.prevSibling) {
     if (prev.name === "LuauSparkleElementBlock") return false;
   }
   return true;
+}
+
+/** The parts after an element's head, and the parts of a continuation line:
+ *  runs of parts (`LuauSparkleElementParts`) and event closures that go on
+ *  at the next line, in source order. */
+const LATER_PART_NAMES = nodeNameSet([
+  "LuauSparkleElementParts",
+  "LuauSparkleEventClosureAttribute",
+]);
+
+/** The nodes that hold the parts of an element (`LuauSparkleElement`) or a
+ *  continuation line (`LuauSparkleElementContinuation`), in source order:
+ *  its runs of parts (an element's head first) and its event closures, but
+ *  not its block. */
+export function sparklePartNodes(node: SyntaxNode): SyntaxNode[] {
+  const out: SyntaxNode[] = [];
+  const content =
+    node.name === "LuauSparkleElement"
+      ? findChildByName(node, "LuauSparkleElement_content")
+      : findChildByName(node, "LuauSparkleElementContinuation_content");
+  for (let child = content?.firstChild; child; child = child.nextSibling) {
+    if (LATER_PART_NAMES.has(child.name)) out.push(child);
+  }
+  return out;
+}
+
+/** The block a continuation line ends with (`"Okay" {`), if any. */
+export function sparkleContinuationBlock(
+  continuation: SyntaxNode,
+): SyntaxNode | null {
+  const content = findChildByName(
+    continuation,
+    "LuauSparkleElementContinuation_content",
+  );
+  return content ? findChildByName(content, "LuauSparkleElementBlock") : null;
 }
 
 /** A branch of a brace control block: its `_content`, and how many levels
