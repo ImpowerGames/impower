@@ -48,7 +48,7 @@ export const MORPH_ROOT_FIELDS = [
   "clips",
 ] as const;
 
-/** Transition-policy fields: at the root, or under a label in `layers:`. */
+/** Transition-policy fields: at the root, or under a label in `layers { … }`. */
 export const MORPH_POLICY_FIELDS = ["blend", "method", "fallback"] as const;
 
 export const MORPH_TIMING_FIELDS = [
@@ -71,7 +71,7 @@ export const MORPH_LAYER_PROPERTIES = [
   "opacity",
 ] as const;
 
-/** Fields of one keyframe container (`eyes:` inside a keyframe). */
+/** Fields of one keyframe container (`eyes { … }` inside a keyframe). */
 export const MORPH_CONTAINER_FIELDS = [
   "state",
   ...MORPH_LAYER_PROPERTIES,
@@ -81,7 +81,7 @@ export const MORPH_CLIP_FIELDS = ["between", "targets"] as const;
 
 /** Keys whose values are literal text rather than numbers or references. */
 export const MORPH_LITERAL_KEYS: ReadonlySet<string> = new Set(["state"]);
-/** Keys whose `-` items are literal labels. */
+/** Keys whose list values are literal labels. */
 export const MORPH_LITERAL_LIST_KEYS: ReadonlySet<string> = new Set(
   MORPH_CLIP_FIELDS,
 );
@@ -103,7 +103,7 @@ export const MORPH_FIELD_DOCS: Record<string, string> = {
     "What happens to a shape with no usable morph pair: `fade` (default), `cut` or `scale`.",
   layers: "Per-label overrides of `blend`, `method` and `fallback`, keyed by artwork layer label.",
   keyframes:
-    "The poses, as `-` items with an `offset` or as position keys (`from:`, `50%:`, `to:`). Each pose holds containers such as `eyes:` with a `state` and layer properties. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it, and a first or last pose that leaves it out uses the image's resting value there.",
+    "The poses, as `{ … }` entries with an `offset` or as positions (`from { … }`, `50% { … }`, `to { … }`). Each pose holds containers such as `eyes { … }` with a `state` and layer properties. As in CSS keyframes, a pose that leaves a group or property out moves between the nearest poses that set it, and a first or last pose that leaves it out uses the image's resting value there.",
   timing: "When and how often the morph plays.",
   clips:
     "Apertures cut from the facing edges of `between` layers and applied to the `targets` layers.",

@@ -90,6 +90,16 @@ const TARGETED: Record<string, string> = {
     "style list with\n  items:\n    - first\n    - second\nend\n",
   "struct-comment-line":
     "style panel with\n  position = absolute\n  -- background_color = rgba(0,0,0,0.8)\n  font_size = 3.4cqh\nend\n",
+  // A brace block whose selector holds a quoted attribute value, and lines
+  // whose value starts with `--` or `//` before a stray `}`.
+  "struct-brace-quoted-selector":
+    "style panel with\n  &[data-label=\"a b;{\"] { color = red }\n  &[data-label=\"x\" i], &.on { color = blue }\n  &[data-label='a;b'] { opacity = 0.5 }\n  &[data-label='space ; { --'], &[data-kind=\"x\"] = { opacity = 0.25 }\nend\n",
+  // A quoted block header, with and without `=`, and an indented header
+  // before a trailing comma inside a block.
+  "struct-brace-quoted-container":
+    'theme t with\n  "quoted key" { v = 1 }\n  "other" = { w = 2 }\n  outer {\n    accents:,\n      v = 1\n  }\nend\n',
+  "struct-brace-value-starts-with-comment-mark":
+    "theme t with\n  k = --gap }\n  j = // x }\n  g {\n    k = --gap\n    j = // note\n  }\nend\n",
 
   // --- tag body `{...}` interpolations (now their own
   // `LuauInterpolatedStringExpression` nodes inside `TagContent`). Adjacent
