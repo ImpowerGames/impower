@@ -1,4 +1,6 @@
+import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
+import { findChildByName } from "../../utils/findChildByName";
 import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import type { LowerContext } from "../context";
 
@@ -209,7 +211,7 @@ function bracedEntry(node: SyntaxNode): StructEntry {
       kind: "header",
       shape: node,
       line: { from: node.from, to: open?.to ?? node.to },
-      key: findDescendant(node, "LuauStructBlockKey") ?? undefined,
+      key: getDescendent("LuauStructBlockKey", node),
       children: body ? bracedEntries(bodyContent(body)) : [],
       braced: true,
     };
@@ -235,41 +237,44 @@ function bracedEntry(node: SyntaxNode): StructEntry {
 
 /** A `LuauStructBlock`'s `{ … }`. */
 function blockBody(block: SyntaxNode): SyntaxNode | null {
-  const content = childNamed(block, "LuauStructBlock_content");
-  return content ? childNamed(content, "LuauStructBlockBody") : null;
+  const content = findChildByName(block, "LuauStructBlock_content");
+  return content ? findChildByName(content, "LuauStructBlockBody") : null;
+}
+
+// The parts of a block's braces (a `LuauStructBlockBody` or a
+// `LuauStructListBlock`), each named literally so the grammar node-name check
+// sees every name.
+function braceParts(body: SyntaxNode) {
+  const list = body.name === "LuauStructListBlock";
+  return {
+    begin: list
+      ? findChildByName(body, "LuauStructListBlock_begin")
+      : findChildByName(body, "LuauStructBlockBody_begin"),
+    content: list
+      ? findChildByName(body, "LuauStructListBlock_content")
+      : findChildByName(body, "LuauStructBlockBody_content"),
+    end: list
+      ? findChildByName(body, "LuauStructListBlock_end")
+      : findChildByName(body, "LuauStructBlockBody_end"),
+  };
 }
 
 /** The entries part of a block's braces: everything between them. */
 function bodyContent(body: SyntaxNode): SyntaxNode {
-  return childNamed(body, `${body.name}_content`) ?? body;
+  return braceParts(body).content ?? body;
 }
 
 /** The `{` that opens a block's braces. */
 export function blockOpenBrace(body: SyntaxNode): SyntaxNode | null {
-  const begin = childNamed(body, `${body.name}_begin`);
-  return begin ? findDescendant(begin, "LuauStructBlockOpen") : null;
+  const { begin } = braceParts(body);
+  return begin ? (getDescendent("LuauStructBlockOpen", begin) ?? null) : null;
 }
 
 /** Whether a block's braces end at their `}`, rather than at a bail-out. */
 export function blockIsClosed(body: SyntaxNode): boolean {
-  const end = childNamed(body, `${body.name}_end`);
-  return !!end && !!findDescendant(end, "LuauStructBlockClose");
-}
-
-function findDescendant(node: SyntaxNode, name: string): SyntaxNode | null {
-  let child = node.firstChild;
-  while (child) {
-    if (child.name === name) return child;
-    const found = findDescendant(child, name);
-    if (found) return found;
-    child = child.nextSibling;
-  }
-  return null;
-}
-
-function childNamed(parent: SyntaxNode, name: string): SyntaxNode | null {
-  for (let child = parent.firstChild; child; child = child.nextSibling) {
-    if (child.name === name) return child;
-  }
-  return null;
+  const { end } = braceParts(body);
+  // A bail-out's end is empty; only a `}` gives the end any width.
+  return (
+    !!end && end.to > end.from && !!getDescendent("LuauStructBlockClose", end)
+  );
 }

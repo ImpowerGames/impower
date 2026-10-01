@@ -220,12 +220,17 @@ end
   test("a brace body reports what its indented form reports", () => {
     const messages = (text: string) =>
       diagnosticsOf(text).map((d) => d.message);
-    for (const [indented, braced] of [
-      [STYLE_INDENTED, STYLE_BRACED],
-      [LIST_INDENTED, LIST_BRACED],
-      [POSITIONS_INDENTED, POSITIONS_BRACED],
-      [THEME_INDENTED, THEME_BRACED],
+    for (const [indented, braced, type, name] of [
+      [STYLE_INDENTED, STYLE_BRACED, "style", "button"],
+      [LIST_INDENTED, LIST_BRACED, "animation", "pulse"],
+      [POSITIONS_INDENTED, POSITIONS_BRACED, "animation", "fade"],
+      [THEME_INDENTED, THEME_BRACED, "theme", "dusk"],
     ] as const) {
+      // The brace body is read as blocks, so the comparison below is between
+      // two readings of the same struct, not two bodies that both fail to read.
+      expect(structOf(braced, type, name), braced).toEqual(
+        structOf(indented, type, name),
+      );
       expect(messages(braced), braced).toEqual(messages(indented));
       expect(errorsOf(braced), braced).toEqual([]);
     }
@@ -614,6 +619,38 @@ end
       .join("\n");
     expect(structOf(flat, "morph", "m")).toEqual(expected);
     expect(diagnosticsOf(flat).filter((d) => d.severity === 1)).toEqual([]);
+  });
+
+  test("an indented-form mark before a block's `{` is invalid syntax, not a key", () => {
+    const text = `theme t with
+  values { - { a = 1 } }
+  colors { accents: { value = red } }
+end
+`;
+    expect(errorsOf(text)).toMatchObject([
+      { message: "Invalid syntax", line: 1, text: "-" },
+      { message: "Invalid syntax", line: 2, text: "accents:" },
+    ]);
+    const struct = structOf(text, "theme", "t");
+    expect(struct.values).toEqual([{ a: 1 }]);
+    expect(Object.keys(struct.colors)).not.toContain("accents:");
+  });
+
+  test("a brace inside a comment leaves an indented line in the indented form", () => {
+    const text = `theme t with
+  values:
+    - 2 -- } note
+    - red
+  other = 1 // see {a}
+  more = 3 -- { b }
+end
+`;
+    expect(errorsOf(text)).toEqual([]);
+    expect(structOf(text, "theme", "t")).toMatchObject({
+      values: [2, "red"],
+      other: 1,
+      more: 3,
+    });
   });
 
   test("an indented-form `key:` header or `-` item inside a block is invalid syntax", () => {

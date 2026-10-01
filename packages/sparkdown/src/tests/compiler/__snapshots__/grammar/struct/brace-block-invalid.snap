@@ -1,5 +1,5 @@
-sparkdown [0..228]
- ├─ LuauTheme [0..227]
+sparkdown [0..306]
+ ├─ LuauTheme [0..305]
  │   ├─ LuauTheme_begin [0..6]
  │   │   ├─ LuauTheme_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
@@ -8,7 +8,7 @@ sparkdown [0..228]
  │   │   └─ LuauTheme_begin_c3 [5..6]
  │   │       └─ LuauTheme_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
- │   ├─ LuauTheme_content [6..224]
+ │   ├─ LuauTheme_content [6..302]
  │   │   ├─ LuauAnimationThemeNameAndInheritance [6..12]
  │   │   │   ├─ LuauAnimationThemeNameAndInheritance_begin [6..7]
  │   │   │   │   └─ LuauAnimationThemeNameAndInheritance_begin_c1 [6..7]
@@ -320,84 +320,230 @@ sparkdown [0..228]
  │   │   │   │       └─ LuauStructBlock_end 199
  │   │   │   └─ LuauStructBlockLine_end 199
  │   │   ├─ Newline [199..200]: "\n"
- │   │   ├─ LuauStructBlockLine [200..203]
+ │   │   ├─ LuauStructBlockLine [200..249]
  │   │   │   ├─ LuauStructBlockLine_begin 200
- │   │   │   ├─ LuauStructBlockLine_content [200..203]
+ │   │   │   ├─ LuauStructBlockLine_content [200..249]
  │   │   │   │   ├─ Whitespace [200..202]: "  "
- │   │   │   │   └─ LuauStructStrayBlockClose [202..203]: "}"
- │   │   │   └─ LuauStructBlockLine_end 203
- │   │   ├─ Newline [203..204]: "\n"
- │   │   ├─ LuauStructBlockLine [204..223]
- │   │   │   ├─ LuauStructBlockLine_begin 204
- │   │   │   ├─ LuauStructBlockLine_content [204..223]
- │   │   │   │   ├─ Whitespace [204..206]: "  "
- │   │   │   │   ├─ LuauStructBlock [206..217]
- │   │   │   │   │   ├─ LuauStructBlock_begin [206..208]
- │   │   │   │   │   │   ├─ LuauStructBlock_begin_c1 [206..207]
- │   │   │   │   │   │   │   └─ LuauStructBlockKey [206..207]
- │   │   │   │   │   │   │       └─ LuauStructBlockKey_c1 [206..207]
- │   │   │   │   │   │   │           └─ CustomComponentName [206..207]: "x"
- │   │   │   │   │   │   └─ LuauStructBlock_begin_c2 [207..208]
- │   │   │   │   │   │       └─ Whitespace [207..208]: " "
- │   │   │   │   │   ├─ LuauStructBlock_content [208..217]
- │   │   │   │   │   │   └─ LuauStructBlockBody [208..217]
- │   │   │   │   │   │       ├─ LuauStructBlockBody_begin [208..209]
- │   │   │   │   │   │       │   └─ LuauStructBlockBody_begin_c1 [208..209]
- │   │   │   │   │   │       │       └─ LuauStructBlockOpen [208..209]: "{"
- │   │   │   │   │   │       ├─ LuauStructBlockBody_content [209..216]
- │   │   │   │   │   │       │   ├─ Whitespace [209..210]: " "
- │   │   │   │   │   │       │   ├─ LuauStructBlockProperty [210..215]
- │   │   │   │   │   │       │   │   ├─ LuauStructBlockProperty_c1 [210..211]
- │   │   │   │   │   │       │   │   │   └─ StylingDeclarationScalarPropertyName [210..211]
- │   │   │   │   │   │       │   │   │       └─ StylingDeclarationScalarPropertyName_c1 [210..211]
- │   │   │   │   │   │       │   │   │           └─ DeclarationScalarPropertyKey [210..211]: "y"
- │   │   │   │   │   │       │   │   ├─ LuauStructBlockProperty_c2 [211..214]
- │   │   │   │   │   │       │   │   │   └─ AssignEqualOperator [211..214]
- │   │   │   │   │   │       │   │   │       ├─ AssignEqualOperator_c1 [211..212]
- │   │   │   │   │   │       │   │   │       │   └─ AssignEqualOperator_c1 [211..212]
- │   │   │   │   │   │       │   │   │       │       └─ OptionalSeparator [211..212]: " "
- │   │   │   │   │   │       │   │   │       ├─ AssignEqualOperator_c2 [212..213]
- │   │   │   │   │   │       │   │   │       │   └─ EqualOperator [212..213]: "="
- │   │   │   │   │   │       │   │   │       └─ AssignEqualOperator_c3 [213..214]
- │   │   │   │   │   │       │   │   │           └─ AssignEqualOperator_c3 [213..214]
- │   │   │   │   │   │       │   │   │               └─ OptionalSeparator [213..214]: " "
- │   │   │   │   │   │       │   │   └─ LuauStructBlockProperty_c3 [214..215]
- │   │   │   │   │   │       │   │       └─ NumericFieldValue [214..215]
- │   │   │   │   │   │       │   │           ├─ NumericFieldValue_c1 [214..215]
- │   │   │   │   │   │       │   │           │   └─ NumberLiteral [214..215]: "1"
- │   │   │   │   │   │       │   │           └─ NumericFieldValue_c2 215
- │   │   │   │   │   │       │   └─ Whitespace [215..216]: " "
- │   │   │   │   │   │       └─ LuauStructBlockBody_end [216..217]
- │   │   │   │   │   │           └─ LuauStructBlockBody_end_c1 [216..217]
- │   │   │   │   │   │               └─ LuauStructBlockClose [216..217]: "}"
- │   │   │   │   │   └─ LuauStructBlock_end 217
- │   │   │   │   ├─ Whitespace [217..218]: " "
- │   │   │   │   └─ LuauStructBlockProperty [218..223]
- │   │   │   │       ├─ LuauStructBlockProperty_c1 [218..219]
- │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [218..219]
- │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [218..219]
- │   │   │   │       │           └─ DeclarationScalarPropertyKey [218..219]: "z"
- │   │   │   │       ├─ LuauStructBlockProperty_c2 [219..222]
- │   │   │   │       │   └─ AssignEqualOperator [219..222]
- │   │   │   │       │       ├─ AssignEqualOperator_c1 [219..220]
- │   │   │   │       │       │   └─ AssignEqualOperator_c1 [219..220]
- │   │   │   │       │       │       └─ OptionalSeparator [219..220]: " "
- │   │   │   │       │       ├─ AssignEqualOperator_c2 [220..221]
- │   │   │   │       │       │   └─ EqualOperator [220..221]: "="
- │   │   │   │       │       └─ AssignEqualOperator_c3 [221..222]
- │   │   │   │       │           └─ AssignEqualOperator_c3 [221..222]
- │   │   │   │       │               └─ OptionalSeparator [221..222]: " "
- │   │   │   │       └─ LuauStructBlockProperty_c3 [222..223]
- │   │   │   │           └─ NumericFieldValue [222..223]
- │   │   │   │               ├─ NumericFieldValue_c1 [222..223]
- │   │   │   │               │   └─ NumberLiteral [222..223]: "2"
- │   │   │   │               └─ NumericFieldValue_c2 223
- │   │   │   └─ LuauStructBlockLine_end 223
- │   │   └─ Newline [223..224]: "\n"
- │   └─ LuauTheme_end [224..227]
- │       ├─ LuauTheme_end_c1 224
- │       │   └─ LuauTheme_end_c1 224
- │       │       └─ OptionalWhitespace 224
- │       └─ LuauTheme_end_c2 [224..227]
- │           └─ LuauEndKeyword [224..227]: "end"
- └─ Newline [227..228]: "\n"
+ │   │   │   │   └─ LuauStructBlock [202..249]
+ │   │   │   │       ├─ LuauStructBlock_begin [202..208]
+ │   │   │   │       │   ├─ LuauStructBlock_begin_c1 [202..207]
+ │   │   │   │       │   │   └─ LuauStructBlockKey [202..207]
+ │   │   │   │       │   │       └─ LuauStructBlockKey_c1 [202..207]
+ │   │   │   │       │   │           └─ CustomComponentName [202..207]: "marks"
+ │   │   │   │       │   └─ LuauStructBlock_begin_c2 [207..208]
+ │   │   │   │       │       └─ Whitespace [207..208]: " "
+ │   │   │   │       ├─ LuauStructBlock_content [208..249]
+ │   │   │   │       │   └─ LuauStructBlockBody [208..249]
+ │   │   │   │       │       ├─ LuauStructBlockBody_begin [208..209]
+ │   │   │   │       │       │   └─ LuauStructBlockBody_begin_c1 [208..209]
+ │   │   │   │       │       │       └─ LuauStructBlockOpen [208..209]: "{"
+ │   │   │   │       │       ├─ LuauStructBlockBody_content [209..248]
+ │   │   │   │       │       │   ├─ Whitespace [209..210]: " "
+ │   │   │   │       │       │   ├─ LuauStructBlockItemMark [210..211]: "-"
+ │   │   │   │       │       │   ├─ Whitespace [211..212]: " "
+ │   │   │   │       │       │   ├─ LuauStructListBlock [212..221]
+ │   │   │   │       │       │   │   ├─ LuauStructListBlock_begin [212..213]
+ │   │   │   │       │       │   │   │   └─ LuauStructListBlock_begin_c1 [212..213]
+ │   │   │   │       │       │   │   │       └─ LuauStructBlockOpen [212..213]: "{"
+ │   │   │   │       │       │   │   ├─ LuauStructListBlock_content [213..220]
+ │   │   │   │       │       │   │   │   ├─ Whitespace [213..214]: " "
+ │   │   │   │       │       │   │   │   ├─ LuauStructBlockProperty [214..219]
+ │   │   │   │       │       │   │   │   │   ├─ LuauStructBlockProperty_c1 [214..215]
+ │   │   │   │       │       │   │   │   │   │   └─ StylingDeclarationScalarPropertyName [214..215]
+ │   │   │   │       │       │   │   │   │   │       └─ StylingDeclarationScalarPropertyName_c1 [214..215]
+ │   │   │   │       │       │   │   │   │   │           └─ DeclarationScalarPropertyKey [214..215]: "a"
+ │   │   │   │       │       │   │   │   │   ├─ LuauStructBlockProperty_c2 [215..218]
+ │   │   │   │       │       │   │   │   │   │   └─ AssignEqualOperator [215..218]
+ │   │   │   │       │       │   │   │   │   │       ├─ AssignEqualOperator_c1 [215..216]
+ │   │   │   │       │       │   │   │   │   │       │   └─ AssignEqualOperator_c1 [215..216]
+ │   │   │   │       │       │   │   │   │   │       │       └─ OptionalSeparator [215..216]: " "
+ │   │   │   │       │       │   │   │   │   │       ├─ AssignEqualOperator_c2 [216..217]
+ │   │   │   │       │       │   │   │   │   │       │   └─ EqualOperator [216..217]: "="
+ │   │   │   │       │       │   │   │   │   │       └─ AssignEqualOperator_c3 [217..218]
+ │   │   │   │       │       │   │   │   │   │           └─ AssignEqualOperator_c3 [217..218]
+ │   │   │   │       │       │   │   │   │   │               └─ OptionalSeparator [217..218]: " "
+ │   │   │   │       │       │   │   │   │   └─ LuauStructBlockProperty_c3 [218..219]
+ │   │   │   │       │       │   │   │   │       └─ NumericFieldValue [218..219]
+ │   │   │   │       │       │   │   │   │           ├─ NumericFieldValue_c1 [218..219]
+ │   │   │   │       │       │   │   │   │           │   └─ NumberLiteral [218..219]: "1"
+ │   │   │   │       │       │   │   │   │           └─ NumericFieldValue_c2 219
+ │   │   │   │       │       │   │   │   └─ Whitespace [219..220]: " "
+ │   │   │   │       │       │   │   └─ LuauStructListBlock_end [220..221]
+ │   │   │   │       │       │   │       └─ LuauStructListBlock_end_c1 [220..221]
+ │   │   │   │       │       │   │           └─ LuauStructBlockClose [220..221]: "}"
+ │   │   │   │       │       │   ├─ LuauStructBlockSeparator [221..222]: ";"
+ │   │   │   │       │       │   ├─ Whitespace [222..223]: " "
+ │   │   │   │       │       │   ├─ LuauStructBlockIndentedHeader [223..231]: "accents:"
+ │   │   │   │       │       │   ├─ Whitespace [231..232]: " "
+ │   │   │   │       │       │   ├─ LuauStructListBlock [232..247]
+ │   │   │   │       │       │   │   ├─ LuauStructListBlock_begin [232..233]
+ │   │   │   │       │       │   │   │   └─ LuauStructListBlock_begin_c1 [232..233]
+ │   │   │   │       │       │   │   │       └─ LuauStructBlockOpen [232..233]: "{"
+ │   │   │   │       │       │   │   ├─ LuauStructListBlock_content [233..246]
+ │   │   │   │       │       │   │   │   ├─ Whitespace [233..234]: " "
+ │   │   │   │       │       │   │   │   ├─ LuauStructBlockProperty [234..245]
+ │   │   │   │       │       │   │   │   │   ├─ LuauStructBlockProperty_c1 [234..239]
+ │   │   │   │       │       │   │   │   │   │   └─ StylingDeclarationScalarPropertyName [234..239]
+ │   │   │   │       │       │   │   │   │   │       └─ StylingDeclarationScalarPropertyName_c1 [234..239]
+ │   │   │   │       │       │   │   │   │   │           └─ DeclarationScalarPropertyKey [234..239]: "value"
+ │   │   │   │       │       │   │   │   │   ├─ LuauStructBlockProperty_c2 [239..242]
+ │   │   │   │       │       │   │   │   │   │   └─ AssignEqualOperator [239..242]
+ │   │   │   │       │       │   │   │   │   │       ├─ AssignEqualOperator_c1 [239..240]
+ │   │   │   │       │       │   │   │   │   │       │   └─ AssignEqualOperator_c1 [239..240]
+ │   │   │   │       │       │   │   │   │   │       │       └─ OptionalSeparator [239..240]: " "
+ │   │   │   │       │       │   │   │   │   │       ├─ AssignEqualOperator_c2 [240..241]
+ │   │   │   │       │       │   │   │   │   │       │   └─ EqualOperator [240..241]: "="
+ │   │   │   │       │       │   │   │   │   │       └─ AssignEqualOperator_c3 [241..242]
+ │   │   │   │       │       │   │   │   │   │           └─ AssignEqualOperator_c3 [241..242]
+ │   │   │   │       │       │   │   │   │   │               └─ OptionalSeparator [241..242]: " "
+ │   │   │   │       │       │   │   │   │   └─ LuauStructBlockProperty_c3 [242..245]
+ │   │   │   │       │       │   │   │   │       └─ StylingValue [242..245]
+ │   │   │   │       │       │   │   │   │           ├─ StylingValue_c1 [242..245]
+ │   │   │   │       │       │   │   │   │           │   └─ StylingStringIdentifier [242..245]: "red"
+ │   │   │   │       │       │   │   │   │           └─ StylingValue_c2 245
+ │   │   │   │       │       │   │   │   └─ Whitespace [245..246]: " "
+ │   │   │   │       │       │   │   └─ LuauStructListBlock_end [246..247]
+ │   │   │   │       │       │   │       └─ LuauStructListBlock_end_c1 [246..247]
+ │   │   │   │       │       │   │           └─ LuauStructBlockClose [246..247]: "}"
+ │   │   │   │       │       │   └─ Whitespace [247..248]: " "
+ │   │   │   │       │       └─ LuauStructBlockBody_end [248..249]
+ │   │   │   │       │           └─ LuauStructBlockBody_end_c1 [248..249]
+ │   │   │   │       │               └─ LuauStructBlockClose [248..249]: "}"
+ │   │   │   │       └─ LuauStructBlock_end 249
+ │   │   │   └─ LuauStructBlockLine_end 249
+ │   │   ├─ Newline [249..250]: "\n"
+ │   │   ├─ LuauStructBlockLine [250..253]
+ │   │   │   ├─ LuauStructBlockLine_begin 250
+ │   │   │   ├─ LuauStructBlockLine_content [250..253]
+ │   │   │   │   ├─ Whitespace [250..252]: "  "
+ │   │   │   │   └─ LuauStructStrayBlockClose [252..253]: "}"
+ │   │   │   └─ LuauStructBlockLine_end 253
+ │   │   ├─ Newline [253..254]: "\n"
+ │   │   ├─ LuauStructBlockLine [254..273]
+ │   │   │   ├─ LuauStructBlockLine_begin 254
+ │   │   │   ├─ LuauStructBlockLine_content [254..273]
+ │   │   │   │   ├─ Whitespace [254..256]: "  "
+ │   │   │   │   ├─ LuauStructBlock [256..267]
+ │   │   │   │   │   ├─ LuauStructBlock_begin [256..258]
+ │   │   │   │   │   │   ├─ LuauStructBlock_begin_c1 [256..257]
+ │   │   │   │   │   │   │   └─ LuauStructBlockKey [256..257]
+ │   │   │   │   │   │   │       └─ LuauStructBlockKey_c1 [256..257]
+ │   │   │   │   │   │   │           └─ CustomComponentName [256..257]: "x"
+ │   │   │   │   │   │   └─ LuauStructBlock_begin_c2 [257..258]
+ │   │   │   │   │   │       └─ Whitespace [257..258]: " "
+ │   │   │   │   │   ├─ LuauStructBlock_content [258..267]
+ │   │   │   │   │   │   └─ LuauStructBlockBody [258..267]
+ │   │   │   │   │   │       ├─ LuauStructBlockBody_begin [258..259]
+ │   │   │   │   │   │       │   └─ LuauStructBlockBody_begin_c1 [258..259]
+ │   │   │   │   │   │       │       └─ LuauStructBlockOpen [258..259]: "{"
+ │   │   │   │   │   │       ├─ LuauStructBlockBody_content [259..266]
+ │   │   │   │   │   │       │   ├─ Whitespace [259..260]: " "
+ │   │   │   │   │   │       │   ├─ LuauStructBlockProperty [260..265]
+ │   │   │   │   │   │       │   │   ├─ LuauStructBlockProperty_c1 [260..261]
+ │   │   │   │   │   │       │   │   │   └─ StylingDeclarationScalarPropertyName [260..261]
+ │   │   │   │   │   │       │   │   │       └─ StylingDeclarationScalarPropertyName_c1 [260..261]
+ │   │   │   │   │   │       │   │   │           └─ DeclarationScalarPropertyKey [260..261]: "y"
+ │   │   │   │   │   │       │   │   ├─ LuauStructBlockProperty_c2 [261..264]
+ │   │   │   │   │   │       │   │   │   └─ AssignEqualOperator [261..264]
+ │   │   │   │   │   │       │   │   │       ├─ AssignEqualOperator_c1 [261..262]
+ │   │   │   │   │   │       │   │   │       │   └─ AssignEqualOperator_c1 [261..262]
+ │   │   │   │   │   │       │   │   │       │       └─ OptionalSeparator [261..262]: " "
+ │   │   │   │   │   │       │   │   │       ├─ AssignEqualOperator_c2 [262..263]
+ │   │   │   │   │   │       │   │   │       │   └─ EqualOperator [262..263]: "="
+ │   │   │   │   │   │       │   │   │       └─ AssignEqualOperator_c3 [263..264]
+ │   │   │   │   │   │       │   │   │           └─ AssignEqualOperator_c3 [263..264]
+ │   │   │   │   │   │       │   │   │               └─ OptionalSeparator [263..264]: " "
+ │   │   │   │   │   │       │   │   └─ LuauStructBlockProperty_c3 [264..265]
+ │   │   │   │   │   │       │   │       └─ NumericFieldValue [264..265]
+ │   │   │   │   │   │       │   │           ├─ NumericFieldValue_c1 [264..265]
+ │   │   │   │   │   │       │   │           │   └─ NumberLiteral [264..265]: "1"
+ │   │   │   │   │   │       │   │           └─ NumericFieldValue_c2 265
+ │   │   │   │   │   │       │   └─ Whitespace [265..266]: " "
+ │   │   │   │   │   │       └─ LuauStructBlockBody_end [266..267]
+ │   │   │   │   │   │           └─ LuauStructBlockBody_end_c1 [266..267]
+ │   │   │   │   │   │               └─ LuauStructBlockClose [266..267]: "}"
+ │   │   │   │   │   └─ LuauStructBlock_end 267
+ │   │   │   │   ├─ Whitespace [267..268]: " "
+ │   │   │   │   └─ LuauStructBlockProperty [268..273]
+ │   │   │   │       ├─ LuauStructBlockProperty_c1 [268..269]
+ │   │   │   │       │   └─ StylingDeclarationScalarPropertyName [268..269]
+ │   │   │   │       │       └─ StylingDeclarationScalarPropertyName_c1 [268..269]
+ │   │   │   │       │           └─ DeclarationScalarPropertyKey [268..269]: "z"
+ │   │   │   │       ├─ LuauStructBlockProperty_c2 [269..272]
+ │   │   │   │       │   └─ AssignEqualOperator [269..272]
+ │   │   │   │       │       ├─ AssignEqualOperator_c1 [269..270]
+ │   │   │   │       │       │   └─ AssignEqualOperator_c1 [269..270]
+ │   │   │   │       │       │       └─ OptionalSeparator [269..270]: " "
+ │   │   │   │       │       ├─ AssignEqualOperator_c2 [270..271]
+ │   │   │   │       │       │   └─ EqualOperator [270..271]: "="
+ │   │   │   │       │       └─ AssignEqualOperator_c3 [271..272]
+ │   │   │   │       │           └─ AssignEqualOperator_c3 [271..272]
+ │   │   │   │       │               └─ OptionalSeparator [271..272]: " "
+ │   │   │   │       └─ LuauStructBlockProperty_c3 [272..273]
+ │   │   │   │           └─ NumericFieldValue [272..273]
+ │   │   │   │               ├─ NumericFieldValue_c1 [272..273]
+ │   │   │   │               │   └─ NumberLiteral [272..273]: "2"
+ │   │   │   │               └─ NumericFieldValue_c2 273
+ │   │   │   └─ LuauStructBlockLine_end 273
+ │   │   ├─ Newline [273..274]: "\n"
+ │   │   ├─ LuauStructBodyLine [274..283]
+ │   │   │   ├─ LuauStructBodyLine_c1 [274..276]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [274..276]
+ │   │   │   │       └─ OptionalWhitespace [274..276]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [276..283]
+ │   │   │   │   └─ LuauStructBodyContent [276..283]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [276..283]
+ │   │   │   │           └─ LuauStructObjectHeader [276..283]
+ │   │   │   │               ├─ LuauStructObjectHeader_c1 276
+ │   │   │   │               │   └─ OptionalWhitespace 276
+ │   │   │   │               ├─ LuauStructObjectHeader_c2 [276..282]
+ │   │   │   │               │   └─ LuauStructObjectKey [276..282]
+ │   │   │   │               │       └─ LuauStructObjectKey_c1 [276..282]
+ │   │   │   │               │           └─ CustomComponentName [276..282]: "values"
+ │   │   │   │               └─ LuauStructObjectHeader_c4 [282..283]
+ │   │   │   │                   └─ LuauStructObjectColon [282..283]: ":"
+ │   │   │   └─ LuauStructBodyLine_c3 283
+ │   │   │       └─ LuauStructBodyLine_c3 283
+ │   │   │           └─ OptionalWhitespace 283
+ │   │   ├─ Newline [283..284]: "\n"
+ │   │   ├─ LuauStructBodyLine [284..301]
+ │   │   │   ├─ LuauStructBodyLine_c1 [284..288]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [284..288]
+ │   │   │   │       └─ OptionalWhitespace [284..288]: "    "
+ │   │   │   ├─ LuauStructBodyLine_c2 [288..301]
+ │   │   │   │   └─ LuauStructBodyContent [288..301]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [288..301]
+ │   │   │   │           └─ LuauStructArrayItem [288..301]
+ │   │   │   │               ├─ LuauStructArrayItem_c1 288
+ │   │   │   │               │   └─ OptionalWhitespace 288
+ │   │   │   │               ├─ LuauStructArrayItem_c2 [288..290]
+ │   │   │   │               │   └─ ArrayItemOperator [288..290]
+ │   │   │   │               │       ├─ ArrayItemOperator_c1 [288..289]
+ │   │   │   │               │       │   └─ ArrayItemMark [288..289]: "-"
+ │   │   │   │               │       └─ ArrayItemOperator_c2 [289..290]
+ │   │   │   │               │           └─ Separator [289..290]: " "
+ │   │   │   │               └─ LuauStructArrayItem_c3 [290..301]
+ │   │   │   │                   └─ StylingValue [290..301]
+ │   │   │   │                       ├─ StylingValue_c1 [290..301]
+ │   │   │   │                       │   ├─ NumberLiteral [290..291]: "2"
+ │   │   │   │                       │   └─ LuauLineComment [291..301]
+ │   │   │   │                       │       ├─ LuauLineComment_begin [291..294]
+ │   │   │   │                       │       │   ├─ LuauLineComment_begin_c1 [291..292]
+ │   │   │   │                       │       │   │   └─ Whitespace [291..292]: " "
+ │   │   │   │                       │       │   └─ LuauLineComment_begin_c2 [292..294]
+ │   │   │   │                       │       │       └─ LuauCommentMark [292..294]: "--"
+ │   │   │   │                       │       ├─ LuauLineComment_content [294..301]
+ │   │   │   │                       │       │   └─ LuauLineCommentContent [294..301]: " } note"
+ │   │   │   │                       │       └─ LuauLineComment_end 301
+ │   │   │   │                       └─ StylingValue_c2 301
+ │   │   │   └─ LuauStructBodyLine_c3 301
+ │   │   │       └─ LuauStructBodyLine_c3 301
+ │   │   │           └─ OptionalWhitespace 301
+ │   │   └─ Newline [301..302]: "\n"
+ │   └─ LuauTheme_end [302..305]
+ │       ├─ LuauTheme_end_c1 302
+ │       │   └─ LuauTheme_end_c1 302
+ │       │       └─ OptionalWhitespace 302
+ │       └─ LuauTheme_end_c2 [302..305]
+ │           └─ LuauEndKeyword [302..305]: "end"
+ └─ Newline [305..306]: "\n"

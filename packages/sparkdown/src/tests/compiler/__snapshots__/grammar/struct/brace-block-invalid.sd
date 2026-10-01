@@ -6,6 +6,9 @@ theme t with
     accents:
       - red
   }
+  marks { - { a = 1 }; accents: { value = red } }
   }
   x { y = 1 } z = 2
+  values:
+    - 2 -- } note
 end

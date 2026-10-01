@@ -304,9 +304,9 @@
     "ASSIGN_EQUAL_OPERATOR": "(?:{{WS}}*[=]{{WS}}*)",
     "ARRAY_ITEM_OPERATOR": "(?:[-](?:$|{{WS}}+))",
     "STRUCT_BLOCK_QUOTED": "(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))",
-    "STRUCT_BLOCK_HEADER": "(?:[^\\s{};\"=,][^{};\"\\n]*?)",
+    "STRUCT_BLOCK_HEADER": "(?:(?:[-](?![-])|[/](?![/])|[^\\s{};\"=,/-])(?:[-](?![-])|[/](?![/])|[^{};\"\\n/-])*?)",
     "STRUCT_BLOCK_ASSIGN": "(?:{{WS}}*(?:[=]{{WS}}*)?)",
-    "STRUCT_BLOCK_LINE_START": "(?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|(?:{{STRUCT_BLOCK_QUOTED}}|[^\"\\n])*?[}]))",
+    "STRUCT_BLOCK_LINE_START": "(?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|(?:{{STRUCT_BLOCK_QUOTED}}|[-](?![-])|[/](?![/])|[^\"\\n/-])*?[}]))",
     "STRUCT_BLOCK_BAIL": "(?:{{BEAT}}|^{{END}})",
     "STRUCT_BLOCK_TRAILING_COMMA": "(?:[,]{{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))",
     "STRUCT_BLOCK_COMMA_BEFORE_ENTRY": "(?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))",
@@ -8062,7 +8062,7 @@
       "match": "(.+)$"
     },
     "LuauStructBlockLine": {
-      "begin": "^(?=(?:(?:[^\\S\\n\\r])*(?:(?:(?:[^\\s{};\"=,][^{};\"\\n]*?)(?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?))?[{]|(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[^\"\\n])*?[}])))",
+      "begin": "^(?=(?:(?:[^\\S\\n\\r])*(?:(?:(?:(?:[-](?![-])|[/](?![/])|[^\\s{};\"=,/-])(?:[-](?![-])|[/](?![/])|[^{};\"\\n/-])*?)(?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?))?[{]|(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[-](?![-])|[/](?![/])|[^\"\\n/-])*?[}])))",
       "patterns": [
         {
           "include": "#LuauStructStrayBlockClose"
@@ -8094,7 +8094,13 @@
           "include": "#LuauStructBlockEntryComma"
         },
         {
+          "include": "#LuauStructBlockItemMark"
+        },
+        {
           "include": "#LuauStructBlockProperty"
+        },
+        {
+          "include": "#LuauStructBlockIndentedHeader"
         },
         {
           "include": "#LuauStructBlock"
@@ -8103,18 +8109,12 @@
           "include": "#LuauStructListBlock"
         },
         {
-          "include": "#LuauStructBlockIndentedHeader"
-        },
-        {
-          "include": "#LuauStructBlockItemMark"
-        },
-        {
           "include": "#LuauStructListValue"
         }
       ]
     },
     "LuauStructBlock": {
-      "begin": "((?:[^\\s{};\"=,][^{};\"\\n]*?))((?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?))(?=[{])",
+      "begin": "((?:(?:[-](?![-])|[/](?![/])|[^\\s{};\"=,/-])(?:[-](?![-])|[/](?![/])|[^{};\"\\n/-])*?))((?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?))(?=[{])",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -8238,7 +8238,7 @@
       "match": "([}])"
     },
     "LuauStructBlockProperty": {
-      "match": "(\\[[^\\]\\n]*\\]|[$]?(?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))((?:(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*))(?!(?:[^\\S\\n\\r])*[{])((?:(?:[-+]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?=(?:[-][-]))|(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[^;{}\"\\n])+?(?=(?:(?:[^\\S\\n\\r])*(?:$|[;{}]|(?:[,](?:[^\\S\\n\\r])*(?:$|[;}]|(?:[-][-])))|(?:[,](?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_-]*)(?:[^\\S\\n\\r])*[=]|(?:[^\\s{};\"=,][^{};\"\\n]*?)(?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?)[{])))|(?:[^\\S\\n\\r])+(?:[-][-]))))?)",
+      "match": "(\\[[^\\]\\n]*\\]|[$]?(?:[0-9]+|(?:[_\\p{L}][0-9_\\p{L}-]*\\b)|(?:[\"](?:\\\\.|[^\"\\r\\n])*[\"])))((?:(?:[^\\S\\n\\r])*[=](?:[^\\S\\n\\r])*))(?!(?:[^\\S\\n\\r])*[{])((?:(?:[-+]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")(?=(?:[-][-]))|(?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[^;{}\"\\n])+?(?=(?:(?:[^\\S\\n\\r])*(?:$|[;{}]|(?:[,](?:[^\\S\\n\\r])*(?:$|[;}]|(?:[-][-])))|(?:[,](?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_-]*)(?:[^\\S\\n\\r])*[=]|(?:(?:[-](?![-])|[/](?![/])|[^\\s{};\"=,/-])(?:[-](?![-])|[/](?![/])|[^{};\"\\n/-])*?)(?:(?:[^\\S\\n\\r])*(?:[=](?:[^\\S\\n\\r])*)?)[{])))|(?:[^\\S\\n\\r])+(?:[-][-]))))?)",
       "captures": {
         "1": {
           "patterns": [
@@ -8326,7 +8326,7 @@
     "LuauStructBlockIndentedHeader": {
       "tag": "invalid",
       "name": "invalid.illegal.struct-block-header.sd",
-      "match": "([^{};\"\\n]+?(?:[^\\S\\n\\r])*[:])(?=(?:[^\\S\\n\\r])*(?:$|[;}]|(?:[-][-])))"
+      "match": "([^{};\"\\n]+?(?:[^\\S\\n\\r])*[:])(?=(?:[^\\S\\n\\r])*(?:$|[;{}]|(?:[-][-])))"
     },
     "LuauStructBlockItemMark": {
       "tag": "invalid",

@@ -315,15 +315,17 @@ variables:
   # it to end a value at a `;` or `}` it contains.
   STRUCT_BLOCK_QUOTED: (?:"(?:\\.|[^"\\\n])*(?:"|$))
   # A block header: a key, a selector or a keyframe position. It holds no
-  # brace, `;` or quote, and does not start with `=` or `,`.
-  STRUCT_BLOCK_HEADER: (?:[^\s{};"=,][^{};"\n]*?)
+  # brace, `;`, quote, `--` or `//`, and does not start with `=` or `,`, so a
+  # brace in a comment never opens a block.
+  STRUCT_BLOCK_HEADER: (?:(?:[-](?![-])|[/](?![/])|[^\s{};"=,/-])(?:[-](?![-])|[/](?![/])|[^{};"\n/-])*?)
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
   # A body line whose first token opens a block or a list entry, or that holds
-  # an unquoted `}` anywhere: a `}` outside every block is stray, and reading
-  # its line as block entries is what reports it (`delay = 2 }` after the block
-  # it meant to close has closed).
-  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|(?:{{STRUCT_BLOCK_QUOTED}}|[^"\n])*?[}]))
+  # an unquoted `}` before any comment: a `}` outside every block is stray, and
+  # reading its line as block entries is what reports it (`delay = 2 }` after
+  # the block it meant to close has closed). A brace inside a quoted string or
+  # a `--` or `//` comment leaves the line in the indented form.
+  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|(?:{{STRUCT_BLOCK_QUOTED}}|[-](?![-])|[/](?![/])|[^"\n/-])*?[}]))
   # An unclosed block ends where the declaration's `end` starts a line.
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
@@ -5482,13 +5484,15 @@ repository:
       - { include: "#LuauStructBlockSeparator" }
       - { include: "#LuauStructBlockTrailingComma" }
       - { include: "#LuauStructBlockEntryComma" }
+      # The indented forms' marks are tried before a block, so `- { … }` and
+      # `key: { … }` report the mark rather than opening a block keyed by it.
+      - { include: "#LuauStructBlockItemMark" }
       # A property is tried before a block, so a block header never starts at
       # a property (`a = 1, b { … }` is a property, a comma and a block).
       - { include: "#LuauStructBlockProperty" }
+      - { include: "#LuauStructBlockIndentedHeader" }
       - { include: "#LuauStructBlock" }
       - { include: "#LuauStructListBlock" }
-      - { include: "#LuauStructBlockIndentedHeader" }
-      - { include: "#LuauStructBlockItemMark" }
       - { include: "#LuauStructListValue" }
 
   # `header { … }` / `header = { … }`. The `{ … }` is its own bracket rule, so
@@ -5630,7 +5634,7 @@ repository:
   LuauStructBlockIndentedHeader:
     tag: invalid
     name: invalid.illegal.struct-block-header.sd
-    match: ([^{};"\n]+?{{WS}}*[:])(?={{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))
+    match: ([^{};"\n]+?{{WS}}*[:])(?={{WS}}*(?:$|[;{}]|{{LUAU_COMMENT_START}}))
 
   # An indented-form `-` item mark inside a block.
   LuauStructBlockItemMark:
