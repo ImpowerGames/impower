@@ -6520,8 +6520,10 @@ repository:
     # leaves, which the body reads (`LuauTypeTrailingBlockCommentClose`).
     begin: (?<!{{LUAU_FUNCTION_HEADER}})(?=\]=*\]{{LUAU_TYPE_CODE_AHEAD}})|(?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
-      - { include: "#LuauBlockBody" }
+      # Before the block body, whose whitespace rule would take the line's
+      # indentation first.
       - { include: "#LuauStrayBraceCloser" }
+      - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
     # owns that. Stop at `end` or at a scene or branch declaration.
     end: (?={{BEAT}}|{{WS}}*\bend\b)
@@ -6912,9 +6914,12 @@ repository:
   # expression, got ')'`); reading it here, instead of as story, keeps the
   # block, and the function around it, to its own `end`. A `}` is read only in
   # a function's body (`LuauStrayBraceCloser`): a Sparkle handler's `{ ... }`
-  # holds a block body too, and ends at its `}`.
+  # holds a block body too, and ends at its `}`. Only at the start of a line or
+  # right after a `;`, where a statement begins: elsewhere on a line the text
+  # belongs to a construct the grammar reads on its own terms (`define X with )`
+  # is a header it cannot read).
   LuauStrayCloser:
-    match: ({{WS}}*)([)\]])
+    match: (?:^|(?<=;))({{WS}}*)([)\]])
     captures:
       1:
         patterns:
@@ -6924,7 +6929,7 @@ repository:
         name: invalid.illegal.luau
 
   LuauStrayBraceCloser:
-    match: ({{WS}}*)([}])
+    match: (?:^|(?<=;))({{WS}}*)([}])
     captures:
       1:
         patterns:

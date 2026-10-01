@@ -112,7 +112,9 @@ export interface ParseError {
   /**
    * Not part of Luau: whether the error follows from an earlier one through
    * the parser's recovery, rather than being a mistake of its own, which
-   * Sparkdown's type checker reads to report each mistake once. It does: at
+   * Sparkdown's type checker reads to report each mistake once. Interim: it
+   * goes when the checker stops reparsing document text (#1283, #1286), and
+   * the port then mirrors Luau's again. It does: at
    * the start of a statement the parser began on the line where the
    * statement before it ended in the parser's recovery, with no `;` between
    * (it never began, read a statement's keyword as a missing name, or read
