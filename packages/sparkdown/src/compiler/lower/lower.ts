@@ -76,6 +76,7 @@ import { lowerExplicitStatement } from "./lowerers/lowerExplicitStatement";
 import { lowerGlue } from "./lowerers/lowerGlue";
 import { lowerLabelAnchor } from "./lowerers/lowerLabelAnchor";
 import { lowerReassignment } from "./lowerers/lowerReassignment";
+import { propertyStore } from "./utils/lowerPropertyTargetAssignment";
 import { lowerInclude } from "./lowerers/lowerInclude";
 import { lowerRun } from "./lowerers/lowerRun";
 import { lowerLuauDefine } from "./lowerers/lowerLuauDefine";
@@ -306,7 +307,7 @@ function lowerInner(
       // (`o.get().a.x = v`): the grammar wraps the call's arguments and its
       // links with the assignment, and the path alone is not the target.
       const links = chainedLinksAfter(pathChild);
-      const storeOp = chainedStoreOperation(links, ctx);
+      const storeOp = chainedStoreOperation(links);
       if (storeOp && storeOp.from === opChild.from) {
         return lowerChainedTargetStore([pathChild], links, storeOp, ctx) ?? {};
       }
@@ -595,7 +596,7 @@ function lowerStatementAt(
       // (`o:get()()`, `o:me():bump()`, `o:mk().bump()`), and a property
       // link before an assignment stores through it (`o:get().x = 6`).
       const links = chainedLinksAfter(parenScan);
-      const opNode = chainedStoreOperation(links, ctx);
+      const opNode = chainedStoreOperation(links);
       if (opNode) {
         const { lowered, last } = lowerContinued(opNode, ctx, () =>
           lowerChainedTargetStore([child, parenScan], links, opNode, ctx),
@@ -656,7 +657,7 @@ function lowerStatementAt(
     // (tables.luau's aliasing block), and `(t):get().x = v`. Shape:
     // LuauParenthetical + links ending in LuauChainedPropertyAccess +
     // LuauAssignmentOperation.
-    const opNode = chainedStoreOperation(links, ctx);
+    const opNode = chainedStoreOperation(links);
     if (opNode) {
       const { lowered, last } = lowerContinued(opNode, ctx, () =>
         lowerChainedTargetStore([child], links, opNode, ctx),
@@ -723,13 +724,10 @@ function nextNonBridge(node: SyntaxNode): SyntaxNode | null {
   return next;
 }
 
-// The `=` that assigns through `links`, when they end in a property or
-// index link (`o:m(x).k = value`, `(t)[k] = value`); null for any other
-// shape, and for a compound operator, which the call path below takes.
-function chainedStoreOperation(
-  links: SyntaxNode[],
-  ctx: LowerContext,
-): SyntaxNode | null {
+// The assignment through `links`, `=` or a compound operator, when they end
+// in a property or index link (`o:m(x).k = value`, `(t)[k] += value`); null
+// for any other shape.
+function chainedStoreOperation(links: SyntaxNode[]): SyntaxNode | null {
   const lastLink = links[links.length - 1];
   if (
     !lastLink ||
@@ -739,18 +737,16 @@ function chainedStoreOperation(
     return null;
   }
   const opNode = nextNonBridge(lastLink);
-  if (opNode?.name !== "LuauAssignmentOperation") return null;
-  const opMarker = getDescendent("LuauAssignmentOperator", opNode);
-  const opText = opMarker ? ctx.read(opMarker.from, opMarker.to).trim() : "=";
-  return opText === "=" ? opNode : null;
+  return opNode?.name === "LuauAssignmentOperation" ? opNode : null;
 }
 
-// Lower `(base)[k1][k2]... = value` and `o:m(x).a.k = value`. The base is
+// Lower `(base)[k1][k2]... = value` and `o:m(x).a.k += value`. The base is
 // `baseNodes` (a parenthetical, or an access path and its call's
 // arguments) plus every link and every part of the last link but its last
-// part, folded as reads; that last part supplies the store key. The value
-// takes the lines that continue it (`= source` then `.y`), as a
-// reassignment's does.
+// part, folded as reads; that last part supplies the store key. A compound
+// operator reads and writes through the base and key once each
+// (`propertyStore`). The value takes the lines that continue it
+// (`= source` then `.y`), as a reassignment's does.
 function lowerChainedTargetStore(
   baseNodes: SyntaxNode[],
   links: SyntaxNode[],
@@ -759,6 +755,8 @@ function lowerChainedTargetStore(
 ): CompiledBlock | null {
   const continuation = takeLineContinuation(ctx);
   validateAssignmentValue(opNode, ctx);
+  const opMarker = getDescendent("LuauAssignmentOperator", opNode);
+  const opText = opMarker ? ctx.read(opMarker.from, opMarker.to).trim() : "=";
   let baseExpr = lowerExpressionFromNodes(
     [...baseNodes, ...links.slice(0, -1)],
     ctx,
@@ -779,7 +777,7 @@ function lowerChainedTargetStore(
   );
   if (!valueExpr) return null;
   return wrapInWeave(
-    [new StorePropertyAssignment(baseExpr, keyExpr, valueExpr)],
+    propertyStore(baseExpr, keyExpr, valueExpr, opText, baseNodes[0]!.from, ctx),
     { from: baseNodes[0]!.from, to: (continuation[continuation.length - 1] ?? opNode).to },
     ctx,
   );

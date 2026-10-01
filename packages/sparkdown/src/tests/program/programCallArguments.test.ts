@@ -404,6 +404,11 @@ describe("a call, an index or a method chained on a call", () => {
     ["stores through every part of a link after a field call", inRun(["local t = { a = { x = 1 } }", "local o = { get = function() return t end }", "o.get().a.x = 3"], "t.a.x"), "Got 3."],
     ["as a statement, calls through every part of a link after a method call", inRun(["local hit = 0", "local t = { a = { bump = function() hit = hit + 1 end } }", "local o = { get = function(self) return t end }", "o:get().a.bump()"], "hit"), "Got 1."],
     ["stores the value the lines after it continue, through a method call or a field call", inRun(["local t = { x = 0, y = 0 }", "local source = { y = 6 }", "local o = { get = function() return t end }", "o:get().x = source", "  .y", "o.get().y = source", "  .y"], "t.x .. \"/\" .. t.y"), "Got 6/6."],
+    // A compound assignment reads and writes through its target's base and
+    // key, each evaluated once: the call counts are 2 (one per compound
+    // store through `o.get`) and 1.
+    ["compounds a store through what a call returns, evaluating its base and key once", inRun(["local t = { a = { x = 1 }, s = \"a\", y = 5 }", "local gets = 0", "local keys = 0", "local o = { get = function() gets = gets + 1 return t end }", "function o:me() return t end", "local function key() keys = keys + 1 return \"x\" end", "o.get().a.x += 2", "o:me().a.x *= 10", "o.get().a[key()] -= 1", "o:me().s ..= \"b\"", "local function mk() return function() return t end end", "mk()().y //= 2"], "t.a.x .. \"/\" .. t.s .. \"/\" .. t.y .. \"/\" .. gets .. \"/\" .. keys"), "Got 29/ab/2/2/1."],
+    ["compounds a store through a parenthesized table and an index of a method call", inRun(["local t = { x = 1, 10 }", "local keys = 0", "local function key() keys = keys + 1 return \"x\" end", "local o = {}", "function o:get() return t end", "(t).x += 1", "(t)[key()] += 1", "o:get()[1] += 5"], "t.x .. \"/\" .. t[1] .. \"/\" .. keys"), "Got 3/15/1."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
   });
