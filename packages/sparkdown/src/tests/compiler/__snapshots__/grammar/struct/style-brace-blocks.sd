@@ -9,4 +9,5 @@ style button with
     width = 100%
     > text { font-size = 12px }
   }
+  &[data-label="a b;{"] { color = red }
 end

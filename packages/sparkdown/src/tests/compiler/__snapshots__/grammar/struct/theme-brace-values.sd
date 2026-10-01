@@ -16,4 +16,5 @@ theme dusk with
     - "q"-- { note
   group:
     k = 4-- } note
+  gap = --gap }
 end

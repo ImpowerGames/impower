@@ -1,4 +1,4 @@
-text.source.sparkdown [0..364]
+text.source.sparkdown [0..380]
  ├─ meta.theme.luau [0..15]
  │   ├─ keyword.control.theme.luau [0..5]: "theme"
  │   ├─ punctuation.whitespace.optional.sd [5..6]: " "
@@ -202,6 +202,18 @@ text.source.sparkdown [0..364]
  │           ├─ comment.luau [350..352]: "--"
  │           └─ punctuation.definition.comment.content.sd [352..359]: " } note"
  ├─ Newline [359..360]: "\n"
- ├─ meta.theme.luau [360..363]
- │   └─ keyword.control.end.luau [360..363]: "end"
- └─ Newline [363..364]: "\n"
+ ├─ meta.theme.luau [360..375]
+ │   ├─ punctuation.whitespace.sd [360..362]: "  "
+ │   ├─ variable.other.property.define.sd [362..365]: "gap"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [365..366]: " "
+ │   ├─ keyword.operator.assignment.sd [366..367]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [367..368]: " "
+ │   ├─ comment.line.double-dash.luau [368..373]
+ │   │   ├─ comment.luau [368..370]: "--"
+ │   │   └─ punctuation.definition.comment.content.sd [370..373]: "gap"
+ │   ├─ punctuation.whitespace.sd [373..374]: " "
+ │   └─ invalid.illegal.struct-block-close.sd [374..375]: "}"
+ ├─ Newline [375..376]: "\n"
+ ├─ meta.theme.luau [376..379]
+ │   └─ keyword.control.end.luau [376..379]: "end"
+ └─ Newline [379..380]: "\n"

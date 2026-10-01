@@ -239,6 +239,29 @@ end
     expect(structOf(attribute, "style", "t")["&[data-label=true--suffix]"]).toEqual({
       color: "red",
     });
+    // A quoted attribute value is part of the selector, braces and all.
+    const quoted = `style t with
+  &[data-label="x"] { color = red }
+  &[data-label="true--suffix"] { color = green }
+  &[data-label="a b;{"] { color = blue }
+end
+`;
+    const quotedIndented = `style t with
+  &[data-label="x"]:
+    color = red
+  &[data-label="true--suffix"]:
+    color = green
+  &[data-label="a b;{"]:
+    color = blue
+end
+`;
+    expect(structOf(quoted, "style", "t")).toEqual(
+      structOf(quotedIndented, "style", "t"),
+    );
+    expect(structOf(quoted, "style", "t")['&[data-label="x"]']).toEqual({
+      color: "red",
+    });
+    expect(errorsOf(quoted)).toEqual([]);
   });
 
   test("a block may open after a `;` on a body line", () => {
@@ -779,6 +802,25 @@ end
       font: "Arial 1--display",
       dash: "Arial - 1--display",
       eq: "Arial x=1--display",
+    });
+    // A value is read from its first character, as the value readers trim it
+    // before looking for a comment, so a `--` or `//` that starts it is text
+    // however the `=` is spaced.
+    const atStart = `theme t with
+  a = --gap }
+  b=--gap }
+  c = //x }
+end
+`;
+    expect(errorsOf(atStart).map((d) => [d.message, d.line, d.text])).toEqual([
+      ["Invalid syntax", 1, "}"],
+      ["Invalid syntax", 2, "}"],
+      ["Invalid syntax", 3, "}"],
+    ]);
+    expect(structOf(atStart, "theme", "t")).toMatchObject({
+      a: "--gap",
+      b: "--gap",
+      c: "//x",
     });
   });
 
