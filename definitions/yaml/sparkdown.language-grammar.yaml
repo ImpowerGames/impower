@@ -6512,17 +6512,13 @@ repository:
     # as any type does, so the body also opens at the start of a line,
     # unless that line closes the function. That opening also needs the
     # line to start with a character a statement can begin with: a line the
-    # body cannot read (a stray `|`) closes the body, and reopening it there
-    # would match nothing, again and again. A stray closing bracket the body
-    # reads itself (`LuauStrayCloser`, `LuauStrayBraceCloser`). After a return type whose
+    # body cannot read (a stray `|` or `)`) closes the body, and reopening
+    # it there would match nothing, again and again. After a return type whose
     # trailing block comment spans lines and closes right before code
     # (`b]]print(1)`), it opens before the closing brackets the comment
     # leaves, which the body reads (`LuauTypeTrailingBlockCommentClose`).
     begin: (?<!{{LUAU_FUNCTION_HEADER}})(?=\]=*\]{{LUAU_TYPE_CODE_AHEAD}})|(?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
     patterns:
-      # Before the block body, whose whitespace rule would take the line's
-      # indentation first.
-      - { include: "#LuauStrayBraceCloser" }
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
     # owns that. Stop at `end` or at a scene or branch declaration.
@@ -6904,39 +6900,8 @@ repository:
       # patterns no longer match it), this consumes it, and the next
       # statement parses fresh.
       - { include: "#LuauSemicolonSeparator" }
-      - { include: "#LuauStrayCloser" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
-
-  # A closing bracket where a statement must begin, which closes nothing the
-  # grammar has open (a `)` on a line of its own after a call Luau's parser
-  # gave up on). Luau's parser reports it (`Expected identifier when parsing
-  # expression, got ')'`); reading it here, instead of as story, keeps the
-  # block, and the function around it, to its own `end`. A `}` is read only in
-  # a function's body (`LuauStrayBraceCloser`): a Sparkle handler's `{ ... }`
-  # holds a block body too, and ends at its `}`. Only at the start of a line or
-  # right after a `;`, where a statement begins: elsewhere on a line the text
-  # belongs to a construct the grammar reads on its own terms (`define X with )`
-  # is a header it cannot read).
-  LuauStrayCloser:
-    match: (?:^|(?<=;))({{WS}}*)([)\]])
-    captures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: invalid
-        name: invalid.illegal.luau
-
-  LuauStrayBraceCloser:
-    match: (?:^|(?<=;))({{WS}}*)([}])
-    captures:
-      1:
-        patterns:
-          - { include: "#ExtraWhitespace" }
-      2:
-        tag: invalid
-        name: invalid.illegal.luau
 
   # ----------------------------------------------------------------------------
   # For Loop

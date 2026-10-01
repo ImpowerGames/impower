@@ -324,11 +324,6 @@ describe("the reported layouts", () => {
     // An expression's error before a cast.
     ["function f(t)\n  local y = t.a. :: number\nend", ["1:17-1:19 Expected identifier, got '::'"]],
     ["function f(t)\n  local y = 1 + :: number\nend", ["1:16-1:18 Expected identifier when parsing expression, got '::'"]],
-    // A closing bracket where a statement must begin is Luau's error, and
-    // the function keeps its own `end`, across a block the recovery reads.
-    ["function f()\n  print(1)\n  )\n  return 5\nend", ["2:2-2:3 Expected identifier when parsing expression, got ')'"]],
-    ["function f()\n  print((1 + local y = 2)\n  do end\n  )\n  return 5\nend", ["1:13-1:18 Expected identifier when parsing expression, got 'local'"]],
-    ["function f()\n  print(1;)\n  return 5\nend", []],
     ["function f(t)\n  print((1 + local y = 2)) local z = 3 +;\nend", [
       "1:13-1:18 Expected identifier when parsing expression, got 'local'",
       "1:40-1:41 Expected identifier when parsing expression, got ';'",

@@ -9579,9 +9579,6 @@
       "begin": "(?<!(?:\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?))(?=\\]=*\\](?![|&?.<>=,;)\\]}]|[-][>]|(?:[^\\S\\n\\r])|$|(?:[-][-])))|(?<=(?:[\\w)}\\]>\"'`?]))(?<!(?:\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?))(?=(?:[^\\S\\n\\r])+(?!end\\b|(?:[-][-])|[:](?![:])|[<])\\S)|(?<=[)])(?=(?!end\\b|(?:[-][-]))(?:[\\w\"'`(\\[{&\\-@#;]|::))|(?<=(?:[\\w)}\\]>\"'`?])(?:[^\\S\\n\\r])*)(?<!(?:\\b(?:function|scene|branch|external|component)\\b(?:[^\\S\\n\\r])*(?:(?:[a-zA-Z_][a-zA-Z0-9_]*\\b)(?:(?:[^\\S\\n\\r])*[.:](?:[^\\S\\n\\r])*(?:[a-zA-Z_][a-zA-Z0-9_]*\\b))*)?(?:<[^<>\\n]*>)?)(?:[^\\S\\n\\r])*)(?=(?:[^\\S\\n\\r])*(?:;|(?:[-][-])\\[=*\\[))|(?<=(?:[\\w)}\\]>\"'`?]))(?:[^\\S\\n\\r])*\\n|^(?!(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|(?:[^\\S\\n\\r])*\\bend\\b)(?=(?:[^\\S\\n\\r])*[\\w\"'`(\\[{&\\-@#:;.])",
       "patterns": [
         {
-          "include": "#LuauStrayBraceCloser"
-        },
-        {
           "include": "#LuauBlockBody"
         }
       ],
@@ -10055,47 +10052,12 @@
           "include": "#LuauSemicolonSeparator"
         },
         {
-          "include": "#LuauStrayCloser"
-        },
-        {
           "include": "#ExtraWhitespace"
         },
         {
           "include": "#Newline"
         }
       ]
-    },
-    "LuauStrayCloser": {
-      "match": "(?:^|(?<=;))((?:[^\\S\\n\\r])*)([)\\]])",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "tag": "invalid",
-          "name": "invalid.illegal.luau"
-        }
-      }
-    },
-    "LuauStrayBraceCloser": {
-      "match": "(?:^|(?<=;))((?:[^\\S\\n\\r])*)([}])",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ExtraWhitespace"
-            }
-          ]
-        },
-        "2": {
-          "tag": "invalid",
-          "name": "invalid.illegal.luau"
-        }
-      }
     },
     "LuauSparkdownForLoop": {
       "begin": "((?:[^\\S\\n\\r])*)(for)\\b((?:[^\\S\\n\\r])*)",
