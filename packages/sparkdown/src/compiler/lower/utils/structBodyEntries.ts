@@ -1,5 +1,6 @@
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
+import { braceBodyParts } from "../../utils/braceBlocks";
 import { findChildByName } from "../../utils/findChildByName";
 import { structArrayItemInlineEntry } from "../../utils/structArrayItemInlineEntry";
 import type { LowerContext } from "../context";
@@ -342,28 +343,8 @@ function blockBody(block: SyntaxNode): SyntaxNode | null {
 
 // The parts of a block's braces (a `LuauStructBlockBody`, a
 // `LuauStructListBlock`, or a layout or component `LuauSparkleElementBlock`),
-// each named literally so the grammar node-name check sees every name.
-function braceParts(body: SyntaxNode) {
-  if (body.name === "LuauSparkleElementBlock") {
-    return {
-      begin: findChildByName(body, "LuauSparkleElementBlock_begin"),
-      content: findChildByName(body, "LuauSparkleElementBlock_content"),
-      end: findChildByName(body, "LuauSparkleElementBlock_end"),
-    };
-  }
-  const list = body.name === "LuauStructListBlock";
-  return {
-    begin: list
-      ? findChildByName(body, "LuauStructListBlock_begin")
-      : findChildByName(body, "LuauStructBlockBody_begin"),
-    content: list
-      ? findChildByName(body, "LuauStructListBlock_content")
-      : findChildByName(body, "LuauStructBlockBody_content"),
-    end: list
-      ? findChildByName(body, "LuauStructListBlock_end")
-      : findChildByName(body, "LuauStructBlockBody_end"),
-  };
-}
+// shared with the editor's completion and folding.
+const braceParts = braceBodyParts;
 
 /** The entries part of a block's braces: everything between them. */
 function bodyContent(body: SyntaxNode): SyntaxNode {

@@ -256,10 +256,38 @@ end
     );
   });
 
-  test("rename on a dotted class rewrites every use of the class", () => {
-    const edits = renameAt(source, "panel", 2, "card");
-    expect(edits.map((e) => e.at).sort()).toEqual([...classes].sort());
-    expect(edits.every((e) => e.newText === "card")).toBe(true);
+  test("rename on a dotted class or its style rewrites every use of the class and the style", () => {
+    for (const occurrence of [2, 4]) {
+      const edits = renameAt(source, "panel", occurrence, "card");
+      expect(edits.map((e) => e.at).sort()).toEqual([...classes, styleName].sort());
+      expect(edits.every((e) => e.newText === "card")).toBe(true);
+    }
+  });
+
+  test("go to definition on a dotted class reaches the style", () => {
+    // The options the server's definition handler passes.
+    const { documents, workspace } = makeWorkspace(source);
+    for (const occurrence of [1, 3]) {
+      const { references } = getReferences(
+        documents.get(URI),
+        documents.tree(URI),
+        undefined,
+        workspace,
+        posAt(source, "panel", occurrence),
+        {
+          searchOtherFiles: true,
+          includeDeclaration: true,
+          excludeUses: true,
+          includeInterdependent: false,
+          includeLinks: false,
+        },
+      );
+      expect(
+        (references ?? []).map(
+          (r) => `${r.range.start.line}:${r.range.start.character}`,
+        ),
+      ).toEqual([styleName]);
+    }
   });
 
   test("a dotted class on a component call links to its style too", () => {

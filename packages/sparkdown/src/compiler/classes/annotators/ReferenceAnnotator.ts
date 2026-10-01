@@ -628,12 +628,14 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           }).range(name.from, name.to),
         );
       }
+      // A word or class reads the style of its name as well as naming a
+      // layer, so go to definition reaches the style and a rename keeps the
+      // class and its style together.
       for (const word of words) {
         const wordText = this.read(word.from, word.to).trim();
         annotations.push(
           SparkdownAnnotation.mark<Reference>({
-            symbolIds: [`layer.${wordText}`],
-            interdependentIds: [`style.${wordText}`],
+            symbolIds: [`layer.${wordText}`, `style.${wordText}`],
             kind: "read",
           }).range(word.from, word.to),
         );
