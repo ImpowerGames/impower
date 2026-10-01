@@ -113,6 +113,22 @@ end
     expect(labels).toEqual(expect.arrayContaining(['"ease"', '"linear"']));
   });
 
+  test("a `;` or brace inside a quoted value starts no new entry", () => {
+    for (const source of [
+      `animation fade with
+  timing { easing = "custom; dur|" }
+end
+`,
+      `animation fade with
+  timing { easing = "a { dur|" }
+end
+`,
+    ]) {
+      const labels = completeAt(source, program).map((i) => String(i.label));
+      expect(labels, source).not.toContain("duration");
+    }
+  });
+
   test("an indented body keeps inserting the indented forms", () => {
     const source = `animation fade with
   tim|
@@ -121,4 +137,32 @@ end
     expect(insertedText(itemAt(source, "timing"))).toBe("timing:\n    ");
     expect(insertedText(itemAt(source, "keyframes"))).toBe("keyframes:\n    - ");
   });
+});
+
+describe("provider · element completion in layout and component brace blocks", () => {
+  // A layout or component struct with two element fields.
+  const elements = { text: { content: "" }, row: { gap: 0 } };
+  const elementProgram = {
+    context: {
+      layout: { $default: { $type: "layout", $name: "$default", ...elements } },
+      component: {
+        $default: { $type: "component", $name: "$default", ...elements },
+      },
+    },
+  } as any;
+  const labelsIn = (source: string) =>
+    completeAt(source, elementProgram).map((i) => String(i.label));
+
+  test.each(["layout", "component"])(
+    "a %s block offers what the indented element line offers",
+    (keyword) => {
+      expect(labelsIn(`${keyword} hud with\n  te|\nend\n`)).toContain("text");
+      expect(labelsIn(`${keyword} hud with\n  row {\n    te|\n  }\nend\n`)).toContain(
+        "text",
+      );
+      expect(labelsIn(`${keyword} hud with\n  row.item { te| }\nend\n`)).toContain(
+        "text",
+      );
+    },
+  );
 });

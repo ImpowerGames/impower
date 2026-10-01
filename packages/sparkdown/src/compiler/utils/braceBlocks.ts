@@ -190,6 +190,33 @@ export interface BraceBlockPath {
   path: string[];
   /** The innermost brace body that holds the offset. */
   body: SyntaxNode;
+  /** Where the outermost block that holds the offset starts (its key, its
+   *  element, or a list entry's `{`). Its line sits in the body's
+   *  indentation, under the indented keys that start the path. */
+  outerFrom: number;
+}
+
+/**
+ * The text of the brace entry being written, given the line up to the
+ * cursor: what follows the last `{`, `}` or `;` that stands outside a quoted
+ * string. Null when the cursor is inside a quoted string, where no key is
+ * being written.
+ */
+export function braceEntryBefore(lineBefore: string): string | null {
+  let start = 0;
+  let quote = "";
+  for (let i = 0; i < lineBefore.length; i += 1) {
+    const ch = lineBefore[i]!;
+    if (quote) {
+      if (ch === "\\") i += 1;
+      else if (ch === quote) quote = "";
+    } else if (ch === '"' || ch === "`") {
+      quote = ch;
+    } else if (ch === "{" || ch === "}" || ch === ";") {
+      start = i + 1;
+    }
+  }
+  return quote ? null : lineBefore.slice(start);
 }
 
 /** The brace blocks that hold `offset`, or null when no block does. */
@@ -200,6 +227,7 @@ export function braceBlockPathAt(
 ): BraceBlockPath | null {
   const path: string[] = [];
   let innermost: SyntaxNode | null = null;
+  let outermost: SyntaxNode | null = null;
   for (
     let node: SyntaxNode | null = tree.resolveInner(offset, -1);
     node;
@@ -209,10 +237,13 @@ export function braceBlockPathAt(
       continue;
     }
     innermost ??= node;
+    outermost = node;
     const key = braceBodyKey(node, read);
     if (key != null) path.unshift(key);
   }
-  return innermost ? { path, body: innermost } : null;
+  return innermost && outermost
+    ? { path, body: innermost, outerFrom: braceBodyOwner(outermost).from }
+    : null;
 }
 
 /** Whether a declaration's body holds a line written with brace blocks. */

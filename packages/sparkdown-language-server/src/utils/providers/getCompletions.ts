@@ -9,6 +9,7 @@ import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkPr
 import {
   bodyUsesBraceBlocks,
   braceBlockPathAt,
+  braceEntryBefore,
 } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import { getProperty } from "@impower/sparkdown/src/compiler/utils/getProperty";
 import { resolveImageAttributes } from "@impower/sparkdown/src/compiler/utils/filterImage";
@@ -36,7 +37,7 @@ import {
   type DeclarationScopes,
 } from "../annotations/getDeclarationScopes";
 import { getParentSectionPath } from "../syntax/getParentSectionPath";
-import { getMorphCompletions } from "./getMorphCompletions";
+import { getMorphCompletions, indentedPathAbove } from "./getMorphCompletions";
 
 const IMAGE_CONTROL_KEYWORDS =
   GRAMMAR_DEFINITION.variables.IMAGE_CONTROL_KEYWORDS || [];
@@ -191,19 +192,6 @@ const blockStateContainers = (
   walk(declaration);
   return containers;
 };
-
-/**
- * The text of the brace entry the cursor is in, up to the cursor: the line
- * before the cursor from just after the last `{`, `;` or `}` on it.
- */
-const braceEntryBefore = (lineBefore: string): string =>
-  lineBefore.slice(
-    Math.max(
-      lineBefore.lastIndexOf("{"),
-      lineBefore.lastIndexOf(";"),
-      lineBefore.lastIndexOf("}"),
-    ) + 1,
-  );
 
 const isWhitespaceNode = (name?: SparkdownNodeName) =>
   name === "RequiredWhitespace" ||
@@ -1347,6 +1335,9 @@ export const getCompletions = (
           braceBlock && braceBlock.body.from > morphNode.from
             ? braceBlock.path
             : null,
+        blockLine: braceBlock
+          ? document.positionAt(braceBlock.outerFrom).line
+          : null,
         usesBlocks: bodyUsesBraceBlocks(morphNode),
         stateContainers: blockStateContainers(morphNode, tree, read),
       },
@@ -1880,25 +1871,68 @@ export const getCompletions = (
     return buildCompletions();
   }
 
-  // A key being written inside a struct body's brace block (#1222). Where the
-  // cursor is comes from the blocks around it: directly inside `keyframes`
-  // a key is a position, elsewhere a property of the block's own path. A
-  // container inserts a balanced `name { }` block with the cursor inside.
+  // A key being written inside a brace block (#1222). Where the cursor is
+  // comes from the blocks around it, after the indented keys the line of
+  // blocks sits under: directly inside `keyframes` a key is a position,
+  // elsewhere a property of the block's own path. A container inserts a
+  // balanced `name { }` block with the cursor inside.
   const braceDefine = getDefineContext(leftStack, read);
   const braceBlock = braceDefine
     ? braceBlockPathAt(tree, documentCursorOffset, read)
     : null;
-  if (
-    braceDefine &&
-    braceBlock &&
-    braceBlock.body.name !== "LuauSparkleElementBlock"
-  ) {
+  const braceDefineNode = leftStack.find(
+    (n) => STRUCTURAL_DEFINE_TYPE[n.name] || n.name === "LuauDefine",
+  );
+  // The block path for a struct lookup, a list entry read as the list's
+  // first item.
+  const braceStructPath =
+    braceBlock && braceBlock.body.name !== "LuauSparkleElementBlock"
+      ? [
+          ...(braceDefineNode
+            ? indentedPathAbove(
+                (line) => document.getLineText(line),
+                document.positionAt(braceDefineNode.from).line + 1,
+                document.positionAt(braceBlock.outerFrom).line,
+              )
+            : []),
+          ...braceBlock.path,
+        ].map((key) => (key === "-" ? "0" : key))
+      : null;
+  if (braceDefine && braceBlock) {
     const lineText = document.getLineText(position.line);
     const entryBefore = braceEntryBefore(
       lineText.slice(0, position.character),
     );
-    if (/^\s*[A-Za-z_$@&>.-]?[\w.%-]*$/.test(entryBefore)) {
-      if (braceBlock.path.at(-1) === "keyframes") {
+    // In a layout or component block an element is being named: offer what
+    // the indented form offers on an element line, its top-level fields.
+    if (
+      !braceStructPath &&
+      entryBefore != null &&
+      /^\s*[A-Za-z_][\w-]*$/.test(entryBefore)
+    ) {
+      addStructPropertyNameCompletions(
+        completions,
+        program,
+        config,
+        "",
+        braceDefine.type,
+        braceDefine.name,
+        "",
+        " = ",
+        true,
+        lineText,
+        position,
+        [],
+        true,
+      );
+      return buildCompletions();
+    }
+    if (
+      braceStructPath &&
+      entryBefore != null &&
+      /^\s*[A-Za-z_$@&>.-]?[\w.%-]*$/.test(entryBefore)
+    ) {
+      if (braceStructPath.at(-1) === "keyframes") {
         if (/^\s*[A-Za-z]*$/.test(entryBefore)) {
           for (const keyword of KEYFRAME_POSITION_KEYWORDS) {
             completions.set(keyword, {
@@ -1919,8 +1953,7 @@ export const getCompletions = (
         "",
         braceDefine.type,
         braceDefine.name,
-        // A list entry's fields are those of the list's first item.
-        "." + braceBlock.path.map((key) => (key === "-" ? "0" : key)).join("."),
+        "." + braceStructPath.join("."),
         " = ",
         true,
         lineText,
@@ -2067,9 +2100,8 @@ export const getCompletions = (
         "." +
           [
             ...(scalarPropertyNode.name === "LuauStructBlockProperty" &&
-            braceBlock &&
-            braceBlock.body.name !== "LuauSparkleElementBlock"
-              ? braceBlock.path.map((key) => (key === "-" ? "0" : key))
+            braceStructPath
+              ? braceStructPath
               : []),
             propertyName,
           ].join("."),

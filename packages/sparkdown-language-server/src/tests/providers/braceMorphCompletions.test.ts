@@ -309,6 +309,36 @@ end
     expect(labels).not.toContain("leaves");
   });
 
+  test("a block under an indented container keeps the container in its path", () => {
+    expect(
+      labelsAt(`morph blink with
+  layers:
+    eyelash-left {
+      fall|
+    }
+end
+`),
+    ).toEqual(["blend", "method", "fallback"]);
+    expect(
+      labelsAt(`morph blink with
+  keyframes:
+    from {
+      eyes { state = | }
+    }
+end
+`),
+    ).toEqual(expect.arrayContaining(["open", "closed", "squint"]));
+  });
+
+  test("a `;` or brace inside a quoted value starts no new entry", () => {
+    expect(
+      labelsAt(`morph blink with
+  timing { easing = "custom; dur|" }
+end
+`),
+    ).not.toContain("duration");
+  });
+
   test("a state written in a block drives its group's candidates", () => {
     // Only raffles has `mouth`: the `state` in `mouth { … }` narrows the
     // candidates, so bunny's labels are not offered under `layers`.

@@ -262,6 +262,23 @@ end
     expect(edits.every((e) => e.newText === "card")).toBe(true);
   });
 
+  test("a dotted class on a component call links to its style too", () => {
+    const called = `component card(n) with
+  text "{n}"
+end
+layout hud with
+  column {
+    card(1).panel
+  }
+end
+style panel with
+  background-color = black
+end
+`;
+    expect(referencesAt(called, "panel", 1, true)).toEqual(["5:12", "8:6"]);
+    expect(referencesAt(called, "panel", 2, true)).toEqual(["5:12", "8:6"]);
+  });
+
   test("an element's name links to the style of its name too", () => {
     const named = `layout hud with
   backdrop { text "a" }

@@ -18,6 +18,7 @@ import {
   MORPH_TIMING_FIELDS,
 } from "@impower/sparkdown/src/compiler/morph/morphSchema";
 import { type SparkProgram } from "@impower/sparkdown/src/compiler/types/SparkProgram";
+import { braceEntryBefore } from "@impower/sparkdown/src/compiler/utils/braceBlocks";
 import {
   CompletionItemKind,
   InsertTextFormat,
@@ -91,11 +92,32 @@ function pathAt(lines: Line[], lineIndex: number, indent: number): string[] {
   return path;
 }
 
+/**
+ * The indented keys `line` sits under in a struct body whose lines run from
+ * `firstLine` up to it, read as the indented form nests them (`-` for a list
+ * item). A line of brace blocks starts its path with these.
+ */
+export function indentedPathAbove(
+  getLineText: (line: number) => string,
+  firstLine: number,
+  line: number,
+): string[] {
+  const lines: Line[] = [];
+  for (let i = firstLine; i <= line; i += 1) {
+    const text = getLineText(i);
+    lines.push({ indent: /^[ \t]*/.exec(text)![0].length, text });
+  }
+  return pathAt(lines, lines.length - 1, lines[lines.length - 1]!.indent);
+}
+
 /** What the caller read from the brace blocks of a morph's body (#1222). */
 export interface MorphBraceContext {
   /** The keys of the blocks that hold the cursor, outermost first (`-` for a
    *  list entry's braces), or null when no block holds it. */
   path: string[] | null;
+  /** The line the outermost of those blocks starts on, which sits under the
+   *  body's indented keys. */
+  blockLine: number | null;
   /** Whether the body has a line written with blocks, so a container
    *  completed at its root opens a block too. */
   usesBlocks: boolean;
@@ -131,18 +153,25 @@ export function getMorphCompletions(
   const index = position.line - block.startLine - 1;
   const lineBefore = getLineText(position.line).slice(0, position.character);
   const inBlock = braces?.path != null;
-  // In a block an entry starts after the `{`, `;` or `}` before it.
+  // In a block an entry starts after the `{`, `;` or `}` before it; inside a
+  // quoted value nothing is being keyed, so no pattern below matches.
   const before = inBlock
-    ? lineBefore.slice(
-        Math.max(
-          lineBefore.lastIndexOf("{"),
-          lineBefore.lastIndexOf(";"),
-          lineBefore.lastIndexOf("}"),
-        ) + 1,
-      )
+    ? (braceEntryBefore(lineBefore) ?? '"')
     : lineBefore;
   const indent = /^[ \t]*/.exec(before)![0].length;
-  const path = inBlock ? braces!.path! : pathAt(lines, index, indent);
+  // A line of blocks sits under the indented keys above it.
+  const blockIndex =
+    inBlock && braces!.blockLine != null
+      ? braces!.blockLine - block.startLine - 1
+      : -1;
+  const path = inBlock
+    ? [
+        ...(blockIndex >= 0
+          ? pathAt(lines, blockIndex, lines[blockIndex]!.indent)
+          : []),
+        ...braces!.path!,
+      ]
+    : pathAt(lines, index, indent);
   const braced = inBlock || (path.length === 0 && !!braces?.usesBlocks);
   const containerSuffix = braced ? " { $0 }" : ":";
 

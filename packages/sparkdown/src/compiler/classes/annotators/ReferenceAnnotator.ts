@@ -607,25 +607,27 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     if (this.inStructural && nodeRef.name === "LuauSparkleElement") {
       // An element's name and each of its words and `.name` classes name a
       // layer, linked to the style of the same name. The name also declares
-      // the element's key at its path, as the static struct keys it.
+      // the element's key at its path, as the static struct keys it. A
+      // component call has no key, but its classes still name layers.
       const { name, words, call } = sparkleElementKeyParts(nodeRef.node);
-      if (!name || call) return annotations;
-      const nameText = this.read(name.from, name.to).trim();
-      const key = [name, ...words]
-        .map((n) => this.read(n.from, n.to).trim())
-        .join(" ");
-      const path = [...this.braceBlockPath(nodeRef.node), key].join(".");
-      annotations.push(
-        SparkdownAnnotation.mark<Reference>({
-          declaration: "property",
-          symbolIds: [
-            `${this.defineType}.${this.defineName}.${path}`,
-            `layer.${nameText}`,
-          ],
-          interdependentIds: [`style.${nameText}`],
-          kind: "write",
-        }).range(name.from, name.to),
-      );
+      if (name && !call) {
+        const nameText = this.read(name.from, name.to).trim();
+        const key = [name, ...words]
+          .map((n) => this.read(n.from, n.to).trim())
+          .join(" ");
+        const path = [...this.braceBlockPath(nodeRef.node), key].join(".");
+        annotations.push(
+          SparkdownAnnotation.mark<Reference>({
+            declaration: "property",
+            symbolIds: [
+              `${this.defineType}.${this.defineName}.${path}`,
+              `layer.${nameText}`,
+            ],
+            interdependentIds: [`style.${nameText}`],
+            kind: "write",
+          }).range(name.from, name.to),
+        );
+      }
       for (const word of words) {
         const wordText = this.read(word.from, word.to).trim();
         annotations.push(
