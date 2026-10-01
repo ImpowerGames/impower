@@ -6541,7 +6541,7 @@ repository:
   # begins a statement or a block, a scene or a branch is left to its own
   # rule.
   LuauInvalidStatement:
-    match: ^({{WS}}*)((?!(?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*[.](?![.]){{WS}}*{{LUAU_IDENTIFIER}})*(?:{{WS}}+(?!(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)\b)[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.](?![.])(?!{{WS}}*[A-Za-z_])|(?![^\r\n]*=)(?=(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|[^\r\n"'`(){}\[\]-]|-(?!-))*?(?:(?<=[A-Za-z0-9_])(?<!\b(?:and|or|not|in|then|do|return)){{WS}}+(?!(?:and|or|not|then|do|in|end|else|elseif|until)\b)[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.](?![.])(?={{WS}}*(?:$|--)))))(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|--[^\r\n]*|(?!{{WS}}+(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b)[^\r\n"'`-]|-(?!-))*?)(?={{WS}}*$|{{WS}}+(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b)
+    match: ^({{WS}}*)((?!(?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*[.](?![.]){{WS}}*{{LUAU_IDENTIFIER}})*(?:{{WS}}+(?!(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)\b)[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.](?![.])(?!{{WS}}*[A-Za-z_])|(?![^\r\n]*=)(?=(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|[^\r\n"'`(){}\[\]-]|-(?!-))*?(?:(?<=[A-Za-z0-9_])(?<!\b(?:and|or|not|in|then|do|return)){{WS}}+(?!(?:and|or|not|then|do|in|end|else|elseif|until)\b)[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.](?![.])(?={{WS}}*(?:$|--)))))(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|(?:--)?(?:\[\[[^\r\n]*?\]\]|\[=\[[^\r\n]*?\]=\]|\[==\[[^\r\n]*?\]==\])|--(?!\[=*\[)[^\r\n]*|(?!{{WS}}+(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b)[^\r\n"'`\[-]|\[(?!=*\[)|-(?!-))*?)(?={{WS}}*$|{{WS}}+(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b|{{WS}}*(?:--)?(?:\[\[(?![^\r\n]*\]\])|\[=\[(?![^\r\n]*\]=\])|\[==\[(?![^\r\n]*\]==\])|\[===+\[))
     captures:
       1:
         patterns:
@@ -6561,11 +6561,13 @@ repository:
   LuauInvalidStatementToken:
     patterns:
       - { include: "#LuauComment" }
+      # Luau's own string and number rules, so a long string (`[[end]]`) and
+      # a hexadecimal number (`0xFF`) read as Luau reads them.
+      - { include: "#LuauString" }
+      - { include: "#LuauNumber" }
       - { include: "#LuauInvalidStatementLogicalKeyword" }
       - { include: "#LuauInvalidStatementKeyword" }
       - { include: "#LuauInvalidStatementName" }
-      - { include: "#LuauInvalidStatementNumber" }
-      - { include: "#LuauInvalidStatementString" }
       - { include: "#LuauInvalidStatementAccessor" }
       - { include: "#LuauInvalidStatementComma" }
       - { include: "#LuauInvalidStatementOperator" }
@@ -6585,16 +6587,6 @@ repository:
     tag: variableName
     name: variable.other.readwrite.luau
     match: ({{LUAU_IDENTIFIER}})
-
-  LuauInvalidStatementNumber:
-    tag: number
-    name: constant.numeric.decimal.luau
-    match: \d[\d_]*(?:[.]\d[\d_]*)?
-
-  LuauInvalidStatementString:
-    tag: string
-    name: string.quoted.luau
-    match: '"(?:[^"\\\r\n]|\\.)*"?|''(?:[^''\\\r\n]|\\.)*''?|`(?:[^`\\\r\n]|\\.)*`?'
 
   LuauInvalidStatementAccessor:
     tag: separator

@@ -118,7 +118,10 @@ function collectLineContinuationFrom(
       // statement begins with one.
       (CALL_ARGUMENT_NODES.has(scan.name) &&
         before != null &&
-        endsInCallee(before) &&
+        // An argument this collector carried is a call too (`maker` then
+        // `"A"` then `"B"`).
+        ((nodes.length > 0 && CALL_ARGUMENT_NODES.has(before.name)) ||
+          endsInCallee(before)) &&
         inLuauBody(scan));
     if (!carried && !isLineContinuation(scan)) return nodes;
     while (scan && scan.name !== "Newline") {
@@ -591,7 +594,7 @@ function firstContentChild(node: SyntaxNode): SyntaxNode | null {
   return null;
 }
 
-function lastSignificantLeaf(node: SyntaxNode): SyntaxNode | null {
+export function lastSignificantLeaf(node: SyntaxNode): SyntaxNode | null {
   for (let child = node.lastChild; child; child = child.prevSibling) {
     if (SKIPPABLE.has(child.name) || child.from === child.to) continue;
     if (!child.firstChild) return child;

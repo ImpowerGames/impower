@@ -570,15 +570,22 @@ describe("Luau block without `end`", () => {
   ])(
     "a `repeat` holding a line that is not a Luau statement %s is closed by its `until`",
     (_label, lines) => {
-      // The line is reported on its own (#1158), and nothing else is.
+      // The line is reported once, on its own (#1158), and nothing else is.
       const { diags } = compile([...lines, ""].join("\n"));
+      const line = lines.findIndex((l) => l.includes("Hello there."));
+      const column = lines[line]!.indexOf("Hello");
       expect(
-        diags.filter(
-          (d) =>
-            d.severity === 1 &&
-            !d.message.startsWith("Incomplete statement:"),
-        ),
-      ).toEqual([]);
+        diags
+          .filter((d) => d.severity === 1)
+          .map((d) => [d.message, d.startLine, d.startCharacter, d.endCharacter]),
+      ).toEqual([
+        [
+          "Incomplete statement: expected assignment or a function call",
+          line,
+          column,
+          column + "Hello".length,
+        ],
+      ]);
     },
   );
 

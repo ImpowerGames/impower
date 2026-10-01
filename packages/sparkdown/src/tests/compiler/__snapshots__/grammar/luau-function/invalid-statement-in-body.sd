@@ -17,5 +17,10 @@ function greet(n)
     a and b
   pcall(function() print(a) end)
   1 + 2
+  Hello! [[end]]
+  Hello 0xFF!
+  Hello there. --[[
+end
+]]
 end
 After it.

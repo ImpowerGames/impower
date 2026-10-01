@@ -1,4 +1,4 @@
-text.source.sparkdown [0..344]
+text.source.sparkdown [0..402]
  ├─ meta.function.luau [0..17]
  │   ├─ keyword.control.luau [0..8]: "function"
  │   ├─ punctuation.whitespace.optional.sd [8..9]: " "
@@ -90,7 +90,12 @@ text.source.sparkdown [0..344]
  │       ├─ punctuation.whitespace.extra.sd [150..151]: " "
  │       ├─ variable.other.readwrite.luau [151..155]: "said"
  │       ├─ punctuation.whitespace.extra.sd [155..156]: " "
- │       ├─ string.quoted.luau [156..165]: "\"the end\""
+ │       ├─ string.quoted.double.luau [156..165]
+ │       │   ├─ punctuation.definition.string.double.begin.sd [156..157]: "\""
+ │       │   ├─ markup.raw.text.sd [157..160]: "the"
+ │       │   ├─ markup.raw.space.sd [160..161]: " "
+ │       │   ├─ markup.raw.text.sd [161..164]: "end"
+ │       │   └─ punctuation.definition.string.double.end.sd [164..165]: "\""
  │       ├─ punctuation.whitespace.extra.sd [165..166]: " "
  │       ├─ variable.other.readwrite.luau [166..171]: "today"
  │       └─ meta.template.expression.accessor.sd [171..172]: "."
@@ -204,12 +209,58 @@ text.source.sparkdown [0..344]
  │       ├─ punctuation.whitespace.optional.sd [327..328]: " "
  │       └─ constant.numeric.decimal.luau [328..329]: "2"
  ├─ Newline [329..330]: "\n"
- ├─ meta.function.luau [330..333]
- │   └─ keyword.control.end.luau [330..333]: "end"
- ├─ Newline [333..334]: "\n"
- ├─ string.display.text.chunk.sd [334..343]
- │   ├─ markup.raw.text.sd [334..339]: "After"
- │   ├─ markup.raw.space.sd [339..340]: " "
- │   ├─ markup.raw.text.sd [340..342]: "it"
- │   └─ markup.raw.punctuation.sd [342..343]: "."
- └─ Newline [343..344]: "\n"
+ ├─ meta.function.luau [330..346]
+ │   └─ meta.function.body.luau [330..346]
+ │       ├─ punctuation.whitespace.extra.sd [330..332]: "  "
+ │       ├─ variable.other.readwrite.luau [332..337]: "Hello"
+ │       ├─ invalid.illegal.luau [337..338]: "!"
+ │       ├─ punctuation.whitespace.extra.sd [338..339]: " "
+ │       └─ string.other.multiline.luau [339..346]
+ │           ├─ punctuation.definition.string.bracket.begin.sd [339..340]: "["
+ │           ├─ punctuation.definition.string.bracket.begin.sd [340..341]: "["
+ │           ├─ markup.raw.text.sd [341..344]: "end"
+ │           ├─ punctuation.definition.string.bracket.end.sd [344..345]: "]"
+ │           └─ punctuation.definition.string.bracket.end.sd [345..346]: "]"
+ ├─ Newline [346..347]: "\n"
+ ├─ meta.function.luau [347..360]
+ │   └─ meta.function.body.luau [347..360]
+ │       ├─ punctuation.whitespace.extra.sd [347..349]: "  "
+ │       ├─ variable.other.readwrite.luau [349..354]: "Hello"
+ │       ├─ punctuation.whitespace.extra.sd [354..355]: " "
+ │       ├─ constant.numeric.hex.luau [355..359]: "0xFF"
+ │       └─ invalid.illegal.luau [359..360]: "!"
+ ├─ Newline [360..361]: "\n"
+ ├─ meta.function.luau [361..380]
+ │   └─ meta.function.body.luau [361..380]
+ │       ├─ punctuation.whitespace.extra.sd [361..363]: "  "
+ │       ├─ variable.other.readwrite.luau [363..368]: "Hello"
+ │       ├─ punctuation.whitespace.extra.sd [368..369]: " "
+ │       ├─ variable.other.readwrite.luau [369..374]: "there"
+ │       ├─ meta.template.expression.accessor.sd [374..375]: "."
+ │       └─ comment.block.luau [375..380]
+ │           ├─ punctuation.whitespace.sd [375..376]: " "
+ │           ├─ comment.luau [376..379]: "--["
+ │           └─ comment.luau [379..380]: "["
+ ├─ Newline [380..381]: "\n"
+ ├─ meta.function.luau [381..384]
+ │   └─ meta.function.body.luau [381..384]
+ │       └─ comment.block.luau [381..384]
+ │           ├─ punctuation.definition.comment.content.sd [381..382]: "e"
+ │           ├─ punctuation.definition.comment.content.sd [382..383]: "n"
+ │           └─ punctuation.definition.comment.content.sd [383..384]: "d"
+ ├─ Newline [384..385]: "\n"
+ ├─ meta.function.luau [385..387]
+ │   └─ meta.function.body.luau [385..387]
+ │       └─ comment.block.luau [385..387]
+ │           ├─ comment.luau [385..386]: "]"
+ │           └─ comment.luau [386..387]: "]"
+ ├─ Newline [387..388]: "\n"
+ ├─ meta.function.luau [388..391]
+ │   └─ keyword.control.end.luau [388..391]: "end"
+ ├─ Newline [391..392]: "\n"
+ ├─ string.display.text.chunk.sd [392..401]
+ │   ├─ markup.raw.text.sd [392..397]: "After"
+ │   ├─ markup.raw.space.sd [397..398]: " "
+ │   ├─ markup.raw.text.sd [398..400]: "it"
+ │   └─ markup.raw.punctuation.sd [400..401]: "."
+ └─ Newline [401..402]: "\n"

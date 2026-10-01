@@ -308,6 +308,47 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual(["AB\n"]);
   });
 
+  it("calls the result with each argument on the lines after a callee", () => {
+    const source = [
+      "function maker(a)",
+      "  return function(b)",
+      "    return a .. b",
+      "  end",
+      "end",
+      "",
+      "function f()",
+      "  local x = maker",
+      '    "A"',
+      '    "B"',
+      "  local y = (maker)",
+      '    "C"',
+      '    "D"',
+      "  return x .. y",
+      "end",
+      "",
+      "{f()}",
+      "",
+    ].join("\n");
+    expect(errorsOf(source)).toEqual([]);
+    expect(playedLines(source)).toEqual(["ABCD\n"]);
+  });
+
+  it("reports a line after a long string that holds `--`", () => {
+    for (const value of ["[[--]]", "[=[--]=]"]) {
+      const source = `function f()\n  local x = ${value}\n  Hello\nend\nAfter it.\n`;
+      expect(errorsOf(source), value).toEqual([luauFirstError(source)]);
+    }
+  });
+
+  it("ends a line that is not a statement before a block comment that runs on", () => {
+    // The `end` inside the comment closes nothing. Luau reads the `Hello`
+    // after the comment as the member `there.` leaves for it, so the one
+    // error is the first line's.
+    const source = "function f()\n  Hello there. --[[\nend\n]]\n  Hello\nend\nAfter it.\n";
+    expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+    expect(playedLines(source)).toEqual(["After it.\n"]);
+  });
+
   it("reports a line after a complete `...` value", () => {
     const source = "function f(...)\n  local x = ...\n  Hello\nend\n";
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);

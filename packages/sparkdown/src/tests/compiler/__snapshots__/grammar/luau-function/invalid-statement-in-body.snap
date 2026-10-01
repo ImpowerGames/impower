@@ -1,5 +1,5 @@
-sparkdown [0..344]
- ├─ LuauFunctionDefinition [0..333]
+sparkdown [0..402]
+ ├─ LuauFunctionDefinition [0..391]
  │   ├─ LuauFunctionDefinition_begin [0..9]
  │   │   ├─ LuauFunctionDefinition_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
@@ -10,7 +10,7 @@ sparkdown [0..344]
  │   │   └─ LuauFunctionDefinition_begin_c5 [8..9]
  │   │       └─ LuauFunctionDefinition_begin_c5 [8..9]
  │   │           └─ OptionalWhitespace [8..9]: " "
- │   ├─ LuauFunctionDefinition_content [9..330]
+ │   ├─ LuauFunctionDefinition_content [9..388]
  │   │   ├─ LuauFunctionDeclarationName [9..14]
  │   │   │   ├─ LuauFunctionDeclarationName_c1 [9..14]
  │   │   │   │   └─ LuauFunctionName [9..14]: "greet"
@@ -24,9 +24,9 @@ sparkdown [0..344]
  │   │   │   └─ LuauFunctionParameters_end [16..17]
  │   │   │       └─ LuauFunctionParameters_end_c1 [16..17]
  │   │   │           └─ PunctuationParenClose [16..17]: ")"
- │   │   └─ LuauFunctionBody [17..330]
+ │   │   └─ LuauFunctionBody [17..388]
  │   │       ├─ LuauFunctionBody_begin [17..18]: "\n"
- │   │       ├─ LuauFunctionBody_content [18..330]
+ │   │       ├─ LuauFunctionBody_content [18..388]
  │   │       │   ├─ LuauInvalidStatement [18..40]
  │   │       │   │   ├─ LuauInvalidStatement_c1 [18..20]
  │   │       │   │   │   └─ ExtraWhitespace [18..20]: "  "
@@ -116,7 +116,18 @@ sparkdown [0..344]
  │   │       │   │       ├─ ExtraWhitespace [150..151]: " "
  │   │       │   │       ├─ LuauInvalidStatementName [151..155]: "said"
  │   │       │   │       ├─ ExtraWhitespace [155..156]: " "
- │   │       │   │       ├─ LuauInvalidStatementString [156..165]: "\"the end\""
+ │   │       │   │       ├─ LuauDoubleQuotedString [156..165]
+ │   │       │   │       │   ├─ LuauDoubleQuotedString_begin [156..157]
+ │   │       │   │       │   │   └─ LuauDoubleQuotedString_begin_c1 [156..157]
+ │   │       │   │       │   │       └─ PunctuationStringDoubleQuoteOpen [156..157]: "\""
+ │   │       │   │       │   ├─ LuauDoubleQuotedString_content [157..164]
+ │   │       │   │       │   │   ├─ Word [157..160]: "the"
+ │   │       │   │       │   │   ├─ Space [160..161]: " "
+ │   │       │   │       │   │   └─ Word [161..164]: "end"
+ │   │       │   │       │   └─ LuauDoubleQuotedString_end [164..165]
+ │   │       │   │       │       ├─ LuauDoubleQuotedString_end_c1 [164..165]
+ │   │       │   │       │       │   └─ PunctuationStringDoubleQuoteClose [164..165]: "\""
+ │   │       │   │       │       └─ LuauDoubleQuotedString_end_c2 165
  │   │       │   │       ├─ ExtraWhitespace [165..166]: " "
  │   │       │   │       ├─ LuauInvalidStatementName [166..171]: "today"
  │   │       │   │       └─ LuauInvalidStatementAccessor [171..172]: "."
@@ -464,33 +475,101 @@ sparkdown [0..344]
  │   │       │   │   │       ├─ LuauNumericDecimal_c1 [328..329]: "2"
  │   │       │   │   │       └─ LuauNumericDecimal_c2 329
  │   │       │   │   └─ LuauArithmeticOperation_end 329
- │   │       │   └─ Newline [329..330]: "\n"
- │   │       └─ LuauFunctionBody_end 330
- │   └─ LuauFunctionDefinition_end [330..333]
- │       ├─ LuauFunctionDefinition_end_c1 330
- │       │   └─ LuauFunctionDefinition_end_c1 330
- │       │       └─ OptionalWhitespace 330
- │       └─ LuauFunctionDefinition_end_c2 [330..333]
- │           └─ LuauEndKeyword [330..333]: "end"
- ├─ Newline [333..334]: "\n"
- ├─ ImplicitAction [334..343]
- │   ├─ ImplicitAction_begin 334
- │   │   └─ ImplicitAction_begin_c1 334
- │   │       └─ OptionalWhitespace 334
- │   ├─ ImplicitAction_content [334..343]
- │   │   └─ LineEnd [334..343]
- │   │       ├─ LineEnd_begin 334
- │   │       │   └─ LineEnd_begin_c1 334
- │   │       │       └─ OptionalWhitespace 334
- │   │       ├─ LineEnd_content [334..343]
- │   │       │   └─ TextChunk [334..343]
- │   │       │       ├─ TextChunk_begin 334
- │   │       │       ├─ TextChunk_content [334..343]
- │   │       │       │   ├─ Word [334..339]: "After"
- │   │       │       │   ├─ Space [339..340]: " "
- │   │       │       │   ├─ Word [340..342]: "it"
- │   │       │       │   └─ Punctuation [342..343]: "."
- │   │       │       └─ TextChunk_end 343
- │   │       └─ LineEnd_end 343
- │   └─ ImplicitAction_end 343
- └─ Newline [343..344]: "\n"
+ │   │       │   ├─ Newline [329..330]: "\n"
+ │   │       │   ├─ LuauInvalidStatement [330..346]
+ │   │       │   │   ├─ LuauInvalidStatement_c1 [330..332]
+ │   │       │   │   │   └─ ExtraWhitespace [330..332]: "  "
+ │   │       │   │   └─ LuauInvalidStatement_c2 [332..346]
+ │   │       │   │       ├─ LuauInvalidStatementName [332..337]: "Hello"
+ │   │       │   │       ├─ LuauInvalidStatementCharacter [337..338]: "!"
+ │   │       │   │       ├─ ExtraWhitespace [338..339]: " "
+ │   │       │   │       └─ LuauMultilineString [339..346]
+ │   │       │   │           ├─ LuauMultilineString_begin [339..341]
+ │   │       │   │           │   ├─ LuauMultilineString_begin_c1 [339..340]
+ │   │       │   │           │   │   └─ PunctuationStringBracketQuoteOpen [339..340]: "["
+ │   │       │   │           │   ├─ LuauMultilineString_begin_c2 340
+ │   │       │   │           │   └─ LuauMultilineString_begin_c3 [340..341]
+ │   │       │   │           │       └─ PunctuationStringBracketQuoteOpen [340..341]: "["
+ │   │       │   │           ├─ LuauMultilineString_content [341..344]
+ │   │       │   │           │   └─ Word [341..344]: "end"
+ │   │       │   │           └─ LuauMultilineString_end [344..346]
+ │   │       │   │               ├─ LuauMultilineString_end_c1 [344..345]
+ │   │       │   │               │   └─ PunctuationStringBracketQuoteClose [344..345]: "]"
+ │   │       │   │               ├─ LuauMultilineString_end_c2 345
+ │   │       │   │               ├─ LuauMultilineString_end_c3 [345..346]
+ │   │       │   │               │   └─ PunctuationStringBracketQuoteClose [345..346]: "]"
+ │   │       │   │               └─ LuauMultilineString_end_c4 346
+ │   │       │   ├─ Newline [346..347]: "\n"
+ │   │       │   ├─ LuauInvalidStatement [347..360]
+ │   │       │   │   ├─ LuauInvalidStatement_c1 [347..349]
+ │   │       │   │   │   └─ ExtraWhitespace [347..349]: "  "
+ │   │       │   │   └─ LuauInvalidStatement_c2 [349..360]
+ │   │       │   │       ├─ LuauInvalidStatementName [349..354]: "Hello"
+ │   │       │   │       ├─ ExtraWhitespace [354..355]: " "
+ │   │       │   │       ├─ LuauNumericHex [355..359]
+ │   │       │   │       │   ├─ LuauNumericHex_c1 [355..359]: "0xFF"
+ │   │       │   │       │   └─ LuauNumericHex_c2 359
+ │   │       │   │       └─ LuauInvalidStatementCharacter [359..360]: "!"
+ │   │       │   ├─ Newline [360..361]: "\n"
+ │   │       │   ├─ LuauInvalidStatement [361..375]
+ │   │       │   │   ├─ LuauInvalidStatement_c1 [361..363]
+ │   │       │   │   │   └─ ExtraWhitespace [361..363]: "  "
+ │   │       │   │   └─ LuauInvalidStatement_c2 [363..375]
+ │   │       │   │       ├─ LuauInvalidStatementName [363..368]: "Hello"
+ │   │       │   │       ├─ ExtraWhitespace [368..369]: " "
+ │   │       │   │       ├─ LuauInvalidStatementName [369..374]: "there"
+ │   │       │   │       └─ LuauInvalidStatementAccessor [374..375]: "."
+ │   │       │   ├─ LuauBlockComment [375..387]
+ │   │       │   │   ├─ LuauBlockComment_begin [375..380]
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c1 [375..376]
+ │   │       │   │   │   │   └─ Whitespace [375..376]: " "
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c2 [376..379]
+ │   │       │   │   │   │   └─ LuauCommentMark [376..379]: "--["
+ │   │       │   │   │   ├─ LuauBlockComment_begin_c3 379
+ │   │       │   │   │   └─ LuauBlockComment_begin_c4 [379..380]
+ │   │       │   │   │       └─ LuauCommentMark [379..380]: "["
+ │   │       │   │   ├─ LuauBlockComment_content [380..385]
+ │   │       │   │   │   ├─ Newline [380..381]: "\n"
+ │   │       │   │   │   ├─ LuauBlockCommentContent [381..382]: "e"
+ │   │       │   │   │   ├─ LuauBlockCommentContent [382..383]: "n"
+ │   │       │   │   │   ├─ LuauBlockCommentContent [383..384]: "d"
+ │   │       │   │   │   └─ Newline [384..385]: "\n"
+ │   │       │   │   └─ LuauBlockComment_end [385..387]
+ │   │       │   │       ├─ LuauBlockComment_end_c1 [385..386]
+ │   │       │   │       │   └─ LuauCommentMark [385..386]: "]"
+ │   │       │   │       ├─ LuauBlockComment_end_c2 386
+ │   │       │   │       ├─ LuauBlockComment_end_c3 [386..387]
+ │   │       │   │       │   └─ LuauCommentMark [386..387]: "]"
+ │   │       │   │       └─ LuauBlockComment_end_c4 387
+ │   │       │   │           └─ LuauBlockComment_end_c4 387
+ │   │       │   │               └─ OptionalWhitespace 387
+ │   │       │   └─ Newline [387..388]: "\n"
+ │   │       └─ LuauFunctionBody_end 388
+ │   └─ LuauFunctionDefinition_end [388..391]
+ │       ├─ LuauFunctionDefinition_end_c1 388
+ │       │   └─ LuauFunctionDefinition_end_c1 388
+ │       │       └─ OptionalWhitespace 388
+ │       └─ LuauFunctionDefinition_end_c2 [388..391]
+ │           └─ LuauEndKeyword [388..391]: "end"
+ ├─ Newline [391..392]: "\n"
+ ├─ ImplicitAction [392..401]
+ │   ├─ ImplicitAction_begin 392
+ │   │   └─ ImplicitAction_begin_c1 392
+ │   │       └─ OptionalWhitespace 392
+ │   ├─ ImplicitAction_content [392..401]
+ │   │   └─ LineEnd [392..401]
+ │   │       ├─ LineEnd_begin 392
+ │   │       │   └─ LineEnd_begin_c1 392
+ │   │       │       └─ OptionalWhitespace 392
+ │   │       ├─ LineEnd_content [392..401]
+ │   │       │   └─ TextChunk [392..401]
+ │   │       │       ├─ TextChunk_begin 392
+ │   │       │       ├─ TextChunk_content [392..401]
+ │   │       │       │   ├─ Word [392..397]: "After"
+ │   │       │       │   ├─ Space [397..398]: " "
+ │   │       │       │   ├─ Word [398..400]: "it"
+ │   │       │       │   └─ Punctuation [400..401]: "."
+ │   │       │       └─ TextChunk_end 401
+ │   │       └─ LineEnd_end 401
+ │   └─ ImplicitAction_end 401
+ └─ Newline [401..402]: "\n"

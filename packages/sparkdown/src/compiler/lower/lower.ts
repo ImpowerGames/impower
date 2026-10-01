@@ -36,6 +36,7 @@ import {
   isLineContinuation,
   isLineContinuationUsed,
   isTypeQualifierContinuation,
+  lastSignificantLeaf,
   hasTypeUnionLineOwner,
   leadingReturnTypeQualifier,
   reportUnownedTypeUnionLine,
@@ -588,11 +589,11 @@ function followsMissingValue(start: SyntaxNode, ctx: LowerContext): boolean {
   let prev = start.prevSibling;
   while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
   if (!prev) return false;
-  const text = ctx
-    .read(prev.from, start.from)
-    .replace(/--(?!\[=*\[)[^\n]*/g, "")
-    .trimEnd();
-  return VALUE_EXPECTED_AT_END.test(text);
+  // Up to its last token, which leaves out the comments after it and never
+  // mistakes a comment-like run inside a string for one (`[[--]]`).
+  const last = lastSignificantLeaf(prev);
+  if (!last) return false;
+  return VALUE_EXPECTED_AT_END.test(ctx.read(prev.from, last.to).trimEnd());
 }
 
 // A whole token, not the end of a longer one: `..` is not the end of `...`,
