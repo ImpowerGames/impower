@@ -17,7 +17,7 @@ layout inventory with
     choice.0 { text }
     title { stroke; text }
     row = { text "a" #width=5; text "b" }
-    column #gap=4{ text "c" }
+    column #gap=4 { text "c" }
     foldout "Level {n}" #open=true {
       text 'single {quoted}'
       text "a ; b } c"
@@ -50,4 +50,24 @@ layout inventory with
     text #--label='a{b}c'
     choice.1:
       text
+end
+
+layout values with
+  button @click=f--{text}
+  button @click=f--{comment
+  button @click=f--note { text }
+  button @click=f--[[ { ]] { text "child" }
+  text #--label=var(--accent) { stroke }
+  row { text #--label=card--large; text "next" }
+  text #--label=[[a{b}]] { stroke }
+  text #--label=[=======[a{b}]=======]
+  text #--label='a{b}
+  text #label=a{b} { stroke }
+  button @click={ print('a}b) } "Go"
+  card('a)b{c) { text "body" }
+  text = Hello {who}
+  text = [[a{b}]]
+  items:
+    - Hello {who}
+    - {a}
 end

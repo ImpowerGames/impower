@@ -10,6 +10,7 @@ layout mistakes with
     row { text "a" } { text "b" }
     f(a(b(c(d))))
     text #x={ {{{{a}}}} }
+    column #gap=4{ text "c" }
     if busy then
       row {
         text "busy"
@@ -27,6 +28,27 @@ layout unclosed with
     text "a"
     text "b {
     text #x={a
+end
+
+layout overflow with
+  card(f(f(f(f(f(f(1))))))) { text "body" }
+  button @click=f(f(f(f(f(f(f(1))))))) { text "body" }
+  text #x=f(f(f(f(f(f(f(1))))))) { text "body" }
+  row #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} } { text "body" }
+  text "last"
+end
+
+layout typing with
+  column {
+    if
+  }
+  column {
+    for i in bag
+  }
+  column {
+    match mode
+  }
+  row { match mode do case 1 text end }
 end
 
 layout after with

@@ -468,19 +468,20 @@ describe("one-line blocks and the optional `=`", () => {
     expect(input.props.value.binding.source).toBe("{x}");
   });
 
-  test("an unquoted prop value or handler name ends at whitespace, `;`, `{` or `}`", () => {
+  test("an unquoted prop value or handler name ends at whitespace, `;` or `}`", () => {
     const { tree } = lowered(
       `layout hud with
   row { text "a" #width=5; text "b" }
   row { button @click=go; button @click=stop }
-  column #gap=4{ text "c" }
+  column #gap=4 { text "c" }
   column #gap=4 .wide { text "d" }
+  row { text #width=5}
 end
 `,
       "layout",
       "hud",
     );
-    const [first, second, third, fourth] = tree.children;
+    const [first, second, third, fourth, fifth] = tree.children;
     expect(first.children).toHaveLength(2);
     expect(first.children[0].props.width).toEqual({ kind: "literal", value: 5 });
     expect(first.children[1].content).toEqual([{ kind: "literal", text: "b" }]);
@@ -492,6 +493,23 @@ end
     expect(third.children[0].content).toEqual([{ kind: "literal", text: "c" }]);
     expect(fourth.classes).toEqual(["wide"]);
     expect(fourth.children).toHaveLength(1);
+    expect(fifth.children[0].props.width).toEqual({ kind: "literal", value: 5 });
+  });
+
+  test("a brace inside a value's run is part of the value", () => {
+    // The indented form reads `#label=a{b}` as one literal, so the brace
+    // form does too; a block after a value needs whitespace before it.
+    const text = `layout hud with
+  text #label=a{b} { stroke }
+  row { text #label=a{b}; text "next" }
+end
+`;
+    const [label, row] = lowered(text, "layout", "hud").tree.children;
+    expect(label.props.label).toEqual({ kind: "literal", value: "a{b}" });
+    expect(label.children).toHaveLength(1);
+    expect(row.children[0].props.label).toEqual({ kind: "literal", value: "a{b}" });
+    expect(row.children[1].content).toEqual([{ kind: "literal", text: "next" }]);
+    expect(errorsOf(text)).toEqual([]);
   });
 
   test("a comma after an unquoted prop value separates two entries, and is reported", () => {
@@ -634,18 +652,61 @@ end
     });
 
     test("a value nested deeper than that runs to the end of its line, and is reported", () => {
-      const text = `function f(x)
+      const text = `component card(t) with
+  slot
+end
+
+function f(x)
   return x
 end
 
 layout hud with
   row { button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Go"; text "after" }
-  card(f(f(f(f(f(f(f(1)))))))) { text "body" }
+end
+
+layout calls with
+  card(f(f(f(f(f(f(1))))))) { text "body" }
+  button @click=f(f(f(f(f(f(f(1))))))) { text "body" }
+  text #x=f(f(f(f(f(f(f(1))))))) { text "body" }
+  row #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} } { text "body" }
+  text "last"
 end
 `;
       const errors = errorsOf(text);
-      expect(errors.some((e) => e.line === 5)).toBe(true);
-      expect(errors.some((e) => e.line === 6)).toBe(true);
+      // Every overflowing line is reported on its own line, whether or not
+      // a block around it is open.
+      for (const line of [9, 13, 14, 15, 16]) {
+        expect(errors.some((e) => e.line === line)).toBe(true);
+      }
+      // None of them takes the lines after it.
+      const calls = lowered(text, "layout", "calls").tree.children;
+      expect(calls).toHaveLength(5);
+      expect(calls[4].content).toEqual([{ kind: "literal", text: "last" }]);
+      expect(calls.slice(0, 4).every((c: any) => c.children.length === 0)).toBe(true);
+    });
+
+    test("a value nested deeper than that, with no block after it, reads as before", () => {
+      const text = `component card(t) with
+  slot
+end
+
+function f(x)
+  return x
+end
+
+layout hud with
+  card(f(f(f(f(f(f(1)))))))
+  card(f(f(f(f(f(f("{")))))))
+  row #x={ {a={b={c={d={e={f={g={h={i=1}}}}}}}}} }
+end
+`;
+      const calls = lowered(text, "layout", "hud").tree.children;
+      expect(calls.map((c: any) => [c.params?.length, c.children.length])).toEqual([
+        [1, 0],
+        [1, 0],
+        [undefined, 0],
+      ]);
+      expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
     });
 
     test("an inline long comment ends at its `]]`", () => {
@@ -848,5 +909,134 @@ end
       ["Invalid syntax", 4, "{"],
       ["Invalid syntax", 6, "}"],
     ]);
+  });
+});
+
+describe("a line the indented form reads whole is not a brace line", () => {
+  // Each of these lines holds a `{` the indented form reads as part of a
+  // value, a string or a comment. They read as they did before brace
+  // blocks, with no error, and a block after them is still a block.
+  const declarations = `component card(t) with
+  slot
+end
+
+function f(x)
+  return x
+end
+`;
+
+  test("a comment glued to a handler takes the rest of the line", () => {
+    const text = `${declarations}
+layout hud with
+  button @click=f--{text}
+  button @click=f--{comment
+  text "sibling"
+  button @click=f--note { text }
+  button @click=f--[[ { ]] { text "child" }
+end
+`;
+    const [glued, open, sibling, note, long] = lowered(text, "layout", "hud").tree.children;
+    for (const button of [glued, open, note, long]) {
+      expect(button.events[0].handler).toEqual({ kind: "ref", name: "f" });
+    }
+    expect([glued, open, note].map((b: any) => b.children)).toEqual([[], [], []]);
+    expect(sibling.content).toEqual([{ kind: "literal", text: "sibling" }]);
+    // A long comment ends at its closer, so the block after it is a block.
+    expect(long.children.map((c: any) => c.content[0].text)).toEqual(["child"]);
+    expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a prop's value is text, so its `--` is text", () => {
+    const text = `layout hud with
+  text #--label=var(--accent) { stroke }
+  row { text #--label=card--large; text "next" }
+end
+`;
+    const [label, row] = lowered(text, "layout", "hud").tree.children;
+    expect(label.props["--label"]).toEqual({ kind: "literal", value: "var(--accent)" });
+    expect(label.children).toHaveLength(1);
+    expect(row.children[0].props["--label"]).toEqual({
+      kind: "literal",
+      value: "card--large",
+    });
+    expect(row.children[1].content).toEqual([{ kind: "literal", text: "next" }]);
+    expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a long string or an unfinished single quote in a prop's value", () => {
+    const text = `layout hud with
+  text #--label=[[a{b}]]
+  text #--label=[=======[a{b}]=======]
+  text #--label='a{b}
+  text #--label=[[a{b}]] { stroke }
+end
+`;
+    const labels = lowered(text, "layout", "hud").tree.children;
+    expect(labels.map((l: any) => l.props["--label"].value)).toEqual([
+      "[[a{b}]]",
+      "[=======[a{b}]=======]",
+      "'a{b}",
+      "[[a{b}]]",
+    ]);
+    expect(labels.map((l: any) => l.children.length)).toEqual([0, 0, 0, 1]);
+    expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("an unfinished single quote in a handler or a call takes the rest of its line", () => {
+    const text = `${declarations}
+layout hud with
+  button @click={ print('a}b) } "Go"
+  card('a)b{c) { text "body" }
+  text "after"
+end
+`;
+    const [button, call, after] = lowered(text, "layout", "hud").tree.children;
+    expect(button.events[0].handler.binding.source).toBe(`{ print('a}b) } "Go"`);
+    expect(button.classes).toEqual([]);
+    expect(button.children).toEqual([]);
+    expect(call.children).toEqual([]);
+    expect(after.content).toEqual([{ kind: "literal", text: "after" }]);
+    // Luau reports the unfinished strings, as it does on any other line.
+    expect(errorsOf(text).map((e) => [e.message.split(";")[0], e.line])).toEqual(
+      expect.arrayContaining([
+        ["Malformed string", 9],
+        ["Malformed string", 10],
+      ]),
+    );
+    expect(errorsOf(text).filter((e) => e.message === "Invalid syntax")).toEqual([]);
+  });
+
+  test("a scalar value and a list item keep their text", () => {
+    const text = `layout hud with
+  text = Hello {who}
+  text = [[a{b}]]
+  items:
+    - Hello {who}
+    - {a}
+end
+`;
+    const { tree, struct } = lowered(text, "layout", "hud");
+    expect(tree.children.slice(0, 2).map((c: any) => c.content)).toEqual([
+      [{ kind: "literal", text: "Hello {who}" }],
+      [{ kind: "literal", text: "[[a{b}]]" }],
+    ]);
+    expect(struct.items).toEqual(["Hello {who}", "{a}"]);
+    expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a long string with `=` holds `]]` and a brace, at any level", () => {
+    const text = `layout hud with
+  button @click={ print([==[a]]}b]==]) }
+  row { button @click={ print([=========[a}b]=========]) } "Go"; text "after" }
+end
+`;
+    const [button, row] = lowered(text, "layout", "hud").tree.children;
+    expect(button.events[0].handler.binding.source).toBe("{ print([==[a]]}b]==]) }");
+    expect(button.children).toEqual([]);
+    expect(row.children[0].events[0].handler.binding.source).toBe(
+      "{ print([=========[a}b]=========]) }",
+    );
+    expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
+    expect(errorsOf(text)).toEqual([]);
   });
 });
