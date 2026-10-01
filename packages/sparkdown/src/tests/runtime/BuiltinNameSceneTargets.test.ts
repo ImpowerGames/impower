@@ -138,8 +138,9 @@ describe("the markers still make references to the builtins resolve", () => {
   // is not checked at compile time.
   test("`game.loading.percent` and `config.assets.predict_distance` compile clean", () => {
     const program = compileUnseeded(`layout loading with
-  loading_content:
+  loading_content {
     text "Loading {game.loading.percent}% ahead {config.assets.predict_distance}"
+  }
 end
 
 scene A
@@ -159,8 +160,9 @@ end
     // `config.assets`. The unseeded compile says so instead of hiding it
     // behind a marker.
     const program = compileUnseeded(`layout loading with
-  loading_content:
+  loading_content {
     text "Ahead {assets.predict_distance}"
+  }
 end
 
 scene A

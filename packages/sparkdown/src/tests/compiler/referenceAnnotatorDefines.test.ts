@@ -171,9 +171,11 @@ end
   test("animation: $extends parent is a read-ref to the same type", () => {
     const refs = collectReferences(`animation pan_right as animation with
   target = layer.self
-  keyframes:
-    -
+  keyframes {
+    {
       background_position = "right"
+    }
+  }
 end
 `);
     const name = find(refs, "pan_right", "define_variable_name");

@@ -46,11 +46,13 @@ const compile = (text: string, seed: boolean) => {
 };
 
 const LAYOUT = `layout loading with
-  loading_backdrop:
-  loading_content:
+  loading_backdrop
+  loading_content {
     text "Loading {game.loading.name}... {game.loading.percent}% ahead {config.assets.predict_distance}"
-    loading_bar:
+    loading_bar {
       loading_fill #transform="scaleX({game.loading.progress})"
+    }
+  }
 end
 
 scene A
@@ -60,8 +62,9 @@ end
 `;
 
 const BARE_INSTANCE = `layout loading with
-  loading_content:
+  loading_content {
     text "Ahead {assets.predict_distance}"
+  }
 end
 
 scene A

@@ -184,8 +184,9 @@ describe("morph block lowering", () => {
   test("an explicit parent is kept as `$extends`", () => {
     const struct = structOf(
       `morph slow as blink with
-  timing:
+  timing {
     duration = 1
+  }
 end
 `,
       "slow",
@@ -196,32 +197,46 @@ end
   test("list, collapsed and from/to keyframes normalize to the same poses", () => {
     const keyed = structOf(
       `morph m with
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    50%:
-      eyes:
+      }
+    }
+    50% {
+      eyes {
         state = closed
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = open
+      }
+    }
+  }
 end
 `,
       "m",
     );
     const listed = structOf(
       `morph m with
-  keyframes:
-    -
-      eyes:
+  keyframes {
+    {
+      eyes {
         state = open
-    -
-      eyes:
+      }
+    }
+    {
+      eyes {
         state = closed
-    -
-      eyes:
+      }
+    }
+    {
+      eyes {
         state = open
+      }
+    }
+  }
 end
 `,
       "m",
@@ -252,28 +267,38 @@ end
   test("lists with the same explicit offsets are equal as written", () => {
     const listed = structOf(
       `morph m with
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0
-      eyes:
+      eyes {
         state = open
-    -
+      }
+    }
+    {
       offset = 1
-      eyes:
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 `,
       "m",
     );
     const keyed = structOf(
       `morph m with
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 `,
       "m",
@@ -292,13 +317,18 @@ describe("literal state values", () => {
   const stateOf = (value: string) =>
     structOf(
       `morph m with
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = ${value}
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = open
+      }
+    }
+  }
 end
 `,
       "m",
@@ -321,13 +351,18 @@ end
   test("a different group prefix is reported where it is written and not stripped", () => {
     const text = `morph m with
   method = match
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = mouth.closed
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = open
+      }
+    }
+  }
 end
 `;
     expect(structOf(text, "m").keyframes[0].eyes.state).toBe("mouth.closed");
@@ -338,8 +373,9 @@ end
   test("ordinary animation and style values keep their coercion", () => {
     const animation = compileSource(`animation a with
   target = layer.self
-  timing:
+  timing {
     iterations = 01
+  }
 end
 `).find((e) => e.block?.context?.["animation"]?.["a"])!.block!.context!["animation"]!["a"];
     expect(animation.target).toEqual({ $type: "layer", $name: "self" });
@@ -349,13 +385,17 @@ end
   test("clip labels stay literal text", () => {
     const struct = structOf(
       `morph m with
-  clips:
-    -
-      between:
-        - 01
-        - eyes.closed
-      targets:
-        - true
+  clips {
+    {
+      between {
+        01
+        eyes.closed
+      }
+      targets {
+        true
+      }
+    }
+  }
 end
 `,
       "m",
@@ -367,13 +407,18 @@ end
 describe("morph inheritance", () => {
   test("the builtin supplies policy and timing defaults, and `method` is required", () => {
     const text = `morph m with
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 `;
     const program = compile(text);
@@ -390,8 +435,9 @@ end
   test("a parent's method and keyframes satisfy a child", () => {
     const text = `${BLINK}
 morph slow as blink with
-  timing:
+  timing {
     duration = 1
+  }
 end
 `;
     expect(morphDiagnostics(text)).toEqual([]);
@@ -403,13 +449,18 @@ end
 end
 
 morph child as base with
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 `;
     expect(morphDiagnostics(text)).toEqual([]);
@@ -422,13 +473,18 @@ end
 end
 
 morph child as base with
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 `;
     const found = morphDiagnostics(text);
@@ -436,13 +492,18 @@ end
     expect(found.find((d) => d.message.includes("`timing.duration`, inherited from `base`"))).toMatchObject({ line: 5, text: "base" });
   });
 
-  const CHILD_KEYFRAMES = `  keyframes:
-    from:
-      eyes:
+  const CHILD_KEYFRAMES = `  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 `;
 
   test("a value the child sets itself is not reported as inherited", () => {
@@ -453,8 +514,9 @@ end
 
 morph child as base with
   method = match
-  timing:
+  timing {
     duration = 1
+  }
 ${CHILD_KEYFRAMES}end
 `;
     expect(morphDiagnostics(text).filter((d) => d.message.includes("inherited from"))).toEqual([]);
@@ -520,8 +582,9 @@ ${CHILD_KEYFRAMES}end
 
   test("an authored block replaces the builtin of the same type and name", () => {
     const found = diagnosticsOf(`animation fadein with
-  timing:
+  timing {
     duration = 9
+  }
 end
 `);
     expect(found.filter((d) => d.severity === 1)).toEqual([]);
@@ -531,24 +594,28 @@ end
     const text = `store base = 7
 
 animation base with
-  timing:
+  timing {
     duration = 1
+  }
 end
 
 animation child as base with
-  timing:
+  timing {
     duration = 2
+  }
 end
 
 theme base with
-  colors:
+  colors {
     primary = red
+  }
 end
 
 ${BLINK.replace("morph blink with", "morph base with")}
 morph slow as base with
-  timing:
+  timing {
     duration = 1
+  }
 end
 `;
     const found = diagnosticsOf(text);
@@ -559,16 +626,23 @@ end
   test("a label that morphs under a non-morph root needs its own method", () => {
     const text = `morph m with
   blend = fade
-  layers:
-    creases:
+  layers {
+    creases {
       blend = morph
-  keyframes:
-    from:
-      eyes:
+    }
+  }
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 `;
     const found = morphDiagnostics(text).find((d) => d.message.includes("needs a `method`"));
@@ -603,13 +677,18 @@ end
   test("the whole chain supplies what a morph leaves out", () => {
     const text = `morph base with
   method = trace
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = closed
+      }
+    }
+  }
 end
 
 morph middle as base with
@@ -617,8 +696,9 @@ morph middle as base with
 end
 
 morph leaf as middle with
-  timing:
+  timing {
     duration = 1
+  }
 end
 `;
     expect(morphDiagnostics(text)).toEqual([]);
@@ -794,8 +874,9 @@ describe("morph diagnostics", () => {
 end
 
 animation fade with
-  timing:
+  timing {
     duration = 1
+  }
 end
 `;
     const found = morphDiagnostics(text).find((d) => d.message.includes("Expected `with`"));
@@ -1067,16 +1148,23 @@ const EYES_AND_MOUTH = `<svg xmlns="http://www.w3.org/2000/svg">
 
 const SIMPLE_BLINK = `morph blink with
   method = bend
-  keyframes:
-    from:
-      eyes:
+  keyframes {
+    from {
+      eyes {
         state = open
-    50%:
-      eyes:
+      }
+    }
+    50% {
+      eyes {
         state = closed
-    to:
-      eyes:
+      }
+    }
+    to {
+      eyes {
         state = open
+      }
+    }
+  }
 end
 `;
 
@@ -1179,8 +1267,8 @@ describe("morph binding", () => {
 
   test("every driven group must be present", () => {
     const text = SIMPLE_BLINK.replace(
-      "    50%:\n      eyes:\n        state = closed\n",
-      "    50%:\n      eyes:\n        state = closed\n      mouth:\n        state = closed\n",
+      "    50% {\n      eyes {\n        state = closed\n      }\n",
+      "    50% {\n      eyes {\n        state = closed\n      }\n      mouth {\n        state = closed\n      }\n",
     );
     const images = [
       { name: "bunny", svg: WIDE },
@@ -1201,16 +1289,23 @@ describe("morph binding", () => {
   test("a first keyframe that leaves a group out starts from each variant's own rest, as in CSS", () => {
     const text = `morph blink with
   method = bend
-  keyframes:
-    from:
-      nose:
+  keyframes {
+    from {
+      nose {
         translate = 0 0
-    50%:
-      eyes:
+      }
+    }
+    50% {
+      eyes {
         state = closed
-    to:
-      nose:
+      }
+    }
+    to {
+      nose {
         translate = 0 0
+      }
+    }
+  }
 end
 
 [[bunny~eyes.closed]]
