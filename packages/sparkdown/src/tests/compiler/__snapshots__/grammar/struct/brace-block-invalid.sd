@@ -9,6 +9,8 @@ theme t with
   marks { - { a = 1 }; accents: { value = red } }
   }
   x { y = 1 } z = 2
+  width = var(--gap) }
+  link = http://example.com }
   values:
     - 2 -- } note
 end

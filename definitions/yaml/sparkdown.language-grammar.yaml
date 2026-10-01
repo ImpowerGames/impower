@@ -320,12 +320,19 @@ variables:
   STRUCT_BLOCK_HEADER: (?:(?:[-](?![-])|[/](?![/])|[^\s{};"=,/-])(?:[-](?![-])|[/](?![/])|[^{};"\n/-])*?)
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
+  # The text of a line up to an unquoted `}` that no comment holds. A comment
+  # starts where the value rules start one: `--` after whitespace or directly
+  # after a value that ends in a digit, a quote or a letter of `true`, `false`,
+  # `Infinity` or `NaN` (`1-- }`), and `//` after whitespace and before
+  # whitespace or the end of the line. Any other `--` is part of a value
+  # (`var(--gap) }`).
+  STRUCT_BLOCK_CLOSE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}(?![-][-])|[^"\s-]|[-](?![-])|(?<![\s\d"eyN])[-][-]|{{WS}}(?![-][-]|[/][/](?:{{WS}}|$)))*?[}])
   # A body line whose first token opens a block or a list entry, or that holds
-  # an unquoted `}` before any comment: a `}` outside every block is stray, and
+  # an unquoted `}` outside a comment: a `}` outside every block is stray, and
   # reading its line as block entries is what reports it (`delay = 2 }` after
   # the block it meant to close has closed). A brace inside a quoted string or
-  # a `--` or `//` comment leaves the line in the indented form.
-  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|(?:{{STRUCT_BLOCK_QUOTED}}|[-](?![-])|[/](?![/])|[^"\n/-])*?[}]))
+  # a comment leaves the line in the indented form.
+  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?:(?:{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}})?[{]|{{STRUCT_BLOCK_CLOSE_SCAN}}))
   # An unclosed block ends where the declaration's `end` starts a line.
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a

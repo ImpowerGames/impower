@@ -557,6 +557,26 @@ end
       { message: "Invalid syntax", line: 1, character: 12, text: "}" },
     ]);
     expect(structOf(scalar, "theme", "t").value).toBe(1);
+    // A `--` or `//` inside a value is not a comment, so a `}` after it is
+    // still stray.
+    const inValue = `theme t with
+  good { width = var(--gap) }
+  width = var(--gap) }
+  height = var(gap) }
+  link = http://example.com }
+end
+`;
+    expect(errorsOf(inValue)).toMatchObject([
+      { message: "Invalid syntax", line: 2, character: 21, text: "}" },
+      { message: "Invalid syntax", line: 3, character: 20, text: "}" },
+      { message: "Invalid syntax", line: 4, character: 28, text: "}" },
+    ]);
+    expect(structOf(inValue, "theme", "t")).toMatchObject({
+      good: { width: "var(--gap)" },
+      width: "var(--gap)",
+      height: "var(gap)",
+      link: "http://example.com",
+    });
   });
 
   test("a stray `}` is invalid syntax", () => {
