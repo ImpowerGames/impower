@@ -286,6 +286,28 @@ end
       expect.arrayContaining(["&[data-label='a;b']", "> text"]),
     );
     expect(errorsOf(single)).toEqual([]);
+    // A quoted key is a block header too, with or without `=`.
+    for (const type of ["theme", "style"] as const) {
+      const quotedKey = `${type} t with
+  "quoted key" { v = 1 }
+  "other" = { w = 2 }
+end
+`;
+      const quotedKeyIndented = `${type} t with
+  "quoted key":
+    v = 1
+  "other":
+    w = 2
+end
+`;
+      expect(structOf(quotedKey, type, "t"), type).toEqual(
+        structOf(quotedKeyIndented, type, "t"),
+      );
+      expect(Object.keys(structOf(quotedKey, type, "t")), type).toEqual(
+        expect.arrayContaining(['"quoted key"', '"other"']),
+      );
+      expect(errorsOf(quotedKey), type).toEqual([]);
+    }
   });
 
   test("a block may open after a `;` on a body line", () => {
@@ -653,6 +675,16 @@ end
       expect(keyedErrors[0]!.message, key).toContain("`;`");
       expect(structOf(keyed, "theme", "t").g.a, key).toBe(1);
     }
+    // A key with a non-ASCII letter starts the next entry too, and the
+    // entries after it are kept.
+    const unicode = `theme t with
+  g { a = 1, 名 = 2; tail = 3 }
+end
+`;
+    const unicodeErrors = errorsOf(unicode);
+    expect(unicodeErrors).toHaveLength(1);
+    expect(unicodeErrors[0]).toMatchObject({ line: 1, text: "," });
+    expect(structOf(unicode, "theme", "t").g).toMatchObject({ a: 1, tail: 3 });
   });
 
   test("a comma between two list values on one line is one error that names `;`", () => {
@@ -1030,5 +1062,20 @@ end
       ["Invalid syntax", 4, "&[data-label='a;b']:"],
       ["Invalid syntax", 6, "&[data-label='a{b']:"],
     ]);
+    // A trailing comma after the colon does not hide it.
+    const comma = `theme t with
+  outer {
+    accents:,
+      v = 1
+    &[data-label='a;b']:,
+      w = 2
+  }
+end
+`;
+    expect(errorsOf(comma).map((d) => [d.message, d.line, d.text])).toEqual([
+      ["Invalid syntax", 2, "accents:"],
+      ["Invalid syntax", 4, "&[data-label='a;b']:"],
+    ]);
+    expect(structOf(comma, "theme", "t").outer).toEqual({ v: 1, w: 2 });
   });
 });

@@ -334,11 +334,11 @@ variables:
   STRUCT_BLOCK_BRACKET: (?:[\[]{{STRUCT_BLOCK_BRACKET_BODY}}[\]])
   STRUCT_BLOCK_LONE_BRACKET: (?:[\[](?!{{STRUCT_BLOCK_BRACKET_BODY}}[\]]))
   # A block header: a key, a selector or a keyframe position. It holds no
-  # unquoted brace or `;` and no comment, and does not start with a quote, `=`
-  # or `,`, so a brace in a comment never opens a block. A quoted run and an
-  # attribute selector inside it are read whole (`&[data-label="x"]`,
+  # unquoted brace or `;` and no comment, and does not start with `=` or `,`,
+  # so a brace in a comment never opens a block. A quoted run and an
+  # attribute selector are read whole (`"quoted key"`, `&[data-label="x"]`,
   # `&[data-label='a;b']`).
-  STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?)
+  STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?)
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
   # A whole number, boolean or quoted value, spelled as the typed reader's
@@ -350,7 +350,11 @@ variables:
   STRUCT_BLOCK_AFTER_LITERAL_COMMENT: (?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))
   STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})
   # A property's key, and the key with its `=` and the whitespace around it.
-  STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})
+  # It is spelled without `IDENTIFIER`'s closing `\b`, which the two engines
+  # read differently after a non-ASCII letter (`名 = 2`); an `=` always
+  # follows it, and `(?<![-])` keeps the one thing the boundary did for an
+  # ASCII key, that it does not end in `-`.
+  STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
   # An indented-form property or `-` item whose value is a literal followed by
   # a `--` or `//` comment: the rest of its line is the comment.
@@ -5738,12 +5742,13 @@ repository:
       3:
         name: comment.line.double-slash.content.sd
 
-  # An indented-form `key:` header inside a block. Its quoted runs and
-  # attribute selectors are read whole, as a block header's are.
+  # An indented-form `key:` header inside a block, before the end of the
+  # line, a `;`, a brace, a comma or a comment. Its quoted runs and attribute
+  # selectors are read whole, as a block header's are.
   LuauStructBlockIndentedHeader:
     tag: invalid
     name: invalid.illegal.struct-block-header.sd
-    match: ((?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*[:])(?={{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+    match: ((?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*[:])(?={{WS}}*(?:$|[;{},]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
 
   # An indented-form `-` item mark inside a block.
   LuauStructBlockItemMark:
