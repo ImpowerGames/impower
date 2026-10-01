@@ -337,8 +337,10 @@ variables:
   # unquoted brace or `;` and no comment, and does not start with `=` or `,`,
   # so a brace in a comment never opens a block. A quoted run and an
   # attribute selector are read whole (`"quoted key"`, `&[data-label="x"]`,
-  # `&[data-label='a;b']`).
-  STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?)
+  # `&[data-label='a;b']`). It does not end in a comma, so in
+  # `{ "a", { v = 1 } }` the comma separates two entries (and is reported)
+  # rather than ending a header; a selector list (`&.a, &.b {`) ends in a name.
+  STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?(?<![\s,]))
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
   # A whole number, boolean or quoted value, spelled as the typed reader's

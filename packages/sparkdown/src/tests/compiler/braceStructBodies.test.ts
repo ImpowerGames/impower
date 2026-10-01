@@ -705,6 +705,22 @@ end
     expect(structOf(text, "morph", "m").clips).toEqual([
       { between: ["a"], targets: ["b", "c"] },
     ]);
+    // A comma before a `{ … }` entry separates two entries; it does not end
+    // a header, quoted or not, so the container stays a list.
+    for (const value of ['"a"', "a"]) {
+      const beforeObject = `theme t with
+  entries { ${value}, { v = 1 } }
+end
+`;
+      const objectErrors = errorsOf(beforeObject);
+      expect(objectErrors, value).toHaveLength(1);
+      expect(objectErrors[0], value).toMatchObject({ line: 1, text: "," });
+      expect(objectErrors[0]!.message, value).toContain("`;`");
+      expect(structOf(beforeObject, "theme", "t").entries, value).toEqual([
+        "a",
+        { v: 1 },
+      ]);
+    }
   });
 
   test("a comma between a property and a nested block is one error that names `;`, and the block keeps its own header", () => {
