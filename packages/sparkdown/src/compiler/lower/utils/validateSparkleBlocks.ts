@@ -5,12 +5,14 @@ import type { InkDiagnostic } from "../../classes/annotators/CompilationAnnotato
 import { findChildByName } from "../../utils/findChildByName";
 import type { LowerContext } from "../context";
 import { sparkleBlockHasElement } from "./sparkleBlockEntries";
+import { joinSparkleContinuations } from "./sparkleContinuations";
 import { blockIsClosed, blockOpenBrace } from "./structBodyEntries";
 import { lineTextSpan, makeSource } from "./validateDefineStructure";
 
 // The structure errors of the brace blocks in a `layout` or `component` body:
-// a block left without its `}`, a block with no element before it, and an
-// `if`, `for` or `match` inside a block left without its `end`.
+// a block left without its `}`, a block with no element before it, a line
+// that continues no element, and an `if`, `for` or `match` inside a block
+// left without its `end`.
 //
 // Each is reported where the mistake shows (the `{`, the control block's
 // header line), which can stand before the edit that makes or fixes it: typing
@@ -23,6 +25,11 @@ import { lineTextSpan, makeSource } from "./validateDefineStructure";
  *  open ends where a line starts with `end`, `else`, `elseif` or `case`. */
 export const UNCLOSED_SPARKLE_BLOCK =
   "This block is missing its closing `}`. Without it, every line up to the next line that starts with `end`, `else`, `elseif` or `case`, the next `scene` or `branch`, or the end of the file is read as part of this block.";
+
+/** A continuation line (`.class`, `#prop=…`, `@event=…`, `"content"`) with
+ *  no element before it to join. */
+export const STRAY_SPARKLE_CONTINUATION =
+  "There is no element for this line to continue. A line that starts with `.`, `#`, `@` or a quote adds to the element just before it, and a property, an `if`, `for` or `match` block, or the element's `{ … }` block ends that element.";
 
 // The control blocks a layout or component block can hold, and what a
 // message calls each.
@@ -65,13 +72,18 @@ export function validateSparkleBlocks(
       source: makeSource(from, to, ctx),
     });
   };
+  const joins = joinSparkleContinuations(contentNode);
+  for (const stray of joins.stray) {
+    const line = lineTextSpan(stray.from, stray.to, ctx);
+    if (line) report(STRAY_SPARKLE_CONTINUATION, line.from, line.to);
+  }
   const walk = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
       if (child.name === "LuauSparkleElementBlock") {
         const open = blockOpenBrace(child);
         const from = open?.from ?? child.from;
         const to = open?.to ?? child.from + 1;
-        if (!sparkleBlockHasElement(child)) {
+        if (!sparkleBlockHasElement(child) && !joins.joined.has(child.from)) {
           report("Invalid syntax", from, to);
         } else if (!blockIsClosed(child)) {
           report(UNCLOSED_SPARKLE_BLOCK, from, to);

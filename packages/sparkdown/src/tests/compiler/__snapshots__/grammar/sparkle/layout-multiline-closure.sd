@@ -1,0 +1,65 @@
+layout handlers with
+  button "Go" @click={
+    score = 0
+    combo = combo + 1
+  }
+  button
+    "Reset"
+    @click={ -- reset everything
+      if score > 10 then
+        best = score
+      elseif score > 5 then
+        good = true
+      else
+        score = 0
+      end
+      for i = 1, 3 do
+        tally[i] = { i, { i } }
+      end
+      log("}")
+    } .after #x=1
+  column {
+    button @click={
+      combo = 0
+    } "Inside" {
+      text "child"
+    }
+    button
+      @input={
+        name = event.value
+      }
+      @change={ save() }
+    text "after"
+  }
+  button @click={ a = 1 }
+  button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} }
+  button @click={ print([========[a}b]========]) }
+  button @click={ print('a}b)
+  text "sibling"
+  button "Set" @click = { message = [=[ready]=]
+    message = message .. "!"
+  }
+  button "Tick" @click={ message = `{message} and {[[x]]}`
+    message = message .. "?"
+  }
+  row {
+    match mode do
+      case 1
+        button
+          .one
+          @click={
+            mode = 2
+          }
+    end
+  }
+end
+
+layout unclosed with
+  button "Stop" @click={
+    score = 0
+  text "taken in"
+end
+
+layout still with
+  text "compiles"
+end
