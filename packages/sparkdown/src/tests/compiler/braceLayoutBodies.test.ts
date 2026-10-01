@@ -584,6 +584,70 @@ end
       expect(errorsOf(text)).toEqual([]);
     });
 
+    test("a long string of any level, on an indented line and in a block", () => {
+      const text = `layout hud with
+  button @click={ print([====[a}b]====]) }
+  row { button @click={ print([=======[a}b]=======]) } "Go"; text "after" }
+end
+`;
+      const [button, row] = lowered(text, "layout", "hud").tree.children;
+      expect(closure(button)).toBe("{ print([====[a}b]====]) }");
+      expect(button.classes).toEqual([]);
+      expect(closure(row.children[0])).toBe("{ print([=======[a}b]=======]) }");
+      expect(row.children[0].content).toEqual([{ kind: "literal", text: "Go" }]);
+      expect(row.children[1].content).toEqual([{ kind: "literal", text: "after" }]);
+      expect(errorsOf(text)).toEqual([]);
+    });
+
+    test("calls nested six deep and closures nested eight deep keep the rest of the line", () => {
+      const declarations = `component card(t) with
+  slot
+end
+
+function f(x)
+  return x
+end
+`;
+      const braced = `${declarations}
+layout hud with
+  card(f(f(f(f(f(1)))))) { text "body" }
+  row { button @click={ local t = {a={b={c={d={e={f={}}}}}}} } "Go"; text "after" }
+end
+`;
+      const indented = `${declarations}
+layout hud with
+  card(f(f(f(f(f(1)))))):
+    text "body"
+  row:
+    button @click={ local t = {a={b={c={d={e={f={}}}}}}} } "Go"
+    text "after"
+end
+`;
+      expect(everything(braced)).toEqual(everything(indented));
+      const [call, row] = lowered(braced, "layout", "hud").tree.children;
+      expect(call.children.map((c: any) => c.content[0].text)).toEqual(["body"]);
+      expect(row.children.map((c: any) => c.content[0].text)).toEqual([
+        "Go",
+        "after",
+      ]);
+      expect(errorsOf(braced)).toEqual([]);
+    });
+
+    test("a value nested deeper than that runs to the end of its line, and is reported", () => {
+      const text = `function f(x)
+  return x
+end
+
+layout hud with
+  row { button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Go"; text "after" }
+  card(f(f(f(f(f(f(f(1)))))))) { text "body" }
+end
+`;
+      const errors = errorsOf(text);
+      expect(errors.some((e) => e.line === 5)).toBe(true);
+      expect(errors.some((e) => e.line === 6)).toBe(true);
+    });
+
     test("an inline long comment ends at its `]]`", () => {
       const text = `layout hud with\n  row { text "a" --[[ comment ]] ; text "b" }\nend\n`;
       const row = lowered(text, "layout", "hud").tree.children[0];

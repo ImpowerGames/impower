@@ -37,6 +37,8 @@ layout inventory with
     button @click={ local t = {a={b={c={}}}} } #--label='a{b}c'
     button @click={ print([[a}b]]) } "B" --[[ note ]] .wide
     card([[a)b{c]]) { text "c" }
+    button @click={ print([====[a}b]====]) } "Long" ; card(f(f(f(f(f(1)))))) { text "deep" }
+    row { button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Over"; text "after" }
     row,
   }
   stage:
