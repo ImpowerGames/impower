@@ -131,7 +131,8 @@ end
 
   test("a single quote in a value is text, so the entry after its `;` completes", () => {
     // Outside `[…]` the struct grammar reads `'` as text.
-    for (const value of ["don't", "'tis", "ease-'"]) {
+    // A lone `[` and one inside a closed bracket run are text there too.
+    for (const value of ["don't", "'tis", "ease-'", "ease[", "[data[a]"]) {
       const labels = completeAt(
         `animation fade with
   timing { easing = ${value}; dur| }
@@ -187,8 +188,21 @@ describe("provider · element completion in layout and component brace blocks", 
       // Content glued to the name or a word is still content.
       `layout hud with\n  row { text'a; te|' }\nend\n`,
       `layout hud with\n  row { text 1'a; te|' }\nend\n`,
+      // A single-quoted attribute value too.
+      `layout hud with\n  row { text #label='a; te|' }\nend\n`,
+      `component hud with\n  row { text #label='a; te|' }\nend\n`,
     ]) {
       expect(labelsIn(source), source).not.toContain("text");
     }
   });
+
+  test.each(["layout", "component"])(
+    "after closed content holding a quote or bracket, the next %s entry completes",
+    (keyword) => {
+      for (const content of [`'a"b'`, "'a`b'", "'a[b'", `"a'b"`]) {
+        const source = `${keyword} hud with\n  row { text ${content}; te| }\nend\n`;
+        expect(labelsIn(source), source).toContain("text");
+      }
+    },
+  );
 });

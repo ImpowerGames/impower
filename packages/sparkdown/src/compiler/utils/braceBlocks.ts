@@ -198,72 +198,41 @@ export interface BraceBlockPath {
   outerFrom: number;
 }
 
-/**
- * The text of the brace entry being written, given the line up to the
- * cursor: what follows the last `{`, `}` or `;` that stands outside a quoted
- * string and outside `[…]`. Null when the cursor is inside a quoted string,
- * where no key is being written. As the struct grammar reads values, `"` and
- * backtick strings are strings everywhere, while a `'` is a quote only inside
- * `[…]` (`[data-label='a;b']`), where `;` also stays part of the value;
- * elsewhere it is text (`'tis`, `don't`). Single-quoted element content
- * (`text 'a; b'`) is read from the tree: see `insideSingleQuotedContent`.
- */
-export function braceEntryBefore(lineBefore: string): string | null {
-  let start = 0;
-  let quote = "";
-  let brackets = 0;
-  for (let i = 0; i < lineBefore.length; i += 1) {
-    const ch = lineBefore[i]!;
-    if (quote) {
-      if (ch === "\\") i += 1;
-      else if (ch === quote) quote = "";
-    } else if (ch === '"' || ch === "`" || (ch === "'" && brackets > 0)) {
-      quote = ch;
-    } else if (ch === "[") {
-      brackets += 1;
-    } else if (ch === "]") {
-      brackets = Math.max(0, brackets - 1);
-    } else if (brackets === 0 && (ch === "{" || ch === "}" || ch === ";")) {
-      start = i + 1;
-    }
-  }
-  return quote ? null : lineBefore.slice(start);
-}
+/** The tokens that start a new brace entry: a block's `{` and `}`, and a
+ *  `;` between entries. */
+const ENTRY_SEPARATOR_NAMES = nodeNameSet([
+  "LuauStructBlockOpen",
+  "LuauStructBlockClose",
+  "LuauStructBlockSeparator",
+]);
 
 /**
- * Whether `offset` lies inside an element's single-quoted content
- * (`text 'a; b'`, `text'a'`), as the grammar reads it, where no key is being
- * written.
+ * The text of the brace entry being written at `offset` on the line starting
+ * at `lineFrom`: what follows the last `{`, `}` or `;` the grammar reads as an
+ * entry separator before the cursor. Whether a `;` or a brace is structure is
+ * the parser's decision, never this function's: one inside a string (`"a;b"`,
+ * element content `'a; b'`), an attribute value (`#label='a; b'`) or a
+ * bracket run (`[data-label='a;b']`) is part of that token, while a quote or
+ * bracket the grammar reads as text (`'tis`, `ease[`) changes nothing. Inside
+ * such a token the entry holds the token's text, so it is never read as a key.
  */
-export function insideSingleQuotedContent(
-  tree: Tree,
-  offset: number,
-  read: (from: number, to: number) => string,
-): boolean {
-  for (
-    let node: SyntaxNode | null = tree.resolveInner(offset, -1);
-    node;
-    node = node.parent
-  ) {
-    if (node.name !== "LuauElementContentStringSingleQuoted") continue;
-    const text = read(node.from, node.to);
-    const closed = text.length > 1 && text.endsWith("'");
-    return offset > node.from && (offset < node.to || !closed);
-  }
-  return false;
-}
-
-/** The brace entry being written at `offset`, or null when no key is being
- *  written there (inside a quoted string). */
 export function braceEntryAt(
   tree: Tree,
   offset: number,
-  lineBefore: string,
+  lineFrom: number,
   read: (from: number, to: number) => string,
-): string | null {
-  return insideSingleQuotedContent(tree, offset, read)
-    ? null
-    : braceEntryBefore(lineBefore);
+): string {
+  let start = lineFrom;
+  tree.iterate({
+    from: lineFrom,
+    to: offset,
+    enter: (node) => {
+      if (ENTRY_SEPARATOR_NAMES.has(node.name) && node.to <= offset) {
+        start = Math.max(start, node.to);
+      }
+    },
+  });
+  return read(start, offset);
 }
 
 /** The brace blocks that hold `offset`, or null when no block does. */

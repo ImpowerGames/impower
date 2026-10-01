@@ -340,7 +340,7 @@ end
   });
 
   test("a single quote in a value is text, so the entry after its `;` completes", () => {
-    for (const value of ["don't", "'tis", "ease-'"]) {
+    for (const value of ["don't", "'tis", "ease-'", "ease[", "[data[a]"]) {
       expect(
         labelsAt(`morph blink with
   timing { easing = ${value}; dur| }

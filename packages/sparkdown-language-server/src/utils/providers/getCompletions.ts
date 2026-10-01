@@ -1341,7 +1341,7 @@ export const getCompletions = (
         entry: braceEntryAt(
           tree,
           documentCursorOffset,
-          document.getLineText(position.line).slice(0, position.character),
+          document.offsetAt({ line: position.line, character: 0 }),
           read,
         ),
         usesBlocks: bodyUsesBraceBlocks(morphNode),
@@ -1909,7 +1909,7 @@ export const getCompletions = (
     const entryBefore = braceEntryAt(
       tree,
       documentCursorOffset,
-      lineText.slice(0, position.character),
+      document.offsetAt({ line: position.line, character: 0 }),
       read,
     );
     // In a layout or component block an element is being named: offer what
