@@ -11,6 +11,13 @@ theme t with
   x { y = 1 } z = 2
   width = var(--gap) }
   link = http://example.com }
+  a = blue--gap }
+  &.card--large { opacity = 0.5 }
+  slashes {
+    value = 1 // } note
+    // a whole-line note }
+    next = 2
+  }
   values:
     - 2 -- } note
 end

@@ -201,6 +201,27 @@ describe("a brace body lowers to the struct of its indented form", () => {
     expect(structOf(THEME_BRACED, "theme", "dusk")).toEqual(indented);
   });
 
+  test("a selector holding `--` keeps it in the header", () => {
+    const braced = `style t with
+  &.card--large { opacity = 0.5 }
+  &.primary--active {
+    opacity = 1
+  }
+end
+`;
+    const indented = `style t with
+  &.card--large:
+    opacity = 0.5
+  &.primary--active:
+    opacity = 1
+end
+`;
+    const struct = structOf(braced, "style", "t");
+    expect(struct["&.card--large"]).toEqual({ opacity: "0.5" });
+    expect(struct).toEqual(structOf(indented, "style", "t"));
+    expect(errorsOf(braced)).toEqual([]);
+  });
+
   test("a block may open after a `;` on a body line", () => {
     const braced = `animation a with
   target = layer.self; timing {
@@ -406,6 +427,34 @@ end
 `;
     const struct = structOf(braced, "theme", "t");
     expect(struct.a).toEqual({ x: 1, y: true, z: "q", w: "var(--gap)" });
+    // A whitespace-led `//` is a comment too, in both forms.
+    const slashBraced = `theme t with
+  colors {
+    value = 1 // } note
+    // a whole-line note }
+    next = 2
+    list { red // } note
+    }
+  }
+end
+`;
+    const slashIndented = `theme t with
+  colors:
+    value = 1 // } note
+    next = 2
+    list:
+      - red // } note
+end
+`;
+    expect(structOf(slashBraced, "theme", "t")).toEqual(
+      structOf(slashIndented, "theme", "t"),
+    );
+    expect(structOf(slashBraced, "theme", "t").colors).toEqual({
+      value: 1,
+      next: 2,
+      list: ["red"],
+    });
+    expect(errorsOf(slashBraced)).toEqual([]);
     expect(struct.list).toEqual([2]);
     expect(struct).toEqual(structOf(indented, "theme", "t"));
     expect(errorsOf(braced)).toEqual([]);
@@ -595,6 +644,23 @@ end
       width: "var(--gap)",
       height: "var(gap)",
       link: "http://example.com",
+    });
+    // `--` after a letter or a digit inside a word is part of the value.
+    const inWord = `theme t with
+  a = blue--gap }
+  b = foo1--bar }
+  c = labelN--suffix }
+end
+`;
+    expect(errorsOf(inWord).map((d) => [d.message, d.line, d.text])).toEqual([
+      ["Invalid syntax", 1, "}"],
+      ["Invalid syntax", 2, "}"],
+      ["Invalid syntax", 3, "}"],
+    ]);
+    expect(structOf(inWord, "theme", "t")).toMatchObject({
+      a: "blue--gap",
+      b: "foo1--bar",
+      c: "labelN--suffix",
     });
   });
 

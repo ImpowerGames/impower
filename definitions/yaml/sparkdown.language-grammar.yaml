@@ -314,19 +314,31 @@ variables:
   # to the end of the line, and the value patterns below cannot backtrack into
   # it to end a value at a `;` or `}` it contains.
   STRUCT_BLOCK_QUOTED: (?:"(?:\\.|[^"\\\n])*(?:"|$))
+  # A comment inside a block starts where the indented form's value readers
+  # start one: `--` after whitespace, `//` after whitespace and before
+  # whitespace or the end of the line, and `--` directly after a whole number,
+  # boolean or quoted value (`opacity = 1-- note`, `STRUCT_BLOCK_LITERAL`). Any
+  # other `--` or `//` is part of the text (`var(--gap)`, `&.card--large`,
+  # `http://example.com`).
+  STRUCT_BLOCK_COMMENT_AFTER_WS: (?:{{LUAU_COMMENT_START}}|[/][/](?={{WS}}|$))
+  # Whitespace that is not followed by a comment.
+  STRUCT_BLOCK_WS_IN_TEXT: (?:{{WS}}(?!{{WS}}*{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
   # A block header: a key, a selector or a keyframe position. It holds no
-  # brace, `;`, quote, `--` or `//`, and does not start with `=` or `,`, so a
+  # brace, `;`, quote or comment, and does not start with `=` or `,`, so a
   # brace in a comment never opens a block.
-  STRUCT_BLOCK_HEADER: (?:(?:[-](?![-])|[/](?![/])|[^\s{};"=,/-])(?:[-](?![-])|[/](?![/])|[^{};"\n/-])*?)
+  STRUCT_BLOCK_HEADER: (?:[^\s{};"=,](?:[^\s{};"]|{{STRUCT_BLOCK_WS_IN_TEXT}})*?)
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
-  # The text of a line up to an unquoted brace that no comment holds. A comment
-  # starts where the value rules start one: `--` after whitespace or directly
-  # after a value that ends in a digit, a quote or a letter of `true`, `false`,
-  # `Infinity` or `NaN` (`1-- }`), and `//` after whitespace and before
-  # whitespace or the end of the line. Any other `--` is part of a value
-  # (`var(--gap) }`).
-  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}(?![-][-])|[^"\s{}-]|[-](?![-])|(?<![\s\d"eyN])[-][-]|{{WS}}(?![-][-]|[/][/](?:{{WS}}|$)))*?[{}])
+  # A whole number, boolean or quoted value. After one, a `--` can only begin a
+  # comment, so it needs no whitespace before it, as the indented form's typed
+  # reader already reads it.
+  STRUCT_BLOCK_LITERAL: (?:[-+]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
+  STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{LUAU_COMMENT_START}})
+  # The text of a line up to an unquoted brace that no comment holds. A value
+  # starts after `=` or whitespace; one that is a literal directly followed by
+  # `--` ends the scan, since the rest of the line is a comment, and so does
+  # whitespace before a comment.
+  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}(?!{{LUAU_COMMENT_START}})|[=](?!{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})|{{WS}}(?!{{WS}}*(?:{{STRUCT_BLOCK_COMMENT_AFTER_WS}}|{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}}))|[^"\s{}=])*?[{}])
   # A body line that holds an unquoted `{` or `}` outside a comment is read as
   # block entries: a `{` opens a block or a list entry wherever it stands on
   # the line (`timing = 1; keyframes {`), and a `}` outside every block is
@@ -338,23 +350,18 @@ variables:
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
   # comment. It is ignored.
-  STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{LUAU_COMMENT_START}}))
+  STRUCT_BLOCK_TRAILING_COMMA: (?:[,]{{WS}}*(?:$|[;}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
   # A comma followed by another entry on the same line: a property (`, b = 2`)
   # or a block (`, b {`, `, > text {`). A value cannot hold an unquoted `{`,
   # so text after a comma that runs to a `{` is the next block's header.
   STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
-  # A whole number, boolean or quoted value. After one, a `--` can only begin a
-  # comment, so it needs no whitespace before it (`opacity = 1-- note`), as the
-  # indented form's typed reader already reads it. Anywhere else `--` can be
-  # part of a value (`var(--x)`).
-  STRUCT_BLOCK_LITERAL: (?:[-+]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
   # An unquoted property value ends at the end of its line, a `;`, a brace, a
-  # comma that ends the entry or precedes another one, or a `--` comment after
-  # whitespace or a literal. Any other comma stays part of the value.
-  STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}})|{{WS}}+{{LUAU_COMMENT_START}})
+  # comma that ends the entry or precedes another one, or a comment. Any other
+  # comma stays part of the value.
+  STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}})|{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
   STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{LUAU_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))
   # A bare list value also ends at any comma.
-  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},])|{{WS}}+{{LUAU_COMMENT_START}})
+  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},])|{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
   STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{LUAU_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?={{STRUCT_BLOCK_ITEM_END}}))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
@@ -5468,11 +5475,11 @@ repository:
   # still read line by line outside blocks (`LuauStructBodyLine`) and are
   # invalid inside one.
   #
-  # A body line whose first token opens a block or a list entry, or is a stray
-  # `}`, is a `LuauStructBlockLine`. It ends at the end of the line its last
+  # A body line that holds an unquoted `{` or `}` outside a comment
+  # (`STRUCT_BLOCK_LINE_START`) is a `LuauStructBlockLine`, read as block
+  # entries from its first character. It ends at the end of the line its last
   # block closes on, so entries after a block on that line are its entries too.
-  # A block opens on its header's line, so a line that holds no `{` before its
-  # first quote or `;` stays an indented-form line.
+  # Every other line stays an indented-form line.
   # ----------------------------------------------------------------------------
   LuauStructBlockLine:
     begin: ^(?={{STRUCT_BLOCK_LINE_START}})
@@ -5487,6 +5494,7 @@ repository:
   LuauStructBlockEntries:
     patterns:
       - { include: "#LuauComment" }
+      - { include: "#LuauStructBlockSlashComment" }
       - { include: "#Whitespace" }
       - { include: "#Newline" }
       - { include: "#LuauStructBlockSeparator" }
@@ -5639,10 +5647,26 @@ repository:
     match: ([,])
 
   # An indented-form `key:` header inside a block.
+  # A `//` comment inside a block: after whitespace (or at the start of an
+  # entry) and before whitespace or the end of the line, as the indented
+  # form's value readers strip one (`stripTrailingLineComment`).
+  LuauStructBlockSlashComment:
+    tag: lineComment
+    name: comment.line.double-slash.sd
+    match: ({{WS}}*)([/]{2})(?={{WS}}|$)([^\n]*)
+    captures:
+      1:
+        patterns:
+          - { include: "#Whitespace" }
+      2:
+        name: punctuation.definition.comment.sd
+      3:
+        name: comment.line.double-slash.content.sd
+
   LuauStructBlockIndentedHeader:
     tag: invalid
     name: invalid.illegal.struct-block-header.sd
-    match: ([^{};"\n]+?{{WS}}*[:])(?={{WS}}*(?:$|[;{}]|{{LUAU_COMMENT_START}}))
+    match: ((?:[^\s{};"]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*[:])(?={{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
 
   # An indented-form `-` item mark inside a block.
   LuauStructBlockItemMark:
