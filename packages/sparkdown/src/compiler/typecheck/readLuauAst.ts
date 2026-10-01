@@ -769,33 +769,42 @@ const BINARY_PRIORITY: readonly BinaryOpPriority[] = [
 
 const UNARY_PRIORITY = 8;
 
-const BINARY_OPS: Record<string, BinaryOp> = {
-  "+": BinaryOp.Add,
-  "-": BinaryOp.Sub,
-  "*": BinaryOp.Mul,
-  "/": BinaryOp.Div,
-  "//": BinaryOp.FloorDiv,
-  "%": BinaryOp.Mod,
-  "^": BinaryOp.Pow,
-  "..": BinaryOp.Concat,
-  "~=": BinaryOp.CompareNe,
-  "==": BinaryOp.CompareEq,
-  "<": BinaryOp.CompareLt,
-  "<=": BinaryOp.CompareLe,
-  ">": BinaryOp.CompareGt,
-  ">=": BinaryOp.CompareGe,
-};
+// The tables below are read with a token's text, so they are Maps: an
+// object would also answer for the names it inherits (`constructor`).
+const BINARY_OPS = new Map<string, BinaryOp>([
+  ["+", BinaryOp.Add],
+  ["-", BinaryOp.Sub],
+  ["*", BinaryOp.Mul],
+  ["/", BinaryOp.Div],
+  ["//", BinaryOp.FloorDiv],
+  ["%", BinaryOp.Mod],
+  ["^", BinaryOp.Pow],
+  ["..", BinaryOp.Concat],
+  ["~=", BinaryOp.CompareNe],
+  ["==", BinaryOp.CompareEq],
+  ["<", BinaryOp.CompareLt],
+  ["<=", BinaryOp.CompareLe],
+  [">", BinaryOp.CompareGt],
+  [">=", BinaryOp.CompareGe],
+]);
 
-const COMPOUND_OPS: Record<string, BinaryOp> = {
-  "+=": BinaryOp.Add,
-  "-=": BinaryOp.Sub,
-  "*=": BinaryOp.Mul,
-  "/=": BinaryOp.Div,
-  "//=": BinaryOp.FloorDiv,
-  "%=": BinaryOp.Mod,
-  "^=": BinaryOp.Pow,
-  "..=": BinaryOp.Concat,
-};
+const COMPOUND_OPS = new Map<string, BinaryOp>([
+  ["+=", BinaryOp.Add],
+  ["-=", BinaryOp.Sub],
+  ["*=", BinaryOp.Mul],
+  ["/=", BinaryOp.Div],
+  ["//=", BinaryOp.FloorDiv],
+  ["%=", BinaryOp.Mod],
+  ["^=", BinaryOp.Pow],
+  ["..=", BinaryOp.Concat],
+]);
+
+// Other languages' operators, which Luau reads as its own and reports.
+const CONFUSABLE_BINARY_OPS = new Map<string, [BinaryOp, string]>([
+  ["&&", [BinaryOp.And, "and"]],
+  ["||", [BinaryOp.Or, "or"]],
+  ["!=", [BinaryOp.CompareNe, "~="]],
+]);
 
 interface Name {
   name: string;
@@ -838,11 +847,11 @@ class FatalReadError extends Error {
 }
 
 // The attributes Luau knows (`kAttributeEntries`), by name.
-const ATTRIBUTES: Record<string, AstAttrType> = {
-  checked: AstAttrType.Checked,
-  native: AstAttrType.Native,
-  deprecated: AstAttrType.Deprecated,
-};
+const ATTRIBUTES = new Map<string, AstAttrType>([
+  ["checked", AstAttrType.Checked],
+  ["native", AstAttrType.Native],
+  ["deprecated", AstAttrType.Deprecated],
+]);
 
 function isConstantLiteral(expr: AstExpr): boolean {
   return expr instanceof AstExprConstantNil || expr instanceof AstExprConstantBool || expr instanceof AstExprConstantNumber || expr instanceof AstExprConstantString;
@@ -1219,7 +1228,7 @@ class Parser {
 
     if (this.is(",") || this.is("=")) return this.parseAssignment(expr);
 
-    const compound = this.current().kind === "symbol" ? COMPOUND_OPS[this.current().text] : undefined;
+    const compound = this.current().kind === "symbol" ? COMPOUND_OPS.get(this.current().text) : undefined;
     if (compound !== undefined) return this.parseCompoundAssignment(expr, compound);
 
     const ident = expr instanceof AstExprGlobal ? expr.name : expr instanceof AstExprLocal ? expr.local.name : undefined;
@@ -1295,7 +1304,7 @@ class Parser {
   }
 
   private validateAttribute(loc: Location, name: string, attributes: AstAttr[], args: AstExpr[]): AstAttrType | undefined {
-    const type = ATTRIBUTES[name];
+    const type = ATTRIBUTES.get(name);
     if (type === undefined) {
       this.report(loc, name.length === 0 ? "Attribute name is missing" : `Invalid attribute '@${name}'`);
       return undefined;
@@ -2292,11 +2301,9 @@ class Parser {
       return undefined;
     }
     if (token.kind !== "symbol") return undefined;
-    const op = BINARY_OPS[token.text];
+    const op = BINARY_OPS.get(token.text);
     if (op !== undefined) return op;
-    // Luau reads the operators of other languages as its own, and reports them.
-    const confusable: Record<string, [BinaryOp, string]> = { "&&": [BinaryOp.And, "and"], "||": [BinaryOp.Or, "or"], "!=": [BinaryOp.CompareNe, "~="] };
-    const entry = confusable[token.text];
+    const entry = CONFUSABLE_BINARY_OPS.get(token.text);
     if (entry && BINARY_PRIORITY[entry[0]]!.left > limit) {
       this.report(token.location, `Unexpected '${token.text}'; did you mean '${entry[1]}'?`);
       return entry[0];

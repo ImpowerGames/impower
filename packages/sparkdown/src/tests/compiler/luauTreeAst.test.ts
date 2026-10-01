@@ -596,9 +596,12 @@ describe("The other entry points", () => {
     expect(parsed.errors).toEqual([]);
     expect(unit.errors).toEqual([]);
     expect(printAst(unit.root)).toBe(printAst(parsed.root));
-    const bad = "local x = 1\ntype function t() return x end\n@nope function f() end\n";
+    // Names an object inherits are no attributes either.
+    const bad = "local x = 1\ntype function t() return x end\n@nope function f() end\n@constructor function g() end\n@toString function h() end\n@__proto__ function i() end\n@hasOwnProperty function j() end\n";
     const badText = runWrapperText("W", bad);
-    expect(readLuauRunFile(parseSource(badText), badText)!.errors.map((e) => e.message)).toEqual(parseLuau(bad).errors.map((e) => e.message));
+    const expected = parseLuau(bad).errors.map((e) => e.message);
+    expect(expected).toContain("Invalid attribute '@constructor'");
+    expect(readLuauRunFile(parseSource(badText), badText)!.errors.map((e) => e.message)).toEqual(expected);
   });
 
   test("a narrative interpolation's expression is read with Luau's precedence, its names as globals", () => {
