@@ -3,9 +3,9 @@
 // navigable (links, lists, tables, headings-in-context) rather than div soup.
 //
 // Names that already exist as style CLASSES (`small`, `nav`, `progress`,
-// `group`, `grid`, `muted`, …) are deliberately NOT promoted to tags — doing so
-// would turn existing authoring like `text small "…"` into a
-// two-tags-on-one-line warning, and a styled <div> renders identically.
+// `group`, `grid`, `muted`, …) are deliberately NOT promoted to tags: existing
+// authoring like `text.small "…"` uses them as classes, and a styled <div>
+// renders identically.
 
 import { describe, expect, test } from "vitest";
 import { createDOMHarness, flushMicrotasks } from "./domTestHarness";
@@ -120,7 +120,7 @@ end
     //
     // `kbd` is NOT in this list any more — it is a real element now, because
     // "the key you press" is meaning, not appearance. It still works as a class
-    // (`text kbd "Ctrl"` above renders a div), which is why this list passing
+    // (`text.kbd "Ctrl"` above renders a div), which is why this list passing
     // was never evidence: the fixture happens to use the class form, so the
     // assertion held while the claim it encodes had already become false.
     for (const tag of ["mark", "del", "ins", "abbr"]) {
