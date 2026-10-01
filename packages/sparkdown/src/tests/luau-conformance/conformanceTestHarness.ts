@@ -68,12 +68,20 @@ end
 const PREAMBLE_LINE_COUNT =
   (PREAMBLE.match(/\n/g)?.length ?? 0) + 1;
 
+/**
+ * A conformance fixture as the document the harness compiles: its body inside
+ * `function run() ... end`, which main flow calls.
+ */
+export function wrapConformanceSource(fixtureSource: string): string {
+  return `${PREAMBLE}\n${fixtureSource}\n${EPILOGUE}`;
+}
+
 export function runConformanceSource(
   fixtureSource: string,
   uri: string = "inmemory://luau-conformance/main.sd",
   fixtureName: string = "main",
 ): ConformanceResult {
-  const wrappedSource = `${PREAMBLE}\n${fixtureSource}\n${EPILOGUE}`;
+  const wrappedSource = wrapConformanceSource(fixtureSource);
 
   const compiler = testCompiler();
   compiler.configure({
