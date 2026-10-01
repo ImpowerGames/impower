@@ -130,6 +130,7 @@ const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
  */
 function reportedExpressionErrors(parseErrors: readonly LuauTypeError[], text: string): Set<LuauTypeError> {
   const reported = new Set<LuauTypeError>();
+  if (!parseErrors.some((error) => error.data.kind === "SyntaxError")) return reported;
   const tokens = describeTokens(text);
   // The index of the first token at or after a position.
   const indexAt = (position: Position) => {
@@ -148,7 +149,7 @@ function reportedExpressionErrors(parseErrors: readonly LuauTypeError[], text: s
     const message = error.data.message;
     const begin = error.location.begin;
     const index = indexAt(begin);
-    if (INDEX_NAME_ERROR.test(message) && index > 0 && tokens[index - 1]!.begin.line === begin.line) readAsName.add(index);
+    if (INDEX_NAME_ERROR.test(message) && isKeyword(tokens[index]) && index > 0 && tokens[index - 1]!.begin.line === begin.line) readAsName.add(index);
     let separated = false;
     for (let i = lastIndex ?? index; i < index && !separated; i++) {
       separated = i > enclosedUntil && !readAsName.has(i) && STATEMENT_TOKENS.has(tokens[i]!.description);
@@ -173,16 +174,28 @@ function reportedExpressionErrors(parseErrors: readonly LuauTypeError[], text: s
 // stands, even where it was looking for an expression (`got 'local'`).
 const STATEMENT_TOKENS = new Set(["';'", "'local'", "'return'", "'break'", "'do'", "'while'", "'for'", "'repeat'", "'until'"]);
 // Luau's error for a `.` or `:` with no name after it (`parseIndexName`),
-// which reads a keyword on the same line as the missing name.
+// which reads a keyword on the same line as the missing name. Any other token
+// it leaves for the next statement.
 const INDEX_NAME_ERROR = /^Expected identifier(?: when parsing (?:method|field) name)?, got '/;
 
 /**
  * Whether Luau code holds a token that ends a statement or begins one
- * (`STATEMENT_TOKENS`). Code that begins at the token of an error that a
- * `.` or `:` has no name after begins with the name the parser read there.
+ * (`STATEMENT_TOKENS`). Code that begins at the token found on a `.`'s or
+ * `:`'s line where its name is missing begins with the name the parser read
+ * there when that token is a keyword.
  */
 export function endsStatement(code: string, atMissingName = false): boolean {
-  return describeTokens(code).some((token, i) => (i > 0 || !atMissingName) && STATEMENT_TOKENS.has(token.description));
+  return describeTokens(code).some((token, i) => !(i === 0 && atMissingName && isKeyword(token)) && STATEMENT_TOKENS.has(token.description));
+}
+
+/** Whether Luau code holds a token, past comments. */
+export function holdsToken(code: string): boolean {
+  return describeTokens(code).length > 0;
+}
+
+/** Whether a token, in Luau's description, is a reserved word. */
+function isKeyword(token: { description: string } | undefined): boolean {
+  return token !== undefined && /^'[a-z]+'$/.test(token.description) && RESERVED.has(token.description.slice(1, -1));
 }
 
 /** Whether a Sparkdown or Luau error is one for a `.` or `:` with no name after it. */
@@ -442,8 +455,11 @@ export class SparkdownTypechecker {
     // it, past comments, where that token ends a value (`store x = 0xZ`,
     // then `2`), is a statement of its own's.
     const read = (from: number, to: number) => text.slice(from, to);
+    const unitTokens = new Map<LuauUnit, ReturnType<typeof describeTokens>>();
     const followsUncheckedLuau = (unit: LuauUnit, position: Position) => {
-      const before = describeTokens(unit.text)
+      let tokens = unitTokens.get(unit);
+      if (!tokens) unitTokens.set(unit, (tokens = describeTokens(unit.text)));
+      const before = tokens
         .filter((token) => token.begin.line < position.line || (token.begin.line === position.line && token.begin.column < position.column))
         .at(-1);
       if (before && before.end.line < position.line && endsValue(before.description)) return false;

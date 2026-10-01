@@ -265,6 +265,8 @@ describe("the reported layouts", () => {
     // recovery's other errors.
     ["function f(t)\n  t.a.return 1\nend", ["1:6-1:12 Expected identifier, got 'return'"]],
     ["function f(t)\n  t.a.--[[note]]return 1\nend", ["1:16-1:22 Expected identifier, got 'return'"]],
+    // Only a keyword is read as the name; a `;` still ends the statement.
+    ["function f(t)\n  t.a.; x = 1 +;\nend", ["1:6-1:7 Expected identifier, got ';'", "1:15-1:16 Expected identifier when parsing expression, got ';'"]],
   ])("%j reports %j", (source, messages) => {
     const { errors, functions } = compileDocument(`${source}\n`);
     expect(errors).toEqual(messages);
@@ -306,6 +308,17 @@ describe("the reported layouts", () => {
     ["function f(t)\n  store x = 0xZ --[[\n  ]] 2\nend", ["1:12-1:15 Malformed number", "2:5-2:6 Expected identifier when parsing expression, got '2'"]],
     // The validator's error at a statement keyword begins the next
     // statement, whose own error is reported too.
+    // A keyword on the line after a `.` with no name begins a statement.
+    ["function f(t)\n  store x = t.a.\n  return 1 +;\nend", [
+      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+      "2:2-2:8 Expected identifier, got 'return'",
+      "2:12-2:13 Expected identifier when parsing expression, got ';'",
+    ]],
+    ["function f(t)\n  store x = t.a.\n  --[[c]] return 1 +;\nend", [
+      "1:12-1:15 A variable must be initialized to a number, string, boolean, constant, list item, or divert target.",
+      "2:10-2:16 Expected identifier, got 'return'",
+      "2:20-2:21 Expected identifier when parsing expression, got ';'",
+    ]],
     ["function f(t)\n  store x = 1 +\n  local y = 2 +;\nend", [
       "2:2-2:7 Expected identifier when parsing expression, got 'local'",
       "2:15-2:16 Expected identifier when parsing expression, got ';'",

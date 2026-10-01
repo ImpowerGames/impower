@@ -19,7 +19,7 @@ import {
 } from "../lint/collectLuauLints";
 import { modeFromName } from "../typecheck/LuauDocumentChecker";
 import { Mode } from "../typecheck/Module";
-import { endsStatement, isMissingNameError, SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
+import { endsStatement, holdsToken, isMissingNameError, SparkdownTypechecker } from "../typecheck/SparkdownTypechecker";
 import { configTypecheckSetting, frontMatterTypecheckSetting, unknownModeMessage } from "../typecheck/typecheckSettings";
 import { STDLIB } from "../../inkjs/engine/StdLib";
 import { createRasterImageDefinitions, isRasterLayerFile } from "../../attributes/rasterSource";
@@ -6821,10 +6821,14 @@ export class SparkdownCompiler {
         // is that mistake as Luau reads the lines where Sparkdown reads them
         // differently (an `else` that ends its line before a statement at
         // column 0). The token Sparkdown's error is at can begin the next
-        // statement itself (`got 'local'`).
+        // statement itself (`got 'local'`), unless it is a keyword on the
+        // line of a `.` with no name after it, which Luau reads as the name.
         const followsError = ({ range, message }: { range: Range; message: string }) =>
           (range.end.line === d.start.line - 1 || (range.end.line === d.start.line && range.end.character <= d.start.character)) &&
-          !endsStatement(doc.read(doc.offsetAt(range.start), doc.offsetAt(d.start)), isMissingNameError(message));
+          !endsStatement(
+            doc.read(doc.offsetAt(range.start), doc.offsetAt(d.start)),
+            isMissingNameError(message) && holdsToken(doc.read(doc.offsetAt({ line: range.start.line, character: 0 }), doc.offsetAt(range.start))),
+          );
         if (d.expression && ownErrors.some(followsError)) continue;
         report(scriptUri, { start: d.start, end: d.end }, d.code, d.message, d.syntax ? DiagnosticSeverity.Error : DiagnosticSeverity.Warning);
       }
