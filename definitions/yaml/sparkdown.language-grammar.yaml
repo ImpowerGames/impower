@@ -315,11 +315,11 @@ variables:
   # it to end a value at a `;` or `}` it contains.
   STRUCT_BLOCK_QUOTED: (?:"(?:\\.|[^"\\\n])*(?:"|$))
   # A comment inside a block starts where the indented form's value readers
-  # start one: `--` after whitespace, `//` after whitespace and before
-  # whitespace or the end of the line, and `--` directly after a whole number,
-  # boolean or quoted value (`opacity = 1-- note`, `STRUCT_BLOCK_LITERAL`). Any
-  # other `--` or `//` is part of the text (`var(--gap)`, `&.card--large`,
-  # `http://example.com`).
+  # start one (`stripTrailingLineComment` and the typed reader's
+  # `*_WITH_COMMENT_RE`): `--` after whitespace, `//` after whitespace and
+  # before whitespace or the end of the line, and `--` after a value that is a
+  # whole number, boolean or quoted string (`opacity = 1-- note`). Any other
+  # `--` or `//` is text (`var(--gap)`, `&.card--large`, `http://example.com`).
   STRUCT_BLOCK_COMMENT_AFTER_WS: (?:{{LUAU_COMMENT_START}}|[/][/](?={{WS}}|$))
   # Whitespace that is not followed by a comment.
   STRUCT_BLOCK_WS_IN_TEXT: (?:{{WS}}(?!{{WS}}*{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
@@ -329,28 +329,26 @@ variables:
   STRUCT_BLOCK_HEADER: (?:[^\s{};"=,](?:[^\s{};"]|{{STRUCT_BLOCK_WS_IN_TEXT}})*?)
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
-  # A whole number, boolean or quoted value. After one, a `--` can only begin a
-  # comment, so it needs no whitespace before it, as the indented form's typed
-  # reader already reads it.
-  STRUCT_BLOCK_LITERAL: (?:[-+]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
-  # What begins a comment right after a whole literal: `--`, or `//` after any
-  # whitespace, as the indented form's literal value rules read it
-  # (`NumericFieldValue` and its neighbours end at `//`).
-  STRUCT_BLOCK_LITERAL_COMMENT_START: (?:{{LUAU_COMMENT_START}}|{{WS}}*[/][/])
-  STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_LITERAL_COMMENT_START}})
-  # The text of a line up to an unquoted brace that no comment holds. Whitespace
-  # before a comment ends the scan. So does a value that is a whole literal
-  # directly followed by `--`, where a value starts: after `=` or after an
-  # indented-form `-` item mark (`x = 1-- }`, `- 2-- }`). Elsewhere `--` is
-  # text (`Arial 1--display }`), as the value readers read it.
-  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|[=](?!{{WS}}*{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})|[-](?={{WS}})(?!{{WS}}+{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})|{{STRUCT_BLOCK_WS_IN_TEXT}}|[-](?!{{WS}})|[^"\s{}=-])*?[{}])
+  # A whole number, boolean or quoted value, spelled as the typed reader's
+  # `NUMERIC_WITH_COMMENT_RE`, `BOOLEAN_WITH_COMMENT_RE` and
+  # `QUOTED_WITH_COMMENT_RE` spell it. After one, `--` begins a comment with
+  # no whitespace before it (those regexes), and so does `//` (the literal
+  # value rules, `NumericFieldValue` and its neighbours, end at `//`).
+  STRUCT_BLOCK_LITERAL: (?:[-]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
+  STRUCT_BLOCK_AFTER_LITERAL_COMMENT: (?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))
+  STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})
+  # An indented-form property or `-` item whose value is a literal followed by
+  # a `--` comment: the rest of its line is the comment.
+  STRUCT_BLOCK_LITERAL_COMMENT_LINE: (?:(?:(?:\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}}){{ASSIGN_EQUAL_OPERATOR}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})
+  # The text of a line up to an unquoted brace that no comment holds.
+  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^"\s{}])*?[{}])
   # A body line that holds an unquoted `{` or `}` outside a comment is read as
   # block entries: a `{` opens a block or a list entry wherever it stands on
   # the line (`timing = 1; keyframes {`), and a `}` outside every block is
   # stray, which reading the line as entries reports (`delay = 2 }` after the
   # block it meant to close has closed). A brace inside a quoted string or a
   # comment leaves the line in the indented form.
-  STRUCT_BLOCK_LINE_START: (?:{{WS}}*{{STRUCT_BLOCK_BRACE_SCAN}})
+  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?!{{STRUCT_BLOCK_LITERAL_COMMENT_LINE}}){{STRUCT_BLOCK_BRACE_SCAN}})
   # An unclosed block ends where the declaration's `end` starts a line.
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
@@ -360,14 +358,22 @@ variables:
   # or a block (`, b {`, `, > text {`). A value cannot hold an unquoted `{`,
   # so text after a comma that runs to a `{` is the next block's header.
   STRUCT_BLOCK_COMMA_BEFORE_ENTRY: (?:[,]{{WS}}*(?:{{STYLE_PROPERTY_NAME}}{{WS}}*[=]|{{STRUCT_BLOCK_HEADER}}{{STRUCT_BLOCK_ASSIGN}}[{]))
-  # An unquoted property value ends at the end of its line, a `;`, a brace, a
-  # comma that ends the entry or precedes another one, or a comment. Any other
-  # comma stays part of the value.
-  STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}})|{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
-  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{STRUCT_BLOCK_LITERAL_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?={{STRUCT_BLOCK_VALUE_END}}))
+  # An unquoted property value ends at the end of its line, a `;`, a brace, or
+  # a comma that ends the entry or precedes another one. Any other comma stays
+  # part of the value. A value that reaches a comment takes the comment, to the
+  # end of the line, into its text, as an indented value does, so the value
+  # readers read the same text in both forms and strip the comment alike, and
+  # nothing in the comment is structure. A literal followed by `//` is the
+  # exception: it ends before the comment, which the property or list value
+  # reads as a `LuauStructBlockValueComment`, because the literal value rules
+  # (`NumericFieldValue` and its neighbours) tokenize a `//` comment
+  # differently in the two engines.
+  STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))
+  STRUCT_BLOCK_COMMENT_IN_VALUE: (?:{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
+  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{}"\n])+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
   # A bare list value also ends at any comma.
-  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},])|{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
-  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{STRUCT_BLOCK_LITERAL_COMMENT_START}})|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?={{STRUCT_BLOCK_ITEM_END}}))
+  STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},]))
+  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|[^;{},"\n])+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
   LUAU_FUNCTION_CALL_START: (?:<<|[({"']|\[\[)
   # The text between a regex literal's slashes (`@/x/`), shared by
   # `LuauRegexLiteral` and the value end in `LUAU_VALUE_COMMENT_BEFORE_STATEMENT`.
@@ -5619,8 +5625,7 @@ repository:
           - { include: "#StringFieldValue" }
           - { include: "#StylingValue" }
           - { include: "#UnquotedStringFieldValue" }
-      # A `//` comment the value ended at: after a literal any `//`, after
-      # other text one with whitespace on both sides.
+      # The `//` comment after a literal value.
       4:
         patterns:
           - { include: "#LuauStructBlockValueComment" }
@@ -5641,7 +5646,7 @@ repository:
         patterns:
           - { include: "#LuauStructBlockValueComment" }
 
-  # The `//` comment that ends a property or list value.
+  # The `//` comment after a literal property or list value.
   LuauStructBlockValueComment:
     tag: lineComment
     name: comment.line.double-slash.sd

@@ -220,6 +220,25 @@ end
     expect(struct["&.card--large"]).toEqual({ opacity: "0.5" });
     expect(struct).toEqual(structOf(indented, "style", "t"));
     expect(errorsOf(braced)).toEqual([]);
+    // An `=` inside a selector does not start a value.
+    const attribute = `style t with
+  &[data-label=true--suffix] { color = red }
+end
+`;
+    expect(structOf(attribute, "style", "t")).toEqual(
+      structOf(
+        `style t with
+  &[data-label=true--suffix]:
+    color = red
+end
+`,
+        "style",
+        "t",
+      ),
+    );
+    expect(structOf(attribute, "style", "t")["&[data-label=true--suffix]"]).toEqual({
+      color: "red",
+    });
   });
 
   test("a block may open after a `;` on a body line", () => {
@@ -482,8 +501,33 @@ end
     });
     expect(errorsOf(literalBraced)).toEqual([]);
     expect(errorsOf(literalIndented)).toEqual([]);
-    // With no whitespace before it, the brace form still ends the literal
-    // there. (The indented form reads `1//c` as `1/` and `true//c` as false.)
+    // A value the readers do not take as a literal (`+1`) reads as the same
+    // text in both forms.
+    const notLiteralBraced = `theme t with
+  colors {
+    c = +1--c
+    d = +1//c
+  }
+end
+`;
+    const notLiteralIndented = `theme t with
+  colors:
+    c = +1--c
+    d = +1//c
+end
+`;
+    expect(structOf(notLiteralBraced, "theme", "t")).toEqual(
+      structOf(notLiteralIndented, "theme", "t"),
+    );
+    expect(structOf(notLiteralBraced, "theme", "t").colors).toEqual({
+      c: "+1--c",
+      d: "+1//c",
+    });
+    expect(errorsOf(notLiteralBraced)).toEqual([]);
+    // A `//` directly after a literal begins a comment in the brace form. The
+    // indented form's literal value rules mean the same, but the tree engine
+    // cuts their node short there, so it reads `1//c` as `1/` and `true//c` as
+    // false; the brace form reads the literal.
     const adjacent = `theme t with
   colors { a = 1//c }
     b = true//c }
@@ -718,15 +762,24 @@ end
       b: "foo1--bar",
       c: "labelN--suffix",
     });
-    // Only a whole literal value is ended by a `--` right after it.
+    // Only a whole literal value is ended by a `--` right after it, wherever
+    // an `=` or a `-` stands in the text.
     const midValue = `theme t with
   font = Arial 1--display }
+  dash = Arial - 1--display }
+  eq = Arial x=1--display }
 end
 `;
-    expect(errorsOf(midValue)).toMatchObject([
-      { message: "Invalid syntax", line: 1, character: 26, text: "}" },
+    expect(errorsOf(midValue).map((d) => [d.message, d.line, d.text])).toEqual([
+      ["Invalid syntax", 1, "}"],
+      ["Invalid syntax", 2, "}"],
+      ["Invalid syntax", 3, "}"],
     ]);
-    expect(structOf(midValue, "theme", "t").font).toBe("Arial 1--display");
+    expect(structOf(midValue, "theme", "t")).toMatchObject({
+      font: "Arial 1--display",
+      dash: "Arial - 1--display",
+      eq: "Arial x=1--display",
+    });
   });
 
   test("a stray `}` is invalid syntax", () => {
