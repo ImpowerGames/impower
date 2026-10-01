@@ -362,7 +362,11 @@ variables:
   # outside a table a `[` line indexes the value before it
   # (`LuauIndexerLineContinuation`).
   LUAU_LINE_CONTINUATION_OPERATOR: (?:[+*/%^]|[.][.](?![.])|==|~=|[<>]|[:][:](?!{{WS}}*{{LUAU_IDENTIFIER}}{{WS}}*[:][:])|(?:and|or)\b)
-  LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
+  # A `.` with no name after it on its line continues the line before it as
+  # well, as a dangling accessor (`t` then a line holding only `.`), which
+  # Luau reads as the member access it begins (#1175); `..`, `...` and a
+  # number such as `.5` are not one.
+  LUAU_LINE_CONTINUATION: (?:{{WS}}*(?:{{LUAU_ACCESSOR_OPERATOR}}{{LUAU_IDENTIFIER}}|[.](?![.\d])|{{LUAU_LINE_CONTINUATION_OPERATOR}}))
   # A `-` that is neither a `--` comment nor a `->` divert.
   LUAU_MINUS_LINE_START: -(?![->])
   # A `.` that is not concatenation, which a continuation line keeps reading

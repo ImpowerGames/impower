@@ -153,6 +153,9 @@ describe("the reported layouts", () => {
     ["a string indexer receiver", ['local y = t["a"].'], 4],
     ["a block comment before the receiver", ["local y = --[[note]]t.a."], 4],
     ["a continuation line", ["local y = t", "  .a."], 5],
+    // Round 1's author review: a continuation line holding only the `.`.
+    ["a continuation line holding only the `.`", ["local y = t -- receiver", "  ."], 5],
+    ["a line holding only the `.` at the statement's indent", ["local y = t", "."], 5],
     ["a reassignment target", ["t.a. = 1"], 4],
   ])("#1156: %s", (_name, body, endLine) => {
     const lines = ["function f(t, get)", "  local z = 0", ...body.map((line) => `  ${line}`), "  return 1", "end", ""];
