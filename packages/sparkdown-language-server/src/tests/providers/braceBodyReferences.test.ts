@@ -264,6 +264,29 @@ end
     }
   });
 
+  test("rename keeps the indented form's class uses with their style", () => {
+    const mixed = `layout braced with
+  column.panel { text "a" }
+end
+layout indented with
+  column panel:
+    text panel "b"
+  row.panel:
+    text "c"
+end
+style panel with
+  background-color = black
+end
+`;
+    const uses = ["1:9", "4:9", "5:9", "6:6", "9:6"];
+    for (const occurrence of [1, 2, 3, 4, 5]) {
+      const edits = renameAt(mixed, "panel", occurrence, "card");
+      expect(edits.map((e) => e.at).sort(), `occurrence ${occurrence}`).toEqual(
+        uses,
+      );
+    }
+  });
+
   test("go to definition on a dotted class reaches the style", () => {
     // The options the server's definition handler passes.
     const { documents, workspace } = makeWorkspace(source);

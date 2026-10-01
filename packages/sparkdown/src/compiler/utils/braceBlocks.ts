@@ -23,7 +23,9 @@ export const BRACE_BODY_NAMES = nodeNameSet([
   "LuauSparkleElementBlock",
 ]);
 
-const KEY_TOKEN_NAMES = nodeNameSet([
+/** The tokens that name a struct key (`key:`, `key = …`, `key { … }`); the
+ *  annotator reads indented keys with the same list. */
+export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
   "DeclarationScalarPropertyKey",
@@ -108,7 +110,7 @@ export function structBlockKeyNode(block: SyntaxNode): SyntaxNode | null {
 export function structKeyToken(key: SyntaxNode): SyntaxNode {
   const walk = (node: SyntaxNode): SyntaxNode | null => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (KEY_TOKEN_NAMES.has(child.name)) return child;
+      if (STRUCT_KEY_TOKEN_NAMES.has(child.name)) return child;
       const found = walk(child);
       if (found) return found;
     }

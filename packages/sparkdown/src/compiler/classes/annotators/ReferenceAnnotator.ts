@@ -3,6 +3,7 @@ import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { ancestorMatching } from "../../utils/ancestorMatching";
 import {
   BRACE_BODY_NAMES,
+  STRUCT_KEY_TOKEN_NAMES,
   braceBodyKey,
   sparkleElementKeyParts,
   structBlockKeyNode,
@@ -112,19 +113,35 @@ const LIST_ENTRY_NAMES = nodeNameSet([
   "LuauStructListValue",
 ]);
 
-// The identifier tokens that carry a struct property/header KEY in the Luau-port
-// grammar (LuauStructScalarProperty / LuauStructObjectHeader capture-2). The old
-// per-flavor `*DeclarationScalarPropertyName` / `*ObjectPropertyName` nodes are
-// gone; these are the generic replacements.
-const STRUCT_KEY_TOKENS = nodeNameSet([
-  "BuiltinComponentName",
-  "StylingDeclarationScalarPropertyName",
-  "DeclarationScalarPropertyKey",
-  "CustomComponentName",
-  "ComponentName",
-  "PropertyName",
-  "SelectorPropertyNamePart",
-]);
+// The identifier tokens that carry a struct property/header KEY, shared with
+// the brace readers so both forms read keys alike.
+const STRUCT_KEY_TOKENS = STRUCT_KEY_TOKEN_NAMES;
+
+/**
+ * The words and `.name` classes of an indented layout line's header or leaf
+ * (`column panel:`, `row.wide:`, `text big "b"`) after its first name, which
+ * name layers as a brace element's words and classes do. Content strings and
+ * attributes are not words.
+ */
+function indentedClassWords(node: SyntaxNode, first: SyntaxNode | null): SyntaxNode[] {
+  const words: SyntaxNode[] = [];
+  const walk = (parent: SyntaxNode) => {
+    for (let child = parent.firstChild; child; child = child.nextSibling) {
+      if (child.name === "LuauSparkleClassName") {
+        words.push(child);
+      } else if (STRUCT_KEY_TOKENS.has(child.name)) {
+        if (!first || child.from !== first.from) words.push(child);
+      } else if (
+        child.name !== "LuauElementContentStringPlain" &&
+        !child.name.endsWith("Attribute")
+      ) {
+        walk(child);
+      }
+    }
+  };
+  walk(node);
+  return words;
+}
 
 // Top-level structural-define keyword nodes → the engine type they declare.
 // Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
@@ -252,6 +269,30 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       if (key != null) keys.unshift(key);
     }
     return [...this.blockLinePrefix, ...keys];
+  }
+
+  /**
+   * In a layout or component, each word or class of an element reads the
+   * layer and the style of its name, in either form, so go to definition
+   * reaches the style and a rename keeps every class use and its style
+   * together.
+   */
+  private pushClassWordReferences(
+    annotations: Range<SparkdownAnnotation<Reference>>[],
+    words: SyntaxNode[],
+  ) {
+    if (this.defineType !== "layout" && this.defineType !== "component") {
+      return;
+    }
+    for (const word of words) {
+      const wordText = this.read(word.from, word.to).trim();
+      annotations.push(
+        SparkdownAnnotation.mark<Reference>({
+          symbolIds: [`layer.${wordText}`, `style.${wordText}`],
+          kind: "read",
+        }).range(word.from, word.to),
+      );
+    }
   }
 
   /**
@@ -628,18 +669,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
           }).range(name.from, name.to),
         );
       }
-      // A word or class reads the style of its name as well as naming a
-      // layer, so go to definition reaches the style and a rename keeps the
-      // class and its style together.
-      for (const word of words) {
-        const wordText = this.read(word.from, word.to).trim();
-        annotations.push(
-          SparkdownAnnotation.mark<Reference>({
-            symbolIds: [`layer.${wordText}`, `style.${wordText}`],
-            kind: "read",
-          }).range(word.from, word.to),
-        );
-      }
+      this.pushClassWordReferences(annotations, words);
       return annotations;
     }
 
@@ -689,8 +719,25 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       annotations.push(
         this.structKeyReference([...pathKeys, key], key, from, to),
       );
+      if (nodeRef.name === "LuauStructObjectHeader") {
+        this.pushClassWordReferences(
+          annotations,
+          indentedClassWords(nodeRef.node, keyNode),
+        );
+      }
       // Push this line as a potential parent for deeper lines.
       this.structPathStack.push({ indent, key });
+      return annotations;
+    }
+    if (this.inStructural && nodeRef.name === "LuauStructBareMarker") {
+      // An indented leaf (`text big "b"`): its words after the name.
+      this.pushClassWordReferences(
+        annotations,
+        indentedClassWords(
+          nodeRef.node,
+          firstDescendant(nodeRef.node, STRUCT_KEY_TOKENS),
+        ),
+      );
       return annotations;
     }
 
