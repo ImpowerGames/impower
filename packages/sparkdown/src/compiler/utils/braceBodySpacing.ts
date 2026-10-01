@@ -225,7 +225,7 @@ export function isSpacedBraceEdge(node: SyntaxNode, read: Read): boolean {
  * else (content, an attribute's value, a component call's arguments, a
  * word) gluing it would change what the head reads, so the space stays.
  */
-export function keepsSpaceBeforeClass(node: SyntaxNode, read: Read): boolean {
+export function keepsSpaceBeforeClass(node: SyntaxNode): boolean {
   const next = node.nextSibling;
   if (next?.name !== "LuauSparkleElementClass") return false;
   let parts: SyntaxNode | null = node.parent;
@@ -236,9 +236,18 @@ export function keepsSpaceBeforeClass(node: SyntaxNode, read: Read): boolean {
   const prev = node.prevSibling;
   if (prev) return prev.name !== "LuauSparkleElementClass";
   // The first part: glued only right after the element's name, not after a
-  // component call's arguments or the `}` of a closure.
-  if (parts.prevSibling || parts.parent?.name !== "LuauSparkleElement_content") {
+  // component call's arguments or the `}` of a closure. The element's
+  // `_begin` holds its name and then its call's arguments, empty without a
+  // call; reading the tree keeps every name the grammar takes (`café`,
+  // `custom-`), where a test of the character before would not.
+  const content = parts.parent;
+  if (parts.prevSibling || content?.name !== "LuauSparkleElement_content") {
     return true;
   }
-  return !/[A-Za-z0-9_]/.test(read(node.from - 1, node.from));
+  const begin = content.prevSibling;
+  if (begin?.name !== "LuauSparkleElement_begin" || begin.to !== node.from) {
+    return true;
+  }
+  const args = begin.lastChild;
+  return args?.name === "LuauSparkleElement_begin_c2" && args.to > args.from;
 }

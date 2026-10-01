@@ -697,7 +697,7 @@ export class FormattingAnnotator extends SparkdownAnnotator<
       // keeps one space, since `#width=1 .x` glued would read `1.x` as the
       // value, and `"Go" .primary` glued would join the content.
       if (
-        keepsSpaceBeforeClass(nodeRef.node, read) ||
+        keepsSpaceBeforeClass(nodeRef.node) ||
         isSpacedBraceEdge(nodeRef.node, read)
       ) {
         annotations.push(

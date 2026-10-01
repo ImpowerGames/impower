@@ -39,6 +39,31 @@ end
     );
   });
 
+  test("a class is glued to any name the grammar takes, a letter outside ASCII or a final `-` included", () => {
+    // Round 1 of PR #1319: the name was recognised by an ASCII test of the
+    // character before the class, which kept these spaces.
+    expectFormat(
+      `layout a with
+  column {
+    café   .title
+    custom- .title .big
+    ñandú_2 .x
+    card() .c
+  }
+end
+`,
+      `layout a with
+  column {
+    café.title
+    custom-.title.big
+    ñandú_2.x
+    card() .c
+  }
+end
+`,
+    );
+  });
+
   test("a `;` takes no space before it and one after it, except at the end of a line or after a `{`", () => {
     expectFormat(
       `layout a with
