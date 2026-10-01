@@ -79,9 +79,8 @@ const PROPERTY_DEFINITION = nodeNameSet(["LuauPropertyDefinition"]);
 // function name to resolve.
 const EVENT_ATTR_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
-  // In a brace block, the handler is its own node, whose capture holds the
-  // handler's expression nodes as an attribute's `_content` does.
-  "LuauSparkleEventHandler_c1",
+  // In a brace block, the handler is its own node.
+  "LuauSparkleEventHandler",
 ]);
 const EVENT_HANDLER_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
 // A bare-ref handler (`@e=go_back`) is its own grammar node (highlighted like a

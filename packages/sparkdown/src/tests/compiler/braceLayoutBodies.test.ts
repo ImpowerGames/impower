@@ -494,6 +494,49 @@ end
     expect(fourth.children).toHaveLength(1);
   });
 
+  test("a comma after an unquoted prop value separates two entries, and is reported", () => {
+    const text = `layout hud with\n  row { text "x" #y=1, text "z"; text #font=a,b }\nend\n`;
+    const row = lowered(text, "layout", "hud").tree.children[0];
+    expect(row.children.map((c: any) => c.content?.[0]?.text)).toEqual([
+      "x",
+      "z",
+      undefined,
+    ]);
+    expect(row.children[0].props.y).toEqual({ kind: "literal", value: 1 });
+    // A comma inside a value stays part of it.
+    expect(row.children[2].props.font).toEqual({ kind: "literal", value: "a,b" });
+    expect(errorsOf(text).map((e) => [e.message, e.text])).toEqual([
+      ["Separate entries on one line with `;`, not `,`.", ","],
+    ]);
+  });
+
+  test("attribute values nest calls three deep and bindings four deep", () => {
+    const text = `layout hud with
+  row {
+    button "Go" @click=use(item, max(1, min(2, x))) .wide
+    text #x={ {a = {b = {c = 1}}} } "after"
+  }
+end
+`;
+    const [button, label] = lowered(text, "layout", "hud").tree.children[0].children;
+    expect(button.events[0].handler.binding.source).toBe(
+      "use(item, max(1, min(2, x)))",
+    );
+    expect(button.classes).toEqual(["wide"]);
+    expect(label.props.x.binding.source).toBe("{ {a = {b = {c = 1}}} }");
+    expect(label.content).toEqual([{ kind: "literal", text: "after" }]);
+    expect(errorsOf(text)).toEqual([]);
+  });
+
+  test("a second block after an element's block is invalid", () => {
+    const text = `layout hud with\n  row { text "a" } { text "b" }\nend\n`;
+    const row = lowered(text, "layout", "hud").tree.children[0];
+    expect(row.children.map((c: any) => c.content[0].text)).toEqual(["a"]);
+    expect(errorsOf(text).map((e) => [e.message, e.text])).toEqual([
+      ["Invalid syntax", "{"],
+    ]);
+  });
+
   test("`foldout \"Level {n}\" { … }` binds `{n}`", () => {
     const { tree } = lowered(
       `layout hud with\n  foldout "Level {n}" { text "x" }\nend\n`,

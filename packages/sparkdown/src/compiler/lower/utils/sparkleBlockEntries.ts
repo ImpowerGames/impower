@@ -65,27 +65,43 @@ export interface SparkleElementParts {
   block: SyntaxNode | null;
 }
 
-/** The parts of a `LuauSparkleElement`. */
+const ELEMENT_NAMES = nodeNameSet([
+  "BuiltinComponentName",
+  "LuauSparkleElementName",
+]);
+
+/** The parts of a `LuauSparkleElement`. Its begin holds three captures in
+ *  order: the name, a call's arguments and the head. */
 export function sparkleElementParts(element: SyntaxNode): SparkleElementParts {
   const begin = findChildByName(element, "LuauSparkleElement_begin");
-  const nameCapture = begin
-    ? findChildByName(begin, "LuauSparkleElement_begin_c1")
-    : null;
-  const argsCapture = begin
-    ? findChildByName(begin, "LuauSparkleElement_begin_c2")
-    : null;
-  const head = begin
-    ? findChildByName(begin, "LuauSparkleElement_begin_c3")
-    : null;
+  const nameCapture = begin?.firstChild ?? null;
+  const name = nameCapture?.firstChild ?? null;
+  const args = begin ? firstNamed(begin, CALL_ARGUMENTS) : null;
+  // The head is the last capture, which starts where the name and the
+  // arguments end; a begin with no such capture has no head.
+  const last = begin?.lastChild ?? null;
+  const headFrom = args?.to ?? nameCapture?.to ?? 0;
+  const head =
+    last && last !== nameCapture && last.from >= headFrom ? last : null;
   const content = findChildByName(element, "LuauSparkleElement_content");
   return {
-    name: nameCapture?.firstChild ?? null,
-    args: argsCapture
-      ? findChildByName(argsCapture, "LuauSparkleCallArguments")
-      : null,
+    name: name && ELEMENT_NAMES.has(name.name) ? name : null,
+    args,
     head,
     block: content ? findChildByName(content, "LuauSparkleElementBlock") : null,
   };
+}
+
+const CALL_ARGUMENTS = nodeNameSet(["LuauSparkleCallArguments"]);
+
+/** DFS in-order: the first descendant whose name is in `names`. */
+function firstNamed(node: SyntaxNode, names: Set<string>): SyntaxNode | null {
+  for (let child = node.firstChild; child; child = child.nextSibling) {
+    if (names.has(child.name)) return child;
+    const found = firstNamed(child, names);
+    if (found) return found;
+  }
+  return null;
 }
 
 /** Everything between a block's braces. */
@@ -93,10 +109,15 @@ export function sparkleBlockContent(block: SyntaxNode): SyntaxNode | null {
   return findChildByName(block, "LuauSparkleElementBlock_content");
 }
 
-/** Whether a block's direct parent is an element: a block on its own has
- *  no element to hold its entries. */
+/** Whether a block is its element's block: the first block directly inside an
+ *  element. A block on its own has no element to hold its entries, and a
+ *  second block after an element's block (`row { a } { b }`) is not read. */
 export function sparkleBlockHasElement(block: SyntaxNode): boolean {
-  return block.parent?.name === "LuauSparkleElement_content";
+  if (block.parent?.name !== "LuauSparkleElement_content") return false;
+  for (let prev = block.prevSibling; prev; prev = prev.prevSibling) {
+    if (prev.name === "LuauSparkleElementBlock") return false;
+  }
+  return true;
 }
 
 /** A branch of a brace control block: its `_content`, and how many levels

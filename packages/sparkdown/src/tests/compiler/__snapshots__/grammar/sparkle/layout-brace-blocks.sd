@@ -32,6 +32,8 @@ layout inventory with
     image = "black"
     color = white
     名前 { text "unicode" }
+    button "Go" @click=use(item, max(1, min(2, x))) .wide
+    text #x={ {a = {b = {c = 1}}} } "after" #font=a,b
     row,
   }
   stage:

@@ -6,6 +6,10 @@ layout mistakes with
     .orphan "content"
     text "a", text "b"
     text "x" : #y=1
+    text "x" #y=1, text "z"
+    row { text "a" } { text "b" }
+    f(a(b(c(d))))
+    text #x={ {{{{a}}}} }
     if busy then
       row {
         text "busy"

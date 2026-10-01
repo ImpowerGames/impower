@@ -415,25 +415,33 @@ variables:
   # A single-quoted run, closed on its line, and a `'` that closes nothing.
   SPARKLE_SQUOTED: (?:'(?:\\.|[^'\\\n])*')
   SPARKLE_LONE_SQUOTE: (?:'(?!(?:\\.|[^'\\\n])*'))
-  # A braced attribute value (`{x}`, `{{f}}`, `{ a = { b } }`), nested up to
-  # three deep. One left open runs to the end of its line.
+  # A braced attribute value (`{x}`, `{{f}}`, `{ a = { b = { c } } }`),
+  # nested up to four deep. One left open runs to the end of its line. A `{`
+  # nested deeper than that is not part of a value, so the head ends before it.
   SPARKLE_BRACED_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|[^{}"'\n])
-  SPARKLE_BRACED_3: (?:[{]{{SPARKLE_BRACED_PART}}*(?:[}]|$))
+  SPARKLE_BRACED_4: (?:[{]{{SPARKLE_BRACED_PART}}*(?:[}]|$))
+  SPARKLE_BRACED_3: (?:[{](?:{{SPARKLE_BRACED_4}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
   SPARKLE_BRACED_2: (?:[{](?:{{SPARKLE_BRACED_3}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
   SPARKLE_BRACED: (?:[{](?:{{SPARKLE_BRACED_2}}|{{SPARKLE_BRACED_PART}})*(?:[}]|$))
-  # A parenthesized list (`card("x")`, `use_item(item)`), nested up to two
-  # deep. One left open runs to the end of its line.
+  # A parenthesized list (`card("x")`, `use(item, max(1, min(2, x)))`), nested
+  # up to three deep. One left open runs to the end of its line. A `(` that
+  # starts no such list (one nested deeper) is a token of its own, so a line
+  # never stops at it.
   SPARKLE_PARENS_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|[^()"'\n])
-  SPARKLE_PARENS_2: (?:[(]{{SPARKLE_PARENS_PART}}*(?:[)]|$))
+  SPARKLE_PARENS_3: (?:[(]{{SPARKLE_PARENS_PART}}*(?:[)]|$))
+  SPARKLE_PARENS_2: (?:[(](?:{{SPARKLE_PARENS_3}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
   SPARKLE_PARENS: (?:[(](?:{{SPARKLE_PARENS_2}}|{{SPARKLE_PARENS_PART}})*(?:[)]|$))
+  SPARKLE_LONE_PAREN: (?:(?!{{SPARKLE_PARENS}})[(])
   # An attribute: `#name` or `@name`, then, when an `=` follows, its value.
   # The value is braced, quoted, or unquoted, and an unquoted value ends at
-  # whitespace, `;` or a brace. An `=` with no value is followed by the end
-  # of the line, a `;` or a `}`.
+  # whitespace, `;`, a brace, or a comma that ends the entry (`#gap=4, text`
+  # is two entries and a comma, as in a struct block; `#font=a,b` keeps its
+  # comma). An `=` is read without a value only where no
+  # value can start, so a value is never left out to expose a brace in it.
   SPARKLE_ATTR_NAME: (?:[#@][^\s=;{}"'(),]*(?![^\s=;{}"'(),]))
-  SPARKLE_UNQUOTED_VALUE: (?:(?:[^\s;{}"(]|{{SPARKLE_PARENS}})+(?![^\s;{}"(]))
+  SPARKLE_UNQUOTED_VALUE: (?:(?:[^\s;{}"(,]|[,](?![\s;}]|$)|{{SPARKLE_PARENS}}|{{SPARKLE_LONE_PAREN}})+(?![^\s;{}"(,]|[,](?![\s;}]|$)))
   SPARKLE_ATTR_VALUE: (?:{{SPARKLE_BRACED}}|{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_UNQUOTED_VALUE}})
-  SPARKLE_ATTR: (?:{{SPARKLE_ATTR_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|(?={{WS}}*(?:$|[;}])))|(?!{{WS}}*[=])))
+  SPARKLE_ATTR: (?:{{SPARKLE_ATTR_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|(?!{{WS}}*{{SPARKLE_ATTR_VALUE}}))|(?!{{WS}}*[=])))
   # A comment: `--`, or `//` before whitespace or the end of the line. It
   # starts a token, so the `--` inside a word (`a--b`) is part of the word.
   SPARKLE_COMMENT: (?:(?:[-][-]|[/][/](?={{WS}}|$))[^\n]*)
@@ -448,12 +456,12 @@ variables:
   # content and comments. It ends before a `{` (with whitespace and an
   # optional `=` before it), a `;`, a `}`, a comma that ends the entry, or the
   # end of the line.
-  SPARKLE_HEAD_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|{{SPARKLE_COMMENT}}|{{SPARKLE_WORD}}|[=](?!{{WS}}*[{])|[,](?![\s;}]|$)|{{WS}}+(?!{{WS}}|[;{}]|[,](?:{{WS}}|$|[;}])|[=]{{WS}}*[{]|$))
+  SPARKLE_HEAD_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|{{SPARKLE_LONE_PAREN}}|[)]|{{SPARKLE_COMMENT}}|{{SPARKLE_WORD}}|[=](?!{{WS}}*[{])|[,](?![\s;}]|$)|{{WS}}+(?!{{WS}}|[;{}]|[,](?:{{WS}}|$|[;}])|[=]{{WS}}*[{]|$))
   SPARKLE_HEAD: (?:{{SPARKLE_HEAD_TOKEN}})*
   # A layout or component body line that holds a brace outside a quoted run,
   # an attribute's value, a parenthesized list and a comment: a `{` that
   # opens a block, or a `}`.
-  SPARKLE_SCAN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|{{SPARKLE_WORD}}|[;,=]|{{WS}}+(?!{{WS}}|[-][-]|[/][/](?:{{WS}}|$)))
+  SPARKLE_SCAN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|{{SPARKLE_LONE_PAREN}}|[)]|{{SPARKLE_WORD}}|[;,=]|{{WS}}+(?!{{WS}}|[-][-]|[/][/](?:{{WS}}|$)))
   SPARKLE_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?:{{SPARKLE_SCAN_TOKEN}})*?[{}])
   # An unclosed block ends where a line starts with `end`, `else`, `elseif`
   # or `case`, which close the declaration or a control block around it, or

@@ -543,9 +543,8 @@ const EVENT_ATTR = nodeNameSet([
 const EVENT_NAME = nodeNameSet(["EventAttributeName"]);
 const EVENT_CONTENT = nodeNameSet([
   "LuauEventAttribute_content",
-  // In a brace block, the handler is its own node, whose capture holds the
-  // handler's expression nodes as an attribute's `_content` does.
-  "LuauSparkleEventHandler_c1",
+  // In a brace block, the handler is its own node (see `handlerContent`).
+  "LuauSparkleEventHandler",
 ]);
 /** A bare `@e=name` handler, emitted by the grammar as its own node — which is
  *  the only reliable way to tell one from a call once a trailing comment is in
@@ -611,7 +610,7 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
       });
       continue;
     }
-    const handlerNode = firstDescendant(attr, EVENT_CONTENT);
+    const handlerNode = handlerContent(firstDescendant(attr, EVENT_CONTENT));
     const handlerText = handlerNode
       ? ctx.read(handlerNode.from, handlerNode.to).trim()
       : "";
@@ -630,6 +629,14 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
     }
   }
   return events;
+}
+
+/** The node whose children are a handler's expression nodes. An indented
+ *  line's handler is its attribute's `_content`; a brace block's
+ *  `LuauSparkleEventHandler` holds them in its capture, its one child. */
+function handlerContent(node: SyntaxNode | null): SyntaxNode | null {
+  if (node?.name === "LuauSparkleEventHandler") return node.firstChild ?? node;
+  return node;
 }
 
 /** Compile an inline-closure handler (`@e={ stmts }`) into a {@link Binding}: a
