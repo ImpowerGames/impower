@@ -1,0 +1,32 @@
+function f()
+  local a, g, t, k = 0, 0, {}, { 1 }
+  t["["], g = 1,
+    2
+  t["]"], g = 3, 4
+  a = 5 t["["] = 7
+  t[k[1]], g = 1,
+    2
+  a, g = 1, -- note
+    -- a comment-only line
+
+    2
+  a, g = 1,
+if a then 2 else 3
+  return g
+end
+function errors()
+  local a, g = 0, 0
+  g += 1, 2
+  a, g += 1
+  a, g = 1,
+    + 2
+  a, g = 1,
+    :method()
+  local c, d = 1,
+    + 2
+  a, g = 1,
+  goto done
+  ::done::
+  a,
+    g
+end

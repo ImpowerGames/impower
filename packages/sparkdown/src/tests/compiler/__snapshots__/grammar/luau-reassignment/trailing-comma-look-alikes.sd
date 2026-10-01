@@ -1,0 +1,21 @@
+function f(a, b)
+  local r = {}
+  table.insert(r,
+    5)
+  local s = { a,
+    b }
+  for i,
+    v in ipairs(r) do
+    a = v
+  end
+  return a,
+    b
+end
+scene one
+  a,
+  The hero waits.
+  if true then
+    a, b = 1,
+    The hero waits again.
+  end
+end
