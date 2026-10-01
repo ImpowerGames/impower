@@ -13,9 +13,11 @@
 // value, or nil when it returned none: a call, an index or a method chained
 // on the call (`o:get()()`, `mk().x`, also as a statement, and after
 // `new`), a store through it or of it (`o:get().x = 6`, `t.x = f()`), a
-// variable it sets, an if expression's arm and a backtick string's
-// interpolation; and what a metamethod or a builtin's callback returns is
-// one value. Each case notes the line
+// variable it sets, an if expression's arm, a backtick string's
+// interpolation, the left side an `and` keeps, and a table's keyed field and
+// computed key; and what a metamethod or a builtin's callback returns is one
+// value, while `xpcall` returns every value its function returns. Each case
+// notes the line
 // Luau shows, but a builtin through a value that raises is compared with the
 // direct call of its builtin. A story compiled before calls recorded their
 // argument count still shows what it showed then.
@@ -442,6 +444,10 @@ describe("a call whose one value is taken", () => {
     // author writes for its effect; a Luau string writes nil, as Luau does.
     ["is written as its first value by a backtick string", inRun([], "`[{g2()}]`"), "Got [1]."],
     ["is written as nil by a backtick string when it returns none", inRun(["local t = {}", "function t:m() end"], "`[{g0()}|{t:m()}]`"), "Got [nil|nil]."],
+    ["is nil as the left side an `and` keeps", inRun([], "select(\"#\", g0() and 7) .. \"/\" .. tostring(g0() and 7)"), "Got 1/nil."],
+    ["is nil through an `and` in an if expression's arm and a backtick string", inRun(["local function f() return if true then g0() and 7 else 0 end"], "select(\"#\", f()) .. `[{g0() and 7}]`"), "Got 1[nil]."],
+    ["is one value as a table's keyed field, even the last", inRun(["local t = { [1] = g2() }", "local u = { 5, [9] = g2() }"], "tostring(t[1]) .. tostring(t[2]) .. \"/\" .. tostring(u[9]) .. tostring(u[10])"), "Got 1nil/1nil."],
+    ["is one value as a table's computed key", inRun(["local k = {}", "local function keys() return k, 9 end", "local t = { [keys()] = 7 }"], "tostring(t[k])"), "Got 7."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
   });
@@ -460,6 +466,11 @@ describe("what a metamethod or a builtin's callback returns", () => {
     ["is a `__tostring` handler's first value", inRun(["local t = setmetatable({}, { __tostring = function() return \"T\", \"U\" end })"], "tostring(t)"), "Got T."],
     ["is a sort comparator's first value, and an `__lt` handler's", inRun(["local t = { 3, 1, 2 }", "table.sort(t, function(a, b) return a < b, false end)", "local mt = { __lt = function(a, b) return a.v < b.v, false end }", "local u = { setmetatable({ v = 3 }, mt), setmetatable({ v = 1 }, mt) }", "table.sort(u)"], "table.concat(t, \",\") .. \"/\" .. u[1].v"), "Got 1,2,3/1."],
     ["is the first value a `table.foreach` callback returns", inRun(["local n = 0", "local r = table.foreach({ 1, 2, 3 }, function(k, v) n = n + 1 return nil, 5 end)"], "n .. \"/\" .. tostring(r)"), "Got 3/nil."],
+    ["is the first value a `table.foreachi` callback returns", inRun(["local n = 0", "local r = table.foreachi({ 1, 2, 3 }, function(i, v) n = n + 1 return nil, 5 end)"], "n .. \"/\" .. tostring(r)"), "Got 3/nil."],
+    ["is the first value of the `__eq` `table.find` compares with", inRun(["local mt = { __eq = function() return false, true end }", "local a, b = setmetatable({}, mt), setmetatable({}, mt)"], "tostring(table.find({ a }, b))"), "Got nil."],
+    ["is one value as the `__index` function a `gsub` table replacement reads, or nil", inRun(["local upper = setmetatable({}, { __index = function(t, k) return k:upper(), 9 end })", "local none = setmetatable({}, { __index = function() end })"], "(string.gsub(\"ab\", \"%a\", upper)) .. \"/\" .. (string.gsub(\"ab\", \"%a\", none))"), "Got AB/ab."],
+    ["is an `xpcall` handler's first value, or nil when it returns none", inRun([], "select(\"#\", xpcall(function() error(\"boom\") end, function() return 1, 2 end)) .. \"/\" .. tostring(select(2, xpcall(function() error(\"boom\") end, function() end)))"), "Got 2/nil."],
+    ["is every value an `xpcall`'s function returns", inRun(["local ok, a, b = xpcall(function() return 1, 2 end, tostring)"], "tostring(ok) .. tostring(a) .. tostring(b)"), "Got true12."],
   ])("%s", (_name, text, line) => {
     expectShows(text, line);
   });

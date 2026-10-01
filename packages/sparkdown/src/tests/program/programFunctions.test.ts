@@ -477,7 +477,8 @@ describe("a function value", () => {
 
 describe("the write barrier", () => {
   // Each statement between the two beats changes a table in place, or what a
-  // table is beside its entries, or steps an iterator, whose table keeps its
+  // table is beside its entries (a `#` leaves a length hint, also on the
+  // table a call returns first), or steps an iterator, whose table keeps its
   // cursor, or writes a closed upvalue cell: a counter closure whose variable
   // outlived the frame that declared it.
   const text = [
@@ -494,9 +495,11 @@ describe("the write barrier", () => {
     "store shaped = {}",
     "store cleared = { 1, 2, 3 }",
     "store hinted = { 1, 2, 3 }",
+    "store hintedThroughCall = { 1, 2, 3 }",
     "store it = string.gmatch(\"a b\", \"%a+\")",
     "store holder = { step = string.gmatch(\"x y\", \"%a+\") }",
     "store n = 0",
+    "store m = 0",
     "store count = 0",
     "store counter = makeCounter()",
     "One.",
@@ -512,6 +515,7 @@ describe("the write barrier", () => {
     "& setmetatable(shaped, { __index = { x = 1 } })",
     "& table.clear(cleared)",
     "n = #hinted",
+    "m = #pairOf(hintedThroughCall)",
     "& it()",
     "& holder.step()",
     "& counter()",
@@ -524,6 +528,10 @@ describe("the write barrier", () => {
     "    c = c + 1",
     "    count = c",
     "  end",
+    "end",
+    "",
+    "function pairOf(x)",
+    "  return x, 9",
     "end",
   ].join("\n");
   const changed = [
@@ -539,6 +547,7 @@ describe("the write barrier", () => {
     "shaped",
     "cleared",
     "hinted",
+    "hintedThroughCall",
     "it",
   ];
 
@@ -571,6 +580,8 @@ describe("the write barrier", () => {
       shaped: table("shaped").metatable !== null,
       cleared: table("cleared").value!.size,
       hint: (table("hinted").value as { __luauBoundary?: number }).__luauBoundary,
+      hintThroughCall: (table("hintedThroughCall").value as { __luauBoundary?: number })
+        .__luauBoundary,
       cell: (cell().closedValue as { valueObject?: unknown } | null)
         ?.valueObject,
       count: globals.$("count"),
@@ -593,6 +604,7 @@ describe("the write barrier", () => {
       shaped: false,
       cleared: 3,
       hint: undefined,
+      hintThroughCall: undefined,
       cell: 0,
       count: 0,
     });
@@ -616,6 +628,7 @@ describe("the write barrier", () => {
       shaped: true,
       cleared: 0,
       hint: 3,
+      hintThroughCall: 3,
       cell: 1,
       count: 1,
     });

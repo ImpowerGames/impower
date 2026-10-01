@@ -1385,9 +1385,11 @@ export function tableFromPairs(
     // produced — stringify to the canonical map-key form
     // (IntValue 3 → "3", matching how `t[3]` reads index;
     // table/function keys get identity tokens via
-    // luauMapKeyString).
+    // luauMapKeyString). A key is one value (`{ [f()] = v }`).
     const rawKey =
-      between[i] instanceof AbstractValue ? (between[i] as AbstractValue) : null;
+      between[i] instanceof AbstractValue
+        ? oneValue(between[i] as AbstractValue)
+        : null;
     const keyObj =
       rawKey instanceof StringValue
         ? rawKey
@@ -1862,26 +1864,25 @@ export function callNativeFunction(
   // An operand is one value, so a call that returns a table and more
   // reaches the table's metamethod.
   const fname = func.name;
+  const operand = funcParams.length > 0 ? oneValue(funcParams[0]!) : null;
   let mmResult: AbstractValue | null = null;
   if (funcParams.length === 2) {
     mmResult = tryBinaryMetamethod(
       story,
       fname,
-      oneValue(funcParams[0]!),
+      operand,
       oneValue(funcParams[1]!),
     );
   } else if (funcParams.length === 1) {
-    mmResult = tryUnaryMetamethod(story, fname, oneValue(funcParams[0]!));
+    mmResult = tryUnaryMetamethod(story, fname, operand);
   }
   if (mmResult !== null) {
     return mmResult;
   }
   // `#` leaves the boundary it finds on the table's map as a hint for the
-  // next read, which is part of what the table is.
-  const table =
-    fname === "LEN" && funcParams[0] instanceof ObjectValue
-      ? funcParams[0]
-      : null;
+  // next read, which is part of what the table is, the table a call that
+  // returns more gives first included (`#get()`).
+  const table = fname === "LEN" && operand instanceof ObjectValue ? operand : null;
   const hint = table ? (table.value as any)?.__luauBoundary : undefined;
   const result = func.Call(funcParams);
   if (table && (table.value as any)?.__luauBoundary !== hint) {
@@ -1995,14 +1996,16 @@ export function unpackTuple(story: any, n: number): void {
 }
 
 /** Whether the value on top decides an `and` or an `or` alone, as
- *  `ShortCircuit` tests it: a multiple value adjusts to its first, and a
- *  value that does not decide is popped for the right side to replace. */
+ *  `ShortCircuit` tests it: a multiple value adjusts to its first, a call
+ *  that returned none to nil, which the operator then yields when it
+ *  decides, and a value that does not decide is popped for the right side
+ *  to replace. */
 export function shortCircuitDecides(story: any, op: "and" | "or"): boolean {
   let lhs = story.state.PeekEvaluationStack() as AbstractValue;
-  if (lhs instanceof MultiValue) {
+  if (lhs instanceof MultiValue || lhs instanceof Void) {
     // Operator position adjusts a multi-value to one value.
     story.state.PopEvaluationStack();
-    lhs = (lhs.values[0] as AbstractValue) ?? new NullValue();
+    lhs = oneValue(lhs);
     story.state.PushEvaluationStack(lhs);
   }
   const truthy = isLuauTruthy(lhs);
@@ -2016,12 +2019,8 @@ export function shortCircuitDecides(story: any, op: "and" | "or"): boolean {
 /** Pops a condition and tests it by Luau truthiness, as the `ShortCircuit`
  *  "if" of an `if` expression does. */
 export function popLuauCondition(story: any): boolean {
-  let cond = story.state.PopEvaluationStack() as AbstractValue;
-  if (cond instanceof MultiValue) {
-    // Condition position adjusts a multi-value to one value.
-    cond = (cond.values[0] as AbstractValue) ?? new NullValue();
-  }
-  return isLuauTruthy(cond);
+  // Condition position adjusts a multi-value to one value.
+  return isLuauTruthy(oneValue(story.state.PopEvaluationStack() as AbstractValue));
 }
 
 /** Closes the innermost capture of `state`'s output and returns the text it

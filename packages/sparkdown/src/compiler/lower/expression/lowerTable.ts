@@ -9,6 +9,7 @@ import {
 import type { LowerContext } from "../context";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import {
+  asOneValue,
   lowerExpressionFromContainer,
   lowerExpressionFromContainerAndContinuation,
   lowerExpressionFromNodes,
@@ -90,23 +91,25 @@ export function lowerTable(
             first,
             "LuauTableIndexDeclaration_content",
           );
-          key = bracketContent
+          const computed = bracketContent
             ? lowerExpressionFromContainer(bracketContent, ctx)
             : null;
+          key = computed ? asOneValue(computed) : null;
         }
       }
       // An empty keyed-entry RHS (`{ a = }`) is the same parse error as a
       // statement-level empty RHS — flag it (the entry is dropped below).
       validateAssignmentValue(second, ctx);
       // The rest of the group is the lines that continue the value
-      // (`a = t` then `.b`).
+      // (`a = t` then `.b`). A keyed value is one value, even the last
+      // entry's, which only a list entry spreads (`{ [1] = f() }`).
       const value = lowerExpressionFromContainerAndContinuation(
         second,
         group.slice(2),
         ctx,
       );
       if (key !== null && value) {
-        entries.push(new ObjectExpressionEntry(key, value));
+        entries.push(new ObjectExpressionEntry(key, asOneValue(value)));
       }
       continue;
     }

@@ -1411,11 +1411,12 @@ function lowerTernaryExpression(
 }
 
 // `expr` adjusted to exactly one value where Luau takes one (a parenthesis,
-// an if expression's arm): a call or `...` may give several values or none,
-// and is wrapped in a `SingleValueExpression`; literals, operators and the
-// like are single-valued by construction and pass through unwrapped (keeps
-// `(42)` structurally identical to `42`).
-function asOneValue(expr: Expression): Expression {
+// an if expression's arm, a table's key and keyed value): a call or `...`
+// may give several values or none, and is wrapped in a
+// `SingleValueExpression`; literals, operators and the like are
+// single-valued by construction and pass through unwrapped (keeps `(42)`
+// structurally identical to `42`).
+export function asOneValue(expr: Expression): Expression {
   const maybeMultiValued =
     expr instanceof FunctionCall ||
     expr instanceof CallValueExpression ||

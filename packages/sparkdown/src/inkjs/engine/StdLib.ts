@@ -417,6 +417,20 @@ export function isTruthy(v: any): boolean {
   return true;
 }
 
+/** What `pcall` and `xpcall` return when the call succeeds: `true`, then
+ *  the call's returns. The protected callee that did `return 1, 2, 3` left
+ *  a single MultiValue on the eval stack (via PackTuple at the return), so
+ *  `values` is `[MV([1, 2, 3])]`; its values are spliced in, so the caller
+ *  gets `(true, 1, 2, 3)` rather than `(true, MultiValue)`. */
+function protectedSuccess(values: readonly AbstractValue[]): MultiValue {
+  const flat: AbstractValue[] = [new BoolValue(true)];
+  for (const v of values) {
+    if (v instanceof MultiValue) flat.push(...v.values);
+    else flat.push(v);
+  }
+  return new MultiValue(flat);
+}
+
 /**
  * Translate Lua's 1-indexed `init` arg (used by `string.find` /
  * `string.match` / `string.gmatch`) to a 1-based start position.
@@ -3579,19 +3593,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const callArgs = args.slice(1) as AbstractValue[];
       const result = story.CallLuauFunctionProtected(fn, callArgs);
       if (result.ok) {
-        // Flatten any inner MultiValue from the call's return. The
-        // protected callee that did `return 1, 2, 3` left a single
-        // MultiValue on the eval stack (via PackTuple at the
-        // return); `result.values` is then `[MV([1, 2, 3])]`. To
-        // give pcall's caller `(true, 1, 2, 3)` rather than
-        // `(true, MultiValue)`, splice the MultiValue's inner
-        // values into the result here.
-        const flat: AbstractValue[] = [new BoolValue(true)];
-        for (const v of result.values) {
-          if (v instanceof MultiValue) flat.push(...v.values);
-          else flat.push(v);
-        }
-        return new MultiValue(flat);
+        return protectedSuccess(result.values);
       }
       return new MultiValue([
         new BoolValue(false),
@@ -3623,18 +3625,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const callArgs = args.slice(2) as AbstractValue[];
       const result = story.CallLuauFunctionProtected(fn, callArgs);
       if (result.ok) {
-        return new MultiValue([new BoolValue(true), ...result.values]);
+        return protectedSuccess(result.values);
       }
-      // Run the message handler. If it fails, fall back to the
+      // Run the message handler, whose first value is the error xpcall
+      // returns, nil when it returns none. If it fails, fall back to the
       // raw error.
       const errMsg = result.errorMessage ?? "xpcall: unknown error";
       const handlerResult = story.CallLuauFunctionProtected(msgh, [
         new StringValue(errMsg),
       ]);
-      const handled =
-        handlerResult.ok && handlerResult.values.length > 0
-          ? handlerResult.values[0]!
-          : new StringValue(errMsg);
+      const handled = handlerResult.ok
+        ? oneValue(handlerResult.values[0] ?? new NullValue())
+        : new StringValue(errMsg);
       return new MultiValue([new BoolValue(false), handled]);
     },
   },
