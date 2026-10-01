@@ -5,8 +5,8 @@
 // unknown dotted path is reported on the whole path (#990).
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { diagnoseDetailed, diagnosticMessage } from "./diagnosticTestHarness";
+import { testCompiler } from "../engineUnderTest";
 
 type Range = {
   start: { line: number; character: number };
@@ -164,7 +164,7 @@ describe("an unknown global read in a carried chunk", () => {
     ["a line removed above", ""],
   ])("%s moves the ranges with their names", (_name, replacement) => {
     const before = `scene start()\n${FIRST_LINE}\n  Line two.\nend${BELOW}`;
-    const compiler = new SparkdownCompiler();
+    const compiler = testCompiler();
     compiler.configure({
       files: [
         { uri: URI, type: "script", name: "main", ext: "sd", text: before, version: 1, languageId: "sparkdown" },

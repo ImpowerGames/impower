@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
 
 // The native Codex route's sandbox guarantees were first observed on this
 // build. Later releases are accepted; the doctor check below still requires
@@ -45,6 +46,42 @@ export function codexReviewMode(step) {
   return 'sandboxed';
 }
 
+// A container has no Codex home on disk, so it receives the contents of
+// auth.json as an environment secret instead. The plan names only the variable;
+// its value is never echoed, not even in a parse error.
+const codexAuthVariable=/^[A-Z][A-Z0-9_]{0,63}$/;
+export function readCodexAuthSecret(permission,source=process.env) {
+  const name=permission?.codexAuthEnv;
+  if(typeof name!=='string'||!codexAuthVariable.test(name))throw new Error('step permissions.codexAuthEnv must name an upper-case environment variable');
+  const value=source[name];
+  if(typeof value!=='string'||!value.trim())throw new Error(`Codex authentication secret ${name} is not set in the launcher's environment`);
+  if(Buffer.byteLength(value)>1024*1024)throw new Error(`Codex authentication secret ${name} exceeds 1 MiB`);
+  let parsed;try{parsed=JSON.parse(value);}catch{parsed=undefined;}
+  if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error(`Codex authentication secret ${name} must hold the JSON object from auth.json`);
+  if(permission.codexAuthProxied!==true)return Buffer.from(value);
+  // The proxy adds the real token, so the variable holds only a template, and
+  // a fresh refresh time keeps Codex from trying to refresh the placeholders.
+  checkProxyAuthTemplate(parsed);
+  return Buffer.from(JSON.stringify({...parsed,last_refresh:new Date().toISOString()}));
+}
+
+// The secret route's home is a fresh directory under the system temporary
+// directory, outside the retained job directory; the whole of it goes once the
+// reviewer's exit is confirmed (or its launch is refused), so neither the
+// authentication copy nor the session state Codex wrote beside it outlives the
+// reviewer in the container. Only a home this launcher created is removed.
+const secretHomePrefix='impower-codex-home-';
+export function removeSecretCodexHome(home) {
+  const resolved=typeof home==='string'?path.resolve(home):'';
+  const name=path.basename(resolved);
+  if(!resolved||path.dirname(resolved)!==fs.realpathSync.native(os.tmpdir())||!name.startsWith(secretHomePrefix)||name.length===secretHomePrefix.length||/[\\/]/.test(name))throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
+  fs.rmSync(resolved,{recursive:true,force:true});
+}
+export function discardCodexAuthCopy(step,env) {
+  if(step?.permissions?.codexAuthEnv===undefined||!env?.CODEX_HOME)return;
+  removeSecretCodexHome(env.CODEX_HOME);
+}
+
 // The full-access route copies only the authentication file into its fresh home.
 export function validateCodexAuthHome(permission,worktree) {
   if(!path.isAbsolute(permission?.codexHome??''))throw new Error('Existing Codex home with auth.json required as step permissions.codexHome');
@@ -78,17 +115,29 @@ export function installReviewerHooks(home,{node=process.execPath,entry=reviewerH
   return file;
 }
 
-export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,{worktree}={}) {
+// A secret's home written before a later refusal is removed with the refusal.
+export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,options={}) {
+  const secrets=[];
+  try{return buildNativeReviewerEnvironment(step,privateDirectory,source,options,secrets);}
+  catch(error){for(const home of secrets)removeSecretCodexHome(home);throw error;}
+}
+
+function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,reportPosting},secrets) {
   const env=reviewerEnvironment(source);
   env.GIT_OPTIONAL_LOCKS='0';
   const codexReview=step.nativeResult==='codex-jsonl'||(step.model?.startsWith('gpt-')&&step.args?.[0]==='exec');
   if(!codexReview)return env;
   if(step.nativeResult==='codex-jsonl'&&codexReviewMode(step)==='full-access') {
-    const sourceHome=validateCodexAuthHome(step.permissions,worktree);
-    const home=fs.realpathSync.native(fs.mkdtempSync(path.join(privateDirectory,'codex-home-')));
+    const secret=step.permissions?.codexAuthEnv!==undefined;
+    const auth=secret?readCodexAuthSecret(step.permissions,source):fs.readFileSync(path.join(validateCodexAuthHome(step.permissions,worktree),'auth.json'));
+    // The secret's home lies outside the job directory, which is retained as
+    // review evidence after the reviewer exits.
+    const home=fs.realpathSync.native(fs.mkdtempSync(secret?path.join(os.tmpdir(),'impower-codex-home-'):path.join(privateDirectory,'codex-home-')));
     protectPrivatePath(home);
+    if(secret)secrets.push(home);
     const fd=fs.openSync(path.join(home,'auth.json'),'wx',0o600);
-    try{protectPrivatePath(path.join(home,'auth.json'));fs.writeFileSync(fd,fs.readFileSync(path.join(sourceHome,'auth.json')));}finally{fs.closeSync(fd);}
+    try{protectPrivatePath(path.join(home,'auth.json'));fs.writeFileSync(fd,auth);}finally{fs.closeSync(fd);}
+    if(secret)delete env[step.permissions.codexAuthEnv];
     installReviewerHooks(home);
     for(const key of Object.keys(env))if(/^(?:CODEX_|OPENAI_)/i.test(key))delete env[key];
     env.CODEX_HOME=home;
@@ -113,13 +162,19 @@ export function nativeReviewerEnvironment(step,privateDirectory,source=process.e
     const sandbox=report.checks?.['sandbox.helpers'];
     if(!isSupportedCodexVersion(report.codexVersion)||sandbox?.status!=='ok'||sandbox.details?.['sandbox backend']!=='elevated'||sandbox.details?.['sandbox provisioning']!=='complete')throw new Error('Existing elevated sandbox provisioning unavailable; no setup is performed');
   }
+  for(const key of Object.keys(env))if(/^GH_|^GITHUB_TOKEN$/i.test(key))delete env[key];
+  // A reviewer whose report the coordinator posts receives no GitHub access.
+  if(reportPosting==='coordinator')return env;
   // Codex review environments receive report access in memory; never copy its
   // configuration or token to disk.
   let token;
-  try{token=execFileSync('gh',['auth','token','--hostname','github.com'],{env:source,encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:16384,stdio:['ignore','pipe','pipe']}).trim();}
-  catch{throw new Error('Existing GitHub authentication unavailable; reviewer not launched');}
+  // The helper reads the user's GitHub login from the source environment, but
+  // never the Codex secret the source carries for the authentication file.
+  const helperSource={...source};
+  if(step.permissions?.codexAuthEnv!==undefined)delete helperSource[step.permissions.codexAuthEnv];
+  try{token=execFileSync('gh',['auth','token','--hostname','github.com'],{env:helperSource,encoding:'utf8',windowsHide:true,timeout:15000,maxBuffer:16384,stdio:['ignore','pipe','pipe']}).trim();}
+  catch{throw new Error('Existing GitHub authentication unavailable; reviewer not launched (a cloud container without a gh login sets the plan\'s reportPosting to "coordinator")');}
   if(!token||/[\r\n]/.test(token))throw new Error('Existing GitHub authentication invalid; reviewer not launched');
-  for(const key of Object.keys(env))if(/^GH_|^GITHUB_TOKEN$/i.test(key))delete env[key];
   env.GH_HOST='github.com';env.GH_TOKEN=token;
   env.GH_CONFIG_DIR=fs.realpathSync.native(fs.mkdtempSync(path.join(fs.realpathSync.native(step.nativeResult==='codex-jsonl'?step.permissions.cwd:privateDirectory),'gh-config-')));
   return env;

@@ -46,6 +46,11 @@ import { lowerDivertPath } from "../utils/lowerDivertPath";
 import { lowerStatements } from "../lower";
 import { getFunctionBodyContent } from "../utils/getFunctionBodyContent";
 import { lowerArguments, VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
+import {
+  closeFunctionBody,
+  currentStatement,
+  openFunctionBody,
+} from "../utils/statementShape";
 import { lowerTable } from "./lowerTable";
 import { mapStdLibCallToBuiltin } from "../utils/stdlibMapping";
 import { validateStdLibDeprecation } from "../utils/validateStdLibDeprecation";
@@ -248,8 +253,9 @@ export function lowerExpressionFromNodes(
       const hasArgs = argsNode?.name === "LuauParenthetical";
       const expr = lowerNewExpression(node, hasArgs ? argsNode! : null, ctx);
       if (expr) {
-        tokens.push({ kind: "operand", expr });
-        if (hasArgs) i = k;
+        const operand: OperandToken = { kind: "operand", expr };
+        tokens.push(operand);
+        i = foldTrailingNodes(nodes, hasArgs ? k : i, operand, ctx);
         continue;
       }
     }
@@ -316,42 +322,16 @@ export function lowerExpressionFromNodes(
       }
       const next = nodes[argsAt];
       if (next && CALL_ARG_NODE_NAMES.has(next.name)) {
-        let expr = lowerMethodCall(node, next, ctx, extraParts);
-        // Chained method calls — mirror the tree-walking logic in
-        // `collectTokens`. Fold subsequent
-        // `LuauChainedFunctionCall + LuauParenthetical` pairs into the
-        // chain, threading the previous result as the receiver, and
-        // `LuauChainedPropertyAccess` links (`a:m(x).y` / `[i]`) as
-        // IndexExpressions on the running value.
-        let j = argsAt + 1;
-        while (expr && j < nodes.length) {
-          const after = nodes[j]!;
-          if (isSkippableName(after.name)) {
-            j++;
-            continue;
-          }
-          if (after.name === "LuauChainedPropertyAccess") {
-            expr = lowerChainedPropertyLink(after, expr, ctx);
-            j++;
-            continue;
-          }
-          if (after.name === "LuauAccessPart") {
-            const folded = foldContinuedPart(nodes, j, expr, ctx);
-            if (!folded) break;
-            expr = folded.expr;
-            j = folded.last + 1;
-            continue;
-          }
-          if (after.name !== "LuauChainedFunctionCall") break;
-          let k = j + 1;
-          while (k < nodes.length && isSkippableName(nodes[k]!.name)) k++;
-          const chainParen = nodes[k];
-          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
-          expr = lowerChainedMethodCall(after, chainParen, expr, ctx);
-          j = k + 1;
+        // The links after the call's arguments apply to its result, as in
+        // `collectTokens`.
+        const expr = lowerMethodCall(node, next, ctx, extraParts);
+        if (expr) {
+          const operand: OperandToken = { kind: "operand", expr };
+          tokens.push(operand);
+          i = foldTrailingNodes(nodes, argsAt, operand, ctx);
+        } else {
+          i = argsAt;
         }
-        if (expr) tokens.push({ kind: "operand", expr });
-        i = j - 1; // outer loop's i++ will land on first un-consumed node
         continue;
       }
     }
@@ -390,68 +370,79 @@ export function lowerExpressionFromNodes(
     } else {
       collectFromNode(node, ctx, tokens);
     }
-    // IIFE / value-call on a parenthesized expression in arg context:
-    // `(function() return X end)()` and `(expr)(args)` appear as two
-    // adjacent LuauParenthetical siblings inside a function-call's
-    // arg list. Mirror `collectTokens`'s post-operand fold so the
-    // shape works inside `assert(IIFE() == X)`, `f(IIFE())`, and
-    // similar call-position uses. Without this, the pratt parser
-    // saw two adjacent operands inside the arg expression and
-    // emitted broken bytecode (the closure leaked as a divert
-    // target into the assertion, hitting `Can't cast` at runtime).
+    // The postfix links after the operand (`f(IIFE())`, `({f()})[1]` and
+    // `assert(("ab"):rep(3) == "ababab")` in arg context), as
+    // `collectTokens` folds them. Without this, the pratt parser saw two
+    // adjacent operands inside the arg expression and emitted broken
+    // bytecode (the closure leaked as a divert target into the assertion,
+    // hitting `Can't cast` at runtime).
     const last = tokens[tokens.length - 1];
     if (last?.kind === "operand") {
-      let j = i + 1;
-      while (j < nodes.length) {
-        if (isSkippableName(nodes[j]!.name)) { j++; continue; }
-        // Trailing property/index links — mirror collectTokens
-        // (`({f()})[1]` in arg context).
-        if (nodes[j]!.name === "LuauChainedPropertyAccess") {
-          const linked = lowerChainedPropertyLink(nodes[j]!, last.expr, ctx);
-          if (!linked) break;
-          last.expr = linked;
-          i = j;
-          j++;
-          continue;
-        }
-        // A continuation line's parts on the last operand: `f(x)` then
-        // `.y`, or `1 + t` then `.a`, which reads `t.a`.
-        if (nodes[j]!.name === "LuauAccessPart") {
-          const folded = foldContinuedPart(nodes, j, last.expr, ctx);
-          if (!folded) break;
-          last.expr = folded.expr;
-          i = folded.last;
-          j = folded.last + 1;
-          continue;
-        }
-        // Method call on the running value in arg context —
-        // `assert(("ab"):rep(3) == "ababab")`. Mirror collectTokens.
-        if (nodes[j]!.name === "LuauChainedFunctionCall") {
-          let k = j + 1;
-          while (k < nodes.length && isSkippableName(nodes[k]!.name)) k++;
-          const chainParen = nodes[k];
-          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
-          const chained = lowerChainedMethodCall(
-            nodes[j]!,
-            chainParen,
-            last.expr,
-            ctx,
-          );
-          if (!chained) break;
-          last.expr = chained;
-          i = k;
-          j = k + 1;
-          continue;
-        }
-        if (!CALL_ARG_NODE_NAMES.has(nodes[j]!.name)) break;
-        const args = lowerCallArgsNode(nodes[j]!, ctx);
-        last.expr = new CallValueExpression(last.expr, args);
-        i = j;
-        j++;
-      }
+      i = foldTrailingNodes(nodes, i, last, ctx);
     }
   }
   return prattParse(tokens, 0);
+}
+
+/**
+ * `foldTrailingLinks` over an argument's node list, which also holds the
+ * parts of the lines that continue it: folds the links after `nodes[at]`
+ * into the operand, and returns the index of the last node it consumed. A
+ * continuation line's parts apply to the operand before them: `f(x)` then
+ * `.y`, or `1 + t` then `.a`, which reads `t.a` (`foldContinuedPart`).
+ */
+function foldTrailingNodes(
+  nodes: SyntaxNode[],
+  at: number,
+  operand: OperandToken,
+  ctx: LowerContext,
+): number {
+  let j = at + 1;
+  while (j < nodes.length) {
+    if (isSkippableName(nodes[j]!.name)) {
+      j++;
+      continue;
+    }
+    if (nodes[j]!.name === "LuauChainedPropertyAccess") {
+      const linked = lowerChainedPropertyLink(nodes[j]!, operand.expr, ctx);
+      if (!linked) break;
+      operand.expr = linked;
+      at = j;
+      j++;
+      continue;
+    }
+    if (nodes[j]!.name === "LuauAccessPart") {
+      const folded = foldContinuedPart(nodes, j, operand.expr, ctx);
+      if (!folded) break;
+      operand.expr = folded.expr;
+      at = folded.last;
+      j = folded.last + 1;
+      continue;
+    }
+    if (nodes[j]!.name === "LuauChainedFunctionCall") {
+      let k = j + 1;
+      while (k < nodes.length && isSkippableName(nodes[k]!.name)) k++;
+      const chainParen = nodes[k];
+      if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
+      const chained = lowerChainedMethodCall(
+        nodes[j]!,
+        chainParen,
+        operand.expr,
+        ctx,
+      );
+      if (!chained) break;
+      operand.expr = chained;
+      at = k;
+      j = k + 1;
+      continue;
+    }
+    if (!CALL_ARG_NODE_NAMES.has(nodes[j]!.name)) break;
+    const args = lowerCallArgsNode(nodes[j]!, ctx);
+    operand.expr = new CallValueExpression(operand.expr, args);
+    at = j;
+    j++;
+  }
+  return at;
 }
 
 // The index in `nodes` where the continuation lines that end it begin, when
@@ -510,6 +501,8 @@ type Token =
   | { kind: "operand"; expr: Expression }
   | { kind: "binop"; op: string }
   | { kind: "unop"; op: string };
+
+type OperandToken = Extract<Token, { kind: "operand" }>;
 
 // Node names that can serve as a call's argument payload. Lua's call
 // syntax sugar allows a single string literal or table constructor in
@@ -636,8 +629,12 @@ function collectTokens(
       const hasArgs = argsNode?.name === "LuauParenthetical";
       const expr = lowerNewExpression(child, hasArgs ? argsNode : null, ctx);
       if (expr) {
-        tokens.push({ kind: "operand", expr });
-        child = (hasArgs ? argsNode! : child).nextSibling;
+        // The links after the constructor's arguments apply to the instance
+        // it builds (`new P(1).s`, `new P():m()`).
+        const operand: OperandToken = { kind: "operand", expr };
+        tokens.push(operand);
+        child = foldTrailingLinks(operand, hasArgs ? argsNode! : child, ctx)
+          .nextSibling;
         continue;
       }
     }
@@ -647,90 +644,89 @@ function collectTokens(
     ) {
       const args = findNextNonSkippableSibling(child);
       if (args && CALL_ARG_NODE_NAMES.has(args.name)) {
-        let expr = lowerMethodCall(child, args, ctx);
-        // Chained method calls: after the initial `LuauAccessPath +
-        // LuauParenthetical` pair, the grammar emits one or more
-        // `LuauChainedFunctionCall + LuauParenthetical` pairs for each
-        // chained `:method(args)` link (see grammar rule
-        // `LuauChainedFunctionCall` and the comment in `LuauExpression`).
-        // Each pair threads the previous result as the receiver.
-        // `LuauChainedPropertyAccess` links (`a:m(x).y` / `[i]`) fold
-        // as IndexExpressions on the running value and may interleave
-        // with further chained calls (`a:m(x).y[i]:n()`).
-        let after: SyntaxNode | null = args.nextSibling;
-        while (expr && after) {
-          while (after && isSkippableName(after.name)) after = after.nextSibling;
-          if (!after) break;
-          if (after.name === "LuauChainedPropertyAccess") {
-            expr = lowerChainedPropertyLink(after, expr, ctx);
-            after = after.nextSibling;
-            continue;
-          }
-          if (after.name !== "LuauChainedFunctionCall") break;
-          const chainParen = findNextNonSkippableSibling(after);
-          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
-          expr = lowerChainedMethodCall(after, chainParen, expr, ctx);
-          after = chainParen.nextSibling;
+        // After the initial `LuauAccessPath + LuauParenthetical` pair, the
+        // links that follow apply to the call's result: chained
+        // `:method(args)` links, which the grammar emits as
+        // `LuauChainedFunctionCall + LuauParenthetical` pairs (see grammar
+        // rule `LuauChainedFunctionCall` and the comment in
+        // `LuauExpression`), `LuauChainedPropertyAccess` links
+        // (`a:m(x).y` / `[i]`), and calls of the result (`o:get()()`).
+        const expr = lowerMethodCall(child, args, ctx);
+        if (expr) {
+          const operand: OperandToken = { kind: "operand", expr };
+          tokens.push(operand);
+          child = foldTrailingLinks(operand, args, ctx).nextSibling;
+        } else {
+          child = args.nextSibling;
         }
-        if (expr) tokens.push({ kind: "operand", expr });
-        child = after;
         continue;
       }
     }
     collectFromNode(child, ctx, tokens);
-    // Value-call on a parenthesized expression: `(expr)(args)`,
-    // including the IIFE shape `(function() ... end)(args)`. The
-    // grammar emits both as a `LuauParenthetical` followed by another
-    // `LuauParenthetical` sibling (with no operator between, since
-    // operator rules like `LuauArithmeticOperation` would have
-    // consumed the operator + RHS together). The pratt parser can't
-    // handle two adjacent operands, so we fold the trailing
-    // parenthetical as a value-call here. Subsequent `(args)`
-    // siblings chain in the same way (`(expr)(a)(b)`).
     const last = tokens[tokens.length - 1];
     if (last?.kind === "operand") {
-      let after: SyntaxNode | null = child.nextSibling;
-      while (after) {
-        while (after && isSkippableName(after.name)) after = after.nextSibling;
-        if (!after) break;
-        // Trailing property/index links on the running value:
-        // `({f()})[1]` parses as LuauParenthetical +
-        // LuauChainedPropertyAccess siblings (closure.luau line 85).
-        if (after.name === "LuauChainedPropertyAccess") {
-          const linked = lowerChainedPropertyLink(after, last.expr, ctx);
-          if (!linked) break;
-          last.expr = linked;
-          child = after;
-          after = after.nextSibling;
-          continue;
-        }
-        // Method call on the running value: `("ab"):rep(3)` parses as
-        // LuauParenthetical + LuauChainedFunctionCall + LuauParenthetical
-        // siblings (same chain-link shape as `a:m(x):n(y)` tails).
-        if (after.name === "LuauChainedFunctionCall") {
-          const chainParen = findNextNonSkippableSibling(after);
-          if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
-          const chained = lowerChainedMethodCall(
-            after,
-            chainParen,
-            last.expr,
-            ctx,
-          );
-          if (!chained) break;
-          last.expr = chained;
-          child = chainParen;
-          after = chainParen.nextSibling;
-          continue;
-        }
-        if (!CALL_ARG_NODE_NAMES.has(after.name)) break;
-        const args = lowerCallArgsNode(after, ctx);
-        last.expr = new CallValueExpression(last.expr, args);
-        child = after;
-        after = after.nextSibling;
-      }
+      child = foldTrailingLinks(last, child, ctx);
     }
     child = child.nextSibling;
   }
+}
+
+/**
+ * Folds the links that follow an operand's last node into the operand, as
+ * its postfix chain, and returns the last node it consumed. The grammar
+ * emits each link as a sibling of the operand, which the pratt parser cannot
+ * take as an operand of its own:
+ * - a property or index link (`({f()})[1]` parses as LuauParenthetical +
+ *   LuauChainedPropertyAccess siblings, closure.luau line 85);
+ * - a method call on the running value (`("ab"):rep(3)` parses as
+ *   LuauParenthetical + LuauChainedFunctionCall + LuauParenthetical
+ *   siblings, the chain-link shape of `a:m(x):n(y)` tails);
+ * - a call of the running value: `(expr)(args)`, the IIFE shape
+ *   `(function() ... end)(args)`, and `o:get()(x)`, which the grammar emits
+ *   as a `LuauParenthetical` sibling with no operator between, since
+ *   operator rules like `LuauArithmeticOperation` would have consumed the
+ *   operator and its right side together. Further `(args)` siblings chain
+ *   the same way (`(expr)(a)(b)`).
+ */
+function foldTrailingLinks(
+  operand: OperandToken,
+  lastNode: SyntaxNode,
+  ctx: LowerContext,
+): SyntaxNode {
+  let after: SyntaxNode | null = lastNode.nextSibling;
+  while (after) {
+    while (after && isSkippableName(after.name)) after = after.nextSibling;
+    if (!after) break;
+    if (after.name === "LuauChainedPropertyAccess") {
+      const linked = lowerChainedPropertyLink(after, operand.expr, ctx);
+      if (!linked) break;
+      operand.expr = linked;
+      lastNode = after;
+      after = after.nextSibling;
+      continue;
+    }
+    if (after.name === "LuauChainedFunctionCall") {
+      const chainParen = findNextNonSkippableSibling(after);
+      if (!chainParen || !CALL_ARG_NODE_NAMES.has(chainParen.name)) break;
+      const chained = lowerChainedMethodCall(
+        after,
+        chainParen,
+        operand.expr,
+        ctx,
+      );
+      if (!chained) break;
+      operand.expr = chained;
+      lastNode = chainParen;
+      after = chainParen.nextSibling;
+      continue;
+    }
+    if (!CALL_ARG_NODE_NAMES.has(after.name)) break;
+    const args = lowerCallArgsNode(after, ctx);
+    operand.expr = new CallValueExpression(operand.expr, args);
+    lastNode = after;
+    after = after.nextSibling;
+  }
+  return lastNode;
 }
 
 // Lower a single `:method(args)` chain link given a pre-lowered receiver
@@ -829,39 +825,59 @@ function foldContinuedPart(
 }
 
 // Fold one `LuauChainedPropertyAccess` link (`.name` or `[expr]`
-// trailing a method call — `a:m(x).y`) into an IndexExpression on the
-// running chain value.
+// trailing a call — `a:m(x).y`) into IndexExpressions on the running chain
+// value, one per part: the grammar writes every accessor and indexer that
+// follow each other as one link (`.a.x`, `.a[2]`).
 function lowerChainedPropertyLink(
   linkNode: SyntaxNode,
   receiver: Expression,
   ctx: LowerContext,
 ): Expression | null {
+  const parts = chainedLinkParts(linkNode);
+  if (parts.length === 0) return null;
+  let expr = receiver;
+  for (const part of parts) {
+    const key = chainedPartKey(part, ctx);
+    if (!key) return null;
+    expr = new IndexExpression(expr, key);
+  }
+  return expr;
+}
+
+// The accessors and indexers a `LuauChainedPropertyAccess` link holds, in
+// order: its direct parts only, since an indexer's key can hold accessors of
+// its own (`[k.v]`).
+export function chainedLinkParts(linkNode: SyntaxNode): SyntaxNode[] {
   const content =
     findChildByName(linkNode, "LuauChainedPropertyAccess_content") ?? linkNode;
-  const accessor = getDescendent("LuauPropertyAccessor", content);
-  if (accessor) {
+  const parts: SyntaxNode[] = [];
+  for (let part = content.firstChild; part; part = part.nextSibling) {
+    if (
+      part.name === "LuauPropertyAccessor" ||
+      part.name === "LuauPropertyIndexer"
+    ) {
+      parts.push(part);
+    }
+  }
+  return parts;
+}
+
+// The key one part of a chained link reads: an accessor's name, or an
+// indexer's expression.
+export function chainedPartKey(
+  part: SyntaxNode,
+  ctx: LowerContext,
+): Expression | null {
+  if (part.name === "LuauPropertyAccessor") {
     const nameNode =
-      getDescendent("LuauPropertyName", accessor) ??
-      getDescendent("LuauStdLibMethods", accessor);
-    if (!nameNode) return null;
-    return new IndexExpression(
-      receiver,
-      new StringExpression([new Text(ctx.read(nameNode.from, nameNode.to))]),
-    );
-  }
-  const indexer = getDescendent("LuauPropertyIndexer", content);
-  if (indexer) {
-    const indexerContent = findChildByName(
-      indexer,
-      "LuauPropertyIndexer_content",
-    );
-    const key = indexerContent
-      ? lowerExpressionFromContainer(indexerContent, ctx)
+      getDescendent("LuauPropertyName", part) ??
+      getDescendent("LuauStdLibMethods", part);
+    return nameNode
+      ? new StringExpression([new Text(ctx.read(nameNode.from, nameNode.to))])
       : null;
-    if (!key) return null;
-    return new IndexExpression(receiver, key);
   }
-  return null;
+  const indexerContent = findChildByName(part, "LuauPropertyIndexer_content");
+  return indexerContent ? lowerExpressionFromContainer(indexerContent, ctx) : null;
 }
 
 // The path's own access parts, then `extraParts`.
@@ -1321,19 +1337,9 @@ export function lowerPrimary(
     case "LuauParenthetical": {
       // Lua adjusts `(expr)` to exactly ONE value — a parenthesized
       // multi-return call truncates (`(ret2(f()))` is one value,
-      // calls.luau line 210). Only potentially-multi-valued inners
-      // need the runtime adjustment op; literals/operators/etc. are
-      // single-valued by construction and pass through unwrapped
-      // (keeps `(42)` structurally identical to `42`).
+      // calls.luau line 210).
       const inner = lowerExpressionFromContainer(node, ctx);
-      if (!inner) return inner;
-      const maybeMultiValued =
-        inner instanceof FunctionCall ||
-        inner instanceof CallValueExpression ||
-        inner instanceof TernaryExpression ||
-        (inner instanceof VariableReference &&
-          inner.name === VARARGS_LOCAL_NAME);
-      return maybeMultiValued ? new SingleValueExpression(inner) : inner;
+      return inner ? asOneValue(inner) : inner;
     }
     case "LuauTable":
       return lowerTable(node, ctx);
@@ -1416,9 +1422,11 @@ function lowerTernaryExpression(
       pendingCond = lowerExpressionFromContainer(condContent, ctx);
       if (!pendingCond) return null;
     } else if (child.name === "LuauThenExpression") {
+      // An if expression is one value, whatever its arm (`if c then
+      // f() else 0` is f()'s first value).
       const value = lowerExpressionFromNodes(collectClauseBody(child), ctx);
       if (!value) return null;
-      branches.push({ condition: pendingCond, value });
+      branches.push({ condition: pendingCond, value: asOneValue(value) });
       pendingCond = null;
     } else if (child.name === "LuauElseExpression") {
       const value = lowerExpressionFromNodes(
@@ -1426,7 +1434,7 @@ function lowerTernaryExpression(
         ctx,
       );
       if (!value) return null;
-      branches.push({ condition: null, value });
+      branches.push({ condition: null, value: asOneValue(value) });
     }
     child = child.nextSibling;
   }
@@ -1439,6 +1447,21 @@ function lowerTernaryExpression(
   }
   if (branches[0]!.condition === null) return null;
   return new TernaryExpression(branches);
+}
+
+// `expr` adjusted to exactly one value where Luau takes one (a parenthesis,
+// an if expression's arm, a table's key and keyed value): a call or `...`
+// may give several values or none, and is wrapped in a
+// `SingleValueExpression`; literals, operators and the like are
+// single-valued by construction and pass through unwrapped (keeps `(42)`
+// structurally identical to `42`).
+export function asOneValue(expr: Expression): Expression {
+  const maybeMultiValued =
+    expr instanceof FunctionCall ||
+    expr instanceof CallValueExpression ||
+    expr instanceof TernaryExpression ||
+    (expr instanceof VariableReference && expr.name === VARARGS_LOCAL_NAME);
+  return maybeMultiValued ? new SingleValueExpression(expr) : expr;
 }
 
 // The name in a function's own header: a plain name
@@ -1512,6 +1535,7 @@ function lowerAnonymousFunction(
   // known stdlib name). These are the closure's upvals. Captured by
   // value at the closure-definition site.
   const upvals = scanFreeVariables(node, ctx);
+  recordCaptureRead(ctx, upvals);
 
   // Dedupe: if an anonymous function from the SAME source position has
   // already been registered in the target buffer, skip re-pushing.
@@ -1603,8 +1627,7 @@ export function collectImmediateBodyDeclarations(
       // are NOT recorded as enclosing-scope locals. Variadic nested
       // fns route through `lowerNestedAsSubFlow` which only
       // registers the SubFlow — there's no `local NAME = closureValue`
-      // binding emitted (the variadic call site needs static dispatch
-      // for `PackTuple`, see comment in `lowerLuauFunctionDefinition`).
+      // binding emitted (see `lowerLuauFunctionDefinition`).
       // Recording the name as a local would make `scanFreeVariables`
       // capture the name as an upval in any sibling closure, then
       // `VariablePointerExpression(NAME)` would resolve to nil at
@@ -1791,11 +1814,12 @@ export function scanFreeVariables(
   // Is `name` a sibling SubFlow in some enclosing scope? Variadic
   // nested fns route through `lowerNestedAsSubFlow` and don't emit
   // a `local NAME = closure` binding — capturing them as upvals
-  // would `VariablePointerExpression(NAME)` to nil at runtime and
-  // also bypasses the static `PackTuple` setup that variadic
-  // dispatch requires. Instead, references fall through to
+  // would `VariablePointerExpression(NAME)` to nil at runtime, since
+  // NAME is no variable. Instead, references fall through to
   // FunctionCall dispatch at the call site, which resolves NAME via
-  // ink's relative-path walk to the enclosing-scope subFlow.
+  // ink's relative-path walk to the enclosing-scope subFlow. The
+  // answer decides what the closure captures, which the lowering that
+  // builds the closure records (`recordCaptureRead`).
   const isSiblingSubFlow = (name: string) => {
     const stack = ctx.siblingSubFlowNamesStack;
     if (!stack) return false;
@@ -2136,17 +2160,20 @@ export function buildAnonymousFunction(
   ctx.hoistedNestedFnDeclsStack?.push(innerHoisted);
   const innerSiblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(innerSiblingSubFlows);
-  const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP);
+  const shape = openFunctionBody(ctx, node);
+  const body = lowerStatements(content, ctx, ANON_FUNCTION_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
   ctx.functionScopeStack?.pop();
 
-  return new Function(
+  const fn = new Function(
     new Identifier(name),
     [...innerHoisted, ...body, ...nested],
     args as Argument[],
   );
+  closeFunctionBody(ctx, shape, fn, node, innerHoisted);
+  return fn;
 }
 
 function lowerDivertTargetLiteral(
@@ -2393,8 +2420,11 @@ function lowerInterpolatedString(
       flush();
       const expr = lowerExpressionFromContainer(child, ctx);
       if (expr) {
-        expr.outputWhenComplete = true;
-        parts.push(expr);
+        // Luau writes each interpolated value as one value: a call's first,
+        // or nil for a call that returns none.
+        const value = asOneValue(expr);
+        value.outputWhenComplete = true;
+        parts.push(value);
       }
     } else {
       textBuf += ctx.read(child.from, child.to);
@@ -2630,6 +2660,14 @@ function lowerIdentifierPath(
   ) {
     const info = siblingSubFlowInfo(identifiers[0]!.name, ctx);
     const knotName = info?.knotName ?? identifiers[0]!.name;
+    if (info) {
+      // The subflow's definition decides the pointers the value holds and
+      // the arity it records.
+      recordSiblingRead(
+        ctx,
+        `value:${identifiers[0]!.name}=${info.upvals.join(",")}/${info.arity}`,
+      );
+    }
     if (info && info.upvals.length > 0) {
       return buildClosureExpression(knotName, info.upvals, info.arity);
     }
@@ -2823,11 +2861,109 @@ function resolveCallableBinding(
     if (sibling !== undefined) {
       // Rebound names (`f = <expr>` over a former subflow or a bare
       // global) dispatch as VALUE calls, not static diverts.
-      return sibling.rebound ? "local" : "sibling";
+      const binding = sibling.rebound ? "local" : "sibling";
+      recordSiblingRead(ctx, `call:${name}=${binding}`);
+      return binding;
     }
     if (locals[i]?.has(name)) return "local";
   }
   return null;
+}
+
+/**
+ * Records in the running statement's reads what its lowering found a name
+ * to be among the sibling subflows: whether a call reaches the subflow or a
+ * value (`resolveCallableBinding`), and the pointers a call to a subflow or
+ * a reference to one as a value passes. A `local` of the name that an edit
+ * adds or removes changes the answer (`shadowSiblingSubFlow`) and the
+ * statement's code, not its syntax, and the binary program's chunk store
+ * emits a statement again when its reads change. Whether a closure captures
+ * the name is in the list of names it captures (`recordCaptureRead`).
+ */
+function recordSiblingRead(ctx: LowerContext, read: string): void {
+  const reads = currentStatement(ctx)?.reads.other;
+  if (reads && !reads.includes(read)) {
+    reads.push(read);
+  }
+}
+
+/**
+ * Records in the running statement's reads the names a function it writes
+ * captures, in order: the statement's code passes them to the function and
+ * the function's entry binds them, and the function's body, whose lines are
+ * not the statement's syntax, decides them, so the binary program's chunk
+ * store emits the statement again when an edit inside the body changes them
+ * (`ChunkStore.take`). Each lowering that builds a function records the list
+ * it builds the function from, not the scan's (`scanFreeVariables`): a
+ * method's without its implicit `self`, and a `local function`'s that calls
+ * itself with its own name added. Each function is recorded in the order the
+ * lowering builds it, since two functions of one statement can capture the
+ * same names.
+ */
+export function recordCaptureRead(
+  ctx: LowerContext,
+  names: readonly string[],
+): void {
+  currentStatement(ctx)?.reads.other.push(`captures:${names.join(",")}`);
+}
+
+/**
+ * The names the statements of `block` declare as locals themselves
+ * (`local x`, `local function f`), not those declared inside the blocks
+ * within it: what a `repeat` loop's `until` condition sees of its body.
+ */
+export function blockLocalNames(block: SyntaxNode, ctx: LowerContext): string[] {
+  const names: string[] = [];
+  for (let child = block.firstChild; child; child = child.nextSibling) {
+    // The statement's own modifier, which starts it; a function without one
+    // can hold a `local` in its body.
+    const scope = getDescendent("LuauScopeModifier", child);
+    if (
+      !scope ||
+      ctx.read(child.from, scope.from).trim() !== "" ||
+      ctx.read(scope.from, scope.to).trim() !== "local"
+    ) {
+      continue;
+    }
+    if (VARIABLE_DEFINITION_NAMES.has(child.name)) {
+      names.push(...collectVarDefIdentifiers(child, ctx));
+    } else if (child.name === "LuauFunctionDefinition") {
+      const declaration = findOwnDeclarationName(child);
+      const nameNode =
+        declaration && getDescendent("LuauFunctionName", declaration);
+      if (nameNode) {
+        names.push(ctx.read(nameNode.from, nameNode.to));
+      }
+    }
+  }
+  return names;
+}
+
+/**
+ * Hides the sibling subflow `name` of the innermost function for the rest of
+ * the block being lowered, as a `local` of that name declared in the block,
+ * or a loop's variable of that name, hides it in Luau: calls and references
+ * to the name after the declaration dispatch to the local's value, as a
+ * rebound name's do (`resolveCallableBinding`), and the subflow is visible
+ * again when the block ends (`lowerStatements`, or the loop that pushed a
+ * block of its own for its variables). Without it, a call to the local would
+ * pass the subflow's upvalues before its own arguments.
+ */
+export function shadowSiblingSubFlow(name: string, ctx: LowerContext): void {
+  const frame = ctx.siblingSubFlowNamesStack?.at(-1);
+  const hidden = frame?.get(name);
+  const ends = ctx.blockEndStack?.at(-1);
+  if (!frame || !hidden || hidden.rebound || !ends) {
+    return;
+  }
+  const shadow: SiblingSubFlowInfo = { ...hidden, rebound: true };
+  frame.set(name, shadow);
+  ends.push(() => {
+    // A redefinition of the subflow later in the block replaced the shadow.
+    if (frame.get(name) === shadow) {
+      frame.set(name, hidden);
+    }
+  });
 }
 
 // Is `name` a variadic sibling SubFlow in ANY enclosing function
@@ -2868,13 +3004,15 @@ function siblingSubFlowUpvals(
 
 // Prepend a sibling subflow's upval pointers to a call's arg list.
 // No-op (returns `args` unchanged) when `name` isn't a registered
-// sibling subflow or captures nothing.
+// sibling subflow or captures nothing. The subflow's body decides the
+// pointers, so the calling statement records them (`recordSiblingRead`).
 function withSiblingSubFlowUpvalArgs(
   name: string,
   args: Expression[],
   ctx: LowerContext,
 ): Expression[] {
   const upvals = siblingSubFlowUpvals(name, ctx);
+  if (upvals) recordSiblingRead(ctx, `upvals:${name}=${upvals.join(",")}`);
   if (!upvals || upvals.length === 0) return args;
   return [
     ...upvals.map((n) => new VariablePointerExpression(n)),

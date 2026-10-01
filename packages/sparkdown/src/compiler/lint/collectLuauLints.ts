@@ -18,6 +18,8 @@
 
 import { type SyntaxNode, type Tree } from "@lezer/common";
 import { readScriptNames, type ScriptNames } from "./luauNames";
+import { isListCommaName } from "../utils/listCommaNames";
+import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 import {
   childNamed,
@@ -61,7 +63,7 @@ export interface LuauLint {
 // Nodes that stand for one Luau statement inside a block.
 const STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
-  "LuauReassignment",
+  ...REASSIGNMENT_NAMES,
   "LuauAccessPath",
   "LuauIfBlock",
   "LuauDoBlock",
@@ -352,7 +354,7 @@ function groupContents(tokens: SyntaxNode[]): SyntaxNode[] | null {
 // Tokens that end one expression of a list and begin the next.
 function isSeparator(token: SyntaxNode) {
   return (
-    token.name === "LuauCommaSeparator" ||
+    isListCommaName(token.name) ||
     token.name === "LuauAssignmentOperator" ||
     token.name === "LuauThenOperator" ||
     token.name === "LuauElseOperator" ||

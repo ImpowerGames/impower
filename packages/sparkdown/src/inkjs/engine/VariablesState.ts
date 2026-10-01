@@ -478,6 +478,7 @@ export class VariablesState extends VariablesStateAccessor<
           // sharing this pointer see the updated value.
           if (existingPointer.isClosed) {
             existingPointer.closedValue = value;
+            this.CellWriteBarrier(existingPointer);
             return;
           }
           name = existingPointer.variableName;
@@ -869,6 +870,45 @@ export class VariablesState extends VariablesStateAccessor<
     this._reactiveReadGlobals = null;
     this._reactiveReadTables = null;
     return deps;
+  }
+
+  // -------------------------------------------------------------------------
+  // The write barrier (docs/engine/binary-program.md, section 7). Every write
+  // to a table goes through it: to the table's entries (`StoreIndex`,
+  // `__newindex`, `rawset` and each builtin that changes a table in place)
+  // and to what the table is beside them (its metatable, its frozen flag, and
+  // the length hints `table.clear` and `#` leave on its map); and so does
+  // every assignment to a closed upvalue cell, whose frame is gone. The
+  // barrier only marks, while `trackWrites` is set: an image of the state
+  // holds what the marks name since the image before it (#699).
+  // -------------------------------------------------------------------------
+  public trackWrites = false;
+  private _writtenTables = new Set<ObjectValue>();
+  private _writtenCells = new Set<VariablePointerValue>();
+
+  /** Marks `table` as written. */
+  public WriteBarrier(table: ObjectValue): void {
+    if (this.trackWrites) {
+      this._writtenTables.add(table);
+    }
+  }
+
+  /** Marks the closed upvalue cell `cell` as written. */
+  public CellWriteBarrier(cell: VariablePointerValue): void {
+    if (this.trackWrites) {
+      this._writtenCells.add(cell);
+    }
+  }
+
+  /** Takes the tables and cells marked since the last call. */
+  public TakeWrites(): {
+    tables: Set<ObjectValue>;
+    cells: Set<VariablePointerValue>;
+  } {
+    const writes = { tables: this._writtenTables, cells: this._writtenCells };
+    this._writtenTables = new Set();
+    this._writtenCells = new Set();
+    return writes;
   }
 
   /** Take + clear the change-set accumulated since the last call (per refresh). */

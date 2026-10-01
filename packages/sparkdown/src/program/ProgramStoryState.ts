@@ -6,18 +6,20 @@ import type { RaisedError } from "../inkjs/engine/Error";
 import { JsonSerialisation } from "../inkjs/engine/JsonSerialisation";
 import type { InkObject } from "../inkjs/engine/Object";
 import { PRNG } from "../inkjs/engine/PRNG";
+import { PushPopType } from "../inkjs/engine/PushPop";
 import { SimpleJson } from "../inkjs/engine/SimpleJson";
 import { StringBuilder } from "../inkjs/engine/StringBuilder";
 import { Tag } from "../inkjs/engine/Tag";
 import { ObjectValue, StringValue } from "../inkjs/engine/Value";
 import type { VariablesState } from "../inkjs/engine/VariablesState";
-import type { CallStack } from "../inkjs/engine/CallStack";
+import { CallStack } from "../inkjs/engine/CallStack";
 import {
   findOpenString,
+  isBeginString,
   splitHeadTailWhitespace,
 } from "../inkjs/engine/outputWhitespace";
 import type { ProgramRoot, SequenceRow } from "./ProgramRoot";
-import { chunkId } from "./StatementChunk";
+import { BLOCK_FUNCTION, blockFlags, chunkId } from "./StatementChunk";
 
 /** Where the engine stands: an entry of a sequence and an offset into that
  *  entry's code. An offset past the end of a chunk's code is the start of the
@@ -37,9 +39,22 @@ export interface BlockEntry {
   block: number;
 }
 
+/** What the program engine keeps of a call frame beside the call stack
+ *  element that holds its temporaries (docs/engine/binary-program.md,
+ *  section 7): the position its caller resumes at when it returns, with the
+ *  blocks the caller was inside, and the function it runs. A frame a host
+ *  pushed, to call a function from outside the story, resumes nothing. */
+export interface ProgramFrame {
+  returnTo: ProgramPosition | null;
+  blocks: BlockEntry[];
+  /** The symbol of the function the frame runs. */
+  symbol: number;
+}
+
 /** The blocks the position in `sequence` is inside, outermost first, which
- *  follow from the position alone: the owner of each body, up to the flow,
- *  or nothing when an owner is not in `root`. */
+ *  follow from the position alone: the owner of each body, up to the flow or
+ *  up to the body of the function the position is in, whose frame begins at
+ *  that body, or nothing when an owner is not in `root`. */
 export const blockStackOf = (
   root: ProgramRoot,
   sequence: SequenceRow,
@@ -52,6 +67,10 @@ export const blockStackOf = (
       return undefined;
     }
     stack.unshift({ sequence: owner.sequence, entry: owner.entry, block: at.block });
+    const ownerChunk = owner.sequence.arrays.chunks[owner.entry]!;
+    if (blockFlags(ownerChunk, at.block) & BLOCK_FUNCTION) {
+      break;
+    }
     at = owner.sequence;
   }
   return stack;
@@ -62,6 +81,14 @@ export const blockStackOf = (
 interface CarriedStep {
   output: InkObject[];
   lineEndPending: boolean;
+}
+
+/** A line end a call from a host suspended (`SuspendLineEnd`). */
+export interface SuspendedLineEnd {
+  pending: boolean;
+  joinable: boolean;
+  cut: number | null;
+  carried: CarriedStep | null;
 }
 
 /** What the program engine's state hands a caller that reads a story's
@@ -77,24 +104,28 @@ export const NO_POINTER = Object.freeze({
 
 /**
  * The state of the program engine: its position and the blocks it is inside,
- * the eval stack and output, the errors of the continue in progress, the
- * globals, and the temporaries of its frame, which are the scopes of the
- * root element of the call stack its globals were made with (the current
- * engine's story copy, see `ProgramStory`), as `VariablesState` reads and
- * writes them.
+ * its call frames, the eval stack and output, the errors of the continue in
+ * progress, the globals, and the temporaries of each frame, which are the
+ * scopes of the elements of the call stack its globals were made with (the
+ * current engine's story copy, see `ProgramStory`), as `VariablesState` reads
+ * and writes them. A call pushes an element and the program frame beside it
+ * (`frameOf`), and a return pops them.
  *
  * The output is the current engine's, member for member, so that the builtins
  * a chunk calls (`display`) read and write it as they read and write a
  * `StoryState`: the newline rule and the splitting of a pushed string's
  * surrounding whitespace (`PushToOutputStreamIndividual`,
- * `TrySplittingHeadTailWhitespace`), a line end that waits (`lineEndPending`),
- * the offer to join a line that begins with `..` (`lineJoinable`), and the
- * cut that ends a continue at a waiting line end when something shows, whose
+ * `TrySplittingHeadTailWhitespace`), a function's rule of dropping the
+ * newlines it writes until it shows something and trimming its trailing
+ * whitespace when it returns, a line end that waits (`lineEndPending`), the
+ * offer to join a line that begins with `..` (`lineJoinable`), and the cut
+ * that ends a continue at a waiting line end when something shows, whose
  * output is carried to the next continue.
  */
 export class ProgramStoryState {
   position: ProgramPosition | null = null;
-  /** The blocks the position is inside, outermost first. */
+  /** The blocks the position is inside, outermost first, from the body of
+   *  the function the frame runs, or from the flow. */
   blockStack: BlockEntry[] = [];
   evaluationStack: InkObject[] = [];
   outputStream: InkObject[] = [];
@@ -114,6 +145,12 @@ export class ProgramStoryState {
   /** Where `inStringEvaluation` last found the open string
    *  (`findOpenString`). */
   protected _openStringIndex = -1;
+  /** The open `BeginString` indices and the stream they index
+   *  (`innermostOpenString`). */
+  protected _openStrings: number[] = [];
+  protected _openStringsStream: InkObject[] | null = null;
+  /** The program frame of each call stack element a call pushed. */
+  protected _frames = new WeakMap<CallStack.Element, ProgramFrame>();
 
   /** `_noteChanged` tells the story its state is no longer the one a reset
    *  made, as a load does (`Story.NoteStateChanged`). */
@@ -123,7 +160,7 @@ export class ProgramStoryState {
     protected _cleanWhitespace: (text: string) => string,
     protected _noteChanged: () => void = () => {},
     /** The call stack `variablesState` reads temporaries from. */
-    public callStack: CallStack | null = null,
+    public callStack: CallStack,
   ) {
     this.storySeed = new PRNG(new Date().getTime()).next() % 100;
   }
@@ -131,7 +168,27 @@ export class ProgramStoryState {
   /** The frame the engine runs in: the call stack's current element, whose
    *  scopes hold the temporaries. */
   get frame(): CallStack.Element | null {
-    return this.callStack?.currentElement ?? null;
+    return this.callStack.currentElement ?? null;
+  }
+
+  /** The program frame beside call stack element `element`, or nothing for
+   *  the flow's own element. */
+  frameOf(element: CallStack.Element): ProgramFrame | undefined {
+    return this._frames.get(element);
+  }
+
+  /** Pushes a call frame of `type`: its element, with the output's length
+   *  as where the function starts writing, and beside it the program frame
+   *  that returns to `returnTo` inside `blocks`. */
+  PushFrame(
+    type: PushPopType,
+    frame: ProgramFrame,
+    evalHeight = 0,
+  ): CallStack.Element {
+    this.callStack.Push(type, evalHeight, this.outputStream.length);
+    const element = this.callStack.currentElement!;
+    this._frames.set(element, frame);
+    return element;
   }
 
   get canContinue(): boolean {
@@ -190,9 +247,9 @@ export class ProgramStoryState {
     return [];
   }
 
-  // The engine runs one flow at a time, with no call stack yet.
+  // The engine runs one flow at a time.
   get callstackDepth(): number {
-    return 1;
+    return this.callStack.depth;
   }
 
   get currentPointer() {
@@ -241,10 +298,16 @@ export class ProgramStoryState {
   ResetOutput(objs: InkObject[] | null = null): void {
     this.outputStream.length = 0;
     if (objs !== null) this.outputStream.push(...objs);
+    this.ForgetOpenStrings();
     this.OutputStreamDirty();
   }
 
   PushToOutputStream(obj: InkObject | null): void {
+    // Every `BeginString` reaches the stream through here, at its end.
+    if (isBeginString(obj)) {
+      this.innermostOpenString;
+      this._openStrings.push(this.outputStream.length);
+    }
     if (!this.inStringEvaluation && showsOutput(obj)) {
       this.lineJoinable = false;
       if (this.lineEndPending) {
@@ -254,6 +317,19 @@ export class ProgramStoryState {
     }
     if (obj instanceof StringValue) {
       if (this.inStringEvaluation) {
+        // A function called from inside the open string (its start is after
+        // the string's `BeginString`) still drops newlines until it shows
+        // something, as it does outside a string; a string opened inside the
+        // function keeps its literal newlines (`StoryState.PushToOutputStream`).
+        const currEl = this.callStack.currentElement!;
+        if (
+          currEl.type == PushPopType.Function &&
+          currEl.functionStartInOutputStream > this._openStringIndex &&
+          this.innermostOpenString < currEl.functionStartInOutputStream
+        ) {
+          if (obj.isNewline) return;
+          if (obj.isNonWhitespace) this.MarkFunctionsShown();
+        }
         this.outputStream.push(obj);
         this.OutputStreamDirty();
         return;
@@ -271,24 +347,105 @@ export class ProgramStoryState {
     this.OutputStreamDirty();
   }
 
-  // The engine calls no function yet, so no newline is dropped at a
-  // function's start: a newline is written unless the output already ends in
-  // one or holds nothing.
+  /** Writes one piece of output under the newline rule: inside a function
+   *  that has shown nothing yet, a newline is dropped; elsewhere a newline is
+   *  written unless the output already ends in one or holds nothing
+   *  (`StoryState.PushToOutputStreamIndividual`). */
   PushToOutputStreamIndividual(obj: InkObject | null): void {
     if (obj === null) {
       throw new Error("obj");
     }
-    if (obj instanceof StringValue && obj.isNewline) {
-      if (this.outputStreamEndsInNewline || !this.outputStreamContainsContent) {
-        return;
+    let includeInOutput = true;
+    if (obj instanceof StringValue) {
+      let functionTrimIndex = -1;
+      const currEl = this.callStack.currentElement;
+      if (currEl?.type == PushPopType.Function) {
+        functionTrimIndex = currEl.functionStartInOutputStream;
+      }
+      for (let i = this.outputStream.length - 1; i >= 0; i--) {
+        if (isBeginString(this.outputStream[i])) {
+          if (i >= functionTrimIndex) {
+            functionTrimIndex = -1;
+          }
+          break;
+        }
+      }
+      if (functionTrimIndex != -1) {
+        if (obj.isNewline) {
+          includeInOutput = false;
+        } else if (obj.isNonWhitespace) {
+          this.MarkFunctionsShown();
+        }
+      } else if (obj.isNewline) {
+        if (this.outputStreamEndsInNewline || !this.outputStreamContainsContent) {
+          includeInOutput = false;
+        }
+      }
+    } else if (obj instanceof ObjectValue) {
+      // Inside a function, a display table with visible words ends the
+      // stretch at the function's start where newlines are dropped, as
+      // non-whitespace text does.
+      const tableText = obj.value?.get("text");
+      if (tableText instanceof StringValue && tableText.isNonWhitespace) {
+        this.MarkFunctionsShown();
       }
     }
-    this.outputStream.push(obj);
-    this.OutputStreamDirty();
+    if (includeInOutput) {
+      this.outputStream.push(obj);
+      this.OutputStreamDirty();
+    }
+  }
+
+  // The functions on top of the call stack have shown something, so their
+  // newlines are no longer dropped.
+  protected MarkFunctionsShown(): void {
+    const elements = this.callStack.elements;
+    for (let i = elements.length - 1; i >= 0; i--) {
+      const el = elements[i]!;
+      if (el.type == PushPopType.Function) {
+        el.functionStartInOutputStream = -1;
+      } else {
+        break;
+      }
+    }
   }
 
   TrySplittingHeadTailWhitespace(single: StringValue): StringValue[] | null {
     return splitHeadTailWhitespace(single);
+  }
+
+  /** Drops the newlines and inline whitespace a function wrote at its end,
+   *  as its return does (`StoryState.TrimWhitespaceFromFunctionEnd`). */
+  TrimWhitespaceFromFunctionEnd(): void {
+    let functionStartPoint =
+      this.callStack.currentElement!.functionStartInOutputStream;
+    if (functionStartPoint == -1) {
+      functionStartPoint = 0;
+    }
+    for (let i = this.outputStream.length - 1; i >= functionStartPoint; i--) {
+      const obj = this.outputStream[i];
+      // A display table is content, as visible text is.
+      if (obj instanceof ObjectValue) break;
+      if (!(obj instanceof StringValue)) continue;
+      if (obj.isNewline || obj.isInlineWhitespace) {
+        this.outputStream.splice(i, 1);
+        this.OutputStreamDirty();
+      } else {
+        break;
+      }
+    }
+  }
+
+  /** Pops the current call frame, trimming a function's trailing whitespace
+   *  first (`StoryState.PopCallStack`), and returns its program frame. */
+  PopCallStack(popType: PushPopType | null = null): ProgramFrame | undefined {
+    const element = this.callStack.currentElement!;
+    if (element.type == PushPopType.Function) {
+      this.TrimWhitespaceFromFunctionEnd();
+    }
+    const frame = this._frames.get(element);
+    this.callStack.Pop(popType);
+    return frame;
   }
 
   get outputStreamEndsInNewline(): boolean {
@@ -320,8 +477,38 @@ export class ProgramStoryState {
     return this._openStringIndex >= 0;
   }
 
+  // The index of the innermost open `BeginString`, or -1. `_openStrings` holds
+  // the index of each `BeginString` pushed, innermost last; a string that has
+  // closed leaves its index past the stream's end or on other content, and
+  // falls off here. The stack is rebuilt with one scan when the stream is
+  // replaced or rewritten below its end, so a push costs the same however
+  // long a string has been open (#1134).
+  protected get innermostOpenString(): number {
+    const stream = this.outputStream;
+    if (this._openStringsStream !== stream) {
+      this._openStringsStream = stream;
+      this._openStrings = [];
+      for (let i = 0; i < stream.length; i++) {
+        if (isBeginString(stream[i])) this._openStrings.push(i);
+      }
+    }
+    const open = this._openStrings;
+    while (open.length > 0) {
+      const i = open[open.length - 1]!;
+      if (i < stream.length && isBeginString(stream[i])) return i;
+      open.pop();
+    }
+    return -1;
+  }
+
+  protected ForgetOpenStrings(): void {
+    this._openStringsStream = null;
+  }
+
   /** Ends this continue's output at `outputCut` with the newline the cut line
-   *  was waiting for, and carries the output after it to the next continue. */
+   *  was waiting for, and carries the output after it to the next continue.
+   *  A function that began before the cut starts at the head of that
+   *  output. */
   CarryOutputPastCut(): void {
     if (this.outputCut === null) return;
     const cut = this.outputCut;
@@ -332,6 +519,17 @@ export class ProgramStoryState {
     };
     this.lineEndPending = false;
     this.outputStream.push(new StringValue("\n"));
+    this.ForgetOpenStrings();
+    // A start of -1 marks a function that has shown something, whose
+    // newlines are no longer dropped, and stays as it is.
+    for (const element of this.callStack.elements) {
+      if (element.functionStartInOutputStream > 0) {
+        element.functionStartInOutputStream = Math.max(
+          0,
+          element.functionStartInOutputStream - cut,
+        );
+      }
+    }
     this.OutputStreamDirty();
   }
 
@@ -340,6 +538,7 @@ export class ProgramStoryState {
   CloseOutputCut(): void {
     if (this.outputCut === null) return;
     this.outputStream.splice(this.outputCut, 0, new StringValue("\n"));
+    this.ForgetOpenStrings();
     this.outputCut = null;
     this.OutputStreamDirty();
   }
@@ -357,12 +556,37 @@ export class ProgramStoryState {
     this.carried = null;
   }
 
+  // A call that runs against an output stream of its own, whose output never
+  // reaches the story's steps, neither writes a pending newline, cuts a step
+  // nor starts from a carried step: it suspends them and resumes them with
+  // the stream it restores (`StoryState.SuspendLineEnd`).
+  SuspendLineEnd(): SuspendedLineEnd {
+    const suspended = {
+      pending: this.lineEndPending,
+      joinable: this.lineJoinable,
+      cut: this.outputCut,
+      carried: this.carried,
+    };
+    this.lineEndPending = false;
+    this.lineJoinable = false;
+    this.outputCut = null;
+    this.carried = null;
+    return suspended;
+  }
+
+  ResumeLineEnd(suspended: SuspendedLineEnd): void {
+    this.lineEndPending = suspended.pending;
+    this.lineJoinable = suspended.joinable;
+    this.outputCut = suspended.cut;
+    this.carried = suspended.carried;
+  }
+
   /** Ends the flow, with a fresh frame for the next, as the current engine's
    *  `StoryState.ForceEnd` resets its call stack: a `ChoosePathString` that
-   *  resets the call stack keeps no temporary and no scope of the flow it
-   *  left. */
+   *  resets the call stack keeps no temporary, no scope and no function frame
+   *  of the flow it left. */
   ForceEnd(): void {
-    this.callStack?.Reset();
+    this.callStack.Reset();
     this.DiscardLineEnd();
     this.position = null;
     this.blockStack = [];
@@ -491,12 +715,14 @@ export class ProgramStoryState {
 
   /** The state as JSON: the position as a chunk id, its entry and offset and
    *  its sequence's id, the output and eval stack, the line end, the globals,
-   *  and the frame's temporaries, scope by scope. A position past the last
-   *  statement of its sequence, where a flow rests after its last beat, has
-   *  no chunk: it is written with chunk id -1 and named by its sequence
-   *  alone. The blocks the position is inside are not written: they follow
-   *  from its sequence. A position holds within a session, for as long as a
-   *  root holds its chunk or, past the last statement, its sequence. */
+   *  and the call frames, each with its temporaries scope by scope, the
+   *  upvalue cells still open on it and, for a frame a call pushed, the
+   *  position its caller resumes at and the symbol of its function. A position past the last statement of its sequence,
+   *  where a flow rests after its last beat, has no chunk: it is written with
+   *  chunk id -1 and named by its sequence alone. The blocks a position is
+   *  inside are not written: they follow from its sequence. A position holds
+   *  within a session, for as long as a root holds its chunk or, past the
+   *  last statement, its sequence. */
   toJson(): string {
     const writer = new SimpleJson.Writer();
     JsonSerialisation.SetWriterAnchors(
@@ -507,17 +733,7 @@ export class ProgramStoryState {
     writer.WriteObjectStart();
     writer.WriteProperty("engine", "program");
     writer.WritePropertyStart("position");
-    if (this.position) {
-      const chunk = this.position.sequence.arrays.chunks[this.position.entry];
-      writer.WriteArrayStart();
-      writer.WriteInt(chunk ? chunkId(chunk) : -1);
-      writer.WriteInt(this.position.entry);
-      writer.WriteInt(this.position.offset);
-      writer.WriteInt(this.position.sequence.id);
-      writer.WriteArrayEnd();
-    } else {
-      writer.WriteNull();
-    }
+    writePosition(writer, this.position);
     writer.WritePropertyEnd();
     writer.WriteProperty("evalStack", (w) =>
       JsonSerialisation.WriteListRuntimeObjs(w, this.evaluationStack),
@@ -541,11 +757,31 @@ export class ProgramStoryState {
     writer.WriteProperty("variablesState", (w) =>
       this.variablesState.WriteJson(w),
     );
-    const scopes = this.frame?.temporaryScopes ?? [];
-    writer.WriteProperty("temps", (w) => {
+    writer.WriteProperty("frames", (w) => {
       w.WriteArrayStart();
-      for (const scope of scopes) {
-        JsonSerialisation.WriteDictionaryRuntimeObjs(w, scope);
+      for (const element of this.callStack.elements) {
+        const frame = this._frames.get(element);
+        w.WriteObjectStart();
+        w.WriteIntProperty("type", element.type);
+        w.WriteIntProperty("start", element.functionStartInOutputStream);
+        w.WriteIntProperty("height", element.evaluationStackHeightWhenPushed);
+        if (frame) {
+          w.WriteIntProperty("symbol", frame.symbol);
+          w.WritePropertyStart("returnTo");
+          writePosition(w, frame.returnTo);
+          w.WritePropertyEnd();
+        }
+        w.WritePropertyStart("temps");
+        w.WriteArrayStart();
+        for (const scope of element.temporaryScopes) {
+          JsonSerialisation.WriteDictionaryRuntimeObjs(w, scope);
+        }
+        w.WriteArrayEnd();
+        w.WritePropertyEnd();
+        // The cells still open on the frame, by the ids the closures holding
+        // them are written with, as the current engine's frames write them.
+        CallStack.Thread.WriteUpvalueCells(w, "upvalues", element.openUpvalues);
+        w.WriteObjectEnd();
       }
       w.WriteArrayEnd();
     });
@@ -565,7 +801,7 @@ export class ProgramStoryState {
     return this.toJson();
   }
 
-  /** Restores a state `toJson` wrote. The position is placed through the
+  /** Restores a state `toJson` wrote. Each position is placed through the
    *  root, which must still hold the chunk it names, or for a position past
    *  the last statement of its sequence, the sequence; a position in a
    *  statement or flow the program no longer has is refused, since placing
@@ -586,55 +822,13 @@ export class ProgramStoryState {
     JsonSerialisation.SetLoadSessionCellAnchorResolver((anchor) =>
       this.variablesState.InitCellAtAnchor(anchor),
     );
-    const position = obj["position"] as number[] | null;
-    if (position) {
-      const [id, entry, offset, sequenceId] = position as [
-        number,
-        number,
-        number,
-        number,
-      ];
-      if (id === -1) {
-        const sequence = this._root.sequence(sequenceId);
-        if (!sequence) {
-          throw new Error(
-            "The saved position is in a flow this program no longer has.",
-          );
-        }
-        this.position = {
-          sequence,
-          entry: sequence.arrays.chunks.length,
-          offset: 0,
-        };
-      } else {
-        const placed = this._root.position(id, entry);
-        if (!placed) {
-          throw new Error(
-            "The saved position is in a statement this program no longer has.",
-          );
-        }
-        this.position = {
-          sequence: placed.sequence,
-          entry: placed.entry,
-          offset,
-        };
-      }
-    } else {
-      this.position = null;
-    }
-    const blocks = this.position
-      ? blockStackOf(this._root, this.position.sequence)
-      : [];
-    if (!blocks) {
-      throw new Error(
-        "The saved position is in a block this program no longer has.",
-      );
-    }
-    this.blockStack = blocks;
+    this.position = this.placePosition(obj["position"]);
+    this.blockStack = this.blocksOf(this.position);
     this.evaluationStack = JsonSerialisation.JArrayToRuntimeObjList(
       obj["evalStack"],
     );
     this.outputStream = JsonSerialisation.JArrayToRuntimeObjList(obj["output"]);
+    this.ForgetOpenStrings();
     this.carried = obj["carried"]
       ? {
           output: JsonSerialisation.JArrayToRuntimeObjList(obj["carried"]),
@@ -649,18 +843,34 @@ export class ProgramStoryState {
     this.previousRandom = obj["previousRandom"];
     this.didSafeExit = obj["didSafeExit"] === true;
     this.variablesState.SetJsonToken(obj["variablesState"]);
-    const frame = this.frame;
-    if (frame) {
-      const temps = obj["temps"];
-      frame.temporaryScopes = Array.isArray(temps)
+    const frames = Array.isArray(obj["frames"]) ? obj["frames"] : [];
+    this.callStack.Reset();
+    frames.forEach((saved: Record<string, any>, i: number) => {
+      if (i > 0) {
+        const returnTo = this.placePosition(saved["returnTo"]);
+        this.PushFrame(
+          Number(saved["type"]) as PushPopType,
+          {
+            returnTo,
+            blocks: this.blocksOf(returnTo),
+            symbol: Number(saved["symbol"] ?? -1),
+          },
+          Number(saved["height"] ?? 0),
+        );
+      }
+      const element = this.callStack.currentElement!;
+      element.functionStartInOutputStream = Number(saved["start"] ?? 0);
+      const temps = saved["temps"];
+      element.temporaryScopes = Array.isArray(temps)
         ? temps.map((scope: any) =>
             JsonSerialisation.JObjectToDictionaryRuntimeObjs(scope),
           )
         : [];
-      if (frame.temporaryScopes.length === 0) {
-        frame.temporaryScopes = [new Map()];
+      if (element.temporaryScopes.length === 0) {
+        element.temporaryScopes = [new Map()];
       }
-    }
+      element.openUpvalues = CallStack.Thread.ReadUpvalueCells(saved["upvalues"]);
+    });
     // A `new`-instance table saved with its class's name links again to the
     // live class global, now that the globals are loaded.
     JsonSerialisation.RelinkPendingDefineRefs((className) => {
@@ -670,7 +880,69 @@ export class ProgramStoryState {
     this.ResetErrors();
     this.OutputStreamDirty();
   }
+
+  // The position a saved `[chunk id, entry, offset, sequence id]` names.
+  protected placePosition(saved: unknown): ProgramPosition | null {
+    if (!Array.isArray(saved)) {
+      return null;
+    }
+    const [id, entry, offset, sequenceId] = saved as [
+      number,
+      number,
+      number,
+      number,
+    ];
+    if (id === -1) {
+      const sequence = this._root.sequence(sequenceId);
+      if (!sequence) {
+        throw new Error(
+          "The saved position is in a flow this program no longer has.",
+        );
+      }
+      return { sequence, entry: sequence.arrays.chunks.length, offset: 0 };
+    }
+    const placed = this._root.position(id, entry);
+    if (!placed) {
+      throw new Error(
+        "The saved position is in a statement this program no longer has.",
+      );
+    }
+    return { sequence: placed.sequence, entry: placed.entry, offset };
+  }
+
+  // The blocks a position is inside, which follow from its sequence.
+  protected blocksOf(position: ProgramPosition | null): BlockEntry[] {
+    if (!position) {
+      return [];
+    }
+    const blocks = blockStackOf(this._root, position.sequence);
+    if (!blocks) {
+      throw new Error(
+        "The saved position is in a block this program no longer has.",
+      );
+    }
+    return blocks;
+  }
 }
+
+// Writes a position as `[chunk id, entry, offset, sequence id]`, with chunk
+// id -1 for a position past the last statement of its sequence, or null.
+const writePosition = (
+  writer: SimpleJson.Writer,
+  position: ProgramPosition | null,
+): void => {
+  if (!position) {
+    writer.WriteNull();
+    return;
+  }
+  const chunk = position.sequence.arrays.chunks[position.entry];
+  writer.WriteArrayStart();
+  writer.WriteInt(chunk ? chunkId(chunk) : -1);
+  writer.WriteInt(position.entry);
+  writer.WriteInt(position.offset);
+  writer.WriteInt(position.sequence.id);
+  writer.WriteArrayEnd();
+};
 
 // Whether pushing `obj` shows something: text that is not only spaces and
 // newlines, a display table, or the start of a tag (`StoryState.ts`).

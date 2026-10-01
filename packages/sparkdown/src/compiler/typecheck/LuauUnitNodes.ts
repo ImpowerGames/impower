@@ -4,6 +4,7 @@
 // question without loading it.
 
 import type { SyntaxNode } from "@lezer/common";
+import { REASSIGNMENT_NAMES } from "../utils/reassignmentNames";
 import { RUN_QUERY } from "../utils/runWrapper";
 import { VARIABLE_DEFINITION_NAMES } from "../utils/variableDefinitionNames";
 
@@ -12,7 +13,7 @@ export const LUAU_STATEMENTS = new Set([
   ...VARIABLE_DEFINITION_NAMES,
   "LuauFunctionDefinition",
   "LuauExplicitStatement",
-  "LuauReassignment",
+  ...REASSIGNMENT_NAMES,
   "LuauReturnStatement",
   "LuauBreakStatement",
   "LuauContinueStatement",

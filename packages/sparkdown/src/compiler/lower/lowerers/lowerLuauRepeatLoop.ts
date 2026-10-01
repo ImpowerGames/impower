@@ -10,7 +10,11 @@ import { UnaryExpression } from "../../../inkjs/compiler/Parser/ParsedHierarchy/
 import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lowerExpressionFromContainerAndContinuation } from "../expression/lowerExpression";
+import {
+  blockLocalNames,
+  lowerExpressionFromContainerAndContinuation,
+  shadowSiblingSubFlow,
+} from "../expression/lowerExpression";
 import { lowerStatements } from "../lower";
 import { findChildByName } from "../utils/alternatorArms";
 import { collectLineContinuation } from "../utils/lineContinuation";
@@ -87,6 +91,14 @@ export function lowerLuauRepeatLoop(
   }
   const condContent =
     findChildByName(untilNode, "LuauUntilStatement_content") ?? untilNode;
+  // The condition sees the locals its body declares, as Luau scopes them:
+  // each hides a variadic function of its name in the condition as in the
+  // rest of the body (`shadowSiblingSubFlow`), from a block of their own
+  // that ends with the condition.
+  ctx.blockEndStack?.push([]);
+  for (const name of blockLocalNames(bodyContent, ctx)) {
+    shadowSiblingSubFlow(name, ctx);
+  }
   // The lines that continue the condition (`until t` then `.done`); the
   // `LuauUntilStatement` dispatch case leaves them to this lowering.
   const condExpr = lowerExpressionFromContainerAndContinuation(
@@ -94,6 +106,7 @@ export function lowerLuauRepeatLoop(
     collectLineContinuation(untilNode),
     ctx,
   );
+  ctx.blockEndStack?.pop()?.forEach((end) => end());
   if (!condExpr) return {};
 
   const id = syntheticId(nodeRef.node.from, ctx);

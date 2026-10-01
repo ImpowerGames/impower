@@ -81,6 +81,24 @@ export const Op = {
   /** Pops a callable and `aux` arguments below it, and pushes what the call
    *  returns. */
   CallValue: 33,
+  /** Pushes the function value of the symbol `arg` names. */
+  Sym: 34,
+  /** Pushes a pointer at the variable `arg` names, resolved against the
+   *  current frame; a pointer at a variable a closure already captured is
+   *  the one it captured. */
+  VarPtr: 35,
+  /** Calls the function the symbol `arg` names with the `aux` arguments on
+   *  the stack, adjusted to its parameters, in a frame that returns after
+   *  this instruction. */
+  Call: 36,
+  /** Calls what the variable `arg` names holds, with the `aux` arguments
+   *  on the stack: a function value, a closure, a builtin, a builtin
+   *  iterator or a table with `__call`, each taking them as its parameters
+   *  do. */
+  CallVar: 37,
+  /** Pops the function frame, leaving the value on top as the result, and
+   *  resumes the caller after its call. */
+  Return: 38,
 } as const;
 
 export type Opcode = (typeof Op)[keyof typeof Op];
@@ -122,6 +140,13 @@ export const JUMP_DECISION = 2;
 /** `SetVar`'s flags. */
 export const SET_DECLARE = 1;
 export const SET_GLOBAL = 2;
+/** The variable is a variadic function's hidden `...` local, which keeps a
+ *  multiple value whole. */
+export const SET_VARARGS = 4;
+
+/** `CallValue`'s `aux` when the call site does not say how many arguments it
+ *  passed. */
+export const CALL_ARGS_UNKNOWN = 0xffff;
 
 /** `Leave`'s flag: resume the loop's owner where its next pass starts. */
 export const LEAVE_CONTINUE = 1;

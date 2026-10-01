@@ -13,6 +13,7 @@
 // might refer to either of two declarations lists both.
 
 import { type SyntaxNode } from "@lezer/common";
+import { REASSIGNMENT_CONTENT_NAMES } from "../utils/reassignmentNames";
 import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
@@ -417,7 +418,7 @@ function isNonReference(token: SyntaxNode): boolean {
 // The statements an assignment's targets are written in: an assignment in
 // Luau code, and a narrative logic line (`& hp = 5`).
 const ASSIGNMENT_STATEMENTS = new Set([
-  "LuauReassignment_content",
+  ...REASSIGNMENT_CONTENT_NAMES,
   "LuauExplicitStatement_content",
 ]);
 

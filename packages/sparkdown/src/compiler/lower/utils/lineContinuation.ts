@@ -2,6 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import { ownAssignmentOperation } from "../../utils/variableDefinitionNames";
 import { findOwnDeclarationName } from "./findOwnDeclarationName";
@@ -53,15 +54,23 @@ const SKIPPABLE: ReadonlySet<string> = new Set([
   "LuauReturnLineBreak",
 ]);
 
+// The statements whose continued line can end with a comma that carries
+// their value list on (see `collectLineContinuation`).
+const COMMA_CARRYING_STATEMENTS = nodeNameSet([
+  "LuauVariableDefinition",
+  "LuauReassignment",
+]);
+
 // The lines that continue the statement `node`: each continuation line after
 // it, with the rest of its line (`.a = 1`), across any blank or comment
 // lines between them, as Luau reads them. Empty when the next line of code
 // does not continue it.
 //
-// In a Luau declaration a continued line that ends with a comma carries the
-// list onto the next line of code, as the declaration's own line-ending
-// comma does (`n` then `+ 4,` then `5`), unless that line starts a statement;
-// the comma is then left without a value, and the declaration reports it.
+// In a Luau declaration or reassignment a continued line that ends with a
+// comma carries the list onto the next line of code, as the statement's own
+// line-ending comma does (`n` then `+ 4,` then `5`), unless that line starts
+// a statement; the comma is then left without a value, and the statement
+// reports it.
 export function collectLineContinuation(node: SyntaxNode): SyntaxNode[] {
   return collectLineContinuationFrom(node, node.nextSibling);
 }
@@ -127,10 +136,11 @@ function collectLineContinuationFrom(
       continue;
     }
     const carried =
+      node != null &&
       !startsStatement(scan) &&
       scan.name !== "LuauInvalidStatement" &&
-      ((node?.name === "LuauVariableDefinition" && afterComma) ||
-        (nodes.length === 0 && node != null && endsOnEmptyAssignment(node)));
+      ((COMMA_CARRYING_STATEMENTS.has(node.name) && afterComma) ||
+        (nodes.length === 0 && endsOnEmptyAssignment(node)));
     if (!carried && !isLineContinuation(scan)) return nodes;
     // The rest of the line, up to a `;` that ends the statement.
     while (scan && scan.name !== "Newline" && scan.name !== "LuauSemicolonSeparator") {
@@ -225,6 +235,8 @@ export function reportUnownedTypeUnionLine(line: SyntaxNode, ctx: LowerContext):
 // line break reached an unindented line, where the declaration ends, so the
 // value after the comma is on the lines that follow it. A comma's line break
 // that holds an if expression (`1,` then an unindented `if c`) has its value.
+// A reassignment never ends there: it ends on a comma only before a
+// statement.
 function endsOnValueComma(node: SyntaxNode): boolean {
   let content: SyntaxNode | null = null;
   for (let child = node.firstChild; child; child = child.nextSibling) {
@@ -232,13 +244,7 @@ function endsOnValueComma(node: SyntaxNode): boolean {
   }
   let last: SyntaxNode | null = content?.lastChild ?? null;
   while (last && SKIPPABLE.has(last.name)) last = last.prevSibling;
-  if (last?.name !== "LuauCommaSeparator" && last?.name !== "LuauCommaLineBreak") {
-    return false;
-  }
-  if (
-    last.name === "LuauCommaLineBreak" &&
-    last.getChild("LuauCommaLineBreak_content")?.getChild("LuauTernaryExpression")
-  ) {
+  if (!last || !isListCommaName(last.name) || commaLineBreakValue(last)) {
     return false;
   }
   for (let child = content?.firstChild; child; child = child.nextSibling) {

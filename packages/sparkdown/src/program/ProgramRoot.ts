@@ -101,6 +101,15 @@ export interface ChunkPosition {
   entry: number;
 }
 
+/** Where a symbol a chunk exports is defined: the chunk's id and the offset
+ *  of the code that defines it. The chunk's entry in its sequence is found
+ *  through the chunk table, so an insertion that shifts the entry changes no
+ *  definition. */
+export interface SymbolDefinition {
+  chunk: number;
+  offset: number;
+}
+
 // The entry of each chunk in a sequence's arrays, built on first use. The
 // arrays never change, so neither does the index.
 const entryIndexes = new WeakMap<SequenceArrays, Map<number, number>>();
@@ -137,10 +146,10 @@ export class ProgramRoot {
     protected _chunks: ChunkTable,
     /** The table generation the chunks were minted in. */
     readonly generation: number,
-    /** The current engine's story of the compile that built this root.
-     *  Until functions are emitted as chunks (#698), each engine built from
-     *  the root runs its own copy of it (`Story.CopyWithOwnState`), which
-     *  runs the functions a chunk or a host calls (see `ProgramStory`). */
+    /** The current engine's story of the compile that built this root. Each
+     *  engine built from the root runs its own copy of it
+     *  (`Story.CopyWithOwnState`), whose globals and call stack hold the
+     *  engine's variables (see `ProgramStory`). */
     readonly runtimeStory: Story | null = null,
     protected _declarations: ReadonlyMap<string, number> = new Map(),
     /** The declaration chunks in the order `ResetState` runs them, which is
@@ -148,7 +157,36 @@ export class ProgramRoot {
      *  the globals in: constants first, then the others as the story
      *  declares them. */
     readonly initialization: readonly StatementChunk[] = [],
+    /** Where each symbol the chunks export is defined: every function. */
+    protected _definitions: ReadonlyMap<number, SymbolDefinition> = new Map(),
+    /** The name each function is shown by in a stack trace or a printed
+     *  value: a function declared at the top level its qualified name, and
+     *  one a statement writes the name the current engine gives its
+     *  container. */
+    protected _labels: ReadonlyMap<number, string> = new Map(),
+    /** The symbol remap of each reseed of the table, by the generation it
+     *  maps from (`ChunkStore.reseed`). */
+    protected _symbolRemaps: readonly Int32Array[] = [],
   ) {}
+
+  /** The id in this root's table generation of symbol `symbol` of table
+   *  generation `generation`, taken through the remap of each reseed between
+   *  them, or nothing when a reseed dropped it (docs/engine/binary-program.md,
+   *  section 2, Reseed). */
+  symbolFrom(symbol: number, generation: number): number | undefined {
+    if (generation > this.generation) {
+      return undefined;
+    }
+    let id = symbol;
+    for (let g = generation; g < this.generation; g += 1) {
+      const remap = this._symbolRemaps[g];
+      id = remap && id < remap.length ? remap[id]! : -1;
+      if (id < 0) {
+        return undefined;
+      }
+    }
+    return id;
+  }
 
   /** The flow's sequence, or nothing when the program has no such flow. */
   flow(symbol: number): SequenceRow | undefined {
@@ -192,21 +230,27 @@ export class ProgramRoot {
   }
 
   /** Every statement chunk of the flows, flow after flow, each block
-   *  statement before the statements of its bodies, which is the order a
-   *  compile aligns the next program's statements with. */
+   *  statement before the statements of its bodies, then the statements of
+   *  the functions the declarations write, in the order the declarations
+   *  run, which is the order a compile aligns the next program's statements
+   *  with. */
   statementOrder(): StatementChunk[] {
     const out: StatementChunk[] = [];
     const walk = (row: SequenceRow | undefined) => {
       for (const chunk of row?.arrays.chunks ?? []) {
         out.push(chunk);
-        for (let k = 0; k < blockCount(chunk); k += 1) {
-          walk(this.body(chunk, k));
-        }
+        walkBodies(chunk);
+      }
+    };
+    const walkBodies = (chunk: StatementChunk) => {
+      for (let k = 0; k < blockCount(chunk); k += 1) {
+        walk(this.body(chunk, k));
       }
     };
     for (const row of this.flowSequences()) {
       walk(row);
     }
+    this.initialization.forEach(walkBodies);
     return out;
   }
 
@@ -215,13 +259,39 @@ export class ProgramRoot {
     return this._chunks;
   }
 
-  /** Where a symbol is defined: its sequence, entry and offset. A flow is
-   *  defined at the start of its sequence. */
+  /** Where a symbol is defined: its sequence, entry and offset. A function
+   *  is defined where a chunk exports it, and another flow at the start of
+   *  its sequence. */
   definition(
     symbol: number,
   ): { sequence: number; entry: number; offset: number } | undefined {
+    const exported = this._definitions.get(symbol);
+    if (exported) {
+      const at = this.position(exported.chunk);
+      return at
+        ? { sequence: at.sequence.id, entry: at.entry, offset: exported.offset }
+        : undefined;
+    }
     const row = this.flow(symbol);
     return row ? { sequence: row.id, entry: 0, offset: 0 } : undefined;
+  }
+
+  /** Where the code of the function `symbol` names starts, or nothing when
+   *  the program defines no such function. */
+  functionEntry(
+    symbol: number,
+  ): { sequence: SequenceRow; entry: number; offset: number } | undefined {
+    const exported = this._definitions.get(symbol);
+    const at = exported ? this.position(exported.chunk) : undefined;
+    return at && exported
+      ? { sequence: at.sequence, entry: at.entry, offset: exported.offset }
+      : undefined;
+  }
+
+  /** The name a symbol is shown by: a function's, as `_labels` holds it, or
+   *  the qualified name the table holds. */
+  labelOf(symbol: number): string {
+    return this._labels.get(symbol) ?? this.table.symbols[symbol] ?? "";
   }
 
   /** The sequence that holds a chunk and the chunk's entry in it, searched

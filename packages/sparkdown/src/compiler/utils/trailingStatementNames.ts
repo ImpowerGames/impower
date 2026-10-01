@@ -1,4 +1,5 @@
 import { nodeNameSet } from "./nodeNameSet";
+import { REASSIGNMENT_NAMES } from "./reassignmentNames";
 import { VARIABLE_DEFINITION_NAMES } from "./variableDefinitionNames";
 
 // Statement-like nodes a variable definition's content can hold after a
@@ -18,8 +19,8 @@ export const TRAILING_STATEMENT_NAMES: ReadonlySet<string> = new Set([
     "LuauLabel",
     "LuauFunctionDefinition",
     "LuauUntilStatement",
-    "LuauReassignment",
     "LuauExplicitStatement",
   ]),
+  ...REASSIGNMENT_NAMES,
   ...VARIABLE_DEFINITION_NAMES,
 ]);

@@ -1,0 +1,13 @@
+function f()
+  local a, g, t = 0, 0, {}
+  a, g = 1, -- note
+    2
+  t.a, t.g = 3,
+
+    -- the second value
+    4
+  a, g = 5,
+    function() return 6 end
+  a = 1 a = 2
+  return g
+end

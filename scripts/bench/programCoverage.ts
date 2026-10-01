@@ -1,4 +1,4 @@
-// How much of a project the binary program's writer emits (#694, #695): the
+// How much of a project the binary program's writer emits (#694, #695, #698): the
 // project compiled cold as the player's worker compiles it, with statement
 // chunks on, and the statements of its flows and its declaration sequences
 // counted by what became of them.
@@ -6,9 +6,9 @@
 // Run through preview-bench.mjs --mode coverage, with the configuration as one
 // JSON argument: { project, json }. The report gives the statements the writer
 // emits, of which how many are declarations, the ones it has no emit path for
-// counted by the construct each names, the functions that run on the current
-// engine until their slice emits them, and the construct the program falls
-// back for, with its script and line.
+// counted by the construct each names, how many functions the program has (the
+// statements of their bodies are among the statements counted), and the
+// construct the program falls back for, with its script and line.
 import "../../packages/sparkdown/src/inkjs/engine/Container";
 import * as fs from "node:fs";
 import { performance } from "node:perf_hooks";
@@ -54,7 +54,7 @@ function main() {
     report.statements ? `${((100 * n) / report.statements).toFixed(1)}%` : "-";
   const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
   const out = [
-    `coverage: ${report.statements} statements in the program's flows and declaration sequences (${plural(report.declarations, "declaration")}), of which the writer emits ${report.emitted} (${share(report.emitted)}); ${plural(report.functions, "function")} run on the current engine`,
+    `coverage: ${report.statements} statements in the program's flows, functions and declaration sequences (${plural(report.declarations, "declaration")}, ${plural(report.functions, "function")}), of which the writer emits ${report.emitted} (${share(report.emitted)})`,
     report.fallback
       ? `  the program falls back for ${report.fallback.construct} at ${report.fallback.uri} line ${report.fallback.line + 1}`
       : "  the program runs from its chunks",

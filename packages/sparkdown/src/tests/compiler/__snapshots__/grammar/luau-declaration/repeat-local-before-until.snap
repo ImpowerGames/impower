@@ -47,11 +47,11 @@ sparkdown [0..63]
  │   │       └─ LuauSparkdownRepeatLoop_begin_c3 [18..19]
  │   │           └─ OptionalWhitespace [18..19]: " "
  │   ├─ LuauSparkdownRepeatLoop_content [19..40]
- │   │   ├─ LuauReassignment [19..28]
- │   │   │   ├─ LuauReassignment_begin 19
- │   │   │   │   └─ LuauReassignment_begin_c1 19
+ │   │   ├─ LuauSparkdownReassignment [19..28]
+ │   │   │   ├─ LuauSparkdownReassignment_begin 19
+ │   │   │   │   └─ LuauSparkdownReassignment_begin_c1 19
  │   │   │   │       └─ OptionalWhitespace 19
- │   │   │   ├─ LuauReassignment_content [19..28]
+ │   │   │   ├─ LuauSparkdownReassignment_content [19..28]
  │   │   │   │   ├─ LuauAccessPath [19..21]
  │   │   │   │   │   ├─ LuauAccessPath_begin 19
  │   │   │   │   │   ├─ LuauAccessPath_content [19..20]
@@ -106,7 +106,7 @@ sparkdown [0..63]
  │   │   │   │       │       │       └─ LuauNumericDecimal_c2 28
  │   │   │   │       │       └─ LuauArithmeticOperation_end 28
  │   │   │   │       └─ LuauAssignmentOperation_end 28
- │   │   │   └─ LuauReassignment_end 28
+ │   │   │   └─ LuauSparkdownReassignment_end 28
  │   │   └─ LuauSparkdownVariableDefinition [28..40]
  │   │       ├─ LuauSparkdownVariableDefinition_begin [28..35]
  │   │       │   ├─ LuauSparkdownVariableDefinition_begin_c1 [28..29]

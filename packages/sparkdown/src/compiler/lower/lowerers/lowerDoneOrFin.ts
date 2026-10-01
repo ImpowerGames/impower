@@ -61,6 +61,29 @@ function findUnreachableRange(
   return { from: first, to: last };
 }
 
+// The `unreachable` read (`LoweringRead`) of a `done` or `fin` and the range
+// it found: the range's lines counted from the keyword's own line, and its
+// columns, or nothing. That fixes the hint of a statement carried unchanged.
+function readOf(
+  decl: SyntaxNode,
+  range: { from: SyntaxNode; to: SyntaxNode } | null,
+  ctx: Pick<LowerContext, "lineNumber" | "characterNumber">,
+): string {
+  if (!range) return "";
+  const at = (pos: number) =>
+    `${ctx.lineNumber(pos) - ctx.lineNumber(decl.from)}:${ctx.characterNumber(pos)}`;
+  return `${at(range.from.from)}-${at(range.to.to)}`;
+}
+
+/** The `unreachable` read of the `done` or `fin` lowered from `node`, as the
+ *  document now answers it. */
+export function unreachableRead(
+  node: SyntaxNode,
+  ctx: Pick<LowerContext, "lineNumber" | "characterNumber">,
+): string {
+  return readOf(node, findUnreachableRange(node), ctx);
+}
+
 function lower(
   nodeRef: SparkdownSyntaxNodeRef,
   ctx: LowerContext,
@@ -70,6 +93,14 @@ function lower(
   const block = wrapInWeave([divert]);
 
   const unreachable = findUnreachableRange(nodeRef.node);
+  // What follows the keyword is outside its statement, so an edit below it
+  // can move the hint while the statement is carried unchanged.
+  ctx.recordRead?.({
+    kind: "unreachable",
+    value: readOf(nodeRef.node, unreachable, ctx),
+    node: nodeRef.node.name,
+    from: nodeRef.node.from,
+  });
   if (unreachable) {
     const diagnostic: InkDiagnostic = {
       message: "Unreachable statement detected.",

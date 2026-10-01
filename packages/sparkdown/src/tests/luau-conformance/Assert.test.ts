@@ -6,11 +6,10 @@
 // falsy condition.
 
 import { describe, expect, test } from "vitest";
-import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
-import { Story as RuntimeStory } from "../../inkjs/engine/Story";
+import { testCompiler, testStory } from "../engineUnderTest";
 
 function compileAndRun(source: string) {
-  const compiler = new SparkdownCompiler();
+  const compiler = testCompiler();
   compiler.configure({
     files: [
       {
@@ -30,7 +29,7 @@ function compileAndRun(source: string) {
   if (!result.program.compiled) {
     return { result, errors: ["NO_COMPILED"] };
   }
-  const story = new RuntimeStory(result.program.compiled as Record<string, any>);
+  const story = testStory(result.program.compiled as Record<string, any>);
   const errors: string[] = [];
   story.onError = (m: string) => errors.push(m);
   story.ContinueMaximally();

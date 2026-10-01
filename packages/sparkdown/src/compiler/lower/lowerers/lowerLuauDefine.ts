@@ -26,6 +26,7 @@ import {
   lowerExpressionFromContainer,
   lowerExpressionFromNodes,
   processLuauEscapes,
+  recordCaptureRead,
   scanFreeVariables,
 } from "../expression/lowerExpression";
 import { lowerStatements, reportUnreadExpressionStatement } from "../lower";
@@ -40,6 +41,10 @@ import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
 import { stripTrailingLineComment } from "../utils/stripTrailingLineComment";
 import { syntheticId } from "../utils/documentTag";
+import {
+  closeFunctionBody,
+  openFunctionBody,
+} from "../utils/statementShape";
 
 // `define` is sparkdown's unified OOP type/instance construct. Every
 // define — whether it has properties, methods, or both — lowers to a
@@ -566,6 +571,7 @@ function lowerDefineMethod(
   const synthName = `__define_fn_${syntheticId(node.from, ctx)}`;
   const userArgs = lowerArguments(node, ctx);
   const upvals = scanFreeVariables(node, ctx).filter((n) => n !== "self");
+  recordCaptureRead(ctx, upvals);
   const upvalArgs = upvals.map(
     (n) => new Argument(new Identifier(n), false, false, false, true),
   );
@@ -582,7 +588,8 @@ function lowerDefineMethod(
   ctx.hoistedNestedFnDeclsStack?.push(hoistedDecls);
   const siblingSubFlows = new Map<string, SiblingSubFlowInfo>();
   ctx.siblingSubFlowNamesStack?.push(siblingSubFlows);
-  const body = lowerStatements(content, ctx, METHOD_BODY_SKIP);
+  const shape = openFunctionBody(ctx, node);
+  const body = lowerStatements(content, ctx, METHOD_BODY_SKIP, shape);
   ctx.siblingSubFlowNamesStack?.pop();
   ctx.hoistedNestedFnDeclsStack?.pop();
   ctx.declaredLocalsStack?.pop();
@@ -593,6 +600,7 @@ function lowerDefineMethod(
     [...hoistedDecls, ...body, ...nested],
     finalArgs,
   );
+  closeFunctionBody(ctx, shape, fn, node, hoistedDecls);
   // The method's source span places it where it is written, for the scope
   // check that decides whether a name in its body reads a local (see
   // `FlowBase.IsLocalInScope`).

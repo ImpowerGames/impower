@@ -4,18 +4,28 @@
 // Every push asks `inStringEvaluation`. Inside an interpolation the
 // `BeginString` sits before everything the evaluation pushes, so a scan from
 // the end reached it only after the whole stream, and a loop that kept
-// pushing inside `{...}` cost more with every step. The engine does not yet
-// run a function call inside an interpolation (the program falls back to the
-// current engine), so the state is driven directly here.
-import "../../inkjs/engine/Container";
+// pushing inside `{...}` cost more with every step. The state is driven
+// directly here, with the call stack of an empty story, so that the reads of
+// the stream can be counted.
+import { Container } from "../../inkjs/engine/Container";
 import { describe, expect, it } from "vitest";
 import { ControlCommand } from "../../inkjs/engine/ControlCommand";
 import type { InkObject } from "../../inkjs/engine/Object";
+import { Story } from "../../inkjs/engine/Story";
 import { StringValue } from "../../inkjs/engine/Value";
 import { ProgramStoryState } from "../../program/ProgramStoryState";
 
-const newState = () =>
-  new ProgramStoryState(null as never, null as never, (text) => text);
+const newState = () => {
+  const story = new Story(new Container(), null, null);
+  story.ResetState(false);
+  return new ProgramStoryState(
+    null as never,
+    null as never,
+    (text) => text,
+    () => {},
+    story.state.callStack,
+  );
+};
 
 /** Counts the entries of `state`'s output stream that are read. */
 const countReads = (state: ProgramStoryState) => {

@@ -58,7 +58,10 @@ export interface DOMHarness {
   snapshotDOM(): unknown;
 }
 
-export function compile(source: string) {
+/** A fixture's program. With `programChunks`, the program is compiled to
+ *  statement chunks for the binary program's engine (#692), and a fixture
+ *  that falls back to the current engine is refused. */
+export function compile(source: string, programChunks = false) {
   const compiler = new SparkdownCompiler();
   compiler.configure({
     // Builtins come from the implicitly-imported builtins prelude (the compiler
@@ -67,6 +70,7 @@ export function compile(source: string) {
     // The engine sources defines from the live runtime __def tables, so seed the
     // builtins prelude into the story VM (the production player does the same).
     seedBuiltinsIntoStory: true,
+    programChunks,
     files: [
       {
         uri: MAIN_URI,
@@ -80,7 +84,13 @@ export function compile(source: string) {
     ],
   });
   const result = compiler.compile({ textDocument: { uri: MAIN_URI } });
-  if (!result.program.compiled) {
+  if (programChunks) {
+    if (!result.program.chunks) {
+      throw new Error(
+        `DOM fixture falls back to the current engine for ${result.program.fallback?.construct}`,
+      );
+    }
+  } else if (!result.program.compiled) {
     throw new Error("DOM fixture failed to compile");
   }
   return result.program;
@@ -285,9 +295,12 @@ export function createDOMHarness(
     /** Load a saved checkpoint before the connect, as the page does when it
      *  displays a preview from the worker's route. */
     loadCheckpoint?: string;
+    /** Run the game on the binary program's engine (`compile`). */
+    programChunks?: boolean;
   },
 ): DOMHarness {
-  const program = compile(source);
+  const programChunks = opts?.programChunks ?? false;
+  const program = compile(source, programChunks);
   const { overlay } = installJSDOM();
 
   // Timers armed with a real delay (an asset gate's timeout, the loading
@@ -298,6 +311,7 @@ export function createDOMHarness(
   const makeGame = (prog: any) => {
     const g = new Game({
       program: prog,
+      programChunks,
       previewFrom: { file: MAIN_URI, line: startLine },
       now: () => 0,
       setTimeout: ((fn: Function, ms?: number, ...args: any[]) => {
@@ -386,7 +400,7 @@ export function createDOMHarness(
      * rebuilt. Returns once settled.
      */
     async rerender(newSource: string, line = startLine) {
-      const newProgram = compile(newSource);
+      const newProgram = compile(newSource, programChunks);
       game = makeGame(newProgram);
       router = makeRouter();
       // Faithfully model GamePlayerController.buildApp on an edit: the OLD

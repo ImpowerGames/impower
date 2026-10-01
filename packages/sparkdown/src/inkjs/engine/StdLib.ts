@@ -1,3 +1,4 @@
+import { oneValue } from "./CallArgs";
 import { ControlCommand } from "./ControlCommand";
 import { getPluralCategory } from "./PluralRules";
 import { StepLimitExceeded, StoryException } from "./StoryException";
@@ -351,6 +352,7 @@ export function luauTypeOf(v: any): string {
     const ctorName = v?.constructor?.name;
     if (
       ctorName === "DivertTargetValue" ||
+      ctorName === "SymbolValue" ||
       ctorName === "VariablePointerValue"
     ) {
       return "function";
@@ -413,6 +415,20 @@ export function isTruthy(v: any): boolean {
     return false;
   }
   return true;
+}
+
+/** What `pcall` and `xpcall` return when the call succeeds: `true`, then
+ *  the call's returns. The protected callee that did `return 1, 2, 3` left
+ *  a single MultiValue on the eval stack (via PackTuple at the return), so
+ *  `values` is `[MV([1, 2, 3])]`; its values are spliced in, so the caller
+ *  gets `(true, 1, 2, 3)` rather than `(true, MultiValue)`. */
+function protectedSuccess(values: readonly AbstractValue[]): MultiValue {
+  const flat: AbstractValue[] = [new BoolValue(true)];
+  for (const v of values) {
+    if (v instanceof MultiValue) flat.push(...v.values);
+    else flat.push(v);
+  }
+  return new MultiValue(flat);
 }
 
 /**
@@ -1372,6 +1388,7 @@ function classifyGsubRepl(
   const ctorName = repl?.constructor?.name;
   if (
     ctorName === "DivertTargetValue" ||
+    ctorName === "SymbolValue" ||
     ctorName === "VariablePointerValue"
   ) {
     return "function";
@@ -1409,9 +1426,10 @@ function gsubTableLookup(
       base = idx; // table form — continue the chain
       continue;
     }
-    // Function form (closure ObjectValue / divert target / marker).
+    // Function form (closure ObjectValue / divert target / marker), whose
+    // first value is the index's.
     const results = story.CallLuauFunction(idx, [base, new StringValue(key)]);
-    return (results?.[0] as AbstractValue) ?? null;
+    return oneValue((results?.[0] as AbstractValue) ?? null);
   }
   return null;
 }
@@ -2362,9 +2380,22 @@ function resolveParentType(
   }
   if (rootMeta && !rootMeta.has("__index")) {
     rootMeta.set("__index", flat);
+    writtenIn(story)(displaced.metatable);
   }
   return displaced;
 }
+
+// A table a builtin changes in place, or whose metatable, frozen flag or
+// length hints it changes, marked through the write barrier of the story it
+// runs on (`VariablesState.WriteBarrier`, docs/engine/binary-program.md,
+// section 7). Only a pure builtin runs without a story, and none changes a
+// table.
+type Written = (table: ObjectValue | null | undefined) => void;
+const writtenIn =
+  (story: any): Written =>
+  (table) => {
+    if (table) story.state.variablesState.WriteBarrier(table);
+  };
 
 // Walk a type/instance's `__index` chain (self first, then ancestors).
 function defineChain(start: ObjectValue): ObjectValue[] {
@@ -2386,7 +2417,11 @@ function defineChain(start: ObjectValue): ObjectValue[] {
 // ancestors', and `target`'s own keys are never overwritten. Store props
 // become instance-owned (enumerable + serialized); non-store props stay on
 // the type and inherit lazily through `__index`.
-function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
+function copyStoreDefaults(
+  chain: ObjectValue[],
+  target: ObjectValue,
+  written: Written = () => {},
+): void {
   const storeKeys = new Set<string>();
   for (const level of chain) {
     const storeList = (level.value as Map<string, AbstractValue>)?.get(
@@ -2406,6 +2441,7 @@ function copyStoreDefaults(chain: ObjectValue[], target: ObjectValue): void {
       const def = (level.value as Map<string, AbstractValue>)?.get(propName);
       if (def != null) {
         target.value!.set(propName, def);
+        written(target);
         break;
       }
     }
@@ -2451,9 +2487,11 @@ function chainReaches(start: ObjectValue, target: ObjectValue): boolean {
 function linkStructuralParent(
   child: ObjectValue,
   parent: ObjectValue,
+  written: Written = () => {},
 ): boolean {
   if (chainReaches(parent, child)) return false;
   metatableMap(child)?.set("__index", parent);
+  written(child.metatable);
   const children = structuralChildren.get(parent) ?? [];
   children.push(child);
   structuralChildren.set(parent, children);
@@ -2464,17 +2502,22 @@ function linkStructuralParent(
 // `__def` does for a define, replacing the copies an earlier chain gave it,
 // then do the same for the blocks linked to it. A block's own `store` values
 // are never replaced. Links are acyclic, so the descent ends.
-function copyStructuralStoreDefaults(block: ObjectValue): void {
+function copyStructuralStoreDefaults(
+  block: ObjectValue,
+  written: Written = () => {},
+): void {
   const map = block.value!;
-  for (const key of structuralStoreCopies.get(block) ?? []) map.delete(key);
+  const copies = structuralStoreCopies.get(block) ?? [];
+  for (const key of copies) map.delete(key);
+  if (copies.length > 0) written(block);
   const own = new Set(map.keys());
-  copyStoreDefaults(defineChain(block).slice(1), block);
+  copyStoreDefaults(defineChain(block).slice(1), block, written);
   structuralStoreCopies.set(
     block,
     [...map.keys()].filter((key) => !own.has(key)),
   );
   for (const child of structuralChildren.get(block) ?? []) {
-    copyStructuralStoreDefaults(child);
+    copyStructuralStoreDefaults(child, written);
   }
 }
 
@@ -2484,24 +2527,26 @@ function linkWaitingStructuralChildren(
   typeTable: ObjectValue,
   name: string,
   parent: ObjectValue,
+  written: Written = () => {},
 ): void {
   const waiting = pendingStructuralParents.get(typeTable);
   const children = waiting?.get(name);
   if (!children) return;
   waiting!.delete(name);
   for (const child of children) {
-    if (linkStructuralParent(child, parent)) {
-      copyStructuralStoreDefaults(child);
+    if (linkStructuralParent(child, parent, written)) {
+      copyStructuralStoreDefaults(child, written);
     }
   }
 }
 
 // A `display({ parts })` table carries words whose tags sit between pieces of
 // text, each part a string or a `{ tag }` table, in the order written. Join
-// them into the `text` and `tags` every other display table carries.
-function joinDisplayParts(table: Map<string, AbstractValue>): void {
+// them into the `text` and `tags` every other display table carries. True
+// when it wrote them.
+function joinDisplayParts(table: Map<string, AbstractValue>): boolean {
   const parts = table.get("parts");
-  if (!(parts instanceof ObjectValue) || !parts.value) return;
+  if (!(parts instanceof ObjectValue) || !parts.value) return false;
   let text = "";
   const tags = new Map<string, AbstractValue>();
   const ordered = [...parts.value.entries()].sort(
@@ -2521,6 +2566,7 @@ function joinDisplayParts(table: Map<string, AbstractValue>): void {
   if (tags.size > 0) {
     table.set("tags", new ObjectValue(tags));
   }
+  return true;
 }
 
 // What a line that begins with `..` and joins nothing raises.
@@ -2947,7 +2993,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         );
         if (handler != null && !(handler instanceof NullValue)) {
           const results = story.CallLuauFunction(handler, [v]);
-          const first = results[0];
+          const first = oneValue(results[0] ?? null);
           if (first instanceof StringValue) return first.value ?? "";
           if (first != null && "value" in (first as any)) {
             const raw = (first as any).value;
@@ -2970,7 +3016,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       // Both should serialize to a stable opaque token so authors
       // can use tostring(fn) in interpolations without leaking
       // internal representation.
-      if (ctorName === "DivertTargetValue") {
+      if (ctorName === "DivertTargetValue" || ctorName === "SymbolValue") {
         const path = (v as any).value;
         return `function: ${path?.toString?.() ?? "<unknown>"}`;
       }
@@ -3144,8 +3190,12 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1, // variadic — actual count comes from compile-site capture
     fn: (story, args) => {
       const payload = args[0];
-      if (payload instanceof ObjectValue && payload.value) {
-        joinDisplayParts(payload.value);
+      if (
+        payload instanceof ObjectValue &&
+        payload.value &&
+        joinDisplayParts(payload.value)
+      ) {
+        writtenIn(story)(payload);
       }
       const flag = (key: string) => {
         const value =
@@ -3173,6 +3223,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         } else {
           story.Warning(NOT_JOINED);
           (payload as ObjectValue).value?.delete("continues");
+          writtenIn(story)(payload as ObjectValue);
         }
       }
       // The line's author tags go to the stream first, as a tag written on
@@ -3292,6 +3343,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         story.Error("setmetatable: second argument must be a table or nil");
         return;
       }
+      writtenIn(story)(t);
       return t;
     },
   },
@@ -3541,19 +3593,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const callArgs = args.slice(1) as AbstractValue[];
       const result = story.CallLuauFunctionProtected(fn, callArgs);
       if (result.ok) {
-        // Flatten any inner MultiValue from the call's return. The
-        // protected callee that did `return 1, 2, 3` left a single
-        // MultiValue on the eval stack (via PackTuple at the
-        // return); `result.values` is then `[MV([1, 2, 3])]`. To
-        // give pcall's caller `(true, 1, 2, 3)` rather than
-        // `(true, MultiValue)`, splice the MultiValue's inner
-        // values into the result here.
-        const flat: AbstractValue[] = [new BoolValue(true)];
-        for (const v of result.values) {
-          if (v instanceof MultiValue) flat.push(...v.values);
-          else flat.push(v);
-        }
-        return new MultiValue(flat);
+        return protectedSuccess(result.values);
       }
       return new MultiValue([
         new BoolValue(false),
@@ -3585,18 +3625,18 @@ export const STDLIB: Record<string, StdLibEntry> = {
       const callArgs = args.slice(2) as AbstractValue[];
       const result = story.CallLuauFunctionProtected(fn, callArgs);
       if (result.ok) {
-        return new MultiValue([new BoolValue(true), ...result.values]);
+        return protectedSuccess(result.values);
       }
-      // Run the message handler. If it fails, fall back to the
+      // Run the message handler, whose first value is the error xpcall
+      // returns, nil when it returns none. If it fails, fall back to the
       // raw error.
       const errMsg = result.errorMessage ?? "xpcall: unknown error";
       const handlerResult = story.CallLuauFunctionProtected(msgh, [
         new StringValue(errMsg),
       ]);
-      const handled =
-        handlerResult.ok && handlerResult.values.length > 0
-          ? handlerResult.values[0]!
-          : new StringValue(errMsg);
+      const handled = handlerResult.ok
+        ? oneValue(handlerResult.values[0] ?? new NullValue())
+        : new StringValue(errMsg);
       return new MultiValue([new BoolValue(false), handled]);
     },
   },
@@ -3700,6 +3740,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return t;
       }
       t.value.set(key, v as AbstractValue);
+      writtenIn(story)(t);
       return t;
     },
   },
@@ -4532,7 +4573,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           ((ha as any).value != null && (ha as any).value === (hb as any).value);
         if (!same) return false;
         const results = story.CallLuauFunction(ha, [a, b]);
-        const top = results?.[0];
+        const top = oneValue(results?.[0] ?? null);
         return (
           top != null &&
           !(top instanceof NullValue) &&
@@ -4581,7 +4622,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // value (sparkdown's "no return value" sentinel) — treat it
         // as nil. NullValue and false-valued returns... actually
         // false DOES break in Lua (it's non-nil). But Void doesn't.
-        const top = results[0];
+        // The callback's first value decides.
+        const top = oneValue(results[0] ?? null);
         if (
           top != null &&
           !(top instanceof NullValue) &&
@@ -4616,7 +4658,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         // value (sparkdown's "no return value" sentinel) — treat it
         // as nil. NullValue and false-valued returns... actually
         // false DOES break in Lua (it's non-nil). But Void doesn't.
-        const top = results[0];
+        // The callback's first value decides.
+        const top = oneValue(results[0] ?? null);
         if (
           top != null &&
           !(top instanceof NullValue) &&
@@ -4680,6 +4723,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         return undefined;
       }
       map.set(String(pos), value);
+      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -4714,6 +4758,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         pos = p;
       }
       if (pos < 1 || pos > len) return null;
+      writtenIn(story)(t);
       const removed = map.get(String(pos)) ?? null;
       for (let k = pos; k < len; k++) {
         const next = map.get(String(k + 1));
@@ -4794,7 +4839,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
           const results = story.CallLuauFunction(ltFn, [a, b]) as
             | AbstractValue[]
             | null;
-          const top = results?.[0];
+          const top = oneValue(results?.[0] ?? null);
           return top != null && isTruthy(top);
         }
         story.Error(
@@ -4807,7 +4852,8 @@ export const STDLIB: Record<string, StdLibEntry> = {
         if (comp == null) return defaultLess(a, b);
         try {
           const results = story.CallLuauFunction(comp, [a, b]);
-          const top = results[0];
+          // The comparator's first value decides.
+          const top = oneValue(results[0] ?? null);
           if (top == null) return false;
           return isTruthy(top);
         } catch (e) {
@@ -4835,6 +4881,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       for (let k = 1; k <= len; k++) {
         map.set(String(k), arr[k - 1]!);
       }
+      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -4859,6 +4906,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
       map.clear();
       (map as any).__luauCapacity = Math.max(prevCap, len);
       (map as any).__luauBoundary = 0;
+      writtenIn(story)(t);
       return undefined;
     },
   },
@@ -5022,6 +5070,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         } else {
           for (let i = n - 1; i >= 0; i--) copy(i);
         }
+        writtenIn(story)(a2);
       }
       return a2;
     },
@@ -5053,6 +5102,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
         }
       }
       t.Freeze();
+      writtenIn(story)(t);
       return t;
     },
   },
@@ -5252,19 +5302,22 @@ export const STDLIB: Record<string, StdLibEntry> = {
         mt.set("__index", parent);
       }
       table.metatable = new ObjectValue(mt);
+      const written = writtenIn(story);
+      written(table);
 
       if (parent) {
         const chain = defineChain(parent);
-        copyStoreDefaults(chain, table);
+        copyStoreDefaults(chain, table, written);
         // Register into the parent and every ancestor.
         for (const level of chain) {
           level.value!.set(name, table);
+          written(level);
         }
         // A structural block declared earlier may be waiting for this define
         // as its `as` parent (`morph child as base` before `define base as
         // morph`); link it now, as a later structural parent would.
         for (const level of chain) {
-          linkWaitingStructuralChildren(level, name, table);
+          linkWaitingStructuralChildren(level, name, table, written);
         }
       }
       return table;
@@ -5308,11 +5361,13 @@ export const STDLIB: Record<string, StdLibEntry> = {
       mt.set(DEFINE_PARENT_MARKER, new StringValue(typeName));
       mt.set("__index", typeTable);
       table.metatable = new ObjectValue(mt);
+      const written = writtenIn(story);
+      written(table);
 
       if (parentName) {
         const member = typeTable.value!.get(parentName) ?? null;
         if (isDefineTable(member) && member !== table) {
-          linkStructuralParent(table, member);
+          linkStructuralParent(table, member, written);
         } else {
           let waiting = pendingStructuralParents.get(typeTable);
           if (!waiting) {
@@ -5324,14 +5379,15 @@ export const STDLIB: Record<string, StdLibEntry> = {
           waiting.set(parentName, children);
         }
       }
-      copyStructuralStoreDefaults(table);
+      copyStructuralStoreDefaults(table, written);
 
       // Register into the type and every ancestor type.
       for (const level of defineChain(typeTable)) {
         level.value!.set(name, table);
+        written(level);
       }
       // Link the children that were waiting for this block as their parent.
-      linkWaitingStructuralChildren(typeTable, name, table);
+      linkWaitingStructuralChildren(typeTable, name, table, written);
       return table;
     },
   },
@@ -5912,7 +5968,7 @@ export const STDLIB: Record<string, StdLibEntry> = {
     arity: -1,
     fn: (story, args) => {
       const msg = args.length > 0 ? coerceString(args[0]) : null;
-      const trace = story.state.callStack.callStackTrace;
+      const trace = story.CallStackTrace();
       const header = msg != null && msg !== "" ? msg + "\nstack traceback:\n" : "stack traceback:\n";
       return header + trace;
     },
@@ -5933,17 +5989,14 @@ export const STDLIB: Record<string, StdLibEntry> = {
     fn: (story, [levelArg, optsArg]) => {
       const level = Math.floor(coerceNumber(levelArg) ?? 1);
       const opts = coerceString(optsArg) ?? "";
-      const elements = story.state.callStack.elements;
+      const frames = story.CallFrameCount();
       // Lua convention: level 1 is the caller of `debug.info`. The
       // current call sits at the top of the JS stack but we map
       // `level - 1` directly into the inkjs callstack (which is
       // ordered bottom-up). So level 1 = top of stack.
-      const idx = elements.length - level;
-      if (idx < 0 || idx >= elements.length) return new NullValue();
-      const frame = elements[idx];
-      const ptr = frame?.currentPointer;
-      const container = ptr && !ptr.isNull ? ptr.container : null;
-      const pathStr = container?.path?.toString() ?? "?";
+      const idx = frames - level;
+      if (idx < 0 || idx >= frames) return new NullValue();
+      const pathStr = story.CallFramePath(idx) ?? "?";
       const name = pathStr.includes(".")
         ? pathStr.substring(pathStr.lastIndexOf(".") + 1)
         : pathStr;

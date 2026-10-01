@@ -25,6 +25,13 @@ export interface ProgramEmitter {
    *  a block of the statement, and its other objects as the statement's own
    *  code. */
   emitBranchBody(branch: object): void;
+  /** Emits a function (a `FlowBase`) that runs where it is written: one
+   *  written at the top level inside a block that the story leaves it in,
+   *  whose container the current engine runs as content of the block. Its
+   *  parameters are bound from the evaluation stack, the locals the lowering
+   *  hoisted to the top of its body are declared, and its body runs as a
+   *  block of the statement. */
+  emitFunctionInPlace(fn: object): void;
   /** Emits a jump whose target is bound later with `bind`. */
   jump(op: number, flags?: number, aux?: number): ProgramLabel;
   /** Emits a jump to a label the caller already holds, bound or not: a
@@ -58,6 +65,11 @@ export interface ProgramEmitter {
    *  keeps a hash of them, and the chunk is reused only while the program
    *  it is reused in gives the same facts. */
   reference(symbol: number): void;
+  /** The symbol of a function of the program (a `FlowBase`): its qualified
+   *  name's for a function declared at the top level, and the anonymous one
+   *  of the statement that writes it otherwise. A function the program does
+   *  not define stops the statement's emission. */
+  functionSymbol(fn: object): number;
   /** Stops the statement's emission: the program falls back to the current
    *  engine as a whole and names `construct` (the parsed class's `typeName`,
    *  or the builtin's name). */

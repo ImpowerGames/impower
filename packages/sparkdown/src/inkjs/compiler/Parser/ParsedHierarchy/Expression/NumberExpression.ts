@@ -60,7 +60,13 @@ export class NumberExpression extends Expression {
         0,
         this.value ? ConstValue.True : ConstValue.False,
       );
-    } else if (this.isInt() && (this.value as number) === ((this.value as number) | 0)) {
+    } else if (
+      this.isInt() &&
+      (this.value as number) === ((this.value as number) | 0) &&
+      // An instruction's operand holds no negative zero, which prints as
+      // `-0`: it is a number of the table.
+      !Object.is(this.value, -0)
+    ) {
       emitter.emit(Op.Int, this.value as number);
     } else if (this.isInt() || this.isFloat()) {
       emitter.emit(
