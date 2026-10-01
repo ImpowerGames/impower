@@ -282,7 +282,10 @@ console.error('diagnostic after terminal result');
     assert.equal(at('blocked'),-1);
     assert.equal(rows.at(-1).event,'report-awaiting-post');assert.equal(rows.at(-1).report,report);assert.equal(outcome.pendingReport.reportSha256,rows.at(-1).reportSha256);
     assert.equal(rows.find(row=>row.event==='launching').reportPosting,'coordinator');
-    assert.equal(path.relative(scratch,observed.home).startsWith('..'),true,'the private home lies outside the job and review directories');
+    // On Windows, a home on another drive than the scratch folder has no relative
+    // path; path.relative then returns the absolute target.
+    const homeFromScratch=path.relative(scratch,observed.home);
+    assert.equal(homeFromScratch.startsWith('..')||path.isAbsolute(homeFromScratch),true,'the private home lies outside the job and review directories');
     assert.equal(fs.existsSync(observed.home),false,'the private home, authentication copy included, is removed after confirmed exit');
     console.log('PASS: the launcher runs a Codex stand-in with the secret only in its private home and no GitHub access, holds its slot until confirmed exit and awaits the coordinator\'s post');
 
