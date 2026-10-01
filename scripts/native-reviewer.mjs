@@ -82,9 +82,10 @@ export function validateCodexReviewer(review,plan) {
     // from an environment secret holding the contents of auth.json.
     if(permission.codexAuthEnv===undefined)need(path.isAbsolute(permission.codexHome??''),'step permissions.codexHome as the absolute existing Codex home holding auth.json, or step permissions.codexAuthEnv naming the environment secret that holds its contents');
     else need(permission.codexHome===undefined,'step permissions.codexHome or step permissions.codexAuthEnv, not both');
+    need(permission.codexAuthProxied===undefined||(permission.codexAuthProxied===true&&permission.codexAuthEnv!==undefined),'step permissions.codexAuthProxied only as true, with step permissions.codexAuthEnv naming the template');
   } else {
     need(!values.has('--dangerously-bypass-hook-trust'),'no --dangerously-bypass-hook-trust (the sandboxed route installs no hooks)');
-    need(permission.codexAuthEnv===undefined,'no step permissions.codexAuthEnv (the sandboxed route copies its declared setup home)');
+    need(permission.codexAuthEnv===undefined&&permission.codexAuthProxied===undefined,'no step permissions.codexAuthEnv or codexAuthProxied (the sandboxed route copies its declared setup home)');
     need(config.get('windows.sandbox')==='elevated','-c windows.sandbox="elevated"');
     need(JSON.stringify(config.get('sandbox_workspace_write.writable_roots'))==='[]','-c sandbox_workspace_write.writable_roots=[]');
     need(config.get('sandbox_workspace_write.exclude_tmpdir_env_var')===true,'-c sandbox_workspace_write.exclude_tmpdir_env_var=true');

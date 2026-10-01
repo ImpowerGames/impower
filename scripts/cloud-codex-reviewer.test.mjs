@@ -14,6 +14,7 @@ import {runHandoff,recordCoordinatorReport,validatePlanShape} from './agent-hand
 import {verifyReviewerExecutable,validateCodexReviewer} from './native-reviewer.mjs';
 import {nativeReviewerEnvironment,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
 import {validateReviewPlan} from './review-supervisor.mjs';
+import {proxyAuthTemplate,checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
 import {testScratch} from './review-job-root.mjs';
 import {removeScratch} from './remove-scratch.mjs';
 
@@ -116,6 +117,39 @@ try {
     assert.equal(created.length,1,'the secret route writes one private home outside the job directory');
     assert.equal(fs.existsSync(path.join(os.tmpdir(),created[0],'auth.json')),false,'a refused launch leaves no authentication copy');
     console.log('PASS: a launch refused after the secret was copied removes the copy');
+  }
+
+  // With the proxy adding the token, the variable holds a template that can
+  // authenticate nothing by itself, and a real login there is refused.
+  {
+    const tokenSecret=`fixture-access-${randomUUID()}`,refreshSecret=`fixture-refresh-${randomUUID()}`,signature=`fixture-signature-${randomUUID()}`;
+    const jwt=part=>Buffer.from(JSON.stringify(part)).toString('base64url');
+    const login={OPENAI_API_KEY:null,tokens:{id_token:`${jwt({alg:'RS256'})}.${jwt({email:'author@example.invalid','https://api.openai.com/auth':{chatgpt_plan_type:'plus',chatgpt_account_id:'fixture-account'}})}.${signature}`,access_token:tokenSecret,refresh_token:refreshSecret,account_id:'fixture-account',later_secret:'fixture-later'},last_refresh:'2020-01-01T00:00:00Z',later_field:'fixture-later'};
+    const loginFile=path.join(scratch,'auth.json');fs.writeFileSync(loginFile,JSON.stringify(login));
+    const cli=(...args)=>execFileSync(process.execPath,[path.join(here,'codex-proxy-auth.mjs'),...args,loginFile],{encoding:'utf8',windowsHide:true});
+    const text=cli('template'),template=JSON.parse(text);
+    for(const secret of [tokenSecret,refreshSecret,signature,'fixture-later'])assert.equal(text.includes(secret),false,'the template carries no token, signature or unknown field');
+    assert.equal(template.tokens.account_id,'fixture-account');assert.equal(template.tokens.id_token.split('.')[1],login.tokens.id_token.split('.')[1],'the identity claims are kept');
+    assert.doesNotThrow(()=>checkProxyAuthTemplate(template));
+    assert.deepEqual(proxyAuthTemplate(login).tokens,template.tokens,'the CLI prints the exported template');
+    assert.equal(cli('access-token'),tokenSecret,'access-token prints only the token for the proxy credential');
+    const proxied={...permissions,codexAuthProxied:true};
+    const validate=changes=>validateCodexReviewer({args:fullArgs,effort:'high',permissions:{...proxied,...changes}},codexPlan);
+    process.env[secretName]=text;
+    assert.doesNotThrow(()=>validate({}),'a template passes the proxied route');
+    process.env[secretName]=JSON.stringify(login);
+    assert.throws(()=>validate({}),error=>/not a template/.test(error.message)&&/tokens.access_token/.test(error.message)&&/unexpected fields later_field/.test(error.message)&&![tokenSecret,refreshSecret,signature].some(secret=>error.message.includes(secret)),'a real login is refused on the proxied route without echoing it');
+    process.env[secretName]=text;
+    assert.throws(()=>validate({codexAuthProxied:'yes'}),/codexAuthProxied only as true/);
+    assert.throws(()=>validate({codexAuthEnv:undefined,codexHome:scratch}),/codexAuthProxied only as true/);
+    const directory=fs.mkdtempSync(path.join(job,'proxied-'));
+    const env=nativeReviewerEnvironment({args:fullArgs,permissions:proxied,nativeResult:'codex-jsonl'},directory,{...process.env,[secretName]:JSON.stringify({...template,last_refresh:'2020-01-01T00:00:00Z'})},{worktree:repo,reportPosting:'coordinator'});
+    const written=JSON.parse(fs.readFileSync(path.join(env.CODEX_HOME,'auth.json'),'utf8'));
+    assert.deepEqual(written.tokens,template.tokens,'the private home holds the template');
+    assert.ok(Date.parse(written.last_refresh)>Date.parse('2024-01-01'),'the launcher renews the refresh time so Codex does not refresh the placeholders');
+    fs.rmSync(path.join(env.CODEX_HOME,'auth.json'));
+    process.env[secretName]=ambient[secretName];
+    console.log('PASS: the proxied route takes a template holding no usable token, refuses a real login without echoing it, and renews its refresh time');
   }
 
   // The real launcher, with a stand-in for the Codex CLI: the reviewer gets

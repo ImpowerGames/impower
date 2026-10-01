@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
 
 // The native Codex route's sandbox guarantees were first observed on this
 // build. Later releases are accepted; the doctor check below still requires
@@ -57,7 +58,11 @@ export function readCodexAuthSecret(permission,source=process.env) {
   if(Buffer.byteLength(value)>1024*1024)throw new Error(`Codex authentication secret ${name} exceeds 1 MiB`);
   let parsed;try{parsed=JSON.parse(value);}catch{parsed=undefined;}
   if(!parsed||typeof parsed!=='object'||Array.isArray(parsed))throw new Error(`Codex authentication secret ${name} must hold the JSON object from auth.json`);
-  return Buffer.from(value);
+  if(permission.codexAuthProxied!==true)return Buffer.from(value);
+  // The proxy adds the real token, so the variable holds only a template, and
+  // a fresh refresh time keeps Codex from trying to refresh the placeholders.
+  checkProxyAuthTemplate(parsed);
+  return Buffer.from(JSON.stringify({...parsed,last_refresh:new Date().toISOString()}));
 }
 
 // The secret's copy is removed once the reviewer's exit is confirmed, so it
