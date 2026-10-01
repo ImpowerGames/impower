@@ -269,6 +269,14 @@ const CALL_ARGUMENT_NODES = nodeNameSet([
 // Whether `node` ends in a value Luau can call: a name, a closing bracket,
 // or a call argument, whose call can be called again (`f "a"` then `"b"`).
 function endsInCallee(node: SyntaxNode): boolean {
+  // A declaration with no `=` ends in a name it declares, not a value
+  // (`local x`).
+  if (
+    (node.name === "LuauVariableDefinition" || node.name === "LuauSparkdownVariableDefinition") &&
+    !findDescendant(node, "LuauAssignmentOperation")
+  ) {
+    return false;
+  }
   const leaf = lastSignificantLeaf(node);
   if (!leaf) return false;
   if (CALLEE_END.test(leaf.name)) return true;
@@ -312,6 +320,11 @@ function isEmptyAssignment(op: SyntaxNode): boolean {
 function endsOnEmptyAssignment(node: SyntaxNode): boolean {
   if (node.name === "LuauAssignmentOperation") {
     return isEmptyAssignment(node) && inLuauBody(node);
+  }
+  if (node.name === "LuauPropertyDefinition") {
+    // A define property (`value =` then `12`).
+    const op = findDescendant(node, "LuauAssignmentOperation");
+    return op != null && isEmptyAssignment(op);
   }
   if (node.name !== "LuauVariableDefinition" && node.name !== "LuauReassignment") {
     return false;
@@ -380,6 +393,10 @@ export function isStatementNodeName(name: string): boolean {
 function startsStatement(node: SyntaxNode): boolean {
   if (node.name === "LuauFunctionDefinition") {
     return findOwnDeclarationName(node) != null;
+  }
+  // A define body's own statements (`color = red`, `greet(self) … end`).
+  if (node.name === "LuauPropertyDefinition" || node.name === "LuauMethodDefinition") {
+    return true;
   }
   return isStatementNodeName(node.name);
 }

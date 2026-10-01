@@ -700,13 +700,19 @@ function readPropertyDefinition(
   }
 
   const opNode = getDescendent("LuauAssignmentOperation", propNode);
-  if (opNode) validateAssignmentValue(opNode, ctx);
+  // The value may start on the line after an `=` that ends its line
+  // (`value =` then `12`), as Luau reads it.
+  if (opNode) validateAssignmentValue(opNode, ctx, continuation.length > 0);
   const valueNode = findAssignmentValueNode(opNode ?? null);
+  const valueStart = valueNode ?? continuation[0] ?? null;
   const valueEnd = continuation[continuation.length - 1]?.to ?? opNode?.to;
   const expr = !opNode
     ? null
-    : continuation.length > 0 && valueNode
-      ? lowerExpressionFromNodes([...siblingsFrom(valueNode), ...continuation], ctx)
+    : continuation.length > 0
+      ? lowerExpressionFromNodes(
+          [...(valueNode ? siblingsFrom(valueNode) : []), ...continuation],
+          ctx,
+        )
       : lowerExpressionFromContainer(opNode, ctx);
   if (!expr) return null;
 
@@ -716,7 +722,7 @@ function readPropertyDefinition(
   // significant child following the `LuauAssignmentOperator` marker. Read
   // from that node's start to the operation's end (covers multi-node
   // expressions) instead of re-deriving the RHS by string-scanning for `=`.
-  const rawValue = valueNode ? ctx.read(valueNode.from, valueEnd!) : "";
+  const rawValue = valueStart ? ctx.read(valueStart.from, valueEnd!) : "";
 
   // Anchor the property's value expression to its source range. Diagnostics
   // raised from inside it (notably `Cannot find variable named \`x\`` from
@@ -725,8 +731,8 @@ function readPropertyDefinition(
   // expression is enough to give every nested node a location. Without this
   // the compiler's diagnostic callback falls back to the ENTRY document at
   // 0:0, piling every such warning invisibly at the top of the wrong file.
-  if (valueNode && opNode) {
-    stampDebugMetadata([expr], valueNode.from, valueEnd!, ctx);
+  if (valueStart && opNode) {
+    stampDebugMetadata([expr], valueStart.from, valueEnd!, ctx);
   }
 
   // Modifiers live in the property's begin captures, OUTSIDE the

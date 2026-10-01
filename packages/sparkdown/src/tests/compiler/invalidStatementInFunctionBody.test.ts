@@ -366,6 +366,29 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual(["After it.\n"]);
   });
 
+  it("ends a line that is not a statement before a quoted string that runs on", () => {
+    // The `\` escapes the line break, so `end inside` is the string's.
+    const source =
+      'function note()\n  Hello there "first\\\nend inside"\nend\nThe story resumes here.\n';
+    expect(errorsOf(source).map((d) => [d.start!.line, d.start!.character, d.message])).toEqual([
+      [1, 2, "Incomplete statement: expected assignment or a function call"],
+    ]);
+    expect(playedLines(source)).toEqual(["The story resumes here.\n"]);
+  });
+
+  it("reports a string after a declaration with no value", () => {
+    const source = 'function note()\n  local x\n  "This is not a statement"\n  return 1\nend\n';
+    expect(errorsOf(source)).toEqual([luauFirstError(source)]);
+  });
+
+  it("gives a define property the value on the line after its `=`, as on one line", () => {
+    const head = "define thing as object with\n";
+    const found = (source: string) => errorsOf(source).map((d) => d.message);
+    expect(found(`${head}  value =\n  -- property comment\n  12\nend\n`)).toEqual(
+      found(`${head}  value = 12\nend\n`),
+    );
+  });
+
   it("reports a line after a complete `...` value", () => {
     const source = "function f(...)\n  local x = ...\n  Hello\nend\n";
     expect(errorsOf(source)).toEqual([luauFirstError(source)]);
