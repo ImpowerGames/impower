@@ -1,3 +1,4 @@
+import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
@@ -45,7 +46,9 @@ import { warnValueItemWithEntries } from "../utils/warnValueItemWithEntries";
 // both forms lower to the same struct. A `layout` or `component` body's brace
 // blocks (`row.item { … }`) are placed where the indented form of the same
 // body places its lines, and an element in one is keyed as the same element
-// on an indented line is (`evaluateElement`).
+// on an indented line is (`evaluateElement`). A brace leaf is adjacency
+// content when the grammar's `LuauStructAdjacencyContent` pattern, taken from
+// the generated grammar rather than restated here, matches its text.
 //
 // REACTIVE ATTRIBUTES: an element line may carry inline `@event=handler` /
 // `#prop=value` bindings (`button "Use" @click=x`, `column #gap=16:`). Those are
@@ -271,9 +274,14 @@ export function parseStructBody(
   return Array.isArray(result) ? { ...result } : result;
 }
 
-// The name `LuauStructAdjacencyContent` reads before its content string
-// (`STYLE_PROPERTY_NAME` in the grammar).
-const STYLE_PROPERTY_NAME_RE = /^[a-zA-Z_][a-zA-Z0-9_-]*$/;
+// The grammar's own pattern for an indented adjacency-content line
+// (`LuauStructAdjacencyContent`: a name, whitespace, a double-quoted string and
+// anything after it), anchored to the start of the text it is tried on. A
+// brace leaf whose text it matches is keyed as that indented line is, so the
+// two forms cannot drift apart when the grammar rule changes.
+const ADJACENCY_CONTENT = new RegExp(
+  `^(?:${GRAMMAR_DEFINITION.repository.LuauStructAdjacencyContent.match})`,
+);
 
 // Comments in an element's head, which are no part of its key.
 const COMMENT_NAMES: ReadonlySet<string> = nodeNameSet([
@@ -319,19 +327,12 @@ function evaluateElement(
   // An indented `name "content" …` line is adjacency content
   // (`LuauStructAdjacencyContent`): keyed by its name alone and valued by
   // that first string, whatever follows it (`text "a" "b"` is `text: "a"`).
-  // The same element in a block is keyed alike.
-  const { name, args } = sparkleElementParts(element);
-  if (name && head && valueNode && !args) {
-    const tag = ctx.read(name.from, name.to);
-    const between = ctx.read(name.to, valueNode.from);
-    if (
-      STYLE_PROPERTY_NAME_RE.test(tag) &&
-      /^[^\S\n\r]+$/.test(between) &&
-      ctx.read(valueNode.from, valueNode.from + 1) === '"'
-    ) {
-      obj[tag] = parseScalar(readValue(valueNode, ctx));
-      return;
-    }
+  // The same element in a block is keyed alike, decided by the grammar's own
+  // pattern for that line.
+  const adjacency = ADJACENCY_CONTENT.exec(ctx.read(element.from, end));
+  if (adjacency) {
+    obj[adjacency[2]!] = parseScalar(adjacency[4]!);
+    return;
   }
   if (valueNode) edits.push({ from: valueNode.from, to: valueNode.to });
   const key = oneSpace(textExcluding(element, ctx, edits, end));
