@@ -133,11 +133,13 @@ describe("style · nested (breakpoints + selectors)", () => {
   test("@breakpoint and > selector nest under their literal keys", () => {
     const r = compileStyle(`style speech_box with
   height = 100%
-  @screen-size(sm):
+  @screen-size(sm) {
     width = 100%
-  > text:
+  }
+  > text {
     color = black
     font_size = 3cqh
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -150,12 +152,14 @@ end
     });
   });
 
-  test("attribute selectors (`> #image^=raffles_:`) survive", () => {
+  test("attribute selectors (`> #image^=raffles_ { … }`) survive", () => {
     const r = compileStyle(`style shadow with
-  > #image^=raffles_:
+  > #image^=raffles_ {
     background_color = #E5323E
-  > #image^=bunny_:
+  }
+  > #image^=bunny_ {
     background_color = #48A5F2
+  }
 end
 `);
     expect(r.errors).toEqual([]);
@@ -183,8 +187,9 @@ style b with
   position = relative
 end
 style c with
-  > text:
+  > text {
     color = white
+  }
 end
 `);
     expect(r.errors).toEqual([]);

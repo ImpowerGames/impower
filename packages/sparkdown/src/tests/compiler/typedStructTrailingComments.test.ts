@@ -11,8 +11,9 @@ describe("trailing comments in animation and theme blocks", () => {
   test("a comment after a container header does not become part of the key", () => {
     const withComment = structOf(
       `animation fade with
-  timing: -- how it plays
+  timing { -- how it plays
     duration = 1
+  }
 end
 `,
       "animation",
@@ -20,8 +21,9 @@ end
     );
     const withoutComment = structOf(
       `animation fade with
-  timing:
+  timing {
     duration = 1
+  }
 end
 `,
       "animation",
@@ -34,7 +36,7 @@ end
   test("a comment after an empty container header does not become part of the key", () => {
     const struct = structOf(
       `theme dusk with
-  spacing: // nothing yet
+  spacing {} // nothing yet
 end
 `,
       "theme",
@@ -50,9 +52,10 @@ end
   enabled = false -- off for now
   radius = 8 -- corner size
   scale = -0.5 // shrink
-  spacing:
+  spacing {
     gap = 4 -- between items
     wrap = true -- allow wrapping
+  }
 end
 `,
       "theme",
@@ -67,9 +70,10 @@ end
   test("a commented value lowers the same as the uncommented one", () => {
     const withComment = structOf(
       `animation fade with
-  timing:
+  timing {
     duration = 1 -- a second
     iterations = 2 -- twice
+  }
 end
 `,
       "animation",
@@ -77,9 +81,10 @@ end
     );
     const withoutComment = structOf(
       `animation fade with
-  timing:
+  timing {
     duration = 1
     iterations = 2
+  }
 end
 `,
       "animation",
@@ -91,9 +96,10 @@ end
   test("a commented list item keeps its number", () => {
     const struct = structOf(
       `animation fade with
-  steps:
-    - 3 -- first
-    - 4
+  steps {
+    3 -- first
+    4
+  }
 end
 `,
       "animation",
@@ -105,12 +111,15 @@ end
   test("unit values and CSS keywords stay strings with a comment", () => {
     const struct = structOf(
       `animation fade with
-  timing:
+  timing {
     easing = ease-in -- smooth
-  keyframes:
-    -
+  }
+  keyframes {
+    {
       offset = 0
       width = 8px -- start narrow
+    }
+  }
 end
 `,
       "animation",
@@ -162,11 +171,13 @@ end
   test("a CSS custom property keeps its dashes", () => {
     const struct = structOf(
       `animation fade with
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0
       color = var(--accent)
       width = var(--size) -- from the theme
+    }
+  }
 end
 `,
       "animation",
@@ -182,12 +193,14 @@ end
   test("quoted values followed by a comment lose their quotes, not their type", () => {
     const struct = structOf(
       `animation fade with
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0
       opacity = "1" -- quoted
       flag = "true" // quoted
       label = "a -- b" -- dashes inside the quotes
+    }
+  }
 end
 `,
       "animation",
