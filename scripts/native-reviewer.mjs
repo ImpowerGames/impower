@@ -7,12 +7,14 @@ import {validateCodexSandboxStorage,validateCodexAuthHome,readCodexAuthSecret,co
 // The sandboxed grammar needs the elevated Windows sandbox. The full-access
 // grammar runs as the user under the repository hooks, which a Linux cloud
 // container provides as well.
-export function verifyReviewerExecutable(review,{platform=process.platform}={}) {
+// The version probe's environment is the caller's: the launcher passes one
+// without the authentication secret, which no child may inherit.
+export function verifyReviewerExecutable(review,{platform=process.platform,env=process.env}={}) {
   if(review.transport!=='native-codex-jsonl')return;
   const fullAccess=codexReviewMode(review)==='full-access';
   if(platform==='linux'&&!fullAccess)throw new Error('The sandboxed native Codex reviewer is verified on Windows only, since it needs the elevated Windows sandbox; on Linux use the full-access grammar');
   if(!['win32','linux'].includes(platform))throw new Error('Automatic native Codex reviewer is verified on Windows and Linux only; use awaited mode');
-  const version=execFileSync(review.executable,['--version'],{encoding:'utf8',windowsHide:true,timeout:10000}).trim();
+  const version=execFileSync(review.executable,['--version'],{encoding:'utf8',windowsHide:true,timeout:10000,env}).trim();
   const minimum=fullAccess?minimumFullAccessCodexVersion:minimumCodexVersion;
   if(!isSupportedCodexVersion(/^codex-cli (\S+)$/.exec(version)?.[1],minimum))throw new Error(`Native Codex reviewer version is unverified (this route needs ${minimum} or later); use awaited mode`);
 }
@@ -29,10 +31,15 @@ export function verifyCodexReviewResult(output) {
   if(!text.endsWith('\n'))throw new Error('Incomplete native Codex event stream');
   let rows;try{rows=text.trim().split('\n').map(JSON.parse);}catch{throw new Error('Invalid native Codex JSONL stream');}
   const starts=rows.filter(row=>row.type==='thread.started'),turns=rows.filter(row=>row.type==='turn.started'),done=rows.filter(row=>row.type==='turn.completed');
-  if(starts.length!==1||typeof starts[0].thread_id!=='string'||!starts[0].thread_id||turns.length!==1||done.length!==1||rows[0]!==starts[0]||rows.at(-1)!==done[0]||rows.indexOf(turns[0])>rows.indexOf(done[0])||rows.some(row=>['error','turn.failed'].includes(row.type)))throw new Error('Native Codex review failed, interrupted, or incomplete');
+  // Codex emits top-level `error` rows for conditions it recovers from (a
+  // stream reconnect, the fall back from WebSockets to HTTPS when a proxy
+  // refuses the socket), then completes the turn; only `turn.failed`, or an
+  // `error` after the terminal event, ends the turn without a result.
+  if(starts.length!==1||typeof starts[0].thread_id!=='string'||!starts[0].thread_id||turns.length!==1||done.length!==1||rows[0]!==starts[0]||rows.at(-1)!==done[0]||rows.indexOf(turns[0])>rows.indexOf(done[0])||rows.some(row=>row.type==='turn.failed'))throw new Error('Native Codex review failed, interrupted, or incomplete');
   if(!rows.some(row=>row.type==='item.completed'&&row.item?.type==='agent_message'&&typeof row.item.text==='string'&&row.item.text.trim())||!done[0].usage||!['input_tokens','output_tokens','cached_input_tokens'].every(key=>Number.isSafeInteger(done[0].usage[key])&&done[0].usage[key]>=0))throw new Error('Native Codex review lacks a complete response');
-  if(rows.some(row=>!['thread.started','turn.started','turn.completed','item.started','item.updated','item.completed'].includes(row.type)))throw new Error('Unknown native Codex event type');
-  return {threadId:starts[0].thread_id,status:'completed'};
+  if(rows.some(row=>!['thread.started','turn.started','turn.completed','item.started','item.updated','item.completed','error'].includes(row.type)))throw new Error('Unknown native Codex event type');
+  const warnings=rows.filter(row=>row.type==='error').map(row=>String(row.message??'').slice(0,200));
+  return {threadId:starts[0].thread_id,status:'completed',warnings};
 }
 
 const contains=(parent,child)=>{const rel=path.relative(parent,child);return rel===''||(!rel.startsWith(`..${path.sep}`)&&rel!=='..'&&!path.isAbsolute(rel));};

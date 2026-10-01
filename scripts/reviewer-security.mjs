@@ -65,11 +65,19 @@ export function readCodexAuthSecret(permission,source=process.env) {
   return Buffer.from(JSON.stringify({...parsed,last_refresh:new Date().toISOString()}));
 }
 
-// The secret's copy is removed once the reviewer's exit is confirmed, so it
-// does not outlive the reviewer in the container.
+// The secret route's home is a fresh directory under the system temporary
+// directory, outside the retained job directory; the whole of it goes once the
+// reviewer's exit is confirmed (or its launch is refused), so neither the
+// authentication copy nor the session state Codex wrote beside it outlives the
+// reviewer in the container. Only a home this launcher created is removed.
+const secretHomePrefix=path.join(fs.realpathSync.native(os.tmpdir()),'impower-codex-home-');
+export function removeSecretCodexHome(home) {
+  if(typeof home!=='string'||!home.startsWith(secretHomePrefix)||home.length===secretHomePrefix.length)throw new Error(`Refusing to remove ${home}: not a secret route Codex home`);
+  fs.rmSync(home,{recursive:true,force:true});
+}
 export function discardCodexAuthCopy(step,env) {
   if(step?.permissions?.codexAuthEnv===undefined||!env?.CODEX_HOME)return;
-  fs.rmSync(path.join(env.CODEX_HOME,'auth.json'),{force:true});
+  removeSecretCodexHome(env.CODEX_HOME);
 }
 
 // The full-access route copies only the authentication file into its fresh home.
@@ -105,11 +113,11 @@ export function installReviewerHooks(home,{node=process.execPath,entry=reviewerH
   return file;
 }
 
-// A secret's copy written before a later refusal is removed with the refusal.
+// A secret's home written before a later refusal is removed with the refusal.
 export function nativeReviewerEnvironment(step,privateDirectory,source=process.env,options={}) {
   const secrets=[];
   try{return buildNativeReviewerEnvironment(step,privateDirectory,source,options,secrets);}
-  catch(error){for(const file of secrets)fs.rmSync(file,{force:true});throw error;}
+  catch(error){for(const home of secrets)removeSecretCodexHome(home);throw error;}
 }
 
 function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,reportPosting},secrets) {
@@ -124,8 +132,8 @@ function buildNativeReviewerEnvironment(step,privateDirectory,source,{worktree,r
     // review evidence after the reviewer exits.
     const home=fs.realpathSync.native(fs.mkdtempSync(secret?path.join(os.tmpdir(),'impower-codex-home-'):path.join(privateDirectory,'codex-home-')));
     protectPrivatePath(home);
+    if(secret)secrets.push(home);
     const fd=fs.openSync(path.join(home,'auth.json'),'wx',0o600);
-    if(secret)secrets.push(path.join(home,'auth.json'));
     try{protectPrivatePath(path.join(home,'auth.json'));fs.writeFileSync(fd,auth);}finally{fs.closeSync(fd);}
     if(secret)delete env[step.permissions.codexAuthEnv];
     installReviewerHooks(home);

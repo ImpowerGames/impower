@@ -10,9 +10,9 @@ import childProcess from 'node:child_process';
 import {syncBuiltinESMExports} from 'node:module';
 import {fileURLToPath} from 'node:url';
 import {randomUUID,createHash} from 'node:crypto';
-import {runHandoff,recordCoordinatorReport,validatePlanShape} from './agent-handoff.mjs';
+import {runHandoff,recordCoordinatorReport,validatePlanShape,coordinatorReport,verifyNativeReviewResult} from './agent-handoff.mjs';
 import {verifyReviewerExecutable,validateCodexReviewer} from './native-reviewer.mjs';
-import {nativeReviewerEnvironment,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
+import {nativeReviewerEnvironment,removeSecretCodexHome,minimumCodexVersion,minimumFullAccessCodexVersion} from './reviewer-security.mjs';
 import {validateReviewPlan} from './review-supervisor.mjs';
 import {proxyAuthTemplate,checkProxyAuthTemplate} from './codex-proxy-auth.mjs';
 import {testScratch} from './review-job-root.mjs';
@@ -106,17 +106,59 @@ try {
 
   // A refusal after the secret's copy was written removes the copy.
   {
-    const before=secretHomes();
-    childProcess.execFileSync=(exe,args,options)=>{if(exe==='gh')throw new Error('fixture: no gh login');return originalExec(exe,args,options);};
+    const before=secretHomes(),written=[];
+    childProcess.execFileSync=(exe,args,options)=>{if(exe==='gh'){written.push(...[...secretHomes()].filter(name=>!before.has(name)));throw new Error('fixture: no gh login');}return originalExec(exe,args,options);};
     syncBuiltinESMExports();
     try {
       const directory=fs.mkdtempSync(path.join(job,'refused-'));
       assert.throws(()=>nativeReviewerEnvironment({args:fullArgs,permissions,nativeResult:'codex-jsonl'},directory,process.env,{worktree:repo}),/GitHub authentication unavailable.*reportPosting/);
     } finally {restore();}
-    const created=[...secretHomes()].filter(name=>!before.has(name));
-    assert.equal(created.length,1,'the secret route writes one private home outside the job directory');
-    assert.equal(fs.existsSync(path.join(os.tmpdir(),created[0],'auth.json')),false,'a refused launch leaves no authentication copy');
-    console.log('PASS: a launch refused after the secret was copied removes the copy');
+    assert.equal(written.length,1,'the secret route writes one private home outside the job directory before the refusal');
+    assert.equal(fs.existsSync(path.join(os.tmpdir(),written[0])),false,'a refused launch removes the private home with its authentication copy');
+    assert.deepEqual([...secretHomes()].filter(name=>!before.has(name)),[]);
+    assert.throws(()=>removeSecretCodexHome(path.join(os.tmpdir(),'other-home')),/not a secret route Codex home/,'only a home this launcher created is removed');
+    console.log('PASS: a launch refused after the secret was copied removes the private home');
+  }
+
+  // The version probe is a child too: it runs without the secret variable.
+  {
+    let probeEnv;
+    childProcess.execFileSync=(exe,args,options)=>{if(exe==='/fixture/codex'&&args[0]==='--version'){probeEnv=options.env;return `codex-cli ${minimumFullAccessCodexVersion}\n`;}return originalExec(exe,args,options);};
+    syncBuiltinESMExports();
+    try {
+      const sanitized={...process.env};delete sanitized[secretName];
+      verifyReviewerExecutable({transport:'native-codex-jsonl',executable:'/fixture/codex',args:fullArgs},{platform:'linux',env:sanitized});
+      assert.equal(Object.hasOwn(probeEnv,secretName),false,'the version probe does not inherit the secret');
+      assert.equal(probeEnv.PATH,process.env.PATH,'the probe keeps the rest of the environment');
+    } finally {restore();}
+    console.log('PASS: the version probe runs without the authentication secret');
+  }
+
+  // Codex reports a recovered stream disconnect or transport fallback as
+  // top-level error rows and still completes the turn; the result check keeps
+  // those as warnings and still refuses a failed or interrupted turn.
+  {
+    const stream=[{type:'thread.started',thread_id:'fixture-thread'},{type:'turn.started'},{type:'item.completed',item:{id:'item_0',type:'error',message:'`--dangerously-bypass-hook-trust` is enabled.'}},{type:'error',message:'Reconnecting... 2/5 (stream disconnected before completion: Attack attempt detected)'},{type:'item.completed',item:{id:'item_2',type:'error',message:'Falling back from WebSockets to HTTPS transport.'}},{type:'item.completed',item:{id:'answer',type:'agent_message',text:'Report returned.'}},{type:'turn.completed',usage:{input_tokens:1,cached_input_tokens:0,output_tokens:2}}];
+    const output=path.join(job,'warnings.jsonl');
+    const write=rows=>fs.writeFileSync(output,rows.map(row=>JSON.stringify(row)).join('\n')+'\n');
+    write(stream);
+    const result=verifyNativeReviewResult(output,'codex-jsonl');
+    assert.equal(result.status,'completed');
+    assert.deepEqual(result.warnings,['Reconnecting... 2/5 (stream disconnected before completion: Attack attempt detected)'],'recovered errors are returned as warnings');
+    write([...stream,{type:'error',message:'late'}]);assert.throws(()=>verifyNativeReviewResult(output,'codex-jsonl'),/failed, interrupted, or incomplete/,'an error after the terminal event is not a completion');
+    write([...stream.slice(0,-1),{type:'turn.failed',error:{message:'failed'}}]);assert.throws(()=>verifyNativeReviewResult(output,'codex-jsonl'),/failed, interrupted, or incomplete/);
+    write(stream.slice(0,-1));assert.throws(()=>verifyNativeReviewResult(output,'codex-jsonl'),/failed, interrupted, or incomplete/);
+    console.log('PASS: a Codex turn that recovers from stream errors completes with warnings, and a failed or interrupted turn is still refused');
+  }
+
+  // The report token must end the report; a prompt quoting it does not count.
+  {
+    const file=path.join(job,'final-message.md'),token='handoff-report-fixture';
+    const accepts=text=>{fs.writeFileSync(file,text);return coordinatorReport(file,head,token);};
+    assert.equal(accepts(`### Review\n\nreviewed head ${head}.\n\nNo findings.\n\n${token}\n`).report,file);
+    assert.equal(accepts(`### Review\n\nreviewed head ${head}.\n\n${token}\n\n\n`).report,file,'trailing blank lines after the token are fine');
+    for(const incomplete of [`Prompt said: reviewed head ${head}; end with ${token}.\n\nReview interrupted before examining the diff.\n`,`reviewed head ${head}\n${token} and more\n`,`${token}\n`,''])assert.throws(()=>accepts(incomplete),/end with its report token/,`refused: ${JSON.stringify(incomplete.slice(0,40))}`);
+    console.log('PASS: a final message is a report only when the launch token is its last line');
   }
 
   // With the proxy adding the token, the variable holds a template that can
@@ -147,7 +189,7 @@ try {
     const written=JSON.parse(fs.readFileSync(path.join(env.CODEX_HOME,'auth.json'),'utf8'));
     assert.deepEqual(written.tokens,template.tokens,'the private home holds the template');
     assert.ok(Date.parse(written.last_refresh)>Date.parse('2024-01-01'),'the launcher renews the refresh time so Codex does not refresh the placeholders');
-    fs.rmSync(path.join(env.CODEX_HOME,'auth.json'));
+    removeSecretCodexHome(env.CODEX_HOME);
     process.env[secretName]=ambient[secretName];
     console.log('PASS: the proxied route takes a template holding no usable token, refuses a real login without echoing it, and renews its refresh time');
   }
@@ -207,7 +249,7 @@ console.error('diagnostic after terminal result');
     assert.equal(rows.at(-1).event,'report-awaiting-post');assert.equal(rows.at(-1).report,report);assert.equal(outcome.pendingReport.reportSha256,rows.at(-1).reportSha256);
     assert.equal(rows.find(row=>row.event==='launching').reportPosting,'coordinator');
     assert.equal(path.relative(scratch,observed.home).startsWith('..'),true,'the private home lies outside the job and review directories');
-    assert.equal(fs.existsSync(path.join(observed.home,'auth.json')),false,'the authentication copy is removed after confirmed exit');
+    assert.equal(fs.existsSync(observed.home),false,'the private home, authentication copy included, is removed after confirmed exit');
     console.log('PASS: the launcher runs a Codex stand-in with the secret only in its private home and no GitHub access, holds its slot until confirmed exit and awaits the coordinator\'s post');
 
     // The coordinator posts the report verbatim and records the comment.
@@ -228,12 +270,65 @@ console.error('diagnostic after terminal result');
     assert.throws(()=>recordCoordinatorReport(journal,5704126199,readBack),/does not end awaiting/,'a recorded report cannot be recorded twice');
     console.log('PASS: the coordinator\'s verbatim post is recorded with its comment ID, and an edited, unprefixed or changed report is refused');
 
+    // A host that appends an attribution footer to every comment still posts
+    // the report verbatim, and a record interrupted after its first row is
+    // completed by the same command without a second post.
+    const footer='\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_';
+    const awaiting=recorded.slice(0,-2);
+    const rewrite=rows=>fs.writeFileSync(journal,rows.map(row=>JSON.stringify(row)).join('\n')+'\n');
+    rewrite(awaiting);
+    refuses(`${line}\n\n${text}\n\n---\n_Generated by someone_\n\nmore`,101,/verbatim/);
+    refuses(`${line}\n\n${text}\n\n---\nunrelated trailing text`,101,/verbatim/);
+    fs.writeFileSync(readBack,`${line}\n\n${text}${footer}\n`);
+    recordCoordinatorReport(journal,5704126200,readBack);
+    let rows2=fs.readFileSync(journal,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+    assert.deepEqual(rows2.slice(-2).map(row=>row.event),['report-posted','finished']);assert.equal(rows2.at(-2).commentId,5704126200);
+    const postedRow=rows2.at(-2);
+    rewrite([...awaiting,postedRow]);
+    assert.throws(()=>recordCoordinatorReport(journal,5704126201,readBack),/already records comment 5704126200/,'a different comment cannot complete a partial record');
+    fs.writeFileSync(readBack,`${line}\n\n${text}`);
+    assert.throws(()=>recordCoordinatorReport(journal,5704126200,readBack),/already records comment 5704126200/,'a different read-back cannot complete a partial record');
+    fs.writeFileSync(readBack,`${line}\n\n${text}${footer}\n`);
+    recordCoordinatorReport(journal,5704126200,readBack);
+    rows2=fs.readFileSync(journal,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+    assert.deepEqual(rows2.slice(-3).map(row=>row.event),['report-awaiting-post','report-posted','finished'],'the retry appends only the missing finished row');
+    assert.equal(rows2.filter(row=>row.event==='report-posted').length,1);
+    console.log('PASS: the read-back may end with the host\'s attribution footer, and a record interrupted before finished is completed by the same command');
+
     // Neither credential reaches the journal, logs, argv or any job file.
     const walk=directory=>fs.readdirSync(directory,{withFileTypes:true}).flatMap(entry=>entry.isDirectory()?walk(path.join(directory,entry.name)):[path.join(directory,entry.name)]);
-    const files=[...walk(scratch),...walk(observed.home)];
+    const files=[...walk(scratch)];
     assert.ok(files.includes(journal)&&files.some(file=>file.endsWith('process.log'))&&files.some(file=>file.endsWith('stderr.log')));
     for(const file of files){const content=fs.readFileSync(file,'utf8');for(const secret of [credential,ghCredential])assert.equal(content.includes(secret),false,`${file} holds a credential`);}
-    console.log(`PASS: neither the Codex nor the GitHub credential appears in any of ${files.length} files under the job, review and private home directories`);
+    console.log(`PASS: neither the Codex nor the GitHub credential appears in any of ${files.length} files under the job and review directories, and the private home is gone`);
+
+    // A failure writing the reservation's launching row refuses before the
+    // spawn and removes the authentication copy with the slot.
+    {
+      const homes=secretHomes();
+      const journal2=path.join(handoff,'reservation-failure.jsonl'),planFile2=path.join(job,'plan-reservation-failure.json');
+      const privateDir2=path.join(job,'reviewer-cloud-2');fs.mkdirSync(privateDir2);
+      const swap=value=>value===privateDir?privateDir2:value===report?path.join(privateDir2,'report.md'):value;
+      fs.writeFileSync(planFile2,JSON.stringify({...plan,journal:journal2,steps:{check:{...plan.steps.check,args:fullArgs.map(swap),permissions:{...permissions,cwd:privateDir2}}}}));
+      const realWrite=fs.writeSync;
+      childProcess.execFileSync=(exe,args,options)=>{if(exe==='gh')throw new Error('fixture: no gh login');if(exe===process.execPath&&args[0]==='--version')return `codex-cli ${minimumFullAccessCodexVersion}`;return originalExec(exe,args,options);};
+      let spawned=false;
+      childProcess.spawn=(exe,args,options)=>{
+        if(exe!==process.execPath||args[0]!=='exec')return originalSpawn(exe,args,options);
+        if(args.includes('--output-last-message'))spawned=true;
+        return originalSpawn(exe,[stand],{...options,env:{...options.env,FIXTURE_ARGV:JSON.stringify(args),FIXTURE_SLOTS:slots}});
+      };
+      fs.writeSync=(fd,data,...rest)=>{if(typeof data==='string'&&data.includes('"phase":"launching"'))throw new Error('fixture: EIO on the reservation row');return realWrite(fd,data,...rest);};
+      syncBuiltinESMExports();
+      try {await assert.rejects(runHandoff(planFile2,{jobRoot:scratch,slotRoot:slots}),/EIO on the reservation row/);}
+      finally {fs.writeSync=realWrite;restore();}
+      assert.equal(spawned,false,'no reviewer was spawned');
+      assert.deepEqual([...secretHomes()].filter(name=>!homes.has(name)),[],'the refused launch leaves no private home');
+      assert.deepEqual(fs.readdirSync(slots),[],'the refused launch releases its slot');
+      const rows3=fs.readFileSync(journal2,'utf8').trim().split('\n').map(line=>JSON.parse(line));
+      assert.equal(rows3.at(-1).event,'blocked');assert.match(rows3.at(-1).reason,/EIO on the reservation row/);
+      console.log('PASS: a reservation-row failure after the authentication copy was written removes the copy, releases the slot and journals the refusal');
+    }
   } else console.log(`SKIP: the launcher's Codex route runs on Windows and Linux only, not ${process.platform}; the platform refusals ran`);
 } finally {
   restore();
