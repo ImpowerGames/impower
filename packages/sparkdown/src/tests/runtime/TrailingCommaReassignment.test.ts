@@ -374,6 +374,13 @@ describe("Luau code: a target whose key is a string holding a bracket", () => {
     ["continued after a trailing comma", '  t["["], g = 1,\n    2', 'return t["["] * 10 + g'],
     ["a closing bracket", '  t["]"], g = 1, 2', 'return t["]"] * 10 + g'],
     ["single quotes", "  t['['], g = 1, 2", "return t['['] * 10 + g"],
+    ["a backtick key holding an apostrophe", "  t[`don't`], g = 1, 2", "return t[`don't`] * 10 + g"],
+    [
+      "a backtick key holding an apostrophe, continued",
+      "  t[`don't`], g = 1,\n    2",
+      "return t[`don't`] * 10 + g",
+    ],
+    ["a double-quoted key holding an apostrophe", "  t[\"it's\"], g = 1, 2", "return t[\"it's\"] * 10 + g"],
   ])("%s", (_name, body, ret) => {
     const { errors, text } = run(fn(body, ret));
     expect(errors).toEqual([]);

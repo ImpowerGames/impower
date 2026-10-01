@@ -282,12 +282,14 @@ variables:
   # one level of brackets (`t[k[1]].x`).
   LUAU_REASSIGNMENT_START: '{{LUAU_IDENTIFIER}}(?:{{WS}}*(?:[.]{{WS}}*{{LUAU_IDENTIFIER}}|{{LUAU_REASSIGNMENT_INDEX}}|\([^()\n]*\)|,{{WS}}*{{LUAU_IDENTIFIER}}))*{{WS}}*{{LUAU_ASSIGNMENT_OPERATORS}}'
   # A target's `[index]`, holding at most one level of nested brackets. A
-  # quoted string inside it is read whole, so a bracket in a key
-  # (`t["["]`, `t["]"]`) is text, not structure.
+  # string inside it is read whole, in any of Luau's three quotes, so a
+  # bracket or another quote in a key (`t["["]`, `t["]"]`, ``t[`don't`]``)
+  # is text, not structure.
   LUAU_REASSIGNMENT_INDEX: \[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}}|\[(?:{{LUAU_REASSIGNMENT_INDEX_TEXT}})*\])*\]
   # One piece of an index's text: a character that is no bracket, quote or
-  # line break, or a whole quoted string on one line.
-  LUAU_REASSIGNMENT_INDEX_TEXT: (?:[^\[\]\n"']|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*')
+  # line break, or a whole string on one line in double quotes, single
+  # quotes or backticks.
+  LUAU_REASSIGNMENT_INDEX_TEXT: (?:[^\[\]\n"'`]|"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'|`(?:[^`\\\n]|\\.)*`)
   # The start of a reassignment in Luau code whose target list ends its line
   # with a comma (`a,` then `g = 1, 2`): targets, then a comma before the end
   # of the line or a comment. No other statement in Luau code starts with a
