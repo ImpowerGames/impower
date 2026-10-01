@@ -458,9 +458,12 @@ export function lowerExpressionFromNodes(
 // a value comes before them; -1 when no continuation line ends `nodes`.
 function continuedElseTailStart(nodes: SyntaxNode[]): number {
   let start = nodes.length;
+  // A string or table argument the line continuation carried is one too
+  // (`if c then f else g` then `"x"` calls `g`).
   while (
     start > 0 &&
     (isLineContinuation(nodes[start - 1]!) ||
+      isCallArgumentNode(nodes[start - 1]!) ||
       isSkippableName(nodes[start - 1]!.name))
   ) {
     start--;

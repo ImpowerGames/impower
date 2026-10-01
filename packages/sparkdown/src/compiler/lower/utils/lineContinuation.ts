@@ -376,7 +376,7 @@ function endsOnEmptyAssignment(node: SyntaxNode): boolean {
     return last.name === "LuauAssignmentOperation" && isEmptyAssignment(last) && inLuauBody(node);
   }
   const op =
-    last.name === "LuauVariableAssignment" ? findDescendant(last, "LuauAssignmentOperation") : null;
+    last.name === "LuauVariableAssignment" ? ownAssignmentOperation(last) : null;
   return op != null && isEmptyAssignment(op);
 }
 
@@ -523,8 +523,17 @@ export function expandLineContinuations(
       continue;
     }
     if (!hasValue) {
-      reportUntakenLineContinuation([node], ctx);
       markLineContinuationUsed([node], ctx);
+      // A `-` line where a value starts is that value, negated (`local x =`
+      // then `-2`).
+      if (node.name === "LuauMinusLineContinuation") {
+        for (let part = lineContinuationContent(node); part; part = part.nextSibling) {
+          expanded.push(part);
+        }
+        hasValue = true;
+        continue;
+      }
+      reportUntakenLineContinuation([node], ctx);
       continue;
     }
     markLineContinuationUsed([node], ctx);

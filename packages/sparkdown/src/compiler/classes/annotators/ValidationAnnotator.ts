@@ -16,6 +16,11 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import {
+  followsDanglingDot,
+  followsMissingValue,
+  TRIVIA_BEFORE_STATEMENT,
+} from "../../lower/utils/statementBefore";
 import { nextSignificantToken } from "../../lower/utils/validateAssignmentValue";
 import { luauStatementError } from "../../utils/luauStatementError";
 import { RESERVED } from "../../lint/luauNames";
@@ -274,6 +279,31 @@ function invalidStatementError(
     if (dangling.message === NAME_ON_LATER_LINE) return dangling;
   }
   return error;
+}
+
+/**
+ * Whether the error of `node`, a line in a Luau body that is not a Luau
+ * statement and begins with a character no name begins with (`?Who`), is
+ * reported by the statement before it, which Luau reads that character
+ * into: an `=` or operator that ends its line names it as the missing value
+ * (`local y =`), a `.` that ends its line names it as the missing member
+ * (`local v = t.`), and a line that is not a statement either reports
+ * Luau's error at it (`U.S.`).
+ */
+function reportedBefore(
+  node: SyntaxNode,
+  read: (from: number, to: number) => string,
+): boolean {
+  if (/^\s*[A-Za-z_]/.test(read(node.from, node.to))) return false;
+  if (followsMissingValue(node, read)) return true;
+  let prev = node.prevSibling;
+  while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
+  if (prev?.name === "LuauInvalidStatement") {
+    const line = childNamed(prev, "LuauInvalidStatement_c2");
+    const error = invalidStatementError(line?.from ?? prev.from, line?.to ?? prev.to, read);
+    return error != null && error.from >= node.from;
+  }
+  return followsDanglingDot(node, read);
 }
 
 // Luau's parser reports the first part of an if expression it does not find
@@ -1150,8 +1180,13 @@ export class ValidationAnnotator extends SparkdownAnnotator<
     }
     // A line in a Luau body that is not a statement (`Hello there.`). Luau's
     // first error for it is reported; the errors Luau's recovery finds in the
-    // rest of the line are not.
+    // rest of the line are not, nor is a line whose error the statement
+    // before it reports already (`reportedBefore`).
     if (nodeRef.name === "LuauInvalidStatement") {
+      const read = (from: number, to: number) => this.read(from, to);
+      if (reportedBefore(nodeRef.node, read)) {
+        return annotations;
+      }
       const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
       const error = invalidStatementError(
         line?.from ?? nodeRef.from,

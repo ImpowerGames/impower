@@ -304,6 +304,33 @@ describe("a line in a function body that is not a Luau statement (#1158)", () =>
     expect(playedLines(source)).toEqual([`${played}\n`]);
   });
 
+  it.each([
+    [
+      "the else arm of an if expression",
+      "function note(s)\n  return s\nend\n\nfunction f()\n  local x = if true then note else note\n    \"called\"\n  return type(x)\nend\n",
+      "function",
+    ],
+    [
+      "a typed declaration whose `=` ends its line",
+      "function f()\n  local x: typeof({ k = 1 }) =\n    { k = 2 }\n  return x.k\nend\n",
+      "2",
+    ],
+    ["a negative value after a line-ending `=`", "function f()\n  local x =\n    -2\n  return x\nend\n", "-2"],
+  ])("gives %s its value on the next line, as Luau does", (_, functions, played) => {
+    expect(parseLuau(functions).errors).toEqual([]);
+    const source = `${functions}\n{f()}\n`;
+    expect(errorsOf(source)).toEqual([]);
+    expect(playedLines(source)).toEqual([`${played}\n`]);
+  });
+
+  it("reports a line that begins with a character no Luau statement begins with and closes the function at its own `end`", () => {
+    for (const line of ["!Hello", "?Who", "$5 a day", "&Hello", "\\Hello", "~Hello"]) {
+      const source = `function f()\n  ${line}\nend\nAfter it.\n`;
+      expect(errorsOf(source), line).toEqual([luauFirstError(source.replace("After it.\n", ""))]);
+      expect(playedLines(source), line).toEqual(["After it.\n"]);
+    }
+  });
+
   it("calls the result of a call with the argument on the next line", () => {
     const source = [
       "function maker(a)",
@@ -615,6 +642,19 @@ describe("an `=` that ends its line in Luau code (#1158)", () => {
     expect(playedLines(source)).toEqual(["Hello there.\n"]);
   });
 
+  it("reports a line the statement before it takes once, at that statement's report", () => {
+    // Luau reads `?` as the member after `U.S.`, or as the value after the
+    // `=`, and reports it once; the dangling `.` and the empty value are
+    // reported where their statements end, so the `?Who` line is not
+    // reported again.
+    expect(errorsOf("function f()\n  U.S.\n  ?Who\nend\n")).toEqual([
+      luauFirstError("function f()\n  U.S.\n  ?Who\nend\n"),
+    ]);
+    expect(errorsOf("function f()\n  local y =\n    $5\nend\n").map((d) => d.message)).toEqual([
+      "Expected identifier when parsing expression, got '$'",
+    ]);
+  });
+
   it("still reports an `=` whose next line starts a statement", () => {
     const source = "function f()\n  local x =\n  return x\nend\n";
     expect(errorsOf(source).map((d) => d.message)).toEqual([
@@ -708,4 +748,29 @@ describe("an edit after a line whose error names the next token (#1158)", () => 
       }
     },
   );
+
+  it("reports a line again when an edit to the line before stops taking it", () => {
+    // While the `=` ends its line, the lowerer reports the missing value at
+    // it and the validator leaves `?Who` alone; once the `=` has a value,
+    // the validator reports `?Who` on its own line.
+    const scenes = Array.from({ length: 6 }, (_, s) => `scene s${s}\n  Line ${s} here.\nend\n`);
+    let text = `${scenes.join("\n")}\nfunction f()\n  local a = 1\n  local y =\n  ?Who\n  local b = 2\nend\n`;
+    const registry = open(text);
+    let version = 2;
+    for (const [anchor, inserted, reported] of [
+      ["local a = 1", "1", 0],
+      ["local y =", " 1", 1],
+      ["local y = 1", ".", 1],
+    ] as const) {
+      const offset = text.indexOf(anchor) + anchor.length;
+      registry.update({
+        textDocument: { uri: URI, version: version++ },
+        contentChanges: [{ range: { start: position(text, offset), end: position(text, offset) }, text: inserted }],
+      } as never);
+      text = text.slice(0, offset) + inserted + text.slice(offset);
+      const cold = open(text);
+      expect(validations(registry), inserted).toEqual(validations(cold));
+      expect(validations(cold).length, inserted).toBe(reported);
+    }
+  });
 });

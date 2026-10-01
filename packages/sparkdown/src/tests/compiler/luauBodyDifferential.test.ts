@@ -125,6 +125,9 @@ const LUAU: string[][] = [
   ["local d = x; local d2 = 2"],
   ["local w: typeof({ k = 1 })"],
   ["local w2: number", "w2 = 1"],
+  ["local w3: typeof({ k = 1 }) =", "  { k = 2 }"],
+  ["local neg =", "  -2"],
+  ["local pick = if x then f else f", '  "a"'],
 ];
 
 const NOT_STATEMENTS: string[][] = [
@@ -154,6 +157,12 @@ const NOT_STATEMENTS: string[][] = [
   ["(x)"],
   ["Hi -- the end"],
   ["Hello there. -- note"],
+  ["!Hello"],
+  ["?Who"],
+  ["$5 a day"],
+  ["~Hello"],
+  ["U.S.", "  $5"],
+  ["local y: number", '  "s"'],
 ];
 
 // Lines with a block's `end` in them close the block there, as in Luau, so
