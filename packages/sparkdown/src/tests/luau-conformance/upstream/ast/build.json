@@ -1,0 +1,9 @@
+{
+  "upstream": "c8cf2864adec33eb4eb5b4cc7e0708aa74893ba0",
+  "emscripten": "4.0.10",
+  "sha256": {
+    "bridge.cpp": "90d46a9cdc2573fd17e745fdcccd1d3f08aeb78a70a332dc37945d76b1c7c3bd",
+    "luau-ast.cjs": "5598b7e7a9602676e6fbaf580ce2dac53efce7c899bd2096a47e237dfd6352f1",
+    "luau-ast.wasm": "c428196ede3a5392864819af93e40cc9fbce4f43530a5ed623dba775bae7ddd3"
+  }
+}

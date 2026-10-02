@@ -2408,8 +2408,9 @@ class Parser {
         }
       } else if (props.length === 0 && !indexer && !(this.isName() && this.is(":", this.lookahead()))) {
         const type = this.parseType();
-        const nullLocation = new Location(start.begin, start.begin);
-        const index = new AstTypeReference(nullLocation, undefined, "number", undefined, nullLocation);
+        // Match the official parser at the conformance pin: the implicit key
+        // inherits its element type's range (#1347).
+        const index = new AstTypeReference(type.location, undefined, "number", undefined, type.location);
         indexer = { indexType: index, resultType: type, location: type.location, access };
         if (accessLocation) indexer.accessLocation = accessLocation;
         break;
