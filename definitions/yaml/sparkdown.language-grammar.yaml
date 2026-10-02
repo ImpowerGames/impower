@@ -80,68 +80,6 @@ variables:
     - "repeat"
     - "for"
   SELECTOR_FUNCTION_NAMES: ["has", "not", "is", "where"]
-  # The engine's builtin component names, longest first so a name that
-  # prefixes another never wins (`BuiltinComponentName`).
-  BUILTIN_COMPONENT_NAMES:
-    - "ordered_list"
-    - "preformatted"
-    - "table_footer"
-    - "table_header"
-    - "table_body"
-    - "paragraph"
-    - "table_row"
-    - "checkbox"
-    - "citation"
-    - "dropdown"
-    - "emphasis"
-    - "fieldset"
-    - "progress"
-    - "scroller"
-    - "textarea"
-    - "article"
-    - "caption"
-    - "divider"
-    - "foldout"
-    - "picture"
-    - "section"
-    - "button"
-    - "figure"
-    - "footer"
-    - "header"
-    - "legend"
-    - "option"
-    - "slider"
-    - "stroke"
-    - "strong"
-    - "switch"
-    - "block"
-    - "image"
-    - "input"
-    - "label"
-    - "modal"
-    - "quote"
-    - "radio"
-    - "small"
-    - "table"
-    - "cell"
-    - "code"
-    - "form"
-    - "head"
-    - "item"
-    - "link"
-    - "list"
-    - "mask"
-    - "span"
-    - "text"
-    - "kbd"
-    - "sub"
-    - "sup"
-    - "h1"
-    - "h2"
-    - "h3"
-    - "h4"
-    - "h5"
-    - "h6"
   # Luau's reserved words, and `continue`, which Luau reads as a keyword at
   # the start of a statement and which this grammar makes a loop statement.
   LUAU_RESERVED_WORDS:
@@ -4640,7 +4578,12 @@ repository:
   BuiltinComponentName:
     tag: definitionKeyword
     name: keyword.other.component.builtin.name.sd
-    match: ({{BUILTIN_COMPONENT_NAMES}})(?!(?:[-_\p{L}][0-9_\p{L}-]*\b))
+    # Inline rather than a `variables:` array: an array adds a closing `\b`,
+    # which would stop `h10` highlighting its `h1` prefix, and
+    # spark-web-player's builtinNamesHighlighted test reads this alternation
+    # from the generated grammar.
+    # eslint-disable-next-line sparkdown-grammar/no-handwritten-alternation
+    match: \b(ordered_list|preformatted|table_footer|table_header|table_body|paragraph|table_row|checkbox|citation|dropdown|emphasis|fieldset|progress|scroller|textarea|article|caption|divider|foldout|picture|section|button|figure|footer|header|legend|option|slider|stroke|strong|switch|block|image|input|label|modal|quote|radio|small|table|cell|code|form|head|item|link|list|mask|span|text|kbd|sub|sup|h1|h2|h3|h4|h5|h6)(?!(?:[-_\p{L}][0-9_\p{L}-]*\b))
 
   CustomComponentName:
     tag: className
