@@ -42,9 +42,8 @@ describe("a regex literal as a define value", () => {
         },
       ],
     });
-    const thing = compiler.compile({ textDocument: { uri } }).program.context?.Thing?.$default as
-      | Record<string, unknown>
-      | undefined;
+    const program: any = compiler.compile({ textDocument: { uri } }).program;
+    const thing = program.context?.Thing?.$default;
     expect(thing?.plain).toBe("/ab+c/i");
     expect(thing?.grouped).toBe("/(ab)+c/");
   });
