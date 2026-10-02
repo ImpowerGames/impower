@@ -37,6 +37,21 @@ function lineOf(code: string, offset: number): number {
   return code.slice(0, offset).split("\n").length;
 }
 
+/** The bare-word classes of a style rule's selector (`> text title`,
+ *  `& secondary`). A selector is compound selectors joined by combinators
+ *  (`>`, `>>`, `+`, `~`) or listed with `,`; each compound is one word, its
+ *  classes glued to it with dots, so a second word after whitespace is a
+ *  bare class. Attribute values, a state's arguments and quoted text are
+ *  dropped first, since they may hold spaces. */
+function selectorBareClasses(selector: string): string[] {
+  const compounds = selector
+    .replace(/\[[^\]]*\]|\([^)]*\)|"[^"]*"|'[^']*'/g, "")
+    .split(/>>|>|\+|~|,/);
+  return compounds.flatMap((compound) =>
+    compound.trim().split(/\s+/).filter(Boolean).slice(1),
+  );
+}
+
 /** Each declaration of the five kinds in a source, and every old-form mark
  *  inside one, as `line: what`. */
 function readDeclarations(code: string) {
@@ -86,23 +101,11 @@ function readDeclarations(code: string) {
           );
         }
       } else if (
-        (node.name === "CustomComponentName" ||
-          node.name === "BuiltinComponentName") &&
-        parent?.name === "LuauStructBlockKey_c1"
+        node.name === "LuauStructBlockKey" &&
+        stack.some((n) => n.name === "LuauStyle")
       ) {
-        // In a style selector, a word after whitespace that follows a name,
-        // a class, `&` or a closing bracket is a bare class (`> text title`,
-        // `& secondary`); after a combinator (`>`, `>>`, `,`, `+`, `~`) or
-        // at the start it is an element name.
-        const key = [...stack]
-          .reverse()
-          .find((n) => n.name === "LuauStructBlockKey");
-        const before = key ? textOf(key.from, node.from) : "";
-        const trimmed = before.trimEnd();
-        if (trimmed.length < before.length && /[\w&)\]]$/.test(trimmed)) {
-          oldForms.push(
-            `${where}: the bare class \`${textOf(node.from, node.to)}\` in a selector`,
-          );
+        for (const word of selectorBareClasses(textOf(node.from, node.to))) {
+          oldForms.push(`${where}: the bare class \`${word}\` in a selector`);
         }
       }
     },
@@ -191,4 +194,67 @@ describe("the Sparkle guide's examples", () => {
       expect(readDeclarations(example.script).oldForms).toEqual([]);
     },
   );
+});
+
+// The check above is only as good as what it can see, so it is pinned here
+// on old forms it must report and new forms it must accept.
+const style = (rule: string) =>
+  `style dialogue with\n  ${rule} { color = red }\nend\n`;
+const layout = (body: string) => `layout hud with\n  ${body}\nend\n`;
+
+describe("the guide's old-form check", () => {
+  test.each([
+    ["a `:` header", layout(`column:\n    text "a"`)],
+    [
+      "a `-` item",
+      `animation a with\n  keyframes:\n    -\n      opacity = 0\nend\n`,
+    ],
+    ["a bare class on an indented line", layout(`text title "a"`)],
+    ["a bare class in a block", layout(`row { text title "a" }`)],
+    ["a non-ASCII bare class in a block", layout(`row { text заголовок "a" }`)],
+    ["a second word after a slot's name", layout(`box { slot footer extra }`)],
+    ["a bare class after a selector's name", style("> text headline")],
+    ["a bare class after `&`", style("& secondary")],
+    ["a bare class after a non-ASCII name", style("> текст headline")],
+    ["a non-ASCII bare class", style("> text заголовок")],
+    [
+      "a bare class after a non-ASCII class",
+      style("> text.заголовок secondary"),
+    ],
+    [
+      "a bare class after a hyphen-ending class",
+      style("> text.headline- secondary"),
+    ],
+    ["a bare class after `&` and a class", style("&.secondary- extra")],
+    ["a bare class in a selector list", style("@hovered, > text headline")],
+  ])("reports %s", (_, source) => {
+    expect(readDeclarations(source).oldForms).not.toEqual([]);
+  });
+
+  test.each([
+    [
+      "dotted classes",
+      layout(`row.hud { text.title "a"; text.заголовок "b" }`),
+    ],
+    [
+      "a slot name and a fill",
+      layout(`box { slot footer }\n  card { fill footer { text } }`),
+    ],
+    ["combinators", style("> text + image ~ mask, >> stroke")],
+    ["`&` with a class", style("&.secondary")],
+    ["states and breakpoints", style("@hovered, @pressed")],
+    ["a breakpoint before a combinator", style("@screen-size(sm) > text")],
+    ["an attribute selector with a space", style(`&[data-label="a b"]`)],
+    ["a non-ASCII dotted class", style("> text.заголовок")],
+    [
+      "a theme key of two words",
+      `theme dusk with\n  font sizes { sm = 10px; lg = 20px }\nend\n`,
+    ],
+    [
+      "keyframe positions",
+      `animation fade with\n  keyframes {\n    from { opacity = 0 }\n    40% { opacity = 1 }\n  }\nend\n`,
+    ],
+  ])("accepts %s", (_, source) => {
+    expect(readDeclarations(source).oldForms).toEqual([]);
+  });
 });
