@@ -27,6 +27,8 @@ export default [
       "sparkdown-grammar/no-raw-whitespace-class": "error",
       "sparkdown-grammar/no-handwritten-alternation": "warn",
       "sparkdown-grammar/capturing-var-naming": "error",
+      "sparkdown-grammar/no-zero-width-in-patterns": "error",
+      "sparkdown-grammar/no-newline-in-lookaround": "error",
     },
   },
 ];

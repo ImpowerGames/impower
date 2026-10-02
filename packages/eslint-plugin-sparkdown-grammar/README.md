@@ -22,10 +22,8 @@ pointer back to the rationale.
 | `no-zero-width-in-patterns`  | error | §12. A rule that can match zero characters must not be included in a `patterns:` list, directly or through a `Switch` rule.       |
 | `no-newline-in-lookaround`   | error | §11.5. Lookarounds must not try to span line boundaries, which VS Code's line-at-a-time tokenizer cannot see.                     |
 
-Level is the plugin's `recommended` configuration. The root
-`eslint.config.js` currently enables the first five rules only, so
-`no-zero-width-in-patterns` and `no-newline-in-lookaround` do not run in
-the editor or in CI.
+The root `eslint.config.js` enables every rule at the level shown, which
+is also the plugin's `recommended` configuration.
 
 ## Setup
 
