@@ -1,49 +1,42 @@
-// Rule: every rule that declares `tag` must also declare `name`. Per
+// Rule: `tag` and `name` appear together on grammar rules, both ways. Per
 // GRAMMAR.md §8, the two attributes target different renderers
 // (Lezer/CodeMirror vs VS Code's TextMate engine) and one can't be
-// inferred from the other. The asymmetry of *this* rule (we don't
-// require `tag` when `name` is present) is intentional: container /
-// region rules like `Choice` or `ArmDivert` carry a `name:` to scope
-// a region for VS Code themes but have no Lezer tag — their content
-// is highlighted by sub-rules via captures.
+// inferred from the other: a rule with only one of them highlights in one
+// editor and not the other.
+//
+// A `name:` without a `tag:` is baselined per owner (see
+// utils/baseline.ts) for the region rules that predate this check.
 
-import type { Rule } from "eslint";
-import {
-  findPair,
-  isMapping,
-  isRuleMapping,
-  type YAMLMapping,
-} from "../utils/yaml-ast.ts";
+import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
+import { findPair } from "../utils/yaml-ast.ts";
+import { getGrammarIndex } from "../utils/grammar-index.ts";
 
-const rule: Rule.RuleModule = {
-  meta: {
+const { rule, find } = defineBaselinedRule(
+  {
     type: "problem",
     docs: {
       description:
         "Require `tag` and `name` to appear together on grammar rules.",
     },
-    schema: [],
     messages: {
-      missingName:
-        "Rule has `tag` but no `name`. VS Code highlighting needs the TextMate scope name too. See GRAMMAR.md §8.",
+      missingName: `Rule has \`tag\` but no \`name\`. VS Code highlighting needs the TextMate scope name too. See GRAMMAR.md §8.${BASELINE_NOTE}`,
+      missingTag: `Rule has \`name\` but no \`tag\`. CodeMirror highlighting needs the Lezer tag too. See GRAMMAR.md §8.${BASELINE_NOTE}`,
     },
   },
-  create(context) {
-    return {
-      YAMLMapping(node: unknown) {
-        const mapping = node as YAMLMapping;
-        if (!isMapping(mapping) || !isRuleMapping(mapping)) return;
-        const tagPair = findPair(mapping, "tag");
-        const namePair = findPair(mapping, "name");
-        if (tagPair && !namePair) {
-          context.report({
-            loc: tagPair.loc,
-            messageId: "missingName",
-          });
-        }
-      },
-    };
+  (context) => {
+    const findings: Finding[] = [];
+    for (const { owner, mapping } of getGrammarIndex(context).ruleMappings) {
+      const tagPair = findPair(mapping, "tag");
+      const namePair = findPair(mapping, "name");
+      if (tagPair && !namePair) {
+        findings.push({ owner: owner.id, loc: tagPair.loc, messageId: "missingName" });
+      } else if (namePair && !tagPair) {
+        findings.push({ owner: owner.id, loc: namePair.loc, messageId: "missingTag" });
+      }
+    }
+    return findings;
   },
-};
+);
 
+export { find };
 export default rule;
