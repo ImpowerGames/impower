@@ -1,4 +1,4 @@
-sparkdown [0..54]
+sparkdown [0..101]
  ├─ LuauLayout [0..35]
  │   ├─ LuauLayout_begin [0..7]
  │   │   ├─ LuauLayout_begin_c1 0
@@ -40,13 +40,7 @@ sparkdown [0..54]
  │   │   │       └─ LuauStructBodyLine_c3 22
  │   │   │           └─ OptionalWhitespace 22
  │   │   ├─ Newline [22..23]: "\n"
- │   │   ├─ LuauLayoutNameAndInheritance [23..24]
- │   │   │   ├─ LuauLayoutNameAndInheritance_begin [23..24]
- │   │   │   │   └─ LuauLayoutNameAndInheritance_begin_c1 [23..24]
- │   │   │   │       └─ LuauDefineName [23..24]: "x"
- │   │   │   └─ LuauLayoutNameAndInheritance_end 24
- │   │   │       ├─ LuauLayoutNameAndInheritance_end_c1 24
- │   │   │       └─ LuauLayoutNameAndInheritance_end_c2 24
+ │   │   ├─ LuauStructStrayLine [23..24]: "x"
  │   │   ├─ Newline [24..25]: "\n"
  │   │   ├─ LuauStructBodyLine [25..31]
  │   │   │   ├─ LuauStructBodyLine_c1 [25..27]
@@ -75,26 +69,89 @@ sparkdown [0..54]
  │       └─ LuauLayout_end_c2 [32..35]
  │           └─ LuauEndKeyword [32..35]: "end"
  ├─ Newline [35..36]: "\n"
- ├─ ImplicitAction [36..53]
- │   ├─ ImplicitAction_begin 36
- │   │   └─ ImplicitAction_begin_c1 36
- │   │       └─ OptionalWhitespace 36
- │   ├─ ImplicitAction_content [36..53]
- │   │   └─ LineEnd [36..53]
- │   │       ├─ LineEnd_begin 36
- │   │       │   └─ LineEnd_begin_c1 36
- │   │       │       └─ OptionalWhitespace 36
- │   │       ├─ LineEnd_content [36..53]
- │   │       │   └─ TextChunk [36..53]
- │   │       │       ├─ TextChunk_begin 36
- │   │       │       ├─ TextChunk_content [36..53]
- │   │       │       │   ├─ Word [36..41]: "After"
- │   │       │       │   ├─ Space [41..42]: " "
- │   │       │       │   ├─ Word [42..45]: "the"
- │   │       │       │   ├─ Space [45..46]: " "
- │   │       │       │   ├─ Word [46..52]: "layout"
- │   │       │       │   └─ Punctuation [52..53]: "."
- │   │       │       └─ TextChunk_end 53
- │   │       └─ LineEnd_end 53
- │   └─ ImplicitAction_end 53
- └─ Newline [53..54]: "\n"
+ ├─ LuauStyle [36..82]
+ │   ├─ LuauStyle_begin [36..42]
+ │   │   ├─ LuauStyle_begin_c1 36
+ │   │   │   └─ OptionalWhitespace 36
+ │   │   ├─ LuauStyle_begin_c2 [36..41]
+ │   │   │   └─ LuauStyleKeyword [36..41]: "style"
+ │   │   └─ LuauStyle_begin_c3 [41..42]
+ │   │       └─ LuauStyle_begin_c3 [41..42]
+ │   │           └─ OptionalWhitespace [41..42]: " "
+ │   ├─ LuauStyle_content [42..79]
+ │   │   ├─ LuauStyleNameAndInheritance [42..51]
+ │   │   │   ├─ LuauStyleNameAndInheritance_begin [42..46]
+ │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [42..46]
+ │   │   │   │       └─ LuauDefineName [42..46]: "card"
+ │   │   │   └─ LuauStyleNameAndInheritance_end [46..51]
+ │   │   │       ├─ LuauStyleNameAndInheritance_end_c1 [46..47]
+ │   │   │       │   └─ LuauStyleNameAndInheritance_end_c1 [46..47]
+ │   │   │       │       └─ OptionalWhitespace [46..47]: " "
+ │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [47..51]
+ │   │   │           └─ LuauWithKeyword [47..51]: "with"
+ │   │   ├─ Newline [51..52]: "\n"
+ │   │   ├─ LuauStructBodyLine [52..65]
+ │   │   │   ├─ LuauStructBodyLine_c1 [52..54]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [52..54]
+ │   │   │   │       └─ OptionalWhitespace [52..54]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [54..65]
+ │   │   │   │   └─ LuauStructBodyContent [54..65]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [54..65]
+ │   │   │   │           └─ LuauStructScalarProperty [54..65]
+ │   │   │   │               ├─ LuauStructScalarProperty_c1 54
+ │   │   │   │               │   └─ OptionalWhitespace 54
+ │   │   │   │               ├─ LuauStructScalarProperty_c2 [54..59]
+ │   │   │   │               │   └─ StylingDeclarationScalarPropertyName [54..59]
+ │   │   │   │               │       └─ StylingDeclarationScalarPropertyName_c1 [54..59]
+ │   │   │   │               │           └─ DeclarationScalarPropertyKey [54..59]: "color"
+ │   │   │   │               ├─ LuauStructScalarProperty_c3 [59..62]
+ │   │   │   │               │   └─ AssignEqualOperator [59..62]
+ │   │   │   │               │       ├─ AssignEqualOperator_c1 [59..60]
+ │   │   │   │               │       │   └─ AssignEqualOperator_c1 [59..60]
+ │   │   │   │               │       │       └─ OptionalSeparator [59..60]: " "
+ │   │   │   │               │       ├─ AssignEqualOperator_c2 [60..61]
+ │   │   │   │               │       │   └─ EqualOperator [60..61]: "="
+ │   │   │   │               │       └─ AssignEqualOperator_c3 [61..62]
+ │   │   │   │               │           └─ AssignEqualOperator_c3 [61..62]
+ │   │   │   │               │               └─ OptionalSeparator [61..62]: " "
+ │   │   │   │               └─ LuauStructScalarProperty_c4 [62..65]
+ │   │   │   │                   └─ StylingValue [62..65]
+ │   │   │   │                       ├─ StylingValue_c1 [62..65]
+ │   │   │   │                       │   └─ StylingStringIdentifier [62..65]: "red"
+ │   │   │   │                       └─ StylingValue_c2 65
+ │   │   │   └─ LuauStructBodyLine_c3 65
+ │   │   │       └─ LuauStructBodyLine_c3 65
+ │   │   │           └─ OptionalWhitespace 65
+ │   │   ├─ Newline [65..66]: "\n"
+ │   │   ├─ LuauStructStrayLine [66..78]: "color = blue"
+ │   │   └─ Newline [78..79]: "\n"
+ │   └─ LuauStyle_end [79..82]
+ │       ├─ LuauStyle_end_c1 79
+ │       │   └─ LuauStyle_end_c1 79
+ │       │       └─ OptionalWhitespace 79
+ │       └─ LuauStyle_end_c2 [79..82]
+ │           └─ LuauEndKeyword [79..82]: "end"
+ ├─ Newline [82..83]: "\n"
+ ├─ ImplicitAction [83..100]
+ │   ├─ ImplicitAction_begin 83
+ │   │   └─ ImplicitAction_begin_c1 83
+ │   │       └─ OptionalWhitespace 83
+ │   ├─ ImplicitAction_content [83..100]
+ │   │   └─ LineEnd [83..100]
+ │   │       ├─ LineEnd_begin 83
+ │   │       │   └─ LineEnd_begin_c1 83
+ │   │       │       └─ OptionalWhitespace 83
+ │   │       ├─ LineEnd_content [83..100]
+ │   │       │   └─ TextChunk [83..100]
+ │   │       │       ├─ TextChunk_begin 83
+ │   │       │       ├─ TextChunk_content [83..100]
+ │   │       │       │   ├─ Word [83..88]: "After"
+ │   │       │       │   ├─ Space [88..89]: " "
+ │   │       │       │   ├─ Word [89..92]: "the"
+ │   │       │       │   ├─ Space [92..93]: " "
+ │   │       │       │   ├─ Word [93..99]: "blocks"
+ │   │       │       │   └─ Punctuation [99..100]: "."
+ │   │       │       └─ TextChunk_end 100
+ │   │       └─ LineEnd_end 100
+ │   └─ ImplicitAction_end 100
+ └─ Newline [100..101]: "\n"

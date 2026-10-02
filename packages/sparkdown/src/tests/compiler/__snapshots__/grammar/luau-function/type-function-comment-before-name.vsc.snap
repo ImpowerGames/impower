@@ -63,9 +63,10 @@ text.source.sparkdown [0..150]
  │           ├─ punctuation.definition.template-expression.begin.sd [96..97]: "<"
  │           ├─ entity.name.type.luau [97..98]: "T"
  │           ├─ punctuation.definition.template-expression.end.sd [98..99]: ">"
- │           ├─ punctuation.definition.template-expression.begin.sd [99..100]: "("
- │           ├─ variable.other.readwrite.luau [100..101]: "t"
- │           ├─ punctuation.definition.template-expression.end.sd [101..102]: ")"
+ │           ├─ meta.parameter.luau [99..102]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [99..100]: "("
+ │           │   ├─ variable.parameter.function.luau [100..101]: "t"
+ │           │   └─ punctuation.definition.template-expression.end.sd [101..102]: ")"
  │           ├─ keyword.operator.type.luau [102..103]: ":"
  │           ├─ punctuation.whitespace.optional.sd [103..104]: " "
  │           └─ support.type.primitive.luau [104..110]: "number"

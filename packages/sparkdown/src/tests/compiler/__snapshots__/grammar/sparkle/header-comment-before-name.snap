@@ -1,4 +1,4 @@
-sparkdown [0..114]
+sparkdown [0..124]
  ├─ LuauLayout [0..57]
  │   ├─ LuauLayout_begin [0..7]
  │   │   ├─ LuauLayout_begin_c1 0
@@ -110,7 +110,7 @@ sparkdown [0..114]
  │       └─ LuauLayout_end_c2 [54..57]
  │           └─ LuauEndKeyword [54..57]: "end"
  ├─ Newline [57..58]: "\n"
- ├─ LuauComponent [58..113]
+ ├─ LuauComponent [58..123]
  │   ├─ LuauComponent_begin [58..68]
  │   │   ├─ LuauComponent_begin_c1 58
  │   │   │   └─ OptionalWhitespace 58
@@ -119,7 +119,7 @@ sparkdown [0..114]
  │   │   └─ LuauComponent_begin_c3 [67..68]
  │   │       └─ LuauComponent_begin_c3 [67..68]
  │   │           └─ OptionalWhitespace [67..68]: " "
- │   ├─ LuauComponent_content [68..110]
+ │   ├─ LuauComponent_content [68..120]
  │   │   ├─ LuauBlockComment [68..78]
  │   │   │   ├─ LuauBlockComment_begin [68..72]
  │   │   │   │   ├─ LuauBlockComment_begin_c1 68
@@ -141,72 +141,94 @@ sparkdown [0..114]
  │   │   │       └─ LuauBlockComment_end_c4 [77..78]
  │   │   │           └─ LuauBlockComment_end_c4 [77..78]
  │   │   │               └─ OptionalWhitespace [77..78]: " "
- │   │   ├─ LuauComponentNameAndInheritance [78..95]
+ │   │   ├─ LuauComponentNameAndInheritance [78..102]
  │   │   │   ├─ LuauComponentNameAndInheritance_begin [78..82]
  │   │   │   │   └─ LuauComponentNameAndInheritance_begin_c1 [78..82]
  │   │   │   │       └─ LuauDefineName [78..82]: "card"
- │   │   │   ├─ LuauComponentNameAndInheritance_content [82..91]
- │   │   │   │   └─ LuauInheritanceOperation [82..91]
- │   │   │   │       ├─ LuauInheritanceOperation_c1 [82..83]
- │   │   │   │       │   └─ OptionalWhitespace [82..83]: " "
- │   │   │   │       ├─ LuauInheritanceOperation_c2 [83..85]
- │   │   │   │       │   └─ LuauAsKeyword [83..85]: "as"
- │   │   │   │       ├─ LuauInheritanceOperation_c3 [85..86]
- │   │   │   │       │   └─ LuauInheritanceOperation_c3 [85..86]
- │   │   │   │       │       └─ OptionalWhitespace [85..86]: " "
- │   │   │   │       ├─ LuauInheritanceOperation_c4 [86..90]
- │   │   │   │       │   └─ LuauDefineParentName [86..90]: "base"
- │   │   │   │       └─ LuauInheritanceOperation_c5 [90..91]
- │   │   │   │           └─ LuauInheritanceOperation_c5 [90..91]
- │   │   │   │               └─ OptionalWhitespace [90..91]: " "
- │   │   │   └─ LuauComponentNameAndInheritance_end [91..95]
- │   │   │       ├─ LuauComponentNameAndInheritance_end_c1 91
- │   │   │       │   └─ LuauComponentNameAndInheritance_end_c1 91
- │   │   │       │       └─ OptionalWhitespace 91
- │   │   │       └─ LuauComponentNameAndInheritance_end_c2 [91..95]
- │   │   │           └─ LuauWithKeyword [91..95]: "with"
- │   │   ├─ Newline [95..96]: "\n"
- │   │   ├─ LuauStructBodyLine [96..109]
- │   │   │   ├─ LuauStructBodyLine_c1 [96..98]
- │   │   │   │   └─ LuauStructBodyLine_c1 [96..98]
- │   │   │   │       └─ OptionalWhitespace [96..98]: "  "
- │   │   │   ├─ LuauStructBodyLine_c2 [98..109]
- │   │   │   │   └─ LuauStructBodyContent [98..109]
- │   │   │   │       └─ LuauStructBodyContent_c1 [98..109]
- │   │   │   │           └─ LuauStructAdjacencyContent [98..109]
- │   │   │   │               ├─ LuauStructAdjacencyContent_c1 98
- │   │   │   │               │   └─ OptionalWhitespace 98
- │   │   │   │               ├─ LuauStructAdjacencyContent_c2 [98..102]
- │   │   │   │               │   └─ BuiltinComponentName [98..102]: "text"
- │   │   │   │               ├─ LuauStructAdjacencyContent_c3 [102..103]
- │   │   │   │               │   └─ LuauStructAdjacencyContent_c3 [102..103]
- │   │   │   │               │       └─ OptionalWhitespace [102..103]: " "
- │   │   │   │               ├─ LuauStructAdjacencyContent_c4 [103..109]
- │   │   │   │               │   └─ StringFieldValue [103..109]
- │   │   │   │               │       ├─ StringFieldValue_c1 [103..104]
- │   │   │   │               │       │   └─ PunctuationStringOpen [103..104]: "\""
- │   │   │   │               │       ├─ StringFieldValue_c2 [104..108]
- │   │   │   │               │       │   └─ PlainStringContent [104..108]
- │   │   │   │               │       │       └─ PlainStringContent_c1 [104..108]
- │   │   │   │               │       │           ├─ StringCharacter [104..105]: "c"
- │   │   │   │               │       │           ├─ StringCharacter [105..106]: "a"
- │   │   │   │               │       │           ├─ StringCharacter [106..107]: "r"
- │   │   │   │               │       │           └─ StringCharacter [107..108]: "d"
- │   │   │   │               │       ├─ StringFieldValue_c3 [108..109]
- │   │   │   │               │       │   └─ PunctuationStringClose [108..109]: "\""
- │   │   │   │               │       └─ StringFieldValue_c4 109
- │   │   │   │               ├─ LuauStructAdjacencyContent_c5 109
- │   │   │   │               │   └─ LuauStructAdjacencyContent_c5 109
- │   │   │   │               │       └─ OptionalWhitespace 109
- │   │   │   │               └─ LuauStructAdjacencyContent_c6 109
- │   │   │   └─ LuauStructBodyLine_c3 109
- │   │   │       └─ LuauStructBodyLine_c3 109
- │   │   │           └─ OptionalWhitespace 109
- │   │   └─ Newline [109..110]: "\n"
- │   └─ LuauComponent_end [110..113]
- │       ├─ LuauComponent_end_c1 110
- │       │   └─ LuauComponent_end_c1 110
- │       │       └─ OptionalWhitespace 110
- │       └─ LuauComponent_end_c2 [110..113]
- │           └─ LuauEndKeyword [110..113]: "end"
- └─ Newline [113..114]: "\n"
+ │   │   │   ├─ LuauComponentNameAndInheritance_content [82..98]
+ │   │   │   │   ├─ LuauFunctionParameters [82..89]
+ │   │   │   │   │   ├─ LuauFunctionParameters_begin [82..83]
+ │   │   │   │   │   │   └─ LuauFunctionParameters_begin_c1 [82..83]
+ │   │   │   │   │   │       └─ PunctuationParenOpen [82..83]: "("
+ │   │   │   │   │   ├─ LuauFunctionParameters_content [83..88]
+ │   │   │   │   │   │   └─ LuauFunctionParameter [83..88]: "title"
+ │   │   │   │   │   └─ LuauFunctionParameters_end [88..89]
+ │   │   │   │   │       └─ LuauFunctionParameters_end_c1 [88..89]
+ │   │   │   │   │           └─ PunctuationParenClose [88..89]: ")"
+ │   │   │   │   └─ LuauInheritanceOperation [89..98]
+ │   │   │   │       ├─ LuauInheritanceOperation_c1 [89..90]
+ │   │   │   │       │   └─ OptionalWhitespace [89..90]: " "
+ │   │   │   │       ├─ LuauInheritanceOperation_c2 [90..92]
+ │   │   │   │       │   └─ LuauAsKeyword [90..92]: "as"
+ │   │   │   │       ├─ LuauInheritanceOperation_c3 [92..93]
+ │   │   │   │       │   └─ LuauInheritanceOperation_c3 [92..93]
+ │   │   │   │       │       └─ OptionalWhitespace [92..93]: " "
+ │   │   │   │       ├─ LuauInheritanceOperation_c4 [93..97]
+ │   │   │   │       │   └─ LuauDefineParentName [93..97]: "base"
+ │   │   │   │       └─ LuauInheritanceOperation_c5 [97..98]
+ │   │   │   │           └─ LuauInheritanceOperation_c5 [97..98]
+ │   │   │   │               └─ OptionalWhitespace [97..98]: " "
+ │   │   │   └─ LuauComponentNameAndInheritance_end [98..102]
+ │   │   │       ├─ LuauComponentNameAndInheritance_end_c1 98
+ │   │   │       │   └─ LuauComponentNameAndInheritance_end_c1 98
+ │   │   │       │       └─ OptionalWhitespace 98
+ │   │   │       └─ LuauComponentNameAndInheritance_end_c2 [98..102]
+ │   │   │           └─ LuauWithKeyword [98..102]: "with"
+ │   │   ├─ Newline [102..103]: "\n"
+ │   │   ├─ LuauStructBodyLine [103..119]
+ │   │   │   ├─ LuauStructBodyLine_c1 [103..105]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [103..105]
+ │   │   │   │       └─ OptionalWhitespace [103..105]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [105..119]
+ │   │   │   │   └─ LuauStructBodyContent [105..119]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [105..119]
+ │   │   │   │           └─ LuauStructAdjacencyContent [105..119]
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c1 105
+ │   │   │   │               │   └─ OptionalWhitespace 105
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c2 [105..109]
+ │   │   │   │               │   └─ BuiltinComponentName [105..109]: "text"
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c3 [109..110]
+ │   │   │   │               │   └─ LuauStructAdjacencyContent_c3 [109..110]
+ │   │   │   │               │       └─ OptionalWhitespace [109..110]: " "
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c4 [110..119]
+ │   │   │   │               │   └─ StringFieldValueInterpolated [110..119]
+ │   │   │   │               │       ├─ StringFieldValueInterpolated_begin [110..111]
+ │   │   │   │               │       │   └─ StringFieldValueInterpolated_begin_c1 [110..111]
+ │   │   │   │               │       │       └─ PunctuationStringOpen [110..111]: "\""
+ │   │   │   │               │       ├─ StringFieldValueInterpolated_content [111..118]
+ │   │   │   │               │       │   └─ LuauInterpolatedStringExpression [111..118]
+ │   │   │   │               │       │       ├─ LuauInterpolatedStringExpression_begin [111..112]
+ │   │   │   │               │       │       │   └─ LuauInterpolatedStringExpression_begin_c1 [111..112]
+ │   │   │   │               │       │       │       └─ PunctuationBraceOpen [111..112]: "{"
+ │   │   │   │               │       │       ├─ LuauInterpolatedStringExpression_content [112..117]
+ │   │   │   │               │       │       │   └─ LuauAccessPath [112..117]
+ │   │   │   │               │       │       │       ├─ LuauAccessPath_begin 112
+ │   │   │   │               │       │       │       ├─ LuauAccessPath_content [112..117]
+ │   │   │   │               │       │       │       │   └─ LuauAccessPart [112..117]
+ │   │   │   │               │       │       │       │       └─ LuauVariable [112..117]
+ │   │   │   │               │       │       │       │           └─ LuauVariable_c1 [112..117]
+ │   │   │   │               │       │       │       │               └─ LuauVariableName [112..117]: "title"
+ │   │   │   │               │       │       │       └─ LuauAccessPath_end 117
+ │   │   │   │               │       │       │           └─ LuauAccessPath_end_c1 117
+ │   │   │   │               │       │       └─ LuauInterpolatedStringExpression_end [117..118]
+ │   │   │   │               │       │           └─ LuauInterpolatedStringExpression_end_c1 [117..118]
+ │   │   │   │               │       │               └─ PunctuationBraceClose [117..118]: "}"
+ │   │   │   │               │       └─ StringFieldValueInterpolated_end [118..119]
+ │   │   │   │               │           ├─ StringFieldValueInterpolated_end_c1 [118..119]
+ │   │   │   │               │           │   └─ PunctuationStringClose [118..119]: "\""
+ │   │   │   │               │           └─ StringFieldValueInterpolated_end_c2 119
+ │   │   │   │               ├─ LuauStructAdjacencyContent_c5 119
+ │   │   │   │               │   └─ LuauStructAdjacencyContent_c5 119
+ │   │   │   │               │       └─ OptionalWhitespace 119
+ │   │   │   │               └─ LuauStructAdjacencyContent_c6 119
+ │   │   │   └─ LuauStructBodyLine_c3 119
+ │   │   │       └─ LuauStructBodyLine_c3 119
+ │   │   │           └─ OptionalWhitespace 119
+ │   │   └─ Newline [119..120]: "\n"
+ │   └─ LuauComponent_end [120..123]
+ │       ├─ LuauComponent_end_c1 120
+ │       │   └─ LuauComponent_end_c1 120
+ │       │       └─ OptionalWhitespace 120
+ │       └─ LuauComponent_end_c2 [120..123]
+ │           └─ LuauEndKeyword [120..123]: "end"
+ └─ Newline [123..124]: "\n"

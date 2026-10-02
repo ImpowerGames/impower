@@ -1,4 +1,4 @@
-text.source.sparkdown [0..80]
+text.source.sparkdown [0..72]
  ├─ meta.function.luau [0..18]
  │   ├─ keyword.control.define.luau [0..6]: "define"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
@@ -46,14 +46,6 @@ text.source.sparkdown [0..80]
  ├─ meta.function.luau [64..67]
  │   └─ keyword.control.end.luau [64..67]: "end"
  ├─ Newline [67..68]: "\n"
- ├─ meta.function.luau [68..75]
- │   └─ meta.function.luau [68..75]
- │       ├─ entity.name.function.luau [68..73]: "greet"
- │       └─ meta.parameter.luau [73..75]
- │           ├─ punctuation.definition.template-expression.begin.sd [73..74]: "("
- │           └─ punctuation.definition.template-expression.end.sd [74..75]: ")"
- ├─ Newline [75..76]: "\n"
- ├─ meta.function.luau [76..79]
- │   └─ meta.function.luau [76..79]
- │       └─ keyword.control.end.luau [76..79]: "end"
- └─ Newline [79..80]: "\n"
+ ├─ meta.function.luau [68..71]
+ │   └─ keyword.control.end.luau [68..71]: "end"
+ └─ Newline [71..72]: "\n"

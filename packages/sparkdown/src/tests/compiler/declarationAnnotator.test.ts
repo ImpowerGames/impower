@@ -120,4 +120,29 @@ end
     // The statement after the name is read, not declared.
     expect(decls.filter((d) => d.text === "first").length).toBe(1);
   });
+
+  // #1279: the header names of these blocks are read by rule order after
+  // their keyword, so a block comment there no longer hides the name, and a
+  // stray word at column 0 in the body is not read as another name.
+  test("a block's name is declared after a comment, and only its name", () => {
+    const decls = collectDeclarations(`style --[[ s ]] banner with
+  color = red
+color = blue
+end
+layout --[[ l ]] hud with
+  text "hi"
+x
+end
+component --[[ c ]] card(title) with
+  text "{title}"
+end
+function --[[ f ]] greet(who)
+end
+`);
+    const defines = decls.filter((d) => d.type === "define").map((d) => d.text);
+    expect(defines).toEqual(["banner", "hud", "card"]);
+    expect(has(decls, "param", "title")).toBe(true);
+    expect(has(decls, "function", "greet")).toBe(true);
+    expect(has(decls, "param", "who")).toBe(true);
+  });
 });

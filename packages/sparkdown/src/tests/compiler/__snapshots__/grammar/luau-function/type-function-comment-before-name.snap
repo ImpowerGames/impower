@@ -153,24 +153,15 @@ sparkdown [0..150]
  │   │       │   │   │   │   └─ LuauGenericsDeclaration_end [98..99]
  │   │       │   │   │   │       └─ LuauGenericsDeclaration_end_c1 [98..99]
  │   │       │   │   │   │           └─ PunctuationAngleClose [98..99]: ">"
- │   │       │   │   │   ├─ LuauParenthetical [99..102]
- │   │       │   │   │   │   ├─ LuauParenthetical_begin [99..100]
- │   │       │   │   │   │   │   └─ LuauParenthetical_begin_c1 [99..100]
+ │   │       │   │   │   ├─ LuauFunctionParameters [99..102]
+ │   │       │   │   │   │   ├─ LuauFunctionParameters_begin [99..100]
+ │   │       │   │   │   │   │   └─ LuauFunctionParameters_begin_c1 [99..100]
  │   │       │   │   │   │   │       └─ PunctuationParenOpen [99..100]: "("
- │   │       │   │   │   │   ├─ LuauParenthetical_content [100..101]
- │   │       │   │   │   │   │   └─ LuauAccessPath [100..101]
- │   │       │   │   │   │   │       ├─ LuauAccessPath_begin 100
- │   │       │   │   │   │   │       ├─ LuauAccessPath_content [100..101]
- │   │       │   │   │   │   │       │   └─ LuauAccessPart [100..101]
- │   │       │   │   │   │   │       │       └─ LuauVariable [100..101]
- │   │       │   │   │   │   │       │           └─ LuauVariable_c1 [100..101]
- │   │       │   │   │   │   │       │               └─ LuauVariableName [100..101]: "t"
- │   │       │   │   │   │   │       └─ LuauAccessPath_end 101
- │   │       │   │   │   │   │           └─ LuauAccessPath_end_c1 101
- │   │       │   │   │   │   └─ LuauParenthetical_end [101..102]
- │   │       │   │   │   │       ├─ LuauParenthetical_end_c1 [101..102]
- │   │       │   │   │   │       │   └─ PunctuationParenClose [101..102]: ")"
- │   │       │   │   │   │       └─ LuauParenthetical_end_c2 102
+ │   │       │   │   │   │   ├─ LuauFunctionParameters_content [100..101]
+ │   │       │   │   │   │   │   └─ LuauFunctionParameter [100..101]: "t"
+ │   │       │   │   │   │   └─ LuauFunctionParameters_end [101..102]
+ │   │       │   │   │   │       └─ LuauFunctionParameters_end_c1 [101..102]
+ │   │       │   │   │   │           └─ PunctuationParenClose [101..102]: ")"
  │   │       │   │   │   ├─ LuauFunctionReturnType [102..111]
  │   │       │   │   │   │   ├─ LuauFunctionReturnType_begin [102..104]
  │   │       │   │   │   │   │   ├─ LuauFunctionReturnType_begin_c1 [102..103]

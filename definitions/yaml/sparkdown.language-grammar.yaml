@@ -750,8 +750,13 @@ variables:
   # dotted or colon name path and an optional generics `<T>` run (`function`,
   # `function t.g`, `function t:m`, `function f<T>`). `LuauFunctionParameters`
   # opens its `(` only right after one, and `LuauFunctionBody` never opens
-  # there.
-  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
+  # there. A block comment may stand between the keyword and the name
+  # (`component --[[ c ]] card(title)`, `type function --[[ c ]] F(t)`).
+  LUAU_FUNCTION_HEADER: (?:\b(?:function|scene|branch|external|component)\b{{WS}}*{{LUAU_HEADER_BLOCK_COMMENT}}*(?:{{LUAU_IDENTIFIER}}(?:{{WS}}*[.:]{{WS}}*{{LUAU_IDENTIFIER}})*)?(?:<[^<>\n]*>)?)
+  # A block comment that closes on its line, as `LUAU_FUNCTION_HEADER` reads
+  # it inside a lookbehind: VS Code's Oniguruma refuses a lookaround there,
+  # so unlike `LUAU_BLOCK_COMMENT_ON_LINE` it takes no `]` inside the comment.
+  LUAU_HEADER_BLOCK_COMMENT: (?:{{LUAU_COMMENT_START}}\[=*\[[^\]\n]*\]=*\]{{WS}}*)
   # A token that a declaration's comma line break (`LuauCommaLineBreak`)
   # can reach but that begins a statement rather than a value: a statement
   # keyword or a type declaration. An `if` there is an if expression, as in
@@ -4131,7 +4136,9 @@ repository:
       - { include: "#LuauStructBodyLine" }
       # The name comes after the body-line rules. They begin only at the
       # start of a line, so the name is read after `style` (and after a
-      # comment there), and a body line at column 0 stays a body line.
+      # comment there), a body line at column 0 stays a body line, and
+      # `LuauStructStrayLine` takes any other line that begins there.
+      - { include: "#LuauStructStrayLine" }
       - { include: "#LuauStyleNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
@@ -4172,6 +4179,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      - { include: "#LuauStructStrayLine" }
       # After the body-line rules: see LuauStyle.
       - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
@@ -4209,6 +4217,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      - { include: "#LuauStructStrayLine" }
       # After the body-line rules: see LuauStyle.
       - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
@@ -4248,6 +4257,7 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      - { include: "#LuauStructStrayLine" }
       # After the body-line rules: see LuauStyle.
       - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
@@ -4285,6 +4295,17 @@ repository:
         emit: true
         patterns:
           - { include: "#OptionalWhitespace" }
+
+  # A line in a `style`, `animation`, `theme`, `morph`, `screen`, `layout` or
+  # `component` body that begins at column 0 and that no body rule reads (body
+  # lines are indented, apart from brace lines and control blocks). Its parents
+  # try it after their body-line rules and before the header-name rule, so a
+  # stray word there is not read as a second name, which the annotators would
+  # declare (`layout.x`). Both engines read the whole line as this one token.
+  LuauStructStrayLine:
+    tag: invalid
+    name: invalid.illegal.struct-body-line.luau
+    match: ^([^\s][^\n]*)
 
   # Per-line body content. The grammar classifies each line into a named
   # SHAPE node (`LuauStructScalarProperty` / `LuauStructArrayItem` /
@@ -4328,8 +4349,9 @@ repository:
   # so the lowerer reads names through the same node names as `define`.
   # It begins at the first name `LuauStyle` reads after its keyword; the
   # parent tries its body-line rules first, so nothing needs to look back
-  # for `style`. It ends with its line, so a stray word at column 0 in the
-  # body opens a name that closes there instead of running on.
+  # for `style`. It ends with its line, so a header without `with`
+  # (`style button` alone) closes there in VS Code too, instead of keeping
+  # the name open over the body.
   LuauStyleNameAndInheritance:
     begin: ({{LUAU_IDENTIFIER}})
     beginCaptures:
@@ -6850,6 +6872,7 @@ repository:
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      - { include: "#LuauStructStrayLine" }
       # After the body-line rules (see LuauStyle). `LuauSparkleControlBlock`
       # begins at its keyword, so a name rule tried first would take an `if`
       # at column 0 as a name.
@@ -6899,6 +6922,7 @@ repository:
       # a struct block, and nothing reads it.
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      - { include: "#LuauStructStrayLine" }
       # After the body-line rules: see LuauStyle.
       - { include: "#LuauScreenNameHeader" }
       - { include: "#ExtraWhitespace" }
@@ -6954,6 +6978,7 @@ repository:
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      - { include: "#LuauStructStrayLine" }
       # After the body-line and control rules: see LuauLayout.
       - { include: "#LuauComponentNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
@@ -9216,7 +9241,6 @@ repository:
       - { include: "#LuauDanglingAccessor" }
       - { include: "#LuauPropertyAccessor" }
       - { include: "#LuauPropertyIndexer" }
-      - { include: "#LuauFunctionDeclarationName" }
       - { include: "#LuauFunctionCall" }
       - { include: "#LuauVariable" }
 
@@ -9240,23 +9264,23 @@ repository:
         patterns:
           - { include: "#ExtraWhitespace" }
 
-  # The lookbehind matches either `function ` (regular definition) or
-  # `external ` (host-binding declaration) — same identifier-capture shape,
-  # different surrounding keyword. Adding `external` here means the
-  # `LuauExternalDeclaration` rule can reuse this declaration-name pattern
-  # without a parallel `LuauExternalDeclarationName` rule.
+  # The name `LuauFunctionDefinition` and `LuauExternalDeclaration` read after
+  # their `function` or `external`, which each begin takes with the
+  # whitespace after it. As in `LuauTypeFunctionName`, their other header
+  # rules begin at a bracket, a `:` or a `->`, and the definition's
+  # `LuauFunctionBody`, tried first, opens right after the header, so their
+  # own patterns meet a name only in the header (and after a comment there).
+  # `LuauAccessPart` no longer includes it: no tree in the corpus or in an
+  # anonymous function with a name (`function f() end` as a value) came from
+  # there, and an access path would have needed a lookbehind on `function`
+  # to keep it out of every other path.
   #
-  # lookaround: the lookbehind is the rule's context, not only its anchor:
-  # `LuauAccessPart` includes this rule before `LuauVariable`, and every
-  # access path reads its parts through that Switch, so without the
-  # lookbehind each name not followed by `.` or `:` would be read as a
-  # function's declared name (fixture luau-access/chained-property and most
-  # of the corpus). Ordering it after `LuauVariable` would leave it nothing
-  # to match. `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method
-  # name (`function a.b()`) to the access path, where `LuauPropertyAccessor`
-  # and `LuauFunctionAccessor` read its parts.
+  # lookaround: `(?!{{LUAU_ACCESSOR_OPERATOR}})` leaves a dotted or method
+  # name (`function a.b()`, `function a:m()`) to `LuauBlockBody`'s access
+  # path, where `LuauPropertyAccessor` and `LuauFunctionAccessor` read its
+  # parts and `lowerLuauFunctionDefinition` reads the name.
   LuauFunctionDeclarationName:
-    match: (?<=(?:function|external)\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
+    match: ({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
       1:
         patterns:
@@ -10335,7 +10359,16 @@ repository:
   # with their own patterns, so in `local a, b = x :: number, y :: string`
   # the second `::` reaches this rule; without the lookbehind it reads that
   # value's cast, which `LuauTypeCastOperation` reads now (fixture
-  # luau-declaration/cast-after-value-comma).
+  # luau-declaration/cast-after-value-comma). The §10.1 alternatives do not
+  # reach it: a target's `::` and a value's `::` are the same token at the
+  # same level of the same list, so no order can pick between this rule and
+  # the `LuauTypeCastOperation` in `LuauExpression` (tried first, it would
+  # read `local x :: number` as a cast); splitting the list needs a scope
+  # that holds the values after `=`, but the targets and values are
+  # siblings in the declaration and the lowerer reads them as such (see
+  # `LuauVariableAssignment`); and the declaration cannot end at its `=`,
+  # since the values are inside it. Whether the `::` comes before the `=`
+  # is history that only this lookbehind sees.
   LuauTargetTypeCast:
     # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
     # there ("invalid pattern in look-behind").

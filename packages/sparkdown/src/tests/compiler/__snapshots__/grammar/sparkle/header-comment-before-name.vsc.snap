@@ -1,4 +1,4 @@
-text.source.sparkdown [0..114]
+text.source.sparkdown [0..124]
  ├─ meta.layout.luau [0..41]
  │   ├─ keyword.control.layout.luau [0..6]: "layout"
  │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
@@ -37,7 +37,7 @@ text.source.sparkdown [0..114]
  ├─ meta.layout.luau [54..57]
  │   └─ keyword.control.end.luau [54..57]: "end"
  ├─ Newline [57..58]: "\n"
- ├─ meta.component.luau [58..95]
+ ├─ meta.component.luau [58..102]
  │   ├─ keyword.control.component.luau [58..67]: "component"
  │   ├─ punctuation.whitespace.optional.sd [67..68]: " "
  │   ├─ comment.block.luau [68..78]
@@ -50,26 +50,31 @@ text.source.sparkdown [0..114]
  │   │   ├─ comment.luau [76..77]: "]"
  │   │   └─ punctuation.whitespace.optional.sd [77..78]: " "
  │   ├─ entity.name.type.define.luau [78..82]: "card"
- │   ├─ punctuation.whitespace.optional.sd [82..83]: " "
- │   ├─ keyword.control.as.luau [83..85]: "as"
- │   ├─ punctuation.whitespace.optional.sd [85..86]: " "
- │   ├─ entity.name.type.define.parent.luau [86..90]: "base"
- │   ├─ punctuation.whitespace.optional.sd [90..91]: " "
- │   └─ keyword.control.as.luau [91..95]: "with"
- ├─ Newline [95..96]: "\n"
- ├─ meta.component.luau [96..109]
- │   ├─ punctuation.whitespace.optional.sd [96..98]: "  "
- │   └─ meta.struct.body.luau [98..109]
- │       ├─ keyword.other.component.builtin.name.sd [98..102]: "text"
- │       ├─ punctuation.whitespace.optional.sd [102..103]: " "
- │       └─ string.quoted.double.sd [103..109]
- │           ├─ punctuation.definition.string.begin.sd [103..104]: "\""
- │           ├─ markup.raw.whitespace.sd [104..105]: "c"
- │           ├─ markup.raw.whitespace.sd [105..106]: "a"
- │           ├─ markup.raw.whitespace.sd [106..107]: "r"
- │           ├─ markup.raw.whitespace.sd [107..108]: "d"
- │           └─ punctuation.definition.string.end.sd [108..109]: "\""
- ├─ Newline [109..110]: "\n"
- ├─ meta.component.luau [110..113]
- │   └─ keyword.control.end.luau [110..113]: "end"
- └─ Newline [113..114]: "\n"
+ │   ├─ meta.parameter.luau [82..89]
+ │   │   ├─ punctuation.definition.template-expression.begin.sd [82..83]: "("
+ │   │   ├─ variable.parameter.function.luau [83..88]: "title"
+ │   │   └─ punctuation.definition.template-expression.end.sd [88..89]: ")"
+ │   ├─ punctuation.whitespace.optional.sd [89..90]: " "
+ │   ├─ keyword.control.as.luau [90..92]: "as"
+ │   ├─ punctuation.whitespace.optional.sd [92..93]: " "
+ │   ├─ entity.name.type.define.parent.luau [93..97]: "base"
+ │   ├─ punctuation.whitespace.optional.sd [97..98]: " "
+ │   └─ keyword.control.as.luau [98..102]: "with"
+ ├─ Newline [102..103]: "\n"
+ ├─ meta.component.luau [103..119]
+ │   ├─ punctuation.whitespace.optional.sd [103..105]: "  "
+ │   └─ meta.struct.body.luau [105..119]
+ │       ├─ keyword.other.component.builtin.name.sd [105..109]: "text"
+ │       ├─ punctuation.whitespace.optional.sd [109..110]: " "
+ │       └─ string.quoted.double.sd [110..119]
+ │           ├─ punctuation.definition.string.begin.sd [110..111]: "\""
+ │           ├─ meta.template.expression.luau [111..118]
+ │           │   ├─ punctuation.definition.template-expression.begin.sd [111..112]: "{"
+ │           │   ├─ meta.embedded.line.luau [112..117]
+ │           │   │   └─ variable.other.readwrite.luau [112..117]: "title"
+ │           │   └─ punctuation.definition.template-expression.end.sd [117..118]: "}"
+ │           └─ punctuation.definition.string.end.sd [118..119]: "\""
+ ├─ Newline [119..120]: "\n"
+ ├─ meta.component.luau [120..123]
+ │   └─ keyword.control.end.luau [120..123]: "end"
+ └─ Newline [123..124]: "\n"

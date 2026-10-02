@@ -4,5 +4,4 @@ x.y = 1
 if name then
   name = "b"
 end
-greet()
 end
