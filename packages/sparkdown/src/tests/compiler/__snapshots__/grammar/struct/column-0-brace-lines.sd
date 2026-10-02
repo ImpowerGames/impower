@@ -1,0 +1,9 @@
+style button with
+&.secondary { background-color = slate_50 }
+end
+animation fade with
+keyframes { from { opacity = 0 } }
+end
+screen hud with
+{ }
+end
