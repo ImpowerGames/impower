@@ -476,6 +476,7 @@
     "repository.LuauSparkleCallArguments": 1,
     "repository.LuauTableIndexDeclaration": 1,
     "repository.LuauTypeTableIndexer": 1,
+    "repository.LuauTypeTrailingBlockComment": 1,
     "repository.LuauUncallableValueTrailingBlockComment": 1
   },
   "tag-name-symmetry": {

@@ -42,3 +42,22 @@ test("inline begin/end rules are checked too", () => {
   assert.equal(messages.length, 1);
   assert.match(messages[0]!.message, /^`end:` of Outer \(inline rule\)/);
 });
+
+test("a line end or BEAT inside a negative lookaround is no bail-out", () => {
+  const source = grammar({
+    variables: "BEAT: (?:^scene)",
+    repository: `NotAtEnd:
+  begin: a
+  end: (?!$)[)]
+NotBeat:
+  begin: a
+  end: (?<!{{BEAT}})[)]
+StillBeat:
+  begin: a
+  end: (?={{BEAT}})|(?!$|[ ])
+IndentationBlock:
+  begin: a
+  end: (?=^(?!$|//))`,
+  });
+  assert.deepEqual(lines(source), [7, 10]);
+});

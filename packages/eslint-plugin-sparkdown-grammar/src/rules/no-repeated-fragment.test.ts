@@ -53,3 +53,15 @@ test("a variable holding the fragment is the named copy and is suggested", () =>
   );
   assert.match(String(messages[0]![1]), /Use `\{\{GREEK\}\}` instead/);
 });
+
+test("array variable entries count as patterns", () => {
+  const source = grammar({
+    variables: 'GREEK: ["(?:alpha|beta|gamma)", "delta"]',
+    repository: `A:
+  match: x(?:alpha|beta|gamma)`,
+  });
+  assert.deepEqual(
+    lint(source).map(([line]) => line),
+    [2, 6],
+  );
+});

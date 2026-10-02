@@ -21,12 +21,12 @@ pointer back to the rationale.
 | `capturing-var-naming`           | error            | §7.4. Variables whose resolved values (after `{{NAME}}` substitution) have capture groups must be named `_NAME_`, and only those.                                                                                                                                                                                                        |
 | `no-zero-width-in-patterns`      | error            | §12. A rule that can match zero characters must not be included in a `patterns:` list, directly or through a `Switch` rule.                                                                                                                                                                                                              |
 | `no-newline-in-lookaround`       | error            | §11.5. Lookarounds must not try to span line boundaries, which VS Code's line-at-a-time tokenizer cannot see.                                                                                                                                                                                                                            |
-| `lookaround-needs-rival-comment` | error, baselined | §10, §10.2. Every `(?!…)`, `(?<=…)` and `(?<!…)`, and every `(?=…)` that is not a line-end or `{{BEAT}}` bail-out (positive lookaheads in `end:` are exempt), in a rule's `match`/`begin`/`end` or a variable, needs a `# lookaround:` comment directly above its rule or variable that names an existing rival rule or variable. |
+| `lookaround-needs-rival-comment` | error, baselined | §10, §10.2. Every `(?!…)`, `(?<=…)` and `(?<!…)`, and every `(?=…)` that is not a line-end or `{{BEAT}}` bail-out (positive lookaheads in `end:` are exempt), in a rule's `match`/`begin`/`end` or a variable (array entries included), needs a `# lookaround:` comment directly above its rule or variable that names an existing rival rule or variable. |
 | `no-unreferenced-rule`           | error, baselined | §7. Every repository rule must be reachable from the top-level `patterns:` through `include`s. A rule TypeScript reads by name is exempt with a `# referenced-from: <file>` comment above it.                                                                                                                                         |
-| `no-unreferenced-variable`       | error, baselined | §7. Every variable must be expanded by some `{{NAME}}`. A variable TypeScript reads from `GRAMMAR_DEFINITION.variables` is exempt with a `# referenced-from: <file>` comment above it.                                                                                                                                                 |
+| `no-unreferenced-variable`       | error, baselined | §7. Every variable must be expanded by some `{{NAME}}` in a rule's `match`/`begin`/`end` or in another variable (a mention in `comment:` or other metadata does not count). A variable TypeScript reads from `GRAMMAR_DEFINITION.variables` is exempt with a `# referenced-from: <file>` comment above it.                                                                                                                                                 |
 | `no-repeated-fragment`           | error, baselined | §7. A `(?:…)` group longer than 12 characters written verbatim in two or more patterns should be a variable (the message names the variable when one already holds it).                                                                                                                                                                 |
 | `name-long-pattern-parts`        | error, baselined | §7.2. A pattern with more than two `(?:…)` groups, or a lookaround nested inside another, should name its parts as variables.                                                                                                                                                                                                           |
-| `scoped-end-has-bailout`         | error, baselined | §3.1, §18. A `begin`/`end` rule's `end:` must contain `{{BEAT}}` or a `$` (directly or through its variables), so a missing closer cannot run on to the end of the document.                                                                                                                                                            |
+| `scoped-end-has-bailout`         | error, baselined | §3.1, §18. A `begin`/`end` rule's `end:` must contain `{{BEAT}}`, a `$`, or §11.1's indentation-block end `(?=^(?!…))`, directly or through its variables and not inside a negative lookaround, so a missing closer cannot run on to the end of the document.                                                                                                                                                            |
 
 The root `eslint.config.js` enables every rule at the level shown, which
 is also the plugin's `recommended` configuration.
@@ -36,8 +36,10 @@ is also the plugin's `recommended` configuration.
 Put it in the comment block directly above the rule's key, the variable's
 key, an inline rule's `- ` line or the pattern's own key; a blank line
 ends the block. Name the rival rule (or variable) the lookaround steps
-aside for and say why §10.1's structural fixes do not work. One comment
-covers every lookaround its rule or variable holds. For example, with
+aside for and say why §10.1's structural fixes do not work. A comment
+above a rule's key covers every lookaround in it, inline rules included;
+when an inline rule or pattern carries a `# lookaround:` comment of its
+own, that one is checked instead. For example, with
 made-up rule names:
 
 ```yaml

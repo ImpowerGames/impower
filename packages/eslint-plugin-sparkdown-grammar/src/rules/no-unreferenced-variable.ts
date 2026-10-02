@@ -4,16 +4,16 @@
 // `GRAMMAR_DEFINITION.variables` is exempt when the comment block directly
 // above its key carries `# referenced-from: <file>`.
 //
-// As in the `grammarReachability` test in
-// packages/sparkdown/src/tests/compiler/, a reference anywhere in the file
-// counts, including one from another variable.
+// Only references the build expands count: those in a rule's `match`,
+// `begin` or `end` (definitions/src/language.ts substitutes no other key)
+// and those in another variable's value or array entries. A `{{NAME}}`
+// mentioned in a `comment:` or other metadata, or in the variable's own
+// value, is not a use. The findings agree with the known-unused list of
+// the `grammarReachability` test in packages/sparkdown/src/tests/compiler/
+// (see no-unreferenced-rule.test.ts).
 
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
-import {
-  getGrammarIndex,
-  markedComment,
-  stringsUnder,
-} from "../utils/grammar-index.ts";
+import { getGrammarIndex, markedComment } from "../utils/grammar-index.ts";
 import { REFERENCED_FROM } from "./no-unreferenced-rule.ts";
 
 const { rule, find } = defineBaselinedRule(
@@ -31,8 +31,11 @@ const { rule, find } = defineBaselinedRule(
     const index = getGrammarIndex(context);
     if (!index.root) return [];
     const used = new Set<string>();
-    for (const text of stringsUnder(index.root)) {
-      for (const match of text.matchAll(/\{\{(\w+)\}\}/g)) used.add(match[1]!);
+    for (const site of index.patternSites) {
+      for (const match of site.source.matchAll(/\{\{(\w+)\}\}/g)) {
+        if (site.owner.kind === "variable" && site.owner.name === match[1]) continue;
+        used.add(match[1]!);
+      }
     }
     const findings: Finding[] = [];
     for (const [name, pair] of index.variables) {

@@ -28,3 +28,10 @@ test("a lookaround nested in another lookaround fails, in a rule or a variable",
     "Nested.match nests 1 lookaround inside another lookaround. Give its parts names as variables, even ones used once. See GRAMMAR.md §7.2.",
   ]);
 });
+
+test("array variable entries are checked", () => {
+  assert.deepEqual(
+    lint(grammar({ variables: 'WORDS: ["(?:a)(?:b)(?:c)", "d"]' })).length,
+    1,
+  );
+});

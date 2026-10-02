@@ -104,6 +104,60 @@ Outer:
   assert.match(messages[1]!.message, /Outer \(inline rule\)\.match/);
 });
 
+test("block-scalar text that looks like a comment is not one", () => {
+  const source = grammar({
+    repository: `Rival:
+  match: |-
+    # lookaround: steps aside for Rival.
+Word:
+  match: (?!x)y`,
+  });
+  assert.deepEqual(ids(source), ["missing"]);
+});
+
+test("a comment above a `-` on its own line covers the inline rule", () => {
+  const source = grammar({
+    repository: `${RIVAL}
+Outer:
+  patterns:
+    # lookaround: steps aside for Rival.
+    -
+      match: (?!x)y`,
+  });
+  assert.deepEqual(ids(source), []);
+});
+
+test("the innermost marked comment decides, not one above the owner", () => {
+  const source = grammar({
+    repository: `${RIVAL}
+# lookaround: Missing.
+Outer:
+  patterns:
+    # lookaround: steps aside for Rival.
+    - match: (?!x)y
+    - match: (?!x)z`,
+  });
+  assert.deepEqual(
+    lintRule(source, RULE).map((m) => [m.messageId, m.line]),
+    [["noRival", 10]],
+  );
+});
+
+test("array variable entries are checked", () => {
+  const source = grammar({
+    variables: `WORDS: ["(?!end)word", "plain"]
+# lookaround: steps aside for Rival.
+JUSTIFIED: ["(?!end)word"]`,
+    repository: RIVAL,
+  });
+  const messages = lintRule(source, RULE);
+  assert.deepEqual(
+    messages.map((m) => [m.messageId, m.line]),
+    [["missing", 2]],
+  );
+  assert.match(messages[0]!.message, /variable WORDS \(array entry/);
+});
+
 test("the baseline allows its count per owner and reports all past it", () => {
   const one = grammar({ repository: "Word:\n  match: (?!x)y" });
   assert.deepEqual(ids(one, { "repository.Word": 1 }), []);

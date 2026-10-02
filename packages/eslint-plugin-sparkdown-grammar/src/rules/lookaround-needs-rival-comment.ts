@@ -15,8 +15,12 @@
 // pattern carry the load") and §11.3 recommend. A negative lookahead or
 // lookbehind there still needs the comment.
 //
-// Variables are checked too: a lookaround moved into a variable still
-// steps aside for a rival.
+// Variables are checked too, array entries included: a lookaround moved
+// into a variable still steps aside for a rival.
+//
+// Only real YAML comments count (not `#` text inside a block scalar), and
+// the innermost marked block wins: a `# lookaround:` comment above an
+// inline rule or pattern key is checked before one above the owner.
 //
 // Existing findings are baselined per owner (see utils/baseline.ts).
 
@@ -79,7 +83,10 @@ function namesExisting(
 }
 
 export function siteLabel(site: PatternSite): string {
-  if (site.owner.kind === "variable") return `variable ${site.owner.name}`;
+  if (site.owner.kind === "variable") {
+    const entry = site.key === "entry" ? ` (array entry \`${site.source}\`)` : "";
+    return `variable ${site.owner.name}${entry}`;
+  }
   const inline = site.mapping && site.owner.pair?.value !== site.mapping;
   return `${site.owner.name}${inline ? " (inline rule)" : ""}.${site.key}`;
 }

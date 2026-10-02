@@ -53,7 +53,7 @@ const { rule, find } = defineBaselinedRule(
     const isRepeated = (text: string): boolean =>
       new Set((byText.get(text) ?? []).map((o) => o.site)).size >= 2;
     const isWholeVariable = ({ site, group }: Occurrence): boolean =>
-      site.owner.kind === "variable" && group.text === site.source;
+      site.key === "value" && group.text === site.source;
 
     const findings: Finding[] = [];
     for (const [site, groups] of bySite) {

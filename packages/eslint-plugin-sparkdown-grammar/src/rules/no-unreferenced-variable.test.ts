@@ -29,3 +29,22 @@ READ_FROM_TS: ["include", "run"]`,
   });
   assert.deepEqual(names(source), []);
 });
+
+test("block-scalar text is not a `# referenced-from:` comment", () => {
+  const source = grammar({
+    variables: `TEXT: |-
+  # referenced-from: reader.ts
+UNUSED: x`,
+  });
+  assert.deepEqual(names(source), ["TEXT", "UNUSED"]);
+});
+
+test("a mention outside a pattern, or in the variable itself, is not a use", () => {
+  const source = grammar({
+    variables: "SELF: (?:{{SELF}})\nMENTIONED: (?:x)",
+    repository: `Rule:
+  comment: "{{MENTIONED}}"
+  match: a`,
+  });
+  assert.deepEqual(names(source), ["SELF", "MENTIONED"]);
+});

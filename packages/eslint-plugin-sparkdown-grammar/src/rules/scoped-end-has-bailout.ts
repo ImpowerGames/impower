@@ -5,14 +5,19 @@
 // `{{BEAT}}` or a `$` anchor, written directly or through the variables
 // it references.
 //
-// The check is textual: a `$` anywhere outside a character class counts,
-// even one inside a lookaround, so the rule misses some ends that cannot
-// actually close at a line end rather than flag ones that can.
+// A `$` or `{{BEAT}}` counts unless it sits in a character class or in a
+// negative lookaround (`(?!$)` asserts that the line goes on). So does a
+// line start followed by a negative lookahead, §11.1's indentation-block
+// end `(?=^(?!$|//|\1{{WS}}))`, which closes at the first line that does
+// not continue the block. The check
+// is otherwise textual: a `$` behind some other requirement still counts,
+// so the rule misses some ends that cannot close at a line end rather than
+// flag ones that can.
 
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { findPair, isScalar, isSequence } from "../utils/yaml-ast.ts";
 import { getGrammarIndex, type GrammarIndex } from "../utils/grammar-index.ts";
-import { scanRegex } from "../utils/regex-scan.ts";
+import { regexGroups, scanRegex } from "../utils/regex-scan.ts";
 
 const TOKEN = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
@@ -40,9 +45,25 @@ function resolveExceptBeat(
 
 export function hasBailOut(index: GrammarIndex, end: string): boolean {
   const resolved = resolveExceptBeat(index, end);
-  if (resolved.includes("{{BEAT}}")) return true;
+  // A boundary inside a negative lookaround asserts its absence, as in
+  // `(?!$)`, so it is no bail-out.
+  const negated = regexGroups(resolved).filter(
+    (g) => g.kind === "negative-lookahead" || g.kind === "negative-lookbehind",
+  );
+  const positive = (at: number) =>
+    !negated.some((g) => g.start < at && at < g.end);
   for (const tok of scanRegex(resolved)) {
-    if (tok.text === "$" && !tok.inCharClass) return true;
+    if (tok.inCharClass) continue;
+    if (tok.text === "$" && positive(tok.index)) return true;
+    // §11.1's indentation block, `(?=^(?!$|//|\1{{WS}}))`, closes at the
+    // start of every line but the ones it excludes, which bounds it as a
+    // line end would.
+    if (tok.text === "^" && resolved.startsWith("(?!", tok.index + 1) && positive(tok.index)) {
+      return true;
+    }
+    if (tok.text === "{" && resolved.startsWith("{{BEAT}}", tok.index) && positive(tok.index)) {
+      return true;
+    }
   }
   return false;
 }
