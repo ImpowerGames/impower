@@ -434,6 +434,14 @@
     "STRUCT_BLOCK_LITERAL": "(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")",
     "STRUCT_BLOCK_AFTER_LITERAL_COMMENT": "(?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))",
     "STRUCT_BLOCK_LITERAL_THEN_COMMENT": "(?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})",
+    "_STRUCT_VALUE_THEN_COMMENT_": "(?:{{_STRUCT_LITERAL_THEN_COMMENT_}}|{{_STRUCT_TEXT_THEN_COMMENT_}})({{WS}}*)$",
+    "_STRUCT_LITERAL_THEN_COMMENT_": "({{STRUCT_BLOCK_LITERAL}})(?:({{STRUCT_LITERAL_DASH_COMMENT}})|({{STRUCT_LITERAL_SLASH_COMMENT}}))?",
+    "_STRUCT_TEXT_THEN_COMMENT_": "({{STRUCT_VALUE_TEXT_PART}}+?)(?:({{STRUCT_TEXT_DASH_COMMENT}})|({{STRUCT_TEXT_SLASH_COMMENT}}))?",
+    "STRUCT_LITERAL_DASH_COMMENT": "(?:{{WS}}*{{LUAU_COMMENT_START}}.*)",
+    "STRUCT_LITERAL_SLASH_COMMENT": "(?:{{WS}}*[/][/].*)",
+    "STRUCT_VALUE_TEXT_PART": "(?:{{STRUCT_BLOCK_QUOTED}}|[^\"])",
+    "STRUCT_TEXT_DASH_COMMENT": "(?:{{WS}}+{{LUAU_COMMENT_START}}.*)",
+    "STRUCT_TEXT_SLASH_COMMENT": "(?:{{WS}}+[/][/](?:{{WS}}.*)?)",
     "STRUCT_BLOCK_PROPERTY_KEY": "(?:\\[[^\\]\\n]*\\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))",
     "STRUCT_BLOCK_PROPERTY_HEAD": "(?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})",
     "STRUCT_BLOCK_LITERAL_COMMENT_LINE": "(?:(?:{{STRUCT_BLOCK_PROPERTY_HEAD}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})",
@@ -5915,10 +5923,73 @@
       "match": "([^\\n]*)"
     },
     "StylingValue": {
-      "match": "(.+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "match": "(?:((?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\"))(?:((?:(?:[^\\S\\n\\r])*(?:[-][-]).*))|((?:(?:[^\\S\\n\\r])*[/][/].*)))?|((?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[^\"])+?)(?:((?:(?:[^\\S\\n\\r])+(?:[-][-]).*))|((?:(?:[^\\S\\n\\r])+[/][/](?:(?:[^\\S\\n\\r]).*)?)))?)((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
           "patterns": [
+            {
+              "include": "#NumericFieldValue"
+            },
+            {
+              "include": "#BooleanFieldValue"
+            },
+            {
+              "include": "#StringFieldValue"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauComment"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockValueComment"
+            }
+          ]
+        },
+        "4": {
+          "patterns": [
+            {
+              "include": "#StylingValueContent"
+            }
+          ]
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#LuauComment"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockValueComment"
+            }
+          ]
+        },
+        "7": {
+          "patterns": [
+            {
+              "include": "#EndOfLine"
+            }
+          ]
+        }
+      }
+    },
+    "StylingValueContent": {
+      "match": "(.+)",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#InlinePropQuotedValue"
+            },
             {
               "include": "#LuauComment"
             },
@@ -5932,20 +6003,13 @@
               "include": "#UnquotedChar"
             }
           ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#EndOfLine"
-            }
-          ]
         }
       }
     },
     "NumericFieldValue": {
       "tag": "number",
       "name": "constant.numeric.sd",
-      "match": "([-]?(?:\\d*[.])?\\d+|Infinity|NaN)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "match": "([-]?(?:\\d*[.])?\\d+|Infinity|NaN)((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -5966,7 +6030,7 @@
     "BooleanFieldValue": {
       "tag": "bool",
       "name": "constant.language.boolean.true.sd",
-      "match": "(true|false)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "match": "(true|false)((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -5987,7 +6051,7 @@
     "StringFieldValue": {
       "tag": "string",
       "name": "string.quoted.double.sd",
-      "match": "([\"])((?:\\\\.|[^\"])*)([\"])((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "match": "([\"])((?:\\\\.|[^\"])*)([\"])((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -6074,16 +6138,57 @@
       }
     },
     "UnquotedStringFieldValue": {
-      "match": "(.+)((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "match": "(?:((?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\"))(?:((?:(?:[^\\S\\n\\r])*(?:[-][-]).*))|((?:(?:[^\\S\\n\\r])*[/][/].*)))?|((?:(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))|[^\"])+?)(?:((?:(?:[^\\S\\n\\r])+(?:[-][-]).*))|((?:(?:[^\\S\\n\\r])+[/][/](?:(?:[^\\S\\n\\r]).*)?)))?)((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
+          "patterns": [
+            {
+              "include": "#NumericFieldValue"
+            },
+            {
+              "include": "#BooleanFieldValue"
+            },
+            {
+              "include": "#StringFieldValue"
+            }
+          ]
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#LuauComment"
+            }
+          ]
+        },
+        "3": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockValueComment"
+            }
+          ]
+        },
+        "4": {
           "patterns": [
             {
               "include": "#UnquotedString"
             }
           ]
         },
-        "2": {
+        "5": {
+          "patterns": [
+            {
+              "include": "#LuauComment"
+            }
+          ]
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockValueComment"
+            }
+          ]
+        },
+        "7": {
           "patterns": [
             {
               "include": "#EndOfLine"

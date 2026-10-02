@@ -1,8 +1,8 @@
 // Trailing `--` / `//` line comments on struct/style value lines must NOT leak
-// into the compiled value. The grammar's unquoted value tokens (`StylingValue`
-// / `UnquotedStringFieldValue`) greedily span to end-of-line, so the comment
-// lands inside the value node; the three struct lowerers strip it (gated on the
-// unquoted node names, so quoted values keep a legitimate `--`/`//`).
+// into the compiled value. The grammar's unquoted value rules (`StylingValue`
+// / `UnquotedStringFieldValue`) end the value node before the comment, and the
+// struct lowerers read that node (quoted values keep a `--`/`//` inside their
+// quotes).
 // See project_sparkle_element_line_comments.
 
 import { describe, expect, test } from "vitest";

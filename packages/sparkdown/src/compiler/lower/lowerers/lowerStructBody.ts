@@ -2,10 +2,7 @@ import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import { type SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
-import {
-  UNQUOTED_VALUE_NODES,
-  stripTrailingLineComment,
-} from "../utils/stripTrailingLineComment";
+import { structValueNode } from "../utils/structValueNode";
 import {
   readStructBodyEntries,
   type StructEntry,
@@ -577,13 +574,10 @@ function oneSpace(key: string): string {
 // content strings keep their surrounding quotes here so `parseScalar` (the
 // shared value coercion) strips them and processes escapes uniformly; all other
 // value tokens (numbers, CSS funcs, struct refs) come through as raw text.
+// A value with a trailing comment reads only its value node.
 function readValue(value: SyntaxNode, ctx: LowerContext): string {
-  const text = ctx.read(value.from, value.to).trim();
-  // Unquoted value tokens greedily include any trailing `--`/`//` comment; drop
-  // it so it never leaks into the value. Quoted tokens are left intact.
-  return UNQUOTED_VALUE_NODES.has(value.name)
-    ? stripTrailingLineComment(text)
-    : text;
+  const node = structValueNode(value);
+  return ctx.read(node.from, node.to).trim();
 }
 
 // A two-part struct reference: `<type>.<name>` where BOTH parts are bare

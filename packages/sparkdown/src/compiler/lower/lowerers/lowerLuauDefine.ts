@@ -39,7 +39,6 @@ import { lowerArguments } from "../utils/lowerArguments";
 import { validateAssignmentValue } from "../utils/validateAssignmentValue";
 import { validateDefineStructure } from "../utils/validateDefineStructure";
 import { wrapInWeave } from "../utils/wrapInWeave";
-import { stripTrailingLineComment } from "../utils/stripTrailingLineComment";
 import { syntheticId } from "../utils/documentTag";
 import {
   closeFunctionBody,
@@ -104,14 +103,17 @@ interface DefineProperty {
 // logic expressions) — those have no faithful literal form and are left
 // out of the registry (the runtime `__def` table remains their source of
 // truth).
+//
+// `raw` holds no trailing comment: `readPropertyDefinition` ends it at the
+// value's last node, so a `-- note` the grammar read as a `LuauLineComment` is
+// never part of it. (`//` is Luau floor division, not a comment, in a define
+// body; the expression validators already report `5 // note`.)
 function coerceScalarLiteral(raw: string): unknown {
-  // A QUOTED value is handled before any comment stripping: the quotes bound
-  // the literal, so a `--`/`//` INSIDE them is legitimate content
-  // (`name = "Chapter 1 -- The Beginning"`), and `stripTrailingLineComment`'s
-  // own contract says it must never run on quoted values. Scan to the matching
-  // close quote (escape-aware); anything after it other than whitespace or a
-  // trailing line comment means the RHS is not a simple string literal
-  // (e.g. `"a" .. "b"`), which is not a scalar.
+  // A QUOTED value: the quotes bound the literal, so a `--`/`//` INSIDE them
+  // is content (`name = "Chapter 1 -- The Beginning"`). Scan to the matching
+  // close quote (escape-aware); anything after it other than whitespace means
+  // the RHS is not a simple string literal (e.g. `"a" .. "b"`), which is not a
+  // scalar.
   //
   // Unescape Luau string-literal escapes (\\, \", \n, \xNN, …) so the context
   // value matches the runtime string (the StringExpression path already runs
@@ -130,22 +132,13 @@ function coerceScalarLiteral(raw: string): unknown {
       }
     }
     if (close === -1) return undefined;
-    const rest = rawTrimmed.slice(close + 1);
-    if (rest.trim() && stripTrailingLineComment(rest).trim()) {
-      return undefined;
-    }
+    if (rawTrimmed.slice(close + 1).trim()) return undefined;
     return processLuauEscapes(rawTrimmed.slice(1, close));
   }
-  // UNQUOTED values: a trailing line comment is part of the raw RHS text, and
-  // every test below is anchored to the whole string — so `delay = 5 -- note`
-  // failed the number test and fell through to "store it as a string". A typed
-  // field silently changed TYPE because of a comment: `5` became `"5"` and
-  // `true` became `"true"`. Both markers did it; neither warned.
-  //
-  // `stripTrailingLineComment` requires whitespace before the marker, so
-  // `var(--foo)` and hyphenated values are untouched, and `//` additionally
-  // requires a following space/EOL so a URL survives.
-  const s = stripTrailingLineComment(raw).trim();
+  // UNQUOTED values. Every test below is anchored to the whole string, which
+  // is why `raw` must not hold a trailing comment: `delay = 5 -- note` would
+  // fail the number test and store the string `"5 -- note"`.
+  const s = raw.trim();
   if (!s || s.includes("\n")) return undefined;
   if (s.startsWith("{") || s.startsWith("[")) return undefined;
   if (s === "true") return true;
@@ -664,6 +657,29 @@ function findAssignmentValueNode(
   return null;
 }
 
+// What may follow the value's last node: whitespace, line breaks and comments.
+const ASSIGNMENT_RHS_TRAILING: ReadonlySet<string> = nodeNameSet([
+  "ExtraWhitespace",
+  "Whitespace",
+  "OptionalWhitespace",
+  "RequiredWhitespace",
+  "Newline",
+  "LuauLineComment",
+  "LuauDocLineComment",
+  "LuauBlockComment",
+]);
+
+// Where the value that starts at `valueNode` ends: the end of its last node,
+// before any trailing comment. `valueNode` itself when nothing but trailing
+// trivia follows the operator.
+function assignmentValueEnd(valueNode: SyntaxNode): number {
+  let end = valueNode.from;
+  for (let child: SyntaxNode | null = valueNode; child; child = child.nextSibling) {
+    if (!ASSIGNMENT_RHS_TRAILING.has(child.name)) end = child.to;
+  }
+  return end;
+}
+
 function readPropertyDefinition(
   propNode: SyntaxNode,
   ctx: LowerContext,
@@ -713,7 +729,8 @@ function readPropertyDefinition(
   if (opNode) validateAssignmentValue(opNode, ctx, continuation.length > 0);
   const valueNode = findAssignmentValueNode(opNode ?? null);
   const valueStart = valueNode ?? continuation[0] ?? null;
-  const valueEnd = continuation[continuation.length - 1]?.to ?? opNode?.to;
+  const valueEnd = continuation.findLast((node) => !ASSIGNMENT_RHS_TRAILING.has(node.name))?.to
+    ?? (valueNode ? assignmentValueEnd(valueNode) : opNode?.to);
   const expr = !opNode
     ? null
     : continuation.length > 0
@@ -728,8 +745,9 @@ function readPropertyDefinition(
   // compile-time struct registry. The grammar already isolates the RHS as
   // its own value node(s) inside `LuauAssignmentOperation` — the first
   // significant child following the `LuauAssignmentOperator` marker. Read
-  // from that node's start to the operation's end (covers multi-node
-  // expressions) instead of re-deriving the RHS by string-scanning for `=`.
+  // from that node's start to the end of the last value node (covers
+  // multi-node expressions and continuation lines, leaving out trailing comments) instead of
+  // re-deriving the RHS by string-scanning for `=`.
   const rawValue = valueStart ? ctx.read(valueStart.from, valueEnd!) : "";
 
   // Anchor the property's value expression to its source range. Diagnostics
