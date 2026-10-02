@@ -150,6 +150,26 @@ function declaredFunctionName(
   return null;
 }
 
+// The names the function statements (`function f`, not `local function f`)
+// of a function's body declare, in the blocks inside it too but not in the
+// functions nested in it. The lowerer makes each a local of that function,
+// hoisted to its body (`lowerNestedNamedFunction`), or a subflow when it is
+// variadic (`lowerNestedAsSubFlow`), whether the converter binds the name to
+// a global or to an outer local of the same name; so the name refers to that
+// function's own function in every read inside it.
+function functionStatementNames(body: AstStatBlock): Set<string> {
+  const names = new Set<string>();
+  walk(body, (node) => {
+    if (node instanceof AstExprFunction) return false;
+    if (node instanceof AstStatFunction) {
+      const name = declaredFunctionName(node);
+      if (name) names.add(name);
+    }
+    return true;
+  });
+  return names;
+}
+
 // The names a declaration statement declares: a `local` or `const`, or a
 // `store`, bare or after `&`.
 function declarationNames(node: AstNode): string[] {
@@ -249,11 +269,12 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
  * capture in turn. A read is bound inside the function, and not captured,
  * when it reads a parameter, a local the body declares at any depth (the
  * converter binds each read to the local it reads, so a same-named local of
- * a nested function or a later block does not bind it), or a `store` or
- * named function the body declares. A name that is a variadic function of
- * an enclosing scope is reached by path and not captured. Otherwise a name
- * an enclosing function declares is captured, and a stdlib name, a global
- * callable or any other global is not.
+ * a nested function or a later block does not bind it), a `store` the body
+ * declares, or a name a function statement declares in the function or in a
+ * function between it and the read (`functionStatementNames`). A name that
+ * is a variadic function of an enclosing scope is reached by path and not
+ * captured. Otherwise a name an enclosing function declares is captured, and
+ * a stdlib name, a global callable or any other global is not.
  */
 export function freeVariables(
   params: readonly string[],
@@ -261,16 +282,18 @@ export function freeVariables(
   ctx: LowerContext,
 ): string[] {
   if (!body) return [];
-  // Names bound inside the function: its parameters, and the `store`s and
-  // named functions its body declares, which a read reaches by name.
+  // Names bound inside the function: its parameters, and the `store`s its
+  // body declares, which a read reaches by name.
   const bound = new Set<string>(params);
-  // The locals the body declares, nested functions included.
+  // The names the function statements of the function, and of each function
+  // nested in it that encloses the read being scanned, declare.
+  const functionScopes: ReadonlySet<string>[] = [functionStatementNames(body)];
+  const declaredByFunctionStatement = (name: string) =>
+    functionScopes.some((names) => names.has(name));
+  // The locals the body declares (`local`, `const`, `local function`, loop
+  // variables, parameters), nested functions included.
   const locals = new Set<AstLocal>();
   walk(body, (node) => {
-    if (node instanceof AstStatFunction || node instanceof AstStatLocalFunction) {
-      const name = declaredFunctionName(node);
-      if (name) bound.add(name);
-    }
     const stat =
       node instanceof AstStatSparkdownExplicit ? node.statement : node;
     if (stat instanceof AstStatSparkdownStore) {
@@ -305,6 +328,7 @@ export function freeVariables(
   const seen = new Set<string>();
   const read = (name: string) => {
     if (bound.has(name) || seen.has(name)) return;
+    if (declaredByFunctionStatement(name)) return;
     // A variadic sibling is the innermost binding and wins over a
     // same-named local of an outer scope (`resolveCallableBinding`).
     if (isSiblingSubFlow(name)) return;
@@ -320,8 +344,13 @@ export function freeVariables(
     if (node instanceof AstExprGlobal) read(node.name);
     else if (node instanceof AstExprLocal) {
       if (!locals.has(node.local)) read(node.local.name);
-    }
-    else if (node instanceof AstStatFunction) {
+    } else if (node instanceof AstExprFunction) {
+      // A nested function's function statements bind its own reads.
+      functionScopes.push(functionStatementNames(node.body));
+      walk(node.body, readNames);
+      functionScopes.pop();
+      return false;
+    } else if (node instanceof AstStatFunction) {
       // A function statement's plain name is declared, not read
       // (`function a.f` reads `a`).
       if (!declaredFunctionName(node)) walk(node.name, readNames);
