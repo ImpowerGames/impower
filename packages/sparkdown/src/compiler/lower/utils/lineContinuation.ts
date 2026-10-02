@@ -6,6 +6,7 @@ import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames
 import { TRAILING_STATEMENT_NAMES } from "../../utils/trailingStatementNames";
 import { ownAssignmentOperation } from "../../utils/variableDefinitionNames";
 import { findOwnDeclarationName } from "./findOwnDeclarationName";
+import { BLOCK_NAMES, CALLEE_END_NAMES, NARRATIVE_STATEMENT_NAMES } from "./statementNodeNames";
 
 // A `LuauLineContinuation` is a line of Luau code that begins with `.name`,
 // `:name`, a binary operator or a cast's `::` and so continues the expression
@@ -300,7 +301,7 @@ function ownAssignmentIn(node: SyntaxNode): SyntaxNode | null {
     }
     // Look inside the declaration's content and captures, not inside a
     // target's own type annotation.
-    if (cursor.name.startsWith(node.name) || cursor.name.endsWith("_content")) {
+    if (cursor.name === node.name + "_content") {
       const inner = ownAssignmentIn(cursor.node);
       if (inner) return inner;
     }
@@ -321,7 +322,7 @@ function endsInCallee(node: SyntaxNode): boolean {
   }
   const leaf = lastSignificantLeaf(node);
   if (!leaf) return false;
-  if (CALLEE_END.test(leaf.name)) return true;
+  if (CALLEE_END_NAMES.has(leaf.name)) return true;
   // The end of a string or a table that is a call's argument (`maker "A"`):
   // what the call returns can be called in turn.
   for (let n: SyntaxNode | null = leaf; n && n !== node; n = n.parent) {
@@ -332,14 +333,11 @@ function endsInCallee(node: SyntaxNode): boolean {
   return false;
 }
 
-const CALLEE_END =
-  /(?:VariableName|FunctionName|PropertyName|StdLibFunctions|StdLibConstants|StdLibGlobals|StdLibMethods|SelfKeyword|PunctuationParenClose|PunctuationBracketClose)$/;
-
 // Whether `node` is in Luau code rather than a narrative body.
 function inLuauBody(node: SyntaxNode): boolean {
   for (let n = node.parent; n; n = n.parent) {
     if (LUAU_BODY_OWNERS.has(n.name)) return true;
-    if (NARRATIVE_OWNERS.has(n.name) || n.name.startsWith("LuauSparkdown")) return false;
+    if (NARRATIVE_OWNERS.has(n.name) || NARRATIVE_STATEMENT_NAMES.has(n.name)) return false;
   }
   return false;
 }
@@ -426,7 +424,7 @@ export function isStatementNodeName(name: string): boolean {
     name === "LuauSemicolonSeparator" ||
     TRAILING_STATEMENT_NAMES.has(name) ||
     DECLARATION_STATEMENTS.has(name) ||
-    /(?:Block|Blocks|Loop)$/.test(name)
+    BLOCK_NAMES.has(name)
   );
 }
 

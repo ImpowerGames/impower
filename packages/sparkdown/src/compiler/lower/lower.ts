@@ -1,4 +1,5 @@
 import { nodeNameSet } from "../utils/nodeNameSet";
+import { LUAU_BLOCK_NAMES } from "./utils/statementNodeNames";
 import { luauStatementError } from "../utils/luauStatementError";
 import { ErrorType } from "../../inkjs/compiler/Parser/ErrorType";
 import { type SyntaxNode } from "@lezer/common";
@@ -612,9 +613,13 @@ function reportExpressionStatement(
 // Whether `start` is on the line of a `LuauInvalidStatement` that ended
 // before it (before a long string or block comment that runs past the line,
 // `Hello there [[`): that line has its one report already.
+const STATEMENT_WHITESPACE = nodeNameSet([
+  "Whitespace", "OptionalWhitespace", "RequiredWhitespace", "ExtraWhitespace",
+]);
+
 function continuesInvalidLine(start: SyntaxNode): boolean {
   let prev = start.prevSibling;
-  while (prev && prev.name.endsWith("Whitespace")) prev = prev.prevSibling;
+  while (prev && STATEMENT_WHITESPACE.has(prev.name)) prev = prev.prevSibling;
   return prev?.name === "LuauInvalidStatement";
 }
 
@@ -625,9 +630,9 @@ function continuesInvalidLine(start: SyntaxNode): boolean {
 function reportUnreadBodyLines(node: SyntaxNode, ctx: LowerContext): void {
   const cursor = node.cursor();
   do {
-    if (!cursor.name.endsWith("_content")) continue;
     const owner = cursor.node.parent?.name ?? "";
-    if (!/^Luau(?:FunctionBody|(?!Sparkdown)\w*(?:Block|Loop))$/.test(owner)) continue;
+    if (cursor.name !== owner + "_content") continue;
+    if (owner !== "LuauFunctionBody" && !LUAU_BLOCK_NAMES.has(owner)) continue;
     for (let child = cursor.node.firstChild; child; child = child.nextSibling) {
       if (TRIVIA_BEFORE_STATEMENT.has(child.name)) continue;
       const last = reportUnreadExpressionStatement(child, ctx) ?? child;

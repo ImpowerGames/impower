@@ -37,7 +37,7 @@ export function followsMissingValue(
   // mistakes a comment-like run inside a string for one (`[[--]]`).
   const last = lastSignificantLeaf(prev);
   if (!last) return false;
-  return VALUE_EXPECTED_AT_END.test(read(prev.from, last.to).trimEnd());
+  return VALUE_EXPECTED_TOKENS.has(read(last.from, last.to).trim());
 }
 
 const VALUE_TAKING_STATEMENTS: ReadonlySet<string> = new Set([
@@ -49,10 +49,13 @@ const VALUE_TAKING_STATEMENTS: ReadonlySet<string> = new Set([
   "LuauPropertyDefinition",
 ]);
 
-// A whole token, not the end of a longer one: `..` is not the end of `...`,
+// Read the grammar's final token whole: `..` is not the end of `...`,
 // nor `>` the end of an explicit instantiation's `>>`.
-const VALUE_EXPECTED_AT_END =
-  /(?:(?<![A-Za-z0-9_])(?:then|else|elseif|and|or|not|in)|[=,(\[{+\-*\/%^#]|(?<![<>])[<>]|(?<![.])\.\.)$/;
+const VALUE_EXPECTED_TOKENS: ReadonlySet<string> = new Set([
+  "then", "else", "elseif", "and", "or", "not", "in",
+  "=", ",", "(", "[", "{", "+", "-", "*", "/", "%", "^", "#", "<", ">", "..",
+  "+=", "-=", "*=", "/=", "//=", "%=", "^=", "..=", "==", "~=", "<=", ">=", "//",
+]);
 
 // Whether the statement before `start`, across blank and comment lines, ends
 // with a `.` that no name follows on its line: a dangling access
@@ -66,8 +69,11 @@ export function followsDanglingDot(
   while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
   if (!prev) return false;
   if (prev.name === "LuauInvalidStatement") {
-    const text = read(prev.from, prev.to).trimEnd();
-    return text.endsWith(".") && !text.endsWith("..");
+    const last = lastSignificantLeaf(prev);
+    if (last?.name !== "LuauInvalidStatementAccessor") return false;
+    // Consecutive accessor tokens are a concat operator, not a dangling dot.
+    const before = last.prevSibling;
+    return before?.name !== "LuauInvalidStatementAccessor" || before.to !== last.from;
   }
   const cursor = prev.cursor();
   do {

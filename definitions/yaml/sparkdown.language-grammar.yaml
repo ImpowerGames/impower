@@ -7,6 +7,64 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
+  # Same-line recognition of invalid Luau statements. Keep each decision
+  # named so the capture rule below only describes the line structure.
+  # lookaround: LuauExpression keeps valid names and paths; only an invalid continuation or character claims this line.
+  LUAU_INVALID_STATEMENT_START: (?:{{LUAU_INVALID_STATEMENT_NOT_STATEMENT_KEYWORD}}{{LUAU_IDENTIFIER}}{{LUAU_INVALID_STATEMENT_PATH_MEMBER}}*{{LUAU_INVALID_STATEMENT_INVALID_AFTER_NAME}}|{{LUAU_INVALID_STATEMENT_INVALID_CHARACTER_START}})
+  # lookaround: LuauControlBlock and Flow keep their leading keywords; rule ordering alone cannot distinguish their continuations.
+  LUAU_INVALID_STATEMENT_NOT_STATEMENT_KEYWORD: (?!{{LUAU_INVALID_STATEMENT_STATEMENT_KEYWORDS}}\b)
+  LUAU_INVALID_STATEMENT_STATEMENT_KEYWORDS: (?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)
+  # lookaround: LuauAccessPath keeps dotted identifiers, but LuauConcatOperation owns consecutive dots.
+  LUAU_INVALID_STATEMENT_PATH_MEMBER: (?:{{WS}}*[.](?![.]){{WS}}*{{LUAU_INVALID_STATEMENT_NOT_RESERVED_MEMBER}}{{LUAU_IDENTIFIER}})
+  # lookaround: LuauAccessPath reports a reserved member itself; this rule must not take its error recovery.
+  LUAU_INVALID_STATEMENT_NOT_RESERVED_MEMBER: (?!{{LUAU_INVALID_STATEMENT_RESERVED_WORD}}\b)
+  LUAU_INVALID_STATEMENT_RESERVED_WORD: (?:{{LUAU_RESERVED_WORDS}})
+  # lookaround: LuauExpression keeps member access, assignments and valid value continuations; only impossible continuations qualify.
+  LUAU_INVALID_STATEMENT_INVALID_AFTER_NAME: (?:{{WS}}+{{LUAU_INVALID_STATEMENT_NOT_NAME_CONTINUATION}}[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.](?![.])(?!{{WS}}*[A-Za-z_])|(?![^\r\n]*=){{LUAU_INVALID_STATEMENT_HAS_INVALID_SEQUENCE}})
+  # lookaround: LuauLogicalOperation and LuauControlBlock keep continuation and closing keywords.
+  LUAU_INVALID_STATEMENT_NOT_NAME_CONTINUATION: (?!{{LUAU_INVALID_STATEMENT_NAME_CONTINUATION}}\b)
+  LUAU_INVALID_STATEMENT_NAME_CONTINUATION: (?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)
+  # lookaround: LuauExpression can continue a prior line, so only a same-line impossible sequence qualifies.
+  LUAU_INVALID_STATEMENT_HAS_INVALID_SEQUENCE: (?={{LUAU_INVALID_STATEMENT_SEARCH_TOKEN}}*?{{LUAU_INVALID_STATEMENT_INVALID_SEQUENCE}})
+  # lookaround: LuauLineComment owns --; brackets end this search because LuauFunctionCall may contain arbitrary statements.
+  LUAU_INVALID_STATEMENT_SEARCH_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*"?|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*'?|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*`?|[^\r\n"'`(){}\[\]-]|-(?!-))
+  LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER: (?:[^"\\\r\n]|\\.)
+  LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER: (?:[^'\\\r\n]|\\.)
+  LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER: (?:[^`\\\r\n]|\\.)
+  # lookaround: LuauExpression keeps operators and keywords between values; two adjacent non-keywords or a dangling dot cannot continue it.
+  LUAU_INVALID_STATEMENT_INVALID_SEQUENCE: (?:(?<=[A-Za-z0-9_]){{LUAU_INVALID_STATEMENT_NOT_AFTER_KEYWORD}}{{WS}}+{{LUAU_INVALID_STATEMENT_NOT_CONTINUATION_KEYWORD}}[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.](?![.]){{LUAU_INVALID_STATEMENT_BEFORE_LINE_END}})
+  # lookaround: LuauControlBlock and LuauVariableDefinition accept a value or name after their keywords.
+  LUAU_INVALID_STATEMENT_NOT_AFTER_KEYWORD: (?<!\b{{LUAU_INVALID_STATEMENT_PREFIX_KEYWORDS}})
+  LUAU_INVALID_STATEMENT_PREFIX_KEYWORDS: (?:{{LUAU_RESERVED_WORDS}}|{{LUAU_SCOPE_MODIFIERS}})
+  # lookaround: LuauLogicalOperation and LuauControlBlock own these continuations.
+  LUAU_INVALID_STATEMENT_NOT_CONTINUATION_KEYWORD: (?!{{LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS}}\b)
+  LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS: ["and", "or", "not", "then", "do", "in", "end", "else", "elseif", "until"]
+  # lookaround: LuauLineComment may follow a dangling dot; a later name instead belongs to LuauAccessPath.
+  LUAU_INVALID_STATEMENT_BEFORE_LINE_END: (?={{WS}}*(?:$|--))
+  # lookaround: LuauCompareOperation owns ~=; the other characters cannot start a Luau expression.
+  LUAU_INVALID_STATEMENT_INVALID_CHARACTER_START: (?=[!?&$\\]|~{{LUAU_INVALID_STATEMENT_NOT_EQUALS}})
+  # lookaround: LuauCompareOperation owns ~=, so ~ alone is the invalid token.
+  LUAU_INVALID_STATEMENT_NOT_EQUALS: (?!=)
+  # lookaround: LuauMultilineString and LuauBlockComment own unclosed long tokens; LuauControlBlock owns closing keywords.
+  LUAU_INVALID_STATEMENT_LINE_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*"?|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*'?|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*`?|(?:--)?{{LUAU_INVALID_STATEMENT_CLOSED_LONG_TOKEN}}|--(?!\[=*\[)[^\r\n]*|{{LUAU_INVALID_STATEMENT_NOT_BLOCK_END}}[^\r\n"'`\[-]|\[(?!=*\[)|-(?!-))
+  LUAU_INVALID_STATEMENT_CLOSED_LONG_TOKEN: (?:\[\[[^\r\n]*?\]\]|\[=\[[^\r\n]*?\]=\]|\[==\[[^\r\n]*?\]==\])
+  # lookaround: LuauControlBlock must see its own closing keyword even after an invalid statement.
+  LUAU_INVALID_STATEMENT_NOT_BLOCK_END: (?!{{WS}}*{{LUAU_INVALID_STATEMENT_WORD_START}}{{LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS}}\b)
+  # lookaround: LuauInvalidStatementName keeps a keyword suffix inside a longer identifier.
+  LUAU_INVALID_STATEMENT_WORD_START: (?<![A-Za-z0-9_])
+  LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS: (?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})
+  # lookaround: LuauControlBlock owns closing keywords; LuauMultilineString and LuauBlockComment own tokens continuing past this line.
+  LUAU_INVALID_STATEMENT_END: (?={{WS}}*$|{{WS}}*{{LUAU_INVALID_STATEMENT_WORD_START}}{{LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS}}\b|{{WS}}*(?:--)?{{LUAU_INVALID_STATEMENT_OPEN_LONG_TOKEN}}|{{WS}}*{{LUAU_INVALID_STATEMENT_OPEN_QUOTED_TOKEN}}\\(?:z{{WS}}*)?$)
+  # lookaround: LuauMultilineString and LuauBlockComment own long tokens that do not close on this line.
+  LUAU_INVALID_STATEMENT_OPEN_LONG_TOKEN: (?:\[\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ZERO}}|\[=\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ONE}}|\[==\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_TWO}}|\[===+\[)
+  # lookaround: LuauMultilineString owns an unclosed [[ token; a closed one remains inside the invalid line.
+  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ZERO: (?![^\r\n]*\]\])
+  # lookaround: LuauMultilineString owns an unclosed [=[ token; a closed one remains inside the invalid line.
+  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ONE: (?![^\r\n]*\]=\])
+  # lookaround: LuauMultilineString owns an unclosed [==[ token; a closed one remains inside the invalid line.
+  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_TWO: (?![^\r\n]*\]==\])
+  LUAU_INVALID_STATEMENT_OPEN_QUOTED_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*)
+
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
@@ -7752,7 +7810,7 @@ repository:
   # begins a statement or a block, a scene or a branch is left to its own
   # rule.
   LuauInvalidStatement:
-    match: ^({{WS}}*)((?:(?!(?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)\b){{LUAU_IDENTIFIER}}(?:{{WS}}*[.](?![.]){{WS}}*(?!(?:{{LUAU_RESERVED_WORDS}})\b){{LUAU_IDENTIFIER}})*(?:{{WS}}+(?!(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)\b)[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.](?![.])(?!{{WS}}*[A-Za-z_])|(?![^\r\n]*=)(?=(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|[^\r\n"'`(){}\[\]-]|-(?!-))*?(?:(?<=[A-Za-z0-9_])(?<!\b(?:{{LUAU_RESERVED_WORDS}}|{{LUAU_SCOPE_MODIFIERS}})){{WS}}+(?!(?:and|or|not|then|do|in|end|else|elseif|until)\b)[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.](?![.])(?={{WS}}*(?:$|--)))))|(?=[!?$&\\]|~(?!=)))(?:"(?:[^"\\\r\n]|\\.)*"?|'(?:[^'\\\r\n]|\\.)*'?|`(?:[^`\\\r\n]|\\.)*`?|(?:--)?(?:\[\[[^\r\n]*?\]\]|\[=\[[^\r\n]*?\]=\]|\[==\[[^\r\n]*?\]==\])|--(?!\[=*\[)[^\r\n]*|(?!{{WS}}*(?<![A-Za-z0-9_])(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b)[^\r\n"'`\[-]|\[(?!=*\[)|-(?!-))*?)(?={{WS}}*$|{{WS}}*(?<![A-Za-z0-9_])(?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})\b|{{WS}}*(?:--)?(?:\[\[(?![^\r\n]*\]\])|\[=\[(?![^\r\n]*\]=\])|\[==\[(?![^\r\n]*\]==\])|\[===+\[)|{{WS}}*(?:"(?:[^"\\\r\n]|\\.)*|'(?:[^'\\\r\n]|\\.)*|`(?:[^`\\\r\n]|\\.)*)\\(?:z{{WS}}*)?$)
+    match: ^({{WS}}*)({{LUAU_INVALID_STATEMENT_START}}{{LUAU_INVALID_STATEMENT_LINE_TOKEN}}*?){{LUAU_INVALID_STATEMENT_END}}
     captures:
       1:
         patterns:
@@ -7792,7 +7850,7 @@ repository:
   LuauInvalidStatementKeyword:
     tag: controlKeyword
     name: keyword.control.luau
-    match: \b(?:{{LUAU_RESERVED_WORDS}})\b
+    match: \b{{LUAU_INVALID_STATEMENT_RESERVED_WORD}}\b
 
   LuauInvalidStatementName:
     tag: variableName

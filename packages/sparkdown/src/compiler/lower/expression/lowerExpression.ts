@@ -482,11 +482,11 @@ function trailingIfExpressionWithElse(node: SyntaxNode): SyntaxNode | null {
     let last: SyntaxNode | null = current.lastChild;
     while (
       last &&
-      (last.name.endsWith("_end") || isSkippableName(last.name))
+      (last.name === current.name + "_end" || isSkippableName(last.name))
     ) {
       last = last.prevSibling;
     }
-    if (last?.name.endsWith("_content")) last = last.lastChild;
+    if (last?.name === current.name + "_content") last = last.lastChild;
     while (last && isSkippableName(last.name)) last = last.prevSibling;
     current = last;
   }
