@@ -1,0 +1,1027 @@
+sparkdown [0..490]
+ ├─ InlineDialogue [0..38]
+ │   ├─ InlineDialogue_begin [0..7]
+ │   │   ├─ InlineDialogue_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ InlineDialogue_begin_c2 [0..5]
+ │   │   │   └─ DialogueCharacter [0..5]
+ │   │   │       ├─ DialogueCharacter_c1 0
+ │   │   │       ├─ DialogueCharacter_c2 [0..5]
+ │   │   │       │   └─ DialogueCharacterName [0..5]
+ │   │   │       │       └─ DialogueCharacterName_c1 [0..5]
+ │   │   │       │           └─ Word [0..5]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 5
+ │   │   │       ├─ DialogueCharacter_c4 5
+ │   │   │       ├─ DialogueCharacter_c5 5
+ │   │   │       ├─ DialogueCharacter_c6 5
+ │   │   │       └─ DialogueCharacter_c7 5
+ │   │   ├─ InlineDialogue_begin_c3 [5..6]
+ │   │   │   └─ ColonSeparator [5..6]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [6..7]
+ │   │   │   └─ RequiredWhitespace [6..7]: " "
+ │   │   └─ InlineDialogue_begin_c5 7
+ │   ├─ InlineDialogue_content [7..38]
+ │   │   └─ LineEnd [7..38]
+ │   │       ├─ LineEnd_begin 7
+ │   │       │   └─ LineEnd_begin_c1 7
+ │   │       │       └─ OptionalWhitespace 7
+ │   │       ├─ LineEnd_content [7..38]
+ │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock [7..31]
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [7..16]
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 7
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [7..9]
+ │   │       │   │   │   │   └─ AlternatorGlue [7..9]: ".."
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [9..10]
+ │   │       │   │   │   │   └─ ExtraWhitespace [9..10]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 10
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 10
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [10..15]
+ │   │       │   │   │   │   └─ LuauControlKeyword [10..15]: "queue"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [15..16]
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [15..16]
+ │   │       │   │   │           └─ OptionalWhitespace [15..16]: " "
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [16..28]
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [16..18]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 16
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [16..17]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 [17..18]
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 [17..18]
+ │   │       │   │   │   │   │       └─ OptionalWhitespace [17..18]: " "
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 18
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 18
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 18
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 18
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm [18..21]
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 18
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [18..21]
+ │   │       │   │   │   │   │   ├─ Word [18..20]: "Hi"
+ │   │       │   │   │   │   │   └─ Space [20..21]: " "
+ │   │       │   │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 21
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [21..23]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 21
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [21..22]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 [22..23]
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 [22..23]
+ │   │       │   │   │   │   │       └─ OptionalWhitespace [22..23]: " "
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 23
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 23
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 23
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 23
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm [23..28]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 23
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [23..28]
+ │   │       │   │   │       │   └─ Word [23..28]: "Hello"
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedAlternatorArm_end 28
+ │   │       │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [28..31]
+ │   │       │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [28..29]
+ │   │       │   │       │   └─ ExtraWhitespace [28..29]: " "
+ │   │       │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [29..31]
+ │   │       │   │           └─ AlternatorGlue [29..31]: ".."
+ │   │       │   └─ TextChunk [31..38]
+ │   │       │       ├─ TextChunk_begin 31
+ │   │       │       ├─ TextChunk_content [31..38]
+ │   │       │       │   ├─ Space [31..32]: " "
+ │   │       │       │   ├─ Word [32..37]: "there"
+ │   │       │       │   └─ Punctuation [37..38]: "."
+ │   │       │       └─ TextChunk_end 38
+ │   │       └─ LineEnd_end 38
+ │   └─ InlineDialogue_end 38
+ ├─ Newline [38..39]: "\n"
+ ├─ InlineDialogue [39..73]
+ │   ├─ InlineDialogue_begin [39..46]
+ │   │   ├─ InlineDialogue_begin_c1 39
+ │   │   │   └─ OptionalWhitespace 39
+ │   │   ├─ InlineDialogue_begin_c2 [39..44]
+ │   │   │   └─ DialogueCharacter [39..44]
+ │   │   │       ├─ DialogueCharacter_c1 39
+ │   │   │       ├─ DialogueCharacter_c2 [39..44]
+ │   │   │       │   └─ DialogueCharacterName [39..44]
+ │   │   │       │       └─ DialogueCharacterName_c1 [39..44]
+ │   │   │       │           └─ Word [39..44]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 44
+ │   │   │       ├─ DialogueCharacter_c4 44
+ │   │   │       ├─ DialogueCharacter_c5 44
+ │   │   │       ├─ DialogueCharacter_c6 44
+ │   │   │       └─ DialogueCharacter_c7 44
+ │   │   ├─ InlineDialogue_begin_c3 [44..45]
+ │   │   │   └─ ColonSeparator [44..45]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [45..46]
+ │   │   │   └─ RequiredWhitespace [45..46]: " "
+ │   │   └─ InlineDialogue_begin_c5 46
+ │   ├─ InlineDialogue_content [46..73]
+ │   │   └─ LineEnd [46..73]
+ │   │       ├─ LineEnd_begin 46
+ │   │       │   └─ LineEnd_begin_c1 46
+ │   │       │       └─ OptionalWhitespace 46
+ │   │       ├─ LineEnd_content [46..73]
+ │   │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock [46..73]
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [46..63]
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 46
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [46..48]
+ │   │       │       │   │   └─ AlternatorGlue [46..48]: ".."
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [48..49]
+ │   │       │       │   │   └─ ExtraWhitespace [48..49]: " "
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 [49..56]
+ │   │       │       │   │   └─ LuauControlKeyword [49..56]: "shuffle"
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 [56..57]
+ │   │       │       │   │   └─ ExtraWhitespace [56..57]: " "
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [57..62]
+ │   │       │       │   │   └─ LuauControlKeyword [57..62]: "cycle"
+ │   │       │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [62..63]
+ │   │       │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [62..63]
+ │   │       │       │           └─ OptionalWhitespace [62..63]: " "
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [63..70]
+ │   │       │       │   ├─ LuauAlternatorSeparator [63..65]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 63
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [63..64]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [64..65]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [64..65]
+ │   │       │       │   │   │       └─ OptionalWhitespace [64..65]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 65
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 65
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 65
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 65
+ │   │       │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [65..67]
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 65
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [65..67]
+ │   │       │       │   │   │   ├─ Word [65..66]: "a"
+ │   │       │       │   │   │   └─ Space [66..67]: " "
+ │   │       │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 67
+ │   │       │       │   ├─ LuauAlternatorSeparator [67..69]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 67
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [67..68]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [68..69]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [68..69]
+ │   │       │       │   │   │       └─ OptionalWhitespace [68..69]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 69
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 69
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 69
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 69
+ │   │       │       │   └─ LuauSparkdownInlineGluedAlternatorArm [69..70]
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 69
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [69..70]
+ │   │       │       │       │   └─ Word [69..70]: "b"
+ │   │       │       │       └─ LuauSparkdownInlineGluedAlternatorArm_end 70
+ │   │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [70..73]
+ │   │       │           ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [70..71]
+ │   │       │           │   └─ ExtraWhitespace [70..71]: " "
+ │   │       │           └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [71..73]
+ │   │       │               └─ AlternatorGlue [71..73]: ".."
+ │   │       └─ LineEnd_end 73
+ │   └─ InlineDialogue_end 73
+ ├─ Newline [73..74]: "\n"
+ ├─ InlineDialogue [74..109]
+ │   ├─ InlineDialogue_begin [74..81]
+ │   │   ├─ InlineDialogue_begin_c1 74
+ │   │   │   └─ OptionalWhitespace 74
+ │   │   ├─ InlineDialogue_begin_c2 [74..79]
+ │   │   │   └─ DialogueCharacter [74..79]
+ │   │   │       ├─ DialogueCharacter_c1 74
+ │   │   │       ├─ DialogueCharacter_c2 [74..79]
+ │   │   │       │   └─ DialogueCharacterName [74..79]
+ │   │   │       │       └─ DialogueCharacterName_c1 [74..79]
+ │   │   │       │           └─ Word [74..79]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 79
+ │   │   │       ├─ DialogueCharacter_c4 79
+ │   │   │       ├─ DialogueCharacter_c5 79
+ │   │   │       ├─ DialogueCharacter_c6 79
+ │   │   │       └─ DialogueCharacter_c7 79
+ │   │   ├─ InlineDialogue_begin_c3 [79..80]
+ │   │   │   └─ ColonSeparator [79..80]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [80..81]
+ │   │   │   └─ RequiredWhitespace [80..81]: " "
+ │   │   └─ InlineDialogue_begin_c5 81
+ │   ├─ InlineDialogue_content [81..109]
+ │   │   └─ LineEnd [81..109]
+ │   │       ├─ LineEnd_begin 81
+ │   │       │   └─ LineEnd_begin_c1 81
+ │   │       │       └─ OptionalWhitespace 81
+ │   │       ├─ LineEnd_content [81..109]
+ │   │       │   └─ LuauSparkdownInlineGluedConditionalAlternatorBlock [81..109]
+ │   │       │       ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin [81..90]
+ │   │       │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c1 81
+ │   │       │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c2 [81..83]
+ │   │       │       │   │   └─ AlternatorGlue [81..83]: ".."
+ │   │       │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c3 [83..84]
+ │   │       │       │   │   └─ ExtraWhitespace [83..84]: " "
+ │   │       │       │   ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c4 [84..90]
+ │   │       │       │   │   └─ LuauControlKeyword [84..90]: "plural"
+ │   │       │       │   └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c5 90
+ │   │       │       │       └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_begin_c5 90
+ │   │       │       │           └─ OptionalWhitespace 90
+ │   │       │       ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_content [90..106]
+ │   │       │       │   ├─ LuauConditionalAlternatorCondition [90..93]
+ │   │       │       │   │   ├─ LuauConditionalAlternatorCondition_begin 90
+ │   │       │       │   │   ├─ LuauConditionalAlternatorCondition_content [90..93]
+ │   │       │       │   │   │   └─ LuauParenthetical [90..93]
+ │   │       │       │   │   │       ├─ LuauParenthetical_begin [90..91]
+ │   │       │       │   │   │       │   └─ LuauParenthetical_begin_c1 [90..91]
+ │   │       │       │   │   │       │       └─ PunctuationParenOpen [90..91]: "("
+ │   │       │       │   │   │       ├─ LuauParenthetical_content [91..92]
+ │   │       │       │   │   │       │   └─ LuauAccessPath [91..92]
+ │   │       │       │   │   │       │       ├─ LuauAccessPath_begin 91
+ │   │       │       │   │   │       │       ├─ LuauAccessPath_content [91..92]
+ │   │       │       │   │   │       │       │   └─ LuauAccessPart [91..92]
+ │   │       │       │   │   │       │       │       └─ LuauVariable [91..92]
+ │   │       │       │   │   │       │       │           └─ LuauVariable_c1 [91..92]
+ │   │       │       │   │   │       │       │               └─ LuauVariableName [91..92]: "n"
+ │   │       │       │   │   │       │       └─ LuauAccessPath_end 92
+ │   │       │       │   │   │       │           └─ LuauAccessPath_end_c1 92
+ │   │       │       │   │   │       └─ LuauParenthetical_end [92..93]
+ │   │       │       │   │   │           ├─ LuauParenthetical_end_c1 [92..93]
+ │   │       │       │   │   │           │   └─ PunctuationParenClose [92..93]: ")"
+ │   │       │       │   │   │           └─ LuauParenthetical_end_c2 93
+ │   │       │       │   │   └─ LuauConditionalAlternatorCondition_end 93
+ │   │       │       │   ├─ LuauAlternatorSeparator [93..96]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 [93..94]
+ │   │       │       │   │   │   └─ ExtraWhitespace [93..94]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [94..95]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [95..96]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [95..96]
+ │   │       │       │   │   │       └─ OptionalWhitespace [95..96]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 96
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 96
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 96
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 96
+ │   │       │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [96..100]
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 96
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [96..100]
+ │   │       │       │   │   │   ├─ Word [96..99]: "one"
+ │   │       │       │   │   │   └─ Space [99..100]: " "
+ │   │       │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 100
+ │   │       │       │   ├─ LuauAlternatorSeparator [100..102]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 100
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [100..101]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [101..102]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [101..102]
+ │   │       │       │   │   │       └─ OptionalWhitespace [101..102]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 102
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 102
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 102
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 102
+ │   │       │       │   └─ LuauSparkdownInlineGluedAlternatorArm [102..106]
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 102
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [102..106]
+ │   │       │       │       │   └─ Word [102..106]: "many"
+ │   │       │       │       └─ LuauSparkdownInlineGluedAlternatorArm_end 106
+ │   │       │       └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_end [106..109]
+ │   │       │           ├─ LuauSparkdownInlineGluedConditionalAlternatorBlock_end_c1 [106..107]
+ │   │       │           │   └─ ExtraWhitespace [106..107]: " "
+ │   │       │           └─ LuauSparkdownInlineGluedConditionalAlternatorBlock_end_c2 [107..109]
+ │   │       │               └─ AlternatorGlue [107..109]: ".."
+ │   │       └─ LineEnd_end 109
+ │   └─ InlineDialogue_end 109
+ ├─ Newline [109..110]: "\n"
+ ├─ InlineWrite [110..143]
+ │   ├─ InlineWrite_begin [110..117]
+ │   │   ├─ InlineWrite_begin_c1 110
+ │   │   │   └─ OptionalWhitespace 110
+ │   │   ├─ InlineWrite_begin_c2 [110..111]
+ │   │   │   └─ WriteMark [110..111]: "@"
+ │   │   ├─ InlineWrite_begin_c3 [111..112]
+ │   │   │   └─ InlineWrite_begin_c3 [111..112]
+ │   │   │       └─ OptionalWhitespace [111..112]: " "
+ │   │   ├─ InlineWrite_begin_c4 [112..115]
+ │   │   │   └─ WriteTarget [112..115]: "ACE"
+ │   │   ├─ InlineWrite_begin_c5 [115..116]
+ │   │   │   └─ ColonSeparator [115..116]: ":"
+ │   │   ├─ InlineWrite_begin_c6 [116..117]
+ │   │   │   └─ RequiredWhitespace [116..117]: " "
+ │   │   └─ InlineWrite_begin_c7 117
+ │   ├─ InlineWrite_content [117..143]
+ │   │   └─ LineEnd [117..143]
+ │   │       ├─ LineEnd_begin 117
+ │   │       │   └─ LineEnd_begin_c1 117
+ │   │       │       └─ OptionalWhitespace 117
+ │   │       ├─ LineEnd_content [117..143]
+ │   │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock [117..143]
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [117..126]
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 117
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [117..119]
+ │   │       │       │   │   └─ AlternatorGlue [117..119]: ".."
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [119..120]
+ │   │       │       │   │   └─ ExtraWhitespace [119..120]: " "
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 120
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 120
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [120..125]
+ │   │       │       │   │   └─ LuauControlKeyword [120..125]: "chain"
+ │   │       │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [125..126]
+ │   │       │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [125..126]
+ │   │       │       │           └─ OptionalWhitespace [125..126]: " "
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [126..140]
+ │   │       │       │   ├─ LuauAlternatorSeparator [126..128]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 126
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [126..127]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [127..128]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [127..128]
+ │   │       │       │   │   │       └─ OptionalWhitespace [127..128]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 128
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 128
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 128
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 128
+ │   │       │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [128..134]
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 128
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [128..134]
+ │   │       │       │   │   │   ├─ Word [128..133]: "first"
+ │   │       │       │   │   │   └─ Space [133..134]: " "
+ │   │       │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 134
+ │   │       │       │   ├─ LuauAlternatorSeparator [134..136]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 134
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [134..135]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [135..136]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [135..136]
+ │   │       │       │   │   │       └─ OptionalWhitespace [135..136]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 136
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 136
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 136
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 136
+ │   │       │       │   └─ LuauSparkdownInlineGluedAlternatorArm [136..140]
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 136
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [136..140]
+ │   │       │       │       │   └─ Word [136..140]: "then"
+ │   │       │       │       └─ LuauSparkdownInlineGluedAlternatorArm_end 140
+ │   │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [140..143]
+ │   │       │           ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [140..141]
+ │   │       │           │   └─ ExtraWhitespace [140..141]: " "
+ │   │       │           └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [141..143]
+ │   │       │               └─ AlternatorGlue [141..143]: ".."
+ │   │       └─ LineEnd_end 143
+ │   └─ InlineWrite_end 143
+ ├─ Newline [143..144]: "\n"
+ ├─ InlineHeading [144..178]
+ │   ├─ InlineHeading_begin [144..147]
+ │   │   ├─ InlineHeading_begin_c1 144
+ │   │   │   └─ OptionalWhitespace 144
+ │   │   ├─ InlineHeading_begin_c2 [144..145]
+ │   │   │   └─ HeadingMark [144..145]: "$"
+ │   │   ├─ InlineHeading_begin_c3 [145..146]
+ │   │   │   └─ ColonOperator [145..146]: ":"
+ │   │   ├─ InlineHeading_begin_c4 [146..147]
+ │   │   │   └─ RequiredWhitespace [146..147]: " "
+ │   │   └─ InlineHeading_begin_c5 147
+ │   ├─ InlineHeading_content [147..178]
+ │   │   └─ LineEnd [147..178]
+ │   │       ├─ LineEnd_begin 147
+ │   │       │   └─ LineEnd_begin_c1 147
+ │   │       │       └─ OptionalWhitespace 147
+ │   │       ├─ LineEnd_content [147..178]
+ │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock [147..172]
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [147..156]
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 147
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [147..149]
+ │   │       │   │   │   │   └─ AlternatorGlue [147..149]: ".."
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [149..150]
+ │   │       │   │   │   │   └─ ExtraWhitespace [149..150]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 150
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 150
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [150..155]
+ │   │       │   │   │   │   └─ LuauControlKeyword [150..155]: "cycle"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [155..156]
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [155..156]
+ │   │       │   │   │           └─ OptionalWhitespace [155..156]: " "
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [156..169]
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [156..158]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 156
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [156..157]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 [157..158]
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 [157..158]
+ │   │       │   │   │   │   │       └─ OptionalWhitespace [157..158]: " "
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 158
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 158
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 158
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 158
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm [158..163]
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 158
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [158..163]
+ │   │       │   │   │   │   │   ├─ Word [158..161]: "INT"
+ │   │       │   │   │   │   │   ├─ Punctuation [161..162]: "."
+ │   │       │   │   │   │   │   └─ Space [162..163]: " "
+ │   │       │   │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 163
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [163..165]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 163
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [163..164]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 [164..165]
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 [164..165]
+ │   │       │   │   │   │   │       └─ OptionalWhitespace [164..165]: " "
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 165
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 165
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 165
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 165
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm [165..169]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 165
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [165..169]
+ │   │       │   │   │       │   ├─ Word [165..168]: "EXT"
+ │   │       │   │   │       │   └─ Punctuation [168..169]: "."
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedAlternatorArm_end 169
+ │   │       │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [169..172]
+ │   │       │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [169..170]
+ │   │       │   │       │   └─ ExtraWhitespace [169..170]: " "
+ │   │       │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [170..172]
+ │   │       │   │           └─ AlternatorGlue [170..172]: ".."
+ │   │       │   └─ TextChunk [172..178]
+ │   │       │       ├─ TextChunk_begin 172
+ │   │       │       ├─ TextChunk_content [172..178]
+ │   │       │       │   ├─ Space [172..173]: " "
+ │   │       │       │   └─ Word [173..178]: "HOUSE"
+ │   │       │       └─ TextChunk_end 178
+ │   │       └─ LineEnd_end 178
+ │   └─ InlineHeading_end 178
+ ├─ Newline [178..179]: "\n"
+ ├─ InlineTitle [179..201]
+ │   ├─ InlineTitle_begin [179..182]
+ │   │   ├─ InlineTitle_begin_c1 179
+ │   │   │   └─ OptionalWhitespace 179
+ │   │   ├─ InlineTitle_begin_c2 [179..180]
+ │   │   │   └─ TitleMark [179..180]: "^"
+ │   │   ├─ InlineTitle_begin_c3 [180..181]
+ │   │   │   └─ ColonOperator [180..181]: ":"
+ │   │   ├─ InlineTitle_begin_c4 [181..182]
+ │   │   │   └─ RequiredWhitespace [181..182]: " "
+ │   │   └─ InlineTitle_begin_c5 182
+ │   ├─ InlineTitle_content [182..201]
+ │   │   └─ LineEnd [182..201]
+ │   │       ├─ LineEnd_begin 182
+ │   │       │   └─ LineEnd_begin_c1 182
+ │   │       │       └─ OptionalWhitespace 182
+ │   │       ├─ LineEnd_content [182..201]
+ │   │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock [182..201]
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [182..191]
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 182
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [182..184]
+ │   │       │       │   │   └─ AlternatorGlue [182..184]: ".."
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [184..185]
+ │   │       │       │   │   └─ ExtraWhitespace [184..185]: " "
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 185
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 185
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [185..190]
+ │   │       │       │   │   └─ LuauControlKeyword [185..190]: "queue"
+ │   │       │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [190..191]
+ │   │       │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [190..191]
+ │   │       │       │           └─ OptionalWhitespace [190..191]: " "
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [191..198]
+ │   │       │       │   ├─ LuauAlternatorSeparator [191..193]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 191
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [191..192]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [192..193]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [192..193]
+ │   │       │       │   │   │       └─ OptionalWhitespace [192..193]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 193
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 193
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 193
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 193
+ │   │       │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [193..195]
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 193
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [193..195]
+ │   │       │       │   │   │   ├─ Word [193..194]: "A"
+ │   │       │       │   │   │   └─ Space [194..195]: " "
+ │   │       │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 195
+ │   │       │       │   ├─ LuauAlternatorSeparator [195..197]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 195
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [195..196]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [196..197]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [196..197]
+ │   │       │       │   │   │       └─ OptionalWhitespace [196..197]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 197
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 197
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 197
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 197
+ │   │       │       │   └─ LuauSparkdownInlineGluedAlternatorArm [197..198]
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 197
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [197..198]
+ │   │       │       │       │   └─ Word [197..198]: "B"
+ │   │       │       │       └─ LuauSparkdownInlineGluedAlternatorArm_end 198
+ │   │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [198..201]
+ │   │       │           ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [198..199]
+ │   │       │           │   └─ ExtraWhitespace [198..199]: " "
+ │   │       │           └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [199..201]
+ │   │       │               └─ AlternatorGlue [199..201]: ".."
+ │   │       └─ LineEnd_end 201
+ │   └─ InlineTitle_end 201
+ ├─ Newline [201..202]: "\n"
+ ├─ InlineTransitional [202..238]
+ │   ├─ InlineTransitional_begin [202..205]
+ │   │   ├─ InlineTransitional_begin_c1 202
+ │   │   │   └─ OptionalWhitespace 202
+ │   │   ├─ InlineTransitional_begin_c2 [202..203]
+ │   │   │   └─ TransitionalMark [202..203]: "%"
+ │   │   ├─ InlineTransitional_begin_c3 [203..204]
+ │   │   │   └─ ColonOperator [203..204]: ":"
+ │   │   ├─ InlineTransitional_begin_c4 [204..205]
+ │   │   │   └─ RequiredWhitespace [204..205]: " "
+ │   │   └─ InlineTransitional_begin_c5 205
+ │   ├─ InlineTransitional_content [205..238]
+ │   │   └─ LineEnd [205..238]
+ │   │       ├─ LineEnd_begin 205
+ │   │       │   └─ LineEnd_begin_c1 205
+ │   │       │       └─ OptionalWhitespace 205
+ │   │       ├─ LineEnd_content [205..238]
+ │   │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock [205..238]
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [205..214]
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 205
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [205..207]
+ │   │       │       │   │   └─ AlternatorGlue [205..207]: ".."
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [207..208]
+ │   │       │       │   │   └─ ExtraWhitespace [207..208]: " "
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 208
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 208
+ │   │       │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [208..213]
+ │   │       │       │   │   └─ LuauControlKeyword [208..213]: "cycle"
+ │   │       │       │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [213..214]
+ │   │       │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [213..214]
+ │   │       │       │           └─ OptionalWhitespace [213..214]: " "
+ │   │       │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [214..235]
+ │   │       │       │   ├─ LuauAlternatorSeparator [214..216]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 214
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [214..215]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [215..216]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [215..216]
+ │   │       │       │   │   │       └─ OptionalWhitespace [215..216]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 216
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 216
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 216
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 216
+ │   │       │       │   ├─ LuauSparkdownInlineGluedAlternatorArm [216..224]
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 216
+ │   │       │       │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [216..224]
+ │   │       │       │   │   │   ├─ Word [216..219]: "CUT"
+ │   │       │       │   │   │   ├─ Space [219..220]: " "
+ │   │       │       │   │   │   ├─ Word [220..222]: "TO"
+ │   │       │       │   │   │   ├─ Punctuation [222..223]: ":"
+ │   │       │       │   │   │   └─ Space [223..224]: " "
+ │   │       │       │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 224
+ │   │       │       │   ├─ LuauAlternatorSeparator [224..226]
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c1 224
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c2 [224..225]: "|"
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c3 [225..226]
+ │   │       │       │   │   │   └─ LuauAlternatorSeparator_c3 [225..226]
+ │   │       │       │   │   │       └─ OptionalWhitespace [225..226]: " "
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c4 226
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c5 226
+ │   │       │       │   │   ├─ LuauAlternatorSeparator_c6 226
+ │   │       │       │   │   └─ LuauAlternatorSeparator_c7 226
+ │   │       │       │   └─ LuauSparkdownInlineGluedAlternatorArm [226..235]
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 226
+ │   │       │       │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [226..235]
+ │   │       │       │       │   ├─ Word [226..230]: "FADE"
+ │   │       │       │       │   ├─ Space [230..231]: " "
+ │   │       │       │       │   ├─ Word [231..234]: "OUT"
+ │   │       │       │       │   └─ Punctuation [234..235]: ":"
+ │   │       │       │       └─ LuauSparkdownInlineGluedAlternatorArm_end 235
+ │   │       │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [235..238]
+ │   │       │           ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [235..236]
+ │   │       │           │   └─ ExtraWhitespace [235..236]: " "
+ │   │       │           └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [236..238]
+ │   │       │               └─ AlternatorGlue [236..238]: ".."
+ │   │       └─ LineEnd_end 238
+ │   └─ InlineTransitional_end 238
+ ├─ Newline [238..239]: "\n"
+ ├─ InlineDialogue [239..273]
+ │   ├─ InlineDialogue_begin [239..248]
+ │   │   ├─ InlineDialogue_begin_c1 239
+ │   │   │   └─ OptionalWhitespace 239
+ │   │   ├─ InlineDialogue_begin_c2 [239..244]
+ │   │   │   └─ DialogueCharacter [239..244]
+ │   │   │       ├─ DialogueCharacter_c1 239
+ │   │   │       ├─ DialogueCharacter_c2 [239..244]
+ │   │   │       │   └─ DialogueCharacterName [239..244]
+ │   │   │       │       └─ DialogueCharacterName_c1 [239..244]
+ │   │   │       │           └─ Word [239..244]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 244
+ │   │   │       ├─ DialogueCharacter_c4 244
+ │   │   │       ├─ DialogueCharacter_c5 244
+ │   │   │       ├─ DialogueCharacter_c6 244
+ │   │   │       └─ DialogueCharacter_c7 244
+ │   │   ├─ InlineDialogue_begin_c3 [244..245]
+ │   │   │   └─ ColonSeparator [244..245]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [245..246]
+ │   │   │   └─ RequiredWhitespace [245..246]: " "
+ │   │   └─ InlineDialogue_begin_c5 [246..248]
+ │   │       └─ LeadingGlue [246..248]
+ │   │           └─ LeadingGlue_c1 [246..248]: ".."
+ │   ├─ InlineDialogue_content [248..273]
+ │   │   └─ LineEnd [248..273]
+ │   │       ├─ LineEnd_begin 248
+ │   │       │   └─ LineEnd_begin_c1 248
+ │   │       │       └─ OptionalWhitespace 248
+ │   │       ├─ LineEnd_content [248..273]
+ │   │       │   └─ TextChunk [248..273]
+ │   │       │       ├─ TextChunk_begin 248
+ │   │       │       ├─ TextChunk_content [248..273]
+ │   │       │       │   ├─ Word [248..254]: "joined"
+ │   │       │       │   ├─ Space [254..255]: " "
+ │   │       │       │   ├─ Word [255..257]: "to"
+ │   │       │       │   ├─ Space [257..258]: " "
+ │   │       │       │   ├─ Word [258..261]: "the"
+ │   │       │       │   ├─ Space [261..262]: " "
+ │   │       │       │   ├─ Word [262..266]: "line"
+ │   │       │       │   ├─ Space [266..267]: " "
+ │   │       │       │   └─ Word [267..273]: "before"
+ │   │       │       └─ TextChunk_end 273
+ │   │       └─ LineEnd_end 273
+ │   └─ InlineDialogue_end 273
+ ├─ Newline [273..274]: "\n"
+ ├─ InlineWrite [274..289]
+ │   ├─ InlineWrite_begin [274..283]
+ │   │   ├─ InlineWrite_begin_c1 274
+ │   │   │   └─ OptionalWhitespace 274
+ │   │   ├─ InlineWrite_begin_c2 [274..275]
+ │   │   │   └─ WriteMark [274..275]: "@"
+ │   │   ├─ InlineWrite_begin_c3 [275..276]
+ │   │   │   └─ InlineWrite_begin_c3 [275..276]
+ │   │   │       └─ OptionalWhitespace [275..276]: " "
+ │   │   ├─ InlineWrite_begin_c4 [276..279]
+ │   │   │   └─ WriteTarget [276..279]: "ACE"
+ │   │   ├─ InlineWrite_begin_c5 [279..280]
+ │   │   │   └─ ColonSeparator [279..280]: ":"
+ │   │   ├─ InlineWrite_begin_c6 [280..281]
+ │   │   │   └─ RequiredWhitespace [280..281]: " "
+ │   │   └─ InlineWrite_begin_c7 [281..283]
+ │   │       └─ LeadingGlue [281..283]
+ │   │           └─ LeadingGlue_c1 [281..283]: ".."
+ │   ├─ InlineWrite_content [283..289]
+ │   │   └─ LineEnd [283..289]
+ │   │       ├─ LineEnd_begin 283
+ │   │       │   └─ LineEnd_begin_c1 283
+ │   │       │       └─ OptionalWhitespace 283
+ │   │       ├─ LineEnd_content [283..289]
+ │   │       │   └─ TextChunk [283..289]
+ │   │       │       ├─ TextChunk_begin 283
+ │   │       │       ├─ TextChunk_content [283..289]
+ │   │       │       │   └─ Word [283..289]: "joined"
+ │   │       │       └─ TextChunk_end 289
+ │   │       └─ LineEnd_end 289
+ │   └─ InlineWrite_end 289
+ ├─ Newline [289..290]: "\n"
+ ├─ InlineHeading [290..301]
+ │   ├─ InlineHeading_begin [290..295]
+ │   │   ├─ InlineHeading_begin_c1 290
+ │   │   │   └─ OptionalWhitespace 290
+ │   │   ├─ InlineHeading_begin_c2 [290..291]
+ │   │   │   └─ HeadingMark [290..291]: "$"
+ │   │   ├─ InlineHeading_begin_c3 [291..292]
+ │   │   │   └─ ColonOperator [291..292]: ":"
+ │   │   ├─ InlineHeading_begin_c4 [292..293]
+ │   │   │   └─ RequiredWhitespace [292..293]: " "
+ │   │   └─ InlineHeading_begin_c5 [293..295]
+ │   │       └─ LeadingGlue [293..295]
+ │   │           └─ LeadingGlue_c1 [293..295]: ".."
+ │   ├─ InlineHeading_content [295..301]
+ │   │   └─ LineEnd [295..301]
+ │   │       ├─ LineEnd_begin 295
+ │   │       │   └─ LineEnd_begin_c1 295
+ │   │       │       └─ OptionalWhitespace 295
+ │   │       ├─ LineEnd_content [295..301]
+ │   │       │   └─ TextChunk [295..301]
+ │   │       │       ├─ TextChunk_begin 295
+ │   │       │       ├─ TextChunk_content [295..301]
+ │   │       │       │   └─ Word [295..301]: "joined"
+ │   │       │       └─ TextChunk_end 301
+ │   │       └─ LineEnd_end 301
+ │   └─ InlineHeading_end 301
+ ├─ Newline [301..302]: "\n"
+ ├─ InlineTitle [302..313]
+ │   ├─ InlineTitle_begin [302..307]
+ │   │   ├─ InlineTitle_begin_c1 302
+ │   │   │   └─ OptionalWhitespace 302
+ │   │   ├─ InlineTitle_begin_c2 [302..303]
+ │   │   │   └─ TitleMark [302..303]: "^"
+ │   │   ├─ InlineTitle_begin_c3 [303..304]
+ │   │   │   └─ ColonOperator [303..304]: ":"
+ │   │   ├─ InlineTitle_begin_c4 [304..305]
+ │   │   │   └─ RequiredWhitespace [304..305]: " "
+ │   │   └─ InlineTitle_begin_c5 [305..307]
+ │   │       └─ LeadingGlue [305..307]
+ │   │           └─ LeadingGlue_c1 [305..307]: ".."
+ │   ├─ InlineTitle_content [307..313]
+ │   │   └─ LineEnd [307..313]
+ │   │       ├─ LineEnd_begin 307
+ │   │       │   └─ LineEnd_begin_c1 307
+ │   │       │       └─ OptionalWhitespace 307
+ │   │       ├─ LineEnd_content [307..313]
+ │   │       │   └─ TextChunk [307..313]
+ │   │       │       ├─ TextChunk_begin 307
+ │   │       │       ├─ TextChunk_content [307..313]
+ │   │       │       │   └─ Word [307..313]: "joined"
+ │   │       │       └─ TextChunk_end 313
+ │   │       └─ LineEnd_end 313
+ │   └─ InlineTitle_end 313
+ ├─ Newline [313..314]: "\n"
+ ├─ InlineTransitional [314..325]
+ │   ├─ InlineTransitional_begin [314..319]
+ │   │   ├─ InlineTransitional_begin_c1 314
+ │   │   │   └─ OptionalWhitespace 314
+ │   │   ├─ InlineTransitional_begin_c2 [314..315]
+ │   │   │   └─ TransitionalMark [314..315]: "%"
+ │   │   ├─ InlineTransitional_begin_c3 [315..316]
+ │   │   │   └─ ColonOperator [315..316]: ":"
+ │   │   ├─ InlineTransitional_begin_c4 [316..317]
+ │   │   │   └─ RequiredWhitespace [316..317]: " "
+ │   │   └─ InlineTransitional_begin_c5 [317..319]
+ │   │       └─ LeadingGlue [317..319]
+ │   │           └─ LeadingGlue_c1 [317..319]: ".."
+ │   ├─ InlineTransitional_content [319..325]
+ │   │   └─ LineEnd [319..325]
+ │   │       ├─ LineEnd_begin 319
+ │   │       │   └─ LineEnd_begin_c1 319
+ │   │       │       └─ OptionalWhitespace 319
+ │   │       ├─ LineEnd_content [319..325]
+ │   │       │   └─ TextChunk [319..325]
+ │   │       │       ├─ TextChunk_begin 319
+ │   │       │       ├─ TextChunk_content [319..325]
+ │   │       │       │   └─ Word [319..325]: "joined"
+ │   │       │       └─ TextChunk_end 325
+ │   │       └─ LineEnd_end 325
+ │   └─ InlineTransitional_end 325
+ ├─ Newline [325..326]: "\n"
+ ├─ InlineDialogue [326..364]
+ │   ├─ InlineDialogue_begin [326..335]
+ │   │   ├─ InlineDialogue_begin_c1 326
+ │   │   │   └─ OptionalWhitespace 326
+ │   │   ├─ InlineDialogue_begin_c2 [326..331]
+ │   │   │   └─ DialogueCharacter [326..331]
+ │   │   │       ├─ DialogueCharacter_c1 326
+ │   │   │       ├─ DialogueCharacter_c2 [326..331]
+ │   │   │       │   └─ DialogueCharacterName [326..331]
+ │   │   │       │       └─ DialogueCharacterName_c1 [326..331]
+ │   │   │       │           └─ Word [326..331]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 331
+ │   │   │       ├─ DialogueCharacter_c4 331
+ │   │   │       ├─ DialogueCharacter_c5 331
+ │   │   │       ├─ DialogueCharacter_c6 331
+ │   │   │       └─ DialogueCharacter_c7 331
+ │   │   ├─ InlineDialogue_begin_c3 [331..332]
+ │   │   │   └─ ColonSeparator [331..332]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [332..333]
+ │   │   │   └─ RequiredWhitespace [332..333]: " "
+ │   │   └─ InlineDialogue_begin_c5 [333..335]
+ │   │       └─ LeadingGlue [333..335]
+ │   │           └─ LeadingGlue_c1 [333..335]: ".."
+ │   ├─ InlineDialogue_content [335..364]
+ │   │   └─ LineEnd [335..364]
+ │   │       ├─ LineEnd_begin [335..336]
+ │   │       │   └─ LineEnd_begin_c1 [335..336]
+ │   │       │       └─ OptionalWhitespace [335..336]: " "
+ │   │       ├─ LineEnd_content [336..364]
+ │   │       │   └─ TextChunk [336..364]
+ │   │       │       ├─ TextChunk_begin 336
+ │   │       │       ├─ TextChunk_content [336..364]
+ │   │       │       │   ├─ Word [336..341]: "queue"
+ │   │       │       │   ├─ Punctuation [341..342]: "."
+ │   │       │       │   ├─ Word [342..343]: "x"
+ │   │       │       │   ├─ Space [343..344]: " "
+ │   │       │       │   ├─ Word [344..346]: "is"
+ │   │       │       │   ├─ Space [346..347]: " "
+ │   │       │       │   ├─ Word [347..350]: "not"
+ │   │       │       │   ├─ Space [350..351]: " "
+ │   │       │       │   ├─ Word [351..353]: "an"
+ │   │       │       │   ├─ Space [353..354]: " "
+ │   │       │       │   └─ Word [354..364]: "alternator"
+ │   │       │       └─ TextChunk_end 364
+ │   │       └─ LineEnd_end 364
+ │   └─ InlineDialogue_end 364
+ ├─ Newline [364..365]: "\n"
+ ├─ InlineDialogue [365..397]
+ │   ├─ InlineDialogue_begin [365..372]
+ │   │   ├─ InlineDialogue_begin_c1 365
+ │   │   │   └─ OptionalWhitespace 365
+ │   │   ├─ InlineDialogue_begin_c2 [365..370]
+ │   │   │   └─ DialogueCharacter [365..370]
+ │   │   │       ├─ DialogueCharacter_c1 365
+ │   │   │       ├─ DialogueCharacter_c2 [365..370]
+ │   │   │       │   └─ DialogueCharacterName [365..370]
+ │   │   │       │       └─ DialogueCharacterName_c1 [365..370]
+ │   │   │       │           └─ Word [365..370]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 370
+ │   │   │       ├─ DialogueCharacter_c4 370
+ │   │   │       ├─ DialogueCharacter_c5 370
+ │   │   │       ├─ DialogueCharacter_c6 370
+ │   │   │       └─ DialogueCharacter_c7 370
+ │   │   ├─ InlineDialogue_begin_c3 [370..371]
+ │   │   │   └─ ColonSeparator [370..371]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [371..372]
+ │   │   │   └─ RequiredWhitespace [371..372]: " "
+ │   │   └─ InlineDialogue_begin_c5 372
+ │   ├─ InlineDialogue_content [372..397]
+ │   │   ├─ ParentheticalLine [372..382]
+ │   │   │   ├─ ParentheticalLine_c1 372
+ │   │   │   │   └─ OptionalWhitespace 372
+ │   │   │   ├─ ParentheticalLine_c2 372
+ │   │   │   ├─ ParentheticalLine_c3 372
+ │   │   │   ├─ ParentheticalLine_c4 [372..379]
+ │   │   │   │   └─ ParentheticalLineContent [372..379]
+ │   │   │   │       ├─ ParentheticalLineContent_c1 372
+ │   │   │   │       ├─ ParentheticalLineContent_c2 [372..373]: "("
+ │   │   │   │       ├─ ParentheticalLineContent_c3 373
+ │   │   │   │       ├─ ParentheticalLineContent_c4 [373..378]
+ │   │   │   │       │   └─ Word [373..378]: "aside"
+ │   │   │   │       ├─ ParentheticalLineContent_c5 378
+ │   │   │   │       ├─ ParentheticalLineContent_c6 [378..379]: ")"
+ │   │   │   │       └─ ParentheticalLineContent_c7 379
+ │   │   │   ├─ ParentheticalLine_c5 [379..380]
+ │   │   │   │   └─ ExtraWhitespace [379..380]: " "
+ │   │   │   ├─ ParentheticalLine_c6 380
+ │   │   │   └─ ParentheticalLine_c7 [380..382]
+ │   │   │       └─ Chain [380..382]
+ │   │   │           ├─ Chain_c1 380
+ │   │   │           ├─ Chain_c2 [380..381]: "\\"
+ │   │   │           ├─ Chain_c3 [381..382]
+ │   │   │           │   └─ ExtraWhitespace [381..382]: " "
+ │   │   │           └─ Chain_c4 382
+ │   │   └─ LineEnd [382..397]
+ │   │       ├─ LineEnd_begin 382
+ │   │       │   └─ LineEnd_begin_c1 382
+ │   │       │       └─ OptionalWhitespace 382
+ │   │       ├─ LineEnd_content [382..397]
+ │   │       │   └─ TextChunk [382..397]
+ │   │       │       ├─ TextChunk_begin 382
+ │   │       │       ├─ TextChunk_content [382..397]
+ │   │       │       │   ├─ Punctuation [382..383]: "."
+ │   │       │       │   ├─ Punctuation [383..384]: "."
+ │   │       │       │   ├─ Word [384..389]: "after"
+ │   │       │       │   ├─ Space [389..390]: " "
+ │   │       │       │   ├─ Word [390..391]: "a"
+ │   │       │       │   ├─ Space [391..392]: " "
+ │   │       │       │   └─ Word [392..397]: "chain"
+ │   │       │       └─ TextChunk_end 397
+ │   │       └─ LineEnd_end 397
+ │   └─ InlineDialogue_end 397
+ ├─ Newline [397..398]: "\n"
+ ├─ InlineDialogue [398..417]
+ │   ├─ InlineDialogue_begin [398..405]
+ │   │   ├─ InlineDialogue_begin_c1 398
+ │   │   │   └─ OptionalWhitespace 398
+ │   │   ├─ InlineDialogue_begin_c2 [398..403]
+ │   │   │   └─ DialogueCharacter [398..403]
+ │   │   │       ├─ DialogueCharacter_c1 398
+ │   │   │       ├─ DialogueCharacter_c2 [398..403]
+ │   │   │       │   └─ DialogueCharacterName [398..403]
+ │   │   │       │       └─ DialogueCharacterName_c1 [398..403]
+ │   │   │       │           └─ Word [398..403]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 403
+ │   │   │       ├─ DialogueCharacter_c4 403
+ │   │   │       ├─ DialogueCharacter_c5 403
+ │   │   │       ├─ DialogueCharacter_c6 403
+ │   │   │       └─ DialogueCharacter_c7 403
+ │   │   ├─ InlineDialogue_begin_c3 [403..404]
+ │   │   │   └─ ColonSeparator [403..404]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [404..405]
+ │   │   │   └─ RequiredWhitespace [404..405]: " "
+ │   │   └─ InlineDialogue_begin_c5 405
+ │   ├─ InlineDialogue_content [405..417]
+ │   │   ├─ ParentheticalLine [405..415]
+ │   │   │   ├─ ParentheticalLine_c1 405
+ │   │   │   │   └─ OptionalWhitespace 405
+ │   │   │   ├─ ParentheticalLine_c2 405
+ │   │   │   ├─ ParentheticalLine_c3 405
+ │   │   │   ├─ ParentheticalLine_c4 [405..412]
+ │   │   │   │   └─ ParentheticalLineContent [405..412]
+ │   │   │   │       ├─ ParentheticalLineContent_c1 405
+ │   │   │   │       ├─ ParentheticalLineContent_c2 [405..406]: "("
+ │   │   │   │       ├─ ParentheticalLineContent_c3 406
+ │   │   │   │       ├─ ParentheticalLineContent_c4 [406..411]
+ │   │   │   │       │   └─ Word [406..411]: "aside"
+ │   │   │   │       ├─ ParentheticalLineContent_c5 411
+ │   │   │   │       ├─ ParentheticalLineContent_c6 [411..412]: ")"
+ │   │   │   │       └─ ParentheticalLineContent_c7 412
+ │   │   │   ├─ ParentheticalLine_c5 [412..413]
+ │   │   │   │   └─ ExtraWhitespace [412..413]: " "
+ │   │   │   ├─ ParentheticalLine_c6 413
+ │   │   │   └─ ParentheticalLine_c7 [413..415]
+ │   │   │       └─ Chain [413..415]
+ │   │   │           ├─ Chain_c1 413
+ │   │   │           ├─ Chain_c2 [413..414]: "\\"
+ │   │   │           ├─ Chain_c3 [414..415]
+ │   │   │           │   └─ ExtraWhitespace [414..415]: " "
+ │   │   │           └─ Chain_c4 415
+ │   │   └─ LineEnd [415..417]
+ │   │       ├─ LineEnd_begin 415
+ │   │       │   └─ LineEnd_begin_c1 415
+ │   │       │       └─ OptionalWhitespace 415
+ │   │       ├─ LineEnd_content [415..417]
+ │   │       │   └─ Glue [415..417]
+ │   │       │       ├─ Glue_c1 415
+ │   │       │       └─ Glue_c2 [415..417]: ".."
+ │   │       └─ LineEnd_end 417
+ │   └─ InlineDialogue_end 417
+ ├─ Newline [417..418]: "\n"
+ ├─ InlineAction [418..448]
+ │   ├─ InlineAction_begin [418..420]
+ │   │   ├─ InlineAction_begin_c1 418
+ │   │   │   └─ OptionalWhitespace 418
+ │   │   ├─ InlineAction_begin_c2 [418..420]
+ │   │   │   └─ LeadingGlue [418..420]
+ │   │   │       └─ LeadingGlue_c1 [418..420]: ".."
+ │   │   ├─ InlineAction_begin_c3 420
+ │   │   └─ InlineAction_begin_c4 420
+ │   ├─ InlineAction_content [420..448]
+ │   │   └─ LineEnd [420..448]
+ │   │       ├─ LineEnd_begin 420
+ │   │       │   └─ LineEnd_begin_c1 420
+ │   │       │       └─ OptionalWhitespace 420
+ │   │       ├─ LineEnd_content [420..448]
+ │   │       │   └─ TextChunk [420..448]
+ │   │       │       ├─ TextChunk_begin 420
+ │   │       │       ├─ TextChunk_content [420..448]
+ │   │       │       │   ├─ Word [420..426]: "joined"
+ │   │       │       │   ├─ Space [426..427]: " "
+ │   │       │       │   ├─ Word [427..432]: "after"
+ │   │       │       │   ├─ Space [432..433]: " "
+ │   │       │       │   ├─ Word [433..434]: "a"
+ │   │       │       │   ├─ Space [434..435]: " "
+ │   │       │       │   ├─ Word [435..443]: "trailing"
+ │   │       │       │   ├─ Space [443..444]: " "
+ │   │       │       │   └─ Word [444..448]: "mark"
+ │   │       │       └─ TextChunk_end 448
+ │   │       └─ LineEnd_end 448
+ │   └─ InlineAction_end 448
+ ├─ Newline [448..449]: "\n"
+ ├─ InlineDialogue [449..489]
+ │   ├─ InlineDialogue_begin [449..456]
+ │   │   ├─ InlineDialogue_begin_c1 449
+ │   │   │   └─ OptionalWhitespace 449
+ │   │   ├─ InlineDialogue_begin_c2 [449..454]
+ │   │   │   └─ DialogueCharacter [449..454]
+ │   │   │       ├─ DialogueCharacter_c1 449
+ │   │   │       ├─ DialogueCharacter_c2 [449..454]
+ │   │   │       │   └─ DialogueCharacterName [449..454]
+ │   │   │       │       └─ DialogueCharacterName_c1 [449..454]
+ │   │   │       │           └─ Word [449..454]: "BUNNY"
+ │   │   │       ├─ DialogueCharacter_c3 454
+ │   │   │       ├─ DialogueCharacter_c4 454
+ │   │   │       ├─ DialogueCharacter_c5 454
+ │   │   │       ├─ DialogueCharacter_c6 454
+ │   │   │       └─ DialogueCharacter_c7 454
+ │   │   ├─ InlineDialogue_begin_c3 [454..455]
+ │   │   │   └─ ColonSeparator [454..455]: ":"
+ │   │   ├─ InlineDialogue_begin_c4 [455..456]
+ │   │   │   └─ RequiredWhitespace [455..456]: " "
+ │   │   └─ InlineDialogue_begin_c5 456
+ │   ├─ InlineDialogue_content [456..489]
+ │   │   └─ LineEnd [456..489]
+ │   │       ├─ LineEnd_begin 456
+ │   │       │   └─ LineEnd_begin_c1 456
+ │   │       │       └─ OptionalWhitespace 456
+ │   │       ├─ LineEnd_content [456..489]
+ │   │       │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock [456..480]
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin [456..465]
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c1 456
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c2 [456..458]
+ │   │       │   │   │   │   └─ AlternatorGlue [456..458]: ".."
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c3 [458..459]
+ │   │       │   │   │   │   └─ ExtraWhitespace [458..459]: " "
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c4 459
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c5 459
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c6 [459..464]
+ │   │       │   │   │   │   └─ LuauControlKeyword [459..464]: "queue"
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [464..465]
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_begin_c7 [464..465]
+ │   │       │   │   │           └─ OptionalWhitespace [464..465]: " "
+ │   │       │   │   ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_content [465..477]
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [465..467]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 465
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [465..466]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 [466..467]
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 [466..467]
+ │   │       │   │   │   │   │       └─ OptionalWhitespace [466..467]: " "
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 467
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 467
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 467
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 467
+ │   │       │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm [467..470]
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_begin 467
+ │   │       │   │   │   │   ├─ LuauSparkdownInlineGluedAlternatorArm_content [467..470]
+ │   │       │   │   │   │   │   ├─ Word [467..469]: "Hi"
+ │   │       │   │   │   │   │   └─ Space [469..470]: " "
+ │   │       │   │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm_end 470
+ │   │       │   │   │   ├─ LuauAlternatorSeparator [470..472]
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c1 470
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c2 [470..471]: "|"
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c3 [471..472]
+ │   │       │   │   │   │   │   └─ LuauAlternatorSeparator_c3 [471..472]
+ │   │       │   │   │   │   │       └─ OptionalWhitespace [471..472]: " "
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c4 472
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c5 472
+ │   │       │   │   │   │   ├─ LuauAlternatorSeparator_c6 472
+ │   │       │   │   │   │   └─ LuauAlternatorSeparator_c7 472
+ │   │       │   │   │   └─ LuauSparkdownInlineGluedAlternatorArm [472..477]
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_begin 472
+ │   │       │   │   │       ├─ LuauSparkdownInlineGluedAlternatorArm_content [472..477]
+ │   │       │   │   │       │   └─ Word [472..477]: "Hello"
+ │   │       │   │   │       └─ LuauSparkdownInlineGluedAlternatorArm_end 477
+ │   │       │   │   └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end [477..480]
+ │   │       │   │       ├─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c1 [477..478]
+ │   │       │   │       │   └─ ExtraWhitespace [477..478]: " "
+ │   │       │   │       └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [478..480]
+ │   │       │   │           └─ AlternatorGlue [478..480]: ".."
+ │   │       │   └─ TextChunk [480..489]
+ │   │       │       ├─ TextChunk_begin 480
+ │   │       │       ├─ TextChunk_content [480..489]
+ │   │       │       │   ├─ Space [480..481]: " "
+ │   │       │       │   ├─ Space [481..482]: " "
+ │   │       │       │   ├─ Space [482..483]: " "
+ │   │       │       │   ├─ Word [483..488]: "there"
+ │   │       │       │   └─ Punctuation [488..489]: "."
+ │   │       │       └─ TextChunk_end 489
+ │   │       └─ LineEnd_end 489
+ │   └─ InlineDialogue_end 489
+ └─ Newline [489..490]: "\n"

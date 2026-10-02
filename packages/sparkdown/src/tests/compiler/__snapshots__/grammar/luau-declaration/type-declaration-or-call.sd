@@ -1,0 +1,10 @@
+function f(x)
+  type T = number
+  export type U = { name: T }
+  type (x)
+  type(x)
+  type "x"
+  type { x }
+  local g = type
+  return type(x) == "number"
+end
