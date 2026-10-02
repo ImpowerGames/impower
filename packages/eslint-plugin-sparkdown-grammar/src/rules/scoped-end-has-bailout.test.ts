@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { grammar, lintRule } from "../utils/lint-fixture.ts";
 
@@ -113,6 +114,40 @@ BeatOrWord:
   end: (?={{BEAT}})|([a-z]+)`,
   });
   assert.deepEqual(lines(source), [7]);
+});
+
+test("assertions around BEAT keep their meaning", () => {
+  const source = grammar({
+    variables: "BEAT: (?:^scene[ ])",
+    repository: String.raw`WordBoundaryBeat:
+  begin: "[(]"
+  end: (?=\b{{BEAT}})|([)])
+ContradictedBeat:
+  begin: "[(]"
+  end: (?={{BEAT}})(?!scene[ ])|([)])`,
+  });
+  assert.deepEqual(lines(source), [10]);
+});
+
+test("the grammar's own BEAT is probed as written", () => {
+  // `repository:` is the grammar's last section, so rules appended to the
+  // file join it and see the real variables.
+  const source =
+    readFileSync(
+      new URL("../../../../definitions/yaml/sparkdown.language-grammar.yaml", import.meta.url),
+      "utf8",
+    ) +
+    String.raw`  ProbeValidBeat:
+    begin: "[(]"
+    end: (?=\b{{BEAT}})|([)])
+  ProbeExcludesEveryBeat:
+    begin: "[(]"
+    end: (?={{BEAT}})(?![^\S\r\n]*\w)|([)])
+`;
+  const names = lintRule(source, "scoped-end-has-bailout")
+    .map((m) => m.message.match(/`end:` of (\w+)/)?.[1] ?? m.message)
+    .filter((name) => name.startsWith("Probe"));
+  assert.deepEqual(names, ["ProbeExcludesEveryBeat"]);
 });
 
 test("each newline form counts as a line end", () => {

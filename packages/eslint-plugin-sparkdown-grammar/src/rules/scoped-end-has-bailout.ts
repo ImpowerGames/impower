@@ -11,10 +11,12 @@
 // text made of a filler character no closer uses, so `[)]$` (which needs
 // the closer before the line end) and `(?!$)[)]` fail it while `$|([)])`
 // passes. The probes put line ends in all three forms (`\n`, `\r\n`,
-// `\r`). `{{BEAT}}` is replaced by a sentinel character that only the
-// beat probe holds, so the probe asks whether the pattern can reach the
-// next beat without any other text, not whether a closer happens to spell
-// a beat keyword. A back-reference stands for a `begin:` capture this
+// `\r`). `{{BEAT}}` keeps its real definition, so assertions around it
+// (`\b{{BEAT}}`, `(?={{BEAT}})(?!scene)`) behave as they do at runtime,
+// and the beat probes are real `scene` / `branch` lines. A beat probe
+// counts only for a pattern that names `{{BEAT}}` outside any negative
+// lookaround, so a closer that merely spells a beat keyword, such as
+// `(scene)`, is not taken for a bail-out. A back-reference stands for a `begin:` capture this
 // check cannot see, so it is replaced by a sentinel no probe holds:
 // `(\1)` needs its delimiter, while `(?!\1{{WS}})` still holds where the
 // line does not repeat it. A pattern that does not compile as a
@@ -30,20 +32,23 @@ import { regexGroups, scanRegex } from "../utils/regex-scan.ts";
 const TOKEN = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
 const FILL = "░";
-const BEAT_SENTINEL = "▒";
 const BACKREFERENCE_SENTINEL = "(?:▓)";
 
 // Places where an end with a bail-out matches without any closer: the end
-// of a line (each newline form, and the end of the input), the start of
-// an unindented line, and the start of a beat line.
-const PROBES: [text: string, at: number][] = [
+// of a line (each newline form, and the end of the input) and the start
+// of an unindented line.
+const LINE_PROBES: [text: string, at: number][] = [
   [`${FILL}${FILL}\n${FILL}`, 2],
   [`${FILL}${FILL}\r\n${FILL}`, 2],
   [`${FILL}${FILL}\r${FILL}`, 2],
   [`${FILL}${FILL}`, 2],
   [`${FILL}\n${FILL}`, 2],
   [`${FILL}\r\n${FILL}`, 3],
-  [`${FILL}\n${BEAT_SENTINEL}${FILL}`, 2],
+];
+// The start of a beat line, for each beat keyword.
+const BEAT_PROBES: [text: string, at: number][] = [
+  [`${FILL}\nscene ${FILL}\n`, 2],
+  [`${FILL}\nbranch ${FILL}\n`, 2],
 ];
 
 // Substitutes variables (all of them, or all but `BEAT`, which then stays
@@ -72,8 +77,7 @@ function resolveVariables(
 export function hasBailOut(index: GrammarIndex, end: string): boolean {
   let probe: RegExp | null = null;
   try {
-    const source = resolveVariables(index, end, true)
-      .replaceAll("{{BEAT}}", `(?:${BEAT_SENTINEL})`)
+    const source = resolveVariables(index, end, false)
       // Walk escapes pairwise so an escaped backslash before a digit
       // is left alone.
       .replace(/\\(?:[1-9]|k<[^>]*>|[^])/g, (escape) =>
@@ -84,23 +88,46 @@ export function hasBailOut(index: GrammarIndex, end: string): boolean {
     probe = null;
   }
   if (probe) {
-    return PROBES.some(([text, at]) => {
+    const matches = ([text, at]: [string, number]): boolean => {
       probe!.lastIndex = at;
       return probe!.test(text);
-    });
+    };
+    return (
+      LINE_PROBES.some(matches) ||
+      (namesPositiveBeat(resolveVariables(index, end, true)) &&
+        BEAT_PROBES.some(matches))
+    );
   }
   return hasTextualBailOut(index, end);
 }
 
-function hasTextualBailOut(index: GrammarIndex, end: string): boolean {
-  const resolved = resolveVariables(index, end, true);
-  // A boundary inside a negative lookaround asserts its absence, as in
-  // `(?!$)`, so it is no bail-out.
-  const negated = regexGroups(resolved).filter(
+// Whether the offset sits outside every negative lookaround of `source`.
+function positiveAt(source: string): (at: number) => boolean {
+  const negated = regexGroups(source).filter(
     (g) => g.kind === "negative-lookahead" || g.kind === "negative-lookbehind",
   );
-  const positive = (at: number) =>
-    !negated.some((g) => g.start < at && at < g.end);
+  return (at) => !negated.some((g) => g.start < at && at < g.end);
+}
+
+// Whether `source` (variables resolved except `BEAT`) names `{{BEAT}}`
+// outside a character class and every negative lookaround.
+function namesPositiveBeat(source: string): boolean {
+  const positive = positiveAt(source);
+  for (const tok of scanRegex(source)) {
+    if (tok.inCharClass) continue;
+    if (tok.text === "{" && source.startsWith("{{BEAT}}", tok.index) && positive(tok.index)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function hasTextualBailOut(index: GrammarIndex, end: string): boolean {
+  const resolved = resolveVariables(index, end, true);
+  if (namesPositiveBeat(resolved)) return true;
+  // A boundary inside a negative lookaround asserts its absence, as in
+  // `(?!$)`, so it is no bail-out.
+  const positive = positiveAt(resolved);
   for (const tok of scanRegex(resolved)) {
     if (tok.inCharClass) continue;
     if (tok.text === "$" && positive(tok.index)) return true;
@@ -108,9 +135,6 @@ function hasTextualBailOut(index: GrammarIndex, end: string): boolean {
     // start of every line but the ones it excludes, which bounds it as a
     // line end would.
     if (tok.text === "^" && resolved.startsWith("(?!", tok.index + 1) && positive(tok.index)) {
-      return true;
-    }
-    if (tok.text === "{" && resolved.startsWith("{{BEAT}}", tok.index) && positive(tok.index)) {
       return true;
     }
   }
