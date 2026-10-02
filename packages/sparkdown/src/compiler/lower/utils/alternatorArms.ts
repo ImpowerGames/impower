@@ -1,3 +1,4 @@
+import { nodeNameSet } from "../../utils/nodeNameSet";
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { type SyntaxNode } from "@lezer/common";
 import { Divert } from "../../../inkjs/compiler/Parser/ParsedHierarchy/Divert/Divert";
@@ -14,10 +15,32 @@ import { Tag as RuntimeTag } from "../../../inkjs/engine/Tag";
 import { buildDisplayCall, separateTags } from "./displayCall";
 import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "../context";
-import { lowerPrimary } from "../expression/lowerExpression";
+import { lowerExpressionFromNodes } from "../expression/lowerExpression";
 import { lower } from "../lower";
 import { forwardBlockDiagnostics, unwrapBlockContent } from "./unwrapBlock";
 import { findChildByName } from "../../utils/findChildByName";
+
+// The values an inline alternator's arm can hold (`{queue|A|B|C end}`):
+// a literal, a name or path, a parenthesized value, a table, a divert
+// target, a function value or an if expression.
+const ARM_VALUES = nodeNameSet([
+  "LuauNumericDecimal",
+  "LuauNumericHex",
+  "LuauNumericBinary",
+  "LuauBoolean",
+  "LuauNil",
+  "LuauRegexLiteral",
+  "LuauDoubleQuotedString",
+  "LuauSingleQuotedString",
+  "LuauMultilineString",
+  "LuauInterpolatedString",
+  "LuauAccessPath",
+  "LuauParenthetical",
+  "LuauTable",
+  "LuauDivertTargetLiteral",
+  "LuauFunctionDefinition",
+  "LuauTernaryExpression",
+]);
 
 // Build a statement-form `Divert` ParsedObject from a
 // `LuauDivertTargetLiteral` syntax node. Mirrors what
@@ -155,7 +178,9 @@ export function lowerArms(
         // into the surrounding output stream — same behavior as a normal
         // `{expr}` interpolation, just nested inside the alternator's
         // chosen arm.
-        const expr = lowerPrimary(child, ctx);
+        const expr = ARM_VALUES.has(child.name)
+          ? lowerExpressionFromNodes([child], ctx)
+          : null;
         if (expr) {
           expr.outputWhenComplete = true;
           current.body.push(expr);

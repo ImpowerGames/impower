@@ -1,4 +1,3 @@
-import { type SyntaxNode } from "@lezer/common";
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import { lookupStdLibDeprecation } from "../../../inkjs/engine/StdLib";
 import type { LowerContext } from "../context";
@@ -10,11 +9,11 @@ const DIAGNOSTIC_TAG_DEPRECATED = 2;
 
 // If `resolvedName` matches a stdlib entry flagged `deprecated`,
 // push an Information-severity diagnostic onto `ctx.diagnostics`
-// covering `node`'s range. The runtime still dispatches the call —
+// covering `range`. The runtime still dispatches the call —
 // the diagnostic is purely editor-side feedback. No-op otherwise.
 export function validateStdLibDeprecation(
   resolvedName: string,
-  node: SyntaxNode,
+  range: { from: number; to: number },
   ctx: LowerContext,
 ): void {
   const message = lookupStdLibDeprecation(resolvedName);
@@ -22,12 +21,15 @@ export function validateStdLibDeprecation(
   ctx.diagnostics.push({
     message,
     severity: ErrorType.Information,
-    source: makeSource(node, ctx),
+    source: makeSource(range, ctx),
     tags: [DIAGNOSTIC_TAG_DEPRECATED],
   });
 }
 
-function makeSource(node: SyntaxNode, ctx: LowerContext): SourceMetadata {
+function makeSource(
+  node: { from: number; to: number },
+  ctx: LowerContext,
+): SourceMetadata {
   return {
     fileName: null,
     filePath: ctx.filePath ?? null,

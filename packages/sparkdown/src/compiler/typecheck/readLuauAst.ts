@@ -153,8 +153,8 @@ export interface LuauStatementSource {
 
 /** Some of a document's Luau, read as one block, as the type checker's units divide it. */
 export interface LuauAstUnit {
-  /** A `run` file, a `.sd` file's prelude, or one of its flows. */
-  kind: "file" | "prelude" | "flow";
+  /** A `run` file, a `.sd` file's prelude, one of its flows, or a block a lowerer reads (`readLuauBlock`). */
+  kind: "file" | "prelude" | "flow" | "block";
   /**
    * The unit's statements. A flow's block holds one statement, the local
    * function `__flow` whose parameters are the flow's and whose body is the
@@ -1259,10 +1259,14 @@ class Parser {
     return new AstStatSparkdownExplicit(Location.span(mark, statement.location), statement, mark);
   }
 
-  /** `store` names [`=` values]. */
+  /** `store` names [`=` values], or `store function` and a function the story's globals hold, as `function` declares it. */
   private parseStore(): AstStat {
     const start = this.current().location;
     this.next();
+    if (this.is("function")) {
+      const stat = this.parseFunctionStat([]) as AstStatFunction;
+      return new AstStatFunction(Location.span(start, stat.location), stat.name, stat.func);
+    }
     const names: Binding[] = [];
     this.parseBindingList(names);
     let equalsSignLocation: Location | undefined;
@@ -3151,6 +3155,30 @@ export function readLuauRunFile(tree: Tree, documentText: string): LuauAstUnit |
 
 // The nodes the grammar puts around a rule's begin, content and end, and their captures.
 const WRAPPER = /_(begin|content|end)(_c\d+)*$/;
+
+/**
+ * Reads the Luau statements some sibling nodes hold as one block, for the
+ * lowerers, which lower a document a top-level node at a time and a block's
+ * statements beside the Sparkdown lines among them: a top-level statement
+ * node, or the children of a choice's body or an alternator's arm. Each
+ * statement of the block is recorded with the nodes it was read from, so a
+ * lowerer that reaches a node takes the statements that begin in it and skips
+ * the nodes they continue into. A name the block does not declare is read as
+ * a global.
+ */
+export function readLuauBlock(nodes: readonly SyntaxNode[], documentText: string): LuauAstUnit {
+  const index = lineIndex(documentText);
+  const tokenizer = new Tokenizer(documentText, index);
+  const refs: TreeNodeRef[] = [];
+  for (const node of nodes) {
+    tokenizer.source = refs.length;
+    refs.push(ref(node));
+    tokenizer.read(node);
+  }
+  tokenizer.source = -1;
+  const first = tokenizer.tokens[0];
+  return readUnit("block", tokenizer, refs, 1, first ? first.location.begin : new Position(0, 0));
+}
 
 /**
  * Reads the one Luau expression some nodes hold (an interpolation's,

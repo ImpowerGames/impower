@@ -45,7 +45,6 @@ const robin = (trailing: string) =>
 describe("a trailing comment does not change a typed field's value", () => {
   for (const [label, marker] of [
     ["no comment (control)", ""],
-    ["`//`", " // note"],
     ["`--`", " -- note"],
   ] as const) {
     test(label, () => {
@@ -56,9 +55,22 @@ describe("a trailing comment does not change a typed field's value", () => {
     });
   }
 
-  // The stripper requires whitespace before the marker, and `//` additionally
-  // requires a following space or end-of-line — so neither a URL nor a CSS
-  // custom property is mistaken for a comment.
+  // `//` is Luau's floor division, not a comment: `5 // note` divides by a
+  // name nothing declares, which the compiler reports, and the value is the
+  // expression as written rather than the number before it.
+  test("`//` is floor division, reported", () => {
+    const program = compile(
+      `define Bird with\n  delay = 0\nend\n` +
+        `define robin as Bird with\n  delay = 5 // note\nend\n`,
+    );
+    const messages = Object.values(program.diagnostics ?? {})
+      .flat()
+      .map((d: any) => (typeof d.message === "string" ? d.message : d.message.value));
+    expect(messages).toContain("Cannot find variable named `note`");
+    expect(program.context?.Bird?.robin?.delay).not.toBe(5);
+  });
+
+  // Inside quotes neither a URL nor a CSS custom property is a comment.
   test("a `://` URL and a `--custom` property survive", () => {
     const out = compile(
       `define Bird with\n  name = ""\n  tint = ""\nend\n` +
