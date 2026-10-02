@@ -5,7 +5,7 @@ Build game UI — menus, HUDs, dialogs, inventory panels — in Sparkdown, the s
 Read in order:
 
 1. **[Introduction](./Introduction.md)** — what Sparkle is and why.
-2. **[Basic Concepts](./Structure.md)** — layouts, elements, classes, content, props, events.
+2. **[Basic Concepts](./Structure.md)** — layouts, elements, blocks, classes, content, props, events.
 3. **[Control Flow](./ControlFlow.md)** — `if` / `for` / `match` for dynamic UI.
 4. **[Components](./Components.md)** — reusable UI with parameters and slots.
 5. **[Interactive Widgets](./Widgets.md)** — buttons, fields, sliders, checkboxes, dropdowns.
@@ -17,7 +17,7 @@ Read in order:
 11. **[Previewing Suggestions](./SuggestionPreview.md)** — the Game Preview shows an autocomplete suggestion before you accept it.
 12. **[Type Checking](./TypeChecking.md)** — warnings about the types in your Luau, and how strict they are.
 
-> Syntax at a glance: element lines are `element [ classes ] [ "content" ] [ #prop=value ] [ @event=handler ] [:]`; classes are **space-separated**; inline props take a **`#`**; blocks are `keyword name with … end`; control flow uses `then` / `do` / `end`.
+> Syntax at a glance: an element is `element[.class …] [ "content" ] [ #prop=value ] [ @event=handler ] [ { children } ]`; each class takes a **`.`**; inline props take a **`#`**; an element's children, a style's nested rules and an animation's keyframes go in **`{ … }`** blocks, whose entries are separated by a new line or **`;`**; declarations are `keyword name with … end`; control flow uses `then` / `do` / `end`.
 
 ---
 

@@ -10,11 +10,13 @@
 store hp = 0
 
 layout main with
-  column #child-gap=12:
+  column #child-gap=12 {
     text "Health: {hp}"
-    row #child-gap=8:
+    row #child-gap=8 {
       button "- Damage" @click={ hp = hp - 1 }
       button "+ Heal" @click={ hp = hp + 1 }
+    }
+  }
 end
 ```
 
@@ -23,6 +25,7 @@ Here's what each piece does:
 - **State** lives in a `store` variable — here, `hp` starts at `0`.
 - **Layouts** hold a tree of UI. A layout named `main` shows automatically.
 - **Elements** (`text`, `button`) build the parts; **layout classes** (`row`, `column`) arrange them.
+- **Blocks** (`{ … }`) hold an element's children: the buttons sit in the `row`, and the `row` sits in the `column`.
 - **Props** (like `#child-gap=12`) fine-tune spacing, size, and style.
 - **Interpolation** (`{hp}`) drops a live value straight into your UI.
 - **Events** (like `@click`) run code when the player interacts.
@@ -35,4 +38,4 @@ in the pages ahead.
 
 While you write, the Game Preview can show what an autocomplete suggestion would do before you accept it; see [Previewing Suggestions](./SuggestionPreview.md).
 
-Next up: [Basic Concepts](./Structure.md) — layouts, elements, classes, content, props, and events.
+Next up: [Basic Concepts](./Structure.md) — layouts, elements, blocks, classes, content, props, and events.

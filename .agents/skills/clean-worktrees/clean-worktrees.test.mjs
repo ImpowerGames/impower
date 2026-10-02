@@ -2097,7 +2097,7 @@ await check("with the production process lookup, a journal's recorded start deci
       if (!real) await new Promise((r) => setTimeout(r, 100));
     }
     assert.ok(real?.start, "the child's process identity could not be read");
-    const deps = { ...liveDeps, exec: () => ({ status: 0, out: "MERGED", err: "" }), pid: () => 1 };
+    const deps = { ...liveDeps, exec: () => ({ status: 0, out: "closed PR", err: "" }), pid: () => 1 };
     const ctx = { mainRoot: dir, processes: { ok: true, list: [] } };
     const jobDir = (name, start) => {
       const d = path.join(dir, name);
@@ -2149,7 +2149,7 @@ await check("a merged review job whose recorded pid was recycled is removed; one
   try {
     const row = { event: "coordinator", pid: 4242, processIdentity: { pid: 4242, start: "original" } };
     fs.writeFileSync(path.join(dir, "round-1.journal.jsonl"), `${JSON.stringify(row)}\n`);
-    const base = { exec: () => ({ status: 0, out: "MERGED", err: "" }), pid: () => 1, pidAlive: () => true, listDirs: () => [] };
+    const base = { exec: () => ({ status: 0, out: "closed PR", err: "" }), pid: () => 1, pidAlive: () => true, listDirs: () => [] };
     const ctx = { mainRoot: dir, processes: { ok: true, list: [] } };
     const recycled = classifyJob("pr-9", dir, { ...base, processStart: () => "someone-else" }, ctx);
     assert.equal(recycled.remove, true, recycled.reason);
@@ -2193,12 +2193,15 @@ await check("a merged review job whose recorded pid was recycled is removed; one
   job("test-cross-provider-dead", { "owner.jsonl": row({ event: "test-owner", pid: 9003 }) });
   job("test-cross-provider-live", { "owner.jsonl": row({ event: "test-owner", pid: LIVE }) });
   job("test-cross-provider-bare");
-  const states = { 10: "MERGED", 11: "OPEN", 12: "CLOSED", 13: "MERGED", 14: "MERGED" };
+  // What the REST issues endpoint says of each number; a merged PR is closed.
+  const states = { 10: "closed PR", 11: "open PR", 12: "closed PR", 13: "closed PR", 14: "closed PR" };
+  // The number a `gh api repos/{owner}/{repo}/issues/<N>` call asks for.
+  const asked = (args) => (args[0] === "api" ? /^repos\/\{owner\}\/\{repo\}\/issues\/(\d+)$/.exec(args[1])?.[1] : undefined);
   const lines = [];
   const recorded = [];
   const ghCalls = [];
   const deps = {
-    exec: (cmd, args) => (ghCalls.push(args[2]), cmd === "gh" && args[0] === "pr" && states[args[2]] ? { status: 0, out: states[args[2]], err: "" } : { status: 1, out: "", err: "not found" }),
+    exec: (cmd, args) => (ghCalls.push(asked(args)), cmd === "gh" && states[asked(args)] ? { status: 0, out: states[asked(args)], err: "" } : { status: 1, out: "", err: "not found" }),
     listDirs: liveDepsListDirs,
     exists: (p) => fs.existsSync(p),
     pid: () => 1,
@@ -2232,12 +2235,15 @@ await check("a merged review job whose recorded pid was recycled is removed; one
       assert.match(named.reason, /its path is on the command line of pid 777 \(node\.exe\)/);
       const unlisted = classifyJob("pr-10", dir, deps, { mainRoot, processes: { ok: false, err: "fixture" } });
       assert.match(unlisted.reason, /the processes on this machine could not be listed/);
-      const issueDeps = { ...deps, exec: (cmd, args) => (args[0] === "issue" ? { status: 0, out: "CLOSED", err: "" } : { status: 1, out: "", err: "no pull requests found" }) };
-      const issue = classifyJob("pr-10", dir, issueDeps, ctx);
+      const issue = classifyJob("pr-10", dir, { ...deps, exec: () => ({ status: 0, out: "closed issue", err: "" }) }, ctx);
       assert.equal(issue.remove, true, issue.reason);
       assert.match(issue.reason, /^issue #10 is closed/);
-      const openIssue = classifyJob("pr-10", dir, { ...issueDeps, exec: (cmd, args) => (args[0] === "issue" ? { status: 0, out: "OPEN", err: "" } : { status: 1, out: "", err: "x" }) }, ctx);
+      const openIssue = classifyJob("pr-10", dir, { ...deps, exec: () => ({ status: 0, out: "open issue", err: "" }) }, ctx);
       assert.match(openIssue.reason, /^issue #10 is open/);
+      // A GraphQL-style answer, or anything else the REST call did not say, keeps the directory.
+      const odd = classifyJob("pr-10", dir, { ...deps, exec: () => ({ status: 0, out: "MERGED", err: "" }) }, ctx);
+      assert.equal(odd.remove, false);
+      assert.match(odd.reason, /^the state of #10 could not be read \(unexpected output "MERGED"\)/);
     });
 
     await check("the job apply run removes only the removable directories, and a junction's target survives", () => {

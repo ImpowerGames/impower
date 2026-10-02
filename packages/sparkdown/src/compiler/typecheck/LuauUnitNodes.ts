@@ -53,7 +53,6 @@ export const SPARKDOWN_ONLY = new Set([
   "LuauTheme",
   "LuauComponent",
   "LuauMorph",
-  "LuauUIElement",
   "LuauSparkdownAlternatorBlocks",
   "LuauSparkdownConditionalAlternatorBlock",
   "LuauSparkdownSequentialAlternatorBlock",

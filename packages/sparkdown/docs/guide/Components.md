@@ -13,7 +13,7 @@ component's body:
 
 ```sparkdown
 component divider_line with
-  box line
+  box.line
 end
 ```
 
@@ -37,15 +37,16 @@ the body like any other value:
 
 ```sparkdown
 component stat_row(label, value) with
-  row stat:
-    text caption "{label}"
-    text amount "{value}"
+  row.stat {
+    text.stat_name "{label}"
+    text.amount "{value}"
+  }
 end
 ```
 
-> Class names are ordinary words, but avoid reusing a **built-in element name**
-> (like `label`, `box`, or `image`) as a class — `text label` would read as two
-> elements. Pick a distinct class (`caption`, `amount`, `panel`).
+> Pick class names of your own (`stat_name`, `amount`, `panel`). A class named
+> after something built in, such as `title` or `caption`, also gets what the
+> engine gives that name.
 
 Call it with arguments in parentheses:
 
@@ -53,10 +54,11 @@ Call it with arguments in parentheses:
 store player = { str = 14, agi = 12, hp = 8, max_hp = 10 }
 
 layout sheet with
-  column #child-gap=4:
+  column #child-gap=4 {
     stat_row("Strength", player.str)
-    stat_row("Agility",  player.agi)
-    stat_row("Health",   "{player.hp}/{player.max_hp}")
+    stat_row("Agility", player.agi)
+    stat_row("Health", "{player.hp}/{player.max_hp}")
+  }
 end
 ```
 
@@ -66,7 +68,7 @@ when that value changes:
 
 ```sparkdown
 for enemy in enemies do
-  stat_row(enemy.name, enemy.hp)   -- updates as each enemy's hp changes
+  stat_row(enemy.name, enemy.hp) -- updates as each enemy's hp changes
 end
 ```
 
@@ -76,18 +78,20 @@ end
 
 Parameters pass in **values**. To pass in **UI** — children the caller supplies
 — use a **slot**. Mark where caller content should land with `slot`, and the
-caller's indented children render there:
+children in the caller's block render there:
 
 ```sparkdown
 component card(title) with
-  box card:
-    text card_title "{title}"
-    slot                       -- caller's children appear here
+  box.card {
+    text.card_title "{title}"
+    slot -- caller's children appear here
+  }
 end
 
 layout sheet with
-  card("Inventory"):
-    text "10 / 20 slots"       -- fills the card's slot
+  card("Inventory") {
+    text "10 / 20 slots" -- fills the card's slot
+  }
 end
 ```
 
@@ -97,26 +101,29 @@ A component can expose more than one slot by naming them. The caller targets a
 named slot with `fill`:
 
 ```sparkdown
-function sort_bag()  end
+function sort_bag() end
 
 component card(title) with
-  box card:
-    text card_title "{title}"
-    slot                       -- the default slot
-    slot footer                -- a named slot
+  box.card {
+    text.card_title "{title}"
+    slot -- the default slot
+    slot footer -- a named slot
+  }
 end
 
 layout sheet with
-  card("Inventory"):
-    text "10 / 20 slots"       -- unnamed children fill the default slot
-    fill footer:
+  card("Inventory") {
+    text "10 / 20 slots" -- unnamed children fill the default slot
+    fill footer {
       button "Sort" @click=sort_bag
+    }
+  }
 end
 ```
 
 - **`slot`** marks the default slot; **`slot <name>`** marks a named one.
-- On the caller side, unnamed children fill the default slot; **`fill <name>:`**
-  targets a named slot.
+- On the caller side, unnamed children in the block fill the default slot;
+  **`fill <name> { … }`** targets a named slot.
 - Slot content is written in the **caller's** scope, so it reads the caller's
   state — not the component's parameters.
 
