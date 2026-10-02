@@ -37,73 +37,66 @@ move through) and **timing** (how it plays):
 
 ```sparkdown
 animation pulse with
-  keyframes:
-    -
-      scale = "1"
-    -
-      scale = "1.1"
-    -
-      scale = "1"
-  timing:
+  keyframes {
+    { scale = "1" }
+    { scale = "1.1" }
+    { scale = "1" }
+  }
+  timing {
     duration = 0.4
     easing = "ease-in-out"
     iterations = 1
     fill = "both"
+  }
 end
 ```
 
-- **`keyframes:`** is a list — each `-` is one keyframe carrying style props
-  (`opacity`, `scale`, `translate`, `background-position`, …).
-- **`timing:`** controls `duration`, `delay`, `easing`, `iterations`,
+- **`keyframes { … }`** is a list. A list's entries are bare: they have no
+  name before them. Here each entry is a block, `{ … }`, holding one keyframe's
+  style props (`opacity`, `scale`, `translate`, `background-position`, …).
+- **`timing { … }`** controls `duration`, `delay`, `easing`, `iterations`,
   `direction`, and `fill`.
+- As in any block, entries are separated by a new line or a `;` (see
+  [Blocks](./Structure.md#blocks)).
 - Refer to it by name (`pulse`) in a transition clause or the `animation` prop.
 
 ### Writing keyframes by position
 
-A keyframe's place in the animation can be written as the key of the block
+A keyframe's place in the animation can be written as the header of its block
 instead of as an `offset` property inside it. Write `from` for the start, `to`
 for the end, or a percentage for anywhere in between:
 
 ```sparkdown
 animation fade with
-  keyframes:
-    from:
-      opacity = "0"
-    40%:
-      opacity = "1"
-    to:
-      opacity = "0"
-  timing:
-    duration = 0.4
+  keyframes {
+    from { opacity = "0" }
+    40% { opacity = "1" }
+    to { opacity = "0" }
+  }
+  timing { duration = 0.4 }
 end
 ```
 
-That block means exactly the same thing as the `-` list with explicit offsets:
+That block means exactly the same thing as the list with explicit offsets:
 
 ```sparkdown
 animation fade with
-  keyframes:
-    -
-      offset = 0
-      opacity = "0"
-    -
-      offset = 0.4
-      opacity = "1"
-    -
-      offset = 1
-      opacity = "0"
-  timing:
-    duration = 0.4
+  keyframes {
+    { offset = 0; opacity = "0" }
+    { offset = 0.4; opacity = "1" }
+    { offset = 1; opacity = "0" }
+  }
+  timing { duration = 0.4 }
 end
 ```
 
 - `from` is `0%` and `to` is `100%`; a percentage becomes the matching
   `offset` (`40%` is `offset = 0.4`).
 - Positions may be written in any order — the keyframes are sorted by
-  position, so a block that starts with `to:` still plays last.
-- Pick one form per block. Mixing position keys with `-` items, repeating a
-  position, or writing a position outside `0%` to `100%` is reported as an
-  error.
+  position, so a block that starts with `to { … }` still plays last.
+- Pick one form per block. Mixing position headers with bare `{ … }` entries,
+  repeating a position, or writing a position outside `0%` to `100%` is
+  reported as an error.
 
 ---
 
