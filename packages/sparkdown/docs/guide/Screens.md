@@ -14,9 +14,10 @@ A layout named `main` is shown from the start — it's your always-on view (the 
 store player = { hp = 8, max_hp = 10, gold = 20 }
 
 layout main with
-  row hud #child-gap=12:
+  row.hud #child-gap=12 {
     text "Health: {player.hp}/{player.max_hp}"
     text "Gold: {player.gold}"
+  }
 end
 ```
 
@@ -28,9 +29,10 @@ Any other layout can be shown **on top of** what's already there — a dialog, a
 
 ```sparkdown
 layout inventory with
-  column panel #child-gap=8:
-    text title "Inventory"
+  column.panel #child-gap=8 {
+    text.headline "Inventory"
     -- …
+  }
 end
 
 scene explore
@@ -51,24 +53,28 @@ The built-in `loading` layout is engine-managed: `load` opens and closes it, nav
 A **screen** is a navigation group — a set of layouts where showing one replaces the others (like the pages of a menu). Define a screen with the `screen` keyword, and put layouts in it with `in <screen>`:
 
 ```sparkdown
-function start()       end
+function start() end
+
 function go_settings() end
-function go_back()     end
+
+function go_back() end
 
 screen menu with
 end
 
 layout title in menu with
-  column #child-gap=16:
+  column #child-gap=16 {
     text "My Game"
-    button "Play"     @click=start
+    button "Play" @click=start
     button "Settings" @click=go_settings
+  }
 end
 
 layout settings in menu with
-  column #child-gap=16:
+  column #child-gap=16 {
     text "Settings"
     button "Back" @click=go_back
+  }
 end
 ```
 

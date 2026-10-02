@@ -17,8 +17,9 @@ Inline props can be **dynamic** — wrap the value in `{ }` to bind it to state,
 and it re-applies when that state changes:
 
 ```sparkdown
-row #background-color={team_color}:
+row #background-color={team_color} {
   text "…"
+}
 ```
 
 ## `style` blocks
@@ -37,45 +38,62 @@ A style block targets elements by **name**: any element carrying that name as a
 class (or as its tag) gets the style.
 
 ```sparkdown
-style panel with          -- applies to any element with the `panel` class
+style panel with -- applies to any element with the `panel` class
   background-color = rgb(0 0 0 / 40%)
   corner = 8px
   padding = 16px
 end
 
-style button with         -- the tag is a class too, so this styles EVERY button
+style button with -- the tag is a class too, so this styles EVERY button
   cursor = pointer
 end
 
 layout main with
-  column panel:           -- gets the `panel` style
-    button "OK"           -- gets the `button` style
+  column.panel { -- gets the `panel` style
+    button "OK" -- gets the `button` style
+  }
 end
 ```
 
 ### Nested selectors, breakpoints & states
 
 Inside a `style` block you can nest rules that target descendants, screen sizes,
-and interaction states:
+and interaction states. A nested rule is a selector followed by a block of
+properties, `selector { … }`:
 
 ```sparkdown
 style dialogue with
   height = 100%
-  > text:                 -- direct child `text`
+  -- a direct child `text`
+  > text {
     text-color = black
-  >> image:               -- any descendant `image`
-    opacity = 0.5
-  @screen-size(sm):       -- responsive: <= `sm` breakpoint
+  }
+  -- a direct child `text` that has the `headline` class
+  > text.headline { text-size = 24px; text-weight = bold }
+  -- any descendant `image`
+  >> image { opacity = 0.5 }
+  -- responsive: at or below the `sm` breakpoint
+  @screen-size(sm) {
     width = 100%
-  @hovered:               -- on hover
-    background-color = black
+  }
+  -- on hover
+  @hovered { background-color = black }
+end
+
+style button with
+  -- a button that also has the `secondary` class
+  &.secondary { background-color = black }
 end
 ```
 
-- `> selector:` targets a direct child; `>> selector:` targets any descendant.
-- `@screen-size(xs|sm|md|lg|xl):` is a responsive breakpoint.
-- `@hovered:` / `@focused:` / `@pressed:` / `@checked:` / `@disabled:` target
-  interaction states.
+- `> selector { … }` targets a direct child; `>> selector { … }` targets any
+  descendant. Add a class to a selector with a dot: `> text.headline`.
+- `&.class { … }` targets the styled element itself when it also has that class.
+- `@screen-size(xs|sm|md|lg|xl) { … }` is a responsive breakpoint.
+- `@hovered { … }` / `@focused { … }` / `@pressed { … }` / `@checked { … }` /
+  `@disabled { … }` target interaction states.
+- A rule's properties are separated by a new line or a `;`, as the entries of
+  any block are (see [Blocks](./Structure.md#blocks)).
 
 > **Inline vs block:** inline props take a `#` and can be dynamic (`#child-gap={n}`);
 > `style`-block properties use `key = value` and are evaluated once. For a value
