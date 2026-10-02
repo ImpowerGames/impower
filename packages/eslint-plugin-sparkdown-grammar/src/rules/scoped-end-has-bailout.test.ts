@@ -137,17 +137,66 @@ test("the grammar's own BEAT is probed as written", () => {
       new URL("../../../../definitions/yaml/sparkdown.language-grammar.yaml", import.meta.url),
       "utf8",
     ) +
-    String.raw`  ProbeValidBeat:
+    String.raw`  ProbePlainBeat:
+    begin: "[(]"
+    end: (?={{BEAT}})|([)])
+  ProbeMissesIndentedBeats:
     begin: "[(]"
     end: (?=\b{{BEAT}})|([)])
   ProbeExcludesEveryBeat:
     begin: "[(]"
     end: (?={{BEAT}})(?![^\S\r\n]*\w)|([)])
+  ProbeBorrowedCloser:
+    begin: "[(]"
+    end: (?={{BEAT}})(?!{{BEAT}})|((?:scene|branch)[ ]+\W)
 `;
   const names = lintRule(source, "scoped-end-has-bailout")
     .map((m) => m.message.match(/`end:` of (\w+)/)?.[1] ?? m.message)
     .filter((name) => name.startsWith("Probe"));
-  assert.deepEqual(names, ["ProbeExcludesEveryBeat"]);
+  // The grammar's BEAT allows indentation, so `\b` before it cannot match
+  // at an indented beat's line start.
+  assert.deepEqual(names, [
+    "ProbeMissesIndentedBeats",
+    "ProbeExcludesEveryBeat",
+    "ProbeBorrowedCloser",
+  ]);
+});
+
+test("a closer that matches one beat sample does not count", () => {
+  const source = grammar({
+    variables: "BEAT: (?:^(?:scene|branch)[ ])",
+    repository: String.raw`BorrowedCloser:
+  begin: "[(]"
+  end: (?={{BEAT}})(?!{{BEAT}})|((?:scene|branch)[ ]+\W)`,
+  });
+  assert.deepEqual(lines(source), [7]);
+});
+
+test("a BEAT that demands an identifier still has witnesses", () => {
+  const source = grammar({
+    variables:
+      'FLOW_BEAT_KEYWORDS: ["scene", "branch"]\nBEAT: (?:^{{FLOW_BEAT_KEYWORDS}}[ ]+[A-Za-z_][A-Za-z0-9_]*)',
+    repository: `Valid:
+  begin: "[(]"
+  end: (?={{BEAT}})|([)])
+CloserOnly:
+  begin: "[(]"
+  end: ([)])`,
+  });
+  assert.deepEqual(lines(source), [11]);
+});
+
+test("with no recognisable beat line, a positive BEAT reference counts", () => {
+  const source = grammar({
+    variables: "BEAT: (?:^beat-[0-9]+[ ])",
+    repository: `NamesBeat:
+  begin: "[(]"
+  end: (?={{BEAT}})|([)])
+NegatesBeat:
+  begin: "[(]"
+  end: (?!{{BEAT}})[)]`,
+  });
+  assert.deepEqual(lines(source), [10]);
 });
 
 test("an impossible BEAT branch cannot borrow a match from a closer", () => {

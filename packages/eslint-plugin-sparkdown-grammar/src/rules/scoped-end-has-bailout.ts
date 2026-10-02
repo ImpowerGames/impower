@@ -17,12 +17,19 @@
 //   pattern matches whatever text surrounds it: with every filler in
 //   FILLERS. So a closer class such as `[^\w\s]` that happens to match
 //   one filler is not a bail-out, while `(?<=\w)$|(?<=\W)$` is.
-// - Beat: the pattern matches at the start of every beat line, one per
-//   beat keyword the grammar's own BEAT recognises (`scene`, `branch`).
-//   A closer that spells one keyword, `(scene)`, or a BEAT branch the
-//   pattern contradicts, `(?={{BEAT}})(?!{{BEAT}})|(scene)`, fails on the
-//   other keyword's line. Shared lookaheads, prefixes and named groups
-//   around BEAT need no special handling, since the whole pattern runs.
+// - Beat: the pattern matches at the start of every beat line the
+//   grammar's own BEAT recognises. The witness lines are generated from
+//   each beat keyword (FLOW_BEAT_KEYWORDS, or `scene` and `branch`) with
+//   several indentations and payloads (`░`, an identifier, a colon,
+//   nothing), and BEAT itself decides which are beats. So a closer that
+//   matches one sample, `(scene)` or `((?:scene|branch)[ ]+\W)`, fails on
+//   another, an end that misses indented beats (`(?=\b{{BEAT}})`) fails on
+//   those, and a BEAT that demands an identifier still has witnesses.
+//   Shared lookaheads, prefixes and named groups around BEAT need no
+//   special handling, since the whole pattern runs. When BEAT recognises
+//   none of the generated lines, the check cannot build a witness, so it
+//   falls back to the textual test: a `{{BEAT}}` outside every negative
+//   lookaround counts.
 //
 // A back-reference stands for a `begin:`
 // capture this check cannot see, so it is replaced by a sentinel no probe
@@ -60,8 +67,14 @@ const LINE_PROBES: ((f: string) => [text: string, at: number])[] = [
 // Beat keywords tried when the grammar names none in FLOW_BEAT_KEYWORDS.
 const DEFAULT_BEAT_KEYWORDS = ["scene", "branch"];
 
-// A beat line's text for `keyword`, probed at offset 2.
-const beatLine = (keyword: string) => `░\n${keyword} ░\n`;
+// Candidate beat lines for `keyword`, each probed at offset 2 (the start
+// of the line after `░\n`).
+const BEAT_INDENTS = ["", "  ", "\t"];
+const BEAT_PAYLOADS = [" ░", " next", " Next_2", ":", " :", ""];
+const beatCandidates = (keyword: string): string[] =>
+  BEAT_INDENTS.flatMap((indent) =>
+    BEAT_PAYLOADS.map((payload) => `░\n${indent}${keyword}${payload}\n`),
+  );
 
 function matchesAt(regex: RegExp, text: string, at: number): boolean {
   regex.lastIndex = at;
@@ -76,13 +89,12 @@ function withoutBackreferences(source: string): string {
   );
 }
 
-// The beat lines the grammar's BEAT matches at their start: one per beat
-// keyword (FLOW_BEAT_KEYWORDS, or the defaults) that BEAT recognises.
-// Empty when the grammar has no BEAT or it does not compile.
-const beatLinesCache = new WeakMap<GrammarIndex, string[]>();
-function beatLines(index: GrammarIndex): string[] {
-  const cached = beatLinesCache.get(index);
-  if (cached) return cached;
+// The candidate beat lines the grammar's BEAT matches at their start.
+// Null when the grammar has no BEAT, BEAT does not compile, or it
+// recognises none of the candidates: then no witness exists.
+const beatLinesCache = new WeakMap<GrammarIndex, string[] | null>();
+function beatLines(index: GrammarIndex): string[] | null {
+  if (beatLinesCache.has(index)) return beatLinesCache.get(index)!;
   let lines: string[] = [];
   if (index.variables.has("BEAT")) {
     const declared = index.variables.get("FLOW_BEAT_KEYWORDS")?.value ?? null;
@@ -97,23 +109,21 @@ function beatLines(index: GrammarIndex): string[] {
         "muy",
       );
       lines = [...new Set([...keywords, ...DEFAULT_BEAT_KEYWORDS])]
-        .map(beatLine)
+        .flatMap(beatCandidates)
         .filter((line) => matchesAt(beat, line, 2));
     } catch {
       lines = [];
     }
   }
-  beatLinesCache.set(index, lines);
-  return lines;
+  const result = lines.length > 0 ? lines : null;
+  beatLinesCache.set(index, result);
+  return result;
 }
 
-function bailsOut(regex: RegExp, beats: string[]): boolean {
-  const atLineBoundary = LINE_PROBES.some((probe) =>
+function atLineBoundary(regex: RegExp): boolean {
+  return LINE_PROBES.some((probe) =>
     FILLERS.every((filler) => matchesAt(regex, ...probe(filler))),
   );
-  const atBeat =
-    beats.length > 0 && beats.every((line) => matchesAt(regex, line, 2));
-  return atLineBoundary || atBeat;
 }
 
 // Substitutes variables (all of them, or all but `BEAT`, which then stays
@@ -149,7 +159,12 @@ export function hasBailOut(index: GrammarIndex, end: string): boolean {
   } catch {
     return hasTextualBailOut(index, end);
   }
-  return bailsOut(regex, beatLines(index));
+  if (atLineBoundary(regex)) return true;
+  const beats = beatLines(index);
+  if (beats === null) {
+    return namesPositiveBeat(resolveVariables(index, end, true));
+  }
+  return beats.every((line) => matchesAt(regex, line, 2));
 }
 
 // Whether the offset sits outside every negative lookaround of `source`.
