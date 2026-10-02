@@ -38,9 +38,10 @@ export const MARKER = "// value-level:";
 const GENERATED_NAME = /\b\w*_(?:begin|end)_c(?:\d+\b|\$\{[^}]*\}|(?=["'`]))/g;
 const SCAN_CALL =
   /\.(?:match|matchAll|exec|test|startsWith|endsWith|indexOf|includes|split)\s*\(|\bnew\s+RegExp\s*\(/g;
-// A regex literal: a `/` after a token that cannot end an expression.
+// A regex literal: a `/` after a token that cannot end an expression (the
+// same set as REGEX_PRECEDER in scripts/node-names.mjs).
 const REGEX_LITERAL =
-  /(?:^|[(,=:[!&|?{};>]|\breturn|\bcase|\btypeof)\s*(\/(?![/*])(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[dgimsuyv]*)/gm;
+  /(?:^|[(,=:[!&|?{};+\-*%<>~^]|\breturn|\bcase|\btypeof|\bvoid|\bin|\bof)\s*(\/(?![/*])(?:[^/\\\n[]|\\.|\[(?:[^\]\\\n]|\\.)*\])+\/[dgimsuyv]*)/gm;
 // A check on a parent's name: compared, looked up in a set or list, or
 // switched on. Building a name from it (`${parent.name}_content`) is not one.
 const PARENT_NAME =
@@ -68,6 +69,31 @@ export function markedLines(source) {
   return marked;
 }
 
+// Puts the `${...}` expressions of template literals back into a
+// string-blanked copy, since they are code, not string text. Backticks inside
+// an interpolation are not handled.
+export function withInterpolations(src, blanked) {
+  const out = blanked.split("");
+  for (let open = blanked.indexOf("`"); open >= 0; ) {
+    const close = blanked.indexOf("`", open + 1);
+    const end = close < 0 ? src.length : close;
+    for (let i = open + 1; i < end; i += 1) {
+      if (src[i] !== "$" || src[i + 1] !== "{") continue;
+      let depth = 0;
+      let j = i + 1;
+      for (; j < end; j += 1) {
+        if (src[j] === "{") depth += 1;
+        else if (src[j] === "}" && --depth === 0) break;
+      }
+      for (let k = i + 2; k < j; k += 1) out[k] = src[k];
+      i = j;
+    }
+    if (close < 0) break;
+    open = blanked.indexOf("`", close + 1);
+  }
+  return out.join("");
+}
+
 // Findings in one file's source: { generated, scans, parentNames }, each a
 // list of { line, text }. `scans` leaves out marked lines.
 export function scanSource(source) {
@@ -81,7 +107,7 @@ export function scanSource(source) {
   // Calls and regex literals are found in a copy whose string bodies are
   // blanked (same length), so `/word/` or `.includes(` inside a string is not
   // taken for a scan; the text reported comes from the unblanked source.
-  const blanked = stripCommentsAndStrings(source);
+  const blanked = withInterpolations(src, stripCommentsAndStrings(source));
   const executable = (re, group = 0) =>
     [...blanked.matchAll(re)].map((m) => {
       const at = m.index + m[0].indexOf(m[group]);
