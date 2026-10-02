@@ -485,10 +485,21 @@ variables:
   # differently in the two engines.
   STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))
   STRUCT_BLOCK_COMMENT_IN_VALUE: (?:{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
-  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{}"\n\[])+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
+  STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT}}|{{STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT}}|{{STRUCT_BLOCK_VALUE_PART}}+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|{{STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END}}))
   # A bare list value also ends at any comma.
   STRUCT_BLOCK_ITEM_END: (?:{{WS}}*(?:$|[;{},]))
-  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*|{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])|(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{},"\n\[])+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|(?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*))
+  STRUCT_BLOCK_ITEM: (?:{{STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT}}|{{STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT}}|{{STRUCT_BLOCK_ITEM_PART}}+?(?:(?={{STRUCT_BLOCK_ITEM_END}})|{{STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END}}))
+  # The parts of `STRUCT_BLOCK_VALUE` and `STRUCT_BLOCK_ITEM`:
+  # A literal followed by a `--` comment, taking the comment to the line end.
+  STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT: '{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*{{LUAU_COMMENT_START}})[^\n]*'
+  # A literal followed by a `//` comment, ending before the comment.
+  STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT: '{{STRUCT_BLOCK_LITERAL}}(?={{WS}}*[/][/])'
+  # One unit of an unquoted property value: a quoted run, a bracket, or a character.
+  STRUCT_BLOCK_VALUE_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{}"\n\[])
+  # One unit of a bare list value, which a comma also ends.
+  STRUCT_BLOCK_ITEM_PART: (?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^;{},"\n\[])
+  # A comment inside a value, taken with the rest of the line into the value.
+  STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END: (?={{STRUCT_BLOCK_COMMENT_IN_VALUE}})[^\n]*
   # Brace blocks in layout and component bodies (`LuauSparkleBlockLine`).
   # An element line is read as tokens, and each token has exactly one way to
   # match: a quoted run, an attribute with its value, a parenthesized list, a
@@ -759,7 +770,17 @@ variables:
   # never one of these: after a value or a type it is read by
   # `LuauValueTrailingBlockComment` or `LuauTypeTrailingBlockComment`,
   # whose ends match the level, on its opening line as on a later one.
-  LUAU_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[(?:\[(?:[^\]\n]|\](?!\]))*\]\]|=\[(?:[^\]\n]|\](?!=\]))*\]=\]|==\[(?:[^\]\n]|\](?!==\]))*\]==\]|===\[(?:[^\]\n]|\](?!===\]))*\]===\])(?:{{WS}}*))
+  LUAU_BLOCK_COMMENT_ON_LINE: (?:{{WS}}*{{LUAU_COMMENT_START}}\[{{LUAU_BLOCK_COMMENT_REST}}(?:{{WS}}*))
+  # The rest of a block comment of level up to three after `--[`.
+  LUAU_BLOCK_COMMENT_REST: (?:{{LUAU_BLOCK_COMMENT_LEVEL_0_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_1_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_2_REST}}|{{LUAU_BLOCK_COMMENT_LEVEL_3_REST}})
+  # The rest of a level-0 block comment after `--[`: `[`, its text, `]]`.
+  LUAU_BLOCK_COMMENT_LEVEL_0_REST: \[(?:[^\]\n]|\](?!\]))*\]\]
+  # The rest of a level-1 block comment after `--[`: `=[`, its text, `]=]`.
+  LUAU_BLOCK_COMMENT_LEVEL_1_REST: =\[(?:[^\]\n]|\](?!=\]))*\]=\]
+  # The rest of a level-2 block comment after `--[`: `==[`, its text, `]==]`.
+  LUAU_BLOCK_COMMENT_LEVEL_2_REST: ==\[(?:[^\]\n]|\](?!==\]))*\]==\]
+  # The rest of a level-3 block comment after `--[`: `===[`, its text, `]===]`.
+  LUAU_BLOCK_COMMENT_LEVEL_3_REST: ===\[(?:[^\]\n]|\](?!===\]))*\]===\]
   # What follows a block comment that ends a type: anything but a type
   # operator, the `?` suffix, a qualifier or generics, or what ends the type
   # anyway (a comma, `=`, a closing bracket, `;`, the line's end).
@@ -791,7 +812,50 @@ variables:
   # comment takes the whitespace after it, so a rule that ends at whitespace
   # before the next statement ends here instead, before the comment. A
   # comment that spans lines is `LuauValueTrailingBlockComment`.
-  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:{{AFTER_LUAU_VALUE}}(?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})|{{AFTER_LUAU_UNCALLABLE_VALUE}}(?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(]))
+  LUAU_VALUE_COMMENT_BEFORE_STATEMENT: (?:{{AFTER_LUAU_VALUE}}{{LUAU_BLOCK_COMMENT_THEN_STATEMENT_AHEAD}}|{{AFTER_LUAU_UNCALLABLE_VALUE}}{{LUAU_BLOCK_COMMENT_THEN_PAREN_AHEAD}})
+  # A block comment on this line, then a word that begins a statement.
+  LUAU_BLOCK_COMMENT_THEN_STATEMENT_AHEAD: (?={{LUAU_BLOCK_COMMENT_ON_LINE}}{{LUAU_STATEMENT_CODE_AHEAD}})
+  # A block comment on this line, then a `(` that begins a statement.
+  LUAU_BLOCK_COMMENT_THEN_PAREN_AHEAD: (?={{LUAU_BLOCK_COMMENT_ON_LINE}}[(])
+  # The openings of `LuauFunctionBody`, in the order its comment gives them:
+  # Before the closing brackets a multiline return-type comment leaves.
+  LUAU_FUNCTION_BODY_AT_COMMENT_CLOSE: (?<!{{LUAU_FUNCTION_HEADER}})(?=\]=*\]{{LUAU_TYPE_CODE_AHEAD}})
+  # After the header's last character, before whitespace and a statement.
+  LUAU_FUNCTION_BODY_AT_SPACED_STATEMENT: (?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+{{LUAU_NOT_END_COMMENT_OR_RETURN_TYPE_AHEAD}}\S)
+  # Right after the parameter list's `)`, before a statement's first character.
+  LUAU_FUNCTION_BODY_AFTER_PARAMETERS: (?<=[)])(?={{LUAU_NOT_END_OR_COMMENT_AHEAD}}(?:[\w"'`(\[{&\-@#;]|::))
+  # After the header, before a `;` or a block comment.
+  LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT: (?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))
+  # The line break after the header.
+  LUAU_FUNCTION_BODY_AT_LINE_BREAK: (?<={{LUAU_TYPE_END}}){{WS}}*\n
+  # The start of a line that does not close the function and begins a statement.
+  LUAU_FUNCTION_BODY_AT_LINE_START: ^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+  # Not `end` or a comment.
+  LUAU_NOT_END_OR_COMMENT_AHEAD: (?!end\b|{{LUAU_COMMENT_START}})
+  # Not `end`, a comment, a return type's `:` or generics' `<`.
+  LUAU_NOT_END_COMMENT_OR_RETURN_TYPE_AHEAD: (?!end\b|{{LUAU_COMMENT_START}}|{{LUAU_SINGLE_COLON}}|[<])
+  # A `:` that is not the start of `::`.
+  LUAU_SINGLE_COLON: '[:](?![:])'
+  # Just after a token an inline `if` expression can follow: a line start,
+  # an operator, an opening bracket, a comma, `..` or a keyword.
+  AFTER_LUAU_TERNARY_PRECEDING_TOKEN: (?<=^{{WS}}*|{{LUAU_TERNARY_PRECEDING_TOKEN}}{{WS}}*)
+  # A token an inline `if` expression can follow, other than a line start.
+  LUAU_TERNARY_PRECEDING_TOKEN: (?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_TERNARY_PRECEDING_KEYWORDS}})
+  # An `if` whose line holds an `else`, `elseif` or `}` before any lone `=`.
+  LUAU_TERNARY_WITH_ELSE_AHEAD: (?={{WS}}*if\b{{LUAU_TERNARY_CONDITION_CHAR}}*{{LUAU_TERNARY_ELSE_OR_CLOSE}})
+  # A character of an inline `if` line other than `=`, or a comparison.
+  LUAU_TERNARY_CONDITION_CHAR: (?:[^\n=]|==|~=|<=|>=)
+  # The `else`, `elseif` or `}` that marks an inline `if` expression.
+  LUAU_TERNARY_ELSE_OR_CLOSE: (?:\belse(?:if)?\b|\})
+  # Just after a braced alternator's `|`, with any `name =` of a match arm.
+  AFTER_ALTERNATOR_ARM_SEPARATOR: (?<=[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?)
+  # A `-> end` that the alternator's `}` directly follows.
+  END_DIVERT_CLOSING_ALTERNATOR: '{{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}]'
+  # A block comment between `.` and a member; captures the comment's level,
+  # which its close matches with `\3`, so it must follow exactly two groups.
+  _LUAU_DANGLING_ACCESSOR_COMMENT_: (?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)
+  # A name that is not a reserved word.
+  LUAU_UNRESERVED_IDENTIFIER: (?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}}
   LUAU_VALUE_BINARY_OPERATORS: (?:{{LUAU_LOGICAL_KEYWORDS}}|{{LUAU_ASSIGNMENT_OPERATORS}}|{{LUAU_COMPARE_OPERATORS}}|{{LUAU_ARITHMETIC_OPERATORS}}|{{LUAU_CONCAT_OPERATOR}}|{{LUAU_TYPECAST_OPERATOR}})
   # The `;` that ends a statement, after any whitespace, line breaks and
   # comments, which Luau reads as trivia. A block comment ends at the first
@@ -3546,7 +3610,7 @@ repository:
     # names, so `end` in any other position (`count.turns(-> end)`,
     # `{ -> end }` as a table value) is a target, as is every other keyword
     # and a name that only begins with `end` (`end-game`).
-    match: (?!(?<=[|]{{WS}}*(?:{{LUAU_IDENTIFIER}}{{WS}}*[=]{{WS}}*)?){{WS}}*[-][>]{{WS}}*{{LUAU_END_KEYWORDS}}(?![{{IDENTIFIER_END_CHAR}}]){{WS}}*[}])({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
+    match: (?!{{AFTER_ALTERNATOR_ARM_SEPARATOR}}{{END_DIVERT_CLOSING_ALTERNATOR}})({{WS}}*)([-][>])({{WS}}*)({{IDENTIFIER}}(?:[.]{{IDENTIFIER}})*)({{WS}}*)
     captures:
       1:
         patterns:
@@ -7154,7 +7218,7 @@ repository:
     # trailing block comment spans lines and closes right before code
     # (`b]]print(1)`), it opens before the closing brackets the comment
     # leaves, which the body reads (`LuauTypeTrailingBlockCommentClose`).
-    begin: (?<!{{LUAU_FUNCTION_HEADER}})(?=\]=*\]{{LUAU_TYPE_CODE_AHEAD}})|(?<={{LUAU_TYPE_END}})(?<!{{LUAU_FUNCTION_HEADER}})(?={{WS}}+(?!end\b|{{LUAU_COMMENT_START}}|[:](?![:])|[<])\S)|(?<=[)])(?=(?!end\b|{{LUAU_COMMENT_START}})(?:[\w"'`(\[{&\-@#;]|::))|(?<={{LUAU_TYPE_END}}{{WS}}*)(?<!{{LUAU_FUNCTION_HEADER}}{{WS}}*)(?={{WS}}*(?:;|{{LUAU_COMMENT_START}}\[=*\[))|(?<={{LUAU_TYPE_END}}){{WS}}*\n|^(?!{{BEAT}}|{{WS}}*\bend\b)(?={{WS}}*[\w"'`(\[{&\-@#:;.])
+    begin: "{{LUAU_FUNCTION_BODY_AT_COMMENT_CLOSE}}|{{LUAU_FUNCTION_BODY_AT_SPACED_STATEMENT}}|{{LUAU_FUNCTION_BODY_AFTER_PARAMETERS}}|{{LUAU_FUNCTION_BODY_AT_SEMICOLON_OR_COMMENT}}|{{LUAU_FUNCTION_BODY_AT_LINE_BREAK}}|{{LUAU_FUNCTION_BODY_AT_LINE_START}}"
     patterns:
       - { include: "#LuauBlockBody" }
     # Don't consume `end` — the outer `LuauFunctionDefinition.end`
@@ -8190,7 +8254,7 @@ repository:
   # the line after its `then` or `else`; where a statement is read, the
   # statement rules take a line-starting `if` before any expression rule.
   LuauTernaryExpression:
-    begin: (?:(?<=^{{WS}}*|(?:[-+*/%^<>=~(\[{,]|[.][.]|{{LUAU_TERNARY_PRECEDING_KEYWORDS}}){{WS}}*)|(?={{WS}}*if\b(?:[^\n=]|==|~=|<=|>=)*(?:\belse(?:if)?\b|\})))({{WS}}*)(if)\b({{WS}}*)
+    begin: (?:{{AFTER_LUAU_TERNARY_PRECEDING_TOKEN}}|{{LUAU_TERNARY_WITH_ELSE_AHEAD}})({{WS}}*)(if)\b({{WS}}*)
     beginCaptures:
       1:
         patterns:
@@ -9269,7 +9333,7 @@ repository:
   # It is tried before `LuauPropertyAccessor`, which would take `. then` as a
   # member.
   LuauDanglingAccessor:
-    match: ({{WS}}*)([.])(?![.]|{{LUAU_IDENTIFIER}}|{{WS}}*(?:--\[(=*)\[(?:[^\]\r\n]|\](?!\3\]))*\]\3\]{{WS}}*)*(?!{{LUAU_RESERVED_WORDS}}){{LUAU_IDENTIFIER}})
+    match: ({{WS}}*)([.])(?![.]|{{LUAU_IDENTIFIER}}|{{WS}}*{{_LUAU_DANGLING_ACCESSOR_COMMENT_}}*{{LUAU_UNRESERVED_IDENTIFIER}})
     captures:
       1:
         patterns:
