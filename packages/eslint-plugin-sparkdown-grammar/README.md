@@ -5,19 +5,25 @@ ESLint rules that enforce sparkdown-grammar YAML conventions over
 mistakes _while authors are writing the grammar_, instead of at
 build time (or worse, at runtime in the editor).
 
-Each rule encodes a convention from `packages/sparkdown/GRAMMAR.md`.
+Each rule encodes a convention from
+[`packages/sparkdown/docs/compiler/GRAMMAR.md`](../sparkdown/docs/compiler/GRAMMAR.md).
 The rule's message includes the section reference so it doubles as a
 pointer back to the rationale.
 
 ## Rules
 
-| Rule                          | Level   | Encodes                                                                                           |
-| ----------------------------- | ------- | ------------------------------------------------------------------------------------------------- |
-| `tag-name-symmetry`           | error   | §7. Any rule with `tag:` must also have `name:`.                                                  |
-| `parse-tag-valid`             | error   | §7. `tag:` values must parse and reference real `@lezer/highlight` tags.                          |
-| `no-raw-whitespace-class`     | error   | §12. `\s` outside character classes crosses newlines — use `{{WS}}` (or the right WS variable).   |
-| `no-handwritten-alternation`  | warn    | §4. Inline `(?:a\|b\|c)` keyword alternations should live in `variables:` as a list.              |
-| `capturing-var-naming`        | error   | §4.4. Variables whose values have capture groups must be named `_NAME_`.                          |
+| Rule                         | Level | Encodes                                                                                                                           |
+| ---------------------------- | ----- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `tag-name-symmetry`          | error | §8. Any rule with `tag:` must also have `name:`.                                                                                  |
+| `parse-tag-valid`            | error | §8. `tag:` values must parse and reference real `@lezer/highlight` tags.                                                          |
+| `no-raw-whitespace-class`    | error | §12. `\s` outside character classes crosses newlines — use `{{WS}}` (or the right WS variable).                                   |
+| `no-handwritten-alternation` | warn  | §7.1. Inline `(?:a\|b\|c)` keyword alternations should live in `variables:` as a list.                                            |
+| `capturing-var-naming`       | error | §7.4. Variables whose resolved values (after `{{NAME}}` substitution) have capture groups must be named `_NAME_`, and only those. |
+| `no-zero-width-in-patterns`  | error | §12. A rule that can match zero characters must not be included in a `patterns:` list, directly or through a `Switch` rule.       |
+| `no-newline-in-lookaround`   | error | §11.5. Lookarounds must not try to span line boundaries, which VS Code's line-at-a-time tokenizer cannot see.                     |
+
+The root `eslint.config.js` enables every rule at the level shown, which
+is also the plugin's `recommended` configuration.
 
 ## Setup
 
@@ -29,8 +35,13 @@ YAML file.
 To run from the command line:
 
 ```
-npx eslint definitions/yaml/sparkdown.language-grammar.yaml
+npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
 ```
+
+The typecheck workflow (`.github/workflows/typecheck.yml`) runs that
+command on every pull request that changes `definitions/yaml/**`, so a
+warning fails CI as an error does. The same job runs the rule tests,
+`node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts`.
 
 ## Implementation notes
 

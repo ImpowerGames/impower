@@ -99,6 +99,17 @@ jobs:
       - name: Check grammar node names
         run: npm run check:node-names
 
+      # The grammar conventions in packages/eslint-plugin-sparkdown-grammar
+      # (see its README). Without this step they fire only in an editor with
+      # the ESLint extension installed. `--max-warnings 0` makes the
+      # warn-level rules blocking too. The `changes` patterns above include
+      # `definitions/yaml/**`, so a grammar change always reaches this step.
+      - name: Test the grammar lint rules
+        run: node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts
+
+      - name: Lint the grammar
+        run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
+
       # Lowerer code that re-derives structure the grammar should name
       # (GRAMMAR.md §5.1, §6.4): auto-generated `_begin_cN` / `_end_cN` names
       # fail outright, and unmarked regex and string scans are ratcheted per

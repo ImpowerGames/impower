@@ -54,7 +54,7 @@ const rule: Rule.RuleModule = {
     schema: [],
     messages: {
       extractToVariable:
-        "Inline alternation `{{snippet}}` ({{count}} keywords). Extract to a `variables:` array (e.g. `MY_KEYWORDS: [\"a\", \"b\", \"c\"]`) so the list has one definition site and is auto-wrapped with `\\b...\\b`.",
+        "Inline alternation `{{snippet}}` ({{count}} keywords). Extract to a `variables:` array (e.g. `MY_KEYWORDS: [\"a\", \"b\", \"c\"]`) so the list has one definition site and is auto-wrapped with `\\b...\\b`. See GRAMMAR.md §7.1.",
     },
   },
   create(context) {

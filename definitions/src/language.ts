@@ -183,7 +183,7 @@ export const updateGrammarVariables = (
   // whose value contains an unescaped *capturing* group `(...)` must have
   // a name wrapped in underscores like `_NAME_`. The underscore wrap is a
   // visible flag at every call site that "this variable adds capture
-  // group(s) to the host rule's regex." See GRAMMAR.md §4.4.
+  // group(s) to the host rule's regex." See GRAMMAR.md §7.4.
   //
   // The check is build-time-only — it doesn't affect parsing, just refuses
   // to compile a grammar that violates the convention. Both directions
@@ -197,14 +197,14 @@ export const updateGrammarVariables = (
         `Grammar variable "${name}" contains ${captures} capturing group(s) but its name isn't wrapped in underscores. ` +
           `Either change the capture(s) to non-capturing (\`(?:...)\`) or rename to \`_${name}_\` ` +
           `to signal at every use site that the variable adds capture indices to the host rule. ` +
-          `See GRAMMAR.md §4.4.`,
+          `See GRAMMAR.md §7.4.`,
       );
     }
     if (captures === 0 && isUnderscoreWrapped) {
       throw new Error(
         `Grammar variable "${name}" is underscore-wrapped (which signals "contains capture groups") ` +
           `but its resolved value has no capturing groups. Rename to drop the underscores. ` +
-          `See GRAMMAR.md §4.4.`,
+          `See GRAMMAR.md §7.4.`,
       );
     }
   }
@@ -415,7 +415,7 @@ const replacePatternVariables = (
  * inside a character class is literal.
  *
  * Used by `updateGrammarVariables` to enforce the underscore-wrap naming
- * convention for variables that contain captures (see GRAMMAR.md §4.4).
+ * convention for variables that contain captures (see GRAMMAR.md §7.4).
  */
 function countCapturingGroups(pattern: string): number {
   let count = 0;
