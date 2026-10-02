@@ -13,7 +13,7 @@ import {
   ownAssignmentOperation,
 } from "../../utils/variableDefinitionNames";
 import { checkerReadsOnTo } from "../../typecheck/LuauUnitNodes";
-import { AstExprError, AstExprUnary } from "../../typecheck/Ast";
+import { AstExprBinary, AstExprError, AstExprUnary } from "../../typecheck/Ast";
 import { luauPositionOffset, nextLuauToken, readLuauExpressionAfter } from "../../typecheck/readLuauAst";
 import { offsetAt, readExpressionAst } from "./luauAst";
 import { commaBeforeStatement, typeUnionLineValue } from "./lineContinuation";
@@ -628,7 +628,12 @@ export function typeCheckerReportsMissingValue(
   const text = wholeDocument(node, read);
   const reading = readLuauExpressionAfter(pos, text);
   let expr = reading.expr;
-  while (expr instanceof AstExprUnary) expr = expr.expr;
+  // A leading binary operator (`+ 1`) leaves its missing left operand in
+  // the AST while recovery reads the right operand. That missing operand
+  // belongs to Luau's diagnostic just as a missing unary operand does.
+  while (expr instanceof AstExprUnary || expr instanceof AstExprBinary) {
+    expr = expr instanceof AstExprUnary ? expr.expr : expr.left;
+  }
   if (!(expr instanceof AstExprError) || expr.expressions.length > 0) return false;
   const error = reading.errors[expr.messageIndex];
   if (!error?.message.startsWith("Expected identifier when parsing expression")) return false;

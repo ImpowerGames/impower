@@ -755,6 +755,10 @@ function lowerIfElse(
   if (!expr.hasThen) return lowerExpression(expr.condition, source, ctx);
   const branches: TernaryBranch[] = [];
   for (let arm: AstExprIfElse = expr; ; ) {
+    // An unfinished elseif has no value to evaluate. Keep the completed
+    // branches, falling through to nil when none matches, so the next
+    // statement can still run while the author finishes this clause.
+    if (!arm.hasThen) break;
     const condition = lowerExpression(arm.condition, source, ctx);
     if (!condition) return null;
     const value = lowerExpression(arm.trueExpr, source, ctx);

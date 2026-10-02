@@ -793,7 +793,7 @@ function skipComment(text: string, at: number, to: number): number {
 
 /** A token's description in an error, as Luau's `Lexeme::toString` writes it. */
 function describe(token: Token): string {
-  if (token.story) return "<eof>";
+  if (token.story && token.kind !== "keyword") return "<eof>";
   switch (token.kind) {
     case "eof":
       return "<eof>";
