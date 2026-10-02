@@ -9141,6 +9141,14 @@ repository:
   # different surrounding keyword. Adding `external` here means the
   # `LuauExternalDeclaration` rule can reuse this declaration-name pattern
   # without a parallel `LuauExternalDeclarationName` rule.
+  #
+  # lookaround: the lookbehind is the rule's context, not only its anchor:
+  # `LuauAccessPart` includes this rule before `LuauVariable`, and every
+  # access path reads its parts through that Switch, so without the
+  # lookbehind each name not followed by `.` or `:` would be read as a
+  # function's declared name (fixture luau-access/chained-property and most
+  # of the corpus). Ordering it after `LuauVariable` would leave it nothing
+  # to match.
   LuauFunctionDeclarationName:
     match: (?<=(?:function|external)\b{{WS}}*)({{LUAU_IDENTIFIER}})\b({{WS}}*)(?!{{LUAU_ACCESSOR_OPERATOR}})
     captures:
@@ -10214,6 +10222,14 @@ repository:
   # takes in the line break after it, as any type does, so this rule also
   # ends at the start of the next line (`LUAU_TYPE_LINE_BREAK`), as
   # `LuauTypeAnnotationOperation` does.
+  #
+  # lookaround: the lookbehind is what tells a target from a value, so the
+  # parents' begins cannot carry it. `LuauVariableDefinition` and
+  # `LuauSparkdownVariableDefinition` read the values after the first one
+  # with their own patterns, so in `local a, b = x :: number, y :: string`
+  # the second `::` reaches this rule; without the lookbehind it reads that
+  # value's cast, which `LuauTypeCastOperation` reads now (fixture
+  # luau-declaration/cast-after-value-comma).
   LuauTargetTypeCast:
     # No lookaround inside the lookbehind: VS Code's Oniguruma refuses one
     # there ("invalid pattern in look-behind").
