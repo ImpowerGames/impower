@@ -49,8 +49,11 @@ function compileDocument(text: string) {
     files: [{ uri: URI, type: "script", name: "main", ext: "sd", text, version: 1, languageId: "sparkdown" }],
   });
   const program = compiler.compile({ textDocument: { uri: URI } }).program;
+  // In the order of where they begin: Sparkdown's own errors and the type
+  // checker's are found in separate passes.
   const errors = (program.diagnostics?.[URI] ?? [])
     .filter((d) => d.severity === 1)
+    .sort((a, b) => a.range!.start.line - b.range!.start.line || a.range!.start.character - b.range!.start.character)
     .map((d) => `${d.range!.start.line}:${d.range!.start.character}-${d.range!.end.line}:${d.range!.end.character} ${diagnosticMessage(d)}`);
   return { errors, functions: program.pathLocations?.functions };
 }

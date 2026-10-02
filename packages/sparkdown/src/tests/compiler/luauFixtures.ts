@@ -53,11 +53,6 @@ export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
     reason: "Luau only: statements after `& return` in the scene follow a return in the flow's function",
   },
   {
-    fixture: "conformance/gc.luau",
-    issue: 1306,
-    reason: "Sparkdown only: `local newproxy, ... =` with its values on the next line",
-  },
-  {
     fixture: "conformance/integers.luau",
     issue: 1309,
     reason: "Sparkdown only: each integer literal (`123i`) is a malformed number",
@@ -71,11 +66,6 @@ export const KNOWN_DISAGREEMENTS: KnownDisagreement[] = [
     fixture: "conformance/native_integer_spills.luau",
     issue: 1306,
     reason: "Sparkdown only: `local x0, ..., x7 =` with its values on the next line",
-  },
-  {
-    fixture: "conformance/types.luau",
-    issue: 1306,
-    reason: "Sparkdown only: `local ignore =` with its table on the next line",
   },
 ];
 

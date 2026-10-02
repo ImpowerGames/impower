@@ -70,6 +70,18 @@ export function documentPosition(unit: LuauUnit, position: Position): { line: nu
   return { line: unit.lines[index] ?? 0, character: position.column };
 }
 
+/** The UTF-16 column of the character a UTF-8 byte column points at. */
+export function utf16Column(text: string, byteColumn: number): number {
+  let bytes = 0;
+  let column = 0;
+  while (column < text.length && bytes < byteColumn) {
+    const code = text.codePointAt(column)!;
+    bytes += code < 0x80 ? 1 : code < 0x800 ? 2 : code < 0x10000 ? 3 : 4;
+    column += code > 0xffff ? 2 : 1;
+  }
+  return column + Math.max(0, byteColumn - bytes);
+}
+
 export { isLuauFile };
 
 function checkedUnit(read: LuauAstUnit): LuauUnit {

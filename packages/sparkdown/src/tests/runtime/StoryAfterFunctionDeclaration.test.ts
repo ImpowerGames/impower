@@ -32,6 +32,10 @@ function namedContainers(source: string): Record<string, unknown> {
   return (root.at(-1) ?? {}) as Record<string, unknown>;
 }
 
+// Luau's parser's error for a line of words in a function body.
+const INCOMPLETE =
+  "Incomplete statement: expected assignment or a function call";
+
 const holds = (container: unknown, text: string) =>
   JSON.stringify(container).includes(JSON.stringify(`^${text}`));
 
@@ -64,32 +68,29 @@ describe("story lines after a function declaration", () => {
     }
   });
 
-  test("lines of a function's body that are not Luau statements are reported as errors", () => {
+  test("lines of a function's body that are not Luau statements are each reported as an error", () => {
     // A function body is Luau, so a line such as `Hello there.` is not a
-    // story line there but a statement Luau cannot read (#1158): `Hello` is
-    // not a statement, and Luau reads `How` on the next line as the name
-    // after `there.`, where a Sparkdown access path ends with its line.
+    // story line there but a Luau statement Luau cannot read (#1158). Each
+    // one gets Luau's error.
     const ctx = makeRuntimeStoryFromSource(
       `function greet\n  Hello there.\n  How are you?\nend\n\nscene A\n  Line one.\n  done\nend\n`,
     );
-    expect([...ctx.errorMessages].sort()).toEqual([
-      "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line",
-      "Incomplete statement: expected assignment or a function call",
-    ]);
+    expect(ctx.errorMessages).toEqual([INCOMPLETE, INCOMPLETE]);
   });
 
   test("a line of a function's body that is not a Luau statement leaves the lines after its `end` playing from the top", () => {
     // The line does not close the definition early, so its `end` closes it
     // and the line after the function is in the root flow (#1093).
-    const ctx = makeRuntimeStoryFromSource(`function greet()\n  local x = 1\n  Hello there.\nend\nAfter it.\n`);
-    expect([...ctx.errorMessages].sort()).toEqual([
-      "Expected identifier, got 'end'",
-      "Incomplete statement: expected assignment or a function call",
-    ]);
+    const ctx = makeRuntimeStoryFromSource(
+      `function greet()\n  local x = 1\n  How are you?\nend\nAfter it.\n`,
+    );
+    expect(ctx.errorMessages).toEqual([INCOMPLETE]);
     const lines: string[] = [];
     while (ctx.story.canContinue) {
       const text = ctx.story.Continue();
-      if (text) lines.push(text);
+      if (text) {
+        lines.push(text);
+      }
     }
     expect(lines).toEqual(["After it.\n"]);
     const root = (ctx.compiledJson as { root: unknown[] }).root;

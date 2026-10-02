@@ -555,7 +555,13 @@ class Tokenizer {
       this.markKeyword("chooseEnd", node, "end");
       return;
     }
-    if (STATEMENT_BREAKS.has(name)) this.statementBreak(from, to);
+    // In a Luau body an assignment begins with an ordinary expression;
+    // it must not hide the preceding statement's syntax error. Preserve
+    // the boundary after an empty if-expression arm: its missing value
+    // must not consume the next assignment's target.
+    const previous = this.tokens[this.tokens.length - 1];
+    const emptyArm = previous?.text === "then" || previous?.text === "else";
+    if (STATEMENT_BREAKS.has(name) && (name !== "LuauReassignment" || emptyArm)) this.statementBreak(from, to);
     if (SPARKDOWN_ONLY.has(name)) return;
     if (name === "LuauScopeModifier") {
       const modifier = this.text.slice(from, to);
@@ -1626,6 +1632,10 @@ class Parser {
     if (ident === "const") return this.parseLocal(expr.location, [], true);
 
     if (start.equals(this.current().location)) {
+      // A skipped opening bracket leaves its closer in recovery too.
+      // For example, a table cannot begin a statement, even across lines.
+      const closer = this.is("{") ? "}" : this.is("[") ? "]" : undefined;
+      if (closer) this.abandonedClosers.push({ text: closer });
       this.skippedPos = this.pos;
       this.next();
     }
@@ -2025,7 +2035,7 @@ class Parser {
   private reportLValueError(expr: AstExpr): AstExprError {
     if (expr instanceof AstExprLocal && expr.local.isConst)
       return this.reportExprError(expr.location, [expr], `Variable '${expr.local.name}' is constant and may not be reassigned`);
-    return this.reportExprError(expr.location, [expr], "Assigned expression must be a variable or a field");
+    return this.reportExprError(expr.location, [expr], "Assigned expression must be a variable or a field", "expression");
   }
 
   private parseFunctionStat(attributes: AstAttr[]): AstStat {
@@ -2129,7 +2139,18 @@ class Parser {
       if (!this.isExprLValue(expr)) expr = this.reportLValueError(expr);
       vars.push(expr);
     }
-    this.expectAndConsume("=", "assignment");
+    // Sparkdown already reports an accessor whose name is on a later
+    // line. An unfinished assignment through that target is its recovery.
+    let danglingTarget = false;
+    for (let target of vars) {
+      while (target instanceof AstExprIndexName) {
+        if (target.indexLocation.begin.line > target.opPosition.line) danglingTarget = true;
+        target = target.expr;
+      }
+    }
+    // A target list read while recovering from an earlier malformed
+    // construct (such as a for-loop annotation) is not a new mistake.
+    this.expectAndConsume("=", "assignment", danglingTarget || this.followerStart ? undefined : "statement");
     const values: AstExpr[] = [];
     this.parseExprList(values, true);
     return new AstStatAssign(Location.span(initial.location, values[values.length - 1]!.location), vars, values);

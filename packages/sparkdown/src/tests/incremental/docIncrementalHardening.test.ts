@@ -308,3 +308,40 @@ describe("hardening — mid-line restart window semantics", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// 6. Restart at a blank line inside open scopes
+// ---------------------------------------------------------------------------
+
+describe("hardening — restart at a blank line inside open scopes", () => {
+  test("a restart at a blank line keeps the line's newline record in the tree", () => {
+    // The tokenizer holds one token back, so a blank line's split request
+    // is still waiting for its newline token when the next line's request
+    // arrives. A restart at that blank line must mint its chunk there; if
+    // the newline token joined the last kept chunk (already compiled), its
+    // record was lost while the enclosing scopes still counted it, and the
+    // tree came out malformed.
+    let text = [
+      "function f(...)",
+      "  local x, t, f, maker = 1, {}, print, print",
+      '    local k = maker "A"',
+      '      "B"',
+      "    do",
+      "      local w = 1",
+      "    end",
+      "    for k, v in pairs(t) do",
+      "      print(k)",
+      "end",
+    ].join("\n");
+    let tree = getParser().parse(doc(text) as any);
+    for (const [i, at] of [157, 127, 136].entries()) {
+      const r = checkedReparse(`newline ${i + 1}`, tree, text, {
+        from: at,
+        to: at,
+        insert: "\n",
+      });
+      tree = r.tree;
+      text = r.text;
+    }
+  });
+});

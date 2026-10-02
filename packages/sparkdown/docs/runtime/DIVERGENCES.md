@@ -308,12 +308,10 @@ Ink allows a function body to emit narrative text into the surrounding
 flow (a "function-as-subroutine") — `function five() five` returns 5
 **and** prints the literal `five` into the calling line's output.
 Sparkdown's `function ... end` is strictly expression-returning: the
-body parses as Luau-only, and any sparkdown statement that would
-yield to the surrounding flow — display lines, choice blocks, diverts,
-threads — is **rejected at compile time** with a diagnostic from
-`lowerLuauFunctionDefinition`. The lowerer enumerates the legitimate
-Luau statement shapes (return, assignment, if/loop/do, explicit-`&`
-call, etc.) and flags any other top-level body child.
+body parses as Luau-only. A line that would be narrative elsewhere
+(`Hello there.`, `Hi, Bob`) is read as Luau and **rejected at compile
+time** with Luau's own first syntax error for it. The function still
+ends at its own `end`.
 
 Authors who want a callable narrative unit should use a `scene` or
 `branch` divert with parameters instead — the same composability

@@ -8,6 +8,7 @@ import {
 } from "@codemirror/state";
 import { cachedCompilerProp } from "@impower/textmate-grammar-tree/src/tree/props/cachedCompilerProp";
 import { type SyntaxNode, Tree } from "@lezer/common";
+import { nextSignificantToken } from "../lower/utils/validateAssignmentValue";
 import {
   assignmentListName,
   VARIABLE_DEFINITION_CONTENT_NAMES,
@@ -76,6 +77,15 @@ function listNameEnd(child: SyntaxNode): number | null {
   if (child.name === "LuauAccessPath") return child.to;
   return assignmentListName(child)?.to ?? null;
 }
+
+// A line whose Luau goes on into the next line: it ends in a word or an
+// operator a value must follow, or in a `.` or `,` (`U.S.`, `Hi,`).
+const ENDS_GOING_ON =
+  /(?:(?<![A-Za-z0-9_])(?:then|else|elseif|and|or|not|in|return)|[=,(\[{+\-*\/%^#:<>.])$/;
+
+// A line that goes on from the line before it: it begins with a call's
+// argument or brackets, an access, or an operator.
+const BEGINS_GOING_ON = /^\s*(?:["'`{(\[.:]|(?:and|or)\b|[+\-*\/%^<>=~])/;
 
 /**
  * `to`, moved past the last name in the list of each `local`/`store`/`const`
@@ -510,19 +520,145 @@ export class SparkdownCombinedAnnotator {
     // names past the reparsed range. It stops at the last name's end, and an
     // edit inside a table, function or parentheses does not widen it, so a
     // large value costs nothing extra.
+    const windowTo = extendToValueListEnd(
+      tree,
+      editStart,
+      reparsedTo ?? undefined,
+    );
     this.reannotate(
       tree,
       editStart,
-      extendToValueListEnd(tree, editStart, reparsedTo ?? undefined),
+      windowTo,
       iteratingFrom,
       iteratingTo,
       annotate,
       changeDesc,
     );
+    if (!annotate || annotate.has("validations")) {
+      const wide = this.validationWindow(tree, text, editStart, windowTo);
+      if (
+        wide.from < editStart ||
+        (windowTo != null && (wide.to == null || wide.to > windowTo))
+      ) {
+        this.reannotate(
+          tree,
+          wide.from,
+          wide.to,
+          iteratingFrom,
+          iteratingTo,
+          new Set<keyof SparkdownAnnotators>(["validations"]),
+        );
+      }
+    }
     if (runsCompilations) {
       this.relowerStaleCompilations(tree);
     }
     return this.current;
+  }
+
+  /**
+   * The window the validations are run over again after an edit whose own
+   * window is `[from, to]`. Some checks read past their node to the next
+   * token, across blank and comment lines, and name that token or report at
+   * it: a line in a Luau body that is not a statement (`luauStatementError`),
+   * a `.` that no name follows, and an if condition that no `then` follows.
+   * Such a statement takes the lines that go on from it (a line that ends
+   * in a `.`, `,` or operator, or a next line that begins with a string, a
+   * bracket, a `.`, `:` or operator), so its report can stand several code
+   * lines below it (`U.S.` then `Hi, Bob` then `got 'Another'`).
+   *
+   * So the window starts at the code line before the last one before the
+   * edit, whose statement may report at that last line's first token, and
+   * goes back further while the lines go on from one another. It ends with
+   * the line of the first token after the edit's window, and goes on while
+   * the lines before it go on into it, so a report the edit moves is
+   * replaced. Without `to` it runs to the end of the document.
+   */
+  protected validationWindow(
+    tree: Tree,
+    text: Text,
+    from: number,
+    to: number | undefined,
+  ): { from: number; to: number | undefined } {
+    const read = (a: number, b: number) =>
+      text.sliceString(a, Math.min(b, text.length));
+    type Line = ReturnType<Text["line"]>;
+    const isCode = (line: Line) => !this.holdsOnlyTrivia(tree, line, read);
+    const previousCode = (line: Line): Line | null => {
+      for (let n = line.number - 1; n >= 1; n--) {
+        const candidate = text.line(n);
+        if (isCode(candidate)) return candidate;
+      }
+      return null;
+    };
+    const nextCode = (line: Line): Line | null => {
+      for (let n = line.number + 1; n <= text.lines; n++) {
+        const candidate = text.line(n);
+        if (isCode(candidate)) return candidate;
+      }
+      return null;
+    };
+    const goesOn = (line: Line, into: Line) =>
+      ENDS_GOING_ON.test(this.codeOf(tree, line)) ||
+      BEGINS_GOING_ON.test(into.text);
+
+    const editLine = text.lineAt(from);
+    let start = previousCode(editLine);
+    const owner = start ? previousCode(start) : null;
+    if (owner) {
+      start = owner;
+      for (let p = previousCode(start); p && goesOn(p, start); p = previousCode(p)) {
+        start = p;
+      }
+    }
+    const windowFrom = start?.from ?? 0;
+    if (to == null) {
+      return { from: windowFrom, to };
+    }
+    const next = nextSignificantToken(tree.topNode, text.lineAt(to).to, read);
+    if (!next) {
+      return { from: windowFrom, to: text.length };
+    }
+    let end = text.lineAt(next.from);
+    let before = previousCode(end);
+    while (before && goesOn(before, end)) {
+      const after = nextCode(end);
+      if (!after) break;
+      before = end;
+      end = after;
+    }
+    return { from: windowFrom, to: end.to };
+  }
+
+  /** The text of `line` before a comment that ends it. */
+  protected codeOf(tree: Tree, line: { from: number; to: number; text: string }): string {
+    let comment: SyntaxNode | null = tree.resolveInner(line.to, -1);
+    while (comment && !comment.name.endsWith("Comment")) {
+      comment = comment.parent;
+    }
+    const cut = comment && comment.from >= line.from ? comment.from - line.from : line.text.length;
+    return line.text.slice(0, cut).trimEnd();
+  }
+
+  /** Whether `line` holds nothing but whitespace and comments. */
+  protected holdsOnlyTrivia(
+    tree: Tree,
+    line: { from: number; to: number; text: string },
+    read: (from: number, to: number) => string,
+  ): boolean {
+    const indent = line.text.length - line.text.trimStart().length;
+    if (indent === line.text.length) {
+      return true;
+    }
+    let comment: SyntaxNode | null = tree.resolveInner(line.from + indent, 1);
+    while (comment && !comment.name.endsWith("Comment")) {
+      comment = comment.parent;
+    }
+    if (!comment) {
+      return false;
+    }
+    const next = nextSignificantToken(tree.topNode, comment.to, read);
+    return next == null || next.from > line.to;
   }
 
   /**
