@@ -436,11 +436,11 @@ sparkdown [0..160]
  │   │   └─ ImplicitAction_begin_c1 [138..140]
  │   │       └─ OptionalWhitespace [138..140]: "  "
  │   ├─ ImplicitAction_content [140..155]
- │   │   └─ LineEnd [140..155]
- │   │       ├─ LineEnd_begin 140
- │   │       │   └─ LineEnd_begin_c1 140
+ │   │   └─ ActionLineEnd [140..155]
+ │   │       ├─ ActionLineEnd_begin 140
+ │   │       │   └─ ActionLineEnd_begin_c1 140
  │   │       │       └─ OptionalWhitespace 140
- │   │       ├─ LineEnd_content [140..155]
+ │   │       ├─ ActionLineEnd_content [140..155]
  │   │       │   └─ TextChunk [140..155]
  │   │       │       ├─ TextChunk_begin 140
  │   │       │       ├─ TextChunk_content [140..155]
@@ -451,7 +451,7 @@ sparkdown [0..160]
  │   │       │       │   ├─ Word [149..154]: "waits"
  │   │       │       │   └─ Punctuation [154..155]: "."
  │   │       │       └─ TextChunk_end 155
- │   │       └─ LineEnd_end 155
+ │   │       └─ ActionLineEnd_end 155
  │   └─ ImplicitAction_end 155
  ├─ Newline [155..156]: "\n"
  ├─ LuauEndKeyword [156..159]: "end"

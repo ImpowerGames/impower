@@ -232,11 +232,11 @@ sparkdown [0..146]
  │   │   └─ ImplicitAction_begin_c1 [131..133]
  │   │       └─ OptionalWhitespace [131..133]: "  "
  │   ├─ ImplicitAction_content [133..145]
- │   │   └─ LineEnd [133..145]
- │   │       ├─ LineEnd_begin 133
- │   │       │   └─ LineEnd_begin_c1 133
+ │   │   └─ ActionLineEnd [133..145]
+ │   │       ├─ ActionLineEnd_begin 133
+ │   │       │   └─ ActionLineEnd_begin_c1 133
  │   │       │       └─ OptionalWhitespace 133
- │   │       ├─ LineEnd_content [133..145]
+ │   │       ├─ ActionLineEnd_content [133..145]
  │   │       │   └─ TextChunk [133..145]
  │   │       │       ├─ TextChunk_begin 133
  │   │       │       ├─ TextChunk_content [133..145]
@@ -245,6 +245,6 @@ sparkdown [0..146]
  │   │       │       │   ├─ Word [139..144]: "there"
  │   │       │       │   └─ Punctuation [144..145]: "."
  │   │       │       └─ TextChunk_end 145
- │   │       └─ LineEnd_end 145
+ │   │       └─ ActionLineEnd_end 145
  │   └─ ImplicitAction_end 145
  └─ Newline [145..146]: "\n"

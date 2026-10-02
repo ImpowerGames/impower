@@ -165,11 +165,11 @@ sparkdown [0..63]
  │   │   └─ ImplicitAction_begin_c1 52
  │   │       └─ OptionalWhitespace 52
  │   ├─ ImplicitAction_content [52..62]
- │   │   └─ LineEnd [52..62]
- │   │       ├─ LineEnd_begin 52
- │   │       │   └─ LineEnd_begin_c1 52
+ │   │   └─ ActionLineEnd [52..62]
+ │   │       ├─ ActionLineEnd_begin 52
+ │   │       │   └─ ActionLineEnd_begin_c1 52
  │   │       │       └─ OptionalWhitespace 52
- │   │       ├─ LineEnd_content [52..62]
+ │   │       ├─ ActionLineEnd_content [52..62]
  │   │       │   └─ TextChunk [52..62]
  │   │       │       ├─ TextChunk_begin 52
  │   │       │       ├─ TextChunk_content [52..62]
@@ -194,6 +194,6 @@ sparkdown [0..63]
  │   │       │       │   │           └─ PunctuationBraceClose [60..61]: "}"
  │   │       │       │   └─ Punctuation [61..62]: "."
  │   │       │       └─ TextChunk_end 62
- │   │       └─ LineEnd_end 62
+ │   │       └─ ActionLineEnd_end 62
  │   └─ ImplicitAction_end 62
  └─ Newline [62..63]: "\n"

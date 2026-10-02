@@ -914,11 +914,11 @@ sparkdown [0..490]
  │   │   ├─ InlineAction_begin_c3 420
  │   │   └─ InlineAction_begin_c4 420
  │   ├─ InlineAction_content [420..448]
- │   │   └─ LineEnd [420..448]
- │   │       ├─ LineEnd_begin 420
- │   │       │   └─ LineEnd_begin_c1 420
+ │   │   └─ ActionLineEnd [420..448]
+ │   │       ├─ ActionLineEnd_begin 420
+ │   │       │   └─ ActionLineEnd_begin_c1 420
  │   │       │       └─ OptionalWhitespace 420
- │   │       ├─ LineEnd_content [420..448]
+ │   │       ├─ ActionLineEnd_content [420..448]
  │   │       │   └─ TextChunk [420..448]
  │   │       │       ├─ TextChunk_begin 420
  │   │       │       ├─ TextChunk_content [420..448]
@@ -932,7 +932,7 @@ sparkdown [0..490]
  │   │       │       │   ├─ Space [443..444]: " "
  │   │       │       │   └─ Word [444..448]: "mark"
  │   │       │       └─ TextChunk_end 448
- │   │       └─ LineEnd_end 448
+ │   │       └─ ActionLineEnd_end 448
  │   └─ InlineAction_end 448
  ├─ Newline [448..449]: "\n"
  ├─ InlineDialogue [449..489]

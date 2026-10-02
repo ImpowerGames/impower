@@ -19,11 +19,11 @@ sparkdown [0..49]
  │   │   └─ ImplicitAction_begin_c1 [11..13]
  │   │       └─ OptionalWhitespace [11..13]: "  "
  │   ├─ ImplicitAction_content [13..44]
- │   │   └─ LineEnd [13..44]
- │   │       ├─ LineEnd_begin 13
- │   │       │   └─ LineEnd_begin_c1 13
+ │   │   └─ ActionLineEnd [13..44]
+ │   │       ├─ ActionLineEnd_begin 13
+ │   │       │   └─ ActionLineEnd_begin_c1 13
  │   │       │       └─ OptionalWhitespace 13
- │   │       ├─ LineEnd_content [13..44]
+ │   │       ├─ ActionLineEnd_content [13..44]
  │   │       │   ├─ TextChunk [13..19]
  │   │       │   │   ├─ TextChunk_begin 13
  │   │       │   │   ├─ TextChunk_content [13..19]
@@ -102,7 +102,7 @@ sparkdown [0..49]
  │   │       │       │   ├─ Word [38..43]: "After"
  │   │       │       │   └─ Punctuation [43..44]: "."
  │   │       │       └─ TextChunk_end 44
- │   │       └─ LineEnd_end 44
+ │   │       └─ ActionLineEnd_end 44
  │   └─ ImplicitAction_end 44
  ├─ Newline [44..45]: "\n"
  ├─ LuauEndKeyword [45..48]: "end"

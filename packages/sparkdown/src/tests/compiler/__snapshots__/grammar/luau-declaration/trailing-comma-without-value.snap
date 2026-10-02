@@ -542,11 +542,11 @@ sparkdown [0..276]
  │   │   └─ ImplicitAction_begin_c1 215
  │   │       └─ OptionalWhitespace 215
  │   ├─ ImplicitAction_content [215..240]
- │   │   └─ LineEnd [215..240]
- │   │       ├─ LineEnd_begin 215
- │   │       │   └─ LineEnd_begin_c1 215
+ │   │   └─ ActionLineEnd [215..240]
+ │   │       ├─ ActionLineEnd_begin 215
+ │   │       │   └─ ActionLineEnd_begin_c1 215
  │   │       │       └─ OptionalWhitespace 215
- │   │       ├─ LineEnd_content [215..240]
+ │   │       ├─ ActionLineEnd_content [215..240]
  │   │       │   └─ TextChunk [215..240]
  │   │       │       ├─ TextChunk_begin 215
  │   │       │       ├─ TextChunk_content [215..240]
@@ -577,7 +577,7 @@ sparkdown [0..276]
  │   │       │       │   ├─ Word [233..239]: "health"
  │   │       │       │   └─ Punctuation [239..240]: "."
  │   │       │       └─ TextChunk_end 240
- │   │       └─ LineEnd_end 240
+ │   │       └─ ActionLineEnd_end 240
  │   └─ ImplicitAction_end 240
  ├─ Newline [240..241]: "\n"
  ├─ LuauSparkdownVariableDefinition [241..255]
@@ -644,18 +644,18 @@ sparkdown [0..276]
  │   │   └─ ImplicitAction_begin_c1 [266..268]
  │   │       └─ OptionalWhitespace [266..268]: "  "
  │   ├─ ImplicitAction_content [268..271]
- │   │   └─ LineEnd [268..271]
- │   │       ├─ LineEnd_begin 268
- │   │       │   └─ LineEnd_begin_c1 268
+ │   │   └─ ActionLineEnd [268..271]
+ │   │       ├─ ActionLineEnd_begin 268
+ │   │       │   └─ ActionLineEnd_begin_c1 268
  │   │       │       └─ OptionalWhitespace 268
- │   │       ├─ LineEnd_content [268..271]
+ │   │       ├─ ActionLineEnd_content [268..271]
  │   │       │   └─ TextChunk [268..271]
  │   │       │       ├─ TextChunk_begin 268
  │   │       │       ├─ TextChunk_content [268..271]
  │   │       │       │   ├─ Word [268..270]: "Hi"
  │   │       │       │   └─ Punctuation [270..271]: "."
  │   │       │       └─ TextChunk_end 271
- │   │       └─ LineEnd_end 271
+ │   │       └─ ActionLineEnd_end 271
  │   └─ ImplicitAction_end 271
  ├─ Newline [271..272]: "\n"
  ├─ LuauEndKeyword [272..275]: "end"

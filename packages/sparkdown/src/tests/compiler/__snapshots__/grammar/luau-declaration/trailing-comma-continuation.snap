@@ -338,16 +338,16 @@ sparkdown [0..141]
  │   │   └─ ImplicitAction_begin_c1 [137..139]
  │   │       └─ OptionalWhitespace [137..139]: "  "
  │   ├─ ImplicitAction_content [139..140]
- │   │   └─ LineEnd [139..140]
- │   │       ├─ LineEnd_begin 139
- │   │       │   └─ LineEnd_begin_c1 139
+ │   │   └─ ActionLineEnd [139..140]
+ │   │       ├─ ActionLineEnd_begin 139
+ │   │       │   └─ ActionLineEnd_begin_c1 139
  │   │       │       └─ OptionalWhitespace 139
- │   │       ├─ LineEnd_content [139..140]
+ │   │       ├─ ActionLineEnd_content [139..140]
  │   │       │   └─ TextChunk [139..140]
  │   │       │       ├─ TextChunk_begin 139
  │   │       │       ├─ TextChunk_content [139..140]
  │   │       │       │   └─ Word [139..140]: "2"
  │   │       │       └─ TextChunk_end 140
- │   │       └─ LineEnd_end 140
+ │   │       └─ ActionLineEnd_end 140
  │   └─ ImplicitAction_end 140
  └─ Newline [140..141]: "\n"

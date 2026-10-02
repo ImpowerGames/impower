@@ -1,0 +1,6 @@
+load forest
+: load forest
+.. load forest
+A .. > .. B
+A > load forest
+HERO: load forest

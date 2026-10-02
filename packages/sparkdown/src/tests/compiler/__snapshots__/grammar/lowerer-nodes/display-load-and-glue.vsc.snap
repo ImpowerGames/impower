@@ -1,0 +1,53 @@
+text.source.sparkdown [0..87]
+ ├─ keyword.control.asset.control.sd [0..4]: "load"
+ ├─ punctuation.whitespace.required.sd [4..5]: " "
+ ├─ string.display.text.chunk.sd [5..11]
+ │   └─ markup.raw.text.sd [5..11]: "forest"
+ ├─ Newline [11..12]: "\n"
+ ├─ meta.template.expression.operator.colon.sd [12..13]: ":"
+ ├─ punctuation.whitespace.required.sd [13..14]: " "
+ ├─ keyword.control.asset.control.sd [14..18]: "load"
+ ├─ punctuation.whitespace.required.sd [18..19]: " "
+ ├─ string.display.text.chunk.sd [19..25]
+ │   └─ markup.raw.text.sd [19..25]: "forest"
+ ├─ Newline [25..26]: "\n"
+ ├─ meta.glue.leading.sd [26..28]
+ │   └─ keyword.other.glue.sd [26..28]: ".."
+ ├─ punctuation.whitespace.optional.sd [28..29]: " "
+ ├─ keyword.control.asset.control.sd [29..33]: "load"
+ ├─ punctuation.whitespace.required.sd [33..34]: " "
+ ├─ string.display.text.chunk.sd [34..40]
+ │   └─ markup.raw.text.sd [34..40]: "forest"
+ ├─ Newline [40..41]: "\n"
+ ├─ string.display.text.chunk.sd [41..45]
+ │   ├─ markup.raw.text.sd [41..42]: "A"
+ │   └─ meta.glue.sd [42..45]
+ │       ├─ punctuation.whitespace.sd [42..43]: " "
+ │       └─ keyword.other.glue.sd [43..45]: ".."
+ ├─ meta.break.sd [45..48]
+ │   └─ keyword.other.break.sd [45..48]: " > "
+ ├─ meta.glue.leading.sd [48..50]
+ │   └─ keyword.other.glue.sd [48..50]: ".."
+ ├─ string.display.text.chunk.sd [50..52]
+ │   ├─ markup.raw.space.sd [50..51]: " "
+ │   └─ markup.raw.text.sd [51..52]: "B"
+ ├─ Newline [52..53]: "\n"
+ ├─ string.display.text.chunk.sd [53..54]
+ │   └─ markup.raw.text.sd [53..54]: "A"
+ ├─ meta.break.sd [54..57]
+ │   └─ keyword.other.break.sd [54..57]: " > "
+ ├─ keyword.control.asset.control.sd [57..61]: "load"
+ ├─ punctuation.whitespace.required.sd [61..62]: " "
+ ├─ string.display.text.chunk.sd [62..68]
+ │   └─ markup.raw.text.sd [62..68]: "forest"
+ ├─ Newline [68..69]: "\n"
+ ├─ string.display.dialogue.inline.sd [69..86]
+ │   ├─ entity.name.type.dialogue.character.name.sd [69..73]
+ │   │   └─ markup.raw.text.sd [69..73]: "HERO"
+ │   ├─ meta.template.expression.operator.colon.sd [73..74]: ":"
+ │   ├─ punctuation.whitespace.required.sd [74..75]: " "
+ │   └─ string.display.text.chunk.sd [75..86]
+ │       ├─ markup.raw.text.sd [75..79]: "load"
+ │       ├─ markup.raw.space.sd [79..80]: " "
+ │       └─ markup.raw.text.sd [80..86]: "forest"
+ └─ Newline [86..87]: "\n"

@@ -1,0 +1,46 @@
+sparkdown [0..63]
+ ├─ Run [0..24]
+ │   ├─ Run_begin [0..4]
+ │   │   ├─ Run_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ Run_begin_c2 [0..3]
+ │   │   │   └─ RunKeyword [0..3]: "run"
+ │   │   └─ Run_begin_c3 [3..4]
+ │   │       └─ RequiredWhitespace [3..4]: " "
+ │   ├─ Run_content [4..24]
+ │   │   └─ RunContent [4..24]
+ │   │       ├─ RunContent_c1 [4..24]
+ │   │       │   └─ RunQuotedPath [4..24]: "\"scripts/start.luau\""
+ │   │       └─ RunContent_c2 24
+ │   └─ Run_end 24
+ ├─ Newline [24..25]: "\n"
+ ├─ Run [25..44]
+ │   ├─ Run_begin [25..29]
+ │   │   ├─ Run_begin_c1 25
+ │   │   │   └─ OptionalWhitespace 25
+ │   │   ├─ Run_begin_c2 [25..28]
+ │   │   │   └─ RunKeyword [25..28]: "run"
+ │   │   └─ Run_begin_c3 [28..29]
+ │   │       └─ RequiredWhitespace [28..29]: " "
+ │   ├─ Run_content [29..44]
+ │   │   └─ RunContent [29..44]
+ │   │       ├─ RunContent_c1 [29..44]
+ │   │       │   └─ RunQuotedPath [29..44]: "'scripts/start'"
+ │   │       └─ RunContent_c2 44
+ │   └─ Run_end 44
+ ├─ Newline [44..45]: "\n"
+ ├─ Run [45..62]
+ │   ├─ Run_begin [45..49]
+ │   │   ├─ Run_begin_c1 45
+ │   │   │   └─ OptionalWhitespace 45
+ │   │   ├─ Run_begin_c2 [45..48]
+ │   │   │   └─ RunKeyword [45..48]: "run"
+ │   │   └─ Run_begin_c3 [48..49]
+ │   │       └─ RequiredWhitespace [48..49]: " "
+ │   ├─ Run_content [49..62]
+ │   │   └─ RunContent [49..62]
+ │   │       ├─ RunContent_c1 49
+ │   │       └─ RunContent_c2 [49..62]
+ │   │           └─ RunUnquotedPath [49..62]: "scripts/start"
+ │   └─ Run_end 62
+ └─ Newline [62..63]: "\n"

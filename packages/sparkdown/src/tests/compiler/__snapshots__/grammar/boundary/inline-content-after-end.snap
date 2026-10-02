@@ -43,11 +43,11 @@ sparkdown [0..63]
  │   │   └─ ImplicitAction_begin_c1 [14..15]
  │   │       └─ OptionalWhitespace [14..15]: " "
  │   ├─ ImplicitAction_content [15..24]
- │   │   └─ LineEnd [15..24]
- │   │       ├─ LineEnd_begin 15
- │   │       │   └─ LineEnd_begin_c1 15
+ │   │   └─ ActionLineEnd [15..24]
+ │   │       ├─ ActionLineEnd_begin 15
+ │   │       │   └─ ActionLineEnd_begin_c1 15
  │   │       │       └─ OptionalWhitespace 15
- │   │       ├─ LineEnd_content [15..24]
+ │   │       ├─ ActionLineEnd_content [15..24]
  │   │       │   └─ TextChunk [15..24]
  │   │       │       ├─ TextChunk_begin 15
  │   │       │       ├─ TextChunk_content [15..24]
@@ -55,7 +55,7 @@ sparkdown [0..63]
  │   │       │       │   ├─ Space [20..21]: " "
  │   │       │       │   └─ Word [21..24]: "foo"
  │   │       │       └─ TextChunk_end 24
- │   │       └─ LineEnd_end 24
+ │   │       └─ ActionLineEnd_end 24
  │   └─ ImplicitAction_end 24
  ├─ Newline [24..25]: "\n"
  ├─ Scene [25..42]
@@ -88,11 +88,11 @@ sparkdown [0..63]
  │   │   └─ ImplicitAction_begin_c1 [43..45]
  │   │       └─ OptionalWhitespace [43..45]: "  "
  │   ├─ ImplicitAction_content [45..58]
- │   │   └─ LineEnd [45..58]
- │   │       ├─ LineEnd_begin 45
- │   │       │   └─ LineEnd_begin_c1 45
+ │   │   └─ ActionLineEnd [45..58]
+ │   │       ├─ ActionLineEnd_begin 45
+ │   │       │   └─ ActionLineEnd_begin_c1 45
  │   │       │       └─ OptionalWhitespace 45
- │   │       ├─ LineEnd_content [45..58]
+ │   │       ├─ ActionLineEnd_content [45..58]
  │   │       │   └─ TextChunk [45..58]
  │   │       │       ├─ TextChunk_begin 45
  │   │       │       ├─ TextChunk_content [45..58]
@@ -101,7 +101,7 @@ sparkdown [0..63]
  │   │       │       │   ├─ Word [50..57]: "content"
  │   │       │       │   └─ Punctuation [57..58]: "."
  │   │       │       └─ TextChunk_end 58
- │   │       └─ LineEnd_end 58
+ │   │       └─ ActionLineEnd_end 58
  │   └─ ImplicitAction_end 58
  ├─ Newline [58..59]: "\n"
  ├─ LuauEndKeyword [59..62]: "end"

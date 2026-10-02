@@ -551,18 +551,18 @@ sparkdown [0..196]
  │   │   └─ ImplicitAction_begin_c1 [169..171]
  │   │       └─ OptionalWhitespace [169..171]: "  "
  │   ├─ ImplicitAction_content [171..173]
- │   │   └─ LineEnd [171..173]
- │   │       ├─ LineEnd_begin 171
- │   │       │   └─ LineEnd_begin_c1 171
+ │   │   └─ ActionLineEnd [171..173]
+ │   │       ├─ ActionLineEnd_begin 171
+ │   │       │   └─ ActionLineEnd_begin_c1 171
  │   │       │       └─ OptionalWhitespace 171
- │   │       ├─ LineEnd_content [171..173]
+ │   │       ├─ ActionLineEnd_content [171..173]
  │   │       │   └─ TextChunk [171..173]
  │   │       │       ├─ TextChunk_begin 171
  │   │       │       ├─ TextChunk_content [171..173]
  │   │       │       │   ├─ Word [171..172]: "a"
  │   │       │       │   └─ Punctuation [172..173]: ","
  │   │       │       └─ TextChunk_end 173
- │   │       └─ LineEnd_end 173
+ │   │       └─ ActionLineEnd_end 173
  │   └─ ImplicitAction_end 173
  ├─ Newline [173..174]: "\n"
  ├─ ImplicitAction [174..191]
@@ -570,11 +570,11 @@ sparkdown [0..196]
  │   │   └─ ImplicitAction_begin_c1 [174..176]
  │   │       └─ OptionalWhitespace [174..176]: "  "
  │   ├─ ImplicitAction_content [176..191]
- │   │   └─ LineEnd [176..191]
- │   │       ├─ LineEnd_begin 176
- │   │       │   └─ LineEnd_begin_c1 176
+ │   │   └─ ActionLineEnd [176..191]
+ │   │       ├─ ActionLineEnd_begin 176
+ │   │       │   └─ ActionLineEnd_begin_c1 176
  │   │       │       └─ OptionalWhitespace 176
- │   │       ├─ LineEnd_content [176..191]
+ │   │       ├─ ActionLineEnd_content [176..191]
  │   │       │   └─ TextChunk [176..191]
  │   │       │       ├─ TextChunk_begin 176
  │   │       │       ├─ TextChunk_content [176..191]
@@ -585,7 +585,7 @@ sparkdown [0..196]
  │   │       │       │   ├─ Word [185..190]: "waits"
  │   │       │       │   └─ Punctuation [190..191]: "."
  │   │       │       └─ TextChunk_end 191
- │   │       └─ LineEnd_end 191
+ │   │       └─ ActionLineEnd_end 191
  │   └─ ImplicitAction_end 191
  ├─ Newline [191..192]: "\n"
  ├─ LuauEndKeyword [192..195]: "end"

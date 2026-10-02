@@ -1,0 +1,19 @@
+text.source.sparkdown [0..63]
+ ├─ meta.import.run.sd [0..24]
+ │   ├─ keyword.control.definition.run.sd [0..3]: "run"
+ │   ├─ punctuation.whitespace.required.sd [3..4]: " "
+ │   └─ string.run.luau.sd [4..24]
+ │       └─ string.quoted.run.luau.sd [4..24]: "\"scripts/start.luau\""
+ ├─ Newline [24..25]: "\n"
+ ├─ meta.import.run.sd [25..44]
+ │   ├─ keyword.control.definition.run.sd [25..28]: "run"
+ │   ├─ punctuation.whitespace.required.sd [28..29]: " "
+ │   └─ string.run.luau.sd [29..44]
+ │       └─ string.quoted.run.luau.sd [29..44]: "'scripts/start'"
+ ├─ Newline [44..45]: "\n"
+ ├─ meta.import.run.sd [45..62]
+ │   ├─ keyword.control.definition.run.sd [45..48]: "run"
+ │   ├─ punctuation.whitespace.required.sd [48..49]: " "
+ │   └─ string.run.luau.sd [49..62]
+ │       └─ string.unquoted.run.luau.sd [49..62]: "scripts/start"
+ └─ Newline [62..63]: "\n"

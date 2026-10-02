@@ -21,18 +21,16 @@ export function lowerRun(
   if (!runContentNode) {
     return {};
   }
-  let path = ctx.read(runContentNode.from, runContentNode.to).trim();
-  // Accept both `run "basic"` and `run basic` — strip optional
-  // surrounding quotes for consistency with how the existing
-  // `include` statement reads its argument unquoted.
-  if (
-    (path.startsWith('"') && path.endsWith('"')) ||
-    (path.startsWith("'") && path.endsWith("'"))
-  ) {
-    path = path.slice(1, -1);
-  }
+  const quoted = getDescendent("RunQuotedPath", runContentNode);
+  const unquoted = getDescendent("RunUnquotedPath", runContentNode);
+  const value = quoted ?? unquoted;
+  if (!value) return {};
+  let path = quoted
+    ? ctx.read(quoted.from + 1, quoted.to - 1)
+    : ctx.read(value.from, value.to).trim();
   // `.luau` extension is implicit — `run` only loads Luau files.
   // Accept either form so authors don't have to remember.
+  // value-level: normalize the extension of the isolated file path.
   if (path.endsWith(".luau")) {
     path = path.slice(0, -".luau".length);
   }

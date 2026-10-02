@@ -4,11 +4,11 @@ sparkdown [0..28]
  │   │   └─ ImplicitAction_begin_c1 0
  │   │       └─ OptionalWhitespace 0
  │   ├─ ImplicitAction_content [0..27]
- │   │   └─ LineEnd [0..27]
- │   │       ├─ LineEnd_begin 0
- │   │       │   └─ LineEnd_begin_c1 0
+ │   │   └─ ActionLineEnd [0..27]
+ │   │       ├─ ActionLineEnd_begin 0
+ │   │       │   └─ ActionLineEnd_begin_c1 0
  │   │       │       └─ OptionalWhitespace 0
- │   │       ├─ LineEnd_content [0..27]
+ │   │       ├─ ActionLineEnd_content [0..27]
  │   │       │   ├─ TextChunk [0..1]
  │   │       │   │   ├─ TextChunk_begin 0
  │   │       │   │   ├─ TextChunk_content [0..1]
@@ -82,6 +82,6 @@ sparkdown [0..28]
  │   │       │           │   └─ ExtraWhitespace [24..25]: " "
  │   │       │           └─ LuauSparkdownInlineGluedSequentialAlternatorBlock_end_c2 [25..27]
  │   │       │               └─ AlternatorGlue [25..27]: ".."
- │   │       └─ LineEnd_end 27
+ │   │       └─ ActionLineEnd_end 27
  │   └─ ImplicitAction_end 27
  └─ Newline [27..28]: "\n"

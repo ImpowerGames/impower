@@ -91,7 +91,9 @@ sparkdown [0..852]
  │   │   │   │       │               └─ LuauSparklePropAttribute_c6 [65..70]
  │   │   │   │       │                   └─ InlinePropLiteralValue [65..70]
  │   │   │   │       │                       └─ InlinePropLiteralValue_c1 [65..70]
- │   │   │   │       │                           └─ UnquotedString [65..70]: "green"
+ │   │   │   │       │                           └─ InlinePropWordValue [65..70]
+ │   │   │   │       │                               └─ InlinePropWordValue_c1 [65..70]
+ │   │   │   │       │                                   └─ UnquotedString [65..70]: "green"
  │   │   │   │       └─ LuauSparkleElementContinuation_end 70
  │   │   │   └─ LuauSparkleBlockLine_end 70
  │   │   ├─ Newline [70..71]: "\n"
@@ -328,7 +330,7 @@ sparkdown [0..852]
  │   │   │   │       │       │   │   │               └─ LuauSparklePropAttribute_c6 [266..267]
  │   │   │   │       │       │   │   │                   └─ InlinePropLiteralValue [266..267]
  │   │   │   │       │       │   │   │                       └─ InlinePropLiteralValue_c1 [266..267]
- │   │   │   │       │       │   │   │                           └─ NumberLiteral [266..267]: "5"
+ │   │   │   │       │       │   │   │                           └─ InlinePropNumericValue [266..267]: "5"
  │   │   │   │       │       │   │   └─ LuauSparkleElementContinuation_end 267
  │   │   │   │       │       │   ├─ Newline [267..268]: "\n"
  │   │   │   │       │       │   ├─ Whitespace [268..272]: "    "

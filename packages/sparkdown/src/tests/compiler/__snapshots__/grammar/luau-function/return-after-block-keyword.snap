@@ -259,11 +259,11 @@ sparkdown [0..228]
  │   │   │   │   └─ ImplicitAction_begin_c1 [131..133]
  │   │   │   │       └─ OptionalWhitespace [131..133]: "  "
  │   │   │   ├─ ImplicitAction_content [133..145]
- │   │   │   │   └─ LineEnd [133..145]
- │   │   │   │       ├─ LineEnd_begin 133
- │   │   │   │       │   └─ LineEnd_begin_c1 133
+ │   │   │   │   └─ ActionLineEnd [133..145]
+ │   │   │   │       ├─ ActionLineEnd_begin 133
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 133
  │   │   │   │       │       └─ OptionalWhitespace 133
- │   │   │   │       ├─ LineEnd_content [133..145]
+ │   │   │   │       ├─ ActionLineEnd_content [133..145]
  │   │   │   │       │   └─ TextChunk [133..145]
  │   │   │   │       │       ├─ TextChunk_begin 133
  │   │   │   │       │       ├─ TextChunk_content [133..145]
@@ -272,7 +272,7 @@ sparkdown [0..228]
  │   │   │   │       │       │   ├─ Word [139..144]: "there"
  │   │   │   │       │       │   └─ Punctuation [144..145]: "."
  │   │   │   │       │       └─ TextChunk_end 145
- │   │   │   │       └─ LineEnd_end 145
+ │   │   │   │       └─ ActionLineEnd_end 145
  │   │   │   └─ ImplicitAction_end 145
  │   │   └─ Newline [145..146]: "\n"
  │   └─ LuauSparkdownIfBlock_end [146..151]
@@ -309,11 +309,11 @@ sparkdown [0..228]
  │   │   └─ ImplicitAction_begin_c1 [170..172]
  │   │       └─ OptionalWhitespace [170..172]: "  "
  │   ├─ ImplicitAction_content [172..184]
- │   │   └─ LineEnd [172..184]
- │   │       ├─ LineEnd_begin 172
- │   │       │   └─ LineEnd_begin_c1 172
+ │   │   └─ ActionLineEnd [172..184]
+ │   │       ├─ ActionLineEnd_begin 172
+ │   │       │   └─ ActionLineEnd_begin_c1 172
  │   │       │       └─ OptionalWhitespace 172
- │   │       ├─ LineEnd_content [172..184]
+ │   │       ├─ ActionLineEnd_content [172..184]
  │   │       │   └─ TextChunk [172..184]
  │   │       │       ├─ TextChunk_begin 172
  │   │       │       ├─ TextChunk_content [172..184]
@@ -322,7 +322,7 @@ sparkdown [0..228]
  │   │       │       │   ├─ Word [178..183]: "again"
  │   │       │       │   └─ Punctuation [183..184]: "."
  │   │       │       └─ TextChunk_end 184
- │   │       └─ LineEnd_end 184
+ │   │       └─ ActionLineEnd_end 184
  │   └─ ImplicitAction_end 184
  ├─ Newline [184..185]: "\n"
  ├─ LuauExplicitStatement [185..216]
@@ -437,17 +437,17 @@ sparkdown [0..228]
  │   │   └─ ImplicitAction_begin_c1 [217..219]
  │   │       └─ OptionalWhitespace [217..219]: "  "
  │   ├─ ImplicitAction_content [219..227]
- │   │   └─ LineEnd [219..227]
- │   │       ├─ LineEnd_begin 219
- │   │       │   └─ LineEnd_begin_c1 219
+ │   │   └─ ActionLineEnd [219..227]
+ │   │       ├─ ActionLineEnd_begin 219
+ │   │       │   └─ ActionLineEnd_begin_c1 219
  │   │       │       └─ OptionalWhitespace 219
- │   │       ├─ LineEnd_content [219..227]
+ │   │       ├─ ActionLineEnd_content [219..227]
  │   │       │   └─ TextChunk [219..227]
  │   │       │       ├─ TextChunk_begin 219
  │   │       │       ├─ TextChunk_content [219..227]
  │   │       │       │   ├─ Word [219..226]: "Goodbye"
  │   │       │       │   └─ Punctuation [226..227]: "."
  │   │       │       └─ TextChunk_end 227
- │   │       └─ LineEnd_end 227
+ │   │       └─ ActionLineEnd_end 227
  │   └─ ImplicitAction_end 227
  └─ Newline [227..228]: "\n"

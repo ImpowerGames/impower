@@ -38,11 +38,11 @@ sparkdown [0..93]
  │   │       │   │   │   └─ ImplicitAction_begin_c1 [11..13]
  │   │       │   │   │       └─ OptionalWhitespace [11..13]: "  "
  │   │       │   │   ├─ ImplicitAction_content [13..18]
- │   │       │   │   │   └─ LineEnd [13..18]
- │   │       │   │   │       ├─ LineEnd_begin 13
- │   │       │   │   │       │   └─ LineEnd_begin_c1 13
+ │   │       │   │   │   └─ ActionLineEnd [13..18]
+ │   │       │   │   │       ├─ ActionLineEnd_begin 13
+ │   │       │   │   │       │   └─ ActionLineEnd_begin_c1 13
  │   │       │   │   │       │       └─ OptionalWhitespace 13
- │   │       │   │   │       ├─ LineEnd_content [13..18]
+ │   │       │   │   │       ├─ ActionLineEnd_content [13..18]
  │   │       │   │   │       │   └─ TextChunk [13..18]
  │   │       │   │   │       │       ├─ TextChunk_begin 13
  │   │       │   │   │       │       ├─ TextChunk_content [13..18]
@@ -50,7 +50,7 @@ sparkdown [0..93]
  │   │       │   │   │       │       │   ├─ Punctuation [16..17]: "("
  │   │       │   │   │       │       │   └─ Punctuation [17..18]: ")"
  │   │       │   │   │       │       └─ TextChunk_end 18
- │   │       │   │   │       └─ LineEnd_end 18
+ │   │       │   │   │       └─ ActionLineEnd_end 18
  │   │       │   │   └─ ImplicitAction_end 18
  │   │       │   └─ Newline [18..19]: "\n"
  │   │       └─ LuauSparkdownDoBlock_end [19..22]
@@ -67,11 +67,11 @@ sparkdown [0..93]
  │   │   └─ ImplicitAction_begin_c1 25
  │   │       └─ OptionalWhitespace 25
  │   ├─ ImplicitAction_content [25..92]
- │   │   └─ LineEnd [25..92]
- │   │       ├─ LineEnd_begin 25
- │   │       │   └─ LineEnd_begin_c1 25
+ │   │   └─ ActionLineEnd [25..92]
+ │   │       ├─ ActionLineEnd_begin 25
+ │   │       │   └─ ActionLineEnd_begin_c1 25
  │   │       │       └─ OptionalWhitespace 25
- │   │       ├─ LineEnd_content [25..92]
+ │   │       ├─ ActionLineEnd_content [25..92]
  │   │       │   └─ TextChunk [25..92]
  │   │       │       ├─ TextChunk_begin 25
  │   │       │       ├─ TextChunk_content [25..92]
@@ -100,6 +100,6 @@ sparkdown [0..93]
  │   │       │       │   ├─ Word [85..91]: "spaces"
  │   │       │       │   └─ Punctuation [91..92]: "."
  │   │       │       └─ TextChunk_end 92
- │   │       └─ LineEnd_end 92
+ │   │       └─ ActionLineEnd_end 92
  │   └─ ImplicitAction_end 92
  └─ Newline [92..93]: "\n"

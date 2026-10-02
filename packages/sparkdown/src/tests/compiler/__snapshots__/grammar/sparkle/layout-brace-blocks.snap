@@ -186,7 +186,7 @@ sparkdown [0..2780]
  │   │       │       │   │           └─ LuauSparklePropAttribute_c6 [150..151]
  │   │       │       │   │               └─ InlinePropLiteralValue [150..151]
  │   │       │       │   │                   └─ InlinePropLiteralValue_c1 [150..151]
- │   │       │       │   │                       └─ NumberLiteral [150..151]: "8"
+ │   │       │       │   │                       └─ InlinePropNumericValue [150..151]: "8"
  │   │       │       │   ├─ LuauSparkleElementAssign [151..152]
  │   │       │       │   │   └─ LuauSparkleElementAssign_c1 [151..152]
  │   │       │       │   │       └─ Whitespace [151..152]: " "
@@ -743,7 +743,7 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │       │   │   │               └─ LuauSparklePropAttribute_c6 [465..466]
  │   │       │       │       │   │   │       │   │   │                   └─ InlinePropLiteralValue [465..466]
  │   │       │       │       │   │   │       │   │   │                       └─ InlinePropLiteralValue_c1 [465..466]
- │   │       │       │       │   │   │       │   │   │                           └─ NumberLiteral [465..466]: "5"
+ │   │       │       │       │   │   │       │   │   │                           └─ InlinePropNumericValue [465..466]: "5"
  │   │       │       │       │   │   │       │   │   └─ LuauSparkleElement_end 466
  │   │       │       │       │   │   │       │   ├─ LuauStructBlockSeparator [466..467]: ";"
  │   │       │       │       │   │   │       │   ├─ Whitespace [467..468]: " "
@@ -792,7 +792,7 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │   │           └─ LuauSparklePropAttribute_c6 [495..496]
  │   │       │       │       │   │   │   │               └─ InlinePropLiteralValue [495..496]
  │   │       │       │       │   │   │   │                   └─ InlinePropLiteralValue_c1 [495..496]
- │   │       │       │       │   │   │   │                       └─ NumberLiteral [495..496]: "4"
+ │   │       │       │       │   │   │   │                       └─ InlinePropNumericValue [495..496]: "4"
  │   │       │       │       │   │   │   ├─ LuauSparkleElementAssign [496..497]
  │   │       │       │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [496..497]
  │   │       │       │       │   │   │   │       └─ Whitespace [496..497]: " "
@@ -879,7 +879,7 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │   │           └─ LuauSparklePropAttribute_c6 [540..544]
  │   │       │       │       │   │   │   │               └─ InlinePropLiteralValue [540..544]
  │   │       │       │       │   │   │   │                   └─ InlinePropLiteralValue_c1 [540..544]
- │   │       │       │       │   │   │   │                       └─ UnquotedString [540..544]: "true"
+ │   │       │       │       │   │   │   │                       └─ InlinePropBooleanValue [540..544]: "true"
  │   │       │       │       │   │   │   ├─ LuauSparkleElementAssign [544..545]
  │   │       │       │       │   │   │   │   └─ LuauSparkleElementAssign_c1 [544..545]
  │   │       │       │       │   │   │   │       └─ Whitespace [544..545]: " "
@@ -1237,7 +1237,7 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │           │   └─ LuauSparklePropAttribute_c6 [811..812]
  │   │       │       │       │   │   │           │       └─ InlinePropLiteralValue [811..812]
  │   │       │       │       │   │   │           │           └─ InlinePropLiteralValue_c1 [811..812]
- │   │       │       │       │   │   │           │               └─ NumberLiteral [811..812]: "4"
+ │   │       │       │       │   │   │           │               └─ InlinePropNumericValue [811..812]: "4"
  │   │       │       │       │   │   │           ├─ RequiredWhitespace [812..813]: " "
  │   │       │       │       │   │   │           └─ LuauSparkleEventAttribute [813..825]
  │   │       │       │       │   │   │               ├─ LuauSparkleEventAttribute_c1 [813..814]
@@ -1671,7 +1671,9 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │               └─ LuauSparklePropAttribute_c6 [1036..1039]
  │   │       │       │       │   │   │                   └─ InlinePropLiteralValue [1036..1039]
  │   │       │       │       │   │   │                       └─ InlinePropLiteralValue_c1 [1036..1039]
- │   │       │       │       │   │   │                           └─ UnquotedString [1036..1039]: "a,b"
+ │   │       │       │       │   │   │                           └─ InlinePropWordValue [1036..1039]
+ │   │       │       │       │   │   │                               └─ InlinePropWordValue_c1 [1036..1039]
+ │   │       │       │       │   │   │                                   └─ UnquotedString [1036..1039]: "a,b"
  │   │       │       │       │   │   └─ LuauSparkleElement_end 1039
  │   │       │       │       │   ├─ Newline [1039..1040]: "\n"
  │   │       │       │       │   ├─ Whitespace [1040..1044]: "    "
@@ -1861,7 +1863,9 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │               └─ LuauSparklePropAttribute_c6 [1096..1103]
  │   │       │       │       │   │   │                   └─ InlinePropLiteralValue [1096..1103]
  │   │       │       │       │   │   │                       └─ InlinePropLiteralValue_c1 [1096..1103]
- │   │       │       │       │   │   │                           └─ UnquotedString [1096..1103]: "'a{b}c'"
+ │   │       │       │       │   │   │                           └─ InlinePropWordValue [1096..1103]
+ │   │       │       │       │   │   │                               └─ InlinePropWordValue_c1 [1096..1103]
+ │   │       │       │       │   │   │                                   └─ UnquotedString [1096..1103]: "'a{b}c'"
  │   │       │       │       │   │   └─ LuauSparkleElement_end 1103
  │   │       │       │       │   ├─ Newline [1103..1104]: "\n"
  │   │       │       │       │   ├─ Whitespace [1104..1108]: "    "
@@ -2971,7 +2975,9 @@ sparkdown [0..2780]
  │   │       │       │       │   │   │       │   │   │               └─ LuauSparklePropAttribute_c6 [1524..1531]
  │   │       │       │       │   │   │       │   │   │                   └─ InlinePropLiteralValue [1524..1531]
  │   │       │       │       │   │   │       │   │   │                       └─ InlinePropLiteralValue_c1 [1524..1531]
- │   │       │       │       │   │   │       │   │   │                           └─ UnquotedString [1524..1531]: "'a{b}c'"
+ │   │       │       │       │   │   │       │   │   │                           └─ InlinePropWordValue [1524..1531]
+ │   │       │       │       │   │   │       │   │   │                               └─ InlinePropWordValue_c1 [1524..1531]
+ │   │       │       │       │   │   │       │   │   │                                   └─ UnquotedString [1524..1531]: "'a{b}c'"
  │   │       │       │       │   │   │       │   │   └─ LuauSparkleElement_end 1531
  │   │       │       │       │   │   │       │   ├─ Newline [1531..1532]: "\n"
  │   │       │       │       │   │   │       │   ├─ Whitespace [1532..1536]: "    "
@@ -3260,7 +3266,9 @@ sparkdown [0..2780]
  │   │   │   │       │   │           └─ LuauSparklePropAttribute_c6 [1729..1742]
  │   │   │   │       │   │               └─ InlinePropLiteralValue [1729..1742]
  │   │   │   │       │   │                   └─ InlinePropLiteralValue_c1 [1729..1742]
- │   │   │   │       │   │                       └─ UnquotedString [1729..1742]: "var(--accent)"
+ │   │   │   │       │   │                       └─ InlinePropWordValue [1729..1742]
+ │   │   │   │       │   │                           └─ InlinePropWordValue_c1 [1729..1742]
+ │   │   │   │       │   │                               └─ UnquotedString [1729..1742]: "var(--accent)"
  │   │   │   │       │   ├─ LuauSparkleElementAssign [1742..1743]
  │   │   │   │       │   │   └─ LuauSparkleElementAssign_c1 [1742..1743]
  │   │   │   │       │   │       └─ Whitespace [1742..1743]: " "
@@ -3321,7 +3329,9 @@ sparkdown [0..2780]
  │   │   │   │       │       │   │   │               └─ LuauSparklePropAttribute_c6 [1776..1787]
  │   │   │   │       │       │   │   │                   └─ InlinePropLiteralValue [1776..1787]
  │   │   │   │       │       │   │   │                       └─ InlinePropLiteralValue_c1 [1776..1787]
- │   │   │   │       │       │   │   │                           └─ UnquotedString [1776..1787]: "card--large"
+ │   │   │   │       │       │   │   │                           └─ InlinePropWordValue [1776..1787]
+ │   │   │   │       │       │   │   │                               └─ InlinePropWordValue_c1 [1776..1787]
+ │   │   │   │       │       │   │   │                                   └─ UnquotedString [1776..1787]: "card--large"
  │   │   │   │       │       │   │   └─ LuauSparkleElement_end 1787
  │   │   │   │       │       │   ├─ LuauStructBlockSeparator [1787..1788]: ";"
  │   │   │   │       │       │   ├─ Whitespace [1788..1789]: " "
@@ -3377,7 +3387,9 @@ sparkdown [0..2780]
  │   │   │   │       │   │           └─ LuauSparklePropAttribute_c6 [1819..1827]
  │   │   │   │       │   │               └─ InlinePropLiteralValue [1819..1827]
  │   │   │   │       │   │                   └─ InlinePropLiteralValue_c1 [1819..1827]
- │   │   │   │       │   │                       └─ UnquotedString [1819..1827]: "[[a{b}]]"
+ │   │   │   │       │   │                       └─ InlinePropWordValue [1819..1827]
+ │   │   │   │       │   │                           └─ InlinePropWordValue_c1 [1819..1827]
+ │   │   │   │       │   │                               └─ UnquotedString [1819..1827]: "[[a{b}]]"
  │   │   │   │       │   ├─ LuauSparkleElementAssign [1827..1828]
  │   │   │   │       │   │   └─ LuauSparkleElementAssign_c1 [1827..1828]
  │   │   │   │       │   │       └─ Whitespace [1827..1828]: " "
@@ -3423,7 +3435,9 @@ sparkdown [0..2780]
  │   │   │   │       │               └─ LuauSparklePropAttribute_c6 [1855..1877]
  │   │   │   │       │                   └─ InlinePropLiteralValue [1855..1877]
  │   │   │   │       │                       └─ InlinePropLiteralValue_c1 [1855..1877]
- │   │   │   │       │                           └─ UnquotedString [1855..1877]: "[=======[a{b}]=======]"
+ │   │   │   │       │                           └─ InlinePropWordValue [1855..1877]
+ │   │   │   │       │                               └─ InlinePropWordValue_c1 [1855..1877]
+ │   │   │   │       │                                   └─ UnquotedString [1855..1877]: "[=======[a{b}]=======]"
  │   │   │   │       └─ LuauSparkleElement_end 1877
  │   │   │   └─ LuauSparkleBlockLine_end 1877
  │   │   ├─ Newline [1877..1878]: "\n"
@@ -3450,7 +3464,9 @@ sparkdown [0..2780]
  │   │   │   │       │               └─ LuauSparklePropAttribute_c6 [1894..1899]
  │   │   │   │       │                   └─ InlinePropLiteralValue [1894..1899]
  │   │   │   │       │                       └─ InlinePropLiteralValue_c1 [1894..1899]
- │   │   │   │       │                           └─ UnquotedString [1894..1899]: "'a{b}"
+ │   │   │   │       │                           └─ InlinePropWordValue [1894..1899]
+ │   │   │   │       │                               └─ InlinePropWordValue_c1 [1894..1899]
+ │   │   │   │       │                                   └─ UnquotedString [1894..1899]: "'a{b}"
  │   │   │   │       └─ LuauSparkleElement_end 1899
  │   │   │   └─ LuauSparkleBlockLine_end 1899
  │   │   ├─ Newline [1899..1900]: "\n"
@@ -3477,7 +3493,9 @@ sparkdown [0..2780]
  │   │   │   │       │   │           └─ LuauSparklePropAttribute_c6 [1914..1918]
  │   │   │   │       │   │               └─ InlinePropLiteralValue [1914..1918]
  │   │   │   │       │   │                   └─ InlinePropLiteralValue_c1 [1914..1918]
- │   │   │   │       │   │                       └─ UnquotedString [1914..1918]: "a{b}"
+ │   │   │   │       │   │                       └─ InlinePropWordValue [1914..1918]
+ │   │   │   │       │   │                           └─ InlinePropWordValue_c1 [1914..1918]
+ │   │   │   │       │   │                               └─ UnquotedString [1914..1918]: "a{b}"
  │   │   │   │       │   ├─ LuauSparkleElementAssign [1918..1919]
  │   │   │   │       │   │   └─ LuauSparkleElementAssign_c1 [1918..1919]
  │   │   │   │       │   │       └─ Whitespace [1918..1919]: " "

@@ -54,11 +54,11 @@ sparkdown [0..166]
      │   │   │   └─ ImplicitAction_begin_c1 33
      │   │   │       └─ OptionalWhitespace 33
      │   │   ├─ ImplicitAction_content [33..55]
-     │   │   │   └─ LineEnd [33..55]
-     │   │   │       ├─ LineEnd_begin 33
-     │   │   │       │   └─ LineEnd_begin_c1 33
+     │   │   │   └─ ActionLineEnd [33..55]
+     │   │   │       ├─ ActionLineEnd_begin 33
+     │   │   │       │   └─ ActionLineEnd_begin_c1 33
      │   │   │       │       └─ OptionalWhitespace 33
-     │   │   │       ├─ LineEnd_content [33..55]
+     │   │   │       ├─ ActionLineEnd_content [33..55]
      │   │   │       │   └─ TextChunk [33..55]
      │   │   │       │       ├─ TextChunk_begin 33
      │   │   │       │       ├─ TextChunk_content [33..55]
@@ -71,7 +71,7 @@ sparkdown [0..166]
      │   │   │       │       │   ├─ Word [49..54]: "empty"
      │   │   │       │       │   └─ Punctuation [54..55]: "."
      │   │   │       │       └─ TextChunk_end 55
-     │   │   │       └─ LineEnd_end 55
+     │   │   │       └─ ActionLineEnd_end 55
      │   │   └─ ImplicitAction_end 55
      │   ├─ Newline [55..56]: "\n"
      │   ├─ LuauAlternatorSeparator [56..66]
@@ -96,11 +96,11 @@ sparkdown [0..166]
      │   │   │   └─ ImplicitAction_begin_c1 66
      │   │   │       └─ OptionalWhitespace 66
      │   │   ├─ ImplicitAction_content [66..103]
-     │   │   │   └─ LineEnd [66..103]
-     │   │   │       ├─ LineEnd_begin 66
-     │   │   │       │   └─ LineEnd_begin_c1 66
+     │   │   │   └─ ActionLineEnd [66..103]
+     │   │   │       ├─ ActionLineEnd_begin 66
+     │   │   │       │   └─ ActionLineEnd_begin_c1 66
      │   │   │       │       └─ OptionalWhitespace 66
-     │   │   │       ├─ LineEnd_content [66..103]
+     │   │   │       ├─ ActionLineEnd_content [66..103]
      │   │   │       │   └─ TextChunk [66..103]
      │   │   │       │       ├─ TextChunk_begin 66
      │   │   │       │       ├─ TextChunk_content [66..103]
@@ -119,7 +119,7 @@ sparkdown [0..166]
      │   │   │       │       │   ├─ Word [98..102]: "left"
      │   │   │       │       │   └─ Punctuation [102..103]: "."
      │   │   │       │       └─ TextChunk_end 103
-     │   │   │       └─ LineEnd_end 103
+     │   │   │       └─ ActionLineEnd_end 103
      │   │   └─ ImplicitAction_end 103
      │   ├─ Newline [103..104]: "\n"
      │   ├─ LuauAlternatorSeparator [104..116]
@@ -144,11 +144,11 @@ sparkdown [0..166]
      │   │   │   └─ ImplicitAction_begin_c1 116
      │   │   │       └─ OptionalWhitespace 116
      │   │   ├─ ImplicitAction_content [116..162]
-     │   │   │   └─ LineEnd [116..162]
-     │   │   │       ├─ LineEnd_begin 116
-     │   │   │       │   └─ LineEnd_begin_c1 116
+     │   │   │   └─ ActionLineEnd [116..162]
+     │   │   │       ├─ ActionLineEnd_begin 116
+     │   │   │       │   └─ ActionLineEnd_begin_c1 116
      │   │   │       │       └─ OptionalWhitespace 116
-     │   │   │       ├─ LineEnd_content [116..162]
+     │   │   │       ├─ ActionLineEnd_content [116..162]
      │   │   │       │   └─ TextChunk [116..162]
      │   │   │       │       ├─ TextChunk_begin 116
      │   │   │       │       ├─ TextChunk_content [116..162]
@@ -181,7 +181,7 @@ sparkdown [0..166]
      │   │   │       │       │   ├─ Word [154..161]: "potions"
      │   │   │       │       │   └─ Punctuation [161..162]: "."
      │   │   │       │       └─ TextChunk_end 162
-     │   │   │       └─ LineEnd_end 162
+     │   │   │       └─ ActionLineEnd_end 162
      │   │   └─ ImplicitAction_end 162
      │   └─ Newline [162..163]: "\n"
      └─ LuauSparkdownConditionalAlternatorBlock_end [163..166]

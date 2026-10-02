@@ -119,11 +119,11 @@ sparkdown [0..169]
  │   │   └─ ImplicitAction_begin_c1 [104..106]
  │   │       └─ OptionalWhitespace [104..106]: "  "
  │   ├─ ImplicitAction_content [106..164]
- │   │   └─ LineEnd [106..164]
- │   │       ├─ LineEnd_begin 106
- │   │       │   └─ LineEnd_begin_c1 106
+ │   │   └─ ActionLineEnd [106..164]
+ │   │       ├─ ActionLineEnd_begin 106
+ │   │       │   └─ ActionLineEnd_begin_c1 106
  │   │       │       └─ OptionalWhitespace 106
- │   │       ├─ LineEnd_content [106..164]
+ │   │       ├─ ActionLineEnd_content [106..164]
  │   │       │   └─ TextChunk [106..164]
  │   │       │       ├─ TextChunk_begin 106
  │   │       │       ├─ TextChunk_content [106..164]
@@ -148,7 +148,7 @@ sparkdown [0..169]
  │   │       │       │   ├─ Word [157..163]: "bubble"
  │   │       │       │   └─ Punctuation [163..164]: "."
  │   │       │       └─ TextChunk_end 164
- │   │       └─ LineEnd_end 164
+ │   │       └─ ActionLineEnd_end 164
  │   └─ ImplicitAction_end 164
  ├─ Newline [164..165]: "\n"
  ├─ LuauEndKeyword [165..168]: "end"

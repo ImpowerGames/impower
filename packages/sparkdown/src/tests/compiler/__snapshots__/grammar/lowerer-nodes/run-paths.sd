@@ -1,0 +1,3 @@
+run "scripts/start.luau"
+run 'scripts/start'
+run scripts/start

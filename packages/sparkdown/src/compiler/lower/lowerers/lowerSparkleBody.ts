@@ -409,7 +409,6 @@ const EVENT_HANDLER_NAME = nodeNameSet(["LuauSparkleEventHandlerName"]);
 const EVENT_CLOSURE = nodeNameSet(["LuauSparkleHandlerClosure"]);
 const EVENT_CLOSURE_BODY = nodeNameSet(["LuauSparkleHandlerClosure_content"]);
 const EVENT_CLOSURE_END = nodeNameSet(["LuauSparkleHandlerClosure_end"]);
-const BARE_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** DFS: every `LuauEventAttribute` descendant, in source order, or the node
  *  itself when it is one. */
@@ -469,12 +468,7 @@ function readEvents(lineNode: SyntaxNode, ctx: LowerContext): EventBinding[] {
       continue;
     }
     const handlerNode = handlerContent(firstDescendant(attr, EVENT_CONTENT));
-    const handlerText = handlerNode
-      ? ctx.read(handlerNode.from, handlerNode.to).trim()
-      : "";
-    if (handlerNode && BARE_NAME_RE.test(handlerText)) {
-      events.push({ event, handler: { kind: "ref", name: handlerText } });
-    } else if (handlerNode) {
+    if (handlerNode) {
       events.push({
         event,
         // `event` is a reserved evaluator param so a call handler can pass it
@@ -569,7 +563,9 @@ const PROP_INTERP = nodeNameSet([
   "LuauFunctionCallShorthand",
 ]);
 const PROP_QUOTED = nodeNameSet(["InlinePropQuotedValue"]);
-const PROP_LITERAL = nodeNameSet(["InlinePropLiteralValue"]);
+const PROP_LITERAL = nodeNameSet([
+  "InlinePropNumericValue", "InlinePropBooleanValue", "InlinePropWordValue",
+]);
 
 /** DFS: every `LuauPropAttribute` descendant, in source order. */
 function propAttributes(node: SyntaxNode): SyntaxNode[] {
@@ -584,16 +580,6 @@ function propAttributes(node: SyntaxNode): SyntaxNode[] {
   };
   walk(node);
   return out;
-}
-
-/** Parse an unquoted inline prop literal (`16`, `0.5`, `auto`, `#fff`, `true`):
- *  numbers → number, `true`/`false` → boolean, everything else → string. */
-function parsePropLiteral(text: string): string | number | boolean {
-  const s = text.trim();
-  if (s === "true") return true;
-  if (s === "false") return false;
-  if (/^-?\d+(?:\.\d+)?$/.test(s)) return Number(s);
-  return s;
 }
 
 /** Build the inline `#prop=value` map (spec §4.2/§4.4) from a line's prop
@@ -633,7 +619,11 @@ function readProps(
     if (literal) {
       props[name] = {
         kind: "literal",
-        value: parsePropLiteral(ctx.read(literal.from, literal.to)),
+        value: literal.name === "InlinePropNumericValue"
+          ? Number(ctx.read(literal.from, literal.to))
+          : literal.name === "InlinePropBooleanValue"
+            ? ctx.read(literal.from, literal.to) === "true"
+            : ctx.read(literal.from, literal.to),
       };
     }
   }

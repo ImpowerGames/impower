@@ -50,11 +50,11 @@ sparkdown [0..494]
  │   │   └─ ImplicitAction_begin_c1 18
  │   │       └─ OptionalWhitespace 18
  │   ├─ ImplicitAction_content [18..33]
- │   │   └─ LineEnd [18..33]
- │   │       ├─ LineEnd_begin 18
- │   │       │   └─ LineEnd_begin_c1 18
+ │   │   └─ ActionLineEnd [18..33]
+ │   │       ├─ ActionLineEnd_begin 18
+ │   │       │   └─ ActionLineEnd_begin_c1 18
  │   │       │       └─ OptionalWhitespace 18
- │   │       ├─ LineEnd_content [18..33]
+ │   │       ├─ ActionLineEnd_content [18..33]
  │   │       │   └─ TextChunk [18..33]
  │   │       │       ├─ TextChunk_begin 18
  │   │       │       ├─ TextChunk_content [18..33]
@@ -105,7 +105,7 @@ sparkdown [0..494]
  │   │       │       │       │       └─ Tunnel_end 33
  │   │       │       │       └─ Divert_end 33
  │   │       │       └─ TextChunk_end 33
- │   │       └─ LineEnd_end 33
+ │   │       └─ ActionLineEnd_end 33
  │   └─ ImplicitAction_end 33
  ├─ Newline [33..34]: "\n"
  ├─ Divert [34..49]
@@ -323,11 +323,11 @@ sparkdown [0..494]
  │   │   └─ ImplicitAction_begin_c1 107
  │   │       └─ OptionalWhitespace 107
  │   ├─ ImplicitAction_content [107..133]
- │   │   └─ LineEnd [107..133]
- │   │       ├─ LineEnd_begin 107
- │   │       │   └─ LineEnd_begin_c1 107
+ │   │   └─ ActionLineEnd [107..133]
+ │   │       ├─ ActionLineEnd_begin 107
+ │   │       │   └─ ActionLineEnd_begin_c1 107
  │   │       │       └─ OptionalWhitespace 107
- │   │       ├─ LineEnd_content [107..133]
+ │   │       ├─ ActionLineEnd_content [107..133]
  │   │       │   ├─ TextChunk [107..108]
  │   │       │   │   ├─ TextChunk_begin 107
  │   │       │   │   ├─ TextChunk_content [107..108]
@@ -412,7 +412,7 @@ sparkdown [0..494]
  │   │       │       │   ├─ Space [131..132]: " "
  │   │       │       │   └─ Word [132..133]: "z"
  │   │       │       └─ TextChunk_end 133
- │   │       └─ LineEnd_end 133
+ │   │       └─ ActionLineEnd_end 133
  │   └─ ImplicitAction_end 133
  ├─ Newline [133..134]: "\n"
  ├─ ImplicitAction [134..165]
@@ -420,11 +420,11 @@ sparkdown [0..494]
  │   │   └─ ImplicitAction_begin_c1 134
  │   │       └─ OptionalWhitespace 134
  │   ├─ ImplicitAction_content [134..165]
- │   │   └─ LineEnd [134..165]
- │   │       ├─ LineEnd_begin 134
- │   │       │   └─ LineEnd_begin_c1 134
+ │   │   └─ ActionLineEnd [134..165]
+ │   │       ├─ ActionLineEnd_begin 134
+ │   │       │   └─ ActionLineEnd_begin_c1 134
  │   │       │       └─ OptionalWhitespace 134
- │   │       ├─ LineEnd_content [134..165]
+ │   │       ├─ ActionLineEnd_content [134..165]
  │   │       │   ├─ TextChunk [134..135]
  │   │       │   │   ├─ TextChunk_begin 134
  │   │       │   │   ├─ TextChunk_content [134..135]
@@ -531,7 +531,7 @@ sparkdown [0..494]
  │   │       │       │   ├─ Space [163..164]: " "
  │   │       │       │   └─ Word [164..165]: "z"
  │   │       │       └─ TextChunk_end 165
- │   │       └─ LineEnd_end 165
+ │   │       └─ ActionLineEnd_end 165
  │   └─ ImplicitAction_end 165
  ├─ Newline [165..166]: "\n"
  ├─ ImplicitAction [166..193]
@@ -539,11 +539,11 @@ sparkdown [0..494]
  │   │   └─ ImplicitAction_begin_c1 166
  │   │       └─ OptionalWhitespace 166
  │   ├─ ImplicitAction_content [166..193]
- │   │   └─ LineEnd [166..193]
- │   │       ├─ LineEnd_begin 166
- │   │       │   └─ LineEnd_begin_c1 166
+ │   │   └─ ActionLineEnd [166..193]
+ │   │       ├─ ActionLineEnd_begin 166
+ │   │       │   └─ ActionLineEnd_begin_c1 166
  │   │       │       └─ OptionalWhitespace 166
- │   │       ├─ LineEnd_content [166..193]
+ │   │       ├─ ActionLineEnd_content [166..193]
  │   │       │   ├─ TextChunk [166..167]
  │   │       │   │   ├─ TextChunk_begin 166
  │   │       │   │   ├─ TextChunk_content [166..167]
@@ -648,7 +648,7 @@ sparkdown [0..494]
  │   │       │       │   ├─ Space [191..192]: " "
  │   │       │       │   └─ Word [192..193]: "z"
  │   │       │       └─ TextChunk_end 193
- │   │       └─ LineEnd_end 193
+ │   │       └─ ActionLineEnd_end 193
  │   └─ ImplicitAction_end 193
  ├─ Newline [193..194]: "\n"
  ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [194..218]
@@ -914,11 +914,11 @@ sparkdown [0..494]
  │   │   └─ ImplicitAction_begin_c1 275
  │   │       └─ OptionalWhitespace 275
  │   ├─ ImplicitAction_content [275..303]
- │   │   └─ LineEnd [275..303]
- │   │       ├─ LineEnd_begin 275
- │   │       │   └─ LineEnd_begin_c1 275
+ │   │   └─ ActionLineEnd [275..303]
+ │   │       ├─ ActionLineEnd_begin 275
+ │   │       │   └─ ActionLineEnd_begin_c1 275
  │   │       │       └─ OptionalWhitespace 275
- │   │       ├─ LineEnd_content [275..303]
+ │   │       ├─ ActionLineEnd_content [275..303]
  │   │       │   ├─ TextChunk [275..276]
  │   │       │   │   ├─ TextChunk_begin 275
  │   │       │   │   ├─ TextChunk_content [275..276]
@@ -1003,7 +1003,7 @@ sparkdown [0..494]
  │   │       │       │   ├─ Space [301..302]: " "
  │   │       │       │   └─ Word [302..303]: "z"
  │   │       │       └─ TextChunk_end 303
- │   │       └─ LineEnd_end 303
+ │   │       └─ ActionLineEnd_end 303
  │   └─ ImplicitAction_end 303
  ├─ Newline [303..304]: "\n"
  ├─ LuauSparkdownSingleLineSequentialAlternatorBlock [304..334]
@@ -1195,11 +1195,11 @@ sparkdown [0..494]
  │   │   └─ ImplicitAction_begin_c1 374
  │   │       └─ OptionalWhitespace 374
  │   ├─ ImplicitAction_content [374..403]
- │   │   └─ LineEnd [374..403]
- │   │       ├─ LineEnd_begin 374
- │   │       │   └─ LineEnd_begin_c1 374
+ │   │   └─ ActionLineEnd [374..403]
+ │   │       ├─ ActionLineEnd_begin 374
+ │   │       │   └─ ActionLineEnd_begin_c1 374
  │   │       │       └─ OptionalWhitespace 374
- │   │       ├─ LineEnd_content [374..403]
+ │   │       ├─ ActionLineEnd_content [374..403]
  │   │       │   ├─ TextChunk [374..375]
  │   │       │   │   ├─ TextChunk_begin 374
  │   │       │   │   ├─ TextChunk_content [374..375]
@@ -1287,7 +1287,7 @@ sparkdown [0..494]
  │   │       │       │   ├─ Space [401..402]: " "
  │   │       │       │   └─ Word [402..403]: "z"
  │   │       │       └─ TextChunk_end 403
- │   │       └─ LineEnd_end 403
+ │   │       └─ ActionLineEnd_end 403
  │   └─ ImplicitAction_end 403
  ├─ Newline [403..404]: "\n"
  ├─ ImplicitAction [404..432]
@@ -1295,11 +1295,11 @@ sparkdown [0..494]
  │   │   └─ ImplicitAction_begin_c1 404
  │   │       └─ OptionalWhitespace 404
  │   ├─ ImplicitAction_content [404..432]
- │   │   └─ LineEnd [404..432]
- │   │       ├─ LineEnd_begin 404
- │   │       │   └─ LineEnd_begin_c1 404
+ │   │   └─ ActionLineEnd [404..432]
+ │   │       ├─ ActionLineEnd_begin 404
+ │   │       │   └─ ActionLineEnd_begin_c1 404
  │   │       │       └─ OptionalWhitespace 404
- │   │       ├─ LineEnd_content [404..432]
+ │   │       ├─ ActionLineEnd_content [404..432]
  │   │       │   ├─ TextChunk [404..405]
  │   │       │   │   ├─ TextChunk_begin 404
  │   │       │   │   ├─ TextChunk_content [404..405]
@@ -1384,7 +1384,7 @@ sparkdown [0..494]
  │   │       │       │   ├─ Space [430..431]: " "
  │   │       │       │   └─ Word [431..432]: "z"
  │   │       │       └─ TextChunk_end 432
- │   │       └─ LineEnd_end 432
+ │   │       └─ ActionLineEnd_end 432
  │   └─ ImplicitAction_end 432
  ├─ Newline [432..433]: "\n"
  ├─ InlineDialogue [433..459]
@@ -1553,17 +1553,17 @@ sparkdown [0..494]
  │   │   │   │   └─ ImplicitAction_begin_c1 488
  │   │   │   │       └─ OptionalWhitespace 488
  │   │   │   ├─ ImplicitAction_content [488..489]
- │   │   │   │   └─ LineEnd [488..489]
- │   │   │   │       ├─ LineEnd_begin 488
- │   │   │   │       │   └─ LineEnd_begin_c1 488
+ │   │   │   │   └─ ActionLineEnd [488..489]
+ │   │   │   │       ├─ ActionLineEnd_begin 488
+ │   │   │   │       │   └─ ActionLineEnd_begin_c1 488
  │   │   │   │       │       └─ OptionalWhitespace 488
- │   │   │   │       ├─ LineEnd_content [488..489]
+ │   │   │   │       ├─ ActionLineEnd_content [488..489]
  │   │   │   │       │   └─ TextChunk [488..489]
  │   │   │   │       │       ├─ TextChunk_begin 488
  │   │   │   │       │       ├─ TextChunk_content [488..489]
  │   │   │   │       │       │   └─ Word [488..489]: "c"
  │   │   │   │       │       └─ TextChunk_end 489
- │   │   │   │       └─ LineEnd_end 489
+ │   │   │   │       └─ ActionLineEnd_end 489
  │   │   │   └─ ImplicitAction_end 489
  │   │   └─ Newline [489..490]: "\n"
  │   └─ LuauSparkdownSequentialAlternatorBlock_end [490..493]
