@@ -37,20 +37,59 @@ function lineOf(code: string, offset: number): number {
   return code.slice(0, offset).split("\n").length;
 }
 
+/** A selector with each quoted run reduced to `""`, each attribute selector
+ *  to `[]` and each parenthesized argument list to `()`. A quoted run ends
+ *  at its own unescaped quote, as the grammar's header strings and
+ *  `getCSSSelector` read one (`"a\""` is one run), and a bracket or
+ *  parenthesis inside a quoted run is text. */
+function maskSelector(selector: string): string {
+  const endOfQuote = (start: number) => {
+    const quote = selector[start];
+    let i = start + 1;
+    while (i < selector.length && selector[i] !== quote) {
+      i += selector[i] === "\\" ? 2 : 1;
+    }
+    return i + 1;
+  };
+  let out = "";
+  let i = 0;
+  while (i < selector.length) {
+    const c = selector[i]!;
+    if (c === '"' || c === "'") {
+      i = endOfQuote(i);
+      out += '""';
+    } else if (c === "[" || c === "(") {
+      const close = c === "[" ? "]" : ")";
+      let depth = 1;
+      i += 1;
+      while (i < selector.length && depth > 0) {
+        const d = selector[i]!;
+        if (d === '"' || d === "'") {
+          i = endOfQuote(i);
+          continue;
+        }
+        if (d === c) depth += 1;
+        else if (d === close) depth -= 1;
+        i += 1;
+      }
+      out += c + close;
+    } else {
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
+}
+
 /** The bare-word classes of a style rule's selector (`> text title`,
  *  `& secondary`, `[data-x] secondary`). A selector is compounds joined by
  *  combinators (`>`, `>>`, `+`, `~`) or listed with `,`. Within a compound,
  *  a state (`@hovered`) or a class (`.title`) may follow after whitespace,
  *  but a later word that starts like a name is a bare class. Attribute
  *  selectors, a state's arguments and quoted text may hold spaces, so each
- *  is first reduced to a token without them (quotes read whole, so a `]`
- *  or `)` inside one does not end it). */
+ *  is first reduced to a token without them (`maskSelector`). */
 function selectorBareClasses(selector: string): string[] {
-  const compounds = selector
-    .replace(/\[(?:"[^"]*"|'[^']*'|[^\]"'])*\]/g, "[]")
-    .replace(/\((?:"[^"]*"|'[^']*'|[^)"'])*\)/g, "()")
-    .replace(/"[^"]*"|'[^']*'/g, '""')
-    .split(/>>|>|\+|~|,/);
+  const compounds = maskSelector(selector).split(/>>|>|\+|~|,/);
   return compounds.flatMap((compound) =>
     compound
       .trim()
@@ -240,6 +279,14 @@ describe("the guide's old-form check", () => {
       "a bare class after an attribute selector",
       style(`[data-label="a b"] secondary`),
     ],
+    [
+      "a bare class between attribute selectors with escaped quotes",
+      style(`&[data-label="a\\""] secondary [data-other="b\\""]`),
+    ],
+    [
+      "a bare class after a single-quoted escaped quote",
+      style(`&[data-label='a\\''] secondary`),
+    ],
   ])("reports %s", (_, source) => {
     expect(readDeclarations(source).oldForms).not.toEqual([]);
   });
@@ -261,6 +308,14 @@ describe("the guide's old-form check", () => {
     [
       "an attribute selector with a `]` in its value",
       style(`&[data-label="a] b"]`),
+    ],
+    [
+      "an attribute selector with an escaped quote and a space",
+      style(`&[data-label="a\\" b"]`),
+    ],
+    [
+      "a single-quoted attribute value with an escaped quote and a space",
+      style(`&[data-label='a\\' b']`),
     ],
     ["states after a state", style("@hovered @before, @focused @before")],
     ["a state after a name", style("> text @hovered")],
