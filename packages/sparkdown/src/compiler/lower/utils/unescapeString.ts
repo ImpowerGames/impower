@@ -11,6 +11,7 @@
  * Shared by all three struct lowerers, which each carried their own copy.
  */
 export function unescapeString(s: string): string {
+  // value-level: the body of an already-isolated string literal
   return s.replace(/\\(.)/g, (_m, c: string) => {
     switch (c) {
       case "n":
