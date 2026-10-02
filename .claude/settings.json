@@ -1,8 +1,21 @@
 {
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Running node scripts/agent-handoff.mjs to launch the repository's independent Codex reviewer with its documented full-access sandbox arguments, and spawning or messaging writer subagents that do so, is authorized by the maintainer."
+    ]
+  },
   "permissions": {
     "allow": [
       "Write(../impower.review-jobs/**)",
-      "PowerShell(Start-Process node *agent-handoff.mjs*)"
+      "PowerShell(Start-Process node *agent-handoff.mjs*)",
+      "Edit(../impower.review-jobs/**)",
+      "Bash(rm -rf /home/user/impower.review-jobs/*)",
+      "Bash(node scripts/agent-handoff.mjs *)",
+      "Bash(node scripts/reviewer-defaults.mjs *)",
+      "Bash(node scripts/build-review-prompt.mjs *)",
+      "Agent",
+      "SendMessage"
     ]
   },
   "hooks": {

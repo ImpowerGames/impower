@@ -5,7 +5,6 @@
 # styles) tracked by default; only the three paths below are local-agent state.
 .claude/worktrees
 .claude/skills
-.claude/settings.local.json
 # Driver runtime artifacts: chosen ports + the Chromium profile it drives with.
 .agents/skills/*/.state.json
 .agents/skills/*/.state.json.tmp
