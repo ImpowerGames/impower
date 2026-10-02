@@ -5458,13 +5458,13 @@
           "include": "#LuauComment"
         },
         {
-          "include": "#LuauStyleNameAndInheritance"
-        },
-        {
           "include": "#LuauStructBlockLine"
         },
         {
           "include": "#LuauStructBodyLine"
+        },
+        {
+          "include": "#LuauStyleNameAndInheritance"
         },
         {
           "include": "#ExtraWhitespace"
@@ -5760,7 +5760,7 @@
       }
     },
     "LuauStyleNameAndInheritance": {
-      "begin": "(?<=style\\b(?:[^\\S\\n\\r])*)((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
+      "begin": "((?:[a-zA-Z_][a-zA-Z0-9_]*\\b))",
       "beginCaptures": {
         "1": {
           "patterns": [
@@ -5778,7 +5778,7 @@
           "include": "#ExtraWhitespace"
         }
       ],
-      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=)))))|((?:[^\\S\\n\\r])*)(with)\\b",
+      "end": "(?=(?:^(?:[^\\S\\n\\r])*\\b(?:scene|branch)\\b(?:$|(?:[^\\S\\n\\r])+|(?=[:]|(?:[#]+(?=$|(?:[^\\S\\n\\r])))|(?:[-][-])))(?!(?:[^\\S\\n\\r])*(?:\\+=|-=|\\/=|\\/\\/=|\\*=|%=|\\^=|\\.\\.=|=(?!=))))|$)|((?:[^\\S\\n\\r])*)(with)\\b",
       "endCaptures": {
         "1": {
           "emit": true,

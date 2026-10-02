@@ -4112,7 +4112,6 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauStyleNameAndInheritance" }
       # The body is the colon/indent STRUCT body (props, nested `key:`
       # blocks, `> selector:` rules, `@breakpoint:` directives, bare
       # markers). Captured opaquely line-by-line — the lowerer reads the
@@ -4121,6 +4120,10 @@ repository:
       # read as a `LuauStructBlockLine` instead.
       - { include: "#LuauStructBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      # The name comes after the body-line rules. They begin only at the
+      # start of a line, so the name is read after `style` (and after a
+      # comment there), and a body line at column 0 stays a body line.
+      - { include: "#LuauStyleNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4311,8 +4314,12 @@ repository:
   # Name + optional `as PARENT`, ending at the `with` block opener.
   # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)
   # so the lowerer reads names through the same node names as `define`.
+  # It begins at the first name `LuauStyle` reads after its keyword; the
+  # parent tries its body-line rules first, so nothing needs to look back
+  # for `style`. It ends with its line, so a stray word at column 0 in the
+  # body opens a name that closes there instead of running on.
   LuauStyleNameAndInheritance:
-    begin: (?<=style\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: ({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -4320,7 +4327,7 @@ repository:
     patterns:
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
