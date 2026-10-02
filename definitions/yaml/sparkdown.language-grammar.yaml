@@ -468,15 +468,16 @@ variables:
   UNQUOTED_STRING_TERMINATOR: (?:$|[\s"'`<>=:(){}\[\]]|{{COMMENT_START}})
   PROPERTY_NAME_TERMINATOR: (?:[:]|[=]|[\r\n])
   EOPL: "(?:$|{{WS}}*$|{{WS}}*[/][/].*$)"
-  # Operators consumed by the restored struct-body per-line wrapper rules.
+  # Assignment whitespace shared by struct and element blocks.
   ASSIGN_EQUAL_OPERATOR: (?:{{WS}}*[=]{{WS}}*)
-  ARRAY_ITEM_OPERATOR: (?:[-](?:$|{{WS}}+))
+  STRUCT_BLOCK_EQUAL: (?:[=]{{WS}}*)
+  SPARKLE_ELEMENT_BOUNDARY: (?:[;},:]|$|{{SPARKLE_ELEMENT_NAME}})
   # Brace blocks in struct bodies (`LuauStructBlockLine`). A quoted run holds
   # no `"` of its own, so it can only close at its first unescaped quote or run
   # to the end of the line, and the value patterns below cannot backtrack into
   # it to end a value at a `;` or `}` it contains.
   STRUCT_BLOCK_QUOTED: (?:"(?:\\.|[^"\\\n])*(?:"|$))
-  # A comment inside a block starts where one starts after an indented value
+  # A comment inside a block starts where one starts after a struct value
   # (`StylingValue`): `--` after whitespace, `//` after whitespace and
   # before whitespace or the end of the line, and `--` after a value that is a
   # whole number, boolean or quoted string (`opacity = 1-- note`). Any other
@@ -503,7 +504,7 @@ variables:
   # rather than ending a header; a selector list (`&.a, &.b {`) ends in a name.
   STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?(?<![\s,]))
   # Between a header and its `{`: whitespace and the optional `=`.
-  STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
+  STRUCT_BLOCK_ASSIGN: (?:{{WS}}*{{STRUCT_BLOCK_EQUAL}}?)
   # A whole number, boolean or quoted value, spelled as `NumericFieldValue`,
   # `BooleanFieldValue` and `StringFieldValue` spell it. After one, `--`
   # or `//` begins a comment with no whitespace before it.
@@ -536,25 +537,6 @@ variables:
   # ASCII key, that it does not end in `-`.
   STRUCT_BLOCK_PROPERTY_KEY: (?:\[[^\]\n]*\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))
   STRUCT_BLOCK_PROPERTY_HEAD: (?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})
-  # An indented-form property or `-` item whose value is a literal followed by
-  # a `--` or `//` comment: the rest of its line is the comment.
-  STRUCT_BLOCK_LITERAL_COMMENT_LINE: (?:(?:{{STRUCT_BLOCK_PROPERTY_HEAD}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})
-  # The text of a line up to a brace that no quoted run, attribute selector
-  # or comment holds.
-  STRUCT_BLOCK_BRACE_SCAN: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^"\s{}\[])*?[{}])
-  # A body line that holds an unquoted `{` or `}` outside a comment is read as
-  # block entries: a `{` opens a block or a list entry wherever it stands on
-  # the line (`timing = 1; keyframes {`), and a `}` outside every block is
-  # stray, which reading the line as entries reports (`delay = 2 }` after the
-  # block it meant to close has closed). A brace inside a quoted string or a
-  # comment leaves the line in the indented form, and so does a line that
-  # `STRUCT_BLOCK_LITERAL_COMMENT_LINE` describes. The indentation is read
-  # whole before that check, so it cannot give back a space and start the
-  # check at whitespace, where it would pass (`  - 2-- } note`). A property's
-  # value is scanned from its first character, since the value readers trim it
-  # before they look for a comment: in `k = --gap }` the `--` is text and the
-  # `}` is stray.
-  STRUCT_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?!{{STRUCT_BLOCK_LITERAL_COMMENT_LINE}}){{STRUCT_BLOCK_PROPERTY_HEAD}}?{{STRUCT_BLOCK_BRACE_SCAN}})
   # An unclosed block ends where the declaration's `end` starts a line.
   STRUCT_BLOCK_BAIL: (?:{{BEAT}}|^{{END}})
   # A comma that ends an entry: before the end of the line, a `;`, a `}` or a
@@ -652,8 +634,7 @@ variables:
   # A braced value whose braces its line leaves open (#1225). An event's
   # handler written so is a closure that goes on at the next line
   # (`LuauSparkleEventClosureAttribute`), so an attribute token never takes
-  # it (`SPARKLE_ATTR`) and a line that holds one is a brace line
-  # (`SPARKLE_BLOCK_LINE_START`). Only its braces may be left open: it reads
+  # it (`SPARKLE_ATTR`). Only its braces may be left open: it reads
   # the Luau tokens `SPARKLE_CODE_TOKEN` reads, but only those its line
   # closes (quoted strings, long strings and long comments up to seven `=`,
   # backtick strings with their interpolations), and it nests at most eight
@@ -718,41 +699,22 @@ variables:
   SPARKLE_ATTR_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_UNQUOTED_VALUE}})
   SPARKLE_EVENT_VALUE: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_EVENT_UNQUOTED_VALUE}})
   SPARKLE_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*(?!{{SPARKLE_OPEN_BRACED}}){{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
-  # The line scan's attribute token, which takes an open closure as one
-  # value; the scan stops before one first (`SPARKLE_BLOCK_LINE_START`).
-  SPARKLE_SCAN_ATTR: (?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))
   # A comment: a Luau comment, or `//` before whitespace or the end of the
   # line. It starts a token, so the `--` inside a word (`a--b`) is part of
   # the word. A long comment ends at its `]]`, as `LuauBlockComment` does.
   SPARKLE_COMMENT: (?:{{SPARKLE_LUAU_COMMENT}}|[/][/](?={{WS}}|$)[^\n]*$)
   # A word: any other run, which starts with neither a comment, an attribute
   # mark nor a separator, and is read whole.
-  SPARKLE_WORD: (?:(?![-][-]|[/][/](?:{{WS}}|$))[^\s"'`(){};,=#@][^\s"'`(){};,=]*(?![^\s"'`(){};,=]))
   # An element's name.
   SPARKLE_ELEMENT_NAME: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}})
-  # A class after a `.`, or a bare word after an element's name.
+  # A class after a `.`. A bare word starts another element.
   SPARKLE_CLASS_NAME: (?:[0-9_\p{L}][0-9_\p{L}-]*)
   # The rest of an element's line after its name: its classes, attributes,
   # content and comments. It ends before a `{` (with whitespace and an
   # optional `=` before it), a `;`, a `}`, a comma that ends the entry, or the
   # end of the line.
-  SPARKLE_HEAD_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|{{SPARKLE_COMMENT}}|{{SPARKLE_WORD}}|[=](?!{{WS}}*[{])|[,](?![\s;}]|$)|{{WS}}+(?!{{WS}}|[;{}]|[,](?:{{WS}}|$|[;}])|[=]{{WS}}*[{]|$))
+  SPARKLE_HEAD_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|{{SPARKLE_COMMENT}}|[.]{{SPARKLE_CLASS_NAME}}|[=](?!{{WS}}*[{])|[,](?![\s;}]|$)|{{WS}}+(?!{{WS}}|[;{}]|[,](?:{{WS}}|$|[;}])|[=]{{WS}}*[{]|$))
   SPARKLE_HEAD: (?:{{SPARKLE_HEAD_TOKEN}})*
-  # A layout or component body line that holds a brace outside a quoted run,
-  # an attribute's value, a parenthesized list and a comment: a `{` that
-  # opens a block, or a `}`. A long comment is a token, so a brace after it
-  # on its line counts; any other comment ends the scan. An `=` counts only
-  # before a `{` (`row = {`), so the indented form's `text = Hello {who}`
-  # keeps its value, and a list item (`- Hello {who}`) is never a brace line.
-  SPARKLE_SCAN_TOKEN: (?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_SCAN_ATTR}}|{{SPARKLE_PARENS}}|[)]|[-][-]{{SPARKLE_LONG_BRACKET}}|{{SPARKLE_WORD}}|[;,]|[=](?={{WS}}*[{])|{{WS}}+(?!{{WS}}|[-][-](?![\[][=]*[\[])|[/][/](?:{{WS}}|$)))
-  # The brace after the tokens is a lookahead: V8 takes over ten times as
-  # long to compile a multiline pattern whose token loop is followed by a
-  # character it must consume. An event closure its line leaves open counts
-  # as a brace, since the closure goes on at the next line. The token loop
-  # is lazy, so this stop is tried at each token before the token is: the
-  # scan stops at an open closure before its attribute token could take it,
-  # and its attribute token (`SPARKLE_SCAN_ATTR`) needs no copy of the check.
-  SPARKLE_BLOCK_LINE_START: (?:{{WS}}*(?!{{WS}})(?![-](?:{{WS}}|$))(?:{{SPARKLE_SCAN_TOKEN}})*?(?=[{}]|{{SPARKLE_EVENT_NAME}}{{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}}))
   # A line that continues the element above it: one that starts with a
   # class's `.`, an attribute's `#` or `@`, or a quote
   # (`LuauSparkleElementContinuation`), but not a property with a quoted key
@@ -4198,14 +4160,7 @@ repository:
     patterns:
       - { include: "#LuauComment" }
       - { include: "#LuauStyleNameAndInheritance" }
-      # The body is the colon/indent STRUCT body (props, nested `key:`
-      # blocks, `> selector:` rules, `@breakpoint:` directives, bare
-      # markers). Captured opaquely line-by-line — the lowerer reads the
-      # raw text and parses the indentation structure itself. (See
-      # lowerLuauStyle / lowerLuauUI.) A line that opens a brace block is
-      # read as a `LuauStructBlockLine` instead.
       - { include: "#LuauStructBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4245,7 +4200,6 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4281,7 +4235,6 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4319,7 +4272,6 @@ repository:
       - { include: "#LuauComment" }
       - { include: "#LuauAnimationThemeNameAndInheritance" }
       - { include: "#LuauStructBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -4332,66 +4284,7 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
-  # One body line inside a structural-define block (`style`/`layout`/
-  # `component`). Matched opaquely (indent + content) so the block spans
-  # to its `end`; the lowerer reconstructs the colon/indent struct from
-  # each line's indentation column. The leading indent is its own capture
-  # so the formatter can PRESERVE it (these bodies are
-  # indentation-significant). The content capture classifies the line's
-  # SHAPE into a named node (array item / object header / scalar property /
-  # bare marker) so the lowerer reads the shape from the grammar instead of
-  # re-tokenizing the raw line — see lowerStructBody / GRAMMAR.md §5.
-  LuauStructBodyLine:
-    match: ^({{WS}}+)([^\n]*?)({{WS}}*)$
-    captures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauStructBodyContent" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
 
-  # Per-line body content. The grammar classifies each line into a named
-  # SHAPE node (`LuauStructScalarProperty` / `LuauStructArrayItem` /
-  # `LuauStructObjectHeader` / `LuauStructAdjacencyContent` /
-  # `LuauStructBareMarker`, with a `LuauStructBodyFallback` catch-all); the
-  # lowerers dispatch on that node NAME rather than re-tokenizing the raw line
-  # (GRAMMAR.md §5). `LuauStructBodyContent` MUST keep its name: all three
-  # struct lowerers (lowerStructBody / lowerStructBodyTyped / lowerSparkleBody)
-  # walk for it as the per-line wrapper and read the shape + its value tokens
-  # by name from WITHIN it. The shape rules also emit syntax-highlighting
-  # children (CSS value tokens, element tag/class `ComponentName`s, content
-  # strings) AND the reactive inline-attribute nodes (`@event=` / `#prop=` →
-  # `LuauEventAttribute` / `LuauPropAttribute`); `lowerStructBody` excises those
-  # attribute spans so the STATIC struct stays free of reactive bindings, while
-  # `lowerSparkleBody` reads them to build the reactive AST. Order: comment
-  # first (so a `--`/`//` line isn't claimed by a shape), then most-specific
-  # shapes, then the bare-marker + fallback catch-alls.
-  LuauStructBodyContent:
-    tag: content
-    name: meta.struct.body.luau
-    match: ([^\n]*)
-    captures:
-      1:
-        patterns:
-          # Whole-line comment. Struct bodies live inside Luau `with … end`
-          # blocks, so `--` (and `---`, block) is the canonical marker; `//`
-          # is also accepted for parity with pre-Luau-port struct bodies.
-          # First so a comment line isn't swallowed by scalar/marker/fallback.
-          - { include: "#LuauComment" }
-          - { include: "#SparkdownLineComment" }
-          - { include: "#LuauStructScalarProperty" }
-          - { include: "#LuauStructArrayItem" }
-          - { include: "#LuauStructComponentCall" }
-          - { include: "#LuauStructObjectHeader" }
-          - { include: "#LuauStructAdjacencyContent" }
-          - { include: "#LuauStructBareMarker" }
-          - { include: "#LuauStructBodyFallback" }
 
   # Name + optional `as PARENT`, ending at the `with` block opener.
   # Reuses LuauDefineName / LuauInheritanceOperation (→ LuauDefineParentName)
@@ -4491,10 +4384,6 @@ repository:
     name: string.unquoted.style.luau
     match: ([^\n]*)
 
-  # ----------------------------------------------------------------------------
-  # Restored struct-body leaf highlighting rules (value/selector/CSS tokens).
-  # Pruned-resolved port of the pre-Luau colon-based grammar; only add
-  # highlighting children -- LuauStructBodyContent stays the lowerer-read node.
 
   # A struct value the literal rules alone do not take: an unquoted value, or a
   # literal followed by a comment. The value ends where a trailing
@@ -4679,24 +4568,9 @@ repository:
       - { include: "#LabelAttribute" }
       - { include: "#Separator" }
 
-  # The FIRST token on an element line — the one that becomes the tag. Only
-  # here can a name be a builtin; see TrailingComponentName.
   ComponentName:
     patterns:
       - { include: "#BuiltinComponentName" }
-      - { include: "#CustomComponentName" }
-      - { include: "#FunctionCallParameters" }
-
-  # Every token AFTER the first. These are CLASSES, so they colour as classes
-  # even when the name is also a builtin — `text small "…"` is a `text` element
-  # wearing `.small`, and colouring `small` as a builtin there said the line had
-  # two elements on it. The engine agrees: it resolves the tag from `node.tag`,
-  # the first token, and never consults the rest (UIModule ELEMENT_TAGS).
-  #
-  # Deliberately the same rule set as ComponentName MINUS the builtin case, so
-  # a trailing `name(arg)` still tokenizes.
-  TrailingComponentName:
-    patterns:
       - { include: "#CustomComponentName" }
       - { include: "#FunctionCallParameters" }
 
@@ -4800,21 +4674,6 @@ repository:
       2:
         patterns:
           - { include: "#PunctuationBraceClose" }
-
-  ArrayItemOperator:
-    match: ([-])($|{{WS}}+)
-    captures:
-      1:
-        patterns:
-          - { include: "#ArrayItemMark" }
-      2:
-        patterns:
-          - { include: "#Separator" }
-
-  ArrayItemMark:
-    tag: keyword
-    name: keyword.operator.expression.array.sd
-    match: (.+)
 
   AssignEqualOperator:
     match: ({{WS}}*)([=])({{WS}}*)
@@ -5495,237 +5354,22 @@ repository:
         patterns:
           - { include: "#DivertTarget" }
 
-  # ----------------------------------------------------------------------------
-  # Restored per-line wrapper rules for struct-body highlighting. Referenced
-  # from `LuauStructBodyContent`'s captures (the lowerer still reads that node's
-  # raw text by range — these only add highlighting children within it).
-  #
-  # ENGINE EQUALITY (GRAMMAR.md §17): these rules are reached ONLY via
-  # `LuauStructBodyContent`'s capture re-tokenization, which both engines run
-  # over the body line's CONTENT (the leading indent is already consumed by
-  # `LuauStructBodyLine` capture 1). vscode-textmate retokenizes a capture from
-  # the capture's absolute mid-line offset, so a `^` anchor here would NEVER
-  # match in vscode (its `^` is true-column-0 only) — vscode would stay flat at
-  # `meta.struct.body.luau` while the tree (which retokenizes an isolated
-  # substring, position 0) descended into these children, diverging at every
-  # body character. Anchoring with `({{WS}}*)` at the start (instead of `^`)
-  # makes BOTH engines descend identically: the capture content always begins at
-  # the line's first non-indent char, so the `({{WS}}*)` matches zero-width and
-  # the rest of the rule lines up the same in both engines. (Each rule consumes
-  # to end-of-line, so exactly one fires per body line — no spurious mid-line
-  # re-match.)
-  LuauStructScalarProperty:
-    match: ({{WS}}*)(\[[^\]\n]*\]|[$]?{{STRICT_PROPERTY_IDENTIFIER}})({{ASSIGN_EQUAL_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          # In layout/component bodies a builtin element name used as a key
-          # (`image = "black"`) colors pink, matching pre-port. The builtin set
-          # is fixed + word-bounded, so CSS property keys in style bodies
-          # (`background_image`, `position`, …) fall through to the declaration
-          # key below. Custom names stay declaration keys (not className) so
-          # style-body props keep their propertyName color.
-          - { include: "#BuiltinComponentName" }
-          - { include: "#StylingDeclarationScalarPropertyName" }
-      3:
-        patterns:
-          - { include: "#AssignEqualOperator" }
-      4:
-        patterns:
-          - { include: "#NumericFieldValue" }
-          - { include: "#BooleanFieldValue" }
-          - { include: "#StringFieldValueInterpolated" }
-          - { include: "#StringFieldValue" }
-          - { include: "#StylingValue" }
-          - { include: "#UnquotedStringFieldValue" }
 
-  # `^` dropped for engine equality — see LuauStructScalarProperty.
-  LuauStructArrayItem:
-    match: ({{WS}}*)({{ARRAY_ITEM_OPERATOR}})(.*$)
-    captures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#ArrayItemOperator" }
-      # The rest of the dash line. A list item may carry its FIRST ENTRY here:
-      # `- key:` (an object header whose value is the deeper-indented lines) or
-      # `- key = value` (a scalar property), with the item's further entries at
-      # the column that entry opens. The lowerers read such a line as the dash
-      # plus one entry at the inline column, which is what the expanded form
-      # (a bare `-` with every entry indented beneath it) already produces —
-      # so both spellings lower to the same struct.
-      #
-      # These are the SAME rules a body line uses, so an inline key highlights,
-      # completes and resolves through the node names every consumer already
-      # keys on, and the nesting alone says it sits on a dash line.
-      #
-      # Entry rules come FIRST: for `- offset = 0.4` the property rule and
-      # `StylingValue` both match at offset 0, and order breaks that tie. A
-      # bare value that merely CONTAINS an `=` or a `:` is unaffected, because
-      # the entry rules can only match it mid-token while a value rule matches
-      # at offset 0, and the engine prefers whichever pattern matches earliest.
-      3:
-        patterns:
-          - { include: "#LuauStructScalarProperty" }
-          - { include: "#LuauStructObjectHeader" }
-          - { include: "#NumericFieldValue" }
-          - { include: "#BooleanFieldValue" }
-          - { include: "#StringFieldValueInterpolated" }
-          - { include: "#StringFieldValue" }
-          - { include: "#StylingValue" }
-          - { include: "#UnquotedStringFieldValue" }
 
-  # Component call (spec §4.7): `name(arg, …)` (leaf) or `name(arg):` (container
-  # whose child lines are default-slot content + `fill`s). Invokes an authored
-  # `component` with paren args that are Luau EXPRESSIONS (lowered to Bindings,
-  # evaluated in the CALLER's scope). A DISTINCT shape from a builtin element line
-  # (Golden Rule): args are expressions, not classes/content. Tried before the
-  # object-header / bare-marker shapes so `card("x"):` isn't claimed as a plain
-  # container header. The tag is a CustomComponentName; args tokenize as
-  # comma-separated LuauExpressions the lowerer splits + lowers (mirrors
-  # lowerParentheticalArgList). (Own paren tokenization rather than
-  # LuauParenthetical, whose close requires a binary-operator lookahead.)
-  LuauStructComponentCall:
-    begin: ({{WS}}*)({{LUAU_IDENTIFIER}})({{WS}}*)([(])
-    beginCaptures:
-      1:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#CustomComponentName" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      4:
-        patterns:
-          - { include: "#PunctuationParenOpen" }
-    patterns:
-      - { include: "#LuauComment" }
-      - { include: "#LuauCommaSeparator" }
-      # A quoted arg with a `{expr}` interpolates like display content (spec D3:
-      # "quoted = text, braces = code") — tokenized via the same interp string
-      # rule content uses, so the lowerer builds it as a `content` PropValue. A
-      # PLAIN quoted arg (no lone `{`) falls through to LuauExpression unchanged
-      # (a literal Luau string); a bare expr (`hero.name`) is LuauExpression.
-      - { include: "#LuauElementContentStringInterpolated" }
-      - { include: "#LuauExpression" }
-      - { include: "#ExtraWhitespace" }
-    end: ([)])({{WS}}*)(:?)({{WS}}*)$
-    endCaptures:
-      1:
-        patterns:
-          - { include: "#PunctuationParenClose" }
-      2:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      3:
-        patterns:
-          - { include: "#LuauStructObjectColon" }
-      4:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
 
-  # `^` dropped for engine equality — see LuauStructScalarProperty.
-  LuauStructObjectHeader:
-    match: ({{WS}}*)(.+?)({{WS}}*)([:])({{WS}}*)(?=(?:--|//(?=$|{{WS}}))|$)
-    captures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#LuauStructObjectKey" }
-      4:
-        patterns:
-          - { include: "#LuauStructObjectColon" }
 
-  # The key of a `key:` header: everything before the colon. Its own node, so
-  # a lowerer can locate the key (a morph diagnostic underlines `eyes`, not the
-  # whole `eyes:` line) by name rather than by slicing the line's text.
-  LuauStructObjectKey:
-    match: (.+)
-    captures:
-      # Element attributes are tried FIRST so a container header can carry inline
-      # props/events (`column #gap=16:`, `row @click=x:`). `#name=`/`@name=` don't
-      # collide with style headers' `> selector` / `@breakpoint(…)` (no `=` after
-      # the keyword), so those still fall through to SelectorPropertyNamePart.
-      1:
-        patterns:
-          - { include: "#LuauElementAttribute" }
-          # A keyframe position (`from:`, `40%:`, `to:`) is tried before the
-          # selector/component patterns so it reads as a position on the
-          # animation timeline rather than as a component name or a number.
-          - { include: "#LuauKeyframeSelector" }
-          # A `.name` class (`row.hud:`, `choice.0:`, `&.secondary:`), tried
-          # after a keyframe position (`.5%:`) and before the number rules, so
-          # `.0` after a name is a class and not a number.
-          - { include: "#LuauSparkleElementClass" }
-          - { include: "#SelectorPropertyNamePart" }
-          - { include: "#ComponentName" }
-          - { include: "#PropertyName" }
 
   # `from` / `to` / a percentage standing alone as a container header key: the
   # CSS `@keyframes` selector spelling for one keyframe's position inside a
-  # `keyframes:` block. The lookarounds keep it to a key that is ENTIRELY a
-  # position, so `from_left:` and `duration:` fall through to the ordinary
+  # `keyframes { … }` block. The lookarounds keep it to a key that is ENTIRELY a
+  # position, so `from_left` and `duration` fall through to the ordinary
   # property patterns.
   LuauKeyframeSelector:
     tag: constant(variableName)
     name: constant.other.keyframe-selector.sd
     match: (?<![\w.%-])(?:from|to|[-+]?(?:\d*[.])?\d+%)(?![\w.%-])
 
-  LuauStructObjectColon:
-    # tag logicOperator → CodeMirror operator color (#A0A0A0). The `name` scope
-    # mirrors the pre-port `ColonOperator` so VSCode's
-    # `meta.template.expression.operator` override (#A0A0A0) applies too.
-    tag: logicOperator
-    name: meta.template.expression.operator.colon.sd
-    match: ([:])
 
-  # Adjacency content (spec §4.2/D2): `<tag> "content {interp}"` — a builtin/
-  # component tag followed by a quoted (interpolation-aware) display string,
-  # e.g. `image "black"`, `text "HP: {hp}"`, `button "Use"`. Listed BEFORE
-  # LuauStructBareMarker; cap 4 must START with a quote, so `mask shadow_1`
-  # (trailing class names, no quote) still falls through to the bare marker, and
-  # `image = "black"` (a scalar) is matched earlier. The lowerer reads the tag
-  # (cap 2) + the content value (cap 4); the static context builder maps it to
-  # `{ tag: content }`, identical to the `tag = "content"` scalar form.
-  # `^` dropped for engine equality — see LuauStructScalarProperty.
-  LuauStructAdjacencyContent:
-    match: ({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}+)("(?:\\.|[^"])*")({{WS}}*)([^\n]*)$
-    captures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#ComponentName" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      4:
-        patterns:
-          - { include: "#StringFieldValueInterpolated" }
-          - { include: "#StringFieldValue" }
-      5:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      # Trailing inline attributes after the content (`@event=handler`, …).
-      6:
-        patterns:
-          - { include: "#LuauElementAttribute" }
 
   # Inline element attributes (spec §4.5): trailing `@event=handler` bindings on
   # an element line. `#prop=value` follows in a later increment. Each event's
@@ -5777,26 +5421,6 @@ repository:
     # never tested while a child scope is open.
     end: (?=$|{{WS}}+["'@#])
 
-  # Inline event-handler closure (spec §4.5, L7): `@click={ score = 0; combo = 0 }`,
-  # `@input={ name = event.value }`. In event-handler value position the braces
-  # delimit a STATEMENT block (a closure body), NOT a Luau table — identical
-  # source text (`{ a = b }`), different context. Per the grammar Golden Rule
-  # this is its own rule (not a table reinterpreted downstream): it reuses
-  # `#LuauBlockBody`, the SAME statement list a function body parses, so every
-  # statement form works (assignment, property-target `a.b = x`, bare call,
-  # `;`-separated statements). Tried before `#LuauExpression` in
-  # `LuauEventAttribute` so the leading `{` isn't taken as a table; only
-  # reachable from there, so tables elsewhere are unaffected.
-  #
-  # In a layout or component body, a closure its line leaves open is read by
-  # `LuauSparkleEventClosureAttribute`, so its statements go on over the
-  # lines after it (#1225). One left without its `}` ends where a line starts
-  # with `end`, `else`, `elseif` or `case`, or at the next `scene` or `branch`
-  # (`SPARKLE_BLOCK_BAIL`); a statement in it that opens its own block takes
-  # its own `else` and `end`. Inside an indented element line's capture the
-  # closure cannot pass its line, and one left open there is closed at the
-  # line's end. Either way `lowerHandlerClosure` reports the missing `}` on
-  # the `{`.
   LuauSparkleHandlerClosure:
     brackets: true
     begin: ([{])
@@ -5916,70 +5540,14 @@ repository:
         patterns:
           - { include: "#PunctuationStringClose" }
 
-  # `^` dropped for engine equality — see LuauStructScalarProperty.
-  LuauStructBareMarker:
-    match: ({{WS}}*)({{STYLE_PROPERTY_NAME}})({{WS}}*)([^\n]*)$
-    captures:
-      1:
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      2:
-        patterns:
-          - { include: "#ComponentName" }
-      3:
-        emit: true
-        patterns:
-          - { include: "#OptionalWhitespace" }
-      # Trailing class names, content, AND inline attributes — order:
-      # whitespace (consumed so inter-token spaces don't halt tokenization),
-      # attributes (`#prop=`/`@event=`), quoted content (`text title "Inventory"`),
-      # then bare component names (= classes).
-      #
-      # TrailingComponentName, NOT ComponentName: the tag is capture 2, the
-      # first token, and everything here is a class. That is position-DEPENDENT
-      # (this comment used to claim otherwise) — `text strong "A"` is a `text`
-      # element with `.strong` on it, never a <strong>.
-      4:
-        patterns:
-          - { include: "#RequiredWhitespace" }
-          - { include: "#LuauElementAttribute" }
-          - { include: "#LuauElementContentStringInterpolated" }
-          - { include: "#LuauElementContentStringPlain" }
-          - { include: "#LuauElementContentStringSingleQuoted" }
-          # `.name` classes (`mask.shadow_1`, `button.primary.large "Save"`).
-          - { include: "#LuauSparkleElementClass" }
-          - { include: "#TrailingComponentName" }
 
-  # Full-line catch-all so any struct-body line NOT matched by a wrapper above
-  # (e.g. `$recursive = true` / `["$default"] = …` / odd `$`-keys) still produces
-  # a child that spans the WHOLE line. Without it the LuauStructBodyContent node
-  # truncates to the last tokenized child and the lowerer (which reads the node's
-  # raw text by range) sees a partial line. Must be LAST.
-  # `^` dropped for engine equality — see LuauStructScalarProperty. (`.+` still
-  # requires at least one non-newline char, so an empty line produces no node.)
-  LuauStructBodyFallback:
-    tag: content
-    name: meta.struct.body.fallback.luau
-    match: (.+)$
 
-  # ----------------------------------------------------------------------------
-  # Brace blocks in `style`, `animation`, `theme` and `morph` bodies (#1222).
-  #
-  # A block is `header { … }`, with an optional `=` before the `{`. A list is a
-  # block whose entries are bare: `{ … }` for an object, a value for a scalar.
-  # Entries end at a newline, a `;` or the block's `}`, so indentation means
-  # nothing inside a block. The indented forms (`key:` headers, `-` items) are
-  # still read line by line outside blocks (`LuauStructBodyLine`) and are
-  # invalid inside one.
-  #
-  # A body line that holds an unquoted `{` or `}` outside a comment
-  # (`STRUCT_BLOCK_LINE_START`) is a `LuauStructBlockLine`, read as block
-  # entries from its first character. It ends at the end of the line its last
-  # block closes on, so entries after a block on that line are its entries too.
-  # Every other line stays an indented-form line.
-  # ----------------------------------------------------------------------------
   LuauStructBlockLine:
-    begin: ^(?={{STRUCT_BLOCK_LINE_START}})
+    # lookaround: LuauEndKeyword and BEAT must remain outside this line wrapper;
+    # reordering entries cannot prevent its zero-width begin from claiming them.
+    # Splitting entries or changing the parent's end cannot identify a blank
+    # line before this wrapper opens; the second assertion leaves it to Newline.
+    begin: ^(?!{{STRUCT_BLOCK_BAIL}})(?=\S|{{WS}}+\S)
     patterns:
       - { include: "#LuauStructStrayBlockClose" }
       - { include: "#LuauStructBlockEntries" }
@@ -5997,13 +5565,13 @@ repository:
       - { include: "#LuauStructBlockSeparator" }
       - { include: "#LuauStructBlockTrailingComma" }
       - { include: "#LuauStructBlockEntryComma" }
-      # The indented forms' marks are tried before a block, so `- { … }` and
+      # Invalid colon and dash marks are tried before a block, so `- { … }` and
       # `key: { … }` report the mark rather than opening a block keyed by it.
       - { include: "#LuauStructBlockItemMark" }
       # A property is tried before a block, so a block header never starts at
       # a property (`a = 1, b { … }` is a property, a comma and a block).
       - { include: "#LuauStructBlockProperty" }
-      - { include: "#LuauStructBlockIndentedHeader" }
+      - { include: "#LuauStructInvalidHeader" }
       - { include: "#LuauStructBlock" }
       - { include: "#LuauStructListBlock" }
       - { include: "#LuauStructListValue" }
@@ -6011,7 +5579,12 @@ repository:
   # `header { … }` / `header = { … }`. The `{ … }` is its own bracket rule, so
   # bracket matching pairs the braces alone.
   LuauStructBlock:
-    begin: ({{STRUCT_BLOCK_HEADER}})({{STRUCT_BLOCK_ASSIGN}})(?=[{])
+    # lookaround: LuauStructListValue owns literals followed by comments whose
+    # text may contain a brace. Moving the whole list rule first consumes real
+    # headers; splitting its value forms duplicates their comment boundaries.
+    # The brace belongs to LuauStructBlockBody for bracket matching, so begin
+    # cannot consume it; the end assertion returns after that child closes.
+    begin: (?!{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})({{STRUCT_BLOCK_HEADER}})({{STRUCT_BLOCK_ASSIGN}})(?=[{])
     beginCaptures:
       1:
         patterns:
@@ -6024,9 +5597,9 @@ repository:
       - { include: "#LuauStructBlockBody" }
     end: (?<=[}])|(?={{STRUCT_BLOCK_BAIL}})
 
-  # A block's header: its key, selector or keyframe position. The parts are
-  # highlighted by the rules an indented `key:` header uses, so a keyframe
-  # position (`from`, `40%`) is a `LuauKeyframeSelector` here too. A character
+  # A brace block's header: its key, selector or keyframe position. The parts
+  # use their corresponding token rules, so a keyframe position (`from`, `40%`)
+  # is a `LuauKeyframeSelector`. A character
   # none of them reads is a `LuauStructBlockKeyChar`, so the key always spans
   # the whole header and both engines read every part of it (GRAMMAR.md §17).
   LuauStructBlockKey:
@@ -6110,7 +5683,7 @@ repository:
     match: ([}])
 
   # `name = value` inside a block. The key and value are read by the same rules
-  # as an indented `name = value` line; the value ends at the line's end, a
+  # as a `name = value` entry; the value ends at the line's end, a
   # `;` or the block's `}` (`STRUCT_BLOCK_VALUE`). A value that would start
   # with `{` is the block form `name = { … }`, so the rule leaves it to
   # `LuauStructBlock`.
@@ -6122,7 +5695,7 @@ repository:
   # (fixtures struct/animation-brace-keyframes and
   # sparkle/layout-brace-blocks). Reordering does not replace it: in a
   # struct body `LuauStructBlock` could go after
-  # `LuauStructBlockIndentedHeader` and before the property only if
+  # `LuauStructInvalidHeader` and before the property only if
   # `STRUCT_BLOCK_HEADER` also stopped at `=` (else it reads
   # `a = 1, b { … }` as one header), and in a layout body the element must
   # come after the property so `image = "black"` stays a property, which
@@ -6220,15 +5793,28 @@ repository:
       3:
         name: comment.line.double-slash.content.sd
 
-  # An indented-form `key:` header inside a block, before the end of the
-  # line, a `;`, a brace, a comma or a comment. Its quoted runs and attribute
-  # selectors are read whole, as a block header's are.
-  LuauStructBlockIndentedHeader:
-    tag: invalid
-    name: invalid.illegal.struct-block-header.sd
-    match: ((?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*[:])(?={{WS}}*(?:$|[;{},]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+  LuauStructInvalidHeader:
+    # lookaround: LuauStructListValue must keep embedded colons in values such
+    # as URLs. Ordering marks first alone would consume those colons; splitting
+    # headers still needs an entry boundary. The boundary remains unconsumed
+    # for LuauStructBlockSeparator, comments and braces to own their tokens.
+    # Literals followed by comments belong to LuauStructListValue; without
+    # the literal-comment guard this rule can consume a colon in that comment.
+    # Moving the whole list rule first also takes real invalid headers;
+    # splitting its literal forms here duplicates their value/comment bounds.
+    # A parent's line end cannot distinguish a header colon from one in a
+    # comment. The shared literal-comment variable supplies that distinction.
+    match: (?!{{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})((?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_WS_IN_TEXT}})+?{{WS}}*)([:])(?={{WS}}*(?:$|[;{},]|{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))
+    captures:
+      2:
+        patterns:
+          - { include: "#LuauStructInvalidColon" }
 
-  # An indented-form `-` item mark inside a block.
+  LuauStructInvalidColon:
+    tag: invalid
+    name: invalid.illegal.struct-colon.sd
+    match: ([:])
+
   LuauStructBlockItemMark:
     tag: invalid
     name: invalid.illegal.struct-block-item.sd
@@ -6240,32 +5826,8 @@ repository:
     name: invalid.illegal.struct-block-close.sd
     match: ([}])
 
-  # ----------------------------------------------------------------------------
-  # Brace blocks in `layout` and `component` bodies (#1222).
-  #
-  # An element's children may go in a `{ … }` block after it, with an optional
-  # `=` before the `{`. Inside a block, entries are elements, `name = value`
-  # properties and `if` / `for` / `match` blocks, separated by newlines or `;`,
-  # and indentation means nothing. The indented forms (a `:` header with
-  # indented children, a `-` item) are still read line by line outside blocks
-  # (`LuauStructBodyLine`) and are invalid inside one.
-  #
-  # A body line that holds a brace outside a quoted run, an attribute's value,
-  # a parenthesized list and a comment (`SPARKLE_BLOCK_LINE_START`) is a
-  # `LuauSparkleBlockLine`, read as entries from its first character. It ends
-  # at the end of the line its last block closes on. A line that starts with
-  # `end`, `else`, `elseif` or `case` is never one: it is where a block left
-  # open ends.
-  #
-  # An element's parts may go on over later lines (#1225). A line that starts
-  # with `.`, `#`, `@` or a quote is a block line too, whose first entry is a
-  # `LuauSparkleElementContinuation`; a line that starts with `{` holds a
-  # block with no element before it; and an event closure its line leaves
-  # open spans lines (`LuauSparkleEventClosureAttribute`). The lowerers join
-  # each to the element before it (GRAMMAR.md §11.8).
-  # ----------------------------------------------------------------------------
   LuauSparkleBlockLine:
-    begin: ^(?!{{SPARKLE_BLOCK_BAIL}})(?={{SPARKLE_CONTINUATION_START}}|{{SPARKLE_BLOCK_LINE_START}})
+    begin: ^(?!{{SPARKLE_BLOCK_BAIL}})(?=\S|{{WS}}+\S)
     patterns:
       - { include: "#LuauStructStrayBlockClose" }
       - { include: "#LuauSparkleBlockEntries" }
@@ -6288,14 +5850,14 @@ repository:
       - { include: "#LuauSparkleBlockIf" }
       - { include: "#LuauSparkleBlockFor" }
       - { include: "#LuauSparkleBlockMatch" }
-      # The indented forms' marks are tried before an element, so `- text`
+      # Invalid colon and dash marks are tried before an element, so `- text`
       # and `row:` report the mark rather than reading as an element.
       - { include: "#LuauStructBlockItemMark" }
       # A property is tried before an element, so `image = "black"` keeps
-      # the meaning it has in the indented form. A property whose value would
+      # its property meaning. A property whose value would
       # start with `{` is left to the element (`row = { … }`).
       - { include: "#LuauStructBlockProperty" }
-      - { include: "#LuauStructBlockIndentedHeader" }
+      - { include: "#LuauStructInvalidHeader" }
       - { include: "#LuauSparkleElement" }
       # A block with no element before it.
       - { include: "#LuauSparkleElementBlock" }
@@ -6331,7 +5893,7 @@ repository:
       - { include: "#LuauSparkleElementParts" }
       - { include: "#LuauSparkleElementAssign" }
       - { include: "#LuauSparkleElementBlock" }
-    end: (?<=[}])(?!{{WS}}*(?:[=]{{WS}}*)?[{])|(?={{WS}}*(?:[;},]|$))|(?={{SPARKLE_BLOCK_BAIL}})
+    end: (?<=[}])(?!{{WS}}*{{STRUCT_BLOCK_EQUAL}}?[{])|(?={{WS}}*{{SPARKLE_ELEMENT_BOUNDARY}})|(?={{SPARKLE_BLOCK_BAIL}})
 
   # A line that continues the element above it (#1225): it starts with a
   # class's `.`, an attribute's `#` or `@`, or a quote, and reads the parts
@@ -6353,7 +5915,7 @@ repository:
       - { include: "#LuauSparkleElementParts" }
       - { include: "#LuauSparkleElementAssign" }
       - { include: "#LuauSparkleElementBlock" }
-    end: (?<=[}])(?!{{WS}}*(?:[=]{{WS}}*)?[{])|(?={{WS}}*(?:[;},]|$))|(?={{SPARKLE_BLOCK_BAIL}})
+    end: (?<=[}])(?!{{WS}}*{{STRUCT_BLOCK_EQUAL}}?[{])|(?={{WS}}*{{SPARKLE_ELEMENT_BOUNDARY}})|(?={{SPARKLE_BLOCK_BAIL}})
 
   # A run of an element's parts (`SPARKLE_HEAD`): its head after its name, a
   # continuation line's parts, and the parts after an event closure's `}`.
@@ -6425,7 +5987,6 @@ repository:
       - { include: "#LuauElementContentStringInterpolated" }
       - { include: "#LuauElementContentStringPlain" }
       - { include: "#LuauElementContentStringSingleQuoted" }
-      - { include: "#LuauSparkleElementWord" }
       - { include: "#LuauSparkleElementInvalid" }
 
   # `.name`: a class.
@@ -6449,12 +6010,6 @@ repository:
     name: entity.name.type.class.view.sd
     match: (.+)
 
-  # A bare word after an element's name. Until the indented forms are
-  # removed it is a class, as it is on an indented element line.
-  LuauSparkleElementWord:
-    tag: className
-    name: entity.name.type.class.view.sd
-    match: ({{SPARKLE_CLASS_NAME}})
 
   # A character no part of an element reads.
   LuauSparkleElementInvalid:
@@ -6706,15 +6261,6 @@ repository:
       - { include: "#LuauSparkleBlockEntries" }
     end: (?={{LUAU_MATCH_CASE_END_KEYWORDS}}{{SPARKLE_KEYWORD_END}})|(?=[}])|(?={{BEAT}})
 
-  # ----------------------------------------------------------------------------
-  # Sparkle control flow (spec §4.6): `if/elseif/else`, `for`, `match` inside a
-  # layout/component body. Luau-keyword delimited (`then`/`do`/`end`). These are
-  # GRAMMAR BLOCKS (begin/end) — required so a nested `end` is consumed by its
-  # own block and the layout's terminating `end` still balances. Their bodies are
-  # the same sparkle element lines (LuauStructBodyLine) + nested control blocks,
-  # so the lowerer reads if/for/match as IfNode/ForNode/MatchNode grammar
-  # children. `if`-condition rules are reused from the Luau side (they end at
-  # `then`); only the BODY differs (element lines, not Luau statements).
   LuauSparkleControlBlock:
     patterns:
       - { include: "#LuauSparkleIfBlock" }
@@ -6742,7 +6288,6 @@ repository:
       - { include: "#LuauSparkleElseBlock" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -6774,7 +6319,6 @@ repository:
       - { include: "#SparkleTrailingLineComment" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_IF_BRANCH_END_KEYWORDS}})
@@ -6797,7 +6341,6 @@ repository:
       - { include: "#SparkleTrailingLineComment" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{WS}}*(?:end)\b)
@@ -6828,7 +6371,6 @@ repository:
       - { include: "#LuauSparkleElseBlock" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -6908,8 +6450,6 @@ repository:
       - { include: "#Newline" }
     end: (?={{BEAT}}|{{END}}|[}])|(?={{WS}}*do\b)
 
-  # A `case <value>` arm: the value expression is on the `case` line; the body is
-  # the indented element lines below, until the next `case`/`else`/`end`.
   LuauSparkleCaseClause:
     begin: ({{WS}}*)(case)\b({{WS}}*)
     beginCaptures:
@@ -6927,7 +6467,6 @@ repository:
       - { include: "#LuauSparkleCaseValue" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|(?={{WS}}*{{LUAU_MATCH_CASE_END_KEYWORDS}})
@@ -6951,18 +6490,6 @@ repository:
     end: (?=$|[;}]|{{WS}}*end{{SPARKLE_KEYWORD_END}})
 
 
-  # ----------------------------------------------------------------------------
-  # Layout / Component (structured UI element trees, struct-registry only)
-  #
-  # `layout NAME [as PARENT] [in SCREEN] with <element-tree> end` (and `component`).
-  # Each element line is `<tag> [#attr=val ...] ["content"]`; children nest
-  # by INDENTATION (no per-element `end`). Top-level structural keywords
-  # (parallel to `scene`/`branch`), NOT `define`; `as` = inherits. Lowers to
-  # a compile-time nested-object struct in
-  # program.context.layout|component.<name>. Element lines parse FLAT (one
-  # struct-body line per element); the lowerer reconstructs the tree from
-  # each element's indentation column. See lowerLuauUI.
-  # ----------------------------------------------------------------------------
 
   LuauLayout:
     tag: meta
@@ -6984,7 +6511,6 @@ repository:
       - { include: "#LuauLayoutNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -7030,7 +6556,6 @@ repository:
       # A screen body carries no content yet; a brace block there is read as
       # a struct block, and nothing reads it.
       - { include: "#LuauStructBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -7089,7 +6614,6 @@ repository:
       - { include: "#LuauComponentNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
-      - { include: "#LuauStructBodyLine" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -7252,11 +6776,6 @@ repository:
     tag: controlKeyword
     name: keyword.control.component.luau
     match: (component)\b
-
-  LuauUIElementTag:
-    tag: typeName
-    name: entity.name.tag.ui.luau
-    match: ({{LUAU_IDENTIFIER}})
 
   LuauUIAttributeSigil:
     tag: separator
@@ -7999,7 +7518,7 @@ repository:
     # `LuauIfBlockCondition`). Without it, the empty begin opens again at the
     # whitespace before `do` (fixture luau-function/with-for-in-loop), and in
     # a layout it takes the loop's entries and body lines
-    # (`LuauSparkleBlockEntries`, `LuauStructBodyLine`; fixture
+    # (`LuauSparkleBlockEntries`; fixture
     # sparkle/layout-brace-control). A begin that also refuses the tokens the
     # condition ends before still opens an empty condition at any character
     # the condition cannot read, again and again (see `LuauWhileCondition`).

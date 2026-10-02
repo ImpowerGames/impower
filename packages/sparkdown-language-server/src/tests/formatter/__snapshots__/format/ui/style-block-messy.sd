@@ -1,8 +1,0 @@
-style dialogue with
-    height = 100%
-    @screen-size(sm):
-        width = 100%
-    > text:   
-        color = black
-        font_size = 3cqh
-end

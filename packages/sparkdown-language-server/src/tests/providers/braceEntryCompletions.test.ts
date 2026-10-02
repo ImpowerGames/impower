@@ -96,14 +96,14 @@ describe("struct property completion: where a brace entry starts", () => {
     run(brace, structProgram, row),
   );
 
-  const indented = (body: string) => `animation fade with\n${body}\nend\n`;
-  const indentedRows: Row[] = [
-    { name: "a key at the root", body: `  tim|`, offers: ["timing"], edit: { label: "timing", body: `  timing:\n    ` } },
-    { name: "inside a closed double-quoted value", body: `  timing:\n    easing = "ea|"`, omits: ["duration", "timing"] },
-    { name: "an unclosed double quote", body: `  timing:\n    easing = "ea|`, omits: ["duration", "timing"] },
+  const root = (body: string) => `animation fade with\n${body}\nend\n`;
+  const rootRows: Row[] = [
+    { name: "a key at the root", body: `  tim|`, offers: ["timing"], edit: { label: "timing", body: `  timing {  }` } },
+    { name: "inside a closed double-quoted value", body: `  timing {\n    easing = "ea|"`, omits: ["duration", "timing"] },
+    { name: "an unclosed double quote", body: `  timing {\n    easing = "ea|`, omits: ["duration", "timing"] },
   ];
-  test.each(indentedRows.map((r) => [r.name, r] as const))("indented: %s", (_n, row) =>
-    run(indented, structProgram, row),
+  test.each(rootRows.map((r) => [r.name, r] as const))("root: %s", (_n, row) =>
+    run(root, structProgram, row),
   );
 });
 
@@ -130,16 +130,16 @@ describe("morph completion: where a brace entry starts", () => {
     run(brace, morphProgram, row),
   );
 
-  const indented = (body: string) => `morph blink with\n${body}\nend\n`;
-  const indentedRows: Row[] = [
-    { name: "inside a closed double-quoted value", body: `  timing:\n    easing = "ea|"`, none: true },
-    { name: "an unclosed double quote", body: `  timing:\n    easing = "ea|`, none: true },
-    { name: "an unclosed single quote", body: `  timing:\n    easing = 'ea|`, none: true },
-    { name: "an `=` and part of a value", body: `  timing:\n    easing = li|`, offers: ["linear"], edit: { label: "linear", body: `  timing:\n    easing = linear` } },
-    { name: "inside a call's arguments", body: `  timing:\n    easing = steps(1|)`, none: true },
+  const root = (body: string) => `morph blink with\n${body}\nend\n`;
+  const rootRows: Row[] = [
+    { name: "inside a closed double-quoted value", body: `  timing {\n    easing = "ea|"`, none: true },
+    { name: "an unclosed double quote", body: `  timing {\n    easing = "ea|`, none: true },
+    { name: "an unclosed single quote", body: `  timing {\n    easing = 'ea|`, none: true },
+    { name: "an `=` and part of a value", body: `  timing {\n    easing = li|`, offers: ["linear"], edit: { label: "linear", body: `  timing {\n    easing = linear` } },
+    { name: "inside a call's arguments", body: `  timing {\n    easing = steps(1|)`, none: true },
   ];
-  test.each(indentedRows.map((r) => [r.name, r] as const))("indented: %s", (_n, row) =>
-    run(indented, morphProgram, row),
+  test.each(rootRows.map((r) => [r.name, r] as const))("root: %s", (_n, row) =>
+    run(root, morphProgram, row),
   );
 });
 
@@ -150,7 +150,7 @@ describe.each(["layout", "component"])("%s element completion: where a brace ent
     { name: "inside closed single-quoted content glued to the name", body: `row { text'a; te|' }`, omits: ["text", "row"] },
     { name: "inside unclosed single-quoted content", body: `row { text 'a; te| }`, omits: ["text", "row"] },
     { name: "inside unclosed single-quoted content glued to the name", body: `row { text'a; te| }`, omits: ["text", "row"] },
-    { name: "inside unclosed single-quoted content after a word", body: `row { text 1'a; te| }`, omits: ["text", "row"] },
+    { name: "inside unclosed single-quoted content after a class", body: `row { text.title'a; te| }`, omits: ["text", "row"] },
     { name: "inside a closed single-quoted attribute", body: `row { text #label='a; te|' }`, omits: ["text", "row"] },
     { name: "inside an unclosed single-quoted attribute", body: `row { text #label='a; te| }`, omits: ["text", "row"] },
     { name: "inside unclosed double-quoted content", body: `row { text "a; te| }`, omits: ["text", "row"] },
@@ -169,7 +169,7 @@ describe.each(["layout", "component"])("%s element completion: where a brace ent
     run(brace, elementProgram, row),
   );
 
-  test("indented: an element line", () =>
+  test("root: an element line", () =>
     run((body) => `${keyword} hud with\n${body}\nend\n`, elementProgram, {
       name: "an element line",
       body: `  te|`,

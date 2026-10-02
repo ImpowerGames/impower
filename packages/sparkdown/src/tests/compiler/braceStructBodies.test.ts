@@ -3,7 +3,7 @@ import { SparkdownCompiler } from "../../compiler/classes/SparkdownCompiler";
 import { compileSource } from "./compileSnapshot";
 
 // #1223: `style`, `animation`, `theme` and `morph` bodies accept brace blocks
-// (#1222). A brace body lowers to the struct its indented form lowers to, in
+// (#1222). A brace body lowers to the struct its multiline blocks lowers to, in
 // both struct readers: the style reader (`lowerStructBody`) and the typed
 // reader behind `animation`, `theme` and `morph` (`lowerStructBodyTyped`).
 
@@ -64,16 +64,21 @@ const errorsOf = (text: string) =>
 
 const STYLE_INDENTED = `style button with
   cursor = pointer
-  &.secondary:
+  &.secondary {
     background-color = slate_50
-  > text.label:
+  }
+  > text.label {
     text-weight = 600
-  @hovered, @pressed:
+  }
+  @hovered, @pressed {
     background-color = sky_50
-  @screen-size(sm):
+  }
+  @screen-size(sm) {
     width = 100%
-    > text:
+    > text {
       font-size = 12px
+    }
+  }
 end
 `;
 
@@ -90,21 +95,26 @@ end
 `;
 
 const LIST_INDENTED = `animation pulse with
-  keyframes:
-    -
+  keyframes {
+    {
       offset = 0
       opacity = 0
-    -
+    }
+    {
       offset = 0.5
       opacity = 1
       transform = "scale(1.1)"
-    -
+    }
+    {
       offset = 1
       opacity = 0
-  timing:
+    }
+  }
+  timing {
     duration = 0.4
     easing = ease-in-out
     iterations = infinite
+  }
 end
 `;
 
@@ -127,16 +137,21 @@ end
 `;
 
 const POSITIONS_INDENTED = `animation fade with
-  keyframes:
-    from:
+  keyframes {
+    from {
       opacity = 0
-    40%:
+    }
+    40% {
       opacity = 0.5
-    to:
+    }
+    to {
       opacity = 1
-  timing:
+    }
+  }
+  timing {
     duration = 0.4
     easing = ease-in-out
+  }
 end
 `;
 
@@ -154,15 +169,18 @@ end
 `;
 
 const THEME_INDENTED = `theme dusk with
-  colors:
+  colors {
     primary = red
     surface = "#101010"
-  spacing:
+  }
+  spacing {
     sm = 4
     md = 8
-  fonts:
-    - "Courier Prime"
-    - serif
+  }
+  fonts {
+    "Courier Prime"
+    serif
+  }
 end
 `;
 
@@ -176,7 +194,7 @@ const THEME_BRACED = `theme dusk with
 end
 `;
 
-describe("a brace body lowers to the struct of its indented form", () => {
+describe("a brace body lowers to the struct of its multiline blocks", () => {
   test("a style with nested selectors, states and a breakpoint", () => {
     const indented = structOf(STYLE_INDENTED, "style", "button");
     expect(indented["&.secondary"]).toEqual({ "background-color": "slate_50" });
@@ -210,10 +228,12 @@ describe("a brace body lowers to the struct of its indented form", () => {
 end
 `;
     const indented = `style t with
-  &.card--large:
+  &.card--large {
     opacity = 0.5
-  &.primary--active:
+  }
+  &.primary--active {
     opacity = 1
+  }
 end
 `;
     const struct = structOf(braced, "style", "t");
@@ -228,8 +248,9 @@ end
     expect(structOf(attribute, "style", "t")).toEqual(
       structOf(
         `style t with
-  &[data-label=true--suffix]:
+  &[data-label=true--suffix] {
     color = red
+  }
 end
 `,
         "style",
@@ -247,12 +268,15 @@ end
 end
 `;
     const quotedIndented = `style t with
-  &[data-label="x"]:
+  &[data-label="x"] {
     color = red
-  &[data-label="true--suffix"]:
+  }
+  &[data-label="true--suffix"] {
     color = green
-  &[data-label="a b;{"]:
+  }
+  &[data-label="a b;{"] {
     color = blue
+  }
 end
 `;
     expect(structOf(quoted, "style", "t")).toEqual(
@@ -270,13 +294,16 @@ end
 end
 `;
     const singleIndented = `style t with
-  &[data-label='a;b']:
+  &[data-label='a;b'] {
     opacity = 0.5
-  &[data-label='space ; { --'], &[data-kind="x"]:
+  }
+  &[data-label='space ; { --'], &[data-kind="x"] {
     opacity = 0.25
-  > text:
+  }
+  > text {
     text-color = white
     text-size = 24px
+  }
 end
 `;
     expect(structOf(single, "style", "t")).toEqual(
@@ -293,15 +320,17 @@ end
   "other" = { w = 2 }
 end
 `;
-      const quotedKeyIndented = `${type} t with
-  "quoted key":
+      const quotedKeyMultiline = `${type} t with
+  "quoted key" {
     v = 1
-  "other":
+  }
+  "other" {
     w = 2
+  }
 end
 `;
       expect(structOf(quotedKey, type, "t"), type).toEqual(
-        structOf(quotedKeyIndented, type, "t"),
+        structOf(quotedKeyMultiline, type, "t"),
       );
       expect(Object.keys(structOf(quotedKey, type, "t")), type).toEqual(
         expect.arrayContaining(['"quoted key"', '"other"']),
@@ -319,8 +348,9 @@ end
 `;
     const indented = `animation a with
   target = layer.self
-  timing:
+  timing {
     duration = 1
+  }
 end
 `;
     expect(structOf(braced, "animation", "a")).toEqual(
@@ -329,23 +359,7 @@ end
     expect(errorsOf(braced)).toEqual([]);
   });
 
-  test("an indented header may hold brace lines", () => {
-    const mixed = `animation fade with
-  keyframes:
-    from { opacity = 0 }
-    40% { opacity = 0.5 }
-    to { opacity = 1 }
-  timing:
-    duration = 0.4
-    easing = ease-in-out
-end
-`;
-    expect(structOf(mixed, "animation", "fade")).toEqual(
-      structOf(POSITIONS_INDENTED, "animation", "fade"),
-    );
-  });
-
-  test("a brace body reports what its indented form reports", () => {
+  test("a brace body reports what its multiline blocks reports", () => {
     const messages = (text: string) =>
       diagnosticsOf(text).map((d) => d.message);
     for (const [indented, braced, type, name] of [
@@ -366,6 +380,21 @@ end
 });
 
 describe("block spellings", () => {
+  test.each(["theme", "style"] as const)("%s bare list values preserve embedded colons", (type) => {
+    const source = `${type} t with
+links {
+https://example.com
+12:30
+asset:icon
+}
+end
+`;
+    expect(errorsOf(source)).toEqual([]);
+    expect(structOf(source, type, "t").links).toEqual([
+      "https://example.com", "12:30", "asset:icon",
+    ]);
+  });
+
   test("`header = { … }` lowers like `header { … }`", () => {
     const withEquals = structOf(
       `animation a with
@@ -453,12 +482,13 @@ end
       content: "a { b } ; c",
       width: "10px",
     });
-    // A full compile reports what the indented form of the same body reports.
+    // A full compile reports what the multiline form of the same body reports.
     const indented = `style s with
-  &.a:
+  &.a {
     color = red
     content = "a { b } ; c"
     width = 10px
+  }
 end
 `;
     expect(structOf(indented, "style", "s")).toEqual(style);
@@ -492,7 +522,7 @@ end
     expect(animation.timing).toEqual({ duration: 3, delay: 1 });
   });
 
-  test("a `--` right after a number, boolean or quoted value begins a comment, as in the indented form", () => {
+  test("a `--` right after a number, boolean or quoted value begins a comment, as in the multiline form", () => {
     const braced = `theme t with
   a { x = 1-- } ; comment
     y = true-- }
@@ -504,13 +534,15 @@ end
 end
 `;
     const indented = `theme t with
-  a:
+  a {
     x = 1-- } ; comment
     y = true-- }
     z = "q"-- }
     w = var(--gap)
-  list:
-    - 2-- } ; comment
+  }
+  list {
+    2-- } ; comment
+  }
 end
 `;
     const struct = structOf(braced, "theme", "t");
@@ -527,11 +559,13 @@ end
 end
 `;
     const slashIndented = `theme t with
-  colors:
+  colors {
     value = 1 // } note
     next = 2
-    list:
-      - red // } note
+    list {
+      red // } note
+    }
+  }
 end
 `;
     expect(structOf(slashBraced, "theme", "t")).toEqual(
@@ -544,7 +578,7 @@ end
     });
     expect(errorsOf(slashBraced)).toEqual([]);
     // After a whole literal and whitespace, `//` begins a comment even with no
-    // whitespace after it, as the indented form's literal value rules read it.
+    // whitespace after it, as the multiline form's literal value rules read it.
     const literalBraced = `theme t with
   colors {
     a = 1 //c }
@@ -553,15 +587,16 @@ end
   }
 end
 `;
-    const literalIndented = `theme t with
-  colors:
+    const literalMultiline = `theme t with
+  colors {
     a = 1 //c }
     b = "q" //c }
     c = true //c }
+  }
 end
 `;
     expect(structOf(literalBraced, "theme", "t")).toEqual(
-      structOf(literalIndented, "theme", "t"),
+      structOf(literalMultiline, "theme", "t"),
     );
     expect(structOf(literalBraced, "theme", "t").colors).toEqual({
       a: 1,
@@ -569,7 +604,7 @@ end
       c: true,
     });
     expect(errorsOf(literalBraced)).toEqual([]);
-    expect(errorsOf(literalIndented)).toEqual([]);
+    expect(errorsOf(literalMultiline)).toEqual([]);
     // A value the readers do not take as a literal (`+1`) reads as the same
     // text in both forms.
     const notLiteralBraced = `theme t with
@@ -580,9 +615,10 @@ end
 end
 `;
     const notLiteralIndented = `theme t with
-  colors:
+  colors {
     c = +1--c
     d = +1//c
+  }
 end
 `;
     expect(structOf(notLiteralBraced, "theme", "t")).toEqual(
@@ -985,7 +1021,7 @@ end
     expect(diagnosticsOf(flat).filter((d) => d.severity === 1)).toEqual([]);
   });
 
-  test("an indented-form mark before a block's `{` is invalid syntax, not a key", () => {
+  test("an invalid colon mark before a block's `{` is invalid syntax, not a key", () => {
     const text = `theme t with
   values { - { a = 1 } }
   colors { accents: { value = red } }
@@ -993,18 +1029,19 @@ end
 `;
     expect(errorsOf(text)).toMatchObject([
       { message: "Invalid syntax", line: 1, text: "-" },
-      { message: "Invalid syntax", line: 2, text: "accents:" },
+      { message: "Invalid syntax", line: 2, text: ":" },
     ]);
     const struct = structOf(text, "theme", "t");
     expect(struct.values).toEqual([{ a: 1 }]);
     expect(Object.keys(struct.colors)).not.toContain("accents:");
   });
 
-  test("a brace inside a comment leaves an indented line in the indented form", () => {
+  test("a brace inside a comment leaves an indented line in the multiline form", () => {
     const text = `theme t with
-  values:
-    - 2 -- } note
-    - red
+  values {
+    2 -- } note
+    red
+  }
   other = 1 // see {a}
   more = 3 -- { b }
 end
@@ -1017,21 +1054,25 @@ end
     });
   });
 
-  test("a brace in a comment right after a literal leaves an indented line in the indented form", () => {
+  test("a brace in a comment right after a literal leaves an indented line in the multiline form", () => {
     const text = `theme t with
-  values:
-    - 2-- } note
-    - 3
-  flags:
-    - true// } note
-    - false
-  names:
-    - "a"-- { note
-  group:
+  values {
+    2-- } note
+    3
+  }
+  flags {
+    true// } note
+    false
+  }
+  names {
+    "a"-- { note
+  }
+  group {
     k = 4-- } note
     j = false// { note
     pick = a[x='}']
     label = &[data-label="}"]
+  }
 end
 `;
     expect(errorsOf(text)).toEqual([]);
@@ -1048,7 +1089,7 @@ end
     expect(struct.flags).toHaveLength(2);
   });
 
-  test("an indented-form `key:` header or `-` item inside a block is invalid syntax", () => {
+  test("an invalid colon `key:` header or `-` item inside a block is invalid syntax", () => {
     const text = `theme t with
   colors {
     accents:
@@ -1058,7 +1099,7 @@ end
 `;
     const errors = errorsOf(text);
     expect(errors).toMatchObject([
-      { message: "Invalid syntax", line: 2, text: "accents:" },
+      { message: "Invalid syntax", line: 2, text: ":" },
       { message: "Invalid syntax", line: 3, text: "-" },
     ]);
     // A header with quoted runs or an attribute selector is one too, with or
@@ -1074,9 +1115,9 @@ end
 end
 `;
     expect(errorsOf(quoted).map((d) => [d.message, d.line, d.text])).toEqual([
-      ["Invalid syntax", 2, '&[data-label="x"]:'],
-      ["Invalid syntax", 4, "&[data-label='a;b']:"],
-      ["Invalid syntax", 6, "&[data-label='a{b']:"],
+      ["Invalid syntax", 2, ":"],
+      ["Invalid syntax", 4, ":"],
+      ["Invalid syntax", 6, ":"],
     ]);
     // A trailing comma after the colon does not hide it.
     const comma = `theme t with
@@ -1089,8 +1130,8 @@ end
 end
 `;
     expect(errorsOf(comma).map((d) => [d.message, d.line, d.text])).toEqual([
-      ["Invalid syntax", 2, "accents:"],
-      ["Invalid syntax", 4, "&[data-label='a;b']:"],
+      ["Invalid syntax", 2, ":"],
+      ["Invalid syntax", 4, ":"],
     ]);
     expect(structOf(comma, "theme", "t").outer).toEqual({ v: 1, w: 2 });
   });

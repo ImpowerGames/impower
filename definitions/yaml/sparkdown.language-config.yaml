@@ -103,17 +103,6 @@ onEnterRules:
   #          SPARKDOWN
   #--------------------------
 
-  - beforeText: ^\s*[-]\s+[{]\s*$
-    afterText: \s*[}]
-    action:
-      indent: "indentOutdent"
-      appendText: "\t- "
-  - beforeText: ^\s*[-]\s+.*?(?<![:])\s*$
-    previousLineText: (?=^.*\s*[{].*)(?=(?!\s*[}]))|(?=^.*\s*[-]\s+.*?(?<![:])\s*$)
-    action:
-      indent: "none"
-      appendText: "- "
-
   - beforeText: ^.*[{][^}]*$
     afterText: \s*[}]
     action:
@@ -170,13 +159,6 @@ onEnterRules:
       indent: "indent"
 
   - beforeText: ^\s*(?:[^:"]|["](?:[^"\\]|\\.)*["])+:\s*$
-    action:
-      indent: "indent"
-
-  - beforeText: ^\s*(?:[-])\s*$
-    action:
-      indent: "indent"
-  - beforeText: ^\s*(?:[-])\s+.*(?:\s[=]\s).*$
     action:
       indent: "indent"
 

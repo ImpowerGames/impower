@@ -107,14 +107,14 @@ component card(title) with
   box.card {
     text.card_title "{title}"
     slot -- the default slot
-    slot footer -- a named slot
+    slot.footer -- a named slot
   }
 end
 
 layout sheet with
   card("Inventory") {
     text "10 / 20 slots" -- unnamed children fill the default slot
-    fill footer {
+    fill.footer {
       button "Sort" @click=sort_bag
     }
   }

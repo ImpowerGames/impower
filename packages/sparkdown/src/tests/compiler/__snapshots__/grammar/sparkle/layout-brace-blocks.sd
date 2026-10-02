@@ -2,7 +2,7 @@ component card(title) with
   column.card {
     text.title "{title}"
     slot
-    slot footer
+    slot.footer
   }
 end
 
@@ -25,7 +25,7 @@ layout inventory with
     }
     card("Inventory", hero.hp) {
       text "body"
-      fill footer { button.secondary "Ok" @click=close_menu }
+      fill.footer { button.secondary "Ok" @click=close_menu }
     }
     input #value = {x} #--custom-gap=4 @input=set_x
     // a slash comment with a brace {
@@ -41,15 +41,15 @@ layout inventory with
     row { button @click={ t = {a={b={c={d={e={f={g={h={}}}}}}}}} } "Over"; text "after" }
     row,
   }
-  stage:
+  stage {
     portrait {
       image
     }
     mask.shadow_1
     button "Go" @click={ local t = {a={b={c={}}}} }
     text #--label='a{b}c'
-    choice.1:
-      text
+    choice.1 { text }
+  }
 end
 
 layout values with
@@ -81,7 +81,5 @@ layout values with
   row { button @click={ print(`{f({x = 1 --[[ }` ]]})}`) }; text "after" }
   text = Hello {who}
   text = [[a{b}]]
-  items:
-    - Hello {who}
-    - {a}
+  items { Hello {who}; { a } }
 end

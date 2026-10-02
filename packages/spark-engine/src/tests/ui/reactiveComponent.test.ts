@@ -84,13 +84,13 @@ end
       `component panel with
   box {
     slot
-    slot footer
+    slot.footer
   }
 end
 layout main with
   panel {
     text "main body"
-    fill footer {
+    fill.footer {
       text "footer body"
     }
   }
@@ -162,8 +162,10 @@ function inc()
 end
 component card(title) with
   text "{title}"
+end
 layout main with
   card("Score is {score}")
+end
 `,
       0,
       { reactive: true },

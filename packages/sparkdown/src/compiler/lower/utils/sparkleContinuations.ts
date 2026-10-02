@@ -33,8 +33,7 @@ import {
 // element.
 
 /** What the continuations and own-line blocks of a body join. An element is
- *  keyed by the `from` of its node: the `LuauStructBodyContent` of an
- *  indented line, or the `LuauSparkleElement`. */
+ *  keyed by the `from` of its `LuauSparkleElement` node. */
 export interface SparkleJoins {
   /** The continuation lines each element takes, in source order. */
   continuations: Map<number, SyntaxNode[]>;
@@ -48,27 +47,6 @@ export interface SparkleJoins {
   stray: SyntaxNode[];
 }
 
-// The shapes of an indented line that are an element with no block: a bare
-// name and its classes, an element with content, a component call, and the
-// fallback a classed element with content takes (`text h1 "Title"`).
-const INDENTED_ELEMENT_SHAPES = nodeNameSet([
-  "LuauStructBareMarker",
-  "LuauStructAdjacencyContent",
-  "LuauStructComponentCall",
-  "LuauStructBodyFallback",
-]);
-
-// Every shape an indented line can take. A line with none is a comment.
-const INDENTED_SHAPES = nodeNameSet([
-  "LuauStructScalarProperty",
-  "LuauStructComponentCall",
-  "LuauStructAdjacencyContent",
-  "LuauStructObjectHeader",
-  "LuauStructBareMarker",
-  "LuauStructArrayItem",
-  "LuauStructBodyFallback",
-]);
-
 // The indented `if`, `for` and `match` blocks and their later branches. Each
 // ends the element before it, and each branch is read on its own.
 const INDENTED_CONTROL_NAMES = nodeNameSet([
@@ -80,32 +58,12 @@ const INDENTED_CONTROL_NAMES = nodeNameSet([
   "LuauSparkleCaseClause",
 ]);
 
-/** The element an indented line's shape opens to later lines, if any. */
-function indentedElement(content: SyntaxNode): boolean | null {
-  const shape = firstNamed(content, INDENTED_SHAPES);
-  if (!shape) return null;
-  if (!INDENTED_ELEMENT_SHAPES.has(shape.name)) return false;
-  // A component call with a `:` holds the indented lines below it.
-  return !firstNamed(shape, OBJECT_COLON);
-}
-
-const OBJECT_COLON = nodeNameSet(["LuauStructObjectColon"]);
-
-function firstNamed(node: SyntaxNode, names: Set<string>): SyntaxNode | null {
-  for (let child = node.firstChild; child; child = child.nextSibling) {
-    if (names.has(child.name)) return child;
-    const found = firstNamed(child, names);
-    if (found) return found;
-  }
-  return null;
-}
-
 // Text in a block that starts no entry: an indented form's `name:` header or
 // `- ` mark, a `}` that closes no block, or anything else no entry reads. It
 // is reported, and it ends the element before it, as any entry other than a
 // continuation does.
 const INVALID_ENTRY_NAMES = nodeNameSet([
-  "LuauStructBlockIndentedHeader",
+  "LuauStructInvalidHeader",
   "LuauStructBlockItemMark",
   "LuauSparkleBlockUnknown",
   "LuauStructStrayBlockClose",
@@ -189,10 +147,7 @@ export function joinSparkleContinuations(
   // The lines of the body, or of an indented control block's branch.
   const lines = (node: SyntaxNode, state: JoinState) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
-      if (child.name === "LuauStructBodyContent") {
-        const element = indentedElement(child);
-        if (element !== null) state.open = element ? child.from : null;
-      } else if (child.name === "LuauSparkleBlockLine") {
+      if (child.name === "LuauSparkleBlockLine") {
         entries(entryNodes(child), state);
       } else if (INDENTED_CONTROL_NAMES.has(child.name)) {
         state.open = null;

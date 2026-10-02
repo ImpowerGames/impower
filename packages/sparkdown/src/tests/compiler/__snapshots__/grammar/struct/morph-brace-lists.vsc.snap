@@ -7,13 +7,12 @@ text.source.sparkdown [0..244]
  │   └─ keyword.control.as.luau [12..16]: "with"
  ├─ Newline [16..17]: "\n"
  ├─ meta.morph.luau [17..32]
- │   ├─ punctuation.whitespace.optional.sd [17..19]: "  "
- │   └─ meta.struct.body.luau [19..32]
- │       ├─ variable.other.property.define.sd [19..25]: "method"
- │       ├─ markup.raw.whitespace.separator.optional.sd [25..26]: " "
- │       ├─ keyword.operator.assignment.sd [26..27]: "="
- │       ├─ markup.raw.whitespace.separator.optional.sd [27..28]: " "
- │       └─ string.unquoted.identifier.sd [28..32]: "bend"
+ │   ├─ punctuation.whitespace.sd [17..19]: "  "
+ │   ├─ variable.other.property.define.sd [19..25]: "method"
+ │   ├─ markup.raw.whitespace.separator.optional.sd [25..26]: " "
+ │   ├─ keyword.operator.assignment.sd [26..27]: "="
+ │   ├─ markup.raw.whitespace.separator.optional.sd [27..28]: " "
+ │   └─ string.unquoted.identifier.sd [28..32]: "bend"
  ├─ Newline [32..33]: "\n"
  ├─ meta.morph.luau [33..46]
  │   ├─ punctuation.whitespace.sd [33..35]: "  "

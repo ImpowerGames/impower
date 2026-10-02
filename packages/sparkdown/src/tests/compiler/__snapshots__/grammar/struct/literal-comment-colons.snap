@@ -1,0 +1,229 @@
+sparkdown [0..135]
+ ├─ LuauTheme [0..134]
+ │   ├─ LuauTheme_begin [0..6]
+ │   │   ├─ LuauTheme_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauTheme_begin_c2 [0..5]
+ │   │   │   └─ LuauThemeKeyword [0..5]: "theme"
+ │   │   └─ LuauTheme_begin_c3 [5..6]
+ │   │       └─ LuauTheme_begin_c3 [5..6]
+ │   │           └─ OptionalWhitespace [5..6]: " "
+ │   ├─ LuauTheme_content [6..131]
+ │   │   ├─ LuauAnimationThemeNameAndInheritance [6..17]
+ │   │   │   ├─ LuauAnimationThemeNameAndInheritance_begin [6..12]
+ │   │   │   │   └─ LuauAnimationThemeNameAndInheritance_begin_c1 [6..12]
+ │   │   │   │       └─ LuauDefineName [6..12]: "sample"
+ │   │   │   └─ LuauAnimationThemeNameAndInheritance_end [12..17]
+ │   │   │       ├─ LuauAnimationThemeNameAndInheritance_end_c1 [12..13]
+ │   │   │       │   └─ LuauAnimationThemeNameAndInheritance_end_c1 [12..13]
+ │   │   │       │       └─ OptionalWhitespace [12..13]: " "
+ │   │   │       └─ LuauAnimationThemeNameAndInheritance_end_c2 [13..17]
+ │   │   │           └─ LuauWithKeyword [13..17]: "with"
+ │   │   ├─ Newline [17..18]: "\n"
+ │   │   ├─ LuauStructBlockLine [18..130]
+ │   │   │   ├─ LuauStructBlockLine_begin 18
+ │   │   │   ├─ LuauStructBlockLine_content [18..130]
+ │   │   │   │   └─ LuauStructBlock [18..130]
+ │   │   │   │       ├─ LuauStructBlock_begin [18..25]
+ │   │   │   │       │   ├─ LuauStructBlock_begin_c1 [18..24]
+ │   │   │   │       │   │   └─ LuauStructBlockKey [18..24]
+ │   │   │   │       │   │       └─ LuauStructBlockKey_c1 [18..24]
+ │   │   │   │       │   │           └─ CustomComponentName [18..24]: "values"
+ │   │   │   │       │   └─ LuauStructBlock_begin_c2 [24..25]
+ │   │   │   │       │       └─ Whitespace [24..25]: " "
+ │   │   │   │       ├─ LuauStructBlock_content [25..130]
+ │   │   │   │       │   └─ LuauStructBlockBody [25..130]
+ │   │   │   │       │       ├─ LuauStructBlockBody_begin [25..26]
+ │   │   │   │       │       │   └─ LuauStructBlockBody_begin_c1 [25..26]
+ │   │   │   │       │       │       └─ LuauStructBlockOpen [25..26]: "{"
+ │   │   │   │       │       ├─ LuauStructBlockBody_content [26..129]
+ │   │   │   │       │       │   ├─ Newline [26..27]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [27..36]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [27..36]
+ │   │   │   │       │       │   │   │   └─ StylingValue [27..36]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [27..28]
+ │   │   │   │       │       │   │   │       │   └─ NumericFieldValue [27..28]
+ │   │   │   │       │       │   │   │       │       ├─ NumericFieldValue_c1 [27..28]
+ │   │   │   │       │       │   │   │       │       │   └─ NumberLiteral [27..28]: "2"
+ │   │   │   │       │       │   │   │       │       └─ NumericFieldValue_c2 28
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 [28..36]
+ │   │   │   │       │       │   │   │       │   └─ LuauLineComment [28..36]
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_begin [28..30]
+ │   │   │   │       │       │   │   │       │       │   ├─ LuauLineComment_begin_c1 28
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineComment_begin_c2 [28..30]
+ │   │   │   │       │       │   │   │       │       │       └─ LuauCommentMark [28..30]: "--"
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_content [30..36]
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineCommentContent [30..36]: " note:"
+ │   │   │   │       │       │   │   │       │       └─ LuauLineComment_end 36
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 36
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 36
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 36
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 36
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 36
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 36
+ │   │   │   │       │       │   ├─ Newline [36..37]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [37..49]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [37..41]
+ │   │   │   │       │       │   │   │   └─ BooleanFieldValue [37..41]
+ │   │   │   │       │       │   │   │       ├─ BooleanFieldValue_c1 [37..41]
+ │   │   │   │       │       │   │   │       │   └─ BooleanTrue [37..41]: "true"
+ │   │   │   │       │       │   │   │       └─ BooleanFieldValue_c2 41
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 [41..49]
+ │   │   │   │       │       │   │       └─ LuauStructBlockValueComment [41..49]
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c1 41
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c2 [41..43]: "//"
+ │   │   │   │       │       │   │           └─ LuauStructBlockValueComment_c3 [43..49]: " note:"
+ │   │   │   │       │       │   ├─ Newline [49..50]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [50..62]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [50..62]
+ │   │   │   │       │       │   │   │   └─ StylingValue [50..62]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [50..54]
+ │   │   │   │       │       │   │   │       │   └─ StringFieldValue [50..54]
+ │   │   │   │       │       │   │   │       │       ├─ StringFieldValue_c1 [50..51]
+ │   │   │   │       │       │   │   │       │       │   └─ PunctuationStringOpen [50..51]: "\""
+ │   │   │   │       │       │   │   │       │       ├─ StringFieldValue_c2 [51..53]
+ │   │   │   │       │       │   │   │       │       │   └─ PlainStringContent [51..53]
+ │   │   │   │       │       │   │   │       │       │       └─ PlainStringContent_c1 [51..53]
+ │   │   │   │       │       │   │   │       │       │           ├─ StringCharacter [51..52]: "h"
+ │   │   │   │       │       │   │   │       │       │           └─ StringCharacter [52..53]: "i"
+ │   │   │   │       │       │   │   │       │       ├─ StringFieldValue_c3 [53..54]
+ │   │   │   │       │       │   │   │       │       │   └─ PunctuationStringClose [53..54]: "\""
+ │   │   │   │       │       │   │   │       │       └─ StringFieldValue_c4 54
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 [54..62]
+ │   │   │   │       │       │   │   │       │   └─ LuauLineComment [54..62]
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_begin [54..56]
+ │   │   │   │       │       │   │   │       │       │   ├─ LuauLineComment_begin_c1 54
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineComment_begin_c2 [54..56]
+ │   │   │   │       │       │   │   │       │       │       └─ LuauCommentMark [54..56]: "--"
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_content [56..62]
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineCommentContent [56..62]: " note:"
+ │   │   │   │       │       │   │   │       │       └─ LuauLineComment_end 62
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 62
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 62
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 62
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 62
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 62
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 62
+ │   │   │   │       │       │   ├─ Newline [62..63]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [63..75]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [63..67]
+ │   │   │   │       │       │   │   │   └─ StringFieldValue [63..67]
+ │   │   │   │       │       │   │   │       ├─ StringFieldValue_c1 [63..64]
+ │   │   │   │       │       │   │   │       │   └─ PunctuationStringOpen [63..64]: "\""
+ │   │   │   │       │       │   │   │       ├─ StringFieldValue_c2 [64..66]
+ │   │   │   │       │       │   │   │       │   └─ PlainStringContent [64..66]
+ │   │   │   │       │       │   │   │       │       └─ PlainStringContent_c1 [64..66]
+ │   │   │   │       │       │   │   │       │           ├─ StringCharacter [64..65]: "h"
+ │   │   │   │       │       │   │   │       │           └─ StringCharacter [65..66]: "i"
+ │   │   │   │       │       │   │   │       ├─ StringFieldValue_c3 [66..67]
+ │   │   │   │       │       │   │   │       │   └─ PunctuationStringClose [66..67]: "\""
+ │   │   │   │       │       │   │   │       └─ StringFieldValue_c4 67
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 [67..75]
+ │   │   │   │       │       │   │       └─ LuauStructBlockValueComment [67..75]
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c1 67
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c2 [67..69]: "//"
+ │   │   │   │       │       │   │           └─ LuauStructBlockValueComment_c3 [69..75]: " note:"
+ │   │   │   │       │       │   ├─ Newline [75..76]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [76..86]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [76..86]
+ │   │   │   │       │       │   │   │   └─ StylingValue [76..86]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [76..77]
+ │   │   │   │       │       │   │   │       │   └─ NumericFieldValue [76..77]
+ │   │   │   │       │       │   │   │       │       ├─ NumericFieldValue_c1 [76..77]
+ │   │   │   │       │       │   │   │       │       │   └─ NumberLiteral [76..77]: "2"
+ │   │   │   │       │       │   │   │       │       └─ NumericFieldValue_c2 77
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 [77..86]
+ │   │   │   │       │       │   │   │       │   └─ LuauLineComment [77..86]
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_begin [77..80]
+ │   │   │   │       │       │   │   │       │       │   ├─ LuauLineComment_begin_c1 [77..78]
+ │   │   │   │       │       │   │   │       │       │   │   └─ Whitespace [77..78]: " "
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineComment_begin_c2 [78..80]
+ │   │   │   │       │       │   │   │       │       │       └─ LuauCommentMark [78..80]: "--"
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_content [80..86]
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineCommentContent [80..86]: " note:"
+ │   │   │   │       │       │   │   │       │       └─ LuauLineComment_end 86
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 86
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 86
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 86
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 86
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 86
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 86
+ │   │   │   │       │       │   ├─ Newline [86..87]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [87..100]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [87..91]
+ │   │   │   │       │       │   │   │   └─ BooleanFieldValue [87..91]
+ │   │   │   │       │       │   │   │       ├─ BooleanFieldValue_c1 [87..91]
+ │   │   │   │       │       │   │   │       │   └─ BooleanTrue [87..91]: "true"
+ │   │   │   │       │       │   │   │       └─ BooleanFieldValue_c2 91
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 [91..100]
+ │   │   │   │       │       │   │       └─ LuauStructBlockValueComment [91..100]
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c1 [91..92]
+ │   │   │   │       │       │   │           │   └─ Whitespace [91..92]: " "
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c2 [92..94]: "//"
+ │   │   │   │       │       │   │           └─ LuauStructBlockValueComment_c3 [94..100]: " note:"
+ │   │   │   │       │       │   ├─ Newline [100..101]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [101..114]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [101..114]
+ │   │   │   │       │       │   │   │   └─ StylingValue [101..114]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [101..105]
+ │   │   │   │       │       │   │   │       │   └─ StringFieldValue [101..105]
+ │   │   │   │       │       │   │   │       │       ├─ StringFieldValue_c1 [101..102]
+ │   │   │   │       │       │   │   │       │       │   └─ PunctuationStringOpen [101..102]: "\""
+ │   │   │   │       │       │   │   │       │       ├─ StringFieldValue_c2 [102..104]
+ │   │   │   │       │       │   │   │       │       │   └─ PlainStringContent [102..104]
+ │   │   │   │       │       │   │   │       │       │       └─ PlainStringContent_c1 [102..104]
+ │   │   │   │       │       │   │   │       │       │           ├─ StringCharacter [102..103]: "h"
+ │   │   │   │       │       │   │   │       │       │           └─ StringCharacter [103..104]: "i"
+ │   │   │   │       │       │   │   │       │       ├─ StringFieldValue_c3 [104..105]
+ │   │   │   │       │       │   │   │       │       │   └─ PunctuationStringClose [104..105]: "\""
+ │   │   │   │       │       │   │   │       │       └─ StringFieldValue_c4 105
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 [105..114]
+ │   │   │   │       │       │   │   │       │   └─ LuauLineComment [105..114]
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_begin [105..108]
+ │   │   │   │       │       │   │   │       │       │   ├─ LuauLineComment_begin_c1 [105..106]
+ │   │   │   │       │       │   │   │       │       │   │   └─ Whitespace [105..106]: " "
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineComment_begin_c2 [106..108]
+ │   │   │   │       │       │   │   │       │       │       └─ LuauCommentMark [106..108]: "--"
+ │   │   │   │       │       │   │   │       │       ├─ LuauLineComment_content [108..114]
+ │   │   │   │       │       │   │   │       │       │   └─ LuauLineCommentContent [108..114]: " note:"
+ │   │   │   │       │       │   │   │       │       └─ LuauLineComment_end 114
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 114
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 114
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 114
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 114
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 114
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 114
+ │   │   │   │       │       │   ├─ Newline [114..115]: "\n"
+ │   │   │   │       │       │   ├─ LuauStructListValue [115..128]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [115..119]
+ │   │   │   │       │       │   │   │   └─ StringFieldValue [115..119]
+ │   │   │   │       │       │   │   │       ├─ StringFieldValue_c1 [115..116]
+ │   │   │   │       │       │   │   │       │   └─ PunctuationStringOpen [115..116]: "\""
+ │   │   │   │       │       │   │   │       ├─ StringFieldValue_c2 [116..118]
+ │   │   │   │       │       │   │   │       │   └─ PlainStringContent [116..118]
+ │   │   │   │       │       │   │   │       │       └─ PlainStringContent_c1 [116..118]
+ │   │   │   │       │       │   │   │       │           ├─ StringCharacter [116..117]: "h"
+ │   │   │   │       │       │   │   │       │           └─ StringCharacter [117..118]: "i"
+ │   │   │   │       │       │   │   │       ├─ StringFieldValue_c3 [118..119]
+ │   │   │   │       │       │   │   │       │   └─ PunctuationStringClose [118..119]: "\""
+ │   │   │   │       │       │   │   │       └─ StringFieldValue_c4 119
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 [119..128]
+ │   │   │   │       │       │   │       └─ LuauStructBlockValueComment [119..128]
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c1 [119..120]
+ │   │   │   │       │       │   │           │   └─ Whitespace [119..120]: " "
+ │   │   │   │       │       │   │           ├─ LuauStructBlockValueComment_c2 [120..122]: "//"
+ │   │   │   │       │       │   │           └─ LuauStructBlockValueComment_c3 [122..128]: " note:"
+ │   │   │   │       │       │   └─ Newline [128..129]: "\n"
+ │   │   │   │       │       └─ LuauStructBlockBody_end [129..130]
+ │   │   │   │       │           └─ LuauStructBlockBody_end_c1 [129..130]
+ │   │   │   │       │               └─ LuauStructBlockClose [129..130]: "}"
+ │   │   │   │       └─ LuauStructBlock_end 130
+ │   │   │   └─ LuauStructBlockLine_end 130
+ │   │   └─ Newline [130..131]: "\n"
+ │   └─ LuauTheme_end [131..134]
+ │       ├─ LuauTheme_end_c1 131
+ │       │   └─ LuauTheme_end_c1 131
+ │       │       └─ OptionalWhitespace 131
+ │       └─ LuauTheme_end_c2 [131..134]
+ │           └─ LuauEndKeyword [131..134]: "end"
+ └─ Newline [134..135]: "\n"

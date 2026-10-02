@@ -1,0 +1,12 @@
+theme sample with
+values {
+2-- note:
+true// note:
+"hi"-- note:
+"hi"// note:
+2 -- note:
+true // note:
+"hi" -- note:
+"hi" // note:
+}
+end

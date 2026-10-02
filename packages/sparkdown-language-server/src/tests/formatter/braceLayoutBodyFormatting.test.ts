@@ -31,8 +31,9 @@ layout inventory with
     row = { text "a" #width=5; text "b" }
     card("Inventory") { text "body" }
   }
-  stage:
+  stage {
     mask.shadow_1
+  }
 end
 `;
     expect(formatSource(source)).toBe(source);
@@ -108,8 +109,9 @@ text.title "Inventory"
    text "a"
         }
   }
-    stage:
+    stage {
       mask.shadow_1
+    }
 end
 `;
     // The block's header line sits among the body's indented lines and takes
@@ -122,8 +124,9 @@ end
       text "a"
     }
   }
-  stage:
+  stage {
     mask.shadow_1
+  }
 end
 `);
   });

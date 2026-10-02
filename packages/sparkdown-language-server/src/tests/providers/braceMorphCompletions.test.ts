@@ -309,27 +309,6 @@ end
     expect(labels).not.toContain("leaves");
   });
 
-  test("a block under an indented container keeps the container in its path", () => {
-    expect(
-      labelsAt(`morph blink with
-  layers:
-    eyelash-left {
-      fall|
-    }
-end
-`),
-    ).toEqual(["blend", "method", "fallback"]);
-    expect(
-      labelsAt(`morph blink with
-  keyframes:
-    from {
-      eyes { state = | }
-    }
-end
-`),
-    ).toEqual(expect.arrayContaining(["open", "closed", "squint"]));
-  });
-
   test("a `;` or brace inside a quoted value starts no new entry", () => {
     expect(
       labelsAt(`morph blink with

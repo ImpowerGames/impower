@@ -1,5 +1,5 @@
-sparkdown [0..54]
- ├─ LuauStyle [0..53]
+sparkdown [0..55]
+ ├─ LuauStyle [0..54]
  │   ├─ LuauStyle_begin [0..6]
  │   │   ├─ LuauStyle_begin_c1 0
  │   │   │   └─ OptionalWhitespace 0
@@ -8,7 +8,7 @@ sparkdown [0..54]
  │   │   └─ LuauStyle_begin_c3 [5..6]
  │   │       └─ LuauStyle_begin_c3 [5..6]
  │   │           └─ OptionalWhitespace [5..6]: " "
- │   ├─ LuauStyle_content [6..50]
+ │   ├─ LuauStyle_content [6..51]
  │   │   ├─ LuauStyleNameAndInheritance [6..15]
  │   │   │   ├─ LuauStyleNameAndInheritance_begin [6..10]
  │   │   │   │   └─ LuauStyleNameAndInheritance_begin_c1 [6..10]
@@ -20,94 +20,68 @@ sparkdown [0..54]
  │   │   │       └─ LuauStyleNameAndInheritance_end_c2 [11..15]
  │   │   │           └─ LuauWithKeyword [11..15]: "with"
  │   │   ├─ Newline [15..16]: "\n"
- │   │   ├─ LuauStructBodyLine [16..24]
- │   │   │   ├─ LuauStructBodyLine_c1 [16..18]
- │   │   │   │   └─ LuauStructBodyLine_c1 [16..18]
- │   │   │   │       └─ OptionalWhitespace [16..18]: "  "
- │   │   │   ├─ LuauStructBodyLine_c2 [18..24]
- │   │   │   │   └─ LuauStructBodyContent [18..24]
- │   │   │   │       └─ LuauStructBodyContent_c1 [18..24]
- │   │   │   │           └─ LuauStructObjectHeader [18..24]
- │   │   │   │               ├─ LuauStructObjectHeader_c1 18
- │   │   │   │               │   └─ OptionalWhitespace 18
- │   │   │   │               ├─ LuauStructObjectHeader_c2 [18..23]
- │   │   │   │               │   └─ LuauStructObjectKey [18..23]
- │   │   │   │               │       └─ LuauStructObjectKey_c1 [18..23]
- │   │   │   │               │           └─ CustomComponentName [18..23]: "items"
- │   │   │   │               └─ LuauStructObjectHeader_c4 [23..24]
- │   │   │   │                   └─ LuauStructObjectColon [23..24]: ":"
- │   │   │   └─ LuauStructBodyLine_c3 24
- │   │   │       └─ LuauStructBodyLine_c3 24
- │   │   │           └─ OptionalWhitespace 24
- │   │   ├─ Newline [24..25]: "\n"
- │   │   ├─ LuauStructBodyLine [25..36]
- │   │   │   ├─ LuauStructBodyLine_c1 [25..29]
- │   │   │   │   └─ LuauStructBodyLine_c1 [25..29]
- │   │   │   │       └─ OptionalWhitespace [25..29]: "    "
- │   │   │   ├─ LuauStructBodyLine_c2 [29..36]
- │   │   │   │   └─ LuauStructBodyContent [29..36]
- │   │   │   │       └─ LuauStructBodyContent_c1 [29..36]
- │   │   │   │           └─ LuauStructArrayItem [29..36]
- │   │   │   │               ├─ LuauStructArrayItem_c1 29
- │   │   │   │               │   └─ OptionalWhitespace 29
- │   │   │   │               ├─ LuauStructArrayItem_c2 [29..31]
- │   │   │   │               │   └─ ArrayItemOperator [29..31]
- │   │   │   │               │       ├─ ArrayItemOperator_c1 [29..30]
- │   │   │   │               │       │   └─ ArrayItemMark [29..30]: "-"
- │   │   │   │               │       └─ ArrayItemOperator_c2 [30..31]
- │   │   │   │               │           └─ Separator [30..31]: " "
- │   │   │   │               └─ LuauStructArrayItem_c3 [31..36]
- │   │   │   │                   └─ StylingValue [31..36]
- │   │   │   │                       ├─ StylingValue_c1 31
- │   │   │   │                       ├─ StylingValue_c2 31
- │   │   │   │                       ├─ StylingValue_c3 31
- │   │   │   │                       ├─ StylingValue_c4 [31..36]
- │   │   │   │                       │   └─ StylingValueContent [31..36]
- │   │   │   │                       │       └─ StylingValueContent_c1 [31..36]
- │   │   │   │                       │           └─ StylingStringIdentifier [31..36]: "first"
- │   │   │   │                       ├─ StylingValue_c5 36
- │   │   │   │                       ├─ StylingValue_c6 36
- │   │   │   │                       └─ StylingValue_c7 36
- │   │   │   └─ LuauStructBodyLine_c3 36
- │   │   │       └─ LuauStructBodyLine_c3 36
- │   │   │           └─ OptionalWhitespace 36
- │   │   ├─ Newline [36..37]: "\n"
- │   │   ├─ LuauStructBodyLine [37..49]
- │   │   │   ├─ LuauStructBodyLine_c1 [37..41]
- │   │   │   │   └─ LuauStructBodyLine_c1 [37..41]
- │   │   │   │       └─ OptionalWhitespace [37..41]: "    "
- │   │   │   ├─ LuauStructBodyLine_c2 [41..49]
- │   │   │   │   └─ LuauStructBodyContent [41..49]
- │   │   │   │       └─ LuauStructBodyContent_c1 [41..49]
- │   │   │   │           └─ LuauStructArrayItem [41..49]
- │   │   │   │               ├─ LuauStructArrayItem_c1 41
- │   │   │   │               │   └─ OptionalWhitespace 41
- │   │   │   │               ├─ LuauStructArrayItem_c2 [41..43]
- │   │   │   │               │   └─ ArrayItemOperator [41..43]
- │   │   │   │               │       ├─ ArrayItemOperator_c1 [41..42]
- │   │   │   │               │       │   └─ ArrayItemMark [41..42]: "-"
- │   │   │   │               │       └─ ArrayItemOperator_c2 [42..43]
- │   │   │   │               │           └─ Separator [42..43]: " "
- │   │   │   │               └─ LuauStructArrayItem_c3 [43..49]
- │   │   │   │                   └─ StylingValue [43..49]
- │   │   │   │                       ├─ StylingValue_c1 43
- │   │   │   │                       ├─ StylingValue_c2 43
- │   │   │   │                       ├─ StylingValue_c3 43
- │   │   │   │                       ├─ StylingValue_c4 [43..49]
- │   │   │   │                       │   └─ StylingValueContent [43..49]
- │   │   │   │                       │       └─ StylingValueContent_c1 [43..49]
- │   │   │   │                       │           └─ StylingStringIdentifier [43..49]: "second"
- │   │   │   │                       ├─ StylingValue_c5 49
- │   │   │   │                       ├─ StylingValue_c6 49
- │   │   │   │                       └─ StylingValue_c7 49
- │   │   │   └─ LuauStructBodyLine_c3 49
- │   │   │       └─ LuauStructBodyLine_c3 49
- │   │   │           └─ OptionalWhitespace 49
- │   │   └─ Newline [49..50]: "\n"
- │   └─ LuauStyle_end [50..53]
- │       ├─ LuauStyle_end_c1 50
- │       │   └─ LuauStyle_end_c1 50
- │       │       └─ OptionalWhitespace 50
- │       └─ LuauStyle_end_c2 [50..53]
- │           └─ LuauEndKeyword [50..53]: "end"
- └─ Newline [53..54]: "\n"
+ │   │   ├─ LuauStructBlockLine [16..50]
+ │   │   │   ├─ LuauStructBlockLine_begin 16
+ │   │   │   ├─ LuauStructBlockLine_content [16..50]
+ │   │   │   │   ├─ Whitespace [16..18]: "  "
+ │   │   │   │   └─ LuauStructBlock [18..50]
+ │   │   │   │       ├─ LuauStructBlock_begin [18..24]
+ │   │   │   │       │   ├─ LuauStructBlock_begin_c1 [18..23]
+ │   │   │   │       │   │   └─ LuauStructBlockKey [18..23]
+ │   │   │   │       │   │       └─ LuauStructBlockKey_c1 [18..23]
+ │   │   │   │       │   │           └─ CustomComponentName [18..23]: "items"
+ │   │   │   │       │   └─ LuauStructBlock_begin_c2 [23..24]
+ │   │   │   │       │       └─ Whitespace [23..24]: " "
+ │   │   │   │       ├─ LuauStructBlock_content [24..50]
+ │   │   │   │       │   └─ LuauStructBlockBody [24..50]
+ │   │   │   │       │       ├─ LuauStructBlockBody_begin [24..25]
+ │   │   │   │       │       │   └─ LuauStructBlockBody_begin_c1 [24..25]
+ │   │   │   │       │       │       └─ LuauStructBlockOpen [24..25]: "{"
+ │   │   │   │       │       ├─ LuauStructBlockBody_content [25..49]
+ │   │   │   │       │       │   ├─ Newline [25..26]: "\n"
+ │   │   │   │       │       │   ├─ Whitespace [26..30]: "    "
+ │   │   │   │       │       │   ├─ LuauStructListValue [30..35]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [30..35]
+ │   │   │   │       │       │   │   │   └─ StylingValue [30..35]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 30
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 30
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 30
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [30..35]
+ │   │   │   │       │       │   │   │       │   └─ StylingValueContent [30..35]
+ │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [30..35]
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [30..35]: "first"
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 35
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 35
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 35
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 35
+ │   │   │   │       │       │   ├─ Newline [35..36]: "\n"
+ │   │   │   │       │       │   ├─ Whitespace [36..40]: "    "
+ │   │   │   │       │       │   ├─ LuauStructListValue [40..46]
+ │   │   │   │       │       │   │   ├─ LuauStructListValue_c1 [40..46]
+ │   │   │   │       │       │   │   │   └─ StylingValue [40..46]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 40
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 40
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 40
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [40..46]
+ │   │   │   │       │       │   │   │       │   └─ StylingValueContent [40..46]
+ │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [40..46]
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [40..46]: "second"
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 46
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 46
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 46
+ │   │   │   │       │       │   │   └─ LuauStructListValue_c2 46
+ │   │   │   │       │       │   ├─ Newline [46..47]: "\n"
+ │   │   │   │       │       │   └─ Whitespace [47..49]: "  "
+ │   │   │   │       │       └─ LuauStructBlockBody_end [49..50]
+ │   │   │   │       │           └─ LuauStructBlockBody_end_c1 [49..50]
+ │   │   │   │       │               └─ LuauStructBlockClose [49..50]: "}"
+ │   │   │   │       └─ LuauStructBlock_end 50
+ │   │   │   └─ LuauStructBlockLine_end 50
+ │   │   └─ Newline [50..51]: "\n"
+ │   └─ LuauStyle_end [51..54]
+ │       ├─ LuauStyle_end_c1 51
+ │       │   └─ LuauStyle_end_c1 51
+ │       │       └─ OptionalWhitespace 51
+ │       └─ LuauStyle_end_c2 [51..54]
+ │           └─ LuauEndKeyword [51..54]: "end"
+ └─ Newline [54..55]: "\n"

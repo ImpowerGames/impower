@@ -1,10 +1,14 @@
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image "black"
-    portrait:
-      mask shadow_1
+    }
+    portrait {
+      mask.shadow_1
       image
-    label:
+    }
+    label {
       text "HP: {hp}"
+    }
+  }
 end

@@ -1,17 +1,22 @@
 layout main with
-  stage:
+  stage {
     mask.shadow_1
-    choice.0:
+    choice.0 {
       text
+    }
     button.primary.large "Save" @click=save
-    row.hud #gap=12:
+    row.hud #gap=12 {
       text.title "Hi"
+    }
+  }
 end
 
 style card with
-  &.secondary:
+  &.secondary {
     color = blue
-  > text.label:
+  }
+  > text.label {
     color = red
+  }
   &.outline.secondary { color = green }
 end

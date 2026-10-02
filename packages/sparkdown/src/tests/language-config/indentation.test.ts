@@ -167,11 +167,4 @@ describe("Enter between `{` and `}` in a brace body (#1228)", () => {
     expect(rule?.action.appendText ?? "").toBe("");
   });
 
-  it("a `- {` item line still continues the list instead", () => {
-    // The one earlier rule a `{` line can meet, kept for the indented form.
-    expect(enterRuleFor("  keyframes:", "    - {", "}")?.action).toEqual({
-      indent: "indentOutdent",
-      appendText: "\t- ",
-    });
-  });
 });

@@ -1,7 +1,6 @@
 import { CALL_LIKE_OPENERS } from "@impower/sparkdown/src/compiler/utils/callLikeOpeners";
 import { nodeNameSet } from "@impower/sparkdown/src/compiler/utils/nodeNameSet";
 import { oneLineTableBraces } from "@impower/sparkdown/src/compiler/utils/oneLineTableBraces";
-import { structArrayItemInlineEntry } from "@impower/sparkdown/src/compiler/utils/structArrayItemInlineEntry";
 import { FormatType } from "@impower/sparkdown/src/compiler/classes/annotators/FormattingAnnotator";
 import { SparkdownAnnotations } from "@impower/sparkdown/src/compiler/classes/SparkdownCombinedAnnotator";
 import { SparkdownDocument } from "@impower/sparkdown/src/compiler/classes/SparkdownDocument";
@@ -31,17 +30,6 @@ const NO_SPACE_AFTER = new Set(["(", "[", "{", "."]);
 
 function isWordChar(c: string): boolean {
   return /[a-zA-Z0-9_]/.test(c);
-}
-
-// Visual width of leading text, tabs expanded. Struct bodies nest by
-// indentation, so the formatter compares these widths to recover a line's
-// depth; the widths themselves are never emitted.
-function rawIndentWidth(text: string, tabSize: number): number {
-  let width = 0;
-  for (const ch of text) {
-    width += ch === "\t" ? tabSize : 1;
-  }
-  return width;
 }
 
 function shouldInsertSpaceBetween(
@@ -90,6 +78,18 @@ const INDENTING_BLOCKS = nodeNameSet([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
+  "LuauSparkleBlockIf",
+  "LuauSparkleBlockElseif",
+  "LuauSparkleBlockElse",
+  "LuauSparkleBlockFor",
+  "LuauSparkleBlockMatch",
+  "LuauSparkleBlockCase",
+  "LuauSparkleIfBlock",
+  "LuauSparkleElseifBlock",
+  "LuauSparkleElseBlock",
+  "LuauSparkleForLoop",
+  "LuauSparkleMatchBlock",
+  "LuauSparkleCaseClause",
   "LuauDefine",
   "LuauMethodDefinition",
   "LuauTable",
@@ -116,6 +116,10 @@ const SIBLING_CLAUSES: Partial<Record<SparkdownNodeName, SparkdownNodeName[]>> =
     "LuauSparkdownElseBlock",
   ],
   LuauIfBlock: ["LuauElseifBlock", "LuauElseBlock"],
+  LuauSparkleBlockIf: ["LuauSparkleBlockElseif", "LuauSparkleBlockElse"],
+  LuauSparkleBlockFor: ["LuauSparkleBlockElse"],
+  LuauSparkleIfBlock: ["LuauSparkleElseifBlock", "LuauSparkleElseBlock"],
+  LuauSparkleForLoop: ["LuauSparkleElseBlock"],
   LuauSparkdownChooseBlock: ["LuauSparkdownChooseThenClause"],
 };
 
@@ -429,23 +433,6 @@ const BRACE_INDENTERS = nodeNameSet([
   "LuauStructListBlock",
   "LuauSparkleHandlerClosure",
   "LuauSparkleElementContinuation",
-  "LuauSparkleBlockIf",
-  "LuauSparkleBlockElseif",
-  "LuauSparkleBlockElse",
-  "LuauSparkleBlockFor",
-  "LuauSparkleBlockMatch",
-  "LuauSparkleBlockCase",
-]);
-
-// An `elseif` / `else` branch is read inside the `_content` of the `if` or
-// `for` it belongs to, yet lines up with it.
-const BRACE_SIBLING_CLAUSES = nodeNameSet([
-  "LuauSparkleBlockElseif",
-  "LuauSparkleBlockElse",
-]);
-const BRACE_CLAUSE_OWNERS = nodeNameSet([
-  "LuauSparkleBlockIf",
-  "LuauSparkleBlockFor",
 ]);
 
 // The depth of a line below the first line of the brace line at
@@ -462,12 +449,6 @@ function braceDepth(
     const node = inner[i];
     if (!node || !BRACE_INDENTERS.has(node.name)) continue;
     if (inner[i - 1]?.name !== `${node.name}_content`) continue;
-    if (
-      BRACE_CLAUSE_OWNERS.has(node.name) &&
-      BRACE_SIBLING_CLAUSES.has(inner[i - 2]?.name ?? "")
-    ) {
-      continue;
-    }
     depth += 1;
   }
   depth += computeBlockIndent(inner);
@@ -556,19 +537,9 @@ export const getFormatting = (
   let sceneActive = false;
   let branchActive = false;
 
-  // layout/component/style bodies nest by INDENTATION (the grammar emits flat
-  // body-line siblings; depth isn't in the tree). To normalize them the
-  // formatter reconstructs each line's depth from the relative indentation —
-  // the same way the lowerer does (lowerStructBody / lowerSparkleBody) — so
-  // over-indentation is corrected to canonical `tabSize`-per-level while the
-  // author's relative nesting is preserved. `sparkleIndentStack` holds the
-  // raw (author) indent widths of the enclosing levels, increasing; it resets
-  // whenever we enter a different body (`_content` node identity changes).
+  // Track the enclosing struct body to reset display indentation state.
   let sparkleContentFrom: number | undefined = undefined;
-  let sparkleIndentStack: number[] = [];
-  // Brace lines (#1227) nest by their braces. The first line of each takes
-  // its level as an indented line does, and is recorded here by the brace
-  // line's offset, so its later lines indent by their depth below it.
+  // Record each line’s base level; explicit blocks determine deeper levels.
   let braceLineLevels = new Map<number, number>();
   // The level of the last element line at the top of the body, which a
   // continuation line or a `{` on its own line there is placed against.
@@ -659,15 +630,7 @@ export const getFormatting = (
       const stackPos = firstNonWs >= 0 ? lineStart + firstNonWs : from;
       const stack = getStack<SparkdownNodeName>(tree, stackPos, 1);
 
-      // layout / component / style element trees nest by INDENTATION, which
-      // the parse tree doesn't capture (the grammar emits flat body-line
-      // siblings; the lowerer rebuilds depth from the indent column). The
-      // formatter can't read depth from the tree, so it reconstructs it from
-      // the relative indentation (mirroring the lowerer) and emits canonical
-      // `tabSize`-per-level indentation — correcting over-indentation / stray
-      // whitespace while preserving the author's nesting. The `_content`
-      // wrapper excludes the header (`_begin`) and `end` (`_end`), so those
-      // still normalize to the block's own level via the normal path below.
+      // Struct bodies nest by braces; each brace level adds one display indent.
       const sparkleContentNode =
         firstNonWs >= 0
           ? stack.find(
@@ -697,18 +660,13 @@ export const getFormatting = (
             });
           }
         };
-        // Reset the level stack when we cross into a different body.
+        // Reset cached brace and continuation levels for each body.
         if (sparkleContentFrom !== sparkleContentNode.from) {
           sparkleContentFrom = sparkleContentNode.from;
-          sparkleIndentStack = [];
           braceLineLevels = new Map();
           lastElementLevel = undefined;
         }
-        // A line of a brace line (`column {` … `}`, `timing {` … `}`) nests
-        // by its braces, not its column (#1227). Its lines stay out of the
-        // level stack: the stack tracks the indented lines around them, and
-        // their columns would otherwise make the next indented line a child
-        // of the block, where the readers drop it.
+        // Braces and control scopes determine each body's display levels.
         const trimmedLine = lineText.trimStart();
         const isCommentLine =
           trimmedLine.startsWith("--") || trimmedLine.startsWith("//");
@@ -756,50 +714,12 @@ export const getFormatting = (
             return;
           }
         }
-        // At the top of the body such a comment takes no place among the
-        // indented lines either.
+        // A comment before a continuation uses the preceding element's level.
         if (commentsContinuation && lastElementLevel != null) {
           emitLevel(lastElementLevel + 1);
           return;
         }
-        const rawWidth = rawIndentWidth(currentIndentation, options.tabSize);
-        while (
-          sparkleIndentStack.length > 0 &&
-          rawWidth < sparkleIndentStack[sparkleIndentStack.length - 1]!
-        ) {
-          sparkleIndentStack.pop();
-        }
-        if (
-          sparkleIndentStack.length === 0 ||
-          rawWidth > sparkleIndentStack[sparkleIndentStack.length - 1]!
-        ) {
-          sparkleIndentStack.push(rawWidth);
-        }
-        const depth = sparkleIndentStack.length - 1;
-        // A collapsed list item (`- eyes:`) opens TWO levels on one line: the
-        // item itself at the dash column, and the first entry it carries at
-        // the column that entry starts in. The line indents at the item's
-        // level, but the item's remaining entries are written at the entry's
-        // column and that entry's own children deeper still — so push the
-        // entry's level as well, or both would resolve to the dash's level and
-        // the formatter would rewrite the author's nesting into a flat list.
-        const arrayItem = stack.find(
-          (n) => n && n.name === "LuauStructArrayItem",
-        );
-        const inlineEntry = arrayItem
-          ? structArrayItemInlineEntry(arrayItem)
-          : null;
-        if (inlineEntry) {
-          const entryWidth = rawIndentWidth(
-            lineText.slice(0, inlineEntry.from - lineStart),
-            options.tabSize,
-          );
-          if (entryWidth > rawWidth) {
-            sparkleIndentStack.push(entryWidth);
-          }
-        }
-        // Body sits one level past the block header (its own level).
-        const bodyLevel = computeBlockIndent(stack) + 1 + depth;
+        const bodyLevel = computeBlockIndent(stack) + 1;
         if (braceLine) braceLineLevels.set(braceLine.from, bodyLevel);
         if (!isCommentLine) lastElementLevel = bodyLevel;
         emitLevel(bodyLevel);

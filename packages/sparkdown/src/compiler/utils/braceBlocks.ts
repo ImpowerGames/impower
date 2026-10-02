@@ -23,8 +23,7 @@ export const BRACE_BODY_NAMES = nodeNameSet([
   "LuauSparkleElementBlock",
 ]);
 
-/** The tokens that name a struct key (`key:`, `key = …`, `key { … }`); the
- *  annotator reads indented keys with the same list. */
+/** The tokens that name a struct key (`key = …`, `key { … }`). */
 export const STRUCT_KEY_TOKEN_NAMES = nodeNameSet([
   "BuiltinComponentName",
   "StylingDeclarationScalarPropertyName",
@@ -103,8 +102,8 @@ export function structBlockKeyNode(block: SyntaxNode): SyntaxNode | null {
 }
 
 /**
- * The token that names a struct key: its first key-name token, as the
- * indented form's header reads it, or the whole key when it has none (a
+ * The token that names a struct key: its first key-name token, or the
+ * whole key when it has none (a
  * selector such as `&.wide`, a keyframe position such as `from`).
  */
 export function structKeyToken(key: SyntaxNode): SyntaxNode {
@@ -119,7 +118,7 @@ export function structKeyToken(key: SyntaxNode): SyntaxNode {
   return walk(key) ?? key;
 }
 
-/** The name, bare words and `.name` classes of a brace element's head, in
+/** The name and dotted `.name` classes of a brace element's head, in
  *  source order: its name (and a call's arguments) in its begin, then the
  *  runs of parts (`LuauSparkleElementParts`) its content holds before its
  *  block, including those after an event closure's `}`. A component call
@@ -155,7 +154,7 @@ export function sparkleElementKeyParts(element: SyntaxNode): {
 }
 
 /**
- * The bare words and `.name` classes in the runs of parts directly inside an
+ * The dotted `.name` classes in the runs of parts directly inside an
  * element's or a continuation line's content (`LuauSparkleElement_content`,
  * `LuauSparkleElementContinuation_content`), in source order, never inside
  * its block, an attribute or content.
@@ -165,7 +164,6 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
   const walk = (node: SyntaxNode) => {
     for (let child = node.firstChild; child; child = child.nextSibling) {
       switch (child.name) {
-        case "LuauSparkleElementWord":
         case "LuauSparkleClassName":
           words.push(child);
           break;
@@ -198,11 +196,10 @@ export function sparklePartWords(content: SyntaxNode): SyntaxNode[] {
 }
 
 /**
- * The key a brace body adds to a path: a struct block's header key as the
- * indented form reads it, `-` for a list entry, and an element's name, words
- * and classes joined by single spaces, as the static struct keys it
- * (`column.panel` is `column panel`). A component call adds nothing, as its
- * indented line adds nothing to the static struct.
+ * The key a brace body adds to a path: a struct block's header key, `-` as
+ * the internal list-entry marker, and an element's name and dotted classes
+ * joined by single spaces, as the static struct keys it (`column.panel` is
+ * `column panel`). A component call adds nothing to the static struct.
  */
 export function braceBodyKey(
   body: SyntaxNode,
@@ -233,8 +230,7 @@ export interface BraceBlockPath {
   /** The innermost brace body that holds the offset. */
   body: SyntaxNode;
   /** Where the outermost block that holds the offset starts (its key, its
-   *  element, or a list entry's `{`). Its line sits in the body's
-   *  indentation, under the indented keys that start the path. */
+   *  element, or a list entry's `{`). */
   outerFrom: number;
 }
 
@@ -259,8 +255,8 @@ const QUOTES = ['"', "'", "`"];
 
 /**
  * The text of the brace entry being written at `offset` on the line starting
- * at `lineFrom`: what follows the last `{`, `}` or `;` the grammar reads as an
- * entry separator before the cursor. Whether a `;` or a brace is structure is
+ * at `lineFrom`: what follows the last `{`, `}` or `;`, or starts at the
+ * current element's grammar-owned head. Whether a `;` or a brace is structure is
  * the parser's decision: one inside a string (`"a;b"`, element content
  * `'a; b'`), an attribute value (`#label='a; b'`) or a bracket run
  * (`[data-label='a;b']`) is part of that token, while a quote or bracket the
@@ -284,6 +280,8 @@ export function braceEntryAt(
       if (node.to > offset && node.from >= offset) return false;
       if (ENTRY_SEPARATOR_NAMES.has(node.name) && node.to <= offset) {
         separators.push(node.to);
+      } else if (node.name === "LuauSparkleElement_begin" && node.from < offset) {
+        separators.push(node.from);
       } else if (UNCLOSED_QUOTE_TOKEN_NAMES.has(node.name)) {
         // Still open when the quote occurs an odd number of times from the
         // opener to the cursor.
@@ -374,21 +372,4 @@ export function braceBlockPathAt(
   return innermost && outermost
     ? { path, body: innermost, outerFrom: braceBodyOwner(outermost).from }
     : null;
-}
-
-/** Whether a declaration's body holds a line written with brace blocks. */
-export function bodyUsesBraceBlocks(declaration: SyntaxNode): boolean {
-  for (let child = declaration.firstChild; child; child = child.nextSibling) {
-    if (child.name.endsWith("_content")) {
-      for (let line = child.firstChild; line; line = line.nextSibling) {
-        if (
-          line.name === "LuauStructBlockLine" ||
-          line.name === "LuauSparkleBlockLine"
-        ) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
 }

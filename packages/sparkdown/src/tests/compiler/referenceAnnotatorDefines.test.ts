@@ -4,8 +4,7 @@ import { SparkdownDocumentRegistry } from "../../compiler/classes/SparkdownDocum
 // The ReferenceAnnotator D2 surface: define-name / define-type / struct-property
 // references for the Luau-port grammar. The define model is INVERTED relative to
 // the pre-port grammar (`define <Type> <Name>` → `define <Name> as <Parent>`), and
-// the struct body is now a flat indentation tree of LuauStructScalarProperty /
-// LuauStructObjectHeader / LuauStructArrayItem lines (no per-item wrapper nodes).
+// the struct body is now a flat indentation tree of LuauStructBlockProperty and LuauStructBlock nodes (no per-item wrapper nodes).
 // These tests lock the restored symbol-ID shapes the providers (getReferences /
 // getSymbolIds / getRenameEdits / getHover) match against:
 //   - OOP define:  name → `<parent>.<name>` (define_variable_name),

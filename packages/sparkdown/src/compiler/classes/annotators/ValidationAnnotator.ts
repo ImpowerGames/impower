@@ -149,7 +149,7 @@ const STRUCT_ENTRY_COMMA =
 // indented-form `key:` header or `-` item inside a block.
 const INVALID_STRUCT_BLOCK_TOKENS: ReadonlySet<string> = nodeNameSet([
   "LuauStructStrayBlockClose",
-  "LuauStructBlockIndentedHeader",
+  "LuauStructInvalidColon",
   "LuauStructBlockItemMark",
 ]);
 // In a layout or component block: text that starts no entry, and a character

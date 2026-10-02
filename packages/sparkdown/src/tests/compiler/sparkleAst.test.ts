@@ -290,39 +290,6 @@ end
     });
   });
 
-  // The tag is the FIRST token. It used to be "whichever token happens to be a
-  // builtin, wherever it sits", which reads fine until you add a builtin: the
-  // moment `small` became an element, every existing `mycomponent small` line
-  // would have silently changed meaning from "mycomponent with class small" to
-  // "a <small> with class mycomponent". Under first-token-wins, promoting a
-  // name cannot reinterpret a line that already exists.
-  //
-  // It also made the line's meaning depend on knowledge the reader does not
-  // have: `shadow_1 mask` and `mask shadow_1` were the SAME element, and
-  // telling which word was the tag meant knowing the builtin list by heart.
-  //
-  // This is a real language change, not just a highlighting one — the lowerer
-  // reads the grammar's node types, so scoping BuiltinComponentName to the
-  // first token moved the semantics with it.
-  test("classes are bare words; the FIRST token is the tag", () => {
-    const ast = screenAst(`layout main with
-  stage:
-    mask shadow_1
-    shadow_1 mask
-    text title "Inventory"
-end
-`);
-    const [m1, m2, txt] = ast.main.children[0].children;
-    expect(m1).toMatchObject({ tag: "mask", classes: ["shadow_1"] });
-    // Same two words, reversed: now a DIFFERENT element, because position is
-    // what decides. Previously both lines produced a <mask>.
-    expect(m2).toMatchObject({ tag: "shadow_1", classes: ["mask"] });
-    // Class + adjacency content on one element line.
-    expect(txt.tag).toBe("text");
-    expect(txt.classes).toEqual(["title"]);
-    expect(txt.content).toEqual([{ kind: "literal", text: "Inventory" }]);
-  });
-
   test("class + adjacency content + trailing attribute coexist on one line", () => {
     const ast = screenAst(`layout main with
   stage {
@@ -478,7 +445,7 @@ end
     const ast = componentAst(`component card with
   box {
     slot
-    slot footer
+    slot.footer
   }
 end
 `);
@@ -490,7 +457,7 @@ end
 
   test("fill lowers to FillNode with a name + children", () => {
     const ast = screenAst(`layout s with
-  fill footer {
+  fill.footer {
     button "Sort"
   }
 end
@@ -507,8 +474,8 @@ end
   test("slot/fill still lower when the NAME collides with a builtin tag", () => {
     const ast = componentAst(`component card with
   box {
-    slot text
-    slot button
+    slot.text
+    slot.button
   }
 end
 `);
@@ -519,7 +486,7 @@ end
 
   test("fill still lowers when the NAME collides with a builtin tag", () => {
     const ast = screenAst(`layout s with
-  fill header {
+  fill.header {
     button "Sort"
   }
 end
@@ -597,7 +564,7 @@ end
     const ast = screenAst(`layout sheet with
   card("Inventory") {
     text "10 / 20 slots"
-    fill footer {
+    fill.footer {
       button "Sort"
     }
   }

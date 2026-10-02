@@ -103,11 +103,6 @@ const EVENT_HANDLER_NAME = nodeNameSet([
   "LuauVariableName",
 ]);
 
-// `LuauStructBodyLine` is the per-physical-line wrapper of a structural
-// (style/screen/component/animation/theme) body; the indent is the column of
-// the body content relative to that line's start.
-const STRUCT_BODY_LINE = nodeNameSet(["LuauStructBodyLine"]);
-
 // The entries of a brace list that number its `-` items: a list entry's
 // braces and a bare list value.
 const LIST_ENTRY_NAMES = nodeNameSet([
@@ -118,32 +113,6 @@ const LIST_ENTRY_NAMES = nodeNameSet([
 // The identifier tokens that carry a struct property/header KEY, shared with
 // the brace readers so both forms read keys alike.
 const STRUCT_KEY_TOKENS = STRUCT_KEY_TOKEN_NAMES;
-
-/**
- * The words and `.name` classes of an indented layout line's header or leaf
- * (`column panel:`, `row.wide:`, `text big "b"`) after its first name, which
- * name layers as a brace element's words and classes do. Content strings and
- * attributes are not words.
- */
-function indentedClassWords(node: SyntaxNode, first: SyntaxNode | null): SyntaxNode[] {
-  const words: SyntaxNode[] = [];
-  const walk = (parent: SyntaxNode) => {
-    for (let child = parent.firstChild; child; child = child.nextSibling) {
-      if (child.name === "LuauSparkleClassName") {
-        words.push(child);
-      } else if (STRUCT_KEY_TOKENS.has(child.name)) {
-        if (!first || child.from !== first.from) words.push(child);
-      } else if (
-        child.name !== "LuauElementContentStringPlain" &&
-        !child.name.endsWith("Attribute")
-      ) {
-        walk(child);
-      }
-    }
-  };
-  walk(node);
-  return words;
-}
 
 // Top-level structural-define keyword nodes → the engine type they declare.
 // Their `name` (LuauDefineName) is an INSTANCE under that type, and a trailing
@@ -212,17 +181,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
   // parent is known.
   pendingOOPName: { from: number; to: number; name: string } | null = null;
 
-  // Indentation path stack for a structural struct body. Each frame records the
-  // body-content column + the path key (property name, or array index); deeper
-  // lines nest, same-or-shallower lines pop. Mirrors lowerStructBodyTyped's
-  // indentation reader, but incrementally over enter().
-  structPathStack: { indent: number; key: string | number; arrayLength?: number }[] =
-    [];
-
-  // The indented keys a line of brace blocks sits under, which start the path
-  // of every key inside it.
-  blockLinePrefix: string[] = [];
-
   divertPathParts: string[] = [];
 
   override begin() {
@@ -231,8 +189,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     this.inStructural = false;
     this.oopHasParent = false;
     this.pendingOOPName = null;
-    this.structPathStack = [];
-    this.blockLinePrefix = [];
     this.divertPathParts = [];
   }
 
@@ -242,15 +198,13 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
     this.inStructural = false;
     this.oopHasParent = false;
     this.pendingOOPName = null;
-    this.structPathStack = [];
-    this.blockLinePrefix = [];
   }
 
   /**
    * The path of the blocks around `node` in its line of brace blocks,
-   * outermost first, after the indented keys the line sits under: each
+   * outermost first: each
    * block's key, an element's key, and a list entry's index among the
-   * entries before it, as the indented form numbers its `-` items.
+   * entries before it.
    */
   private braceBlockPath(node: SyntaxNode): string[] {
     const keys: string[] = [];
@@ -270,7 +224,7 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       const key = braceBodyKey(n, (from, to) => this.read(from, to));
       if (key != null) keys.unshift(key);
     }
-    return [...this.blockLinePrefix, ...keys];
+    return keys;
   }
 
   /**
@@ -602,28 +556,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
 
     // ----- Brace blocks (#1222) ------------------------------------------------
     //
-    // A line of brace blocks sits in the body's indentation at its first
-    // entry's column, so it pops the indented frames it is not inside of and
-    // starts its paths with the ones left. Inside it, a key's path is read from
-    // the blocks around it, not from indentation.
-    if (
-      this.inStructural &&
-      (nodeRef.name === "LuauStructBlockLine" ||
-        nodeRef.name === "LuauSparkleBlockLine")
-    ) {
-      const text = this.read(nodeRef.from, nodeRef.to);
-      const indent = /^[ \t]*/.exec(text)![0].length;
-      while (
-        this.structPathStack.length > 0 &&
-        this.structPathStack[this.structPathStack.length - 1]!.indent >= indent
-      ) {
-        this.structPathStack.pop();
-      }
-      this.blockLinePrefix = this.structPathStack
-        .filter((p) => p.key != null)
-        .map((p) => String(p.key));
-      return annotations;
-    }
     if (
       this.inStructural &&
       (nodeRef.name === "LuauStructBlock" ||
@@ -684,74 +616,6 @@ export class ReferenceAnnotator extends SparkdownAnnotator<
       if (content) {
         this.pushClassWordReferences(annotations, sparklePartWords(content));
       }
-      return annotations;
-    }
-
-    // ----- Structural struct-body property lines -------------------------------
-    if (
-      nodeRef.name === "LuauStructScalarProperty" ||
-      nodeRef.name === "LuauStructObjectHeader" ||
-      nodeRef.name === "LuauStructArrayItem"
-    ) {
-      const bodyLine = ancestorMatching(nodeRef.node, STRUCT_BODY_LINE, 6);
-      const indent = bodyLine ? nodeRef.from - bodyLine.from : 0;
-      // Pop siblings + deeper frames so the stack reflects this line's parents.
-      while (
-        this.structPathStack.length > 0 &&
-        this.structPathStack[this.structPathStack.length - 1]!.indent >= indent
-      ) {
-        this.structPathStack.pop();
-      }
-
-      if (nodeRef.name === "LuauStructArrayItem") {
-        // `-` array item: no referenceable name; push an index frame so nested
-        // properties get a stable path. Index comes from the parent container.
-        const parent = this.structPathStack[this.structPathStack.length - 1];
-        let index = 0;
-        if (parent) {
-          parent.arrayLength ??= 0;
-          index = parent.arrayLength;
-          parent.arrayLength += 1;
-        }
-        this.structPathStack.push({ indent, key: index });
-        return annotations;
-      }
-
-      const keyNode = firstDescendant(nodeRef.node, STRUCT_KEY_TOKENS);
-      const key = keyNode
-        ? this.read(keyNode.from, keyNode.to).trim()
-        : this.read(nodeRef.from, nodeRef.to)
-            .trim()
-            .replace(/:\s*$/, "")
-            .trim();
-      const from = keyNode ? keyNode.from : nodeRef.from;
-      const to = keyNode ? keyNode.to : nodeRef.to;
-
-      const pathKeys = this.structPathStack
-        .filter((p) => p.key != null)
-        .map((p) => p.key);
-      annotations.push(
-        this.structKeyReference([...pathKeys, key], key, from, to),
-      );
-      if (nodeRef.name === "LuauStructObjectHeader") {
-        this.pushClassWordReferences(
-          annotations,
-          indentedClassWords(nodeRef.node, keyNode),
-        );
-      }
-      // Push this line as a potential parent for deeper lines.
-      this.structPathStack.push({ indent, key });
-      return annotations;
-    }
-    if (this.inStructural && nodeRef.name === "LuauStructBareMarker") {
-      // An indented leaf (`text big "b"`): its words after the name.
-      this.pushClassWordReferences(
-        annotations,
-        indentedClassWords(
-          nodeRef.node,
-          firstDescendant(nodeRef.node, STRUCT_KEY_TOKENS),
-        ),
-      );
       return annotations;
     }
 

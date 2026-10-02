@@ -11,7 +11,7 @@ const WARNING = 2;
 
 describe("an unknown Sparkle event name", () => {
   test("@clik", () => {
-    const found = diagnoseDetailed("screen s\n  button @clik=go\nend\n");
+    const found = diagnoseDetailed("layout s with\n  button @clik=go\nend\n");
     expect(found.map((d) => [d.severity, d.message])).toContainEqual([
       WARNING,
       "Unrecognized event `@clik` — Sparkle dispatches a fixed set of events, so this handler never fires\n> e.g. `@click`, `@input`, `@change`, `@keydown`",

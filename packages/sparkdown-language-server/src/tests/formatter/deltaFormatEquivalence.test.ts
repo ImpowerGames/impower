@@ -98,8 +98,9 @@ style panel as button with
 end
 
 layout settings with
-  column #class=root
+  column #class=root {
     text #class=title "Settings"
+  }
 end
 
 layout hud with
