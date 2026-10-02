@@ -7,7 +7,7 @@ const lines = (source: string) =>
 
 test("an end: with a line end or BEAT passes; a bare closer fails", () => {
   const source = grammar({
-    variables: `BEAT: (?:^scene)
+    variables: `BEAT: (?:^scene[ ])
 EOL: (?:$|[ ]*$)
 STOP: (?:{{EOL}}|[;])`,
     repository: `LineEnd:
@@ -45,7 +45,7 @@ test("inline begin/end rules are checked too", () => {
 
 test("a line end or BEAT inside a negative lookaround is no bail-out", () => {
   const source = grammar({
-    variables: "BEAT: (?:^scene)",
+    variables: "BEAT: (?:^scene[ ])",
     repository: `NotAtEnd:
   begin: a
   end: (?!$)[)]
@@ -60,4 +60,28 @@ IndentationBlock:
   end: (?=^(?!$|//))`,
   });
   assert.deepEqual(lines(source), [7, 10]);
+});
+
+test("a line end reached only through the closer is no bail-out", () => {
+  const source = grammar({
+    repository: `NeedsCloser:
+  begin: "[(]"
+  end: "[)]$"
+OptionalCloser:
+  begin: "[(]"
+  end: "[)]?$"`,
+  });
+  assert.deepEqual(lines(source), [5]);
+});
+
+test("a pattern that does not compile falls back to the textual check", () => {
+  const source = grammar({
+    repository: `TextualEnd:
+  begin: a
+  end: ({{MISSING}})$
+TextualCloser:
+  begin: a
+  end: ({{MISSING}})`,
+  });
+  assert.deepEqual(lines(source), [8]);
 });

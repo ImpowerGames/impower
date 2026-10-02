@@ -63,7 +63,7 @@ Word:
 
 test("line-end and BEAT bail-outs pass; other positive lookaheads only in end:", () => {
   const source = grammar({
-    variables: "BEAT: (?:^scene)\nNL: (?:\\n)",
+    variables: "BEAT: (?:^scene[ ])\nNL: (?:\\n)",
     repository: `Scoped:
   begin: a(?=$|{{BEAT}}|{{WS}}*$|{{NL}})
   end: (?=[)])|b

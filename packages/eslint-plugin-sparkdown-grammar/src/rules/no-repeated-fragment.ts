@@ -1,11 +1,11 @@
-// Rule: a non-capturing group `(?:…)` longer than 12 characters that
-// appears verbatim in two or more patterns should be a variable
-// (GRAMMAR.md §7: "every regex fragment used in more than one place
-// should be a variable"). This extends `no-handwritten-alternation`
-// beyond keyword lists.
+// Rule: a non-capturing group `(?:…)` longer than 12 characters that is
+// written verbatim more than once, in two patterns or twice in one,
+// should be a variable (GRAMMAR.md §7: "every regex fragment used in more
+// than one place should be a variable"). This extends
+// `no-handwritten-alternation` beyond keyword lists.
 //
-// Patterns are rules' `match`/`begin`/`end` and string variables' values,
-// compared as written (before `{{NAME}}` substitution). Only the
+// Patterns are rules' `match`/`begin`/`end` and variables' values and
+// array entries, compared as written (before `{{NAME}}` substitution). Only the
 // outermost repeated group is reported, not each repeated group inside
 // it. A variable whose whole value is the fragment counts as one
 // occurrence but is not reported: it is the named copy, and the message
@@ -32,7 +32,7 @@ const { rule, find } = defineBaselinedRule(
         "Flag `(?:…)` groups repeated verbatim across patterns that should be a variable.",
     },
     messages: {
-      repeated: `\`{{fragment}}\` appears verbatim in {{count}} patterns (also {{others}}). {{advice}} See GRAMMAR.md §7.${BASELINE_NOTE}`,
+      repeated: `\`{{fragment}}\` is written verbatim {{count}} times ({{where}}). {{advice}} See GRAMMAR.md §7.${BASELINE_NOTE}`,
     },
   },
   (context) => {
@@ -51,7 +51,7 @@ const { rule, find } = defineBaselinedRule(
       }
     }
     const isRepeated = (text: string): boolean =>
-      new Set((byText.get(text) ?? []).map((o) => o.site)).size >= 2;
+      (byText.get(text) ?? []).length >= 2;
     const isWholeVariable = ({ site, group }: Occurrence): boolean =>
       site.key === "value" && group.text === site.source;
 
@@ -81,10 +81,13 @@ const { rule, find } = defineBaselinedRule(
           data: {
             fragment:
               group.text.length > 60 ? `${group.text.slice(0, 57)}...` : group.text,
-            count: String(sites.length),
-            others:
-              others.slice(0, 3).join(", ") +
-              (others.length > 3 ? `, and ${others.length - 3} more` : ""),
+            count: String(occurrences.length),
+            where:
+              others.length === 0
+                ? "all in this pattern"
+                : "also in " +
+                  others.slice(0, 3).join(", ") +
+                  (others.length > 3 ? `, and ${others.length - 3} more` : ""),
             advice: named
               ? `Use \`{{${named.site.owner.name}}}\` instead.`
               : "Name it as a variable and reference that.",

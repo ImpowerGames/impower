@@ -1,18 +1,19 @@
 // Rule: a `Scoped` rule (one with `begin:` and `end:`) commits once its
 // `begin:` matches, so its `end:` must also close at a line end or at the
 // next beat. Otherwise a forgotten closer lets the rule run on to the end
-// of the document (GRAMMAR.md §3.1, §18). The `end:` pattern must contain
-// `{{BEAT}}` or a `$` anchor, written directly or through the variables
-// it references.
+// of the document (GRAMMAR.md §3.1, §18). So the `end:` pattern, with its
+// variables substituted, must be able to match with no closer present: at
+// the end of a line, at the start of the next beat (`{{BEAT}}`), or at the
+// start of the next unindented line (§11.1's indentation-block end
+// `(?=^(?!$|//|\1{{WS}}))`).
 //
-// A `$` or `{{BEAT}}` counts unless it sits in a character class or in a
-// negative lookaround (`(?!$)` asserts that the line goes on). So does a
-// line start followed by a negative lookahead, §11.1's indentation-block
-// end `(?=^(?!$|//|\1{{WS}}))`, which closes at the first line that does
-// not continue the block. The check
-// is otherwise textual: a `$` behind some other requirement still counts,
-// so the rule misses some ends that cannot close at a line end rather than
-// flag ones that can.
+// The check runs the resolved pattern against probe lines, so `[)]$`
+// (which needs the closer before the line end) and `(?!$)[)]` fail it
+// while `$|([)])` passes. Back-references, which refer to `begin:`
+// captures, are replaced by empty groups for the probe. A pattern that
+// does not compile as a JavaScript regex falls back to a textual check: a
+// `$` or `{{BEAT}}` outside a character class and outside a negative
+// lookaround, or a `^` followed by a negative lookahead, counts.
 
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { findPair, isScalar, isSequence } from "../utils/yaml-ast.ts";
@@ -21,15 +22,32 @@ import { regexGroups, scanRegex } from "../utils/regex-scan.ts";
 
 const TOKEN = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
-// Substitutes every variable except `BEAT`, which stays as a literal token
-// for the check. Undefined names and cycles stay as tokens.
-function resolveExceptBeat(
+// Places where an end with a bail-out matches without any closer: the end
+// of a line, the start of an unindented line, and the start of a beat
+// line. Line text is a character no closer uses. A beat probe counts only
+// when the same pattern fails on its control line, a longer word that is
+// no beat keyword, so an end that matches the keyword's first letters is
+// not taken for a beat bail-out.
+const LINE_PROBES: [text: string, at: number][] = [
+  ["░░\n░░", 2],
+  ["░░", 2],
+  ["░░\n░░", 3],
+];
+const BEAT_PROBES: [beat: string, control: string][] = [
+  ["░\nscene ░\n", "░\nscenery ░\n"],
+  ["░\nbranch ░\n", "░\nbranching ░\n"],
+];
+
+// Substitutes variables (all of them, or all but `BEAT`, which then stays
+// as a literal token). Undefined names and cycles stay as tokens.
+function resolveVariables(
   index: GrammarIndex,
   source: string,
+  keepBeat: boolean,
   seen: Set<string> = new Set(),
 ): string {
   return source.replace(TOKEN, (whole, name: string) => {
-    if (name === "BEAT" || seen.has(name)) return whole;
+    if ((keepBeat && name === "BEAT") || seen.has(name)) return whole;
     const value = index.variables.get(name)?.value ?? null;
     let raw: string | null = null;
     if (isScalar(value) && typeof value.value === "string") raw = value.value;
@@ -39,12 +57,35 @@ function resolveExceptBeat(
         .join("|")})\\b`;
     }
     if (raw === null) return whole;
-    return resolveExceptBeat(index, raw, new Set([...seen, name]));
+    return resolveVariables(index, raw, keepBeat, new Set([...seen, name]));
   });
 }
 
 export function hasBailOut(index: GrammarIndex, end: string): boolean {
-  const resolved = resolveExceptBeat(index, end);
+  let probe: RegExp | null = null;
+  try {
+    const source = resolveVariables(index, end, false).replace(/\\[1-9]/g, "(?:)");
+    probe = new RegExp(source, "muy");
+  } catch {
+    probe = null;
+  }
+  if (probe) {
+    const matchesAt = (text: string, at: number): boolean => {
+      probe!.lastIndex = at;
+      return probe!.test(text);
+    };
+    return (
+      LINE_PROBES.some(([text, at]) => matchesAt(text, at)) ||
+      BEAT_PROBES.some(
+        ([beat, control]) => matchesAt(beat, 2) && !matchesAt(control, 2),
+      )
+    );
+  }
+  return hasTextualBailOut(index, end);
+}
+
+function hasTextualBailOut(index: GrammarIndex, end: string): boolean {
+  const resolved = resolveVariables(index, end, true);
   // A boundary inside a negative lookaround asserts its absence, as in
   // `(?!$)`, so it is no bail-out.
   const negated = regexGroups(resolved).filter(
@@ -76,7 +117,7 @@ const { rule, find } = defineBaselinedRule(
         "Require a `{{BEAT}}` or `$` bail-out in every `begin`/`end` rule's `end:` pattern.",
     },
     messages: {
-      noBailOut: `\`end:\` of {{name}} has neither \`{{BEAT}}\` nor \`$\`, so a missing closer lets the rule run on past the line, to the end of the document. Add \`(?={{BEAT}})|\` or a line-end alternative. See GRAMMAR.md §3.1, §18.${BASELINE_NOTE}`,
+      noBailOut: `\`end:\` of {{name}} matches only after its closer, with no \`{{BEAT}}\` or line-end alternative, so a missing closer lets the rule run on to the end of the document. Add \`(?={{BEAT}})|\` or a \`$\` alternative. See GRAMMAR.md §3.1, §18.${BASELINE_NOTE}`,
     },
   },
   (context) => {

@@ -20,7 +20,7 @@ C:
     messages.map(([line]) => line),
     [4, 6],
   );
-  assert.match(String(messages[0]![1]), /appears verbatim in 2 patterns \(also B\.begin\)/);
+  assert.match(String(messages[0]![1]), /is written verbatim 2 times \(also in B\.begin\)/);
   const once = grammar({
     repository: `A:
   match: x(?:alpha|beta|gamma)`,
@@ -64,4 +64,12 @@ test("array variable entries count as patterns", () => {
     lint(source).map(([line]) => line),
     [2, 6],
   );
+});
+
+test("a long group written twice in one pattern fails", () => {
+  const messages = lint(
+    grammar({ repository: "A:\n  match: (?:alpha|beta)(?:alpha|beta)" }),
+  );
+  assert.equal(messages.length, 2);
+  assert.match(String(messages[0]![1]), /2 times \(all in this pattern\)/);
 });
