@@ -150,6 +150,34 @@ test("the grammar's own BEAT is probed as written", () => {
   assert.deepEqual(names, ["ProbeExcludesEveryBeat"]);
 });
 
+test("an impossible BEAT branch cannot borrow a match from a closer", () => {
+  const source = grammar({
+    variables: "BEAT: (?:^scene[ ])",
+    repository: String.raw`SelfContradicting:
+  begin: "[(]"
+  end: (?={{BEAT}})(?!{{BEAT}})|(scene)
+ExcludesKeywords:
+  begin: "[(]"
+  end: (?={{BEAT}})(?!scene\b|branch\b)|(scene)
+GroupedBeat:
+  begin: "[(]"
+  end: (?:(?={{BEAT}})|([a-z]+))`,
+  });
+  assert.deepEqual(lines(source), [7, 10]);
+});
+
+test("a closer class that matches some line text is no bail-out", () => {
+  const source = grammar({
+    repository: String.raw`SymbolCloser:
+  begin: "[(]"
+  end: ([^\w\s])
+AnyNonSpace:
+  begin: "[(]"
+  end: (?=\S)`,
+  });
+  assert.deepEqual(lines(source), [5]);
+});
+
 test("each newline form counts as a line end", () => {
   const source = grammar({
     repository: String.raw`CrLf:

@@ -7,19 +7,25 @@
 // start of the next unindented line (§11.1's indentation-block end
 // `(?=^(?!$|//|\1{{WS}}))`).
 //
-// The check runs the resolved pattern as a sticky regex against probe
-// text made of a filler character no closer uses, so `[)]$` (which needs
-// the closer before the line end) and `(?!$)[)]` fail it while `$|([)])`
-// passes. The probes put line ends in all three forms (`\n`, `\r\n`,
-// `\r`). `{{BEAT}}` keeps its real definition, so assertions around it
-// (`\b{{BEAT}}`, `(?={{BEAT}})(?!scene)`) behave as they do at runtime,
-// and the beat probes are real `scene` / `branch` lines. A beat probe
-// counts only for a pattern that names `{{BEAT}}` outside any negative
-// lookaround, so a closer that merely spells a beat keyword, such as
-// `(scene)`, is not taken for a bail-out. A back-reference stands for a `begin:` capture this
-// check cannot see, so it is replaced by a sentinel no probe holds:
-// `(\1)` needs its delimiter, while `(?!\1{{WS}})` still holds where the
-// line does not repeat it. A pattern that does not compile as a
+// The check resolves the variables (`{{BEAT}}` to its real definition),
+// splits the pattern into its alternatives (unwrapping a group that holds
+// the whole of one), and runs each alternative on its own as a sticky
+// regex at probe positions. An alternative is a bail-out when:
+//
+// - it matches at a line boundary (a line end as `\n`, `\r\n`, `\r` or the
+//   end of the input, or the start of an unindented line) whatever text
+//   surrounds it: every filler in FILLERS must pass, so a closer class such
+//   as `[^\w\s]` that happens to match one filler is not a bail-out; or
+// - it matches at the start of a `scene` / `branch` line but not at the
+//   same text in the middle of a line, so the match depends on the beat's
+//   line start rather than on a closer that spells the keyword.
+//
+// Testing alternatives one at a time keeps an impossible BEAT branch,
+// `(?={{BEAT}})(?!{{BEAT}})`, from borrowing a match from an unrelated
+// closer such as `|(scene)`. A back-reference stands for a `begin:`
+// capture this check cannot see, so it is replaced by a sentinel no probe
+// holds: `(\1)` needs its delimiter, while `(?!\1{{WS}})` still holds
+// where the line does not repeat it. A pattern that does not compile as a
 // JavaScript regex falls back to a textual check: a `$` or `{{BEAT}}`
 // outside a character class and outside a negative lookaround, or a `^`
 // followed by a negative lookahead, counts.
@@ -27,29 +33,72 @@
 import { BASELINE_NOTE, defineBaselinedRule, type Finding } from "../utils/baseline.ts";
 import { findPair, isScalar, isSequence } from "../utils/yaml-ast.ts";
 import { getGrammarIndex, type GrammarIndex } from "../utils/grammar-index.ts";
-import { regexGroups, scanRegex } from "../utils/regex-scan.ts";
+import {
+  regexGroups,
+  scanRegex,
+  splitTopLevelAlternation,
+} from "../utils/regex-scan.ts";
 
 const TOKEN = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
-const FILL = "░";
 const BACKREFERENCE_SENTINEL = "(?:▓)";
 
-// Places where an end with a bail-out matches without any closer: the end
-// of a line (each newline form, and the end of the input) and the start
+// Line text around a probed boundary: a word character, a digit and a
+// symbol no closer in the grammar uses.
+const FILLERS = ["a", "7", "░"];
+
+// Line boundaries, as text built from a filler and the probed offset: the
+// end of a line in each newline form, the end of the input, and the start
 // of an unindented line.
-const LINE_PROBES: [text: string, at: number][] = [
-  [`${FILL}${FILL}\n${FILL}`, 2],
-  [`${FILL}${FILL}\r\n${FILL}`, 2],
-  [`${FILL}${FILL}\r${FILL}`, 2],
-  [`${FILL}${FILL}`, 2],
-  [`${FILL}\n${FILL}`, 2],
-  [`${FILL}\r\n${FILL}`, 3],
+const LINE_PROBES: ((f: string) => [text: string, at: number])[] = [
+  (f) => [`${f}${f}\n${f}`, 2],
+  (f) => [`${f}${f}\r\n${f}`, 2],
+  (f) => [`${f}${f}\r${f}`, 2],
+  (f) => [`${f}${f}`, 2],
+  (f) => [`${f}\n${f}`, 2],
+  (f) => [`${f}\r\n${f}`, 3],
 ];
-// The start of a beat line, for each beat keyword.
-const BEAT_PROBES: [text: string, at: number][] = [
-  [`${FILL}\nscene ${FILL}\n`, 2],
-  [`${FILL}\nbranch ${FILL}\n`, 2],
+
+// The start of a beat line, and the same text in the middle of a line.
+const BEAT_PROBES: [beat: string, control: string][] = [
+  ["░\nscene ░\n", "░░scene ░\n"],
+  ["░\nbranch ░\n", "░░branch ░\n"],
 ];
+
+// The alternatives of a regex source, splitting through any group that
+// spans a whole alternative.
+function alternativesOf(source: string): string[] {
+  const out: string[] = [];
+  for (const { text } of splitTopLevelAlternation(source)) {
+    const whole = regexGroups(text).find(
+      (g) =>
+        g.start === 0 &&
+        g.end === text.length - 1 &&
+        (g.kind === "non-capturing" || g.kind === "capture"),
+    );
+    if (whole && splitTopLevelAlternation(whole.body).length > 1) {
+      out.push(...alternativesOf(whole.body));
+    } else {
+      out.push(text);
+    }
+  }
+  return out;
+}
+
+function isBailOutAlternative(regex: RegExp): boolean {
+  const matchesAt = (text: string, at: number): boolean => {
+    regex.lastIndex = at;
+    return regex.test(text);
+  };
+  return (
+    LINE_PROBES.some((probe) =>
+      FILLERS.every((filler) => matchesAt(...probe(filler))),
+    ) ||
+    BEAT_PROBES.some(
+      ([beat, control]) => matchesAt(beat, 2) && !matchesAt(control, 2),
+    )
+  );
+}
 
 // Substitutes variables (all of them, or all but `BEAT`, which then stays
 // as a literal token). Undefined names and cycles stay as tokens.
@@ -75,30 +124,19 @@ function resolveVariables(
 }
 
 export function hasBailOut(index: GrammarIndex, end: string): boolean {
-  let probe: RegExp | null = null;
-  try {
-    const source = resolveVariables(index, end, false)
-      // Walk escapes pairwise so an escaped backslash before a digit
-      // is left alone.
-      .replace(/\\(?:[1-9]|k<[^>]*>|[^])/g, (escape) =>
-        /^\\(?:[1-9]|k<)/.test(escape) ? BACKREFERENCE_SENTINEL : escape,
-      );
-    probe = new RegExp(source, "muy");
-  } catch {
-    probe = null;
-  }
-  if (probe) {
-    const matches = ([text, at]: [string, number]): boolean => {
-      probe!.lastIndex = at;
-      return probe!.test(text);
-    };
-    return (
-      LINE_PROBES.some(matches) ||
-      (namesPositiveBeat(resolveVariables(index, end, true)) &&
-        BEAT_PROBES.some(matches))
+  const source = resolveVariables(index, end, false)
+    // Walk escapes pairwise so an escaped backslash before a digit is
+    // left alone.
+    .replace(/\\(?:[1-9]|k<[^>]*>|[^])/g, (escape) =>
+      /^\\(?:[1-9]|k<)/.test(escape) ? BACKREFERENCE_SENTINEL : escape,
     );
+  let alternatives: RegExp[];
+  try {
+    alternatives = alternativesOf(source).map((alt) => new RegExp(alt, "muy"));
+  } catch {
+    return hasTextualBailOut(index, end);
   }
-  return hasTextualBailOut(index, end);
+  return alternatives.some(isBailOutAlternative);
 }
 
 // Whether the offset sits outside every negative lookaround of `source`.
