@@ -50,6 +50,12 @@ const LINES: { line: string; key: string; style: unknown; typed: unknown }[] = [
   { line: "slash = red //note", key: "slash", style: "red //note", typed: "red //note" },
   { line: 'name = "a -- b"', key: "name", style: "a -- b", typed: "a -- b" },
   { line: 'label = "a -- b" -- note', key: "label", style: "a -- b", typed: "a -- b" },
+  { line: "count = 5 // note", key: "count", style: "5", typed: 5 },
+  { line: "tight = 5//note", key: "tight", style: "5", typed: 5 },
+  // A quoted run inside a longer value is read whole, so a marker in it is
+  // not a comment.
+  { line: 'font = "a -- b", serif -- note', key: "font", style: '"a -- b", serif', typed: '"a -- b", serif' },
+  { line: 'family = "a // b", serif // note', key: "family", style: '"a // b", serif', typed: '"a // b", serif' },
 ];
 
 const body = (indent: string) =>
@@ -113,19 +119,26 @@ describe("the value node stops before the comment", () => {
     ["fill = true -- note", "true"],
     ["color = red -- note", "red"],
     ['label = "a -- b" -- note', '"a -- b"'],
+    ['font = "a -- b", serif -- note', '"a -- b", serif'],
+    ["count = 5 // note", "5"],
+    ["color = red // note", "red"],
   ] as const) {
     test(line, () => {
       const source = `style card with\n  ${line}\nend\n`;
       const nodes = [...walk(parseSource(source).topNode)];
       const valueNode = nodes.find((n) => VALUE_NODES.has(n.name));
-      const comment = nodes.find((n) => n.name === "LuauLineComment");
+      const comment = nodes.find(
+        (n) =>
+          n.name === "LuauLineComment" ||
+          n.name === "LuauStructBlockValueComment",
+      );
       expect(valueNode && source.slice(valueNode.from, valueNode.to)).toBe(
         value,
       );
       // The comment is the value's sibling, never inside it.
       expect(comment!.from).toBeGreaterThanOrEqual(valueNode!.to);
       expect(source.slice(comment!.from, comment!.to).trim()).toMatch(
-        /^-- note$/,
+        /^(--|\/\/) note$/,
       );
     });
   }

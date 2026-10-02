@@ -58,13 +58,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   └─ StylingValue [34..37]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 34
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 34
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [34..37]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 34
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [34..37]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [34..37]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [34..37]
  │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [34..37]: "red"
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 37
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 37
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 37
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 37
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 37
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 37
  │   │   │   │       │       │   ├─ LuauStructBlockEntryComma [37..38]: ","
  │   │   │   │       │       │   ├─ Whitespace [38..39]: " "
@@ -87,13 +88,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   └─ StylingValue [51..55]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 51
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 51
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [51..55]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 51
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [51..55]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [51..55]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [51..55]
  │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [51..55]: "blue"
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 55
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 55
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 55
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 55
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 55
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 55
  │   │   │   │       │       │   └─ Whitespace [55..56]: " "
  │   │   │   │       │       └─ LuauStructBlockBody_end [56..57]
@@ -126,13 +128,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   └─ StylingValue [68..69]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 68
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 68
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [68..69]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 68
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [68..69]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [68..69]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [68..69]
  │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [68..69]: "a"
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 69
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 69
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 69
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 69
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 69
  │   │   │   │       │       │   │   └─ LuauStructListValue_c2 69
  │   │   │   │       │       │   ├─ LuauStructBlockEntryComma [69..70]: ","
  │   │   │   │       │       │   ├─ Whitespace [70..71]: " "
@@ -141,13 +144,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   └─ StylingValue [71..72]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 71
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 71
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [71..72]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 71
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [71..72]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [71..72]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [71..72]
  │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [71..72]: "b"
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 72
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 72
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 72
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 72
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 72
  │   │   │   │       │       │   │   └─ LuauStructListValue_c2 72
  │   │   │   │       │       │   └─ Whitespace [72..73]: " "
  │   │   │   │       │       └─ LuauStructBlockBody_end [73..74]
@@ -234,13 +238,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │       │   │   │   └─ StylingValue [116..119]
  │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c1 116
  │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c2 116
- │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c3 [116..119]
+ │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c3 116
+ │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c4 [116..119]
  │   │   │   │       │       │   │   │       │   │   │       │   └─ StylingValueContent [116..119]
  │   │   │   │       │       │   │   │       │   │   │       │       └─ StylingValueContent_c1 [116..119]
  │   │   │   │       │       │   │   │       │   │   │       │           └─ StylingStringIdentifier [116..119]: "red"
- │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c4 119
  │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c5 119
- │   │   │   │       │       │   │   │       │   │   │       └─ StylingValue_c6 119
+ │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c6 119
+ │   │   │   │       │       │   │   │       │   │   │       └─ StylingValue_c7 119
  │   │   │   │       │       │   │   │       │   │   └─ LuauStructBlockProperty_c4 119
  │   │   │   │       │       │   │   │       │   └─ Whitespace [119..120]: " "
  │   │   │   │       │       │   │   │       └─ LuauStructBlockBody_end [120..121]
@@ -304,13 +309,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │       │   │   │   └─ StylingValue [154..158]
  │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c1 154
  │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c2 154
- │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c3 [154..158]
+ │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c3 154
+ │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c4 [154..158]
  │   │   │   │       │       │   │   │       │   │   │       │   └─ StylingValueContent [154..158]
  │   │   │   │       │       │   │   │       │   │   │       │       └─ StylingValueContent_c1 [154..158]
  │   │   │   │       │       │   │   │       │   │   │       │           └─ StylingStringIdentifier [154..158]: "blue"
- │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c4 158
  │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c5 158
- │   │   │   │       │       │   │   │       │   │   │       └─ StylingValue_c6 158
+ │   │   │   │       │       │   │   │       │   │   │       ├─ StylingValue_c6 158
+ │   │   │   │       │       │   │   │       │   │   │       └─ StylingValue_c7 158
  │   │   │   │       │       │   │   │       │   │   └─ LuauStructBlockProperty_c4 158
  │   │   │   │       │       │   │   │       │   └─ Whitespace [158..159]: " "
  │   │   │   │       │       │   │   │       └─ LuauStructBlockBody_end [159..160]
@@ -354,13 +360,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   └─ StylingValue [192..195]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 192
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 192
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [192..195]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 192
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [192..195]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [192..195]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [192..195]
  │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [192..195]: "red"
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 195
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 195
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 195
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 195
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 195
  │   │   │   │       │       │   │   └─ LuauStructListValue_c2 195
  │   │   │   │       │       │   ├─ Newline [195..196]: "\n"
  │   │   │   │       │       │   └─ Whitespace [196..198]: "  "
@@ -451,13 +458,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   │   │   └─ StylingValue [242..245]
  │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c1 242
  │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c2 242
- │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c3 [242..245]
+ │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c3 242
+ │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c4 [242..245]
  │   │   │   │       │       │   │   │   │   │       │   └─ StylingValueContent [242..245]
  │   │   │   │       │       │   │   │   │   │       │       └─ StylingValueContent_c1 [242..245]
  │   │   │   │       │       │   │   │   │   │       │           └─ StylingStringIdentifier [242..245]: "red"
- │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c4 245
  │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c5 245
- │   │   │   │       │       │   │   │   │   │       └─ StylingValue_c6 245
+ │   │   │   │       │       │   │   │   │   │       ├─ StylingValue_c6 245
+ │   │   │   │       │       │   │   │   │   │       └─ StylingValue_c7 245
  │   │   │   │       │       │   │   │   │   └─ LuauStructBlockProperty_c4 245
  │   │   │   │       │       │   │   │   └─ Whitespace [245..246]: " "
  │   │   │   │       │       │   │   └─ LuauStructListBlock_end [246..247]
@@ -569,7 +577,8 @@ sparkdown [0..673]
  │   │   │   │   │   │   └─ StylingValue [284..294]
  │   │   │   │   │   │       ├─ StylingValue_c1 284
  │   │   │   │   │   │       ├─ StylingValue_c2 284
- │   │   │   │   │   │       ├─ StylingValue_c3 [284..294]
+ │   │   │   │   │   │       ├─ StylingValue_c3 284
+ │   │   │   │   │   │       ├─ StylingValue_c4 [284..294]
  │   │   │   │   │   │       │   └─ StylingValueContent [284..294]
  │   │   │   │   │   │       │       └─ StylingValueContent_c1 [284..294]
  │   │   │   │   │   │       │           └─ StylingFunction [284..294]
@@ -596,9 +605,9 @@ sparkdown [0..673]
  │   │   │   │   │   │       │               │           ├─ StylingFunctionParameters_end_c1 294
  │   │   │   │   │   │       │               │           └─ StylingFunctionParameters_end_c2 294
  │   │   │   │   │   │       │               └─ StylingFunction_end 294
- │   │   │   │   │   │       ├─ StylingValue_c4 294
  │   │   │   │   │   │       ├─ StylingValue_c5 294
- │   │   │   │   │   │       └─ StylingValue_c6 294
+ │   │   │   │   │   │       ├─ StylingValue_c6 294
+ │   │   │   │   │   │       └─ StylingValue_c7 294
  │   │   │   │   │   └─ LuauStructBlockProperty_c4 294
  │   │   │   │   ├─ Whitespace [294..295]: " "
  │   │   │   │   └─ LuauStructStrayBlockClose [295..296]: "}"
@@ -625,7 +634,8 @@ sparkdown [0..673]
  │   │   │   │   │   │   └─ StylingValue [306..324]
  │   │   │   │   │   │       ├─ StylingValue_c1 306
  │   │   │   │   │   │       ├─ StylingValue_c2 306
- │   │   │   │   │   │       ├─ StylingValue_c3 [306..324]
+ │   │   │   │   │   │       ├─ StylingValue_c3 306
+ │   │   │   │   │   │       ├─ StylingValue_c4 [306..324]
  │   │   │   │   │   │       │   └─ StylingValueContent [306..324]
  │   │   │   │   │   │       │       └─ StylingValueContent_c1 [306..324]
  │   │   │   │   │   │       │           ├─ StylingStringIdentifier [306..310]: "http"
@@ -644,9 +654,9 @@ sparkdown [0..673]
  │   │   │   │   │   │       │               │           └─ NamespaceAccessor_c3 [321..324]
  │   │   │   │   │   │       │               │               └─ VariableName [321..324]: "com"
  │   │   │   │   │   │       │               └─ StylingAccessPath_end 324
- │   │   │   │   │   │       ├─ StylingValue_c4 324
  │   │   │   │   │   │       ├─ StylingValue_c5 324
- │   │   │   │   │   │       └─ StylingValue_c6 324
+ │   │   │   │   │   │       ├─ StylingValue_c6 324
+ │   │   │   │   │   │       └─ StylingValue_c7 324
  │   │   │   │   │   └─ LuauStructBlockProperty_c4 324
  │   │   │   │   ├─ Whitespace [324..325]: " "
  │   │   │   │   └─ LuauStructStrayBlockClose [325..326]: "}"
@@ -675,13 +685,14 @@ sparkdown [0..673]
  │   │   │   │   │   │   └─ StylingValue [333..342]
  │   │   │   │   │   │       ├─ StylingValue_c1 333
  │   │   │   │   │   │       ├─ StylingValue_c2 333
- │   │   │   │   │   │       ├─ StylingValue_c3 [333..342]
+ │   │   │   │   │   │       ├─ StylingValue_c3 333
+ │   │   │   │   │   │       ├─ StylingValue_c4 [333..342]
  │   │   │   │   │   │       │   └─ StylingValueContent [333..342]
  │   │   │   │   │   │       │       └─ StylingValueContent_c1 [333..342]
  │   │   │   │   │   │       │           └─ StylingStringIdentifier [333..342]: "blue--gap"
- │   │   │   │   │   │       ├─ StylingValue_c4 342
  │   │   │   │   │   │       ├─ StylingValue_c5 342
- │   │   │   │   │   │       └─ StylingValue_c6 342
+ │   │   │   │   │   │       ├─ StylingValue_c6 342
+ │   │   │   │   │   │       └─ StylingValue_c7 342
  │   │   │   │   │   └─ LuauStructBlockProperty_c4 342
  │   │   │   │   ├─ Whitespace [342..343]: " "
  │   │   │   │   └─ LuauStructStrayBlockClose [343..344]: "}"
@@ -951,7 +962,8 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   └─ StylingValue [543..559]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 543
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 543
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [543..559]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 543
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [543..559]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [543..559]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [543..559]
  │   │   │   │       │       │   │   │       │           ├─ StylingStringIdentifier [543..548]: "Arial"
@@ -965,9 +977,9 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │       │               ├─ LuauLineComment_content [552..559]
  │   │   │   │       │       │   │   │       │               │   └─ LuauLineCommentContent [552..559]: "display"
  │   │   │   │       │       │   │   │       │               └─ LuauLineComment_end 559
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 559
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 559
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 559
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 559
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 559
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 559
  │   │   │   │       │       │   ├─ Newline [559..560]: "\n"
  │   │   │   │       │       │   └─ Whitespace [560..562]: "  "
@@ -1019,13 +1031,14 @@ sparkdown [0..673]
  │   │   │   │       │       │   │   │   └─ StylingValue [614..617]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 614
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 614
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [614..617]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 614
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [614..617]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [614..617]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [614..617]
  │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [614..617]: "red"
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 617
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 617
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 617
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 617
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 617
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 617
  │   │   │   │       │       │   ├─ Newline [617..618]: "\n"
  │   │   │   │       │       │   ├─ Whitespace [618..622]: "    "
@@ -1137,7 +1150,8 @@ sparkdown [0..673]
  │   │   │   │                       ├─ StylingValue_c3 668
  │   │   │   │                       ├─ StylingValue_c4 668
  │   │   │   │                       ├─ StylingValue_c5 668
- │   │   │   │                       └─ StylingValue_c6 668
+ │   │   │   │                       ├─ StylingValue_c6 668
+ │   │   │   │                       └─ StylingValue_c7 668
  │   │   │   └─ LuauStructBodyLine_c3 668
  │   │   │       └─ LuauStructBodyLine_c3 668
  │   │   │           └─ OptionalWhitespace 668

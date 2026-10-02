@@ -255,13 +255,14 @@ sparkdown [0..326]
  │   │   │   │       │       │   │   │   └─ StylingValue [169..180]
  │   │   │   │       │       │   │   │       ├─ StylingValue_c1 169
  │   │   │   │       │       │   │   │       ├─ StylingValue_c2 169
- │   │   │   │       │       │   │   │       ├─ StylingValue_c3 [169..180]
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 169
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [169..180]
  │   │   │   │       │       │   │   │       │   └─ StylingValueContent [169..180]
  │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [169..180]
  │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [169..180]: "ease-in-out"
- │   │   │   │       │       │   │   │       ├─ StylingValue_c4 180
  │   │   │   │       │       │   │   │       ├─ StylingValue_c5 180
- │   │   │   │       │       │   │   │       └─ StylingValue_c6 180
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 180
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 180
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 180
  │   │   │   │       │       │   ├─ LuauStructBlockTrailingComma [180..181]: ","
  │   │   │   │       │       │   ├─ Newline [181..182]: "\n"

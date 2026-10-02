@@ -86,15 +86,16 @@ sparkdown [0..114]
  │   │   │   │                   └─ StylingValue [52..56]
  │   │   │   │                       ├─ StylingValue_c1 52
  │   │   │   │                       ├─ StylingValue_c2 52
- │   │   │   │                       ├─ StylingValue_c3 [52..56]
+ │   │   │   │                       ├─ StylingValue_c3 52
+ │   │   │   │                       ├─ StylingValue_c4 [52..56]
  │   │   │   │                       │   └─ StylingValueContent [52..56]
  │   │   │   │                       │       └─ StylingValueContent_c1 [52..56]
  │   │   │   │                       │           └─ UnitValue [52..56]
  │   │   │   │                       │               ├─ UnitValue_c1 [52..55]: "100"
  │   │   │   │                       │               └─ UnitValue_c2 [55..56]: "%"
- │   │   │   │                       ├─ StylingValue_c4 56
  │   │   │   │                       ├─ StylingValue_c5 56
- │   │   │   │                       └─ StylingValue_c6 56
+ │   │   │   │                       ├─ StylingValue_c6 56
+ │   │   │   │                       └─ StylingValue_c7 56
  │   │   │   └─ LuauStructBodyLine_c3 56
  │   │   │       └─ LuauStructBodyLine_c3 56
  │   │   │           └─ OptionalWhitespace 56
@@ -162,14 +163,15 @@ sparkdown [0..114]
  │   │   │   │                   └─ StylingValue [102..109]
  │   │   │   │                       ├─ StylingValue_c1 102
  │   │   │   │                       ├─ StylingValue_c2 102
- │   │   │   │                       ├─ StylingValue_c3 [102..109]
+ │   │   │   │                       ├─ StylingValue_c3 102
+ │   │   │   │                       ├─ StylingValue_c4 [102..109]
  │   │   │   │                       │   └─ StylingValueContent [102..109]
  │   │   │   │                       │       └─ StylingValueContent_c1 [102..109]
  │   │   │   │                       │           └─ Color [102..109]
  │   │   │   │                       │               └─ HEXColor [102..109]: "#E5323E"
- │   │   │   │                       ├─ StylingValue_c4 109
  │   │   │   │                       ├─ StylingValue_c5 109
- │   │   │   │                       └─ StylingValue_c6 109
+ │   │   │   │                       ├─ StylingValue_c6 109
+ │   │   │   │                       └─ StylingValue_c7 109
  │   │   │   └─ LuauStructBodyLine_c3 109
  │   │   │       └─ LuauStructBodyLine_c3 109
  │   │   │           └─ OptionalWhitespace 109
