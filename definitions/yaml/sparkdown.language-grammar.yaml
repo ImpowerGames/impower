@@ -4981,7 +4981,6 @@ repository:
 
   SelectorOperator:
     tag: keyword
-    name: keyword.other.selector.operator.sd
     match: ([>]|[+]|[~]|[*]|[&]|[\^])
 
   RecursiveSelectorFunction:
