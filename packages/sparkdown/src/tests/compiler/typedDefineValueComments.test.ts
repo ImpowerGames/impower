@@ -46,6 +46,7 @@ describe("a trailing comment does not change a typed field's value", () => {
   for (const [label, marker] of [
     ["no comment (control)", ""],
     ["`--`", " -- note"],
+    ["`--` without a space", "-- note"],
   ] as const) {
     test(label, () => {
       const bird = robin(marker);

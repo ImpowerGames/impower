@@ -380,7 +380,8 @@ text.source.sparkdown [0..673]
  │   └─ meta.struct.body.luau [655..668]
  │       ├─ keyword.operator.expression.array.sd [655..656]: "-"
  │       ├─ markup.raw.whitespace.separator.sd [656..657]: " "
- │       ├─ constant.numeric.sd [657..658]: "2"
+ │       ├─ constant.numeric.sd [657..658]
+ │       │   └─ constant.numeric.sd [657..658]: "2"
  │       └─ comment.line.double-dash.luau [658..668]
  │           ├─ punctuation.whitespace.sd [658..659]: " "
  │           ├─ comment.luau [659..661]: "--"

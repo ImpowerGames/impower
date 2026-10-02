@@ -1,0 +1,18 @@
+style card with
+  delay = 5 -- note
+  gap = 5-- note
+  count = 5 // note
+  tight = 5//note
+  fill = true -- note
+  shown = false // note
+  color = red // note
+  tint = red -- a // b
+  slash = red //note
+  url = http://x.y/z
+  prop = var(--x) -- note
+  label = "a -- b" -- note
+  quoted = "a" // note
+  font = "a -- b", serif -- note
+  family = "a // b", serif // note
+  trail = red
+end

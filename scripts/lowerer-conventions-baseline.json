@@ -8,11 +8,10 @@
     "packages/sparkdown/src/compiler/lower/lowerers/lowerRun.ts": 5,
     "packages/sparkdown/src/compiler/lower/lowerers/lowerSparkleBody.ts": 9,
     "packages/sparkdown/src/compiler/lower/lowerers/lowerStructBody.ts": 12,
-    "packages/sparkdown/src/compiler/lower/lowerers/lowerStructBodyTyped.ts": 15,
+    "packages/sparkdown/src/compiler/lower/lowerers/lowerStructBodyTyped.ts": 6,
     "packages/sparkdown/src/compiler/lower/utils/lineContinuation.ts": 2,
     "packages/sparkdown/src/compiler/lower/utils/lowerTagContent.ts": 6,
     "packages/sparkdown/src/compiler/lower/utils/statementShape.ts": 1,
-    "packages/sparkdown/src/compiler/lower/utils/stripTrailingLineComment.ts": 1,
     "packages/sparkdown/src/compiler/lower/utils/validateAssignmentValue.ts": 18,
     "packages/sparkdown/src/compiler/lower/utils/validateBlockEnds.ts": 2,
     "packages/sparkdown/src/compiler/lower/utils/validateDefineStructure.ts": 3

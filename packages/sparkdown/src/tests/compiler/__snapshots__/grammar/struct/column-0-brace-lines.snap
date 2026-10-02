@@ -60,9 +60,16 @@ sparkdown [0..173]
  │   │   │   │       │       │   │   │               └─ OptionalSeparator [50..51]: " "
  │   │   │   │       │       │   │   ├─ LuauStructBlockProperty_c3 [51..59]
  │   │   │   │       │       │   │   │   └─ StylingValue [51..59]
- │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [51..59]
- │   │   │   │       │       │   │   │       │   └─ StylingStringIdentifier [51..59]: "slate_50"
- │   │   │   │       │       │   │   │       └─ StylingValue_c2 59
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 51
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 51
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 51
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [51..59]
+ │   │   │   │       │       │   │   │       │   └─ StylingValueContent [51..59]
+ │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [51..59]
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [51..59]: "slate_50"
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 59
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 59
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 59
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 59
  │   │   │   │       │       │   └─ Whitespace [59..60]: " "
  │   │   │   │       │       └─ LuauStructBlockBody_end [60..61]
@@ -106,9 +113,16 @@ sparkdown [0..173]
  │   │   │   │       │       │   │   │               └─ OptionalSeparator [77..78]: " "
  │   │   │   │       │       │   │   ├─ LuauStructBlockProperty_c3 [78..83]
  │   │   │   │       │       │   │   │   └─ StylingValue [78..83]
- │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [78..83]
- │   │   │   │       │       │   │   │       │   └─ StylingStringIdentifier [78..83]: "white"
- │   │   │   │       │       │   │   │       └─ StylingValue_c2 83
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 78
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 78
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 78
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 [78..83]
+ │   │   │   │       │       │   │   │       │   └─ StylingValueContent [78..83]
+ │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [78..83]
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [78..83]: "white"
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c5 83
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c6 83
+ │   │   │   │       │       │   │   │       └─ StylingValue_c7 83
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 83
  │   │   │   │       │       │   └─ Whitespace [83..84]: " "
  │   │   │   │       │       └─ LuauStructBlockBody_end [84..85]

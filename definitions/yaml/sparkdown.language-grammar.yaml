@@ -418,9 +418,8 @@ variables:
   # to the end of the line, and the value patterns below cannot backtrack into
   # it to end a value at a `;` or `}` it contains.
   STRUCT_BLOCK_QUOTED: (?:"(?:\\.|[^"\\\n])*(?:"|$))
-  # A comment inside a block starts where the indented form's value readers
-  # start one (`stripTrailingLineComment` and the typed reader's
-  # `*_WITH_COMMENT_RE`): `--` after whitespace, `//` after whitespace and
+  # A comment inside a block starts where one starts after an indented value
+  # (`StylingValue`): `--` after whitespace, `//` after whitespace and
   # before whitespace or the end of the line, and `--` after a value that is a
   # whole number, boolean or quoted string (`opacity = 1-- note`). Any other
   # `--` or `//` is text (`var(--gap)`, `&.card--large`, `http://example.com`).
@@ -447,14 +446,31 @@ variables:
   STRUCT_BLOCK_HEADER: (?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"=,\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\s{};"\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?(?<![\s,]))
   # Between a header and its `{`: whitespace and the optional `=`.
   STRUCT_BLOCK_ASSIGN: (?:{{WS}}*(?:[=]{{WS}}*)?)
-  # A whole number, boolean or quoted value, spelled as the typed reader's
-  # `NUMERIC_WITH_COMMENT_RE`, `BOOLEAN_WITH_COMMENT_RE` and
-  # `QUOTED_WITH_COMMENT_RE` spell it. After one, `--` begins a comment with
-  # no whitespace before it (those regexes), and so does `//` (the literal
-  # value rules, `NumericFieldValue` and its neighbours, end at `//`).
+  # A whole number, boolean or quoted value, spelled as `NumericFieldValue`,
+  # `BooleanFieldValue` and `StringFieldValue` spell it. After one, `--`
+  # or `//` begins a comment with no whitespace before it.
   STRUCT_BLOCK_LITERAL: (?:[-]?(?:\d*[.])?\d+|Infinity|NaN|true|false|"(?:\\.|[^"\\\n])*")
   STRUCT_BLOCK_AFTER_LITERAL_COMMENT: (?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))
   STRUCT_BLOCK_LITERAL_THEN_COMMENT: (?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})
+  # A struct value and the comment after it, for `StylingValue` and
+  # `UnquotedStringFieldValue`. Captures: 1 a literal, 2 and 3 the `--` or
+  # `//` comment after it (no whitespace needed), 4 any other value, 5 the
+  # `--` comment after that (whitespace needed, so `var(--x)` stays whole),
+  # 6 the `//` comment after that (whitespace on both sides, so
+  # `http://x.y/z` stays whole), 7 trailing whitespace. The literal branch is
+  # tried first and holds only when the rest of the line is a comment;
+  # otherwise the value is the shortest run of quoted strings
+  # (`STRUCT_BLOCK_QUOTED`, read whole, so `"a -- b", serif` keeps its
+  # quotes' contents) and other characters that the comment groups and the
+  # line's end leave.
+  _STRUCT_VALUE_THEN_COMMENT_: (?:{{_STRUCT_LITERAL_THEN_COMMENT_}}|{{_STRUCT_TEXT_THEN_COMMENT_}})({{WS}}*)$
+  _STRUCT_LITERAL_THEN_COMMENT_: ({{STRUCT_BLOCK_LITERAL}})(?:({{STRUCT_LITERAL_DASH_COMMENT}})|({{STRUCT_LITERAL_SLASH_COMMENT}}))?
+  _STRUCT_TEXT_THEN_COMMENT_: ({{STRUCT_VALUE_TEXT_PART}}+?)(?:({{STRUCT_TEXT_DASH_COMMENT}})|({{STRUCT_TEXT_SLASH_COMMENT}}))?
+  STRUCT_LITERAL_DASH_COMMENT: (?:{{WS}}*{{LUAU_COMMENT_START}}.*)
+  STRUCT_LITERAL_SLASH_COMMENT: (?:{{WS}}*[/][/].*)
+  STRUCT_VALUE_TEXT_PART: (?:{{STRUCT_BLOCK_QUOTED}}|[^"])
+  STRUCT_TEXT_DASH_COMMENT: (?:{{WS}}+{{LUAU_COMMENT_START}}.*)
+  STRUCT_TEXT_SLASH_COMMENT: (?:{{WS}}+[/][/](?:{{WS}}.*)?)
   # A property's key, and the key with its `=` and the whitespace around it.
   # It is spelled without `IDENTIFIER`'s closing `\b`, which the two engines
   # read differently after a non-ASCII letter (`名 = 2`); an `=` always
@@ -496,12 +512,12 @@ variables:
   # part of the value, and a quoted run or an attribute selector
   # (`STRUCT_BLOCK_BRACKET`) is read whole. A value that reaches a comment
   # takes the comment, to the end of the line, into its text, as an indented
-  # value does, so the value readers read the same text in both forms and
-  # strip the comment alike, and nothing in the comment is structure. A literal followed by `//` is the
-  # exception: it ends before the comment, which the property or list value
-  # reads as a `LuauStructBlockValueComment`, because the literal value rules
-  # (`NumericFieldValue` and its neighbours) tokenize a `//` comment
-  # differently in the two engines.
+  # value line does, so the value rules (`StylingValue`) end the value before
+  # the comment alike in both forms, and nothing in the comment is structure.
+  # A literal followed by `//` is the exception: it ends before the
+  # comment, which the property or list value reads as a
+  # `LuauStructBlockValueComment`, the node `StylingValue` gives a `//`
+  # comment after a literal.
   STRUCT_BLOCK_VALUE_END: (?:{{WS}}*(?:$|[;{}]|{{STRUCT_BLOCK_TRAILING_COMMA}}|{{STRUCT_BLOCK_COMMA_BEFORE_ENTRY}}))
   STRUCT_BLOCK_COMMENT_IN_VALUE: (?:{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}})
   STRUCT_BLOCK_VALUE: (?:{{STRUCT_BLOCK_LITERAL_THEN_LUAU_COMMENT}}|{{STRUCT_BLOCK_LITERAL_BEFORE_SLASH_COMMENT}}|{{STRUCT_BLOCK_VALUE_PART}}+?(?:(?={{STRUCT_BLOCK_VALUE_END}})|{{STRUCT_BLOCK_COMMENT_IN_VALUE_TO_LINE_END}}))
@@ -4422,23 +4438,55 @@ repository:
   # Pruned-resolved port of the pre-Luau colon-based grammar; only add
   # highlighting children -- LuauStructBodyContent stays the lowerer-read node.
 
+  # A struct value the literal rules alone do not take: an unquoted value, or a
+  # literal followed by a comment. The value ends where a trailing
+  # comment begins (`_STRUCT_VALUE_THEN_COMMENT_`), so the comment is the
+  # value node's sibling and the lowerers read the value node whole.
   StylingValue:
-    match: (.+)({{EOPL}})
+    match: "{{_STRUCT_VALUE_THEN_COMMENT_}}"
     captures:
       1:
         patterns:
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValue" }
+      2:
+        patterns:
+          - { include: "#LuauComment" }
+      3:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
+      4:
+        patterns:
+          - { include: "#StylingValueContent" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
+      6:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
+      7:
+        patterns:
+          - { include: "#EndOfLine" }
+
+  # The text of a `StylingValue` that is not a lone literal. A quoted run in it
+  # is read whole, as the value's boundary reads it, so a `--` inside the
+  # quotes is not colored as a comment.
+  StylingValueContent:
+    match: (.+)
+    captures:
+      1:
+        patterns:
+          - { include: "#InlinePropQuotedValue" }
           - { include: "#LuauComment" }
           - { include: "#StylingValuePart" }
           - { include: "#StylingStringIdentifier" }
           - { include: "#UnquotedChar" }
-      2:
-        patterns:
-          - { include: "#EndOfLine" }
 
   NumericFieldValue:
     tag: number
     name: constant.numeric.sd
-    match: ([-]?(?:\d*[.])?\d+|Infinity|NaN)({{EOPL}})
+    match: ([-]?(?:\d*[.])?\d+|Infinity|NaN)({{WS}}*)$
     captures:
       1:
         patterns:
@@ -4450,7 +4498,7 @@ repository:
   BooleanFieldValue:
     tag: bool
     name: constant.language.boolean.true.sd
-    match: (true|false)({{EOPL}})
+    match: (true|false)({{WS}}*)$
     captures:
       1:
         patterns:
@@ -4462,7 +4510,7 @@ repository:
   StringFieldValue:
     tag: string
     name: string.quoted.double.sd
-    match: (["])((?:\\.|[^"])*)(["])({{EOPL}})
+    match: (["])((?:\\.|[^"])*)(["])({{WS}}*)$
     captures:
       1:
         patterns:
@@ -4514,13 +4562,31 @@ repository:
         patterns:
           - { include: "#EndOfLine" }
 
+  # Bounded as `StylingValue` is; `UnquotedString` is the value node.
   UnquotedStringFieldValue:
-    match: (.+)({{EOPL}})
+    match: "{{_STRUCT_VALUE_THEN_COMMENT_}}"
     captures:
       1:
         patterns:
-          - { include: "#UnquotedString" }
+          - { include: "#NumericFieldValue" }
+          - { include: "#BooleanFieldValue" }
+          - { include: "#StringFieldValue" }
       2:
+        patterns:
+          - { include: "#LuauComment" }
+      3:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
+      4:
+        patterns:
+          - { include: "#UnquotedString" }
+      5:
+        patterns:
+          - { include: "#LuauComment" }
+      6:
+        patterns:
+          - { include: "#LuauStructBlockValueComment" }
+      7:
         patterns:
           - { include: "#EndOfLine" }
 
