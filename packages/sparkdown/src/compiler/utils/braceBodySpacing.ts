@@ -237,9 +237,10 @@ export function keepsSpaceBeforeClass(node: SyntaxNode): boolean {
   if (prev) return prev.name !== "LuauSparkleElementClass";
   // The first part: glued only right after the element's name, not after a
   // component call's arguments or the `}` of a closure. The element's
-  // `_begin` holds its name and then its call's arguments, empty without a
-  // call; reading the tree keeps every name the grammar takes (`café`,
-  // `custom-`), where a test of the character before would not.
+  // `_begin` holds its name first and then its call's arguments, which are
+  // empty without a call: the whitespace follows the name when the name ends
+  // where `_begin` does. Reading the tree keeps every name the grammar takes
+  // (`café`, `custom-`), where a test of the character before would not.
   const content = parts.parent;
   if (parts.prevSibling || content?.name !== "LuauSparkleElement_content") {
     return true;
@@ -248,6 +249,6 @@ export function keepsSpaceBeforeClass(node: SyntaxNode): boolean {
   if (begin?.name !== "LuauSparkleElement_begin" || begin.to !== node.from) {
     return true;
   }
-  const args = begin.lastChild;
-  return args?.name === "LuauSparkleElement_begin_c2" && args.to > args.from;
+  const name = begin.firstChild;
+  return !name || name.to !== begin.to;
 }
