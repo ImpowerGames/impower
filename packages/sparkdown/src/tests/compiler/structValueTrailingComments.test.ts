@@ -41,6 +41,7 @@ const LINES: { line: string; key: string; style: unknown; typed: unknown }[] = [
   { line: "delay = 5 -- note", key: "delay", style: "5", typed: 5 },
   { line: "gap = 5-- note", key: "gap", style: "5", typed: 5 },
   { line: "fill = true -- note", key: "fill", style: true, typed: true },
+  { line: "size = 5px -- note", key: "size", style: "5px", typed: "5px" },
   { line: "color = red // note", key: "color", style: "red", typed: "red" },
   { line: "tint = red -- a // b", key: "tint", style: "red", typed: "red" },
   { line: "url = http://x.y/z", key: "url", style: "http://x.y/z", typed: "http://x.y/z" },

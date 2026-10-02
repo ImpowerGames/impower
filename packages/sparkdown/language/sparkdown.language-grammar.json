@@ -327,7 +327,6 @@
     "ARRAY_ITEM_OPERATOR": "(?:[-](?:$|{{WS}}+))",
     "STRUCT_BLOCK_QUOTED": "(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))",
     "STRUCT_BLOCK_COMMENT_AFTER_WS": "(?:{{LUAU_COMMENT_START}}|[/][/](?={{WS}}|$))",
-    "STRUCT_VALUE_TEXT": "(?:(?!{{WS}}+{{STRUCT_BLOCK_COMMENT_AFTER_WS}}).)+",
     "STRUCT_BLOCK_WS_IN_TEXT": "(?:{{WS}}(?!{{WS}}*{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))",
     "STRUCT_BLOCK_SQUOTED": "(?:'(?:\\\\.|[^'\\\\\\n])*')",
     "STRUCT_BLOCK_BRACKET_BODY": "(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_SQUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}}|[^\\]\\s\"'{}])*",
@@ -338,6 +337,7 @@
     "STRUCT_BLOCK_LITERAL": "(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")",
     "STRUCT_BLOCK_AFTER_LITERAL_COMMENT": "(?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))",
     "STRUCT_BLOCK_LITERAL_THEN_COMMENT": "(?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})",
+    "_STRUCT_VALUE_THEN_COMMENT_": "(?:({{STRUCT_BLOCK_LITERAL}})({{WS}}*{{LUAU_COMMENT_START}}.*)?|(.+?)({{WS}}+{{LUAU_COMMENT_START}}.*)?)({{WS}}+[/][/](?:{{WS}}.*)?)?({{WS}}*)$",
     "STRUCT_BLOCK_PROPERTY_KEY": "(?:\\[[^\\]\\n]*\\]|[$]?(?:{{INTEGER}}|{{IDENTIFIER_START}}{{IDENTIFIER_END}}(?<![-])|{{QUOTED_STRING}}))",
     "STRUCT_BLOCK_PROPERTY_HEAD": "(?:{{STRUCT_BLOCK_PROPERTY_KEY}}{{ASSIGN_EQUAL_OPERATOR}})",
     "STRUCT_BLOCK_LITERAL_COMMENT_LINE": "(?:(?:{{STRUCT_BLOCK_PROPERTY_HEAD}}|[-]{{WS}}+){{STRUCT_BLOCK_LITERAL_THEN_COMMENT}})",
@@ -5873,7 +5873,7 @@
       "match": "([^\\n]*)"
     },
     "StylingValue": {
-      "match": "(?:((?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\"))(?=(?:(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/])))|((?:(?!(?:[^\\S\\n\\r])+(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))).)+))((?:[^\\S\\n\\r])*(?:[-][-]).*)?((?:[^\\S\\n\\r])*[/][/].*)?((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "match": "(?:((?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\"))((?:[^\\S\\n\\r])*(?:[-][-]).*)?|(.+?)((?:[^\\S\\n\\r])+(?:[-][-]).*)?)((?:[^\\S\\n\\r])+[/][/](?:(?:[^\\S\\n\\r]).*)?)?((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -5891,25 +5891,32 @@
         "2": {
           "patterns": [
             {
-              "include": "#StylingValueContent"
+              "include": "#LuauComment"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#LuauComment"
+              "include": "#StylingValueContent"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#LuauStructBlockValueComment"
+              "include": "#LuauComment"
             }
           ]
         },
         "5": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockValueComment"
+            }
+          ]
+        },
+        "6": {
           "patterns": [
             {
               "include": "#EndOfLine"
@@ -6071,7 +6078,7 @@
       }
     },
     "UnquotedStringFieldValue": {
-      "match": "(?:((?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\"))(?=(?:(?:[^\\S\\n\\r])*(?:(?:[-][-])|[/][/])))|((?:(?!(?:[^\\S\\n\\r])+(?:(?:[-][-])|[/][/](?=(?:[^\\S\\n\\r])|$))).)+))((?:[^\\S\\n\\r])*(?:[-][-]).*)?((?:[^\\S\\n\\r])*[/][/].*)?((?:$|(?:[^\\S\\n\\r])*$|(?:[^\\S\\n\\r])*[/][/].*$))",
+      "match": "(?:((?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\"))((?:[^\\S\\n\\r])*(?:[-][-]).*)?|(.+?)((?:[^\\S\\n\\r])+(?:[-][-]).*)?)((?:[^\\S\\n\\r])+[/][/](?:(?:[^\\S\\n\\r]).*)?)?((?:[^\\S\\n\\r])*)$",
       "captures": {
         "1": {
           "patterns": [
@@ -6089,25 +6096,32 @@
         "2": {
           "patterns": [
             {
-              "include": "#UnquotedString"
+              "include": "#LuauComment"
             }
           ]
         },
         "3": {
           "patterns": [
             {
-              "include": "#LuauComment"
+              "include": "#UnquotedString"
             }
           ]
         },
         "4": {
           "patterns": [
             {
-              "include": "#LuauStructBlockValueComment"
+              "include": "#LuauComment"
             }
           ]
         },
         "5": {
+          "patterns": [
+            {
+              "include": "#LuauStructBlockValueComment"
+            }
+          ]
+        },
+        "6": {
           "patterns": [
             {
               "include": "#EndOfLine"

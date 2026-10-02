@@ -1302,13 +1302,14 @@ sparkdown [0..2784]
  │   │       │       │       │   │   ├─ LuauStructBlockProperty_c3 [896..901]
  │   │       │       │       │   │   │   └─ StylingValue [896..901]
  │   │       │       │       │   │   │       ├─ StylingValue_c1 896
- │   │       │       │       │   │   │       ├─ StylingValue_c2 [896..901]
+ │   │       │       │       │   │   │       ├─ StylingValue_c2 896
+ │   │       │       │       │   │   │       ├─ StylingValue_c3 [896..901]
  │   │       │       │       │   │   │       │   └─ StylingValueContent [896..901]
  │   │       │       │       │   │   │       │       └─ StylingValueContent_c1 [896..901]
  │   │       │       │       │   │   │       │           └─ StylingStringIdentifier [896..901]: "white"
- │   │       │       │       │   │   │       ├─ StylingValue_c3 901
  │   │       │       │       │   │   │       ├─ StylingValue_c4 901
- │   │       │       │       │   │   │       └─ StylingValue_c5 901
+ │   │       │       │       │   │   │       ├─ StylingValue_c5 901
+ │   │       │       │       │   │   │       └─ StylingValue_c6 901
  │   │       │       │       │   │   └─ LuauStructBlockProperty_c4 901
  │   │       │       │       │   ├─ Newline [901..902]: "\n"
  │   │       │       │       │   ├─ Whitespace [902..906]: "    "
@@ -5044,7 +5045,8 @@ sparkdown [0..2784]
  │   │   │   │               └─ LuauStructScalarProperty_c4 [2713..2724]
  │   │   │   │                   └─ StylingValue [2713..2724]
  │   │   │   │                       ├─ StylingValue_c1 2713
- │   │   │   │                       ├─ StylingValue_c2 [2713..2724]
+ │   │   │   │                       ├─ StylingValue_c2 2713
+ │   │   │   │                       ├─ StylingValue_c3 [2713..2724]
  │   │   │   │                       │   └─ StylingValueContent [2713..2724]
  │   │   │   │                       │       └─ StylingValueContent_c1 [2713..2724]
  │   │   │   │                       │           ├─ StylingStringIdentifier [2713..2718]: "Hello"
@@ -5052,9 +5054,9 @@ sparkdown [0..2784]
  │   │   │   │                       │           ├─ UnquotedChar [2719..2720]: "{"
  │   │   │   │                       │           ├─ StylingStringIdentifier [2720..2723]: "who"
  │   │   │   │                       │           └─ UnquotedChar [2723..2724]: "}"
- │   │   │   │                       ├─ StylingValue_c3 2724
  │   │   │   │                       ├─ StylingValue_c4 2724
- │   │   │   │                       └─ StylingValue_c5 2724
+ │   │   │   │                       ├─ StylingValue_c5 2724
+ │   │   │   │                       └─ StylingValue_c6 2724
  │   │   │   └─ LuauStructBodyLine_c3 2724
  │   │   │       └─ LuauStructBodyLine_c3 2724
  │   │   │           └─ OptionalWhitespace 2724
@@ -5084,7 +5086,8 @@ sparkdown [0..2784]
  │   │   │   │               └─ LuauStructScalarProperty_c4 [2734..2742]
  │   │   │   │                   └─ StylingValue [2734..2742]
  │   │   │   │                       ├─ StylingValue_c1 2734
- │   │   │   │                       ├─ StylingValue_c2 [2734..2742]
+ │   │   │   │                       ├─ StylingValue_c2 2734
+ │   │   │   │                       ├─ StylingValue_c3 [2734..2742]
  │   │   │   │                       │   └─ StylingValueContent [2734..2742]
  │   │   │   │                       │       └─ StylingValueContent_c1 [2734..2742]
  │   │   │   │                       │           ├─ UnquotedChar [2734..2735]: "["
@@ -5095,9 +5098,9 @@ sparkdown [0..2784]
  │   │   │   │                       │           ├─ UnquotedChar [2739..2740]: "}"
  │   │   │   │                       │           ├─ UnquotedChar [2740..2741]: "]"
  │   │   │   │                       │           └─ UnquotedChar [2741..2742]: "]"
- │   │   │   │                       ├─ StylingValue_c3 2742
  │   │   │   │                       ├─ StylingValue_c4 2742
- │   │   │   │                       └─ StylingValue_c5 2742
+ │   │   │   │                       ├─ StylingValue_c5 2742
+ │   │   │   │                       └─ StylingValue_c6 2742
  │   │   │   └─ LuauStructBodyLine_c3 2742
  │   │   │       └─ LuauStructBodyLine_c3 2742
  │   │   │           └─ OptionalWhitespace 2742
@@ -5141,7 +5144,8 @@ sparkdown [0..2784]
  │   │   │   │               └─ LuauStructArrayItem_c3 [2758..2769]
  │   │   │   │                   └─ StylingValue [2758..2769]
  │   │   │   │                       ├─ StylingValue_c1 2758
- │   │   │   │                       ├─ StylingValue_c2 [2758..2769]
+ │   │   │   │                       ├─ StylingValue_c2 2758
+ │   │   │   │                       ├─ StylingValue_c3 [2758..2769]
  │   │   │   │                       │   └─ StylingValueContent [2758..2769]
  │   │   │   │                       │       └─ StylingValueContent_c1 [2758..2769]
  │   │   │   │                       │           ├─ StylingStringIdentifier [2758..2763]: "Hello"
@@ -5149,9 +5153,9 @@ sparkdown [0..2784]
  │   │   │   │                       │           ├─ UnquotedChar [2764..2765]: "{"
  │   │   │   │                       │           ├─ StylingStringIdentifier [2765..2768]: "who"
  │   │   │   │                       │           └─ UnquotedChar [2768..2769]: "}"
- │   │   │   │                       ├─ StylingValue_c3 2769
  │   │   │   │                       ├─ StylingValue_c4 2769
- │   │   │   │                       └─ StylingValue_c5 2769
+ │   │   │   │                       ├─ StylingValue_c5 2769
+ │   │   │   │                       └─ StylingValue_c6 2769
  │   │   │   └─ LuauStructBodyLine_c3 2769
  │   │   │       └─ LuauStructBodyLine_c3 2769
  │   │   │           └─ OptionalWhitespace 2769
@@ -5175,15 +5179,16 @@ sparkdown [0..2784]
  │   │   │   │               └─ LuauStructArrayItem_c3 [2776..2779]
  │   │   │   │                   └─ StylingValue [2776..2779]
  │   │   │   │                       ├─ StylingValue_c1 2776
- │   │   │   │                       ├─ StylingValue_c2 [2776..2779]
+ │   │   │   │                       ├─ StylingValue_c2 2776
+ │   │   │   │                       ├─ StylingValue_c3 [2776..2779]
  │   │   │   │                       │   └─ StylingValueContent [2776..2779]
  │   │   │   │                       │       └─ StylingValueContent_c1 [2776..2779]
  │   │   │   │                       │           ├─ UnquotedChar [2776..2777]: "{"
  │   │   │   │                       │           ├─ StylingStringIdentifier [2777..2778]: "a"
  │   │   │   │                       │           └─ UnquotedChar [2778..2779]: "}"
- │   │   │   │                       ├─ StylingValue_c3 2779
  │   │   │   │                       ├─ StylingValue_c4 2779
- │   │   │   │                       └─ StylingValue_c5 2779
+ │   │   │   │                       ├─ StylingValue_c5 2779
+ │   │   │   │                       └─ StylingValue_c6 2779
  │   │   │   └─ LuauStructBodyLine_c3 2779
  │   │   │       └─ LuauStructBodyLine_c3 2779
  │   │   │           └─ OptionalWhitespace 2779
