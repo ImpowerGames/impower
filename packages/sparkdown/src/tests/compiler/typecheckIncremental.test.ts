@@ -118,6 +118,27 @@ describe("incremental type checking", () => {
     expect(back.warm.warnings).toEqual([]);
   });
 
+  test("an edit inside narrative between two Luau statements reuses the scene, whose warnings move with its lines", () => {
+    // A unit is read in its own lines (#1286), so the scene's AST is the same
+    // however many story lines stand between its statements, and whatever
+    // they say.
+    const session = new Session(
+      BASE.replace("  & count = count + 1\n", "  & count = count + 1\n  Alpha stretches.\n").replace(
+        'local label: string = greet("Alpha")',
+        'local label: number = greet("Alpha")',
+      ),
+    );
+    const first = session.edit("  Alpha stretches.\n", "  Alpha stretches, then yawns.\n  Somebody knocks.\n");
+    expect(first.warm).toEqual(first.cold);
+    expect(first.warm.warnings).toEqual(["14:24-14:38 TypeMismatch: Expected this to be 'number', but got 'string'"]);
+    expect(first.stats).toEqual({ checked: 0, reused: 3 });
+
+    const back = session.edit("  Alpha stretches, then yawns.\n  Somebody knocks.\n", "  Nobody comes.\n");
+    expect(back.warm).toEqual(back.cold);
+    expect(back.warm.warnings).toEqual(["13:24-13:38 TypeMismatch: Expected this to be 'number', but got 'string'"]);
+    expect(back.stats).toEqual({ checked: 0, reused: 3 });
+  });
+
   test("an edit outside the Luau reuses every scope", () => {
     const session = new Session(BASE);
     const { warm, cold, stats } = session.edit("Alpha looks around.", "Alpha looks around, then leaves.\n  Beta waves.");

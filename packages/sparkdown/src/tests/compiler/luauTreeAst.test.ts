@@ -8,9 +8,10 @@
 // - for every Luau fixture `luauFixtures.ts` finds, except the inputs on
 //   which the two disagree about having a syntax error (#1284's list) and
 //   those on `KNOWN_STRUCTURAL_DISAGREEMENTS` below. A `.sd` fixture's units
-//   are compared with Luau's reading of the text the type checker extracts
-//   for each (`sparkdownUnits`), Sparkdown's own constructs printed as that
-//   text reads them (`luauCheckerView.ts`); a conformance file's `run`
+//   are compared with Luau's reading of the text the type checker extracted
+//   for each before it read the tree (`luauCheckerText.ts`), Sparkdown's own
+//   constructs printed as that text reads them (`luauCheckerView.ts`); a
+//   conformance file's `run`
 //   function with Luau's reading of the file itself. A unit in which either
 //   side finds a syntax error is compared on having one: the AST of a
 //   recovery is a side effect of how each reader recovers;
@@ -19,7 +20,7 @@
 //   indexing, method calls, tables, functions, `if` expressions,
 //   interpolated strings and the literals' spellings.
 // Every node's location must also equal the parser's, mapped to the
-// document by `documentPosition`, over statements in their one-line and
+// document by `textDocumentPosition`, over statements in their one-line and
 // multi-line forms. Sparkdown's own constructs have fixtures of their own.
 //
 // A disagreement that stops happening fails its test, so the fix for an
@@ -38,7 +39,7 @@ import {
   type AstVisitor,
 } from "../../compiler/typecheck/Ast";
 import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
-import { documentPosition, sparkdownUnits, type LuauUnit } from "../../compiler/typecheck/LuauDocumentChecker";
+import { checkerTextUnits, textDocumentPosition, type LuauTextUnit } from "./luauCheckerText";
 import { printAst } from "../../compiler/typecheck/printAst";
 import { readLuauExpression, readLuauRunFile, readLuauUnits, statementAt, type LuauAstUnit } from "../../compiler/typecheck/readLuauAst";
 import { runWrapperText } from "../../compiler/utils/runWrapper";
@@ -122,8 +123,8 @@ function fixtureDifferences(input: LuauInput): string[] {
     if (!run && units.prelude.errors.length === 0) return ["the tree has no `run` function"];
     return compareUnit("run", parsed.root.body[0] ?? parsed.root, parsed.errors.length, units.prelude, run ?? units.prelude.root, checkerView(input.text, "_G"));
   }
-  const extracted = sparkdownUnits(tree, input.text);
-  const theirs: LuauUnit[] = [extracted.prelude, ...extracted.flows];
+  const extracted = checkerTextUnits(tree, input.text);
+  const theirs: LuauTextUnit[] = [extracted.prelude, ...extracted.flows];
   const ours = [units.prelude, ...units.flows];
   if (theirs.length !== ours.length) return [`the type checker extracts ${theirs.length} units, the tree reads ${ours.length}`];
   return theirs.flatMap((unit, i) => {
@@ -193,9 +194,9 @@ function range(begin: { line: number; column?: number; character?: number }, end
 }
 
 /** Each node's document range from the tree, beside the parser's range mapped to the document, where they differ. */
-function locationDifferences(text: string, pick: (units: { prelude: LuauUnit; flows: LuauUnit[] }) => LuauUnit, pickOurs: (units: ReturnType<typeof readLuauUnits>) => LuauAstUnit): string[] {
+function locationDifferences(text: string, pick: (units: { prelude: LuauTextUnit; flows: LuauTextUnit[] }) => LuauTextUnit, pickOurs: (units: ReturnType<typeof readLuauUnits>) => LuauAstUnit): string[] {
   const tree = parseSource(text);
-  const unit = pick(sparkdownUnits(tree, text));
+  const unit = pick(checkerTextUnits(tree, text));
   const parsed = parseLuau(unit.text);
   const ours = pickOurs(readLuauUnits(tree, text));
   expect(parsed.errors).toEqual([]);
@@ -205,7 +206,7 @@ function locationDifferences(text: string, pick: (units: { prelude: LuauUnit; fl
   expect(mine.map((n) => n.kind)).toEqual(theirs.map((n) => n.kind));
   const lines = text.split("\n");
   return theirs.flatMap((node, i) => {
-    const expected = range(documentPosition(unit, node.location.begin), documentPosition(unit, node.location.end));
+    const expected = range(textDocumentPosition(unit, node.location.begin), textDocumentPosition(unit, node.location.end));
     const actual = range(mine[i]!.location.begin, mine[i]!.location.end);
     return expected === actual ? [] : [`${node.kind} on ${JSON.stringify(lines[node.location.begin.line] ?? "")}: Luau ${expected}, tree ${actual}`];
   });
@@ -494,12 +495,12 @@ describe("Unfinished and boundary input", () => {
   /** The prelude's errors as `line:character message`, from the tree, and from Luau's parser mapped to the document. */
   function preludeErrors(text: string): { tree: string[]; luau: string[] } {
     const tree = parseSource(text);
-    const unit = sparkdownUnits(tree, text).prelude;
+    const unit = checkerTextUnits(tree, text).prelude;
     const ours = readLuauUnits(tree, text).prelude;
     return {
       tree: ours.errors.map((e) => `${e.location.begin.line}:${e.location.begin.column} ${e.message}`),
       luau: parseLuau(unit.text).errors.map((e) => {
-        const at = documentPosition(unit, e.location.begin);
+        const at = textDocumentPosition(unit, e.location.begin);
         return `${at.line}:${at.character} ${e.message}`;
       }),
     };
@@ -518,13 +519,16 @@ describe("Unfinished and boundary input", () => {
     }
   });
 
-  test("a statement marked with & that ends a block ends it, as the statement it marks does", () => {
-    for (const text of ["function f()\n  & return 1\n  & x = 2\nend\n", "function f()\n  while true do\n    & break\n    & x = 2\n  end\nend\n"]) {
+  test("the statements after a return or break, marked with & or not, are read as its block's, where Luau's parser ends the block", () => {
+    // Sparkdown runs none of them, and the unreachable-code lint reports the first (#1286).
+    for (const text of [
+      "function f()\n  & return 1\n  & x = 2\nend\n",
+      "function f()\n  while true do\n    & break\n    & x = 2\n  end\nend\n",
+      "function f()\n  return 1\n  x = 2\nend\n",
+    ]) {
       const { tree, luau } = preludeErrors(text);
       expect(luau.length).toBeGreaterThan(0);
-      // The checker's text blanks the `&`, so Luau's error names the token after it, on the same line.
-      const shape = (errors: string[]) => errors.map((e) => `${e.split(":")[0]} ${e.replace(/^\S+ /, "").replace(/, got .*$/, "")}`);
-      expect(shape(tree)).toEqual(shape(luau));
+      expect(tree).toEqual([]);
     }
     expect(preludeErrors("function f()\n  & x = 2\n  & return 1\nend\n")).toEqual({ tree: [], luau: [] });
   });
@@ -544,7 +548,7 @@ describe("Unfinished and boundary input", () => {
   test("a flow whose only Luau is a branch's parameters keeps them, as the checker's unit does", () => {
     const text = "scene s(x)\n  branch b(y: Missing)\n  Hello.\n  end\nend\n";
     const tree = parseSource(text);
-    const extracted = sparkdownUnits(tree, text);
+    const extracted = checkerTextUnits(tree, text);
     const units = readLuauUnits(tree, text);
     expect(extracted.flows).toHaveLength(1);
     expect(units.flows).toHaveLength(1);

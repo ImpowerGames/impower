@@ -27,31 +27,16 @@ The warnings sparkdown gives for its own syntax (unknown Sparkle events and prop
 
 ## How the rules differ from Luau's
 
-The rules read the syntax tree the editor highlights with, which is not a Luau AST, and every rule is written to stay silent where the tree does not have the shape it expects. So each rule misses some cases Luau's linter catches, and should never report one that Luau's would not.
+The rules walk the Luau AST that `src/compiler/typecheck/readLuauAst.ts` reads from the syntax tree the editor highlights, the reading the type checker checks (see `TYPECHECK.md`), so a name is a local where Luau would bind it, as Luau's parser resolves it, and an expression has Luau's shape. Where they differ from Luau's linter:
 
-- A function missing its `end`, whether being typed or cut short by a parse error, is not checked by `LocalUnused`, `UnreachableCode` or `PlaceholderRead`: the tree ends it early, and the lines after the break are parsed as top-level code.
-- `LocalUnused` does not check locals outside functions. Top-level code is narrative with embedded logic, and a top-level local can be read from places the rule cannot scope.
-- `LocalUnused` counts a read in the declaration's own initializer as a read of the new local, so `local x = x + 1` with the new `x` never read is not reported. On one line the grammar can nest the statements that follow a declaration inside it, and starting the scope early keeps reads there from being missed.
-- `LocalUnused` does not report a name declared twice in one statement (`local a, a = ...`).
-- `ForRange` does not report a bound such as `#t ^ 2`. Luau reads it as `#(t ^ 2)`, a bare length, because `^` binds tighter than `#`, but the grammar places `^ 2` after the operand like any other arithmetic, and the rule treats arithmetic after `#t` as making the bound something other than a length.
-- `DuplicateCondition` does not compare an `if` expression used as an `if` statement's condition: the grammar reads the expression as running on through the statement's `then` and `elseif`s.
-- `PlaceholderRead` does not check reads outside functions (narrative logic lines, interpolations, Sparkle handlers), for the same reason `LocalUnused` does not check top-level locals.
+- `LocalUnused`, `UnreachableCode` and `PlaceholderRead` read the Luau functions a script defines (`function f()`, wherever it is written). A function with a block missing its `end`, whether being typed or cut short, is not checked: the reading takes a later `end` as that block's, so the function does not hold what the author wrote.
+- `LocalUnused` does not check locals outside functions. Top-level code is narrative with embedded logic, and a top-level local can be read from places the rule cannot scope (interpolated text, later narrative). `PlaceholderRead` does not check reads outside functions, for the same reason.
+- `LocalUnused` does not report a `const`, which declares a global constant in Sparkdown, not a local; a `store` declares a global too.
+- The grammar reads some names as Sparkdown's structural words (`style`, `layout`, `match`) even where the author meant a name (`setStyle(style)`, `if match then`), and the reading has no name there. `LocalUnused` counts such a word, after a local's declaration in its function, as a use of the local it names, so a use is never missed (#984).
+- Unlike Luau's parser, the reading does not end a block at a `return`, `break` or `continue`: Sparkdown reads the statements after one as its block's, and `UnreachableCode` reports the first of them.
+- `DuplicateCondition` and `ForRange` read every Luau `if` statement and expression, `and`/`or` chain and numeric `for` in a script, in functions or not, but not Sparkdown's narrative `if` blocks.
 
-Because the pass runs over whole scripts on every compile (a lint depends on lines far from the one it reports), it finds the constructs it checks from their keywords in the text rather than by walking the tree, and caches each script's result until the script changes. It takes about 3 ms on a 210 KB narrative script and 25 to 60 ms on 40 KB of dense Luau in a single function, where every name is resolved.
-
-## Names and scopes
-
-The rules about names read one model of them, in `src/compiler/lint/luauNames.ts`, rather than the tree.
-
-For each outermost function, the model lists every declaration (locals, parameters including a method's implicit `self`, loop variables and local functions, with the range each is visible in) and every occurrence of a name, marked as a read, a plain write (`x = ...`), a compound write (`x += ...`) or the name of a `function x()` statement that assigns a local. Each occurrence lists the declarations it can refer to: none for a global, one where the tree is certain, and two inside a `local` statement after its names, where the tree cannot tell the initializer (`local x = x + 1`, the outer `x`) from a statement the grammar nested there on one line (the new `x`). A `local` the grammar nested inside another statement (`local a = {} local b = a`, or `& local x = 5` in a function) is visible to the end of the nearest enclosing block. Since where its statement ends is uncertain, it hides no outer local of the same name, and `LocalUnused` does not report it. Inside a function, any occurrence the tree does not mark as a field, method, string or comment counts, so a use is never missed. A keyword token or a name in a type counts when it names a local: the grammar marks Sparkdown's structural words (`style`, `layout`, `match`) as keywords even where the author meant a name (`print(style)`), and a local named in a type annotation is used, as in Luau. A keyword or a name in a type that names no local is never a use: the compiler reads no variable for a structural word, so a global named `style`, `match` or `continue` has no uses in the model, and neither do `continue`, `type X = ...` and `store x = 1` as statements. A function missing its `end` has declarations up to the break and no occurrences.
-
-Across the program, `indexProgramNames` lists every global by name: its definitions (global functions, `store` and `const` declarations) and every use from any script, whether in a function, a narrative logic line (`& f()`), an interpolation (`{hp}`) or a Sparkle handler (`@click=f`). Outside functions only Luau variable, function and handler names count, since most of that text is prose; a structural word there (`{match}`, `{queue | A | B end}`, `& layout("x")`) is the keyword of its construct, and the compiler reads no variable for it. A top-level `local` of the same name is not told apart from the global. A global's uses outside functions are looked for only when asked for, one name at a time. The compiler keeps each script's facts with its lints until the script changes; a rule that looks at the whole program passes the cached facts of every script to `indexProgramNames`.
-
-`LocalUnused` reads the model, so four shapes are reported that a pass counting every occurrence of the name would miss, as Luau's linter reports them:
-- a `store` or `const` inside a function defines the global, so its name there is not a read of a local of the same name;
-- inside a method (`function t:m()`), `self` is the method's own parameter, not a local of that name outside it;
-- a write from a narrative logic line in a function (`& hp = 5`) is a write, not a read;
-- a nested redeclaration's name (`local a = {} local x = 3`) is a declaration, not a read of the outer `x`.
+The pass runs over whole scripts on every compile rather than inside the incremental annotators, since a lint depends on lines far from the one it reports, and the compiler caches each script's result until its syntax tree changes.
 
 ## Checking for false positives
 

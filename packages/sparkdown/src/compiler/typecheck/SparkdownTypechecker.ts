@@ -7,22 +7,21 @@
 // as a type. A flow also sees its file's prelude: the prelude's names and
 // type aliases, with the types the prelude's check gave them.
 //
-// A unit's result is cached under its document, its text, its mode and what
-// it can see: the program's names, and for a flow the check of its file's
-// prelude. An edit checks again only the units whose text changes, and every
-// flow of a file whose prelude's text changes, since a flow sees the prelude
-// only through that check. So a check that reuses results always gives what a
-// check from scratch gives.
+// A unit's result is cached under its document, its key (its tokens in its
+// own lines, see `LuauAstUnit.key`), its mode and what it can see: the
+// program's names, and for a flow the check of its file's prelude. An edit
+// checks again only the units whose key changes, and every flow of a file
+// whose prelude's key changes, since a flow sees the prelude only through
+// that check. So a check that reuses results always gives what a check from
+// scratch gives.
 
 import type { SyntaxNode, Tree } from "@lezer/common";
-import { RESERVED } from "../lint/luauNames";
 import { registerBuiltinGlobals } from "./BuiltinDefinitions";
 import { cloneTypeFun, TypeCloner } from "./Clone";
-import { describeTokenBefore, describeTokens, parseLuau } from "./DefinitionParser";
-import { errorToString, LuauTypeError, UnknownSymbolContext } from "./Error";
+import { errorToString, UnknownSymbolContext } from "./Error";
 import { Frontend } from "./Frontend";
 import { lintComments } from "./Linter";
-import { Location, type Position } from "./Location";
+import { Location } from "./Location";
 import {
   checkLuauUnit,
   documentPosition,
@@ -33,12 +32,11 @@ import {
   type LuauUnit,
   type LuauUnitCheck,
 } from "./LuauDocumentChecker";
-import { isCheckedLuau, NEUTRAL } from "./LuauUnitNodes";
 import { Mode } from "./Module";
 import { Scope } from "./Scope";
 import { follow, persist, TypeArena, TypeFun } from "./Type";
 
-/** A type warning, or a type Luau's parser cannot read, in document lines and characters. */
+/** A type warning, or a syntax error in Luau the grammar cannot see, in document lines and characters. */
 export interface TypecheckDiagnostic {
   start: { line: number; character: number };
   end: { line: number; character: number };
@@ -49,130 +47,11 @@ export interface TypecheckDiagnostic {
   unknownGlobal?: string;
   /** Whether this is a syntax error, which is an error rather than a warning. */
   syntax?: boolean;
-  /** Whether the syntax error is an expression's (see `EXPRESSION_ERROR`). */
-  expression?: boolean;
 }
 
-// The syntax errors of Luau's parser that the checker reports: a type that
-// is missing, or that cannot start with the token where one must stand
-// (`Expected type, got '='`), an annotation written with `::`
-// (`local x :: number`, `for i :: number`), which Luau words by where it
-// stands, and an annotation with no name before it (`local : number`,
-// `function f(:: number)`, `{ a: number, : string }`).
-// Sparkdown's grammar reads a type only far enough to find where it ends, so
-// it has no point at which it expected one; Luau's parser has one wherever a
-// type can stand, and names the token it found there.
-// So are an expression that is missing, or that cannot start with the token
-// where one must stand, wherever an expression can (`local y = 1 +` before
-// `local`, `f(1,)`, `local a, g = 1, function named() end`), a member access
-// with no name after its `.` or `:` (`t.a.`, `get():`, `function t.()`), and a statement that
-// is a value but not a call (`x + 1`, `function() end`), for the same reason:
-// the grammar reads
-// an expression only far enough to find where it ends (#1175).
-// Every other syntax error is Sparkdown's own validator's to report.
-const REPORTED_SYNTAX_ERROR = /^Expected type, got |, got '::'$|^Expected identifier when parsing (?:variable name|table field), got ':'$/;
-const EXPRESSION_ERROR =
-  /^Expected identifier(?: when parsing (?:expression|method name|field name))?, got |^Incomplete statement: expected assignment or a function call$|^Expected '\(' when parsing function, got |^Expected identifier when parsing function name, got '\('$|^Expected expression after ',' but got '\)' instead$|^Expected '\(', '\{' or <string> when parsing function call, got /;
-// An unfinished block comment is its own error wherever it stands, which the
-// validator reports.
-const UNFINISHED_COMMENT = /got unfinished comment$/;
-// A function value with a name (`function named() end` where a value stands).
-const FUNCTION_VALUE_NAME = /^Expected '\(' when parsing function, got /;
-// Sparkdown's own syntax where an expression stands, which a `.luau` file's
-// unit keeps as written: a statement's `&` mark and a divert's `->`.
-const SPARKDOWN_EXPRESSION_TOKEN = /got '(?:&|->)'$/;
-const MISSING_TYPE = /^Expected type, got /;
-// Luau's error for an annotation with no name before it, where a name must
-// stand.
-const MISSING_NAME = /^Expected identifier when parsing (?:variable name|table field), got /;
-
-// A `::` stands where an annotation's `:` does after a name that is not a
-// keyword, after a scope modifier with no name (`local :: number`), or after
-// the `)` of a function's parameters (`function f() :: number`), where Luau
-// reports no cast, with any comments between (`local x --[[c]] ::`). After
-// anything else it is an expression's error, such as an if expression's
-// `then` with no value before a cast, which is Sparkdown's own validator's to
-// report. Luau's lexer reads the token before it, as Luau's parser does.
-const NAME_TOKEN = /^'([A-Za-z_]\w*)'$/;
-const SCOPE_MODIFIERS = new Set(["local", "const", "store"]);
-
-// Syntax Sparkdown adds to Luau's, which Luau's parser rejects, is not
-// reported: the divert-target type (`function f(target: ->)`), which stands
-// where a type must begin, so Luau's error for it is this one, and a label
+// Syntax Sparkdown adds to Luau's, which the reading does not know: a label
 // (`::name::`), which the grammar names.
-const DIVERT_TARGET_TYPE = "Expected type, got '->'";
 const SPARKDOWN_SYNTAX = new Set(["LuauLabel"]);
-
-/**
- * The expression errors among a unit's parse errors that are mistakes of
- * their own: those the parser does not mark as following from an earlier
- * error through its recovery (`ParseError.follows`), so each mistake is
- * reported once, with Luau's first error for it.
- */
-function reportedExpressionErrors(parseErrors: readonly LuauTypeError[]): Set<LuauTypeError> {
-  const reported = new Set<LuauTypeError>();
-  for (const error of parseErrors) {
-    if (error.data.kind !== "SyntaxError" || error.data.follows) continue;
-    const message = error.data.message;
-    const isExpressionError = EXPRESSION_ERROR.test(message) && !UNFINISHED_COMMENT.test(message);
-    const atSparkdownSyntax = SPARKDOWN_EXPRESSION_TOKEN.test(message);
-    if (isExpressionError && !atSparkdownSyntax) reported.add(error);
-  }
-  return reported;
-}
-
-// The tokens that end a statement before them or begin one, and nothing else:
-// Luau's parser reads a statement from each of these keywords wherever it
-// stands, even where it was looking for an expression (`got 'local'`). The
-// compiler's merge of Sparkdown's errors with the checker's reads them
-// (`endsStatement`).
-const STATEMENT_TOKENS = new Set(["';'", "'local'", "'return'", "'break'", "'do'", "'while'", "'for'", "'repeat'", "'until'"]);
-// Luau's error for a `.` or `:` with no name after it (`parseIndexName`),
-// which reads a keyword on the same line as the missing name. Any other token
-// it leaves for the next statement.
-const INDEX_NAME_ERROR = /^Expected identifier(?: when parsing (?:method|field) name)?, got '/;
-
-/**
- * Whether Luau code holds a token that ends a statement or begins one
- * (`STATEMENT_TOKENS`). Code that begins at the token found on a `.`'s or
- * `:`'s line where its name is missing begins with the name the parser read
- * there when that token is a keyword.
- */
-export function endsStatement(code: string, atMissingName = false): boolean {
-  return describeTokens(code).some((token, i) => !(i === 0 && atMissingName && isKeyword(token)) && STATEMENT_TOKENS.has(token.description));
-}
-
-/** Whether Luau code holds a token, past comments. */
-export function holdsToken(code: string): boolean {
-  return describeTokens(code).length > 0;
-}
-
-/** Whether a token, in Luau's description, is a reserved word. */
-function isKeyword(token: { description: string } | undefined): boolean {
-  return token !== undefined && /^'[a-z]+'$/.test(token.description) && RESERVED.has(token.description.slice(1, -1));
-}
-
-/** Whether a Sparkdown or Luau error is one for a `.` or `:` with no name after it. */
-export function isMissingNameError(message: string): boolean {
-  return INDEX_NAME_ERROR.test(message);
-}
-
-// The keywords a value can end with.
-const VALUE_KEYWORDS = new Set(["'end'", "'nil'", "'true'", "'false'"]);
-const NAME_OR_NUMBER = /^'(?:[A-Za-z_]\w*|\.?\d.*)'$/;
-
-/** Whether a token, in Luau's description (`describeTokenBefore`), can end a value. */
-function endsValue(token: string | undefined): boolean {
-  if (token === undefined) return false;
-  if (VALUE_KEYWORDS.has(token)) return true;
-  if (RESERVED.has(token.slice(1, -1))) return false;
-  return NAME_OR_NUMBER.test(token) || /^'[)\]}]'$|^'\.\.\.'$/.test(token) || token.startsWith('"') || token.endsWith("`");
-}
-
-// A statement Luau reads wherever one can stand, which the checker writes at
-// the end of a unit's line that a story line follows (see `expressionErrors`).
-const STORY_LINE_BARRIER = " do end";
-const utf8Encoder = new TextEncoder();
 
 interface CachedUnit {
   check: LuauUnitCheck;
@@ -192,11 +71,13 @@ export class SparkdownTypechecker {
   private cache = new Map<string, CachedUnit>();
   private used = new Set<string>();
   private documentChecks = new Map<string, LuauUnitCheck[]>();
-  // The parse errors of units read with story line barriers, by their text.
-  private barrierParses = new Map<string, LuauTypeError[]>();
-  private usedBarrierParses = new Set<string>();
   private nextPreludeId = 0;
+  // Each `.luau` file's last text and the tree of its `run` wrapping (`luauFileUnit`).
+  private luauFileTrees = new Map<string, { text: string; tree: Tree }>();
   stats: TypecheckStats = { checked: 0, reused: 0 };
+
+  /** `parse` reads a document's text with Sparkdown's grammar, for a `.luau` file's text. */
+  constructor(private readonly parse?: (text: string) => Tree) {}
 
   /** Luau's builtin globals, loaded on first use. */
   get frontend(): Frontend {
@@ -215,7 +96,6 @@ export class SparkdownTypechecker {
    */
   beginCompile(programNames: Iterable<string>): void {
     this.used = new Set();
-    this.usedBarrierParses = new Set();
     this.documentChecks = new Map();
     this.stats = { checked: 0, reused: 0 };
     const globals = this.frontend.globals.globalScope;
@@ -240,52 +120,10 @@ export class SparkdownTypechecker {
   /** Ends a compile's checks, dropping the results no document used. */
   endCompile(): void {
     for (const key of [...this.cache.keys()]) if (!this.used.has(key)) this.cache.delete(key);
-    for (const key of [...this.barrierParses.keys()]) if (!this.usedBarrierParses.has(key)) this.barrierParses.delete(key);
+    for (const uri of [...this.luauFileTrees.keys()]) if (!this.documentChecks.has(uri)) this.luauFileTrees.delete(uri);
   }
 
-  /**
-   * The expression errors of a unit that the checker reports (see
-   * `reportedExpressionErrors`). In a narrative body a statement ends at its
-   * line, and the story lines after it are not in the unit, so Luau would
-   * read a statement left unfinished there on into the next Luau statement
-   * (`store a, b = 1,` before a line of story). The unit is then read again
-   * with a statement at the end of each of its `linesBeforeStory`: one
-   * written where a statement ends is no error, and one written where a
-   * statement is unfinished is an error there, which is Sparkdown's own
-   * validator's to report, so errors whose range reaches it are left out
-   * (`local x = t:m` before story is `got 'do'` from the receiver on).
-   */
-  private expressionErrors(unit: LuauUnit, linesBeforeStory: readonly number[], entry: CachedUnit): LuauTypeError[] {
-    if (!linesBeforeStory.length) return [...reportedExpressionErrors(entry.check.sourceModule.parseErrors)];
-    const lines = unit.text.split("\n");
-    // Where each barrier begins, in Luau's UTF-8 columns.
-    const barriers = new Map<number, number>();
-    for (const index of linesBeforeStory) {
-      barriers.set(index, utf8Encoder.encode(lines[index]!).length);
-      lines[index] += STORY_LINE_BARRIER;
-    }
-    const text = lines.join("\n");
-    this.usedBarrierParses.add(text);
-    let errors = this.barrierParses.get(text);
-    if (!errors) {
-      const name = entry.check.sourceModule.name;
-      errors = parseLuau(text).errors.map((e) => new LuauTypeError(e.location, { kind: "SyntaxError", message: e.message, ...(e.follows && { follows: e.follows }) }, name));
-      this.barrierParses.set(text, errors);
-    }
-    // Whether an error's range reaches a barrier: ends past one's start, or
-    // spans a line that holds one.
-    const reachesBarrier = (error: LuauTypeError) => {
-      const { begin, end } = error.location;
-      for (const [line, column] of barriers) {
-        if (line < begin.line || line > end.line) continue;
-        if (line < end.line || end.column > column || (begin.line === line && begin.column >= column)) return true;
-      }
-      return false;
-    };
-    return [...reportedExpressionErrors(errors)].filter((error) => !reachesBarrier(error));
-  }
-
-  /** Checks one document's Luau and returns its type warnings. */
+  /** Checks one document's Luau and returns its type warnings and the syntax errors it reports. */
   checkDocument(uri: string, text: string, tree: Tree, mode: Mode): TypecheckDiagnostic[] {
     if (!this.programScope) this.beginCompile([]);
     const program = this.programScope!;
@@ -310,14 +148,6 @@ export class SparkdownTypechecker {
       }
       return false;
     };
-    // Whether a `::` Luau reports at a position of a unit stands where an
-    // annotation's `:` does, from the token Luau's lexer reads before it.
-    const isAnnotationColon = (unit: LuauUnit, position: Position) => {
-      const before = describeTokenBefore(unit.text, position);
-      if (before === "')'") return true;
-      const word = before === undefined ? undefined : NAME_TOKEN.exec(before)?.[1];
-      return word !== undefined && (!RESERVED.has(word) || SCOPE_MODIFIERS.has(word));
-    };
     // A range that ends at the end of a unit, whose trailing line break is
     // not in its text, ends at the start of the next line, where Luau's
     // end-of-file range ends when the source ends with a line break.
@@ -326,100 +156,36 @@ export class SparkdownTypechecker {
       end: { line: number; character: number },
       atEnd: boolean,
     ) => {
+      // A range from where a type should stand to the token found on a later
+      // line (`local w:` before a line `local z = 1`) ends with the line the
+      // type is missing from, not at the token Luau's parser recovers with.
+      if (end.line > start.line + 1 || (end.line === start.line + 1 && end.character > 0)) {
+        return start.line + 1 < lineStartsOf().length ? { line: start.line + 1, character: 0 } : end;
+      }
       const after = end.line > start.line || (end.line === start.line && end.character > start.character);
       if (after && (!atEnd || end.character === 0)) return end;
       const line = after ? end.line : start.line;
       return line + 1 < lineStartsOf().length ? { line: line + 1, character: 0 } : after ? end : start;
     };
-    // Whether the grammar reads a document line as story rather than Luau: a
-    // unit leaves out Sparkdown's own constructs inside a Luau statement too
-    // (an alternator in a `return (…)`), which do not end it.
-    const isStoryLine = (line: number) => {
-      const start = lineStartsOf()[line] ?? text.length;
-      const lineText = text.slice(start, lineStartsOf()[line + 1] ?? text.length);
-      const indent = lineText.length - lineText.trimStart().length;
-      if (!lineText.trim()) return false;
-      for (let node: SyntaxNode | null = tree.resolveInner(start + indent, 1); node; node = node.parent) {
-        if (NEUTRAL.test(node.name)) continue;
-        return !node.name.startsWith("Luau");
-      }
-      return false;
-    };
-    // Whether the text before an error's token, where its expression is
-    // missing, stands in Luau that Sparkdown's validator reports errors in
-    // itself (`isCheckedLuau`), such as a `store` declaration, whose value
-    // the checker reads too. An error on a later line than the token before
-    // it, past comments, where that token ends a value (`store x = 0xZ`,
-    // then `2`), is a statement of its own's.
-    const read = (from: number, to: number) => text.slice(from, to);
-    const unitTokens = new Map<LuauUnit, ReturnType<typeof describeTokens>>();
-    const followsUncheckedLuau = (unit: LuauUnit, position: Position) => {
-      let tokens = unitTokens.get(unit);
-      if (!tokens) unitTokens.set(unit, (tokens = describeTokens(unit.text)));
-      const before = tokens
-        .filter((token) => token.begin.line < position.line || (token.begin.line === position.line && token.begin.column < position.column))
-        .at(-1);
-      if (before && before.end.line < position.line && endsValue(before.description)) return false;
-      let offset = offsetOf(documentPosition(unit, position));
-      while (offset > 0 && /\s/.test(text[offset - 1]!)) offset--;
-      return !isCheckedLuau(tree.resolveInner(offset, -1), read);
-    };
-    // The lines of a unit that a story line follows before its next line.
-    const linesBeforeStory = (unit: LuauUnit) => {
-      const kept = new Set(unit.lines);
-      const found: number[] = [];
-      for (let i = 0; i < unit.lines.length; i++) {
-        const from = unit.lines[i]!;
-        // After a prelude's last line comes the rest of the document; a
-        // flow's last line is its own `end`.
-        const to = i + 1 < unit.lines.length ? unit.lines[i + 1]! : unit.kind === "prelude" ? lineStartsOf().length : from;
-        for (let line = from + 1; line < to; line++) {
-          if (!kept.has(line) && isStoryLine(line)) {
-            found.push(i);
-            break;
-          }
-        }
-      }
-      return found;
-    };
     const report = (entry: CachedUnit, unit: LuauUnit) => {
       checks.push(entry.check);
-      // The tokens a syntax error has been reported at. Luau's parser can
-      // report a token again as it recovers (`Expected type, got '::'`, then
-      // `Expected ')' (to close '(' at column 11), got '::'`); each is
-      // reported once, with the first error, which begins first.
+      // The tokens a syntax error has been reported at, each once.
       const reportedTokens = new Set<string>();
-      // The syntax errors reported are the type errors among the unit's
-      // errors and its expression errors, in the order of where they begin.
-      const expressionErrors = this.expressionErrors(unit, linesBeforeStory(unit), entry);
-      const errors = [
-        ...entry.check.errors.filter((error) => error.data.kind !== "SyntaxError" || REPORTED_SYNTAX_ERROR.test(error.data.message)),
-        ...expressionErrors,
-      ].sort((a, b) => a.location.begin.line - b.location.begin.line || a.location.begin.column - b.location.begin.column);
-      for (const error of errors) {
-        if (error.data.kind === "SyntaxError") {
-          const message = error.data.message;
-          if (message === DIVERT_TARGET_TYPE) continue;
+      const parseErrors = entry.check.sourceModule.parseErrors;
+      for (const error of entry.check.errors) {
+        const parseError = parseErrors.indexOf(error);
+        if (parseError >= 0) {
+          // Syntax is the grammar's to report, but for a construct only
+          // Luau's reading finds malformed (`LuauSyntaxError.malformed`).
+          if (!entry.check.unit.errors[parseError]?.malformed) continue;
+          const message = error.data.kind === "SyntaxError" ? error.data.message : "";
           const start = documentPosition(unit, error.location.begin);
-          // A Luau file is Luau throughout.
-          if (unit.kind !== "file" && expressionErrors.includes(error) && followsUncheckedLuau(unit, error.location.begin)) continue;
-          // A function value's name comes right after `function`; after any
-          // other token the `(` is missing from a declaration's header, which
-          // Sparkdown allows (`function greet` with its body on the next
-          // line), when the unit could not write it in.
-          if (FUNCTION_VALUE_NAME.test(message) && describeTokenBefore(unit.text, error.location.begin) !== "'function'") continue;
           const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"));
-          // Every other reported error's range is the `::` alone. An
-          // expression's own error before a cast stays (`t.a. :: number`,
-          // `1 + :: number`): where Sparkdown's validator reports the same
-          // mistake (an if expression's arm), the compiler keeps its report.
-          const castError = !MISSING_TYPE.test(message) && !MISSING_NAME.test(message) && !expressionErrors.includes(error);
-          if (message.endsWith("got '::'") && castError && !isAnnotationColon(unit, error.location.begin)) continue;
-          // The error's range ends with the token Luau found.
+          // The error's range ends with the token the reading found.
           const token = `${end.line}:${end.character}`;
           if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
           reportedTokens.add(token);
-          diagnostics.push({ start, end, code: "SyntaxError", message, syntax: true, expression: expressionErrors.includes(error) });
+          diagnostics.push({ start, end, code: "SyntaxError", message, syntax: true });
           continue;
         }
         const diagnostic: TypecheckDiagnostic = {
@@ -435,7 +201,7 @@ export class SparkdownTypechecker {
       }
     };
 
-    const fileUnit = isLuauFile(uri) ? luauFileUnit(text) : runFileUnit(uri, text);
+    const fileUnit = isLuauFile(uri) ? this.luauFile(uri, text) : runFileUnit(uri, text, tree);
     if (fileUnit) {
       const entry = this.checkUnit(uri, fileUnit, mode, program.scope, program.key, false);
       report(entry, fileUnit);
@@ -452,16 +218,7 @@ export class SparkdownTypechecker {
     }
 
     const units = sparkdownUnits(tree, text);
-    // A document that writes `_G` itself gets another name for the checker's
-    // `any` values (see `sparkdownUnits`), bound for its units alone.
-    let environment = program.scope;
-    let environmentKey = program.key;
-    if (units.anyName !== "_G") {
-      environment = Scope.child(program.scope);
-      environment.bindings.set(units.anyName, { typeId: this.frontend.builtinTypes.anyType, location: new Location() });
-      environmentKey = `${program.key}\u0000${units.anyName}`;
-    }
-    const prelude = this.checkUnit(uri, units.prelude, mode, environment, environmentKey, true);
+    const prelude = this.checkUnit(uri, units.prelude, mode, program.scope, program.key, true);
     report(prelude, units.prelude);
     const exports = prelude.exports!;
     for (const flow of units.flows) {
@@ -470,8 +227,19 @@ export class SparkdownTypechecker {
     return diagnostics;
   }
 
+  /** A `.luau` file's unit, reading its text again only when it changed. */
+  private luauFile(uri: string, text: string): LuauUnit | undefined {
+    const parse = this.parse;
+    if (!parse) return undefined;
+    let cached = this.luauFileTrees.get(uri);
+    return luauFileUnit(text, (wrapped) => {
+      if (cached?.text !== wrapped) this.luauFileTrees.set(uri, (cached = { text: wrapped, tree: parse(wrapped) }));
+      return cached.tree;
+    });
+  }
+
   private checkUnit(uri: string, unit: LuauUnit, mode: Mode, environment: Scope, environmentKey: string, isPrelude: boolean): CachedUnit {
-    const key = `${uri}\u0000${unit.kind}\u0000${mode}\u0000${environmentKey}\u0000${unit.text}`;
+    const key = `${uri}\u0000${unit.kind}\u0000${mode}\u0000${environmentKey}\u0000${unit.key}`;
     this.used.add(key);
     const cached = this.cache.get(key);
     if (cached) {

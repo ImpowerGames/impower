@@ -104,6 +104,7 @@ import type { Module, ModuleResolver, RequireCycle } from "./Module";
 import type { Normalizer } from "./Normalize";
 import { Scope, subsumes } from "./Scope";
 import { simplifyUnion } from "./Simplify";
+import { sparkdownValue } from "./SparkdownReading";
 import {
   blockedType,
   blockedTypePack,
@@ -514,6 +515,16 @@ function copyTypeFun(tf: TypeFun): TypeFun {
  */
 class GlobalPrepopulator implements AstVisitor {
   readonly uninitializedGlobals = new Set<string>();
+
+  // Not part of Luau: the Luau inside these Sparkdown expressions is not
+  // checked (`SparkdownReading.ts`), so it defines no globals.
+  visitSparkdownInterpString(): boolean {
+    return false;
+  }
+
+  visitSparkdownCallShorthand(): boolean {
+    return false;
+  }
 
   constructor(
     readonly globalScope: Scope,
@@ -2537,6 +2548,11 @@ export class ConstraintGenerator {
         for (const subExpr of expr.expressions) this.check(scope, subExpr);
 
         result = inference(this.builtinTypes.errorType);
+      } else if (sparkdownValue(expr)) {
+        // Not part of Luau: one of Sparkdown's own expressions (`SparkdownReading.ts`).
+        const value = sparkdownValue(expr)!;
+        for (const operand of value.operands) this.check(scope, operand);
+        result = inference(value.type === "string" ? this.builtinTypes.stringType : this.builtinTypes.anyType);
       } else {
         result = inference(this.freshType(scope));
       }

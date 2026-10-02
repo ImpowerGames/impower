@@ -4,8 +4,7 @@ import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/get
 import { ErrorType, type SourceMetadata } from "../../../inkjs/engine/Error";
 import type { LowerContext } from "../context";
 import { commaLineBreakValue, isListCommaName } from "../../utils/listCommaNames";
-import { RESERVED } from "../../lint/luauNames";
-import { isCheckedLuau, isCheckedLuauAt } from "../../typecheck/LuauUnitNodes";
+import { checkerReadsOnTo, RESERVED } from "../../typecheck/LuauUnitNodes";
 
 // How far past the `=` to scan for the token Luau reports as "got '<token>'".
 // Generous enough to skip whitespace, blank lines, and a trailing comment to
@@ -76,7 +75,7 @@ export function validateAssignmentValue(
   const got = nextSignificantToken(operator.to, (from, to) =>
     ctx.read(from, to),
   );
-  if (typeCheckerReportsMissingValue(opNode, operator.to, ctx)) return;
+  if (typeCheckerReportsMissingValue(opNode, operator.to, (from, to) => ctx.read(from, to))) return;
   const gotDisplay = got == null ? "<eof>" : `'${got.text}'`;
   ctx.diagnostics.push({
     message: `Expected identifier when parsing expression, got ${gotDisplay}`,
@@ -101,7 +100,7 @@ export function validateListComma(
   if (!ctx.diagnostics) return;
   const at = comma.from + ctx.read(comma.from, comma.to).indexOf(",");
   const got = nextSignificantToken(at + 1, (from, to) => ctx.read(from, to));
-  if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, ctx)) {
+  if (afterAssignment && typeCheckerReportsMissingValue(comma, at + 1, (from, to) => ctx.read(from, to))) {
     return;
   }
   const gotDisplay = got == null ? "<eof>" : `'${got.text}'`;
@@ -187,7 +186,7 @@ export function validateReassignmentList(
       const at = child.from + ctx.read(child.from, child.to).indexOf(",");
       // Luau's parser reports this comma too, and the type checker reports
       // its error where it reads the statement (#1175).
-      if (typeCheckerReportsMissingValue(child, at, ctx)) return;
+      if (typeCheckerReportsMissingValue(child, at, (from, to) => ctx.read(from, to))) return;
       reportParseError(
         "Expected identifier when parsing expression, got ','",
         { from: at, to: at + 1 },
@@ -273,17 +272,15 @@ export function startsLuauExpression(token: string): boolean {
 // The unary operators, which an operand must follow.
 const UNARY_OPERATORS: ReadonlySet<string> = new Set(["-", "not", "#"]);
 
-// Whether Luau's parser reports a value missing where the grammar found none
-// after `pos`: the next token, past any unary operators, cannot begin a
-// value, so Luau does not read one there either. Where it can (a value on
-// a narrative body's next line, or on a line at column 0), the grammar and
-// Luau read the lines differently, and only Sparkdown reports the value
-// missing. A cast's `::` is Sparkdown's to report too (see
-// `SparkdownTypechecker`).
-// The type checker reports it only where it reads both the statement
-// (`node`) and the token Luau finds instead: in a narrative body a `;` or a
-// word the grammar reads as story is not in the checked Luau.
-export function luauReportsMissingValue(
+// Whether the type checker reports a value missing after `node`, at `pos`,
+// as Luau's reading does, at the token found instead (#1175): it reads the
+// statement and that token as one (`checkerReadsOnTo`), and the token, past
+// any unary operators, cannot begin a value. Where it can (a value on the
+// line after a line-ending `=` or `,` that the grammar ends the statement
+// before), the grammar and Luau read the lines differently, and only
+// Sparkdown reports the value missing; so it does for a `:`, where a cast's
+// `::` or a method call with no receiver stands.
+export function typeCheckerReportsMissingValue(
   node: SyntaxNode,
   pos: number,
   read: (from: number, to: number) => string,
@@ -293,17 +290,7 @@ export function luauReportsMissingValue(
     got = nextSignificantToken(got.from + got.text.length, read);
   }
   if (got && (got.text === ":" || startsLuauExpression(got.text))) return false;
-  return isCheckedLuau(node, read) && (got == null || isCheckedLuauAt(node, got.from, read));
-}
-
-// Whether the type checker reports a value missing after `node`, at `pos`,
-// as Luau's parser does, with Luau's range, the token found instead (#1175).
-function typeCheckerReportsMissingValue(
-  node: SyntaxNode,
-  pos: number,
-  ctx: LowerContext,
-): boolean {
-  return luauReportsMissingValue(node, pos, (from, to) => ctx.read(from, to));
+  return checkerReadsOnTo(node, got?.from, read);
 }
 
 // The token Luau would report after `pos`. Scans forward over whitespace,

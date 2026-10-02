@@ -29,7 +29,8 @@ import { describe, expect, test } from "vitest";
 import { errorToString } from "../../compiler/typecheck/Error";
 import { Frontend } from "../../compiler/typecheck/Frontend";
 import { Location } from "../../compiler/typecheck/Location";
-import { checkLuauUnit, luauFileUnit } from "../../compiler/typecheck/LuauDocumentChecker";
+import { parseLuau } from "../../compiler/typecheck/DefinitionParser";
+import { checkLuauUnit, type LuauUnit } from "../../compiler/typecheck/LuauDocumentChecker";
 import { Mode } from "../../compiler/typecheck/Module";
 import {
   toString,
@@ -105,6 +106,13 @@ function ignoreMissingAnnotations(diagnostics: readonly LuauDiagnostic[]): LuauD
   return diagnostics.filter((d) => d.code !== "TypeAnnotationRequired");
 }
 
+/** A snippet as one unit, read with Luau's parser as upstream's `Fixture` reads it. */
+function luauTextUnit(source: string): LuauUnit {
+  const parsed = parseLuau(source);
+  const lines = source.split("\n").map((_, i) => i);
+  return { kind: "file", root: parsed.root, errors: parsed.errors, hotcomments: parsed.hotcomments, lines, key: source };
+}
+
 interface CheckedModule {
   diagnostics: LuauDiagnostic[];
   /** Upstream's `requireType`: the followed type of a module-level binding. */
@@ -118,7 +126,7 @@ interface CheckedModule {
  */
 function checkModule(source: string, options: { mode?: Mode; frontend?: Frontend } = {}): CheckedModule {
   const frontend = options.frontend ?? new Frontend();
-  const checked = checkLuauUnit(frontend, "MainModule", luauFileUnit(source), options.mode ?? Mode.Strict);
+  const checked = checkLuauUnit(frontend, "MainModule", luauTextUnit(source), options.mode ?? Mode.Strict);
   const scope = checked.module.getModuleScope();
   return {
     diagnostics: checked.errors.map((e) => ({
