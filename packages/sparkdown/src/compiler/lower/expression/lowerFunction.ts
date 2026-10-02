@@ -41,6 +41,7 @@ import {
   AstType,
   AstTypePack,
   visitAst,
+  type AstLocal,
   type AstNode,
 } from "../../typecheck/Ast";
 import { nodeNameSet } from "../../utils/nodeNameSet";
@@ -159,6 +160,21 @@ function declarationNames(node: AstNode): string[] {
   return [];
 }
 
+// The locals a node declares: a `local` or `const`'s names, a local
+// function's name, a loop's variables, and a function's parameters.
+function declaredLocals(node: AstNode): readonly AstLocal[] {
+  const stat =
+    node instanceof AstStatSparkdownExplicit ? node.statement : node;
+  if (stat instanceof AstStatLocal) return stat.vars;
+  if (stat instanceof AstStatLocalFunction) return [stat.name];
+  if (stat instanceof AstStatFor) return [stat.variable];
+  if (stat instanceof AstStatForIn) return stat.vars;
+  if (stat instanceof AstExprFunction) {
+    return stat.self ? [stat.self, ...stat.args] : stat.args;
+  }
+  return [];
+}
+
 // The variables a loop declares.
 function loopNames(node: AstNode): string[] {
   if (node instanceof AstStatFor) return [node.variable.name];
@@ -228,15 +244,16 @@ const STDLIB_NAMES_FOR_FREE_VAR_SCAN: ReadonlySet<string> = new Set([
 /**
  * The names a function's body reads from the scopes around it, in the order
  * it first reads them: the function's upvalues, which its closure captures
- * when it is built. A name counts as bound inside the function, and is not
- * captured, when it is a parameter or anything the body declares at any
- * depth (a local, a `store` or `const`, a loop variable, a named function);
- * a name read in a function nested in the body counts as read by this one,
- * which must capture it for the nested function to capture in turn. A name
- * that is a variadic function of an enclosing scope is reached by path and
- * not captured. Otherwise a name an enclosing function declares is
- * captured, and a stdlib name, a global callable or any other global is
- * not.
+ * when it is built. A name read in a function nested in the body counts as
+ * read by this one, which must capture it for the nested function to
+ * capture in turn. A read is bound inside the function, and not captured,
+ * when it reads a parameter, a local the body declares at any depth (the
+ * converter binds each read to the local it reads, so a same-named local of
+ * a nested function or a later block does not bind it), or a `store` or
+ * named function the body declares. A name that is a variadic function of
+ * an enclosing scope is reached by path and not captured. Otherwise a name
+ * an enclosing function declares is captured, and a stdlib name, a global
+ * callable or any other global is not.
  */
 export function freeVariables(
   params: readonly string[],
@@ -244,14 +261,22 @@ export function freeVariables(
   ctx: LowerContext,
 ): string[] {
   if (!body) return [];
+  // Names bound inside the function: its parameters, and the `store`s and
+  // named functions its body declares, which a read reaches by name.
   const bound = new Set<string>(params);
+  // The locals the body declares, nested functions included.
+  const locals = new Set<AstLocal>();
   walk(body, (node) => {
     if (node instanceof AstStatFunction || node instanceof AstStatLocalFunction) {
       const name = declaredFunctionName(node);
       if (name) bound.add(name);
     }
-    for (const name of declarationNames(node)) bound.add(name);
-    for (const name of loopNames(node)) bound.add(name);
+    const stat =
+      node instanceof AstStatSparkdownExplicit ? node.statement : node;
+    if (stat instanceof AstStatSparkdownStore) {
+      for (const v of stat.vars) bound.add(v.name);
+    }
+    for (const local of declaredLocals(node)) locals.add(local);
     return true;
   });
   const isGlobalCallable = (name: string) =>
@@ -293,7 +318,9 @@ export function freeVariables(
   };
   const readNames = (node: AstNode): boolean => {
     if (node instanceof AstExprGlobal) read(node.name);
-    else if (node instanceof AstExprLocal) read(node.local.name);
+    else if (node instanceof AstExprLocal) {
+      if (!locals.has(node.local)) read(node.local.name);
+    }
     else if (node instanceof AstStatFunction) {
       // A function statement's plain name is declared, not read
       // (`function a.f` reads `a`).
