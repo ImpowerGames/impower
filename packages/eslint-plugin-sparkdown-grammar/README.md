@@ -22,6 +22,11 @@ pointer back to the rationale.
 | `no-zero-width-in-patterns`  | error | §12. A rule that can match zero characters must not be included in a `patterns:` list, directly or through a `Switch` rule.       |
 | `no-newline-in-lookaround`   | error | §11.5. Lookarounds must not try to span line boundaries, which VS Code's line-at-a-time tokenizer cannot see.                     |
 
+Level is the plugin's `recommended` configuration. The root
+`eslint.config.js` currently enables the first five rules only, so
+`no-zero-width-in-patterns` and `no-newline-in-lookaround` do not run in
+the editor or in CI.
+
 ## Setup
 
 The repo wires this plugin up automatically via the root
@@ -37,7 +42,8 @@ npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
 
 The typecheck workflow (`.github/workflows/typecheck.yml`) runs that
 command on every pull request that changes `definitions/yaml/**`, so a
-warning fails CI as an error does.
+warning fails CI as an error does. The same job runs the rule tests,
+`node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts`.
 
 ## Implementation notes
 

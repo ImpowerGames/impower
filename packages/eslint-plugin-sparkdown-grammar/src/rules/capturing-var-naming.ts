@@ -77,8 +77,9 @@ function countCapturingGroups(pattern: string): number {
 
 const TOKEN_REGEX = /\{\{([A-Za-z0-9_]+)\}\}/g;
 
-// Raw values of every entry in a `variables:` mapping. Sequences get the
-// build's `\b(?:a|b)\b` wrapping, which never adds a capture.
+// Raw values of every entry in a `variables:` mapping. A sequence gets the
+// build's `\b(?:a|b)\b` wrapping, keeping its entries' text: the wrapper
+// adds no capture, but an entry may hold one.
 function rawVariables(mapping: YAMLMapping): Map<string, string> {
   const raw = new Map<string, string>();
   for (const pair of mapping.pairs) {
@@ -88,7 +89,10 @@ function rawVariables(mapping: YAMLMapping): Map<string, string> {
     if (isScalar(value) && typeof value.value === "string") {
       raw.set(name, value.value);
     } else if (isSequence(value)) {
-      raw.set(name, "");
+      const entries = value.entries.map((entry) =>
+        isScalar(entry) && entry.value !== null ? String(entry.value) : "",
+      );
+      raw.set(name, `\\b(?:${entries.join("|")})\\b`);
     }
   }
   return raw;
@@ -150,8 +154,8 @@ const rule: Rule.RuleModule = {
         const name = scalarKey(pair);
         if (!name) return;
 
-        // A sequence is auto-wrapped by the build to `\b(?:a|b|c)\b`,
-        // which never captures; a string counts its resolved captures.
+        // A string or a sequence (auto-wrapped by the build to
+        // `\b(?:a|b|c)\b`) counts the captures in its resolved value.
         const value = pair.value as YAMLNode | null;
         if (
           !isSequence(value) &&
@@ -167,8 +171,8 @@ const rule: Rule.RuleModule = {
         const rawPattern = resolve(name, cache.raw, cache.memo, new Set());
 
         const captures = countCapturingGroups(rawPattern);
-        const isUnderscoreWrapped =
-          name.startsWith("_") && name.endsWith("_") && name.length > 2;
+        // The same test as the build's, so `_` and `__` count as wrapped.
+        const isUnderscoreWrapped = name.startsWith("_") && name.endsWith("_");
 
         if (captures > 0 && !isUnderscoreWrapped) {
           context.report({

@@ -103,6 +103,9 @@ jobs:
       # the ESLint extension installed. `--max-warnings 0` makes the
       # warn-level rules blocking too. The `changes` patterns above include
       # `definitions/yaml/**`, so a grammar change always reaches this step.
+      - name: Test the grammar lint rules
+        run: node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts
+
       - name: Lint the grammar
         run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
 
