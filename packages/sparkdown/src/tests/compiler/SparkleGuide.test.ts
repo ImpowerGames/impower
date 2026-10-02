@@ -69,8 +69,8 @@ function readDeclarations(code: string) {
           node.name === "BuiltinComponentName") &&
           parent?.name === "LuauStructBareMarker_c4")
       ) {
-        // `slot footer` and `fill footer { … }` name a slot with a bare
-        // word; anything else after an element's name is a bare class.
+        // `slot footer` and `fill footer { … }` name a slot with one bare
+        // word; any other word after an element's name is a bare class.
         const element = [...stack]
           .reverse()
           .find(
@@ -78,12 +78,30 @@ function readDeclarations(code: string) {
               n.name === "LuauSparkleElement" ||
               n.name === "LuauStructBareMarker",
           );
-        const tag = element
-          ? /^[\w-]+/.exec(textOf(element.from, element.to))?.[0]
-          : undefined;
-        if (tag !== "slot" && tag !== "fill") {
+        const head = element ? textOf(element.from, node.from) : "";
+        const isSlotName = /^(slot|fill)\s+$/.test(head);
+        if (!isSlotName) {
           oldForms.push(
             `${where}: the bare class \`${textOf(node.from, node.to)}\``,
+          );
+        }
+      } else if (
+        (node.name === "CustomComponentName" ||
+          node.name === "BuiltinComponentName") &&
+        parent?.name === "LuauStructBlockKey_c1"
+      ) {
+        // In a style selector, a word after whitespace that follows a name,
+        // a class, `&` or a closing bracket is a bare class (`> text title`,
+        // `& secondary`); after a combinator (`>`, `>>`, `,`, `+`, `~`) or
+        // at the start it is an element name.
+        const key = [...stack]
+          .reverse()
+          .find((n) => n.name === "LuauStructBlockKey");
+        const before = key ? textOf(key.from, node.from) : "";
+        const trimmed = before.trimEnd();
+        if (trimmed.length < before.length && /[\w&)\]]$/.test(trimmed)) {
+          oldForms.push(
+            `${where}: the bare class \`${textOf(node.from, node.to)}\` in a selector`,
           );
         }
       }
