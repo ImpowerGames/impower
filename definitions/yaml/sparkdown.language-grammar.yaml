@@ -7745,10 +7745,8 @@ repository:
     # a layout it takes the loop's entries and body lines
     # (`LuauSparkleBlockEntries`, `LuauStructBodyLine`; fixture
     # sparkle/layout-brace-control). A begin that also refuses the tokens the
-    # condition ends before (`{{WS}}*do`, `end`, `}`) keeps the fixtures, but
-    # still opens an empty condition at any character the condition cannot
-    # read, again and again (`while x) do` in `LuauWhileCondition` reaches
-    # the parser's limit on empty matches).
+    # condition ends before still opens an empty condition at any character
+    # the condition cannot read, again and again (see `LuauWhileCondition`).
     begin: (?<=for\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
@@ -7816,9 +7814,11 @@ repository:
     # lookaround: as in `LuauForCondition`. Without the lookbehind the empty
     # begin opens again at the whitespace before `do`, ahead of the
     # `LuauDoBlock` in `LuauBlockBody` (fixture
-    # flow/for-comment-before-condition), and a begin that refuses `do` and
-    # `end` instead reopens at every character the condition cannot read
-    # (`while x) do`).
+    # flow/for-comment-before-condition). A begin that refuses `do` and `end`
+    # instead (`(?!{{BEAT}}|{{WS}}*(?:do|end)\b)`) keeps every fixture, but
+    # reopens an empty condition at each character the condition cannot
+    # read: `while x) do` repeats it at the `)` until the parser's limit on
+    # empty matches.
     begin: (?<=while\b{{WS}}*)(?!{{BEAT}}|do\b)
     patterns:
       - { include: "#LuauLineContinuation" }
