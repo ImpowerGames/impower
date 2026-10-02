@@ -1,0 +1,14 @@
+BUNNY: .. queue | Hi | Hello .. there.
+BUNNY: .. shuffle cycle | a | b ..
+BUNNY: .. plural(n) | one | many ..
+@ ACE: .. chain | first | then ..
+$: .. cycle | INT. | EXT. .. HOUSE
+^: .. queue | A | B ..
+%: .. cycle | CUT TO: | FADE OUT: ..
+BUNNY: ..joined to the line before
+@ ACE: ..joined
+$: ..joined
+^: ..joined
+%: ..joined
+BUNNY: .. queue.x is not an alternator
+BUNNY: (aside) \ ..after a chain
