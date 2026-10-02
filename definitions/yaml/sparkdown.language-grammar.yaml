@@ -3999,6 +3999,14 @@ repository:
         patterns:
           - { include: "#LuauEndKeyword" }
 
+  # lookaround: `(?<=define\b{{WS}}*)` keeps the name to the header, out of
+  # the define's body, where `LuauBlockBody` reads statements that begin with
+  # a name. The header-name rules of `style`, `layout` and the rest are tried
+  # after their parents' body rules instead, but those body rules begin only
+  # at the start of a line. `LuauBlockBody` also reads a name in the middle
+  # of a line, so it would take the define's name if it were tried first,
+  # and a name rule tried before it takes `x` and `if` from a body line that
+  # begins at column 0 (fixture luau-declaration/define-column-0-body).
   LuauDefineNameAndInheritance:
     begin: (?<=define\b{{WS}}*)({{LUAU_IDENTIFIER}})
     beginCaptures:

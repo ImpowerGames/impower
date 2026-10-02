@@ -1,0 +1,59 @@
+text.source.sparkdown [0..80]
+ ├─ meta.function.luau [0..18]
+ │   ├─ keyword.control.define.luau [0..6]: "define"
+ │   ├─ punctuation.whitespace.optional.sd [6..7]: " "
+ │   ├─ entity.name.type.define.luau [7..13]: "Person"
+ │   ├─ punctuation.whitespace.optional.sd [13..14]: " "
+ │   └─ keyword.control.as.luau [14..18]: "with"
+ ├─ Newline [18..19]: "\n"
+ ├─ meta.function.luau [19..29]
+ │   ├─ variable.other.readwrite.luau [19..23]: "name"
+ │   ├─ punctuation.whitespace.optional.sd [23..24]: " "
+ │   ├─ keyword.operator.assignment.luau [24..25]: "="
+ │   ├─ punctuation.whitespace.optional.sd [25..26]: " "
+ │   └─ string.quoted.double.luau [26..29]
+ │       ├─ punctuation.definition.string.double.begin.sd [26..27]: "\""
+ │       ├─ markup.raw.text.sd [27..28]: "a"
+ │       └─ punctuation.definition.string.double.end.sd [28..29]: "\""
+ ├─ Newline [29..30]: "\n"
+ ├─ meta.function.luau [30..37]
+ │   ├─ variable.other.readwrite.luau [30..31]: "x"
+ │   ├─ meta.template.expression.accessor.sd [31..32]: "."
+ │   ├─ variable.other.property.luau [32..33]: "y"
+ │   ├─ punctuation.whitespace.optional.sd [33..34]: " "
+ │   ├─ keyword.operator.assignment.luau [34..35]: "="
+ │   ├─ punctuation.whitespace.optional.sd [35..36]: " "
+ │   └─ constant.numeric.decimal.luau [36..37]: "1"
+ ├─ Newline [37..38]: "\n"
+ ├─ meta.function.luau [38..50]
+ │   ├─ keyword.control.if.luau [38..40]: "if"
+ │   ├─ punctuation.whitespace.optional.sd [40..41]: " "
+ │   ├─ variable.other.readwrite.luau [41..45]: "name"
+ │   ├─ punctuation.whitespace.optional.sd [45..46]: " "
+ │   └─ keyword.control.then.luau [46..50]: "then"
+ ├─ Newline [50..51]: "\n"
+ ├─ meta.function.luau [51..63]
+ │   ├─ punctuation.whitespace.optional.sd [51..53]: "  "
+ │   ├─ variable.other.readwrite.luau [53..57]: "name"
+ │   ├─ punctuation.whitespace.optional.sd [57..58]: " "
+ │   ├─ keyword.operator.assignment.luau [58..59]: "="
+ │   ├─ punctuation.whitespace.optional.sd [59..60]: " "
+ │   └─ string.quoted.double.luau [60..63]
+ │       ├─ punctuation.definition.string.double.begin.sd [60..61]: "\""
+ │       ├─ markup.raw.text.sd [61..62]: "b"
+ │       └─ punctuation.definition.string.double.end.sd [62..63]: "\""
+ ├─ Newline [63..64]: "\n"
+ ├─ meta.function.luau [64..67]
+ │   └─ keyword.control.end.luau [64..67]: "end"
+ ├─ Newline [67..68]: "\n"
+ ├─ meta.function.luau [68..75]
+ │   └─ meta.function.luau [68..75]
+ │       ├─ entity.name.function.luau [68..73]: "greet"
+ │       └─ meta.parameter.luau [73..75]
+ │           ├─ punctuation.definition.template-expression.begin.sd [73..74]: "("
+ │           └─ punctuation.definition.template-expression.end.sd [74..75]: ")"
+ ├─ Newline [75..76]: "\n"
+ ├─ meta.function.luau [76..79]
+ │   └─ meta.function.luau [76..79]
+ │       └─ keyword.control.end.luau [76..79]: "end"
+ └─ Newline [79..80]: "\n"
