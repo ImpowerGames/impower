@@ -33,8 +33,9 @@ export const LOWER_DIR = "packages/sparkdown/src/compiler/lower";
 export const BASELINE = "scripts/lowerer-conventions-baseline.json";
 export const MARKER = "// value-level:";
 
-// A literal capture number, or one interpolated into a template literal.
-const GENERATED_NAME = /\b\w*_(?:begin|end)_c(?:\d+\b|\$\{[^}]*\})/g;
+// A literal capture number, one interpolated into a template literal, or a
+// string ending at `_c` that a concatenation completes.
+const GENERATED_NAME = /\b\w*_(?:begin|end)_c(?:\d+\b|\$\{[^}]*\}|(?=["'`]))/g;
 const SCAN_CALL =
   /\.(?:match|matchAll|exec|test|startsWith|endsWith|indexOf|includes|split)\s*\(|\bnew\s+RegExp\s*\(/g;
 // A regex literal: a `/` after a token that cannot end an expression.
@@ -77,15 +78,16 @@ export function scanSource(source) {
       line: lineAt(src, m.index + m[0].indexOf(m[group])),
       text: m[group].trim(),
     }));
-  // Regex literals are found in a copy whose string bodies are blanked (same
-  // length), so a `/word/` inside a string is not taken for one; the text
-  // reported comes from the unblanked source.
+  // Calls and regex literals are found in a copy whose string bodies are
+  // blanked (same length), so `/word/` or `.includes(` inside a string is not
+  // taken for a scan; the text reported comes from the unblanked source.
   const blanked = stripCommentsAndStrings(source);
-  const literals = [...blanked.matchAll(REGEX_LITERAL)].map((m) => {
-    const at = m.index + m[0].indexOf(m[1]);
-    return { line: lineAt(src, at), text: src.slice(at, at + m[1].length) };
-  });
-  const scans = [...collect(SCAN_CALL), ...literals]
+  const executable = (re, group = 0) =>
+    [...blanked.matchAll(re)].map((m) => {
+      const at = m.index + m[0].indexOf(m[group]);
+      return { line: lineAt(src, at), text: src.slice(at, at + m[group].length).trim() };
+    });
+  const scans = [...executable(SCAN_CALL), ...executable(REGEX_LITERAL, 1)]
     .filter((f) => !marked.has(f.line))
     .sort((a, b) => a.line - b.line);
   return {
