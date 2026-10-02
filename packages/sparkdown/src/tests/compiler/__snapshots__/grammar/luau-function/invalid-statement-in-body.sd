@@ -1,0 +1,26 @@
+function greet(n)
+  Hello there, friend.
+  I will return tomorrow.
+  salt and pepper.
+  Hello!
+  U.S. is big.
+  Well, friend.
+  Hello, I am here.
+  He said "the end" today.
+  Hello there -- the end of it
+  if n > 1 then
+    How are you?
+  end
+  Hello
+  a, b = b, a
+  local x =
+    a and b
+  pcall(function() print(a) end)
+  1 + 2
+  Hello! [[end]]
+  Hello 0xFF!
+  Hello there. --[[
+end
+]]
+end
+After it.

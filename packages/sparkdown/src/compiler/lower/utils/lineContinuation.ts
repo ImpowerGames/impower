@@ -2,6 +2,7 @@ import { type SyntaxNode } from "@lezer/common";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { LowerContext } from "../context";
 import { nodeNameSet } from "../../utils/nodeNameSet";
+import { BLOCK_NAMES } from "./statementNodeNames";
 import {
   VARIABLE_DEFINITION_NAMES,
   ownAssignmentOperation,
@@ -360,7 +361,7 @@ export function isStatementNodeName(name: string): boolean {
     name === "LuauSemicolonSeparator" ||
     TRAILING_STATEMENT_NAMES.has(name) ||
     DECLARATION_STATEMENTS.has(name) ||
-    /(?:Block|Blocks|Loop)$/.test(name)
+    BLOCK_NAMES.has(name)
   );
 }
 
@@ -600,7 +601,7 @@ function firstContentChild(node: SyntaxNode): SyntaxNode | null {
   return null;
 }
 
-function lastSignificantLeaf(node: SyntaxNode): SyntaxNode | null {
+export function lastSignificantLeaf(node: SyntaxNode): SyntaxNode | null {
   for (let child = node.lastChild; child; child = child.prevSibling) {
     if (SKIPPABLE.has(child.name) || child.from === child.to) continue;
     if (!child.firstChild) return child;

@@ -466,8 +466,9 @@ type FlowLocCacheEntry = {
 // coordinates.
 type FlowSpanIndex = {
   // True when a changed chunk falls within the flow that starts at `start0` of
-  // `uri`. The flow's span runs from its start line to the next flow start in
-  // that same script, or to the end of the script if it is the last one.
+  // `uri`. The flow's span runs from its start line to the next start of a
+  // flow that is not a function in that same script, or to the end of the
+  // script if there is none.
   touched: (uri: string, start0: number) => boolean;
 };
 
@@ -950,6 +951,9 @@ export class SparkdownCompiler {
   // cross-flow fingerprint records nothing for pure content, so a renamed
   // `__synth_<n>` temp inside an unchanged flow would otherwise serve stale).
   protected _renamedFlowNames?: Set<string>;
+  // The names of this compile's top-level flows that are functions, which
+  // the flow span index does not take as the end of the flow before them.
+  protected _functionFlowNames?: Set<string>;
 
   // Bumped whenever the file registry changes (assets added/updated/removed,
   // or a reconfigure). Part of the no-change compile short-circuit key:
@@ -2305,6 +2309,11 @@ export class SparkdownCompiler {
       profile("start", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
       const renamedTopLevel = this.canonicalizeSyntheticFlowNames(parsedStory);
       profile("end", this._profilerId, "ink/canonicalizeSyntheticNames", uri);
+      this._functionFlowNames = new Set(
+        [...parsedStory.subFlowsByName]
+          .filter(([, flow]) => flow.isFunction)
+          .map(([name]) => name),
+      );
       // One name can sit in several Identifiers over one source range (a
       // declaration and the reference lowered beside it), so each range and
       // name is reported once. A copy the lowerers made with no position
@@ -3632,8 +3641,9 @@ export class SparkdownCompiler {
     // than per-chunk during lowering. A per-chunk check would go stale when only
     // the matching `end` chunk is edited (the earlier scene chunk isn't
     // re-lowered), silently dropping the "missing `end`" diagnostic incrementally.
-    // A Luau block that stops at a story line is closed by a later root-level
-    // `end` the same way, so it is checked here too.
+    // A Luau block the grammar cuts off at a line it cannot read as Luau is
+    // closed by a later root-level `end` the same way, so it is checked here
+    // too.
     this.validateSceneStructure(uri, onDiagnostic);
 
     // Auto-terminate non-function scenes / branches whose body doesn't end
@@ -4573,11 +4583,17 @@ export class SparkdownCompiler {
    * caller falls back to recomputing it.
    */
   protected buildFlowSpanIndex(
-    flows: ReadonlyArray<{ uri: string; start0: number }>,
+    flows: ReadonlyArray<{ name: string; uri: string; start0: number }>,
   ): FlowSpanIndex {
     const startsByUri = new Map<string, number[]>();
     for (const f of flows) {
       if (f.start0 < 0 || !f.uri) {
+        continue;
+      }
+      // A function is a top-level flow wherever it is declared, and the flow
+      // it is declared in goes on after it (a scene with a function in the
+      // middle, or one whose `end` is missing), so its start ends no span.
+      if (this._functionFlowNames?.has(f.name)) {
         continue;
       }
       const starts = startsByUri.get(f.uri);
@@ -4700,7 +4716,8 @@ export class SparkdownCompiler {
       const uri = md?.filePath ?? "";
       const start0 = md ? md.startLineNumber - 1 : -1;
       starts.push({ name, uri, start0 });
-      if (uri && start0 >= 0) {
+      // A function's start ends no flow, as in `buildFlowSpanIndex`.
+      if (uri && start0 >= 0 && !this._functionFlowNames?.has(name)) {
         const list = byUri.get(uri);
         if (list) {
           list.push(start0);

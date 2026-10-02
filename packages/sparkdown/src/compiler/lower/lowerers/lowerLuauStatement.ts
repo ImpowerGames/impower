@@ -226,6 +226,9 @@ export function lowerLuauStatementsAt(
   ctx: LowerContext,
 ): CompiledBlock {
   validateStatements(node, statements, site, ctx);
+  // The validator reports this invalid line. Its recovery AST must not
+  // execute or add runtime name warnings for a statement the author did not write.
+  if (node.name === "LuauInvalidStatement") return {};
   if (statements.length === 1) {
     return lowerLuauStatement(statements[0]!.statement, site, ctx);
   }

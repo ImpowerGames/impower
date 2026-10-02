@@ -231,20 +231,20 @@ describe("Luau block without `end`", () => {
     });
   });
 
-  // A story line in a function's body stops the function's node there, and
-  // the rest of the body follows as chunks of its own, which a root-level
-  // `end` closes.
+  // A line in a function's body that is not a Luau statement (`Hello
+  // there.`) is reported on its own, and the function's `end` still closes
+  // the function.
   test.each([
     [
-      "a function whose body holds story lines",
+      "a function whose body holds lines that are not Luau statements",
       ["function greet", "  Hello there.", "  How are you?", "end"],
     ],
     [
-      "an `if` with story lines inside a function",
+      "an `if` holding a line that is not a Luau statement inside a function",
       ["function f()", "  if true then", "    Hi there.", "  end", "end"],
     ],
     [
-      "a function with story lines inside a scene",
+      "a function holding a line that is not a Luau statement inside a scene",
       [
         "scene main",
         "  function g()",
@@ -279,7 +279,7 @@ describe("Luau block without `end`", () => {
       ],
     ],
   ])(
-    "a function whose body holds story lines and reaches %s without `end` is an error",
+    "a function whose body holds lines that are not Luau statements and reaches %s without `end` is an error",
     (_label, lines) => {
       const errs = missingEndErrors(compile(lines.join("\n")).diags);
       expect(errs).toHaveLength(1);
@@ -287,7 +287,7 @@ describe("Luau block without `end`", () => {
     },
   );
 
-  test("an `if` and a function with story lines, one `end` short, report the function", () => {
+  test("an `if` and a function holding a line that is not a Luau statement, one `end` short, report the function", () => {
     const errs = missingEndErrors(
       compile(
         ["function f()", "  if true then", "    Hi there.", "  end", ""].join(
@@ -589,7 +589,7 @@ describe("Luau block without `end`", () => {
     },
   );
 
-  test("a `repeat` cut off by a story line and never closed is an error", () => {
+  test("a `repeat` holding a line that is not a Luau statement and no `until` is an error", () => {
     const errs = compile(
       [
         "function f()",
@@ -698,7 +698,8 @@ describe("Luau block without `end`", () => {
   test("a function that takes a branch's `end` inside a scene leaves the scene without one", () => {
     // `Text here.` is a line of the function's body, as any Luau line is
     // (#1158), so the function and the branch take the two `end`s. `Text` is
-    // not a statement, and the `.` is left for `done` on the next line.
+    // not a statement, which is Luau's first error for the line; Luau reads
+    // `done` on the next line as the name after the `.`.
     const errs = compile(
       [
         "-> main.one",
@@ -718,7 +719,6 @@ describe("Luau block without `end`", () => {
     ).diags.filter((d) => d.severity === 1);
     expect(lineStarts(errs)).toEqual([
       [2, "Scene"],
-      [8, "Expected"],
       [8, "Incomplete"],
     ]);
   });

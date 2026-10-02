@@ -7,6 +7,64 @@ uuid: E26C862D-2A5E-4F10-B0C3-D6BCB838CB7F
 flags: mu
 
 variables:
+  # Same-line recognition of invalid Luau statements. Keep each decision
+  # named so the capture rule below only describes the line structure.
+  # lookaround: LuauExpression keeps valid names and paths; only an invalid continuation or character claims this line.
+  LUAU_INVALID_STATEMENT_START: (?:{{LUAU_INVALID_STATEMENT_NOT_STATEMENT_KEYWORD}}{{LUAU_IDENTIFIER}}{{LUAU_INVALID_STATEMENT_PATH_MEMBER}}*{{LUAU_INVALID_STATEMENT_INVALID_AFTER_NAME}}|{{LUAU_INVALID_STATEMENT_INVALID_CHARACTER_START}})
+  # lookaround: LuauControlBlock and Flow keep their leading keywords; rule ordering alone cannot distinguish their continuations.
+  LUAU_INVALID_STATEMENT_NOT_STATEMENT_KEYWORD: (?!{{LUAU_INVALID_STATEMENT_STATEMENT_KEYWORDS}}\b)
+  LUAU_INVALID_STATEMENT_STATEMENT_KEYWORDS: (?:{{FLOW_BEAT_KEYWORDS}}|{{LUAU_RESERVED_WORDS}}|{{LUAU_TERMINATOR_KEYWORDS}}|{{LUAU_SCOPE_MODIFIERS}}|{{LUAU_ACCESS_MODIFIERS}}|{{LUAU_CONDITIONAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_ALTERNATOR_KEYWORDS}}|{{LUAU_SEQUENTIAL_MODIFIER_KEYWORDS}}|type)
+  # lookaround: LuauAccessPath keeps dotted identifiers, but LuauConcatOperation owns consecutive dots.
+  LUAU_INVALID_STATEMENT_PATH_MEMBER: (?:{{WS}}*[.](?![.]){{WS}}*{{LUAU_INVALID_STATEMENT_NOT_RESERVED_MEMBER}}{{LUAU_IDENTIFIER}})
+  # lookaround: LuauAccessPath reports a reserved member itself; this rule must not take its error recovery.
+  LUAU_INVALID_STATEMENT_NOT_RESERVED_MEMBER: (?!{{LUAU_INVALID_STATEMENT_RESERVED_WORD}}\b)
+  LUAU_INVALID_STATEMENT_RESERVED_WORD: (?:{{LUAU_RESERVED_WORDS}})
+  # lookaround: LuauExpression keeps member access, assignments and valid value continuations; only impossible continuations qualify.
+  LUAU_INVALID_STATEMENT_INVALID_AFTER_NAME: (?:{{WS}}+{{LUAU_INVALID_STATEMENT_NOT_NAME_CONTINUATION}}[A-Za-z0-9_]|{{WS}}*[!?]|{{WS}}*[.](?![.])(?!{{WS}}*[A-Za-z_])|(?![^\r\n]*=){{LUAU_INVALID_STATEMENT_HAS_INVALID_SEQUENCE}})
+  # lookaround: LuauLogicalOperation and LuauControlBlock keep continuation and closing keywords.
+  LUAU_INVALID_STATEMENT_NOT_NAME_CONTINUATION: (?!{{LUAU_INVALID_STATEMENT_NAME_CONTINUATION}}\b)
+  LUAU_INVALID_STATEMENT_NAME_CONTINUATION: (?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}}|and|or)
+  # lookaround: LuauExpression can continue a prior line, so only a same-line impossible sequence qualifies.
+  LUAU_INVALID_STATEMENT_HAS_INVALID_SEQUENCE: (?={{LUAU_INVALID_STATEMENT_SEARCH_TOKEN}}*?{{LUAU_INVALID_STATEMENT_INVALID_SEQUENCE}})
+  # lookaround: LuauLineComment owns --; brackets end this search because LuauFunctionCall may contain arbitrary statements.
+  LUAU_INVALID_STATEMENT_SEARCH_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*"?|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*'?|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*`?|[^\r\n"'`(){}\[\]-]|-(?!-))
+  LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER: (?:[^"\\\r\n]|\\.)
+  LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER: (?:[^'\\\r\n]|\\.)
+  LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER: (?:[^`\\\r\n]|\\.)
+  # lookaround: LuauExpression keeps operators and keywords between values; two adjacent non-keywords or a dangling dot cannot continue it.
+  LUAU_INVALID_STATEMENT_INVALID_SEQUENCE: (?:(?<=[A-Za-z0-9_]){{LUAU_INVALID_STATEMENT_NOT_AFTER_KEYWORD}}{{WS}}+{{LUAU_INVALID_STATEMENT_NOT_CONTINUATION_KEYWORD}}[A-Za-z0-9_]|[!?]|(?<=[A-Za-z0-9_])[.](?![.]){{LUAU_INVALID_STATEMENT_BEFORE_LINE_END}})
+  # lookaround: LuauControlBlock and LuauVariableDefinition accept a value or name after their keywords.
+  LUAU_INVALID_STATEMENT_NOT_AFTER_KEYWORD: (?<!\b{{LUAU_INVALID_STATEMENT_PREFIX_KEYWORDS}})
+  LUAU_INVALID_STATEMENT_PREFIX_KEYWORDS: (?:{{LUAU_RESERVED_WORDS}}|{{LUAU_SCOPE_MODIFIERS}})
+  # lookaround: LuauLogicalOperation and LuauControlBlock own these continuations.
+  LUAU_INVALID_STATEMENT_NOT_CONTINUATION_KEYWORD: (?!{{LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS}}\b)
+  LUAU_INVALID_STATEMENT_CONTINUATION_KEYWORDS: ["and", "or", "not", "then", "do", "in", "end", "else", "elseif", "until"]
+  # lookaround: LuauLineComment may follow a dangling dot; a later name instead belongs to LuauAccessPath.
+  LUAU_INVALID_STATEMENT_BEFORE_LINE_END: (?={{WS}}*(?:$|--))
+  # lookaround: LuauCompareOperation owns ~=; the other characters cannot start a Luau expression.
+  LUAU_INVALID_STATEMENT_INVALID_CHARACTER_START: (?=[!?&$\\]|~{{LUAU_INVALID_STATEMENT_NOT_EQUALS}})
+  # lookaround: LuauCompareOperation owns ~=, so ~ alone is the invalid token.
+  LUAU_INVALID_STATEMENT_NOT_EQUALS: (?!=)
+  # lookaround: LuauMultilineString and LuauBlockComment own unclosed long tokens; LuauControlBlock owns closing keywords.
+  LUAU_INVALID_STATEMENT_LINE_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*"?|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*'?|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*`?|(?:--)?{{LUAU_INVALID_STATEMENT_CLOSED_LONG_TOKEN}}|--(?!\[=*\[)[^\r\n]*|{{LUAU_INVALID_STATEMENT_NOT_BLOCK_END}}[^\r\n"'`\[-]|\[(?!=*\[)|-(?!-))
+  LUAU_INVALID_STATEMENT_CLOSED_LONG_TOKEN: (?:\[\[[^\r\n]*?\]\]|\[=\[[^\r\n]*?\]=\]|\[==\[[^\r\n]*?\]==\])
+  # lookaround: LuauControlBlock must see its own closing keyword even after an invalid statement.
+  LUAU_INVALID_STATEMENT_NOT_BLOCK_END: (?!{{WS}}*{{LUAU_INVALID_STATEMENT_WORD_START}}{{LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS}}\b)
+  # lookaround: LuauInvalidStatementName keeps a keyword suffix inside a longer identifier.
+  LUAU_INVALID_STATEMENT_WORD_START: (?<![A-Za-z0-9_])
+  LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS: (?:{{LUAU_IF_BRANCH_END_KEYWORDS}}|{{LUAU_REPEAT_BLOCK_KEYWORDS}})
+  # lookaround: LuauControlBlock owns closing keywords; LuauMultilineString and LuauBlockComment own tokens continuing past this line.
+  LUAU_INVALID_STATEMENT_END: (?={{WS}}*$|{{WS}}*{{LUAU_INVALID_STATEMENT_WORD_START}}{{LUAU_INVALID_STATEMENT_BLOCK_END_KEYWORDS}}\b|{{WS}}*(?:--)?{{LUAU_INVALID_STATEMENT_OPEN_LONG_TOKEN}}|{{WS}}*{{LUAU_INVALID_STATEMENT_OPEN_QUOTED_TOKEN}}\\(?:z{{WS}}*)?$)
+  # lookaround: LuauMultilineString and LuauBlockComment own long tokens that do not close on this line.
+  LUAU_INVALID_STATEMENT_OPEN_LONG_TOKEN: (?:\[\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ZERO}}|\[=\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ONE}}|\[==\[{{LUAU_INVALID_STATEMENT_UNCLOSED_LONG_TWO}}|\[===+\[)
+  # lookaround: LuauMultilineString owns an unclosed [[ token; a closed one remains inside the invalid line.
+  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ZERO: (?![^\r\n]*\]\])
+  # lookaround: LuauMultilineString owns an unclosed [=[ token; a closed one remains inside the invalid line.
+  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_ONE: (?![^\r\n]*\]=\])
+  # lookaround: LuauMultilineString owns an unclosed [==[ token; a closed one remains inside the invalid line.
+  LUAU_INVALID_STATEMENT_UNCLOSED_LONG_TWO: (?![^\r\n]*\]==\])
+  LUAU_INVALID_STATEMENT_OPEN_QUOTED_TOKEN: (?:"{{LUAU_INVALID_STATEMENT_DOUBLE_QUOTED_CHARACTER}}*|'{{LUAU_INVALID_STATEMENT_SINGLE_QUOTED_CHARACTER}}*|`{{LUAU_INVALID_STATEMENT_BACKTICK_CHARACTER}}*)
+
   IMAGE_CONTROL_KEYWORDS: ["show", "hide", "animate"]
   IMAGE_CLAUSE_KEYWORDS: ["over", "after", "with", "wait", "ease"]
   AUDIO_CONTROL_KEYWORDS: ["play", "stop", "fade", "queue", "await"]
@@ -7762,6 +7820,7 @@ repository:
       - { include: "#LuauIndexerLineContinuation" }
       - { include: "#LuauMinusLineContinuation" }
       - { include: "#LuauControlBlock" }
+      - { include: "#LuauInvalidStatement" }
       - { include: "#LuauExpression" }
       - { include: "#LuauCommaSeparator" }
       # Statement separator (`local x = {}; for i=1,n do ... end`).
@@ -7772,6 +7831,117 @@ repository:
       - { include: "#LuauSemicolonSeparator" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
+
+  # A line in a Luau body that is not a Luau statement (`Hello there.`,
+  # `Hello!`, `U.S.`, `Hello, I am here.`, `!Hello`, `$5 a day`). It begins
+  # with a character no Luau statement or value begins with and no line
+  # continuation begins with: one Luau has no token for (`!`, `?`, `$`,
+  # `&`, `\`) or a `~` that is not `~=`. (A closing bracket is not taken:
+  # a Sparkle handler's body ends at its `}`; see #1290.) Or it begins with
+  # a name or a dotted path (whose members are not keywords, which Luau
+  # reports where it meets them: `t.a.return`), and what follows it on the line is another name or a
+  # number (not `and` or `or`), a `!` or `?`, or a `.` with no name after
+  # it; or, before any bracket and outside its strings and comments, with no
+  # `=` on the line, it holds two names or numbers side by side, the first
+  # not a keyword or scope modifier, which a name follows in Luau (`if x`,
+  # `return x`, `local x`) (`Hello, I am here.`, `Yes, 5 times.`), a `!` or
+  # `?`, or a `.` that ends
+  # it with no name after it (`salt and pepper.`, `Well, friend.`). No Luau
+  # statement or value goes on that way, whatever the lines around it hold,
+  # so a value an `=` on the line before left for this one (`a and b`,
+  # `t.a, t.b`) is never taken. Brackets and strings end the search, since
+  # calls there can follow one another (`f(function() print(x) end)`,
+  # `f "a" g "b"`). The line is taken to
+  # its last non-blank character, or to an `end`, `else`, `elseif` or
+  # `until` on it outside a
+  # string or a comment, which closes a block wherever Luau meets it and is
+  # left to that block's rule (`doThing end`, `The end of the scene.`,
+  # `Hello there;end`). It
+  # also ends before a string or a block comment that runs past the line (a
+  # long string or comment that does not close on it, or a quoted string
+  # whose last character is an escaping `\`): that token's own rule takes it
+  # across the lines, so an `end` inside it closes nothing. So
+  # the error of reading the line ends with it, and the body goes on to its
+  # own `end`; the validator reports Luau's first error for it once, instead
+  # of the errors Luau's recovery finds in the rest of it.
+  #
+  # The rule decides from the line alone, since a restarted parse sees no
+  # further back than the start of its line. A line whose reading depends on
+  # the lines around it, a comma list of values (`Hi, Bob`) or a lone name,
+  # which can be the value an `=` or a comma on the line before it left for
+  # this one, stays an expression; the lowerer, which sees both lines,
+  # reports it when it is not (`reportExpressionStatement`). A line that goes on an expression from the
+  # line before it never reaches this rule: a trailing operator takes the
+  # line break, and a leading one is a line continuation. A first word that
+  # begins a statement or a block, a scene or a branch is left to its own
+  # rule.
+  LuauInvalidStatement:
+    match: ^({{WS}}*)({{LUAU_INVALID_STATEMENT_START}}{{LUAU_INVALID_STATEMENT_LINE_TOKEN}}*?){{LUAU_INVALID_STATEMENT_END}}
+    captures:
+      1:
+        patterns:
+          - { include: "#ExtraWhitespace" }
+      2:
+        patterns:
+          - { include: "#LuauInvalidStatementToken" }
+          - { include: "#ExtraWhitespace" }
+
+  # The tokens of a line that is not a Luau statement, highlighted as Luau
+  # reads them, where the validator's error says where that reading fails.
+  # They are rules of their own, not `LuauVariableName` and the other
+  # expression rules, so Sparkdown's own reference checks leave the line's
+  # names alone; Luau's type checker still reads the line and warns about
+  # them as Luau does. A character Luau has no token for (`!`, `?`) is
+  # invalid.
+  LuauInvalidStatementToken:
+    patterns:
+      - { include: "#LuauComment" }
+      # Luau's own string and number rules, so a long string (`[[end]]`) and
+      # a hexadecimal number (`0xFF`) read as Luau reads them.
+      - { include: "#LuauString" }
+      - { include: "#LuauNumber" }
+      - { include: "#LuauInvalidStatementLogicalKeyword" }
+      - { include: "#LuauInvalidStatementKeyword" }
+      - { include: "#LuauInvalidStatementName" }
+      - { include: "#LuauInvalidStatementAccessor" }
+      - { include: "#LuauInvalidStatementComma" }
+      - { include: "#LuauInvalidStatementOperator" }
+      - { include: "#LuauInvalidStatementCharacter" }
+
+  LuauInvalidStatementLogicalKeyword:
+    tag: logicOperator
+    name: keyword.operator.logical.luau keyword.operator.wordlike.luau
+    match: \b(?:{{LUAU_LOGICAL_KEYWORDS}})\b
+
+  LuauInvalidStatementKeyword:
+    tag: controlKeyword
+    name: keyword.control.luau
+    match: \b{{LUAU_INVALID_STATEMENT_RESERVED_WORD}}\b
+
+  LuauInvalidStatementName:
+    tag: variableName
+    name: variable.other.readwrite.luau
+    match: ({{LUAU_IDENTIFIER}})
+
+  LuauInvalidStatementAccessor:
+    tag: separator
+    name: meta.template.expression.accessor.sd
+    match: "[.]"
+
+  LuauInvalidStatementComma:
+    tag: operator
+    name: keyword.operator.comma.luau
+    match: "[,]"
+
+  LuauInvalidStatementOperator:
+    tag: operator
+    name: keyword.operator.luau
+    match: "[-+*/%^#=<>~(){}\\[\\]:;]"
+
+  LuauInvalidStatementCharacter:
+    tag: invalid
+    name: invalid.illegal.luau
+    match: "[^\\s]"
 
   # ----------------------------------------------------------------------------
   # For Loop
@@ -9609,9 +9779,10 @@ repository:
   # indexer, a parenthesized value (`LuauChainedPropertyAccess`), a path after
   # a comment, a line that continues the one before it, and a path at the
   # start of a statement (`t.a. = 1`), so the enclosing function still ends
-  # at its own `end` (#1156). Story lines are not allowed in a function body,
-  # so a line of words there (`Hello there.`) is read the same way, as Luau
-  # reads it. A name directly after the `.` is the member, even a keyword
+  # at its own `end` (#1156). A line in a Luau body that is not a statement
+  # (`Hello there.`) is `LuauInvalidStatement`, which takes the whole line
+  # before this rule is tried; the `.` that ends a comma list there
+  # (`Well, friend.`) is this one. A name directly after the `.` is the member, even a keyword
   # (`cfg.repeat`). After whitespace or block comments on the same line, a
   # reserved word is not a name (`if t.a. then`) and any other name is
   # (`t.a.--[[note]]b`); and `..` is the concatenation operator. A block

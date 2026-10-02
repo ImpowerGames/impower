@@ -18,10 +18,10 @@ import { isTrivia, lineTextSpan, makeSource } from "./validateDefineStructure";
 //
 //   - at its `end` keyword, which its `_end` node holds;
 //   - just before the next `scene` / `branch` beat, with an empty `_end` node;
-//   - with no `_end` node at all, where the block's text stops being Luau (a
-//     story line in a function's body) or at the end of the document. The rest
-//     of the block then follows as root-level chunks of its own, and a
-//     root-level `end` closes it.
+//   - with no `_end` node at all, at a line of its body the grammar cannot
+//     read as Luau or at the end of the document. The rest of the block then
+//     follows as root-level chunks of its own, and a root-level `end` closes
+//     it.
 //
 // The first two are read from the block's own node, so `validateBlockEnds`
 // checks them for each chunk as it is lowered. The third depends on the
@@ -191,9 +191,9 @@ function endKeywordOf(node: SyntaxNode): SyntaxNode | null {
 // those cut off before a `scene` or `branch`, and `repeat` loops with no
 // `until`. A `repeat` left open is reported as the outermost of the loops
 // that share the `until`s it holds, as Luau reports it, and the loops inside
-// it are not reported again. A `repeat` that a story line cuts off, whose
-// `until` follows as a root-level chunk of its own, is `validateOpenBlocks`'s
-// to check.
+// it are not reported again. A `repeat` cut off at a line the grammar cannot
+// read as Luau, whose `until` follows as a root-level chunk of its own, is
+// `validateOpenBlocks`'s to check.
 export function validateBlockEnds(
   chunk: SyntaxNode,
   ctx: LowerContext,
@@ -292,7 +292,7 @@ type OpenEntry =
 // is itself a block or holds one (a function value in a `store`), and warns
 // about text after a root-level block's `end`. Each root-level
 // `end` closes the innermost block, scene or branch still open, and each
-// root-level `until` the innermost `repeat` that a story line cut off. A `branch`
+// root-level `until` the innermost `repeat` cut off at such a line. A `branch`
 // sets aside every block still open before it, and a `scene` or the end of
 // the document every block, scene and branch. Scenes and branches take part
 // so that their own `end`s are not counted as a block's: one left open after

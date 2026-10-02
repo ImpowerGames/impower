@@ -164,6 +164,14 @@ export function validateAssignmentValue(
     if (!isInsignificant(sib.name)) return;
   }
   const range = operatorTokenRange(operator, ctx);
+  // The highlighting node may end at the line-ending operator while Luau
+  // reads a value on the following line. Validate the converter's value.
+  const read = (from: number, to: number) => ctx.read(from, to);
+  const next = nextSignificantToken(opNode, operator.to, read);
+  if (checkerReadsOnTo(opNode, next?.from, read)) {
+    const value = readLuauExpressionAfter(operator.to, wholeDocument(opNode, read));
+    if (value.errors.every((error) => error.message.startsWith("Expected the end of the expression"))) return;
+  }
   if (typeCheckerReportsMissingValue(opNode, operator.to, (from, to) => ctx.read(from, to))) return;
   const got = nextTokenAfter(opNode, range.to, ctx);
   ctx.diagnostics.push({

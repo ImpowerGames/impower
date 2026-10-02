@@ -16,6 +16,12 @@ import {
   isLineContinuation,
   TYPE_NAME_EXTRA_QUALIFIER,
 } from "../../lower/utils/lineContinuation";
+import {
+  followsDanglingDot,
+  followsMissingValue,
+  TRIVIA_BEFORE_STATEMENT,
+} from "../../lower/utils/statementBefore";
+import { luauStatementError } from "../../utils/luauStatementError";
 import { nextSignificantToken, typeCheckerReportsMissingValue } from "../../lower/utils/validateAssignmentValue";
 import { isTrivia, soleVariableName } from "../../lint/luauTree";
 import { checkerReadsOnTo, isCheckedLuau, isLuauFile, RESERVED } from "../../typecheck/LuauUnitNodes";
@@ -234,6 +240,83 @@ const LUAU_COMMENT = nodeNameSet([
 // ends with its line.
 const NAME_ON_LATER_LINE =
   "Expected identifier after '.' on the same line\n> e.g. `t.a.b`, not `t.a.` with `b` on the next line";
+/** The text Luau's parser names a token by in "got '…'", `<eof>` for none. */
+const gotToken = (token: { text: string } | null) =>
+  token == null ? "<eof>" : `'${token.text}'`;
+
+/**
+ * Luau's error for the `.` at `dot` that no name follows on its line: the
+ * token after it, or, when that is a name on a later line, the rule that a
+ * Sparkdown access path ends with its line. It is reported at the `.`.
+ */
+function danglingDotError(
+  node: SyntaxNode,
+  dot: number,
+  read: (from: number, to: number) => string,
+): { message: string; from: number; to: number } {
+  const got = nextSignificantToken(node, dot + 1, read);
+  const nameOnLaterLine =
+    got != null &&
+    /^[A-Za-z_]/.test(got.text) &&
+    !RESERVED.has(got.text) &&
+    read(dot + 1, got.from).includes("\n");
+  return {
+    message: nameOnLaterLine
+      ? NAME_ON_LATER_LINE
+      : `Expected identifier, got ${gotToken(got)}`,
+    from: dot,
+    to: dot + 1,
+  };
+}
+
+/**
+ * The error for a line in a Luau body that is not a Luau statement
+ * (`LuauInvalidStatement`), which runs from `from` to `to`: Luau's parser's
+ * first error for it (`luauStatementError`). The exception is a line that
+ * ends with a `.` whose name Luau reads from the next line, so that its
+ * first error runs past the line (`Hello.` then `How are you?`): a
+ * Sparkdown access path ends with its line, so the `.` is reported as
+ * `danglingDotError` reports it.
+ */
+function invalidStatementError(
+  node: SyntaxNode,
+  from: number,
+  to: number,
+  read: (from: number, to: number) => string,
+): { message: string; from: number; to: number } | null {
+  const error = luauStatementError(node, from, read, to);
+  const line = read(from, to).trimEnd();
+  if (error && error.to > from + line.length && line.endsWith(".") && !line.endsWith("..")) {
+    const dangling = danglingDotError(node, from + line.length - 1, read);
+    if (dangling.message === NAME_ON_LATER_LINE) return dangling;
+  }
+  return error;
+}
+
+/**
+ * Whether `node`, a line in a Luau body that is not a Luau statement, is one
+ * that Luau reads into the statement before it, whose report stands for it:
+ * an `=` or operator that ends its line takes its first token as the missing
+ * value (`local y =`), and a `.` that ends its line takes it as the missing
+ * member (`local v = t.`, `U.S.`). The `.` is reported as a Sparkdown access
+ * path when that token is a name, and the type checker then reports the
+ * statement as Luau reads it; otherwise the report names the token.
+ */
+function reportedBefore(
+  node: SyntaxNode,
+  read: (from: number, to: number) => string,
+): boolean {
+  if (followsMissingValue(node, read)) return true;
+  let prev = node.prevSibling;
+  while (prev && TRIVIA_BEFORE_STATEMENT.has(prev.name)) prev = prev.prevSibling;
+  if (prev?.name === "LuauInvalidStatement") {
+    const line = childNamed(prev, "LuauInvalidStatement_c2");
+    const error = invalidStatementError(prev, line?.from ?? prev.from, line?.to ?? prev.to, read);
+    return error != null && (error.message === NAME_ON_LATER_LINE || error.from >= node.from);
+  }
+  return followsDanglingDot(node, read);
+}
+
 // Luau's parser reports the first part of an if expression it does not find
 // in these words (`parseIfElseExpr`): a condition or an arm's value is an
 // expression, and `then` and `else` are keywords it expects. It adds the
@@ -1166,6 +1249,25 @@ export class ValidationAnnotator extends SparkdownAnnotator<
           got ? got.from + got.text.length : nodeRef.to,
         );
       }
+      return annotations;
+    }
+    // A line in a Luau body that is not a statement (`Hello there.`). Luau's
+    // first error for it is reported; the errors Luau's recovery finds in the
+    // rest of the line are not, nor is a line whose error the statement
+    // before it reports already (`reportedBefore`).
+    if (nodeRef.name === "LuauInvalidStatement") {
+      const read = (from: number, to: number) => this.read(from, to);
+      if (reportedBefore(nodeRef.node, read)) {
+        return annotations;
+      }
+      const line = childNamed(nodeRef.node, "LuauInvalidStatement_c2");
+      const error = invalidStatementError(
+        nodeRef.node,
+        line?.from ?? nodeRef.from,
+        line?.to ?? nodeRef.to,
+        (from, to) => this.read(from, to),
+      );
+      if (error) this.error(annotations, error.message, error.from, error.to);
       return annotations;
     }
     // A type name with more than one module prefix (`types.ui.Button`). Luau
