@@ -323,9 +323,14 @@ sparkdown [0..167]
  │   │   │   │       │       │   │   │               └─ OptionalSeparator [153..154]: " "
  │   │   │   │       │       │   │   ├─ LuauStructBlockProperty_c3 [154..158]
  │   │   │   │       │       │   │   │   └─ StylingValue [154..158]
- │   │   │   │       │       │   │   │       ├─ StylingValue_c1 [154..158]
- │   │   │   │       │       │   │   │       │   └─ StylingStringIdentifier [154..158]: "flex"
- │   │   │   │       │       │   │   │       └─ StylingValue_c2 158
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c1 154
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c2 [154..158]
+ │   │   │   │       │       │   │   │       │   └─ StylingValueContent [154..158]
+ │   │   │   │       │       │   │   │       │       └─ StylingValueContent_c1 [154..158]
+ │   │   │   │       │       │   │   │       │           └─ StylingStringIdentifier [154..158]: "flex"
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c3 158
+ │   │   │   │       │       │   │   │       ├─ StylingValue_c4 158
+ │   │   │   │       │       │   │   │       └─ StylingValue_c5 158
  │   │   │   │       │       │   │   └─ LuauStructBlockProperty_c4 158
  │   │   │   │       │       │   ├─ Newline [158..159]: "\n"
  │   │   │   │       │       │   └─ Whitespace [159..161]: "  "

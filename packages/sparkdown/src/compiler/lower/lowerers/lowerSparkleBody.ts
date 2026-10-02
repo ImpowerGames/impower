@@ -35,10 +35,7 @@ import {
 } from "../utils/statementShape";
 import { documentTag } from "../utils/documentTag";
 import { unescapeString } from "../utils/unescapeString";
-import {
-  UNQUOTED_VALUE_NODES,
-  stripTrailingLineComment,
-} from "../utils/stripTrailingLineComment";
+import { structValueNode } from "../utils/structValueNode";
 import {
   sparkleBlockContent,
   sparkleBlockEntries,
@@ -890,8 +887,10 @@ const PLAIN_STRING_CONTENT = nodeNameSet([
   "PlainStringContentSingleQuoted",
 ]);
 
-function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValue {
-  if (!value) return { kind: "literal", value: "" };
+function readLiteralValue(field: SyntaxNode | null, ctx: LowerContext): PropValue {
+  if (!field) return { kind: "literal", value: "" };
+  // A value with a trailing comment reads only its value node.
+  const value = structValueNode(field);
   if (PLAIN_CONTENT_NODES.has(value.name)) {
     // Read the unquoted inner content (PlainStringContent), else strip quotes.
     const inner = firstDescendant(value, PLAIN_STRING_CONTENT);
@@ -908,15 +907,7 @@ function readLiteralValue(value: SyntaxNode | null, ctx: LowerContext): PropValu
   if (value.name === "BooleanFieldValue") {
     return { kind: "literal", value: ctx.read(value.from, value.to).trim() === "true" };
   }
-  // StylingValue / UnquotedStringFieldValue greedily include any trailing
-  // `--`/`//` comment; drop it so it never leaks into the value.
-  const raw = ctx.read(value.from, value.to).trim();
-  return {
-    kind: "literal",
-    value: UNQUOTED_VALUE_NODES.has(value.name)
-      ? stripTrailingLineComment(raw)
-      : raw,
-  };
+  return { kind: "literal", value: ctx.read(value.from, value.to).trim() };
 }
 
 /** Indent of line i's first child line, or null if i has no deeper-indented
