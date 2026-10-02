@@ -347,7 +347,7 @@ function evaluate(
     }
 
     if (entry.kind === "header") {
-      // `key:` / `key { … }` → container (its entries = the value).
+      // `key { … }` → container (its entries = the value).
       const key = headerKey(entry, ctx);
       const keyNode = headerKeyNode(entry);
       if (entry.children) {

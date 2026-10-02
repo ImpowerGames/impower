@@ -5,8 +5,7 @@ import { getRenameEdits } from "../../utils/providers/getRenameEdits";
 
 // Rename and find references inside brace bodies (#1228), in the manner of
 // `defineReferences.test.ts`: a key's symbol id comes from the blocks around
-// it, and a dotted class links to the style of its name as a bare-word class
-// does.
+// it, and a dotted class links to the style of its name.
 
 const URI = "file:///provider.sd";
 

@@ -649,7 +649,7 @@ variables:
   # mark nor a separator, and is read whole.
   # An element's name.
   SPARKLE_ELEMENT_NAME: (?:{{IDENTIFIER_START}}{{IDENTIFIER_END}})
-  # A class after a `.`, or a bare word after an element's name.
+  # A class after a `.`. A bare word starts another element.
   SPARKLE_CLASS_NAME: (?:[0-9_\p{L}][0-9_\p{L}-]*)
   # The rest of an element's line after its name: its classes, attributes,
   # content and comments. It ends before a `{` (with whitespace and an
@@ -4516,15 +4516,6 @@ repository:
       - { include: "#CustomComponentName" }
       - { include: "#FunctionCallParameters" }
 
-  # Every token AFTER the first. These are CLASSES, so they colour as classes
-  # even when the name is also a builtin — `text small "…"` is a `text` element
-  # wearing `.small`, and colouring `small` as a builtin there said the line had
-  # two elements on it. The engine agrees: it resolves the tag from `node.tag`,
-  # the first token, and never consults the rest (UIModule ELEMENT_TAGS).
-  #
-  # Deliberately the same rule set as ComponentName MINUS the builtin case, so
-  # a trailing `name(arg)` still tokenizes.
-
   # Ordered LONGEST-FIRST: regex alternation takes the first branch that
   # matches, so `table` ahead of `table_header` would leave the longer name
   # permanently unmatched. builtinNamesHighlighted.test.ts pins both that
@@ -5548,9 +5539,9 @@ repository:
       - { include: "#LuauStructBlockBody" }
     end: (?<=[}])|(?={{STRUCT_BLOCK_BAIL}})
 
-  # A block's header: its key, selector or keyframe position. The parts are
-  # highlighted by the rules an indented `key:` header uses, so a keyframe
-  # position (`from`, `40%`) is a `LuauKeyframeSelector` here too. A character
+  # A brace block's header: its key, selector or keyframe position. The parts
+  # use their corresponding token rules, so a keyframe position (`from`, `40%`)
+  # is a `LuauKeyframeSelector`. A character
   # none of them reads is a `LuauStructBlockKeyChar`, so the key always spans
   # the whole header and both engines read every part of it (GRAMMAR.md §17).
   LuauStructBlockKey:

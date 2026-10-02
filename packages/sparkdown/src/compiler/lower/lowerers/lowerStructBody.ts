@@ -312,9 +312,9 @@ function evaluate(
         if (valueNode) arr.push(parseScalar(readValue(valueNode, ctx)));
       }
     } else if (entry.kind === "header") {
-      // Nested block — covers `key:`, `> selector:`, `@breakpoint:`, an element
-      // header with inline attributes (`column #gap=16 { … }`), and their `{ … }`
-      // forms. The key is the header text before the `:` or `{`, with any
+      // Nested brace block — covers `key { … }`, `> selector { … }`,
+      // `@breakpoint { … }`, and element headers with inline attributes
+      // (`column #gap=16 { … }`). The key is the header text before `{`, with any
       // `@event`/`#prop` attributes excised so the static struct keys on the
       // structural part only.
       const key = entry.key
