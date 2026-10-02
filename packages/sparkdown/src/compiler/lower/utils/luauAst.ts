@@ -60,20 +60,36 @@ export function offsetAt(position: Position, ctx: LowerContext): number {
 }
 
 /**
- * The document offset where a function's own syntax begins: its first
- * token after any attributes (`@native function`). The converter includes
- * the attributes in the function's location, but the syntax tree holds them
- * in nodes of their own before the function's.
+ * The syntax node of a function the converter read with attributes
+ * (`@native function`, `@checked -- note` then `local function`): the
+ * first node of a kind in `names` after its last attribute. The converter
+ * includes the attributes in the function's location, but the syntax tree
+ * holds them, and any comment after them, in nodes of their own before the
+ * function's. Undefined for a function without attributes.
  */
-export function functionBegin(
+export function nodeAfterAttributes(
   func: { location: Location; attributes: readonly { location: Location }[] },
+  source: LuauSource,
+  names: ReadonlySet<string>,
   ctx: LowerContext,
-): number {
+): SyntaxNode | null | undefined {
   const last = func.attributes[func.attributes.length - 1];
-  if (!last) return offsetAt(func.location.begin, ctx);
-  const end = offsetAt(last.location.end, ctx);
-  const rest = documentText(ctx).slice(end, offsetAt(func.location.end, ctx));
-  return end + rest.length - rest.trimStart().length;
+  if (!last) return undefined;
+  const from = offsetAt(last.location.end, ctx);
+  const to = offsetAt(func.location.end, ctx);
+  // The function's node can begin right at the attribute's end, holding the
+  // whitespace before `function`; the outermost such node is the function's.
+  let found: SyntaxNode | null = null;
+  for (
+    let node: SyntaxNode | null = source.top.resolveInner(from, 1);
+    node && node.from >= from;
+    node = node.parent
+  ) {
+    if (names.has(node.name) && node.to <= to) found = node;
+  }
+  // Otherwise a comment stands between them, and the function's node is a
+  // later sibling.
+  return found ?? nodeWithin(source, from, to, names);
 }
 
 /** The document range of a location in the converter's AST. */
