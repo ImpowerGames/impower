@@ -719,8 +719,9 @@ Genuinely Unity-shaped, touches the most code; doing it speculatively is prematu
 
 The lowerer (rewritten from scratch, L5) must:
 
-1. Parse element lines, control flow, slots via **new grammar rules** (activate/replace the
-   dead `LuauUIElement`/`LuauUIAttribute`/`LuauUIContent`; add `if/for/match/slot/fill`).
+1. Parse element lines, control flow, slots via **new grammar rules** (replace the
+   unreachable `LuauUIAttribute`/`LuauUIContent` rules; `LuauUIElement` was removed in #1277;
+   add `if/for/match/slot/fill`).
    Preserve `LuauStructBodyLine`'s leading-indent capture the formatter relies on. (Since
    [#1222](https://github.com/ImpowerGames/impower/issues/1222), brace bodies are read by
    `LuauSparkleBlockLine` and `LuauStructBlockLine`, and the formatter indents them by

@@ -708,7 +708,6 @@ This is a new line outside the block.
 BlockDialogue [0..…]              ← contains the body lines
  ├─ BlockDialogue_begin [..]      ← `@NARRATOR:` header
  │   ├─ OptionalWhitespace        ← leading WS (position-detected as indent)
- │   ├─ DialogueMark: "@"
  │   ├─ ...character name pieces...
  │   └─ ColonOperator: ":"
  ├─ BlockLineContinue [..]        ← "  Hello."
