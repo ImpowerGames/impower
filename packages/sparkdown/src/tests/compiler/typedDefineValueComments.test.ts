@@ -56,22 +56,22 @@ describe("a trailing comment does not change a typed field's value", () => {
     });
   }
 
-  // A define body is Luau, where `//` is floor division rather than a
-  // comment, so `5 // note` divides by an unknown `note` and the compiler
-  // says so.
-  test("`//` is Luau floor division, which the compiler reports", () => {
+  // `//` is Luau's floor division, not a comment: `5 // note` divides by a
+  // name nothing declares, which the compiler reports, and the value is the
+  // expression as written rather than the number before it.
+  test("`//` is floor division, reported", () => {
     const program = compile(
       `define Bird with\n  delay = 0\nend\n` +
         `define robin as Bird with\n  delay = 5 // note\nend\n`,
     );
     const messages = Object.values(program.diagnostics ?? {})
       .flat()
-      .map((d: any) => d.message?.value ?? d.message);
+      .map((d: any) => (typeof d.message === "string" ? d.message : d.message.value));
     expect(messages).toContain("Cannot find variable named `note`");
+    expect(program.context?.Bird?.robin?.delay).not.toBe(5);
   });
 
-  // The quotes bound a quoted value, so neither a URL nor a CSS custom
-  // property in one is mistaken for a comment.
+  // Inside quotes neither a URL nor a CSS custom property is a comment.
   test("a `://` URL and a `--custom` property survive", () => {
     const out = compile(
       `define Bird with\n  name = ""\n  tint = ""\nend\n` +

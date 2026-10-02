@@ -2,7 +2,7 @@ import type { GrammarSyntaxNode } from "@impower/textmate-grammar-tree/src/tree/
 import { getDescendent } from "@impower/textmate-grammar-tree/src/tree/utils/getDescendent";
 import { ErrorType } from "../../../inkjs/compiler/Parser/ErrorType";
 import type { SparkdownNodeName } from "../../types/SparkdownNodeName";
-import type { SparkdownSyntaxNodeRef } from "../../types/SparkdownSyntaxNodeRef";
+import type { SyntaxNode } from "@lezer/common";
 import type { LowerContext } from "../context";
 
 // The `do ... end` block holding a `while` or `for` loop's body. A loop in a
@@ -20,14 +20,14 @@ export function loopBodyBlock(
 }
 
 export function findLoopDoBlock(
-  nodeRef: SparkdownSyntaxNodeRef,
+  loop: SyntaxNode,
   ctx: LowerContext,
 ): GrammarSyntaxNode<SparkdownNodeName> | undefined {
-  const doBlock = loopBodyBlock(nodeRef.node);
+  const node = loop as GrammarSyntaxNode<SparkdownNodeName>;
+  const doBlock = loopBodyBlock(node);
   if (doBlock) return doBlock;
   const keyword =
-    getDescendent(["LuauWhileKeyword", "LuauForKeyword"], nodeRef.node) ??
-    nodeRef.node;
+    getDescendent(["LuauWhileKeyword", "LuauForKeyword"], node) ?? node;
   const name = ctx.read(keyword.from, keyword.to);
   ctx.diagnostics?.push({
     message: `Expected \`do\` after the \`${name}\` loop's condition. Write \`${name} ... do\`, the body, then \`end\`.`,

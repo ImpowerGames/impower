@@ -75,7 +75,9 @@ jobs:
           - vscode-sparkdown
     name: ${{ matrix.package }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Sparkdown's growing conformance suite can exceed 30 minutes on a
+    # slower hosted runner with one worker. Keep other package bounds.
+    timeout-minutes: ${{ matrix.package == 'packages/sparkdown' && 45 || 30 }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

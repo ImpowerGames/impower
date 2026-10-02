@@ -210,6 +210,19 @@ export class CompilationAnnotator extends SparkdownAnnotator<
     this._defineTypeNameIndex = defineTypeNames;
   }
 
+  // The document's text as one string, which the lowerers read Luau from
+  // (`LowerContext.documentText`), converted once per version of the document.
+  private _documentText = "";
+  private _documentTextOf?: unknown;
+
+  private documentText(): string {
+    if (this._documentTextOf !== this.text) {
+      this._documentTextOf = this.text;
+      this._documentText = this.text?.toString() ?? "";
+    }
+    return this._documentText;
+  }
+
   private computeGlobalCallableNames(): Set<string> {
     if (this.tree === this._globalCallableNamesTree && this._globalCallableNames) {
       return this._globalCallableNames;
@@ -488,6 +501,7 @@ export class CompilationAnnotator extends SparkdownAnnotator<
         filePath: this.uri,
         chunkFrom: nodeRef.from,
         read: (from, to) => this.read(from, to),
+        documentText: () => this.documentText(),
         lineNumber: (pos) =>
           text ? text.lineAt(pos).number - 1 - chunkStartLine0 : 0,
         characterNumber: (pos) => {
