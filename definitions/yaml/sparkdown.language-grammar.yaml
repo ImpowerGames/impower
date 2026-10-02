@@ -10719,6 +10719,16 @@ repository:
     name: invalid.illegal.type-name-qualifier.luau
     match: (.+)
 
+  # lookaround: `(?!{{LUAU_NON_TYPE_KEYWORDS}})` leaves a keyword that
+  # cannot start a type (`end`, `do`, `then`) to the statement around the
+  # type (`LuauFunctionReturnType` and `LuauTypeAssignment` end before one).
+  # Removing it changes no fixture, but the bracketed types that include
+  # this rule (`LuauTypeFunctionParameters`, `LuauTypeTableStruct`,
+  # `LuauTypeGenerics`, `LuauTypeTableIndexer`) end only at their bracket,
+  # so no end can stop before the keyword there: `type V = (end)` then
+  # opens an empty type at `end`, and VS Code leaves every later line of
+  # the file unhighlighted. No rule reads the keyword as a type to order
+  # first, and a type-name variable would only move the lookahead.
   LuauTypeLiteral:
     begin: (?=(?!{{LUAU_NON_TYPE_KEYWORDS}}){{LUAU_IDENTIFIER}}|[?]|[&]|[|]|[{]|[(]|[<]|["]|[']|[`]|[-][>]|[:])
     patterns:
