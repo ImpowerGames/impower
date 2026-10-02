@@ -57,6 +57,7 @@ jobs:
         package-lock.json
         scripts/typecheck.mjs
         scripts/lowerer-conventions-baseline.json
+        packages/eslint-plugin-sparkdown-grammar/baseline.json
         definitions/yaml/**
         packages/sparkdown/language/sparkdown.language-grammar.json
         vscode-sparkdown/language/sparkdown.language-grammar.json
@@ -98,6 +99,20 @@ jobs:
 
       - name: Check grammar node names
         run: npm run check:node-names
+
+      # The grammar conventions in packages/eslint-plugin-sparkdown-grammar
+      # (see its README). Without this step they fire only in an editor with
+      # the ESLint extension installed. `--max-warnings 0` makes the
+      # warn-level rules blocking too. Findings that predate a rule are
+      # counted in the plugin's baseline.json and report nothing until an
+      # owner's count rises. The `changes` patterns above include
+      # `definitions/yaml/**` and that baseline, so a change to either
+      # always reaches this step.
+      - name: Test the grammar lint rules
+        run: node --test packages/eslint-plugin-sparkdown-grammar/src/rules/*.test.ts
+
+      - name: Lint the grammar
+        run: npx eslint --max-warnings 0 definitions/yaml/sparkdown.language-grammar.yaml
 
       # Lowerer code that re-derives structure the grammar should name
       # (GRAMMAR.md §5.1, §6.4): auto-generated `_begin_cN` / `_end_cN` names

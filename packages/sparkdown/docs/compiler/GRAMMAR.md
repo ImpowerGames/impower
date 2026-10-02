@@ -655,8 +655,9 @@ patterns:
 - **Split a rule into narrower rules and include each separately.** If a `Switch` rule (e.g. `LuauKeyword`) is matching a keyword in contexts where that keyword should be a structural boundary instead, the answer is usually to _take the keyword out of the Switch_ and re-include it from a narrower rule that only fires in the contexts that should actually tokenise it. Example from this codebase: `then` / `else` / `elseif` are scope-enders for `if`-blocks, so they live in `LuauTernaryKeyword` (included only by `LuauTernaryExpression` for inline-ternary highlighting) rather than in the general `LuauKeyword` bag that every expression rule picks up. The split makes the keyword _structurally unavailable_ where it shouldn't tokenise — no lookahead, no maintenance trap.
 - **Let an `end:` pattern carry the load.** A scoped rule that needs to stop at a specific token (`then`, `do`, a closing delimiter) should bound itself in its own `end:` pattern. Adding a lookahead to a sibling rule's `begin:` to "make room" for the terminator is doing the parent's job in the child's regex.
 - **Tighten what a variable matches.** If an `IDENTIFIER`-style variable is greedily eating a keyword, exclude the keyword from the variable's definition (§10.2's `LUAU_IDENTIFIER` is exactly this). The exclusion lives in one place; every rule that uses the variable benefits.
-
 When you find yourself writing a lookahead, run through this list first. The lookahead is the last resort, not the first reach.
+
+One lookbehind this list does not replace anchors a child to the position right after its parent's keyword (`style NAME`, `layout NAME`, `if COND`, `for COND do`). The parent's begin takes the keyword, but the parent tries its whole patterns list again at every position of its body, and textmate-grammar-tree has no `\G` to match only where that begin ended. Tried first, the child takes the body's tokens, and a condition's empty begin opens again before `do` or at any character it cannot read. Tried after body rules that begin only at a line start, a header name still meets the body wherever `LuauComment` has read the start of a line (`--[[ note ]] accidental` becomes a second declared name). So these children keep `(?<=keyword\b{{WS}}*)`, each with a `# lookaround:` comment naming the rival and the fixture or test that changes without it (#1279). The cost falls on the header names: a block comment between the keyword and the name hides the name. A condition begins before such a comment and reads it (fixture flow/for-comment-before-condition).
 
 > **Debugging anecdotes that motivated this section.**
 >
@@ -708,7 +709,6 @@ This is a new line outside the block.
 BlockDialogue [0..…]              ← contains the body lines
  ├─ BlockDialogue_begin [..]      ← `@NARRATOR:` header
  │   ├─ OptionalWhitespace        ← leading WS (position-detected as indent)
- │   ├─ DialogueMark: "@"
  │   ├─ ...character name pieces...
  │   └─ ColonOperator: ":"
  ├─ BlockLineContinue [..]        ← "  Hello."

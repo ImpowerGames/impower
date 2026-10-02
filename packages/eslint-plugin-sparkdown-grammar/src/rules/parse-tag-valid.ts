@@ -45,9 +45,9 @@ const rule: Rule.RuleModule = {
     schema: [],
     messages: {
       malformed:
-        "`tag` value {{value}} does not match the parseTag syntax `(modifier?) expression`. See GRAMMAR.md §7.",
+        "`tag` value {{value}} does not match the parseTag syntax `(modifier?) expression`. See GRAMMAR.md §8.",
       invalidExpression:
-        "`tag` value {{value}} is invalid: {{reason}}. See GRAMMAR.md §7.",
+        "`tag` value {{value}} is invalid: {{reason}}. See GRAMMAR.md §8.",
     },
   },
   create(context) {
