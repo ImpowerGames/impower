@@ -77,7 +77,9 @@ describe("the local a type name or a structural word names", () => {
     // A local is not in scope in its own statement, as in `local x = x + 1`.
     ["a type name in the local's own annotation", "function f()\n  local number: number = 1\nend\n", ["1:8 LocalUnused"]],
     ["a structural word in the local's own initializer", "function f()\n  local style = setStyle(style)\nend\n", ["1:8 LocalUnused"]],
-    ["a type name after the local's repeat","function f()\n  repeat\n    local number = 1\n  until true\n  local x: number = 2\n  return x\nend\n", ["2:10 LocalUnused"]],
+    // A local function's name is in scope from its body, after its signature.
+    ["a type name in a local function's signature naming an outer local", "function f()\n  local Foo = {}\n  local function Foo(x: Foo)\n    return x\n  end\n  return Foo\nend\n", []],
+    ["a type name after the local's repeat", "function f()\n  repeat\n    local number = 1\n  until true\n  local x: number = 2\n  return x\nend\n", ["2:10 LocalUnused"]],
   ])("%s", (_name, source, expected) => {
     expect(functionLints(source).filter((lint) => lint.endsWith("LocalUnused"))).toEqual(expected);
   });

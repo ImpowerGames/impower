@@ -92,4 +92,12 @@ describe("a type annotation left empty at the end of its line", () => {
   ])("%j is unaffected", (source) => {
     expect(checkLuau(source).syntaxDiagnostics.map(describeDiagnostic)).toEqual([]);
   });
+
+  // Only a missing type's range ends with its line; another error that runs
+  // over several lines keeps the range Luau gives it.
+  test("an error other than a missing type keeps its range across lines", () => {
+    expect(errorsIn("main.sd", { "main.sd": "function f()\n  (1 +\n    2)\nend\n" })).toEqual([
+      "1:2-2:6 Incomplete statement: expected assignment or a function call",
+    ]);
+  });
 });

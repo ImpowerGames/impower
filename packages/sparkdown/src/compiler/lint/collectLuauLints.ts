@@ -410,7 +410,8 @@ function lintUnusedLocals(fn: AstExprFunction, tree: Tree, text: string, offsets
       if (node instanceof AstExprFunction) bindBody([...(node.self ? [node.self] : []), ...node.args], node.body);
       else if (node instanceof AstStatFor) bindBody([node.variable], node.body);
       else if (node instanceof AstStatForIn) bindBody(node.vars, node.body);
-      else if (node instanceof AstStatLocalFunction) declaredStatements.push({ stat: node, locals: [node.name], from: offsets.of(node.location.begin) });
+      // A local function's name is in scope from its body, after its signature, as Luau binds it.
+      else if (node instanceof AstStatLocalFunction) declaredStatements.push({ stat: node, locals: [node.name], from: offsets.of(node.func.body.location.begin) });
       // A `const` declares a global constant in Sparkdown, not a local.
       if (node instanceof AstStatLocal && !node.isConst) {
         declared.push(...node.vars);

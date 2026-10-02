@@ -155,11 +155,13 @@ export class SparkdownTypechecker {
       start: { line: number; character: number },
       end: { line: number; character: number },
       atEnd: boolean,
+      missingType: boolean,
     ) => {
-      // A range from where a type should stand to the token found on a later
-      // line (`local w:` before a line `local z = 1`) ends with the line the
-      // type is missing from, not at the token Luau's parser recovers with.
-      if (end.line > start.line + 1 || (end.line === start.line + 1 && end.character > 0)) {
+      // A missing type's range from where the type should stand to the token
+      // found on a later line (`local w:` before a line `local z = 1`) ends
+      // with the line the type is missing from, not at the token Luau's
+      // parser recovers with. Other errors keep their range.
+      if (missingType && (end.line > start.line + 1 || (end.line === start.line + 1 && end.character > 0))) {
         return start.line + 1 < lineStartsOf().length ? { line: start.line + 1, character: 0 } : end;
       }
       const after = end.line > start.line || (end.line === start.line && end.character > start.character);
@@ -180,7 +182,7 @@ export class SparkdownTypechecker {
           if (!entry.check.unit.errors[parseError]?.malformed) continue;
           const message = error.data.kind === "SyntaxError" ? error.data.message : "";
           const start = documentPosition(unit, error.location.begin);
-          const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"));
+          const end = rangeEnd(start, documentPosition(unit, error.location.end), message.endsWith("got <eof>"), message.startsWith("Expected type"));
           // The error's range ends with the token the reading found.
           const token = `${end.line}:${end.character}`;
           if (reportedTokens.has(token) || isSparkdownSyntax(end)) continue;
