@@ -37,11 +37,12 @@ function lineOf(code: string, offset: number): number {
   return code.slice(0, offset).split("\n").length;
 }
 
-/** A selector with each quoted run reduced to `""`, each attribute selector
- *  to `[]` and each parenthesized argument list to `()`. A quoted run ends
- *  at its own unescaped quote, as the grammar's header strings and
- *  `getCSSSelector` read one (`"a\""` is one run), and a bracket or
- *  parenthesis inside a quoted run is text. */
+/** A selector with each quoted run reduced to `""` and each attribute
+ *  selector to `[]`. A quoted run ends at its own unescaped quote, as the
+ *  grammar's header strings and `getCSSSelector` read one (`"a\""` is one
+ *  run), and a bracket inside a quoted run is text. Parentheses are kept:
+ *  a selector function's argument (`:is(…)`, `:not(…)`, `:has(…)`) is a
+ *  selector, read like the rest. */
 function maskSelector(selector: string): string {
   const endOfQuote = (start: number) => {
     const quote = selector[start];
@@ -58,8 +59,7 @@ function maskSelector(selector: string): string {
     if (c === '"' || c === "'") {
       i = endOfQuote(i);
       out += '""';
-    } else if (c === "[" || c === "(") {
-      const close = c === "[" ? "]" : ")";
+    } else if (c === "[") {
       let depth = 1;
       i += 1;
       while (i < selector.length && depth > 0) {
@@ -68,11 +68,11 @@ function maskSelector(selector: string): string {
           i = endOfQuote(i);
           continue;
         }
-        if (d === c) depth += 1;
-        else if (d === close) depth -= 1;
+        if (d === "[") depth += 1;
+        else if (d === "]") depth -= 1;
         i += 1;
       }
-      out += c + close;
+      out += "[]";
     } else {
       out += c;
       i += 1;
@@ -82,21 +82,24 @@ function maskSelector(selector: string): string {
 }
 
 /** The bare-word classes of a style rule's selector (`> text title`,
- *  `& secondary`, `[data-x] secondary`). A selector is compounds joined by
- *  combinators (`>`, `>>`, `+`, `~`) or listed with `,`. Within a compound,
- *  a state (`@hovered`) or a class (`.title`) may follow after whitespace,
- *  but a later word that starts like a name is a bare class. Attribute
- *  selectors, a state's arguments and quoted text may hold spaces, so each
- *  is first reduced to a token without them (`maskSelector`). */
+ *  `& secondary`, `[data-x] secondary`, `:is(.a b)`). `getCSSSelector`
+ *  turns whitespace before a name (`[_\p{L}]`) into a class dot wherever it
+ *  stands (`packages/spark-dom/src/utils/getStyleContent.ts`), so a selector
+ *  is split at what may stand before a name without one: a combinator
+ *  (`>`, `>>`, `+`, `~`), a `,`, and the parentheses of a selector function
+ *  or a breakpoint's argument. Within each part, a state (`@hovered`) or a
+ *  class (`.title`) may follow after whitespace, but a later word that
+ *  starts with a name is a bare class. Attribute selectors and quoted text
+ *  may hold spaces, so each is first reduced to a token (`maskSelector`). */
 function selectorBareClasses(selector: string): string[] {
-  const compounds = maskSelector(selector).split(/>>|>|\+|~|,/);
+  const compounds = maskSelector(selector).split(/>>|>|\+|~|,|\(|\)/);
   return compounds.flatMap((compound) =>
     compound
       .trim()
       .split(/\s+/)
       .filter(Boolean)
       .slice(1)
-      .filter((word) => /^[\p{L}\p{N}_-]/u.test(word)),
+      .filter((word) => /^[_\p{L}]/u.test(word)),
   );
 }
 
@@ -287,6 +290,12 @@ describe("the guide's old-form check", () => {
       "a bare class after a single-quoted escaped quote",
       style(`&[data-label='a\\''] secondary`),
     ],
+    [
+      "bare classes in an `:is` argument",
+      style("&:is(.button primary, .link secondary)"),
+    ],
+    ["a bare class in a `:not` argument", style("&:not(.primary secondary)")],
+    ["a bare class in a `:has` argument", style("&:has(> .button primary)")],
   ])("reports %s", (_, source) => {
     expect(readDeclarations(source).oldForms).not.toEqual([]);
   });
@@ -317,6 +326,11 @@ describe("the guide's old-form check", () => {
       "a single-quoted attribute value with an escaped quote and a space",
       style(`&[data-label='a\\' b']`),
     ],
+    [
+      "dotted classes in selector functions",
+      style("&:is(.button.primary, .link.secondary), &:not(.primary)"),
+    ],
+    ["a combinator in a `:has` argument", style("&:has(> text.headline)")],
     ["states after a state", style("@hovered @before, @focused @before")],
     ["a state after a name", style("> text @hovered")],
     ["a spaced dotted class", style("> text .headline")],
