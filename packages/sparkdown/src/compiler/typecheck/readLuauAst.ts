@@ -556,8 +556,12 @@ class Tokenizer {
       return;
     }
     // In a Luau body an assignment begins with an ordinary expression;
-    // it must not hide the preceding statement's syntax error.
-    if (STATEMENT_BREAKS.has(name) && name !== "LuauReassignment") this.statementBreak(from, to);
+    // it must not hide the preceding statement's syntax error. Preserve
+    // the boundary after an empty if-expression arm: its missing value
+    // must not consume the next assignment's target.
+    const previous = this.tokens[this.tokens.length - 1];
+    const emptyArm = previous?.text === "then" || previous?.text === "else";
+    if (STATEMENT_BREAKS.has(name) && (name !== "LuauReassignment" || emptyArm)) this.statementBreak(from, to);
     if (SPARKDOWN_ONLY.has(name)) return;
     if (name === "LuauScopeModifier") {
       const modifier = this.text.slice(from, to);
@@ -2144,7 +2148,9 @@ class Parser {
         target = target.expr;
       }
     }
-    this.expectAndConsume("=", "assignment", danglingTarget ? undefined : "statement");
+    // A target list read while recovering from an earlier malformed
+    // construct (such as a for-loop annotation) is not a new mistake.
+    this.expectAndConsume("=", "assignment", danglingTarget || this.followerStart ? undefined : "statement");
     const values: AstExpr[] = [];
     this.parseExprList(values, true);
     return new AstStatAssign(Location.span(initial.location, values[values.length - 1]!.location), vars, values);
