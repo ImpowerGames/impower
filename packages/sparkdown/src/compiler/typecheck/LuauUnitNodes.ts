@@ -169,7 +169,6 @@ export const STATEMENT_BREAKS = new Set([
   "LuauTheme",
   "LuauComponent",
   "LuauMorph",
-  "LuauUIElement",
 ]);
 
 /**
