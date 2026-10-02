@@ -10823,8 +10823,8 @@ repository:
   # the lookbehind a comment and a word after the name on its line
   # (`type function T --[[ c ]] q`, while the author is still typing) make
   # `q` a second name, ahead of `LuauBlockBody`, which reads it otherwise
-  # (keywordLookbehinds.test.ts; no grammar fixture can hold that unfinished
-  # header). Tried after `LuauBlockBody`, the rule would never meet its name.
+  # (keywordLookbehinds.test.ts asserts the one name directly). Tried after
+  # `LuauBlockBody`, the rule would never meet its name.
   # The cost: a block comment between `function` and the name hides the
   # name.
   LuauTypeFunctionName:
