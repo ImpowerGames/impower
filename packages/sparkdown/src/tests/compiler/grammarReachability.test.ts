@@ -50,7 +50,6 @@ const KNOWN_UNREACHABLE_RULES = [
   "LuauUIAttributeValue",
   "LuauUIContent",
   "LuauUIContentText",
-  "LuauUIElementTag",
   "LuauUIQuote",
   "OperatorPrefixedPropertyName",
 ];

@@ -377,7 +377,8 @@
     "PROPERTY_NAME_TERMINATOR": "(?:[:]|[=]|[\\r\\n])",
     "EOPL": "(?:$|{{WS}}*$|{{WS}}*[/][/].*$)",
     "ASSIGN_EQUAL_OPERATOR": "(?:{{WS}}*[=]{{WS}}*)",
-    "ARRAY_ITEM_OPERATOR": "(?:[-](?:$|{{WS}}+))",
+    "STRUCT_BLOCK_EQUAL": "(?:[=]{{WS}}*)",
+    "SPARKLE_ELEMENT_BOUNDARY": "(?:[;},:]|$|{{SPARKLE_ELEMENT_NAME}})",
     "STRUCT_BLOCK_QUOTED": "(?:\"(?:\\\\.|[^\"\\\\\\n])*(?:\"|$))",
     "STRUCT_BLOCK_COMMENT_AFTER_WS": "(?:{{LUAU_COMMENT_START}}|[/][/](?={{WS}}|$))",
     "STRUCT_BLOCK_WS_IN_TEXT": "(?:{{WS}}(?!{{WS}}*{{STRUCT_BLOCK_COMMENT_AFTER_WS}}))",
@@ -386,7 +387,7 @@
     "STRUCT_BLOCK_BRACKET": "(?:[\\[]{{STRUCT_BLOCK_BRACKET_BODY}}[\\]])",
     "STRUCT_BLOCK_LONE_BRACKET": "(?:[\\[](?!{{STRUCT_BLOCK_BRACKET_BODY}}[\\]]))",
     "STRUCT_BLOCK_HEADER": "(?:(?:{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\\s{};\"=,\\[])(?:{{STRUCT_BLOCK_BRACKET}}|{{STRUCT_BLOCK_LONE_BRACKET}}|[^\\s{};\"\\[]|{{STRUCT_BLOCK_QUOTED}}|{{STRUCT_BLOCK_WS_IN_TEXT}})*?(?<![\\s,]))",
-    "STRUCT_BLOCK_ASSIGN": "(?:{{WS}}*(?:[=]{{WS}}*)?)",
+    "STRUCT_BLOCK_ASSIGN": "(?:{{WS}}*{{STRUCT_BLOCK_EQUAL}}?)",
     "STRUCT_BLOCK_LITERAL": "(?:[-]?(?:\\d*[.])?\\d+|Infinity|NaN|true|false|\"(?:\\\\.|[^\"\\\\\\n])*\")",
     "STRUCT_BLOCK_AFTER_LITERAL_COMMENT": "(?:{{WS}}*(?:{{LUAU_COMMENT_START}}|[/][/]))",
     "STRUCT_BLOCK_LITERAL_THEN_COMMENT": "(?:{{STRUCT_BLOCK_LITERAL}}{{STRUCT_BLOCK_AFTER_LITERAL_COMMENT}})",
@@ -467,14 +468,11 @@
     "SPARKLE_ATTR_VALUE": "(?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_UNQUOTED_VALUE}})",
     "SPARKLE_EVENT_VALUE": "(?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_EVENT_UNQUOTED_VALUE}})",
     "SPARKLE_ATTR": "(?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*(?!{{SPARKLE_OPEN_BRACED}}){{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))",
-    "SPARKLE_SCAN_ATTR": "(?:{{SPARKLE_PROP_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_ATTR_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=]))|{{SPARKLE_EVENT_NAME}}(?:{{WS}}*[=](?:{{WS}}*{{SPARKLE_EVENT_VALUE}}|{{SPARKLE_ATTR_NO_VALUE}})|(?!{{WS}}*[=])))",
     "SPARKLE_COMMENT": "(?:{{SPARKLE_LUAU_COMMENT}}|[/][/](?={{WS}}|$)[^\\n]*$)",
     "SPARKLE_ELEMENT_NAME": "(?:{{IDENTIFIER_START}}{{IDENTIFIER_END}})",
     "SPARKLE_CLASS_NAME": "(?:[0-9_\\p{L}][0-9_\\p{L}-]*)",
     "SPARKLE_HEAD_TOKEN": "(?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_ATTR}}|{{SPARKLE_PARENS}}|[)]|{{SPARKLE_COMMENT}}|[.]{{SPARKLE_CLASS_NAME}}|[=](?!{{WS}}*[{])|[,](?![\\s;}]|$)|{{WS}}+(?!{{WS}}|[;{}]|[,](?:{{WS}}|$|[;}])|[=]{{WS}}*[{]|$))",
     "SPARKLE_HEAD": "(?:{{SPARKLE_HEAD_TOKEN}})*",
-    "SPARKLE_SCAN_TOKEN": "(?:{{STRUCT_BLOCK_QUOTED}}|{{SPARKLE_SQUOTED}}|{{SPARKLE_LONE_SQUOTE}}|{{SPARKLE_BACKTICKED}}|{{SPARKLE_SCAN_ATTR}}|{{SPARKLE_PARENS}}|[)]|[-][-]{{SPARKLE_LONG_BRACKET}}|[.]{{SPARKLE_CLASS_NAME}}|[;,]|[=](?={{WS}}*[{])|{{WS}}+(?!{{WS}}|[-][-](?![\\[][=]*[\\[])|[/][/](?:{{WS}}|$)))",
-    "SPARKLE_BLOCK_LINE_START": "(?:{{WS}}*(?!{{WS}})(?![-](?:{{WS}}|$))(?:{{SPARKLE_SCAN_TOKEN}})*?(?=[{}]|{{SPARKLE_EVENT_NAME}}{{WS}}*[=]{{WS}}*{{SPARKLE_OPEN_BRACED}}))",
     "SPARKLE_CONTINUATION_START": "(?:{{WS}}*(?!{{STRUCT_BLOCK_PROPERTY_HEAD}}(?!{{WS}}*[{]))[.#@\"'])",
     "SPARKLE_BLOCK_BAIL": "(?:{{BEAT}}|^{{WS}}*(?:end|else|elseif|case)(?![{{IDENTIFIER_END_CHAR}}]))",
     "SPARKLE_KEYWORD_END": "(?![{{IDENTIFIER_END_CHAR}}])",
@@ -6320,30 +6318,6 @@
           ]
         }
       }
-    },
-    "ArrayItemOperator": {
-      "match": "([-])($|(?:[^\\S\\n\\r])+)",
-      "captures": {
-        "1": {
-          "patterns": [
-            {
-              "include": "#ArrayItemMark"
-            }
-          ]
-        },
-        "2": {
-          "patterns": [
-            {
-              "include": "#Separator"
-            }
-          ]
-        }
-      }
-    },
-    "ArrayItemMark": {
-      "tag": "keyword",
-      "name": "keyword.operator.expression.array.sd",
-      "match": "(.+)"
     },
     "AssignEqualOperator": {
       "match": "((?:[^\\S\\n\\r])*)([=])((?:[^\\S\\n\\r])*)",

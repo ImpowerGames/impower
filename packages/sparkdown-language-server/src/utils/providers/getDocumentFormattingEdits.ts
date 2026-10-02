@@ -78,6 +78,18 @@ const INDENTING_BLOCKS = nodeNameSet([
   "LuauSparkdownSequentialAlternatorBlock",
   "LuauSequentialAlternatorBlock",
   "LuauConditionalAlternatorBlock",
+  "LuauSparkleBlockIf",
+  "LuauSparkleBlockElseif",
+  "LuauSparkleBlockElse",
+  "LuauSparkleBlockFor",
+  "LuauSparkleBlockMatch",
+  "LuauSparkleBlockCase",
+  "LuauSparkleIfBlock",
+  "LuauSparkleElseifBlock",
+  "LuauSparkleElseBlock",
+  "LuauSparkleForLoop",
+  "LuauSparkleMatchBlock",
+  "LuauSparkleCaseClause",
   "LuauDefine",
   "LuauMethodDefinition",
   "LuauTable",
@@ -104,6 +116,10 @@ const SIBLING_CLAUSES: Partial<Record<SparkdownNodeName, SparkdownNodeName[]>> =
     "LuauSparkdownElseBlock",
   ],
   LuauIfBlock: ["LuauElseifBlock", "LuauElseBlock"],
+  LuauSparkleBlockIf: ["LuauSparkleBlockElseif", "LuauSparkleBlockElse"],
+  LuauSparkleBlockFor: ["LuauSparkleBlockElse"],
+  LuauSparkleIfBlock: ["LuauSparkleElseifBlock", "LuauSparkleElseBlock"],
+  LuauSparkleForLoop: ["LuauSparkleElseBlock"],
   LuauSparkdownChooseBlock: ["LuauSparkdownChooseThenClause"],
 };
 
@@ -417,23 +433,6 @@ const BRACE_INDENTERS = nodeNameSet([
   "LuauStructListBlock",
   "LuauSparkleHandlerClosure",
   "LuauSparkleElementContinuation",
-  "LuauSparkleBlockIf",
-  "LuauSparkleBlockElseif",
-  "LuauSparkleBlockElse",
-  "LuauSparkleBlockFor",
-  "LuauSparkleBlockMatch",
-  "LuauSparkleBlockCase",
-]);
-
-// An `elseif` / `else` branch is read inside the `_content` of the `if` or
-// `for` it belongs to, yet lines up with it.
-const BRACE_SIBLING_CLAUSES = nodeNameSet([
-  "LuauSparkleBlockElseif",
-  "LuauSparkleBlockElse",
-]);
-const BRACE_CLAUSE_OWNERS = nodeNameSet([
-  "LuauSparkleBlockIf",
-  "LuauSparkleBlockFor",
 ]);
 
 // The depth of a line below the first line of the brace line at
@@ -450,12 +449,6 @@ function braceDepth(
     const node = inner[i];
     if (!node || !BRACE_INDENTERS.has(node.name)) continue;
     if (inner[i - 1]?.name !== `${node.name}_content`) continue;
-    if (
-      BRACE_CLAUSE_OWNERS.has(node.name) &&
-      BRACE_SIBLING_CLAUSES.has(inner[i - 2]?.name ?? "")
-    ) {
-      continue;
-    }
     depth += 1;
   }
   depth += computeBlockIndent(inner);
@@ -667,17 +660,13 @@ export const getFormatting = (
             });
           }
         };
-        // Reset the level stack when we cross into a different body.
+        // Reset cached brace and continuation levels for each body.
         if (sparkleContentFrom !== sparkleContentNode.from) {
           sparkleContentFrom = sparkleContentNode.from;
           braceLineLevels = new Map();
           lastElementLevel = undefined;
         }
-        // A line of a brace line (`column {` … `}`, `timing {` … `}`) nests
-        // by its braces, not its column (#1227). Its lines stay out of the
-        // level stack: the stack tracks the indented lines around them, and
-        // their columns would otherwise make the next indented line a child
-        // of the block, where the readers drop it.
+        // Braces and control scopes determine each body's display levels.
         const trimmedLine = lineText.trimStart();
         const isCommentLine =
           trimmedLine.startsWith("--") || trimmedLine.startsWith("//");
@@ -725,8 +714,7 @@ export const getFormatting = (
             return;
           }
         }
-        // At the top of the body such a comment takes no place among the
-        // indented lines either.
+        // A comment before a continuation uses the preceding element's level.
         if (commentsContinuation && lastElementLevel != null) {
           emitLevel(lastElementLevel + 1);
           return;
