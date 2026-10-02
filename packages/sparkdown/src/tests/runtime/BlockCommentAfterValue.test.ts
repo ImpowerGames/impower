@@ -127,7 +127,6 @@ describe("a statement after a same-line block comment after a value runs", () =>
     ["a call's result", "  local w = g() --[[c]] (2)"],
     ["a parenthesized value", "  local w = (h) --[[c]] (2)"],
     ["an index", "  local w = t[1] --[[c]] (2)"],
-    ["a call's result, spanning lines", "  local w = g() --[[a\n  ]] (2)"],
   ])("a comment before a call of %s", (_name, body) => {
     const callees =
       "  local h = function(v) return v * 3 end\n  local g = function() return h end\n  local t = {h}\n";
@@ -187,6 +186,28 @@ describe("a statement after a same-line block comment after a value runs", () =>
     expect(
       run("  local w = 0\n  local g = function(v) w = v end\n  g --[[a\n  ]] (2)"),
     ).toBe("Value 2.\n");
+  });
+
+  // In a value, Luau does not read a `(` on a later line as a call of the
+  // value before it ("Ambiguous syntax"); a comment spanning the line break
+  // does not change that, so the value is read as the same lines without
+  // the comment read it.
+  test.each([
+    [
+      "a call's result",
+      "  local w = g() --[[a\n  ]] (2)",
+      "  local w = g()\n  (2)",
+    ],
+    [
+      "a value",
+      "  local w = h --[[a\n  ]] (2)",
+      "  local w = h\n  (2)",
+    ],
+  ])("a comment spanning lines before `(` after %s: not a call, as without the comment", (_name, body, withoutComment) => {
+    const callees =
+      "  local h = function(v) return v * 3 end\n  local g = function() return h end\n";
+    expect(run(callees + body)).toBe(run(callees + withoutComment));
+    expect(run(callees + body)).not.toBe("Value 6.\n");
   });
 
   test("a level-four comment keeps a type union and an operand", () => {
@@ -327,11 +348,6 @@ describe("a statement after a block comment spanning lines runs", () => {
     ["an operator", "  local w = 5 --[[a\n  ]] + 1", "Value 6.\n"],
     ["a concatenation", '  local w = "a" --[[a\n  ]] .. "b"', "Value ab.\n"],
     ["an operand", "  local w = 3 + --[[a\n  ]] 2", "Value 5.\n"],
-    [
-      "a call's arguments",
-      "  local g = function(v) return v * 3 end\n  local w = g --[[a\n  ]] (2)",
-      "Value 6.\n",
-    ],
     [
       "a list's next value",
       "  local t = {5 --[[a\n  ]], 6}\n  local w = t[2]",

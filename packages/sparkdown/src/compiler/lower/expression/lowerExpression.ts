@@ -55,6 +55,7 @@ import {
   AstExprConstantNil,
   AstExprConstantNumber,
   AstExprConstantString,
+  AstExprError,
   AstExprFunction,
   AstExprGlobal,
   AstExprGroup,
@@ -78,6 +79,7 @@ import {
   unaryOpToString,
 } from "../../typecheck/Ast";
 import type { Location } from "../../typecheck/Location";
+import GRAMMAR_DEFINITION from "../../../../language/sparkdown.language-grammar.json";
 import { type SparkdownNodeName } from "../../types/SparkdownNodeName";
 import { nodeNameSet } from "../../utils/nodeNameSet";
 import type { LowerContext } from "../context";
@@ -87,6 +89,7 @@ import { VARARGS_LOCAL_NAME } from "../utils/lowerArguments";
 import { lowerDivertPath } from "../utils/lowerDivertPath";
 import {
   enclosingNode,
+  errorMessage,
   offsetAt,
   rangeOf,
   readExpressionAst,
@@ -189,6 +192,10 @@ export function lowerExpression(
     return lowerNamePath(pathNames(expr)!, expr.location, ctx);
   }
   if (expr instanceof AstExprIndexName) {
+    // A `.` with no name after it (`t.a.` before the line's end) is the
+    // converter's error, reported by the type checker; the value is the
+    // path before the `.`.
+    if (expr.index === MISSING_NAME) return lowerExpression(expr.expr, source, ctx);
     const names = pathNames(expr);
     if (names) return lowerNamePath(names, expr.location, ctx);
     const base = lowerChainBase(expr.expr, source, ctx);
@@ -287,11 +294,34 @@ export function lowerExpression(
       ctx,
     );
   }
+  if (expr instanceof AstExprError) return lowerMalformedString(expr, source, ctx);
   // A syntax error, which the type checker reports, an alternator used as
   // a value, which the display lowerers lower themselves, and a branch's
   // argument, which only the type checker reads.
   return null;
 }
+
+// A string literal with an escape Luau's parser rejects. A `\u{...}` escape
+// above U+10FFFF, which Luau encodes as extended UTF-8 and a JS string cannot
+// hold, lowers to U+FFFD (DIVERGENCES.md); any other escape lowers as
+// `processLuauEscapes` reads it. Any other syntax error lowers to nothing.
+function lowerMalformedString(
+  expr: AstExprError,
+  source: LuauSource,
+  ctx: LowerContext,
+): Expression | null {
+  if (
+    expr.expressions.length > 0 ||
+    errorMessage(expr, source) !== MALFORMED_STRING
+  ) {
+    return null;
+  }
+  const range = rangeOf(expr.location, ctx);
+  const text = stripQuotes(ctx.read(range.from, range.to).trim());
+  return new StringExpression([new Text(processLuauEscapes(text))]);
+}
+
+const MALFORMED_STRING = "String literal contains malformed escape sequence";
 
 /**
  * `expr` adjusted to exactly one value where Luau takes one (a parenthesis,
@@ -325,6 +355,10 @@ export interface PathName {
  * followed by any number of `.name` fields (`a`, `a.b.c`). Null for any
  * other expression.
  */
+// The name the converter gives a name it could not read, as Luau's parser
+// does (`kParseNameError`).
+const MISSING_NAME = "%error-id%";
+
 export function pathNames(expr: AstExpr): PathName[] | null {
   const names: PathName[] = [];
   let current = expr;
@@ -522,23 +556,9 @@ function lowerCall(
 
 // The libraries the grammar reads as stdlib namespaces
 // (`LUAU_STANDARD_LIB_CONSTANTS`), whose fields a dot call reaches by path.
-const STDLIB_NAMESPACES: ReadonlySet<string> = new Set([
-  "bit32",
-  "coroutine",
-  "debug",
-  "math",
-  "os",
-  "string",
-  "table",
-  "task",
-  "utf8",
-  "buffer",
-  "vector",
-  "system",
-  "count",
-  "lang",
-  "plural",
-]);
+const STDLIB_NAMESPACES: ReadonlySet<string> = new Set(
+  GRAMMAR_DEFINITION.variables.LUAU_STANDARD_LIB_CONSTANTS as string[],
+);
 
 // `obj:method(args)` and `obj.method(args)`. A colon call passes the
 // receiver as the first argument, evaluated once; a dot call does not.

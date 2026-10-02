@@ -3,7 +3,10 @@ import { type SyntaxNode } from "@lezer/common";
 import { ParsedObject } from "../../inkjs/compiler/Parser/ParsedHierarchy/Object";
 import { Weave } from "../../inkjs/compiler/Parser/ParsedHierarchy/Weave";
 import { AstStat, AstStatIf } from "../typecheck/Ast";
-import type { LuauStatementSource } from "../typecheck/readLuauAst";
+import type {
+  LuauStatementSource,
+  LuauSyntaxError,
+} from "../typecheck/readLuauAst";
 import type { CompiledBlock } from "../classes/annotators/CompilationAnnotator";
 import type { SparkdownSyntaxNodeRef } from "../types/SparkdownSyntaxNodeRef";
 import type { LowerContext } from "./context";
@@ -72,7 +75,7 @@ import {
   headerLineRange,
   stampDebugMetadata,
 } from "./utils/debugMetadata";
-import { readBlockAst } from "./utils/luauAst";
+import { offsetAt, readBlockAst } from "./utils/luauAst";
 import { forwardBlockDiagnostics } from "./utils/unwrapBlock";
 import {
   closeStatement,
@@ -337,17 +340,54 @@ export function lowerStatements(
   for (let child = first; child; child = child.nextSibling) {
     if (!skipNames.has(child.name)) nodes.push(child);
   }
-  const reading = readBlockAst(nodes, ctx);
-  // The statements that begin in each child, by the child's index.
-  const beginning: LuauStatementSource[][] = nodes.map(() => []);
+  // The block's statements, read from its children from `from` on, and the
+  // statements that begin in each child, by the child's index.
   const indexOf = new Map<string, number>();
   nodes.forEach((node, i) => indexOf.set(`${node.name}@${node.from}`, i));
   const nodeIndex = (ref: { name: string; from: number }) =>
     indexOf.get(`${ref.name}@${ref.from}`);
-  for (const source of reading?.unit.statements ?? []) {
-    const at = source.nodes[0] && nodeIndex(source.nodes[0]);
-    if (at !== undefined) beginning[at]!.push(source);
-  }
+  const beginning: LuauStatementSource[][] = nodes.map(() => []);
+  const readFrom = (from: number) => {
+    const read = readBlockAst(nodes.slice(from), ctx);
+    for (let i = from; i < nodes.length; i++) beginning[i] = [];
+    for (const source of read?.unit.statements ?? []) {
+      const at = source.nodes[0] && nodeIndex(source.nodes[0]);
+      if (at !== undefined) beginning[at]!.push(source);
+    }
+    return read;
+  };
+  let reading = readFrom(0);
+  // A child where a statement before it stopped short (`cutAt`), which is
+  // read again from there.
+  let rereadAt: number | undefined;
+  // The first child after `i` that the statement continues into only by
+  // Luau's error recovery: the converter's reading fails at the child's
+  // first token (`x = if true then 1` before `x = 6` at column 0, whose `x`
+  // Luau reads as the missing `else`), and the child is a statement of its
+  // own to the grammar. The statement stops short of it, and the child is
+  // read again as the start of the block's remaining statements. A line
+  // that continues the value before it is left to the continuation reports.
+  const cutAt = (
+    statement: LuauStatementSource,
+    i: number,
+    errors: readonly LuauSyntaxError[],
+  ): number | undefined => {
+    let cut: number | undefined;
+    for (const ref of statement.nodes) {
+      const at = nodeIndex(ref);
+      if (at === undefined || at <= i) continue;
+      const node = nodes[at]!;
+      if (isLineContinuation(node) || node.name === "LuauTypeUnionLineContinuation") {
+        continue;
+      }
+      const text = ctx.read(node.from, node.to);
+      const first = node.from + text.length - text.trimStart().length;
+      if (errors.some((e) => offsetAt(e.location.begin, ctx) === first)) {
+        if (cut === undefined || at < cut) cut = at;
+      }
+    }
+    return cut;
+  };
   // The children a statement before them continues into (`takesLines`).
   const taken = new Set<number>();
   // The last statement lowered, which a line that continues no value
@@ -355,10 +395,24 @@ export function lowerStatements(
   let previous: AstStat | undefined;
   for (let i = 0; i < nodes.length; i++) {
     const child = nodes[i]!;
+    if (rereadAt === i) {
+      rereadAt = undefined;
+      reading = readFrom(i);
+    }
     // A `choose` block is Sparkdown's own, lowered from its node.
     const statements =
       reading && !TREE_LOWERED_STATEMENTS.has(child.name)
-        ? readStatements(child, beginning[i]!, reading.source, ctx)
+        ? readStatements(child, beginning[i]!, reading.source, ctx).map(
+            (statement) => {
+              const cut = cutAt(statement, i, reading!.source.errors);
+              if (cut === undefined) return statement;
+              if (rereadAt === undefined || cut < rereadAt) rereadAt = cut;
+              return {
+                ...statement,
+                nodes: statement.nodes.filter((n) => (nodeIndex(n) ?? i) < cut),
+              };
+            },
+          )
         : [];
     if (taken.has(i) && statements.length === 0) continue;
     if (child.name === "LuauTypeUnionLineContinuation") {

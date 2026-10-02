@@ -502,6 +502,23 @@ function reportNamedFunctionValue(nameNode: SyntaxNode, ctx: LowerContext) {
   });
 }
 
+// The function, taking only the parameters written after `offset`.
+function withArgsAfter(
+  func: AstExprFunction,
+  offset: number,
+  ctx: LowerContext,
+): AstExprFunction {
+  const args = func.args.filter(
+    (arg) => offsetAt(arg.location.begin, ctx) >= offset,
+  );
+  if (args.length === func.args.length) return func;
+  return Object.assign(
+    Object.create(Object.getPrototypeOf(func) as object) as AstExprFunction,
+    func,
+    { args },
+  );
+}
+
 /**
  * Lowers a function expression (`function(x) return x * 2 end`): builds its
  * function, attached to the enclosing function's buffer as a nested
@@ -528,11 +545,17 @@ export function lowerFunctionExpression(
   const node = functionNode(func, source, ctx);
   if (!node) return null;
   const headerName = findHeaderName(node);
-  // A named function on the line after a list's comma is a statement to
-  // Sparkdown's grammar, and the comma is reported as missing its value
-  // (`commaBeforeStatement`).
-  if (headerName && !followsLineEndingComma(node, ctx)) {
-    reportNamedFunctionValue(headerName, ctx);
+  if (headerName) {
+    // A named function on the line after a list's comma is a statement to
+    // Sparkdown's grammar, and the comma is reported as missing its value
+    // (`commaBeforeStatement`).
+    if (!followsLineEndingComma(node, ctx)) {
+      reportNamedFunctionValue(headerName, ctx);
+    }
+    // Luau's parser, recovering, reads the name as the parameter list
+    // (`function a.f()` takes `a`); the function takes the parameters it
+    // is written with.
+    func = withArgsAfter(func, headerName.to, ctx);
   }
 
   const synthName = `__anon_fn_${syntheticId(node.from, ctx)}`;

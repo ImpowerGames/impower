@@ -8,7 +8,14 @@ import type { CompiledBlock } from "../../classes/annotators/CompilationAnnotato
 import type { LowerContext } from "../context";
 import { stampDebugMetadata } from "../utils/debugMetadata";
 import { rangeOf } from "../utils/luauAst";
-import { lowerLuauStatement, type StatementSite } from "./lowerLuauStatement";
+import { nodeNameSet } from "../../utils/nodeNameSet";
+import {
+  lowerLuauStatement,
+  statementNodeAt,
+  type StatementSite,
+} from "./lowerLuauStatement";
+
+const EXPLICIT_STATEMENT = nodeNameSet(["LuauExplicitStatement"]);
 
 /**
  * A statement marked with `&`, which writes Luau where narrative would
@@ -41,7 +48,12 @@ export function lowerExplicitStatement(
     (marked instanceof AstStatLocal && marked.isConst);
   const weave = block.content?.[0];
   if (weave instanceof Weave && !hoisted) {
-    const range = rangeOf(stat.location, ctx);
+    // The statement's node, from the start of its line where it begins
+    // one, as the line's other rows are stamped.
+    const node = statementNodeAt(stat, site, EXPLICIT_STATEMENT, ctx);
+    const range = node
+      ? { from: node.from, to: node.from + ctx.read(node.from, node.to).trimEnd().length }
+      : rangeOf(stat.location, ctx);
     stampDebugMetadata(weave.content, range.from, range.to, ctx);
   }
   return block;
