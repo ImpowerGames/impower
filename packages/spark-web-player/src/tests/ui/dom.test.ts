@@ -16,15 +16,21 @@ define BG as image with
 end
 
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-  textbox:
-    character_info:
-      character_name:
+    }
+  }
+  textbox {
+    character_info {
+      character_name {
         text
-    dialogue:
+      }
+    }
+    dialogue {
       text
+    }
+  }
 end
 `;
 
@@ -96,11 +102,14 @@ define SHADOW as image with
 end
 
 layout main with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       image
-    portrait:
+    }
+    portrait {
       image
+    }
+  }
 end
 `;
 
@@ -169,12 +178,15 @@ describe("dom render · image lifecycle", () => {
 });
 
 const CHOICE_SCREEN = `layout main with
-  dialogue:
+  dialogue {
     text
-  choice 0:
+  }
+  choice.0 {
     text
-  choice 1:
+  }
+  choice.1 {
     text
+  }
 end
 `;
 

@@ -59,9 +59,11 @@ describe("provider · define completions (D2)", () => {
 
   test("does not throw inside a structural struct body", () => {
     const { text, position } = positionAt(`layout s with
-  stage:
-    backdrop:
+  stage {
+    backdrop {
       |
+    }
+  }
 end
 `);
     const { documents, scriptAnnotations } = setup(text);
