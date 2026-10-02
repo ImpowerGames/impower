@@ -46,9 +46,16 @@ sparkdown [0..244]
  │   │   │   │               │               └─ OptionalSeparator [27..28]: " "
  │   │   │   │               └─ LuauStructScalarProperty_c4 [28..32]
  │   │   │   │                   └─ StylingValue [28..32]
- │   │   │   │                       ├─ StylingValue_c1 [28..32]
- │   │   │   │                       │   └─ StylingStringIdentifier [28..32]: "bend"
- │   │   │   │                       └─ StylingValue_c2 32
+ │   │   │   │                       ├─ StylingValue_c1 28
+ │   │   │   │                       ├─ StylingValue_c2 28
+ │   │   │   │                       ├─ StylingValue_c3 28
+ │   │   │   │                       ├─ StylingValue_c4 [28..32]
+ │   │   │   │                       │   └─ StylingValueContent [28..32]
+ │   │   │   │                       │       └─ StylingValueContent_c1 [28..32]
+ │   │   │   │                       │           └─ StylingStringIdentifier [28..32]: "bend"
+ │   │   │   │                       ├─ StylingValue_c5 32
+ │   │   │   │                       ├─ StylingValue_c6 32
+ │   │   │   │                       └─ StylingValue_c7 32
  │   │   │   └─ LuauStructBodyLine_c3 32
  │   │   │       └─ LuauStructBodyLine_c3 32
  │   │   │           └─ OptionalWhitespace 32
@@ -134,20 +141,27 @@ sparkdown [0..244]
  │   │   │   │       │       │   │   │   │   │       │   │   │               └─ OptionalSeparator [79..80]: " "
  │   │   │   │       │       │   │   │   │   │       │   │   ├─ LuauStructBlockProperty_c3 [80..89]
  │   │   │   │       │       │   │   │   │   │       │   │   │   └─ StylingValue [80..89]
- │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 [80..89]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingAccessPath [80..89]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       ├─ StylingAccessPath_begin 80
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       ├─ StylingAccessPath_content [80..89]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │   └─ StylingAccessPart [80..89]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │       └─ NamespaceAccessor [80..89]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           ├─ NamespaceAccessor_c1 [80..84]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           │   └─ TypeName [80..84]: "eyes"
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           ├─ NamespaceAccessor_c2 [84..85]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           │   └─ PunctuationAccessor [84..85]: "."
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           └─ NamespaceAccessor_c3 [85..89]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │               └─ VariableName [85..89]: "open"
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       └─ StylingAccessPath_end 89
- │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c2 89
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 80
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c2 80
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c3 80
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c4 [80..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingValueContent [80..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │       └─ StylingValueContent_c1 [80..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │           └─ StylingAccessPath [80..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               ├─ StylingAccessPath_begin 80
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               ├─ StylingAccessPath_content [80..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │   └─ StylingAccessPart [80..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │       └─ NamespaceAccessor [80..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           ├─ NamespaceAccessor_c1 [80..84]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           │   └─ TypeName [80..84]: "eyes"
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           ├─ NamespaceAccessor_c2 [84..85]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           │   └─ PunctuationAccessor [84..85]: "."
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           └─ NamespaceAccessor_c3 [85..89]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │               └─ VariableName [85..89]: "open"
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               └─ StylingAccessPath_end 89
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c5 89
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c6 89
+ │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c7 89
  │   │   │   │       │       │   │   │   │   │       │   │   └─ LuauStructBlockProperty_c4 89
  │   │   │   │       │       │   │   │   │   │       │   └─ Whitespace [89..90]: " "
  │   │   │   │       │       │   │   │   │   │       └─ LuauStructBlockBody_end [90..91]
@@ -221,20 +235,27 @@ sparkdown [0..244]
  │   │   │   │       │       │   │   │   │   │       │   │   │               └─ OptionalSeparator [128..129]: " "
  │   │   │   │       │       │   │   │   │   │       │   │   ├─ LuauStructBlockProperty_c3 [129..140]
  │   │   │   │       │       │   │   │   │   │       │   │   │   └─ StylingValue [129..140]
- │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 [129..140]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingAccessPath [129..140]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       ├─ StylingAccessPath_begin 129
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       ├─ StylingAccessPath_content [129..140]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │   └─ StylingAccessPart [129..140]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │       └─ NamespaceAccessor [129..140]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           ├─ NamespaceAccessor_c1 [129..133]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           │   └─ TypeName [129..133]: "eyes"
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           ├─ NamespaceAccessor_c2 [133..134]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           │   └─ PunctuationAccessor [133..134]: "."
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │           └─ NamespaceAccessor_c3 [134..140]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       │               └─ VariableName [134..140]: "closed"
- │   │   │   │       │       │   │   │   │   │       │   │   │       │       └─ StylingAccessPath_end 140
- │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c2 140
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 129
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c2 129
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c3 129
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c4 [129..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingValueContent [129..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │       └─ StylingValueContent_c1 [129..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │           └─ StylingAccessPath [129..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               ├─ StylingAccessPath_begin 129
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               ├─ StylingAccessPath_content [129..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │   └─ StylingAccessPart [129..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │       └─ NamespaceAccessor [129..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           ├─ NamespaceAccessor_c1 [129..133]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           │   └─ TypeName [129..133]: "eyes"
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           ├─ NamespaceAccessor_c2 [133..134]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           │   └─ PunctuationAccessor [133..134]: "."
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │           └─ NamespaceAccessor_c3 [134..140]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               │               └─ VariableName [134..140]: "closed"
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │               └─ StylingAccessPath_end 140
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c5 140
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c6 140
+ │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c7 140
  │   │   │   │       │       │   │   │   │   │       │   │   └─ LuauStructBlockProperty_c4 140
  │   │   │   │       │       │   │   │   │   │       │   └─ Whitespace [140..141]: " "
  │   │   │   │       │       │   │   │   │   │       └─ LuauStructBlockBody_end [141..142]
@@ -297,9 +318,16 @@ sparkdown [0..244]
  │   │   │   │       │       │   │   │   │   │       │   ├─ LuauStructListValue [175..187]
  │   │   │   │       │       │   │   │   │   │       │   │   ├─ LuauStructListValue_c1 [175..187]
  │   │   │   │       │       │   │   │   │   │       │   │   │   └─ StylingValue [175..187]
- │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 [175..187]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingStringIdentifier [175..187]: "eyelash-left"
- │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c2 187
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 175
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c2 175
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c3 175
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c4 [175..187]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingValueContent [175..187]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │       └─ StylingValueContent_c1 [175..187]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │           └─ StylingStringIdentifier [175..187]: "eyelash-left"
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c5 187
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c6 187
+ │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c7 187
  │   │   │   │       │       │   │   │   │   │       │   │   └─ LuauStructListValue_c2 187
  │   │   │   │       │       │   │   │   │   │       │   └─ Whitespace [187..188]: " "
  │   │   │   │       │       │   │   │   │   │       └─ LuauStructBlockBody_end [188..189]
@@ -326,18 +354,32 @@ sparkdown [0..244]
  │   │   │   │       │       │   │   │   │   │       │   ├─ LuauStructListValue [201..219]
  │   │   │   │       │       │   │   │   │   │       │   │   ├─ LuauStructListValue_c1 [201..219]
  │   │   │   │       │       │   │   │   │   │       │   │   │   └─ StylingValue [201..219]
- │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 [201..219]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingStringIdentifier [201..219]: "eyeball-white-left"
- │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c2 219
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 201
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c2 201
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c3 201
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c4 [201..219]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingValueContent [201..219]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │       └─ StylingValueContent_c1 [201..219]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │           └─ StylingStringIdentifier [201..219]: "eyeball-white-left"
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c5 219
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c6 219
+ │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c7 219
  │   │   │   │       │       │   │   │   │   │       │   │   └─ LuauStructListValue_c2 219
  │   │   │   │       │       │   │   │   │   │       │   ├─ LuauStructBlockSeparator [219..220]: ";"
  │   │   │   │       │       │   │   │   │   │       │   ├─ Whitespace [220..221]: " "
  │   │   │   │       │       │   │   │   │   │       │   ├─ LuauStructListValue [221..231]
  │   │   │   │       │       │   │   │   │   │       │   │   ├─ LuauStructListValue_c1 [221..231]
  │   │   │   │       │       │   │   │   │   │       │   │   │   └─ StylingValue [221..231]
- │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 [221..231]
- │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingStringIdentifier [221..231]: "pupil-left"
- │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c2 231
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c1 221
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c2 221
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c3 221
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c4 [221..231]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │   └─ StylingValueContent [221..231]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │       └─ StylingValueContent_c1 [221..231]
+ │   │   │   │       │       │   │   │   │   │       │   │   │       │           └─ StylingStringIdentifier [221..231]: "pupil-left"
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c5 231
+ │   │   │   │       │       │   │   │   │   │       │   │   │       ├─ StylingValue_c6 231
+ │   │   │   │       │       │   │   │   │   │       │   │   │       └─ StylingValue_c7 231
  │   │   │   │       │       │   │   │   │   │       │   │   └─ LuauStructListValue_c2 231
  │   │   │   │       │       │   │   │   │   │       │   └─ Whitespace [231..232]: " "
  │   │   │   │       │       │   │   │   │   │       └─ LuauStructBlockBody_end [232..233]

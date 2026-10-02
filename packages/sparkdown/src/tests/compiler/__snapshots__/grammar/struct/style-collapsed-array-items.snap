@@ -137,9 +137,16 @@ sparkdown [0..169]
  │   │   │   │               │               └─ OptionalSeparator [75..76]: " "
  │   │   │   │               └─ LuauStructScalarProperty_c4 [76..80]
  │   │   │   │                   └─ StylingValue [76..80]
- │   │   │   │                       ├─ StylingValue_c1 [76..80]
- │   │   │   │                       │   └─ StylingStringIdentifier [76..80]: "bold"
- │   │   │   │                       └─ StylingValue_c2 80
+ │   │   │   │                       ├─ StylingValue_c1 76
+ │   │   │   │                       ├─ StylingValue_c2 76
+ │   │   │   │                       ├─ StylingValue_c3 76
+ │   │   │   │                       ├─ StylingValue_c4 [76..80]
+ │   │   │   │                       │   └─ StylingValueContent [76..80]
+ │   │   │   │                       │       └─ StylingValueContent_c1 [76..80]
+ │   │   │   │                       │           └─ StylingStringIdentifier [76..80]: "bold"
+ │   │   │   │                       ├─ StylingValue_c5 80
+ │   │   │   │                       ├─ StylingValue_c6 80
+ │   │   │   │                       └─ StylingValue_c7 80
  │   │   │   └─ LuauStructBodyLine_c3 80
  │   │   │       └─ LuauStructBodyLine_c3 80
  │   │   │           └─ OptionalWhitespace 80
@@ -180,9 +187,16 @@ sparkdown [0..169]
  │   │   │   │                       │               └─ OptionalSeparator [95..96]: " "
  │   │   │   │                       └─ LuauStructScalarProperty_c4 [96..100]
  │   │   │   │                           └─ StylingValue [96..100]
- │   │   │   │                               ├─ StylingValue_c1 [96..100]
- │   │   │   │                               │   └─ StylingStringIdentifier [96..100]: "bold"
- │   │   │   │                               └─ StylingValue_c2 100
+ │   │   │   │                               ├─ StylingValue_c1 96
+ │   │   │   │                               ├─ StylingValue_c2 96
+ │   │   │   │                               ├─ StylingValue_c3 96
+ │   │   │   │                               ├─ StylingValue_c4 [96..100]
+ │   │   │   │                               │   └─ StylingValueContent [96..100]
+ │   │   │   │                               │       └─ StylingValueContent_c1 [96..100]
+ │   │   │   │                               │           └─ StylingStringIdentifier [96..100]: "bold"
+ │   │   │   │                               ├─ StylingValue_c5 100
+ │   │   │   │                               ├─ StylingValue_c6 100
+ │   │   │   │                               └─ StylingValue_c7 100
  │   │   │   └─ LuauStructBodyLine_c3 100
  │   │   │       └─ LuauStructBodyLine_c3 100
  │   │   │           └─ OptionalWhitespace 100
@@ -267,28 +281,35 @@ sparkdown [0..169]
  │   │   │   │               │           └─ Separator [143..144]: " "
  │   │   │   │               └─ LuauStructArrayItem_c3 [144..152]
  │   │   │   │                   └─ StylingValue [144..152]
- │   │   │   │                       ├─ StylingValue_c1 [144..152]
- │   │   │   │                       │   └─ StylingFunction [144..152]
- │   │   │   │                       │       ├─ StylingFunction_begin [144..147]
- │   │   │   │                       │       │   ├─ StylingFunction_begin_c1 [144..147]
- │   │   │   │                       │       │   │   └─ StylingFunctionName [144..147]: "url"
- │   │   │   │                       │       │   └─ StylingFunction_begin_c2 147
- │   │   │   │                       │       ├─ StylingFunction_content [147..152]
- │   │   │   │                       │       │   └─ StylingFunctionParameters [147..152]
- │   │   │   │                       │       │       ├─ StylingFunctionParameters_begin [147..148]
- │   │   │   │                       │       │       │   ├─ StylingFunctionParameters_begin_c1 [147..148]
- │   │   │   │                       │       │       │   │   └─ PunctuationParenOpen [147..148]: "("
- │   │   │   │                       │       │       │   └─ StylingFunctionParameters_begin_c2 148
- │   │   │   │                       │       │       ├─ StylingFunctionParameters_content [148..151]
- │   │   │   │                       │       │       │   ├─ ParameterStringIdentifier [148..149]: "a"
- │   │   │   │                       │       │       │   ├─ UnquotedChar [149..150]: "="
- │   │   │   │                       │       │       │   └─ ParameterStringIdentifier [150..151]: "b"
- │   │   │   │                       │       │       └─ StylingFunctionParameters_end [151..152]
- │   │   │   │                       │       │           ├─ StylingFunctionParameters_end_c1 151
- │   │   │   │                       │       │           └─ StylingFunctionParameters_end_c2 [151..152]
- │   │   │   │                       │       │               └─ PunctuationParenClose [151..152]: ")"
- │   │   │   │                       │       └─ StylingFunction_end 152
- │   │   │   │                       └─ StylingValue_c2 152
+ │   │   │   │                       ├─ StylingValue_c1 144
+ │   │   │   │                       ├─ StylingValue_c2 144
+ │   │   │   │                       ├─ StylingValue_c3 144
+ │   │   │   │                       ├─ StylingValue_c4 [144..152]
+ │   │   │   │                       │   └─ StylingValueContent [144..152]
+ │   │   │   │                       │       └─ StylingValueContent_c1 [144..152]
+ │   │   │   │                       │           └─ StylingFunction [144..152]
+ │   │   │   │                       │               ├─ StylingFunction_begin [144..147]
+ │   │   │   │                       │               │   ├─ StylingFunction_begin_c1 [144..147]
+ │   │   │   │                       │               │   │   └─ StylingFunctionName [144..147]: "url"
+ │   │   │   │                       │               │   └─ StylingFunction_begin_c2 147
+ │   │   │   │                       │               ├─ StylingFunction_content [147..152]
+ │   │   │   │                       │               │   └─ StylingFunctionParameters [147..152]
+ │   │   │   │                       │               │       ├─ StylingFunctionParameters_begin [147..148]
+ │   │   │   │                       │               │       │   ├─ StylingFunctionParameters_begin_c1 [147..148]
+ │   │   │   │                       │               │       │   │   └─ PunctuationParenOpen [147..148]: "("
+ │   │   │   │                       │               │       │   └─ StylingFunctionParameters_begin_c2 148
+ │   │   │   │                       │               │       ├─ StylingFunctionParameters_content [148..151]
+ │   │   │   │                       │               │       │   ├─ ParameterStringIdentifier [148..149]: "a"
+ │   │   │   │                       │               │       │   ├─ UnquotedChar [149..150]: "="
+ │   │   │   │                       │               │       │   └─ ParameterStringIdentifier [150..151]: "b"
+ │   │   │   │                       │               │       └─ StylingFunctionParameters_end [151..152]
+ │   │   │   │                       │               │           ├─ StylingFunctionParameters_end_c1 151
+ │   │   │   │                       │               │           └─ StylingFunctionParameters_end_c2 [151..152]
+ │   │   │   │                       │               │               └─ PunctuationParenClose [151..152]: ")"
+ │   │   │   │                       │               └─ StylingFunction_end 152
+ │   │   │   │                       ├─ StylingValue_c5 152
+ │   │   │   │                       ├─ StylingValue_c6 152
+ │   │   │   │                       └─ StylingValue_c7 152
  │   │   │   └─ LuauStructBodyLine_c3 152
  │   │   │       └─ LuauStructBodyLine_c3 152
  │   │   │           └─ OptionalWhitespace 152
@@ -311,9 +332,16 @@ sparkdown [0..169]
  │   │   │   │               │           └─ Separator [158..159]: " "
  │   │   │   │               └─ LuauStructArrayItem_c3 [159..164]
  │   │   │   │                   └─ StylingValue [159..164]
- │   │   │   │                       ├─ StylingValue_c1 [159..164]
- │   │   │   │                       │   └─ StylingStringIdentifier [159..164]: "plain"
- │   │   │   │                       └─ StylingValue_c2 164
+ │   │   │   │                       ├─ StylingValue_c1 159
+ │   │   │   │                       ├─ StylingValue_c2 159
+ │   │   │   │                       ├─ StylingValue_c3 159
+ │   │   │   │                       ├─ StylingValue_c4 [159..164]
+ │   │   │   │                       │   └─ StylingValueContent [159..164]
+ │   │   │   │                       │       └─ StylingValueContent_c1 [159..164]
+ │   │   │   │                       │           └─ StylingStringIdentifier [159..164]: "plain"
+ │   │   │   │                       ├─ StylingValue_c5 164
+ │   │   │   │                       ├─ StylingValue_c6 164
+ │   │   │   │                       └─ StylingValue_c7 164
  │   │   │   └─ LuauStructBodyLine_c3 164
  │   │   │       └─ LuauStructBodyLine_c3 164
  │   │   │           └─ OptionalWhitespace 164
