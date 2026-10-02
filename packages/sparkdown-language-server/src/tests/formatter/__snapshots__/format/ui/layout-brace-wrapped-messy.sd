@@ -1,0 +1,32 @@
+store score = 0
+store combo = 0
+
+layout popup with
+      button
+  .fancy
+            #bg-color=green
+ "Okay"
+      @click={
+  score = 0
+          combo = 0
+}
+        {
+ text "Confirm"
+      }
+      column{
+      text
+  .title
+          "Inventory"
+ button "Go" @click={
+if score > 0 then
+  combo = combo + 1
+        end
+      } "Done"
+            dropdown
+  #value={score}
+        @change={score = event.value}
+      {
+  option "Easy"
+            }
+}
+end

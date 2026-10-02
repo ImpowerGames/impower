@@ -1,0 +1,31 @@
+store busy = false
+store done = false
+store mode = 1
+store items = {}
+
+layout inventory with
+  column.panel {
+    if busy then
+      text "busy"
+    elseif done then
+      row.done { text "done" }
+    else
+      text "idle"
+    end
+    for item in items do
+      row.item {
+        text "{item}"
+      }
+    else
+      text.empty "Your bag is empty."
+    end
+    match mode do
+      case 1
+        row.one {
+          text "one"
+        }
+      else
+        text "other"
+    end
+  }
+end

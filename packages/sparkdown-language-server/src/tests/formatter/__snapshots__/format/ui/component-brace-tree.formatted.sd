@@ -1,0 +1,9 @@
+component card(title) with
+  column.card {
+    text.title "{title}"
+    row.body { slot }
+    fill footer {
+      text "footer"
+    }
+  }
+end

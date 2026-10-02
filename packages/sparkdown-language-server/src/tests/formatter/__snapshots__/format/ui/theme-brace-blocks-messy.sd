@@ -1,0 +1,11 @@
+theme dusk with
+    colors{
+primary = red
+          surface = "#101010"
+  }
+    fonts{"Courier Prime";serif}
+    spacing   {
+  small = 4px
+            large{inner = 8px;   outer = 16px}
+}
+end

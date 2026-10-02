@@ -1,9 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { formatSource } from "./formatSource";
 
-// #1224 reads brace blocks in `layout` and `component` bodies; formatting them
-// by brace depth comes later (#1227). Until then the formatter must not change
-// what such a body means.
+// #1224 reads brace blocks in `layout` and `component` bodies, and #1227
+// formats them by brace depth. The formatter must not change what such a body
+// means.
 
 describe("formatting a layout body written with brace blocks", () => {
   test("well-formed source round-trips unchanged", () => {
@@ -39,7 +39,7 @@ end
   });
 
   test("an element whose parts go on over later lines round-trips unchanged", () => {
-    // #1225. Indenting continuation lines is the formatter slice's (#1227).
+    // #1225; #1227 indents a continuation line one level past its element.
     const source = `layout popup with
   button
     .fancy
@@ -100,7 +100,7 @@ end
 `);
   });
 
-  test("lines inside a block keep their indentation, and the lines after it keep their level", () => {
+  test("lines inside a block indent by its braces, and the lines after it keep their level", () => {
     const source = `layout hud with
       column.panel {
 text.title "Inventory"
@@ -112,14 +112,15 @@ text.title "Inventory"
       mask.shadow_1
 end
 `;
-    // Only the block's header line, which sits among the body's indented
-    // lines, is re-indented. `stage` stays a sibling of `column.panel`.
+    // The block's header line sits among the body's indented lines and takes
+    // its level from them; the lines inside it take their depth from its
+    // braces (#1227). `stage` stays a sibling of `column.panel`.
     expect(formatSource(source)).toBe(`layout hud with
   column.panel {
-text.title "Inventory"
-          row.item {
-   text "a"
-        }
+    text.title "Inventory"
+    row.item {
+      text "a"
+    }
   }
   stage:
     mask.shadow_1
