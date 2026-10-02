@@ -1,0 +1,100 @@
+sparkdown [0..54]
+ ├─ LuauLayout [0..35]
+ │   ├─ LuauLayout_begin [0..7]
+ │   │   ├─ LuauLayout_begin_c1 0
+ │   │   │   └─ OptionalWhitespace 0
+ │   │   ├─ LuauLayout_begin_c2 [0..6]
+ │   │   │   └─ LuauLayoutKeyword [0..6]: "layout"
+ │   │   └─ LuauLayout_begin_c3 [6..7]
+ │   │       └─ LuauLayout_begin_c3 [6..7]
+ │   │           └─ OptionalWhitespace [6..7]: " "
+ │   ├─ LuauLayout_content [7..32]
+ │   │   ├─ LuauLayoutNameAndInheritance [7..16]
+ │   │   │   ├─ LuauLayoutNameAndInheritance_begin [7..11]
+ │   │   │   │   └─ LuauLayoutNameAndInheritance_begin_c1 [7..11]
+ │   │   │   │       └─ LuauDefineName [7..11]: "main"
+ │   │   │   └─ LuauLayoutNameAndInheritance_end [11..16]
+ │   │   │       ├─ LuauLayoutNameAndInheritance_end_c1 [11..12]
+ │   │   │       │   └─ LuauLayoutNameAndInheritance_end_c1 [11..12]
+ │   │   │       │       └─ OptionalWhitespace [11..12]: " "
+ │   │   │       └─ LuauLayoutNameAndInheritance_end_c2 [12..16]
+ │   │   │           └─ LuauWithKeyword [12..16]: "with"
+ │   │   ├─ Newline [16..17]: "\n"
+ │   │   ├─ LuauStructBodyLine [17..22]
+ │   │   │   ├─ LuauStructBodyLine_c1 [17..19]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [17..19]
+ │   │   │   │       └─ OptionalWhitespace [17..19]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [19..22]
+ │   │   │   │   └─ LuauStructBodyContent [19..22]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [19..22]
+ │   │   │   │           └─ LuauStructBareMarker [19..22]
+ │   │   │   │               ├─ LuauStructBareMarker_c1 19
+ │   │   │   │               │   └─ OptionalWhitespace 19
+ │   │   │   │               ├─ LuauStructBareMarker_c2 [19..22]
+ │   │   │   │               │   └─ CustomComponentName [19..22]: "div"
+ │   │   │   │               ├─ LuauStructBareMarker_c3 22
+ │   │   │   │               │   └─ LuauStructBareMarker_c3 22
+ │   │   │   │               │       └─ OptionalWhitespace 22
+ │   │   │   │               └─ LuauStructBareMarker_c4 22
+ │   │   │   └─ LuauStructBodyLine_c3 22
+ │   │   │       └─ LuauStructBodyLine_c3 22
+ │   │   │           └─ OptionalWhitespace 22
+ │   │   ├─ Newline [22..23]: "\n"
+ │   │   ├─ LuauLayoutNameAndInheritance [23..24]
+ │   │   │   ├─ LuauLayoutNameAndInheritance_begin [23..24]
+ │   │   │   │   └─ LuauLayoutNameAndInheritance_begin_c1 [23..24]
+ │   │   │   │       └─ LuauDefineName [23..24]: "x"
+ │   │   │   └─ LuauLayoutNameAndInheritance_end 24
+ │   │   │       ├─ LuauLayoutNameAndInheritance_end_c1 24
+ │   │   │       └─ LuauLayoutNameAndInheritance_end_c2 24
+ │   │   ├─ Newline [24..25]: "\n"
+ │   │   ├─ LuauStructBodyLine [25..31]
+ │   │   │   ├─ LuauStructBodyLine_c1 [25..27]
+ │   │   │   │   └─ LuauStructBodyLine_c1 [25..27]
+ │   │   │   │       └─ OptionalWhitespace [25..27]: "  "
+ │   │   │   ├─ LuauStructBodyLine_c2 [27..31]
+ │   │   │   │   └─ LuauStructBodyContent [27..31]
+ │   │   │   │       └─ LuauStructBodyContent_c1 [27..31]
+ │   │   │   │           └─ LuauStructBareMarker [27..31]
+ │   │   │   │               ├─ LuauStructBareMarker_c1 27
+ │   │   │   │               │   └─ OptionalWhitespace 27
+ │   │   │   │               ├─ LuauStructBareMarker_c2 [27..31]
+ │   │   │   │               │   └─ BuiltinComponentName [27..31]: "span"
+ │   │   │   │               ├─ LuauStructBareMarker_c3 31
+ │   │   │   │               │   └─ LuauStructBareMarker_c3 31
+ │   │   │   │               │       └─ OptionalWhitespace 31
+ │   │   │   │               └─ LuauStructBareMarker_c4 31
+ │   │   │   └─ LuauStructBodyLine_c3 31
+ │   │   │       └─ LuauStructBodyLine_c3 31
+ │   │   │           └─ OptionalWhitespace 31
+ │   │   └─ Newline [31..32]: "\n"
+ │   └─ LuauLayout_end [32..35]
+ │       ├─ LuauLayout_end_c1 32
+ │       │   └─ LuauLayout_end_c1 32
+ │       │       └─ OptionalWhitespace 32
+ │       └─ LuauLayout_end_c2 [32..35]
+ │           └─ LuauEndKeyword [32..35]: "end"
+ ├─ Newline [35..36]: "\n"
+ ├─ ImplicitAction [36..53]
+ │   ├─ ImplicitAction_begin 36
+ │   │   └─ ImplicitAction_begin_c1 36
+ │   │       └─ OptionalWhitespace 36
+ │   ├─ ImplicitAction_content [36..53]
+ │   │   └─ LineEnd [36..53]
+ │   │       ├─ LineEnd_begin 36
+ │   │       │   └─ LineEnd_begin_c1 36
+ │   │       │       └─ OptionalWhitespace 36
+ │   │       ├─ LineEnd_content [36..53]
+ │   │       │   └─ TextChunk [36..53]
+ │   │       │       ├─ TextChunk_begin 36
+ │   │       │       ├─ TextChunk_content [36..53]
+ │   │       │       │   ├─ Word [36..41]: "After"
+ │   │       │       │   ├─ Space [41..42]: " "
+ │   │       │       │   ├─ Word [42..45]: "the"
+ │   │       │       │   ├─ Space [45..46]: " "
+ │   │       │       │   ├─ Word [46..52]: "layout"
+ │   │       │       │   └─ Punctuation [52..53]: "."
+ │   │       │       └─ TextChunk_end 53
+ │   │       └─ LineEnd_end 53
+ │   └─ ImplicitAction_end 53
+ └─ Newline [53..54]: "\n"

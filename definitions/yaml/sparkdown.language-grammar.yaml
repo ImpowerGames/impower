@@ -6926,10 +6926,11 @@ repository:
           - { include: "#OptionalWhitespace" }
     patterns:
       - { include: "#LuauComment" }
-      - { include: "#LuauComponentNameAndInheritance" }
       - { include: "#LuauSparkleControlBlock" }
       - { include: "#LuauSparkleBlockLine" }
       - { include: "#LuauStructBodyLine" }
+      # After the body-line and control rules: see LuauLayout.
+      - { include: "#LuauComponentNameAndInheritance" }
       - { include: "#ExtraWhitespace" }
       - { include: "#Newline" }
     end: (?={{BEAT}})|({{WS}}*)(end)\b
@@ -6977,8 +6978,9 @@ repository:
   # screen header; the optional `(params)` reuses LuauFunctionParameters (spec
   # §4.7 — `component card(title) with …`), so param names tokenize as
   # LuauFunctionParameter and the lowerer reads them into ComponentNode.params.
+  # Begins and ends as LuauStyleNameAndInheritance does.
   LuauComponentNameAndInheritance:
-    begin: (?<=component\b{{WS}}*)({{LUAU_IDENTIFIER}})
+    begin: ({{LUAU_IDENTIFIER}})
     beginCaptures:
       1:
         patterns:
@@ -6987,7 +6989,7 @@ repository:
       - { include: "#LuauFunctionParameters" }
       - { include: "#LuauInheritanceOperation" }
       - { include: "#ExtraWhitespace" }
-    end: (?={{BEAT}})|({{WS}}*)(with)\b
+    end: (?={{BEAT}}|$)|({{WS}}*)(with)\b
     endCaptures:
       1:
         emit: true
